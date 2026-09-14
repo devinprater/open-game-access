@@ -57,6 +57,10 @@ jobs:
         working-directory: frontend
         run: |
           echo "sdk.dir=$ANDROID_HOME" > local.properties
+          # The upstream clone does not preserve the executable bit on gradlew
+          # (it is checked in via git but arrives mode 644 through some checkouts),
+          # so invoking it directly fails with "Permission denied" / exit 126.
+          chmod +x ./gradlew
           ./gradlew :app:assembleGitHubProdDebug --no-daemon
 
       - name: Verify the APK carries the accessibility scripts
