@@ -13,9 +13,9 @@ for f in bios7.bin bios9.bin firmware.bin; do
 done
 ls -la "$HOME/ds-bios/"
 
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/fwtest.cpp" Core/
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/pokecore.cpp" Core/
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Sources/CPokeCore/include/pokecore.h" Sources/CPokeCore/include/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/fwtest.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/pokecore.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Sources/CPokeCore/include/pokecore.h" Sources/CPokeCore/include/
 
 # rebuild pokecore (it changed)
 g++ -O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything \
@@ -28,7 +28,7 @@ g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   | grep -E '\berror\b|undefined reference' | head -8
 echo "fwtest linked: $([ -x Vendor/fwtest ] && echo yes || echo NO)"
 
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 echo
 echo "############ WITH REAL FIRMWARE + BIOS ############"
 timeout 300 ./Vendor/fwtest "$HOME/hosttest-data/black.nds" \

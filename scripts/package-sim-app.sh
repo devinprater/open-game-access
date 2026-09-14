@@ -18,9 +18,9 @@ ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 # verify-sim-app.sh because both must answer "simulator or device?" and the first
 # inline version only knew about llvm-objdump, which macOS runners do not have.
 . "$ROOT/scripts/lib-macho.sh"
-APP="$ROOT/xtool-sim/PokemonAccess.app"
-BIN="$ROOT/.build/arm64-apple-ios-simulator/debug/PokemonAccess-App"
-BUNDLE_ID="com.devinprater.pokemonaccess"
+APP="$ROOT/xtool-sim/OpenGameAccess.app"
+BIN="$ROOT/.build/arm64-apple-ios-simulator/debug/OpenGameAccess-App"
+BUNDLE_ID="com.devinprater.opengameaccess"
 TRIPLE="${TRIPLE:-arm64-apple-ios-simulator}"
 
 if [ ! -f "$BIN" ]; then
@@ -50,9 +50,9 @@ fi
 # for it before falling back to swift build.
 if [ ! -f "$BIN" ]; then
   for cand in \
-    "$ROOT/.build/$TRIPLE/debug/PokemonAccess-App" \
-    "$ROOT/.build/arm64-apple-ios-simulator/debug/PokemonAccess-App" \
-    "$ROOT/.build/arm64-apple-ios17.0-simulator/debug/PokemonAccess-App"
+    "$ROOT/.build/$TRIPLE/debug/OpenGameAccess-App" \
+    "$ROOT/.build/arm64-apple-ios-simulator/debug/OpenGameAccess-App" \
+    "$ROOT/.build/arm64-apple-ios17.0-simulator/debug/OpenGameAccess-App"
   do
     [ -f "$cand" ] && BIN="$cand" && break
   done
@@ -100,7 +100,7 @@ PYJSON
   swift build --destination "$DEST_JSON" -c debug 2>&1 | tail -25 || true
 fi
 
-# ⛔ NEVER take the first file named PokemonAccess-App. A `.dSYM/.../DWARF/`
+# ⛔ NEVER take the first file named OpenGameAccess-App. A `.dSYM/.../DWARF/`
 # companion file has the same name and IS a valid Mach-O, so a naive `find | head -1`
 # happily packages debug symbols as the app — and since the device build is usually
 # present too, the result was a 41 MB bundle reported as "platform ios", i.e. a
@@ -109,9 +109,9 @@ fi
 pick_sim_binary() {
   local cand plat
   for cand in \
-    "$ROOT/.build/$TRIPLE/debug/PokemonAccess-App" \
-    "$ROOT/.build/arm64-apple-ios-simulator/debug/PokemonAccess-App" \
-    "$ROOT/.build/arm64-apple-ios17.0-simulator/debug/PokemonAccess-App"
+    "$ROOT/.build/$TRIPLE/debug/OpenGameAccess-App" \
+    "$ROOT/.build/arm64-apple-ios-simulator/debug/OpenGameAccess-App" \
+    "$ROOT/.build/arm64-apple-ios17.0-simulator/debug/OpenGameAccess-App"
   do
     [ -f "$cand" ] || continue
     case "$cand" in *.dSYM/*) continue ;; esac
@@ -119,8 +119,8 @@ pick_sim_binary() {
     if [ "$plat" = "iossimulator" ]; then echo "$cand"; return 0; fi
   done
   # xtool may only leave the binary inside its own bundle; fall back to that.
-  for cand in "$ROOT/xtool-sim/PokemonAccess.app/PokemonAccess" \
-              "$ROOT/xtool/PokemonAccess.app/PokemonAccess"; do
+  for cand in "$ROOT/xtool-sim/OpenGameAccess.app/OpenGameAccess" \
+              "$ROOT/xtool/OpenGameAccess.app/OpenGameAccess"; do
     [ -f "$cand" ] || continue
     plat="$(macho_platform "$cand")"
     if [ "$plat" = "iossimulator" ]; then echo "$cand"; return 0; fi
@@ -136,7 +136,7 @@ if [ ! -f "$BIN" ]; then
   else
     echo "!! no simulator-platform binary found (detection tools present:$(macho_platform_tools))" >&2
     echo "   candidates the build produced:" >&2
-    find "$ROOT/.build" "$ROOT/xtool" "$ROOT/xtool-sim" -name 'PokemonAccess*' -type f 2>/dev/null \
+    find "$ROOT/.build" "$ROOT/xtool" "$ROOT/xtool-sim" -name 'OpenGameAccess*' -type f 2>/dev/null \
       | head -8 | while read -r f; do
           echo "     $f  [$(macho_platform "$f")]" >&2
         done
@@ -169,19 +169,19 @@ esac
 
 rm -rf "$APP"
 mkdir -p "$APP"
-cp "$BIN" "$APP/PokemonAccess"
+cp "$BIN" "$APP/OpenGameAccess"
 
 # The SwiftPM resource bundle travels with the app: it holds the Lua script, so an
 # app assembled without it installs and then finds no script.
 RES=""
-for cand in "$ROOT/.build/arm64-apple-ios-simulator/debug/PokemonAccess_PokemonAccess.bundle" \
-            "$ROOT/.build"/*/debug/PokemonAccess_PokemonAccess.bundle; do
+for cand in "$ROOT/.build/arm64-apple-ios-simulator/debug/OpenGameAccess_OpenGameAccess.bundle" \
+            "$ROOT/.build"/*/debug/OpenGameAccess_OpenGameAccess.bundle; do
   [ -d "$cand" ] && { RES="$cand"; break; }
 done
 if [ -n "$RES" ]; then
   cp -R "$RES" "$APP/"
-  echo "== resources: $(find "$APP/PokemonAccess_PokemonAccess.bundle" -type f | wc -l) files"
-  ls "$APP/PokemonAccess_PokemonAccess.bundle/Resources/" 2>/dev/null
+  echo "== resources: $(find "$APP/OpenGameAccess_OpenGameAccess.bundle" -type f | wc -l) files"
+  ls "$APP/OpenGameAccess_OpenGameAccess.bundle/Resources/" 2>/dev/null
 else
   echo "!! no resource bundle — the Lua script would be missing from the app" >&2
   exit 1
@@ -194,10 +194,10 @@ cat > "$APP/Info.plist" <<PLIST
 <dict>
 	<key>CFBundleDevelopmentRegion</key><string>en</string>
 	<key>CFBundleDisplayName</key><string>Open Game Access</string>
-	<key>CFBundleExecutable</key><string>PokemonAccess</string>
+	<key>CFBundleExecutable</key><string>OpenGameAccess</string>
 	<key>CFBundleIdentifier</key><string>$BUNDLE_ID</string>
 	<key>CFBundleInfoDictionaryVersion</key><string>6.0</string>
-	<key>CFBundleName</key><string>PokemonAccess</string>
+	<key>CFBundleName</key><string>OpenGameAccess</string>
 	<key>CFBundlePackageType</key><string>APPL</string>
 	<key>CFBundleShortVersionString</key><string>0.1.0</string>
 	<key>CFBundleVersion</key><string>1</string>
@@ -223,8 +223,8 @@ PLIST
 
 # Optional ad-hoc signature; a simulator does not enforce it, but signing makes the
 # bundle acceptable to stricter installers.
-/usr/local/swift/bin/ldid -S "$APP/PokemonAccess" 2>/dev/null || \
-  command -v ldid >/dev/null 2>&1 && ldid -S "$APP/PokemonAccess" 2>/dev/null || \
+/usr/local/swift/bin/ldid -S "$APP/OpenGameAccess" 2>/dev/null || \
+  command -v ldid >/dev/null 2>&1 && ldid -S "$APP/OpenGameAccess" 2>/dev/null || \
   echo "(unsigned — fine for a simulator)"
 
 echo
@@ -243,17 +243,17 @@ done
 [ -z "$NM_BIN" ] && NM_BIN="$(command -v nm || echo nm)"
 
 echo "--- total symbols ---"
-"$NM_BIN" "$APP/PokemonAccess" 2>/dev/null | wc -l
+"$NM_BIN" "$APP/OpenGameAccess" 2>/dev/null | wc -l
 echo "--- core linked in? (melonDS symbols) ---"
-"$NM_BIN" "$APP/PokemonAccess" 2>/dev/null | grep -ci melonds || true
+"$NM_BIN" "$APP/OpenGameAccess" 2>/dev/null | grep -ci melonds || true
 echo "--- poke_ entry points ---"
-"$NM_BIN" "$APP/PokemonAccess" 2>/dev/null | grep -c 'poke_' || true
+"$NM_BIN" "$APP/OpenGameAccess" 2>/dev/null | grep -c 'poke_' || true
 echo "--- script hashes (must equal the originals) ---"
-shasum -a 256 "$APP/PokemonAccess_PokemonAccess.bundle/Resources/"*.lua 2>/dev/null || \
-  sha256sum "$APP/PokemonAccess_PokemonAccess.bundle/Resources/"*.lua 2>/dev/null
+shasum -a 256 "$APP/OpenGameAccess_OpenGameAccess.bundle/Resources/"*.lua 2>/dev/null || \
+  sha256sum "$APP/OpenGameAccess_OpenGameAccess.bundle/Resources/"*.lua 2>/dev/null
 
 echo "--- zip for a simulator service ---"
 cd "$ROOT/xtool-sim"
-rm -f PokemonAccess-simulator.zip
-zip -qr PokemonAccess-simulator.zip PokemonAccess.app
-ls -la PokemonAccess-simulator.zip
+rm -f OpenGameAccess-simulator.zip
+zip -qr OpenGameAccess-simulator.zip OpenGameAccess.app
+ls -la OpenGameAccess-simulator.zip

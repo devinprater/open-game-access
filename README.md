@@ -130,7 +130,7 @@ NOT third-party code — credit and licence are the author's.** Attribution here
 by request and is not a claim of ownership by this project:
 
 - **Nintendo DS reader** — `main.lua`, the "Pokémon Access" loader. Bundled at
-  `Sources/PokemonAccess/Resources/main.lua` (byte-identical to the original,
+  `Sources/OpenGameAccess/Resources/main.lua` (byte-identical to the original,
   sha256 `abb73784…649c`). Its header credits Ola and the Pokémon Access project.
   The desktop predecessor and the sibling Game Boy/GBA branch:
   <https://github.com/nuive/pokemon-access>

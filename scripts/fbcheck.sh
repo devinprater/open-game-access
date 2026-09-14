@@ -68,5 +68,5 @@ g++ -O2 -g -ISources/CPokeCore/include -o Vendor/fbcheck Core/fbcheck.c \
     Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 | grep -E '\berror\b|undefined' | head -5
 echo "linked: $([ -x Vendor/fbcheck ] && echo yes || echo NO)"
 
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 timeout 300 ./Vendor/fbcheck "$HOME/hosttest-data/black.nds" 40000 2>&1 | tail -30

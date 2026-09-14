@@ -18,9 +18,9 @@ g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   | grep -E '\berror\b|undefined reference' | head -8
 [ -x Vendor/simboot ] || { echo "!! simboot did not link"; exit 1; }
 
-cat Sources/PokemonAccess/Resources/bizhawk_compat.lua > /tmp/combined.lua
+cat Sources/OpenGameAccess/Resources/bizhawk_compat.lua > /tmp/combined.lua
 printf '\n' >> /tmp/combined.lua
-cat Sources/PokemonAccess/Resources/main.lua >> /tmp/combined.lua
+cat Sources/OpenGameAccess/Resources/main.lua >> /tmp/combined.lua
 export PA_SCRIPT=/tmp/combined.lua
 
 echo

@@ -5,7 +5,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/pokecore.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/pokecore.cpp" Core/
 
 # 1. rebuild pokecore
 g++ -O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything \
@@ -28,5 +28,5 @@ echo "###### timings after the fix ######"
 
 echo
 echo "###### speed ######"
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 timeout 90 ./Vendor/instrrate "$HOME/hosttest-data/black.nds" 2>&1 | tail -8

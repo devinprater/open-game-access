@@ -17,9 +17,9 @@
 # loaded the app shows SetupPanel by design, not the Controls a player would hear.
 set -uo pipefail
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-APP="${APP:-$ROOT/xtool-sim/PokemonAccess.app}"
+APP="${APP:-$ROOT/xtool-sim/OpenGameAccess.app}"
 DEVICE="${DEVICE:-iPhone 16}"
-BUNDLE_ID="com.devinprater.pokemonaccess"
+BUNDLE_ID="com.devinprater.opengameaccess"
 EVID="${EVID:-/tmp}"
 
 command -v xcrun >/dev/null 2>&1 || { echo "!! xcrun not found — this test needs macOS" >&2; exit 1; }
@@ -106,9 +106,9 @@ echo "== crash reports =="
 CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
 CRASHED=0
 # shellcheck disable=SC2086
-if ls "$CRASH_DIR"/PokemonAccess* >/dev/null 2>&1; then
+if ls "$CRASH_DIR"/OpenGameAccess* >/dev/null 2>&1; then
   echo "!! crash reports present:"
-  ls -la "$CRASH_DIR"/PokemonAccess* | tail -5
+  ls -la "$CRASH_DIR"/OpenGameAccess* | tail -5
   CRASHED=1
 else
   echo "  none on the host"
@@ -120,7 +120,7 @@ fi
 # stayed alive — a false negative on the whole job. Only files naming our app count.
 SIMCRASH="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/Logs/CrashReporter"
 if [ -d "$SIMCRASH" ]; then
-  HITS="$(find "$SIMCRASH" -type f \( -iname 'PokemonAccess*' -o -iname '*pokemonaccess*' \) 2>/dev/null)"
+  HITS="$(find "$SIMCRASH" -type f \( -iname 'OpenGameAccess*' -o -iname '*pokemonaccess*' \) 2>/dev/null)"
   if [ -n "$HITS" ]; then
     echo "!! simulator crash logs naming the app:"
     echo "$HITS" | sed 's/^/     /'

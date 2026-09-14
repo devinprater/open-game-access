@@ -20,7 +20,7 @@ struct RootView: View {
                     SetupPanel()
                 }
             }
-            .navigationTitle("Pokémon Access")
+            .navigationTitle("Open Game Access")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
@@ -119,7 +119,7 @@ private struct SetupPanel: View {
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
             .buttonStyle(.borderedProminent)
-            .accessibilityHint("Opens the file picker. Choose a Pokémon Black or White ROM.")
+            .accessibilityHint("Opens the file picker. Choose a supported game.")
 
             Button {
                 session.start()
@@ -227,7 +227,7 @@ private struct AccessibilityKeys: View {
             }
             HStack(spacing: 6) {
                 HotkeyButton("Enemy HP", key: "H", hint: "Reads the opponent's health in a battle. Key H.")
-                HotkeyButton("My HP", key: "N", hint: "Reads your Pokémon's health in a battle. Key N.")
+                HotkeyButton("My HP", key: "N", hint: "Reads your character's health in a battle. Key N.")
                 HotkeyButton("Text", key: "T", hint: "Reads the text currently on screen. Key T.")
             }
             HStack(spacing: 6) {

@@ -10,8 +10,8 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SDK="$HOME/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk"
 BIN_DIR="$ROOT/.build/arm64-apple-ios-simulator/debug"
-BIN="$BIN_DIR/PokemonAccess-App"
-HIDE="$BIN_DIR/PokemonAccess-App.hidden"
+BIN="$BIN_DIR/OpenGameAccess-App"
+HIDE="$BIN_DIR/OpenGameAccess-App.hidden"
 
 [ -d "$SDK" ] || { echo "!! no SDK at $SDK" >&2; exit 1; }
 

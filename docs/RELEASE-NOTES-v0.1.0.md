@@ -10,7 +10,7 @@ mainstream games, built on semantic game-state inspection rather than pixels.
 
 | Platform | File | Notes |
 |---|---|---|
-| **iOS** | `PokemonAccess-simulator.zip` | iOS Simulator `.app`. Unzip, then `xcrun simctl install booted PokemonAccess.app`. Requires macOS to *run*; the bundle itself is unsigned and needs no Apple account. |
+| **iOS** | `OpenGameAccess-simulator.zip` | iOS Simulator `.app`. Unzip, then `xcrun simctl install booted OpenGameAccess.app`. Requires macOS to *run*; the bundle itself is unsigned and needs no Apple account. |
 | **Android** | `app-*-debug.apk` | Debug-signed, sideloadable. Install directly on the device. |
 
 **On iOS device installs:** this release does not ship a ready-to-install `.ipa`.

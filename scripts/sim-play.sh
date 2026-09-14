@@ -8,9 +8,9 @@ FRAMES="${1:-40000}"
 cd "$ROOT" || exit 1
 
 for f in pokecore.cpp poke_platform.cpp simrun.cpp simplay.cpp; do
-  cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/$f" Core/ 2>/dev/null
+  cp "/mnt/c/Users/Devin Prater/open-game-access/Core/$f" Core/ 2>/dev/null
 done
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Sources/CPokeCore/include/pokecore.h" Sources/CPokeCore/include/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Sources/CPokeCore/include/pokecore.h" Sources/CPokeCore/include/
 
 g++ -O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything \
   -ICore -ISources/CPokeCore/include -I"$SRC" -I"$HOME/src/lua-5.4.7/src" -I"$SRC/teakra/include" \
@@ -23,9 +23,9 @@ g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
 [ -x Vendor/simplay ] || { echo "!! did not link"; exit 1; }
 echo "simplay: linked"
 
-cat Sources/PokemonAccess/Resources/bizhawk_compat.lua > /tmp/combined.lua
+cat Sources/OpenGameAccess/Resources/bizhawk_compat.lua > /tmp/combined.lua
 printf '\n' >> /tmp/combined.lua
-cat Sources/PokemonAccess/Resources/main.lua >> /tmp/combined.lua
+cat Sources/OpenGameAccess/Resources/main.lua >> /tmp/combined.lua
 
 export PA_SCRIPT=/tmp/combined.lua
 echo

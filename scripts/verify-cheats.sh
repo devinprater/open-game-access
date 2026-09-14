@@ -15,7 +15,7 @@ g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   -o Vendor/ramwatch Core/ramwatch.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -8
 [ -x Vendor/ramwatch ] || { echo "!! ramwatch did not link"; exit 1; }
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 mkdir -p "$ROOT/ramwatch"
 FRAMES="${FRAMES:-5000}"
 

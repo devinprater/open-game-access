@@ -12,7 +12,7 @@ g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   | grep -E '\berror\b|undefined reference' | head -8
 [ -x Vendor/joytest ] || { echo "!! joytest did not link"; exit 1; }
 
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 echo
 timeout 200 ./Vendor/joytest "$HOME/hosttest-data/black.nds" 2>&1 | tail -30
 echo "EXIT=${PIPESTATUS[0]}"

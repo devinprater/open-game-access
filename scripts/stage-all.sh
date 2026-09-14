@@ -14,10 +14,10 @@ bash "$HERE/stage-repo.sh"
 
 echo
 echo "######## 2. add .gitignore, LICENSE, workflows ########"
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/.gitignore" "$OUT/"
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/LICENSE"    "$OUT/"
+cp "/mnt/c/Users/Devin Prater/open-game-access/.gitignore" "$OUT/"
+cp "/mnt/c/Users/Devin Prater/open-game-access/LICENSE"    "$OUT/"
 mkdir -p "$OUT/.github/workflows"
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/.github/workflows/"*.yml "$OUT/.github/workflows/"
+cp "/mnt/c/Users/Devin Prater/open-game-access/.github/workflows/"*.yml "$OUT/.github/workflows/"
 
 echo
 echo "######## 3. the Game Boy / GBC / GBA script set ########"
@@ -32,7 +32,7 @@ fi
 
 echo
 echo "######## 4. guard ########"
-bash "/mnt/c/Users/Devin Prater/pokemon-access-ios/scripts/check-no-roms.sh" "$OUT"
+bash "/mnt/c/Users/Devin Prater/open-game-access/scripts/check-no-roms.sh" "$OUT"
 
 echo
 echo "######## result ########"

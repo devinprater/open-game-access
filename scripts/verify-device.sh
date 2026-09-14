@@ -24,17 +24,17 @@ echo "== xtool dev build (device triple) =="
 timeout 900 xtool dev build 2>&1 | tail -25
 echo "EXIT=${PIPESTATUS[0]}"
 
-APP="$ROOT/xtool/PokemonAccess.app"
+APP="$ROOT/xtool/OpenGameAccess.app"
 echo
 if [ -d "$APP" ]; then
   echo "== device app: $APP"
   ls -la "$APP"
   echo "-- platform --"
-  "$(command -v llvm-objdump || echo /usr/bin/otool)" --macho --private-headers "$APP/PokemonAccess" 2>/dev/null \
+  "$(command -v llvm-objdump || echo /usr/bin/otool)" --macho --private-headers "$APP/OpenGameAccess" 2>/dev/null \
     | grep -A2 LC_BUILD_VERSION | head -4
-  echo "-- core linked: $("$LLVM_NM" "$APP/PokemonAccess" 2>/dev/null | grep -c melonDS) melonDS symbols, $("$LLVM_NM" "$APP/PokemonAccess" 2>/dev/null | grep -c ' T _poke_') poke_* entry points"
+  echo "-- core linked: $("$LLVM_NM" "$APP/OpenGameAccess" 2>/dev/null | grep -c melonDS) melonDS symbols, $("$LLVM_NM" "$APP/OpenGameAccess" 2>/dev/null | grep -c ' T _poke_') poke_* entry points"
   echo "-- resources --"
-  sha256sum "$APP"/PokemonAccess_PokemonAccess.bundle/Resources/*.lua 2>/dev/null
+  sha256sum "$APP"/OpenGameAccess_OpenGameAccess.bundle/Resources/*.lua 2>/dev/null
 else
   echo "!! no .app produced"
   exit 1

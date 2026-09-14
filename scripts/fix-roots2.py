@@ -2,7 +2,7 @@
 """fix-roots2.py — second pass: the remaining hard-coded local paths.
 
 The first pass fixed the `ROOT=...` line. These are the scripts that used the
-literal path inline instead (`cd "$HOME/pokemon-access-ios"`, `OBJ=".../Vendor/..."`),
+literal path inline instead (`cd "$HOME/open-game-access"`, `OBJ=".../Vendor/..."`),
 which breaks identically in CI under a different checkout name.
 
 Every occurrence of the literal is replaced with "$ROOT", and a ROOT definition is
@@ -13,7 +13,7 @@ import glob
 import os
 import re
 
-LITERAL = "$HOME/pokemon-access-ios"
+LITERAL = "$HOME/open-game-access"
 ROOT_DEF = 'ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"'
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -28,7 +28,7 @@ for path in sorted(glob.glob("*.sh")):
         continue
 
     # Replace the literal everywhere. Inside a double-quoted string
-    # "$HOME/pokemon-access-ios" becomes "$ROOT"; bare paths likewise.
+    # "$HOME/open-game-access" becomes "$ROOT"; bare paths likewise.
     new = body.replace('"' + LITERAL + '"', '"$ROOT"')
     new = new.replace(LITERAL, "$ROOT")
 
@@ -64,7 +64,7 @@ print("== any script still naming the old local directory? ==")
 hits = 0
 for path in glob.glob("*.sh"):
     for i, line in enumerate(open(path, encoding="utf-8", errors="replace"), 1):
-        if "pokemon-access-ios" in line and "WIN_SRC" not in line:
+        if "open-game-access" in line and "WIN_SRC" not in line:
             print(f"  {path}:{i}: {line.rstrip()}")
             hits += 1
 print("  none" if not hits else f"  {hits} remaining")

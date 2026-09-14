@@ -45,7 +45,7 @@ struct SettingsView: View {
             }
 
             Section {
-                Text("Pokémon Access Mobile plays Pokémon Black and White with Ola's accessibility script. The script reads the game's own memory, so it speaks exactly what is on screen — dialogue, menus, the map, Pokémon and their health — and nothing else.")
+                Text("Open Game Access reads a running game's own memory and speaks what is there — dialogue, menus, the map, characters and their health — instead of guessing from the screen. Which game it can describe depends on the reader script loaded for it.")
                     .font(.footnote)
             } header: {
                 Text("About")

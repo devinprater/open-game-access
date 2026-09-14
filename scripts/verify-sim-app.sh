@@ -9,13 +9,13 @@
 # "my tool cannot see it".
 set -uo pipefail
 # ⛔ Derive the repo root from this script's location. A hard-coded
-# $HOME/pokemon-access-ios default worked here but not in CI, where the repo is
+# $HOME/open-game-access default worked here but not in CI, where the repo is
 # checked out as open-game-access under the runner workspace — the verify step then
-# reported "no binary at /Users/runner/pokemon-access-ios/..." for an app that had
+# reported "no binary at /Users/runner/open-game-access/..." for an app that had
 # just been built successfully two steps earlier.
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
-APP="${1:-$ROOT/xtool-sim/PokemonAccess.app}"
-BIN="$APP/PokemonAccess"
+APP="${1:-$ROOT/xtool-sim/OpenGameAccess.app}"
+BIN="$APP/OpenGameAccess"
 # Portable platform detection, shared with package-sim-app.sh.
 . "$ROOT/scripts/lib-macho.sh"
 
@@ -48,7 +48,7 @@ echo "sample poke_ entries:"
 
 echo
 echo "== the Lua script inside the bundle =="
-RES="$APP/PokemonAccess_PokemonAccess.bundle/Resources"
+RES="$APP/OpenGameAccess_OpenGameAccess.bundle/Resources"
 if [ -d "$RES" ]; then
   ls -la "$RES"
   echo "--- hashes (must match the originals) ---"

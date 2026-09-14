@@ -7,9 +7,9 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/fwtest.cpp" Core/
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/pokecore.cpp" Core/
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Sources/CPokeCore/include/pokecore.h" Sources/CPokeCore/include/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/fwtest.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/pokecore.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Sources/CPokeCore/include/pokecore.h" Sources/CPokeCore/include/
 
 # Rebuild the glue with the CURRENT core sources' semantics.
 g++ -O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything \
@@ -23,9 +23,9 @@ g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
 echo "simboot linked: $([ -x Vendor/simboot ] && echo yes || echo NO)"
 
 # the real combined script: shim + main.lua, same order the app uses
-cat Sources/PokemonAccess/Resources/bizhawk_compat.lua > /tmp/combined.lua
+cat Sources/OpenGameAccess/Resources/bizhawk_compat.lua > /tmp/combined.lua
 printf '\n' >> /tmp/combined.lua
-cat Sources/PokemonAccess/Resources/main.lua >> /tmp/combined.lua
+cat Sources/OpenGameAccess/Resources/main.lua >> /tmp/combined.lua
 wc -c /tmp/combined.lua
 
 echo

@@ -3,7 +3,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 mkdir -p "$HOME/fe/out"
 bash "$ROOT/scripts/probe-build.sh" || exit 1
 FRAMES="${FRAMES:-4200}"

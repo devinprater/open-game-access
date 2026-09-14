@@ -4,7 +4,7 @@ set -euo pipefail
 cd "$HOME/oga-work" || exit 2
 
 echo "== guard on the tree about to be pushed =="
-bash "/mnt/c/Users/Devin Prater/pokemon-access-ios/scripts/check-no-roms.sh" "$PWD"
+bash "/mnt/c/Users/Devin Prater/open-game-access/scripts/check-no-roms.sh" "$PWD"
 
 echo
 git add -A
@@ -22,7 +22,7 @@ Fix build scripts for CI; add the Game Boy / GBC / GBA reader set
 
 Two CI-breaking assumptions in the build scripts:
 
-1. 49 scripts hard-coded ROOT=$HOME/pokemon-access-ios — the LOCAL directory name.
+1. 49 scripts hard-coded ROOT=$HOME/open-game-access — the LOCAL directory name.
    CI checks the repo out as open-game-access, so every path was wrong, and the
    failure surfaced as a missing SDK rather than a missing repo root. They now
    derive the root from ${BASH_SOURCE[0]}, as build-core.sh already did.

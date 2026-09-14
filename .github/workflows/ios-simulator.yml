@@ -95,8 +95,8 @@ jobs:
         with:
           name: open-game-access-ios-simulator
           path: |
-            xtool-sim/PokemonAccess-simulator.zip
-            xtool-sim/PokemonAccess.app
+            xtool-sim/OpenGameAccess-simulator.zip
+            xtool-sim/OpenGameAccess.app
           if-no-files-found: warn
 
       - name: Upload evidence (screenshot, launch log)

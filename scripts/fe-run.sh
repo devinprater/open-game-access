@@ -9,7 +9,7 @@ FRAMES="${2:-5000}"
 PLANFILE="$ROOT/fe/plans/$PLAN.txt"
 [ -f "$PLANFILE" ] || { echo "!! no plan $PLANFILE" >&2; exit 2; }
 
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 [ -f "$PA_SHIM" ] || { echo "!! no shim at $PA_SHIM" >&2; exit 2; }
 echo "shim: $(wc -c < "$PA_SHIM") bytes"
 mkdir -p "$HOME/fe/out"

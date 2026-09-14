@@ -33,7 +33,7 @@ for f in "$WIN"/*.nds; do
   local="$HOME/roms/$base"
   [ -f "$local" ] || cp "$f" "$local"
   printf '%-58s ' "$base"
-  line=$(PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua" \
+  line=$(PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua" \
          timeout 900 ./Vendor/screen "$local" "$FRAMES" 2>/dev/null | tail -1)
   if [ -z "$line" ]; then line='{"error":"no output"}'; fi
   printf '%s\n' "$line" | head -c 400

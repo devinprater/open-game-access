@@ -12,7 +12,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 
 bash "$ROOT/scripts/build-host.sh" || exit 1
 g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \

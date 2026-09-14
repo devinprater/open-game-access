@@ -7,7 +7,7 @@
 # means trusting .gitignore to be perfect. Copying only what is meant to ship is
 # verifiable by inspection afterwards, which a .gitignore is not.
 set -uo pipefail
-WIN_SRC="/mnt/c/Users/Devin Prater/pokemon-access-ios"
+WIN_SRC="/mnt/c/Users/Devin Prater/open-game-access"
 # ⛔ The staging target is a CLONE of the remote, not a directory built from
 # nothing. The first version staged into a fresh directory, which meant the git
 # history and credential config lived only there and were lost when the tree was
@@ -54,7 +54,7 @@ done
 
 # Swift app + the C ABI header
 copy "Sources/CPokeCore"
-copy "Sources/PokemonAccess"
+copy "Sources/OpenGameAccess"
 copy "Package.swift"
 copy "xtool.yml"
 

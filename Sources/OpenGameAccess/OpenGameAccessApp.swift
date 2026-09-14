@@ -1,7 +1,7 @@
 import SwiftUI
 
 @main
-struct PokemonAccessApp: App {
+struct OpenGameAccessApp: App {
     @StateObject private var session = GameSession()
     @StateObject private var speech = SpeechEngine()
 

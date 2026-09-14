@@ -7,15 +7,15 @@ cd "$ROOT" || exit 1
 export POKECORE_LIB="$ROOT/Vendor/libpokecore.a"
 
 echo "=== GameSession.swift: what core entry points does it use? ==="
-grep -oE 'poke_[a-z_]+' Sources/PokemonAccess/GameSession.swift | sort -u
+grep -oE 'poke_[a-z_]+' Sources/OpenGameAccess/GameSession.swift | sort -u
 
 echo
 echo "=== InputBridge.swift ==="
-grep -oE 'poke_[a-z_]+|POKE_[A-Z_]+' Sources/PokemonAccess/InputBridge.swift | sort -u
+grep -oE 'poke_[a-z_]+|POKE_[A-Z_]+' Sources/OpenGameAccess/InputBridge.swift | sort -u
 
 echo
 echo "=== SpeechEngine.swift ==="
-grep -oE 'poke_[a-z_]+' Sources/PokemonAccess/SpeechEngine.swift | sort -u
+grep -oE 'poke_[a-z_]+' Sources/OpenGameAccess/SpeechEngine.swift | sort -u
 
 echo
 echo "=== every poke_ symbol exported by the header ==="

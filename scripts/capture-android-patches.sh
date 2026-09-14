@@ -12,7 +12,7 @@
 # a moving target — see scripts/bootstrap-deps.sh).
 set -uo pipefail
 SRC="${1:-/mnt/c/Users/Devin Prater/AppData/Local/Temp/pokemon-a11y-app/native/melonDS-android}"
-DEST="${2:-/mnt/c/Users/Devin Prater/pokemon-access-ios/app/patches}"
+DEST="${2:-/mnt/c/Users/Devin Prater/open-game-access/app/patches}"
 
 [ -d "$SRC" ] || { echo "!! no Android working tree at $SRC" >&2; exit 1; }
 mkdir -p "$DEST"

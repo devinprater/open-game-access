@@ -59,5 +59,5 @@ g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   -o Vendor/wherestuck Core/wherestuck.c Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined' | head -5
 echo "linked: $([ -x Vendor/wherestuck ] && echo yes || echo NO)"
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 timeout 200 ./Vendor/wherestuck "$HOME/hosttest-data/black.nds" 30000 2>&1 | head -25

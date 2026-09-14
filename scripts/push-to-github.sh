@@ -6,7 +6,7 @@
 # added in between, and this is the last moment it can be stopped.
 set -euo pipefail
 cd "$HOME/open-game-access" || exit 2
-WIN_SRC="/mnt/c/Users/Devin Prater/pokemon-access-ios"
+WIN_SRC="/mnt/c/Users/Devin Prater/open-game-access"
 
 echo "== no-ROMs guard on the tree about to be pushed =="
 bash "$WIN_SRC/scripts/check-no-roms.sh" "$PWD"

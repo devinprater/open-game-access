@@ -10,9 +10,9 @@ g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   -o Vendor/simboot Core/fwtest.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -5
 
-cat Sources/PokemonAccess/Resources/bizhawk_compat.lua > /tmp/combined.lua
+cat Sources/OpenGameAccess/Resources/bizhawk_compat.lua > /tmp/combined.lua
 printf '\n' >> /tmp/combined.lua
-cat Sources/PokemonAccess/Resources/main.lua >> /tmp/combined.lua
+cat Sources/OpenGameAccess/Resources/main.lua >> /tmp/combined.lua
 export PA_SCRIPT=/tmp/combined.lua
 
 echo "===== POKEMON BLACK, 30000 frames, full speech trail ====="

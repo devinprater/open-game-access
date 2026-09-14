@@ -1,4 +1,4 @@
-# Pokémon Access Mobile — iOS port: what was done, what is verified, and how to test it
+# Open Game Access — iOS port: what was done, what is verified, and how to test it
 
 Last updated: 2026-09-13.
 
@@ -56,7 +56,7 @@ So "test it in a simulated iPhone" is met in two halves:
    against it. The result carries `LC_BUILD_VERSION platform iossimulator` (checked:
    the device build says `platform ios`), `CFBundleSupportedPlatforms =
    iPhoneSimulator` and `DTPlatformName = iphonesimulator`. It installs with
-   `xcrun simctl install booted PokemonAccess.app`.
+   `xcrun simctl install booted OpenGameAccess.app`.
 2. **The app's behaviour is exercised on the host** — `scripts/sim-test.sh` and
    `scripts/sim-play.sh` drive the *identical* core, C ABI, bundled script and
    once-per-frame pacing from a scripted player, and capture every spoken line.

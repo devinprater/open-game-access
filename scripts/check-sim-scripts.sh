@@ -20,10 +20,10 @@ echo "== lib-macho detection on known binaries =="
 . ./scripts/lib-macho.sh
 echo "  tools present:$(macho_platform_tools)"
 for b in \
-  ".build/arm64-apple-ios-simulator/debug/PokemonAccess-App" \
-  ".build/arm64-apple-ios/debug/PokemonAccess-App" \
-  ".build/arm64-apple-ios-simulator/debug/PokemonAccess-App.dSYM/Contents/Resources/DWARF/PokemonAccess-App" \
-  "xtool/PokemonAccess.app/PokemonAccess"
+  ".build/arm64-apple-ios-simulator/debug/OpenGameAccess-App" \
+  ".build/arm64-apple-ios/debug/OpenGameAccess-App" \
+  ".build/arm64-apple-ios-simulator/debug/OpenGameAccess-App.dSYM/Contents/Resources/DWARF/OpenGameAccess-App" \
+  "xtool/OpenGameAccess.app/OpenGameAccess"
 do
   if [ -f "$b" ]; then
     echo "  [$(macho_platform "$b")] $b"

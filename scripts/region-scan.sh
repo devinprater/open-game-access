@@ -9,7 +9,7 @@ g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   -o Vendor/ramscan Core/ramscan.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -8
 [ -x Vendor/ramscan ] || { echo "!! ramscan did not link"; exit 1; }
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 FRAMES="${FRAMES:-5000}"
 G="/mnt/c/Users/Devin Prater/Dropbox/Games/NDS"
 

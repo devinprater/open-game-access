@@ -4,7 +4,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/purecore.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/purecore.cpp" Core/
 g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   -o Vendor/purecore Core/purecore.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -8

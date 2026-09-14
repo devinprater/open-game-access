@@ -6,7 +6,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-WIN_SRC="/mnt/c/Users/Devin Prater/pokemon-access-ios"
+WIN_SRC="/mnt/c/Users/Devin Prater/open-game-access"
 WSL_DST="$ROOT"
 
 mkdir -p "$WSL_DST"

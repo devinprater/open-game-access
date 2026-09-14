@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # hosttest-build.sh — compile the real core + Lua for the Linux host and run it
 # against a real ROM, so the accessibility layer can be exercised without a
-# device. Produces ~/pokemon-access-ios/Vendor/hosttest.
+# device. Produces ~/open-game-access/Vendor/hosttest.
 set -uo pipefail
 # ---- parallelism, GNU or BSD ----
 JOBS="${JOBS:-}"

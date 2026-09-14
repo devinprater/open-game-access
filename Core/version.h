@@ -8,7 +8,7 @@
 #define MELONDS_URL            "https://melonds.kuribo64.net"
 
 #define MELONDS_VERSION_BASE   "1.1"
-#define MELONDS_VERSION_SUFFIX " (Pokemon Access iOS)"
+#define MELONDS_VERSION_SUFFIX " (Open Game Access iOS)"
 #define MELONDS_VERSION        MELONDS_VERSION_BASE MELONDS_VERSION_SUFFIX
 
 #endif // VERSION_H

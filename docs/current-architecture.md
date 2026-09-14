@@ -6,13 +6,13 @@ below was read from the tree, not remembered.
 
 ## The tree today
 
-The working project is `C:\Users\Devin Prater\pokemon-access-ios` — a SwiftUI iOS
+The working project is `C:\Users\Devin Prater\open-game-access` — a SwiftUI iOS
 app around a melonDS core with a Lua accessibility script. Its name is now a
 misnomer: the machinery under it is not Pokémon-specific (details in
 "What is actually reusable").
 
 ```
-pokemon-access-ios/
+open-game-access/
   Core/
     pokecore.cpp          the C++ integration layer: emulator lifecycle, the Lua
                           bindings, input, speech/log plumbing  (~1100 lines)

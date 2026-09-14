@@ -4,7 +4,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/timingtest.c" Core/ 2>/dev/null || true
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/timingtest.c" Core/ 2>/dev/null || true
 
 g++ -O1 -g -ISources/CPokeCore/include -o Vendor/timingtest Core/timingtest.c \
     Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 | grep -vE 'warn_unused|fread' | head -5

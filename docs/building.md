@@ -50,7 +50,7 @@ Then:
 ### iOS Simulator app (no signing needed)
 
 ```bash
-./wsl.sh build-sim-app    # -> xtool-sim/PokemonAccess.app + PokemonAccess-simulator.zip
+./wsl.sh build-sim-app    # -> xtool-sim/OpenGameAccess.app + OpenGameAccess-simulator.zip
 ```
 
 `xtool dev build --triple arm64-apple-ios-simulator` compiles and links the
@@ -62,8 +62,8 @@ SwiftPM resource bundle, with `CFBundleSupportedPlatforms = [iPhoneSimulator]` a
 On a Mac:
 
 ```bash
-xcrun simctl install booted PokemonAccess.app
-xcrun simctl launch booted com.devinprater.pokemonaccess
+xcrun simctl install booted OpenGameAccess.app
+xcrun simctl launch booted com.devinprater.opengameaccess
 ```
 
 ### iOS device install (your own certificate)

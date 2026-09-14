@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/vramprobe.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/vramprobe.cpp" Core/
 g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   -o Vendor/vramprobe Core/vramprobe.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -5
@@ -22,5 +22,5 @@ S9="$HOME/ds-bios/bios9.bin"; S7="$HOME/ds-bios/bios7.bin"; FW="$HOME/ds-bios/fi
 
 echo
 echo "################ A: MINIMAL SCRIPT (no accessibility script) ################"
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 PA_NOSCRIPT=1 timeout 150 ./Vendor/vramprobe "$B" "$S9" "$S7" "$FW" 9000 2>&1 | tail -20

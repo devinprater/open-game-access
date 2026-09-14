@@ -4,13 +4,13 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/shot.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/shot.cpp" Core/
 g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
   -o Vendor/shot Core/shot.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -6
 echo "linked: $([ -x Vendor/shot ] && echo yes || echo NO)"
 
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 timeout 300 ./Vendor/shot "$HOME/hosttest-data/black.nds" 6 3000 2>&1 | tail -10
 
 echo

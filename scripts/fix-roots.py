@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """fix-roots.py — make build scripts derive their repo root from their own location.
 
-⛔ WHY: 49 scripts hard-coded ROOT="$HOME/pokemon-access-ios". That is the LOCAL
+⛔ WHY: 49 scripts hard-coded ROOT="$HOME/open-game-access". That is the LOCAL
 directory name; CI checks the repo out as `open-game-access`, so every path would
 be wrong and the build would fail on its first line — with an error that reads like
 a missing SDK rather than a missing repo root.
@@ -15,7 +15,7 @@ import glob
 import os
 import sys
 
-OLD = 'ROOT="$HOME/pokemon-access-ios"'
+OLD = 'ROOT="$HOME/open-game-access"'
 NEW = 'ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"'
 
 here = os.path.dirname(os.path.abspath(__file__))
@@ -51,7 +51,7 @@ print("== any script still pointing at the old local directory name? ==")
 hits = 0
 for path in glob.glob("*.sh"):
     for i, line in enumerate(open(path, encoding="utf-8", errors="replace"), 1):
-        if "pokemon-access-ios" in line and "WIN_SRC" not in line and "mnt/c" not in line:
+        if "open-game-access" in line and "WIN_SRC" not in line and "mnt/c" not in line:
             print(f"  {path}:{i}: {line.rstrip()}")
             hits += 1
 if not hits:

@@ -2,7 +2,7 @@
 import Foundation
 import PackageDescription
 
-// Pokémon Access Mobile — iOS.
+// Open Game Access — iOS.
 //
 // The emulation core (melonDS + the Lua accessibility layer) is compiled as a
 // static archive by scripts/build-core.sh; Sources/CPokeCore is the only thing
@@ -18,12 +18,12 @@ let vendorLib = ProcessInfo.processInfo.environment["POKECORE_LIB"]
     ?? "Vendor/libpokecore.a"
 
 let package = Package(
-    name: "PokemonAccess",
+    name: "OpenGameAccess",
     platforms: [
         .iOS(.v17),
     ],
     products: [
-        .library(name: "PokemonAccess", targets: ["PokemonAccess"]),
+        .library(name: "OpenGameAccess", targets: ["OpenGameAccess"]),
     ],
     targets: [
         .target(
@@ -42,9 +42,9 @@ let package = Package(
             ]
         ),
         .target(
-            name: "PokemonAccess",
+            name: "OpenGameAccess",
             dependencies: ["CPokeCore"],
-            path: "Sources/PokemonAccess",
+            path: "Sources/OpenGameAccess",
             resources: [.copy("Resources")]
         ),
     ]

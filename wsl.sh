@@ -12,8 +12,8 @@
 #   wsl.sh <any script> [args]   any scripts/<name>.sh in the project
 set -uo pipefail
 
-WIN_SRC="/mnt/c/Users/Devin Prater/pokemon-access-ios"
-WSL_DST="$HOME/pokemon-access-ios"
+WIN_SRC="/mnt/c/Users/Devin Prater/open-game-access"
+WSL_DST="$HOME/open-game-access"
 
 mkdir -p "$WSL_DST"
 # Vendor/ and xtool-sim/ are WSL-side build outputs: mirroring them (or letting

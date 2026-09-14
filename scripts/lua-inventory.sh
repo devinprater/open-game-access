@@ -11,4 +11,4 @@ ls -la app/src/main/assets/lua/ 2>/dev/null | head
 ls app/src/main/assets/lua/gb 2>/dev/null | head -5
 echo
 echo "=== main.lua provenance header ==="
-head -6 Sources/PokemonAccess/Resources/main.lua
+head -6 Sources/OpenGameAccess/Resources/main.lua

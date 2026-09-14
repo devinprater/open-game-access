@@ -1,6 +1,6 @@
 # open-game-access — status
 
-Superseded name: `pokemon-access-mobile` / `pokemon-access-ios`.
+Superseded name: `pokemon-access-mobile` / `open-game-access`.
 
 ## Done this session
 

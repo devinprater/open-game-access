@@ -7,7 +7,7 @@ except that no code touched it during the window.
 """
 import csv, glob, os, sys
 
-d = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/pokemon-access-ios/ramwatch")
+d = sys.argv[1] if len(sys.argv) > 1 else os.path.expanduser("~/open-game-access/ramwatch")
 for f in sorted(glob.glob(os.path.join(d, "*.csv"))):
     print("=" * 78)
     print("###", os.path.basename(f))

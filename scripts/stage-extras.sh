@@ -2,7 +2,7 @@
 # stage-extras.sh — files the staged tree needs that live outside the source
 # allow-list: the .gitignore, the licence, the CI workflows, and the repo README.
 set -uo pipefail
-WIN_SRC="/mnt/c/Users/Devin Prater/pokemon-access-ios"
+WIN_SRC="/mnt/c/Users/Devin Prater/open-game-access"
 OUT="${OGA_OUT:-$HOME/oga-work}"
 
 cp "$WIN_SRC/.gitignore" "$OUT/.gitignore"

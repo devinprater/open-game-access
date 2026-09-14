@@ -4,7 +4,7 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/speedtest2.c" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/speedtest2.c" Core/
 
 ROM="$HOME/hosttest-data/black.nds"
 NOOP="$HOME/hosttest-data/noop.lua"

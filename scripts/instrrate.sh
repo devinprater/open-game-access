@@ -5,8 +5,8 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/instrrate.cpp" Core/
-cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/pokecore.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/instrrate.cpp" Core/
+cp "/mnt/c/Users/Devin Prater/open-game-access/Core/pokecore.cpp" Core/
 
 g++ -O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything \
   -ICore -ISources/CPokeCore/include -I"$SRC" -I"$HOME/src/lua-5.4.7/src" -I"$SRC/teakra/include" \
@@ -19,7 +19,7 @@ echo "linked: $([ -x Vendor/instrrate ] && echo yes || echo NO)"
 
 echo
 echo "=== 30s of sampling ==="
-export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 timeout 60 ./Vendor/instrrate "$HOME/hosttest-data/black.nds" > "$HOME/instrrate.log" 2>&1
 echo "exit=$? (124=timeout)"
 head -20 "$HOME/instrrate.log"

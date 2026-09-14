@@ -11,7 +11,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 ROM="$HOME/hosttest-data/black.nds"
-SHIM="Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+SHIM="Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 DATA="$HOME/hosttest-data"
 
 { cat "$SHIM"; printf '\nwhile true do\n  emu.frameadvance()\nend\n'; } > "$DATA/noop.lua"
