@@ -14,6 +14,10 @@
 # elsewhere. This script now does it when it has not.
 set -uo pipefail
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+# Portable Mach-O platform detection (llvm-objdump / vtool / otool). Shared with
+# verify-sim-app.sh because both must answer "simulator or device?" and the first
+# inline version only knew about llvm-objdump, which macOS runners do not have.
+. "$ROOT/scripts/lib-macho.sh"
 APP="$ROOT/xtool-sim/PokemonAccess.app"
 BIN="$ROOT/.build/arm64-apple-ios-simulator/debug/PokemonAccess-App"
 BUNDLE_ID="com.devinprater.pokemonaccess"
@@ -101,16 +105,7 @@ fi
 # happily packages debug symbols as the app — and since the device build is usually
 # present too, the result was a 41 MB bundle reported as "platform ios", i.e. a
 # device binary wearing a simulator Info.plist. Validate the platform before accepting.
-macho_platform() {
-  local f="$1"
-  local od=""
-  for c in /usr/local/swift/bin/llvm-objdump llvm-objdump; do
-    command -v "$c" >/dev/null 2>&1 && { od="$c"; break; }
-  done
-  [ -n "$od" ] || return 1
-  "$od" --macho --private-headers "$f" 2>/dev/null | grep -A3 'LC_BUILD_VERSION' | grep -m1 platform
-}
-
+# macho_platform comes from scripts/lib-macho.sh and returns a normalised word.
 pick_sim_binary() {
   local cand plat
   for cand in \
@@ -121,9 +116,14 @@ pick_sim_binary() {
     [ -f "$cand" ] || continue
     case "$cand" in *.dSYM/*) continue ;; esac
     plat="$(macho_platform "$cand")"
-    case "$plat" in
-      *iossimulator*) echo "$cand"; return 0 ;;
-    esac
+    if [ "$plat" = "iossimulator" ]; then echo "$cand"; return 0; fi
+  done
+  # xtool may only leave the binary inside its own bundle; fall back to that.
+  for cand in "$ROOT/xtool-sim/PokemonAccess.app/PokemonAccess" \
+              "$ROOT/xtool/PokemonAccess.app/PokemonAccess"; do
+    [ -f "$cand" ] || continue
+    plat="$(macho_platform "$cand")"
+    if [ "$plat" = "iossimulator" ]; then echo "$cand"; return 0; fi
   done
   return 1
 }
@@ -134,8 +134,12 @@ if [ ! -f "$BIN" ]; then
     BIN="$FOUND"
     echo "   using $BIN"
   else
-    echo "!! no simulator-platform binary found. Candidates build produced:" >&2
-    find "$ROOT/.build" -name 'PokemonAccess-App' -type f 2>/dev/null | head -5 | sed 's/^/     /' >&2
+    echo "!! no simulator-platform binary found (detection tools present:$(macho_platform_tools))" >&2
+    echo "   candidates the build produced:" >&2
+    find "$ROOT/.build" "$ROOT/xtool" "$ROOT/xtool-sim" -name 'PokemonAccess*' -type f 2>/dev/null \
+      | head -8 | while read -r f; do
+          echo "     $f  [$(macho_platform "$f")]" >&2
+        done
     exit 1
   fi
 fi
@@ -143,24 +147,24 @@ fi
 # Final guard: refuse to package anything that is not simulator-platform. Silent
 # acceptance here is exactly how the wrong binary got shipped before.
 PLATF="$(macho_platform "$BIN")"
-case "$PLATF" in
-  *iossimulator*) : ;;
-  *) echo "!! refusing to package: $BIN is '${PLATF:-unknown}', not iossimulator" >&2; exit 1 ;;
-esac
+if [ "$PLATF" != "iossimulator" ]; then
+  echo "!! refusing to package: $BIN is '$PLATF', not iossimulator" >&2
+  echo "   detected via:$(macho_platform_tools)" >&2
+  macho_platform_raw "$BIN" | sed 's/^/   /' >&2
+  exit 1
+fi
 
 [ -f "$BIN" ] || { echo "!! could not produce a simulator binary (looked at $BIN)" >&2; exit 1; }
 
 echo
 echo "== binary =="
 file "$BIN"
-PLAT=$("$(command -v llvm-objdump || echo /usr/bin/otool)" --macho --private-headers "$BIN" 2>/dev/null \
-       | grep -A4 'LC_BUILD_VERSION' | grep -m1 platform)
-[ -z "$PLAT" ] && PLAT=$(otool -l "$BIN" 2>/dev/null | grep -A4 'LC_BUILD_VERSION' | grep -m1 platform)
-echo "LC_BUILD_VERSION: ${PLAT:-<not found>}"
+PLAT="$(macho_platform "$BIN")"
+echo "LC_BUILD_VERSION: platform ${PLAT} ($(macho_platform_raw "$BIN" 2>/dev/null | tr -s ' ' | sed 's/^ *//' || echo '<not found>'))"
 case "$PLAT" in
-  *iossimulator*) echo "-> iOS Simulator platform (correct)" ;;
-  *"platform ios"*) echo "!! device platform — the linker picked the DEVICE target" ;;
-  *) echo "!! could not confirm the platform from the load commands" ;;
+  iossimulator) echo "-> iOS Simulator platform (correct)" ;;
+  ios)          echo "!! device platform — the linker picked the DEVICE target" ;;
+  *)            echo "!! could not confirm the platform (detection tools:$(macho_platform_tools))" ;;
 esac
 
 rm -rf "$APP"
