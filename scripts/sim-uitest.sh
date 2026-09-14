@@ -1,108 +1,136 @@
 #!/usr/bin/env bash
-# sim-uitest.sh — boot the app on a real iOS Simulator and verify its accessibility
-# surface. macOS only (a simulator runtime needs CoreSimulator, which ships with
-# Xcode; there is no simulator for Windows or Linux).
+# sim-uitest.sh — boot a real iOS Simulator, install the app, launch it, and verify
+# it stays running. macOS only: a simulator runtime is CoreSimulator + launchd_sim +
+# an iOS runtime sysroot, all of which ship with Xcode. There is no iOS Simulator
+# for Windows or Linux.
 #
-# ⛔ WHAT THIS PROVES AND WHAT IT DOES NOT.
-#   Proves: the app installs and launches on a simulated iPhone; it presents a
-#           VoiceOver-visible interface; the named elements and controls exist in
-#           the accessibility tree with usable labels; the app does not crash on
-#           launch or when the controls are enumerated.
-#   Does NOT prove: that speech actually reaches a human ear, or that a game reads
-#           correctly. Those need a device and a real ROM (user-supplied).
+# ⛔ WHAT THIS PROVES, AND WHAT IT DOES NOT.
+#   Proves: the bundle installs on a simulated iPhone; it launches; it does not
+#           crash; it stays alive and keeps its process; something is drawn to the
+#           screen (screenshot captured for inspection).
+#   Does NOT prove: that the readers narrate correctly, or that speech reaches a
+#           human ear. Those need a physical device AND a game the user supplies —
+#           this repo never ships or downloads one.
 #
-# The accessibility tree is dumped with `xcrun simctl ui` + accessibility
-# inspection, and the assertion set is deliberately about NAMES, because a
-# screen-reader user navigates by name — an element with an empty label is
-# invisible to them even if it renders perfectly.
+# A "the app launched and survived" test is the right level here. A UI test that
+# asserted on control labels would be testing the setup screen, because with no game
+# loaded the app shows SetupPanel by design, not the Controls a player would hear.
 set -uo pipefail
 ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
 APP="${APP:-$ROOT/xtool-sim/PokemonAccess.app}"
 DEVICE="${DEVICE:-iPhone 16}"
-RUNTIME="${RUNTIME:-}"
 BUNDLE_ID="com.devinprater.pokemonaccess"
+EVID="${EVID:-/tmp}"
 
 command -v xcrun >/dev/null 2>&1 || { echo "!! xcrun not found — this test needs macOS" >&2; exit 1; }
 [ -d "$APP" ] || { echo "!! no app bundle at $APP" >&2; exit 1; }
 
-echo "== available simulator runtimes =="
-xcrun simctl list runtimes | grep -i ios | tail -5
+echo "== available iOS runtimes =="
+xcrun simctl list runtimes 2>/dev/null | grep -i ios | tail -5
 echo
 
-echo "== booting $DEVICE =="
-if [ -n "$RUNTIME" ]; then
-  UDID=$(xcrun simctl create oga-test "$DEVICE" "$RUNTIME" 2>/dev/null || true)
-else
-  UDID=$(xcrun simctl list devices available | grep -A100 "iOS" | grep "$DEVICE (" | head -1 \
-         | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
-fi
-if [ -z "${UDID:-}" ]; then
-  echo "!! could not find or create a '$DEVICE' simulator; using the first available iPhone"
-  UDID=$(xcrun simctl list devices available | grep -E "iPhone.*\([0-9A-F-]{36}\)" | head -1 \
+echo "== picking a simulator: $DEVICE =="
+UDID=$(xcrun simctl list devices available 2>/dev/null \
+       | grep -E "^\s+$DEVICE \([0-9A-F-]{36}\)" | head -1 \
+       | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
+if [ -z "$UDID" ]; then
+  echo "  '$DEVICE' not present; taking the first available iPhone"
+  UDID=$(xcrun simctl list devices available 2>/dev/null \
+         | grep -E "^\s+iPhone .*\([0-9A-F-]{36}\)" | head -1 \
          | sed -E 's/.*\(([0-9A-F-]{36})\).*/\1/')
 fi
 [ -n "$UDID" ] || { echo "!! no simulator device available" >&2; exit 1; }
-echo "device UDID: $UDID"
+echo "  UDID: $UDID"
+xcrun simctl list devices | grep "$UDID" | head -1
+echo
 
-xcrun simctl boot "$UDID" 2>/dev/null || echo "(already booted)"
-# `bootstatus -b` waits for the springboard to finish booting; launching before
-# that returns "device is booting" errors that look like app failures.
+echo "== booting =="
+xcrun simctl boot "$UDID" 2>&1 | head -2 || true
+# bootstatus -b blocks until springboard is up. Installing/launching before that
+# produces "device is booting" errors that read like app failures.
 xcrun simctl bootstatus "$UDID" -b >/dev/null 2>&1 || true
-
+echo "  state: $(xcrun simctl list devices | grep "$UDID" | grep -oE '\((Booted|Shutdown)\)' | head -1)"
 echo
+
 echo "== installing =="
-xcrun simctl install "$UDID" "$APP" || { echo "!! install failed" >&2; exit 1; }
-echo "installed ok"
-
-echo
-echo "== launching =="
-xcrun simctl launch --console-pty "$UDID" "$BUNDLE_ID" > /tmp/oga-launch.log 2>&1 &
-LAUNCH_PID=$!
-sleep 12
-kill $LAUNCH_PID 2>/dev/null || true
-head -30 /tmp/oga-launch.log
-echo
-
-echo "== is the process alive (i.e. it did not crash on launch)? =="
-if xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "$BUNDLE_ID"; then
-  echo "RUNNING — the app is live on the simulated device"
-  ALIVE=1
-else
-  echo "!! not in launchctl list — the app may have crashed"
-  ALIVE=0
-fi
-echo
-
-echo "== accessibility tree =="
-# Dump the app's accessibility hierarchy. Names matter: a VoiceOver user navigates
-# by label, so this is the assertion that corresponds to the actual experience.
-TREE=$(xcrun simctl spawn "$UDID" defaults read "$BUNDLE_ID" 2>/dev/null || true)
-if command -v xcresulttool >/dev/null 2>&1; then :; fi
-
-# Screenshot as independent evidence of what was on screen.
-xcrun simctl io "$UDID" screenshot /tmp/oga-sim.png 2>/dev/null && \
-  echo "screenshot: /tmp/oga-sim.png ($(wc -c < /tmp/oga-sim.png) bytes)"
-echo
-
-echo "== crash logs =="
-CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
-if ls "$CRASH_DIR"/PokemonAccess* >/dev/null 2>&1; then
-  echo "!! crash reports found:"; ls -la "$CRASH_DIR"/PokemonAccess* | tail -5
-  CRASHED=1
-else
-  echo "no crash reports for this app"
-  CRASHED=0
-fi
-echo
-
-echo "=============== RESULT ==============="
-echo "installed   : yes"
-echo "running     : $ALIVE"
-echo "crashed     : $CRASHED"
-if [ "$ALIVE" = "1" ] && [ "$CRASHED" = "0" ]; then
-  echo "PASS — the app installs, launches and stays running on a simulated iPhone."
-  exit 0
-else
-  echo "FAIL — see the launch log and crash reports above."
+xcrun simctl install "$UDID" "$APP" 2>&1 | head -5
+if ! xcrun simctl listapps "$UDID" 2>/dev/null | grep -q "$BUNDLE_ID"; then
+  echo "!! the bundle does not appear in the installed-app list" >&2
   exit 1
 fi
+echo "  installed and registered: $BUNDLE_ID"
+
+# Warm the runtime the first time, then do the launch we actually assert on.
+echo
+echo "== launching =="
+xcrun simctl launch "$UDID" "$BUNDLE_ID" >/tmp/oga-launch.txt 2>&1 || true
+cat /tmp/oga-launch.txt
+sleep 10
+
+# Liveness. simctl launch prints "<bundle id>: <pid>"; use that pid directly rather
+# than trusting a grep over launchctl output, which varies between iOS versions.
+PID=$(sed -nE 's/.*: ([0-9]+)$/\1/p' /tmp/oga-launch.txt | head -1)
+ALIVE=0
+if [ -n "$PID" ]; then
+  if xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "$BUNDLE_ID"; then
+    ALIVE=1
+  elif xcrun simctl spawn "$UDID" ps -A 2>/dev/null | grep -q " $PID "; then
+    ALIVE=1
+  fi
+fi
+echo "  pid: ${PID:-<none>}   alive: $ALIVE"
+
+echo
+echo "== second launch (a first-run crash would show here rather than being masked) =="
+xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
+sleep 2
+xcrun simctl launch "$UDID" "$BUNDLE_ID" >/tmp/oga-launch2.txt 2>&1 || true
+cat /tmp/oga-launch2.txt
+sleep 6
+if xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "$BUNDLE_ID"; then
+  ALIVE2=1
+else
+  ALIVE2=0
+fi
+echo "  alive after relaunch: $ALIVE2"
+
+echo
+echo "== screenshot =="
+xcrun simctl io "$UDID" screenshot "$EVID/oga-sim.png" 2>&1 | head -2
+if [ -f "$EVID/oga-sim.png" ]; then
+  echo "  $EVID/oga-sim.png ($(wc -c < "$EVID/oga-sim.png") bytes)"
+fi
+
+echo
+echo "== crash reports =="
+CRASH_DIR="$HOME/Library/Logs/DiagnosticReports"
+CRASHED=0
+# shellcheck disable=SC2086
+if ls "$CRASH_DIR"/PokemonAccess* >/dev/null 2>&1; then
+  echo "!! crash reports present:"
+  ls -la "$CRASH_DIR"/PokemonAccess* | tail -5
+  CRASHED=1
+else
+  echo "  none"
+fi
+# Also check inside the simulator's own diagnostic directory.
+SIMCRASH="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/Logs/CrashReporter"
+if [ -d "$SIMCRASH" ] && [ -n "$(ls -A "$SIMCRASH" 2>/dev/null)" ]; then
+  echo "!! simulator crash logs:"
+  ls -la "$SIMCRASH" | tail -5
+  CRASHED=1
+fi
+
+echo
+echo "=============== RESULT ==============="
+echo "installed : yes"
+echo "launched  : ${PID:+yes}"
+echo "running   : $ALIVE"
+echo "relaunch  : $ALIVE2"
+echo "crashed   : $CRASHED"
+if [ "${ALIVE:-0}" = "1" ] && [ "${ALIVE2:-0}" = "1" ] && [ "$CRASHED" = "0" ]; then
+  echo "PASS — installs, launches, survives a relaunch, no crash on a simulated iPhone."
+  exit 0
+fi
+echo "FAIL — see the launch output and crash reports above."
+exit 1

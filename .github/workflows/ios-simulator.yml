@@ -55,7 +55,12 @@ jobs:
           SDKROOT="$(xcrun --sdk iphonesimulator --show-sdk-path)" bash scripts/build-sim.sh
 
       - name: Package the simulator app
-        run: bash scripts/package-sim-app.sh
+        env:
+          # Needed only if the app has to be linked here (a pre-linked binary from
+          # build-sim.sh is preferred). Without it Swift asks for the macOS sysroot.
+          SDKROOT: ${{ runner.temp }}/sdk-placeholder
+        run: |
+          SDKROOT="$(xcrun --sdk iphonesimulator --show-sdk-path)" bash scripts/package-sim-app.sh
 
       - name: Verify the packaged app
         run: bash scripts/verify-sim-app.sh

@@ -25,9 +25,26 @@ if [ ! -f "$BIN" ]; then
   [ -f "$SIMLIB" ] || { echo "!! simulator core archive missing: $SIMLIB" >&2; exit 1; }
   cd "$ROOT" || exit 1
   export POKECORE_LIB="$SIMLIB"
+
+  # ⛔ swift build MUST be told which SDK to use. Without it, SwiftPM resolves the
+  # standard library against the macOS sysroot and fails with
+  #   warning: using sysroot for 'MacOSX' but targeting 'iPhone'
+  #   error: unable to load standard library for target 'arm64-apple-ios17.0-simulator'
+  # — one error per source file, which reads like a broken toolchain but is just an
+  # unset SDK.
+  SIMSDK="${SDKROOT:-}"
+  if [ -z "$SIMSDK" ] && command -v xcrun >/dev/null 2>&1; then
+    SIMSDK="$(xcrun --sdk iphonesimulator --show-sdk-path 2>/dev/null || true)"
+  fi
+  if [ -z "$SIMSDK" ] && [ -d "$HOME/.swiftpm/swift-sdks/darwin.artifactbundle" ]; then
+    SIMSDK="$(find "$HOME/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs" -maxdepth 1 -name 'iPhoneSimulator*.sdk' 2>/dev/null | head -1)"
+  fi
+  [ -d "${SIMSDK:-}" ] || { echo "!! no iPhoneSimulator SDK found (set SDKROOT)" >&2; exit 1; }
+  echo "   SDK: $SIMSDK"
+
   # SwiftPM takes a target triple directly; this is the same link xtool performs,
   # minus xtool's app-bundle packaging (which this script does itself).
-  swift build --triple "$TRIPLE" -c debug 2>&1 | tail -20
+  swift build --triple "$TRIPLE" --sdk "$SIMSDK" -c debug 2>&1 | tail -20
   if [ ! -f "$BIN" ]; then
     # swift build may place the product under a different leaf; find it.
     FOUND=$(find "$ROOT/.build" -name 'PokemonAccess-App' -type f 2>/dev/null | head -1)
