@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # retest.sh — rebuild pokecore with the JIT fix and re-run the accessibility test.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/pokecore.cpp" Core/
 

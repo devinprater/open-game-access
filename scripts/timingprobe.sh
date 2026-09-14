@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # timingprobe.sh — check the CPU memory timings.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/timingprobe.cpp" Core/

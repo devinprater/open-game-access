@@ -8,10 +8,20 @@
 # verifiable by inspection afterwards, which a .gitignore is not.
 set -uo pipefail
 WIN_SRC="/mnt/c/Users/Devin Prater/pokemon-access-ios"
-OUT="$HOME/open-game-access"
+# ⛔ The staging target is a CLONE of the remote, not a directory built from
+# nothing. The first version staged into a fresh directory, which meant the git
+# history and credential config lived only there and were lost when the tree was
+# rebuilt. Staging into a clone keeps the real commit graph.
+OUT="${OGA_OUT:-$HOME/oga-work}"
 
-echo "== cleaning $OUT"
-rm -rf "$OUT"
+echo "== cleaning $OUT (preserving .git)"
+# ⛔ DO NOT `rm -rf` the whole directory: the output IS the git working tree, and
+# wiping it deletes .git and the remote config. Clear the contents except .git.
+if [ -d "$OUT/.git" ]; then
+  find "$OUT" -mindepth 1 -maxdepth 1 -not -name '.git' -exec rm -rf {} +
+else
+  rm -rf "$OUT"
+fi
 mkdir -p "$OUT"
 
 # ---- sources that ship ----

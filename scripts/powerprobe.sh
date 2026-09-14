@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # powerprobe.sh — is ScreensEnabled the gate? Force the LCD on and see.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/powerprobe.cpp" Core/

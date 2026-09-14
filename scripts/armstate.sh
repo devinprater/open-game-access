@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # armstate.sh — build and run the in-process CPU-state diagnostic.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 

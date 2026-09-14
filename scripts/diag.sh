@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 # diag.sh — inspect the interpreter's idle-loop handling in the vendored fork.
 set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 
 echo "=== ARMInterpreter_Branch.cpp: A_B ==="
@@ -12,7 +13,7 @@ grep -n 'IdleLoop\|StopExecution\|Halted' "$SRC/ARMInterpreter_Branch.cpp" | hea
 
 echo
 echo "=== is JIT_ENABLED in the iOS build? ==="
-grep -n 'JIT_ENABLED\|JIT' "$HOME/pokemon-access-ios/scripts/build-core.sh" | head
+grep -n 'JIT_ENABLED\|JIT' "$ROOT/scripts/build-core.sh" | head
 
 echo
 echo "=== NDS.cpp RunFrame: the ARM7 inner loop ==="

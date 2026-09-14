@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # fe-probe.sh — run the Fire Emblem probe plan and convert screenshots to PNG.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
 mkdir -p "$HOME/fe/out"

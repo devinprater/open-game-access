@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # crash2.sh — capture the interpreter's crash cleanly.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
-export PA_SHIM="$HOME/pokemon-access-ios/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
+export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
 
 echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope >/dev/null 2>&1
 

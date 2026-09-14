@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # speed.sh — measure interpreter throughput: how long does ONE frame take?
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 # 1 frame with a generous budget; timingtest prints per-frame time only if >0.5s,
 # so also take wall-clock around the whole call.

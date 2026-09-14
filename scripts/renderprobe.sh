@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # renderprobe.sh — does the game render now?
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/renderprobe.cpp" Core/

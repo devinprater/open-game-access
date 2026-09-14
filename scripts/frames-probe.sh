@@ -7,7 +7,8 @@
 # reading never happens. Comparing that against the full script is what tells a
 # slow emulator from a slow script.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 ROM="$HOME/hosttest-data/black.nds"
 SHIM="Sources/PokemonAccess/Resources/bizhawk_compat.lua"

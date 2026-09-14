@@ -2,7 +2,7 @@
 # black-check.sh — focused re-run of the Black path after the IR fix, capturing
 # the full speech trail (the observable the accessibility feature is judged on).
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 

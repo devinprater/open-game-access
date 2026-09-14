@@ -2,7 +2,8 @@
 # probe-long.sh — does the first frame EVER finish? One frame, generous timeout,
 # with progress reported by the harness around the single poke_frame() call.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 ROM="$HOME/hosttest-data/black.nds"
 

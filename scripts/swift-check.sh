@@ -1,9 +1,10 @@
 #!/usr/bin/env bash
 # swift-check.sh — type-check the Swift targets (no device, no SDK link).
 set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
-cd "$HOME/pokemon-access-ios" || exit 1
-export POKECORE_LIB="$HOME/pokemon-access-ios/Vendor/libpokecore.a"
+cd "$ROOT" || exit 1
+export POKECORE_LIB="$ROOT/Vendor/libpokecore.a"
 
 echo "=== GameSession.swift: what core entry points does it use? ==="
 grep -oE 'poke_[a-z_]+' Sources/PokemonAccess/GameSession.swift | sort -u

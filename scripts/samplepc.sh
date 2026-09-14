@@ -3,7 +3,8 @@
 # Samples the guest PC several times; an advancing PC means slow, a constant
 # one means a loop the interpreter never escapes.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 ./Vendor/timingtest "$HOME/hosttest-data/black.nds" "$HOME/hosttest-data/noop.lua" 5 \
   > "$HOME/sample.log" 2>&1 &

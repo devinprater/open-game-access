@@ -4,7 +4,8 @@
 # 0x1000-byte header/prefix (or is being read from a path with an odd size),
 # the header fields land on the wrong bytes and ARM9EntryAddress reads as ~0.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 cat > /tmp/entryprobe.cpp <<'EOF'
 #include "pokecore.h"

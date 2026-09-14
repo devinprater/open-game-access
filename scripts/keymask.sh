@@ -3,6 +3,7 @@
 # pressed. If SetKeyMask does not invert that, the game sees EVERY BUTTON HELD
 # from frame zero, which would derail a game's boot.
 set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 
 echo "=== NDS::SetKeyMask + TouchScreen / ReleaseScreen ==="
@@ -16,4 +17,4 @@ grep -n 'KeyInput = \|KeyInput &\|u16 KeyInput' "$SRC/NDS.cpp" "$SRC/NDS.h" | he
 
 echo
 echo "=== what my core passes ==="
-grep -n 'SetKeyMask\|buttonsDown' -B3 -A6 "$HOME/pokemon-access-ios/Core/pokecore.cpp" | head -30
+grep -n 'SetKeyMask\|buttonsDown' -B3 -A6 "$ROOT/Core/pokecore.cpp" | head -30

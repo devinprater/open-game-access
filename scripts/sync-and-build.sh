@@ -4,9 +4,10 @@
 # edits and where the Swift package lives); WSL gets a mirror so the ~120-file
 # C++ build runs on ext4 instead of across the 9p mount.
 set -euo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 WIN_SRC="/mnt/c/Users/Devin Prater/pokemon-access-ios"
-WSL_DST="$HOME/pokemon-access-ios"
+WSL_DST="$ROOT"
 
 mkdir -p "$WSL_DST"
 # Mirror sources; keep WSL-side build outputs (Vendor/obj, Vendor/*.a, .build).

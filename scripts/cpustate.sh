@@ -3,7 +3,8 @@
 # a few seconds of running. Repeated samples of the SAME code location mean an
 # idle/wait loop; samples scattered across 0x2xxxxxxx mean the core is lost.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 cat > /tmp/cpustate.c <<'EOF'
 #include "pokecore.h"

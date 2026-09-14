@@ -6,7 +6,7 @@
 # once the core is up to date — but it is NOT skipped: a Swift-only change still
 # has to link against the real archive, and that link is the check.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
 

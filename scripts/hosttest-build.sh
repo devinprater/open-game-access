@@ -4,7 +4,7 @@
 # device. Produces ~/pokemon-access-ios/Vendor/hosttest.
 set -uo pipefail
 
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${MELONDS_SRC:-$HOME/src/melonds-lua}"
 LUA_SRC="${LUA_SRC:-$HOME/src/lua-5.4.7}"
 OBJ="$ROOT/Vendor/hostobj"

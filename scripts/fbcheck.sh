@@ -6,7 +6,7 @@
 # read is wrong. This runs a longer stretch and prints the actual pixel values,
 # so a genuinely-black screen is distinguishable from a broken pointer.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 
 cat > /tmp/fbcheck.c <<'EOF'

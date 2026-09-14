@@ -9,7 +9,7 @@
 #
 # Usage: sim-test.sh [frames] [bootframes]
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 FRAMES="${1:-30000}"
 BOOT="${2:-20000}"

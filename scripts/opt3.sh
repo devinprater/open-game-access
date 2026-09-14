@@ -3,7 +3,7 @@
 # The previous attempt mixed -O1 and -O3 objects and missed units; a complete
 # second object tree is the only honest comparison.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 LUA="$HOME/src/lua-5.4.7/src"
 OBJ="$ROOT/Vendor/fastobj"

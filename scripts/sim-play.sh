@@ -2,7 +2,7 @@
 # sim-play.sh — drive the iOS core from title screen into the overworld and
 # exercise the reading hotkeys there.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 FRAMES="${1:-40000}"
 cd "$ROOT" || exit 1

@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # where.sh — run hosttest, then dump where it is stuck with gdb.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 ./Vendor/hosttest "$HOME/hosttest-data/black.nds" "$HOME/hosttest-data/script.lua" 1500 900 \
   > "$HOME/hosttest-run7.log" 2>&1 &
 HPID=$!

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # fixtest.sh — rebuild with the Reset() fix and measure real speed.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # pcprofile.sh — distinct-PC histogram over ~6 s of frame 0.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 

@@ -11,12 +11,17 @@
 # Xcode); there is no simulator runtime for Windows or Linux. So this script
 # proves the simulator build is valid and leaves execution to a macOS host.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # NOTE: SRC is the melonDS TREE root, not its src/ dir — every use appends /src.
 # Pointing it at .../src doubles the segment and every core file goes missing.
-SRC="$HOME/src/melonds-lua"
-LUA_SRC="$HOME/src/lua-5.4.7"
-SDKROOT="$HOME/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk"
+SRC="${MELONDS_SRC:-$HOME/src/melonds-lua}"
+LUA_SRC="${LUA_SRC:-$HOME/src/lua-5.4.7}"
+# ⛔ THE SDK PATH IS ENVIRONMENT-OVERRIDABLE. This script was written for a Linux
+# build against xtool's fetched Darwin SDK, so the path below is where THAT lives.
+# A macOS CI runner has Xcode's own SDK instead, at a different path and a
+# different version (iPhoneSimulator17.5.sdk vs ...26.5.sdk). Hard-coding it made
+# CI fail with "no iPhoneSimulator SDK at ..." while the SDK was right there.
+SDKROOT="${SDKROOT:-${POKE_SDK:-$HOME/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneSimulator.platform/Developer/SDKs/iPhoneSimulator26.5.sdk}}"
 OUT="$ROOT/Vendor/sim"
 OBJ="$OUT/obj"
 TRIPLE="${TRIPLE:-arm64-apple-ios17.0-simulator}"
@@ -25,8 +30,13 @@ ARCHDIR="${ARCHDIR:-arm64}"
 [ -d "$SDKROOT" ] || { echo "!! no iPhoneSimulator SDK at $SDKROOT" >&2; exit 1; }
 mkdir -p "$OBJ" "$OUT"
 
-CXX=/usr/local/swift/bin/clang++
-CC=/usr/local/swift/bin/clang
+CXX="${CXX:-/usr/local/swift/bin/clang++}"
+CC="${CC:-/usr/local/swift/bin/clang}"
+# On a macOS runner the Swift toolchain is not at /usr/local/swift; Xcode's clang
+# is the right tool there. Fall back to the bare names when the pinned paths are
+# absent so the script works on both.
+[ -x "$CXX" ] || CXX=clang++
+[ -x "$CC" ]  || CC=clang
 COMMON="-target $TRIPLE -isysroot $SDKROOT -O2 -g -fPIC -fwrapv -fno-strict-aliasing -D__IOS__=1 -DHAVE_PTHREADS=1 -DPOKE_IOS=1 -Wno-everything"
 INC="-I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$SRC/src -I$LUA_SRC/src -I$SRC/src/teakra/include"
 CXXFLAGS="$COMMON $INC -std=c++17 -stdlib=libc++"

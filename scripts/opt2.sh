@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # opt2.sh — relink with the -O3 objects and measure 5 frames.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 # Keep every object that is NOT a -O1 core object (the -O3 copies come from fastobj).
 KEEP=""

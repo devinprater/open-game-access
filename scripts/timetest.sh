@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # timetest.sh — build the timing harness and run it with and without the script.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/timingtest.c" Core/ 2>/dev/null || true
 

@@ -2,7 +2,7 @@
 # fwtest.sh — boot Pokémon Black with REAL bios7/bios9/firmware and compare
 # against the FreeBIOS direct-boot path.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 

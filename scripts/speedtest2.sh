@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # speedtest2.sh — is the interpreter slow because of logging, or optimisation?
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/speedtest2.c" Core/
 

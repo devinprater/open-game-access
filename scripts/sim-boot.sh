@@ -3,7 +3,7 @@
 # accessibility script. First gate: does the console reach graphics setup and
 # does the script load without a Lua error?
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 

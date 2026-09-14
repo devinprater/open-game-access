@@ -2,7 +2,7 @@
 # fe-run.sh — run the freshly built fedump with the correct shim, no shell games.
 #   fe-run.sh <plan-name> <frames>
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 PLAN="${1:-units}"
 FRAMES="${2:-5000}"

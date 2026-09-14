@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # aots-scan.sh — one clean look at the Dragon Ball Z: Attack of the Saiyans region.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"
 echo "shim present: $([ -f "$PA_SHIM" ] && echo yes || echo NO)"

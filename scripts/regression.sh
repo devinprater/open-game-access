@@ -5,7 +5,7 @@
 #   * Pokemon Diamond (non-IR cart) — must still boot and render
 # A fix that repairs one cart and breaks the other is not a fix.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 

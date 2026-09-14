@@ -1,10 +1,11 @@
 #!/usr/bin/env bash
 # status.sh — report the true state of the iOS project + xtool stack.
 set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
 unset POKECORE_LIB
 
-cd "$HOME/pokemon-access-ios" || exit 1
+cd "$ROOT" || exit 1
 
 echo "=== xtool auth ==="
 timeout 25 xtool auth status 2>&1 | head -5
@@ -28,6 +29,6 @@ ls -la Vendor/libpokecore.a 2>&1
 
 echo
 echo "=== swift build (clean env) ==="
-export POKECORE_LIB="$HOME/pokemon-access-ios/Vendor/libpokecore.a"
+export POKECORE_LIB="$ROOT/Vendor/libpokecore.a"
 timeout 280 swift build --triple arm64-apple-ios 2>&1 | tail -20
 echo "SWIFT_BUILD_EXIT=$?"

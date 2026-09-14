@@ -11,7 +11,7 @@
 # (`#if os(macOS)` around the simctl call), which is why the artifact is produced
 # here and handed over rather than run here.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
 TRIPLE="${TRIPLE:-arm64-apple-ios-simulator}"

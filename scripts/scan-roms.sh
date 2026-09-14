@@ -8,7 +8,7 @@
 # RAM is a reader away; a game that rasterises its own font in glyph tiles is a
 # font-decoding project first.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 OUTDIR="$ROOT/rom-screen"
 FRAMES="${FRAMES:-6000}"

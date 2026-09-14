@@ -4,7 +4,7 @@
 # forever, the game is in a wait loop and never progresses; if it roams, it is
 # working through code and the white screen is a draw problem.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 

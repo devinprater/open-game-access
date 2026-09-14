@@ -3,7 +3,8 @@
 # A different, simple DS game booting at speed would exonerate the interpreter
 # and point at this ROM's boot path (or its save/secure-area handling).
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 NDS_DIR="/mnt/c/Users/Devin Prater/Dropbox/Games/NDS"
 mkdir -p "$HOME/roms2"

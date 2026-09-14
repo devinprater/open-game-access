@@ -6,15 +6,16 @@
 # not the ROM file. This (1) finds the core's memory-read path, (2) installs an
 # ARM-capable disassembler.
 set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "########## 1. how does the Lua memory API read emulated memory? ##########"
 grep -n 'ReadMemory\|read_u8\|read_u16\|read_u32\|MainRAM\|ReadByte' \
-  "$HOME/pokemon-access-ios/Core/pokecore.cpp" | head -30
+  "$ROOT/Core/pokecore.cpp" | head -30
 
 echo
 echo "########## 2. the shim-facing memory function body ##########"
 grep -n 'static int l_memory_read\|l_read_u8\|memory_read' -A 25 \
-  "$HOME/pokemon-access-ios/Core/pokecore.cpp" | head -45
+  "$ROOT/Core/pokecore.cpp" | head -45
 
 echo
 echo "########## 3. install an ARM disassembler ##########"

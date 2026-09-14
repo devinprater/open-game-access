@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # samplepc2.sh — after the JIT fix, is frame 1 slow or is it still a runaway PC?
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 ./Vendor/timingtest "$HOME/hosttest-data/black.nds" - 5 > "$HOME/sample2.log" 2>&1 &
 HPID=$!

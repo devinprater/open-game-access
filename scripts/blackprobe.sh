@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # blackprobe.sh — Black with real firmware+BIOS, long run.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 cp "/mnt/c/Users/Devin Prater/pokemon-access-ios/Core/blackprobe.cpp" Core/

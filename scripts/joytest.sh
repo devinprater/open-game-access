@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # joytest.sh — prove joypad.set{} reaches the emulated console's keypad.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 

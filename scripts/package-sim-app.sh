@@ -11,7 +11,7 @@
 #
 # on a macOS host (or upload the zip to a cloud simulator service).
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 BIN="$ROOT/.build/arm64-apple-ios-simulator/debug/PokemonAccess-App"
 APP="$ROOT/xtool-sim/PokemonAccess.app"
 BUNDLE_ID="com.devinprater.pokemonaccess"

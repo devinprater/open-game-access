@@ -4,7 +4,7 @@
 # it. So: direct boot + BOTH resets has not actually been tested yet.
 # This also runs the REAL accessibility script.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 

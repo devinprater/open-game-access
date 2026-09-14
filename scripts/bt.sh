@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # bt.sh — where does the first frame hang? (yama ptrace_scope relaxed locally)
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 echo 0 | sudo tee /proc/sys/kernel/yama/ptrace_scope >/dev/null 2>&1 && echo "ptrace_scope=0"
 

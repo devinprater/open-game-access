@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # timetest2.sh — time pure emulation vs emulation+script, logging directly to files.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 
 echo "### WITHOUT script (pure emulation, 600 frames) ###"
 timeout 150 ./Vendor/timingtest "$HOME/hosttest-data/black.nds" NOSCRIPT 600 \

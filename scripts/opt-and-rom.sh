@@ -2,14 +2,15 @@
 # opt-and-rom.sh — (1) does -Ofast fix the interpreter speed? (2) is the stall
 # specific to Pokémon Black, or does any ROM crawl?
 set -uo pipefail
-cd "$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT"
 ROM="$HOME/hosttest-data/black.nds"
 NOOP="$HOME/hosttest-data/noop.lua"
 
 echo "###### rebuild the CORE at -Ofast (Delta's setting) ######"
 # Recompile just the hot CPU/graphics translation units at -Ofast into a
 # separate object dir so the -O1 objects are untouched for comparison.
-OBJ2="$HOME/pokemon-access-ios/Vendor/fastobj"
+OBJ2="$ROOT/Vendor/fastobj"
 mkdir -p "$OBJ2"
 
 SRC="$HOME/src/melonds-lua/src"
@@ -23,7 +24,7 @@ HOT="ARM.cpp ARMInterpreter.cpp ARMInterpreter_ALU.cpp ARMInterpreter_Branch.cpp
      ARCodeFile.cpp ARDatabaseDAT.cpp AREngine.cpp"
 
 FLAGS="-O3 -ffast-math -fno-math-errno -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything"
-INC="-I$HOME/pokemon-access-ios/Core -I$HOME/pokemon-access-ios/Sources/CPokeCore/include -I$SRC -I$HOME/src/lua-5.4.7/src -I$SRC/teakra/include"
+INC="-I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$SRC -I$HOME/src/lua-5.4.7/src -I$SRC/teakra/include"
 
 echo "compiling $(echo $HOT | wc -w) units at -O3..."
 echo "$HOT" | tr ' ' '\n' | grep -v '^$' | xargs -P "$(nproc)" -I{} bash -c \

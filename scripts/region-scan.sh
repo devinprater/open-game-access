@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # region-scan.sh — decide whether a claimed cheat address region is populated.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 bash "$ROOT/scripts/build-host.sh" || exit 1

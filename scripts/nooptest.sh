@@ -3,7 +3,7 @@
 # (no main.lua). If the game renders here, the accessibility script is what
 # stalls it. If it still does not render, the bug is in the core wiring.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 export PA_SHIM_DIR="$ROOT"
 

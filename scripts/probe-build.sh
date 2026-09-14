@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # probe-build.sh — build the reverse-engineering probe.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 bash "$ROOT/scripts/build-host.sh" || exit 1

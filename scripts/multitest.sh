@@ -6,7 +6,7 @@
 #   Diamond blank    → my wiring is broken (renderer/boot sequence), and Black was
 #                      never the problem.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 

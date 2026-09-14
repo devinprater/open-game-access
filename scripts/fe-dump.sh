@@ -9,7 +9,7 @@
 #   open those — the plan silently goes missing and NOTHING gets pressed, which
 #   looks exactly like "the game did not advance".
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 export PA_SHIM="$ROOT/Sources/PokemonAccess/Resources/bizhawk_compat.lua"

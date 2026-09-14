@@ -6,7 +6,7 @@
 # lists are unverified, version-specific and frequently mistyped. Reading them in
 # a running console separates "claimed address" from "real address".
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 

@@ -2,7 +2,8 @@
 # androiddiff.sh — the Android frontend runs this ROM correctly with the SAME
 # core. What does its boot sequence do that pokecore.cpp does not?
 set -uo pipefail
-A="$HOME/pokemon-access-ios/native/melonDS-android/app/src/main/cpp"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+A="$ROOT/native/melonDS-android/app/src/main/cpp"
 
 echo "=== files ==="
 ls "$A" | head -20

@@ -2,7 +2,7 @@
 # realrun.sh — run the REAL accessibility script (shim + main.lua combined)
 # against the fixed core, and capture every spoken line.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 

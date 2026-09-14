@@ -9,6 +9,7 @@
 # the stall; if it stays parked at 0x020882DC, IR is innocent and the cause is
 # elsewhere.
 set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 BK="$HOME/src/melonds-lua-irpatch"
 
@@ -33,23 +34,23 @@ PY
 echo
 echo "=== rebuild only the two TUs that matter, into a separate object dir ==="
 OBJ="$HOME/irpatch-obj"; mkdir -p "$OBJ"
-cp "$HOME/pokemon-access-ios/Vendor/hostobj/"*.o "$OBJ/" 2>/dev/null
+cp "$ROOT/Vendor/hostobj/"*.o "$OBJ/" 2>/dev/null
 
 g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything \
-  -I"$HOME/pokemon-access-ios/Core" -I"$HOME/pokemon-access-ios/Sources/CPokeCore/include" \
+  -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" \
   -I"$BK" -I"$HOME/src/lua-5.4.7/src" -I"$BK/teakra/include" -std=c++17 \
   -c "$BK/NDSCart.cpp" -o "$OBJ/NDSCart.o" 2>&1 | grep -E '\berror\b' | head -5
 echo "NDSCart.o rebuilt: $([ -f "$OBJ/NDSCart.o" ] && echo yes || echo NO)"
 
 echo
 echo "=== link the blackprobe against the IR-patched objects ==="
-g++ -O2 -g -I"$HOME/pokemon-access-ios/Core" -I"$HOME/pokemon-access-ios/Sources/CPokeCore/include" \
-  -I"$BK" -std=c++17 -o "$HOME/pokemon-access-ios/Vendor/blackprobe_ir" \
-  "$HOME/pokemon-access-ios/Core/blackprobe.cpp" "$OBJ"/*.o -lpthread -lm -ldl 2>&1 \
+g++ -O2 -g -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" \
+  -I"$BK" -std=c++17 -o "$ROOT/Vendor/blackprobe_ir" \
+  "$ROOT/Core/blackprobe.cpp" "$OBJ"/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -5
-echo "linked: $([ -x "$HOME/pokemon-access-ios/Vendor/blackprobe_ir" ] && echo yes || echo NO)"
+echo "linked: $([ -x "$ROOT/Vendor/blackprobe_ir" ] && echo yes || echo NO)"
 
 echo
 echo "########## BLACK as a PLAIN RETAIL cart (IR path skipped), 60000 frames ##########"
-cd "$HOME/pokemon-access-ios"
+cd "$ROOT"
 timeout 400 ./Vendor/blackprobe_ir "$HOME/hosttest-data/black.nds" "" "" "" 60000 2>&1 | tail -14

@@ -7,7 +7,7 @@
 # If A renders and B does not, the script/shim is corrupting the emulator. If
 # neither renders, the bug is in the core wiring.
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT"
 

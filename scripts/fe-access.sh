@@ -2,7 +2,7 @@
 # fe-access.sh — build and run the Fire Emblem accessibility prototype.
 #   fe-access.sh <plan-name> <frames>
 set -uo pipefail
-ROOT="$HOME/pokemon-access-ios"
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 PLAN="${1:-units}"
 FRAMES="${2:-5000}"
