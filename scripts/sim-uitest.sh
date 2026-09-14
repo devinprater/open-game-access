@@ -120,7 +120,7 @@ fi
 # stayed alive — a false negative on the whole job. Only files naming our app count.
 SIMCRASH="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/Logs/CrashReporter"
 if [ -d "$SIMCRASH" ]; then
-  HITS="$(find "$SIMCRASH" -type f \( -iname 'OpenGameAccess*' -o -iname '*pokemonaccess*' \) 2>/dev/null)"
+  HITS="$(find "$SIMCRASH" -type f -iname 'OpenGameAccess*' 2>/dev/null)"
   if [ -n "$HITS" ]; then
     echo "!! simulator crash logs naming the app:"
     echo "$HITS" | sed 's/^/     /'

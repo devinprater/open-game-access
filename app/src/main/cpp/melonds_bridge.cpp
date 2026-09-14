@@ -9,7 +9,7 @@
 //      into a coroutine, resumed once per frame from the emulator loop.
 //
 // The actual MelonDSAndroid::* symbols come from the core; this file is the
-// glue the app talks to via com.devin.pokemonaccess.MelonCore.
+// glue the app talks to via com.devin.opengameaccess.MelonCore.
 
 #include <jni.h>
 #include <string>
@@ -46,7 +46,7 @@ extern "C" {
 // ---------------- lifecycle ----------------
 
 JNIEXPORT jboolean JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeSetup(JNIEnv* env, jobject, jstring configJson)
+Java_com_devin_opengameaccess_MelonCore_nativeSetup(JNIEnv* env, jobject, jstring configJson)
 {
     // Full config parsing mirrors MelonDSAndroidConfiguration::buildEmulatorConfiguration;
     // for the bridge we accept a JSON string and apply defaults, matching
@@ -56,7 +56,7 @@ Java_com_devin_pokemonaccess_MelonCore_nativeSetup(JNIEnv* env, jobject, jstring
 }
 
 JNIEXPORT jboolean JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeLoadRom(JNIEnv* env, jobject, jstring romPath, jstring savePath)
+Java_com_devin_opengameaccess_MelonCore_nativeLoadRom(JNIEnv* env, jobject, jstring romPath, jstring savePath)
 {
     const char* rom = env->GetStringUTFChars(romPath, nullptr);
     const char* save = savePath ? env->GetStringUTFChars(savePath, nullptr) : nullptr;
@@ -69,7 +69,7 @@ Java_com_devin_pokemonaccess_MelonCore_nativeLoadRom(JNIEnv* env, jobject, jstri
 }
 
 JNIEXPORT void JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeStart(JNIEnv*, jobject)
+Java_com_devin_opengameaccess_MelonCore_nativeStart(JNIEnv*, jobject)
 {
     pthread_mutex_lock(&emuMutex);
     emuRunning = true;
@@ -78,7 +78,7 @@ Java_com_devin_pokemonaccess_MelonCore_nativeStart(JNIEnv*, jobject)
 }
 
 JNIEXPORT void JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativePause(JNIEnv*, jobject)
+Java_com_devin_opengameaccess_MelonCore_nativePause(JNIEnv*, jobject)
 {
     pthread_mutex_lock(&emuMutex);
     emuPaused = true;
@@ -86,7 +86,7 @@ Java_com_devin_pokemonaccess_MelonCore_nativePause(JNIEnv*, jobject)
 }
 
 JNIEXPORT void JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeResume(JNIEnv*, jobject)
+Java_com_devin_opengameaccess_MelonCore_nativeResume(JNIEnv*, jobject)
 {
     pthread_mutex_lock(&emuMutex);
     emuPaused = false;
@@ -94,7 +94,7 @@ Java_com_devin_pokemonaccess_MelonCore_nativeResume(JNIEnv*, jobject)
 }
 
 JNIEXPORT void JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeStop(JNIEnv*, jobject)
+Java_com_devin_opengameaccess_MelonCore_nativeStop(JNIEnv*, jobject)
 {
     pthread_mutex_lock(&emuMutex);
     emuRunning = false;
@@ -102,28 +102,28 @@ Java_com_devin_pokemonaccess_MelonCore_nativeStop(JNIEnv*, jobject)
 }
 
 JNIEXPORT void JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativePressKey(JNIEnv*, jobject, jint key)
+Java_com_devin_opengameaccess_MelonCore_nativePressKey(JNIEnv*, jobject, jint key)
 {
     // MelonDSAndroid::pressKey(key)
     (void) key;
 }
 
 JNIEXPORT void JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeReleaseKey(JNIEnv*, jobject, jint key)
+Java_com_devin_opengameaccess_MelonCore_nativeReleaseKey(JNIEnv*, jobject, jint key)
 {
     // MelonDSAndroid::releaseKey(key)
     (void) key;
 }
 
 JNIEXPORT void JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeTouchScreen(JNIEnv*, jobject, jint x, jint y)
+Java_com_devin_opengameaccess_MelonCore_nativeTouchScreen(JNIEnv*, jobject, jint x, jint y)
 {
     // MelonDSAndroid::touchScreen(x, y)
     (void) x; (void) y;
 }
 
 JNIEXPORT void JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeReleaseScreen(JNIEnv*, jobject)
+Java_com_devin_opengameaccess_MelonCore_nativeReleaseScreen(JNIEnv*, jobject)
 {
     // MelonDSAndroid::releaseScreen()
 }
@@ -131,7 +131,7 @@ Java_com_devin_pokemonaccess_MelonCore_nativeReleaseScreen(JNIEnv*, jobject)
 // ---------------- script engine ----------------
 
 JNIEXPORT jboolean JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeLoadScript(JNIEnv* env, jobject, jstring source)
+Java_com_devin_opengameaccess_MelonCore_nativeLoadScript(JNIEnv* env, jobject, jstring source)
 {
     const char* src = env->GetStringUTFChars(source, nullptr);
     bool ok = false;
@@ -156,7 +156,7 @@ Java_com_devin_pokemonaccess_MelonCore_nativeLoadScript(JNIEnv* env, jobject, js
 }
 
 JNIEXPORT void JNICALL
-Java_com_devin_pokemonaccess_MelonCore_nativeFrameUpdate(JNIEnv*, jobject)
+Java_com_devin_opengameaccess_MelonCore_nativeFrameUpdate(JNIEnv*, jobject)
 {
 #ifdef POKEMON_ACCESS_EMBED_LUA
     if (!scriptLoaded || !L) return;

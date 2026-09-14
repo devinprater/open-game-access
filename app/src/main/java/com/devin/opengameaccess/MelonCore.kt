@@ -1,4 +1,4 @@
-package com.devin.pokemonaccess
+package com.devin.opengameaccess
 
 import android.content.res.AssetManager
 
