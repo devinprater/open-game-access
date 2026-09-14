@@ -218,31 +218,41 @@ reported phantom enemies on any map where those slots were plausible. It now tes
 
 ## Not yet found
 
-- **Enemy detection is UNVERIFIED.** The reader is correct as far as it goes (it
-  reads the faction number, and Marth reads 0), but **no enemy has ever been
-  observed**, so the enemy path has never executed on real data.
+- **Enemy reading is VERIFIED; enemy NAVIGATION is not.** With a real USA save loaded
+  (`fe/saves/fe11-usa-finalboss.sav`, from GameFAQs) the game's own forces come back
+  populated for the first time:
 
-  This took a wrong turn worth recording. A 40,000-frame run kept reporting
-  `player=1 enemy=0`, which looked like "this map has no enemies". Reading the
-  SCREENSHOT showed the truth: the game was parked on the Prologue's movement
-  tutorial — *"Marth can move anywhere within the blue area"* — because a pure-A-mash
-  input plan cannot satisfy a tutorial that requires the unit to MOVE. The Prologue
-  maps genuinely have no enemies (confirmed by screenshot **and** by the faction
-  census); the game simply was not progressing.
+  ```
+  [save] loaded fe11-usa-finalboss.sav
+  faction 2 (player, scenario)  units=9     <- Marth's army
+  faction 3 (enemy, scenario)   units=22    <- the enemy force
+  faction 4 (unassigned)        units=60    <- empty reserve slots
+  ```
 
-  Progress made:
-  - `scripts/gen-fe-plan.py` + `scripts/fe-play.sh` generate a plan that selects,
-    moves, confirms and ends turns. A screenshot at frame 12,000 confirms it does
-    advance — Marth has moved down the corridor and the tutorial now reads *"Move
-    Marth farther down the corridor"*.
-  - Finishing the Prologue is a longer scripted sequence of movement tutorials than
-    hand-authored keypresses reliably satisfy.
+  That confirms the faction ids inferred from the decompilation (`disposition.cpp`
+  call sites): **2 = player, 3 = enemy** for scenario forces, alongside 0/1 for the
+  live-map forces. 22 enemy units were read from real game data.
 
-  **The reliable path is a save file**, not more input scripting. See
-  `fe/saves/README.md`: a USA (`YFEE`) in-chapter save is needed. The one found and
-  tried is European (`YFEP`) in a No$GBA container, so it does not load — two
-  independent reasons. Wiring a save through is one line: the harnesses currently
-  pass `NULL` as the third argument to `poke_load_rom`.
+  **But this save cannot finish the job**: it is *after* the final boss, so booting it
+  plays the ending cutscene (screenshots: Nyna *"Well done, Marth..."* → Campaign
+  Summary) and `gMapStateManager` is **never** valid — checked at 3000/3600/4200/4600/
+  5000/5600/6200/7000/8000. No map is ever entered, so `Next enemy` correctly answers
+  "Not on a map yet" and the navigation path still has not executed.
+
+  **What would finish it:** a USA save from *during* a chapter with enemies (Chapter 1
+  onward), or a `SUSPEND` save. GameFAQs #20257 ("Completed Chapter 10") is the next
+  candidate — it was throttled on this attempt and needs a retry.
+
+  ### The Prologue route (also viable, partially explored)
+
+  The Prologue *can* be advanced by input — screenshots prove the plan moves Marth from
+  (1,20) to (5,20) and opens the "Wait" menu with the tutorial reading *"After a unit
+  moves, select 'Wait'..."*. So a play plan works; it just needs to satisfy a longer
+  chain of scripted movement tutorials, and each step has to be confirmed by
+  screenshot because the tutorial text lives on the top screen while
+  `gMapStateManager` is valid. `scripts/fe-tutorial-steps.py` automates that
+  step-by-step inspection.
+
 - **Chapter / map identifier.**
 - **Movement and attack ranges.** The game computes these; the map buffers above
   are the likely place to read them from rather than reimplementing the rules.

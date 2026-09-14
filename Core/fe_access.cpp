@@ -394,7 +394,10 @@ int main(int argc, char** argv)
     const char* planPath = (argc > 3) ? argv[3] : nullptr;
 
     PokeCore* core = poke_create();
-    if (!poke_load_rom(core, rom, NULL)) { printf("load fail: %s\n", poke_last_error(core)); return 1; }
+    // SAVE=<path> loads in-chapter progress; needed to reach a map that has enemies.
+    const char* savePath = getenv("SAVE");
+    if (!poke_load_rom(core, rom, savePath)) { printf("load fail: %s\n", poke_last_error(core)); return 1; }
+    if (savePath) printf("[save] loaded %s\n", savePath);
     melonDS::NDS* nds = poke_debug_nds(core);
     gRam = nds->MainRAM;
     {

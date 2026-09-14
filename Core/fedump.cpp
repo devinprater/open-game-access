@@ -185,7 +185,12 @@ int main(int argc, char** argv)
     long dumpAt = (argc > 4) ? atol(argv[4]) : -1;   // -1 = dump at end only
 
     PokeCore* core = poke_create();
-    if (!poke_load_rom(core, rom, NULL)) { printf("load fail: %s\n", poke_last_error(core)); return 1; }
+    // A save file is optional but decisive for reaching game states that input
+    // scripting cannot: pass one via SAVE=<path> to load in-chapter progress.
+    // poke_load_rom(core, rom, save) — the save is the 3rd arg, NULL = none.
+    const char* savePath = getenv("SAVE");
+    if (!poke_load_rom(core, rom, savePath)) { printf("load fail: %s\n", poke_last_error(core)); return 1; }
+    if (savePath) printf("[save] loaded %s\n", savePath);
     melonDS::NDS* nds = poke_debug_nds(core);
     gRam = nds->MainRAM;
     {
