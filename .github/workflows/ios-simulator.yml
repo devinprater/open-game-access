@@ -73,10 +73,14 @@ jobs:
       - name: Build the app with xtool
         run: |
           export POKECORE_LIB="$PWD/Vendor/sim/libpokecore-sim.a"
-          # xtool dev build produces an .app for the DEVICE triple and a linked
-          # binary for the simulator triple; package-sim-app.sh assembles the
-          # simulator bundle from whichever is produced.
-          xtool dev build 2>&1 | tail -30 || true
+          echo "POKECORE_LIB=$POKECORE_LIB"
+          # ⛔ --triple is REQUIRED. A bare `xtool dev build` targets the DEVICE
+          # triple and links Vendor/libpokecore.a — which CI does not build — so it
+          # fails with "link command failed with exit code 1" and produces no
+          # simulator binary. Passing the simulator triple links against the archive
+          # this job did build. xtool packages the .app only for the device triple,
+          # so package-sim-app.sh assembles the simulator bundle itself.
+          xtool dev build --triple arm64-apple-ios-simulator 2>&1 | tail -25 || true
           bash scripts/package-sim-app.sh
 
       - name: Verify the packaged app

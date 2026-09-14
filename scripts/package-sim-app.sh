@@ -33,7 +33,12 @@ if [ ! -f "$BIN" ]; then
   # is a fallback for an environment with no xtool.
   if command -v xtool >/dev/null 2>&1; then
     echo "   xtool found; using it (this is how the working local build is made)"
-    xtool dev build 2>&1 | tail -25 || true
+    # ⛔ --triple is REQUIRED here. A bare `xtool dev build` targets the DEVICE
+    # triple and links Vendor/libpokecore.a, which is not what this script's caller
+    # built — it fails with "link command failed with exit code 1" and yields no
+    # simulator binary. The simulator triple links against the archive built by
+    # build-sim.sh.
+    xtool dev build --triple "$TRIPLE" 2>&1 | tail -25 || true
   fi
 fi
 
