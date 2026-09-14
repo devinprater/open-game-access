@@ -111,14 +111,24 @@ if ls "$CRASH_DIR"/PokemonAccess* >/dev/null 2>&1; then
   ls -la "$CRASH_DIR"/PokemonAccess* | tail -5
   CRASHED=1
 else
-  echo "  none"
+  echo "  none on the host"
 fi
-# Also check inside the simulator's own diagnostic directory.
+
+# ⛔ Match on the APP, not on "is this directory non-empty". Every simulator has
+# Library/Logs/CrashReporter/{Assistant,DiagnosticLogs} from the moment it boots, so
+# a bare `ls -A` test reported a crash on a run where the app launched cleanly and
+# stayed alive — a false negative on the whole job. Only files naming our app count.
 SIMCRASH="$HOME/Library/Developer/CoreSimulator/Devices/$UDID/data/Library/Logs/CrashReporter"
-if [ -d "$SIMCRASH" ] && [ -n "$(ls -A "$SIMCRASH" 2>/dev/null)" ]; then
-  echo "!! simulator crash logs:"
-  ls -la "$SIMCRASH" | tail -5
-  CRASHED=1
+if [ -d "$SIMCRASH" ]; then
+  HITS="$(find "$SIMCRASH" -type f \( -iname 'PokemonAccess*' -o -iname '*pokemonaccess*' \) 2>/dev/null)"
+  if [ -n "$HITS" ]; then
+    echo "!! simulator crash logs naming the app:"
+    echo "$HITS" | sed 's/^/     /'
+    CRASHED=1
+  else
+    echo "  none in the simulator's CrashReporter (its standard"
+    echo "  Assistant/DiagnosticLogs folders are not crash reports)"
+  fi
 fi
 
 echo
