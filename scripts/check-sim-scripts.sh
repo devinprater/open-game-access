@@ -4,7 +4,7 @@
 # This is the local proxy for what CI does, so a CI-only failure can be reproduced
 # (and fixed) here in seconds rather than in a 7-minute remote run.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios" || exit 1
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || exit 1
 
 echo "== syntax =="
 bad=0

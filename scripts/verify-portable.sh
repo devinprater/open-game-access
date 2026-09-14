@@ -5,7 +5,7 @@
 # A portability fix that breaks the working environment is worse than no fix, so
 # this runs the real build after the rewrite rather than only checking syntax.
 set -uo pipefail
-cd "$HOME/pokemon-access-ios" || exit 1
+cd "$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)" || exit 1
 
 echo "== bash syntax check on every script =="
 bad=0

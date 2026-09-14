@@ -8,10 +8,16 @@
 # worse than none, so the checks here are written to distinguish "absent" from
 # "my tool cannot see it".
 set -uo pipefail
-APP="${1:-$HOME/pokemon-access-ios/xtool-sim/PokemonAccess.app}"
+# ⛔ Derive the repo root from this script's location. A hard-coded
+# $HOME/pokemon-access-ios default worked here but not in CI, where the repo is
+# checked out as open-game-access under the runner workspace — the verify step then
+# reported "no binary at /Users/runner/pokemon-access-ios/..." for an app that had
+# just been built successfully two steps earlier.
+ROOT="${ROOT:-$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)}"
+APP="${1:-$ROOT/xtool-sim/PokemonAccess.app}"
 BIN="$APP/PokemonAccess"
 # Portable platform detection, shared with package-sim-app.sh.
-. "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/lib-macho.sh"
+. "$ROOT/scripts/lib-macho.sh"
 
 [ -f "$BIN" ] || { echo "!! no binary at $BIN" >&2; exit 1; }
 
