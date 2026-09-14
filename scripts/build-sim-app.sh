@@ -19,7 +19,7 @@ TRIPLE="${TRIPLE:-arm64-apple-ios-simulator}"
 SIMLIB="$ROOT/Vendor/sim/libpokecore-sim.a"
 [ -f "$SIMLIB" ] || { echo "== simulator core archive missing, building it"; bash "$ROOT/scripts/build-sim.sh" || exit 1; }
 [ -f "$SIMLIB" ] || { echo "!! still no $SIMLIB" >&2; exit 1; }
-echo "== simulator core: $(ls -la "$SIMLIB" | awk '{print $5}') bytes, $(/usr/local/swift/bin/llvm-nm -g "$SIMLIB" | grep -c ' T _poke_') poke symbols"
+echo "== simulator core: $(ls -la "$SIMLIB" | awk '{print $5}') bytes, $("$LLVM_NM" -g "$SIMLIB" | grep -c ' T _poke_') poke symbols"
 
 export POKECORE_LIB="$SIMLIB"
 echo "== POKECORE_LIB=$POKECORE_LIB"

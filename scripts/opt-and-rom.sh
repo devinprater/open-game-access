@@ -2,6 +2,13 @@
 # opt-and-rom.sh — (1) does -Ofast fix the interpreter speed? (2) is the stall
 # specific to Pokémon Black, or does any ROM crawl?
 set -uo pipefail
+# ---- parallelism, GNU or BSD ----
+JOBS="${JOBS:-}"
+if [ -z "$JOBS" ]; then
+  if command -v nproc >/dev/null 2>&1; then JOBS="$(nproc)"
+  elif command -v sysctl >/dev/null 2>&1; then JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+  else JOBS=4; fi
+fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT"
 ROM="$HOME/hosttest-data/black.nds"
@@ -27,7 +34,7 @@ FLAGS="-O3 -ffast-math -fno-math-errno -fPIC -fwrapv -fno-strict-aliasing -DHAVE
 INC="-I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$SRC -I$HOME/src/lua-5.4.7/src -I$SRC/teakra/include"
 
 echo "compiling $(echo $HOT | wc -w) units at -O3..."
-echo "$HOT" | tr ' ' '\n' | grep -v '^$' | xargs -P "$(nproc)" -I{} bash -c \
+echo "$HOT" | tr ' ' '\n' | grep -v '^$' | xargs -P "$JOBS" -I{} bash -c \
   "g++ $FLAGS $INC -std=c++17 -c '$SRC/{}' -o '$OBJ2/{}'.o 2>/dev/null"
 
 ls "$OBJ2"/*.o 2>/dev/null | wc -l

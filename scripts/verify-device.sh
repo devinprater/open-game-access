@@ -30,9 +30,9 @@ if [ -d "$APP" ]; then
   echo "== device app: $APP"
   ls -la "$APP"
   echo "-- platform --"
-  /usr/local/swift/bin/llvm-objdump --macho --private-headers "$APP/PokemonAccess" 2>/dev/null \
+  "$(command -v llvm-objdump || echo /usr/bin/otool)" --macho --private-headers "$APP/PokemonAccess" 2>/dev/null \
     | grep -A2 LC_BUILD_VERSION | head -4
-  echo "-- core linked: $(/usr/local/swift/bin/llvm-nm "$APP/PokemonAccess" 2>/dev/null | grep -c melonDS) melonDS symbols, $(/usr/local/swift/bin/llvm-nm "$APP/PokemonAccess" 2>/dev/null | grep -c ' T _poke_') poke_* entry points"
+  echo "-- core linked: $("$LLVM_NM" "$APP/PokemonAccess" 2>/dev/null | grep -c melonDS) melonDS symbols, $("$LLVM_NM" "$APP/PokemonAccess" 2>/dev/null | grep -c ' T _poke_') poke_* entry points"
   echo "-- resources --"
   sha256sum "$APP"/PokemonAccess_PokemonAccess.bundle/Resources/*.lua 2>/dev/null
 else

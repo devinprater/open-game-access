@@ -3,6 +3,13 @@
 # against a real ROM, so the accessibility layer can be exercised without a
 # device. Produces ~/pokemon-access-ios/Vendor/hosttest.
 set -uo pipefail
+# ---- parallelism, GNU or BSD ----
+JOBS="${JOBS:-}"
+if [ -z "$JOBS" ]; then
+  if command -v nproc >/dev/null 2>&1; then JOBS="$(nproc)"
+  elif command -v sysctl >/dev/null 2>&1; then JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+  else JOBS=4; fi
+fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${MELONDS_SRC:-$HOME/src/melonds-lua}"
@@ -79,7 +86,7 @@ rm -f "$OBJ/.failed"
 echo "== compiling $(wc -l < "$OBJ/list.txt") units for host =="
 export CXXFLAGS CFLAGS OBJ
 export -f compile
-xargs -a "$OBJ/list.txt" -P "$(nproc)" -I{} bash -c '
+xargs -P "$JOBS" -I{} bash -c '
   IFS="|" read -r src lang tag <<< "{}"
   compile "$lang" "$src" "$tag"
 '

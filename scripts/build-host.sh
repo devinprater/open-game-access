@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# ---- parallelism, GNU or BSD ----
+JOBS="${JOBS:-}"
+if [ -z "$JOBS" ]; then
+  if command -v nproc >/dev/null 2>&1; then JOBS="$(nproc)"
+  elif command -v sysctl >/dev/null 2>&1; then JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+  else JOBS=4; fi
+fi
 # build-host.sh — build/refresh the host x86_64 object set for the diagnostic
 # harnesses from the SAME source list the iOS builds use, so a harness can never
 # be testing a different core than the app ships.
@@ -19,7 +26,6 @@ INC="-I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$SRC/src -I$LUA_SRC/src -I
 CXXFLAGS="$COMMON $INC -std=c++17"
 CFLAGS="$COMMON $INC -std=gnu11"
 
-JOBS="${JOBS:-$(nproc)}"
 
 compile() {
   local lang="$1" src="$2" tag="$3"
@@ -50,7 +56,7 @@ rm -f "$OBJ/.failed"
 echo "== host objects: $(wc -l < "$OBJ/list.txt") TUs, $JOBS jobs"
 export CXXFLAGS CFLAGS OBJ
 export -f compile
-xargs -a "$OBJ/list.txt" -P "$JOBS" -I{} bash -c '
+xargs -P "$JOBS" -I{} bash -c '
   IFS="|" read -r src lang tag <<< "{}"
   compile "$lang" "$src" "$tag"
 '

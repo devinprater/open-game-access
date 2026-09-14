@@ -1,5 +1,24 @@
 #!/usr/bin/env bash
 set -uo pipefail
+# ---- LLVM binutils, located rather than assumed ----
+# GNU ar's index is not readable by ld64.lld, and GNU nm cannot read Mach-O, so
+# these must come from the same family as the linker.
+LLVM_AR=""; LLVM_RANLIB=""; LLVM_NM=""
+for d in /usr/local/swift/bin /usr/bin /opt/homebrew/opt/llvm/bin; do
+  [ -x "$d/llvm-ar" ]     && [ -z "$LLVM_AR" ]     && LLVM_AR="$d/llvm-ar"
+  [ -x "$d/llvm-ranlib" ] && [ -z "$LLVM_RANLIB" ] && LLVM_RANLIB="$d/llvm-ranlib"
+  [ -x "$d/llvm-nm" ]     && [ -z "$LLVM_NM" ]     && LLVM_NM="$d/llvm-nm"
+done
+[ -z "$LLVM_AR" ]     && LLVM_AR="$(command -v llvm-ar || command -v ar)"
+[ -z "$LLVM_RANLIB" ] && LLVM_RANLIB="$(command -v llvm-ranlib || command -v ranlib)"
+[ -z "$LLVM_NM" ]     && LLVM_NM="$(command -v llvm-nm || command -v nm)"
+# ---- parallelism, GNU or BSD ----
+JOBS="${JOBS:-}"
+if [ -z "$JOBS" ]; then
+  if command -v nproc >/dev/null 2>&1; then JOBS="$(nproc)"
+  elif command -v sysctl >/dev/null 2>&1; then JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+  else JOBS=4; fi
+fi
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${MELONDS_SRC:-$HOME/src/melonds-lua}"
@@ -7,8 +26,10 @@ LUA_SRC="${LUA_SRC:-$HOME/src/lua-5.4.7}"
 OUT="$ROOT/Vendor"
 OBJ="$OUT/obj"
 SDK="$HOME/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
-CXX="/usr/local/swift/bin/clang++"
-CC="/usr/local/swift/bin/clang"
+CXX="${CXX:-/usr/local/swift/bin/clang++}"
+[ -x "$CXX" ] || CXX="$(command -v clang++ || echo clang++)"
+CC="${CC:-/usr/local/swift/bin/clang}"
+[ -x "$CC" ] || CC="$(command -v clang || echo clang)"
 
 [ -d "$SDK" ] || { echo "!! no iPhoneOS SDK at $SDK" >&2; exit 1; }
 [ -d "$SRC/src" ] || { echo "!! no melonDS source at $SRC" >&2; exit 1; }
@@ -65,7 +86,7 @@ rm -f "$OBJ/.failed"
 echo "== compiling $(wc -l < "$OBJ/list.txt") translation units =="
 export CXX CC CXXFLAGS CFLAGS OBJ
 export -f compile
-xargs -a "$OBJ/list.txt" -P "$(nproc)" -I{} bash -c '
+xargs -P "$JOBS" -I{} bash -c '
   IFS="|" read -r src lang tag <<< "{}"
   compile "$lang" "$src" "$tag"
 '
@@ -77,15 +98,15 @@ rm -f "$OUT/libpokecore.a"
 # GNU ar's index is not readable by ld64.lld ("archive has no index"), so the
 # archive is built and indexed with the Swift toolchain's LLVM binutils — the
 # same family as the linker that consumes it.
-AR=/usr/local/swift/bin/llvm-ar
-RANLIB=/usr/local/swift/bin/llvm-ranlib
+AR="$LLVM_AR"
+RANLIB="$LLVM_RANLIB"
 [ -x "$AR" ] || AR=ar
 [ -x "$RANLIB" ] || RANLIB=ranlib
 
 "$AR" rcs "$OUT/libpokecore.a" "$OBJ"/*.o
 "$RANLIB" "$OUT/libpokecore.a"
 ls -la "$OUT/libpokecore.a"
-echo "-- poke symbols --"; /usr/local/swift/bin/llvm-nm -g "$OUT/libpokecore.a" 2>/dev/null | grep -c " T _poke_" || true
+echo "-- poke symbols --"; "$LLVM_NM" -g "$OUT/libpokecore.a" 2>/dev/null | grep -c " T _poke_" || true
 
 # xtool's generated builder package links a stub against the SwiftPM product, so
 # the app bundle it writes is the stub unless the .app comes from `xtool dev`;

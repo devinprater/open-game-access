@@ -40,7 +40,7 @@ fi
 echo
 echo "== binary =="
 file "$BIN"
-PLAT=$(/usr/local/swift/bin/llvm-objdump --macho --private-headers "$BIN" 2>/dev/null \
+PLAT=$("$(command -v llvm-objdump || echo /usr/bin/otool)" --macho --private-headers "$BIN" 2>/dev/null \
        | grep -A4 'LC_BUILD_VERSION' | grep -m1 platform)
 [ -z "$PLAT" ] && PLAT=$(otool -l "$BIN" 2>/dev/null | grep -A4 'LC_BUILD_VERSION' | grep -m1 platform)
 echo "LC_BUILD_VERSION: ${PLAT:-<not found>}"

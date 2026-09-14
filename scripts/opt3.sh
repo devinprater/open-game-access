@@ -3,6 +3,13 @@
 # The previous attempt mixed -O1 and -O3 objects and missed units; a complete
 # second object tree is the only honest comparison.
 set -uo pipefail
+# ---- parallelism, GNU or BSD ----
+JOBS="${JOBS:-}"
+if [ -z "$JOBS" ]; then
+  if command -v nproc >/dev/null 2>&1; then JOBS="$(nproc)"
+  elif command -v sysctl >/dev/null 2>&1; then JOBS="$(sysctl -n hw.ncpu 2>/dev/null || echo 4)"
+  else JOBS=4; fi
+fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 LUA="$HOME/src/lua-5.4.7/src"
@@ -68,7 +75,7 @@ compile() {
 echo "== compiling $(wc -l < "$OBJ/list.txt") units at -O3 =="
 export CXXFLAGS CFLAGS OBJ
 export -f compile
-xargs -a "$OBJ/list.txt" -P "$(nproc)" -I{} bash -c '
+xargs -P "$JOBS" -I{} bash -c '
   IFS="|" read -r src lang tag <<< "{}"
   compile "$lang" "$src" "$tag"
 '
