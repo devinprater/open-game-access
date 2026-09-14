@@ -220,15 +220,29 @@ reported phantom enemies on any map where those slots were plausible. It now tes
 
 - **Enemy detection is UNVERIFIED.** The reader is correct as far as it goes (it
   reads the faction number, and Marth reads 0), but **no enemy has ever been
-  observed**, so the enemy path has never executed on real data. Chapter 1's scripted
-  maps contain only the player's force — the faction census stays
-  `player=1 enemy=0` for 40,000 frames — so "No enemies found" is the *correct*
-  answer there and proves nothing.
-  `scripts/fe-enemy.sh` (with `FACTION_TRACE=1`) plus `fe/plans/enemies.txt` exist to
-  find and read a map that has one; that plan did not advance past the first map.
-  **Verifying this needs a save state or input sequence that reaches a chapter with a
-  hostile force — not more instrumentation.** Until then the adapter must be
-  understood as untested against real enemies.
+  observed**, so the enemy path has never executed on real data.
+
+  This took a wrong turn worth recording. A 40,000-frame run kept reporting
+  `player=1 enemy=0`, which looked like "this map has no enemies". Reading the
+  SCREENSHOT showed the truth: the game was parked on the Prologue's movement
+  tutorial — *"Marth can move anywhere within the blue area"* — because a pure-A-mash
+  input plan cannot satisfy a tutorial that requires the unit to MOVE. The Prologue
+  maps genuinely have no enemies (confirmed by screenshot **and** by the faction
+  census); the game simply was not progressing.
+
+  Progress made:
+  - `scripts/gen-fe-plan.py` + `scripts/fe-play.sh` generate a plan that selects,
+    moves, confirms and ends turns. A screenshot at frame 12,000 confirms it does
+    advance — Marth has moved down the corridor and the tutorial now reads *"Move
+    Marth farther down the corridor"*.
+  - Finishing the Prologue is a longer scripted sequence of movement tutorials than
+    hand-authored keypresses reliably satisfy.
+
+  **The reliable path is a save file**, not more input scripting. See
+  `fe/saves/README.md`: a USA (`YFEE`) in-chapter save is needed. The one found and
+  tried is European (`YFEP`) in a No$GBA container, so it does not load — two
+  independent reasons. Wiring a save through is one line: the harnesses currently
+  pass `NULL` as the third argument to `poke_load_rom`.
 - **Chapter / map identifier.**
 - **Movement and attack ranges.** The game computes these; the map buffers above
   are the likely place to read them from rather than reimplementing the rules.

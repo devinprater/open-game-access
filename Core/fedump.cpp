@@ -32,6 +32,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 #include <string>
 
 melonDS::NDS* poke_debug_nds(PokeCore* core);
@@ -197,7 +198,11 @@ int main(int argc, char** argv)
     if (!poke_start(core)) { printf("start fail: %s\n", poke_last_error(core)); return 1; }
 
     // Plan: KEY <frame> <BTN> <0|1>   and   SNAP <frame> <path>
-    struct K { long f; int b; int d; std::string snap; bool isSnap = false; };
+    struct K {
+        long f; int b; int d;
+        std::string snap; bool isSnap = false;
+        std::string shot; int shotScreen = 0;
+    };
     std::vector<K> keys;
     if (planPath) {
         FILE* f = fopen(planPath, "r");
@@ -211,10 +216,28 @@ int main(int argc, char** argv)
                     for (int i = 0; i < 12; i++) if (!strcasecmp(btn, names[i])) { K k; k.f = fr; k.b = i; k.d = d; keys.push_back(k); }
                 } else if (sscanf(line, "%15s %ld %511s", cmd, &fr, btn) == 3 && !strcasecmp(cmd, "SNAP")) {
                     K k; k.f = fr; k.isSnap = true; k.snap = btn; keys.push_back(k);
+                } else if (sscanf(line, "%15s %ld %511s", cmd, &fr, btn) == 3 && !strcasecmp(cmd, "SHOT")) {
+                    // SHOT <frame> <path> [0|1]  — screen defaults to the top (0).
+                    K k; k.f = fr; k.shot = btn; keys.push_back(k);
+                } else if (sscanf(line, "%15s %ld %511s %d", cmd, &fr, btn, &d) == 4 && !strcasecmp(cmd, "SHOT")) {
+                    K k; k.f = fr; k.shot = btn; k.shotScreen = (d != 0) ? 1 : 0; keys.push_back(k);
                 }
             }
             fclose(f);
         }
+    }
+
+    // ⛔ SORT THE EVENTS BY FRAME. The loop below advances an index only while
+    // keys[ki].f == f, so it walks the vector in FILE ORDER. A plan that is not
+    // already frame-ordered silently drops events: appending `SHOT 12400` after
+    // events at frame 14480 meant the shot never fired and no file was written, which
+    // looks like "the framebuffer is missing" rather than "your plan is out of order".
+    // Sorting here makes any plan order safe.
+    std::stable_sort(keys.begin(), keys.end(),
+                     [](const K& a, const K& b) { return a.f < b.f; });
+    if (getenv("PLAN_DEBUG")) {
+        printf("[plan] %zu events, frames %ld..%ld\n", keys.size(),
+               keys.empty() ? 0 : keys.front().f, keys.empty() ? 0 : keys.back().f);
     }
 
     auto dump = [&](const char* when) {
@@ -408,6 +431,53 @@ int main(int argc, char** argv)
                 int xt = -1, yt = -1, vis = -1;
                 if (InRam(cur, 0x20)) { xt = R8(cur + CUR_XTILE); yt = R8(cur + CUR_YTILE); vis = R8(cur + CUR_VIS); }
                 printf("[snap] f=%-5ld cursor=(%3d,%3d) vis=%d  %s\n", f, xt, yt, vis, k.snap.c_str());
+                fflush(stdout);
+            } else if (k.shot[0]) {
+                // ⛔ SHOT was parsed by fe/plans/*.txt but never honoured, so
+                // `fe-dump.sh` and `fe-run.sh` printed state for a map nobody ever
+                // looked at. Writing the framebuffer is what makes a claim about
+                // WHERE the game is checkable against the screen.
+                //
+                // ⛔ poke_framebuffer_ptr is STATEFUL: it returns nullptr unless
+                // core->frameScreen equals the screen asked for, and core->frameScreen
+                // is set by the poke_framebuffer() call. So the order must be
+                //   poke_framebuffer(screen)  ->  ptr(screen)  ->  write
+                // Asking for the other screen's pointer before writing the first one
+                // invalidates it and yields ptr=(nil) with a valid w/h, which reads
+                // like "the framebuffer is missing" rather than "you asked out of order".
+                int w = 0, h = 0;
+                if (poke_framebuffer(core, k.shotScreen, &w, &h) && w > 0 && h > 0
+                    && poke_framebuffer_ptr(core, k.shotScreen)) {
+                    const unsigned char* px = poke_framebuffer_ptr(core, k.shotScreen);
+                    FILE* o = fopen(k.shot.c_str(), "wb");
+                    if (o) {
+                        fprintf(o, "P6\n%d %d\n255\n", w, h);
+                        for (int i = 0; i < w * h; i++) fwrite(px + i * 4, 1, 3, o);  // RGBA
+                        fclose(o);
+                        printf("[shot] f=%-5ld screen=%d %dx%d -> %s\n",
+                               f, k.shotScreen, w, h, k.shot.c_str());
+                    }
+                    // The other screen needs its own poke_framebuffer() first.
+                    int other = k.shotScreen ? 0 : 1;
+                    if (poke_framebuffer(core, other, &w, &h) && w > 0 && h > 0) {
+                        const unsigned char* px2 = poke_framebuffer_ptr(core, other);
+                        if (px2) {
+                            std::string o2p = k.shot;
+                            size_t dot = o2p.rfind('.');
+                            o2p = (dot == std::string::npos) ? o2p + "-other.ppm"
+                                                             : o2p.substr(0, dot) + "-other" + o2p.substr(dot);
+                            FILE* o2 = fopen(o2p.c_str(), "wb");
+                            if (o2) {
+                                fprintf(o2, "P6\n%d %d\n255\n", w, h);
+                                for (int i = 0; i < w * h; i++) fwrite(px2 + i * 4, 1, 3, o2);
+                                fclose(o2);
+                                printf("[shot] f=%-5ld screen=%d -> %s\n", f, other, o2p.c_str());
+                            }
+                        }
+                    }
+                } else {
+                    printf("[shot] f=%-5ld FAILED (framebuffer unavailable, w=%d h=%d)\n", f, w, h);
+                }
                 fflush(stdout);
             } else {
                 poke_set_button(core, k.b, k.d != 0);
