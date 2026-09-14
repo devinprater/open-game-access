@@ -60,13 +60,11 @@ test a stale copy.
   category→word table; `pTerrain[tile].unk_04` holds a *background graphic* name
   (`"BBG01"`) and `db.unk_24[category]` is null, so the game's data does not carry
   words like "Plains" here. Naming the categories is a follow-up, not a blocker.
-- **Enemies.** The reader reads the game's faction number (`Force.id`) and is
-  **untested against a real enemy**: chapter 1's scripted maps have only the player's
-  force, so the faction census stays `player=1 enemy=0` and `Next enemy` correctly
-  answers "No enemies found". That proves nothing about the enemy path. Fixing this
-  needs an input plan or save state that reaches a chapter with a hostile force —
-  see `scripts/fe-enemy.sh` and `fe/plans/enemies.txt`. Not a blocker for reading
-  the player's army.
+- **Enemies — now VERIFIED.** Four enemy units are read live (faction, class, HP,
+  position) and `Next enemy` reports the nearest. The blocker was input, not the
+  reader: the Prologue's "Waiting" tutorial popup swallows map input unless you press
+  **B** to dismiss it, so the enemy phase was never reached. See
+  `fe/plans/tutorial2.txt` and `scripts/fe-verify-enemies.sh`. No save file needed.
 - **Allegiance** is resolved and verified — `Force.id`, 0=player, 1=enemy, 4=reserve.
   The old "different Force pointer" test also matched the 60-slot reserve and would
   have invented enemies; the faction number fixes that.

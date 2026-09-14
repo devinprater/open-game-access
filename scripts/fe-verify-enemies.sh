@@ -1,28 +1,27 @@
 #!/usr/bin/env bash
 # fe-verify-enemies.sh — prove enemy detection end-to-end with the accessibility
-# commands, against a save that contains a real enemy force.
+# commands, on the PROLOGUE (no save needed).
 #
-# Prints the adapter's own output (`Where am I`, `Next enemy`) so the claim is backed
-# by the command a player would actually use, not just by a struct dump.
+# ⛔ HISTORY. This used to require a save file, because no enemy had ever appeared. The
+# real blocker was input: the Prologue's "Waiting" tutorial popup swallows map input, so
+# a plan that never presses B re-reads the popup forever and the enemy phase is never
+# reached. Adding B (which the popup's own text tells you to press: "You can also press
+# B ... to cancel the move") unblocks it, and the Prologue's enemies appear at ~frame
+# 5900. See fe/plans/tutorial2.txt.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 SRC="$HOME/src/melonds-lua/src"
-FRAMES="${1:-2500}"
-PLAN_NAME="${2:-units}"
+FRAMES="${1:-8000}"
+PLAN_NAME="${2:-tutorial2}"
 
 export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
-[ -f "$PA_SHIM" ] || { echo "!! no shim at $PA_SHIM" >&2; exit 2; }
+[ -f "$PA_SHIM" ] || { echo "!! no PA_SHIM at $PA_SHIM" >&2; exit 2; }
+unset SAVE      # the Prologue is played from the title; no save required
 
-if [ -z "${SAVE:-}" ]; then
-  for c in "$HOME/fe/saves/fe11-usa-finalboss.sav" "$ROOT/fe/saves/"*.sav; do
-    [ -f "$c" ] && { export SAVE="$c"; break; }
-  done
-fi
-echo "save: ${SAVE:-<none>}"
-
-PLANFILE="$ROOT/fe/plans/$PLAN_NAME.txt"
-[ -f "$PLANFILE" ] || { echo "!! no plan $PLANFILE" >&2; exit 2; }
+PLAN="$ROOT/fe/plans/$PLAN_NAME.txt"
+[ -f "$PLAN" ] || { echo "!! no plan $PLAN" >&2; exit 2; }
+echo "plan: $PLAN_NAME   frames: $FRAMES"
 
 bash "$ROOT/scripts/build-host.sh" || exit 1
 echo "== rebuilding fe_access"
@@ -38,5 +37,5 @@ rm -f "$BUILD_LOG"
 echo "built: $(date -r Vendor/fe_access '+%H:%M:%S')"
 echo
 
-ROM="$HOME/roms/Fire Emblem - Shadow Dragon (USA).nds"
-timeout 1200 ./Vendor/fe_access "$ROM" "$FRAMES" "$PLANFILE" 2>&1 | tail -25
+timeout 1200 ./Vendor/fe_access \
+  "$HOME/roms/Fire Emblem - Shadow Dragon (USA).nds" "$FRAMES" "$PLAN" 2>&1 | tail -22

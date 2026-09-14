@@ -218,40 +218,39 @@ reported phantom enemies on any map where those slots were plausible. It now tes
 
 ## Not yet found
 
-- **Enemy reading is VERIFIED; enemy NAVIGATION is not.** With a real USA save loaded
-  (`fe/saves/fe11-usa-finalboss.sav`, from GameFAQs) the game's own forces come back
-  populated for the first time:
+- **Enemy detection — VERIFIED END TO END** (no save file needed).
+
+  The blocker was never the reader. It was input: the Prologue's "Waiting" tutorial
+  popup swallows map input, so a plan that never presses B re-reads the popup forever
+  and the enemy phase is never reached — which is why enemy counts stayed at zero for
+  tens of thousands of frames and looked like "this map has no enemies".
+
+  The popup's own text gives the fix: *"You can also press B or touch the B icon at the
+  top of the screen to cancel the move."* Adding a **B press to dismiss the popup**
+  after each move unblocks it. Enemies then appear at ~frame 5900 of `fe/plans/tutorial2.txt`.
+
+  Live output, `core/fe_access.cpp` against the USA ROM with no save loaded:
 
   ```
-  [save] loaded fe11-usa-finalboss.sav
-  faction 2 (player, scenario)  units=9     <- Marth's army
-  faction 3 (enemy, scenario)   units=22    <- the enemy force
-  faction 4 (unassigned)        units=60    <- empty reserve slots
+    slot addr       Lv HP Mov   X   Y  act dead fac name
+      1    0x02275324  1 18   0  11  20   0    0    0 Marth               PID_MARS           JID_LORD
+      2    0x022753CC  1 16   0   8   3   0    0    1 PID_P01_GRA_SLDR    PID_P01_GRA_SLDR    JID_SOLDIER
+      3    0x02275474  2 17   0   9   7   0    0    1 PID_P01_GRA_SLDR_1  PID_P01_GRA_SLDR_1  JID_SOLDIER
+      4    0x0227551C  1 14   0  11  11   0    0    1 PID_P01_GRA_SLDR_2  PID_P01_GRA_SLDR_2  JID_FIGHTER
+      5    0x022755C4  1 14   0  10  13   0    0    1 PID_P01_GRA_SLDR_3  PID_P01_GRA_SLDR_3  JID_FIGHTER
+
+    Next enemy   -> PID_P01_GRA_SLDR_3, 14 HP, position 10, 13, 7.1 tiles away.
+    Where am I?  -> Cursor 11, 20. Terrain category 13 (tile 14, verified). Unit here: Marth, 18 HP, unacted.
   ```
 
-  That confirms the faction ids inferred from the decompilation (`disposition.cpp`
-  call sites): **2 = player, 3 = enemy** for scenario forces, alongside 0/1 for the
-  live-map forces. 22 enemy units were read from real game data.
+  Confirms in one run: four enemy units read by faction (`fac 1`), by their class
+  identifier (`JID_SOLDIER` / `JID_FIGHTER`), with live HP and positions; `Next enemy`
+  selecting nearest-first by distance from the cursor; and that enemies and the player
+  are distinguished by the game's own faction number rather than by pointer identity.
 
-  **But this save cannot finish the job**: it is *after* the final boss, so booting it
-  plays the ending cutscene (screenshots: Nyna *"Well done, Marth..."* → Campaign
-  Summary) and `gMapStateManager` is **never** valid — checked at 3000/3600/4200/4600/
-  5000/5600/6200/7000/8000. No map is ever entered, so `Next enemy` correctly answers
-  "Not on a map yet" and the navigation path still has not executed.
-
-  **What would finish it:** a USA save from *during* a chapter with enemies (Chapter 1
-  onward), or a `SUSPEND` save. GameFAQs #20257 ("Completed Chapter 10") is the next
-  candidate — it was throttled on this attempt and needs a retry.
-
-  ### The Prologue route (also viable, partially explored)
-
-  The Prologue *can* be advanced by input — screenshots prove the plan moves Marth from
-  (1,20) to (5,20) and opens the "Wait" menu with the tutorial reading *"After a unit
-  moves, select 'Wait'..."*. So a play plan works; it just needs to satisfy a longer
-  chain of scripted movement tutorials, and each step has to be confirmed by
-  screenshot because the tutorial text lives on the top screen while
-  `gMapStateManager` is valid. `scripts/fe-tutorial-steps.py` automates that
-  step-by-step inspection.
+  The earlier save-file work still stands as a second, independent confirmation (it
+  populated forces 2 and 3 with 9 player / 22 enemy units); the Prologue route is the
+  reproducible one because it needs no external data. See `docs/save-files.md`.
 
 - **Chapter / map identifier.**
 - **Movement and attack ranges.** The game computes these; the map buffers above
