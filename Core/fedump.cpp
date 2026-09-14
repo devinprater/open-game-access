@@ -48,13 +48,31 @@ static uint8_t  R8 (uint32_t a) { return InRam(a)    ? gRam[a - RAM_BASE] : 0; }
 static uint16_t R16(uint32_t a) { return InRam(a, 2) ? (uint16_t)(gRam[a-RAM_BASE] | (gRam[a-RAM_BASE+1] << 8)) : 0; }
 static uint32_t R32(uint32_t a) { return InRam(a, 4) ? (uint32_t)(gRam[a-RAM_BASE] | (gRam[a-RAM_BASE+1]<<8)
                                      | (gRam[a-RAM_BASE+2]<<16) | ((uint32_t)gRam[a-RAM_BASE+3]<<24)) : 0; }
-static int8_t   R8S(uint32_t a){ return (int8_t) R8(a); }
+static int8_t   R8S (uint32_t a){ return (int8_t) R8(a); }
 static int16_t  R16S(uint32_t a){ return (int16_t) R16(a); }
+
+// Render a byte range as text, substituting '.' for anything unprintable. Used to
+// answer "is this pointer a name string or a number table?" with evidence rather
+// than a guess about the variable's role at one call site.
+static std::string PrintableAt(uint32_t a, int maxLen = 40)
+{
+    std::string out;
+    for (int i = 0; i < maxLen; i++)
+    {
+        uint8_t c = R8(a + i);
+        if (c == 0) break;
+        out.push_back((c >= 32 && c < 127) ? (char) c : '.');
+    }
+    return out;
+}
 
 // ---- symbol addresses (fe11-us, YFEE01) ----
 static const uint32_t A_gMapStateManager = 0x021E3328;
 static const uint32_t A_gUnitList        = 0x021974D8;
 static const uint32_t A_gForces          = 0x021974DC;
+// gFE11Database (fe11-us config/YFEE01/arm9/symbols.txt, kind:bss 0x02197254).
+// FE11Database.pTerrain is at +0x20 and indexes by TILE ID.
+static const uint32_t A_gFE11Database    = 0x02197254;
 
 /* gUnitList is the BASE OF AN ARRAY, not a linked-list head:
  *     Unit * GetUnit(s32 unitId) { return gUnitList + unitId - 1; }
@@ -217,6 +235,87 @@ int main(int argc, char** argv)
                            (int) R32(cam + 0x00), (int) R32(cam + 0x04), (int) R16S(cam + 0x0C));
             }
             printf("  unk_20=%u unk_22=%u\n", R16(msm + 0x20), R16(msm + 0x22));
+
+            // ---- terrain ----------------------------------------------------
+            // Established from the decompilation, not guessed:
+            //   include/map.hpp: MapStateManager has
+            //       /* 028 */ u8 unk_028[0x400];
+            //       /* 428 */ u8 unk_428[0x400];
+            //       /* 828 */ u8 * unk_828;      <-- POINTER (not an array)
+            //       /* 82C */ u8 * unk_82c;      <-- POINTER
+            //       /* 830 */ u8 unk_830[0x400];
+            //   src/ov000/map_state.cpp:697
+            //       u8 tile = unk_828[x | (y<<5)];
+            //       unk_830[x | (y<<5)] = GetTerrainCategoryDBIndex(pTerrain[tile].unk_08);
+            //   include/database.hpp: FE11Database.pTerrain is at +0x20
+            //   include/unknown_types.h: TerrainData { char* u00; s8* u04; s8* u08; s8* u10; }
+            //
+            // ⛔ unk_828 and unk_82c ARE POINTERS. Reading msm+0x828 as tile data reads
+            // the pointer's own little-endian bytes (e.g. "30 6A 26 02" -> tiles 48, 106,
+            // 38, 2…) and produces plausible-looking garbage. Dereference first.
+            uint32_t dbPtr = R32(A_gFE11Database);
+            uint32_t db = InRam(dbPtr, 0x40) ? dbPtr : A_gFE11Database;
+            uint32_t pTerrain = InRam(db, 0x40) ? R32(db + 0x20) : 0;
+            uint32_t pTiles = R32(msm + 0x828);   // u8* -> raw tile ids
+            printf("  db=%08X pTerrain=%08X %s\n", db, pTerrain,
+                   InRam(pTerrain, 0x10) ? "(valid)" : "(invalid)");
+            printf("  unk_828 (tile-array ptr) = %08X %s\n", pTiles,
+                   InRam(pTiles, 0x400) ? "(valid, 0x400 bytes)" : "(INVALID)");
+            if (InRam(cur, 0x20) && InRam(pTiles, 0x400)) {
+                int cx = R8(cur + CUR_XTILE), cy = R8(cur + CUR_YTILE);
+                uint8_t tile   = R8(pTiles + (cx | (cy << 5)));
+                uint8_t cat    = R8(msm + 0x830 + (cx | (cy << 5)));
+                uint8_t inline28 = R8(msm + 0x028 + (cx | (cy << 5)));
+                uint8_t inline428 = R8(msm + 0x428 + (cx | (cy << 5)));
+                printf("  TERRAIN at cursor (%d,%d):\n", cx, cy);
+                printf("    tile id (unk_828)   = %u\n", tile);
+                printf("    category (unk_830)  = %u\n", cat);
+                printf("    inline unk_028      = %u\n", inline28);
+                printf("    inline unk_428      = %u\n", inline428);
+                printf("    pTerrain[tile].u04=%08X u08=%08X\n",
+                       R32(pTerrain + tile * 0x10 + 4), R32(pTerrain + tile * 0x10 + 8));
+                // Name the thing rather than guess it: print what the two per-tile
+                // pointers actually contain, plus the first 16 bytes of the record.
+                uint32_t u04 = R32(pTerrain + tile * 0x10 + 4);
+                uint32_t u08 = R32(pTerrain + tile * 0x10 + 8);
+                printf("    record bytes:");
+                for (int i = 0; i < 16; i++) printf(" %02X", R8(pTerrain + tile * 0x10 + i));
+                printf("\n");
+                if (InRam(u04, 16)) {
+                    printf("    u04 -> \"%s\"", PrintableAt(u04, 24).c_str());
+                    printf("   bytes:");
+                    for (int i = 0; i < 12; i++) printf(" %02X", R8(u04 + i));
+                    printf("\n");
+                }
+                if (InRam(u08, 16)) {
+                    printf("    u08 -> \"%s\"", PrintableAt(u08, 24).c_str());
+                    printf("   bytes:");
+                    for (int i = 0; i < 12; i++) printf(" %02X", R8(u08 + i));
+                    printf("\n");
+                }
+                // The category table itself: unk_24 is the base that
+                // GetTerrainCategoryDBIndex subtracts from and divides by 4, so it is
+                // an array of pointers; index it with the category we just read.
+                uint32_t catBase = R32(db + 0x24);
+                printf("    db.unk_24=%08X %s", catBase, InRam(catBase, 0x40) ? "(valid)" : "(invalid)");
+                if (InRam(catBase, 0x40)) {
+                    uint32_t entry = R32(catBase + cat * 4);
+                    printf("  catTable[%u]=%08X", cat, entry);
+                    if (InRam(entry, 16)) printf(" -> \"%s\"", PrintableAt(entry, 20).c_str());
+                }
+                printf("\n");
+                // A few distinct tiles on the map, to see whether categories vary.
+                printf("    map tiles (first 12 non-zero):\n");
+                int n = 0;
+                for (int y = 0; y < 32 && n < 12; y++)
+                    for (int x = 0; x < 32 && n < 12; x++) {
+                        uint8_t t = R8(pTiles + (x | (y << 5)));
+                        uint8_t c = R8(msm + 0x830 + (x | (y << 5)));
+                        if (!t) continue;
+                        printf("      (%2d,%2d) tile=%3u cat=%3u\n", x, y, t, c);
+                        n++;
+                    }
+            }
         }
 
         uint32_t head = 0;

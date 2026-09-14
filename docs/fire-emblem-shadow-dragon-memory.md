@@ -129,13 +129,49 @@ units" for a map with an army on it. The current adapter filters on plausibility
 for a unit before and after acting, across a turn boundary, is the experiment that
 settles it. Until then the adapter must not claim to know.
 
+## Terrain — RESOLVED (verified)
+
+The question "which of these buffers is the terrain layer?" is answered. All three
+candidates were inspected; two are not terrain at all, and the tile source is a
+*pointer*, not an inline array.
+
+```
+MapStateManager (include/map.hpp)
+  +0x028  u8 unk_028[0x400]   inline 0x400 buffer — reads ZERO, not terrain
+  +0x428  u8 unk_428[0x400]   inline 0x400 buffer — reads ZERO, not terrain
+  +0x828  u8 * unk_828        POINTER to the raw tile-id array  <-- the tile source
+  +0x82C  u8 * unk_82c        POINTER (used by MapStateManager::tst())
+  +0x830  u8 unk_830[0x400]   derived terrain CATEGORY per tile
+```
+
+The chain (fe11-us):
+
+```
+src/ov000/map_state.cpp:697
+    u8 tile = unk_828[x | (y<<5)];
+    unk_830[x | (y<<5)] = GetTerrainCategoryDBIndex(pTerrain[tile].unk_08);
+include/database.hpp   FE11Database.pTerrain +0x20,  .unk_24 +0x24
+src/database.cpp:419   GetTerrainCategoryDBIndex(p) = (p - db->unk_24) / 4
+```
+
+⛔ **`unk_828` and `unk_82c` ARE POINTERS.** Reading `msm+0x828` as tile data reads
+the pointer's own little-endian bytes and yields plausible garbage — tiles 48, 106,
+38 instead of 14. Always dereference.
+
+**The mapping is self-checking**, which is why it can be called verified rather than
+assumed: `(pTerrain[tile].unk_08 − db->unk_24) / 4` must equal the category the game
+itself stored in `unk_830`. Live at the cursor, both give **13** with tile **14**.
+
+### Still open on terrain
+
+- **No category→name table located.** `pTerrain[tile].unk_04` points at `"BBG01"` /
+  `"BBG02"` — a *background graphic* name, not a terrain name — and
+  `db.unk_24[category]` is a null pointer. So the game's own data does not hold
+  words like "Plains" for this; the adapter reports the category number and says it
+  is a number. Naming it is a separate enhancement, not a blocker.
+
 ## Not yet found
 
-- **Terrain under the cursor.** `MapStateManager` has plausible map buffers at
-  `+0x028`, `+0x428` and `+0x830` (each 0x400 bytes = 32×32 — exactly the tile
-  grid) and byte offsets `+0x828`/`+0x82C` (pointers). One of these is the terrain
-  layer. **The adapter currently says "Terrain: unknown" rather than guess**, since
-  a wrong terrain name is worse than an admitted gap.
 - **Chapter / map identifier.**
 - **Allegiance as a small enum.** Grouping by the `Force*` pointer works and was
   used, but the faction *number* has not been located.

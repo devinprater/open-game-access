@@ -18,11 +18,16 @@ Superseded name: `pokemon-access-mobile` / `open-game-access`.
 ## Milestone 1 — reached
 
 ```
-Where am I?  -> Cursor 1, 20. Terrain: unknown (tile id not yet verified).
+Where am I?  -> Cursor 1, 20. Terrain category 13 (tile 14, verified).
                 Unit here: Marth, 18 HP, unacted.
 Next ally    -> Marth, 18 HP, position 1, 20, unacted, 0.0 tiles away.
 Next enemy   -> No enemies found.              (chapter 1 has only your own units)
 ```
+
+Terrain is **verified, not assumed**: `(pTerrain[tile].unk_08 − db.unk_24)/4`
+independently reproduces the category the game itself stored in `unk_830`, and both
+give 13 for tile 14 at the cursor. The `verified` flag in the output is that
+comparison passing at read time, so a mismatch would surface rather than be spoken.
 
 Confirmed live values:
 
@@ -50,10 +55,13 @@ test a stale copy.
 
 ## What is NOT done, stated plainly
 
-- **Terrain under the cursor.** The map buffers are located (three 0x400-byte
-  candidates = 32×32, exactly the tile grid) but which is the terrain layer is not
-  verified. The adapter says *"Terrain: unknown"* rather than guess — a wrong
-  terrain name is worse than an admitted gap.
+- **Terrain NAMES.** Terrain itself is resolved and verified (see below) — the
+  adapter reports the game's own category number. What is missing is a
+  category→word table; `pTerrain[tile].unk_04` holds a *background graphic* name
+  (`"BBG01"`) and `db.unk_24[category]` is null, so the game's data does not carry
+  words like "Plains" here. Naming the categories is a follow-up, not a blocker.
+- **Enemies.** Chapter 1 has none, so enemy reading is unexercised. `Next enemy`
+  returns "No enemies found" and that is currently the honest answer.
 - **Allegiance.** Grouping works via the `Force*` pointer. The faction *number* is
   not located.
 - **"Has acted".** `state1` bit 0 is documented as `US_ACTED`, but the live lead

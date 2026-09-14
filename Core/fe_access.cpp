@@ -62,6 +62,10 @@ static std::string ReadCStr(uint32_t a, int maxLen = 48)
 
 static const uint32_t A_gMapStateManager = 0x021E3328;
 static const uint32_t A_gUnitList        = 0x021974D8;
+// gFE11Database — fe11-us config/YFEE01/arm9/symbols.txt, kind:bss 0x02197254.
+// FE11Database.pTerrain is at +0x20; unk_24 (the base GetTerrainCategoryDBIndex
+// subtracts from) is at +0x24.
+static const uint32_t A_gFE11Database    = 0x02197254;
 
 static const uint32_t MSM_CURSOR = 0x010;
 static const uint32_t CUR_X = 0x008, CUR_Y = 0x009, CUR_VIS = 0x00A;
@@ -73,27 +77,69 @@ static const int      UNIT_SLOTS  = 24;        // measured: 24 slots before the 
 
 static const uint32_t US_ACTED = 1u<<0, US_DEAD = 1u<<3, US_NOT_PRESENT = 1u<<12;
 
-// ---- terrain names. Index -> name; the DS uses a compact terrain id per tile. ----
-static const char* terrainName(int id)
+// ---- terrain ----
+//
+// VERIFIED CHAIN (fe11-us, YFEE01):
+//   include/map.hpp: MapStateManager { ... /* 828 */ u8 * unk_828; /* 82C */ u8 * unk_82c;
+//                                                  /* 830 */ u8 unk_830[0x400]; }
+//   src/ov000/map_state.cpp:697
+//       u8 tile = unk_828[x | (y<<5)];
+//       unk_830[x | (y<<5)] = GetTerrainCategoryDBIndex(pTerrain[tile].unk_08);
+//   include/database.hpp: FE11Database.pTerrain at +0x20, unk_24 at +0x24
+//   src/database.cpp:419: GetTerrainCategoryDBIndex(p) = (p - db->unk_24) / 4
+//
+// ⛔ unk_828 AND unk_82c ARE POINTERS, not inline arrays. Reading msm+0x828 as tile
+// data reads the pointer's own bytes and yields plausible garbage — tiles 48,106,38
+// instead of 14. Always dereference.
+//
+// The arithmetic is self-checking: (pTerrain[tile].unk_08 - db->unk_24) / 4 must
+// equal the category the game itself stored in unk_830. When it does, tile→terrain
+// is proven rather than assumed.
+//
+// WHAT IS STILL NOT NAMED, AND WHY: pTerrain[tile].unk_04 points at the string
+// "BBG01"/"BBG02" — a BACKGROUND GRAPHIC name, not a terrain name. No string table
+// mapping a category to words like "Plains" or "Forest" has been located, so this
+// reports the category number and says so. An invented name here would be spoken to
+// a player navigating by it, which is worse than an honest number.
+struct Terrain {
+    bool ok = false;
+    uint8_t tile = 0;      // database tile id (index into pTerrain)
+    int category = -1;     // the game's own terrain category
+    bool verified = false; // (u08 - db.unk_24)/4 == category
+    uint32_t db = 0, pTerrain = 0;
+};
+
+static Terrain ReadTerrain()
 {
-    // Only ids seen/confirmed are named; anything else says its number rather
-    // than inventing a name, because a wrong terrain name is worse than a number.
-    switch (id) {
-    case 0x00: return "Plains";
-    case 0x01: return "Plains";
-    case 0x05: return "Forest";
-    case 0x0F: return "Mountain";
-    case 0x11: return "Peak";
-    case 0x1A: return "Fort";
-    case 0x1B: return "Gate";
-    case 0x1C: return "Throne";
-    case 0x1D: return "Village";
-    case 0x22: return "Sea";
-    case 0x23: return "River";
-    case 0x24: return "Bridge";
-    case 0x25: return "Wall";
-    default:   return nullptr;
-    }
+    Terrain t;
+    uint32_t msm = R32(A_gMapStateManager);
+    if (!InRam(msm, 0x30)) return t;
+    uint32_t cur = R32(msm + MSM_CURSOR);
+    if (!InRam(cur, 0x20)) return t;
+
+    // gFE11Database is bss: it may hold a pointer or be the object. Try both.
+    uint32_t dbPtr = R32(A_gFE11Database);
+    uint32_t db = InRam(dbPtr, 0x40) ? dbPtr : A_gFE11Database;
+    if (!InRam(db, 0x40)) return t;
+    uint32_t pTerrain = R32(db + 0x20);
+    if (!InRam(pTerrain, 0x10)) return t;
+
+    uint32_t pTiles = R32(msm + 0x828);      // <-- dereference
+    if (!InRam(pTiles, 0x400)) return t;
+
+    int x = R8(cur + CUR_X), y = R8(cur + CUR_Y);
+    uint8_t tile = R8(pTiles + (x | (y << 5)));
+    t.ok = true;
+    t.tile = tile;
+    t.db = db;
+    t.pTerrain = pTerrain;
+    t.category = (int) R8(msm + 0x830 + (x | (y << 5)));
+
+    uint32_t u08 = R32(pTerrain + tile * 0x10 + 8);
+    uint32_t base = R32(db + 0x24);
+    if (u08 >= base && ((u08 - base) % 4) == 0)
+        t.verified = ((int) ((u08 - base) / 4) == t.category);
+    return t;
 }
 
 // ---- name resolution ----
@@ -206,8 +252,16 @@ static void cmdWhereAmI()
     if (!c.ok) { printf("Not on a map yet.\n"); return; }
     printf("Cursor %d, %d.", c.x, c.y);
 
-    const char* terr = terrainName(0);   // terrain read is not yet verified; say so
-    printf(" Terrain: unknown (tile id not yet verified).");
+    // Terrain: report the game's own category, and say it is a number because no
+    // category-to-name table has been located. Verified means the pointer
+    // arithmetic agreed with the category the game itself stored, so the mapping is
+    // proven rather than assumed.
+    Terrain t = ReadTerrain();
+    if (t.ok && t.category >= 0)
+        printf(" Terrain category %d (tile %u%s).", t.category, t.tile,
+               t.verified ? ", verified" : "");
+    else
+        printf(" Terrain: unavailable.");
 
     bool any = false;
     for (auto& u : AllUnits())

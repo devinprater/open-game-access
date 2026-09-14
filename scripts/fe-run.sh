@@ -18,9 +18,22 @@ mkdir -p "$HOME/fe/out"
 # existed, which silently produced output from the PREVIOUS source revision — the
 # run looked successful and the new instrumentation was simply absent.
 echo "== rebuilding fedump"
+# ⛔ DO NOT pipe the compiler through grep. The previous version did, so a compile
+# error printed NOTHING, the old binary stayed in place, and the run proceeded
+# against stale code — reporting the pre-fix result as if it were the new one. That
+# cost several full emulator runs chasing a bug that had already been fixed. Capture
+# the log, report errors, and exit non-zero.
+BUILD_LOG="$(mktemp)"
 g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$HOME/src/melonds-lua/src" -std=c++17 \
-  -o Vendor/fedump Core/fedump.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
-  | grep -E '\berror\b|undefined reference' | head -10
+  -o Vendor/fedump Core/fedump.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>"$BUILD_LOG"
+if [ -s "$BUILD_LOG" ] && grep -qE '\berror\b' "$BUILD_LOG"; then
+  echo "!! compile failed — refusing to run a stale binary:" >&2
+  grep -E '\berror\b' "$BUILD_LOG" | head -20 >&2
+  rm -f "$BUILD_LOG"
+  exit 1
+fi
+[ -s "$BUILD_LOG" ] && grep -E 'warning' "$BUILD_LOG" | head -3
+rm -f "$BUILD_LOG"
 [ -x Vendor/fedump ] || { echo "!! fedump did not link" >&2; exit 1; }
 echo "built: $(date -r Vendor/fedump '+%H:%M:%S')"
 
