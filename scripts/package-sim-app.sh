@@ -113,10 +113,24 @@ PLIST
 echo
 echo "== $APP"
 ls -la "$APP"
+
+# ⛔ Plain llvm-nm, no -g/-gU. GNU nm cannot read Mach-O at all, and llvm-nm -g
+# on this binary prints a single line — both reported "0 melonDS symbols / 0 poke_"
+# for a perfectly linked app, which sent me hunting a link bug that did not exist.
+# scripts/verify-sim-app.sh cross-checks this against the total symbol count, so a
+# tooling failure can no longer masquerade as a broken build.
+NM_BIN=""
+for c in /usr/local/swift/bin/llvm-nm llvm-nm /usr/bin/llvm-nm; do
+  { [ -x "$c" ] || command -v "$c" >/dev/null 2>&1; } && { NM_BIN="$c"; break; }
+done
+[ -z "$NM_BIN" ] && NM_BIN="$(command -v nm || echo nm)"
+
+echo "--- total symbols ---"
+"$NM_BIN" "$APP/PokemonAccess" 2>/dev/null | wc -l
 echo "--- core linked in? (melonDS symbols) ---"
-nm "$APP/PokemonAccess" 2>/dev/null | grep -c melonDS || true
+"$NM_BIN" "$APP/PokemonAccess" 2>/dev/null | grep -ci melonds || true
 echo "--- poke_ entry points ---"
-nm "$APP/PokemonAccess" 2>/dev/null | grep -c ' T _poke_' || true
+"$NM_BIN" "$APP/PokemonAccess" 2>/dev/null | grep -c 'poke_' || true
 echo "--- script hashes (must equal the originals) ---"
 shasum -a 256 "$APP/PokemonAccess_PokemonAccess.bundle/Resources/"*.lua 2>/dev/null || \
   sha256sum "$APP/PokemonAccess_PokemonAccess.bundle/Resources/"*.lua 2>/dev/null
