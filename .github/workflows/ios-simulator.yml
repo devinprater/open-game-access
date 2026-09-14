@@ -1,0 +1,88 @@
+name: iOS simulator app
+
+# Builds the iOS Simulator .app on a real macOS runner.
+#
+# Why the simulator target and not a device .ipa: signing an .ipa for a physical
+# device needs a certificate + provisioning profile belonging to a specific Apple
+# account, so a generic CI artifact would not install on anyone's phone. The
+# simulator build needs no signing, runs on any Mac and in cloud simulator
+# services, and is a genuine end-to-end test of the app + core link.
+#
+# ⛔ NO ROMS. The workflow never fetches or attaches game data; the app is shipped
+# without any.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  simulator:
+    runs-on: macos-14
+    timeout-minutes: 60
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Note the Apple-SDK requirement
+        run: |
+          cat <<'EOF'
+          This job builds the iOS Simulator app, which still needs Apple's Darwin
+          SDK (iPhoneSimulator.sdk) — it is Apple-licensed and cannot be shipped
+          here or downloaded without an Apple ID.
+
+          On a macOS runner with Xcode installed, that SDK is already present, so
+          this job uses Xcode's toolchain rather than xtool's fetched one.
+          EOF
+
+      - name: Select Xcode
+        run: sudo xcode-select -s /Applications/Xcode.app/Contents/Developer
+
+      - name: Fetch the emulator core and Lua
+        run: ./scripts/bootstrap-deps.sh "$RUNNER_TEMP/src"
+
+      - name: Build the core for the simulator platform
+        env:
+          MELONDS_SRC: ${{ runner.temp }}/src/melonds-lua
+          LUA_SRC: ${{ runner.temp }}/src/lua-5.4.7
+        run: |
+          SDK=$(xcrun --sdk iphonesimulator --show-sdk-path)
+          echo "SDK=$SDK"
+          # The Linux build script targets xtool's fetched SDK path; here we use
+          # Xcode's own, which is the same interface.
+          SDKROOT="$SDK" bash scripts/build-sim.sh
+        continue-on-error: false
+
+      - name: Package the simulator app
+        run: bash scripts/package-sim-app.sh
+
+      - name: Verify the artifact is a real simulator app
+        run: |
+          APP=xtool-sim/PokemonAccess.app
+          test -d "$APP" || { echo "no app bundle"; exit 1; }
+          file "$APP"/PokemonAccess
+          # Must be the SIMULATOR platform, not the device one.
+          otool -l "$APP"/PokemonAccess | grep -A4 LC_BUILD_VERSION | head -6
+          otool -l "$APP"/PokemonAccess | grep -q iossimulator || {
+            echo "!! binary is not tagged for the simulator"; exit 1; }
+          echo "core symbols: $(nm "$APP"/PokemonAccess 2>/dev/null | grep -c melonDS)"
+          echo "poke_ entries: $(nm "$APP"/PokemonAccess 2>/dev/null | grep -c ' T _poke_')"
+
+      - name: Confirm no game data is present
+        run: ./scripts/check-no-roms.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-game-access-ios-simulator
+          path: xtool-sim/PokemonAccess-simulator.zip
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: xtool-sim/PokemonAccess-simulator.zip
+          fail_on_unmatched_files: true

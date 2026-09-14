@@ -1,0 +1,84 @@
+name: Android APK
+
+# Builds the Android accessibility app (a melonDS-android fork) and attaches the
+# APK to a release.
+#
+# ⛔ NO ROMS. The APK ships with the accessibility Lua scripts only; no game data.
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v3
+        with:
+          packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
+
+      - name: Fetch the Android frontend (a fork of melonDS-android)
+        run: |
+          cat <<'EOF'
+          The Android app is a thin accessibility layer over rafaelvcaetano/melonDS-android,
+          which is GPL-3.0 and NOT vendored here. We clone it and apply this repo's
+          overlay (app/native-overlay) plus the Lua-enabled core.
+          EOF
+          git clone --depth 1 https://github.com/rafaelvcaetano/melonDS-android.git frontend
+          git -C frontend submodule update --init --recursive --depth 1
+
+      - name: Swap in the Lua-enabled core
+        run: |
+          ./scripts/bootstrap-deps.sh "$RUNNER_TEMP/src"
+          MELONDS_LUA="$RUNNER_TEMP/src/melonds-lua"
+          # The Lua fork replaces the core submodule.
+          rm -rf frontend/melonDS-android-lib
+          cp -r "$MELONDS_LUA" frontend/melonDS-android-lib
+          # Our accessibility glue on top.
+          cp -r app/native-overlay/. frontend/ 2>/dev/null || true
+          cp -r app/src/main/. frontend/app/src/main/ 2>/dev/null || true
+
+      - name: Build debug APK
+        working-directory: frontend
+        run: |
+          echo "sdk.dir=$ANDROID_HOME" > local.properties
+          ./gradlew :app:assembleGitHubProdDebug --no-daemon
+
+      - name: Verify the APK carries the accessibility scripts
+        run: |
+          APK=$(find frontend/app/build/outputs/apk -name '*.apk' | head -1)
+          test -n "$APK" || { echo "no APK produced"; exit 1; }
+          echo "APK: $APK ($(stat -c%s "$APK") bytes)"
+          # The whole point: the Lua reader must be inside the APK.
+          unzip -l "$APK" | grep -i lua || { echo "!! no Lua assets in the APK"; exit 1; }
+
+      - name: Confirm no game data is present
+        run: ./scripts/check-no-roms.sh
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: open-game-access-android
+          path: frontend/app/build/outputs/apk/**/*.apk
+          if-no-files-found: error
+
+      - name: Attach to the release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: frontend/app/build/outputs/apk/**/*.apk
+          fail_on_unmatched_files: false
