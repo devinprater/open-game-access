@@ -170,11 +170,66 @@ itself stored in `unk_830`. Live at the cursor, both give **13** with tile **14*
   words like "Plains" for this; the adapter reports the category number and says it
   is a number. Naming it is a separate enhancement, not a blocker.
 
+## Allegiance — RESOLVED (verified)
+
+Allegiance is read from `Force.id`, not inferred by comparing `Force*` pointers.
+
+```
+src/force.cpp
+    struct Force * gForces = NULL;
+    gForces = new Force[6];       // ARRAY OF STRUCTS, stride 0x0C — not Force*[]
+    gForces[i].Init(i);           // therefore Force.id == the array INDEX
+
+Force { Unit* head +0x00, Unit* tail +0x04, s32 id +0x08 }   (include/unit.hpp)
+Unit.force  +0x4C  -> the Force this unit belongs to
+```
+
+⛔ **`gForces` is not an array of pointers.** Dereferencing each element reads a
+struct's first field as a pointer and yields `id=6558208`, `head=FFFF0008`, and
+`force[0] == a unit address` — all plausible-looking and all wrong.
+
+Faction meanings, from the call sites in `src/ov000/disposition.cpp`:
+
+| id | meaning | evidence |
+|---|---|---|
+| 0 | player | live: Marth reads 0 |
+| 1 | enemy | `Force::Get(1+2)` is the opposing force |
+| 2 | player (scenario) | `Force::Get(2)` = the player army; `faction + 2` |
+| 3 | enemy (scenario) | `faction + 2`, opposing |
+| 4 | unassigned reserve | `ResetAllForces()` seeds **every** unit here; `Force::Get(4)` |
+| 5 | other | not observed |
+
+Live confirmation on the booted map — every `id` matches its index, and the reserve
+holds exactly the 60 unused slots:
+
+```
+faction 0 (player)      id=0  head=02275324 tail=02275324  units=1     <- Marth
+faction 1 (enemy)       id=1  head=00000000 tail=00000000  units=0
+faction 2 (player sc.)  id=2  head=00000000 tail=00000000  units=0
+faction 3 (enemy sc.)   id=3  head=00000000 tail=00000000  units=0
+faction 4 (unassigned)  id=4  head=022753CC tail=0227527C  units=60
+faction 5 (other)       id=5  head=00000000 tail=00000000  units=0
+```
+
+**This fixed a real bug.** The previous `Next enemy` used "a different `Force*` than
+the leader". That also matches faction 4 — the 60-slot reserve — so it would have
+reported phantom enemies on any map where those slots were plausible. It now tests
+`faction == 1 || faction == 3`.
+
 ## Not yet found
 
+- **Enemy detection is UNVERIFIED.** The reader is correct as far as it goes (it
+  reads the faction number, and Marth reads 0), but **no enemy has ever been
+  observed**, so the enemy path has never executed on real data. Chapter 1's scripted
+  maps contain only the player's force — the faction census stays
+  `player=1 enemy=0` for 40,000 frames — so "No enemies found" is the *correct*
+  answer there and proves nothing.
+  `scripts/fe-enemy.sh` (with `FACTION_TRACE=1`) plus `fe/plans/enemies.txt` exist to
+  find and read a map that has one; that plan did not advance past the first map.
+  **Verifying this needs a save state or input sequence that reaches a chapter with a
+  hostile force — not more instrumentation.** Until then the adapter must be
+  understood as untested against real enemies.
 - **Chapter / map identifier.**
-- **Allegiance as a small enum.** Grouping by the `Force*` pointer works and was
-  used, but the faction *number* has not been located.
 - **Movement and attack ranges.** The game computes these; the map buffers above
   are the likely place to read them from rather than reimplementing the rules.
 - **Objectives.**

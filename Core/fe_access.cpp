@@ -169,6 +169,7 @@ struct Unit {
     int slot; uint32_t addr;
     int level, hp, mov, x, y;
     uint32_t state1, force, pid, jid;
+    int faction = -1;      // Force.id — the game's faction number (-1 = unreadable)
     uint16_t item0;
     std::string name;      // resolved from PersonData.pid
     std::string jobName;   // resolved from JobData.jid
@@ -189,6 +190,11 @@ struct Unit {
         return true;
     }
     int acted() const { return (state1 & US_ACTED) ? 1 : 0; }
+    /// The faction index from Force.id: 0 player, 1 enemy, 2/3 scenario
+    /// player/enemy, 4 unassigned reserve, 5 other. -1 = could not read it.
+    bool isEnemy() const { return faction == 1 || faction == 3; }
+    bool isPlayer() const { return faction == 0 || faction == 2; }
+    bool isOnMap() const { return isPlayer() || isEnemy(); }
     /// A human label: a friendly name when we know the character, otherwise the
     /// game's own identifier, otherwise the class identifier, otherwise the slot.
     std::string label() const {
@@ -211,6 +217,19 @@ static bool ReadUnit(int slot, Unit& u)
     u.state1 = R32(a + U_STATE1); u.force = R32(a + U_FORCE);
     u.pid = R32(a + U_PID); u.jid = R32(a + U_JID);
     u.item0 = R16(a + U_ITEMS);
+
+    // ALLEGIANCE COMES FROM THE FACTION NUMBER, not from comparing Force pointers.
+    // Force { Unit* head +0x00, Unit* tail +0x04, s32 id +0x08 } and id is the
+    // faction index (force.cpp: gForces[i].Init(i)). The pointer comparison used
+    // before only answered "same group as this unit", which cannot tell a hostile
+    // force from an allied one — and it silently treated the 60-slot unassigned
+    // reserve (faction 4) as enemies.
+    u.faction = -1;
+    if (InRam(u.force, 0x0C)) {
+        int32_t fid = (int32_t) R32(u.force + 0x08);
+        if (fid >= 0 && fid < 6) u.faction = fid;
+    }
+
     // PersonData { char* pid; char* fid; char* mpid; ... }  (unit.hpp)
     // The character's identifier is the FIRST field of the PersonData the unit
     // points at (unit+0x40). For generics the pid is shared, so the class name
@@ -282,11 +301,12 @@ static void cmdNextAlly(int dir)
     auto us = AllUnits();
     if (us.empty()) { printf("No units found.\n"); return; }
 
-    // Ally = shares the leader's force. Slot 1 is the lord in this game; rather
-    // than hard-code a force id we group by whichever force slot 1 belongs to.
-    Unit lead; ReadUnit(1, lead);
+    // Ally = the game's own faction number (Force.id 0 or 2). Grouping by "the
+    // leader's Force pointer" happened to work but had no way to say WHICH group was
+    // friendly; with the faction number that is explicit, and it also excludes the
+    // unassigned reserve (faction 4), which the pointer test included.
     std::vector<Unit> allies;
-    for (auto& u : us) if (u.force == lead.force) allies.push_back(u);
+    for (auto& u : us) if (u.isPlayer()) allies.push_back(u);
     if (allies.empty()) { printf("No allies found.\n"); return; }
 
     idx = (idx + dir + (int) allies.size() * 4) % (int) allies.size();
@@ -303,9 +323,11 @@ static void cmdNextEnemy(int dir)
     Cursor c = ReadCursor();
     if (!c.ok) { printf("Not on a map yet.\n"); return; }
     auto us = AllUnits();
-    Unit lead; ReadUnit(1, lead);
+    // Enemy = the game's own faction number (Force.id 1 or 3), not "a different
+    // Force pointer". The pointer test this replaces also matched the 60-slot
+    // unassigned reserve, so it would have reported phantom enemies on any map.
     std::vector<Unit> enemies;
-    for (auto& u : us) if (u.force != lead.force) enemies.push_back(u);
+    for (auto& u : us) if (u.isEnemy()) enemies.push_back(u);
     if (enemies.empty()) { printf("No enemies found.\n"); return; }
     // sort by distance from the cursor (the SRWYAccess idea: nearest first)
     std::sort(enemies.begin(), enemies.end(), [&](const Unit& a, const Unit& b) {
@@ -356,12 +378,13 @@ static void cmdDump()
         printf("  (PersonData ptr 0x%08X -> pid '%s'; JobData ptr 0x%08X -> jid '%s')\n",
                u0.pid, ReadCStr(R32(u0.pid)).c_str(), u0.jid, ReadCStr(R32(u0.jid)).c_str());
     }
-    printf("  slot addr       Lv HP Mov   X   Y  act dead name             pid          jid\n");
+    printf("  slot addr       Lv HP Mov   X   Y  act dead fac name             pid          jid\n");
     for (auto& u : us)
-        printf("  %-4d 0x%08X %2d %2d  %2d %3d %3d   %d    %d   %-16s %-12s %s\n",
+        printf("  %-4d 0x%08X %2d %2d  %2d %3d %3d   %d    %d   %3d %-16s %-12s %s\n",
                u.slot, u.addr, u.level, u.hp, u.mov, u.x, u.y,
                (u.state1 & US_ACTED) ? 1 : 0, (u.state1 & US_DEAD) ? 1 : 0,
-               u.label().c_str(), u.name.c_str(), u.jobName.c_str());
+               u.faction, u.label().c_str(), u.name.c_str(), u.jobName.c_str());
+    printf("  (fac: 0 player, 1 enemy, 2/3 scenario player/enemy, 4 unassigned, 5 other)\n");
 }
 
 int main(int argc, char** argv)

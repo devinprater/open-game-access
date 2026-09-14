@@ -334,11 +334,62 @@ int main(int argc, char** argv)
             }
         }
         uint32_t forces = R32(A_gForces);
-        printf("\ngForces = 0x%08X %s\n", forces, InRam(forces, 0x40) ? "(valid)" : "(invalid)");
-        if (InRam(forces, 0x40)) {
-            for (int i = 0; i < 4; i++) {
-                uint32_t f = R32(forces + i * 4);
-                printf("  force[%d] = 0x%08X %s\n", i, f, InRam(f, 0x20) ? "(valid)" : "");
+        // ⛔ gForces IS NOT AN ARRAY OF POINTERS. From src/force.cpp:
+        //     struct Force * gForces = NULL;
+        //     gForces = new Force[6];            // an ARRAY OF STRUCTS
+        //     gForces[i].Init(i);                // so Force.id == INDEX
+        // Reading it as Force*[] (dereferencing each element again) produced
+        // id=6558208, head=FFFF0008 and force[0] == a unit address — plausible-looking
+        // garbage from reading a struct's first field as a pointer.
+        //
+        // Force { Unit* head +0x00, Unit* tail +0x04, s32 id +0x08 }, stride 0x0C.
+        //
+        // FACTION MEANINGS, from src/ov000/disposition.cpp:
+        //     :392/:405  Force::Get(faction + 2)   <- scenario factions map to 2,3
+        //     :471       Force::Get(2)             <- the PLAYER force
+        //     :484       Force::Get(4)             <- the reserve/"unassigned" pool
+        //     force.cpp: ResetAllForces() seeds every unit into gForces[4]
+        // so: 0 = player, 1 = enemy, 2 = player (scenario), 3 = enemy (scenario),
+        // 4 = unassigned/reserve, 5 = other. Only 0 and 1 were confirmed against a
+        // live map; 2..5 come from the call sites above and are labelled as such.
+        printf("\ngForces = 0x%08X %s  (array of Force, stride 0x0C)\n",
+               forces, InRam(forces, 6 * 0x0C) ? "(valid)" : "(invalid)");
+        if (InRam(forces, 6 * 0x0C)) {
+            static const char* kFactionName[6] = {
+                "player", "enemy", "player(scenario)", "enemy(scenario)",
+                "unassigned", "other"
+            };
+            for (int i = 0; i < 6; i++) {
+                uint32_t f = forces + i * 0x0C;
+                uint32_t head = R32(f + 0x00), tail = R32(f + 0x04);
+                int32_t  fid  = (int32_t) R32(f + 0x08);
+                int count = 0;
+                for (uint32_t u = head; InRam(u, 0xA4) && count < 60; ) {
+                    uint32_t next = R32(u + 0x3C);
+                    if (next == u || next == 0) { count++; break; }
+                    u = next; count++;
+                }
+                printf("  faction %d (%s)  id=%d  head=%08X tail=%08X  units=%d%s\n",
+                       i, kFactionName[i], fid, head, tail, count,
+                       (fid == i) ? "" : "  <-- id MISMATCHES index");
+                uint32_t u = head;
+                int n = 0;
+                while (InRam(u, 0xA4) && n < 30) {
+                    UnitRec rec;
+                    if (!ReadUnit(u, rec)) break;
+                    uint32_t pPerson = R32(u + 0x40), pJob = R32(u + 0x44);
+                    printf("      unit %08X  Lv%2d HP%2d (%2d,%2d) force=%08X",
+                           u, rec.level, rec.hp, rec.x, rec.y, rec.force);
+                    if (InRam(pPerson, 0x10)) {
+                        uint32_t sp = R32(pPerson);
+                        printf("  pid=%s", InRam(sp, 8) ? PrintableAt(sp, 16).c_str() : "?");
+                    }
+                    printf("\n");
+                    uint32_t next = R32(u + 0x3C);
+                    if (next == u || next == 0) break;
+                    u = next;
+                    n++;
+                }
             }
         }
     };
@@ -365,6 +416,49 @@ int main(int argc, char** argv)
         }
         if (!poke_frame(core)) { printf("stopped at %ld\n", f); break; }
         if (dumpAt >= 0 && f == dumpAt) dump("mid-run");
+
+        // ---- faction timeline (opt-in: FACTION_TRACE=1) -------------------------
+        // Enemy detection requires an enemy to exist, and chapter 1 scripted maps
+        // have none — `Next enemy` correctly says so, which proves nothing. This
+        // prints the faction census whenever it changes, so an experiment can find
+        // the frame a map with real enemies appears instead of guessing one.
+        if (getenv("FACTION_TRACE") && (f % 100) == 0) {
+            uint32_t forces = R32(A_gForces);
+            if (InRam(forces, 6 * 0x0C)) {
+                int cnt[6] = {0,0,0,0,0,0};
+                uint32_t firstEnemy = 0;
+                for (int i = 0; i < 6; i++) {
+                    uint32_t u = R32(forces + i * 0x0C + 0x00);
+                    for (int n = 0; InRam(u, 0xA4) && n < 60; n++) {
+                        cnt[i]++;
+                        if ((i == 1 || i == 3) && !firstEnemy) firstEnemy = u;
+                        uint32_t next = R32(u + 0x3C);
+                        if (next == u || next == 0) break;
+                        u = next;
+                    }
+                }
+                static int prev[6] = {-1,-1,-1,-1,-1,-1};
+                bool changed = false;
+                for (int i = 0; i < 6; i++) if (cnt[i] != prev[i]) changed = true;
+                if (changed) {
+                    printf("[fac] f=%-5ld  player=%d enemy=%d player2=%d enemy2=%d unassigned=%d other=%d",
+                           f, cnt[0], cnt[1], cnt[2], cnt[3], cnt[4], cnt[5]);
+                    if (firstEnemy) {
+                        UnitRec rec;
+                        if (ReadUnit(firstEnemy, rec)) {
+                            uint32_t pp = R32(firstEnemy + 0x40);
+                            uint32_t sp = InRam(pp, 0x10) ? R32(pp) : 0;
+                            printf("   first enemy: %s HP%d (%d,%d)",
+                                   InRam(sp, 8) ? PrintableAt(sp, 16).c_str() : "?",
+                                   rec.hp, rec.x, rec.y);
+                        }
+                    }
+                    printf("\n");
+                    fflush(stdout);
+                    for (int i = 0; i < 6; i++) prev[i] = cnt[i];
+                }
+            }
+        }
     }
     dump("final");
     poke_destroy(core);

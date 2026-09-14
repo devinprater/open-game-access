@@ -60,10 +60,16 @@ test a stale copy.
   category→word table; `pTerrain[tile].unk_04` holds a *background graphic* name
   (`"BBG01"`) and `db.unk_24[category]` is null, so the game's data does not carry
   words like "Plains" here. Naming the categories is a follow-up, not a blocker.
-- **Enemies.** Chapter 1 has none, so enemy reading is unexercised. `Next enemy`
-  returns "No enemies found" and that is currently the honest answer.
-- **Allegiance.** Grouping works via the `Force*` pointer. The faction *number* is
-  not located.
+- **Enemies.** The reader reads the game's faction number (`Force.id`) and is
+  **untested against a real enemy**: chapter 1's scripted maps have only the player's
+  force, so the faction census stays `player=1 enemy=0` and `Next enemy` correctly
+  answers "No enemies found". That proves nothing about the enemy path. Fixing this
+  needs an input plan or save state that reaches a chapter with a hostile force —
+  see `scripts/fe-enemy.sh` and `fe/plans/enemies.txt`. Not a blocker for reading
+  the player's army.
+- **Allegiance** is resolved and verified — `Force.id`, 0=player, 1=enemy, 4=reserve.
+  The old "different Force pointer" test also matched the 60-slot reserve and would
+  have invented enemies; the faction number fixes that.
 - **"Has acted".** `state1` bit 0 is documented as `US_ACTED`, but the live lead
   unit's `state1` is `0x04001002` — bit 12 ("not present") set on a unit that is
   plainly present. **So the state bits do not mean what the decompilation guesses**
