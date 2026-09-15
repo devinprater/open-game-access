@@ -100,7 +100,21 @@ tree**.
 
 ---
 
-## Two misdiagnoses worth not repeating
+## Misdiagnoses and harness bugs worth not repeating
+
+**0. The harness LEAKED memory and had to be force-killed at ~6.9 GB RSS.**
+
+`lua55.exe` climbed to **6,929,880 K (~6.9 GB)** over about 40 minutes of simulated frames.
+The cause is `host-sim-rom.lua`'s `readRange`: it builds a fresh table of single-character
+strings on every call, and `gb.lua` calls it once per frame with 360 bytes. Over 60,000
+frames that is ~21.6 million tiny strings with nothing reclaiming them.
+
+⛔ **A harness bug, not a reader bug — but it matters for the mGBA run.** The per-frame
+full-screen read is genuinely expensive: `get_screen()` calls
+`readbyterange(RAM_TEXT, 360)` unconditionally, then does string work over the result. In
+mGBA that runs on the emulator's main thread. If performance is poor on a real game, this is
+the first thing to look at — and the fix belongs in the **shim** (avoid per-frame
+allocation), not the reader. Give long runs a memory ceiling.
 
 **1. "The GB games hang."** They do not. `gb.lua`'s `main_loop` calls `get_screen()` every
 frame, which reads the whole 360-byte screen — so the reader legitimately runs ~1.2M host
