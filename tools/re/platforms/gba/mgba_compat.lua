@@ -99,12 +99,13 @@ emu = emu or {}
 -- replacements call THEMSELVES:
 --
 --     local mgba_emu = HOST            -- HOST == emu, the same table
---     emu.platform = function() return HOST_platform() end
+--     emu.platform = function() return HOST_platform(HOST_for_self) end
 --                                  -- ^ this is now emu.platform again -> infinite recursion
 --
 -- The failure is `stack overflow` pointing at the first overwritten method, which reads
 -- like a shim bug in the wrong function. So grab the ORIGINAL functions into locals first,
 -- before anything is replaced. (Found by host-sim.lua, not by reading the code.)
+local HOST_for_self = HOST   -- mGBA's methods are colon-bound; they need `self`.
 local HOST_platform  = HOST.platform
 local HOST_frameadv   = HOST.runFrame
 local HOST_frame      = HOST.currentFrame
@@ -116,7 +117,7 @@ local HOST_readReg    = HOST.readRegister
 local HOST_getKeys    = HOST.getKeys
 
 emu.frameadvance = function()
-  HOST_frameadv()
+  HOST_frameadv(HOST_for_self)
 end
 
 -- BizHawk's emu.platform() returns a NUMERIC enum, and the readers compare it to numbers.
@@ -135,11 +136,11 @@ end
 -- script path. Returning the raw mGBA number is both simpler and correct, because mGBA
 -- uses the SAME values (0 = GBA, 1 = GB).
 emu.platform = function()
-  return HOST_platform()
+  return HOST_platform(HOST_for_self)
 end
 
 emu.framecount = function()
-  return HOST_frame()
+  return HOST_frame(HOST_for_self)
 end
 
 ----------------------------------------------------------------------
@@ -148,21 +149,21 @@ end
 
 memory = memory or {}
 
-memory.readbyte = function(a) return HOST_read8(a) end
-memory.readword = function(a) return HOST_read16(a) end
-memory.readdword = function(a) return HOST_read32(a) end
+memory.readbyte = function(a) return HOST_read8(HOST_for_self, a) end
+memory.readword = function(a) return HOST_read16(HOST_for_self, a) end
+memory.readdword = function(a) return HOST_read32(HOST_for_self, a) end
 
-memory.readbyteunsigned = function(a) return HOST_read8(a) end
-memory.readbytesigned   = function(a) return sign8(HOST_read8(a)) end
-memory.readwordsigned   = function(a) return sign16(HOST_read16(a)) end
-memory.readdwordsigned  = function(a) return sign32(HOST_read32(a)) end
+memory.readbyteunsigned = function(a) return HOST_read8(HOST_for_self, a) end
+memory.readbytesigned   = function(a) return sign8(HOST_read8(HOST_for_self, a)) end
+memory.readwordsigned   = function(a) return sign16(HOST_read16(HOST_for_self, a)) end
+memory.readdwordsigned  = function(a) return sign32(HOST_read32(HOST_for_self, a)) end
 
 -- ⛔ THE CRITICAL MAPPING. See the header note: readers index this as a 1-based table.
 -- mGBA's readRange returns a string, which yields nil when indexed numerically — a
 -- silent empty-text bug rather than an error. Convert to a table, 1-based, to match
 -- BizHawk exactly.
 memory.readbyterange = function(addr, length)
-  local raw = HOST_readRange(addr, length)
+  local raw = HOST_readRange(HOST_for_self, addr, length)
   if type(raw) ~= "string" then
     -- Some mGBA builds may already return a table; accept it if it is 1-based.
     if type(raw) == "table" then
@@ -184,7 +185,7 @@ end
 -- whatever bank is currently mapped, which is what the readers want (they read the bank
 -- byte from HRAM separately and account for it themselves).
 memory.gbromreadbyte = function(a)
-  local ok, v = pcall(function() return HOST_read8(a) end)
+  local ok, v = pcall(function() return HOST_read8(HOST_for_self, a) end)
   if ok and v then return v end
   log("gbromreadbyte failed at 0x" .. string.format("%x", a))
   return 0
@@ -199,7 +200,7 @@ end
 memory.getregister = function(name)
   local mapped = mapReg(name)
   if mapped == nil then return 0 end
-  local ok, v = pcall(function() return HOST_readReg(mapped) end)
+  local ok, v = pcall(function() return HOST_readReg(HOST_for_self, mapped) end)
   if not ok or v == nil then
     -- readRegister returns a string in mGBA; convert when possible.
     log("getregister failed for " .. tostring(name))
@@ -244,7 +245,7 @@ memory.registerwrite = function(address, fn)
     write_hooks[address] = nil
     return
   end
-  write_hooks[address] = { cb = fn, last = HOST_read32(address) }
+  write_hooks[address] = { cb = fn, last = HOST_read32(HOST_for_self, address) }
 end
 
 -- One frame callback drives every emulated hook.
@@ -252,7 +253,7 @@ callbacks:add("frame", function()
   -- Exec hooks: poll the PC.
   if next(exec_hooks) ~= nil then
     local pc_ok, pc = pcall(function()
-      local v = HOST_readReg("pc")
+      local v = HOST_readReg(HOST_for_self, "pc")
       if type(v) == "string" then return v:byte(1) or 0 end
       return v
     end)
@@ -268,7 +269,7 @@ callbacks:add("frame", function()
 
   -- Write hooks: poll the watched word.
   for addr, h in pairs(write_hooks) do
-    local ok, now = pcall(function() return HOST_read32(addr) end)
+    local ok, now = pcall(function() return HOST_read32(HOST_for_self, addr) end)
     if ok and now ~= h.last then
       h.last = now
       local okc, err = pcall(h.cb)
@@ -288,7 +289,7 @@ end)
 input = input or {}
 
 input.read = function()
-  local ok, mask = pcall(function() return HOST_getKeys() end)
+  local ok, mask = pcall(function() return HOST_getKeys(HOST_for_self) end)
   if not ok then return {} end
   return {
     -- mGBA returns a bitmask; expose both the mask and a keys table so a reader can
