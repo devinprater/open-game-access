@@ -20,8 +20,8 @@ serve real ROM bytes and the reader's own logic runs for real. Results:
 | Emerald | GBA | **PASS** | `Ready` |
 | FireRed | GBA | **PASS** | `Ready` |
 | LeafGreen | GBA | **PASS** | `Ready` |
-| Red | GB | **reaches `Ready`** | see the GB note below |
-| Blue | GB | not run to completion | — |
+| Red | GB | **reaches `Ready`** | measured at frame 60,001 |
+| Blue | GB | not run to completion | harness runs out of time/memory first |
 | Yellow | GB | not run to completion | — |
 
 **GBA 4/4 supported games. GBC 3/3.** FireRed's run in full:
