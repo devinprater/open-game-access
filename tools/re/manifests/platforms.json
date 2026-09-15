@@ -1,0 +1,133 @@
+{
+  "_comment": "Per-platform capability matrix for oga-re. The purpose is that Hermes can ask THIS file how to unpack a game, which CPU architecture to use, which Ghidra loader applies, which emulator can supply runtime memory, and whether a matching decompilation already exists — instead of holding that knowledge per game. Expand only with CONFIRMED information; `status` values are honest, and 'research_needed' is a real answer, not a placeholder to be quietly upgraded.",
+  "statusLegend": {
+    "ready": "tooling identified AND verified working on this machine",
+    "partially_ready": "some tooling verified; a documented gap remains",
+    "research_needed": "not yet established; do not claim support",
+    "blocked_version_conflict": "tooling exists but requires a Ghidra version incompatible with something else in the workflow",
+    "no_maintained_tooling": "searched and none found"
+  },
+  "platforms": {
+    "nds": {
+      "name": "Nintendo DS",
+      "architecture": ["ARM9", "ARM7"],
+      "cpu": "ARM946E-S (ARM9) + ARM7TDMI (ARM7)",
+      "ghidraNative": "yes — Ghidra ships ARM/Thumb support",
+      "loaders": ["dsd-ghidra v0.7.0 (dsd-aware: syncs functions, data symbols, sections, delinks, relocations and overlay/autoload mapping from a ds-decomp project)", "NTRGhidra v1.5.1 (standalone DS ROM loader; adds dynamic overlay load/unload and a bundled ARM9/ARM7 hardware-register label set + Function ID database)"],
+      "ghidraVersion": {
+        "dsd-ghidra": "11.2.1 ONLY",
+        "ntrghidra": "12.0.4"
+      },
+      "decompFrameworks": ["ds-decomp / dsd (AetiasHax)"],
+      "emulators": ["melonDS"],
+      "runtimeAccess": {
+        "melonDS": "in-process memory access via its MainRAM pointer (used today by the OGA harnesses); also has a debugger. No gdbstub needed for our reads."
+      },
+      "symbolInterchange": "dsd-ghidra consumes the decomp project's own config.yaml + symbols.txt directly — the strongest symbol-interchange path of any platform here",
+      "saveStateAnalysis": "not established",
+      "matchingDecomp": {
+        "project": "Eebit/fe11-us",
+        "game": "Fire Emblem: Shadow Dragon (USA, YFEE01)",
+        "romSha1": "7b7b307ef819ac31a7b71aed2e8e47ff23c1765e",
+        "ourRomMatches": true,
+        "licence": "NONE — no LICENSE/COPYING file, no SPDX headers, GitHub API license: null. All rights reserved by the author. CITE addresses and symbol names as research reference; do NOT copy code, headers or config files into this project.",
+        "modules": "arm9 main + ITCM + DTCM autoloads + 12 ARM9 overlays (ov000-ov011). ARM7 is NOT represented at all.",
+        "buildRequires": "Python 3.11+, GCC 9+, Ninja, and the MetroWerks mwccarm 2.0/sp2p2 compiler (auto-downloaded; run through Wibo or Wine on non-Windows). Not a Makefile project — `python tools/configure.py YFEE01 && ninja`.",
+        "completeness": "~15-20% roughly, and not an official match percentage: 20,982 symbol lines across 15 symbols.txt, 12,328 functions of which 10,559 are still auto-named func_* and 1,769 carry real names. Hand-written decompiled code in ~49 src/ files (about 1,939 definitions). Deep on arm9 core + ov000; zero hand-written src for ov001-ov004, ov006, ov007, ov009-ov011."
+      },
+      "status": "partially_ready",
+      "blockers": [
+        "ddsd-ghidra requires Ghidra 11.2.1, which scoop does not carry — it must be downloaded manually from GitHub releases.",
+        "dsd-ghidra's symbol sync is GUI-only (Swing file chooser, no headless path). Automating it needs a custom wrapper around the dsdghidra.sync.* classes.",
+        "NTRGhidra requires Ghidra 12.0.4, so it cannot coexist with dsd-ghidra in one Ghidra install."
+      ]
+    },
+    "gb": {
+      "name": "Game Boy",
+      "architecture": ["SM83 (LR35902)"],
+      "ghidraNative": "no — needs a loader/processor extension",
+      "candidateLoaders": ["GhidraBoy"],
+      "addressModelNote": "Banked. A 16-bit address does NOT identify code without its bank — the same address exists in every bank. Must use bank:address, never a bare address.",
+      "status": "research_needed"
+    },
+    "gbc": {
+      "name": "Game Boy Color",
+      "architecture": ["SM83 (LR35902)"],
+      "ghidraNative": "no",
+      "candidateLoaders": ["GhidraBoy"],
+      "addressModelNote": "Banked, plus ROM and RAM banking. Same bank:address requirement as GB.",
+      "status": "research_needed"
+    },
+    "gba": {
+      "name": "Game Boy Advance",
+      "architecture": ["ARM7TDMI"],
+      "ghidraNative": "yes — Ghidra handles ARM and Thumb well, so this is a strong automation target",
+      "candidateLoaders": ["gba-ghidra-loader"],
+      "emulators": ["mGBA"],
+      "status": "research_needed"
+    },
+    "nes": {
+      "name": "Nintendo Entertainment System",
+      "architecture": ["6502 / 2A03"],
+      "ghidraNative": "no",
+      "addressModelNote": "Banked via mapper switching. Same bank-awareness problem as GB/SNES.",
+      "status": "research_needed"
+    },
+    "snes": {
+      "name": "Super Nintendo",
+      "architecture": ["65C816"],
+      "ghidraNative": "no",
+      "candidateLoaders": ["joshleaves/ghidra-snes"],
+      "addressModelNote": "Banked with LoROM / HiROM / ExHiROM mappings plus optional enhancement chips. A logical address is meaningless without its mapping and bank context.",
+      "status": "research_needed"
+    },
+    "genesis": {
+      "name": "Sega Genesis / Mega Drive",
+      "architecture": ["Motorola 68000", "Zilog Z80"],
+      "ghidraNative": "yes — Ghidra ships 68000 support, so the main-CPU side is friendly",
+      "status": "research_needed"
+    },
+    "n64": {
+      "name": "Nintendo 64",
+      "architecture": ["MIPS R4300i"],
+      "ghidraNative": "yes",
+      "candidateLoaders": ["zeroKilo/N64LoaderWV"],
+      "decompFrameworks": ["Splat (segmentation + symbols)"],
+      "addressModelNote": "ROM byte order varies (big-endian .z64 / byte-swapped .n64 / little-endian .v64) and code is loaded from overlays. Where Splat already provides segmentation and symbols, integrate rather than rediscovering.",
+      "status": "research_needed"
+    },
+    "ps1": {
+      "name": "PlayStation 1",
+      "architecture": ["MIPS R3000A"],
+      "ghidraNative": "yes — Ghidra has MIPS support; the gap is executable-format handling",
+      "addressModelNote": "PS-X EXE carries an explicit load address; overlays are loaded dynamically, so a file offset is not an address.",
+      "status": "research_needed"
+    },
+    "ps2": {
+      "name": "PlayStation 2",
+      "architecture": ["Emotion Engine (MIPS III + MMI)", "VU0/VU1"],
+      "ghidraNative": "partially — base MIPS yes, MMI and VU0 macro instructions need an extension",
+      "candidateLoaders": ["chaoticgd/ghidra-emotionengine-reloaded"],
+      "emulators": ["PCSX2"],
+      "runtimeAccess": {
+        "PCSX2": "debugger, symbols, save states. Save-state-to-Ghidra correlation is the high-value path and is the reason PS2 matters for OGA (Budokai / Tenkaichi targets)."
+      },
+      "status": "research_needed"
+    },
+    "psp": {
+      "name": "PlayStation Portable",
+      "architecture": ["MIPS Allegrex"],
+      "ghidraNative": "partially — base MIPS yes, Allegrex specifics and VFPU need an extension",
+      "candidateLoaders": ["kotcrab/ghidra-allegrex"],
+      "emulators": ["PPSSPP"],
+      "runtimeAccess": {
+        "PPSSPP": "networked debugger/API, .sym symbol files, breakpoints/watchpoints, save states — the richest runtime bridge of the non-DS platforms, which makes PSP strategically important for OGA (Shin Budokai Another Road)."
+      },
+      "status": "research_needed"
+    }
+  },
+  "deferred": {
+    "_comment": "Evaluated later. Listed so the intent is recorded without implying tooling exists. Deliberately deprioritised so future platform exploration does not distract from getting FE11 working first.",
+    "platforms": ["sega-master-system", "game-gear", "sega-saturn", "dreamcast", "gamecube", "wii", "3ds", "ps-vita"]
+  }
+}

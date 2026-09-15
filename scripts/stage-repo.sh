@@ -25,7 +25,8 @@ fi
 mkdir -p "$OUT"
 
 # ---- sources that ship ----
-mkdir -p "$OUT/Core" "$OUT/Sources" "$OUT/scripts" "$OUT/fe/plans" "$OUT/docs" "$OUT/app"
+mkdir -p "$OUT/Core" "$OUT/Sources" "$OUT/scripts" "$OUT/fe/plans" "$OUT/docs" "$OUT/app" \
+         "$OUT/tools" "$OUT/reverse-engineering"
 
 # ⛔ `cp -r src dest` copies INTO dest when dest already exists, producing
 # scripts/scripts and docs/docs. Copy the CONTENTS (`src/.`) into the destination
@@ -67,6 +68,13 @@ copy "fe/plans"
 
 # docs
 copy "docs"
+
+# The reverse-engineering toolbox and per-game machine-readable findings.
+# ⛔ These MUST be in the allow-list or they are silently dropped from the publish tree:
+# the staging script copies named paths only, so a new top-level directory that is not
+# listed here never reaches GitHub even though the commit succeeds.
+copy "tools"
+copy "reverse-engineering"
 copy "README.md"
 copy "STATUS-AND-TEST-PLAN.md"
 copy "TEST_RESULTS.md"

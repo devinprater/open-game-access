@@ -1,0 +1,123 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opengameaccess.dev/schemas/findings.json",
+  "title": "OGA per-game semantic findings",
+  "description": "Machine-readable reverse-engineering findings for ONE game revision, intended to be consumed by Open Game Access at runtime. Shared across games so the runtime reader never becomes game-specific. Structure and field names follow the fe11-us decompilation where they are confirmed, so a symbol found here lines up with the community project.",
+  "type": "object",
+  "required": ["game", "platform", "region", "revision", "identity"],
+  "properties": {
+    "game": { "type": "string" },
+    "platform": { "type": "string" },
+    "region": { "type": "string" },
+    "revision": { "type": "string" },
+    "identity": {
+      "type": "object",
+      "description": "Pins every address below to ONE exact file. Addresses and symbols differ across regions/revisions; without this a finding is unsafe to reuse.",
+      "properties": {
+        "title": { "type": "string" },
+        "gameCode": { "type": "string" },
+        "makerCode": { "type": "string" },
+        "size": { "type": "integer" },
+        "sha1": { "type": "string" },
+        "sha256": { "type": "string" }
+      },
+      "required": ["sha256"]
+    },
+    "confidenceLevels": {
+      "type": "object",
+      "description": "The scale used by every `confidence` field in this file.",
+      "properties": {
+        "confirmed": { "type": "string" },
+        "strongly_inferred": { "type": "string" },
+        "tentative": { "type": "string" },
+        "unknown": { "type": "string" }
+      }
+    },
+    "globals": {
+      "type": "object",
+      "description": "Named global objects: address, plus the module that must be mapped to read them.",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]+$" },
+          "module": { "type": ["string", "null"] },
+          "type": { "type": ["string", "null"] },
+          "confidence": { "enum": ["confirmed", "strongly_inferred", "tentative", "unknown"] },
+          "evidence": { "type": "array", "items": { "type": "string" } },
+          "notes": { "type": ["string", "null"] }
+        },
+        "required": ["address", "confidence"]
+      }
+    },
+    "structures": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "size": { "type": ["integer", "null"] },
+          "stride": {
+            "type": ["integer", "null"],
+            "description": "Live array stride in bytes, when the struct is stored in an array. This can differ from `size`: FE11's Force entries sit one unit-record stride apart, not sizeof(Force) apart."
+          },
+          "strideNote": { "type": ["string", "null"] },
+          "confidence": { "enum": ["confirmed", "strongly_inferred", "tentative", "unknown"] },
+          "fields": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object",
+              "properties": {
+                "offset": { "type": "string", "pattern": "^0x[0-9a-fA-F]+$" },
+                "type": { "type": "string" },
+                "confidence": { "enum": ["confirmed", "strongly_inferred", "tentative", "unknown"] },
+                "evidence": { "type": "array", "items": { "type": "string" } },
+                "warnings": { "type": "array", "items": { "type": "string" } }
+              },
+              "required": ["offset", "confidence"]
+            }
+          }
+        },
+        "required": ["fields"]
+      }
+    },
+    "enums": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "confidence": { "enum": ["confirmed", "strongly_inferred", "tentative", "unknown"] },
+          "evidence": { "type": "array", "items": { "type": "string" } },
+          "values": { "type": "object", "additionalProperties": { "type": "string" } },
+          "note": { "type": ["string", "null"] }
+        },
+        "required": ["values", "confidence"]
+      }
+    },
+    "functions": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "object",
+        "properties": {
+          "address": { "type": "string", "pattern": "^0x[0-9a-fA-F]+$" },
+          "module": { "type": ["string", "null"] },
+          "signature": { "type": ["string", "null"] },
+          "confidence": { "enum": ["confirmed", "strongly_inferred", "tentative", "unknown"] },
+          "evidence": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["address", "confidence"]
+      }
+    },
+    "unknowns": {
+      "type": "array",
+      "description": "Things explicitly NOT established. Listed so a gap is visible rather than silently absent — an absent field reads as 'not needed', which is different from 'not known'.",
+      "items": {
+        "type": "object",
+        "properties": {
+          "topic": { "type": "string" },
+          "detail": { "type": "string" },
+          "attempts": { "type": "array", "items": { "type": "string" } }
+        },
+        "required": ["topic", "detail"]
+      }
+    }
+  }
+}
