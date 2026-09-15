@@ -156,6 +156,31 @@ if _G.module == nil then
 end
 
 ----------------------------------------------------------------------
+-- 1c. restore LuaJIT's `bit` library
+--
+-- ⛔ The readers call `bit.*` 119 times and NEVER `require` it — it is a LuaJIT built-in.
+-- Lua 5.4 has no `bit` (5.2's `bit32` was removed in 5.3), so gba.lua fails at line 489
+-- with `attempt to index a nil value (global 'bit')`.
+--
+-- This is not cosmetic: `bit.band`/`bit.lshift` are how the readers test display-register
+-- flags, so without it the reader cannot read display state at all. See oga_bit.lua for the
+-- implementation and the signed-32-bit notes.
+----------------------------------------------------------------------
+
+local bitpath = BOOT_DIR .. "oga_bit.lua"
+local bitchunk, biterr = loadfile(bitpath)
+if bitchunk then
+  local ok, err = pcall(bitchunk)
+  if ok then
+    log("pure-Lua `bit` library installed")
+  else
+    log("!! oga_bit.lua failed: " .. tostring(err))
+  end
+else
+  log("!! could not load " .. bitpath .. ": " .. tostring(biterr))
+end
+
+----------------------------------------------------------------------
 -- 2. stub Tolk
 --
 -- The readers call tolk.output(text) and (rarely) tolk.silence(). Route output to the
