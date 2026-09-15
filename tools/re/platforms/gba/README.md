@@ -3,6 +3,37 @@
 Companion to `docs/plans/pokemon-gb-gba-mgba.md`. This is the load-bearing component: it
 lets the 166-file Pokémon Access reader set run inside mGBA.
 
+## ⛔ THE HARD FINDING: the readers are LuaJIT + FFI + Tolk, not pure Lua
+
+Discovered while building the load path. The reader set does:
+
+```lua
+local ffi  = require "ffi"
+local tolk = ffi.load("tolk")
+tolk.Tolk_Output(encoding.to_utf16(s), false)
+```
+
+That is **BizHawk's LuaJIT**. mGBA embeds **stock Lua 5.4**, which has no `ffi` module and
+no way to load a DLL without writing a C module. This is not a configuration difference —
+it is a different Lua runtime, and it was not visible from the call-surface enumeration
+(which looks at `emu.*`/`memory.*`, not at `require`).
+
+**Why it is still tractable:** the surface is tiny and bounded. Of **166 Lua files, exactly
+four** touch FFI:
+
+| file | purpose | disposition |
+|---|---|---|
+| `tolk.lua` | speech output | stubbed → routes text to the shim's speech sink |
+| `win-controls.lua` | file dialogs | only for interactive prompts; unused headless |
+| `crc32.lua` | game identification | stubbed (pure-Lua crc32 available) |
+| `encoding.lua` | UTF-16 for Tolk | unnecessary once speech leaves Tolk |
+
+The core readers — `gb.lua`, `gba.lua`, `game/common/*.lua` and all per-language files —
+are pure Lua once the shim is installed. So the FFI layer is replaced rather than 688 KB of
+reader code being ported.
+
+`oga_bootstrap.lua` does this replacement and is the **single file to load in mGBA**.
+
 ## The measured problem
 
 | | |
