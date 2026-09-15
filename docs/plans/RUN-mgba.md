@@ -4,16 +4,29 @@
 
 | What | Where |
 |---|---|
-| mGBA loader files | `Dropbox\programs\pokemon-access\mgba\` |
+| mGBA loader files | `Dropbox\programs\pokemon-access\lua\` — **must sit beside the readers** |
 | The readers (v3.1.0) | `Dropbox\programs\pokemon-access\lua\` |
 | ROMs | `Dropbox\Games\GBA\` (GB, GBC and GBA all live here) |
 | VBA reference (known-good) | `Dropbox\programs\pokemon-access\vba.exe` |
 
-⛔ **Keep them in separate directories.** I originally dropped the mGBA loader into
-`lua\` alongside the readers. That directory is VBA's `luaDir` (the start directory of its
-file dialog), and it is also the directory `pokemon.lua` is loaded from. Mixing a second
-loader in there risks confusion about which file is being run. The mGBA files now live in
-their own `mgba\` directory.
+⛔ **The loader MUST live in `lua\`, beside the readers. There is no separate directory.**
+I tried moving it into a clean `mgba\` subdirectory and **it broke the reader**:
+
+```
+[oga-shim] data_not_found
+[oga-boot] !! reader raised: ./gba.lua:2711: table index is nil
+```
+
+The reader resolves its own data (`game/`, `message/`, `sounds/`) relative to **its own
+location**, and those subtrees exist only under `lua\`. Separating the loader changes that
+resolution and the reader loads no game data. Copying the readers into a second directory
+does not fix it either — the subtrees have to come too.
+
+So: loader in `lua\`, and **do not "tidy" it elsewhere**. The cost of a mixed directory is
+a little clutter; the cost of separating it is a reader that does not work. I caused this
+regression by cleaning up something that was not broken — an earlier note of mine claimed
+`luaDir` made VBA auto-run whatever sits in `lua\`, which is **false** (see below), so the
+"hazard" I was removing did not exist.
 
 ## The load path, verified from the readme
 
@@ -34,7 +47,7 @@ The distinction matters: it means stray files in `lua\` are *clutter*, not a liv
    one — `File → Load State` or let the battery save load automatically.
 3. **Tools → Scripting…**
 4. Click **Load script…** and choose:
-   `Dropbox\programs\pokemon-access\mgba\oga_bootstrap.lua`
+   `Dropbox\programs\pokemon-access\lua\oga_bootstrap.lua`
 5. The console pane should show the boot sequence, ending in `[oga-shim] Ready` and then
    speech.
 
