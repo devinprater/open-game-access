@@ -24,9 +24,15 @@ namespace oga {
 // Implemented in fe_access.cpp — the Fire Emblem adapter's command surface.
 // Declared here rather than in the header so adapter.h stays game-agnostic.
 extern const Adapter kFireEmblemShadowDragon;
+// Implemented in gba_adapter.cpp — the Game Boy / GBC / GBA adapter. A SCRIPT adapter in
+// kind (the readers are existing Lua), but it also answers the host's own commands natively
+// so the UI can report position without a Lua round-trip. It also accepts GB/GBC titles,
+// which the reader identifies by their 27-byte header title rather than a 4-char game code.
+extern const Adapter kGameBoyAdvance;
 
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
+    &kGameBoyAdvance,
 };
 
 const Adapter* const* all_adapters(int* count)
