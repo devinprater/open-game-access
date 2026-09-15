@@ -348,6 +348,35 @@ end
 function poll_hooks()
   run_key_script()
 
+  -- Diagnostic: dump the READER's own state from inside its loop. poll_hooks runs in the
+  -- reader's frame path, so the reader's globals are reachable here. This answers the only
+  -- question that matters: is the reader silently no-op'ing because `data` is nil or because
+  -- `on_map()` is false? Both make every needs_script command do nothing, with no error.
+  -- Direct-call probe: invoke the reader's own command functions, bypassing input dispatch.
+  if _G.oga_direct_calls and frame_counter == 300 then
+    for _, fn_name in ipairs({ "read_coords", "read_mapname", "read_text", "read_tiles" }) do
+      local fn = _G[fn_name]
+      if fn == nil then
+        if console and console.log then console:log("[direct] " .. fn_name .. " = NIL") end
+      else
+        local ok, err = pcall(fn, {})
+        if console and console.log then
+          console:log("[direct] " .. fn_name .. " ok=" .. tostring(ok) .. " err=" .. tostring(err))
+        end
+      end
+    end
+  end
+
+  if _G.oga_diag and frame_counter % 200 == 0 then
+    local bits = { "f=" .. frame_counter }
+    bits[#bits+1] = "data=" .. tostring(_G.data ~= nil)
+    bits[#bits+1] = "game=" .. tostring(_G.game)
+    bits[#bits+1] = "lang=" .. tostring(_G.language)
+    if _G.on_map then bits[#bits+1] = "on_map=" .. tostring(select(1, pcall(_G.on_map))) end
+    if _G.device then bits[#bits+1] = "device=" .. tostring(_G.device) end
+    if console and console.log then console:log("[diag] " .. table.concat(bits, " ")) end
+  end
+
   if next(exec_hooks) ~= nil then
     local pc_ok, pc = pcall(function()
       return decodeRegister(callReal("readRegister", "pc"))
@@ -418,9 +447,27 @@ local BIZ_INPUT = {}
 BIZ_INPUT.read = function()
   local out = {}
   for k, v in pairs(synthetic_keys) do out[k] = v end
-  -- Also expose mGBA's real pad bitmask for a reader that wants the pad itself.
-  local ok, mask = pcall(function() return callReal("getKeys") end)
-  if ok then out.mask = mask end
+  if _G.oga_diag and next(synthetic_keys) ~= nil then
+    local names = {}
+    for k in pairs(synthetic_keys) do names[#names+1] = k end
+    if console and console.log then console:log("[diag] input.read sees: " .. table.concat(names, ",")) end
+  end
+  -- ⛔⛔ DO NOT ADD EXTRA FIELDS TO THIS TABLE. ⛔⛔
+  --
+  -- The reader collects keys by iterating EVERY truthy entry:
+  --
+  --     for k, v in pairs(kbd) do
+  --       if v and k ~= "capslock" and k ~= "numlock" and k ~= "scrolllock" then
+  --         table.insert(pressed_keys, k)
+  --       end
+  --     end
+  --
+  -- So an extra `mask = 0` field becomes a PHANTOM KEY called "mask". The key set then reads
+  -- {"Y", "mask"}, which can never equal commands[{"Y"}], and EVERY hotkey silently does
+  -- nothing — no error, no output, just a reader that says `Ready` and then never speaks
+  -- again. Adding a helpful-looking extra field here disables the entire command system.
+  --
+  -- (The pad bitmask is still available via BIZ_EMU.getKeys() for anything that needs it.)
   return out
 end
 

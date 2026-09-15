@@ -1,0 +1,4 @@
+Ready
+x 6, y 6
+A's House
+Now on0 (3); Up0 (0); Down0 (3); Left0 (3); Right0 (3)
