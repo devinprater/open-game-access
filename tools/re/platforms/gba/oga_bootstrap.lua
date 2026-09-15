@@ -123,6 +123,31 @@ encoding = encoding or {
 }
 
 ----------------------------------------------------------------------
+-- 3b. preload pure-Lua replacements for the FFI modules
+--
+-- ⛔ package.preload, NOT a global. The readers do `require "crc32"` and
+-- `require "encoding"`, and mGBA's package.path does not include the reader dir by
+-- default, so the real FFI versions would be found first (or not at all). Preloading by
+-- module name makes `require` return our implementation and never touch the file on disk
+-- — which is the only reliable way to keep the FFI versions from loading.
+----------------------------------------------------------------------
+
+local purepath = BOOT_DIR .. "oga_pure.lua"
+local purechunk, pureerr = loadfile(purepath)
+if purechunk then
+  local ok, pure = pcall(purechunk)
+  if ok and pure then
+    package.preload["crc32"] = function() return { crc32 = pure.crc32 } end
+    package.preload["encoding"] = function() return pure.encoding end
+    log("pure-Lua crc32 + encoding installed")
+  else
+    log("!! oga_pure.lua failed: " .. tostring(pure))
+  end
+else
+  log("!! could not load " .. purepath .. ": " .. tostring(pureerr))
+end
+
+----------------------------------------------------------------------
 -- 4. install the host shim
 ----------------------------------------------------------------------
 

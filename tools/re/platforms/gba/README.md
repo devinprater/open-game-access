@@ -25,14 +25,18 @@ four** touch FFI:
 |---|---|---|
 | `tolk.lua` | speech output | stubbed → routes text to the shim's speech sink |
 | `win-controls.lua` | file dialogs | only for interactive prompts; unused headless |
-| `crc32.lua` | game identification | stubbed (pure-Lua crc32 available) |
-| `encoding.lua` | UTF-16 for Tolk | unnecessary once speech leaves Tolk |
+| `crc32.lua` | game identification | **reimplemented in pure Lua** (`oga_pure.lua`), tested against published CRC-32 vectors |
+| `encoding.lua` | UTF-16 for Tolk | identity functions — safe because speech no longer goes through Tolk's C API |
 
 The core readers — `gb.lua`, `gba.lua`, `game/common/*.lua` and all per-language files —
 are pure Lua once the shim is installed. So the FFI layer is replaced rather than 688 KB of
 reader code being ported.
 
-`oga_bootstrap.lua` does this replacement and is the **single file to load in mGBA**.
+`crc32` is **reimplemented rather than stubbed**, because a stub would return nil and the
+reader would report "this game is not supported" for a supported game — a silent wrong
+answer. The pure-Lua version accepts both a string and a table of byte values, matching the
+original, since `memory.readbyterange` returns a table. Verified against the canonical
+vector `crc32("123456789") == 0xCBF43926` plus four more, in `test-oga-pure.lua`.
 
 ## The measured problem
 
