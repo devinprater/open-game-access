@@ -231,10 +231,36 @@ package.preload["tolk"] = function() return tolk end
 local real_loadlib = package.loadlib
 package.loadlib = function(path, init)
   if path == "audio.dll" then
-    log("audio.dll load bypassed (module is never used by the reader; no native audio in mGBA)")
+    log("audio.dll load bypassed — using the Lua cue stub instead (see oga_audio.lua)")
     return function() return {} end
   end
   return real_loadlib(path, init)
+end
+
+----------------------------------------------------------------------
+-- 2c. install the `audio` cue stub
+--
+-- ⛔ THE READERS DO USE audio.play — 42 times, plus audio.stop and audio.pitch. An earlier
+-- note in this repo claimed `audio.` was never called; that grep only covered pokemon.lua
+-- and was wrong. The cues are POSITIONAL (pan -100..100), i.e. direction encoded as sound,
+-- so leaving `audio` nil makes gb.lua die at line 516 with
+-- `attempt to index a nil value (global 'audio')`.
+--
+-- See oga_audio.lua: it records cues and accepts a real sink from the host. Real playback
+-- needs a host sound callback (as the Android bridge already has), not a Lua BASS clone.
+----------------------------------------------------------------------
+
+local audiopath = BOOT_DIR .. "oga_audio.lua"
+local audiochunk, audioerr = loadfile(audiopath)
+if audiochunk then
+  local ok, err = pcall(audiochunk)
+  if ok then
+    log("`audio` cue stub installed (42 call sites; real playback needs a host sink)")
+  else
+    log("!! oga_audio.lua failed: " .. tostring(err))
+  end
+else
+  log("!! could not load " .. audiopath .. ": " .. tostring(audioerr))
 end
 
 ----------------------------------------------------------------------

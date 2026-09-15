@@ -100,8 +100,16 @@ function host:getKeys() return 0 end
 function host:platform() return is_gba and 0 or 1 end
 function host:runFrame()
   FIX.advanced = FIX.advanced + 1
-  -- The reader owns the main loop. Let game identification happen, then stop.
-  if FIX.advanced > 200 then
+  -- ⛔ THE READER READS THE WHOLE SCREEN EVERY FRAME, so the frame budget must be generous.
+  -- gb.lua's main_loop calls get_screen() unconditionally, which does
+  -- `readbyterange(RAM_TEXT, 360)` — 360 bytes per frame, plus ~16 read8 calls. A budget of
+  -- 200 frames therefore allows ~72,000 reads, and the reader legitimately needs more than
+  -- that to finish its boot before the first frame.
+  --
+  -- An earlier budget of 200 made the GB games look like they HUNG: they simply ran out of
+  -- frames before reaching "Ready", with no output at all. That misdiagnosis cost real
+  -- time. The budget below is sized for a screen-reading loop, not for a trivial test.
+  if FIX.advanced > tonumber(os.getenv("OGA_ROM_FRAMES") or "65000") then
     error("frame budget reached — game identification has run", 0)
   end
 end
