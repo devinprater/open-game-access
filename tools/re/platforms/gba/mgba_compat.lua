@@ -202,13 +202,22 @@ memory.getregister = function(name)
   if mapped == nil then return 0 end
   local ok, v = pcall(function() return HOST_readReg(HOST_for_self, mapped) end)
   if not ok or v == nil then
-    -- readRegister returns a string in mGBA; convert when possible.
     log("getregister failed for " .. tostring(name))
     return 0
   end
   if type(v) == "string" then
-    -- mGBA may return raw bytes; take the first byte's value.
-    return v:byte(1) or 0
+    -- ⛔ mGBA's readRegister returns a STRING, and the bytes are little-endian.
+    -- This previously did `v:byte(1)`, which takes ONLY the low byte — for a PC of
+    -- 0x08000123 that yields 0x23 (35). Footstep detection compares the PC against a
+    -- registered address, so a truncated PC NEVER matches and walking would be silent
+    -- while every other feature worked. Decode the full width instead.
+    local n = #v
+    if n == 0 then return 0 end
+    local val = 0
+    for i = n, 1, -1 do          -- little-endian: last byte is most significant
+      val = val * 0x100 + v:byte(i)
+    end
+    return val
   end
   return v
 end

@@ -100,6 +100,33 @@ tree**.
 
 ---
 
+## A REAL bug found by reading mGBA's own documentation
+
+mGBA's scripting docs are authoritative and were worth reading directly:
+<https://mgba.io/docs/scripting.html>
+
+The entry that mattered:
+
+> `readRegister ( regName : string ) : string`
+
+**A STRING, not a number.** The shim decoded it as `v:byte(1)` — the LOW BYTE ONLY. A PC of
+`0x08000123` therefore became `0x23` (35).
+
+⛔ **Why this was severe and quiet.** Footstep detection registers an address and compares
+the *polled PC* against it. A truncated PC can never match, so **the player would walk
+around in silence while identification, terrain, menus and every other reader feature still
+worked.** No error, no log line — the exact "looks fine, is broken" shape this project keeps
+having to guard against.
+
+Fixed by decoding the full width, little-endian. `test-register-width.lua` (10 checks, all
+passing) asserts `0x08000123 -> 0x08000123`, `0xC0001234 -> 0xC0001234`, and that a 1-byte
+value still reads correctly. It also asserts the value is NOT `0x23`, so the specific
+regression cannot return unnoticed.
+
+**Lesson: read the target platform's own API documentation before trusting a shim's
+assumptions about return types.** This bug was invisible to every test that only exercised
+the load path, because the load path never reads a register that has to match an address.
+
 ## Misdiagnoses and harness bugs worth not repeating
 
 **0. The harness LEAKED memory and had to be force-killed at ~6.9 GB RSS.**
