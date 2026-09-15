@@ -92,6 +92,69 @@ _G.ffi = _G.ffi or {
   end,
 }
 
+-- ⛔ ALSO register it as a MODULE, not just a global. The FFI modules do
+-- `local ffi = require "ffi"`, and `require` consults package.preload/package.loaded — it
+-- does NOT look at globals. Setting only _G.ffi left require failing with a full
+-- package.path dump, which reads like a missing library rather than a missing registration.
+-- Both are set so either style works.
+package.loaded["ffi"] = _G.ffi
+package.preload["ffi"] = function() return _G.ffi end
+
+----------------------------------------------------------------------
+-- 1b. restore LuaJIT's `module()` (REMOVED in Lua 5.2+)
+--
+-- ⛔ a-star.lua line 26 is `module("astar", package.seeall)`. That is LuaJIT/Lua 5.1
+-- syntax; Lua 5.2 removed `module()`, so on mGBA's 5.4 it fails with
+-- `attempt to call a nil value (global 'module')`. It is the FIRST thing that runs during
+-- the reader's boot (pokemon.lua does `require "a-star"` on line 1), so without this the
+-- reader never starts at all.
+--
+-- Only a-star.lua uses it, so a small compatible implementation is enough — no need to
+-- port the file. Implemented per the Lua 5.1 reference: create the table, set it as a
+-- global, capture the calling module's environment, and honour `package.seeall`.
+----------------------------------------------------------------------
+
+if _G.module == nil then
+  _G.module = function(name, ...)
+    local mod = package.loaded[name]
+    if mod == nil then mod = {} end
+    mod._NAME = name
+    mod._M = mod
+    mod._PACKAGE = name:match("^(.*%.)") or ""
+    package.loaded[name] = mod
+    -- The 5.1 global for a module name, e.g. `astar`.
+    _G[name] = mod
+
+    -- package.seeall: give the module read access to the global environment via its
+    -- metatable __index. This is what a-star.lua relies on to reach globals like
+    -- string/table/math without qualifying them.
+    for _, opt in ipairs({...}) do
+      if opt == package.seeall then
+        setmetatable(mod, { __index = _G })
+      end
+    end
+
+    -- Redirect the caller's environment into the module table, which is what makes
+    -- `function foo()` inside the file define mod.foo rather than a global.
+    local caller = debug.getinfo(2, "f")
+    if caller and caller.func then
+      local i = 1
+      while true do
+        local n = debug.getupvalue(caller.func, i)
+        if n == nil then break end
+        if n == "_ENV" then
+          debug.setupvalue(caller.func, i, mod)
+          break
+        end
+        i = i + 1
+      end
+    end
+    return mod
+  end
+  -- Sentinel so `module("x", package.seeall)` matches the reference implementation.
+  package.seeall = package.seeall or function() end
+end
+
 ----------------------------------------------------------------------
 -- 2. stub Tolk
 --
@@ -109,6 +172,45 @@ tolk = tolk or {
   end,
   silence = function() end,
 }
+
+-- ⛔ REGISTER IT AS A MODULE TOO. pokemon.lua's boot does `tolk = require "tolk"` at the
+-- top level (line 1052), and `require` consults package.preload/package.loaded — not
+-- globals. Setting only _G.tolk left require searching package.path for tolk.lua, finding
+-- the REAL FFI tolk.lua, and failing on ffi.load("tolk") with "The specified module could
+-- not be found". Registering here short-circuits that.
+package.loaded["tolk"] = tolk
+package.preload["tolk"] = function() return tolk end
+
+----------------------------------------------------------------------
+-- 2b. neutralise the native audio.dll load
+--
+-- ⛔ pokemon.lua line 1053, at the TOP LEVEL before the main loop:
+--
+--     assert(package.loadlib("audio.dll", "luaopen_audio"))()
+--
+-- audio.dll is a native C module. It is not present in the reader set, and it cannot be
+-- loaded from mGBA's Lua anyway. Because the line is unguarded and runs during boot, it
+-- ABORTS THE READER before the main loop starts — so nothing speaks at all.
+--
+-- Two things make stubbing it safe rather than a fudge:
+--   1. `audio.` is never referenced anywhere in the reader set — verified by grep. The
+--      module is loaded and then never used, so a stub changes no behaviour.
+--   2. `assert()` requires loadlib to return a FUNCTION, then calls it. So the stub must
+--      return a callable that yields something harmless, or the assert fires.
+--
+-- ⛔ This does NOT fake audio. If sound cues are ever wanted, they must come from the
+-- host (mGBA/OGA), not from a pretend DLL — see the sound callback in the Android bridge,
+-- which is the real pattern.
+----------------------------------------------------------------------
+
+local real_loadlib = package.loadlib
+package.loadlib = function(path, init)
+  if path == "audio.dll" then
+    log("audio.dll load bypassed (module is never used by the reader; no native audio in mGBA)")
+    return function() return {} end
+  end
+  return real_loadlib(path, init)
+end
 
 ----------------------------------------------------------------------
 -- 3. stub encoding
@@ -182,9 +284,29 @@ if not chunk then
   return
 end
 
--- ⛔ A READER THAT ERRORS MUST NOT TAKE THE EMULATOR DOWN. pcall the entry point and
--- report the failure with its position; an unprotected error here would end the session
--- and lose the log that says why.
+-- ⛔ THE READER OWNS THE MAIN LOOP, AND THAT IS A REAL RISK ON mGBA.
+--
+-- pokemon.lua ends with:
+--
+--     while true do
+--       emu.frameadvance()
+--       main_loop()
+--     end
+--
+-- That is the BizHawk model: the script drives the emulator and BizHawk yields control
+-- back. mGBA runs scripts on the main thread and `emu:runFrame()` advances a frame, so this
+-- shape MAY work — but it is not how mGBA's own examples are written (they use
+-- callbacks:add("frame", ...)), and mGBA's changelog contains "Qt: Disable sync while
+-- running scripts from main thread".
+--
+-- ⛔ WHAT TO WATCH FOR IN THE REAL RUN: if mGBA's window freezes and stops responding
+-- while the script is loaded, this loop is why. The fix would be to restructure
+-- frameadvance() into a frame callback rather than a blocking loop — a change to the SHIM,
+-- not to the reader.
+--
+-- Do not pre-emptively rewrite it: mGBA may handle it fine, and guessing here would mean
+-- restructuring the load path around a problem that might not exist. Establish it first.
+
 local ok, err2 = pcall(chunk)
 if not ok then
   log("!! reader raised: " .. tostring(err2))

@@ -92,25 +92,54 @@ end
 
 emu = emu or {}
 
--- mGBA's own object, captured before emu is replaced.
-local mgba_emu = HOST
+-- ⛔ CAPTURE mGBA'S METHODS BY VALUE, NOT BY TABLE REFERENCE.
+--
+-- `emu` IS mGBA's CoreAdapter — the host object itself. So keeping a reference to it and
+-- then overwriting `emu.platform` / `emu.frameadvance` / `emu.read8` below makes those
+-- replacements call THEMSELVES:
+--
+--     local mgba_emu = HOST            -- HOST == emu, the same table
+--     emu.platform = function() return HOST_platform() end
+--                                  -- ^ this is now emu.platform again -> infinite recursion
+--
+-- The failure is `stack overflow` pointing at the first overwritten method, which reads
+-- like a shim bug in the wrong function. So grab the ORIGINAL functions into locals first,
+-- before anything is replaced. (Found by host-sim.lua, not by reading the code.)
+local HOST_platform  = HOST.platform
+local HOST_frameadv   = HOST.runFrame
+local HOST_frame      = HOST.currentFrame
+local HOST_read8      = HOST.read8
+local HOST_read16     = HOST.read16
+local HOST_read32     = HOST.read32
+local HOST_readRange  = HOST.readRange
+local HOST_readReg    = HOST.readRegister
+local HOST_getKeys    = HOST.getKeys
 
 emu.frameadvance = function()
-  mgba_emu:runFrame()
+  HOST_frameadv()
 end
 
--- BizHawk returns a platform enum; mGBA uses 0=GBA, 1=GB. The readers branch on the
--- BizHawk values, so this maps to the strings/enum the readers expect rather than
--- passing mGBA's number through and hoping the meanings coincide.
+-- BizHawk's emu.platform() returns a NUMERIC enum, and the readers compare it to numbers.
+-- pokemon.lua:897 does exactly:
+--
+--     function get_device()
+--       local id = emu.platform()
+--       if id == 0 then return "gba"
+--       elseif id == 1 then return "gb" end
+--       return nil
+--     end
+--
+-- ⛔ RETURNING A STRING HERE BREAKS THE READER. get_device() then returns nil, `device`
+-- stays nil, and the failure surfaces far away as
+-- `attempt to concatenate a nil value (global 'device')` at the boot line that builds a
+-- script path. Returning the raw mGBA number is both simpler and correct, because mGBA
+-- uses the SAME values (0 = GBA, 1 = GB).
 emu.platform = function()
-  local p = mgba_emu:platform()
-  if p == 0 then return "GBA" end
-  if p == 1 then return "GB" end
-  return "UNKNOWN"
+  return HOST_platform()
 end
 
 emu.framecount = function()
-  return mgba_emu:currentFrame()
+  return HOST_frame()
 end
 
 ----------------------------------------------------------------------
@@ -119,21 +148,21 @@ end
 
 memory = memory or {}
 
-memory.readbyte = function(a) return mgba_emu:read8(a) end
-memory.readword = function(a) return mgba_emu:read16(a) end
-memory.readdword = function(a) return mgba_emu:read32(a) end
+memory.readbyte = function(a) return HOST_read8(a) end
+memory.readword = function(a) return HOST_read16(a) end
+memory.readdword = function(a) return HOST_read32(a) end
 
-memory.readbyteunsigned = function(a) return mgba_emu:read8(a) end
-memory.readbytesigned   = function(a) return sign8(mgba_emu:read8(a)) end
-memory.readwordsigned   = function(a) return sign16(mgba_emu:read16(a)) end
-memory.readdwordsigned  = function(a) return sign32(mgba_emu:read32(a)) end
+memory.readbyteunsigned = function(a) return HOST_read8(a) end
+memory.readbytesigned   = function(a) return sign8(HOST_read8(a)) end
+memory.readwordsigned   = function(a) return sign16(HOST_read16(a)) end
+memory.readdwordsigned  = function(a) return sign32(HOST_read32(a)) end
 
 -- ⛔ THE CRITICAL MAPPING. See the header note: readers index this as a 1-based table.
 -- mGBA's readRange returns a string, which yields nil when indexed numerically — a
 -- silent empty-text bug rather than an error. Convert to a table, 1-based, to match
 -- BizHawk exactly.
 memory.readbyterange = function(addr, length)
-  local raw = mgba_emu:readRange(addr, length)
+  local raw = HOST_readRange(addr, length)
   if type(raw) ~= "string" then
     -- Some mGBA builds may already return a table; accept it if it is 1-based.
     if type(raw) == "table" then
@@ -155,7 +184,7 @@ end
 -- whatever bank is currently mapped, which is what the readers want (they read the bank
 -- byte from HRAM separately and account for it themselves).
 memory.gbromreadbyte = function(a)
-  local ok, v = pcall(function() return mgba_emu:read8(a) end)
+  local ok, v = pcall(function() return HOST_read8(a) end)
   if ok and v then return v end
   log("gbromreadbyte failed at 0x" .. string.format("%x", a))
   return 0
@@ -170,7 +199,7 @@ end
 memory.getregister = function(name)
   local mapped = mapReg(name)
   if mapped == nil then return 0 end
-  local ok, v = pcall(function() return mgba_emu:readRegister(mapped) end)
+  local ok, v = pcall(function() return HOST_readReg(mapped) end)
   if not ok or v == nil then
     -- readRegister returns a string in mGBA; convert when possible.
     log("getregister failed for " .. tostring(name))
@@ -215,7 +244,7 @@ memory.registerwrite = function(address, fn)
     write_hooks[address] = nil
     return
   end
-  write_hooks[address] = { cb = fn, last = mgba_emu:read32(address) }
+  write_hooks[address] = { cb = fn, last = HOST_read32(address) }
 end
 
 -- One frame callback drives every emulated hook.
@@ -223,7 +252,7 @@ callbacks:add("frame", function()
   -- Exec hooks: poll the PC.
   if next(exec_hooks) ~= nil then
     local pc_ok, pc = pcall(function()
-      local v = mgba_emu:readRegister("pc")
+      local v = HOST_readReg("pc")
       if type(v) == "string" then return v:byte(1) or 0 end
       return v
     end)
@@ -239,7 +268,7 @@ callbacks:add("frame", function()
 
   -- Write hooks: poll the watched word.
   for addr, h in pairs(write_hooks) do
-    local ok, now = pcall(function() return mgba_emu:read32(addr) end)
+    local ok, now = pcall(function() return HOST_read32(addr) end)
     if ok and now ~= h.last then
       h.last = now
       local okc, err = pcall(h.cb)
@@ -259,7 +288,7 @@ end)
 input = input or {}
 
 input.read = function()
-  local ok, mask = pcall(function() return mgba_emu:getKeys() end)
+  local ok, mask = pcall(function() return HOST_getKeys() end)
   if not ok then return {} end
   return {
     -- mGBA returns a bitmask; expose both the mask and a keys table so a reader can
