@@ -1,0 +1,335 @@
+{
+  "game": "Fire Emblem: Shadow Dragon",
+  "platform": "nds",
+  "region": "USA",
+  "revision": "0",
+  "identity": {
+    "title": "FIREEMBLEM11",
+    "gameCode": "YFEE",
+    "makerCode": "01",
+    "size": 67108864,
+    "sha1": "7b7b307ef819ac31a7b71aed2e8e47ff23c1765e",
+    "sha256": "bebe9ce0d727a61f1676dd8360e2d4fe7be936b9123e187f106c6cbd555714d7"
+  },
+  "confidenceLevels": {
+    "confirmed": "Two independent sources agree (decompilation plus a live read of the running game). Safe to build on.",
+    "strongly_inferred": "One good source plus consistent behaviour. Has not been cross-checked.",
+    "tentative": "Plausible and fits observations, but unverified. Do not depend on it.",
+    "unknown": "Not established. Listed so the gap is visible rather than silently absent."
+  },
+  "notes": {
+    "overlayWarning": "gMapStateManager and gActionSt live in overlay ov000's BSS and are only mapped while ov000 is loaded. Reading them outside a loaded map returns 0x00000000, which means 'no map loaded' — not a bad address.",
+    "decompHeaderWarning": "Three field types in the fe11-us headers are wrong (see docs/reverse-engineering/fe11.md). Treat decompilation field types as hints to test, never as facts to copy.",
+    "evidencePolicy": "A decompiler's suggestion is not evidence. A live read that matches a predicted value is."
+  },
+  "globals": {
+    "gFE11Database": {
+      "address": "0x02197254",
+      "module": "arm9",
+      "confidence": "confirmed",
+      "evidence": [
+        "decomp config/YFEE01/arm9/overlays/ov000/symbols.txt",
+        "live read yields a valid RAM pointer"
+      ]
+    },
+    "gUnitList": {
+      "address": "0x021974D8",
+      "module": "arm9",
+      "type": "struct Unit[] (1-based)",
+      "stride": "0xA8",
+      "confidence": "confirmed",
+      "evidence": [
+        "live: GetUnit(id) = base + (id-1), record stride 0xA8 measured not assumed",
+        "Marth reads slot 1 with pid PID_MARS, jid JID_LORD, hp 18"
+      ]
+    },
+    "gForces": {
+      "address": "0x021974DC",
+      "module": "arm9",
+      "type": "struct Force[6]",
+      "confidence": "confirmed",
+      "evidence": [
+        "live: six entries, Force.id == array index for all six",
+        "decompilation src/force.cpp: gForces = new Force[6]"
+      ]
+    },
+    "gMapStateManager": {
+      "address": "0x021E3328",
+      "module": "arm9/overlays/ov000",
+      "confidence": "confirmed",
+      "evidence": [
+        "decomp config/YFEE01/arm9/overlays/ov000/symbols.txt line 2224 (kind:bss)",
+        "live: valid only while ov000 mapped; 0x00000000 outside a map"
+      ]
+    },
+    "gActionSt": {
+      "address": "0x021E3344",
+      "module": "arm9/overlays/ov000",
+      "confidence": "strongly_inferred",
+      "evidence": [
+        "decomp overlays/ov000/symbols.txt (kind:bss)",
+        "decomp map_sequence.cpp uses gActionSt->unk_34 as the acting unit id and xDecision/yDecision as the destination tile"
+      ]
+    },
+    "gMapRenderState": {
+      "address": "0x021E34FC",
+      "module": "arm9/overlays/ov000",
+      "confidence": "tentative",
+      "evidence": ["decomp overlays/ov000/symbols.txt (kind:bss)"]
+    }
+  },
+  "structures": {
+    "Force": {
+      "size": null,
+      "stride": 168,
+      "strideNote": "sizeof(Force) is NOT a safe stride. Live entries sit 0xA8 apart — one unit-record stride, not 0x0C. Read Force.id and trust id == index; do not compute an entry from a 0x0C stride.",
+      "confidence": "confirmed",
+      "fields": {
+        "head": {
+          "offset": "0x00",
+          "type": "struct Unit*",
+          "confidence": "confirmed",
+          "evidence": ["decomp include/unit.hpp", "live: head==tail for a single-unit force"]
+        },
+        "tail": {
+          "offset": "0x04",
+          "type": "struct Unit*",
+          "confidence": "confirmed",
+          "evidence": ["decomp include/unit.hpp", "live"]
+        },
+        "id": {
+          "offset": "0x08",
+          "type": "s32",
+          "confidence": "confirmed",
+          "evidence": [
+            "decomp include/unit.hpp struct Force",
+            "live: id == index for all six entries",
+            "replaced an earlier pointer-comparison heuristic that produced phantom enemies"
+          ],
+          "warnings": [
+            "Faction 4 (unassigned reserve) holds ~60 roster slots with no HP and position (0,0). Treating these as on-map units produced 60 phantom enemies. Test position AND faction, never HP alone."
+          ]
+        }
+      }
+    },
+    "Unit": {
+      "size": null,
+      "stride": 168,
+      "confidence": "confirmed",
+      "fields": {
+        "next": { "offset": "0x3C", "type": "struct Unit*", "confidence": "confirmed", "evidence": ["decomp include/unit.hpp"] },
+        "pPersonData": {
+          "offset": "0x40",
+          "type": "struct PersonData*",
+          "confidence": "confirmed",
+          "evidence": ["deref yields the game's own pid string, e.g. PID_MARS"]
+        },
+        "pJobData": {
+          "offset": "0x44",
+          "type": "struct JobData*",
+          "confidence": "confirmed",
+          "evidence": ["deref yields the game's own jid string, e.g. JID_LORD"]
+        },
+        "force": {
+          "offset": "0x4C",
+          "type": "struct Force*",
+          "confidence": "confirmed",
+          "evidence": ["live: force+0x08 reads the faction id"]
+        },
+        "level": { "offset": "0x6A", "type": "u8", "confidence": "confirmed", "evidence": ["live: Marth level 1 in the Prologue"] },
+        "hp": { "offset": "0x6C", "type": "s8", "confidence": "confirmed", "evidence": ["live: Marth 18 HP", "enemy soldiers 16/17/14 HP"] },
+        "mov": {
+          "offset": "0x6D",
+          "type": "s8",
+          "confidence": "confirmed",
+          "evidence": ["live"],
+          "warnings": ["Reads 0 until the unit is deployed. Use JobData.mov (+0x29) for the class movement stat instead."]
+        },
+        "xPos": { "offset": "0x6E", "type": "s8", "confidence": "confirmed", "evidence": ["live: tracks the cursor tile"] },
+        "yPos": { "offset": "0x6F", "type": "s8", "confidence": "confirmed", "evidence": ["live"] },
+        "items": { "offset": "0x70", "type": "u16[5]", "confidence": "confirmed", "evidence": ["decomp include/unit.hpp"] },
+        "state1": {
+          "offset": "0x98",
+          "type": "u32",
+          "confidence": "tentative",
+          "evidence": ["decomp include/unit.hpp"],
+          "warnings": [
+            "The decompilation's acted/dead bit guesses are NOT reliable: filtering on them reported 0 live units on a map with a full army. Real bit meanings unestablished."
+          ]
+        }
+      }
+    },
+    "JobData": {
+      "size": null,
+      "confidence": "confirmed",
+      "fields": {
+        "unk_28": {
+          "offset": "0x28",
+          "type": "u8",
+          "confidence": "confirmed",
+          "evidence": [
+            "decomp include/unit.hpp declares u8 unk_28",
+            "live: Lord 0, Soldier 23, Fighter 7 — each resolves a different cost-matrix row"
+          ],
+          "warnings": [
+            "It is a BYTE, not a pointer. Reading 32 bits gives 0x03025C00 (50464512), which looks like an address and is really this byte plus three neighbouring fields. This cost real time.",
+            "It is the movement TYPE (cost-matrix row index), not the movement distance."
+          ]
+        },
+        "mov": {
+          "offset": "0x29",
+          "type": "u8",
+          "confidence": "confirmed",
+          "evidence": ["live: Lord 7, Soldier 6, Fighter 6 — the real Fire Emblem movement values"],
+          "notes": "Authoritative class movement stat. Prefer this over Unit.mov, which is 0 until deployment."
+        }
+      }
+    },
+    "MapData": {
+      "size": 28,
+      "confidence": "tentative",
+      "fields": {
+        "unk_00": { "offset": "0x00", "type": "char*", "confidence": "strongly_inferred", "evidence": ["decomp include/database.hpp: \"bmap###\" or \"arena###\""] },
+        "unk_04": { "offset": "0x04", "type": "char*", "confidence": "strongly_inferred", "evidence": ["decomp include/database.hpp: \"MCT###\" chapter text id"] }
+      },
+      "warnings": [
+        "Live dump of entries 0-7 shows unk_00/unk_04 swapping between rows (map[1] reads unk_00=? unk_04=bmap001), so either the 0x1C stride or the field order is wrong for some entries. Do not rely on this struct yet."
+      ]
+    }
+  },
+  "enums": {
+    "ForceId": {
+      "confidence": "confirmed",
+      "note": "The decompilation indexes factions as Force::Get(faction + 2), so 0/1 are the runtime player/enemy and 2/3 are the scenario player/enemy army. Values confirmed live.",
+      "evidence": [
+        "decomp src/ov000/disposition.cpp:392 and :405 use Force::Get(faction + 2)",
+        "decomp src/ov000/disposition.cpp:471 uses Force::Get(2) for the player army",
+        "live: all six gForces entries have id == index",
+        "live Prologue: faction 0 = Marth (1 unit), faction 1 = 4 enemies, faction 4 = 60 unassigned",
+        "live final-boss save: faction 2 = 9 player (scenario), faction 3 = 22 enemy (scenario)"
+      ],
+      "values": {
+        "0": "PLAYER",
+        "1": "ENEMY",
+        "2": "PLAYER_SCENARIO",
+        "3": "ENEMY_SCENARIO",
+        "4": "UNASSIGNED_RESERVE",
+        "5": "OTHER"
+      }
+    }
+  },
+  "terrain": {
+    "confidence": "confirmed",
+    "costMatrix": {
+      "global": "gFE11Database->unk_28",
+      "indexing": "[movementType][terrainCategory]",
+      "rowWidth": 32,
+      "flexibleArrayOffset": "0x04",
+      "stride": "((s32*)costTable[0] + 3) & ~3",
+      "sentinel": "-1 means impassable for that movement type",
+      "evidence": [
+        "decomp src/database.cpp GetTerrainCostDB / func_0203826c",
+        "decomp src/ov000/map_sequence.cpp:2741 range loop calls func_0203826c(pTerrain[tile].unk_08, pJobData->unk_28) < 0",
+        "live row 0 (Lord): -1 1 1 1 2 2 2 2 5 4 -1 1 -1 1 -1 2",
+        "live row 23 (Soldier): -1 1 1 1 2 2 2 2 -1 -1 -1 1 -1 1 -1 2",
+        "live row 7 (Fighter): -1 1 1 1 2 2 2 2 -1 3 -1 1 -1 1 -1 2"
+      ],
+      "warnings": [
+        "TerrainCostData.unk_04 in include/database.hpp is declared s8* but is a flexible array member at +4. The live bytes 01 01 01 FF are costs 1,1,1,-1 — not a pointer. size at +0 is the row WIDTH (32), not the movement-type count.",
+        "Reading it as a pointer is what made an early attempt conclude the matrix was garbage."
+      ]
+    },
+    "namesAvailable": {
+      "value": false,
+      "confidence": "confirmed",
+      "evidence": [
+        "pTerrain[tile].unk_08 is a category NUMBER",
+        "gFE11Database->unk_24[category] is NULL",
+        "pTerrain[tile].unk_04 holds background GRAPHIC names (BBG01, BBG02) — art assets, not terrain",
+        "searched the whole decompilation for a terrain name/label table: none exists"
+      ],
+      "consequence": "Any human-readable terrain word is OURS and must be labelled as inferred. Words in Core/fe_access.cpp::terrainName() are derived from cost-matrix behaviour and are tentative until checked against what the game draws."
+    },
+    "prologueCategories": {
+      "0": 656,
+      "8": 91,
+      "13": 150,
+      "14": 126,
+      "22": 1
+    }
+  },
+  "functions": {},
+  "accessibilityFacts": {
+    "note": "Values the runtime reader reports, and the evidence that they are right. Kept here so the runtime layer never needs to embed game knowledge.",
+    "movementRange": {
+      "method": "computed",
+      "confidence": "strongly_inferred",
+      "reason": "The game's own blue overlay (MapStateManager.unk_d30 and the four neighbouring 0x80 buffers) is NOT resident: all five were sampled across 1500 frames and none ever held a range-like value. The overlay exists only during a live move preview. A reader must compute range from the game's own data rather than expect the overlay, because depending on the overlay means depending on screen mode.",
+      "inputs": [
+        "cost matrix [movementType][terrainCategory] from gFE11Database->unk_28",
+        "JobData.mov (+0x29) as the budget",
+        "terrain category per tile at MapStateManager+0x830",
+        "occupancy at MapStateManager+0x028 (cannot move through or stop on an occupied tile)"
+      ],
+      "observed": "Prologue, Marth at (11,20): budget 7, 36 squares reachable. Open-ground radius 7 would be ~113 tiles, so 36 is only correct if walls genuinely confine him — this needs checking against the drawn overlay before being called confirmed.",
+      "runtimeString": "It can move 7 tiles. 36 squares reachable; nearest to the cursor is 11, 19 (1 tiles away)."
+    },
+    "cursor": {
+      "confidence": "confirmed",
+      "runtimeString": "Cursor 11, 20. Terrain gate (category 13, tile 14, verified). Unit here: Marth, 18 HP, unacted."
+    },
+    "enemies": {
+      "confidence": "confirmed",
+      "runtimeString": "Next enemy -> PID_P01_GRA_SLDR_3, 14 HP, position 10, 13, 7.1 tiles away.",
+      "evidence": [
+        "live Prologue: 4 enemy units with fac 1, read by pid/jid/HP/position",
+        "independent confirmation in a final-boss save: scenario forces 2 and 3 held 9 player and 22 enemy units"
+      ]
+    }
+  },
+  "unknowns": [
+    {
+      "topic": "Dialogue text",
+      "detail": "Not located in RAM or in the ROM. RAM holds message-table IDs (gop_001, MTUTH_00, MG_MACEDONIA, ill_203) but no prose. A plain ASCII scan of the ROM found none either — only leftover Nintendo Wi-Fi/SSL strings. The string MTUTH does not appear in the ROM at all despite RAM pointing at MTUTH_*, so the table is likely built at runtime or the text is compressed/encoded.",
+      "attempts": [
+        "printable-string scan of Main RAM 0x02240000-0x02400000",
+        "message-table pointer-array detection (16-entry runs of text pointers)",
+        "strings -n 32 over the whole ROM",
+        "grep for known FE11 names in the ROM"
+      ]
+    },
+    {
+      "topic": "Current chapter / map identity",
+      "detail": "The map table is at gFE11Database->unk_18 and entries read bmap000/MCT000, bmap001, but which entry is the CURRENT map was not located, and entry reads are inconsistent (unk_00/unk_04 swap between rows), so the 0x1C stride or field order is wrong for some entries.",
+      "attempts": [
+        "dump of map table entries 0-7",
+        "scan of MapStateManager for a pointer into the map table (GetMapDBIndex is exactly (pMap - table) / stride)"
+      ]
+    },
+    {
+      "topic": "Unit.state1 bit meanings",
+      "detail": "The decompilation guesses acted/dead bits. Filtering on them reported 0 live units on a map with a full army, so the guessed meanings are wrong or incomplete.",
+      "attempts": ["filtered AllUnits() on US_ACTED/US_DEAD and measured the count"]
+    },
+    {
+      "topic": "Weapon range / targeting",
+      "detail": "Not investigated. Needed for attackable-unit and staff-target reporting.",
+      "attempts": []
+    },
+    {
+      "topic": "Battle forecast / combat",
+      "detail": "Not investigated. Needed for damage/hit/crit reporting.",
+      "attempts": []
+    },
+    {
+      "topic": "Objectives / victory conditions",
+      "detail": "Not investigated.",
+      "attempts": []
+    },
+    {
+      "topic": "Menu / UI state",
+      "detail": "Not investigated. Needed to identify the open menu and highlighted command.",
+      "attempts": []
+    }
+  ]
+}
