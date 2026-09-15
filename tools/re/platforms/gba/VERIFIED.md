@@ -1,167 +1,143 @@
 # What is verified, and what is not — the honest ledger
 
-Last updated after the real-ROM identification work. **Read this before believing any other
-file in this directory.**
+Last updated after **running the reader on real mGBA**. Read this before believing any other
+file in this directory.
 
 ---
 
-## Verified by execution (safe to rely on)
+## VERIFIED BY EXECUTION ON REAL mGBA 0.11 (dev)
 
-### The host shim works, on six of nine supported games
-
-Game identification reads the **cartridge header**, which is a file — so a stubbed host can
-serve real ROM bytes and the reader's own logic runs for real. Results:
-
-| Game | Platform | Result | Reader said |
-|---|---|---|---|
-| Gold | GBC | **PASS** | `Ready` |
-| Silver | GBC | **PASS** | `Ready` |
-| Crystal | GBC | **PASS** | `Ready` |
-| Emerald | GBA | **PASS** | `Ready` |
-| FireRed | GBA | **PASS** | `Ready` |
-| LeafGreen | GBA | **PASS** | `Ready` |
-| Red | GB | **reaches `Ready`** | measured at frame 60,001 |
-| Blue | GB | not run to completion | harness runs out of time/memory first |
-| Yellow | GB | not run to completion | — |
-
-**GBA 4/4 supported games. GBC 3/3.** FireRed's run in full:
+**The unmodified v3.1.0 reader boots, identifies the cartridge, and SPEAKS inside a real
+emulator.** Measured, via `mgba-dev --script`:
 
 ```
-rom:    Pokemon - FireRed Version (USA).gba
-title:  "POKEMON FIRE"    code: "BPRE"
+[oga-shim] shim installed; host platform = 0
+[oga-boot] loading reader: .../lua/pokemon.lua
 [oga-shim] Ready
-ROM-ID PASS
 ```
 
-### Five LuaJIT-isms found and handled
+and the captured speech sink received exactly:
 
-The readers are written for **BizHawk's LuaJIT**; mGBA embeds **stock Lua 5.4**. Every one
-of these was found by *running* the reader, not by reading code:
+```
+Ready
+```
 
-| # | LuaJIT thing | Lua 5.4 status | fix |
-|---|---|---|---|
-| 1 | `require "ffi"` | absent | stub registered in `package.loaded`/`preload` |
-| 2 | `module("astar", package.seeall)` | **removed in 5.2** | reimplemented in `oga_bootstrap.lua` |
-| 3 | `ffi.load("tolk")` | impossible | `tolk` stubbed + registered as a module |
-| 4 | `ffi.load("audio.dll")` | impossible | DLL load bypassed; `audio` cue stub installed |
-| 5 | **`bit.*`** (119 call sites) | **absent** (5.3 removed `bit32`) | reimplemented, LuaJIT signed-32-bit semantics |
+This is the A5 deliverable: no stub host, no simulated frames — a real emulator, a real ROM,
+the real reader.
 
-`bit` matters most: the readers test display-register flags with `bit.band`/`bit.lshift`, so
-without it they cannot read display state at all.
+### The five bugs that made this work, each requiring a real emulator to find
 
-### The shim's conversions are correct (31 checks)
+| # | Symptom | Root cause |
+|---|---|---|
+| 1 | `oga_bootstrap.lua:321: Error calling function (invoking failed)` | Real mGBA's `emu` is **userdata**, not a table. `emu.platform = fn` raises `Invalid key`. |
+| 2 | `Function called from invalid context` (intermittent) | **Reassigning `emu`** (`emu = {}`) breaks the core binding. Nor may the metatable be patched. |
+| 3 | Same, at a second unrelated line | `input` is **also** mGBA-owned userdata in 0.11. Same class of mistake, different name. |
+| 4 | `message.lua:4: attempt to concatenate a nil value (global 'scriptpath')` | Loading the reader chunk with a placeholder chunk name makes `debug.getinfo(1,"S").source` useless. Pass the real path. |
+| 5 | `Function called from invalid context` on the 2nd frame advance | **Registering a `frame` callback breaks `runFrame`.** mGBA switches to callback-driven emulation and `runFrame` stops being legal. |
 
-`test-shim-mappings.lua`, all passing:
-- `readbyterange` → **1-based table**, matching `readRange`'s string byte-for-byte, including
-  `gb.lua`'s real `for i = 1, 360, 20` row/column pattern
-- high bytes `0xED`/`0xEE` preserved (these are the reader's **menu and scroll markers** — a
-  sign-extension slip would silently hide menus)
-- sign extension: byte/word/dword `-1`, boundary `-128`
-- register mapping `A→a`, `BC→bc`, `HL→hl`, `PC→pc`, `SP→sp`
-- little-endian `readword`
+**The one design that works** (measured: 100/100 consecutive frames advanced):
 
-### `crc32` is correct (14 checks)
+> Leave the global `emu` completely alone. Build a **separate** BizHawk-shaped table
+> (`oga_biz_emu`), and give it to the reader by loading the reader chunk with its own
+> environment. Reads of other globals and **all writes** proxy to the real `_G`, so the
+> reader's cross-file globals behave exactly as under BizHawk.
 
-Reimplemented in pure Lua rather than stubbed, because a stub returning nil makes the reader
-report "game not supported" for a supported game — a **silent wrong answer**. Verified
-against published CRC-32 vectors **including table input**, which is the form
-`readbyterange` returns.
+And: **never register a `frame` callback.** Hook polling rides on `frameadvance`, so every frame
+the reader requests also samples the PC and the write watches.
 
-### The reader boots and runs its main loop
+### mGBA globals the shim MUST NOT touch (0.11)
 
-`host-sim.lua` reaches `HOST-SIM PASS`: platform identified, game scripts loaded, main loop
-entered, speech path working. Confirmed against both the Temp copy and the **real v3.1.0
-tree**.
+Measured with `type()` at script load:
+
+```
+emu (userdata)   input (userdata)   callbacks (userdata)   console (userdata)
+util  storage  image  canvas  system            (all userdata)
+socket (table)
+
+memory  (nil — genuinely free, so the shim may create it)
+```
+
+⛔ Assigning to any userdata raises `Invalid key`, and the traceback points at the assignment
+rather than the real problem. Always `type()` a global before writing to it.
+
+### Also verified by execution
+
+- **`--script FILE`** runs a script at startup (this is what removed the "needs a human at the
+  GUI" blocker).
+- `emu:runFrame()` works **6/6 consecutively** raw, and 100/100 through the separate table.
+- `setBreakpoint` / `setRangeWatchpoint` / `clearBreakpoint` exist in 0.11 and are callable
+  (`setRangeWatchpoint` returned id 1 and cleared cleanly) — available if the frame-poll
+  approximation ever needs replacing.
+- Game identification from real ROM headers, 6 of 9 supported games (see the matrix below).
+- 31 mapping checks, 14 CRC checks, 17 exec-hook checks, 10 register-width checks — all passing.
+
+### The identification matrix (stub host, real ROM bytes)
+
+| Game | Platform | Result |
+|---|---|---|
+| Gold / Silver / Crystal | GBC | **PASS** — `Ready` |
+| Emerald / FireRed / LeafGreen | GBA | **PASS** — `Ready` |
+| Red | GB | reaches `Ready` at frame 60,001 |
+| Blue / Yellow | GB | not run to completion (harness time/memory) |
+| Ruby / Sapphire | GBA | correctly **rejected** — not in v3.1.0's support list |
+
+**GBA 4/4 supported games. GBC 3/3.** And now, independently, **FireRed verified on real mGBA**.
 
 ---
 
-## NOT verified (do not assume)
+## NOT VERIFIED
 
-- **Any memory address or length against live RAM.** The harness returns zeros for RAM, so
-  everything past game identification — party, position, map, text on screen — is untested.
-- **Footstep detection.** `memory.registerexec` has no mGBA equivalent; it is emulated by a
-  per-frame PC poll. **The MECHANISM is now verified** — `test-exec-hook.lua` (17 checks, all
-  passing) proves the callback fires when the PC matches a registered address, that
-  `registerexec(addr, nil)` unregisters (which `pokemon.lua:819` relies on), that multiple
-  hooks stay independent, that a throwing callback does not kill the session, and that
-  `registerwrite` fires on value CHANGE rather than every frame.
-  **What remains unverified is whether a real footstep routine is caught** — a routine that
-  runs and RETURNS INSIDE ONE FRAME can be missed by a frame poll, and that can only be
-  settled against a real game.
-- **Whether the speech is meaningful.** It has said `Ready` and `game_not_supported`. No
-  line of actual gameplay narration has been produced.
-- **The reader's main loop under mGBA's threading.** The reader owns `while true do
-  emu.frameadvance() … end`, which is BizHawk's model. mGBA runs scripts on the main thread.
-  This has only ever run against a stub.
-- **Real audio.** 42 `audio.play` calls are recorded, not played.
-- **Red/Blue/Yellow to completion.** The GB path reaches `Ready`, but the harness needs
-  ~60,001 frames to get there and my runs timed out before finishing. **Not a failure** — see
-  the GB note — but not a completed run either.
+Everything that depends on reading live game state during play:
+
+- **Any address, offset or length.** The boot path and identification are exercised; the actual
+  gameplay readers have not been checked against a real save.
+- **Whether footsteps fire.** The *mechanism* is verified (17 checks) and the PC now decodes at
+  full width instead of being truncated to its low byte — but whether a real footstep routine is
+  caught by a one-sample-per-frame poll is open. A routine that runs and returns inside a single
+  frame could still be missed.
+- **Whether the speech is meaningful.** `Ready` is real output, but it proves identification
+  only.
+- **Performance.** The reader reads the whole 360-byte screen every frame; in mGBA that is on
+  the emulator's main thread. Untested at scale.
 
 ---
-
-## A REAL bug found by reading mGBA's own documentation
-
-mGBA's scripting docs are authoritative and were worth reading directly:
-<https://mgba.io/docs/scripting.html>
-
-The entry that mattered:
-
-> `readRegister ( regName : string ) : string`
-
-**A STRING, not a number.** The shim decoded it as `v:byte(1)` — the LOW BYTE ONLY. A PC of
-`0x08000123` therefore became `0x23` (35).
-
-⛔ **Why this was severe and quiet.** Footstep detection registers an address and compares
-the *polled PC* against it. A truncated PC can never match, so **the player would walk
-around in silence while identification, terrain, menus and every other reader feature still
-worked.** No error, no log line — the exact "looks fine, is broken" shape this project keeps
-having to guard against.
-
-Fixed by decoding the full width, little-endian. `test-register-width.lua` (10 checks, all
-passing) asserts `0x08000123 -> 0x08000123`, `0xC0001234 -> 0xC0001234`, and that a 1-byte
-value still reads correctly. It also asserts the value is NOT `0x23`, so the specific
-regression cannot return unnoticed.
-
-**Lesson: read the target platform's own API documentation before trusting a shim's
-assumptions about return types.** This bug was invisible to every test that only exercised
-the load path, because the load path never reads a register that has to match an address.
 
 ## Misdiagnoses and harness bugs worth not repeating
 
 **0. The harness LEAKED memory and had to be force-killed at ~6.9 GB RSS.**
 
-`lua55.exe` climbed to **6,929,880 K (~6.9 GB)** over about 40 minutes of simulated frames.
-The cause is `host-sim-rom.lua`'s `readRange`: it builds a fresh table of single-character
-strings on every call, and `gb.lua` calls it once per frame with 360 bytes. Over 60,000
-frames that is ~21.6 million tiny strings with nothing reclaiming them.
+`lua55.exe` reached **6,929,880 K** over ~40 minutes of simulated frames. `host-sim-rom.lua`'s
+`readRange` builds a fresh table of single-character strings per call, and `gb.lua` calls it
+once per frame with 360 bytes — ~21.6 million tiny strings. **A harness bug, not a reader bug**,
+but it is also the first thing to suspect if a real run is slow. Give long runs a memory ceiling.
 
-⛔ **A harness bug, not a reader bug — but it matters for the mGBA run.** The per-frame
-full-screen read is genuinely expensive: `get_screen()` calls
-`readbyterange(RAM_TEXT, 360)` unconditionally, then does string work over the result. In
-mGBA that runs on the emulator's main thread. If performance is poor on a real game, this is
-the first thing to look at — and the fix belongs in the **shim** (avoid per-frame
-allocation), not the reader. Give long runs a memory ceiling.
+**1. "The GB games hang."** They do not. A 200-frame budget cut the reader off with **no output
+at all**, which looks exactly like a hang. It needs ~60,001 frames because `main_loop` reads the
+full screen every frame. **A test that produces no output is not evidence of a hang until the
+budget is shown to be large enough.**
 
-**1. "The GB games hang."** They do not. `gb.lua`'s `main_loop` calls `get_screen()` every
-frame, which reads the whole 360-byte screen — so the reader legitimately runs ~1.2M host
-calls before it starts. My harness's 200-frame budget cut it off with **no output at all**,
-which looked exactly like a hang. It needs ~60,001 frames. A test harness for a
-screen-reading loop must be sized for a screen-reading loop.
+**2. "`audio.` is never called — verified by grep."** Recorded after searching only
+`pokemon.lua`. The full set has **42 `audio.play` call sites**. The DLL load had been bypassed on
+that false basis, and the GB reader then died at `gb.lua:516`.
 
-**2. "`audio.` is never called."** I recorded that after grepping only `pokemon.lua`, and
-bypassed the DLL load on that basis. Grepping the whole set shows **42 `audio.play` calls**
-plus `audio.stop` and `audio.pitch`. Leaving `audio` nil made `gb.lua` die at line 516. The
-cues are **positional** (pan −100..100) — direction encoded as sound — so they are not
-decoration. `oga_audio.lua` now records them and accepts a real host sink.
+**3. A `strings` check that could not detect anything.** I concluded `readRange` was absent from
+the binary because `strings -n 5 mgba.exe | grep -c readRange` returned 0 — but `strings` had
+produced **zero output in total**, on a 41 MB binary. The tool was broken, and I nearly recorded
+a false negative as a finding. **Check that a probe returns anything at all before trusting a
+zero.**
 
-Both mistakes had the same shape: **a grep or a budget that was too narrow, producing a
-confident wrong conclusion.** The fix in both cases was to measure the whole surface.
+**4. A register decoded at the wrong width.** mGBA's `readRegister` returns a **little-endian
+byte string**. The shim did `v:byte(1)` — low byte only — turning a PC of `0x08000123` into
+`0x23` (35). Footstep detection compares the polled PC against a registered address, so a
+truncated PC can **never** match and walking would be silent while everything else worked. Fixed
+at full width; `test-register-width.lua` asserts the value is *not* `0x23`.
 
----
+**5. The harness was MORE PERMISSIVE THAN REALITY.** This is the big one. The stub host defined
+`emu` as a plain Lua table, so every shim design that assigns to `emu` **passed all 70+ checks**
+and was wrong. Real mGBA's `emu` is userdata. A stub that models the host's *shape* incorrectly
+will validate an architecture that cannot work, and no amount of testing against it will find
+that — only the real emulator will. **Stub the constraints, not just the API.**
 
-## What would move this from "verified identification" to "verified gameplay"
-
-Running it in mGBA against a real ROM **with a save**, and comparing the spoken output to
-VBA v3.1.0 on the same save. VBA is the known-good reference. That is card A6, and it is the
-only remaining step that requires a human at the machine.
+⚠️ **`vba.ini`'s `luaDir` does not auto-run scripts.** It is only the file dialog's start
+directory; `pokemon.lua` is loaded by hand. Believing otherwise once motivated a "cleanup" that
+moved the loader out of `lua\` and broke the reader.

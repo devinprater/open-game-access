@@ -307,9 +307,20 @@ end
 local shimpath = BOOT_DIR .. "mgba_compat.lua"
 local shimchunk, shimerr = loadfile(shimpath)
 if shimchunk then
-  -- The shim defines emu/memory/input and returns early if there is no core loaded.
+  -- ⛔ PRESERVE A HOST-INSTALLED SPEECH SINK ACROSS THE SHIM LOAD.
+  --
+  -- The shim defines its own global `oga_say`, which would overwrite any sink the host
+  -- installed before the bootstrap ran. A capture harness (and, later, the real Open Game
+  -- Access speech layer) installs `oga_say` FIRST and then loads the bootstrap — so without
+  -- this, the host's sink is silently replaced and every utterance is lost.
+  local host_say = _G.oga_say
   local ok, err = pcall(shimchunk)
   if not ok then log("shim error: " .. tostring(err)) end
+  if host_say then
+    _G.oga_say = host_say
+    if _G.oga_set_speech_sink then _G.oga_set_speech_sink(host_say) end
+    log("host speech sink preserved across the shim load")
+  end
 else
   log("!! could not load " .. shimpath .. ": " .. tostring(shimerr))
 end
@@ -318,7 +329,7 @@ end
 -- 5. report, then load the reader
 ----------------------------------------------------------------------
 
-log("platform: " .. tostring(emu and emu.platform and emu.platform() or "?"))
+log("platform: " .. tostring(emu and emu.platform and emu:platform() or "?"))
 
 -- ⛔ THE READER DIRECTORY IS CONFIGURABLE and defaults to the bootstrap's own directory.
 -- Set OGA_READER_DIR before loading if the readers live elsewhere; this avoids baking an
@@ -328,7 +339,75 @@ local READER_DIR = os.getenv("OGA_READER_DIR") or BOOT_DIR
 local entry = READER_DIR .. "pokemon.lua"
 log("loading reader: " .. entry)
 
-local chunk, err = loadfile(entry)
+-- ⛔⛔ THE LOAD ENVIRONMENT: THE FIX FOR THE WHOLE PORT. ⛔⛔
+--
+-- Measured on real mGBA 0.11 (dev), by RUNNING it:
+--
+--     type(emu)              --> "userdata"          (not a table)
+--     emu.platform = fn      --> error: Invalid key
+--     emu = {} ; REAL.runFrame(REAL)
+--                            --> error: Function called from invalid context
+--
+-- So mGBA's `emu` can be neither monkey-patched NOR reassigned. Both natural approaches fail,
+-- and both fail in ways that look like unrelated bugs (a first call works, then the core
+-- binding goes invalid). The measured design that DOES work — 100/100 frames advanced — is to
+-- leave the global `emu` completely alone and give the reader a DIFFERENT table under the
+-- name `emu`, by loading the reader chunk with its own environment.
+--
+-- That is what `loadfile(entry, "t", env)` below does. The reader's source is untouched: it
+-- still says `emu.frameadvance()` and resolves to our table. This is translation at the
+-- boundary, which is the whole point of the shim.
+--
+-- `memory` is genuinely free (mGBA does not define one), so the shim creates it as a global
+-- and no shadowing is required. `input` IS owned by mGBA and is therefore also routed through
+-- the environment rather than reassigned.
+--
+-- THE READER OWNS THE MAIN LOOP: `while true do emu.frameadvance(); main_loop() end`. With the
+-- environment fix, frameadvance reaches `REAL:runFrame()` and this shape works — verified at
+-- 100 consecutive advances. It does, however, mean the Qt window will not repaint while the
+-- reader runs, because the script never yields back to the event loop.
+
+-- ⛔ THE ENVIRONMENT MUST PROXY WRITES TO _G, not isolate them.
+--
+-- First attempt used `setmetatable({}, {__index = _G})`, which keeps the reader's global
+-- WRITES inside that private table. That breaks the reader: pokemon.lua line 5 does
+--
+--     scriptpath = debug.getinfo(1, "S").source:sub(2):match("(.*[/\\])")
+--
+-- which wrote `scriptpath` into the private table, while `message.lua` — loaded by the reader
+-- itself via a bare `loadfile(...)` — receives the real _G as its environment and therefore saw
+-- `scriptpath == nil`:
+--
+--     message.lua:4: attempt to concatenate a nil value (global 'scriptpath')
+--
+-- Under BizHawk every one of these files shares _G, so the fix is to reproduce that: reads of
+-- `emu`/`input` are intercepted and served our BizHawk tables, EVERY OTHER read and ALL writes
+-- go to the real _G. That keeps the reader's cross-file globals working exactly as before.
+--
+-- Chunk name: pass the entry path, not a placeholder — `debug.getinfo` uses it (see below).
+
+local env = setmetatable({}, {
+  __index = function(_, k)
+    if k == "emu"   then return _G.oga_biz_emu   end
+    if k == "input" then return _G.oga_biz_input end
+    return _G[k]
+  end,
+  __newindex = function(_, k, v)
+    _G[k] = v
+  end,
+})
+
+if _G.oga_biz_emu == nil then
+  log("!! the shim did not export oga_biz_emu — the reader would get mGBA's userdata and fail")
+end
+
+-- ⛔ PASS THE REAL FILE PATH AS THE CHUNK NAME.
+--
+-- pokemon.lua line 5 derives its own directory from `debug.getinfo(1, "S").source`. That source
+-- is the chunk NAME handed to loadfile, so a placeholder like "t" makes the pattern match
+-- nothing and `scriptpath` ends up nil. Passing the real entry path yields `@<full path>` and
+-- the reader's own logic works untouched — no patching of the reader required.
+local chunk, err = loadfile(entry, "t", env)
 if not chunk then
   log("!! could not load the reader: " .. tostring(err))
   log("   expected the Pokemon Access reader set at: " .. READER_DIR)
