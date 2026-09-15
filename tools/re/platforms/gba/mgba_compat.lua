@@ -81,6 +81,34 @@ local function decodeRegister(v)
 end
 
 ----------------------------------------------------------------------
+-- 0. RESTORE `unpack`, REMOVED IN LUA 5.2
+--
+-- ⛔⛔ THIS SILENTLY DISABLED EVERY HOTKEY. ⛔⛔
+--
+-- The readers are LuaJIT-era code, where `unpack` is a GLOBAL. Lua 5.1 had it; **Lua 5.2
+-- removed it and moved it to `table.unpack`**, which mGBA's stock 5.4 follows.
+--
+-- pokemon.lua:492 is the line that decodes EVERY hotkey command:
+--
+--     local fn, needs_script, needs_map = unpack(command)
+--
+-- With `unpack` nil that line raises. It sits inside the reader's per-frame `main_loop`, and
+-- the reader's own error handling turns the failure into ... nothing observable: the reader
+-- still announces `Ready`, still runs, and then never responds to a single key press. No
+-- error reaches the console, because the reader calls this straight from `main_loop` inside
+-- its own `while true`.
+--
+-- Seven call sites across the set (pokemon.lua:492, gba.lua:1540/1589/1750/1768,
+-- game/common/gsc.lua:308, rby.lua:321), so this is not one stray line.
+--
+-- This is the FOURTH LuaJIT-era implicit global the shim has had to restore, after `ffi`,
+-- `module()`, `bit` — and like `bit` it appears in no BizHawk documentation, because under
+-- BizHawk it is simply part of the runtime.
+if _G.unpack == nil then
+  _G.unpack = table.unpack
+end
+
+----------------------------------------------------------------------
 -- register name mapping: BizHawk names → mGBA names
 --
 -- The readers use 72 register reads, so a bad mapping here is high-impact. Both
@@ -348,35 +376,6 @@ end
 function poll_hooks()
   run_key_script()
 
-  -- Diagnostic: dump the READER's own state from inside its loop. poll_hooks runs in the
-  -- reader's frame path, so the reader's globals are reachable here. This answers the only
-  -- question that matters: is the reader silently no-op'ing because `data` is nil or because
-  -- `on_map()` is false? Both make every needs_script command do nothing, with no error.
-  -- Direct-call probe: invoke the reader's own command functions, bypassing input dispatch.
-  if _G.oga_direct_calls and frame_counter == 300 then
-    for _, fn_name in ipairs({ "read_coords", "read_mapname", "read_text", "read_tiles" }) do
-      local fn = _G[fn_name]
-      if fn == nil then
-        if console and console.log then console:log("[direct] " .. fn_name .. " = NIL") end
-      else
-        local ok, err = pcall(fn, {})
-        if console and console.log then
-          console:log("[direct] " .. fn_name .. " ok=" .. tostring(ok) .. " err=" .. tostring(err))
-        end
-      end
-    end
-  end
-
-  if _G.oga_diag and frame_counter % 200 == 0 then
-    local bits = { "f=" .. frame_counter }
-    bits[#bits+1] = "data=" .. tostring(_G.data ~= nil)
-    bits[#bits+1] = "game=" .. tostring(_G.game)
-    bits[#bits+1] = "lang=" .. tostring(_G.language)
-    if _G.on_map then bits[#bits+1] = "on_map=" .. tostring(select(1, pcall(_G.on_map))) end
-    if _G.device then bits[#bits+1] = "device=" .. tostring(_G.device) end
-    if console and console.log then console:log("[diag] " .. table.concat(bits, " ")) end
-  end
-
   if next(exec_hooks) ~= nil then
     local pc_ok, pc = pcall(function()
       return decodeRegister(callReal("readRegister", "pc"))
@@ -447,11 +446,6 @@ local BIZ_INPUT = {}
 BIZ_INPUT.read = function()
   local out = {}
   for k, v in pairs(synthetic_keys) do out[k] = v end
-  if _G.oga_diag and next(synthetic_keys) ~= nil then
-    local names = {}
-    for k in pairs(synthetic_keys) do names[#names+1] = k end
-    if console and console.log then console:log("[diag] input.read sees: " .. table.concat(names, ",")) end
-  end
   -- ⛔⛔ DO NOT ADD EXTRA FIELDS TO THIS TABLE. ⛔⛔
   --
   -- The reader collects keys by iterating EVERY truthy entry:
