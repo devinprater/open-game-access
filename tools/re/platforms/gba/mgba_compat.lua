@@ -302,9 +302,52 @@ end
 -- callback, no callback registration, and the reader's own loop is what drives it.
 ----------------------------------------------------------------------
 
+-- ⛔ DRIVING A HOTKEY INSIDE THE READER'S OWN LOOP.
+--
+-- The reader owns `while true do emu.frameadvance(); main_loop() end`, so nothing after
+-- `dofile(bootstrap)` ever runs — a harness cannot set a key and then wait. But poll_hooks is
+-- invoked from frameadvance on EVERY frame the reader asks for, which makes it the one place a
+-- harness can reach into that loop.
+--
+-- `oga_key_script{ {at=100, keys={"y"}, release_at=105} }` presses keys at a frame count and
+-- releases them later. The RELEASE matters: pokemon.lua compares this frame's key set against
+-- the previous frame's, so a key that never goes back up is seen once and then ignored forever.
+local synthetic_keys = {}    -- key name -> true; read by BIZ_INPUT.read()
+local oga_set_keys           -- assigned below; run_key_script calls it every frame
+
+local frame_counter = 0
+local key_script = _G.oga_key_script_pending or {}
+_G.oga_key_script_pending = nil
+
+-- ⛔ ALSO READ FROM A GLOBAL, SO A HARNESS CAN SCHEDULE KEYS *BEFORE* LOADING THE SHIM.
+-- A harness naturally wants to say "when the reader gets going, press y" before it calls
+-- dofile(bootstrap) — but oga_key_script does not exist yet at that point and the chunk dies.
+-- Stashing the schedule in a plain global sidesteps the ordering problem entirely.
+function oga_key_script(steps)
+  key_script = steps or {}
+  frame_counter = 0
+end
+
+local function run_key_script()
+  frame_counter = frame_counter + 1
+  if #key_script == 0 then return end
+  for i = #key_script, 1, -1 do
+    local step = key_script[i]
+    if step.at and frame_counter >= step.at then
+      oga_set_keys(step.keys)
+      if step.release_at then
+        key_script[#key_script + 1] = { at = step.release_at, keys = {} }
+      end
+      table.remove(key_script, i)
+    end
+  end
+end
+
 -- Uses the exec_hooks / write_hooks tables declared above.
 -- Assigns the forward-declared local above.
 function poll_hooks()
+  run_key_script()
+
   if next(exec_hooks) ~= nil then
     local pc_ok, pc = pcall(function()
       return decodeRegister(callReal("readRegister", "pc"))
@@ -358,16 +401,34 @@ local REAL_INPUT = input
 -- bootstrap gives it to the reader through the same chunk environment.
 local BIZ_INPUT = {}
 
+-- ⛔ READERS ARE HOTKEY-DRIVEN, NOT CONTINUOUS. Verified from pokemon.lua:465:
+--
+--     function handle_user_actions()
+--       local kbd = input.read()          -- a TABLE of key -> boolean
+--       ... collects the keys that are true, sorts them, and looks the set up in `commands`
+--       if #pressed_keys == 0 or compare(pressed_keys, old_pressed_keys) then return end
+--
+-- So the reader speaks ONLY when a key transitions from up to down. Silence after `Ready`
+-- is correct behaviour, not a broken reader — and it is why a long run with no input
+-- produces exactly one utterance.
+--
+-- mGBA's own keyboard state is a userdata InputContext; rather than depend on being able to
+-- synthesise OS key events, the shim keeps a small synthetic key table that a harness (or a
+-- future OGA input bridge) can drive. `oga_press("m")` holds a key for N frames.
 BIZ_INPUT.read = function()
+  local out = {}
+  for k, v in pairs(synthetic_keys) do out[k] = v end
+  -- Also expose mGBA's real pad bitmask for a reader that wants the pad itself.
   local ok, mask = pcall(function() return callReal("getKeys") end)
-  if not ok then return {} end
-  return {
-    -- mGBA returns a bitmask; expose both the mask and a keys table so a reader can
-    -- use whichever it expects.
-    mask = mask,
-    A = false, B = false, up = false, down = false, left = false, right = false,
-    start = false, select = false,
-  }
+  if ok then out.mask = mask end
+  return out
+end
+
+-- Harness/input-bridge hook. `keys` is a list of key names ({"m"}, {"t"}, ...).
+-- An EMPTY list releases everything, which is what makes the reader see a fresh edge.
+function oga_set_keys(keys)
+  synthetic_keys = {}
+  for _, k in ipairs(keys or {}) do synthetic_keys[k] = true end
 end
 
 _G.oga_biz_input = BIZ_INPUT
