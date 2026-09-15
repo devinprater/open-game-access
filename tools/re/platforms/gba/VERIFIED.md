@@ -80,7 +80,14 @@ tree**.
 - **Any memory address or length against live RAM.** The harness returns zeros for RAM, so
   everything past game identification — party, position, map, text on screen — is untested.
 - **Footstep detection.** `memory.registerexec` has no mGBA equivalent; it is emulated by a
-  per-frame PC poll that has **never fired against a real game**.
+  per-frame PC poll. **The MECHANISM is now verified** — `test-exec-hook.lua` (17 checks, all
+  passing) proves the callback fires when the PC matches a registered address, that
+  `registerexec(addr, nil)` unregisters (which `pokemon.lua:819` relies on), that multiple
+  hooks stay independent, that a throwing callback does not kill the session, and that
+  `registerwrite` fires on value CHANGE rather than every frame.
+  **What remains unverified is whether a real footstep routine is caught** — a routine that
+  runs and RETURNS INSIDE ONE FRAME can be missed by a frame poll, and that can only be
+  settled against a real game.
 - **Whether the speech is meaningful.** It has said `Ready` and `game_not_supported`. No
   line of actual gameplay narration has been produced.
 - **The reader's main loop under mGBA's threading.** The reader owns `while true do
