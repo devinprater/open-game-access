@@ -303,12 +303,50 @@ memory.registerexec = function(address, fn)
   exec_hooks[address] = fn
 end
 
+-- ⛔ USE mGBA'S REAL MEMORY WATCHPOINT WHERE AVAILABLE.
+--
+-- Frame-polling a value cannot see a write that is overwritten again inside the same frame, and
+-- ROM exec hooks were measured firing ZERO times this way (38 registered, 0 hits). mGBA 0.11
+-- offers genuine hooks, and MEASURED behaviour differs by kind:
+--
+--   setRangeWatchpoint(0x04000000, 0x04000010, type=2)  -> FIRED 3 times in 60 frames  ✓
+--   setBreakpoint(pc, segment=-1)                       -> installed, fired 0 times     ✗
+--
+-- So the WRITE path can use a real watchpoint now. A watchpoint fires on ACCESS, which is
+-- strictly better than polling a value: it catches a write even when the value returns to what
+-- it was before the frame ends.
+--
+-- `type` is the mDebuggerWatchpointType enum: 0 = WRITE, 1 = READ, 2 = READWRITE.
+local WATCH_WRITE = 0
+local WATCH_READWRITE = 2
+
 memory.registerwrite = function(address, fn)
   if fn == nil then
+    local existing = write_hooks[address]
+    if existing and existing.id then
+      pcall(function() REAL.clearBreakpoint(REAL, existing.id) end)
+    end
     write_hooks[address] = nil
     return
   end
-  write_hooks[address] = { cb = fn, last = callReal("read32", address) }
+
+  -- Prefer a real watchpoint. Keep the value-polling record as a fallback so a build without
+  -- the API still behaves as before rather than losing the feature silently.
+  local hook = { cb = fn, last = callReal("read32", address) }
+  local ok, id = pcall(function()
+    return REAL.setRangeWatchpoint(REAL, function()
+      local okc, err = pcall(fn)
+      if not okc then log("write hook at " .. tostring(address) .. " errored: " .. tostring(err)) end
+    end, address, address + 4, WATCH_WRITE, -1)
+  end)
+  if ok and id then
+    hook.id = id
+    hook.real = true
+    log("registerwrite(0x" .. string.format("%X", address) .. ") -> REAL watchpoint id=" .. tostring(id))
+  else
+    log("registerwrite(0x" .. string.format("%X", address) .. ") -> value polling (no watchpoint API)")
+  end
+  write_hooks[address] = hook
 end
 
 -- ⛔⛔ DO NOT REGISTER A `frame` CALLBACK. IT BREAKS `runFrame`. ⛔⛔
@@ -391,11 +429,15 @@ function poll_hooks()
   end
 
   for addr, h in pairs(write_hooks) do
-    local ok, now = pcall(function() return callReal("read32", addr) end)
-    if ok and now ~= h.last then
-      h.last = now
-      local okc, err = pcall(h.cb)
-      if not okc then log("write hook at " .. tostring(addr) .. " errored: " .. tostring(err)) end
+    -- ⛔ SKIP REAL WATCHPOINTS. If the hook was installed as a genuine mGBA watchpoint it fires
+    -- on its own; polling it here as well would invoke the reader's callback TWICE per write.
+    if not h.real then
+      local ok, now = pcall(function() return callReal("read32", addr) end)
+      if ok and now ~= h.last then
+        h.last = now
+        local okc, err = pcall(h.cb)
+        if not okc then log("write hook at " .. tostring(addr) .. " errored: " .. tostring(err)) end
+      end
     end
   end
 end

@@ -143,6 +143,42 @@ the PC after `runFrame()` cannot observe that code, because:
 measured defect, **not** the "maybe a routine runs within one frame" concern previously
 recorded — the addresses are wrong for polling at all.
 
+### PARTIAL FIX IMPLEMENTED AND VERIFIED: real memory watchpoints
+
+`memory.registerwrite` now installs a **genuine mGBA watchpoint** instead of polling a value.
+Measured live: the reader's own call produced
+
+```
+[oga-shim] registerwrite(0x40000DC) -> REAL watchpoint id=1
+```
+
+and all live narration still worked afterwards (`Ready`, `x 6, y 6`, `OSCAR's House`, tiles) —
+so the change is a strict improvement with no regression. A real watchpoint fires on ACCESS, so
+it catches a write even when the value returns to its previous state before the frame ends,
+which value-polling can never see. Value polling is kept as an automatic fallback for builds
+without the API, and the polling loop **skips** hooks already backed by a watchpoint so the
+callback cannot fire twice.
+
+### Measure which hook kind actually fires — they differ
+
+```
+setRangeWatchpoint(0x04000000, 0x04000010, type=2)  -> INSTALLED id=2, FIRED 3 times / 60 frames  ✓
+setBreakpoint(pc=0x080008AC, segment=-1)            -> INSTALLED id=1, fired 0 times / 60 frames ✗
+```
+
+**Memory watchpoints work. Execute breakpoints installed successfully but never fired** — the
+segment argument may be wrong (ARM vs THUMB), or the debugger subsystem may need enabling before
+execute breakpoints take effect. That remains open, and `setBreakpoint` must NOT be wired in for
+footsteps until it is resolved.
+
+### `readRegister` returns different types across builds
+
+The 0.10.2 docs say `readRegister(...) : string`; the 0.11 dev docs say `: wrapper`; and the
+**installed 0.11 build measurably returns a NUMBER** (`pc -> 134219948`, `r2 -> 50344176`, all
+coercions confirmed numeric). So `decodeRegister` must pass numbers through and only translate
+byte strings — which it does, covering both. **Read the return type at runtime; do not assume
+one from any version of the docs.**
+
 **The fix is available but unverified:** mGBA 0.11 exposes **real** breakpoints and range
 watchpoints (`emu:setBreakpoint(fn, addr, -1)`, `emu:setRangeWatchpoint`), confirmed present in
 the binary and callable in an earlier probe. The shim should map `memory.registerexec` onto

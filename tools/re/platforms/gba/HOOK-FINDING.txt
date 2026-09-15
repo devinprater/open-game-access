@@ -1,13 +1,21 @@
-=== EXEC-HOOK (footstep/VRAM-DMA) FINDING ===
-[hooks] f=1 registered=38 pc=134219948 hit=false
-[hooks] f=2 registered=38 pc=134219948 hit=false
-[hooks] f=3 registered=38 pc=134219948 hit=false
-[hooks] f=4 registered=38 pc=134219952 hit=false
-[hooks] f=5 registered=38 pc=134219954 hit=false
-[hooks] f=6 registered=38 pc=134219954 hit=false
-[hooks] f=7 registered=38 pc=134219952 hit=false
-[hooks] f=8 registered=38 pc=134219948 hit=false
+=== readRegister SEMANTICS (mGBA 0.11 dev) ===
+# 0.10.2 docs say: readRegister(regName:string) : string
+# 0.11 dev docs say: readRegister(regName:string) : wrapper
+# MEASURED on the installed 0.11 build: type = NUMBER
+   pc -> 134219948 (number)
+   r2 -> 50344176 (number)
+All coercions (tonumber, v+0, v|0, math.floor, v*1) work and stay numbers.
+=> decodeRegister() must pass NUMBERS through unchanged (it does) and only
+translate when the host returns a byte string. Both build behaviours are handled.
 
-38 hooks registered. 0 hits. PC samples span only 0x08000148-0x0800016C
-(134219848-134219884) - the CPU resting place at end-of-frame, not real
-execution tracking. ROM hooks at 0x080xxxxx CANNOT fire under a frame poll.
+=== REAL HOOKS: which actually fire? ===
+setRangeWatchpoint(0x04000000..0x04000010, type=2) -> INSTALLED id=2, FIRED 3 times in 60 frames
+   *** REAL HOOK CONFIRMED WORKING ***
+setBreakpoint(pc=0x080008AC, segment=-1)          -> INSTALLED id=1, fired 0 times in 60 frames
+   execute breakpoints need investigation (segment 0=ARM / 1=THUMB?), or the
+debugger subsystem must be enabled before execute breakpoints take effect.
+
+=== CONCLUSION ===
+Frame-polling cannot see ROM execution (measured 0 hits / 38 hooks).
+Memory watchpoints DO fire -> the VRAM-DMA "registerwrite" hook can be mapped onto
+setRangeWatchpoint today. Execute hooks (footsteps) need setBreakpoint resolved first.
