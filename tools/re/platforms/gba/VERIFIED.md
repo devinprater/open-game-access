@@ -113,12 +113,49 @@ Assigning to any userdata raises `Invalid key`, and the traceback points at the 
 
 ---
 
+## A CONFIRMED DEFECT: exec hooks CANNOT fire on ROM addresses
+
+Measured on real FireRed while the reader ran, with hooks installed and the game live:
+
+```
+[hooks] f=1 registered=38 pc=134219948 hit=false
+[hooks] f=2 registered=38 pc=134219948 hit=false
+[hooks] f=3 registered=38 pc=134219948 hit=false
+[hooks] f=4 registered=38 pc=134219952 hit=false
+...
+```
+
+**38 hooks registered, 0 hits over thousands of frames.** The sampled PC spans only
+`0x08000148`-`0x0800016C` — a ~60-byte window, which is the CPU's end-of-frame resting place,
+not a record of execution.
+
+The readers register these hooks at **ROM addresses in `0x08000000`-range** (e.g.
+`ROM_CPU_SET = 0x82e7084`, `ROM_RENDER_TEXT = 0x800587c`, `ROM_FREE = 0x8002bc4`). Frame-polling
+the PC after `runFrame()` cannot observe that code, because:
+
+1. ROM code is reached through **mirrors** and executes from cached addresses, and
+2. by the time a frame completes, the PC has moved on — `runFrame()` runs an entire frame, so
+   sampling after it samples the resting place, never the execution.
+
+⛔ **Consequence:** the features driven by `registerexec` do not work under this shim —
+**footstep detection**, and the VRAM-DMA hook that tracks screen updates (`cpu_set` /
+`cpu_fast_set` read `r1`/`r2` at the instruction to rebuild the tilemap). This is a real,
+measured defect, **not** the "maybe a routine runs within one frame" concern previously
+recorded — the addresses are wrong for polling at all.
+
+**The fix is available but unverified:** mGBA 0.11 exposes **real** breakpoints and range
+watchpoints (`emu:setBreakpoint(fn, addr, -1)`, `emu:setRangeWatchpoint`), confirmed present in
+the binary and callable in an earlier probe. The shim should map `memory.registerexec` onto
+`setBreakpoint` instead of polling. That would give true execution hooks. **It has not been
+implemented or tested yet**, and a naive attempt while probing interfered with `runFrame`, so the
+integration needs care (install once, at the right time, and confirm `runFrame` still works).
+
 ## NOT VERIFIED
 
-- **Footsteps.** The mechanism is verified (17 checks) and the PC now decodes at full width
-  rather than being truncated to its low byte — but whether a real footstep routine is caught by
-  a one-sample-per-frame poll is open. A routine that runs and returns within one frame could
-  still be missed.
+- **Footsteps — now CONFIRMED BROKEN, see the section above.** Not merely "unproven": measured
+  0 hits from 38 registered hooks on a live game, because they target ROM addresses that a
+  frame poll cannot observe. The fix (map `registerexec` onto mGBA's real `setBreakpoint`) is
+  available but not yet implemented.
 - **The remaining GBA hotkeys** — `P` (pathfind), `H`/`Shift+H` (battle health), `J`/`K`/`L`
   (item cycling), `T` (read text), the camera keys. Each needs specific game state (a battle, an
   item menu, a two-object map).
