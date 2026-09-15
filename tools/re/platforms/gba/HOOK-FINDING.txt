@@ -51,3 +51,40 @@ WHAT THIS MEANS FOR THE PORT:
 0.10.2 docs: string | 0.11 dev docs: wrapper | INSTALLED 0.11 MEASURED: NUMBER
 (pc -> 134219948, r2 -> 50344176; all coercions confirmed numeric)
 => decodeRegister must pass numbers through and only translate byte strings. It does.
+
+=== THE OBSERVABLE-EFFECT ROUTE: IMPLEMENTED, AND WHY IT SHOULD WORK ===
+
+gba.lua's footstep callback reads NO register:
+
+    function play_footsteps()
+      local player_x, player_y = get_player_xy()      -- live RAM read
+      local blocks = get_map_blocks()                 -- live RAM read
+      play_tile_sound(get_block_type(blocks[player_y][player_x]), 0, 30, false)
+    end
+
+So it does not need the moment of execution — only to run WHEN THE PLAYER MOVES, which is an
+effect we can poll. `memory.registerexec` now:
+  * records the callback as before, and
+  * fires it from the per-frame hook when the game's own player position CHANGES.
+
+IMPLEMENTED and syntax-clean. VERIFICATION INCOMPLETE: on the live test the player did not
+change tiles, so the position never changed and the callbacks never fired. The likely reason is
+game state (the bedroom's layout / standing on the stairs), NOT the mechanism:
+
+  * pad input is confirmed working -> `emu:getKeys()` returned 128 while DOWN was held, 0 after
+    release (mGBA pad bit 7 = DOWN);
+  * the reader reads position correctly -> `x 6, y 6` in `OSCAR's House`.
+
+So the remaining step is to get the player to genuinely move (a longer/varied walk from a
+position with open tiles), then confirm cue emission. oga_audio.lua RECORDS every cue with its
+path and pan, so the check is objective: a footstep should appear as a cue naming a tile-sound
+WAV (e.g. `sounds\gba\s_grass.wav`).
+
+=== A HARNESS TRAP WORTH RECORDING ===
+Keyboard keys and pad input are DIFFERENT CHANNELS:
+  * `input.read()` (keyboard) drives the reader's HOTKEYS.
+  * `emu:setKeys()` (pad) moves the PLAYER.
+A harness that sets only keyboard keys makes the reader talk while the player stands still — so
+any movement-based feature can never fire and the test looks like a failure of the feature
+rather than of the harness. The shim now exposes `oga_pad_script{}` alongside `oga_key_script{}`
+so the two cannot be confused.

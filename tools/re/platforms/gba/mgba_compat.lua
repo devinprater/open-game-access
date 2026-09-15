@@ -293,7 +293,58 @@ end
 ----------------------------------------------------------------------
 
 local exec_hooks  = {}   -- address -> callback
+local last_player_x, last_player_y   -- for the observable-effect poll
 local write_hooks = {}   -- address -> { cb = fn, last = value }
+
+-- ⛔⛔ registerexec: REIMPLEMENTED AS AN OBSERVABLE-EFFECT POLL, NOT A PC HOOK. ⛔⛔
+--
+-- WHY THE OBVIOUS MAPPINGS CANNOT WORK. Measured on mGBA 0.11, and confirmed from mGBA's own
+-- source (src/arm/debugger/debugger.c, src/debugger/debugger.c):
+--
+--   * Polling the PC after runFrame() gives 0 hits from 38 hooks. runFrame() completes a WHOLE
+--     frame, so the sampled PC is the CPU's end-of-frame resting place (a ~60-byte window),
+--     never the ROM code the readers register.
+--   * `setBreakpoint` is checked ONLY from the debugger's run loop, which a script driving
+--     frames via runFrame() never enters. Installed, counted by hasBreakpoints(), never checked.
+--   * READ watchpoints do not install on this build at all; READWRITE installs but fired 0 times
+--     on every code/RAM address tried.
+--
+-- So there is NO way to intercept execution here. Instead, DETECT THE OBSERVABLE EFFECT.
+--
+-- This works because the readers' registered callbacks turn out to read live game state rather
+-- than needing the moment of execution. gba.lua's footstep hook is the proof:
+--
+--     function play_footsteps()
+--       local player_x, player_y = get_player_xy()      -- live RAM read
+--       local blocks = get_map_blocks()                 -- live RAM read
+--       play_tile_sound(get_block_type(blocks[player_y][player_x]), 0, 30, false)
+--     end
+--
+-- No register is consulted. The callback only needs to run WHEN THE PLAYER MOVES, which is an
+-- effect we can poll directly.
+--
+-- The heuristic below is deliberately conservative: fire when the game's own position value
+-- changes. `get_player_xy` is not reachable from the shim (it lives in the reader loaded after
+-- this file), so the poll watches the reader's exported globals once they exist and falls back
+-- to a no-op rather than guessing at addresses.
+local function pollExecEffects()
+  if next(exec_hooks) == nil then return end
+  -- The reader publishes get_player_xy() on the global table; use it when present.
+  local getxy = _G.get_player_xy
+  if type(getxy) ~= "function" then return end
+  local ok, x, y = pcall(getxy)
+  if not ok or type(x) ~= "number" or type(y) ~= "number" then return end
+  if x ~= last_player_x or y ~= last_player_y then
+    local moved = (last_player_x ~= nil)
+    last_player_x, last_player_y = x, y
+    if moved then
+      for _, cb in pairs(exec_hooks) do
+        local okc, err = pcall(cb)
+        if not okc then log("effect hook errored: " .. tostring(err)) end
+      end
+    end
+  end
+end
 
 memory.registerexec = function(address, fn)
   if fn == nil then
@@ -411,8 +462,45 @@ end
 
 -- Uses the exec_hooks / write_hooks tables declared above.
 -- Assigns the forward-declared local above.
+-- ⛔ PAD DRIVING, SEPARATE FROM THE KEYBOARD KEYS.
+--
+-- The reader's `input.read()` reports KEYBOARD keys (for hotkeys). Moving the PLAYER needs the
+-- emulator PAD via `emu:setKeys`. Confusing the two is an easy mistake: a harness that sets
+-- keyboard keys makes the reader speak but leaves the player standing still, so movement-based
+-- features (footsteps) can never fire and the test looks like a failure of the feature.
+--
+-- mGBA pad bits: A=0, B=1, SELECT=2, START=3, RIGHT=4, LEFT=5, UP=6, DOWN=7, R=8, L=9.
+local PAD_BITS = { A=0, B=1, SELECT=2, START=3, RIGHT=4, LEFT=5, UP=6, DOWN=7, R=8, L=9 }
+local pad_script = _G.oga_pad_script_pending or {}
+_G.oga_pad_script_pending = nil
+
+function oga_pad_script(steps)
+  pad_script = steps or {}
+end
+
+local function run_pad_script()
+  if #pad_script == 0 then return end
+  for i = #pad_script, 1, -1 do
+    local step = pad_script[i]
+    if step.at and frame_counter >= step.at then
+      local mask = 0
+      for _, name in ipairs(step.pad or {}) do
+        local bit = PAD_BITS[name]
+        if bit then mask = mask + 2 ^ bit end
+      end
+      pcall(function() REAL.setKeys(REAL, mask) end)
+      if step.release_at then
+        pad_script[#pad_script + 1] = { at = step.release_at, pad = {} }
+      end
+      table.remove(pad_script, i)
+    end
+  end
+end
+
 function poll_hooks()
   run_key_script()
+  run_pad_script()
+  pollExecEffects()
 
   if next(exec_hooks) ~= nil then
     local pc_ok, pc = pcall(function()
