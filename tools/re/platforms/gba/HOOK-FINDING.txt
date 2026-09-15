@@ -67,18 +67,33 @@ effect we can poll. `memory.registerexec` now:
   * records the callback as before, and
   * fires it from the per-frame hook when the game's own player position CHANGES.
 
-IMPLEMENTED and syntax-clean. VERIFICATION INCOMPLETE: on the live test the player did not
-change tiles, so the position never changed and the callbacks never fired. The likely reason is
-game state (the bedroom's layout / standing on the stairs), NOT the mechanism:
+IMPLEMENTED and syntax-clean. VERIFICATION BLOCKED BY A MODAL DIALOGUE.
 
-  * pad input is confirmed working -> `emu:getKeys()` returned 128 while DOWN was held, 0 after
-    release (mGBA pad bit 7 = DOWN);
-  * the reader reads position correctly -> `x 6, y 6` in `OSCAR's House`.
+The player would not move, and a SCREENSHOT showed why:
 
-So the remaining step is to get the player to genuinely move (a longer/varied walk from a
-position with open tiles), then confirm cue emission. oga_audio.lua RECORDS every cue with its
-path and pan, so the check is objective: a footstep should appear as a cue naming a tile-sound
-WAV (e.g. `sounds\gba\s_grass.wav`).
+    +----------------------------------------+
+    |  (bedroom, player standing by the NES) |
+    |  JANNE played with the NES.  [v]       |
+    +----------------------------------------+
+
+A dialogue box was open for the entire run, swallowing every D-pad press. The position stayed
+at `x 6, y 6` across 12 long movement holds because the game never processed the input.
+
+⛔ THIS IS THE SAME CLASS OF BUG THAT COST DAYS ON FIRE EMBLEM: a modal dialogue/popup
+intercepts map input, so a scripted input plan re-reads the popup forever while memory reads stay
+perfectly valid. The reader is not at fault and neither is the shim.
+
+What IS confirmed working:
+  * pad input delivery -> `emu:getKeys()` returned 128 while DOWN was held, 0 after release
+    (mGBA pad bit 7 = DOWN)
+  * position reading    -> `x 6, y 6` in `OSCAR's House`, read live
+  * the reader          -> `Ready`, plus Y/M/E narration on demand
+  * A/B presses DO reach the game (the player is named "JANNE", which required input)
+
+Mashing A/B did not clear it in this harness. The remaining step is to dismiss the dialogue
+properly (or start from a position with no open popup), then confirm cue emission. oga_audio.lua
+RECORDS every cue with path and pan, so the check stays objective: a footstep should appear as a
+cue naming a tile-sound WAV (e.g. `sounds\gba\s_grass.wav`).
 
 === A HARNESS TRAP WORTH RECORDING ===
 Keyboard keys and pad input are DIFFERENT CHANNELS:
