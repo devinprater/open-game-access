@@ -23,6 +23,18 @@ bash "$REPO_WIN/wsl.sh" commit-push 2>&1 | tail -5
 
 echo
 echo "== verifying the remote actually has the expected paths =="
+# ⛔ `gh` IS NOT INSTALLED IN WSL. Running this verification inside WSL makes every
+# `gh api` call fail, `grep -c` return 0, and the check report MISSING for paths that are
+# present — a verification that lies is worse than no verification. Check for gh first
+# and say so rather than reporting a false failure.
+if ! command -v gh >/dev/null 2>&1; then
+  echo "  !! gh not available here — cannot verify the remote from this shell."
+  echo "     Run the verification on the Windows side:"
+  echo "       gh api 'repos/devinprater/open-game-access/git/trees/main?recursive=1' \\"
+  echo "         --jq '.tree[].path' | grep -c '^tools/re'"
+  exit 3
+fi
+
 ok=1
 for p in "${EXPECT_PATHS[@]}"; do
   n=$(gh api "repos/devinprater/open-game-access/git/trees/main?recursive=1" \
