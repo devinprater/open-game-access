@@ -345,31 +345,58 @@ probe now samples the list every 2000 frames **within a single run**:
 6. **The rest of the character table is byte-identical** across runs and across the
    whole time series (names, `+0x180` chain, `+0x1F8`/`+0x208` stats).
 
-### ⛔ What is still not established, and why that is the honest answer
+### ✅✅ THE CONTROL EXPERIMENT: the list is GAME PROGRESS state
 
-The stable value is Piccolo/Krillin/Tien at a point where the player has Goku alone.
-Several shapes fit, and **the time series rules some out but not all**:
+The missing comparison was an **idle run** — same ROM, same frame count, no input plan:
 
-- ❌ *Not the live walking party* — the names are wrong for this point in the game.
-- ❌ *Not a fluctuating scene list* — it is flat after f=4000.
-- ✅ *Consistent with an initialisation/default roster* — built during startup,
-  containing a garbage slot while filling, then settling to a fixed 3.
-- ✅ *Consistent with a "selected for next battle" roster* the engine pre-fills.
+```
+(a) IDLE (no plan)               (b) DRIVEN (dbz-battle plan)
+[list] f=0      n=0              [list] f=0      n=0
+[list] f=2000   n=0              [list] f=2000   n=6   <garbage>,0,1,2,3,4
+[list] f=4000   n=0              [list] f=4000   n=3   2,3,4
+[list] f=6000   n=0              [list] f=6000   n=3   2,3,4
+[list] f=8000   n=0              [list] f=8000   n=3   2,3,4
+[list] f=10000  n=0              [list] f=10000  n=3   2,3,4
+```
 
-⛔ **Deciding between the survivors needs a state change this probe cannot produce:**
-a battle, a recruit, or a party-menu change. Until then the field stays **unresolved
-and must not be narrated from.**
+**This is the experiment that resolves the field.** Three facts together:
 
-### ⛔ The lesson, and it is about method
+1. **Idle, it never populates at all** — zero for 12,000 frames. So it is **not**
+   a startup default and **not** a constant in the ROM.
+2. **Driven, it populates, then settles.** Input is the only difference between the
+   two runs, so the list is **written by game progress**.
+3. **Both runs still read `n=0` at f=0**, when the ROM has just booted — the list is
+   built after boot, during the intro.
 
-**Two confident, opposite conclusions came from the same snapshot data.** The first
-assumed a meaning; the second assumed "doesn't match the party ⇒ not live". Neither
-was tested. **One extra run at a different frame count killed both.**
+⛔ **Therefore: `0x020CC774` is a character list the game maintains as play
+advances — not a fixed template, and not an idle-filled default.** The earlier
+"startup default" conclusion is **retired**: it was drawn from driven runs only, and
+the idle run falsifies it.
 
-**The generalisable rule: to learn what a field DOES, sample it over time — never
-infer its meaning from one snapshot.** Sampling *within* a single run is cheaper than
-one run per sample, and it distinguishes "built once during init" from "changes with
-play", which is exactly the distinction both wrong answers missed.
+### What remains genuinely open
+
+The list contains **Piccolo, Krillin, Tien** while the player has Goku alone. With the
+"static default" explanation now removed, the survivors are all *game-progress*
+shapes the plan happens to produce this early:
+
+- a **story/event roster** — characters staged for the next scripted scene;
+- a **next-battle roster** pre-filled by the episode; or
+- characters the intro dialogue has "registered" so far.
+
+⛔ **Deciding needs a state change this plan cannot reach** — an actual battle, a
+recruit, or a party-menu edit. Until then the field stays **unresolved and must not be
+narrated from.** What has changed is the *class* of explanation: it is game state, so
+the right next step is reaching one of those states, not more idle sampling.
+
+### ⛔ The method lesson, sharpened
+
+**A control run with the variable removed is the cheapest possible experiment.**
+Every wrong conclusion on this field came from comparing snapshots that all shared the
+same hidden variable — the input plan. One run with *no* plan separated "constant"
+from "created by play" immediately, and needed no new code, no battle, and no RE.
+
+**Ask "what is the control?" before adding another measurement.** Here the control was
+free: run the same thing while doing nothing.
 
 
 ## ❌ Superseded claim (kept for the record)
