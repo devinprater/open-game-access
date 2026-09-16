@@ -465,6 +465,78 @@ and got a null — because the dialogue had never advanced, so nothing moved. Th
 not a better diff, it is **proving the variable moved first**. `psp-try-buttons.mjs`
 exists precisely so that assumption is never made again.
 
+
+## ⛔ Backlog-scroll test — controlled this time, and still a NEGATIVE
+
+Finally ran the cursor hunt with a **provably moving variable**: open the backlog, then
+scroll it with `right` (which the button sweep proved works), dumping RAM at each step.
+
+The scroll is real — **three distinct backlog pages**, by screen hash:
+
+```
+bls-03 (page 1)  79322491fd
+bls-07 (page 2)  869f625236
+bls-09 (page 3)  99b165a249
+```
+
+Searching the dumps for small values that track the page produced a promising-looking
+hit — a family of counters at `0x08978D28` / `0x08978D80` reading `[3,4,5,5]` and
+`[2,3,4,4]` across the four steps. Strictly monotonic, clean, exactly the shape a page
+counter would have.
+
+**Then the cross-check killed it.** Reading the same addresses on a *different* screen:
+
+```
+game sc-07-left   0x08978D28 = 3   0x08978D80 = 2     <- same values as a backlog page
+backlog bls-03    0x08978D28 = 3   0x08978D80 = 2
+```
+
+Identical. So those addresses do not track the backlog page at all — they increment with
+**activity** (allocations per button press), which is why they happened to advance in
+step with the scroll. The surrounding structure is a repeating 0x80-stride record full of
+`0xFFFFFFFF` and sizes — a resource/atlas table, not a UI cursor.
+
+⛔ **A value that advances when you press a button is not necessarily the thing that
+changed.** It can be counting the button presses. The only thing that separated the two
+was reading the same address on a screen where the *intended* variable differed but the
+*activity* was similar — which is why Rule 8 (sample on a static screen) exists.
+
+## Honest status after this round
+
+**Everything verified:**
+
+| | |
+|---|---|
+| script format, incl. speaker names | decoded, parser written, matched to on-screen BACKLOG text |
+| decompile pipeline | CSO -> ISO -> EBOOT (`~PSP`) -> MIPS ELF -> Ghidra, 4,130 functions |
+| engine boot | mapped (work buffer, config buffer, DATA0/1.AFS -> `afs0:/`, `afs1:/`) |
+| SYSTEM.CFG format | decoded and confirmed against the file |
+| runtime addresses | load base `0x08804000`, config `0x0933C580`, config pointer `0x089B5E34` |
+| input | characterised by sweep — 8 of 11 buttons act; `left`/`right` page the backlog |
+| the three text regions | distinguished (script file / scene copy / engine global) |
+
+**Not verified: the read position.** Candidates ruled out, each with a reason:
+
+| candidate | why it failed |
+|---|---|
+| pointers into the script block | 0 exist |
+| pointers into the scene region | 0 exist |
+| word equal to the current record address | 0 at every alignment |
+| block-relative offsets | 16,118 — coincidence generator |
+| counters that advanced with scroll | also advance on the game screen — activity, not page |
+| the script block itself | 0 bytes changed, ever — a load-time copy |
+
+**There is no reader for this game, and I do not have a candidate left that passes a
+cross-check.** The remaining honest routes are both large:
+
+1. **Decompile the backlog renderer** in `EBOOT.dec` (project saved at
+   `C:/Users/Devin Prater/oga-ghidra-sg`). It must read *something* to know which lines
+   to draw. Start from the display-list code near the `0x08CE2xxx` region the diffs keep
+   pointing at.
+2. **Watch a value live while scrolling** rather than diffing snapshots — a small script
+   that polls candidate addresses at ~4 Hz across a scroll, so a page counter can be told
+   apart from an activity counter by *when* it moves.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
