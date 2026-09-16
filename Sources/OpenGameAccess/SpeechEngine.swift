@@ -14,6 +14,15 @@ import CPokeCore
 /// The `hermes_tts` global name is kept from the Android port: the compat shim
 /// maps `speech.say` onto it, so the same shim text works on both platforms.
 ///
+/// Two channels, chosen by whether VoiceOver is running:
+///
+///   * VoiceOver ON  — everything is posted as a VoiceOver announcement, so the
+///     reader and VoiceOver share one voice and one queue instead of interrupting
+///     each other. VoiceOver owns the audio session; a second synthesizer talking
+///     over it gets cut off mid-word.
+///   * VoiceOver OFF — AVSpeechSynthesizer speaks directly, which also keeps
+///     working with the screen off, where an announcement would go nowhere.
+///
 /// Main-actor isolated: AVSpeechSynthesizer must be driven from the main
 /// thread, and the core's speech callback arrives on the frame-loop thread.
 @MainActor
@@ -77,9 +86,19 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         lastSpoken = trimmed
 
         if voiceOverRunning {
-            // Route through the rotor's queue so VoiceOver and the game do not
-            // talk over each other.
-            UIAccessibility.post(notification: .announcement, argument: trimmed)
+            // Route through VoiceOver rather than AVSpeechSynthesizer, so the two
+            // do not talk over each other.
+            //
+            // The queue/interrupt distinction has to be carried across, not
+            // dropped. A plain String announcement always INTERRUPTS, which turns
+            // the script's background narration into something that cuts off the
+            // line the player just asked for — the opposite of the script's own
+            // contract, where `interrupt` means "the player requested this". An
+            // attributed string with `accessibilitySpeechQueueAnnouncement` is the
+            // supported way to say "speak this after whatever is already
+            // playing", so background text queues and requested text still jumps
+            // the queue.
+            announceThroughVoiceOver(trimmed, queue: !interrupt)
             return
         }
 
@@ -116,10 +135,33 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         isStopped = false
         lastSpoken = trimmed
         if voiceOverRunning {
-            UIAccessibility.post(notification: .announcement, argument: trimmed)
+            // A reply to the player's own action: it interrupts, because the
+            // player is waiting for it and anything still speaking is stale.
+            announceThroughVoiceOver(trimmed, queue: false)
         } else {
             speak(trimmed, interrupt: true)
         }
+    }
+
+    /// Post an announcement VoiceOver will speak, optionally behind whatever it
+    /// is already saying.
+    ///
+    /// ⛔ The argument must be an NSAttributedString to carry the queue flag — a
+    /// plain String is always an interrupting announcement, and the key has no
+    /// effect on it.
+    ///
+    /// ⛔ AND VOICEOVER SILENTLY DROPS ANNOUNCEMENTS POSTED WHILE IT IS READING A
+    /// FOCUSED ELEMENT'S LABEL. They are not queued, they are discarded. This is
+    /// the reason announcements are not the only channel here: the game screen
+    /// element's `accessibilityValue` carries the same state, so a line that is
+    /// dropped can still be reached by re-focusing the screen rather than being
+    /// lost outright.
+    private func announceThroughVoiceOver(_ text: String, queue: Bool) {
+        let announcement = NSAttributedString(
+            string: text,
+            attributes: [.accessibilitySpeechQueueAnnouncement: queue]
+        )
+        UIAccessibility.post(notification: .announcement, argument: announcement)
     }
 
     // MARK: - Audio session

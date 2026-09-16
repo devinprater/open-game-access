@@ -54,6 +54,18 @@ object AccessibilityScript
     val frameCount: Long get() = getScriptFrameCount()
 
     /**
+     * Point speech at the Activity's live-region view.
+     *
+     * Forwarded rather than stored: [AccessibilitySpeech] is the single owner of
+     * the voice, and keeping one reference there avoids two places deciding where
+     * announcements go.
+     */
+    fun setAnnouncementView(view: android.view.View?)
+    {
+        speech?.setAnnouncementView(view)
+    }
+
+    /**
      * Called once, before any ROM is loaded: builds the TTS engine and points
      * the native speech callback at it.
      */
