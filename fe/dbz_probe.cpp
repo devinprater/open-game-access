@@ -670,6 +670,34 @@ int main(int argc, char** argv)
     // This is why the population numbers above are not self-explanatory: without
     // knowing which screen the game is on, "157/4096 nonzero" could mean "the
     // structure is half-built" or "we never left the title".
+    // ------------------------------------------------------- raw RAM dump
+    //
+    // ⛔ SEPARATE COLLECTION FROM ANALYSIS. Every question about this structure so far
+    // has cost a full probe run — ~5 minutes to boot a 128 MB ROM and drive 12,000
+    // frames — and each run could answer exactly one thing because the formatting was
+    // baked in at compile time. Dumping the raw bytes ONCE makes every subsequent
+    // question a Python edit that runs in milliseconds.
+    //
+    // DBZ_DUMP=<file> [DBZ_DUMP_BASE=0x...] [DBZ_DUMP_LEN=...] writes a header line
+    // then the raw bytes, so an offline reader can slice, diff, and cross-reference
+    // freely. Prefer this over adding yet another printf.
+    if (const char* dump = getenv("DBZ_DUMP")) {
+        uint32_t base = 0x020C0000;
+        uint32_t len  = 0x00020000;
+        if (const char* b = getenv("DBZ_DUMP_BASE")) base = (uint32_t) strtoul(b, nullptr, 0);
+        if (const char* l = getenv("DBZ_DUMP_LEN"))  len  = (uint32_t) strtoul(l, nullptr, 0);
+        FILE* f = fopen(dump, "wb");
+        if (f) {
+            fprintf(f, "# dbz raw ram dump  base=0x%08X len=%u\n", base, len);
+            for (uint32_t a = base; a < base + len; a++)
+                fputc(ProbeRead(a, 1), f);
+            fclose(f);
+            printf("\nram dump: %s  base=0x%08X  %u bytes\n", dump, base, len);
+        } else {
+            printf("\nram dump: could not write %s\n", dump);
+        }
+    }
+
     if (const char* shot = getenv("DBZ_SHOT")) {
         int w = 0, h = 0;
         // ⛔ ORDER MATTERS AND IT IS NOT OBVIOUS. `poke_framebuffer_ptr` is

@@ -217,6 +217,89 @@ answers. The NUL-predecessor rule collapses them to one.
 ⛔ **One string blob serves several tables.** Characters and enemies are separate
 index arrays over the same text. Do not assume a found table is *the* entity list.
 
+## ✅ The offline workflow (this is the durable win)
+
+Every question about this structure had been costing a **full probe run** — ~5
+minutes to boot a 128 MB ROM and drive 12,000 frames — and each run could answer
+exactly one question because the formatting was compiled in.
+
+The probe now writes raw RAM on request:
+
+```bash
+DBZ_DUMP=out.bin DBZ_DUMP_BASE=0x02000000 DBZ_DUMP_LEN=0x400000 \
+  /tmp/dbz_probe "<rom>.nds" 12000 fe/plans/dbz-battle.txt
+# -> "ram dump: out.bin  base=0x02000000  4194304 bytes"
+```
+
+and `scripts/oga-dbz-analyze.py` answers structural questions against that file in
+milliseconds:
+
+```bash
+python3 scripts/oga-dbz-analyze.py out.bin                      # record dump + field profile
+python3 scripts/oga-dbz-analyze.py out.bin --strings            # every ASCII run
+python3 scripts/oga-dbz-analyze.py out.bin --refs 0x020CD754    # who points at an address
+python3 scripts/oga-dbz-analyze.py out.bin --scan 0xC0000 0x20000
+```
+
+⛔ **Separate collection from analysis.** One 5-minute run now feeds unlimited
+offline queries. Reach for this before adding another `printf`.
+
+⛔ `--rec` takes the **record base**, not the name address. Passing `0x020CD774`
+(Goku's *name*) instead of `0x020CD754` (his *record*) shifts every field by 0x20 and
+makes ASCII read as u16 garbage — which looks like "the structure isn't there"
+rather than an argument mistake.
+
+## ✅ Measured record layout (8 records, stride 0x24C)
+
+| offset | meaning | evidence |
+|---|---|---|
+| `+0x010` | zero in all 8 | — |
+| `+0x014` | `[4,1,14,1,1,1,20,20]` | not yet interpreted |
+| `+0x020` | **name**, NUL-terminated | `"Goku"`, `"Piccolo"`… |
+| `+0x180` | **next index — a linked list** | `[2,3,4,5,6,7,8,0]` |
+| `+0x182` | `[0,2,0,2,1,1,0,0]` | not yet interpreted |
+| `+0x1F8` | stat triple copy 1 (u32 ×4) | see table |
+| `+0x208` | stat triple copy 2 (u32 ×3) | see table |
+
+**The `+0x180` chain is the clearest structural signal found:** `[2,3,4,5,6,7,8,0]`
+walks Goku→Gohan→Piccolo→Krillin→Tien→Yamcha→Bubbles→Gregory and terminates at `0`.
+That is a **linked list / ordered index chain over the character IDs**, not a party
+roster — a menu or "known characters" list.
+
+### The stat values
+
+| char | `+0x1F8` | `+0x208` |
+|---|---|---|
+| Goku | 290 | 95 |
+| Gohan | 660 | 225 |
+| Piccolo | 300 | 105 |
+| Krillin | 320 | 110 |
+| Tien | 305 | 100 |
+| Yamcha | 600 | 50 |
+| Bubbles | 600 | 150 |
+| **Gregory** | **0** | **0** |
+
+```
+hp seq: [290, 660, 300, 320, 305, 600, 600, 0]
+ki seq: [ 95, 225, 105, 110, 100,  50, 150, 0]
+```
+
+⛔ **Gregory reads 0 while every other character has non-zero values.** That is either
+"Gregory is not implemented as a fighter" or "unpopulated slot" — and it is exactly
+the kind of detail that would produce a wrong narration if the table were read as a
+party. It is recorded as an anomaly, not explained away.
+
+⛔ **These are most likely character BASE stats, not live state.** The ROM contains
+only a string table, no `0x24C` record structure, so the records are built at
+runtime — and the values being round, tidy per-character constants (290/95, 660/225,
+600/50) fits derived-from-definition better than current-HP-in-play. **Confirming
+that requires changing a value in-game** (take damage, re-read) — never by
+plausibility. This is the cheapest outstanding experiment and it settles it.
+
+⛔ The earlier claim "`+0x1DC`/`+0x1F0` triplets" came from a **record base that was
+0x20 too high**. With the correct base the triples sit at `+0x1F8` and `+0x208`. Any
+offset quoted from that earlier run is shifted — re-measure before relying on it.
+
 ## ✅ Where the search actually stands
 
 **Confirmed by measurement:**
