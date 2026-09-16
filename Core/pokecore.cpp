@@ -19,6 +19,7 @@
 #include "NDS.h"
 #include "NDSCart.h"
 #include "SPU.h"
+#include "adapter.h"
 #include "Savestate.h"
 #include "Platform.h"
 
@@ -53,6 +54,19 @@ struct PokeCore {
     bool scriptLoaded = false;
     std::string script;
     int frameCounter = 0;
+
+    // ---- game adapter ----
+    //
+    // Which accessibility adapter (if any) owns this ROM. Selected once at load
+    // time from the ROM's game code and driven by poke_command() below. A null
+    // adapter is the normal case: it means no native reader exists for this game,
+    // and the Lua script is the only accessibility layer.
+    const oga::Adapter* adapter = nullptr;
+    bool adapterAttached = false;
+    char gameCode[8] = {0};
+    // The Host handed to the adapter. Stored in the core so its address stays
+    // valid for as long as the adapter holds it.
+    oga::Host host = {};
 
     // ---- input ----
     // DS keys are active-low in hardware: a set bit means "not pressed", and
@@ -615,6 +629,11 @@ PokeCore* poke_create(void)
 void poke_destroy(PokeCore* core)
 {
     if (!core) return;
+    // Detach first: an adapter holds function pointers and a ctx pointing at THIS
+    // core, so leaving it attached after free is a dangling callback the next
+    // frame would call into freed memory.
+    if (core->adapter && core->adapterAttached && core->adapter->detach)
+        core->adapter->detach();
     if (core->nds) core->nds->Stop();
     if (core->L) lua_close(core->L);
     if (gCurrentCore == core) gCurrentCore = nullptr;
@@ -636,6 +655,133 @@ void poke_set_log_callback(PokeCore* core, PokeLogCallback cb, void* userdata)
 }
 
 const char* poke_last_error(PokeCore* core) { return core ? core->error : "no core"; }
+
+// ------------------------------------------------------------------- adapters
+//
+// The Host an adapter receives. Reads go through the same helpers the Lua
+// bindings use, so an adapter cannot reach past Main RAM or fault the app on a
+// bad pointer — the bounds check lives in one place rather than being re-derived
+// per adapter.
+// A scalar read through Main RAM, using the same domain table the Lua memory
+// bindings use. Keeping one path means an adapter and a script cannot disagree
+// about what an address contains, and the bus-side-effect guard applies to both.
+static bool AdapterReadScalar(PokeCore* core, uint32_t addr, int width, uint32_t* out)
+{
+    *out = 0;
+    if (!core || !core->nds) return false;
+    uint8_t bytes[4] = {0};
+    int n = 0;
+    const auto& domains = DomainsFor(core);
+    for (const MemoryDomain& d : domains)
+    {
+        if (addr < d.start) continue;
+        const uint64_t off = (uint64_t) addr - d.start;
+        if (off >= d.size) continue;
+        // Side-effecting hardware (key input, touch, IPC FIFOs) must not be
+        // poked through the bus: reading them MUTATES state. SafeToPeek is the
+        // same guard the Lua bindings use, so an adapter and a script cannot
+        // disagree about which addresses are safe.
+        if (d.bus != Bus::NotBus && !SafeToPeek(d.bus == Bus::Arm9, addr)) return false;
+        DomainRead(d, core->nds.get(), bytes, addr, width);
+        n = width;
+        break;
+    }
+    if (n == 0) return false;          // outside every domain: 0, and say so
+    uint32_t v = 0;
+    for (int i = 0; i < width; i++) v |= ((uint32_t) bytes[i]) << (8 * i);
+    *out = v;
+    return true;
+}
+
+static uint8_t  HostRead8 (void* ctx, uint32_t a) { uint32_t v=0; AdapterReadScalar((PokeCore*)ctx, a, 1, &v); return (uint8_t) v; }
+static uint16_t HostRead16(void* ctx, uint32_t a) { uint32_t v=0; AdapterReadScalar((PokeCore*)ctx, a, 2, &v); return (uint16_t) v; }
+static uint32_t HostRead32(void* ctx, uint32_t a) { uint32_t v=0; AdapterReadScalar((PokeCore*)ctx, a, 4, &v); return v; }
+
+static void HostSpeak(void* ctx, const char* utf8, bool interrupt)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (core->speechCb && utf8) core->speechCb(utf8, interrupt, core->speechUserdata);
+}
+
+static void HostLog(void* ctx, const char* utf8)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (core->logCb && utf8) core->logCb(utf8, core->logUserdata);
+}
+
+static void HostSetButton(void* ctx, int ds_button, bool down)
+{
+    poke_set_button((PokeCore*) ctx, ds_button, down);
+}
+
+// One Host per core, held in the core so its lifetime matches.
+static void BuildHost(PokeCore* core)
+{
+    core->host.read8      = HostRead8;
+    core->host.read16     = HostRead16;
+    core->host.read32     = HostRead32;
+    core->host.speak      = HostSpeak;
+    core->host.log        = HostLog;
+    core->host.set_button = HostSetButton;
+    core->host.ctx        = core;
+}
+
+const char *poke_adapter_id(PokeCore *core)
+{
+    return (core && core->adapter) ? core->adapter->id : nullptr;
+}
+
+const char *poke_adapter_name(PokeCore *core)
+{
+    return (core && core->adapter) ? core->adapter->display_name : nullptr;
+}
+
+bool poke_adapter_ready(PokeCore *core)
+{
+    if (!core || !core->adapter || !core->adapterAttached) return false;
+    return core->adapter->ready ? core->adapter->ready() : true;
+}
+
+bool poke_command(PokeCore *core, int cmd)
+{
+    if (!core || !core->adapter) return false;
+    if (cmd < 0 || cmd > (int) oga::Command::DumpState) return false;
+    if (!core->adapter->command) return false;
+
+    // Attach lazily, on the first command rather than at ROM load.
+    //
+    // WHY LAZY: an adapter's reads are only meaningful once the game has
+    // allocated its own structures, which happens some way into boot. Attaching
+    // at load time would hand it a RAM image with none of its objects in it.
+    // Attaching here means the first time the player asks a question is also the
+    // first time the adapter has to be correct.
+    if (!core->adapterAttached)
+    {
+        BuildHost(core);
+        if (!core->adapter->attach || !core->adapter->attach(&core->host))
+            return false;
+        core->adapterAttached = true;
+    }
+
+    // Refuse rather than narrate when there is nothing true to say. Saying "not
+    // on a map yet" is the adapter's own job; reporting from uninitialised memory
+    // is nobody's.
+    if (core->adapter->ready && !core->adapter->ready()) return false;
+
+    core->adapter->command((oga::Command) cmd);
+    return true;
+}
+
+int poke_command_button(PokeCore *core, int cmd)
+{
+    (void) core; (void) cmd;
+    // Adapters drive the game through the host's set_button when they need to.
+    // None of Fire Emblem's map queries has a game button of its own, so there is
+    // no mapping to report — and -1 is the honest answer. The UI must not present
+    // a control as "the game's own button" until one is actually mapped.
+    return -1;
+}
+
 const char* poke_version(void) { return "melonDS 1.1 + Lua accessibility"; }
 
 // ---------------------------------------------------------------- script setup
@@ -897,6 +1043,36 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
     // direct boot is the only option — the firmware image is not executable.
     if (core->nds->NeedsDirectBoot())
         core->nds->SetupDirectBoot(rom_path);
+
+    // ---------------------------------------------------------- adapter select
+    //
+    // The ROM's game code is at header offset 0x0C..0x0F. It is read from the
+    // PARSED cart rather than the file, so it is the same bytes the loader used
+    // and cannot disagree with what was actually booted.
+    //
+    // A match does NOT mean the game is ready — the game's own structures do not
+    // exist yet. It only means an adapter is willing to try. attach() is deferred
+    // until the console has booted far enough, and ready() gates what is spoken.
+    core->adapter = nullptr;
+    core->adapterAttached = false;
+    core->gameCode[0] = 0;
+    {
+        // The game code is the four ASCII bytes at ROM offset 0x0C. Read them from
+        // the cartridge's own ROM buffer rather than from the file we opened: that
+        // buffer is what the console actually booted, so the code cannot disagree
+        // with the running game. (`Header` is protected on CartCommon, so the ROM
+        // bytes are the accessible path; NDSCart.h's GameCodeAsU32 is just this
+        // same arithmetic over the same four bytes.)
+        if (auto* cart = core->nds->GetNDSCart())
+        {
+            const u8* rom = cart->GetROM();
+            if (rom && cart->GetROMLength() >= 0x10)
+                for (int i = 0; i < 4; i++) core->gameCode[i] = (char) rom[0x0C + i];
+        }
+        core->gameCode[4] = 0;
+
+        core->adapter = oga::find_by_game_code(core->gameCode);
+    }
 
     return true;
 }

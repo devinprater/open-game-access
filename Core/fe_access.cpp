@@ -30,11 +30,56 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include <stdarg.h>
 
 melonDS::NDS* poke_debug_nds(PokeCore* core);
 
 static const uint32_t RAM_BASE = 0x02000000, RAM_SIZE = 0x400000;
 static uint8_t* gRam = nullptr;
+
+// ----------------------------------------------------------------- output sink
+//
+// The command functions below were written for a standalone host harness, where
+// printf WAS the user. Inside the app they must speak instead — but only the
+// player-facing commands. A dump is a developer artifact and stays silent, or it
+// would read a screenful of hex aloud.
+//
+// A sink rather than a rewrite: the command logic is verified and its wording was
+// reviewed, so the text is reused verbatim and only its destination changes. When
+// no sink is installed the original printf behaviour remains, which is what keeps
+// the standalone harness working.
+static void (*g_say)(const char* utf8, bool interrupt) = nullptr;
+static void (*g_log)(const char* utf8) = nullptr;
+
+// ⛔ extern "C" MUST MATCH THE DECLARATION IN fe_adapter.cpp. These were plain C++
+// functions and got MANGLED names (_Z15fe_set_say_sinkPFvPKcbE), while the
+// adapter asked for the unmangled C name — so the link failed with an undefined
+// symbol for a function that is plainly defined a few hundred lines above. The
+// mismatch is invisible in the source; only `llvm-nm` shows it.
+extern "C" {
+void fe_set_say_sink(void (*say)(const char*, bool)) { g_say = say; }
+void fe_set_log_sink(void (*log)(const char*)) { g_log = log; }
+}
+
+static void FeSay(const char* fmt, ...)
+{
+    char buf[2048];
+    va_list ap; va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    if (g_say) g_say(buf, /*interrupt=*/false);
+    else       printf("%s", buf);
+}
+
+static void FeLog(const char* fmt, ...)
+{
+    char buf[4096];
+    va_list ap; va_start(ap, fmt);
+    vsnprintf(buf, sizeof(buf), fmt, ap);
+    va_end(ap);
+    if (g_log) g_log(buf);
+    else       printf("%s", buf);
+}
 
 static bool InRam(uint32_t a, uint32_t n = 1)
 { return a >= RAM_BASE && (uint64_t) a + n <= (uint64_t) RAM_BASE + RAM_SIZE; }
@@ -405,8 +450,8 @@ static bool MovementRange(const Unit& u, Range& out)
 static void cmdWhereAmI()
 {
     Cursor c = ReadCursor();
-    if (!c.ok) { printf("Not on a map yet.\n"); return; }
-    printf("Cursor %d, %d.", c.x, c.y);
+    if (!c.ok) { FeSay("Not on a map yet.\n"); return; }
+    FeSay("Cursor %d, %d.", c.x, c.y);
 
     // Terrain: report the game's own category, and say it is a number because no
     // category-to-name table has been located. Verified means the pointer
@@ -415,49 +460,49 @@ static void cmdWhereAmI()
     Terrain t = ReadTerrain();
     if (t.ok && t.category >= 0) {
         const char* nm = terrainName(t.category);
-        if (nm) printf(" Terrain %s (category %d, tile %u%s).", nm, t.category, t.tile,
+        if (nm) FeSay(" Terrain %s (category %d, tile %u%s).", nm, t.category, t.tile,
                        t.verified ? ", verified" : "");
-        else    printf(" Terrain category %d (tile %u%s).", t.category, t.tile,
+        else    FeSay(" Terrain category %d (tile %u%s).", t.category, t.tile,
                        t.verified ? ", verified" : "");
     } else {
-        printf(" Terrain: unavailable.");
+        FeSay(" Terrain: unavailable.");
     }
 
     bool any = false;
     Unit here;
     for (auto& u : AllUnits())
         if (u.x == c.x && u.y == c.y) {
-            printf(" Unit here: %s, %d HP%s.", u.label().c_str(), u.hp,
+            FeSay(" Unit here: %s, %d HP%s.", u.label().c_str(), u.hp,
                    u.acted() ? ", acted" : ", unacted");
             any = true;
             here = u;
         }
-    if (!any) printf(" No unit here.");
+    if (!any) FeSay(" No unit here.");
 
     // Movement range for the unit under the cursor: how far it can go and the
     // nearest tile it could move to, which is what a player actually wants to hear.
     if (any) {
         Range r;
         if (MovementRange(here, r) && r.ok) {
-            printf(" It can move %d tiles. %d squares reachable", r.budget, r.tiles);
+            FeSay(" It can move %d tiles. %d squares reachable", r.budget, r.tiles);
             if (r.bestX >= 0)
-                printf("; nearest to the cursor is %d, %d (%d tiles away)",
+                FeSay("; nearest to the cursor is %d, %d (%d tiles away)",
                        r.bestX, r.bestY, r.bestDist);
-            printf(".");
+            FeSay(".");
         } else {
-            printf(" Movement range unavailable.");
+            FeSay(" Movement range unavailable.");
         }
     }
-    printf("\n");
+    FeSay("\n");
 }
 
 static void cmdNextAlly(int dir)
 {
     static int idx = -1;
     Cursor c = ReadCursor();
-    if (!c.ok) { printf("Not on a map yet.\n"); return; }
+    if (!c.ok) { FeSay("Not on a map yet.\n"); return; }
     auto us = AllUnits();
-    if (us.empty()) { printf("No units found.\n"); return; }
+    if (us.empty()) { FeSay("No units found.\n"); return; }
 
     // Ally = the game's own faction number (Force.id 0 or 2). Grouping by "the
     // leader's Force pointer" happened to work but had no way to say WHICH group was
@@ -465,12 +510,12 @@ static void cmdNextAlly(int dir)
     // unassigned reserve (faction 4), which the pointer test included.
     std::vector<Unit> allies;
     for (auto& u : us) if (u.isPlayer()) allies.push_back(u);
-    if (allies.empty()) { printf("No allies found.\n"); return; }
+    if (allies.empty()) { FeSay("No allies found.\n"); return; }
 
     idx = (idx + dir + (int) allies.size() * 4) % (int) allies.size();
     Unit& u = allies[idx];
     double d = sqrt((double)(u.x - c.x) * (u.x - c.x) + (double)(u.y - c.y) * (u.y - c.y));
-    printf("%s, %d HP, position %d, %d, %s, %.1f tiles away.\n",
+    FeSay("%s, %d HP, position %d, %d, %s, %.1f tiles away.\n",
            u.label().c_str(), u.hp, u.x, u.y,
            u.acted() ? "acted" : "unacted", d);
 }
@@ -479,14 +524,14 @@ static void cmdNextEnemy(int dir)
 {
     static int idx = -1;
     Cursor c = ReadCursor();
-    if (!c.ok) { printf("Not on a map yet.\n"); return; }
+    if (!c.ok) { FeSay("Not on a map yet.\n"); return; }
     auto us = AllUnits();
     // Enemy = the game's own faction number (Force.id 1 or 3), not "a different
     // Force pointer". The pointer test this replaces also matched the 60-slot
     // unassigned reserve, so it would have reported phantom enemies on any map.
     std::vector<Unit> enemies;
     for (auto& u : us) if (u.isEnemy()) enemies.push_back(u);
-    if (enemies.empty()) { printf("No enemies found.\n"); return; }
+    if (enemies.empty()) { FeSay("No enemies found.\n"); return; }
     // sort by distance from the cursor (the SRWYAccess idea: nearest first)
     std::sort(enemies.begin(), enemies.end(), [&](const Unit& a, const Unit& b) {
         int da = abs(a.x - c.x) + abs(a.y - c.y), db = abs(b.x - c.x) + abs(b.y - c.y);
@@ -495,56 +540,95 @@ static void cmdNextEnemy(int dir)
     idx = (idx + dir + (int) enemies.size() * 4) % (int) enemies.size();
     Unit& u = enemies[idx];
     double d = sqrt((double)(u.x - c.x) * (u.x - c.x) + (double)(u.y - c.y) * (u.y - c.y));
-    printf("%s, %d HP, position %d, %d, %.1f tiles away.\n",
+    FeSay("%s, %d HP, position %d, %d, %.1f tiles away.\n",
            u.label().c_str(), u.hp, u.x, u.y, d);
 }
 
 static void cmdDump()
 {
     Cursor c = ReadCursor();
-    printf("=== Fire Emblem: Shadow Dragon — tactical state dump ===\n");
-    printf("map state     : %s\n", c.ok ? "on a map" : "NOT on a map (gMapStateManager invalid)");
-    printf("gMapStateManager = 0x%08X\n", R32(A_gMapStateManager));
-    if (c.ok) printf("cursor        : 0x%08X  x=%d y=%d visible=%d\n", c.addr, c.x, c.y, c.vis);
+    FeLog("=== Fire Emblem: Shadow Dragon — tactical state dump ===\n");
+    FeLog("map state     : %s\n", c.ok ? "on a map" : "NOT on a map (gMapStateManager invalid)");
+    FeLog("gMapStateManager = 0x%08X\n", R32(A_gMapStateManager));
+    if (c.ok) FeLog("cursor        : 0x%08X  x=%d y=%d visible=%d\n", c.addr, c.x, c.y, c.vis);
     uint32_t base = R32(A_gUnitList);
-    printf("gUnitList     : 0x%08X  stride=0x%02X  slots=%d\n", base, UNIT_STRIDE, UNIT_SLOTS);
+    FeLog("gUnitList     : 0x%08X  stride=0x%02X  slots=%d\n", base, UNIT_STRIDE, UNIT_SLOTS);
     auto us = AllUnits();
-    printf("live units    : %zu\n", us.size());
+    FeLog("live units    : %zu\n", us.size());
     // Raw bytes of the first real unit: this is how the character/class
     // identifiers get located, by looking rather than by assuming an offset.
     if (!us.empty()) {
         const Unit& u0 = us[0];
-        printf("raw dump of slot %d at 0x%08X:\n", u0.slot, u0.addr);
+        FeLog("raw dump of slot %d at 0x%08X:\n", u0.slot, u0.addr);
         for (uint32_t off = 0; off < 0x80; off += 16) {
-            printf("  +%02X:", off);
-            for (uint32_t i = 0; i < 16; i++) printf(" %02X", R8(u0.addr + off + i));
-            printf("   ");
+            FeLog("  +%02X:", off);
+            for (uint32_t i = 0; i < 16; i++) FeLog(" %02X", R8(u0.addr + off + i));
+            FeLog("   ");
             for (uint32_t i = 0; i < 16; i++) {
                 uint8_t b = R8(u0.addr + off + i);
-                printf("%c", (b >= 0x20 && b < 0x7F) ? b : '.');
+                FeLog("%c", (b >= 0x20 && b < 0x7F) ? b : '.');
             }
-            printf("\n");
+            FeLog("\n");
         }
-        printf("  as u32 words:\n");
+        FeLog("  as u32 words:\n");
         for (uint32_t off = 0; off < 0x80; off += 4) {
             uint32_t v = R32(u0.addr + off);
-            if (v) printf("    +%02X = 0x%08X%s\n", off, v,
+            if (v) FeLog("    +%02X = 0x%08X%s\n", off, v,
                           (v >= RAM_BASE && v < RAM_BASE + RAM_SIZE) ? "  (points into RAM)" : "");
         }
-        printf("  pid   = '%s'\n", u0.name.c_str());
-        printf("  jid   = '%s'\n", u0.jobName.c_str());
-        printf("  (PersonData ptr 0x%08X -> pid '%s'; JobData ptr 0x%08X -> jid '%s')\n",
+        FeLog("  pid   = '%s'\n", u0.name.c_str());
+        FeLog("  jid   = '%s'\n", u0.jobName.c_str());
+        FeLog("  (PersonData ptr 0x%08X -> pid '%s'; JobData ptr 0x%08X -> jid '%s')\n",
                u0.pid, ReadCStr(R32(u0.pid)).c_str(), u0.jid, ReadCStr(R32(u0.jid)).c_str());
     }
-    printf("  slot addr       Lv HP Mov   X   Y  act dead fac name             pid          jid\n");
+    FeLog("  slot addr       Lv HP Mov   X   Y  act dead fac name             pid          jid\n");
     for (auto& u : us)
-        printf("  %-4d 0x%08X %2d %2d  %2d %3d %3d   %d    %d   %3d %-16s %-12s %s\n",
+        FeLog("  %-4d 0x%08X %2d %2d  %2d %3d %3d   %d    %d   %3d %-16s %-12s %s\n",
                u.slot, u.addr, u.level, u.hp, u.mov, u.x, u.y,
                (u.state1 & US_ACTED) ? 1 : 0, (u.state1 & US_DEAD) ? 1 : 0,
                u.faction, u.label().c_str(), u.name.c_str(), u.jobName.c_str());
-    printf("  (fac: 0 player, 1 enemy, 2/3 scenario player/enemy, 4 unassigned, 5 other)\n");
+    FeLog("  (fac: 0 player, 1 enemy, 2/3 scenario player/enemy, 4 unassigned, 5 other)\n");
 }
 
+// --------------------------------------------------------------------- C ABI
+//
+// The command functions above are `static` and main() is the only caller. The
+// app needs to call them, so these thin wrappers give them external linkage.
+//
+// ⛔ main() STAYS. It is how the standalone host harness drives the reader, and
+// it is the tool that verified every address in this file. Deleting it to make
+// the file "library-shaped" would throw away the only way to re-verify the
+// reader after a change. The iOS build simply does not compile main(): see
+// scripts/core-sources.sh, which lists this file's sources explicitly.
+//
+// `extern "C"` because fe_adapter.cpp is C++ and declares these extern "C";
+// without the matching linkage the symbols would not be found at the final link.
+extern "C" {
+
+void fe_cmd_where_am_i(void) { cmdWhereAmI(); }
+void fe_cmd_next_ally(int dir) { cmdNextAlly(dir); }
+void fe_cmd_next_enemy(int dir) { cmdNextEnemy(dir); }
+void fe_cmd_dump(void) { cmdDump(); }
+
+// True when a map is loaded. This is what the adapter's ready() gate reports: the
+// game does not initialise gMapStateManager until a map exists, so before that
+// every read is meaningless and must not be narrated.
+bool fe_ready(void) { return ReadCursor().ok; }
+
+} // extern "C"
+
+// ⛔ main() IS THE STANDALONE HARNESS AND IS EXCLUDED FROM THE APP BUILD.
+//
+// This file is compiled twice for two different purposes:
+//   * as `Vendor/fe_access`, the host harness that VERIFIED every address used
+//     here — it owns main() and drives the reader against a real ROM;
+//   * into libpokecore.a for iOS, where a second main() would clash with the
+//     app's and where fe_adapter.cpp calls the C ABI wrappers above instead.
+//
+// The guard is explicit rather than relying on the build to strip a symbol: a
+// silent duplicate main is a link error whose message names the linker, not this
+// file.
+#ifndef FE_NO_MAIN
 int main(int argc, char** argv)
 {
     const char* rom = argv[1];
@@ -554,8 +638,8 @@ int main(int argc, char** argv)
     PokeCore* core = poke_create();
     // SAVE=<path> loads in-chapter progress; needed to reach a map that has enemies.
     const char* savePath = getenv("SAVE");
-    if (!poke_load_rom(core, rom, savePath)) { printf("load fail: %s\n", poke_last_error(core)); return 1; }
-    if (savePath) printf("[save] loaded %s\n", savePath);
+    if (!poke_load_rom(core, rom, savePath)) { FeLog("load fail: %s\n", poke_last_error(core)); return 1; }
+    if (savePath) FeLog("[save] loaded %s\n", savePath);
     melonDS::NDS* nds = poke_debug_nds(core);
     gRam = nds->MainRAM;
     {
@@ -565,7 +649,7 @@ int main(int argc, char** argv)
         s += "\nlocal n=0\nwhile true do n=n+1; emu.frameadvance() end\n";
         poke_set_script(core, s.c_str());
     }
-    if (!poke_start(core)) { printf("start fail: %s\n", poke_last_error(core)); return 1; }
+    if (!poke_start(core)) { FeLog("start fail: %s\n", poke_last_error(core)); return 1; }
 
     struct K { long f; int b; int d; };
     std::vector<K> keys;
@@ -587,18 +671,19 @@ int main(int argc, char** argv)
     size_t ki = 0;
     for (long f = 0; f < frames; f++) {
         while (ki < keys.size() && keys[ki].f == f) { poke_set_button(core, keys[ki].b, keys[ki].d != 0); ki++; }
-        if (!poke_frame(core)) { printf("stopped at %ld\n", f); break; }
+        if (!poke_frame(core)) { FeLog("stopped at %ld\n", f); break; }
     }
 
     // The milestone: the state the game is ACTUALLY in at the end of the plan.
     cmdDump();
-    printf("\n--- accessibility commands ---\n");
-    printf("Where am I?  -> "); cmdWhereAmI();
-    printf("Next enemy   -> "); cmdNextEnemy(+1);
-    printf("Next ally    -> "); cmdNextAlly(+1);
-    printf("Next ally    -> "); cmdNextAlly(+1);
-    printf("Next enemy   -> "); cmdNextEnemy(+1);
+    FeLog("\n--- accessibility commands ---\n");
+    FeLog("Where am I?  -> "); cmdWhereAmI();
+    FeLog("Next enemy   -> "); cmdNextEnemy(+1);
+    FeLog("Next ally    -> "); cmdNextAlly(+1);
+    FeLog("Next ally    -> "); cmdNextAlly(+1);
+    FeLog("Next enemy   -> "); cmdNextEnemy(+1);
 
     poke_destroy(core);
     return 0;
 }
+#endif  // FE_NO_MAIN
