@@ -88,6 +88,13 @@ copy "wsl.sh"
 # experiment plans are documentation of how findings were made
 copy "fe/plans"
 
+# The host probes live directly in fe/ (they are instruments, not plans). Only
+# fe/plans was staged, so every probe — including the ones that verified the Fire
+# Emblem reader — was silently dropped from the published tree.
+for f in dbz_probe.cpp; do
+  copy "fe/$f"
+done
+
 # docs
 copy "docs"
 
