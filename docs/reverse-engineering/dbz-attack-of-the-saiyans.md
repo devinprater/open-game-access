@@ -300,6 +300,78 @@ plausibility. This is the cheapest outstanding experiment and it settles it.
 0x20 too high**. With the correct base the triples sit at `+0x1F8` and `+0x208`. Any
 offset quoted from that earlier run is shifted — re-measure before relying on it.
 
+## ✅ THE ACTIVE PARTY IS FOUND — a NULL-terminated pointer list at `0x020CC774`
+
+```
+[+0] 0x020CC774 -> 0x020CDD44   rec2 + 0x158   = Piccolo
+[+1] 0x020CC778 -> 0x020CDF90   rec3 + 0x158   = Krillin
+[+2] 0x020CC77C -> 0x020CE1DC   rec4 + 0x158   = Tien
+[+3] 0x020CC780 -> 0x00000000   <- NULL terminator
+```
+
+**This is the structure the whole search was for.** Everything about it is checkable:
+
+- It is a **NULL-terminated pointer array** — the canonical party-list shape, and
+  exactly the hypothesis the earlier pointer hunt looked for. That hunt searched for
+  pointers to the record *base* or to the *name* field and found none; the pointers
+  actually aim at **`rec + 0x158`**, which is why it was missed.
+- **The code references `0x020CC774` 75 times**, every reference 4-aligned (ARM
+  literal-pool shape). No coincidence produces that.
+- Its contents are a **different set from the static `+0x180` chain** (there:
+  `[2,3,4,5,6,7,8,0]` = all 8 characters in order). This list holds **only 3** and
+  is terminated — the distinction between "every character in the game" and "the
+  characters currently in use" that the earlier roster analysis predicted.
+- The list is bracketed by zeros both before `[+0]` and after the terminator, and
+  the next bytes (`0x020CC794 = 0x00030003`) look like a separate flag word — so the
+  array is a real, bounded field, not a coincidental run.
+
+### ⛔ What is NOT yet confirmed
+
+- **Which character is actively fielded.** `0x020CC774` is the party array, but the
+  pointer targets and their scalar fields need an in-game change to interpret.
+  Reading `+0x1F8`/`+0x208` *relative to the pointer* lands outside the member's
+  data (the pointer aims 0x158 into a `0x24C` record), so the member's own stat
+  fields sit at known offsets **from the record base**, not from the pointer.
+- **Whether this is the active battle party or the "selected for the next fight"
+  list.** Both are plausible for a 3-entry terminated array. Changing party members
+  in-game and re-reading settles it — the next experiment, and now a cheap one.
+
+⛔ **Do not narrate from this list yet.** It is located and structurally sound;
+its semantics are one experiment away, not zero.
+
+## ✅ The method that found it: reference density, not value plausibility
+
+Both earlier RAM searches failed because they guessed at **values** — "a plausible
+integer" (348 hits of graphics noise) and "a pointer to a record base" (0 hits).
+Neither asked what the *code* actually uses.
+
+An ARM program names its globals a different way: the address sits in a **literal
+pool** and is loaded with `LDR Rn, [pc, #imm]`. Those literals are **4-byte aligned
+and live in the code region**. Counting how many times each data address appears as
+an aligned u32 *inside code* measures how central it is.
+
+`scripts/oga-dbz-globals.py` does exactly this, and it returned 17 globals at ≥12
+references:
+
+```
+0x020D2124  x256  24/64 non-zero   first4=0x020D2128
+0x020CCA20  x126  ZERO-FILLED
+0x020CE8C0  x87   ZERO-FILLED
+0x020CC774  x75   14/64 non-zero   first4=0x020CDD44   <- THE PARTY ARRAY
+0x020CC780  x73   2/64 non-zero
+0x020CC770  x70   14/64 non-zero   first4=0x00000000   (sibling of the party array)
+0x0227A000  x46   64/64 non-zero   first4=0x99999999   (graphics fill)
+0x02360000  x30   52/64 non-zero   first4=0x50414D64   ("dMAP" — a map/asset header)
+...
+```
+
+⛔ **The generalisable rule: stop asking "which value looks like HP"; ask "which
+address does the code actually use".** Reference density is evidence; plausibility
+is not. This is the same lesson as the string scan, applied to code instead of data.
+
+⛔ **`0x020CC770` is 4 bytes before the party array and referenced 70 times** —
+almost certainly its header or count. Worth reading alongside it.
+
 ## ✅ Where the search actually stands
 
 **Confirmed by measurement:**
