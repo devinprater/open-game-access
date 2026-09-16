@@ -53,7 +53,7 @@ accessibility work needs to boot a ROM, run frames, send input, and read RAM
 `PPSSPPWindows64.exe --help` both block waiting for a GUI. Always wrap emulator
 probing in `timeout <n>`, or you lose the whole command budget to a hung window.
 
-## RetroArch: 7 cores installed, CLI verified, run NOT yet proven
+## RetroArch: 7 cores installed, and a real run VERIFIED
 
 **Installed and verified present** (correct sizes, readable from Windows):
 
@@ -70,37 +70,72 @@ mgba_libretro.dll                2,955,998   GB / GBC / GBA
 Those come from the libretro buildbot, not scoop:
 `https://buildbot.libretro.com/nightly/windows/x86_64/latest/<core>_libretro.dll.zip`
 
-RetroArch's own `cores` directory is a symlink to scoop's persist dir, so cores
-dropped there are picked up.
+RetroArch's `cores` directory is a symlink into scoop's persist dir, and it
+resolves for the native binary, so cores dropped there are picked up.
 
-### The CLI flags that matter (from `retroarch --help`)
+### ✅ Verified: it loads a core, boots a real ROM, and screenshots
 
-- **`--max-frames=N`** — run N frames then exit. This is the headless frame driver.
+```
+retroarch.exe --max-frames=120 --max-frames-ss \
+  --max-frames-ss-path="C:/.../ra-proof.png" \
+  -L "C:/.../snes9x_libretro.dll" \
+  "C:/.../Final Fight 2 (USA).sfc"
+    exit=0   elapsed=40s
+    screenshot: True (2277 bytes)
+```
+
+The verbose log confirms the full path works:
+
+```
+[Content] Loading content file: "...Final Fight 2 (USA).sfc"
+[libretro INFO] "FINAL FIGHT 2" (NTSC) version 1.0
+ROM: LoROM: 16 Mbit, SRAM: 0 Kbit
+ID: , CRC32: 8c37ff55, Checksum OK
+[Core] Geometry: 256x224, Aspect: 1.333, FPS: 60.10, Sample rate: 32040.00 Hz
+[D3D11] Device created (Feature Level: 11.0)
+```
+
+So **RetroArch is drivable**: give it a core, a ROM, a frame budget, and a
+screenshot path, and it exits 0 with a picture. That makes SNES, Genesis, N64,
+PS1, Dreamcast and (redundantly) GB/GBA/NDS reachable through one harness.
+
+### ⛔ The `-L` path must be a NATIVE Windows path
+
+This is what cost three failed runs. `-L /c/Users/.../snes9x_libretro.dll` (MSYS
+style, which is what bash variables naturally produce here) **fails silently** with
+exit 1 and an *empty log*. `-L "C:/Users/.../snes9x_libretro.dll"` works. The ROM
+path likewise. Same trap as elsewhere in this project: MSYS path conversion is off,
+so pass `C:/...` to native binaries.
+
+### ⛔ `--headless` does not exist; `--max-frames` is real-time paced
+
+- `--headless` → `unrecognized option '--headless'` on 1.22.2.
+- **`--max-frames=N` costs roughly N/60 seconds of wall clock.** 120 frames took
+  ~40 s (≈20% of full speed in this configuration). **600 frames exceeded a 120 s
+  timeout.** Budget runs accordingly, or disable vsync / use a faster video driver
+  before asking for long runs.
+- A 120-frame screenshot showed RetroArch's own OSD element but a **black game
+  frame** — 120 frames is not enough for this title to draw. Screenshot later in
+  the run (or after more frames) before concluding a core renders nothing.
+
+### Flags that matter (from `retroarch --help`)
+
+- **`--max-frames=N`** — run N frames then exit. The headless frame driver.
 - **`--max-frames-ss` / `--max-frames-ss-path=FILE`** — screenshot at the end of
-  `--max-frames`. Combined, these are a scriptable "run N frames and give me a
-  picture" — exactly what a probe needs.
+  `--max-frames`. Together: scriptable "run N frames, give me a picture".
 - **`--accessibility`** — *"Enables accessibility for blind users using
   text-to-speech."* ⛔ **RetroArch ships its own screen-reader mode.** Worth
-  investigating in its own right: it may already narrate its menus, which is work
-  this project would otherwise redo per emulator.
-- `-L <core>` — load a specific core; `-c FILE` — config.
-
-⛔ **`--headless` DOES NOT EXIST on this build** (1.22.2): it fails with
-`unrecognized option '--headless'`. Do not plan around it.
-
-⚠️ **A `--max-frames` run still exited 1 with an EMPTY log**, which is what a GUI
-app does when it has no window to draw into. So the flags are present and correct
-but a real run is **not yet proven**. Next step is either a virtual display or
-checking whether the exit-1 is a config/save-dir problem rather than a window one
-— an empty log means it failed before logging, not that it refused the core.
+  investigating in its own right: it may already narrate its own menus.
+- `-L <core>` — load a specific core; `-c FILE` — config; `--verbose` — the log
+  that makes all of the above visible.
 
 ## The path that actually works per system
 
 1. **mGBA `--script`** stays the GB/GBA path — already verified.
 2. **melonDS via the in-repo C API** stays the NDS path — already verified.
-3. **RetroArch, once the run is proven**, covers SNES, Genesis, N64, PS1 and
-   Dreamcast through one integration. That is five systems for the price of one
-   harness, which is why it is worth the extra step.
+3. **RetroArch** covers SNES, Genesis, N64, PS1, Dreamcast — **now verified to
+   boot a ROM end-to-end**, with the caveat that frame throughput is slow and needs
+   tuning before long scripted runs.
 4. **PINE for PS2** — proven by the BT2 mod; avoids base-pointer chasing.
 5. **Dolphin `-b -e`** for GameCube/Wii.
 
@@ -148,20 +183,24 @@ standalone scoop package; it only comes through a RetroArch core.
 |---|---|---|
 | NDS | melonDS (+Lua) | ✅ verified |
 | GB / GBC / GBA | mGBA 0.11 dev | ✅ verified |
-| SNES | Snes9x, RetroArch core | ⚠️ core ready, harness unproven |
-| Genesis | RetroArch core | ⚠️ as above |
-| N64 | RetroArch core | ⚠️ as above |
-| PS1 | DuckStation, RetroArch core | ⚠️ unverified |
+| SNES | RetroArch `snes9x` | ✅ **verified** — boots, screenshot produced |
+| Genesis | RetroArch `genesis_plus_gx` | ⚠️ core ready, same harness |
+| N64 | RetroArch `mupen64plus_next` | ⚠️ core ready, same harness |
+| PS1 | DuckStation, RetroArch `mednafen_psx_hw` | ⚠️ core ready, unverified |
+| Dreamcast | RetroArch `flycast` | ⚠️ core ready, unverified |
 | PS2 | PCSX2 (+BIOS) | ⚠️ PINE proven elsewhere |
 | PSP | PPSSPP | ⚠️ unverified |
 | GameCube / Wii | Dolphin | ⚠️ `-b -e` standard |
-| Dreamcast | Flycast, RetroArch core | ⚠️ unverified |
 | 3DS | Azahar | ⚠️ unverified |
 
-**Two systems are proven drivable. Nine have a core and a candidate mechanism
-but no verified harness.** The distinction matters: a core install is a
-twenty-minute job, while proving a harness is the real work — and the backlog
-ranking should be read with that in mind.
+**Three systems are now proven drivable end-to-end (NDS, GB/GBA, SNES), and
+RetroArch's harness generalises to Genesis, N64, PS1 and Dreamcast through the
+same code path.** The remaining unknowns are PCSX2, PPSSPP, Dolphin and Azahar,
+which each need their own mechanism.
+
+⛔ **Do not read "core installed" as "system supported".** The install is the easy
+part; proving a harness is the work. RetroArch took three failed runs before it
+was understood — and the failures were a *path* problem, not a capability problem.
 
 ## Why this matters beyond convenience
 
