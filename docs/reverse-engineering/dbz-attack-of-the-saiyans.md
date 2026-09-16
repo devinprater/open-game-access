@@ -300,7 +300,66 @@ plausibility. This is the cheapest outstanding experiment and it settles it.
 0x20 too high**. With the correct base the triples sit at `+0x1F8` and `+0x208`. Any
 offset quoted from that earlier run is shifted — re-measure before relying on it.
 
-## ✅ THE ACTIVE PARTY IS FOUND — a NULL-terminated pointer list at `0x020CC774`
+## ⚠️ CORRECTION: the pointer array at `0x020CC774` is NOT the active party
+
+An earlier revision of this document called `0x020CC774` "THE ACTIVE PARTY". **Direct
+evidence contradicts that**, and the contradiction was found by checking the screen at
+the same frame the RAM was read — the rule this project keeps having to relearn.
+
+**Screenshot at frame 12000** (`docs/evidence/dbz-12000-now.png`): the game is at its
+**opening** — Goku's house interior, Goku visible on screen, a status gauge at the
+bottom. Party members at this point: **Goku, alone.**
+
+**What the array actually held at that same moment:**
+
+```
+0x020CC774 -> Piccolo
+0x020CC778 -> Krillin
+0x020CC77C -> Tien
+0x020CC780 -> NULL
+```
+
+Piccolo, Krillin and Tien are **not in the party at the start of the game.** So the
+array is real but its contents do not track the current party.
+
+### What the array actually is (measured, not assumed)
+
+The structure itself is solid and unchanged:
+
+- a **NULL-terminated pointer array**, 4-byte pointers, 4 slots
+- **referenced 75 times by code**, every reference 4-aligned (ARM literal-pool shape)
+- brackets: a leading zero word at `0x020CC770`, and `0x00030003` at `0x020CC794`
+  immediately after the terminator — plausibly a pair of counts (3 entries, 3 active)
+- pointers aim at `rec + 0x158`, i.e. **into** a `0x24C`-stride character record
+
+So it is **some character list the engine uses heavily**, holding three characters
+that are not the player's current party. Candidates:
+
+1. **A preset/template** — a default or story-defined lineup the engine pre-populates.
+2. **A "battle party" configured ahead of the next fight** rather than the walking party.
+3. **Leftover/uninitialised engine state** from startup.
+
+⛔ **Which one is not yet known, and the distinction matters enormously for an
+adapter.** Narrating "Piccolo, Krillin, Tien" at the opening of the game would be
+*worse* than saying nothing, because it is confidently wrong.
+
+### ⛔ The lesson, stated plainly
+
+**A structure being real does not make its meaning correct.** The array is
+architecturally verified (pointer list, high code reference count, clean
+termination) — and still did not mean what it looked like. High-confidence structure
+plus an unchecked interpretation is how a plausible false finding survives.
+
+**Check the RAM against the screen at the same frame.** That is now three separate
+occasions in this project where the picture overturned a confident numeric
+conclusion — and this is the first time it caught the error *before* it shipped.
+
+## ❌ Superseded claim (kept for the record)
+
+The text below was written before the screenshot check and asserted this array was
+the active party. It is retained only so the reasoning that produced a wrong answer
+stays visible. **Do not act on it.**
+
 
 ```
 [+0] 0x020CC774 -> 0x020CDD44   rec2 + 0x158   = Piccolo
