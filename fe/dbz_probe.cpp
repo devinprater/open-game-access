@@ -461,6 +461,102 @@ int main(int argc, char** argv)
         printf("     (take damage, re-read) — never a plausible-looking number.\n");
     }
 
+    // ------------------------------------------------------- roster vs party
+    //
+    // ⛔ ALL FOUR CHARACTERS HAVING STATS IS A RED FLAG, NOT A RESULT. In this game
+    // Goku starts ALONE — Gohan, Piccolo and Krillin join later. If all four records
+    // carry populated stats from frame 0, this table may be the character DATABASE
+    // (a template roster) rather than the ACTIVE PARTY. Those are different things
+    // and the adapter needs the party.
+    //
+    // Two cheap tests separate them, and neither needs a battle:
+    //
+    //   1. A per-record flag. A party-membership field would be set for Goku and
+    //      clear for the rest at this point in the game. Dump the record head.
+    //   2. Duplicate hunt. If these are base/template values, the LIVE value of
+    //      Goku's HP should ALSO exist somewhere else (the real party copy). Search
+    //      all of main RAM for the exact u32 and see where else it appears.
+    //
+    // ⛔ Do not call this "the party array" until one of these distinguishes them.
+    printf("\n=== roster vs party: record heads + duplicate hunt ===\n");
+    {
+        const uint32_t NAMES[4] = {0x020CD774, 0x020CD9C0, 0x020CDC0C, 0x020CDE58};
+        const char*   NMS[4]    = {"Goku", "Gohan", "Piccolo", "Krillin"};
+        for (int r = 0; r < 4; r++) {
+            uint32_t n = NAMES[r];
+            printf("  %-8s head ", NMS[r]);
+            for (uint32_t o = 0; o < 0x30; o++) printf("%02X", ProbeRead(n + o, 1));
+            printf("\n");
+        }
+        // duplicate hunt for record 0's candidate stat value across main RAM
+        uint32_t target = ProbeRead(NAMES[0] + 0x1D8, 4);
+        printf("\n  hunting 0x%08X (value %u, Goku +1D8) across 0x02000000..0x02400000\n",
+               target, target);
+        if (target) {
+            uint32_t hits = 0;
+            for (uint32_t a = 0x02000000; a < 0x02400000; a += 4) {
+                if (ProbeRead(a, 4) == target) {
+                    if (hits < 24) printf("      0x%08X\n", a);
+                    hits++;
+                }
+            }
+            printf("      %u occurrence(s)\n", hits);
+        } else {
+            printf("      value is 0 — nothing to hunt\n");
+        }
+    }
+
+    // ------------------------------------------------------- roster vs party (wide)
+    //
+    // ⛔ HOW MANY RECORDS ARE THERE? That question settles "party array vs character
+    // database" far more cheaply than a battle. The 4 KB scan found exactly four
+    // names, but it stopped at 0x020CE000 — and the four records starting at
+    // 0x020CD754 already run to 0x020CE084, i.e. PAST that boundary. So the earlier
+    // scan could have been truncated exactly where the next name would be.
+    //
+    // Scan a much wider window for ASCII names:
+    //   * a full character DATABASE would hold every playable character in the game
+    //     (Yamcha, Tien, Chiaotzu, ...) — many records;
+    //   * an active PARTY array holds only the current party (Goku alone early on).
+    //
+    // ⛔ This is the question the adapter actually depends on. Reading template stats
+    // as if they were live party HP would narrate numbers the player is not using.
+    printf("\n=== wide string scan: how many character records exist? ===\n");
+    {
+        uint32_t found = 0, first = 0, last = 0;
+        for (uint32_t a = 0x020C0000; a < 0x020D0000; a++) {
+            uint8_t f = ProbeRead(a, 1);
+            if (f < 0x41 || f > 0x5A) continue;                 // must START uppercase
+            uint8_t p = (a > 0x020C0000) ? ProbeRead(a - 1, 1) : 0;
+            if (p >= 0x41 && p <= 0x7A) continue;               // must be the run start
+            char s[40]; int n = 0; bool allname = true;
+            for (int i = 0; i < 39; i++) {
+                uint8_t v = ProbeRead(a + i, 1);
+                if (v >= 0x61 && v <= 0x7A) { s[n++] = (char) v; continue; }  // a-z
+                if (v == 0x20 && n > 0)     { s[n++] = ' ';      continue; }  // space
+                if (v >= 0x41 && v <= 0x5A && i == 0) { s[n++] = (char) v; continue; }
+                if (v == 0) break;
+                allname = false; break;
+            }
+            s[n] = 0;
+            if (n >= 3 && n <= 20 && allname) {
+                printf("  0x%08X  \"%s\"\n", a, s);
+                if (!first) first = a;
+                last = a;
+                found++;
+            }
+        }
+        printf("  -- %u name-like string(s)\n", found);
+        if (found) {
+            printf("  first 0x%08X  last 0x%08X  span %u bytes\n",
+                   first, last, last - first + 1);
+            if (found <= 8)
+                printf("  ⇒ few records: consistent with an ACTIVE PARTY array\n");
+            else
+                printf("  ⇒ many records: likely the character DATABASE, not the party\n");
+        }
+    }
+
     // ------------------------------------------------------- structure scan
     //
     // ⛔ WHEN THE PUBLISHED ADDRESSES READ ZERO BUT THE GAME CLEARLY HAS THE STATE
