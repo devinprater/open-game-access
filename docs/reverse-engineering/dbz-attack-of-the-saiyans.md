@@ -300,59 +300,64 @@ plausibility. This is the cheapest outstanding experiment and it settles it.
 0x20 too high**. With the correct base the triples sit at `+0x1F8` and `+0x208`. Any
 offset quoted from that earlier run is shifted — re-measure before relying on it.
 
-## ⚠️ CORRECTION: the pointer array at `0x020CC774` is NOT the active party
+## ⚠️ CORRECTION TO THE CORRECTION: the array at `0x020CC774` IS live state
 
-An earlier revision of this document called `0x020CC774` "THE ACTIVE PARTY". **Direct
-evidence contradicts that**, and the contradiction was found by checking the screen at
-the same frame the RAM was read — the rule this project keeps having to relearn.
+An earlier revision called `0x020CC774` "THE ACTIVE PARTY". A screenshot showed the
+game at its **opening with Goku alone**, so that was retracted — the array held
+Piccolo, Krillin and Tien, who are not yet recruited.
 
-**Screenshot at frame 12000** (`docs/evidence/dbz-12000-now.png`): the game is at its
-**opening** — Goku's house interior, Goku visible on screen, a status gauge at the
-bottom. Party members at this point: **Goku, alone.**
-
-**What the array actually held at that same moment:**
+**The retraction was also wrong.** The array is not a static template. Two runs at
+different frame counts prove it:
 
 ```
-0x020CC774 -> Piccolo
-0x020CC778 -> Krillin
-0x020CC77C -> Tien
-0x020CC780 -> NULL
+f=2000  (title screen) : 0x020CD660 0x020CD8AC 0x020CDAF8 0x020CDD44 0x020CDF90 0x020CE1DC
+f=12000 (in game)      : 0x020CDD44 0x020CDF90 0x020CE1DC 0x00000000
+count word @0x020CC794 : 0x00060003 (f=2000)   ->   0x00030003 (f=12000)
 ```
 
-Piccolo, Krillin and Tien are **not in the party at the start of the game.** So the
-array is real but its contents do not track the current party.
+Decoded against the character records (`rec = (ptr - 0x020CD754) / 0x24C`):
 
-### What the array actually is (measured, not assumed)
+| f=2000 (title screen) | f=12000 (in game) |
+|---|---|
+| rec-1 +0x158 | — |
+| Goku | — |
+| Gohan | — |
+| Piccolo | **Piccolo** |
+| Krillin | **Krillin** |
+| Tien | **Tien** |
 
-The structure itself is solid and unchanged:
+**Facts established by measurement:**
 
-- a **NULL-terminated pointer array**, 4-byte pointers, 4 slots
-- **referenced 75 times by code**, every reference 4-aligned (ARM literal-pool shape)
-- brackets: a leading zero word at `0x020CC770`, and `0x00030003` at `0x020CC794`
-  immediately after the terminator — plausibly a pair of counts (3 entries, 3 active)
-- pointers aim at `rec + 0x158`, i.e. **into** a `0x24C`-stride character record
+1. **The array is live state.** It changes with game progression — 6 entries at the
+   title screen, 3 in game. A static template would be byte-identical across runs.
+2. **`0x020CC794` is a count word.** Its **low u16 equals the number of entries**
+   (`0x0006` → 6 entries, `0x0003` → 3 entries). The high u16 stayed `3` in both runs.
+3. **The array is a sliding window over the character records.** In both snapshots
+   the *last* entry is Tien (`rec4+0x158`) and the entries are consecutive records.
+   Only the **start** of the window moves — so this looks like a rotating or
+   consumed-from-the-front list, not a fixed roster.
+4. **The rest of the character table is unchanged** between the two runs (names,
+   `+0x180` chain and the stat fields at `+0x1F8`/`+0x208` are byte-identical).
 
-So it is **some character list the engine uses heavily**, holding three characters
-that are not the player's current party. Candidates:
+⛔ **What is still NOT established: what the window means.** It is a
+code-referenced (75×), live, counted list of characters that does not match the
+player's party at either snapshot. Do not narrate from it. Plausible shapes — a
+load/initialisation queue, a "characters present in the scene" list, or a
+battle-roster window — are all still open, and picking one without evidence is
+exactly the error that produced the two contradictory claims above.
 
-1. **A preset/template** — a default or story-defined lineup the engine pre-populates.
-2. **A "battle party" configured ahead of the next fight** rather than the walking party.
-3. **Leftover/uninitialised engine state** from startup.
+### ⛔ The lesson, and it is about method
 
-⛔ **Which one is not yet known, and the distinction matters enormously for an
-adapter.** Narrating "Piccolo, Krillin, Tien" at the opening of the game would be
-*worse* than saying nothing, because it is confidently wrong.
+**Two confident, opposite conclusions came from the same data — both from reasoning
+about a snapshot instead of measuring change.** The first assumed a meaning; the
+second assumed "doesn't match the party ⇒ not live". Neither was tested. One extra
+run at a different frame count settled both.
 
-### ⛔ The lesson, stated plainly
+**The generalisable rule: to learn what a field DOES, measure it across a state
+change — do not infer its meaning from one snapshot.** Comparing two runs of the
+same session at different frames is the cheapest such change, and it needs no input
+scripting at all:
 
-**A structure being real does not make its meaning correct.** The array is
-architecturally verified (pointer list, high code reference count, clean
-termination) — and still did not mean what it looked like. High-confidence structure
-plus an unchecked interpretation is how a plausible false finding survives.
-
-**Check the RAM against the screen at the same frame.** That is now three separate
-occasions in this project where the picture overturned a confident numeric
-conclusion — and this is the first time it caught the error *before* it shipped.
 
 ## ❌ Superseded claim (kept for the record)
 
