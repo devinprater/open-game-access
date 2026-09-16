@@ -398,6 +398,73 @@ N+2 lines, and check whether this region grew by two records. If it did, the cur
 elsewhere and should be hunted in the engine state block (`0x089B5E34` and the config
 sections), not in this region.
 
+
+## ⭐ The BUTTON SWEEP — the input question finally settled by measurement
+
+The most expensive assumption in this whole investigation was "the game is ignoring my
+input", and it had never actually been tested. `scripts/psp-try-buttons.mjs` settles it:
+press each button once, hash the screen before and after, report which presses changed it.
+
+**Result:**
+
+```
+cross      CHANGED      triangle   CHANGED
+up         CHANGED      down       CHANGED
+left       CHANGED      right      CHANGED
+ltrigger   CHANGED      rtrigger   CHANGED
+start      no change    select     no change    square  no change
+```
+
+⛔ **INPUT WORKS.** Eight of eleven buttons produce a visible screen change. So every
+earlier "nothing happened" was a wrong-button or wrong-state problem, **not** a tooling
+failure. Any future null result should be re-checked with this sweep before being
+attributed to the game.
+
+⛔ **`left` / `right` SCROLL THE BACKLOG.** Earlier this document recorded "the backlog
+does not scroll (up/down do nothing)" — that was wrong: up/down move something else and
+`left`/`right` are the backlog's page controls. This is the **controlled variable** the
+cursor hunt needs: a known, repeatable change in which lines are displayed.
+
+## The three text regions, now distinguished
+
+| region | changes? | what it is |
+|---|---|---|
+| `0x08AEA000`–`0x08AF3000` | **never** (0 bytes, every dump) | the whole **script file**, loaded once |
+| `0x09B31000`+ | **between runs, not within one** | the **current scene's** lines, in display order |
+| `0x089B5E34` | (pointer) | engine global holding the config pointer |
+
+The scene region holds **different** content from the script file — real later-scene
+dialogue:
+
+```
+[NAME]Itaru|[TXT]Now? But the party's almost over.
+[NAME]Mayuri|[TXT]Are you okay, Okarin?
+[NAME]Luka|[TXT]O-Okabe-san...
+[NAME]Kurisu|[TXT]Shut up, Okabe!
+```
+
+That is a later party scene, **not** the paper-cups scene still resident at `0x08AEA000`.
+So `0x09B31000` is scene-local storage loaded per scene — which is consistent with it
+being where the displayed lines live, and therefore the right place to look for the read
+position once a scene can be made to advance.
+
+⛔ **It did not change while scrolling the backlog within a run**, so the backlog read
+position is NOT in this region. Either it is elsewhere, or the backlog re-reads a fixed
+list per page. The next test is to scroll the backlog and look for a small changing value
+(something in 0..426, the count of `81 68` end-of-box markers in the region) across the
+`left`/`right` presses — now that there is a controlled variable that provably moves.
+
+## Tooling added this round
+
+| script | purpose |
+|---|---|
+| `psp-try-buttons.mjs` | **press every button, report which change the screen** — settles "does input work" |
+
+⛔ **AND A NOTE ON THE LAST NULL RESULT.** A previous round ran a "controlled" sequence
+and got a null — because the dialogue had never advanced, so nothing moved. The fix is
+not a better diff, it is **proving the variable moved first**. `psp-try-buttons.mjs`
+exists precisely so that assumption is never made again.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
