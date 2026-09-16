@@ -1,0 +1,40 @@
+=== FOOTSTEPS: CONFIRMED WORKING (observable-effect reimplementation) ===
+
+The reader's footstep hook could never be triggered by intercepting execution (see
+HOOK-FINDING.txt). It is now driven by DETECTING THE EFFECT instead: the callback fires when the
+reader's own get_player_xy() reports a position change.
+
+MEASURED, live FireRed, real mGBA 0.11 (dev):
+
+  player position  : x 6, y 6  ->  x 10, y 8   (run 1, 11 cues)
+                     x 6, y 6  ->  x 11, y 8   (run 2,  7 cues)   <- reproduced on the CLEAN shim
+  audio cues       : 11 and 7 recorded, respectively
+  cue sample       : path=...\lua\sounds\gba\s_default.wav  pan=0  vol=30
+
+  vol=30 is exactly what play_footsteps() passes:
+
+      play_tile_sound(get_block_type(blocks[player_y][player_x]), 0, 30, false)
+
+  and each cue names a real tile-sound WAV. So the reader's footstep callback IS running on
+  player movement, and emitting the correct positional cue.
+
+=== HOW THE BLOCKER WAS CLEARED (worth remembering) ===
+For several runs the player would not move at all and the position stayed pinned at x6,y6,
+which looked like the movement feature failing. It was a MODAL DIALOGUE:
+
+      "JANNE played with the NES.  [v]"
+
+The player stood next to an interactive object, so every A press RE-TRIGGERED it and the box
+never closed. Dismissing with **B ONLY** (B cannot activate objects) cleared it, and the very
+next walk moved the player from x6,y6 to x10,y8.
+
+Two lessons, both already recorded in the skill:
+  1. A modal dialogue silently swallows movement input - screenshot before blaming a feature.
+  2. Confirm input DELIVERY separately from input EFFECT: getKeys() proved the pad was held,
+     but only a position change proves the game acted on it.
+
+=== WHAT REMAINS UNVERIFIED ===
+  * Whether the cues are AUDIBLE to a player. oga_audio.lua is a RECORDING stub: it captures
+    path/pan/volume but plays nothing. Real positional audio needs a host-side sink.
+  * The other hotkeys (P pathfind, H battle health, J/K/L item cycling, camera keys) - each
+    needs specific game state.

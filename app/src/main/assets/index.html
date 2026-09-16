@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pokémon Access</title>
+<style>
+  body { font-family: sans-serif; font-size: 22px; margin: 2em; background: #111; color: #eee; }
+  h1 { font-size: 1.6em; }
+  button { font-size: 1.2em; padding: 0.8em 1.4em; margin: 0.6em 0.3em; }
+  #status { margin-top: 1.2em; color: #9cf; min-height: 3em; }
+</style>
+</head>
+<body>
+  <h1>Pokémon Access</h1>
+  <p>Accessible Pokémon Black/White player. Load a ROM, then start the game with the accessibility script.</p>
+
+  <button id="pickRom">Select ROM</button>
+  <button id="startGame" disabled>Start Game</button>
+
+  <div id="status" role="status" aria-live="polite">No ROM loaded.</div>
+
+<script>
+  var statusEl = document.getElementById('status');
+  var pickBtn = document.getElementById('pickRom');
+  var startBtn = document.getElementById('startGame');
+  var romLoaded = false;
+
+  function say(msg) {
+    statusEl.textContent = msg;
+    if (window.hermes_tts && hermes_tts.speak) hermes_tts.speak(msg, 'interrupt');
+  }
+
+  pickRom.addEventListener('click', function () {
+    // TODO: wire to the emulator core's ROM picker (native intent).
+    romLoaded = true;
+    startBtn.disabled = false;
+    say('ROM slot ready. Press start to load the game and the accessibility script. ' +
+        'Note: emulator core integration is not compiled into this test build.');
+  });
+
+  startBtn.addEventListener('click', function () {
+    if (!romLoaded) { say('Select a ROM first.'); return; }
+    say('Starting game. The accessibility loader will speak one startup line, then only game content.');
+    // Native bridge: LuaScriptRunner.loadScript(assets, "lua/main.lua") — wired in the full build.
+  });
+
+  say('Pokémon Access ready. Press select R O M to choose a game.');
+</script>
+</body>
+</html>

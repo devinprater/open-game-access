@@ -1,0 +1,205 @@
+# Fire Emblem: Shadow Dragon (USA) — play the Prologue deliberately, step by step.
+#
+# ⛔ WHY THIS PLAN IS SHAPED THIS WAY.
+# The Prologue is a chain of scripted movement tutorials. A pure-A mash stalls on the
+# first one ("Marth can move anywhere within the blue area") because the tutorial waits
+# for the unit to MOVE. A play plan that moves works — screenshots proved Marth can be
+# walked from (1,20) to (5,20) and the Wait menu opened — but the *next* tutorial wants
+# a different direction, and the only way to know which is to read the top screen.
+#
+# So each "beat" below is: select -> move a short distance -> confirm -> Wait -> clear
+# any popup -> end turn. Repeating beats with alternating directions walks the chain.
+# Screenshots at the end of each beat are what confirm progress; see fe-tutorial-steps.py.
+#
+# Frames are wide apart on purpose: menu transitions and text animate, and presses too
+# close together are swallowed, which looks exactly like "the game ignored the input".
+
+# ---------- boot to the first Prologue map ----------
+KEY 200 A 1
+KEY 210 A 0
+KEY 300 A 1
+KEY 310 A 0
+KEY 400 A 1
+KEY 410 A 0
+KEY 500 A 1
+KEY 510 A 0
+KEY 600 A 1
+KEY 610 A 0
+KEY 700 A 1
+KEY 710 A 0
+KEY 800 A 1
+KEY 810 A 0
+KEY 900 A 1
+KEY 910 A 0
+KEY 1000 A 1
+KEY 1010 A 0
+KEY 1100 A 1
+KEY 1110 A 0
+KEY 1200 A 1
+KEY 1210 A 0
+KEY 1300 A 1
+KEY 1310 A 0
+KEY 1400 A 1
+KEY 1410 A 0
+KEY 1500 A 1
+KEY 1510 A 0
+KEY 1600 A 1
+KEY 1610 A 0
+KEY 1800 START 1
+KEY 1820 START 0
+KEY 2000 A 1
+KEY 2010 A 0
+KEY 2200 A 1
+KEY 2210 A 0
+KEY 2400 A 1
+KEY 2410 A 0
+KEY 2600 START 1
+KEY 2620 START 0
+KEY 2800 A 1
+KEY 2810 A 0
+KEY 3000 A 1
+KEY 3010 A 0
+KEY 3200 A 1
+KEY 3210 A 0
+KEY 3400 A 1
+KEY 3410 A 0
+KEY 3600 A 1
+KEY 3610 A 0
+KEY 3800 A 1
+KEY 3810 A 0
+
+# ---------- beat 1: select, move right, confirm, Wait ----------
+KEY 4000 A 1
+KEY 4020 A 0
+KEY 4200 RIGHT 1
+KEY 4220 RIGHT 0
+KEY 4400 RIGHT 1
+KEY 4420 RIGHT 0
+KEY 4600 A 1
+KEY 4620 A 0
+KEY 4800 A 1
+KEY 4820 A 0
+KEY 5000 A 1
+KEY 5020 A 0
+
+# ---------- beat 2: move right again, confirm, Wait ----------
+KEY 5200 A 1
+KEY 5220 A 0
+KEY 5400 RIGHT 1
+KEY 5420 RIGHT 0
+KEY 5600 RIGHT 1
+KEY 5620 RIGHT 0
+KEY 5800 A 1
+KEY 5820 A 0
+KEY 6000 A 1
+KEY 6020 A 0
+KEY 6200 A 1
+KEY 6220 A 0
+
+# ---------- beat 3: move up (corridor bends), confirm, Wait ----------
+KEY 6400 A 1
+KEY 6420 A 0
+KEY 6600 UP 1
+KEY 6620 UP 0
+KEY 6800 UP 1
+KEY 6820 UP 0
+KEY 7000 A 1
+KEY 7020 A 0
+KEY 7200 A 1
+KEY 7220 A 0
+KEY 7400 A 1
+KEY 7420 A 0
+
+# ---------- beat 4 ----------
+KEY 7600 A 1
+KEY 7620 A 0
+KEY 7800 UP 1
+KEY 7820 UP 0
+KEY 8000 UP 1
+KEY 8020 UP 0
+KEY 8200 A 1
+KEY 8220 A 0
+KEY 8400 A 1
+KEY 8420 A 0
+KEY 8600 A 1
+KEY 8620 A 0
+
+# ---------- beat 5: left this time ----------
+KEY 8800 A 1
+KEY 8820 A 0
+KEY 9000 LEFT 1
+KEY 9020 LEFT 0
+KEY 9200 LEFT 1
+KEY 9220 LEFT 0
+KEY 9400 A 1
+KEY 9420 A 0
+KEY 9600 A 1
+KEY 9620 A 0
+KEY 9800 A 1
+KEY 9820 A 0
+
+# ---------- beat 6 ----------
+KEY 10000 A 1
+KEY 10020 A 0
+KEY 10200 LEFT 1
+KEY 10220 LEFT 0
+KEY 10400 LEFT 1
+KEY 10420 LEFT 0
+KEY 10600 A 1
+KEY 10620 A 0
+KEY 10800 A 1
+KEY 10820 A 0
+KEY 11000 A 1
+KEY 11020 A 0
+
+# ---------- dismiss any remaining dialogue, then end turns to reach the enemy phase ----------
+KEY 11400 A 1
+KEY 11420 A 0
+KEY 11600 A 1
+KEY 11620 A 0
+KEY 11800 START 1
+KEY 11840 START 0
+KEY 12000 A 1
+KEY 12020 A 0
+KEY 12200 A 1
+KEY 12220 A 0
+KEY 12400 START 1
+KEY 12440 START 0
+KEY 12600 A 1
+KEY 12620 A 0
+KEY 12800 A 1
+KEY 12820 A 0
+KEY 13000 START 1
+KEY 13040 START 0
+KEY 13200 A 1
+KEY 13220 A 0
+KEY 13400 A 1
+KEY 13420 A 0
+KEY 13600 START 1
+KEY 13640 START 0
+KEY 13800 A 1
+KEY 13820 A 0
+KEY 14000 A 1
+KEY 14020 A 0
+KEY 14200 START 1
+KEY 14240 START 0
+KEY 14400 A 1
+KEY 14420 A 0
+KEY 14600 A 1
+KEY 14620 A 0
+KEY 14800 START 1
+KEY 14840 START 0
+KEY 15000 A 1
+KEY 15020 A 0
+KEY 15200 A 1
+KEY 15220 A 0
+KEY 15400 START 1
+KEY 15440 START 0
+
+SHOT 5150 /home/devin/fe/out/tut-b1.ppm
+SHOT 6350 /home/devin/fe/out/tut-b2.ppm
+SHOT 7550 /home/devin/fe/out/tut-b3.ppm
+SHOT 8750 /home/devin/fe/out/tut-b4.ppm
+SHOT 9950 /home/devin/fe/out/tut-b5.ppm
+SHOT 11150 /home/devin/fe/out/tut-b6.ppm
+SHOT 14300 /home/devin/fe/out/tut-end.ppm

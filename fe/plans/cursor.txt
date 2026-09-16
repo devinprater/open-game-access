@@ -1,0 +1,93 @@
+# Fire Emblem: Shadow Dragon (USA, YFEE) — cursor experiment (v2)
+#
+# ⛔ The intro skip is NOT optional and must come first: with only a few A presses
+# the game is still in the Prologue cutscene, gMapStateManager is still NULL, and
+# the whole experiment silently measures nothing. The first version of this plan
+# made exactly that mistake and reported a NULL cursor for every snapshot.
+#
+# Everything up to ~frame 3800 is the skip-intro preamble (mashed A + START, which
+# is what advances and skips cutscene text). Only after that is there a map.
+
+KEY 200 A 1
+KEY 210 A 0
+KEY 300 A 1
+KEY 310 A 0
+KEY 400 A 1
+KEY 410 A 0
+KEY 500 A 1
+KEY 510 A 0
+KEY 600 A 1
+KEY 610 A 0
+KEY 700 A 1
+KEY 710 A 0
+KEY 800 A 1
+KEY 810 A 0
+KEY 900 A 1
+KEY 910 A 0
+KEY 1000 A 1
+KEY 1010 A 0
+KEY 1100 A 1
+KEY 1110 A 0
+KEY 1200 A 1
+KEY 1210 A 0
+KEY 1300 A 1
+KEY 1310 A 0
+KEY 1400 A 1
+KEY 1410 A 0
+KEY 1500 START 1
+KEY 1520 START 0
+KEY 1600 A 1
+KEY 1610 A 0
+KEY 1700 A 1
+KEY 1710 A 0
+KEY 1800 START 1
+KEY 1820 START 0
+KEY 2000 A 1
+KEY 2010 A 0
+KEY 2200 A 1
+KEY 2210 A 0
+KEY 2400 A 1
+KEY 2410 A 0
+KEY 2600 START 1
+KEY 2620 START 0
+KEY 2800 A 1
+KEY 2810 A 0
+KEY 3000 A 1
+KEY 3010 A 0
+KEY 3200 A 1
+KEY 3210 A 0
+KEY 3400 A 1
+KEY 3410 A 0
+KEY 3600 A 1
+KEY 3610 A 0
+
+# --- from here we expect to be ON the map ---
+SNAP 3800 /home/devin/fe/out/c0-base.ram
+
+KEY 3900 RIGHT 1
+KEY 3918 RIGHT 0
+SNAP 4050 /home/devin/fe/out/c1-right.ram
+
+KEY 4200 RIGHT 1
+KEY 4218 RIGHT 0
+SNAP 4350 /home/devin/fe/out/c2-right.ram
+
+KEY 4500 DOWN 1
+KEY 4518 DOWN 0
+SNAP 4650 /home/devin/fe/out/c3-down.ram
+
+KEY 4800 LEFT 1
+KEY 4818 LEFT 0
+SNAP 4950 /home/devin/fe/out/c4-left.ram
+
+KEY 5100 UP 1
+KEY 5118 UP 0
+SNAP 5250 /home/devin/fe/out/c5-up.ram
+
+KEY 5400 UP 1
+KEY 5418 UP 0
+KEY 5600 UP 1
+KEY 5618 UP 0
+KEY 5800 UP 1
+KEY 5818 UP 0
+SNAP 5950 /home/devin/fe/out/c6-up3.ram

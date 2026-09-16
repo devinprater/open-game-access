@@ -1,0 +1,147 @@
+# ============================================================
+# Open Game Access — files that must NEVER be committed.
+#
+# ⛔ ROMs ARE COPYRIGHTED. This project's whole premise is that players supply
+# their own game files. Nothing here may contain a ROM, a BIOS dump, a firmware
+# image, a save file, or a patch derived from one.
+# ============================================================
+
+# --- game data: ROMs, BIOS, firmware, saves, savestates ---
+*.nds
+*.dsi
+*.gba
+*.gbc
+*.gb
+*.sav
+*.srm
+*.dsv
+*.state
+*.ss0
+*.ss1
+*.st0
+*.SaveRAM
+*.bs9
+*.bs7
+bios7.bin
+bios9.bin
+firmware.bin
+bios*.bin
+firmware*.bin
+*.xip
+
+# Every other platform the toolbox may eventually touch. Listed by extension so a
+# stray `git add .` cannot sweep a disc image into a commit.
+*.nes
+*.fds
+*.unf
+*.smc
+*.sfc
+*.fig
+*.swc
+*.z64
+*.n64
+*.v64
+*.rom
+*.gbc
+# ⛔ NOT `*.md` — that is the Mega Drive extension AND Markdown. A blanket `*.md`
+# rule silently untracks every document in the repository. Mega Drive dumps are
+# caught by the roms/ directory rules and by `oga-re`'s own ROM guard instead.
+*.gen
+*.smd
+*.32x
+*.sms
+*.gg
+*.pce
+*.iso
+*.img
+*.bin
+*.cue
+*.chd
+*.gcm
+*.gcz
+*.wbfs
+*.wad
+*.rvz
+*.cso
+*.pbp
+*.vpk
+*.elf
+*.prx
+*.dol
+# Save states and SRAM in the emulators' own formats.
+*.frz
+*.p2s
+*.mcr
+*.mcd
+*.mcs
+*.mpk
+*.ps2
+*.psv
+*.ss2
+*.savestate
+*.sram
+
+# ROM-carrying directories (a stray `git add .` must not sweep these in)
+roms/
+Roms/
+**/roms/
+**/hosttest-data/
+**/ds-bios/
+Games/
+**/roms/*
+
+# --- vendored emulator source and its build output ---
+# The core is fetched by scripts/, never committed: it is a separate GPL project
+# with its own repository, and vendoring a copy invites drift and licence
+# confusion. See README "Third-party components".
+src/melonds-lua/
+src/melonds-lua-irpatch/
+src/lua-5.4.7/
+src/mgba/
+melonDS-android/
+Vendor/
+Vendor/*
+!Vendor/.gitkeep
+native/
+*.a
+*.o
+*.obj
+*.so
+*.dylib
+
+# --- reverse-engineering artefacts (contain game memory, no ROM bytes but still
+#     not useful in a repo, and some are large) ---
+fe/out/
+fe/shots/
+ramwatch/
+rom-screen/
+*.ram
+*.ppm
+*.zip
+
+# --- build output ---
+.build/
+.xtool-tmp/
+xtool/
+xtool-sim/
+app/build/
+.gradle/
+build/
+*.apk
+*.ipa
+*.dSYM/
+
+# --- per-machine config ---
+local.properties
+xcuserdata/
+*.xcworkspace
+.DS_Store
+Thumbs.db
+
+# --- secrets: never commit tokens, keys or provisioning profiles ---
+*.p12
+*.mobileprovision
+*.pem
+*.key
+.env
+secrets*

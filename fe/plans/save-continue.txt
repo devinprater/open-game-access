@@ -1,0 +1,97 @@
+# Fire Emblem: Shadow Dragon (USA) — load the save and press through into the chapter.
+#
+# ⛔ WHY. Loading a save lands on the TITLE screen, and choosing CONTINUE lands on the
+# Battle Preparation screen — where every unit is already in its force (so the enemy
+# faction is populated and readable) but the map is NOT loaded, so gMapStateManager is
+# still NULL and the cursor commands correctly answer "Not on a map yet". Entering the
+# map itself requires pressing FIGHT on the preparation screen.
+#
+# Spacing is wide because menu transitions and dialogue animate; presses too close
+# together get swallowed.
+
+# --- title screen -> CONTINUE ---
+KEY 300 A 1
+KEY 320 A 0
+KEY 500 A 1
+KEY 520 A 0
+KEY 700 A 1
+KEY 720 A 0
+KEY 900 A 1
+KEY 920 A 0
+
+# --- save-slot / data screens ---
+KEY 1200 A 1
+KEY 1220 A 0
+KEY 1400 A 1
+KEY 1420 A 0
+KEY 1600 A 1
+KEY 1620 A 0
+KEY 1800 A 1
+KEY 1820 A 0
+
+# --- Battle Preparation: navigate to FIGHT and confirm ---
+KEY 2200 A 1
+KEY 2220 A 0
+KEY 2400 A 1
+KEY 2420 A 0
+KEY 2600 A 1
+KEY 2620 A 0
+KEY 2800 A 1
+KEY 2820 A 0
+KEY 3000 A 1
+KEY 3020 A 0
+KEY 3200 A 1
+KEY 3220 A 0
+KEY 3400 A 1
+KEY 3420 A 0
+
+# --- into the map: clear any intro dialogue ---
+KEY 3800 A 1
+KEY 3820 A 0
+KEY 4000 A 1
+KEY 4020 A 0
+KEY 4200 A 1
+KEY 4220 A 0
+KEY 4400 A 1
+KEY 4420 A 0
+KEY 4600 A 1
+KEY 4620 A 0
+KEY 4800 A 1
+KEY 4820 A 0
+KEY 5000 A 1
+KEY 5020 A 0
+KEY 5200 A 1
+KEY 5220 A 0
+KEY 5400 A 1
+KEY 5420 A 0
+KEY 5600 A 1
+KEY 5620 A 0
+KEY 5800 A 1
+KEY 5820 A 0
+KEY 6000 A 1
+KEY 6020 A 0
+KEY 6200 A 1
+KEY 6220 A 0
+KEY 6400 A 1
+KEY 6420 A 0
+KEY 6600 A 1
+KEY 6620 A 0
+KEY 6800 A 1
+KEY 6820 A 0
+KEY 7000 A 1
+KEY 7020 A 0
+KEY 7200 A 1
+KEY 7220 A 0
+KEY 7400 A 1
+KEY 7420 A 0
+KEY 7600 A 1
+KEY 7620 A 0
+KEY 7800 A 1
+KEY 7820 A 0
+KEY 8000 A 1
+KEY 8020 A 0
+
+SHOT 3000 /home/devin/fe/out/sv-3000.ppm
+SHOT 4600 /home/devin/fe/out/sv-4600.ppm
+SHOT 6600 /home/devin/fe/out/sv-6600.ppm
+SHOT 8200 /home/devin/fe/out/sv-8200.ppm

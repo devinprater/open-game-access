@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://opengameaccess.dev/schemas/address.json",
+  "title": "OGA common address model",
+  "description": "A single address representation that does not lose information across consoles. Flattening every address to one integer is wrong for banked and overlay systems: a SNES address is meaningless without its bank, and an NDS address is meaningless without knowing whether it is a runtime RAM address or an overlay-relative one. Every field here is optional except platform/space/address, so a flat platform only fills what it needs — but the SHAPE is shared, so a tool never has to guess which console it is looking at.",
+  "type": "object",
+  "required": ["platform", "space", "address"],
+  "properties": {
+    "platform": {
+      "type": "string",
+      "description": "Console/system id, matching platforms.json keys.",
+      "examples": ["nds", "gba", "gb", "snes", "genesis", "n64", "ps1", "ps2", "psp"]
+    },
+    "space": {
+      "type": "string",
+      "description": "WHICH address space this is. Never conflate these: a runtime RAM address and a file offset that happen to be equal are different things, and a lossy conversion between them silently produces a wrong answer later.",
+      "enum": [
+        "rom",
+        "runtime-ram",
+        "file-offset",
+        "virtual",
+        "physical",
+        "io-register",
+        "vram"
+      ]
+    },
+    "address": {
+      "type": "integer",
+      "minimum": 0,
+      "description": "Numeric address within `space`."
+    },
+    "bank": {
+      "type": ["integer", "null"],
+      "description": "Required for banked systems (GB/GBC, SNES, NES). A banked address does NOT identify code without its bank: the same 16-bit address exists in every bank, so omitting this makes the address ambiguous."
+    },
+    "module": {
+      "type": ["string", "null"],
+      "description": "Module or overlay the address belongs to, e.g. 'arm9/ov000', 'main.elf'. Required when code is dynamically loaded — an overlay-relative address is not a global one.",
+      "examples": ["arm9", "arm7", "arm9/overlays/ov000", "main.elf", "EBOOT.BIN"]
+    },
+    "segment": {
+      "type": ["string", "null"],
+      "description": "Executable segment / section, e.g. '.text', '.data', '.bss'."
+    },
+    "loadAddress": {
+      "type": ["integer", "null"],
+      "description": "For `virtual`/`runtime-ram` on relocatable code: the base the module was loaded at."
+    },
+    "symbol": {
+      "type": ["string", "null"],
+      "description": "Human/community name for this address, if known. Presence of a name is not evidence the name is correct — pair it with `confidence`.",
+      "examples": ["gUnitList", "FUN_02042A10", "Maybe_GetUnitAtPosition"]
+    },
+    "confidence": {
+      "type": ["string", "null"],
+      "description": "Honesty marker. Anything not `confirmed` must not be presented as fact downstream.",
+      "enum": ["confirmed", "strongly_inferred", "tentative", "unknown", null]
+    },
+    "source": {
+      "type": ["string", "null"],
+      "description": "Where this mapping came from, so it can be re-checked.",
+      "enum": [
+        "runtime-read",
+        "runtime-diff",
+        "decompilation",
+        "ghidra-analysis",
+        "community-symbols",
+        "emulator-symbols",
+        "inferred",
+        null
+      ]
+    },
+    "revision": {
+      "type": ["string", "null"],
+      "description": "Game revision/region this address is valid for. Addresses differ across revisions, so a finding without this is unsafe to reuse."
+    }
+  },
+  "additionalProperties": false
+}
