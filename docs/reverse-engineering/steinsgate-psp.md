@@ -1117,6 +1117,83 @@ symptoms that all read as "the game is broken" — no cursor, frozen head, no ad
 each a wrong *assumption* (wrong structure, wrong sampling, wrong button), and each was
 settled by measuring instead of reasoning.
 
+
+## ✅ SPEECH WIRED — the reader speaks each line in order
+
+`--tts <command>` pipes every new line, on stdin, to the user's own speech command.
+
+```
+$ node scripts/psp-sg-live.mjs --backlog 8 --tts "bash scripts/oga-speak-capture.sh"
+1. Mayuri: That's wrong, Okarin.
+2. Rintaro: What is?
+3. Mayuri: This isn't a roundable conference. It's a banquet!
+4. It's Round Table, not roundable.
+5. But even if I correct her, Mayuri won't remember. I'll just pretend she said...
+```
+
+**stdout and TTS receive byte-identical text, in the same order** — verified with a capture
+sink that appends what it is asked to speak, then diffing the two streams.
+
+`scripts/oga-speak.sh` is the default sink: Windows SAPI via PowerShell, no install needed.
+It was verified by rendering to a WAV (22 kHz mono, 3.54 s, 197,612 bytes = real audio, not
+an exit code). Speech is pluggable because the project rule is to use the user's engine and
+never override their voice/rate/pitch — swapping the script swaps the voice.
+
+### ⛔ FOUR parsing bugs fixed by reading the DATA, not by reasoning
+
+Each produced output that looked plausible, which is why they are recorded:
+
+1. **`nm.length > tx.length` misread short lines as narration.** `name='Kurisu'
+   text='...!'` became text `"Kurisu"` with no speaker, and two of those in a row merged
+   into the nonsense line **`RintaroKurisu`**. ⭐ **Field PRESENCE decides, not length.**
+2. **A long name plate arrives as its OWN record** (`Graceful...Girl?`, `Cat-Eared Girl`,
+   `Girl with Braces` — 7 of them in a 434-record log). Reading it as a line invented
+   phantom lines; the speaker belongs to the NEXT record. Carry it forward.
+3. **`0x81 0x68` ("box end") is NOT a reliable line terminator.** Tried as the join key, it
+   merged many sentences into one enormous paragraph, because a dense monologue block emits
+   one box-end for the whole block.
+4. **The join rule that works is linguistic.** The engine wraps at a fixed byte width, so a
+   wrapped chunk stops MID-SENTENCE — the full stop only appears in the LAST chunk. Keep
+   appending while the accumulated text has not yet reached a sentence end.
+   ⛔ A short chunk is not proof of a complete line: `'swim.'` is 5 bytes and complete,
+   `'Nope.'` likewise. Judge by punctuation, not by length.
+
+### ⛔ The TTS serialisation bug — every line spoken, in the WRONG ORDER
+
+The first version awaited a single shared `speaking` promise. That chains only ONE level
+deep: calls 2..N all awaited the SAME promise, so when it resolved they resumed together
+and all spawned at once. Result — all 8 lines delivered, order scrambled:
+
+```
+out=1 'Kurisu: I ask myself that every day.'
+tts=1 'Mayuri: The fried chicken your mom made is so good, Luka-kun.'
+```
+
+✅ **Chain each task onto a tail promise** (`ttsQueue = ttsQueue.then(...)`), and swallow
+errors on the tail so one failed sink cannot poison the rest of the scene. Verified: 8/8
+lines, identical and ordered.
+
+⭐ **For a screen-reader user, out-of-order speech is worse than silence** — the story is
+scrambled and there is no way to tell. Order is a correctness property, not a nicety.
+
+## Honest status of the Steins;Gate reader — FINAL
+
+| | |
+|---|---|
+| Disc image -> decrypted MIPS ELF | **done**, reproducible |
+| Log structure from the game's own code | **verified** |
+| Reads dialogue from the LIVE game | **working** — real prose, correct speakers |
+| Trigger (`write_head` increments) | **observed moving** 0 -> 1 -> ... -> 434 |
+| Advances the story itself (`--auto`) | **working** — `circle` presses on the same socket |
+| Speaks each line in order (`--tts`) | **working** — verified byte-identical to stdout |
+| Inside the app | **NOT DONE** — no PSP core; host-side against PPSSPP only |
+| Wired to a button/gesture in a UI | **NOT DONE** — it is a CLI |
+
+**What a blind player would still need:** the reader to run from a phone/desktop UI with a
+real control surface rather than a shell command, and PSP core support if it is ever to sit
+inside Open Game Access itself. The reading, the trigger, the story advance and the speech
+are all proven; the remaining work is integration, not reverse engineering.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to

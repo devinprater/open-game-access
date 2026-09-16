@@ -33,6 +33,7 @@
  *   node psp-sg-live.mjs --speak            also emit each line to stdout for a TTS hook
  *   node psp-sg-live.mjs --json             machine-readable events, one JSON per line
  *   node psp-sg-live.mjs --auto circle      advance the story AND read it (one socket)
+ *   node psp-sg-live.mjs --auto circle --tts "my-speak.sh"    SPEAK each new line
  */
 import process from "node:process";
 
@@ -76,6 +77,11 @@ const has = (n) => args.includes(`--${n}`);
 const BACKLOG = flag("backlog") ? Number(flag("backlog")) : 0;
 // --auto <button>  advance the story itself (press + poll on ONE debugger connection)
 const AUTO = flag("auto");
+// --tts <command>  run this command once per new line, with the line on stdin.
+// Spawned SEQUENTIALLY (one at a time, awaited) so a long line is never talked over —
+// a visual novel is conversational, and overlapping speech is unusable with a screen
+// reader. The command receives plain text, already stripped of control codes.
+const TTS = flag("tts");
 const SPEAK = has("speak");
 const JSON_OUT = has("json");
 
@@ -138,7 +144,7 @@ class Debugger {
   close() { try { this.socket?.close(); } catch {} }
 }
 
-/// Read log entry `index` (1 = newest). Returns {speaker, text} or null.
+/// Read log entry `index` (1 = newest). Returns {speaker, text, nameOnly} or null.
 async function entry(db, logBase, writeHead, index, capacity) {
   if (index === 0 || writeHead === 0 || logBase === 0) return null;
   const k = (writeHead - (index - 1)) - 1;
@@ -147,18 +153,24 @@ async function entry(db, logBase, writeHead, index, capacity) {
   const nmRaw = await db.read(a + OFF_NAME, NAME_LEN);
   const txRaw = await db.read(a + OFF_TEXT, TEXT_LEN);
   // ⛔ SPLIT AT THE NUL FIRST — the fields are NUL-padded fixed width.
-  const nmF = clean(nmRaw.subarray(0, nmRaw.indexOf(0) < 0 ? nmRaw.length : nmRaw.indexOf(0)));
-  const txF = clean(txRaw.subarray(0, txRaw.indexOf(0) < 0 ? txRaw.length : txRaw.indexOf(0)));
+  const cut = (b) => b.subarray(0, b.indexOf(0) < 0 ? b.length : b.indexOf(0));
+  const nmF = clean(cut(nmRaw));
+  const txF = clean(cut(txRaw));
   const nm = nmF.text, tx = txF.text;
-  // An entry carries EITHER a name plate or the text itself (narration).
-  if (!tx && nm) return { speaker: null, text: nmF.text, leadSpace: nmF.trailSpace };
-  if (nm.length > tx.length) return { speaker: null, text: nmF.text, leadSpace: nmF.trailSpace };
-  // ⛔ DROP records that decode to nothing, and records with no letters at all. The log
-  // contains blank spacer records (they print as an empty "(narration):" line) and stray
-  // control/box-drawing bytes decode to junk like '¥§' that would be spoken as garbage.
-  if (!tx) return null;
-  if (!/[A-Za-z0-9]/.test(tx)) return null;
-  return { speaker: nm || null, text: txF.text, leadSpace: txF.trailSpace };
+  // ⛔ DROP records that decode to nothing, and records with no letters or digits. The log
+  // contains blank spacer records and stray control/box-drawing bytes that decode to junk
+  // like '¥§' which would otherwise be spoken aloud.
+  if (!/[A-Za-z0-9]/.test(nm + tx)) return null;
+  // ⭐ FIELD PRESENCE DECIDES, NOT LENGTH.
+  // The old rule was `nm.length > tx.length`, which MISREADS a short line as narration:
+  //   name='Kurisu'  text='...!'    -> became text "Kurisu", speaker none
+  //   name='Rintaro' text='Nope.'   -> became narration "Rintaro"
+  // Two consecutive short lines then merged into the nonsense line "RintaroKurisu".
+  // ⭐ A record with a name and NO text is a long name plate stored on its own
+  // ('Graceful...Girl?', 'Cat-Eared Girl') — it is not a line, and its speaker applies to
+  // the NEXT record. Return it as nameOnly so the caller can carry it forward.
+  if (nm && !tx) return { speaker: nm, text: "", nameOnly: true };
+  return { speaker: nm || null, text: txF.text, nameOnly: false };
 }
 
 /**
@@ -177,31 +189,93 @@ async function entry(db, logBase, writeHead, index, capacity) {
  */
 function join(lines) {
   const out = [];
+  let pendingSpeaker = null;
   for (const l of lines) {
-    if (!l.speaker && out.length) {
-      const prev = out[out.length - 1];
-      // ⭐ CONCATENATE WITH NO SEPARATOR, AND DO NOT TRIM INSIDE THE LOOP.
-      // The engine keeps the word-boundary space at the END of the earlier chunk, so
-      // joining directly reproduces the original text exactly:
-      //   'oment ' + 'of our'    -> 'moment of our'
-      //   'understandi' + 'ng.'  -> 'understanding.'
-      // ⛔ TRIMMING ON EACH MERGE DESTROYS THE NEXT BOUNDARY. A line wrapped three times
-      // (k15+k16+k17) is merged twice; trimming after the first merge deletes k16's
-      // trailing space, so the second merge glues "can't"+"swim." into "can'tswim".
-      // Trim ONCE, when the logical line is complete (see the final trim below).
+    // ⭐ A LONG NAME PLATE ARRIVES AS ITS OWN RECORD. Remember it; it belongs to the next
+    // record that actually carries text.
+    if (l.nameOnly) { pendingSpeaker = l.speaker; continue; }
+    const prev = out[out.length - 1];
+    // ⭐ THE LINE IS CLOSED WHEN THE ACCUMULATED TEXT REACHES A SENTENCE END.
+    // The engine wraps at a fixed byte width, so a long line arrives as several chunks,
+    // and a wrapped chunk stops MID-SENTENCE — the full stop only appears in the last
+    // chunk. So keep appending while the accumulated text has not ended a sentence.
+    //   '...he can\'t ' + 'swim.'       -> ends '.' -> closed
+    //   '...true understandi' + 'ng.'   -> ends '.' -> closed
+    //   '...the moment ' + 'of our ...' -> no terminal yet -> keep appending
+    const open = prev && !prev.closed;
+    if (open) {
+      // Concatenate with NO separator — the engine keeps the word-boundary space at the
+      // END of the earlier chunk ('moment ' + 'of our' -> 'moment of our').
+      // Do NOT trim inside the loop: a line wrapped 3x merges twice, and trimming after
+      // the first merge deletes the boundary space the second merge needs ("can'tswim").
       prev.text = (prev.text + l.text).replace(/[ \t]{2,}/g, " ");
+      if (!prev.speaker && (l.speaker || pendingSpeaker)) prev.speaker = l.speaker || pendingSpeaker;
     } else {
-      out.push({ speaker: l.speaker, text: l.text });
+      out.push({
+        speaker: l.speaker || pendingSpeaker || null,
+        text: l.text,
+        closed: false,
+      });
     }
+    pendingSpeaker = null;
+    const cur = out[out.length - 1];
+    if (isSentenceEnd(cur.text)) cur.closed = true;
   }
-  // Trim once, now that the logical lines are complete (see the loop note above).
+  // Trim once, now that the logical lines are complete.
   for (const l of out) l.text = l.text.trim();
   return out;
 }
 
+/**
+ * Does this text finish a sentence (so the logical line is complete)?
+ * Covers '.', '!', '?' including '...' and '?!', optionally followed by a closing quote
+ * or bracket. A trailing comma/colon/dash means the sentence continues.
+ */
+function isSentenceEnd(s) {
+  return /[.!?…][\"')\]]*$/.test(s.trim());
+}
+
+/**
+ * Speak one line through the user's own TTS command.
+ * ⭐ THE SINK IS PLUGGABLE ON PURPOSE: the project rule is to route speech to the user's
+ * chosen engine and never override their voice/rate/pitch. Piping to an external command
+ * keeps that promise — whatever they point it at is what speaks, with their settings.
+ * The line arrives on stdin (UTF-8), so the command can be a script, `say`, SAPI via
+ * PowerShell, a screen-reader CLI, anything.
+ * Speaker and text are joined so a listener hears who is talking, which is the whole
+ * point of a visual novel reader.
+ */
+// ⭐ A REAL SERIAL QUEUE. `emit()` is called synchronously in a loop, and the earlier
+// version serialised by awaiting a single shared `speaking` promise. That only chains ONE
+// level deep: calls 2..N all awaited the SAME promise, and when it resolved they resumed
+// together and all spawned at once. Every line was spoken, but OUT OF ORDER — which with a
+// screen reader is worse than not speaking, because the story is scrambled.
+// Chaining each task onto a tail promise keeps strict order.
+let ttsQueue = Promise.resolve();
+function speak(speaker, text) {
+  if (!TTS || !text) return;
+  const payload = speaker && speaker !== "???" ? `${speaker}: ${text}` : text;
+  ttsQueue = ttsQueue.then(() => new Promise((resolve) => {
+    // shell:true so a user can pass a pipeline like "espeak -v en" or a path with args.
+    import("node:child_process").then(({ spawn }) => {
+      const ch = spawn(TTS, { shell: true, stdio: ["pipe", "inherit", "inherit"] });
+      ch.on("error", (e) => { console.error(`!! tts failed: ${e.message}`); resolve(); });
+      ch.on("close", () => resolve());
+      ch.stdin.on("error", () => {});
+      ch.stdin.end(payload + "\n", "utf8");
+    }).catch(() => resolve());
+  }));
+  // Never let a failed sink poison the queue for the rest of the scene.
+  ttsQueue = ttsQueue.catch(() => {});
+  return ttsQueue;
+}
+
 function emit(speaker, text) {
-  if (JSON_OUT) { console.log(JSON.stringify({ speaker, text })); return; }
-  console.log(speaker ? `${speaker}: ${text}` : text);
+  if (JSON_OUT) { console.log(JSON.stringify({ speaker, text })); }
+  else console.log(speaker ? `${speaker}: ${text}` : text);
+  // Fire and forget: emit() is called from the poll loop and must not block it, but
+  // speak() serialises internally so lines stay in order.
+  void speak(speaker, text);
 }
 
 async function main() {
