@@ -345,7 +345,7 @@ probe now samples the list every 2000 frames **within a single run**:
 6. **The rest of the character table is byte-identical** across runs and across the
    whole time series (names, `+0x180` chain, `+0x1F8`/`+0x208` stats).
 
-### ✅✅ THE CONTROL EXPERIMENT: the list is GAME PROGRESS state
+### ✅✅ THE CONTROL EXPERIMENT — and the caveat that limits it
 
 The missing comparison was an **idle run** — same ROM, same frame count, no input plan:
 
@@ -359,44 +359,69 @@ The missing comparison was an **idle run** — same ROM, same frame count, no in
 [list] f=10000  n=0              [list] f=10000  n=3   2,3,4
 ```
 
-**This is the experiment that resolves the field.** Three facts together:
+⛔ **BUT CHECK WHAT THE CONTROL ACTUALLY SAT ON.** Inspecting the idle run's own
+screenshot (`docs/evidence/dbz-idle-control.png`) shows:
 
-1. **Idle, it never populates at all** — zero for 12,000 frames. So it is **not**
-   a startup default and **not** a constant in the ROM.
-2. **Driven, it populates, then settles.** Input is the only difference between the
-   two runs, so the list is **written by game progress**.
-3. **Both runs still read `n=0` at f=0**, when the ROM has just booted — the list is
-   built after boot, during the intro.
+> **"Resetting backup memory. Press the A Button to begin."**
 
-⛔ **Therefore: `0x020CC774` is a character list the game maintains as play
-advances — not a fixed template, and not an idle-filled default.** The earlier
-"startup default" conclusion is **retired**: it was drawn from driven runs only, and
-the idle run falsifies it.
+**The idle run never left the pre-game boot screen.** With no A press, the game sits
+there for all 12,000 frames. So the experiment did **not** test "does the list
+populate during play without input" — it tested "is the list populated before the game
+starts". Those are different questions.
+
+### What the control therefore proves (weaker, but still real)
+
+1. **The list is empty in the pre-game state** — at the backup-memory reset screen,
+   for 12,000 frames. So it is **not** a constant baked into the ROM, and **not**
+   populated at cold boot.
+2. **The list is populated only once the game is actually running** — the driven run
+   pressed A, passed this screen, and the list appeared.
+3. **Both runs read `n=0` at f=0**, consistent with (1).
+
+⛔ **Retired:** the "startup default" reading, and the stronger "created by play"
+phrasing. The evidence supports **"empty before the game starts; populated after"** —
+it does **not** yet distinguish "populated by the act of starting" from "populated by
+later progression", because the control never got past the first screen.
+
+⛔ **A control that stalls at the first input gate answers a different question than
+the one you asked.** Check the control's own screenshot before drawing conclusions
+from it — the same rule that applies to the experiment applies to its baseline.
 
 ### What remains genuinely open
 
-The list contains **Piccolo, Krillin, Tien** while the player has Goku alone. With the
-"static default" explanation now removed, the survivors are all *game-progress*
-shapes the plan happens to produce this early:
+The list contains **Piccolo, Krillin, Tien** while the player has Goku alone. The
+survivors are all game-progress shapes that this early state could produce:
 
 - a **story/event roster** — characters staged for the next scripted scene;
 - a **next-battle roster** pre-filled by the episode; or
 - characters the intro dialogue has "registered" so far.
 
-⛔ **Deciding needs a state change this plan cannot reach** — an actual battle, a
-recruit, or a party-menu edit. Until then the field stays **unresolved and must not be
-narrated from.** What has changed is the *class* of explanation: it is game state, so
-the right next step is reaching one of those states, not more idle sampling.
+⛔ **Deciding needs a state this plan cannot reach** — an actual battle, a recruit, or
+a party-menu edit. Until then the field stays **unresolved and must not be narrated
+from.**
+
+### The boot sequence finding (a side benefit)
+
+The control screenshot is the first direct look at this ROM's boot path, and it
+records a gate the input plans must clear:
+
+```
+Resetting backup memory.
+Press the A Button to begin.
+```
+
+⛔ **Any scripted run must press A at this screen or it never starts.** Worth having
+explicitly in the plan rather than relying on an early A press to land by luck.
 
 ### ⛔ The method lesson, sharpened
 
-**A control run with the variable removed is the cheapest possible experiment.**
-Every wrong conclusion on this field came from comparing snapshots that all shared the
-same hidden variable — the input plan. One run with *no* plan separated "constant"
-from "created by play" immediately, and needed no new code, no battle, and no RE.
+**A control run with the variable removed is the cheapest experiment — but verify the
+control reached the state you assume.** Here it was free (no plan, no new code), and it
+genuinely killed the "constant in the ROM" hypothesis. It did *not* license the
+stronger claim, and only looking at the control's screenshot revealed that.
 
-**Ask "what is the control?" before adding another measurement.** Here the control was
-free: run the same thing while doing nothing.
+**Ask "what is the control?" before measuring, and "where did the control get to?"
+before concluding.**
 
 
 ## ❌ Superseded claim (kept for the record)
