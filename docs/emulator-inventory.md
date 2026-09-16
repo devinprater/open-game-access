@@ -41,42 +41,127 @@ accessibility work needs to boot a ROM, run frames, send input, and read RAM
 
 | Emulator | Headless / scriptable? | Notes |
 |---|---|---|
-| **mGBA 0.11 dev** | ✅ **YES** — `mgba.exe --script` | Verified end-to-end in this project. The 0.10.5 build is GUI-only. |
-| **melonDS (vendored)** | ✅ **YES** — used through the in-repo C API | `poke_frame`, `poke_set_button`, `poke_debug_nds` |
-| **PCSX2** | ⚠️ **has `-batch` / `-nogui`** but is a Qt app | Its RAM is reachable over **PINE** (socket IPC) — proven by the BT2 accessibility mod |
-| **PPSSPP** | ⚠️ **has `--headless`** in newer builds; GUI has no usable `--help` here | Needs verification |
-| **Dolphin** | ⚠️ **has `Dolphin.exe -b -e <game>`** (`-b` batch, `-e` exec) | Standard approach for scripted runs |
-| **RetroArch** | ⚠️ **has `--headless`** and a UDP network command interface | The most portable option; cores must be present |
-| **Snes9x** | ⚠️ GUI-first; RetroArch is the better harness path for SNES | |
-| **Flycast** | ⚠️ has CLI options; unverified | |
-| **Azahar** | ⚠️ Citra-lineage, unverified | |
+| **mGBA 0.11 dev** | ✅ **VERIFIED** — `mgba.exe --script` | Proven end-to-end in this project. The 0.10.5 build is GUI-only. |
+| **melonDS (vendored)** | ✅ **VERIFIED** — in-repo C API | `poke_frame`, `poke_set_button`, `poke_debug_nds` |
+| **RetroArch** | ⚠️ **has the flags, not yet proven to run** | See below — this is the most promising and needs one more step |
+| **PCSX2** | ⚠️ has `-batch` / `-nogui`; **RAM reachable over PINE** | Proven by the BT2 accessibility mod |
+| **Dolphin** | ⚠️ has `-b -e <game>` (batch / exec) | Standard approach for scripted runs |
+| **PPSSPP** | ⚠️ unverified; GUI has no usable `--help` | |
+| **DuckStation / Snes9x / Flycast / Azahar** | ⚠️ unverified | |
 
 ⛔ **`--help` on a Qt GUI app HANGS.** `pcsx2-qt.exe --help` and
 `PPSSPPWindows64.exe --help` both block waiting for a GUI. Always wrap emulator
 probing in `timeout <n>`, or you lose the whole command budget to a hung window.
 
-## Recommended path per system
+## RetroArch: 7 cores installed, CLI verified, run NOT yet proven
 
-1. **RetroArch for everything it has cores for.** It is the only emulator here
-   designed to be driven programmatically: `--headless`, a network command
-   interface, and per-system cores. One integration covers SNES, Genesis, N64 and
-   more at once — far less work than one harness per emulator.
-2. **PINE for PS2.** The BT2 mod proves this works, and it avoids base-pointer
-   chasing entirely.
-3. **Dolphin `-b -e`** for GameCube/Wii.
-4. **mGBA `--script`** stays the GB/GBA path — already verified.
+**Installed and verified present** (correct sizes, readable from Windows):
+
+```
+flycast_libretro.dll            21,692,928   Dreamcast
+mednafen_psx_hw_libretro.dll    16,962,804   PS1 (hardware renderer)
+genesis_plus_gx_libretro.dll     8,906,449   Genesis / Mega Drive
+mupen64plus_next_libretro.dll    8,032,509   Nintendo 64
+snes9x_libretro.dll              3,944,448   SNES
+melonds_libretro.dll             3,603,456   NDS
+mgba_libretro.dll                2,955,998   GB / GBC / GBA
+```
+
+Those come from the libretro buildbot, not scoop:
+`https://buildbot.libretro.com/nightly/windows/x86_64/latest/<core>_libretro.dll.zip`
+
+RetroArch's own `cores` directory is a symlink to scoop's persist dir, so cores
+dropped there are picked up.
+
+### The CLI flags that matter (from `retroarch --help`)
+
+- **`--max-frames=N`** — run N frames then exit. This is the headless frame driver.
+- **`--max-frames-ss` / `--max-frames-ss-path=FILE`** — screenshot at the end of
+  `--max-frames`. Combined, these are a scriptable "run N frames and give me a
+  picture" — exactly what a probe needs.
+- **`--accessibility`** — *"Enables accessibility for blind users using
+  text-to-speech."* ⛔ **RetroArch ships its own screen-reader mode.** Worth
+  investigating in its own right: it may already narrate its menus, which is work
+  this project would otherwise redo per emulator.
+- `-L <core>` — load a specific core; `-c FILE` — config.
+
+⛔ **`--headless` DOES NOT EXIST on this build** (1.22.2): it fails with
+`unrecognized option '--headless'`. Do not plan around it.
+
+⚠️ **A `--max-frames` run still exited 1 with an EMPTY log**, which is what a GUI
+app does when it has no window to draw into. So the flags are present and correct
+but a real run is **not yet proven**. Next step is either a virtual display or
+checking whether the exit-1 is a config/save-dir problem rather than a window one
+— an empty log means it failed before logging, not that it refused the core.
+
+## The path that actually works per system
+
+1. **mGBA `--script`** stays the GB/GBA path — already verified.
+2. **melonDS via the in-repo C API** stays the NDS path — already verified.
+3. **RetroArch, once the run is proven**, covers SNES, Genesis, N64, PS1 and
+   Dreamcast through one integration. That is five systems for the price of one
+   harness, which is why it is worth the extra step.
+4. **PINE for PS2** — proven by the BT2 mod; avoids base-pointer chasing.
+5. **Dolphin `-b -e`** for GameCube/Wii.
+
+## ⛔ Scoop paths do not exist inside WSL
+
+`scoop` is a **Windows** install living under `/mnt/c/Users/<user>/scoop`. Inside
+WSL, `$HOME/scoop` is a **different, empty directory** — and `mkdir -p` will
+happily create it.
+
+That happened here: a core-download script written with WSL paths ran
+`mkdir -p /home/devin/scoop/persist/retroarch/cores` and **succeeded**, then copied
+7 cores into a fake tree that no emulator could see. The script printed `OK` for
+every core and the counts looked right — because it was only ever checking its own
+invented path.
+
+```bash
+# WRONG inside WSL — silently creates a second, useless scoop tree
+C="$HOME/scoop/persist/retroarch/cores"
+
+# RIGHT — the real Windows install, reached through the mount
+C="/mnt/c/Users/Devin Prater/scoop/persist/retroarch/cores"
+```
+
+⛔ **`$LOCALAPPDATA` is also unset in WSL** and, under `set -u`, aborts the script
+with `LOCALAPPDATA: unbound variable`. Use `/tmp` or a `/mnt/c` path.
+
+**Verify installs from the side that owns them.** The check that caught this was
+Python on **Windows** reading the real directory — every WSL-side check passed
+because it was inspecting the fake tree.
 
 ## Still to install
 
 | System | Candidate | Status |
 |---|---|---|
-| **N64** | RetroArch core (`mupen64plus_next`) — `scoop search mupen64plus` found nothing standalone | install core via RetroArch |
-| **Genesis** | RetroArch core (`genesis_plus_gx`) | install core via RetroArch |
-| **PS1** | `duckstation` is available in scoop (`scoop search duckstation`) | **not installed yet — worth adding** |
+| **N64** | RetroArch `mupen64plus_next` | ✅ **installed** — no standalone scoop package exists |
+| **Genesis** | RetroArch `genesis_plus_gx` | ✅ **installed** |
+| **PS1** | DuckStation + RetroArch `mednafen_psx_hw` | ✅ both installed |
 
 ⛔ **`scoop search mupen64plus` returns no matches.** N64 is not available as a
-standalone scoop package; it has to come through a RetroArch core, which is
-another argument for doing the RetroArch integration first.
+standalone scoop package; it only comes through a RetroArch core.
+
+## Summary: what is actually reachable now
+
+| System | Emulator present | Drivable today? |
+|---|---|---|
+| NDS | melonDS (+Lua) | ✅ verified |
+| GB / GBC / GBA | mGBA 0.11 dev | ✅ verified |
+| SNES | Snes9x, RetroArch core | ⚠️ core ready, harness unproven |
+| Genesis | RetroArch core | ⚠️ as above |
+| N64 | RetroArch core | ⚠️ as above |
+| PS1 | DuckStation, RetroArch core | ⚠️ unverified |
+| PS2 | PCSX2 (+BIOS) | ⚠️ PINE proven elsewhere |
+| PSP | PPSSPP | ⚠️ unverified |
+| GameCube / Wii | Dolphin | ⚠️ `-b -e` standard |
+| Dreamcast | Flycast, RetroArch core | ⚠️ unverified |
+| 3DS | Azahar | ⚠️ unverified |
+
+**Two systems are proven drivable. Nine have a core and a candidate mechanism
+but no verified harness.** The distinction matters: a core install is a
+twenty-minute job, while proving a harness is the real work — and the backlog
+ranking should be read with that in mind.
 
 ## Why this matters beyond convenience
 
