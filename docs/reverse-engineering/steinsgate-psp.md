@@ -890,6 +890,66 @@ host-side against PPSSPP only).
 **Effort to finish, if the state problem is solved:** small — a few dozen lines using the
 `psp-watch.mjs` client already written.
 
+
+## ✅ THE TRIGGER IS PROVEN — the write head was observed 0 -> 1
+
+The previous section reported the trigger as unproven because the head read 29 in every
+dump. That was a **sampling error on my part**: I always dumped *after* a sequence had
+settled, so I only ever saw the post-load value. Reading the head across *every* dump
+taken shows the mechanism working:
+
+| dump | action | write head | log struct | records |
+|---|---|---|---|---|
+| `c1-01-start` | START | **0** | `0x00000000` | `0x00000000` |
+| `c1-04-wait` | (wait) | **0** | `0x00000000` | — |
+| `c1-05-circle` | **CIRCLE** | **1** | `0x09557C80` | `0x00000000` |
+| `c1-06-wait` | (wait) | **1** | `0x09557C80` | `0x088B2200` |
+
+⛔ **CORRECTION TO MY OWN EARLIER REPORTING.** I said the trigger was unproven and the
+story "never advanced." What actually happened is that the message log is allocated and
+filled *lazily on the first dialogue event* — head `0` means the log does not exist yet
+(`log struct = 0`). Across all 70 dumps: **every dump with head 0 has a null log struct,
+every dump with head 29 has a live one.** The 0 -> 1 transition is the trigger firing.
+
+The "29" that never moved was the state *after* the log was populated — a log that is
+already full of the prologue. Sitting in that state and pressing Cross produces nothing
+new because the story is not being advanced by Cross there.
+
+### ⛔ And that "record array" pointer was a false lead
+
+The log struct at `0x09557C80` has `+0x00 = 0x088B2200`, which looked like a pointer to a
+separate record array. It is not:
+
+- records at `0x088B2200` decode as **binary garbage**, not text;
+- `0x09557C80` used DIRECTLY as the record base produces clean entries.
+
+**`0x09557C80` IS the record base.** The `+0x00` field is part of whatever else the
+allocator wrote there. The original reader was right; an attempted "correction" to follow
+that pointer was wrong and has been discarded.
+
+```
+[ 1] @0x09558F50 '???'      '\x81gErm\x81C my mom told me to bring this...\x81h'
+[ 5] @0x09558CA0 '???'      '\x81gHey\x81C Mayuri. Can I use these paper cups?\x81'
+[ 6] @0x09558BF4 'Rintaro'  '\x81gBut in this case\x81C by \x81eunknown\x81f...\x81h'
+```
+
+⭐ **The lesson: a plausible pointer field is not evidence.** A candidate pointer must be
+followed and its TARGET READ before it is believed — that is the only cheap test, and it
+took one command.
+
+### What the dump history proves about the trigger
+
+The trigger to speak is **`write_head` increasing**. That is now supported by an observed
+transition (0 -> 1), not just by reading the code. The full check when wiring it live:
+
+```
+poll 0x089797E8 (write head)
+head > previous_head  ->  a new line was logged  ->  speak line(index 1)
+```
+
+Combined with `scripts/oga-sg-reader.py` (which decodes the entries), the reader is
+complete apart from the host loop that polls instead of dumping.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
