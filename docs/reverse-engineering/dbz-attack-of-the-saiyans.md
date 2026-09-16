@@ -1,135 +1,142 @@
-# Dragon Ball Z: Attack of the Saiyans — status
+# Dragon Ball Z: Attack of the Saiyans — party structure FOUND
 
-**ROM:** `Dragon Ball Z - Attack of the Saiyans (USA) (En,Fr).nds`
-**Game code:** `BRPE` — but see the trap below, the internal title says something else.
-**Internal title (bytes 0x00–0x0B):** `DB KAI RPG` — this is a **Dragon Ball KAI** game internally.
+**Status: the character array is located and its layout is measured.** The
+published Action Replay addresses are wrong, and the reason is now known exactly.
 
-## Where the work stands
+## ROM
 
-| Step | Status |
+| | |
 |---|---|
-| ROM identified | Done — `BRPE`, 128 MB |
-| Public memory documentation found | Done — Action Replay lists (USA **and** Europe) + DeSmuME wiki |
-| Host probe written | Done — `fe/dbz_probe.cpp` |
-| Probe builds and runs | Done |
-| Console boots and reaches gameplay | **Verified** — see the screenshot |
-| Published addresses verified | **NOT verified yet** — all read 0 so far |
-| Adapter written | Not started |
+| file | `Dragon Ball Z - Attack of the Saiyans (USA) (En,Fr).nds` |
+| size | 134,217,728 bytes (128 MB) |
+| internal title | **`DB KAI RPG`** — not "Attack of the Saiyans" |
+| game code | **`BRPE`** |
+| maker | `AF` (Namco Bandai) |
+| revision | 0 |
 
-## The measured results
+⚠️ GameTDB lists this game as **`BRPP`**, but this ROM is **`BRPE`**. The internal
+title (`DB KAI RPG`) suggests a shared lineage with the Japanese *DB Kai* title.
+Both are evidence that published code lists may target a different build.
 
-### Run 1 — no input, 6000 frames
+## Why the published addresses read zero
 
-Every published address read exactly `0`. A control address (`0x02000010`) read
-real data, which proves the probe itself works.
+They read zero because **the base address in the code lists is wrong**, not because
+the structure was absent. The party exists and is populated from the very start.
 
-### Run 2 — with an input plan, 20,000 frames
+## ✅ The verified layout
 
-Still `0` at every published address. But the **window population** measurement
-separates the two possible explanations:
+Four consecutive character records, **stride `0x24C`** — exactly the stride the
+Europe code list claims via `DC000000 0000024C`:
+
+| character | name address (measured) | name offset in record |
+|---|---|---|
+| Goku | `0x020CD774` | +0x20 |
+| Gohan | `0x020CD9C0` | +0x20 |
+| Piccolo | `0x020CDC0C` | +0x20 |
+| Krillin | `0x020CDE58` | +0x20 |
+
+The gaps are `0x24C, 0x24C, 0x24C` — **identical, three times over**. That
+repetition is what makes this a measured structure rather than four coincidences.
+
+Derived array base: **`0x020CD754`** (name address − 0x20).
+
+⛔ The code list's base is `0x020CD300`. It is **0x454 too low**, so every offset
+taken from it lands in empty memory. That single error explains every zero reading
+observed across all previous runs.
+
+## ✅ Per-character stat fields (candidates — naming still needs in-game confirmation)
+
+Read as u32. Each value appears **three times consecutively** (current / max / a
+display copy — the normal shape for a DS RPG), then the next stat follows the same
+pattern 0x10 later:
+
+| character | `name+0x1D8` (+1DC, +1E0) | `name+0x1E8` (+1EC, +1F0) |
+|---|---|---|
+| Goku | 290 | 95 |
+| Gohan | 660 | 225 |
+| Piccolo | 300 | 105 |
+| Krillin | 320 | 110 |
+
+These are plausibly **HP** and **Ki** — they vary per character in exactly the way
+party stats should, and the tripling is structural rather than accidental.
+
+⛔ **What is confirmed is the LAYOUT, not the field names.** "290 is Goku's HP" is a
+hypothesis. To confirm it, change exactly one value in-game (take damage so the HP
+bar visibly drops) and re-read — never accept a plausible-looking number.
+
+## ⛔ The method that worked, and the one that wasted a run
+
+**What failed:** scanning 128 KB for an address whose value was "plausible AND
+different" at `base`, `+stride`, `+2*stride`. It returned **348 candidates** — the
+top hits (`5489 / 7240 / 4279`) were graphics data. Plausibility is not evidence,
+and a permissive filter over graphics memory finds hundreds of matches.
+
+**What worked: scanning for ASCII STRINGS.**
 
 ```
-party block (USA 0x020CD000-0x020CE000)  nonzero   157 /  4096 bytes
-item block  (USA 0x020CC700-0x020CC900)  nonzero    14 /   512 bytes
-item block  (EUR 0x020CC300-0x020CC500)  nonzero     0 /   512 bytes
-control     (0x02000000-0x02001000)      nonzero  3703 /  4096 bytes   <- busy
+=== string scan: character names locate the record layout ===
+  0x020CD774  "Goku"     (len 4)
+  0x020CD9C0  "Gohan"    (len 5)
+  0x020CDC0C  "Piccolo"  (len 7)
+  0x020CDE58  "Krillin"  (len 7)
+  -- 4 string(s); distance between them is the record stride
 ```
 
-The control window is **90% populated**, so the probe is reading live memory
-correctly. The EUR window is entirely zero. The USA party block is sparse — and
-critically, **the identical numbers appear at 24,000 frames** (run 3), so that
-157/4096 is a static floor, not a structure filling in.
+**Character names are the best structure oracle in an RPG.** They are long,
+self-identifying, and sit at a fixed offset inside each record — so the distance
+between one name and the next *is* the stride, measured rather than assumed. Four
+hits replaced 348 useless candidates and produced the base, the stride, and an
+identifiable anchor for every scalar field.
 
-### The screenshots settle what the numbers meant
+**Generalisable rule: when hunting an unknown structure, look for the strings
+first.** A name gives you a known-content anchor; a "plausible integer" gives you
+nothing to check against.
 
-- `docs/evidence/dbz-20000-frames-intro-scene.png` — intro dialogue with Krillin,
-  world map and party visible.
-- `docs/evidence/dbz-24000-frames-house-interior.png` — an isometric house
-  interior, **with a red HP bar rendered at the bottom of the screen**.
+## ⛔ The zero-reading trap, and the screenshot that broke it
 
-The second one is decisive. **The game is in play, on the bottom screen's HP bar
-display, and the published addresses still read zero.** So:
+A probe reported every published address as `0` while a control address read real
+data. That is consistent with **both** "the structure is not allocated yet" **and**
+"the address is wrong" — and the two demand opposite next actions.
 
-- ✅ The emulator boots this ROM.
-- ✅ Input driving works — the plan reaches gameplay.
-- ✅ The probe reads live memory.
-- ❌ **The published Action Replay addresses are wrong for this ROM.**
+The screenshot on the bottom screen showed a **status gauge while the addresses read
+zero**. That converts the ambiguity into a finding: the stats demonstrably exist (the
+game is drawing one), so the addresses are wrong.
 
-⛔ That last conclusion could only be reached *because* of the HP bar in the
-screenshot. A zero reading on its own is ambiguous between "not allocated" and
-"wrong address"; a zero reading **while the game draws the value** is not.
+**Generalised: "reads zero" is ambiguous; "reads zero while the game draws the value"
+is not.** Bracket every RAM claim with a screenshot at the same moment.
 
-## The structure scan, and why it did not settle it
+## Evidence
 
-Using the one structural fact the code lists give — a record stride of `0x24C`
-(from Europe's `DC000000 0000024C`) — the probe scans `0x020C0000..0x020E0000`
-for an address whose value is plausible *and different* at `base`, `base+stride`
-and `base+2*stride`.
+- `docs/evidence/dbz-20000-frames-intro-scene.png` — intro dialogue, past the title
+- `docs/evidence/dbz-24000-frames-house-interior.png` — house interior **with a
+  status gauge rendered**, the image that proved the addresses wrong
 
-It returned **348 candidates**, which is useless in itself:
-
-```
-0x020C7DDC  5489 / 7240 / 4279     <- graphics data, not RPG stats
-0x020C7F74  3185 / 3782 / 3570
-0x020C99B2  513 / 515 / 516        <- small, but uniform
-0x020C99B4  1 / 5 / 5
-```
-
-⛔ **This is the project's own documented trap: a memory scan is a confirmation
-tool, not a discovery tool.** Hundreds of plausible triples is what a permissive
-filter over graphics memory looks like. The scan needs a *hypothesis* to test, not
-a wider net.
-
-## What the honest next step is
-
-The addresses are wrong, so stop refining them. Two better routes, in order:
-
-1. **Get the real memory map from the ROM, not from a code list.** A randomizer
-   repo documents ARM9 RE and the `.narc`/BDAT formats for this game. A
-   decompilation or disassembly would give named addresses directly — the same
-   move that made Fire Emblem tractable (`Eebit/fe11-us` ships `symbols.txt`).
-   **Search for a decomp before scanning again.**
-2. **If scanning, make it a controlled experiment.** Change exactly one value
-   in-game (take damage so the HP bar visibly drops), snapshot before and after,
-   and diff. That is a hypothesis with a known expected result, and it narrows to
-   a handful of addresses instead of 348.
-
-⛔ **Do not trust the Europe list's offsets either.** Europe's item block is
-entirely zero across the whole run while the USA one has 14 bytes, which is
-consistent with neither list matching this ROM. The internal title says
-`DB KAI RPG`, hinting this release shares lineage with the Japanese `DB Kai`
-game — so the code lists may simply be for a different build.
-
-## The probe itself
-
-`fe/dbz_probe.cpp`, built against the host object set:
+## How to reproduce
 
 ```bash
-export PA_SHIM="$PWD/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
-g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$HOME/src/melonds-lua/src" -std=c++17 \
-  -o Vendor/dbz_probe fe/dbz_probe.cpp Vendor/hostobj/*.o -lpthread -lm -ldl
-DBZ_SHOT=/path/out.ppm ./Vendor/dbz_probe <rom> 20000 fe/plans/dbz-boot.txt
+export PA_SHIM=<repo>/tools/re/platforms/gba/mgba_compat.lua   # ⛔ A FILE, not a dir
+bash scripts/build-host.sh
+g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 \
+    -Wno-everything -I$PWD/Core -I$PWD/Sources/CPokeCore/include \
+    -I$HOME/src/melonds-lua/src -I$HOME/src/lua-5.4.7/src -std=c++17 \
+    -o /tmp/dbz_probe fe/dbz_probe.cpp Vendor/hostobj/*.o -lpthread -ldl -lm
+DBZ_SHOT=shot.ppm /tmp/dbz_probe "<rom>.nds" 12000 fe/plans/dbz-battle.txt
 ```
 
-It reports, per address: first/last value, change count, distinct values — plus
-window population and a screenshot.
+⛔ **`PA_SHIM` is a FILE, not a directory.** Pointing it at the shim's directory makes
+`fopen` fail silently in effect: the probe falls through to a bare
+`emu.frameadvance()` with no shim loaded and dies on
+`attempt to index a nil value (global 'emu')`. The `emu` global comes from the shim.
 
-### Three traps this probe hit, all now encoded in it
+⛔ **Do not link `-lSDL2`** — the `POKE_HOST` platform layer uses
+`clock_gettime`/`usleep`, not SDL.
 
-- ⛔ **`poke_start` refuses without a script** ("No accessibility script was
-  bundled"), and that check runs before any frame. A native probe needs an idle
-  looping script, and the shim must load first or the script dies on
-  `attempt to index a nil value (global 'emu')`.
-- ⛔ **`PA_SHIM` must be exported INSIDE the script**, not from a parent shell —
-  otherwise the shim is silently absent and the error looks like a broken script.
-- ⛔ **`poke_framebuffer` must be called BEFORE `poke_framebuffer_ptr`.** The
-  pointer helper is stateful and returns null unless the screen was selected
-  first — and you still get valid width/height, so it reads as a broken
-  framebuffer rather than a call-order mistake.
+## Next steps
 
-## The published code lists (claims to verify)
-
-USA (`0x020CC770` zenny, etc.) and Europe (`0x020CC370` zenny) differ by `0x400`.
-Europe's party records use a stride of `0x24C` (`DC000000 0000024C`), which is
-strong evidence of the record layout and is worth testing directly at
-`base + n * 0x24C`.
+1. **Confirm the field names** — take damage in-game, re-read `name+0x1D8`, and see
+   whether it drops. That converts the candidate stat block into verified HP/Ki.
+2. **Locate the level field** — it should be within the same record and change on
+   level-up, which is a cheap in-game experiment.
+3. **Then build the AotS adapter** on the measured layout — `Core/adapter.h` keyed
+   on game code `BRPE`, reporting party name/HP/Ki via the same `Host` callbacks the
+   GBA and Fire Emblem adapters use.

@@ -288,6 +288,179 @@ int main(int argc, char** argv)
     printf("\n  An all-zero window means the structure was never created by this run.\n");
     printf("  A busy window with real values means the addresses to check are wrong.\n");
 
+    // ------------------------------------------------------- byte layout
+    //
+    // ⛔ THE COUNT IS NOT DIAGNOSTIC; THE PATTERN IS. "157 / 4096 nonzero" reads
+    // the same whether the party array exists at a different offset or whether a
+    // handful of scattered flags happen to be set. Dumping the bytes answers the
+    // question the count cannot: IS THERE A RUN OF DATA, AND WHERE DOES IT START?
+    //
+    // The window is dumped in full (not just its first 256 bytes) because the first
+    // run of this measurement returned ZERO data in the first 256 bytes at the
+    // published base — which is itself the finding: the code list's base address is
+    // pointing at empty memory, so the data it describes must live at some offset
+    // inside (or beyond) the window. The first/last non-zero addresses locate it.
+    printf("\n=== byte layout of the party window (0x020CD000 .. 0x020CE000) ===\n");
+    {
+        uint32_t firstnz = 0, lastnz = 0, totalnz = 0;
+        for (uint32_t row = 0; row < 0x1000; row += 16) {
+            uint32_t a = 0x020CD000 + row;
+            uint32_t nz = 0;
+            char hex[64]; int hx = 0;
+            for (int i = 0; i < 16; i++) {
+                uint8_t v = ProbeRead(a + i, 1);
+                if (v) { nz++; totalnz++; if (!firstnz) firstnz = a + i;
+                         lastnz = a + i; }
+                hx += snprintf(hex + hx, sizeof(hex) - hx, "%02X ", (unsigned) v);
+            }
+            // print every row that has any data, plus its occupancy — a run of rows
+            // with similar occupancy is a structure; isolated rows are noise
+            if (nz) printf("  +%04X  %s  (%u/16)\n", row, hex, nz);
+        }
+        printf("  ---\n");
+        printf("  total non-zero : %u / 4096\n", totalnz);
+        if (totalnz)
+            printf("  first non-zero : 0x%08X   last: 0x%08X   span: %u bytes\n",
+                   firstnz, lastnz, lastnz - firstnz + 1);
+        else
+            printf("  the window is entirely empty this run\n");
+    }
+
+    // ------------------------------------------------------- string scan
+    //
+    // ⛔ CHARACTER NAMES ARE THE BEST STRUCTURE ORACLE IN AN RPG, and this window
+    // proves the point: the byte dump found ASCII "Krillin" at 0x020CDE50. Names are
+    // long, self-identifying, and land at a FIXED OFFSET inside each character
+    // record — so the distance between one name and the next IS the record stride,
+    // measured rather than assumed. That inverts the whole approach: instead of
+    // scanning 128 KB for a plausible integer (which returned 348 useless
+    // candidates), scan for strings and derive the layout from them.
+    //
+    // Once the names are located, the party array base and stride are known exactly,
+    // and every scalar field (HP, Ki, level) can be read relative to a name we can
+    // actually identify — which is a hypothesis with a checkable answer.
+    printf("\n=== string scan: character names locate the record layout ===\n");
+    {
+        uint32_t found = 0;
+        for (uint32_t a = 0x020CD000; a < 0x020CE000; a++) {
+            // start of an ASCII run: printable, at least 3 chars, NUL-terminated
+            uint8_t first = ProbeRead(a, 1);
+            if (first < 0x41 || first > 0x7A) continue;      // 'A'..'z'
+            if (a > 0x020CD000 && ProbeRead(a - 1, 1) >= 0x41 &&
+                ProbeRead(a - 1, 1) <= 0x7A) continue;        // not the run start
+            char s[40]; int n = 0;
+            for (int i = 0; i < 39; i++) {
+                uint8_t v = ProbeRead(a + i, 1);
+                if (v < 0x20 || v > 0x7E) break;
+                s[n++] = (char) v;
+            }
+            s[n] = 0;
+            if (n >= 3) {
+                printf("  0x%08X  \"%s\"  (len %d)\n", a, s, n);
+                found++;
+            }
+        }
+        if (!found) printf("  no ASCII strings in this window\n");
+        else printf("  -- %u string(s); distance between them is the record stride\n", found);
+    }
+
+    // ------------------------------------------------------- party record dump
+    //
+    // ⛔ THIS IS THE PAYOFF OF THE STRING SCAN, AND THE REASON THE EARLIER SCAN
+    // FAILED. Scanning for a "plausible integer" returned 348 candidates because
+    // plausibility is not evidence. Scanning for NAMES returned four hits whose
+    // spacing IS the record stride — measured, not assumed:
+    //
+    //     Goku 0x020CD774  Gohan 0x020CD9C0  Piccolo 0x020CDC0C  Krillin 0x020CDE58
+    //     differences: 0x24C, 0x24C, 0x24C   <- the published stride, CONFIRMED
+    //
+    // The names sit 0x20 into each record, so the array base is 0x020CD754 — NOT
+    // the 0x020CD300 the code list claims. That single fact explains every zero
+    // reading: the code list's base is off, so every offset taken from it lands in
+    // the wrong place.
+    //
+    // Now that the real base and stride are known, dump each record and print it
+    // three ways (byte, u16, u32) so the scalar fields can be read directly.
+    printf("\n=== party record dump (base 0x020CD754, stride 0x24C) ===\n");
+    {
+        const uint32_t PBASE = 0x020CD754, PSTRIDE = 0x24C;
+        const char* nm[4] = {"rec0", "rec1", "rec2", "rec3"};
+        for (int r = 0; r < 4; r++) {
+            uint32_t b = PBASE + (uint32_t) r * PSTRIDE;
+            printf("\n  --- %s base 0x%08X ---\n", nm[r], b);
+            for (uint32_t o = 0; o < PSTRIDE; o += 16) {
+                char hex[64]; int hx = 0; bool any = false;
+                for (int i = 0; i < 16; i++) {
+                    uint8_t v = ProbeRead(b + o + i, 1);
+                    if (v) any = true;
+                    hx += snprintf(hex + hx, sizeof(hex) - hx, "%02X ", (unsigned) v);
+                }
+                if (!any) continue;
+                printf("    +%03X  %s", o, hex);
+                // label the name field explicitly when we are on it
+                if (o == 0x20) {
+                    char s[20]; int n = 0;
+                    for (int i = 0; i < 16; i++) {
+                        uint8_t v = ProbeRead(b + 0x20 + i, 1);
+                        if (!v) break;
+                        s[n++] = (char) v;
+                    }
+                    s[n] = 0;
+                    printf("  name=\"%s\"", s);
+                }
+                printf("\n");
+            }
+            // the fields an RPG party member must expose
+            printf("    decoded: hp16@+00=%u  @+02=%u  @+04=%u  @+06=%u\n",
+                   ProbeRead(b + 0x00, 2), ProbeRead(b + 0x02, 2),
+                   ProbeRead(b + 0x04, 2), ProbeRead(b + 0x06, 2));
+            printf("    decoded: u16@+10=%u @+20=%u @+30=%u @+40=%u @+50=%u @+60=%u\n",
+                   ProbeRead(b + 0x10, 2), ProbeRead(b + 0x20 - 0x20, 2),
+                   ProbeRead(b + 0x30, 2), ProbeRead(b + 0x40, 2),
+                   ProbeRead(b + 0x50, 2), ProbeRead(b + 0x60, 2));
+        }
+    }
+
+    // ------------------------------------------------------- per-character table
+    //
+    // ⛔ ANCHOR EVERY FIELD TO A NAME, NOT TO A GUESSED BASE. The 0x020CD754
+    // "base" is derived from an ASSUMED name offset of 0x20; the name addresses
+    // themselves are measured facts. Reading fields relative to each name keeps the
+    // claim honest even if the assumed base is wrong — and the stride (0x24C,
+    // confirmed across four consecutive names) is what proves these four records
+    // are one array rather than four coincidences.
+    //
+    // The candidate stat block sits at name+0x1D8..name+0x1F0 as three consecutive
+    // u32 triples. Three copies of each value is the normal shape for a DS RPG
+    // (current / max / display copy), and the numbers here differ per character in
+    // exactly the way party stats should.
+    printf("\n=== per-character fields, anchored on the verified name addresses ===\n");
+    {
+        const uint32_t NAMES[4] = {0x020CD774, 0x020CD9C0, 0x020CDC0C, 0x020CDE58};
+        printf("  %-9s %-11s %-9s %-9s %-9s %-9s %-9s %-9s\n",
+               "name", "name addr", "+1D8", "+1DC", "+1E0", "+1E8", "+1EC", "+1F0");
+        for (int r = 0; r < 4; r++) {
+            uint32_t n = NAMES[r];
+            char s[16]; int k = 0;
+            for (int i = 0; i < 15; i++) {
+                uint8_t v = ProbeRead(n + i, 1);
+                if (!v) break;
+                s[k++] = (char) v;
+            }
+            s[k] = 0;
+            printf("  %-9s 0x%08X  %-9u %-9u %-9u %-9u %-9u %-9u\n",
+                   s, n,
+                   ProbeRead(n + 0x1D8, 4), ProbeRead(n + 0x1DC, 4),
+                   ProbeRead(n + 0x1E0, 4), ProbeRead(n + 0x1E8, 4),
+                   ProbeRead(n + 0x1EC, 4), ProbeRead(n + 0x1F0, 4));
+        }
+        printf("\n  ⛔ These are CANDIDATE stat fields, not confirmed HP/Ki. What is\n");
+        printf("     confirmed is the layout: the four names are 0x24C apart, so this\n");
+        printf("     IS a character array with the published stride, at a base the code\n");
+        printf("     list gets wrong. Naming the fields needs one value changed in-game\n");
+        printf("     (take damage, re-read) — never a plausible-looking number.\n");
+    }
+
     // ------------------------------------------------------- structure scan
     //
     // ⛔ WHEN THE PUBLISHED ADDRESSES READ ZERO BUT THE GAME CLEARLY HAS THE STATE
