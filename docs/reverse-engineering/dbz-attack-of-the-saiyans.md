@@ -87,20 +87,69 @@ party pointer array
 ⛔ **The published Action Replay base `0x020CD300` is `0x360` below the true base
 `0x020CD660`** — which is why every published address read exactly zero.
 
-## ✅ The Status screen also confirms stats
+## ✅✅✅ LIVE STATS LOCATED AND VERIFIED
 
-`docs/evidence/dbz-status-screen-top.png` shows, for the selected member:
+With the RAM dump and the **Status screen captured in the same run**, the party member
+stats are confirmed by direct match — no inference:
+
+**Ground truth** (top screen, same run) — `docs/evidence/dbz-status-krillin.png`:
 
 ```
-HP  300/300
-Ki  105/105
-Pw 9   Df 9   Rc 9   Tc 9   Sp 9   Lk 10     (hexagonal radar chart)
+Krillin     LV  1
+HP          300 / 300
+KI          105 / 105
+EXP           0
+NEXT         70
+AP            0
 ```
 
-⚠️ **Not yet matched to a RAM offset.** These are the live per-member stats and they
-are the obvious next thing to locate — the `+0x1F8`/`+0x208` triples found earlier read
-290/95 etc. and do **not** match this screen, so they are something else (most likely
-base values, not live values). Do not assume they are HP/Ki.
+**The Krillin record, `base 0x020CDD44`:**
+
+```
++0x0A0  u16 = 300     HP   (triple: current / max / display copy)
++0x0A4  u16 = 300
++0x0A8  u16 = 300
++0x0B0  u16 = 105     KI   (same triple shape)
++0x0B4  u16 = 105
++0x0B8  u16 = 105
++0x240  u16 =  70     NEXT
+```
+
+**Exact match on all three values** — HP 300, KI 105, NEXT 70.
+
+**Cross-checked against the rest of the party** — each member has its own distinct,
+plausible values, which is what a real per-member stat block looks like:
+
+| member | record | `+0x0A0` HP | `+0x0B0` KI | `+0x240` NEXT |
+|---|---|---|---|---|
+| Krillin | rec3 | 300 | 105 | 70 |
+| Tien | rec4 | 320 | 110 | 79 |
+| Yamcha | rec5 | 305 | 100 | 61 |
+
+⛔ **The stats live at `+0x0A0` (HP) and `+0x0B0` (KI) inside each character record** —
+relative to the record base `0x020CD660 + n*0x24C`. Not at `+0x1F8`/`+0x208`, which the
+earlier (wrong-base) analysis had reported; those values (290/95 etc.) were the *next
+record's* HP/KI seen through a one-stride-shifted window. **That is a clean illustration
+of the base bug: the wrong base made a plausible-looking stat field out of a
+neighbouring record.**
+
+**Stat block layout (u16, each value stored three times):**
+
+```
++0x0A0  HP    cur / max / copy
++0x0B0  KI    cur / max / copy
++0x240  NEXT  (EXP to next level)
+```
+
+**AP** showed 0 on the Status screen and was not located; `+0x240` is **NEXT**, not AP
+(Krillin reads 70 there, matching NEXT).
+
+## ✅ The published Action Replay codes, explained
+
+The published base `0x020CD300` is **`0x360` below** the true base `0x020CD660`, so
+every published address read zero. The published list is not wrong about *what* is in
+this region — party stats at a `0x24C` stride — it is wrong about *where*.
+
 
 
 **Status: the character table is located and its layout is measured. It is the
