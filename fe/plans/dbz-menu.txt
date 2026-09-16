@@ -1,0 +1,78 @@
+# Dragon Ball Z: Attack of the Saiyans (USA, BRPE) — try to open a MENU.
+#
+# WHY: the character list at 0x020CC774 holds Piccolo/Krillin/Tien while the player
+# has Goku alone. A party/menu screen NAMES its contents, so it is the one screen that
+# can confirm or refute what that list means. The filmstrip (DBZ_SHOT_DIR) records
+# every sample point, so one run shows whether a menu actually opened — no need to
+# guess from a single end-of-run shot.
+#
+# ⛔ THE BOOT GATE: this ROM opens on "Resetting backup memory. Press the A Button to
+# begin." (verified by screenshot). Without an A press the game sits there for the
+# whole run — which is exactly how an earlier control run tested nothing. So A is
+# pressed early and repeatedly until the game is demonstrably running.
+#
+# Then, in the house scene, this plan tries the usual DS RPG menu keys in sequence,
+# spaced widely enough that each attempt is visible in the filmstrip:
+#   X     - very common menu key on DS RPGs
+#   START - the other common one
+#   Y     - occasionally used
+# Between attempts it returns to "no menu" with B, so a failed attempt does not leave
+# the game in a submenu and mask the next key.
+
+# --- pass the backup-memory gate -------------------------------------------
+KEY 900   A 1
+KEY 906   A 0
+KEY 1200  A 1
+KEY 1206  A 0
+KEY 1500  A 1
+KEY 1506  A 0
+KEY 1800  A 1
+KEY 1806  A 0
+KEY 2100  A 1
+KEY 2106  A 0
+
+# --- title / splash -> advance into the house scene ------------------------
+KEY 2600  START 1
+KEY 2606  START 0
+KEY 3000  A 1
+KEY 3006  A 0
+KEY 3400  A 1
+KEY 3406  A 0
+KEY 3800  A 1
+KEY 3806  A 0
+
+# --- house scene: dismiss dialogue ----------------------------------------
+KEY 4200  A 1
+KEY 4206  A 0
+KEY 4600  A 1
+KEY 4606  A 0
+KEY 5000  A 1
+KEY 5006  A 0
+KEY 5400  A 1
+KEY 5406  A 0
+
+# --- MENU ATTEMPT 1: X ----------------------------------------------------
+KEY 6000  X 1
+KEY 6010  X 0
+KEY 6600  B 1
+KEY 6606  B 0
+
+# --- MENU ATTEMPT 2: START ------------------------------------------------
+KEY 8000  START 1
+KEY 8010  START 0
+KEY 8600  B 1
+KEY 8606  B 0
+
+# --- MENU ATTEMPT 3: Y ----------------------------------------------------
+KEY 10000 Y 1
+KEY 10010 Y 0
+KEY 10600 B 1
+KEY 10606 B 0
+
+# --- MENU ATTEMPT 4: X again, after more dialogue -------------------------
+KEY 12000 X 1
+KEY 12010 X 0
+KEY 13000 A 1
+KEY 13006 A 0
+KEY 14000 A 1
+KEY 14006 A 0

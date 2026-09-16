@@ -354,24 +354,65 @@ One capture per sample point, paired with the RAM reading at the same frame
 |---|---|---|
 | 0 | n=0 | black — nothing rendered yet |
 | 2000 | n=6 `<garbage>,0,1,2,3,4` | **Shenron logo / splash** |
-| 4000 | n=3 `2,3,4` | **Goku's house interior**, Goku + Krillin present, dialogue box starting |
-| 6000 | n=3 `2,3,4` | house interior, **Krillin speaking**: *"Brrr! Sure is a cold one today, huh?"* |
-| 8000 | n=3 `2,3,4` | house interior, no dialogue box |
-| 10000 | n=3 `2,3,4` | house interior |
+| 4000 | n=3 `2,3,4` | cutscene interior; dialogue box starting |
+| 6000 | n=3 `2,3,4` | narration: *"Together, they successfully resurrected Shenron, the eternal dragon"* |
+| 8000 | n=3 `2,3,4` | interior, no dialogue box |
+| 10000 | n=3 `2,3,4` | interior |
 
-⛔ **This resolves a long-standing confusion in this project.** The game reaches its
-**opening scene inside Goku's house at around f=4000**, not "past the title into
-play" much later. The filmstrip makes the sequence explicit: black → splash →
-house/dialogue.
+⛔ **This resolves a long-standing confusion in this project.** The game is in its
+**opening cutscene by ~f=4000**, not "past the title into play" much later. The
+filmstrip makes the sequence explicit: black → Shenron splash → interior/dialogue.
 
-⚠️ **Observed but NOT yet identified:** several character sprites appear in the house
-(dialogue portraits and on-screen figures). At 64× screen resolution the individual
-sprites cannot be identified reliably, and **the list names Piccolo, Krillin and Tien
-while the dialogue shows Krillin** — so whether the list corresponds to the characters
-*present in the scene* is a live hypothesis. It is not confirmed: identifying sprites
-from low-resolution pixels is exactly the kind of plausible inference this document
-keeps having to retract. The clean test is a **party-menu screenshot**, not squinting
-at sprites.
+### ⚠️ CORRECTION: the "Goku's house" identification was WRONG
+
+Earlier revisions of this document (and several progress reports) described the
+opening scene as **Goku's house** with **Krillin** speaking. A later filmstrip with
+bigger, later panels shows the truth:
+
+- the speaker is **Launch** (blue hair, name box reads `Launch`)
+- the line is ***"Come on, everyone! Master Roshi's waiting for you!"***
+- so the location is **Kame House** (Master Roshi's island), not Goku's house
+- the earlier "Krillin speaking / Brrr! Sure is a cold one today" reading was also
+  taken from a small, early panel and is **not** what this run shows
+
+⛔ **Method lesson: identifying characters and dialogue from small, low-resolution
+panels is unreliable, and the mistake survived into several reports.** The fix is
+mechanical, not attentiveness: **capture larger and later panels, and read one panel
+at a time at full size** rather than a contact sheet of six tiny images. A 64×192 DS
+screen upscaled 2× is not enough to read a name box; upscaled 4× and cropped it is.
+
+### 🎮 MENU PROBE — pressing START opens a menu (verified)
+
+Plan `fe/plans/dbz-menu.txt` presses through the boot gate, then tries **X**, then
+**START**, then **Y**, each followed by B to clear any submenu
+(`docs/evidence/dbz-menu-attempts.png`, an 8-panel sheet):
+
+| frame | attempt | result |
+|---|---|---|
+| 6000 | after **X** | cutscene with dialogue box — **no menu** |
+| 8000 | after **START** | **a menu box appears, top-right: `Skip` / `Back`** |
+| 10000 | START menu still open | same box |
+| 12000 | after **Y** | box still present |
+| 14000 | later | box still present |
+
+**Findings:**
+
+1. **Input can open a menu on this screen** — `START` produced a two-item box
+   (`Skip`, `Back`). So the probe's input path reaches menus; it is not blocked.
+2. **This is a cutscene/dialogue menu, not the party menu.** `Skip`/`Back` are
+   dialogue controls and the box shows **no character names** — so it cannot yet
+   answer what `0x020CC774` means.
+3. **`X` and `Y` produced no menu** on this screen.
+
+⛔ **Next step is now specific: skip the cutscene (or advance dialogue far enough) and
+open a real party/status screen.** That is the only screen that names its contents and
+would let the character list be tested against it. The filmstrip tooling makes that a
+single run — capture at each attempt and read the panels at 4× cropped.
+
+⚠️ **Observed but NOT yet identified:** the list names Piccolo, Krillin and Tien while
+the cutscene shows **Launch**. Whether the list tracks characters *present in the
+scene* is a live hypothesis; it is not confirmed, and sprite/name-box identification
+from small panels is exactly what just produced the Kame House misidentification.
 
 ### ✅✅ THE CONTROL EXPERIMENT — and the caveat that limits it
 
