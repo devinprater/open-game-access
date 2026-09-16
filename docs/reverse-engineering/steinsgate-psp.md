@@ -1,320 +1,213 @@
 # Steins;Gate: My Darling's Embrace (PSP) — reader investigation
 
-Investigation status: **TEXT LOCATED, LINE CURSOR NOT FOUND.** A reader cannot be built
-from what is known so far. This document records exactly what is and is not established,
-because the next person (or the next session) should not have to rediscover it.
+**Status: SCRIPT FORMAT FULLY DECODED. LINE CURSOR STILL NOT FOUND.**
+A reader is now possible; it is not yet buildable. This document records exactly what is
+established and what is not.
 
 ## ⛔ First: this is NOT the game the backlog entry meant
 
 `docs/research/game-backlog-ranked.md` lists **"Steins;Gate — PSP — pure visual novel,
-would be the easiest game here if a PSP core existed"**. The file actually in the library
-is a **different title in the same series**:
+would be the easiest game here if a PSP core existed"**. The file in the library is a
+**different title in the same series**:
 
 | | |
 |---|---|
-| File | `Dropbox/Games/PSP/Steins Gate - Hiyori Renri no Darling (English v0.5).cso` |
-| Game ID (verified via PPSSPP debugger) | **`ULJM06040`** |
+| File | `Dropbox/Games/PSP/Steins Gate - Hiyoku Renri no Darling (English v0.5).cso` |
+| Game ID (verified from the running game AND from `SYSTEM.CFG`) | **`ULJM06040`** |
 | Title | **Steins;Gate: My Darling's Embrace** |
 | Version | 1.02 |
-| Released | 2012-04-26 |
 | Also known as | Hiyoku Renri no Darling; "Darling of Loving Vows" |
 | Type | **Fandisc** — a daily-comedy spinoff, not the serious sci-fi VN |
 
 **The original Steins;Gate is `ULJM-05887`** (2011). The widely-cited dumped CWCheat
 codes — including the debug-menu unlock `_L 0xD10E67E4 00000001` / `_L 0x110E67E4
-00000004` and the alternative `0x0027C500 0x00000080` — are for **`ULJM05887`**, and do
-**not** apply to this game. Do not carry them over.
+00000004` and the alternative `0x0027C500 0x00000080` — are for **`ULJM05887`** and do
+**not** apply. Do not carry them over.
 
-## Second: "easiest" was an assumption that has not held up
+Amusingly, `SYSTEM.CFG` lists `ULJM05887` *and* `ULJM99999DAT` among its strings, so the
+engine is shared between the two titles; only the content differs.
 
-The reasoning was that a visual novel has no combat, no movement and no timed input, so a
-reader only has to speak the current line of text. That part is right. What was not
-anticipated:
+## ✅✅✅ THE SCRIPT FORMAT — DECODED AND VERIFIED
 
-- The script lines live in RAM as plain ASCII, and are easy to find.
-- **Nothing obvious tracks WHICH line is current.** This is the whole reader problem, and
-  it is unsolved. See "The blocker" below.
-- A VN is still a game with modes (attract / title / scene / dialogue / menus), and the
-  script only loads once you are past the attract loop.
+This is the main result. The script is stored **uncompressed** inside
+`PSP_GAME/USRDIR/DATA0.CPK` (a CRI `CPK ` archive), and in RAM as a byte-identical copy.
 
-So the difficulty is not where it was expected to be.
+**Location:** found by searching the CPK for a line read off the in-game BACKLOG screen.
+The "paper cups" line sits at **CPK offset `0x4422A2`**; the equivalent RAM copy is at
+**`0x08AEB220`**.
 
-## What IS established (verified, with evidence)
+### The record format
 
-### The debugger works
+Records are **NUL-separated**. Inside a record, multi-byte Shift-JIS control pairs mark
+the fields:
 
-PPSSPP 1.20.4, WebSocket debugger at `ws://127.0.0.1:12345/debugger`, subprotocol
-`debugger.ppsspp.org`. Confirmed reading:
-
-```
-game id   : ULJM06040
-title     : Steins;Gate: My Darling's Embrace
-version   : 1.02
-```
-
-⛔ **The `--debugger=PORT` COMMAND-LINE FLAG ALONE IS NOT ENOUGH.** The effective config
-lives at `Documents/PPSSPP/PSP/SYSTEM/ppsspp.ini` and had:
-
-```
-RemoteISOPort = 0
-RemoteDebuggerOnStartup = False
-RemoteDebuggerLocal = False
-```
-
-With those values no port is ever bound and `--debugger=12345` changes nothing. The
-symptom is a debugger that is simply not there, which reads as "the flag is wrong". Set
-all three (`RemoteISOPort = 12345`, `RemoteDebuggerOnStartup = True`,
-`RemoteDebuggerLocal = True`) and restart. **Only one debugger client can hold the
-connection at a time** — a second client gets `version timed out` until the first
-disconnects or PPSSPP is restarted.
-
-### Input injection works, and is verifiable
-
-`input.buttons.press` takes **`button` (singular)** and **`duration` in FRAMES, not
-milliseconds**. Sending `buttons` fails with `Missing 'button' parameter`.
-
-Proven by subscribing to the `input.buttons` broadcast, which fires on every `sceCtrl`
-change:
-
-```
-{"event":"input.buttons","buttons":{...,"start":true,...},"changed":{"start":true}}
-{"event":"input.buttons","buttons":{...,"start":false,...},"changed":{"start":false}}
-```
-
-So injection reaches the emulated pad. When the screen then does not change, that is the
-game's answer, not a tooling failure.
-
-### ⛔ The attract prompt BLINKS — a single press can fall in the dark
-
-The opening screen shows **"Press START button"**, and that prompt blinks. A single
-`start` press, and even 12 presses at ~420 ms spacing, failed to clear it. Twelve presses
-at the same spacing *did* clear it on a later attempt. **Mashing is required to get past
-it reliably.** Any conclusion drawn from "I pressed START once and nothing happened" is
-worthless here.
-
-Note also that screenshots taken after the press show a screen that **changes every
-frame** — the attract loop animates. A "N of N frames differ" result is therefore
-**animation, not navigation**, unless a hash repeats (the loop) or the content visibly
-changes. Do not read motion as progress.
-
-### The script text IS resident, and this is the English-patched build
-
-Once past the title, RAM at **`0x08AEA000`–`0x08AF3000`** contains the script as plain
-ASCII: **686 text runs**, each a single-character speaker code followed by the line.
-
-```
-0x08AEAEB2  'gOur time slowly ticks away from the moment of our birth to the moment of our death.'
-0x08AFB002  'gThe wise men of old understood that the greatest wisdom was oft spoke by those who '
-0x08AFB08D  'gHe who knows that he is wise may drown in his own wisdom'
-0x08AFB220  'C Mayuri. Can I use these paper cups?'
-0x08AFB258  'C sure. I guess so.'
-```
-
-Character names are present in quantity — `Okabe` (8+), `Kurisu` (8+), `Mayuri` (8+),
-`Daru`, `Suzuha`, `Faris`, `Luka`, `Moeka`, `Rintaro`, and `El Psy` (5 hits). The English
-patch is confirmed by content, not assumed.
-
-⛔ **THE SCRIPT IS ONLY THERE ONCE YOU ARE IN-GAME.** Every earlier scan found nothing
-but SDK and CRI library strings, because the game was still on the attract screen. A
-"there is no text in RAM" conclusion taken at the title is wrong.
-
-## ⛔ THE BLOCKER: nothing found tracks the current line
-
-This is the reason no reader exists. A pointer-to-current-line or a line index must be
-found, and neither has been.
-
-What was tested, and the result:
-
-| Test | Result |
+| bytes | meaning |
 |---|---|
-| 4-byte words pointing into the script window | **49 found** |
-| Of those, changed between two different dialogue steps | **0** |
-| The script block itself changed between steps | **0 of 36864 bytes** |
-| Small index-like words that changed, outside art/scratch | a long list of plausible counters, **none confirmed** against a screen |
+| `81 6B` | **speaker name follows** (`Rintaro`, `???`, ...) |
+| `81 6C` | delimiter closing the speaker name |
+| `81 67` | **the spoken line follows** |
+| `81 43` | in-text delimiter — a comma/space break *inside* a line |
+| `81 68` | end-of-box marker, followed by the literal text `%K%P` and a NUL |
+| `00` | end of record |
 
-The 49 pointers into the script are stable — they are most likely dispatch or table
-pointers established at load, not a moving cursor.
+⛔ **`%K%P` IS A PAGE BREAK, NOT TEXT.** It appears verbatim after every `81 68`. Left in,
+a reader would speak the percent signs aloud mid-sentence. Strip it.
 
-**Why this matters more than usual:** a reader that guesses the line from table order
-announces the *wrong line* with full confidence. For a blind player that is worse than
-silence. So this is reported as **located but blocked**, not as partially working.
+⛔ **A record with NO `81 6B` PAIR IS NARRATION** (inner monologue) and the game shows it
+without a name plate. This is why the raw RAM view looked like lines beginning with odd
+letters:
 
-There is also an unresolved observation that must not be glossed over: **between the
-dialogue steps dumped, no dialogue box with text was visible on screen.** The scene
-artwork was showing, with the in-game HUD (`8/5 (THU)`, mail and phone icons) but no text
-box. So it is not even confirmed that the line advanced during those steps. The next
-session must establish a state where a text box is demonstrably on screen *before*
-concluding anything about the cursor.
+```
+'gThe wise men of old...'      <- the 'g' is NOT a speaker code
+'C Mayuri. Can I use...'       <- nor is the 'C'
+```
 
+Those were **unmapped byte values** (`81 67`, `81 43`) rendered as `latin1`. An earlier
+pass in this investigation mis-read them as speaker codes and produced a table of
+"speakers" (`g` = Rintaro, `C` = ???). **That reading was an artefact of the encoding and
+is retracted.** The real speaker names are stored as text, and read cleanly:
 
-## ⛔ SECOND PASS — corrected findings (this SUPERSEDES parts of the section above)
+```
+@0x00442204  Rintaro   Accepting the unknown as the unknown is the first step towards God!
+@0x0044225B  Rintaro   But in this case, by 'unknown'...
+@0x00442293  ???       Hey, Mayuri. Can I use these paper cups?
+@0x004422CC  ???       Um, sure. I guess so.
+@0x0044238B  ???       Ooh, fried chicken! It looks so good!
+```
 
-The first pass concluded "script located, cursor not found" and left two things wrong.
-Both are corrected here.
+This **matches the in-game BACKLOG screen exactly**, which is what verifies the parse.
 
-### The controls are now known (verified, not guessed)
+### Working parser
 
-| Button | Effect |
+`scripts/oga-sg-script.py` implements the format:
+
+```
+oga-sg-script.py DATA0.CPK --find "paper cups"
+oga-sg-script.py DATA0.CPK --dump --from 0x442100 --count 20
+```
+
+## ✅ The decompile pipeline — WORKING
+
+The earlier hypothesis (that this would need decompilation) was right, and the whole
+route is now proven end to end:
+
+| step | command / result |
 |---|---|
-| **START** | title screen. ⛔ **THE "Press START button" PROMPT BLINKS** — 12 presses at ~420 ms spacing can all land in the dark. MASH (12+) to get in. Also opens/closes an in-game menu. |
-| **Cross** | advance dialogue / interact. |
-| **Triangle** | **opens the BACKLOG** — a scrollback of recently spoken lines. ⭐ THE BEST SCREEN IN THE GAME FOR THIS WORK. |
-| **Square** | opens a menu. |
-| D-pad | moves a cursor in menus; ⛔ does NOT scroll the BACKLOG — the backlog screen is static and does not respond to up/down. |
-
-### ⛔ The earlier "dialogue did not advance" comparison was INVALID
-
-The first pass compared two dumps and found the script block unchanged (0 of 36864
-bytes) and the pointers identical, and concluded the line had not advanced — but could
-not tell whether that was because the reader test was wrong or because nothing advanced.
-
-It was **both**, and the distinction is now settled: the two dumps had **byte-identical
-pointer sets**, i.e. the game state was genuinely unchanged between them. The comparison
-was worthless, not the method. **The real reason is visible on screen: the presses were
-only toggling the in-scene TV set, and no dialogue box was ever on screen.**
-
-⛔ **CONFIRM A TEXT BOX IS VISIBLE BEFORE CONCLUDING ANYTHING FROM A DIFF.** The BACKLOG
-is the reliable way to confirm dialogue exists — it prints the lines regardless of the
-current scene state.
-
-### ⭐ The BACKLOG proves the script block IS the dialogue, and decodes the speaker codes
-
-Triangle → BACKLOG shows exactly the strings found at `0x08AEA000`, in order:
+| 1. CSO → ISO | `maxcso.exe --decompress in.cso -o out.iso` → 1,385,979,904 bytes |
+| 2. Read the ISO | `scripts/oga-iso-extract.py` (minimal ISO9660 reader — see traps) |
+| 3. EBOOT.BIN | `PSP_GAME/SYSDIR/EBOOT.BIN`, 1,785,840 bytes, magic **`~PSP`** = encrypted PRX |
+| 4. Decrypt | `pspdecrypt` (built from https://github.com/John-K/pspdecrypt) |
+| 5. Result | **valid MIPS ELF32**, `\x7fELF`, entry `0x94224`, machine MIPS R3000 |
 
 ```
-        ng."
-Rintaro  "Accepting the unknown as the first step towards God!"
-Rintaro  "But in this case, by 'unkno...
-???      "Hey, Mayuri. Can I use these...
-???      "Um, sure. I guess so."
-???      "Here, I got you the snacks...
+pspdecrypt -o EBOOT.dec EBOOT.BIN
+# "Decryption successful for tag D91613F0 with type 2"
 ```
 
-which corresponds to the RAM lines:
+`llvm-objdump -d --triple=mipsel EBOOT.dec` disassembles it correctly. Ghidra is not
+strictly required — llvm-objdump works — but Ghidra will be far better for reading it.
 
-```
-0x08AEB190  'gAccepting the unknown as the unknown is the first step towards God!'
-0x08AEB220  'C Mayuri. Can I use these paper cups?'
-0x08AEB280  'C I got you the snacks you were talking about. This is w...'
-```
+**Relocation table:** the ELF is position-independent, so **no address appears as a
+literal**. Searching for the 4 bytes of an address finds nothing — verified (0 hits for
+the `SYSTEM.CFG` string address). Addresses are built as `lui`/`addiu` HI16/LO16 pairs
+patched at load time. The table is 8 sections of type **`0x700000A0`**, entsize 8,
+**44,606 entries** (6191 R_MIPS_32, 18709 R_MIPS_26, 8748 HI16, 10958 LO16).
+`scripts/oga-mips-reloc.py` reads it.
 
-**So the leading byte is a SPEAKER CODE, confirmed against the screen:**
+## ⛔ THE REMAINING BLOCKER: nothing found says WHICH line is current
 
-| code | speaker | notes |
-|---|---|---|
-| `g` | **Rintaro** (Okabe) | first-person narration *and* his spoken lines |
-| `C` | **???** | displayed as ??? at this point in the story |
+This is now the only thing between this work and a working reader.
 
-There are more codes (`A`, `f`, `ft`, `fs`) where a line wraps across a buffer boundary
-and the code byte belongs to the *continuation* fragment. **Do not assume the first byte
-is always a code** — split lines put one mid-fragment.
+What has been tested and ruled out:
 
-### ⛔ The script block is at a FIXED address and never changes
-
-`0x08AEA000`–`0x08AF3000` holds the whole resident script, **at the same address in every
-dump** (`d1-02`, `d1-08`, `ram-backlog` all place
-`'Mayuri. Can I use these paper cups?'` at exactly `0x08AEB222`). It is **0 bytes
-changed** between states — it is a load-time copy of the entire script, not a window.
-
-That is important: the block cannot tell you the current line, because nothing in it
-moves. Any reader must find the cursor elsewhere.
-
-### ⭐ The script is DUPLICATED at `0x09B31000`+ — the better lead
-
-Every script line also exists in a second region starting around `0x09B31C00`, in the
-same order, and this region DOES have 4-byte words pointing into it from elsewhere:
-
-```
-@0x08AFB20C -> 0x09B30954   [display copy]
-@0x08AFBBDC -> 0x09B31280   [display copy]
-@0x09FFEC84 -> 0x09B31A74   (stack frame)
-```
-
-**This is where the next session should work**, not the `0x08AEA000` block. The
-duplicate is the natural place for a decoded/display form with a moving read position.
-Note that `0x09FFEC84` sits in a *stack frame* (neighbours are `0x09FFECB0`,
-`0x09FFF15C`, `0x09FFED5C`), so something was actively walking this region when the
-dump was taken — which is what a reader would look like.
-
-⛔ Heap addresses MOVE between sessions. `d1-02`/`d1-08` and `ram-backlog` placed the
-same pointers at different addresses (`0x08D3A0A8` vs `0x08CE20A8`), so **never hard-code
-a heap address found in one dump.** The `0x08AEA000` script block is the exception — it
-is stable — but nothing else should be assumed stable.
-
-## Corrected bottom line
-
-| | |
+| test | result |
 |---|---|
-| Script text | ✅ located, `0x08AEA000`, 686 lines, English patch confirmed by content |
-| Speaker codes | ✅ confirmed against the BACKLOG (`g` = Rintaro, `C` = ???) |
-| Controls | ✅ verified (Triangle = backlog, Cross = advance; START blinks) |
-| Best screen for testing | ✅ BACKLOG (Triangle) — deterministic, shows real dialogue |
-| Which line is current | ❌ **still not found.** The `0x09B31000` duplicate is the lead. |
-| Reader | ❌ cannot be built yet |
+| 4-byte words pointing into the RAM script block | **3** total, and only 3 even in other states |
+| a word equal to the current record's address | **0 hits**, at every alignment |
+| the script block changing between game states | **0 of 36864 bytes** — it is a load-time copy |
+| pointers into it changing between states | **0** |
 
-**The decompile is now clearly the right next move.** The `0x09B31000` region plus the
-stack frame that referenced it give a concrete target to look for in the code: find what
-reads that address range, and the cursor logic is in the same function.
+The script block is a **fixed, unchanging copy**, so it structurally cannot indicate the
+current line. Whatever tracks position is elsewhere — most likely a (script-file, offset)
+pair or an index into a script table, since the game clearly loads scripts from the CPK
+rather than keeping a pointer into RAM.
 
-## The decompile path (NOT started)
+**Why this cannot be guessed:** a reader that infers the line from table order announces
+the *wrong line* with full confidence. For a blind player that is worse than silence.
 
-The user's standing instruction is that decompiling is available when needed. It is very
-likely needed here: the script format and the current-line logic live in the executable,
-not in RAM. The route:
+## Tooling built
 
-1. Decompress the `.cso` to `.iso` — `maxcso.exe` is present at
-   `Dropbox/Games/PSP/maxcso.exe`; `maxcso --decompress` handles CISO. ~1.8 GB output.
-2. Extract `PSP_GAME/SYSCONF` (read the real game ID) and `PSP_GAME/EBOOT.BIN`.
-3. **Decrypt/decompress `EBOOT.BIN`** — on PSP this is a signed PRX, not a raw ELF, so
-   Ghidra cannot load it directly. Needs a PSP PRX decryptor (`pspdecrypt`/`PRXdecrypter`
-   class of tool) to produce a loadable ELF.
-4. Load in Ghidra (scoop-installed, 12.1.3, project at `C:\Users\Devin Prater\oga-ghidra`)
-   as MIPS, and find the code that walks the script block — the reference to
-   `0x08AEA000`-range addresses is the thread to pull.
-
-**This was not done in this session.** It is a multi-hour piece of work and should be
-started deliberately, not left half-finished.
-
-## Tooling built (all read-only, all reusable)
-
-| Script | Purpose |
+| script | purpose |
 |---|---|
-| `scripts/psp-probe.mjs` | `status` / `dump` (24 MiB user RAM) / `scan` / `press` / `shot` |
-| `scripts/psp-walk.mjs` | press a plan and capture a shot + RAM dump per step; `wait:N` steps press nothing |
-| `scripts/psp-burst.mjs` | press once then capture a rapid series, hashing each frame, to catch fast transitions |
-| `scripts/psp-input-check.mjs` | prove injection reached `sceCtrl` via the `input.buttons` broadcast |
-| `scripts/oga-psp-analyze.py` | find text + keywords in a dump; densest-string-cluster analysis |
-| `scripts/oga-psp-script.py` | locate the script block; hunt pointers to the current line; `--compare A B` |
-| `scripts/oga-psp-diff.py` | which RAM blocks changed between two dumps, with density and delta hints |
+| `psp-probe.mjs` | `status` / `dump` (24 MiB user RAM) / `scan` / `press` / `shot` |
+| `psp-walk.mjs` | press a plan, capture a shot + RAM dump per step (`wait:N` presses nothing) |
+| `psp-burst.mjs` | press once, capture a rapid series, hash each frame (`--button wait` watches) |
+| `psp-input-check.mjs` | prove injection reached `sceCtrl` via the `input.buttons` broadcast |
+| `oga-psp-analyze.py` | find text + keywords in a RAM dump |
+| `oga-psp-script.py` | locate the script block; hunt a current-line pointer |
+| `oga-psp-diff.py` | which RAM blocks changed between two dumps |
+| `oga-psp-dup.py` | find copies of script lines outside the block |
+| `oga-iso-extract.py` | minimal ISO9660 reader (list / cat / save) |
+| `oga-sg-script.py` | **parse the script format** |
+| `oga-mips-xref.py` | find MIPS code building an address |
+| `oga-mips-reloc.py` | read a PSP ELF's relocation tables |
 
-⛔ **NONE OF THESE WRITE EMULATED MEMORY.** They read, and they press the player's own
-buttons. No pokes: the project's rule is that accessibility reads state rather than
-mutating it.
+⛔ **None of these write emulated memory.** They read, and they press the player's own
+buttons.
 
-### Traps hit while building the tooling
+## ⛔ Control facts (verified — saves the next session hours)
 
-- **`duration` is frames, not ms.** 12 frames ≈ 200 ms. A short hold falls between the
-  pad's per-frame polls.
-- **`input.buttons.press` answers only AFTER the hold completes.** A 90-frame press does
-  not return for ~1.5 s. Expected, not a hang.
-- **The captured window includes PPSSPP's chrome.** Fullscreen (`FullScreen = True` in the
-  `[Graphics]` section of `ppsspp.ini`) removes it entirely and gives a clean frame. A
-  52 px crop was not deep enough and left `File/Emulation/Debug` in frame, where a diff
-  would report menu changes as game changes.
+| button | effect |
+|---|---|
+| **START** | title screen. ⛔ **THE "Press START button" PROMPT BLINKS** — 12 presses at ~420 ms spacing can all land in the dark. **MASH to get in.** |
+| **Cross** | advance dialogue |
+| **Triangle** | **opens the BACKLOG** — a scrollback of recently spoken lines. ⭐ the best screen for this work: deterministic, always shows real dialogue, prints lines in on-screen order. |
+| **Square** | opens a menu |
+| D-pad | moves a cursor in menus; ⛔ does **not** scroll the BACKLOG (it is static) |
+
+Other traps that cost time:
+
+- **`--debugger=PORT` alone is not enough.** The effective `ppsspp.ini` had
+  `RemoteISOPort = 0`, `RemoteDebuggerOnStartup = False`, `RemoteDebuggerLocal = False`,
+  so no port was ever bound. Set all three and restart.
+- **Only ONE debugger client can hold the connection**; a second gets `version timed out`.
+- **`input.buttons.press` takes `button` (singular)** and **`duration` in FRAMES, not ms**.
+  The request answers only *after* the hold completes.
+- **`FullScreen = True`** in `[Graphics]` removes the window chrome entirely, giving a
+  clean capture. A 52 px crop was not deep enough and left `File/Emulation/Debug` in frame.
 - **`PrintWindow` needs flag 2 (`PW_RENDERFULLCONTENT`)**, in-process via ctypes. A plain
-  BitBlt returns black on a flip-model swapchain. In-process is ~15 ms/frame; spawning a
-  process per frame is ~460 ms and useless for a live loop.
-- **The capture is letterboxed** — 1706x1066 with a 74 px black bar at the top. Game
-  content is 1706x967, which is exactly 480:272. Crop to that before measuring pixels.
-- **Build a PPM by concatenating header and body**, not by pre-computing an offset: the
-  header length varies and PIL reports the mismatch as "image file is truncated", which
-  reads as a capture fault rather than an arithmetic bug.
-- **Read ALL 24 MiB, and get the base right.** User RAM is `0x08800000`–`0x09FFFFFF`;
-  file offset is `address - 0x08800000`. A wrong base silently reads unrelated bytes.
+  BitBlt returns black on a flip-model swapchain.
+- **The capture is letterboxed** — 1706×1066 with a 74 px black bar; game content is
+  1706×967 = exactly 480:272.
+- **Build a PPM by concatenating header and body**, never by pre-computing a header
+  offset: the header length varies and PIL reports the mismatch as "image file is
+  truncated", which reads as a capture fault rather than arithmetic.
+- **`tasklist /FI "IMAGENAME eq ..."` can return nothing** on this host while
+  `tasklist | grep -i ppsspp` works. MSYS mangles `taskkill //F` — use
+  `cmd.exe /c "taskkill /F /IM PPSSPPWindows64.exe"`.
+- **Native tools reject MSYS-style paths.** `7z` failed on `/c/Users/...`; pass
+  `C:/Users/...`. This is why `oga-iso-extract.py` exists rather than using 7z.
+- **`pspdecrypt`'s output flag is `-o` / `--outfile`.** `-d` is not it (that is a PSAR
+  option), and the default output is `<input>.dec` next to the input.
+- **PSP heap addresses move between sessions** — the same pointer sat at `0x08D3A0A8` in
+  one dump and `0x08CE20A8` in another. Never hard-code one. The `0x08AEA000` script
+  block is the exception (stable across dumps).
 
 ## Where to pick up
 
-1. Get the game to a state with **a dialogue box visibly on screen**, and capture that.
-2. Re-run `oga-psp-script.py --compare A B` **between two states where the on-screen text
-   demonstrably differs** — the earlier comparison may simply have had no advance in it.
-3. If nothing tracks the line, decompile `EBOOT.BIN` (above). The answer is in the code.
+1. The script format is **done** — build the text half of a reader against
+   `oga-sg-script.py`.
+2. For the cursor: work in **Ghidra on `EBOOT.dec`** (MIPS, load base 0). Look for code
+   that reads the CPK script region. The `SYSTEM.CFG` loader is a way in — EBOOT contains
+   the strings `SYSTEM.CFG`, `SYSTEM.DAT` and `error load system.cfg` (vaddrs
+   `0x121DBC`, `0x128690`, `0x121DC8`), so the loader that parses the config is findable.
+3. Alternatively, dump RAM at a moment when the line **demonstrably changes** and diff
+   against the `0x09B31000` duplicate region — that region is the best remaining RAM lead.
+
+## ⛔ Note on the ISO/CPK on disk
+
+`DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
+`%LOCALAPPDATA%\Temp\psp-iso` and `%LOCALAPPDATA%\Temp\psp-extract` for this work.
+**They are game data and must never be committed or uploaded** — the project's rule is
+that players supply their own ROMs. The repo's `stage-repo.sh` allow-list and
+`check-no-roms.sh` enforce this; nothing from these directories is staged.
