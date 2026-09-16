@@ -345,6 +345,34 @@ probe now samples the list every 2000 frames **within a single run**:
 6. **The rest of the character table is byte-identical** across runs and across the
    whole time series (names, `+0x180` chain, `+0x1F8`/`+0x208` stats).
 
+### 📷 The run's actual trajectory (filmstrip — verified)
+
+One capture per sample point, paired with the RAM reading at the same frame
+(`docs/evidence/dbz-run-filmstrip.png`, a 3×2 contact sheet):
+
+| frame | list | what the screen shows |
+|---|---|---|
+| 0 | n=0 | black — nothing rendered yet |
+| 2000 | n=6 `<garbage>,0,1,2,3,4` | **Shenron logo / splash** |
+| 4000 | n=3 `2,3,4` | **Goku's house interior**, Goku + Krillin present, dialogue box starting |
+| 6000 | n=3 `2,3,4` | house interior, **Krillin speaking**: *"Brrr! Sure is a cold one today, huh?"* |
+| 8000 | n=3 `2,3,4` | house interior, no dialogue box |
+| 10000 | n=3 `2,3,4` | house interior |
+
+⛔ **This resolves a long-standing confusion in this project.** The game reaches its
+**opening scene inside Goku's house at around f=4000**, not "past the title into
+play" much later. The filmstrip makes the sequence explicit: black → splash →
+house/dialogue.
+
+⚠️ **Observed but NOT yet identified:** several character sprites appear in the house
+(dialogue portraits and on-screen figures). At 64× screen resolution the individual
+sprites cannot be identified reliably, and **the list names Piccolo, Krillin and Tien
+while the dialogue shows Krillin** — so whether the list corresponds to the characters
+*present in the scene* is a live hypothesis. It is not confirmed: identifying sprites
+from low-resolution pixels is exactly the kind of plausible inference this document
+keeps having to retract. The clean test is a **party-menu screenshot**, not squinting
+at sprites.
+
 ### ✅✅ THE CONTROL EXPERIMENT — and the caveat that limits it
 
 The missing comparison was an **idle run** — same ROM, same frame count, no input plan:

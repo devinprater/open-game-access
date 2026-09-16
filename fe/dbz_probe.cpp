@@ -187,6 +187,32 @@ int main(int argc, char** argv)
     // report "nothing here" rather than always finding something.
     w.push_back(Watch("control (zero page)", 0x02000010, 4));
 
+    // ------------------------------------------------------- screenshot helper
+    //
+    // ⛔ ORDER MATTERS AND IT IS NOT OBVIOUS. `poke_framebuffer_ptr` is STATEFUL: it
+    // returns nullptr unless the core's `frameScreen` already equals the screen asked
+    // for, and that field is set by `poke_framebuffer()`. Asking for the pointer FIRST
+    // gives a valid width/height with a null pointer — which reads as "the framebuffer
+    // is broken" rather than "you called them backwards". So: select, THEN take.
+    //
+    // ⛔ A FILMSTRIP INSTEAD OF A SINGLE PHOTO. Four separate conclusions on this game
+    // were wrong because ONE end-of-run screenshot was used to describe what happened
+    // DURING the run — including a control run that had stalled on the "Press the A
+    // Button to begin" screen the entire time. Capturing at each sample point costs
+    // nothing extra (the emulator is already at that frame) and shows the trajectory.
+    auto write_shot = [&](const char* path) -> bool {
+        int w = 0, h = 0;
+        if (!poke_framebuffer(core, 0, &w, &h) || w <= 0 || h <= 0) return false;
+        const uint8_t* px = poke_framebuffer_ptr(core, 0);
+        if (!px) return false;
+        FILE* sf = fopen(path, "wb");
+        if (!sf) return false;
+        fprintf(sf, "P6\n%d %d\n255\n", w, h);
+        for (int i = 0; i < w * h; i++) fwrite(px + i * 4, 1, 3, sf);  // RGBA -> RGB
+        fclose(sf);
+        return true;
+    };
+
     for (long f = 0; f < frames; f++) {
         // Fire any key events scheduled for this frame.
         static size_t ki = 0;
@@ -256,6 +282,18 @@ int main(int argc, char** argv)
                 printf("  (n=%u)\n", n);
             }
             fflush(stdout);
+
+            // ---- filmstrip capture at every sample point -------------------
+            // ⛔ Captured HERE, inside the frame loop, so each picture matches the
+            // [list] line printed at the same frame. That pairing is the whole point:
+            // a single end-of-run shot cannot describe what happened during the run,
+            // which is exactly how a stalled control run was mistaken for a valid one.
+            if (const char* dir = getenv("DBZ_SHOT_DIR")) {
+                char sp[512];
+                snprintf(sp, sizeof(sp), "%s/f%06ld.ppm", dir, f);
+                printf("[shot]  f=%-6ld %s\n", f, write_shot(sp) ? sp : "(failed)");
+                fflush(stdout);
+            }
         }
     }
 
@@ -726,34 +764,10 @@ int main(int argc, char** argv)
     }
 
     if (const char* shot = getenv("DBZ_SHOT")) {
-        int w = 0, h = 0;
-        // ⛔ ORDER MATTERS AND IT IS NOT OBVIOUS. `poke_framebuffer_ptr` is
-        // STATEFUL: it returns nullptr unless the core's `frameScreen` already
-        // equals the screen asked for, and that field is set by
-        // `poke_framebuffer()`. Asking for the pointer FIRST invalidates nothing
-        // visibly — you get a valid width/height with a null pointer, which reads
-        // as "the framebuffer is broken" rather than "you called them backwards".
-        // So: select the screen, THEN take its pointer.
-        if (poke_framebuffer(core, 0, &w, &h) && w > 0 && h > 0) {
-            const uint8_t* px = poke_framebuffer_ptr(core, 0);
-            if (!px) {
-                printf("\nscreenshot: framebuffer selected (%dx%d) but pointer is null\n", w, h);
-            } else {
-                FILE* f = fopen(shot, "wb");
-                if (f) {
-                    fprintf(f, "P6\n%d %d\n255\n", w, h);
-                    for (int i = 0; i < w * h; i++) {
-                        // The core hands back RGBA8888; PPM wants RGB.
-                        fwrite(px + i * 4, 1, 3, f);
-                    }
-                    fclose(f);
-                    printf("\nscreenshot: %s (%dx%d)\n", shot, w, h);
-                } else {
-                    printf("\nscreenshot: could not write %s\n", shot);
-                }
-            }
+        if (write_shot(shot)) {
+            printf("\nscreenshot: %s\n", shot);
         } else {
-            printf("\nscreenshot: framebuffer unavailable (w=%d h=%d)\n", w, h);
+            printf("\nscreenshot: failed to capture %s\n", shot);
         }
     }
 
