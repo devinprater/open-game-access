@@ -358,6 +358,46 @@ The config base (`0x089B5E34`) and the four config-section pointers are the next
 to follow: whichever section the script system registers with is where a script table —
 and therefore a line index — will be reachable from.
 
+
+## Controlled BACKLOG experiment — result, and a hypothesis for `0x09B31000`
+
+Ran a controlled sequence (open backlog → advance → reopen) with a RAM dump at every
+step. Results:
+
+| step | screen | RAM hash |
+|---|---|---|
+| triangle | game | `a2a5f5357d` |
+| wait | game | `a2a5f5357d` |
+| triangle | game | `a2a5f5357d` |
+| cross | game | `a2a5f5357d` |
+| cross | **BACKLOG** | `1d8912244b` |
+| wait | BACKLOG | `1d8912244b` |
+| triangle | game | `a2a5f5357d` |
+| wait | game | `a2a5f5357d` |
+
+Two clean, reproducible screen states — the game screen and the backlog — and the
+hashes separate them perfectly. **But the backlog content was identical at both opens**,
+so the story did not advance during this sequence. That makes the comparison
+inconclusive for the cursor, again for the same reason as before: nothing changed.
+
+⛔ **A CONTROLLED EXPERIMENT IS ONLY CONTROLLED IF THE VARIABLE ACTUALLY MOVES.**
+Repeating the same screen with no state change produces two identical dumps and a null
+result that looks like a failed method. Before a diff-based hunt, prove the variable
+changed — e.g. by reading two *different* lines off the screen — not merely that two
+different buttons were pressed.
+
+### ⭐ Hypothesis for `0x09B31000` (untested, for the next session)
+
+The duplicate script region at `0x09B31000` holds lines **in display order**. The most
+likely explanation is that it is **the backlog's own storage** — a running history of
+displayed lines, which is exactly why it is ordered and why it grows.
+
+If so it is *list storage*, not a cursor, which would explain why no pointer into it
+tracks the current line. Test: dump RAM with the backlog showing N lines and again with
+N+2 lines, and check whether this region grew by two records. If it did, the cursor is
+elsewhere and should be hunted in the engine state block (`0x089B5E34` and the config
+sections), not in this region.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
