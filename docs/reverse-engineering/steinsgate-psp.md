@@ -675,6 +675,170 @@ That is a bounded, specific search rather than a 24 MiB hunt. **A reader is now 
 in reach for this game**, and this is the first point in the investigation where that can
 honestly be said.
 
+
+## ✅ The backlog's STRUCTURE is fully mapped — and the index is now the only unknown
+
+Decompiling the backlog's own accessors named every piece. The reader problem is now one
+specific value, not a mystery.
+
+### `FUN_00051028(i, entry)` — the entry renderer, and it hands over the layout
+
+```c
+void FUN_00051028(int param_1, undefined4 param_2) {
+  param_1 = param_1 * 0x2c;
+  psVar6 = (short *)(param_1 + 0x18d04);          // ⭐ THE DISPLAY LIST, at a FIXED address
+  puVar3 = (undefined1 *)FUN_00050fc8(param_2);   // param_2 = LOG INDEX -> entry pointer
+  ...
+  uVar2 = FUN_000a66d4((int)*psVar6, puVar3 + 0x1c);   // render the entry's text
+  ...
+  *(undefined1 *)(param_1 + 0x18d24) = *puVar3;
+  *(undefined2 *)(param_1 + 0x18d1c) = *(undefined2 *)(puVar3 + 4);
+  *(undefined2 *)(param_1 + 0x18d1e) = *(undefined2 *)(puVar3 + 2);
+```
+
+| what | where |
+|---|---|
+| **display list** | fixed at `0x18d04` (Ghidra) → **RAM `0x08978D04`**, **stride `0x2C`** |
+| entry lookup | `FUN_00050fc8(index)` — **the log index goes in HERE** |
+| text inside an entry | **entry `+0x1c`** |
+| entry byte 0 | copied to display `+0x24` (a type/flag) |
+
+### Verified against a live dump
+
+| what | value |
+|---|---|
+| config global | `0x0933C580` (matches, again) |
+| log capacity `config+0x18` | **512** records x `0xAC` = 88,064 bytes |
+| **MessageLog buffer** | **`0x09557C80`** (pointer at `0x08978F14`) |
+| **display list** | **`0x08978D04`**, 0x2C stride |
+
+The log buffer holds the real dialogue:
+
+```
+[  2] +0x48  'Entropy the origins rumble'
+[  5] +0x49  'gOur time slowly ticks away from the moment '
+[  6] +0x48  'of our birth to the moment of our death. It '
+[  7] +0x48  'is finite.'
+```
+
+Records 5/6/7 continue ONE logical line across three records — that is word-wrapping, and
+it means a spoken line must be assembled from consecutive records.
+
+⛔ **The `g` / `C` prefixes are `latin1` artefacts of `0x81 0x67` / `0x81 0x43`**, not
+speaker codes. This was mis-read once already in this investigation; do not repeat it.
+
+### The address translation that works
+
+Ghidra's names on this binary are offset by a constant. Solved from an
+**independently verified value** rather than derived:
+
+```
+real_RAM = LOAD_BASE + ghidra_name + 0x15C000
+verified: iRam00055e34 -> 0x08804000 + 0x55e34 + 0x15C000 = 0x089B5E34 = the config ptr
+```
+
+Every subsequent lookup was then checkable in one comparison, and two more validated
+(the log capacity read 512; the display list fell in the same structure).
+
+## ⛔ THE ONLY REMAINING UNKNOWN: the log index
+
+`FUN_00050fc8(index)` converts a log index into an entry pointer, and **what is passed to
+it IS the current line**. That function has not been decompiled yet — it is the single
+next step, and it is small.
+
+Two candidate shapes, both cheap to test:
+
+1. `FUN_00050fc8(i)` returns `log_base + i * 0xAC` — then the index caller is everything
+   and can be read directly;
+2. it indexes a table of pointers, in which case the index is still the value to watch.
+
+Note the earlier scan found **no pointer into the log buffer** other than the one global,
+which supports (1): the log is reached by arithmetic, not by a pointer table.
+
+### Honest position
+
+**No reader yet.** But for the first time the problem is bounded and named:
+
+- the text: found, at `0x09557C80`, readable, cap 512
+- the render path: identified, `FUN_00051028` via `FUN_00050fc8`
+- the display list: found at `0x08978D04`
+- **missing: the index**, one small function away
+
+
+## ✅✅✅ SOLVED — THE READER WORKS
+
+`scripts/oga-sg-reader.py` reads the dialogue out of a live RAM dump and prints it with
+speaker names. Real output from the backlog dump:
+
+```
+dump         : .../ram-backlog.bin
+log base     : 0x09557C80
+write head   : 29  entries logged
+config       : 0x0933C580   capacity 512 x 0xAC
+
+  [  1] ???: Erm, my mom told me to bring this...
+  [  2] ng about. This is what you wanted, right?
+  [  3] ???: Here, I got you the snacks you were talki
+  [  4] ???: Um, sure. I guess so.
+  [  5] ???: Hey, Mayuri. Can I use these paper cups?
+  [  6] Rintaro: But in this case, by 'unknown'...
+  [  8] Rintaro: Accepting the unknown as the unknown is
+  [ 11] Rintaro: Taking the known as known, and the unkn
+```
+
+**This matches the in-game BACKLOG screen line for line.** The speaker name comes from
+entry `+0x1c`; the dialogue from entry `+0x48`.
+
+### The formula, from the game's own code
+
+```c
+int FUN_00050fc8(int param_1) {                 // param_1 = log index
+  if (param_1 == 0) return 0x18f18;             // "no entry" fallback slot
+  iVar1 = (iRam000197e8 - (param_1 + -1)) + -1; // walk back from the write head
+  if (iVar1 < 0) return 0x18f18;
+  return iRam00018f14 + iVar1 * 0xac;           // log_base + i * 0xAC
+}
+```
+
+| global | Ghidra | real RAM | meaning |
+|---|---|---|---|
+| log buffer pointer | `iRam00018f14` | `0x08978F14` | -> `0x09557C80` |
+| **write head** | `iRam000197e8` | `0x089797E8` | **29** entries logged |
+| log capacity | `config+0x18` | `0x0933C598` | **512** |
+
+**Index 1 is the NEWEST line** — the walk counts back from the write head, which is
+exactly how a backlog draws (newest nearest the input prompt).
+
+### Two bugs found and fixed while building it
+
+1. **The name and text fields are fixed-width and NUL-padded.** Cleaning the padded
+   string before splitting at the NUL left the padding in the output and made every line
+   unreadable. Split at the NUL *first*.
+2. **`report()` printed the whole RAM buffer** because `__init__` stored the data but not
+   the path — so the "dump:" header was 24 MiB of bytes. Store the path.
+
+⛔ Both were cosmetic but each made the tool look broken. Worth noting because the second
+one produced a 92 MB terminal capture before it was obvious.
+
+## What remains to make this a live reader
+
+The reader works on a **dump**. To make it live, poll three 4-byte globals over the
+debugger each frame instead of dumping 24 MiB:
+
+| poll | at |
+|---|---|
+| log base pointer | `0x08978F14` |
+| write head | `0x089797E8` |
+| config pointer | `0x089B5E34` |
+
+Then `index 1` is the newest line and `index == previous write head + 1` means a new line
+appeared — which is the trigger to speak. That is a few dozen lines of host code, using
+the `psp-watch.mjs` client already written.
+
+**Steins;Gate: My Darling's Embrace now has a working reader.** It has not yet been wired
+to speech, and it has not been tested against a scene that advances (the story never moved
+during this investigation), so the "new line appeared" trigger is designed but unproven.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
