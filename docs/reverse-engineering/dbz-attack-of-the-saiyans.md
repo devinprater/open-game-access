@@ -161,51 +161,84 @@ broken script rather than a missing shim. The `emu` global comes from the shim.
 ⛔ **Do not link `-lSDL2`** — the `POKE_HOST` platform layer uses
 `clock_gettime`/`usleep`, not SDL.
 
-## Next steps
+## ⛔ THE ROM SETTLES IT: the RAM table is CHARACTER-ID slots, not a party
 
-### ❌ Two hypotheses tested and REFUTED (do not retry these)
-
-**(1) "The party is a pointer list to the roster."** Searched all main RAM for any
-4-byte word pointing to the roster base, to Goku's name, or to any address on the
-`0x24C` lattice. Result: **0 pointer-shaped words.** The party is not a list of
-pointers to these records.
-
-**(2) "The `0x02054A10` duplicate of 290 is a live copy."** Dumped the surrounding
-bytes:
+Since RAM scanning had failed three times, the search moved to the ROM. It found a
+**single name table for every entity in the game** — offset table at `0x1004560`,
+strings from `0x10045D8`:
 
 ```
-0x02054A00  C0 E8 0C 02 B4 05 00 00 80 C7 0C 02 21 01 00 00
-0x02054A10  22 01 00 00 F8 4F 2D E9 01 A0 A0 E1 F0 00 50 E3
-0x02054A20  7F 20 00 E2 00 00 A0 A3 0B 00 00 AA 80 00 50 E3
+[0] Goku        [4] Tien         [8] Saibaman        [16] Captain Robot
+[1] Gohan       [5] Yamcha       [9] J. Sai          [17] Red Ribbon Spy
+[2] Piccolo     [6] Bubbles     [10] C. Sai          [18] Hired Rider
+[3] Krillin     [7] Gregory     [11] K. Sai          [19] Distrustful Man
+                                [12] T. Sai / [13-15] Pirate Robot / Skull Robot
 ```
 
-`F8 4F 2D E9` is the ARM encoding of `push {r3-r11, lr}`; `01 A0 A0 E1` is
-`mov r10, r1`. **This is loaded overlay CODE, not game data.** The matching `290`
-(`0x122`) is a coincidental word inside instruction encodings.
+⛔ **The first eight entries of that table are EXACTLY the eight RAM records**, in the
+same order, at the same `0x24C` stride:
 
-⛔ **Lesson: check whether a "data" match is actually executable code.** The DS loads
-ARM overlays into main RAM, so a raw byte dump of that region contains machine code.
-Two bytes that form a plausible number is not evidence of a variable.
+| ID | name | RAM record | ROM table |
+|---|---|---|---|
+| 0 | Goku | `0x020CD774` | `0x10045D8` |
+| 1 | Gohan | `0x020CD9C0` | |
+| 2 | Piccolo | `0x020CDC0C` | |
+| 3 | Krillin | `0x020CDE58` | |
+| 4 | Tien | `0x020CE0A4` | |
+| 5 | Yamcha | `0x020CE2F0` | |
+| 6 | Bubbles | `0x020CE53C` | |
+| 7 | Gregory | `0x020CE788` | |
 
-### ✅ Where that leaves the search
+**Conclusion: the RAM table is an array of character-ID slots** covering the first
+eight IDs — a known/unlocked-character or stat table — **not the party.** The game's
+entity table continues past ID 7 into enemies (Saibaman, the Saibamen variants,
+Pirate Robot, Red Ribbon Spy, Hired Rider, Distrustful Man...), so a table holding
+IDs 0–7 is a character *definition* array.
 
-Both cheap structural hypotheses are now eliminated, and the earlier "348 candidates"
-scan produced only graphics noise. **Further blind scanning has a poor expected
-return**, so the honest next step is not another scan:
+That is consistent with everything measured earlier: Bubbles and Gregory present
+(never playable), populated stats at frame 0 (these are definitions, not live
+state), and no pointer list (the party does not index these records).
 
-1. **Get the map from the ROM.** Disassemble `arm9.bin` and the overlays — or find an
-   existing decompilation/disassembly for game code `BRPE` — and read the party
-   structure from the code that indexes it. This is the move that made Fire Emblem
-   tractable (`symbols.txt` gave named addresses instead of guesses), and the project
-   already has Ghidra 12.1.3 + PyGhidra installed plus a working project layout at
-   `C:\Users\Devin Prater\oga-ghidra`.
-2. **If scanning again, make it an experiment with a known expected change.** Take
-   damage so the visible HP value drops, snapshot before and after, and diff — that
-   narrows to a handful of addresses instead of 348.
-3. **Then build the AotS adapter** on whatever layout is actually verified:
-   `Core/adapter.h` keyed on game code `BRPE`, exposing party member names and stats
-   through the same `Host` callbacks the GBA and Fire Emblem adapters use.
+⛔ The offset-table base is `0x10038C0` (entry `0xD19` lands on the first string with
+a 1-byte rounding, so treat the exact base as unconfirmed while the *contents* are
+certain). Reading the table as `base + entry` is the right shape; verify the base
+before relying on any single index.
 
-⛔ **Never build the adapter on the roster table.** It holds characters the player
-cannot field (Bubbles, Gregory), so reading it as "the party" would narrate numbers
-the player is not using — worse than saying nothing.
+## ✅ Where the search actually stands
+
+**Confirmed by measurement:**
+- A character-definition array in RAM at `0x020CD754`, stride `0x24C`, 8 records,
+  names at +0x20 — matching ROM character IDs 0–7.
+- The ROM name table at `0x1004560` / strings `0x10045D8`, covering all entities.
+- The published AR base `0x020CD300` is **0x454 too low** — the cause of every zero
+  reading this project observed.
+
+**Refuted (do not retry):**
+1. The array is a party → **no**: it holds non-playable IDs, populated at frame 0.
+2. The party is a pointer list into these records → **0 pointer-shaped words**.
+3. The `0x02054A10` duplicate of 290 is a live copy → it is **ARM overlay code**
+   (`F8 4F 2D E9` = `push {r3-r11, lr}`), not data.
+
+**Still missing: the ACTIVE PARTY** — who is in it now, with current HP.
+
+### The honest next step
+
+Read the ROM code that references the character region. `arm9.bin` contains **169
+literals** pointing into `0x020CD000..0x020CF000`, with clear clusters:
+
+```
+arm9+0x65948 -> 0x020CD04C     arm9+0x66128 -> 0x020CD634
+arm9+0x65A7C -> 0x020CD0D0     arm9+0x663F0 -> 0x020CD63B
+arm9+0x65DBC -> 0x020CD048     arm9+0x666BC -> 0x020CD64C
+arm9+0x62770 -> 0x020CE8C0  (many references)
+```
+
+⛔ **The roster base `0x020CD754` itself never appears as a literal**, so the base is
+*computed* at runtime rather than stored — which is why no pointer search could find
+it. To get the party, disassemble around these literal sites (Ghidra 12.1.3 +
+PyGhidra are installed; project at `C:\Users\Devin Prater\oga-ghidra`) and read the
+index arithmetic. Named code beats any further RAM scan.
+
+⛔ **Never build the adapter on the character-definition array.** It holds entities
+the player cannot field; narrating their stats as party HP would be worse than
+silence.
