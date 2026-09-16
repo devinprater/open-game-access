@@ -163,58 +163,73 @@ broken script rather than a missing shim. The `emu` global comes from the shim.
 
 ## ⛔ THE ROM SETTLES IT: the RAM table is CHARACTER-ID slots, not a party
 
-Since RAM scanning had failed three times, the search moved to the ROM. It found a
-**single name table for every entity in the game** — offset table at `0x1004560`,
-strings from `0x10045D8`:
+Since RAM scanning had failed three times, the search moved to the ROM — and the
+ROM gives an exact, self-validating answer.
 
-```
-[0] Goku        [4] Tien         [8] Saibaman        [16] Captain Robot
-[1] Gohan       [5] Yamcha       [9] J. Sai          [17] Red Ribbon Spy
-[2] Piccolo     [6] Bubbles     [10] C. Sai          [18] Hired Rider
-[3] Krillin     [7] Gregory     [11] K. Sai          [19] Distrustful Man
-                                [12] T. Sai / [13-15] Pirate Robot / Skull Robot
-```
+**There are TWO separate offset tables sharing ONE string blob at ROM `0x1004164`:**
 
-⛔ **The first eight entries of that table are EXACTLY the eight RAM records**, in the
-same order, at the same `0x24C` stride:
-
-| ID | name | RAM record | ROM table |
+| table | ROM address | entries | range |
 |---|---|---|---|
-| 0 | Goku | `0x020CD774` | `0x10045D8` |
-| 1 | Gohan | `0x020CD9C0` | |
-| 2 | Piccolo | `0x020CDC0C` | |
-| 3 | Krillin | `0x020CDE58` | |
-| 4 | Tien | `0x020CE0A4` | |
-| 5 | Yamcha | `0x020CE2F0` | |
-| 6 | Bubbles | `0x020CE53C` | |
-| 7 | Gregory | `0x020CE788` | |
+| **CHARACTERS** | `0x1004224` | **8** | Goku … Gregory |
+| **ENEMIES** | `0x10043BC` | **65** | Gogyo Majin … Poison Sandbug |
 
-**Conclusion: the RAM table is an array of character-ID slots** covering the first
-eight IDs — a known/unlocked-character or stat table — **not the party.** The game's
-entity table continues past ID 7 into enemies (Saibaman, the Saibamen variants,
-Pirate Robot, Red Ribbon Spy, Hired Rider, Distrustful Man...), so a table holding
-IDs 0–7 is a character *definition* array.
+```
+CHARACTERS  table 0x1004224  entries  8  first='Goku'      last='Gregory'
+ENEMIES     table 0x10043BC  entries 65  first='Gogyo Majin' last='Poison Sandbug'
+```
 
-That is consistent with everything measured earlier: Bubbles and Gregory present
-(never playable), populated stats at frame 0 (these are definitions, not live
-state), and no pointer list (the party does not index these records).
+The 8 character IDs map **one-to-one onto the 8 RAM records**, in the same order,
+at the same `0x24C` stride:
 
-⛔ The offset-table base is `0x10038C0` (entry `0xD19` lands on the first string with
-a 1-byte rounding, so treat the exact base as unconfirmed while the *contents* are
-certain). Reading the table as `base + entry` is the right shape; verify the base
-before relying on any single index.
+| ID | name | ROM blob | RAM record |
+|---|---|---|---|
+| 0 | Goku | `+0x0474` | `0x020CD774` |
+| 1 | Gohan | `+0x0479` | `0x020CD9C0` |
+| 2 | Piccolo | `+0x047F` | `0x020CDC0C` |
+| 3 | Krillin | `+0x0487` | `0x020CDE58` |
+| 4 | Tien | `+0x048F` | `0x020CE0A4` |
+| 5 | Yamcha | `+0x0494` | `0x020CE2F0` |
+| 6 | Bubbles | `+0x049B` | `0x020CE53C` |
+| 7 | Gregory | `+0x04A3` | `0x020CE788` |
+
+**Conclusion: the RAM array is a table of the 8 CHARACTER IDs** — the eight entries
+of the character name table, no more and no fewer. It is a character *definition*
+array, **not the party.** The match is exact in count, order and stride, which is
+why Bubbles and Gregory were present: IDs 6 and 7 are simply the next two characters
+in a table that happens to be ordered with the non-playable ones last.
+
+### How the pair was pinned (the method matters)
+
+Two constraints together identify a string table uniquely:
+1. every offset points at a printable run;
+2. **the byte before that run is NUL** — entries do not start mid-string.
+
+Constraint 2 is what earlier attempts missed, and its absence produced garbage
+(`'ivor'`, `'edic'`, `'ueen'` instead of *Survivor*, *Medic*, *Queen*). With both
+constraints the solver returned **exactly one** high-scoring candidate: table
+`0x1004224`, base `0x1004164`.
+
+⛔ **A sliding window makes `base` ambiguous unless you constrain it.** Adjacent
+table starts and base values are jointly self-consistent (`T+4` with `B+4` decodes
+identically), so scoring on "clean strings" alone gives dozens of equally-ranked
+answers. The NUL-predecessor rule collapses them to one.
+
+⛔ **One string blob serves several tables.** Characters and enemies are separate
+index arrays over the same text. Do not assume a found table is *the* entity list.
 
 ## ✅ Where the search actually stands
 
 **Confirmed by measurement:**
 - A character-definition array in RAM at `0x020CD754`, stride `0x24C`, 8 records,
-  names at +0x20 — matching ROM character IDs 0–7.
-- The ROM name table at `0x1004560` / strings `0x10045D8`, covering all entities.
+  names at +0x20 — matching ROM character IDs 0–7 exactly.
+- ROM: character table `0x1004224` (8), enemy table `0x10043BC` (65), shared string
+  blob base `0x1004164`.
 - The published AR base `0x020CD300` is **0x454 too low** — the cause of every zero
   reading this project observed.
 
 **Refuted (do not retry):**
-1. The array is a party → **no**: it holds non-playable IDs, populated at frame 0.
+1. The array is a party → **no**: it is exactly the 8 character IDs, including two
+   that are never playable, populated at frame 0.
 2. The party is a pointer list into these records → **0 pointer-shaped words**.
 3. The `0x02054A10` duplicate of 290 is a live copy → it is **ARM overlay code**
    (`F8 4F 2D E9` = `push {r3-r11, lr}`), not data.
@@ -233,11 +248,11 @@ arm9+0x65DBC -> 0x020CD048     arm9+0x666BC -> 0x020CD64C
 arm9+0x62770 -> 0x020CE8C0  (many references)
 ```
 
-⛔ **The roster base `0x020CD754` itself never appears as a literal**, so the base is
-*computed* at runtime rather than stored — which is why no pointer search could find
-it. To get the party, disassemble around these literal sites (Ghidra 12.1.3 +
-PyGhidra are installed; project at `C:\Users\Devin Prater\oga-ghidra`) and read the
-index arithmetic. Named code beats any further RAM scan.
+⛔ **The character-array base `0x020CD754` itself never appears as a literal**, so the
+base is *computed* at runtime — which is why no pointer search could find it. To get
+the party, disassemble around these literal sites (Ghidra 12.1.3 + PyGhidra are
+installed; project at `C:\Users\Devin Prater\oga-ghidra`) and read the index
+arithmetic. Named code beats any further RAM scan.
 
 ⛔ **Never build the adapter on the character-definition array.** It holds entities
 the player cannot field; narrating their stats as party HP would be worse than
