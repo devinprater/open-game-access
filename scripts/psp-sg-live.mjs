@@ -32,6 +32,7 @@
  * 0xAC records, so it walks back until it has collected that many complete lines.
  *   node psp-sg-live.mjs --speak            also emit each line to stdout for a TTS hook
  *   node psp-sg-live.mjs --json             machine-readable events, one JSON per line
+ *   node psp-sg-live.mjs --auto circle      advance the story AND read it (one socket)
  */
 import process from "node:process";
 
@@ -59,6 +60,10 @@ const CTRL = [
   [/\x81\x6b/g, ""],     // start of speaker name
   [/\x81\x6c/g, ""],     // end of speaker name
   [/\x81\x68/g, ""],     // end of box
+  // ⭐ 0x81 0xF4 — an inline emote/expression marker, seen when the story advances
+  // ("Ooh, fried chicken! It looks so good!" + 81F4 + box-end). Unmapped it printed as a
+  // stray 'ô'. It carries no speakable content, so drop it rather than guess a name.
+  [/\x81\xf4/g, ""],
   [/%K%P/g, " "],        // page break — a space, never spoken
   [/%P/g, " "],
   [/%K/g, " "],
@@ -69,6 +74,8 @@ const flag = (n, d = null) => { const i = args.indexOf(`--${n}`); return i >= 0 
 const has = (n) => args.includes(`--${n}`);
 
 const BACKLOG = flag("backlog") ? Number(flag("backlog")) : 0;
+// --auto <button>  advance the story itself (press + poll on ONE debugger connection)
+const AUTO = flag("auto");
 const SPEAK = has("speak");
 const JSON_OUT = has("json");
 
@@ -146,8 +153,10 @@ async function entry(db, logBase, writeHead, index, capacity) {
   // An entry carries EITHER a name plate or the text itself (narration).
   if (!tx && nm) return { speaker: null, text: nmF.text, leadSpace: nmF.trailSpace };
   if (nm.length > tx.length) return { speaker: null, text: nmF.text, leadSpace: nmF.trailSpace };
-  // ⛔ DROP records with no letters at all — stray control/box-drawing bytes decode to
-  // junk like '¥§' and would be spoken aloud as garbage.
+  // ⛔ DROP records that decode to nothing, and records with no letters at all. The log
+  // contains blank spacer records (they print as an empty "(narration):" line) and stray
+  // control/box-drawing bytes decode to junk like '¥§' that would be spoken as garbage.
+  if (!tx) return null;
   if (!/[A-Za-z0-9]/.test(tx)) return null;
   return { speaker: nm || null, text: txF.text, leadSpace: txF.trailSpace };
 }
@@ -239,6 +248,16 @@ async function main() {
     let last = await db.u32(G_WRITE_HEAD);
     let announcedStart = false;
     for (;;) {
+      // ⭐ --auto ADVANCES THE STORY ITSELF. This must run on the SAME connection as the
+      // polling: PPSSPP's debugger is effectively one client, so a separate presser
+      // process competes with the follower and the follower silently sees nothing.
+      // In tests, presses from another process moved the write head while the follower
+      // printed NOTHING, which reads as "the trigger is broken" rather than "the presser
+      // was on another socket".
+      if (AUTO) {
+        try { await db.request("input.buttons.press", { button: AUTO, duration: 20 }); } catch {}
+        if (POLL_MS < 400) await sleep(60);
+      }
       await sleep(POLL_MS);
       const wh = await db.u32(G_WRITE_HEAD);
       if (wh === last) continue;

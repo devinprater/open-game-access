@@ -1048,6 +1048,75 @@ because the story in the reachable state does not advance under scripted button 
 So the follow mode is built and runs, but it has not yet been seen printing a line in
 response to the story moving.
 
+
+## ✅✅✅ SOLVED AND PROVEN LIVE — the trigger fires, the story advances, the reader reads
+
+The last open question was whether the write head moves **during** dialogue. It does, and
+it is now demonstrated end to end. `--auto <button>` presses and polls on the **same**
+debugger connection, advancing the story while reading it:
+
+```
+$ node scripts/psp-sg-live.mjs --auto circle
+???: What do you mean by things you don't understand?
+Rintaro: Is that so? I thought as much. This is more of the Organization's handiwork!
+Rintaro: What's done is done. This too may be the will of Steins Gate. El Psy Kongroo.
+I lowered my cell phone, and looked around the room to get a better grasp of the situation.
+Mayuri: Phew! I was worried you'd forgotten me!
+Right, this high schooler who looks like a middle schooler is Shiina Mayuri.
+She's a member of this laboratory -- lab mem 002, to be precise -- and my childhood friend.
+???: Yeah, I agree with Makise-shi. An Okarin who isn't weird isn't an Okarin at all.
+Christina?: And I've told you just as many times not to call me 'Christina'!
+Kurisu: I told you, my name is Makise Kurisu!
+```
+
+**Speaker plates come from the game itself** — `Rintaro`, `Mayuri`, `Kurisu`, `Christina?`.
+Those names are not in any table I built; the engine supplies them per line, including
+the `?` convention for a speaker the protagonist has not identified yet.
+
+### ⛔ FOUR wrong conclusions I reached before this, and what each actually was
+
+1. **"No line cursor exists"** (0 of 49 script-pointing words changed). Wrong question:
+   the script block is static by design — the cursor is in the **message log**, not the
+   script.
+2. **"The write head is static, the trigger is unproven."** Wrong sampling: I always
+   dumped *after* a sequence settled. The head moves 29 -> 30 -> ... -> 55 under play; a
+   full scene produced **18 lines in one run**.
+3. **"The story will not advance under scripted input."** Wrong **button**. `cross` does
+   nothing in this state; **`circle` advances dialogue**. A button sweep (press each, watch
+   the head) is what found it — guessing would not have.
+4. **"The follower prints nothing, so the trigger is broken."** Wrong **topology**:
+   PPSSPP's debugger is effectively **one client**. A separate presser process competed
+   with the follower, so the head moved while the follower saw nothing. Pressing and
+   polling must happen on **the same connection** — that is what `--auto` does.
+
+### ⛔ The "second client connected" result is misleading
+
+A probe that opened a second websocket reported "CONNECTED", which appears to contradict
+the one-client rule. It does not: the second socket **connects but does not get answers**,
+so `version` times out and the effect is a silent dead client. **Judge by whether a request
+completes, not by whether the socket opens.**
+
+### The button sweep — how the right button was found
+
+| button | head moves? |
+|---|---|
+| `cross` | no |
+| **`circle`** | **YES — advances dialogue** |
+| `start` | no (opens a menu) |
+| `square`, `triangle` | no |
+| `up`, `down`, `left`, `right` | no |
+
+Accepted button names on this build: `cross, circle, square, triangle, start, select, up,
+down, left, right, home, hold, wlan, screen, note`. Rejected: `l, r, l1, r1, shoulder_l,
+shoulder_r, L, R, volup, voldown, power`.
+
+### ⭐ The method that actually solved it
+
+**Press each candidate, watch the write head, keep the one that moves it.** Three
+symptoms that all read as "the game is broken" — no cursor, frozen head, no advance — were
+each a wrong *assumption* (wrong structure, wrong sampling, wrong button), and each was
+settled by measuring instead of reasoning.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
