@@ -839,6 +839,57 @@ the `psp-watch.mjs` client already written.
 to speech, and it has not been tested against a scene that advances (the story never moved
 during this investigation), so the "new line appeared" trigger is designed but unproven.
 
+
+## ⛔ The live trigger is UNPROVEN — measured, not assumed
+
+Polled the write head (`0x089797E8`) live at 200 ms across a plan of ten Cross presses and
+two `wait` steps:
+
+```
+distinct values across 98 samples: [29]
+= completely static
+```
+
+The screen did not change either. So **the story never advanced under scripted input**, and
+the "speak when the write head increments" trigger has never been observed firing.
+
+### What that does and does not mean
+
+| claim | status |
+|---|---|
+| the reader parses the log correctly | **PROVEN** — output matches the backlog screen |
+| the log's addresses and stride are right | **PROVEN** — capacity 512 read from config, entries decode cleanly |
+| the write head identifies new lines | **UNPROVEN** — it has never been seen to move |
+| the reader is usable by a blind player | **NO** — it is a dump tool, not wired to speech |
+
+### Two things worth checking before blaming input
+
+1. **The engine's display/mode byte.** `cRam00056185` reads **0**. In `FUN_00051028` that
+   byte is tested against `1` and `2` to decide name-plate rendering, so `0` is a state the
+   renderer treats as disabled. It may indicate the game is not in a scene that consumes
+   dialogue input.
+2. **The earlier `start` trap.** A `start` press during the attract sequence can cycle a
+   menu rather than enter the game (this happened once, producing the `1d8912244b` screen).
+   The current state may be a scene/attract mode rather than playable dialogue.
+
+⛔ **Do not conclude the trigger is wrong from this.** The correct reading is that the
+trigger is untested because the state that exercises it was never reached. Getting the game
+into a scene where a text box visibly advances is the prerequisite, and it is a game-driving
+problem, not a reader problem.
+
+## Where this leaves the game — final position
+
+**Working:** `scripts/oga-sg-reader.py` reads Steins;Gate dialogue from a RAM dump, with
+speaker names, verified against the in-game backlog. The full pipeline from an encrypted
+PSP disc image to readable dialogue is documented and reproducible.
+
+**Not working:** the live/host loop (poll the three globals, speak on change), the story
+advance needed to test it, and anything inside the app (there is no PSP core; this is
+host-side against PPSSPP only).
+
+**Effort to finish, if the state problem is solved:** small — a few dozen lines using the
+`psp-watch.mjs` client already written.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
