@@ -260,6 +260,104 @@ Other traps that cost time:
 3. Alternatively, dump RAM at a moment when the line **demonstrably changes** and diff
    against the `0x09B31000` duplicate region — that region is the best remaining RAM lead.
 
+
+## ✅ The BOOT SEQUENCE and the engine's data layout — read from the decompile
+
+`FUN_0000b990` is the engine's system init. Decompiling it produced a complete map of
+how this game gets its data into RAM — which is what the cursor work needs.
+
+```c
+FUN_00094d08("start system init.\n");
+_LAB_00055e7c = FUN_000a9820(0x100000, "Work Buffer");   // a 1 MB work buffer
+FUN_000a9728(&DAT_00181f80, 0x1000000);
+...
+iRam00059d68 = FUN_000a9820(0x1000, "Sytem Config Buffer");   // 4 KB config buffer
+while (FUN_000a0bfc("SYSTEM.CFG", iRam00059d68, 0x1000) == -1)
+    FUN_00094d08("error load system.cfg\n");
+iRam00055e34 = iRam00059d68;                    // ⭐ THE CONFIG BASE POINTER
+```
+
+### The SYSTEM.CFG format — decoded and confirmed against the file
+
+The loader immediately reads **four u16 offsets at `+0x50`, `+0x52`, `+0x54`, `+0x56`**
+and turns each into `base + offset`:
+
+```c
+if (*(short *)(iRam00055e34 + 0x50) != 0)
+    iRam00059d70 = iRam00055e34 + (uint)*(ushort *)(iRam00055e34 + 0x50);
+```
+
+Checked against the real file — the table is an **array of 6-byte entries**, each entry's
+first u16 being the offset to a string:
+
+```
++0x50: 0x06F3 -> "pfs0:"     +0x52: 0x06F9 -> "pfs0:"
++0x54: 0x06FF -> "pfs0:"     +0x56: 0x0705 -> "pfs0:"
++0x58: 0x070B               +0x5A: 0x070D     +0x5C: 0x070F   +0x5E: 0x0711
+```
+
+The tail of the file holds Shift-JIS menu strings, e.g.
+`初期設定の変更を行います。` ("Change the initial settings"). Earlier entries in the
+table (`+0x40..+0x44` = `0x06D0/0x06DD/0x06E7`) are more names.
+
+### After the config: the data archives
+
+```c
+FUN_000a2810(1, "DATA0.AFS", 0x20, 0x10);
+FUN_000a2810(2, "DATA1.AFS", 0x20, 0x10);
+local_30 = "afs0:/"; local_2c = "afs1:/";
+FUN_000a0a40(&local_30, 3);
+```
+
+So `DATA0.CPK` / `DATA1.CPK` are opened and mounted as **`afs0:/`** and **`afs1:/`**. The
+script text sits inside them uncompressed.
+
+### Where things land in RAM at runtime
+
+| what | address |
+|---|---|
+| **EBOOT runtime load base** | **`0x08804000`** — derived by finding unrelocated strings (`SYSTEM.CFG`, `SYSTEM.DAT`, `error load system.cfg`) in a live dump, all three agreeing |
+| **loaded SYSTEM.CFG (all 2662 bytes)** | **`0x0933C580`** |
+| **the config-base POINTER** | **`0x089B5E34`** = `0x0933C580` |
+| the RAM script block | `0x08AEA000` (unchanging) |
+| script duplicate | `0x09B31000`+ |
+
+⭐ **`0x089B5E34` is a confirmed engine global holding the config pointer** — it reads
+exactly `0x0933C580`, the config, and sits inside the ELF's data segment (vaddr
+`0x1B1E34`). That is a working anchor for further state-block work.
+
+## ⛔ Two addressing traps that wasted real time
+
+**1. A PSP PRX is loaded at a base other than 0, and the base must be derived, not
+guessed.** Here it is `0x08804000`. Guessing `0x08800000` gives a plausible-looking
+result that is wrong by 16 KB, and code then reads as data.
+
+**2. Ghidra's `iRam<addr>` / `_global_` names for GP-relative accesses did not agree
+with the runtime addresses on this binary.** Ghidra labelled the config-base global
+`iRam00055e34`, but the value is actually at vaddr `0x1B1E34` (`0x089B5E34` at runtime).
+Attempts to reconstruct `$gp` from Ghidra's naming produced addresses that read as zero.
+
+**Therefore: cross-check any Ghidra global against a live RAM dump before trusting it.**
+A string that survives load (because relocations never touch it) is the reliable way to
+establish the load base; derive from that, not from Ghidra's address labels.
+
+## ⛔ STILL BLOCKED — the line cursor
+
+Everything above is new and solid, but it does **not** yet answer "which line is on
+screen". Confirmed dead ends, from live dumps:
+
+| probe | result |
+|---|---|
+| pointers to the RAM script block base | **0** |
+| pointers to the duplicate region base | **0** |
+| pointers to the current dialogue record address | **0** |
+| words equal to a plausible block-relative offset | **16,118** — a coincidence generator, not evidence |
+| the script block changing between game states | **0 bytes** |
+
+The config base (`0x089B5E34`) and the four config-section pointers are the next things
+to follow: whichever section the script system registers with is where a script table —
+and therefore a line index — will be reachable from.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
