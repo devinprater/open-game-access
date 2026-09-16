@@ -443,7 +443,58 @@ comparison is what proved touch works; reading panels had already produced two w
 answers on this same question.
 
 
-### ⛔ (Superseded) the two-frame loop finding — BEFORE touch was wired
+## ✅✅✅ IN GAMEPLAY — reached by TOUCH input
+
+After wiring `TAP`, a 120,000-frame run with alternating A presses and centre taps
+reached **actual gameplay**:
+
+```
+input plan : fe/plans/dbz-finish.txt (538 key events, 263 taps)
+
+distinct screens across 120,000 frames: 60 captured, ALL UNIQUE
+   75a09f2801  x1  first=f090000  last=f090000
+   f125b5588f  x1  first=f092000  last=f092000
+   ...
+   0dc115f01a  x1  first=f118000  last=f118000
+```
+
+⛔ **Every captured screen is unique — not one repeat.** Compare the button-only runs,
+which produced exactly **two** alternating screens. The game is now progressing
+continuously, and the hash test proves it without any interpretation.
+
+**Final state** (`docs/evidence/dbz-gameplay.png`): an **isometric interior** — a
+bedroom with furniture, two character sprites standing on the floor, a doorway, and a
+**status gauge across the bottom of the screen** (orange/red bar with a round icon at
+the left). This is the game's play state, not a cutscene and not a menu.
+
+⚠️ **The two sprites have not been identified.** At this resolution they cannot be
+named reliably, and sprite-identification has already produced one wrong claim
+(Kame House) in this document. What is asserted is only what the image shows: an
+isometric room, two figures, and a status gauge.
+
+### ✅ The character list settled to `2,3,4` again
+
+```
+[list] f=112000 count32=0x00030003 n=3 2,3,4
+[list] f=118000 count32=0x00030003 n=3 2,3,4
+```
+
+The same stable value seen in earlier runs (Piccolo, Krillin, Tien) with the same
+count word `0x00030003`. **This is now observed in a run that is demonstrably in
+gameplay**, which strengthens — but still does not confirm — the reading that the list
+holds a character roster for the current story stage. Confirming it needs a **party
+menu screenshot**, and the input tooling to reach one now exists.
+
+### ⛔ What this cost, and the durable lesson
+
+The blocker was never the game. **The probe could not send touch input**, so a
+touch-gated opening was untestable and every "no button works" conclusion was drawn
+from an incomplete input model. `poke_touch` was exported and documented; a single
+missing call in the harness cost many runs and produced several wrong conclusions.
+
+**Enumerate the core's input API and diff it against what the harness actually calls,
+before ever concluding a game ignores input.**
+
 
 This was true *of button-only input* and is kept because it is the measurement that
 isolated the bug:
