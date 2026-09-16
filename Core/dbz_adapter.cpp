@@ -33,14 +33,9 @@
  * drives the real console's buttons when the player asks. It never writes RAM.
  */
 #include "adapter.h"
-#include "pokecore.h"
-
-namespace melonDS { class NDS; }
 
 #include <stdio.h>
 #include <string.h>
-
-melonDS::NDS* poke_debug_nds(PokeCore* core);
 
 namespace oga {
 namespace {
