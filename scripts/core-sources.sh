@@ -38,3 +38,25 @@ teakra/src/dma.cpp teakra/src/memory_interface.cpp
 teakra/src/mmio.cpp teakra/src/parser.cpp teakra/src/processor.cpp
 teakra/src/timer.cpp teakra/src/test_generator.cpp
 "
+
+# ---- Open Game Access glue ---------------------------------------------------
+# ⛔ THIS LIST MUST LIVE HERE TOO. build-core.sh owned a private GLUE= line while
+# build-sim.sh compiled ONLY poke_platform.cpp and pokecore.cpp — so the simulator
+# archive contained NO adapters at all, while the device archive contained all of
+# them. Nothing failed at compile time; the simulator link just reported
+# `undefined symbol: oga::find_by_game_code`, which reads as a missing function
+# rather than a build script that never compiled the file.
+#
+# Keep the adapters here, not in either build script: this is the one list the two
+# platforms share, and the reason it exists is exactly this class of drift.
+#
+# Order is irrelevant to the linker (these are objects, not a library), but the
+# adapters are grouped last because they are the feature layer sitting on top of
+# pokecore.cpp's registry.
+OGA_GLUE="
+poke_platform.cpp pokecore.cpp
+fe_access.cpp fe_adapter.cpp
+gba_adapter.cpp
+dbz_adapter.cpp
+adapters.cpp
+"

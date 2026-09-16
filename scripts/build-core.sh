@@ -54,7 +54,11 @@ TEAKRA=""
 # copies is exactly how the simulator build ends up missing a translation unit
 # and fails at the FINAL link with a symbol the device build has.
 source "$ROOT/scripts/core-sources.sh"
-GLUE="$ROOT/Core/poke_platform.cpp $ROOT/Core/pokecore.cpp $ROOT/Core/fe_access.cpp $ROOT/Core/fe_adapter.cpp $ROOT/Core/dbz_adapter.cpp $ROOT/Core/adapters.cpp"
+# ⛔ BUILT FROM THE SHARED LIST, NOT A PRIVATE COPY. This line used to be a second,
+# hand-maintained list of the same files — and it is why adding a new adapter meant
+# remembering two places, and why the simulator build silently had none.
+GLUE=""
+for _f in $OGA_GLUE; do GLUE="$GLUE $ROOT/Core/$_f"; done
 
 compile() { # compile <lang> <src> <tag>
   local lang="$1" src="$2" tag="$3"

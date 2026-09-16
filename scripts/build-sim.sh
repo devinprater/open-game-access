@@ -95,8 +95,11 @@ compile() {
   for f in "$LUA_SRC"/src/*.c; do b="$(basename "$f" .c)"
     [ "$b" = "lua" ] || [ "$b" = "luac" ] || printf '%s|lua|%s\n' "$f" "lua_$b"
   done
-  printf '%s|cxx|poke_platform\n' "$ROOT/Core/poke_platform.cpp"
-  printf '%s|cxx|pokecore\n'      "$ROOT/Core/pokecore.cpp"
+  # ⛔ THE GLUE LIST COMES FROM core-sources.sh, NOT FROM HERE. It used to be two
+  # hardcoded lines, which meant the simulator core had no adapters at all and the
+  # device core had all of them — a drift that only surfaced as an undefined symbol
+  # at the very end of the simulator link.
+  for f in $OGA_GLUE; do printf '%s|cxx|%s\n' "$ROOT/Core/$f" "$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
 } > "$OBJ/list.txt"
 
 rm -f "$OBJ/.failed"

@@ -218,9 +218,77 @@ private struct GameControl: View {
 private struct ReaderGroups: View {
     var body: some View {
         VStack(spacing: 18) {
+            AdapterGroup()
             PathFindingGroup()
             ReadingGroup()
         }
+    }
+}
+
+/// The game's OWN reader — the native adapter, not the Lua script.
+///
+/// ⛔ THIS GROUP IS HIDDEN FOR MOST GAMES, AND THAT IS CORRECT. Only a handful of
+/// titles have a native reader; for everything else `availableAdapterCommands` is
+/// empty and nothing is shown. An always-present set of buttons that answer "this game
+/// has no reader controls" would be worse than no buttons, because a blind player
+/// cannot tell a deliberately-absent control from a broken one.
+///
+/// Shown only once the adapter reports it has real game state (`adapterReady`), so the
+/// controls never appear while a map or party is still loading.
+private struct AdapterGroup: View {
+    @EnvironmentObject private var session: GameSession
+
+    var body: some View {
+        let commands = session.availableAdapterCommands
+        if !commands.isEmpty, session.adapterReady, let name = session.adapterName {
+            VStack(spacing: 6) {
+                Text("\(name) reader")
+                    .font(.footnote)
+                    .foregroundStyle(.secondary)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .accessibilityAddTraits(.isHeader)
+
+                // Two per row: the labels are short but the touch targets are not,
+                // and a blind player navigating by swipe benefits from predictable
+                // row shapes over a long single column.
+                ForEach(Array(stride(from: 0, to: commands.count, by: 2)), id: \.self) { i in
+                    HStack(spacing: 6) {
+                        AdapterButton(command: commands[i])
+                        if i + 1 < commands.count {
+                            AdapterButton(command: commands[i + 1])
+                        } else {
+                            Spacer().frame(maxWidth: .infinity)
+                        }
+                    }
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("\(name) reader")
+        }
+    }
+}
+
+/// One native-reader command, as an ordinary button so it is reachable by swiping.
+private struct AdapterButton: View {
+    @EnvironmentObject private var session: GameSession
+
+    let command: AdapterCommand
+
+    var body: some View {
+        Button {
+            session.sendAdapterCommand(command)
+        } label: {
+            Label(command.title, systemImage: command.symbol)
+                .labelStyle(.titleOnly)
+                .font(.headline)
+                .frame(maxWidth: .infinity, minHeight: 48)
+                .background(Color(uiColor: .secondarySystemBackground))
+                .foregroundStyle(Color.primary)
+                .clipShape(RoundedRectangle(cornerRadius: 10))
+        }
+        .accessibilityAddTraits(.isButton)
+        .accessibilityLabel(command.title)
+        .accessibilityHint(command.hint)
     }
 }
 

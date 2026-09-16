@@ -31,6 +31,21 @@ final class GameSession: ObservableObject {
     /// but the player is looking at whichever one matters right now.
     @Published var focusScreen: Int32 = POKE_SCREEN_BOTTOM
 
+    /// ⛔ THIS MUST BE @Published, NOT COMPUTED. Whether an adapter is ready is read
+    /// from live C state, but SwiftUI only re-renders when an @Published property
+    /// changes. A computed `adapterReady` would read the correct value and still never
+    /// re-draw, so the reader controls would silently never appear on their own —
+    /// which is indistinguishable from the feature not existing.
+    ///
+    /// It is refreshed once per frame in `tick()` (see `refreshAdapterState`), which
+    /// costs one C call per frame and only assigns (and so only republishes) when the
+    /// value actually changes.
+    @Published private(set) var adapterReady = false
+    /// The adapter's name and id, likewise published so the UI can show and label the
+    /// reader group the moment a game with a native reader finishes loading.
+    @Published private(set) var adapterName: String?
+    @Published private(set) var adapterID: String?
+
     private var core: OpaquePointer?
     private weak var speech: SpeechEngine?
     private var displayLink: CADisplayLink?
@@ -140,6 +155,13 @@ final class GameSession: ObservableObject {
         // Copy into the app's own container: the emulator keeps the file open
         // for random access and security-scoped URLs are not stable enough for
         // that across launches.
+        // A new ROM is a new adapter: clear the identity so the next frame re-reads it.
+        // Without this, loading a second game would keep showing the first one's
+        // reader controls until the app restarted.
+        adapterID = nil
+        adapterName = nil
+        adapterReady = false
+
         let name = url.lastPathComponent
         guard let local = try? ROMStore.importROM(from: url) else {
             status = .failed("Could not read \(name).")
@@ -179,6 +201,7 @@ final class GameSession: ObservableObject {
         displayLink?.invalidate()
         displayLink = nil
         stopAudio()
+        adapterReady = false
         if let romName { status = .ready(name: romName) } else { status = .needROM }
     }
 
@@ -230,6 +253,69 @@ final class GameSession: ObservableObject {
             return
         }
         refreshFramebuffer()
+        refreshAdapterState()
+    }
+
+    // MARK: - Game adapters (native readers)
+
+    /// ⛔ THE ADAPTER CONTROLS WERE UNREACHABLE UNTIL NOW. `poke_command` existed in
+    /// the core and every adapter was written, registered and linked — but nothing in
+    /// this app ever called it, so no native reader could fire for any game. That is
+    /// why Fire Emblem never spoke despite compiling cleanly: the plumbing stopped one
+    /// step short of the UI. These three members are that missing step.
+    ///
+    /// The adapter is the game's own semantic reader (the map, the party, the units).
+    /// It is separate from the Lua script, and a game may have neither, one, or both.
+
+    /// Read the adapter's identity and readiness out of the core and publish any
+    /// change. Called once per frame from `tick()`.
+    ///
+    /// ⛔ ONLY ASSIGN WHEN THE VALUE CHANGES. A bare assignment to an @Published
+    /// property fires objectWillChange on EVERY frame, which re-runs the whole view
+    /// body 60 times a second while a game is running — the kind of cost that shows up
+    /// as audio crackle and dropped frames, and is very hard to trace back here.
+    ///
+    /// The name and id are read once (on the first frame after a ROM loads) rather
+    /// than every frame: they are fixed for the life of the ROM, and the C accessors
+    /// return pointers to static storage.
+    private func refreshAdapterState() {
+        guard let core else { return }
+
+        if adapterID == nil, let c = poke_adapter_id(core) {
+            let s = String(cString: c)
+            if !s.isEmpty { adapterID = s }
+        }
+        if adapterName == nil, let c = poke_adapter_name(core) {
+            let s = String(cString: c)
+            if !s.isEmpty { adapterName = s }
+        }
+
+        let ready = poke_adapter_ready(core)
+        if ready != adapterReady { adapterReady = ready }
+    }
+
+    /// The reader controls that make sense for the loaded game. Empty is the normal
+    /// answer for a ROM with no native reader, and the UI shows nothing in that case.
+    var availableAdapterCommands: [AdapterCommand] {
+        AdapterCommand.supported(adapterID: adapterID)
+    }
+
+    /// Send one accessibility command to the game's native reader.
+    ///
+    /// The raw command ids match `oga::Command` in Core/adapter.h. They are written
+    /// out here rather than passed as raw integers from the view so the mapping is
+    /// in one place and a wrong number cannot silently address a different command.
+    func sendAdapterCommand(_ command: AdapterCommand) {
+        guard let core else { return }
+        guard poke_command(core, command.rawValue) else {
+            // Refused, not crashed: either this game has no adapter, or its state is
+            // not ready yet. Saying so is the honest report — silence here reads as
+            // a broken button.
+            speech?.announce(adapterName == nil
+                             ? "This game has no reader controls."
+                             : "Game state is not ready yet.")
+            return
+        }
     }
 
     private func refreshFramebuffer() {
