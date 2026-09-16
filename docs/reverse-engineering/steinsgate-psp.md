@@ -1,8 +1,64 @@
 # Steins;Gate: My Darling's Embrace (PSP) — reader investigation
 
-**Status: SCRIPT FORMAT FULLY DECODED. LINE CURSOR STILL NOT FOUND.**
-A reader is now possible; it is not yet buildable. This document records exactly what is
-established and what is not.
+**Status: SCRIPT FORMAT DECODED. DECOMPILE PIPELINE WORKING. CONFIG LOADER LOCATED.
+LINE CURSOR STILL NOT FOUND.** A reader is now clearly reachable; it is not built.
+
+## ✅ The decompile is DONE and the config loader is located
+
+This is the furthest advance in this investigation. The full chain now works, and
+Ghidra has analysed the executable:
+
+| step | result |
+|---|---|
+| CSO → ISO | `maxcso.exe --decompress` → 1,385,979,904 bytes |
+| ISO → EBOOT.BIN | 1,785,840 bytes, magic **`~PSP`** = encrypted PRX |
+| EBOOT → ELF | `pspdecrypt -o EBOOT.dec EBOOT.BIN` → **valid MIPS ELF32**, entry `0x94224` |
+| Ghidra import | `analyzeHeadless ... -processor "MIPS:LE:32:default"` → **analysis succeeded, 68 s** |
+| functions recovered | **4,130** |
+
+### ⭐ The way in: F `FUN_0000b990` — the SYSTEM.CFG loader
+
+```
+string 00121dbc "SYSTEM.CFG"        called from 0000b990 FUN_0000b990  (body 3472 bytes)
+string 00121dc8 "error load system.cfg"   <- same function
+string 00128690 "SYSTEM.DAT"        called from 00093bf8 FUN_00093bf8  (body 808 bytes)
+```
+
+**`FUN_0000b990` is where the game parses its own configuration**, and it is the
+documented starting point for finding how scripts are indexed. Related loaders:
+
+```
+0000b990  FUN_0000b990   SYSTEM.CFG
+00093bf8  FUN_00093bf8   SYSTEM.DAT
+000a0bfc  FUN_000a0bfc   "load cpk : %s"
+000a0f50  FUN_000a0f50   "load cpk : %s"
+000a14d8  FUN_000a14d8   "Cpk Bind Work (%s)"
+```
+
+⛔ **The executable contains NO script text** (`Rintaro` 0 hits, `Mayuri` 0 hits) — the
+text lives only in `DATA0.CPK`. So the reader must combine a static script parse with a
+runtime cursor, exactly as the tooling here does.
+
+### Reading the code
+
+```bash
+# open in the GUI
+"C:\Users\Devin Prater\scoop\apps\ghidra\current\ghidraRun.bat"
+# project: C:\Users\Devin Prater\oga-ghidra-sg   program: EBOOT.dec
+```
+
+⛔ **HEADLESS GHIDRA SCRIPTS MUST BE JAVA, NOT PYTHON.** PyGhidra is required for `.py`
+scripts and it cannot install on this machine's Python 3.14. Use a `.java` script
+(`scripts/SgQuery.java` is a working template) with `-scriptPath <dir> -postScript X.java`.
+
+⛔ **THE PS ELF IS POSITION-INDEPENDENT: NO ADDRESS IS A LITERAL.** Searching the file
+for an address's 4 bytes finds **nothing** (verified: 0 hits for a known address).
+Addresses are built as `lui`/`addiu` HI16/LO16 pairs patched at load. The relocation
+table is 8 sections of type **`0x700000A0`** (not `0x600000A0` — that guess made the tool
+report "no relocations found", which reads as "not a PRX"), entsize 8, **44,606 entries**
+(6191 R_MIPS_32, 18709 R_MIPS_26, 8748 HI16, 10958 LO16). `scripts/oga-mips-reloc.py`
+reads it.
+
 
 ## ⛔ First: this is NOT the game the backlog entry meant
 
