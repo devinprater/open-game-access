@@ -146,6 +146,116 @@ box. So it is not even confirmed that the line advanced during those steps. The 
 session must establish a state where a text box is demonstrably on screen *before*
 concluding anything about the cursor.
 
+
+## ⛔ SECOND PASS — corrected findings (this SUPERSEDES parts of the section above)
+
+The first pass concluded "script located, cursor not found" and left two things wrong.
+Both are corrected here.
+
+### The controls are now known (verified, not guessed)
+
+| Button | Effect |
+|---|---|
+| **START** | title screen. ⛔ **THE "Press START button" PROMPT BLINKS** — 12 presses at ~420 ms spacing can all land in the dark. MASH (12+) to get in. Also opens/closes an in-game menu. |
+| **Cross** | advance dialogue / interact. |
+| **Triangle** | **opens the BACKLOG** — a scrollback of recently spoken lines. ⭐ THE BEST SCREEN IN THE GAME FOR THIS WORK. |
+| **Square** | opens a menu. |
+| D-pad | moves a cursor in menus; ⛔ does NOT scroll the BACKLOG — the backlog screen is static and does not respond to up/down. |
+
+### ⛔ The earlier "dialogue did not advance" comparison was INVALID
+
+The first pass compared two dumps and found the script block unchanged (0 of 36864
+bytes) and the pointers identical, and concluded the line had not advanced — but could
+not tell whether that was because the reader test was wrong or because nothing advanced.
+
+It was **both**, and the distinction is now settled: the two dumps had **byte-identical
+pointer sets**, i.e. the game state was genuinely unchanged between them. The comparison
+was worthless, not the method. **The real reason is visible on screen: the presses were
+only toggling the in-scene TV set, and no dialogue box was ever on screen.**
+
+⛔ **CONFIRM A TEXT BOX IS VISIBLE BEFORE CONCLUDING ANYTHING FROM A DIFF.** The BACKLOG
+is the reliable way to confirm dialogue exists — it prints the lines regardless of the
+current scene state.
+
+### ⭐ The BACKLOG proves the script block IS the dialogue, and decodes the speaker codes
+
+Triangle → BACKLOG shows exactly the strings found at `0x08AEA000`, in order:
+
+```
+        ng."
+Rintaro  "Accepting the unknown as the first step towards God!"
+Rintaro  "But in this case, by 'unkno...
+???      "Hey, Mayuri. Can I use these...
+???      "Um, sure. I guess so."
+???      "Here, I got you the snacks...
+```
+
+which corresponds to the RAM lines:
+
+```
+0x08AEB190  'gAccepting the unknown as the unknown is the first step towards God!'
+0x08AEB220  'C Mayuri. Can I use these paper cups?'
+0x08AEB280  'C I got you the snacks you were talking about. This is w...'
+```
+
+**So the leading byte is a SPEAKER CODE, confirmed against the screen:**
+
+| code | speaker | notes |
+|---|---|---|
+| `g` | **Rintaro** (Okabe) | first-person narration *and* his spoken lines |
+| `C` | **???** | displayed as ??? at this point in the story |
+
+There are more codes (`A`, `f`, `ft`, `fs`) where a line wraps across a buffer boundary
+and the code byte belongs to the *continuation* fragment. **Do not assume the first byte
+is always a code** — split lines put one mid-fragment.
+
+### ⛔ The script block is at a FIXED address and never changes
+
+`0x08AEA000`–`0x08AF3000` holds the whole resident script, **at the same address in every
+dump** (`d1-02`, `d1-08`, `ram-backlog` all place
+`'Mayuri. Can I use these paper cups?'` at exactly `0x08AEB222`). It is **0 bytes
+changed** between states — it is a load-time copy of the entire script, not a window.
+
+That is important: the block cannot tell you the current line, because nothing in it
+moves. Any reader must find the cursor elsewhere.
+
+### ⭐ The script is DUPLICATED at `0x09B31000`+ — the better lead
+
+Every script line also exists in a second region starting around `0x09B31C00`, in the
+same order, and this region DOES have 4-byte words pointing into it from elsewhere:
+
+```
+@0x08AFB20C -> 0x09B30954   [display copy]
+@0x08AFBBDC -> 0x09B31280   [display copy]
+@0x09FFEC84 -> 0x09B31A74   (stack frame)
+```
+
+**This is where the next session should work**, not the `0x08AEA000` block. The
+duplicate is the natural place for a decoded/display form with a moving read position.
+Note that `0x09FFEC84` sits in a *stack frame* (neighbours are `0x09FFECB0`,
+`0x09FFF15C`, `0x09FFED5C`), so something was actively walking this region when the
+dump was taken — which is what a reader would look like.
+
+⛔ Heap addresses MOVE between sessions. `d1-02`/`d1-08` and `ram-backlog` placed the
+same pointers at different addresses (`0x08D3A0A8` vs `0x08CE20A8`), so **never hard-code
+a heap address found in one dump.** The `0x08AEA000` script block is the exception — it
+is stable — but nothing else should be assumed stable.
+
+## Corrected bottom line
+
+| | |
+|---|---|
+| Script text | ✅ located, `0x08AEA000`, 686 lines, English patch confirmed by content |
+| Speaker codes | ✅ confirmed against the BACKLOG (`g` = Rintaro, `C` = ???) |
+| Controls | ✅ verified (Triangle = backlog, Cross = advance; START blinks) |
+| Best screen for testing | ✅ BACKLOG (Triangle) — deterministic, shows real dialogue |
+| Which line is current | ❌ **still not found.** The `0x09B31000` duplicate is the lead. |
+| Reader | ❌ cannot be built yet |
+
+**The decompile is now clearly the right next move.** The `0x09B31000` region plus the
+stack frame that referenced it give a concrete target to look for in the code: find what
+reads that address range, and the cursor logic is in the same function.
+
 ## The decompile path (NOT started)
 
 The user's standing instruction is that decompiling is available when needed. It is very

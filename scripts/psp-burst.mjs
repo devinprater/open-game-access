@@ -128,8 +128,15 @@ async function main() {
     console.log(`  before      ${before?.hash} ${before?.w}x${before?.h}`);
     log.push({ step: "before", hash: before?.hash });
 
-    console.log(`  pressing ${BUTTON} for ${HOLD} frames...`);
-    await db.press(BUTTON, HOLD);      // answers AFTER the hold completes
+    // ⛔ `--button wait` MEANS "PRESS NOTHING" — watch a scene that advances on its own
+    // (a VN prologue, an attract loop, an auto-running demo). Without this the only way
+    // to observe is to press something, which changes the very thing being observed.
+    if (BUTTON === "wait") {
+      console.log(`  watching WITHOUT pressing (${COUNT} frames at ${EVERY} ms)`);
+    } else {
+      console.log(`  pressing ${BUTTON} for ${HOLD} frames...`);
+      await db.press(BUTTON, HOLD);      // answers AFTER the hold completes
+    }
 
     for (let i = 1; i <= COUNT; i++) {
       const c = await capture(`${TAG}-${String(i).padStart(2, "0")}`);
