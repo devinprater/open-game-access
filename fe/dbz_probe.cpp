@@ -550,11 +550,66 @@ int main(int argc, char** argv)
         if (found) {
             printf("  first 0x%08X  last 0x%08X  span %u bytes\n",
                    first, last, last - first + 1);
-            if (found <= 8)
-                printf("  ⇒ few records: consistent with an ACTIVE PARTY array\n");
-            else
-                printf("  ⇒ many records: likely the character DATABASE, not the party\n");
+            // ⛔ DO NOT LET THE COUNT DECIDE. An earlier version of this probe
+            // reasoned "found <= 8 ⇒ ACTIVE PARTY", and that was WRONG: the eight
+            // records include Bubbles and Gregory, who are never playable, so the
+            // table is a ROSTER. A count cannot tell a roster from a party — only
+            // WHO is in it can. Print the membership question instead of an answer.
+            printf("  ⛔ membership decides this, NOT the count: a real party holds only\n");
+            printf("     characters the player can actually field. Non-playable names\n");
+            printf("     (pets, NPCs, later-game characters) ⇒ this is a ROSTER.\n");
         }
+    }
+
+    // ------------------------------------------------------- live party hunt
+    //
+    // ⛔ THE ROSTER IS STATIC; THE PARTY IS THE THING THAT CHANGES. Confirming the
+    // roster found the character DATA, but the adapter needs the ACTIVE PARTY —
+    // who is in it right now and with what current HP. Two independent hypotheses
+    // are cheap to test here, and both are checkable rather than plausible:
+    //
+    //   (1) POINTER LIST. An RPG party is very often an array of POINTERS to
+    //       character records. If so, the roster base (0x020CD754) or the name
+    //       addresses appear as 4-byte values somewhere in main RAM. That is a
+    //       precise, falsifiable search — unlike "find a plausible integer".
+    //   (2) LIVE COPY. A duplicate of a live value in a structurally DIFFERENT
+    //       place (not on the 0x24C lattice) would be the current-stat block. The
+    //       earlier duplicate hunt found 0x02054A10 as exactly such an outlier.
+    //
+    // ⛔ Only (1) is strong evidence. A value match proves nothing on its own — a
+    // pointer to a known record does, because the odds of a random 4-byte word
+    // equalling a specific RAM address are negligible.
+    printf("\n=== live party hunt ===\n");
+    {
+        const uint32_t ROSTER_BASE = 0x020CD754;
+        const uint32_t NAME0       = 0x020CD774;   // Goku
+        printf("  (1) hunting POINTERS to the roster:\n");
+        uint32_t hits = 0;
+        for (uint32_t a = 0x02000000; a < 0x02400000; a += 4) {
+            uint32_t v = ProbeRead(a, 4);
+            if (v == ROSTER_BASE || v == NAME0 ||
+                (v >= NAME0 && v <= 0x020CE800 &&
+                 ((v - ROSTER_BASE) % 0x24C) == 0)) {
+                if (hits < 20) printf("        0x%08X -> 0x%08X\n", a, v);
+                hits++;
+            }
+        }
+        printf("        %u pointer-shaped word(s)\n", hits);
+        if (hits) printf("        ⇒ a pointer INTO a character record is strong evidence\n"
+                         "          of a party/index list, because a random word matching\n"
+                         "          a specific RAM address is vanishingly unlikely\n");
+        else      printf("        ⇒ no pointers to the roster; the party is likely a\n"
+                         "          separate copy rather than a list of pointers\n");
+
+        printf("\n  (2) the 0x02054A10 outlier (a live 290 outside the roster):\n");
+        for (uint32_t base = 0x02054A00; base < 0x02054A40; base += 16) {
+            printf("        0x%08X  ", base);
+            for (int i = 0; i < 16; i++) printf("%02X ", ProbeRead(base + i, 1));
+            printf("\n");
+        }
+        printf("        as u32: ");
+        for (int i = 0; i < 8; i++) printf("%u ", ProbeRead(0x02054A00 + i * 4, 4));
+        printf("\n");
     }
 
     // ------------------------------------------------------- structure scan

@@ -163,11 +163,49 @@ broken script rather than a missing shim. The `emu` global comes from the shim.
 
 ## Next steps
 
-1. **Find the ACTIVE PARTY.** The roster is at `0x020CD754`; the live party is a
-   separate structure. The strongest lead is the duplicate at **`0x02054A10`** —
-   a `290` far outside the roster's region, which may be a live copy. Dump around it.
-2. **Confirm field meanings** — change exactly one value in-game (take damage) and
-   re-read. Never infer a name from plausibility.
-3. **Then build the AotS adapter** on the measured layout: `Core/adapter.h` keyed on
-   game code `BRPE`, exposing party member names and stats through the same `Host`
-   callbacks the GBA and Fire Emblem adapters use.
+### ❌ Two hypotheses tested and REFUTED (do not retry these)
+
+**(1) "The party is a pointer list to the roster."** Searched all main RAM for any
+4-byte word pointing to the roster base, to Goku's name, or to any address on the
+`0x24C` lattice. Result: **0 pointer-shaped words.** The party is not a list of
+pointers to these records.
+
+**(2) "The `0x02054A10` duplicate of 290 is a live copy."** Dumped the surrounding
+bytes:
+
+```
+0x02054A00  C0 E8 0C 02 B4 05 00 00 80 C7 0C 02 21 01 00 00
+0x02054A10  22 01 00 00 F8 4F 2D E9 01 A0 A0 E1 F0 00 50 E3
+0x02054A20  7F 20 00 E2 00 00 A0 A3 0B 00 00 AA 80 00 50 E3
+```
+
+`F8 4F 2D E9` is the ARM encoding of `push {r3-r11, lr}`; `01 A0 A0 E1` is
+`mov r10, r1`. **This is loaded overlay CODE, not game data.** The matching `290`
+(`0x122`) is a coincidental word inside instruction encodings.
+
+⛔ **Lesson: check whether a "data" match is actually executable code.** The DS loads
+ARM overlays into main RAM, so a raw byte dump of that region contains machine code.
+Two bytes that form a plausible number is not evidence of a variable.
+
+### ✅ Where that leaves the search
+
+Both cheap structural hypotheses are now eliminated, and the earlier "348 candidates"
+scan produced only graphics noise. **Further blind scanning has a poor expected
+return**, so the honest next step is not another scan:
+
+1. **Get the map from the ROM.** Disassemble `arm9.bin` and the overlays — or find an
+   existing decompilation/disassembly for game code `BRPE` — and read the party
+   structure from the code that indexes it. This is the move that made Fire Emblem
+   tractable (`symbols.txt` gave named addresses instead of guesses), and the project
+   already has Ghidra 12.1.3 + PyGhidra installed plus a working project layout at
+   `C:\Users\Devin Prater\oga-ghidra`.
+2. **If scanning again, make it an experiment with a known expected change.** Take
+   damage so the visible HP value drops, snapshot before and after, and diff — that
+   narrows to a handful of addresses instead of 348.
+3. **Then build the AotS adapter** on whatever layout is actually verified:
+   `Core/adapter.h` keyed on game code `BRPE`, exposing party member names and stats
+   through the same `Host` callbacks the GBA and Fire Emblem adapters use.
+
+⛔ **Never build the adapter on the roster table.** It holds characters the player
+cannot field (Bubbles, Gregory), so reading it as "the party" would narrate numbers
+the player is not using — worse than saying nothing.
