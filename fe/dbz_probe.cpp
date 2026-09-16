@@ -221,17 +221,31 @@ int main(int argc, char** argv)
     // DURING the run — including a control run that had stalled on the "Press the A
     // Button to begin" screen the entire time. Capturing at each sample point costs
     // nothing extra (the emulator is already at that frame) and shows the trajectory.
+    // ⛔ CAPTURE BOTH SCREENS. `poke_framebuffer(core, screen, ...)` takes a screen
+    // index and the probe only ever asked for screen 0. On the DS the BOTTOM screen is
+    // where RPGs put the party/status display — which is exactly the information this
+    // investigation needs — so half the console's output was never captured.
+    // Screens are written as <base>_top.ppm and <base>_bot.ppm.
     auto write_shot = [&](const char* path) -> bool {
-        int w = 0, h = 0;
-        if (!poke_framebuffer(core, 0, &w, &h) || w <= 0 || h <= 0) return false;
-        const uint8_t* px = poke_framebuffer_ptr(core, 0);
-        if (!px) return false;
-        FILE* sf = fopen(path, "wb");
-        if (!sf) return false;
-        fprintf(sf, "P6\n%d %d\n255\n", w, h);
-        for (int i = 0; i < w * h; i++) fwrite(px + i * 4, 1, 3, sf);  // RGBA -> RGB
-        fclose(sf);
-        return true;
+        bool any = false;
+        for (int scr = 0; scr < 2; scr++) {
+            int w = 0, h = 0;
+            if (!poke_framebuffer(core, scr, &w, &h) || w <= 0 || h <= 0) continue;
+            const uint8_t* px = poke_framebuffer_ptr(core, scr);
+            if (!px) continue;
+            char p2[600];
+            const char* dot = strrchr(path, '.');
+            if (dot) snprintf(p2, sizeof(p2), "%.*s_%s%s", (int)(dot - path), path,
+                              scr == 0 ? "top" : "bot", dot);
+            else     snprintf(p2, sizeof(p2), "%s_%s", path, scr == 0 ? "top" : "bot");
+            FILE* sf = fopen(p2, "wb");
+            if (!sf) continue;
+            fprintf(sf, "P6\n%d %d\n255\n", w, h);
+            for (int i = 0; i < w * h; i++) fwrite(px + i * 4, 1, 3, sf);  // RGBA -> RGB
+            fclose(sf);
+            any = true;
+        }
+        return any;
     };
 
     for (long f = 0; f < frames; f++) {

@@ -472,7 +472,67 @@ named reliably, and sprite-identification has already produced one wrong claim
 (Kame House) in this document. What is asserted is only what the image shows: an
 isometric room, two figures, and a status gauge.
 
-### ✅ The character list settled to `2,3,4` again
+## ✅✅✅ THE MAIN MENU — found by capturing the BOTTOM SCREEN
+
+**Two harness gaps, not one, were blocking this investigation.** The first was missing
+touch input. The second: `poke_framebuffer(core, screen, ...)` takes a **screen index**
+and the probe only ever asked for **screen 0**. On the DS the bottom screen is where
+RPGs put their menus — so half the console's output was never captured in any run.
+
+**Both screens are now written** (`f004000_top.ppm` / `f004000_bot.ppm`).
+
+### The bottom screen, in gameplay, before the menu
+
+```
+[L] Capsule help display                    [START] Menu
+   + two large RED and GREEN touch buttons
+   + a background board showing character names
+```
+
+Two facts fall straight out of it:
+
+1. **`[START] Menu`** — the game's own label says how to open the menu. This is the
+   screen telling you its controls, and it had never been looked at.
+2. **Big red/green touch buttons** — touch affordances, consistent with the finding
+   that touch is a primary input on this game.
+
+### After pressing START: the MAIN MENU
+
+`docs/evidence/dbz-main-menu.png`:
+
+```
+                       MAIN MENU
+   [icons: equipment, skills, ...]      > Items
+                                        ...
+   "View Items and their usage"
+   currency counters, top right
+```
+
+A radial icon menu with **MAIN MENU** labelled, a highlighted **Items** entry and the
+description line *"View Items and their usage"*. **This is the menu the investigation
+needed** — and it is reachable in one run.
+
+⛔ **The `0x020CC774` list still reads `2,3,4` through all of this** — before the menu,
+during it, and after (f=102000–108000, count `0x00030003`). So the list is **not**
+tracking which screen is open. It remains unexplained, and the next step is to navigate
+this menu to a **status/party page** that displays member stats, then compare.
+
+### ⛔ The lesson: enumerate the HARNESS SURFACE, not just the API you remember
+
+Two independent omissions, both invisible without a deliberate audit:
+
+| capability | exported? | was the probe using it? |
+|---|---|---|
+| `poke_touch(core,x,y,down)` | yes | **NO** — every run button-only |
+| `poke_framebuffer(core, screen, …)` | yes | **only screen 0** — bottom screen never captured |
+
+Both were "documented, exported, and unused". Neither produced an error. Both looked
+exactly like facts about the game — "no button works", "the game shows a cutscene" —
+when they were facts about the harness.
+
+**Rule: diff the core's exported surface against what the harness calls, in both
+directions — input AND output — before drawing conclusions about a game.**
+
 
 ```
 [list] f=112000 count32=0x00030003 n=3 2,3,4
