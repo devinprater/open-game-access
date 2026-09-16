@@ -517,6 +517,38 @@ during it, and after (f=102000–108000, count `0x00030003`). So the list is **n
 tracking which screen is open. It remains unexplained, and the next step is to navigate
 this menu to a **status/party page** that displays member stats, then compare.
 
+### ✅ The MAIN MENU is a RADIAL dial, navigated with the D-PAD
+
+Reading the menu at full size (`docs/evidence/dbz-main-menu.png`) shows its structure:
+
+```
+        [skill: flame]  [equip: shirt]        currency counters (top right)
+                     \   ^
+    [icon]            [*]  |  pink UP arrow     > Items
+          MAIN MENU   dial |                       "View Items and their usage"
+                     /   v
+        [capsule]      [bottle]  pink DOWN arrow
+```
+
+A **rotating dial**: the selected entry's icon sits in the centre circle, the entry
+name appears in the banner on the right (`> Items`), and the description line sits at
+the bottom (`View Items and their usage`). **Pink up/down arrows** beside the dial
+mark the rotation direction — so the d-pad rotates the selection, it does not move a
+cursor.
+
+**Verified by navigating it.** A run that pressed START and then DOWN/UP/RIGHT across
+the menu produced **38 distinct bottom screens** in the menu window (f=100000–158000,
+every sample unique — no cycling). The selection demonstrably moved: at f=158000 the
+centre icon is a **gear** and the banner reads **`Options`** with the description
+*"Adjust the game's options"*, where it read `Items` at f=108000.
+
+**So the menu is fully drivable**: START opens it, the d-pad rotates it, and A opens
+the selected entry. What remains is to rotate to a **party/status** entry and open it.
+
+⛔ **The `0x020CC774` list still reads `2,3,4` (count `0x00030003`) throughout the
+entire menu session** — f=100000 through f=158000, unchanged. So the list is not
+tracking the open menu, the highlighted entry, or the screen. It is still unexplained.
+
 ### ⛔ The lesson: enumerate the HARNESS SURFACE, not just the API you remember
 
 Two independent omissions, both invisible without a deliberate audit:
