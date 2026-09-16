@@ -133,3 +133,87 @@ sleep 30; kill %1
 
 ⛔ **`/tmp` does not persist between separate `wsl.exe -- bash -l script.sh`
 calls.** Write captures to `$HOME`, or capture and analyse in one invocation.
+
+## ⛔ Three homes, one name — the trap that keeps recurring
+
+`$HOME` means **different directories on each side**, and every tool that resolves
+it will silently answer about its own side:
+
+| Context | `$HOME` actually is |
+|---|---|
+| git-bash (MSYS) | `C:\Users\Devin Prater` |
+| WSL (`bash -l`) | `/home/devin` |
+| a native Windows program run from bash | `C:\Users\Devin Prater` |
+
+Consequences that have each produced a **confident false result**:
+
+⛔ **`$HOME/scoop` INSIDE WSL IS A DIFFERENT, EMPTY DIRECTORY — AND `mkdir -p` WILL
+HAPPILY CREATE IT.** A core-download script wrote 7 emulator cores to
+`/home/devin/scoop/persist/retroarch/cores`, printed `OK` for every one, and
+reported a correct count — into a fake tree no emulator can see. The real install is
+`/mnt/c/Users/Devin Prater/scoop`. **Scoop is Windows-only.**
+
+⛔ **`$LOCALAPPDATA` IS UNSET IN WSL** and, under `set -u`, aborts the script with
+`LOCALAPPDATA: unbound variable`. Use `/tmp` (carefully — see above) or a `/mnt/c`
+path.
+
+⛔ **A PRESENCE CHECK RUN ON THE WRONG SIDE REPORTS A FALSE `NO`.** A verifier run in
+git-bash checked `$HOME/src/melonds-lua` and reported the melonDS source **missing** —
+but it lives at `/home/devin/src/melonds-lua` **inside WSL**, present and building.
+Ask the owning side explicitly:
+
+```bash
+# WRONG in git-bash: $HOME is the Windows home
+[ -d "$HOME/src/melonds-lua" ] && echo yes
+
+# RIGHT: ask WSL
+wsl.exe -d Ubuntu-24.04 -- test -d /home/devin/src/melonds-lua && echo "yes (wsl)"
+```
+
+**The rule: verify a path from the side that owns it.** A check that guesses produces
+false negatives, and a false negative reads as "the thing does not exist" — which is
+indistinguishable from a real answer.
+
+## ⛔ Native binaries need NATIVE paths
+
+MSYS path conversion is disabled on this host, so a bash variable that naturally
+produces `/c/Users/...` is **not** translated when handed to a native `.exe`:
+
+```bash
+# BROKEN — RetroArch exits 1 with an EMPTY log, which reads as "core refused"
+-L /c/Users/Devin\ Prater/scoop/.../snes9x_libretro.dll
+
+# RIGHT
+-L "C:/Users/Devin Prater/scoop/persist/retroarch/cores/snes9x_libretro.dll"
+```
+
+This has bitten `git -C`, `rg`, `node`, and now RetroArch's `-L` and ROM arguments.
+Prefer a native `C:/...` path whenever the argument reaches a Windows executable.
+
+## ⛔ An emulator's own binary is not always `<package>.exe`
+
+Resolve by glob rather than guessing, or a present emulator reads as absent:
+
+```bash
+DUCK="$(ls -1 "$HOME/scoop/apps/duckstation/current/"*duckstation-qt*.exe | head -1)"
+SN="$(ls -1 "$HOME/scoop/apps/snes9x/current/"*snes9x*x64*.exe | head -1)"
+MGBA="$(ls -1 "$HOME/scoop/apps/mgba-dev/current/"mGBA.exe | head -1)"
+```
+
+Real names found here: `duckstation-qt-x64-ReleaseLTCG.exe`, `snes9x-x64.exe`,
+`mGBA.exe`, `pcsx2-qt.exe`, `PPSSPPWindows64.exe`, `Dolphin.exe`, `azahar.exe`.
+
+## ⛔ Always wrap an emulator probe in `timeout`
+
+A Qt GUI app given `--help` **blocks forever** waiting for a window.
+`pcsx2-qt.exe --help` and `PPSSPPWindows64.exe --help` both hang and will consume the
+entire command budget. `timeout 20 <exe> --help` is mandatory, not defensive.
+
+## ⛔ A documented rule violated is worse than an undocumented one
+
+The `/tmp` warning above existed before this session, and `/tmp/dbz_probe` still
+vanished mid-work between two `wsl.exe -- bash -l` calls — turning a "run" into a
+no-op whose only symptom was an empty log. **Probe binaries and RAM dumps now live
+under `$HOME`** (`~/oga-probe`, `~/oga-ram.bin`). When a documented trap fires anyway,
+the fix is to remove the possibility, not to remember harder.
+
