@@ -1,0 +1,36 @@
+# boot gate (A)
+KEY 900   A 1
+KEY 906   A 0
+KEY 1300  A 1
+KEY 1306  A 0
+KEY 1700  A 1
+KEY 1706  A 0
+KEY 2100  A 1
+KEY 2106  A 0
+KEY 2500  A 1
+KEY 2506  A 0
+KEY 3200  START 1
+KEY 3206  START 0
+# advance the narration with B (10 frames) to reach the final line
+KEY 4000  B 1
+KEY 4010  B 0
+KEY 4500  B 1
+KEY 4510  B 0
+KEY 5000  B 1
+KEY 5010  B 0
+KEY 5500  B 1
+KEY 5510  B 0
+KEY 6000  B 1
+KEY 6010  B 0
+# now HOLD B for 30, then 60, then 120 frames at the final prompt
+KEY 8000  B 1
+KEY 8030  B 0
+KEY 12000 B 1
+KEY 12060 B 0
+KEY 16000 B 1
+KEY 16120 B 0
+# and try a HOLD of A too, in case the prompt is context-sensitive
+KEY 20000 A 1
+KEY 20060 A 0
+KEY 24000 A 1
+KEY 24120 A 0

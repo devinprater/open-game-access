@@ -1,0 +1,78 @@
+# DBZ: Attack of the Saiyans (USA, BRPE) — SKIP THE CUTSCENE, THEN FIND THE MENU.
+#
+# WHAT WE KNOW (verified, see docs/reverse-engineering/dbz-attack-of-the-saiyans.md):
+#   * START on the cutscene opens a two-item box reading "Skip" / "Back"
+#     (docs/evidence/dbz-menu-attempts.png). X and Y do nothing there.
+#   * The game is still inside its opening cutscene at f=14000 — it never reached
+#     free gameplay in any run so far.
+#   * The character list at 0x020CC774 holds Piccolo/Krillin/Tien and is populated
+#     once the game is running. A PARTY/STATUS screen names its contents, so that is
+#     the one screen that can test what the list means.
+#
+# STRATEGY: use the cutscene's own "Skip" option to reach gameplay, then try the menu
+# keys in GAMEPLAY (where a party menu actually exists), not in the cutscene.
+#
+# ⛔ READ THE PANELS AT 4x, ONE AT A TIME. A previous run's conclusion about the
+# opening scene ("Goku's house, Krillin speaking") was WRONG because it was read from
+# a 2x contact sheet — the truth was Kame House with Launch. Contact sheets spot which
+# frame changed; they cannot be read for content.
+
+# --- boot gate: "Resetting backup memory. Press the A Button to begin." -----
+KEY 900   A 1
+KEY 906   A 0
+KEY 1300  A 1
+KEY 1306  A 0
+KEY 1700  A 1
+KEY 1706  A 0
+KEY 2100  A 1
+KEY 2106  A 0
+KEY 2500  A 1
+KEY 2506  A 0
+
+# --- splash -> cutscene ----------------------------------------------------
+KEY 3200  START 1
+KEY 3206  START 0
+KEY 3600  A 1
+KEY 3606  A 0
+KEY 4200  A 1
+KEY 4206  A 0
+
+# --- cutscene: open the Skip/Back box with START, then take "Skip" ----------
+# START opens the box; the first item is "Skip", so A should select it.
+KEY 5200  START 1
+KEY 5210  START 0
+# let the box render (the filmstrip captures f=6000 with the box open)
+KEY 6800  A 1
+KEY 6806  A 0
+# a second pair, in case the first A only closed the box
+KEY 7600  START 1
+KEY 7610  START 0
+KEY 8200  A 1
+KEY 8206  A 0
+
+# --- now try the menu keys in GAMEPLAY -------------------------------------
+# (if the skip worked, these land on the walking-around state instead of a cutscene)
+KEY 9000  X 1
+KEY 9010  X 0
+KEY 9800  B 1
+KEY 9806  B 0
+
+KEY 10800 START 1
+KEY 10810 START 0
+KEY 11600 B 1
+KEY 11606 B 0
+
+KEY 12600 Y 1
+KEY 12610 Y 0
+KEY 13400 B 1
+KEY 13406 B 0
+
+# --- and try the shoulder buttons, occasionally used for menus -------------
+KEY 14200 L 1
+KEY 14210 L 0
+KEY 15000 B 1
+KEY 15006 B 0
+KEY 15800 R 1
+KEY 15810 R 0
+KEY 16600 B 1
+KEY 16606 B 0

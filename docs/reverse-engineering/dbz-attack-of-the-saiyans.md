@@ -381,7 +381,89 @@ mechanical, not attentiveness: **capture larger and later panels, and read one p
 at a time at full size** rather than a contact sheet of six tiny images. A 64×192 DS
 screen upscaled 2× is not enough to read a name box; upscaled 4× and cropped it is.
 
-### 🎮 MENU PROBE — pressing START opens a menu (verified)
+### ⛔⛔ THE CUTSCENE PROMPT IS **B**, AND EVERY EARLIER RUN WAS STALLED
+
+This is the most consequential finding of the whole investigation, and it invalidates
+the "progress" of several earlier runs.
+
+**Reading a single full-size panel (3× upscale, not a contact sheet) shows the button
+icon in the dialogue box is a Ⓑ, not an Ⓐ:**
+
+```
+"It is here where our amazing, astounding,
+ and altogether astonishing story begins.  (B)"
+```
+
+**Verified progression** — plan `fe/plans/dbz-advance.txt`, which presses **B**:
+
+| frame | panel text |
+|---|---|
+| 6000 | *"It is here where our amazing, astounding, and altogether astonishing story begins."* (B) |
+| 20000 | same line |
+| 40000 | same line |
+
+**What this means:**
+
+1. **B advances the narration** — this run reached the *final* line by f=6000, whereas
+   the A-only runs sat on the *first* line forever.
+2. **Every earlier plan pressed A only.** So all previous "the game reached play"
+   conclusions were wrong: the game was displaying one text box the entire run. The
+   character list behaving differently across runs was an artefact of *how far the
+   narration had actually advanced*, not of gameplay.
+3. ⛔ **The boot screen is genuinely A** (*"Resetting backup memory. Press the A Button
+   to begin."*) while **the story boxes are B**. Two different prompts in the same
+   startup path — pressing the wrong one stalls everything after it.
+
+### ⛔ Still open: the final prompt does not dismiss
+
+The last narration line is on screen, with a Ⓑ prompt, and stays there from **f=6000
+through f=40000** despite B being pressed roughly 60 times in that span. So the
+dismissal is **not** a simple B press with the current hold length.
+
+**Next experiment (cheap, one run): vary the hold.** The presses are 10 frames
+(≈0.17 s) long. A press-and-hold of 30–60 frames, or a press placed while the box is
+already idle, is the obvious next thing to try — the emulator samples once per frame
+and a two-frame press has silently failed elsewhere in this project before.
+
+⛔ **Do not conclude the cutscene is unskippable.** One press length was tried. It is
+also possible the final prompt is a *skip-the-whole-cutscene* affordance that needs a
+longer hold, or that the game is waiting on the second screen.
+
+#### ✅ RESULT: LONGER HOLDS DO ADVANCE IT
+
+Plan `fe/plans/dbz-hold.txt` re-ran the same opening but held B for **30, 60 and 120
+frames** instead of 10, then tried long A holds. The cutscene **did move on**:
+
+| frame | panel text |
+|---|---|
+| 24000 | *"After his ferocious battle against King Piccolo, Goku met with Kami…"* (B) |
+
+That line is **several story beats further** than the *"It is here where our amazing,
+astounding… story begins"* line the 10-frame presses were stuck on. So:
+
+1. ✅ **A longer hold is the mechanism** — the 10-frame (≈0.17 s) press was being
+   missed or not registering as a dismiss, while 30–60 frames worked. **The emulator
+   samples once per frame**, so a press must be held long enough to be sampled on a
+   frame where the game is ready to consume it.
+2. ✅ **The cutscene is not unskippable** — it advances and the story continues.
+3. ⛔ **The cutscene is long.** After 26,000 frames with repeated holds it is still
+   narrating the pre-Saiyan-saga backstory. Reaching free gameplay needs either many
+   holds or the cutscene's own skip affordance.
+
+⚠️ **Consequence for earlier conclusions:** a 10-frame press is evidently **not
+reliable** on this game's text boxes. Any earlier plan using 6–10 frame presses may
+have been silently under-pressing. Treat those results as suspect where they depend on
+dialogue advancing.
+
+### ⛔ The method lesson
+
+**A button prompt is a FACT YOU CAN READ OFF THE SCREEN — read it before scripting
+input.** Several runs and reports were spent driving A at a screen whose own text said
+B. The filmstrip plus a **3× upscale of a single panel** is what made it visible; the
+same information was present in earlier 2× contact sheets and was not legible there.
+
+**Corollary: when a run "does not progress", check whether you are pressing the button
+the screen is asking for, before concluding anything about the game's state machine.**
 
 Plan `fe/plans/dbz-menu.txt` presses through the boot gate, then tries **X**, then
 **START**, then **Y**, each followed by B to clear any submenu

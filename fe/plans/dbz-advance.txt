@@ -1,0 +1,200 @@
+# DBZ: Attack of the Saiyans (USA, BRPE) — ADVANCE THE CUTSCENE WITH B.
+#
+# ⛔ THE CUTSCENE ADVANCES WITH B, NOT A. This was verified by reading a single
+# full-size panel: the dialogue box shows a **B button icon** in its bottom-right
+# corner and the text does NOT change across an entire 20,000-frame run that pressed
+# only A. Panel f=006000 reads:
+#
+#     "Together, they successfully resurrected Shenron, the eternal dragon. (B)"
+#
+# and panel f=018000 reads the next line, unchanged after that:
+#
+#     "With that task done, Goku dedicated himself to training under Kami's
+#      watchful eye... (B)"
+#
+# ⛔ So a run pressing only A stalls forever. Earlier progress reports describing
+# these runs as "reaching play" were wrong for exactly this reason — the game was on
+# one text box the whole time.
+#
+# ⛔ AND NOTE THE CONTEXT: the narrator is describing Goku's TRAINING UNDER KAMI. That
+# is late Dragon Ball, i.e. the opening narration is setting up the Saiyan-saga
+# backstory. The list at 0x020CC774 holding Piccolo/Krillin/Tien is consistent with a
+# roster for the upcoming story, NOT with "the player's current party" — but that is
+# still a hypothesis, to be tested on a party screen, not asserted.
+#
+# STRATEGY: press B steadily to advance the whole cutscene, then try the menu keys in
+# whatever state we land in. The filmstrip records every sample point so the run's
+# progress is visible without re-running.
+
+# --- boot gate: "Resetting backup memory. Press the A Button to begin." -----
+# ⛔ THIS one really is A — it is a system prompt, not a story box.
+KEY 900   A 1
+KEY 906   A 0
+KEY 1300  A 1
+KEY 1306  A 0
+KEY 1700  A 1
+KEY 1706  A 0
+KEY 2100  A 1
+KEY 2106  A 0
+KEY 2500  A 1
+KEY 2506  A 0
+
+# --- splash / logos --------------------------------------------------------
+KEY 3200  START 1
+KEY 3206  START 0
+
+# --- the cutscene: B, B and more B -----------------------------------------
+# Spaced 500 frames apart so each advance is visible in the filmstrip, and long
+# enough that a missed press costs one line rather than the whole run.
+KEY  4000 B 1
+KEY  4010 B 0
+KEY  4500 B 1
+KEY  4510 B 0
+KEY  5000 B 1
+KEY  5010 B 0
+KEY  5500 B 1
+KEY  5510 B 0
+KEY  6000 B 1
+KEY  6010 B 0
+KEY  6500 B 1
+KEY  6510 B 0
+KEY  7000 B 1
+KEY  7010 B 0
+KEY  7500 B 1
+KEY  7510 B 0
+KEY  8000 B 1
+KEY  8010 B 0
+KEY  8500 B 1
+KEY  8510 B 0
+KEY  9000 B 1
+KEY  9010 B 0
+KEY  9500 B 1
+KEY  9510 B 0
+KEY 10000 B 1
+KEY 10010 B 0
+KEY 10500 B 1
+KEY 10510 B 0
+KEY 11000 B 1
+KEY 11010 B 0
+KEY 11500 B 1
+KEY 11510 B 0
+KEY 12000 B 1
+KEY 12010 B 0
+KEY 12500 B 1
+KEY 12510 B 0
+KEY 13000 B 1
+KEY 13010 B 0
+KEY 13500 B 1
+KEY 13510 B 0
+KEY 14000 B 1
+KEY 14010 B 0
+KEY 14500 B 1
+KEY 14510 B 0
+KEY 15000 B 1
+KEY 15010 B 0
+
+# --- then try to open a menu in whatever state we reached -------------------
+KEY 16000  X 1
+KEY 16010  X 0
+KEY 16800  B 1
+KEY 16806  B 0
+KEY 17600  START 1
+KEY 17610  START 0
+KEY 18400  B 1
+KEY 18406  B 0
+KEY 19200  Y 1
+KEY 19210  Y 0
+KEY 20000  B 1
+KEY 20006  B 0
+
+# --- extended: keep advancing past the final narration line -------------
+KEY 15500 B 1
+KEY 15510 B 0
+KEY 16000 B 1
+KEY 16010 B 0
+KEY 16500 B 1
+KEY 16510 B 0
+KEY 17000 B 1
+KEY 17010 B 0
+KEY 17500 B 1
+KEY 17510 B 0
+KEY 18000 B 1
+KEY 18010 B 0
+KEY 18500 B 1
+KEY 18510 B 0
+KEY 19000 B 1
+KEY 19010 B 0
+KEY 19500 B 1
+KEY 19510 B 0
+KEY 20000 B 1
+KEY 20010 B 0
+KEY 20500 B 1
+KEY 20510 B 0
+KEY 21000 B 1
+KEY 21010 B 0
+KEY 21500 B 1
+KEY 21510 B 0
+KEY 22000 B 1
+KEY 22010 B 0
+KEY 22500 B 1
+KEY 22510 B 0
+KEY 23000 B 1
+KEY 23010 B 0
+KEY 23500 B 1
+KEY 23510 B 0
+KEY 24000 B 1
+KEY 24010 B 0
+KEY 24500 B 1
+KEY 24510 B 0
+KEY 25000 B 1
+KEY 25010 B 0
+KEY 25500 B 1
+KEY 25510 B 0
+KEY 26000 B 1
+KEY 26010 B 0
+KEY 26500 B 1
+KEY 26510 B 0
+KEY 27000 B 1
+KEY 27010 B 0
+KEY 27500 B 1
+KEY 27510 B 0
+KEY 28000 B 1
+KEY 28010 B 0
+KEY 28500 B 1
+KEY 28510 B 0
+KEY 29000 B 1
+KEY 29010 B 0
+KEY 29500 B 1
+KEY 29510 B 0
+KEY 30000 B 1
+KEY 30010 B 0
+KEY 30500 B 1
+KEY 30510 B 0
+KEY 31000 B 1
+KEY 31010 B 0
+KEY 31500 B 1
+KEY 31510 B 0
+KEY 32000 B 1
+KEY 32010 B 0
+KEY 32500 B 1
+KEY 32510 B 0
+KEY 33000 B 1
+KEY 33010 B 0
+KEY 33500 B 1
+KEY 33510 B 0
+KEY 34000 B 1
+KEY 34010 B 0
+
+# --- menu probes AFTER the cutscene should be finished --------------------
+KEY 35200 X 1
+KEY 35210 X 0
+KEY 36000 B 1
+KEY 36006 B 0
+KEY 36800 START 1
+KEY 36810 START 0
+KEY 37600 B 1
+KEY 37606 B 0
+KEY 38400 Y 1
+KEY 38410 Y 0
+KEY 39200 B 1
+KEY 39206 B 0
