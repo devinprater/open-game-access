@@ -1,0 +1,22 @@
+Objective hash test of skip-strip captures (sha256 of each PPM, first 12 hex chars).
+No interpretation involved.
+
+f000000.ppm  2b706b878cb2
+f002000.ppm  82da8f6d3c46  CHANGED
+f004000.ppm  a728d0aa4212  CHANGED
+f006000.ppm  1a07c13df6fb  CHANGED
+f008000.ppm  a728d0aa4212  <-- SAME AS f004000
+f010000.ppm  1a07c13df6fb  <-- SAME AS f006000
+f012000.ppm  a728d0aa4212
+f014000.ppm  1a07c13df6fb
+f016000.ppm  a728d0aa4212
+f018000.ppm  1a07c13df6fb
+f020000.ppm  a728d0aa4212
+f022000.ppm  1a07c13df6fb
+f024000.ppm  a728d0aa4212
+f026000.ppm  1a07c13df6fb
+f028000.ppm  a728d0aa4212
+
+CONCLUSION: exactly TWO distinct screens after f=4000, alternating. The game is
+cycling between two frames -- it is NOT advancing under any input plan tried
+(10-frame B, 30/60/120-frame B, dense 40-frame B every 200 frames, A, START, X, Y).

@@ -381,79 +381,77 @@ mechanical, not attentiveness: **capture larger and later panels, and read one p
 at a time at full size** rather than a contact sheet of six tiny images. A 64×192 DS
 screen upscaled 2× is not enough to read a name box; upscaled 4× and cropped it is.
 
-### ⛔⛔ THE CUTSCENE PROMPT IS **B**, AND EVERY EARLIER RUN WAS STALLED
+### ⛔⛔ THE REAL FINDING: the game is STUCK in a two-frame loop
 
-This is the most consequential finding of the whole investigation, and it invalidates
-the "progress" of several earlier runs.
+An earlier revision of this section claimed (a) the prompt reads **B**, and (b) that
+longer holds advanced the cutscene. **Both were wrong**, and a simple objective test
+settled it without any reading of pixels.
 
-**Reading a single full-size panel (3× upscale, not a contact sheet) shows the button
-icon in the dialogue box is a Ⓑ, not an Ⓐ:**
+**Test: hash every captured panel and compare.** It needs no interpretation at all.
 
 ```
-"It is here where our amazing, astounding,
- and altogether astonishing story begins.  (B)"
+f000000  2b706b878cb2
+f002000  82da8f6d3c46  CHANGED
+f004000  a728d0aa4212  CHANGED
+f006000  1a07c13df6fb  CHANGED
+f008000  a728d0aa4212  <-- SAME AS f004000
+f010000  1a07c13df6fb  <-- SAME AS f006000
+f012000  a728d0aa4212
+f014000  1a07c13df6fb
+f016000  a728d0aa4212
+f018000  1a07c13df6fb
+f020000  a728d0aa4212
+...
+f028000  a728d0aa4212
 ```
 
-**Verified progression** — plan `fe/plans/dbz-advance.txt`, which presses **B**:
-
-| frame | panel text |
-|---|---|
-| 6000 | *"It is here where our amazing, astounding, and altogether astonishing story begins."* (B) |
-| 20000 | same line |
-| 40000 | same line |
+**There are exactly TWO distinct screens after f=4000, and they alternate.** The game
+is **cycling between two frames** — it is not advancing, not reading my presses, and
+not moving to new dialogue. Everything from f=4000 to f=28000 is the same two images.
 
 **What this means:**
 
-1. **B advances the narration** — this run reached the *final* line by f=6000, whereas
-   the A-only runs sat on the *first* line forever.
-2. **Every earlier plan pressed A only.** So all previous "the game reached play"
-   conclusions were wrong: the game was displaying one text box the entire run. The
-   character list behaving differently across runs was an artefact of *how far the
-   narration had actually advanced*, not of gameplay.
-3. ⛔ **The boot screen is genuinely A** (*"Resetting backup memory. Press the A Button
-   to begin."*) while **the story boxes are B**. Two different prompts in the same
-   startup path — pressing the wrong one stalls everything after it.
+1. ⛔ **The cutscene does not advance at all** under any plan tried — 10-frame B
+   presses, 30/60/120-frame B holds, dense 40-frame B holds every 200 frames, A
+   presses, START, X, Y. All produce the same two-frame loop.
+2. ⛔ **My "longer holds advanced it" claim was a MISREADING.** I compared text
+   between two panels that are the two alternating frames and read them as
+   chronological progress. They are not a sequence — they are a cycle.
+3. ⛔ **The button-icon reading is unreliable.** A 14× nearest-neighbour crop of the
+   icon is genuinely ambiguous (`A` and `B` differ by a few pixels at that size). Two
+   readings of the *same* icon gave different answers, so **no conclusion may rest on
+   it.** Read from the image, it looked like A; the earlier glance said B.
 
-### ⛔ Still open: the final prompt does not dismiss
+### ⛔ The method lesson — this is the important one
 
-The last narration line is on screen, with a Ⓑ prompt, and stays there from **f=6000
-through f=40000** despite B being pressed roughly 60 times in that span. So the
-dismissal is **not** a simple B press with the current hold length.
+**HASH THE FRAMES. Do not read them.** A byte hash answers "did the screen change"
+objectively, with no interpretation, no upscaling, and no possibility of misreading a
+glyph or a sentence. It took one command and immediately exposed a two-frame loop that
+several minutes of image-reading had misreported as progress.
 
-**Next experiment (cheap, one run): vary the hold.** The presses are 10 frames
-(≈0.17 s) long. A press-and-hold of 30–60 frames, or a press placed while the box is
-already idle, is the obvious next thing to try — the emulator samples once per frame
-and a two-frame press has silently failed elsewhere in this project before.
+**When a run seems not to progress, hash the captures before interpreting them.**
+Every image-reading conclusion in this document is weaker than the hash test, and
+several were wrong.
 
-⛔ **Do not conclude the cutscene is unskippable.** One press length was tried. It is
-also possible the final prompt is a *skip-the-whole-cutscene* affordance that needs a
-longer hold, or that the game is waiting on the second screen.
+### ⛔ What this does NOT change
 
-#### ✅ RESULT: LONGER HOLDS DO ADVANCE IT
+The RAM-side findings stand, because they never depended on reading screens: the
+character table, the ROM name tables, the AR base error, the count word, and the list
+being empty before the game starts and populated once it runs. The `0x020CC774` list
+reports the same values across these runs precisely **because the game itself is not
+progressing** — which is now explained rather than mysterious.
 
-Plan `fe/plans/dbz-hold.txt` re-ran the same opening but held B for **30, 60 and 120
-frames** instead of 10, then tried long A holds. The cutscene **did move on**:
+### ⛔ The real blocker, stated plainly
 
-| frame | panel text |
-|---|---|
-| 24000 | *"After his ferocious battle against King Piccolo, Goku met with Kami…"* (B) |
+**The scripted input cannot get this game past its opening cutscene.** Whether that is
+a wrong button, a missing touch-screen input, or a cutscene that needs the second
+screen is **not yet determined**, and the hash test says all current attempts produce
+the same loop. Guessing the next button is not a plan.
 
-That line is **several story beats further** than the *"It is here where our amazing,
-astounding… story begins"* line the 10-frame presses were stuck on. So:
-
-1. ✅ **A longer hold is the mechanism** — the 10-frame (≈0.17 s) press was being
-   missed or not registering as a dismiss, while 30–60 frames worked. **The emulator
-   samples once per frame**, so a press must be held long enough to be sampled on a
-   frame where the game is ready to consume it.
-2. ✅ **The cutscene is not unskippable** — it advances and the story continues.
-3. ⛔ **The cutscene is long.** After 26,000 frames with repeated holds it is still
-   narrating the pre-Saiyan-saga backstory. Reaching free gameplay needs either many
-   holds or the cutscene's own skip affordance.
-
-⚠️ **Consequence for earlier conclusions:** a 10-frame press is evidently **not
-reliable** on this game's text boxes. Any earlier plan using 6–10 frame presses may
-have been silently under-pressing. Treat those results as suspect where they depend on
-dialogue advancing.
+The honest next move is to **find how this specific cutscene is dismissed** — from
+documentation, a walkthrough, or by disassembling the input handler — rather than
+trying more keys. Until then, no amount of running reaches gameplay, and the party
+structure cannot be confirmed.
 
 ### ⛔ The method lesson
 
