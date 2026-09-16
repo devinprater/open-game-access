@@ -33,6 +33,55 @@ reachable at all: **an adapter cannot be written for a system we cannot boot.**
 
 **Still missing: N64 and Genesis.** See below.
 
+## ✅ Verified by running `scripts/check-emulators.sh`
+
+Rather than assert from memory, the set is verified by an executable check that
+reports **PRESENT** (binary exists) and **DRIVABLE** (a non-interactive invocation
+actually returns before its timeout). Those are different claims, and only the
+second is worth building on.
+
+```
+=== Open Game Access — emulator core verification ===
+  SYSTEM                 PRESENT   DRIVABLE  MECHANISM
+  NDS (melonDS)          yes (wsl) yes       vendored C API: poke_frame / poke_set_button
+  GB/GBC/GBA (mGBA dev)  yes       yes       mgba.exe --script <lua> <rom>
+  RetroArch (multi)      yes/7 cores yes     --max-frames=N + --max-frames-ss
+  PS1 (DuckStation)      yes       ?         GUI-first; BIOS files present: 3
+  PS2 (PCSX2)            yes       NO        Qt GUI; RAM via PINE socket IPC
+  PSP (PPSSPP)           yes       NO        GUI; no usable headless CLI confirmed
+  GC/Wii (Dolphin)       yes       yes       Dolphin.exe -b -e <game>
+  3DS (Azahar)           yes       ?         GUI-first; unverified
+  SNES (Snes9x)          yes       ?         GUI-first; RetroArch core is drivable
+  Dreamcast (Flycast)    yes       ?         GUI-first; RetroArch core is drivable
+```
+
+**`DRIVABLE=yes` means a non-interactive invocation returned** — that is the only
+claim worth building on. `?` means *untested here*, **not** working.
+
+⛔ **"Installed" is not "drivable".** Two systems are verified end-to-end for real
+accessibility reads (NDS via melonDS; GB/GBA via mGBA). RetroArch additionally boots
+ROMs and writes screenshots, which puts **SNES, Genesis, N64, PS1 and Dreamcast**
+within reach through one harness. **PCSX2 and PPSSPP have no confirmed headless CLI**
+— their route is RAM over PINE (PS2) and per-title RE (PSP), not flags.
+
+### ⛔ Two false negatives this script produced, and why
+
+A first version of the verifier reported **`NO` for melonDS, DuckStation and
+Snes9x** — all three present and working. Both causes are worth recording:
+
+1. **Wrong executable names.** A scoop package's binary is not always `<package>.exe`
+   — DuckStation ships `duckstation-qt-x64-ReleaseLTCG.exe`, Snes9x ships
+   `snes9x-x64.exe`, mGBA dev ships `mGBA.exe`. Guessing the name yields a missing
+   file, which reads as "the emulator isn't installed".
+2. **The WSL/Windows home trap again.** This script runs in git-bash, where `$HOME`
+   is `C:\Users\<user>` — but the melonDS source tree lives at
+   `/home/devin/src/melonds-lua` **inside WSL**. Checking the Windows home reports a
+   false `NO` for a tree that is present and building. The fix asks WSL directly:
+   `wsl.exe -d Ubuntu-24.04 -- test -d /home/devin/src/melonds-lua`.
+
+⛔ **A presence check that guesses paths produces confident false negatives.** Resolve
+names with a glob and ask the side that owns the path.
+
 ## ⛔ The distinction that matters: GUI vs. drivable
 
 Having an emulator installed does **not** mean a harness can drive it. The
