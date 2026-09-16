@@ -38,6 +38,14 @@ final class GameSession: ObservableObject {
     private var audioEngine: AVAudioEngine?
     private var audioSource: AudioSourceNode?
 
+    /// The emulation core's output sample rate.
+    ///
+    /// Must equal `args.OutputSampleRate` in Core/pokecore.cpp. It is duplicated
+    /// here because it is a contract between two languages with no shared
+    /// constant — but a mismatch is audible (pitch shift), not fatal, which is
+    /// why the render block also logs the format it was actually handed.
+    private static let audioSampleRate: Double = 32768
+
     /// The accessibility script the app ships with: the BizHawk→melonDS compat
     /// shim followed by the player's main.lua loader.
     private static var bundledScript: String? {
@@ -226,7 +234,45 @@ final class GameSession: ObservableObject {
     private func startAudio() {
         guard let core else { return }
         let engine = AVAudioEngine()
-        guard let format = AVAudioFormat(standardFormatWithSampleRate: 32768, channels: 2) else { return }
+
+        // ⛔ THE FORMAT MUST MATCH WHAT THE CORE ACTUALLY PRODUCES, AND IT DID NOT.
+        //
+        // pokecore.h says it plainly: "Audio: interleaved stereo s16."
+        // `standardFormatWithSampleRate:channels:` does not mean "the standard
+        // way to ask for audio" — the SDK header defines it as "deinterleaved
+        // float with the specified sample rate and channel count". So the engine
+        // was handed a deinterleaved-float32 format while the render block wrote
+        // interleaved int16 into it.
+        //
+        // The result is not merely wrong audio, it is LOUD:
+        //   * each 4-byte group of int16 samples [L_lo,L_hi,R_lo,R_hi] was read
+        //     as ONE float32, so the exponent came from the right channel's high
+        //     byte. Ordinary music levels put that byte in the 0x70-0x7F range,
+        //     giving values ~2^96 to 2^127 times full scale — clamped to maximum
+        //     output and held there;
+        //   * nothing ever wrote the RIGHT channel's buffer. A deinterleaved
+        //     stereo format has TWO buffers and the render block only filled the
+        //     first, so that channel played uninitialised memory.
+        //
+        // Declaring int16 + interleaved makes the buffer layout exactly what
+        // `poke_read_audio` writes: one buffer, (L,R) pairs, 2 bytes each.
+        guard let format = AVAudioFormat(
+            commonFormat: .pcmFormatInt16,
+            sampleRate: Self.audioSampleRate,
+            channels: 2,
+            interleaved: true
+        ) else {
+            NSLog("[poke] could not build the int16 stereo format; audio disabled")
+            return
+        }
+
+        // Prove the layout at runtime rather than trusting the request: a silent
+        // mismatch here is what produced the full-volume blast, and the engine
+        // will happily accept a format the render block cannot fill correctly.
+        assert(format.commonFormat == .pcmFormatInt16 && format.isInterleaved,
+               "audio format drifted from the core's interleaved-int16 contract")
+        NSLog("[poke] audio format: \(format) interleaved=\(format.isInterleaved)")
+
         let source = AudioSourceNode(core: core, format: format)
         engine.attach(source)
         engine.connect(source, to: engine.mainMixerNode, format: format)
