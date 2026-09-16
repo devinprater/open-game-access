@@ -537,6 +537,54 @@ cross-check.** The remaining honest routes are both large:
    that polls candidate addresses at ~4 Hz across a scroll, so a page counter can be told
    apart from an activity counter by *when* it moves.
 
+
+## Live-poll results — and a CORRECTION of my own reading
+
+`scripts/psp-watch.mjs` polls candidate addresses at ~150 ms while running a plan that
+interleaves real presses with deliberate `wait` steps. Plan used:
+
+```
+t=0.44s  triangle      t=2.94s  right
+t=4.95s  wait          t=7.48s  right      t=9.49s  wait
+```
+
+**Result — every candidate is noise, and two were mis-called at first:**
+
+| address | behaviour | verdict |
+|---|---|---|
+| `0x08978D28` / `D54` / `D80` / `DAC` | **0 changes** across presses AND waits | differs only BETWEEN runs — per-session heap state, not a cursor |
+| `0x089AA990` | toggles `16 <-> 17` repeatedly **during waits** | animation / blink counter |
+| `0x089AACAC` | `15 -> 14 -> 15 -> 14` at t=0.15, 0.30, 0.60 s — **before `triangle` was pressed at 0.44 s** | animation |
+| `0x089AAD18` | `1 -> 2 -> 1 -> 2` over the same 0.6 s with **no input** | animation |
+
+⛔ **CORRECTION.** An earlier note in this investigation reported that `0x089AACAC` and
+`0x089AAD18` "moved on presses but not on waits" and were "the only candidates that
+survive the discriminator". **That was wrong.** It came from reading only the TAIL of the
+tool's printed change list, which started at `t=0.60s` — after the first two toggles had
+scrolled past. Reading the **full series** shows the values oscillating in the first
+0.6 s with nothing pressed at all.
+
+⛔ **READ THE WHOLE SERIES, NOT THE TAIL OF THE REPORT.** A change list truncated to the
+last N entries silently drops the earliest changes — and the earliest changes are exactly
+where an animation artefact shows itself, because they happen before your first press.
+
+**So: zero candidates survive.** Six independent classes of candidate have now been ruled
+out, each for a stated reason:
+
+| candidate | why it failed |
+|---|---|
+| pointers into the script block | 0 exist |
+| pointers into the scene region | 0 exist |
+| word equal to the current record address | 0 at every alignment |
+| block-relative offsets | 16,118 hits — coincidence generator |
+| counters that advanced with scroll | also advanced on the game screen — activity |
+| small values near the scene region | oscillate with no input — animation |
+
+**The method is now sound; the search space is the problem.** Random/diff-based hunting
+across 24 MiB has been exhausted. The next move must be to narrow the space first —
+decompile the backlog renderer and read *what it reads*, rather than continue guessing
+at addresses.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
