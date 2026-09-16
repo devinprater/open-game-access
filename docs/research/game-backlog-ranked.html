@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Open Game Access — Game Backlog Ranked</title>
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1a1a1a; --muted: #555;
+    --tier1: #1a7f37; --tier2: #7d5a00; --tier3: #a04000; --tier4: #a41c1c;
+    --rule: #d8d8d8; --panel: #f6f7f9; --warn: #fff4e5; --warnb: #d9822b;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #16181c; --fg: #e8e8e8; --muted: #a8adb5;
+      --tier1: #5dd47a; --tier2: #e0b34e; --tier3: #f09a52; --tier4: #ff7b7b;
+      --rule: #333840; --panel: #1e2126; --warn: #2b2114; --warnb: #d9822b;
+    }
+  }
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    line-height: 1.6; color: var(--fg); background: var(--bg);
+    max-width: 60rem; margin: 0 auto; padding: 2rem 1.25rem 5rem;
+  }
+  h1 { font-size: 2rem; margin: 0 0 .25rem; letter-spacing: -.02em; }
+  h2 {
+    font-size: 1.4rem; margin: 2.5rem 0 .75rem; padding-bottom: .3rem;
+    border-bottom: 2px solid var(--rule);
+  }
+  h3 { font-size: 1.05rem; margin: 1.75rem 0 .5rem; }
+  .sub { color: var(--muted); margin: 0 0 2rem; font-size: 1rem; }
+  p { margin: .6rem 0; }
+  ul { margin: .5rem 0 .5rem 1.25rem; padding: 0; }
+  li { margin: .3rem 0; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, "SF Mono", Consolas, monospace;
+    font-size: .9em; background: var(--panel); padding: .1em .35em; border-radius: .25em;
+  }
+  table { width: 100%; border-collapse: collapse; margin: 1rem 0; font-size: .94rem; }
+  caption { text-align: left; color: var(--muted); font-size: .9rem; padding-bottom: .4rem; }
+  th, td { text-align: left; padding: .5rem .6rem; border-bottom: 1px solid var(--rule); vertical-align: top; }
+  th { font-weight: 600; background: var(--panel); }
+  .t1 th { color: var(--tier1); }
+  .t2 th { color: var(--tier2); }
+  .t3 th { color: var(--tier3); }
+  .t4 th { color: var(--tier4); }
+  .warn {
+    background: var(--warn); border-left: 4px solid var(--warnb);
+    padding: .85rem 1rem; margin: 1.25rem 0; border-radius: 0 .25rem .25rem 0;
+  }
+  .warn strong:first-child { color: var(--warnb); }
+  .note { background: var(--panel); padding: .85rem 1rem; border-radius: .3rem; margin: 1rem 0; }
+  .fam { white-space: nowrap; color: var(--muted); font-size: .85em; }
+  .sys { white-space: nowrap; }
+  .blocked { color: var(--tier4); font-weight: 600; }
+  footer { margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--rule); color: var(--muted); font-size: .9rem; }
+  a { color: inherit; }
+  @media (max-width: 40rem) {
+    body { padding: 1.25rem .9rem 4rem; }
+    table, thead, tbody, th, td, tr { display: block; }
+    thead { display: none; }
+    tr { border: 1px solid var(--rule); border-radius: .35rem; margin-bottom: .75rem; padding: .5rem; }
+    td { border: none; padding: .2rem 0; }
+    td::before { content: attr(data-l) ": "; font-weight: 600; color: var(--muted); }
+  }
+</style>
+</head>
+<body>
+
+<h1>Game Backlog — Ranked Easy to Hard</h1>
+<p class="sub">Every system in <code>Dropbox\Games</code>, ordered by how much work an accessibility adapter would be. Open Game Access, 2026-09-16.</p>
+
+<div class="warn">
+  <strong>The core outranks the game.</strong>
+  A game we cannot boot is harder than any game we can. An adapter cannot be written or tested without a running core, so the system is the first gate — and it beats everything the game itself would suggest.
+</div>
+
+<table>
+  <caption>Core availability by system</caption>
+  <thead><tr><th>System</th><th>Core status</th><th>Verdict</th></tr></thead>
+  <tbody>
+    <tr><td data-l="System"><strong>NDS</strong></td><td data-l="Status">melonDS integrated, boots, Lua path verified</td><td data-l="Verdict"><strong>Workable now</strong></td></tr>
+    <tr><td data-l="System"><strong>GB / GBC / GBA</strong></td><td data-l="Status">mGBA verified — identification, hotkeys, footsteps</td><td data-l="Verdict"><strong>Workable now</strong></td></tr>
+    <tr><td data-l="System">PS1</td><td data-l="Status">no core (BIOS present: scph5500/5501/5502)</td><td data-l="Verdict" class="blocked">Blocked</td></tr>
+    <tr><td data-l="System">PS2</td><td data-l="Status">no core (BIOS + DVD firmware present)</td><td data-l="Verdict" class="blocked">Blocked</td></tr>
+    <tr><td data-l="System">PSP</td><td data-l="Status">no core</td><td data-l="Verdict" class="blocked">Blocked</td></tr>
+    <tr><td data-l="System">SNES</td><td data-l="Status">no core</td><td data-l="Verdict" class="blocked">Blocked</td></tr>
+    <tr><td data-l="System">3DS</td><td data-l="Status">no core</td><td data-l="Verdict" class="blocked">Blocked</td></tr>
+    <tr><td data-l="System">GameCube / Wii</td><td data-l="Status">no core (Dolphin not integrated)</td><td data-l="Verdict" class="blocked">Blocked</td></tr>
+    <tr><td data-l="System">N64</td><td data-l="Status">no core</td><td data-l="Verdict" class="blocked">Blocked</td></tr>
+    <tr><td data-l="System">Dreamcast</td><td data-l="Status">no core (boot/flash images present)</td><td data-l="Verdict" class="blocked">Blocked</td></tr>
+    <tr><td data-l="System">Genesis</td><td data-l="Status">no core</td><td data-l="Verdict" class="blocked">Blocked</td></tr>
+    <tr><td data-l="System">PS3</td><td data-l="Status">no core, no realistic path</td><td data-l="Verdict" class="blocked">Out</td></tr>
+  </tbody>
+</table>
+
+<p>The honest shortlist is <strong>NDS and GB/GBC/GBA</strong>. Everything else is gated behind core work unrelated to accessibility.</p>
+
+<h2>Reader families</h2>
+<ul>
+  <li><strong>(A) Text buffer / printer</strong> — dialogue is readable state. Easiest.</li>
+  <li><strong>(B) Menu / list state</strong> — cursors, selections, counts. Moderate.</li>
+  <li><strong>(C) Map / grid / position</strong> — needs a coordinate model. Moderate to hard.</li>
+  <li><strong>(D) Real-time sprite / hitbox</strong> — the player must react within frames. <strong>A wall.</strong></li>
+</ul>
+<p>No adapter fixes a type D game. Mortal Kombat 1’s answer — turning opponent state into categorical sounds — is a <em>design</em> solution that a post-hoc reader can only approximate.</p>
+
+<h2>Tier 1 — Easiest</h2>
+<p>Turn-based, documented, and the core already works.</p>
+<table class="t1">
+  <thead><tr><th>Game</th><th>System</th><th>Family</th><th>Notes</th></tr></thead>
+  <tbody>
+    <tr><td data-l="Game">Pokémon Black / White</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B C</td><td data-l="Notes">Done — the reference implementation.</td></tr>
+    <tr><td data-l="Game"><strong>DBZ: Attack of the Saiyans</strong></td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B</td><td data-l="Notes">Turn-based; party HP/Ki/AP addresses public in three places. Menus and the BDAT text encoding are the unknowns.</td></tr>
+    <tr><td data-l="Game">Chrono Trigger</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B C</td><td data-l="Notes">Turn-based, exhaustively documented.</td></tr>
+    <tr><td data-l="Game">Dragon Quest IX</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B</td><td data-l="Notes">Turn-based, menu-driven, well documented.</td></tr>
+    <tr><td data-l="Game">Final Fantasy Tactics A2</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B C</td><td data-l="Notes">Tactical but turn-based.</td></tr>
+    <tr><td data-l="Game">Radiant Historia</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B</td><td data-l="Notes">Turn-based, grid combat.</td></tr>
+    <tr><td data-l="Game">Fire Emblem: Shadow Dragon</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B C</td><td data-l="Notes">Done — terrain, movement, enemies, chapter id.</td></tr>
+    <tr><td data-l="Game">Pokémon Diamond / Pearl / Platinum</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B C</td><td data-l="Notes">Same family as B/W; gen-4 offsets differ but the techniques transfer.</td></tr>
+    <tr><td data-l="Game">Pokémon SoulSilver</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B C</td><td data-l="Notes">As above; the GB/GBC ancestors already have readers.</td></tr>
+    <tr><td data-l="Game">Mario &amp; Luigi: Bowser’s Inside Story</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B</td><td data-l="Notes">Turn-based; timing minigames are the friction.</td></tr>
+    <tr><td data-l="Game">Mario &amp; Luigi: Partners in Time</td><td data-l="System" class="sys">NDS</td><td data-l="Family" class="fam">A B</td><td data-l="Notes">As above.</td></tr>
+  </tbody>
+</table>
+
+<h2>Tier 2 — Moderate</h2>
+<p>Turn-based but undocumented, or with mild real-time elements.</p>
+<table class="t2">
+  <thead><tr><th>Game</th><th>System</th><th>Friction</th></tr></thead>
+  <tbody>
+    <tr><td data-l="Game">Advance Wars: Dual Strike / Days of Ruin</td><td data-l="System" class="sys">NDS</td><td data-l="Friction">Turn-based tactics; needs a full map and cursor model.</td></tr>
+    <tr><td data-l="Game">Fire Emblem: The Sacred Stones</td><td data-l="System" class="sys">GBA</td><td data-l="Friction">Same family as Shadow Dragon and the GBA core works — but the GBA readers are Pokémon-specific, so a new adapter is needed.</td></tr>
+    <tr><td data-l="Game">Tactics Ogre: The Knight of Lodis</td><td data-l="System" class="sys">GBA</td><td data-l="Friction">Tactical, dense menus.</td></tr>
+    <tr><td data-l="Game">Mario &amp; Luigi: Superstar Saga</td><td data-l="System" class="sys">GBA</td><td data-l="Friction">Turn-based; dodging is a timed press.</td></tr>
+    <tr><td data-l="Game">Final Fantasy Tactics: War of the Lions</td><td data-l="System" class="sys">PSP</td><td data-l="Friction">Easy on merits (turn-based tactics) — <strong>blocked, no PSP core.</strong></td></tr>
+    <tr><td data-l="Game">Steins;Gate</td><td data-l="System" class="sys">PSP</td><td data-l="Friction">Pure visual novel — would be the easiest game here if a PSP core existed.</td></tr>
+    <tr><td data-l="Game">Dissidia / Dissidia 012</td><td data-l="System" class="sys">PSP</td><td data-l="Friction">Menu-heavy; combat is real-time. No core.</td></tr>
+    <tr><td data-l="Game">Crisis Core: FFVII</td><td data-l="System" class="sys">PSP</td><td data-l="Friction">Action RPG. No core.</td></tr>
+    <tr><td data-l="Game">Kingdom Hearts: Birth by Sleep</td><td data-l="System" class="sys">PSP</td><td data-l="Friction">Action RPG. No core.</td></tr>
+    <tr><td data-l="Game">Bleach: The 3rd Phantom</td><td data-l="System" class="sys">NDS</td><td data-l="Friction">Tactical RPG.</td></tr>
+    <tr><td data-l="Game">DBZ: Harukanaru Densetsu</td><td data-l="System" class="sys">NDS</td><td data-l="Friction">Card RPG — turn-based, but the cards are the whole reader job.</td></tr>
+    <tr><td data-l="Game">Odin Sphere</td><td data-l="System" class="sys">PS2</td><td data-l="Friction">Action RPG. No core.</td></tr>
+    <tr><td data-l="Game">Chrono Cross</td><td data-l="System" class="sys">PS1</td><td data-l="Friction">Turn-based JRPG, well documented. Blocked, no PS1 core.</td></tr>
+    <tr><td data-l="Game">Danganronpa</td><td data-l="System" class="sys">PSP</td><td data-l="Friction">Visual novel plus trial minigames. No core.</td></tr>
+    <tr><td data-l="Game">Mega Man Legends</td><td data-l="System" class="sys">PS1</td><td data-l="Friction">Action-adventure. No core.</td></tr>
+    <tr><td data-l="Game">Mario Party 1 / 2 / 3</td><td data-l="System" class="sys">N64</td><td data-l="Friction">Mostly menu and dice (tractable); the minigames are not. No core.</td></tr>
+    <tr><td data-l="Game">Paper Mario / The Thousand-Year Door</td><td data-l="System" class="sys">N64 / GC</td><td data-l="Friction">Turn-based combat, but action commands are timed. No core.</td></tr>
+    <tr><td data-l="Game">Pokémon Stadium 1 / 2</td><td data-l="System" class="sys">N64</td><td data-l="Friction">Turn-based battles, real-time minigames. No core.</td></tr>
+  </tbody>
+</table>
+
+<h2>Tier 3 — Hard</h2>
+<p>Real-time but forgiving, or heavy modelling.</p>
+<table class="t3">
+  <thead><tr><th>Game</th><th>System</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td data-l="Game">Mario Kart DS / Super Circuit / 64 / Wii</td><td data-l="System" class="sys">multi</td><td data-l="Why">Racing. Rank, lap and item are categorical and speakable; driving is continuous.</td></tr>
+    <tr><td data-l="Game">Super Mario 64 / New Super Mario Bros.</td><td data-l="System" class="sys">N64 / NDS</td><td data-l="Why">Platforming needs frame-accurate spatial awareness.</td></tr>
+    <tr><td data-l="Game">Mario Party DS / Advance</td><td data-l="System" class="sys">NDS / GBA</td><td data-l="Why">Dice and menus tractable; minigames not.</td></tr>
+    <tr><td data-l="Game">Dr. Mario 64 / Mario vs. Donkey Kong</td><td data-l="System" class="sys">N64 / NDS</td><td data-l="Why">Puzzle-action; falling pieces are a real-time grid.</td></tr>
+    <tr><td data-l="Game">DBZ: Buu’s Fury / Legacy of Goku II / Advanced Adventure</td><td data-l="System" class="sys">GBA</td><td data-l="Why">Action-adventure; overworld plus real-time combat.</td></tr>
+    <tr><td data-l="Game">DBZ: GT Transformation</td><td data-l="System" class="sys">GBA</td><td data-l="Why">Beat-em-up.</td></tr>
+    <tr><td data-l="Game">DBZ: Budokai 1 / 2 / 3 / Infinite World</td><td data-l="System" class="sys">PS2</td><td data-l="Why">Fighting games with heavy menus. No core.</td></tr>
+    <tr><td data-l="Game">DBZ: Tenkaichi Tag Team / Shin Budokai 1 &amp; 2</td><td data-l="System" class="sys">PSP</td><td data-l="Why">Fighting. No core — though a BT2 mod exists for the PS2 sibling.</td></tr>
+    <tr><td data-l="Game">DBZ: Raging Blast 1 &amp; 2</td><td data-l="System" class="sys">PS3</td><td data-l="Why">Fighting. No core.</td></tr>
+    <tr><td data-l="Game">Lord of the Rings: The Third Age</td><td data-l="System" class="sys">GBA</td><td data-l="Why">Turn-based combat, little documentation.</td></tr>
+    <tr><td data-l="Game">Rhythm Tengoku / Rhythm Heaven Fever</td><td data-l="System" class="sys">GBA / Wii</td><td data-l="Why">Audio-led by design, but play is precisely-timed input — the least suited to spoken output.</td></tr>
+    <tr><td data-l="Game">bit Generations: Soundvoyager</td><td data-l="System" class="sys">GBA</td><td data-l="Why">Played entirely by ear; needs no accessibility layer at all. Worth noting rather than adapting.</td></tr>
+    <tr><td data-l="Game">Space Channel 5 / Metal Slug / Samurai Shodown / Soulcalibur: Broken Destiny</td><td data-l="System" class="sys">PS2 / PSP</td><td data-l="Why">Action, rhythm and fighting. No cores.</td></tr>
+    <tr><td data-l="Game">God of War: Ghost of Sparta / Spider-Man: Friend or Foe</td><td data-l="System" class="sys">PSP</td><td data-l="Why">Action. No core.</td></tr>
+    <tr><td data-l="Game">The Combatribes / Final Fight 1–3 / Final Fight Guy / Knights of the Round / Rushing Beat / Kunio-tachi no Banka / Power Instinct / Sonic Blast Man 1 &amp; 2</td><td data-l="System" class="sys">SNES</td><td data-l="Why">Beat-em-ups. No core.</td></tr>
+    <tr><td data-l="Game">Dragonball: Evolution</td><td data-l="System" class="sys">PSP</td><td data-l="Why">Action. No core.</td></tr>
+  </tbody>
+</table>
+
+<h2>Tier 4 — Wall</h2>
+<p>Real-time reaction. No post-hoc adapter solves these.</p>
+<table class="t4">
+  <thead><tr><th>Game</th><th>System</th><th>Why</th></tr></thead>
+  <tbody>
+    <tr><td data-l="Game">DBZ: Supersonic Warriors 1 / 2</td><td data-l="System" class="sys">GBA / NDS</td><td data-l="Why">Fighting. Hit-level and distance cues would help (MK1’s approach) but the mixup window cannot be narrated.</td></tr>
+    <tr><td data-l="Game">DBZ: Extreme Butoden</td><td data-l="System" class="sys">3DS</td><td data-l="Why">Fighting; no core.</td></tr>
+    <tr><td data-l="Game">Super Smash Bros. Melee / 3DS</td><td data-l="System" class="sys">GC / 3DS</td><td data-l="Why">Platform fighter; no core.</td></tr>
+    <tr><td data-l="Game">Guilty Gear X: Advance / Guilty Gear</td><td data-l="System" class="sys">GBA / PS1</td><td data-l="Why">Fighting.</td></tr>
+    <tr><td data-l="Game">King of Fighters EX 2</td><td data-l="System" class="sys">GBA</td><td data-l="Why">Fighting.</td></tr>
+    <tr><td data-l="Game">BlazBlue: Continuum Shift II / Code of Princess</td><td data-l="System" class="sys">3DS</td><td data-l="Why">Fighting and action; no core.</td></tr>
+    <tr><td data-l="Game">Super Street Fighter IV: 3D / Dead or Alive: Dimensions</td><td data-l="System" class="sys">3DS</td><td data-l="Why">Fighting; no core.</td></tr>
+    <tr><td data-l="Game">BlayzBloo / Bleach: Dark Souls / The Blade of Fate</td><td data-l="System" class="sys">NDS</td><td data-l="Why">Fighting.</td></tr>
+    <tr><td data-l="Game">Mortal Kombat 4 / Mythologies: Sub-Zero / Trilogy</td><td data-l="System" class="sys">PS1</td><td data-l="Why">Fighting. These are the games NetherRealm later made accessible by design.</td></tr>
+    <tr><td data-l="Game">Mortal Kombat: Deadly Alliance / Armageddon / Shaolin Monks</td><td data-l="System" class="sys">PS2</td><td data-l="Why">Fighting.</td></tr>
+    <tr><td data-l="Game">Mortal Kombat: Unchained / Arcade Kollection / Komplete Edition</td><td data-l="System" class="sys">PSP / PS3</td><td data-l="Why">Fighting.</td></tr>
+    <tr><td data-l="Game">Ultimate Mortal Kombat Trilogy</td><td data-l="System" class="sys">Genesis</td><td data-l="Why">Fighting, no core.</td></tr>
+    <tr><td data-l="Game">Tekken 4 / 5 / Soulcalibur III / Bloody Roar 4 / Urban Reign / X-Men: Next Dimension / Evil Zone / DOA / DOA2 Hardcore / Marvel Super Heroes vs. Street Fighter / Capcom vs. SNK 2 / Super Dragon Ball Z</td><td data-l="System" class="sys">PS1 / PS2</td><td data-l="Why">Fighting. No cores.</td></tr>
+    <tr><td data-l="Game">Killer Instinct</td><td data-l="System" class="sys">SNES</td><td data-l="Why">Fighting. No core.</td></tr>
+    <tr><td data-l="Game">Legend of Kage 2 / Advance Guardian Heroes / Iridion II / Justice League Heroes: The Flash</td><td data-l="System" class="sys">NDS / GBA</td><td data-l="Why">Action; reaction-driven.</td></tr>
+    <tr><td data-l="Game">Plasma Sword / Power Stone 1 &amp; 2 / Psychic Force 2012</td><td data-l="System" class="sys">Dreamcast</td><td data-l="Why">Fighting; no core.</td></tr>
+    <tr><td data-l="Game">Fire Emblem: Awakening / Fates</td><td data-l="System" class="sys">3DS</td><td data-l="Why">Turn-based and easy on the merits — blocked purely by no 3DS core.</td></tr>
+    <tr><td data-l="Game">Pokémon Omega Ruby / Alpha Sapphire</td><td data-l="System" class="sys">3DS</td><td data-l="Why">Same: easy on merits, blocked by core.</td></tr>
+    <tr><td data-l="Game">DBZ: Burst Limit</td><td data-l="System" class="sys">PS3</td><td data-l="Why">No core.</td></tr>
+    <tr><td data-l="Game">DBZ: Budokai Tenkaichi 2 / SLUS 219.78</td><td data-l="System" class="sys">PS2</td><td data-l="Why">A community accessibility mod already exists (146&nbsp;KB memory map, PINE-based). No PS2 core here, so out of reach regardless.</td></tr>
+    <tr><td data-l="Game">Injustice: Gods Among Us / Under Night In-Birth</td><td data-l="System" class="sys">PS3</td><td data-l="Why">Fighting. No core.</td></tr>
+    <tr><td data-l="Game">Fisherman’s Bait 2</td><td data-l="System" class="sys">PS1</td><td data-l="Why">No core.</td></tr>
+  </tbody>
+</table>
+
+<h2>What the inventory implies</h2>
+<ol>
+  <li><strong>Finish what is started.</strong> Fire Emblem: Shadow Dragon is wired in and needs <em>verification</em>, not features.</li>
+  <li><strong>Attack of the Saiyans next</strong> — turn-based, addresses already public, NDS core working. Genuinely the easiest new target.</li>
+  <li><strong>Then the Pokémon gen-4/5 family</strong>, reusing the Black/White reader.</li>
+  <li><strong>Do not start a game on a system with no core.</strong> Fire Emblem: Awakening, Pokémon ORAS, Final Fantasy Tactics: War of the Lions, Steins;Gate and Chrono Cross are all easy games behind a hard wall.</li>
+</ol>
+
+<div class="warn">
+  <strong>The collection is overwhelmingly fighting games.</strong>
+  Roughly 40 of ~130 titles are fighting games, and another 20 are beat-em-ups or action. That is the single hardest genre, and it is the majority of the library. A ranked list is therefore not enough here — most of it sits in Tier 3/4. For this collection the MK1 categorical-sound approach is the only thing that could ever make the fighting games playable, and that is a design project rather than a RAM reader. Worth deciding deliberately whether it is in scope.
+</div>
+
+<h2>The PS1 / PS2 question</h2>
+<p>PS1 and PS2 BIOS and firmware are present, and those two systems have an advantage the Nintendo ones do not: the DBZ Tenkaichi mod shows PS2 RAM is reachable over <strong>PINE</strong> (PCSX2’s socket IPC) with no base-pointer chasing, and PS1 emulators have a mature memory-access story. If a PS1 or PS2 core were integrated, a large block of this library becomes reachable — including the fighting games, where the BT2 mod is a working precedent to copy. That is a bigger project than an adapter, but it unlocks far more of this collection than any single NDS game will.</p>
+
+<h2>Verification status of the Attack of the Saiyans addresses</h2>
+<p>The probe run — 6000 frames, <strong>no input sent</strong> — read <strong>exactly 0</strong> at every published Action Replay address, while a control address returned real non-zero data. That is the documented “region entirely zero” signal: <strong>the party structure had not been allocated yet</strong>, because with no input the game never left its title screen. It is <em>not</em> evidence the addresses are wrong.</p>
+<p>Next step: drive input past the title into a battle and re-measure. Until then the AotS addresses are <strong>claims, not findings</strong>.</p>
+
+<footer>
+  <p>Open Game Access — <code>docs/research/game-backlog-ranked.md</code> · commit <code>77eee1b</code></p>
+  <p>Full research: <code>docs/research/how-other-games-did-it.md</code> (Mortal Kombat 1, The Last of Us Part I &amp; II) and <code>game-access-mod-research.md</code> (Persona 4 Golden, Pokémon, BT2, DBZ).</p>
+</footer>
+
+</body>
+</html>

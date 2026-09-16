@@ -1,0 +1,89 @@
+# Dragon Ball Z: Attack of the Saiyans (USA, BRPE) — get past the title into play.
+#
+# WHY THIS PLAN EXISTS: the first probe run sent NO input, so the game sat on its
+# title screen for the whole run and every published Action Replay address read
+# exactly 0. A control address read real data, which proves the probe worked and
+# the party structure simply had not been allocated yet. This plan drives the game
+# far enough that the structure exists.
+#
+# ⛔ THE BUTTON THAT DISMISSES A MODAL IS THE EXPENSIVE LESSON IN THIS PROJECT.
+# A scripted tutorial or name-entry screen silently swallows all other input, and
+# the reader then gets blamed for reading nothing. Mash A to advance; press B (not
+# A) to dismiss anything that re-triggers on A. If the run shows no state change,
+# suspect a modal before suspecting the memory map.
+#
+# The ROM is 128 MB and booting it takes a while, so the first press is late.
+
+# --- early boot / publisher logos: mash A ---
+KEY 900   A 1
+KEY 906   A 0
+KEY 1000  A 1
+KEY 1006  A 0
+KEY 1100  A 1
+KEY 1106  A 0
+
+# --- title screen -> START opens the main menu on most DS titles ---
+KEY 1300  START 1
+KEY 1320  START 0
+KEY 1400  A 1
+KEY 1406  A 0
+
+# --- menu: "New Game" is normally the first entry, so A confirms it ---
+KEY 1600  A 1
+KEY 1606  A 0
+KEY 1700  A 1
+KEY 1706  A 0
+
+# --- a name-entry screen may appear; A accepts the default name ---
+KEY 2000  A 1
+KEY 2006  A 0
+KEY 2100  A 1
+KEY 2106  A 0
+KEY 2200  A 1
+KEY 2206  A 0
+
+# --- dialogue boxes: many A presses, spaced so each box is seen ---
+KEY 2500  A 1
+KEY 2506  A 0
+KEY 2700  A 1
+KEY 2706  A 0
+KEY 2900  A 1
+KEY 2906  A 0
+KEY 3100  A 1
+KEY 3106  A 0
+KEY 3300  A 1
+KEY 3306  A 0
+KEY 3600  A 1
+KEY 3606  A 0
+KEY 3900  A 1
+KEY 3906  A 0
+KEY 4200  A 1
+KEY 4206  A 0
+KEY 4500  A 1
+KEY 4506  A 0
+KEY 4800  A 1
+KEY 4806  A 0
+
+# --- a possible modal warning: dismiss with B, which does not re-trigger it ---
+KEY 5200  B 1
+KEY 5206  B 0
+
+# --- keep advancing; by here the game should be in play, not on the title ---
+KEY 5600  A 1
+KEY 5606  A 0
+KEY 6000  A 1
+KEY 6006  A 0
+KEY 6400  A 1
+KEY 6406  A 0
+KEY 7000  A 1
+KEY 7006  A 0
+KEY 7600  A 1
+KEY 7606  A 0
+KEY 8200  A 1
+KEY 8206  A 0
+KEY 8800  A 1
+KEY 8806  A 0
+KEY 9400  A 1
+KEY 9406  A 0
+KEY 10000 A 1
+KEY 10006 A 0

@@ -35,6 +35,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <algorithm>
 #include <string>
 #include <vector>
 
@@ -72,9 +73,10 @@ struct Watch {
 
 int main(int argc, char** argv)
 {
-    if (argc < 2) { printf("usage: dbz_probe <rom> [frames]\n"); return 2; }
+    if (argc < 2) { printf("usage: dbz_probe <rom> [frames] [plan]\n"); return 2; }
     const char* rom = argv[1];
     long frames = (argc > 2) ? atol(argv[2]) : 6000;
+    const char* planPath = (argc > 3) ? argv[3] : nullptr;
 
     PokeCore* core = poke_create();
     if (!poke_load_rom(core, rom, nullptr)) {
@@ -119,6 +121,48 @@ int main(int argc, char** argv)
     printf("rom    : %s\n", rom);
     printf("frames : %ld\n\n", frames);
 
+    // ------------------------------------------------------------------- input
+    //
+    // ⛔ WITHOUT INPUT THE ADDRESSES READ 0, AND THAT IS EXPECTED, NOT A FAILURE.
+    // The first run drove no input at all, so the game stayed on its title screen
+    // and the party structure was never allocated — every published address read
+    // exactly 0 while a control address returned real data. That is the documented
+    // "region entirely zero" signal. Measuring the addresses only means something
+    // once the game is actually in a battle.
+    //
+    // The plan format is the one the Fire Emblem plans already use:
+    //     KEY <frame> <BUTTON> <0|1>
+    struct K { long f; int b; int d; };
+    std::vector<K> keys;
+    if (planPath) {
+        FILE* f = fopen(planPath, "r");
+        if (!f) {
+            printf("warning: plan %s not readable — no input will be sent\n", planPath);
+        } else {
+            char line[512];
+            while (fgets(line, sizeof(line), f)) {
+                char* c = strchr(line, '#'); if (c) *c = 0;
+                char cmd[16] = {0}, btn[16] = {0}; long fr; int d;
+                if (sscanf(line, "%15s %ld %15s %d", cmd, &fr, btn, &d) == 4
+                    && !strcasecmp(cmd, "KEY")) {
+                    static const char* nm[] = {"A","B","SELECT","START","RIGHT","LEFT","UP","DOWN","R","L","X","Y"};
+                    for (int i = 0; i < 12; i++)
+                        if (!strcasecmp(btn, nm[i])) { K k; k.f = fr; k.b = i; k.d = d; keys.push_back(k); }
+                }
+            }
+            fclose(f);
+            printf("input plan : %s (%zu key events)\n\n", planPath, keys.size());
+        }
+    } else {
+        printf("input plan : NONE — the game will sit on its title screen and every\n");
+        printf("             structure will read 0. Pass a plan to reach a battle.\n\n");
+    }
+
+    // Order the events by frame. A plan that is not already frame-ordered silently
+    // drops events, because the driver only fires when an event's frame equals the
+    // current one.
+    std::sort(keys.begin(), keys.end(), [](const K& a, const K& b) { return a.f < b.f; });
+
     // The addresses the published code lists give, grouped as the code lists group
     // them. The USA and Europe lists DISAGREE by a constant offset, which is itself
     // worth measuring: a uniform shift means one list is a port of the other.
@@ -144,6 +188,12 @@ int main(int argc, char** argv)
     w.push_back(Watch("control (zero page)", 0x02000010, 4));
 
     for (long f = 0; f < frames; f++) {
+        // Fire any key events scheduled for this frame.
+        static size_t ki = 0;
+        while (ki < keys.size() && keys[ki].f == f) {
+            poke_set_button(core, keys[ki].b, keys[ki].d != 0);
+            ki++;
+        }
         if (!poke_frame(core)) { printf("stopped at frame %ld\n", f); break; }
         if (f % 60 == 0) {   // once per second: enough to see motion, cheap enough
             for (size_t i = 0; i < w.size(); i++) {
@@ -174,6 +224,89 @@ int main(int argc, char** argv)
     printf("                   address; say it that way).\n");
     printf("  distinct > 1  -> it varies, so it is plausible game state rather than a\n");
     printf("                   constant or an uninitialised zero page.\n");
+
+    // ------------------------------------------------------- window population
+    //
+    // ⛔ "READS ZERO FOR THE WHOLE RUN" IS NOT PROOF AN ADDRESS IS WRONG — only that
+    // nothing wrote that byte. The way to tell the two apart is to measure how
+    // POPULATED the surrounding region is:
+    //
+    //   * an entirely zero window  -> the structure was never allocated (the game
+    //     never reached the state that creates it);
+    //   * a busy window with different values in it -> the structure EXISTS and the
+    //     claimed address is simply wrong (or the code list is for another REGION).
+    //
+    // This single measurement is what separates "wrong address" from "not there
+    // yet", and the two demand completely different next actions.
+    printf("\n=== window population (is the region allocated at all?) ===\n");
+    struct Win { const char* what; uint32_t base; uint32_t len; };
+    Win wins[] = {
+        {"party block (USA 0x020CD000-0x020CE000)", 0x020CD000, 0x1000},
+        {"item block  (USA 0x020CC700-0x020CC900)", 0x020CC700, 0x0200},
+        {"item block  (EUR 0x020CC300-0x020CC500)", 0x020CC300, 0x0200},
+        {"control     (0x02000000-0x02001000)",     0x02000000, 0x1000},
+    };
+    for (Win& wn : wins) {
+        uint32_t nonzero = 0, distinct_sample = 0, first_vals[8] = {0};
+        for (uint32_t a = wn.base; a < wn.base + wn.len; a++) {
+            uint8_t v = ProbeRead(a, 1);
+            if (v) {
+                if (nonzero < 8) first_vals[nonzero] = v;
+                nonzero++;
+            }
+        }
+        printf("  %-40s nonzero %5u / %5u bytes", wn.what, nonzero, wn.len);
+        if (nonzero && nonzero < 8) {
+            printf("   first: ");
+            for (uint32_t i = 0; i < nonzero; i++) printf("%02X ", (unsigned) first_vals[i]);
+        }
+        printf("\n");
+    }
+    printf("\n  An all-zero window means the structure was never created by this run.\n");
+    printf("  A busy window with real values means the addresses to check are wrong.\n");
+
+    // ------------------------------------------------------------- screenshot
+    //
+    // ⛔ A MEMORY READ CANNOT TELL YOU WHERE THE GAME IS. The project's own rule:
+    // bracket every RAM claim with a picture, because "memory says what was stored,
+    // only the picture says what the game was DOING". A reader can be perfectly
+    // correct while the game sits on a title screen — and the party block reading
+    // sparse is exactly what that looks like.
+    //
+    // This is why the population numbers above are not self-explanatory: without
+    // knowing which screen the game is on, "157/4096 nonzero" could mean "the
+    // structure is half-built" or "we never left the title".
+    if (const char* shot = getenv("DBZ_SHOT")) {
+        int w = 0, h = 0;
+        // ⛔ ORDER MATTERS AND IT IS NOT OBVIOUS. `poke_framebuffer_ptr` is
+        // STATEFUL: it returns nullptr unless the core's `frameScreen` already
+        // equals the screen asked for, and that field is set by
+        // `poke_framebuffer()`. Asking for the pointer FIRST invalidates nothing
+        // visibly — you get a valid width/height with a null pointer, which reads
+        // as "the framebuffer is broken" rather than "you called them backwards".
+        // So: select the screen, THEN take its pointer.
+        if (poke_framebuffer(core, 0, &w, &h) && w > 0 && h > 0) {
+            const uint8_t* px = poke_framebuffer_ptr(core, 0);
+            if (!px) {
+                printf("\nscreenshot: framebuffer selected (%dx%d) but pointer is null\n", w, h);
+            } else {
+                FILE* f = fopen(shot, "wb");
+                if (f) {
+                    fprintf(f, "P6\n%d %d\n255\n", w, h);
+                    for (int i = 0; i < w * h; i++) {
+                        // The core hands back RGBA8888; PPM wants RGB.
+                        fwrite(px + i * 4, 1, 3, f);
+                    }
+                    fclose(f);
+                    printf("\nscreenshot: %s (%dx%d)\n", shot, w, h);
+                } else {
+                    printf("\nscreenshot: could not write %s\n", shot);
+                }
+            }
+        } else {
+            printf("\nscreenshot: framebuffer unavailable (w=%d h=%d)\n", w, h);
+        }
+    }
 
     poke_stop(core);
     poke_destroy(core);
