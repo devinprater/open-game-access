@@ -54,7 +54,7 @@ TEAKRA=""
 # copies is exactly how the simulator build ends up missing a translation unit
 # and fails at the FINAL link with a symbol the device build has.
 source "$ROOT/scripts/core-sources.sh"
-GLUE="$ROOT/Core/poke_platform.cpp $ROOT/Core/pokecore.cpp $ROOT/Core/fe_access.cpp $ROOT/Core/fe_adapter.cpp $ROOT/Core/adapters.cpp"
+GLUE="$ROOT/Core/poke_platform.cpp $ROOT/Core/pokecore.cpp $ROOT/Core/fe_access.cpp $ROOT/Core/fe_adapter.cpp $ROOT/Core/dbz_adapter.cpp $ROOT/Core/adapters.cpp"
 
 compile() { # compile <lang> <src> <tag>
   local lang="$1" src="$2" tag="$3"

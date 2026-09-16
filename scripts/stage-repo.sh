@@ -50,7 +50,7 @@ for f in adapter.h adapters.cpp pokecore.cpp poke_platform.cpp poke_platform.h p
          fe_access.cpp fe_adapter.cpp fedump.cpp probe.cpp screen.cpp ramwatch.cpp ramscan.cpp joytest.cpp \
          simrun.cpp simplay.cpp fwtest.cpp hosttest.c finalcheck.cpp gpustate.cpp \
          timingtest.c version.h version_impl.cpp \
-         gba_adapter.cpp gba_adapter_test.cpp \
+         gba_adapter.cpp gba_adapter_test.cpp dbz_adapter.cpp dbz_adapter_test.cpp \
          fechapter.cpp feterrain2.cpp powerprobe.cpp \
          purecore.cpp ramdump.cpp renderprobe.cpp saveprobe.cpp schedprobe.cpp scriptrun.cpp shot.cpp speedtest2.c timingprobe.cpp vramprobe.cpp; do
   copy "Core/$f"

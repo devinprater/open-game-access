@@ -29,10 +29,16 @@ extern const Adapter kFireEmblemShadowDragon;
 // so the UI can report position without a Lua round-trip. It also accepts GB/GBC titles,
 // which the reader identifies by their 27-byte header title rather than a 4-char game code.
 extern const Adapter kGameBoyAdvance;
+// Implemented in dbz_adapter.cpp — Dragon Ball Z: Attack of the Saiyans (BRPE). A
+// NATIVE adapter: the party is a NUL-terminated pointer array into a 0x24C-stride
+// character record array, and each member's HP/Ki sit at fixed offsets in the record.
+// Every address was confirmed against the game's own Status screens, not inferred.
+extern const Adapter kDragonBallZSaiyans;
 
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
     &kGameBoyAdvance,
+    &kDragonBallZSaiyans,
 };
 
 const Adapter* const* all_adapters(int* count)
