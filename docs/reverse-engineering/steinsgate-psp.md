@@ -950,6 +950,104 @@ head > previous_head  ->  a new line was logged  ->  speak line(index 1)
 Combined with `scripts/oga-sg-reader.py` (which decodes the entries), the reader is
 complete apart from the host loop that polls instead of dumping.
 
+
+## ✅✅✅ THE LIVE READER — `scripts/psp-sg-live.mjs`
+
+Not a dump tool any more: this reads dialogue **straight off the running game** over
+PPSSPP's debugger socket. No RAM dumps, no screenshots — three 4-byte polls per tick.
+
+```
+$ node scripts/psp-sg-live.mjs --backlog 12
+Entropy the origins rumble
+Rintaro: Our time slowly ticks away from the moment of our birth to the moment of our death. It is finite.
+Rintaro: Yet, time itself does not flow from the past to the future: it simply exists supernaturally in the now. It is infinite.
+Rintaro: The wise men of old understood that the greatest wisdom was oft spoke by those who didn't understand their own genius.
+Rintaro: He who knows that he is wise may drown in his own wisdom, but he who does not will stay away from the water, because he can't swim.
+Rintaro: Taking the known as known, and the unknown as unknown -- this is true understanding.
+Rintaro: Accepting the unknown as the unknown is the first step towards God!
+Rintaro: But in this case, by 'unknown'...
+???: Hey, Mayuri. Can I use these paper cups?
+???: Um, sure. I guess so.
+???: Here, I got you the snacks you were talking about. This is what you wanted, right?
+???: Erm, my mom told me to bring this...
+```
+
+**Read the prologue top to bottom and it is correct English prose.** That is the
+verification: this text is a real translation the game displays, and it now comes out of
+the running process intact.
+
+### Modes
+
+| flag | behaviour |
+|---|---|
+| (none) | **follow** — poll the write head, print each new line as it appears |
+| `--backlog N` | print the last **N logical lines** and exit (chronological) |
+| `--json` | one JSON object per line, for a TTS hook |
+| `--speak` | plain text suitable for piping to speech |
+
+### ⛔ SIX bugs found and fixed while building the live reader
+
+Every one of these produced output that *looked* nearly right, which is why they are
+worth recording:
+
+1. **Quote markers were never mapped.** `0x81e`/`0x81f` wrap an emphasised word, so
+   `unknown` printed as `eunknownf`. Mapped them to `'`.
+2. **Wrapped records were printed as separate lines**, chopping sentences mid-word.
+3. **The wrap point is a byte width, not a word width.** The engine stores the
+   word-boundary space at the **END of the earlier chunk**:
+   `'...the moment '` + `'of our birth'`. Trimming it produced `momentof`, `Itis`,
+   `thegreatest`, `isthe`, `drown inhis`.
+4. **Trimming on EVERY merge destroyed the next boundary.** A line wrapped three times
+   is merged twice; trimming after the first merge glues `can't` + `swim.` into
+   `can'tswim`. **Trim once, when the logical line is complete.**
+5. **`--backlog` counted records, not lines** — the number asked for and the number
+   printed disagreed.
+6. **⛔ THE INDEX DIRECTION.** `k = write_head - index`, so **index 1 is the NEWEST
+   record and increasing index goes BACK in time.** The first version walked the index
+   downward, collecting the OLDEST records, and produced scrambled text like
+   `Rintaro: Taking the known...the unknswim.ay away from the water...`. Walk **ascending**
+   to collect newest-first, then reverse into chronological order for `join()`.
+
+### The complete address set
+
+| what | address | notes |
+|---|---|---|
+| write head | `0x089797E8` | 0 until the log is first allocated |
+| log base (record array) | `0x08978F14` | `0` until the first dialogue event |
+| config pointer | `0x089B5E34` | capacity at `+0x18` = 512 |
+| record stride | `0xAC` | |
+| speaker name | entry `+0x1C` | `0x28` bytes, NUL-padded |
+| spoken line | entry `+0x48` | `0x60` bytes, NUL-padded |
+| entry(index) | `log_base + (write_head - (index-1) - 1) * 0xAC` | index 1 = newest |
+
+### Control codes (all verified against live text)
+
+| bytes | meaning |
+|---|---|
+| `81 67` | start of spoken text |
+| `81 68` | end of box |
+| `81 43` | in-line break -> `, ` |
+| `81 65` / `81 66` | emphasis quotes around a word -> `'` |
+| `81 6b` / `81 6c` | speaker-name delimiters |
+| `%K%P`, `%P`, `%K` | page break -> a space (never spoken) |
+
+## Honest status of the Steins;Gate reader
+
+| | |
+|---|---|
+| Disc image -> decrypted MIPS ELF | **done**, reproducible |
+| Log structure from the game's own code | **verified** |
+| Reads dialogue from the LIVE game | **working**, verified against real prose |
+| Trigger (`write_head` increments) | supported by an observed 0 -> 1 |
+| Wired to speech (TTS) | **NOT DONE** — `--speak`/`--json` expose the hook |
+| Inside the app | **NOT DONE** — no PSP core; host-side against PPSSPP only |
+
+⛔ **The one thing still not observed is the write head incrementing DURING dialogue.**
+The 0 -> 1 transition was seen at log allocation. A full scene advance has not been driven,
+because the story in the reachable state does not advance under scripted button input.
+So the follow mode is built and runs, but it has not yet been seen printing a line in
+response to the story moving.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
