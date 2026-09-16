@@ -1,4 +1,107 @@
-# Dragon Ball Z: Attack of the Saiyans — character table FOUND
+# DBZ: Attack of the Saiyans — the PARTY ARRAY is SOLVED
+
+## ✅✅✅ SOLVED: `0x020CC774` is the ACTIVE PARTY — confirmed against the game's own screen
+
+The investigation is closed on its main question. The pointer array **is the party**,
+and it was confirmed by reading the game's own **Status** screen and matching the names
+exactly.
+
+**The game's Status screen** (`docs/evidence/dbz-status-screen.png`) shows:
+
+```
+[Status]
+   Krillin   AP 0
+   Tien      AP 0
+   Yamcha    AP 0
+```
+
+**The array, decoded with the corrected base:**
+
+```
+0x020CC774  0x020CDD44  = base + 0x6E4  (rec3, exact)  -> Krillin
+0x020CC778  0x020CDF90  = base + 0x930  (rec4, exact)  -> Tien
+0x020CC77C  0x020CE1DC  = base + 0xB7C  (rec5, exact)  -> Yamcha
+0x020CC780  0x00000000  NULL terminator
+count word 0x020CC794 = 0x00030003   (low u16 = 3 = entry count)
+```
+
+**Krillin, Tien, Yamcha — the same three, in the same order.** Not an approximation:
+every pointer lands *exactly* on a record base (`offset % 0x24C == 0`), the count word
+agrees, and the names match the screen.
+
+## ⛔ THE BUG THAT HID THIS: the record base was one stride too high
+
+| | value | consequence |
+|---|---|---|
+| **correct** record base | **`0x020CD660`** | name field at **`+0x114`**; pointers hit `rec3,4,5` |
+| what I had been using | `0x020CD754` | name field at `+0x20`; pointers "hit" `rec2,3,4` |
+
+I derived the base as `name_address − 0x20` after *assuming* the name field sat at
+`+0x20`. The real offset is **`+0x114`**, so my base came out **exactly `0x24C` (one
+whole record) too high** — and since the stride is `0x24C`, every decode landed on a
+*plausible* record, just the wrong one.
+
+⛔ **That is why the mistake survived so long: an off-by-one-stride error is invisible
+under a stride-sized lattice.** Each pointer still decoded to a real character with a
+real name and real stats. Nothing looked broken. Only comparing against a screen that
+*names its contents* exposed it.
+
+### ⛔ The lesson
+
+**Do not derive a structure's base from an assumed field offset.** I picked `+0x20`
+because "the name is 0x20 bytes in" *looked* right, and every later measurement
+inherited that guess. Derive a base only from something that does not depend on another
+guess — here, the on-screen party list.
+
+**And: a structure whose fields look plausible can still be off by a whole record.**
+When records are a fixed stride apart, an off-by-one-stride error produces valid-looking
+data at every slot. The only reliable check is an external ground truth — the game's own
+screen.
+
+## ✅ The confirmed layout
+
+```
+character record array
+  base    0x020CD660
+  stride  0x24C
+  count   8   (Goku, Gohan, Piccolo, Krillin, Tien, Yamcha, Bubbles, Gregory)
+  name    +0x114   (NUL-terminated ASCII)
+
+party pointer array
+  at      0x020CC774
+  format  NUL-terminated array of pointers to character record BASES
+  count   0x020CC794, low u16 == number of entries
+```
+
+| rec | base | name field | name |
+|---|---|---|---|
+| 0 | `0x020CD660` | `0x020CD774` | Goku |
+| 1 | `0x020CD8AC` | `0x020CD9C0` | Gohan |
+| 2 | `0x020CDAF8` | `0x020CDC0C` | Piccolo |
+| 3 | `0x020CDD44` | `0x020CDE58` | Krillin |
+| 4 | `0x020CDF90` | `0x020CE0A4` | Tien |
+| 5 | `0x020CE1DC` | `0x020CE2F0` | Yamcha |
+| 6 | `0x020CE428` | `0x020CE53C` | Bubbles |
+| 7 | `0x020CE674` | `0x020CE788` | Gregory |
+
+⛔ **The published Action Replay base `0x020CD300` is `0x360` below the true base
+`0x020CD660`** — which is why every published address read exactly zero.
+
+## ✅ The Status screen also confirms stats
+
+`docs/evidence/dbz-status-screen-top.png` shows, for the selected member:
+
+```
+HP  300/300
+Ki  105/105
+Pw 9   Df 9   Rc 9   Tc 9   Sp 9   Lk 10     (hexagonal radar chart)
+```
+
+⚠️ **Not yet matched to a RAM offset.** These are the live per-member stats and they
+are the obvious next thing to locate — the `+0x1F8`/`+0x208` triples found earlier read
+290/95 etc. and do **not** match this screen, so they are something else (most likely
+base values, not live values). Do not assume they are HP/Ki.
+
 
 **Status: the character table is located and its layout is measured. It is the
 CHARACTER ROSTER, not the active party.** The published Action Replay addresses are
