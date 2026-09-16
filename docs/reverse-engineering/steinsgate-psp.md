@@ -585,6 +585,96 @@ across 24 MiB has been exhausted. The next move must be to narrow the space firs
 decompile the backlog renderer and read *what it reads*, rather than continue guessing
 at addresses.
 
+
+## ✅✅✅ BREAKTHROUGH — the MESSAGE LOG found: the backlog's own data, in code and in RAM
+
+Decompiling the functions that reference `BACKLOG` / `MessageLog Buf` produced the
+backlog's real data structure. This is the closest thing yet to a reader.
+
+### From the code
+
+```c
+void FUN_00051574(void) {
+  uRam00018f14 = FUN_000a9820((uint)*(ushort *)(iRam00055e34 + 0x18) * 0xac,
+                              "MessageLog Buf");
+}
+```
+
+**The message log is a flat array of `0xAC`-byte records.** The count comes from the
+loaded config at `+0x18`. This is the backlog's storage, allocated by name.
+
+The scroll logic is in `FUN_00052fa4`. Its state block keeps:
+
+| offset | meaning (from the code) |
+|---|---|
+| `+0xc` | current position — `FUN_0005126c(cur - 1)` / `FUN_000513c4(cur + 10)` on scroll |
+| `+0x10` | total entry count — the scroll stops at `total <= cur + 0xb` |
+| `+0xe` | per-screen line count |
+| `+0x34` / `+0x36` | the two values in `"MsgLog Load No:%d  Id:%d"` |
+
+And it renders through `FUN_00051520(state, total - (cur + per_screen), (total - cur) - 1)`
+— so **`+0xc` IS a line index**, and `FUN_00051028(i, cur + i)` reads consecutive entries.
+
+### Verified against a live dump
+
+| what | value |
+|---|---|
+| config global (`iRam00055e34`) | `0x0933C580` — **matches the config found independently**, confirming the address translation |
+| `config+0x18` (log capacity) | **512** records → 512 x 0xAC = 88,064 bytes |
+| **MessageLog buffer** | **`0x09557C80`** (pointer at `0x08978F14`) |
+
+The buffer holds the actual dialogue text, as `0xAC`-byte records:
+
+```
+[  2] +0x48  'Entropy the origins rumble'
+[  5] +0x49  'gOur time slowly ticks away from the moment '
+[  6] +0x48  'of our birth to the moment of our death. It '
+[  7] +0x48  'is finite.'
+[  8] +0x4E  'C time itself does not flow from the pas'
+[ 11] +0x49  'gThe wise men of old understood that the '
+[ 14] +0x49  'gHe who knows that he is wise may drown in '
+```
+
+⭐ **These are the SAME lines as the script block at `0x08AEA000`, split into display
+lines** — note records 5/6/7 and 8/9/10 each continue one logical line across three
+records. That is exactly how a word-wrapped backlog stores entries.
+
+⛔ **The `g` / `C` prefixes here are the SAME `latin1` artefacts** documented earlier —
+`0x81 0x67` and `0x81 0x43` rendered as one byte, not speaker codes. Do not re-derive a
+speaker table from these.
+
+### Address translation that works
+
+Ghidra's names for this binary are offset from the real vaddr. The mapping that checks
+out on a verified value:
+
+```
+real_RAM = LOAD_BASE + ghidra_name + 0x15C000
+```
+
+Verified: Ghidra `iRam00055e34` → `0x08804000 + 0x55e34 + 0x15C000` = **`0x089B5E34`**,
+which reads exactly the config pointer `0x0933C580`. **Always validate a translation
+against the one value you already know before trusting it.**
+
+## ⛔ What is still missing — now a much smaller problem
+
+The reader needs the **current** entry index, and the state block for the log is **not
+yet pinned down**. The pointer global is at `0x08978F14`, but the `+0xc` / `+0x10` fields
+read 0 at the addresses tried — those candidates land in a different structure
+(`$gp`-relative data), so the state block must be located properly rather than assumed.
+
+**But the shape of the answer is now known**, which it was not before:
+
+1. the log is a flat array of `0xAC`-byte records at a known pointer (`0x09557C80`),
+   capacity known (512), and the text inside is confirmed readable;
+2. the code that walks it is identified (`FUN_00052fa4`, reads `FUN_00051028(i, cur+i)`);
+3. the index lives at **`state + 0xc`** with total at **`state + 0x10`** — so the only
+   remaining step is to find `state`, and the pointer at `0x08978F14` is the anchor.
+
+That is a bounded, specific search rather than a 24 MiB hunt. **A reader is now clearly
+in reach for this game**, and this is the first point in the investigation where that can
+honestly be said.
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
