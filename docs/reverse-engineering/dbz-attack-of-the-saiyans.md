@@ -36,43 +36,69 @@ control     (0x02000000-0x02001000)      nonzero  3703 /  4096 bytes   <- busy
 ```
 
 The control window is **90% populated**, so the probe is reading live memory
-correctly. The EUR window is entirely zero. The USA party block is sparse.
+correctly. The EUR window is entirely zero. The USA party block is sparse — and
+critically, **the identical numbers appear at 24,000 frames** (run 3), so that
+157/4096 is a static floor, not a structure filling in.
 
-### The screenshot settles what the numbers meant
+### The screenshots settle what the numbers meant
 
-`docs/evidence/dbz-20000-frames-intro-scene.png` — the game is **past the title
-and in an intro dialogue scene** with Krillin, on the world map with the party
-visible. So:
+- `docs/evidence/dbz-20000-frames-intro-scene.png` — intro dialogue with Krillin,
+  world map and party visible.
+- `docs/evidence/dbz-24000-frames-house-interior.png` — an isometric house
+  interior, **with a red HP bar rendered at the bottom of the screen**.
+
+The second one is decisive. **The game is in play, on the bottom screen's HP bar
+display, and the published addresses still read zero.** So:
 
 - ✅ The emulator boots this ROM.
-- ✅ Input driving works (the plan got the game into play).
+- ✅ Input driving works — the plan reaches gameplay.
 - ✅ The probe reads live memory.
-- ❌ **No battle has happened yet**, so the party stat block is not populated.
+- ❌ **The published Action Replay addresses are wrong for this ROM.**
 
-⛔ **This is the third time in this project that a "the reader is broken" symptom
-turned out to be "the game is not where you think it is".** The memory was
-consistent with a half-built structure AND with a wrong address; only the picture
-distinguished them. Bracket RAM claims with a screenshot — every time.
+⛔ That last conclusion could only be reached *because* of the HP bar in the
+screenshot. A zero reading on its own is ambiguous between "not allocated" and
+"wrong address"; a zero reading **while the game draws the value** is not.
 
-## Why the addresses may still be wrong (two live hypotheses)
+## The structure scan, and why it did not settle it
 
-1. **The game has not entered a battle.** The AR lists name these addresses in
-   battle context (HP/Ki/AP per character), so they may only be written once
-   combat starts. **This is the leading hypothesis** and matches the screenshot.
-2. **The region offset is wrong.** The USA and Europe lists disagree, and the
-   internal title (`DB KAI RPG`) hints this release may share lineage with the
-   Japanese `DB Kai` game, so the code list's region may not match this ROM.
+Using the one structural fact the code lists give — a record stride of `0x24C`
+(from Europe's `DC000000 0000024C`) — the probe scans `0x020C0000..0x020E0000`
+for an address whose value is plausible *and different* at `base`, `base+stride`
+and `base+2*stride`.
 
-Both are testable: drive further into the game until a battle, and re-measure.
+It returned **348 candidates**, which is useless in itself:
 
-## ⛔ Next step, in order
+```
+0x020C7DDC  5489 / 7240 / 4279     <- graphics data, not RPG stats
+0x020C7F74  3185 / 3782 / 3570
+0x020C99B2  513 / 515 / 516        <- small, but uniform
+0x020C99B4  1 / 5 / 5
+```
 
-1. **Extend the input plan to reach a battle** — advance dialogue, then trigger a
-   random encounter. The plan currently stops in the intro scene.
-2. **Re-measure the same table.** If the party block populates, hypothesis 1 is
-   confirmed and the addresses are good.
-3. **If it is still zero, rescan nearby** — the population measurement then tells
-   us whether we are in the right region at all.
+⛔ **This is the project's own documented trap: a memory scan is a confirmation
+tool, not a discovery tool.** Hundreds of plausible triples is what a permissive
+filter over graphics memory looks like. The scan needs a *hypothesis* to test, not
+a wider net.
+
+## What the honest next step is
+
+The addresses are wrong, so stop refining them. Two better routes, in order:
+
+1. **Get the real memory map from the ROM, not from a code list.** A randomizer
+   repo documents ARM9 RE and the `.narc`/BDAT formats for this game. A
+   decompilation or disassembly would give named addresses directly — the same
+   move that made Fire Emblem tractable (`Eebit/fe11-us` ships `symbols.txt`).
+   **Search for a decomp before scanning again.**
+2. **If scanning, make it a controlled experiment.** Change exactly one value
+   in-game (take damage so the HP bar visibly drops), snapshot before and after,
+   and diff. That is a hypothesis with a known expected result, and it narrows to
+   a handful of addresses instead of 348.
+
+⛔ **Do not trust the Europe list's offsets either.** Europe's item block is
+entirely zero across the whole run while the USA one has 14 bytes, which is
+consistent with neither list matching this ROM. The internal title says
+`DB KAI RPG`, hinting this release shares lineage with the Japanese `DB Kai`
+game — so the code lists may simply be for a different build.
 
 ## The probe itself
 

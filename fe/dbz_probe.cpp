@@ -207,6 +207,29 @@ int main(int argc, char** argv)
                 if (!dup && it.seen.size() < 64) it.seen.push_back(v);
             }
         }
+
+        // ------------------------------------------------------- allocation trace
+        //
+        // ⛔ WHEN A STRUCTURE APPEARS MATTERS MORE THAN WHETHER IT IS NON-ZERO. A
+        // single end-of-run reading answers "is it populated now", which cannot
+        // distinguish "the addresses are wrong" from "we have not reached the state
+        // that creates them". Watching the party window fill in OVER TIME shows the
+        // exact frame the game allocates it — and once that frame is known, the
+        // plan can be re-run to that point and the addresses checked against a game
+        // that is demonstrably in the right state.
+        //
+        // Sampling every 2000 frames keeps it cheap on a 128 MB ROM while still
+        // resolving the transition to within a couple of seconds.
+        if (f % 2000 == 0) {
+            uint32_t pn = 0, in2 = 0;
+            for (uint32_t a = 0x020CD000; a < 0x020CE000; a++) if (ProbeRead(a, 1)) pn++;
+            for (uint32_t a = 0x020CC700; a < 0x020CC900; a++) if (ProbeRead(a, 1)) in2++;
+            printf("[trace] f=%-6ld party=%-5u/4096 items=%-4u/512  zennyUSA=%u zennyEUR=%u hp0=%u\n",
+                   f, pn, in2,
+                   ProbeRead(0x020CC770, 4), ProbeRead(0x020CC370, 4),
+                   ProbeRead(0x020CD300, 2));
+            fflush(stdout);
+        }
     }
 
     printf("%-22s %-12s %-12s %-12s %-9s %s\n",
@@ -264,6 +287,53 @@ int main(int argc, char** argv)
     }
     printf("\n  An all-zero window means the structure was never created by this run.\n");
     printf("  A busy window with real values means the addresses to check are wrong.\n");
+
+    // ------------------------------------------------------- structure scan
+    //
+    // ⛔ WHEN THE PUBLISHED ADDRESSES READ ZERO BUT THE GAME CLEARLY HAS THE STATE
+    // ON SCREEN, THE ADDRESSES ARE WRONG — so stop asking about them and go find
+    // the structure instead. The screenshot is what settles this: an HP bar is
+    // visible on the bottom screen, so party HP demonstrably EXISTS in RAM
+    // somewhere, whether or not it lives at the code list's offset.
+    //
+    // The search uses the one structural fact the code lists DO give us: a
+    // character record array with a fixed stride of 0x24C (from the Europe list's
+    // `DC000000 0000024C`). A real party array shows the SAME field shape at
+    // base, base+stride and base+2*stride — so look for an address where a
+    // plausible value repeats across all three. That repetition is what makes this
+    // a discovery rather than a match on noise.
+    //
+    // Plausibility for a DBZ RPG party at the start of the game: HP/Ki in the
+    // low hundreds, level in 1..99, and NOT zero (an empty slot reads zero).
+    printf("\n=== structure scan: looking for the party array ===\n");
+    printf("  stride 0x%X, scanning 0x020C0000..0x020E0000\n", STRIDE);
+    {
+        struct Hit { uint32_t addr; uint32_t v0, v1, v2; };
+        std::vector<Hit> hits;
+        const uint32_t LO = 0x020C0000, HI = 0x020E0000;
+        for (uint32_t a = LO; a < HI; a += 2) {
+            uint32_t v0 = ProbeRead(a, 2);
+            uint32_t v1 = ProbeRead(a + STRIDE, 2);
+            uint32_t v2 = ProbeRead(a + 2 * STRIDE, 2);
+            // All three must be non-zero, plausibly small, and DIFFERENT from each
+            // other — three identical values is a repeated constant or a tile, not
+            // three characters' HP.
+            auto plausible = [](uint32_t v) { return v >= 1 && v <= 9999; };
+            if (plausible(v0) && plausible(v1) && plausible(v2)
+                && !(v0 == v1 && v1 == v2)) {
+                hits.push_back({a, v0, v1, v2});
+            }
+        }
+        printf("  candidates: %zu\n", hits.size());
+        for (size_t i = 0; i < hits.size() && i < 15; i++)
+            printf("    0x%08X  %u / %u / %u\n",
+                   hits[i].addr, hits[i].v0, hits[i].v1, hits[i].v2);
+        if (hits.empty())
+            printf("    (none — the stride hypothesis did not hold in this window)\n");
+        printf("  A candidate that repeats across all three records is the party array;\n");
+        printf("  verify it by changing a value in-game and re-reading, never by trusting\n");
+        printf("  the first plausible hit.\n");
+    }
 
     // ------------------------------------------------------------- screenshot
     //

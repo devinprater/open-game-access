@@ -1,0 +1,162 @@
+# Dragon Ball Z: Attack of the Saiyans (USA, BRPE) — push past the intro to a BATTLE.
+#
+# WHY THIS IS A SEPARATE PLAN FROM dbz-boot.txt: the boot plan reached an intro
+# dialogue scene with Krillin (verified by screenshot), which is past the title but
+# BEFORE any combat. The published Action Replay addresses name party HP/Ki/AP —
+# values that a battle writes — so they read 0 until a fight happens.
+#
+# ⛔ DO NOT CONCLUDE THE ADDRESSES ARE WRONG FROM A ZERO READING. Measure whether
+# the window is populated instead, and use the probe's [trace] lines to see which
+# frame the party block fills in. A structure that never appears means we never
+# reached the right state, which is a different problem from a bad address.
+#
+# The 128 MB ROM is slow to boot, so presses start late and are widely spaced.
+
+# --- boot / logos ---
+KEY 900   A 1
+KEY 906   A 0
+KEY 1100  A 1
+KEY 1106  A 0
+KEY 1300  START 1
+KEY 1320  START 0
+
+# --- title -> menu -> New Game ---
+KEY 1500  A 1
+KEY 1506  A 0
+KEY 1800  A 1
+KEY 1806  A 0
+KEY 2000  A 1
+KEY 2006  A 0
+
+# --- name entry: A accepts the default ---
+KEY 2300  A 1
+KEY 2306  A 0
+KEY 2500  A 1
+KEY 2506  A 0
+KEY 2700  A 1
+KEY 2706  A 0
+
+# --- long intro dialogue. Mash A steadily; each press advances one text box. ---
+KEY 3000  A 1
+KEY 3006  A 0
+KEY 3200  A 1
+KEY 3206  A 0
+KEY 3400  A 1
+KEY 3406  A 0
+KEY 3600  A 1
+KEY 3606  A 0
+KEY 3800  A 1
+KEY 3806  A 0
+KEY 4000  A 1
+KEY 4006  A 0
+KEY 4200  A 1
+KEY 4206  A 0
+KEY 4400  A 1
+KEY 4406  A 0
+KEY 4600  A 1
+KEY 4606  A 0
+KEY 4800  A 1
+KEY 4806  A 0
+KEY 5000  A 1
+KEY 5006  A 0
+KEY 5200  A 1
+KEY 5206  A 0
+KEY 5400  A 1
+KEY 5406  A 0
+KEY 5600  A 1
+KEY 5606  A 0
+KEY 5800  A 1
+KEY 5806  A 0
+KEY 6000  A 1
+KEY 6006  A 0
+
+# --- a modal (tutorial or warning) may appear; dismiss with B, which does not
+#     re-trigger it the way A can ---
+KEY 6300  B 1
+KEY 6306  B 0
+KEY 6600  B 1
+KEY 6606  B 0
+
+# --- keep advancing through dialogue and menus ---
+KEY 7000  A 1
+KEY 7006  A 0
+KEY 7400  A 1
+KEY 7406  A 0
+KEY 7800  A 1
+KEY 7806  A 0
+KEY 8200  A 1
+KEY 8206  A 0
+KEY 8600  A 1
+KEY 8606  A 0
+
+# --- THE ATTEMPT TO START A FIGHT. On the world map, walking into enemies triggers
+#     a random encounter, and A confirms menus. Hold a direction to move, then
+#     press A. Alternating these gives the best chance of a battle starting. ---
+KEY 9000  RIGHT 1
+KEY 9060  RIGHT 0
+KEY 9200  A 1
+KEY 9206  A 0
+KEY 9600  LEFT 1
+KEY 9660  LEFT 0
+KEY 9800  A 1
+KEY 9806  A 0
+KEY 10200 UP 1
+KEY 10260 UP 0
+KEY 10400 A 1
+KEY 10406 A 0
+KEY 10800 DOWN 1
+KEY 10860 DOWN 0
+KEY 11000 A 1
+KEY 11006 A 0
+KEY 11400 RIGHT 1
+KEY 11460 RIGHT 0
+KEY 11600 A 1
+KEY 11606 A 0
+KEY 12000 LEFT 1
+KEY 12060 LEFT 0
+KEY 12200 A 1
+KEY 12206 A 0
+KEY 12600 UP 1
+KEY 12660 UP 0
+KEY 12800 A 1
+KEY 12806 A 0
+KEY 13200 DOWN 1
+KEY 13260 DOWN 0
+KEY 13400 A 1
+KEY 13406 A 0
+KEY 13800 RIGHT 1
+KEY 13860 RIGHT 0
+KEY 14000 A 1
+KEY 14006 A 0
+KEY 14400 LEFT 1
+KEY 14460 LEFT 0
+KEY 14600 A 1
+KEY 14606 A 0
+KEY 15000 A 1
+KEY 15006 A 0
+KEY 15400 A 1
+KEY 15406 A 0
+KEY 15800 RIGHT 1
+KEY 15860 RIGHT 0
+KEY 16000 A 1
+KEY 16006 A 0
+KEY 16400 UP 1
+KEY 16460 UP 0
+KEY 16600 A 1
+KEY 16606 A 0
+KEY 17000 A 1
+KEY 17006 A 0
+KEY 17400 A 1
+KEY 17406 A 0
+KEY 17800 A 1
+KEY 17806 A 0
+KEY 18200 A 1
+KEY 18206 A 0
+KEY 18600 A 1
+KEY 18606 A 0
+KEY 19000 A 1
+KEY 19006 A 0
+KEY 19400 A 1
+KEY 19406 A 0
+KEY 19800 A 1
+KEY 19806 A 0
