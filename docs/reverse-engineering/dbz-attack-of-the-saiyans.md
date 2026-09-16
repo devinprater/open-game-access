@@ -315,48 +315,61 @@ f=12000 (in game)      : 0x020CDD44 0x020CDF90 0x020CE1DC 0x00000000
 count word @0x020CC794 : 0x00060003 (f=2000)   ->   0x00030003 (f=12000)
 ```
 
-Decoded against the character records (`rec = (ptr - 0x020CD754) / 0x24C`):
+### ✅ The full time series — one run, sampled every 2000 frames
 
-| f=2000 (title screen) | f=12000 (in game) |
-|---|---|
-| rec-1 +0x158 | — |
-| Goku | — |
-| Gohan | — |
-| Piccolo | **Piccolo** |
-| Krillin | **Krillin** |
-| Tien | **Tien** |
+Two snapshots cannot distinguish a monotonic queue from a fluctuating list, so the
+probe now samples the list every 2000 frames **within a single run**:
 
-**Facts established by measurement:**
+```
+[list]  f=0      count32=0x00000000  n=0
+[list]  f=2000   count32=0x00060003  n=6   entries: <garbage>,0,1,2,3,4
+[list]  f=4000   count32=0x00030003  n=3   entries: 2,3,4
+[list]  f=6000   count32=0x00030003  n=3   entries: 2,3,4
+[list]  f=8000   count32=0x00030003  n=3   entries: 2,3,4
+[list]  f=10000  count32=0x00030003  n=3   entries: 2,3,4
+```
 
-1. **The array is live state.** It changes with game progression — 6 entries at the
-   title screen, 3 in game. A static template would be byte-identical across runs.
-2. **`0x020CC794` is a count word.** Its **low u16 equals the number of entries**
-   (`0x0006` → 6 entries, `0x0003` → 3 entries). The high u16 stayed `3` in both runs.
-3. **The array is a sliding window over the character records.** In both snapshots
-   the *last* entry is Tien (`rec4+0x158`) and the entries are consecutive records.
-   Only the **start** of the window moves — so this looks like a rotating or
-   consumed-from-the-front list, not a fixed roster.
-4. **The rest of the character table is unchanged** between the two runs (names,
-   `+0x180` chain and the stat fields at `+0x1F8`/`+0x208` are byte-identical).
+**What this establishes:**
 
-⛔ **What is still NOT established: what the window means.** It is a
-code-referenced (75×), live, counted list of characters that does not match the
-player's party at either snapshot. Do not narrate from it. Plausible shapes — a
-load/initialisation queue, a "characters present in the scene" list, or a
-battle-roster window — are all still open, and picking one without evidence is
-exactly the error that produced the two contradictory claims above.
+1. **Empty at f=0**, populated by f=2000 → the list is **built during startup**, so
+   it is engine state, not a compile-time constant.
+2. **It shrinks exactly once (6 → 3), then is completely stable** for the rest of the
+   run. It does **not** fluctuate.
+3. **At f=2000 the first slot is garbage** (a pointer that decodes to a nonsense
+   record index) while the other five are consecutive records `0,1,2,3,4`. A real
+   party would never contain a garbage entry — this is an **initialisation
+   artefact**, not game state.
+4. **`0x020CC794` is a count word**: its low u16 equals the entry count exactly
+   (`0x0006` → 6, `0x0003` → 3). The high u16 stayed `3` throughout.
+5. **The stable post-init list is records 2, 3, 4 = Piccolo, Krillin, Tien.**
+6. **The rest of the character table is byte-identical** across runs and across the
+   whole time series (names, `+0x180` chain, `+0x1F8`/`+0x208` stats).
+
+### ⛔ What is still not established, and why that is the honest answer
+
+The stable value is Piccolo/Krillin/Tien at a point where the player has Goku alone.
+Several shapes fit, and **the time series rules some out but not all**:
+
+- ❌ *Not the live walking party* — the names are wrong for this point in the game.
+- ❌ *Not a fluctuating scene list* — it is flat after f=4000.
+- ✅ *Consistent with an initialisation/default roster* — built during startup,
+  containing a garbage slot while filling, then settling to a fixed 3.
+- ✅ *Consistent with a "selected for next battle" roster* the engine pre-fills.
+
+⛔ **Deciding between the survivors needs a state change this probe cannot produce:**
+a battle, a recruit, or a party-menu change. Until then the field stays **unresolved
+and must not be narrated from.**
 
 ### ⛔ The lesson, and it is about method
 
-**Two confident, opposite conclusions came from the same data — both from reasoning
-about a snapshot instead of measuring change.** The first assumed a meaning; the
-second assumed "doesn't match the party ⇒ not live". Neither was tested. One extra
-run at a different frame count settled both.
+**Two confident, opposite conclusions came from the same snapshot data.** The first
+assumed a meaning; the second assumed "doesn't match the party ⇒ not live". Neither
+was tested. **One extra run at a different frame count killed both.**
 
-**The generalisable rule: to learn what a field DOES, measure it across a state
-change — do not infer its meaning from one snapshot.** Comparing two runs of the
-same session at different frames is the cheapest such change, and it needs no input
-scripting at all:
+**The generalisable rule: to learn what a field DOES, sample it over time — never
+infer its meaning from one snapshot.** Sampling *within* a single run is cheaper than
+one run per sample, and it distinguishes "built once during init" from "changes with
+play", which is exactly the distinction both wrong answers missed.
 
 
 ## ❌ Superseded claim (kept for the record)

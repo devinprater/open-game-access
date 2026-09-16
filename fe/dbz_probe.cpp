@@ -229,6 +229,33 @@ int main(int argc, char** argv)
                    ProbeRead(0x020CC770, 4), ProbeRead(0x020CC370, 4),
                    ProbeRead(0x020CD300, 2));
             fflush(stdout);
+
+            // -------------------------------------------------- the 0x020CC774 list
+            //
+            // ⛔ ONE RUN, MANY SAMPLES. The list at 0x020CC774 is live (6 entries at the
+            // title screen, 3 later) but two snapshots cannot tell a MONOTONIC queue
+            // from a fluctuating "scene membership" list. Sampling it every 2000
+            // frames inside a single run gives the whole time series at the cost of
+            // one run instead of one run per sample.
+            //
+            // The prediction is what makes this an experiment: a queue consumed over
+            // time shows the entry count DECREASING monotonically; a scene/roster list
+            // rises and falls. Either answer is informative; guessing is not.
+            printf("[list]  f=%-6ld count32=0x%08X n=", f, ProbeRead(0x020CC794, 4));
+            {
+                uint32_t n = 0;
+                for (int i = 0; i < 8; i++) {
+                    uint32_t v = ProbeRead(0x020CC774 + (uint32_t) i * 4, 4);
+                    if (!v) break;
+                    n++;
+                    // decode the record index so the output is readable without a
+                    // second pass: rec = (ptr - 0x020CD754) / 0x24C
+                    long rec = (long) ((v - 0x020CD754) / 0x24C);
+                    printf("%s%ld", i ? "," : "", rec);
+                }
+                printf("  (n=%u)\n", n);
+            }
+            fflush(stdout);
         }
     }
 
