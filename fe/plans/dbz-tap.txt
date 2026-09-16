@@ -1,0 +1,30 @@
+# DBZ AotS — TOUCH test. Every prior run was button-only; the core exposes
+# poke_touch and the probe never called it. A touch-gated screen looks EXACTLY
+# like "no button works and the screen cycles".
+#
+# Touches are aimed at the BOTTOM screen centre (the dialogue box / prompt area).
+# DS coordinates: 256x192; the touchscreen is screen 1 (bottom).
+#
+# boot gate (A) first
+KEY 900   A 1
+KEY 906   A 0
+KEY 1300  A 1
+KEY 1306  A 0
+KEY 1700  A 1
+KEY 1706  A 0
+KEY 2100  A 1
+KEY 2106  A 0
+KEY 2500  A 1
+KEY 2506  A 0
+KEY 3200  START 1
+KEY 3206  START 0
+# taps across the bottom screen: centre, then the corners and edges
+TAP 6000  128 96
+TAP 8000  128 96
+TAP 10000 128 160
+TAP 12000 128 32
+TAP 14000 200 96
+TAP 16000 60  96
+TAP 18000 128 96
+TAP 20000 240 180
+TAP 22000 16  180

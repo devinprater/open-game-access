@@ -132,8 +132,22 @@ int main(int argc, char** argv)
     //
     // The plan format is the one the Fire Emblem plans already use:
     //     KEY <frame> <BUTTON> <0|1>
+    //
+    // ⛔ AND TOUCH:  TAP <frame> <x> <y>
+    //
+    // The DS has a TOUCHSCREEN and the core exposes `poke_touch(core,x,y,down)` — but
+    // this probe never called it, so EVERY run so far was button-only. That is exactly
+    // what a touch-gated screen looks like: no button does anything, the screen cycles,
+    // and the run never advances. A whole class of screen was untestable by construction.
+    //
+    // A tap is emitted as a down at <frame> and an up 8 frames later, since the core
+    // reads input once per frame and a zero-length tap can be missed (the same reason
+    // short key presses failed elsewhere in this project).
     struct K { long f; int b; int d; };
     std::vector<K> keys;
+    struct T { long f; int x; int y; };
+    std::vector<T> taps;
+    std::vector<T> pending;   // tap releases waiting to fire
     if (planPath) {
         FILE* f = fopen(planPath, "r");
         if (!f) {
@@ -149,9 +163,15 @@ int main(int argc, char** argv)
                     for (int i = 0; i < 12; i++)
                         if (!strcasecmp(btn, nm[i])) { K k; k.f = fr; k.b = i; k.d = d; keys.push_back(k); }
                 }
+                long tx, ty;
+                if (sscanf(line, "%15s %ld %ld %ld", cmd, &fr, &tx, &ty) == 4
+                    && !strcasecmp(cmd, "TAP")) {
+                    T t; t.f = fr; t.x = (int) tx; t.y = (int) ty; taps.push_back(t);
+                }
             }
             fclose(f);
-            printf("input plan : %s (%zu key events)\n\n", planPath, keys.size());
+            printf("input plan : %s (%zu key events, %zu taps)\n\n",
+                   planPath, keys.size(), taps.size());
         }
     } else {
         printf("input plan : NONE — the game will sit on its title screen and every\n");
@@ -162,6 +182,7 @@ int main(int argc, char** argv)
     // drops events, because the driver only fires when an event's frame equals the
     // current one.
     std::sort(keys.begin(), keys.end(), [](const K& a, const K& b) { return a.f < b.f; });
+    std::sort(taps.begin(), taps.end(), [](const T& a, const T& b) { return a.f < b.f; });
 
     // The addresses the published code lists give, grouped as the code lists group
     // them. The USA and Europe lists DISAGREE by a constant offset, which is itself
@@ -219,6 +240,29 @@ int main(int argc, char** argv)
         while (ki < keys.size() && keys[ki].f == f) {
             poke_set_button(core, keys[ki].b, keys[ki].d != 0);
             ki++;
+        }
+        // Touch: press at the tap frame, release 8 frames later. The core samples
+        // input once per frame, so a zero-length tap can be missed entirely.
+        //
+        // ⛔ CLEAN TWO-PHASE FORM. The first attempt reused the event list and pushed
+        // releases back into it *while iterating it*, which invalidates the iterator
+        // and can silently skip events. Keep an independent release queue instead:
+        // pressing records a pending release, and the queue is drained each frame.
+        static size_t ti = 0;
+        while (ti < taps.size() && taps[ti].f == f) {
+            poke_touch(core, taps[ti].x, taps[ti].y, true);
+            pending.push_back(T{ f + 8, taps[ti].x, taps[ti].y });
+            printf("[tap]   f=%-6ld (%d,%d) down\n", f, taps[ti].x, taps[ti].y);
+            ti++;
+        }
+        for (size_t r = 0; r < pending.size(); ) {
+            if (pending[r].f <= f) {
+                poke_touch(core, pending[r].x, pending[r].y, false);
+                printf("[tap]   f=%-6ld (%d,%d) up\n", f, pending[r].x, pending[r].y);
+                pending.erase(pending.begin() + (long) r);
+            } else {
+                r++;
+            }
         }
         if (!poke_frame(core)) { printf("stopped at frame %ld\n", f); break; }
         if (f % 60 == 0) {   // once per second: enough to see motion, cheap enough

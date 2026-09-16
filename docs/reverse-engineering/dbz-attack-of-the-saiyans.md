@@ -381,11 +381,86 @@ mechanical, not attentiveness: **capture larger and later panels, and read one p
 at a time at full size** rather than a contact sheet of six tiny images. A 64×192 DS
 screen upscaled 2× is not enough to read a name box; upscaled 4× and cropped it is.
 
-### ⛔⛔ THE REAL FINDING: the game is STUCK in a two-frame loop
+### ✅✅✅ SOLVED: the cutscene is advanced by TOUCH, and the probe never called it
 
-An earlier revision of this section claimed (a) the prompt reads **B**, and (b) that
-longer holds advanced the cutscene. **Both were wrong**, and a simple objective test
-settled it without any reading of pixels.
+**This is the answer to the long-standing "nothing advances the cutscene" problem.**
+
+The core exposes `poke_touch(core, x, y, down)` — a documented, exported symbol in
+`Sources/CPokeCore/include/pokecore.h` — and **`fe/dbz_probe.cpp` never called it.**
+Every run in this investigation was **button-only**, so an entire input class was
+untestable by construction. A touch-gated screen looks *exactly* like what was
+observed: no button does anything, the screen cycles, the run never advances.
+
+**The probe now parses `TAP <frame> <x> <y>`** in plans and emits a press plus a
+release 8 frames later (the core samples input once per frame, so a zero-length tap
+would be missed).
+
+**Objective result — the hash test, which needs no interpretation:**
+
+| plan | distinct screens over 24,000 frames |
+|---|---|
+| dense B presses only | **2** (a two-frame loop) |
+| **with TAP events added** | **10** |
+
+New, distinct screens appear at f=8000, 10000, 12000, 20000, 22000, 24000 — the game
+**moves forward** where it previously looped.
+
+**And the content confirms it is real story progression:**
+
+```
+f=20000  "He revived all of his friends who had lost
+          their lives against King Piccolo.          (A)"
+
+f=24000  "With that task done, Goku dedicated himself
+          to training under Kami's watchful eye...   (A)"
+```
+
+Two *consecutive* narration beats — revive friends, then "with that task done" —
+which is forward movement through the cutscene, not a cycle.
+
+### ✅ The prompt reading: it is **A**
+
+At this size the icon in the dialogue box reads as **Ⓐ** (a small dark circle with a
+light `A`). The earlier claim that it read **B** is retracted; the honest position is
+that a single glance at this glyph is unreliable — which is why the *hash test*, not
+the glyph, is what established the behaviour.
+
+### ⛔ Why this took so long — the real lesson
+
+**The probe's input surface was narrower than the console's, and nothing said so.**
+`poke_touch` existed, was exported, and was documented in the header; the probe
+simply never wired it. Every "no button works" conclusion was therefore drawn from an
+incomplete input model, and no amount of trying *different buttons* could ever have
+found it.
+
+**Generalisable rule: before concluding a game ignores input, prove your harness can
+send every input the console has.** Enumerate the core's input API and diff it against
+what the probe actually calls. Here that diff was one function, and it was the whole
+blocker.
+
+**Second rule: hash the frames to test progression.** The 2-vs-10 distinct-screen
+comparison is what proved touch works; reading panels had already produced two wrong
+answers on this same question.
+
+
+### ⛔ (Superseded) the two-frame loop finding — BEFORE touch was wired
+
+This was true *of button-only input* and is kept because it is the measurement that
+isolated the bug:
+
+```
+f004000  a728d0aa4212
+f006000  1a07c13df6fb
+f008000  a728d0aa4212   <-- SAME AS f004000
+f010000  1a07c13df6fb   <-- SAME AS f006000
+...
+f028000  a728d0aa4212
+```
+
+With buttons only there were exactly **two** distinct screens, alternating. Adding
+`TAP` events took that to **ten**. The loop was real; the cause was the missing input
+class, not the game.
+
 
 **Test: hash every captured panel and compare.** It needs no interpretation at all.
 
