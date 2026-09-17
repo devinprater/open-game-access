@@ -1194,6 +1194,79 @@ real control surface rather than a shell command, and PSP core support if it is 
 inside Open Game Access itself. The reading, the trigger, the story advance and the speech
 are all proven; the remaining work is integration, not reverse engineering.
 
+
+## ✅ CHOICES FOUND — the Phone Trigger's option text is in memory
+
+Steins;Gate's choices are the **Phone Trigger**: a mail arrives, the player replies, and the
+reply sets the route. The choice TEXTS are resident in RAM and were located:
+
+```
+table DAT_012f8b90 -> RAM 0x09C58B90 -> entries at 0x09C28CFC (stride 0x20, text ptr +0x1C)
+string blob 0x09C30F00:
+   "Hououin Kyouma"  "STOP NO. 12 DEVELOPMENT AT ONCE"
+   "Hououin Kyouma"  "D-MAIL EXPERIMENT IS TROUBLE"
+   "Hououin Kyouma"  "RECONSIDER D-MAIL EXPERIMENT"
+   "Hououin Kyouma"  "STOP NO. 12 DEVELOPMENT"
+```
+
+Those are the game's choice/reply options, with the sender name (`Hououin Kyouma`) beside
+them. So the choice content — not just the dialogue — is readable from RAM.
+
+### ⛔ WHICH BUTTON ADVANCES — measured, and it CONTRADICTED the earlier conclusion
+
+| state | button that advances |
+|---|---|
+| mid-scene dialogue (head 65 -> 242) | **`down`** |
+| a different scene earlier | `circle` |
+
+```
+head at start = 242
+watching 60 s with ZERO input: 242 for all 12 samples
+  => NO AUTO-ADVANCE. The story only moves when a button is pressed.
+```
+
+So `down` genuinely advanced 65 -> 242, and the no-input control rules out auto-advance.
+**But the correct button is scene-dependent.** The earlier "the story will not advance"
+conclusion came from pressing `cross` at a moment that wanted something else — a stall is
+often just the wrong button, not a choice.
+
+⛔ **A stall detector that presses a single button cannot distinguish "the game is waiting on
+a choice" from "the game wants a different button."** The Phone Trigger state was mistaken
+for a choice stall for exactly this reason.
+
+### The phone's state bytes (from FUN_0008d7f0)
+
+The engine tracks the phone with two bytes and warns `Phone not open` / `Phone not close`:
+
+| field | RAM |
+|---|---|
+| phone open | `0x0897B1E7` |
+| phone close | `0x0897B1E8` |
+
+They read `1` / `0` and did **not** change under `triangle`, `square`, `start`, `select`,
+`ltrigger`, `rtrigger`, `circle` or `cross`. The documented PSP button for taking out the
+phone is **TRIANGLE**; it produced no state change here, which is consistent with this scene
+not being a phone moment rather than with the button being wrong.
+
+### ⛔ THE REAL BLOCKER, found and fixed — the emulator was FROZEN in stepping mode
+
+Everything that looked like "input is dead" in this stretch — a pinned write head, zero RAM
+churn from presses, an unresponsive "Press START button" title screen — was caused by
+`cpu.status` reporting **`"stepping": true`** with **ticks delta = 0**. The CPU was halted.
+
+I set it myself: an earlier capability probe called `cpu.stepping`, the request TIMED OUT,
+but the setting still applied. `cpu.stepping {stepping:false}` also timed out; the call that
+works is:
+
+```
+cpu.resume        -> stepping=false, ticks advance again (~1e9 per 3 s)
+```
+
+⭐ **A timed-out request may still have taken effect.** Always re-read the state you tried to
+change instead of assuming a timeout means nothing happened. And when a debugger target
+looks unresponsive, **check `cpu.status` for stepping/paused BEFORE concluding anything about
+input.**
+
 ## ⛔ Note on the ISO/CPK on disk
 
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
