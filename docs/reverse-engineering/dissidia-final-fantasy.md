@@ -640,3 +640,64 @@ listing now uses the addresses the code actually references.
 compile — Ghidra swallows javac's output. Compile it yourself against Ghidra's jars to see the real
 error. That is how this was found: `error: cannot find symbol — method getOpCode()`. Ghidra's
 `Instruction` has **no `getOpCode()`**; use `ins.getMnemonicString()`.
+
+---
+
+## 12. The localisation file is NAMED in RAM — and it is `general_archive/main/EN/main_lang.bin`
+
+Section 7 recorded a puzzle: the EBOOT's own asset paths name `general_archive/field/JP/menu_lang.bin`
+and `general_archive/field/JP/field_lang.bin`, but **none of those byte strings occur in
+`PACKAGE.BIN`** (0 hits for `general_archive`, `menu_lang`, `field_lang`, `text/JP`). The name→data
+binding was not found.
+
+It is now found, **in RAM**, while the game is running. A scan for absolute pointers into the
+pause-menu text block (`scripts/psp-dissidia-menucursor.py`) found three sites, and dumping around
+them shows a resource record holding the path as plain ASCII:
+
+```
+0x09EF72D4  09CED310  general_archive/main/EN/main_lang.bin
+```
+
+So the English localisation resource is **`general_archive/main/EN/main_lang.bin`** — note `EN`, not
+`JP`: the path is language-keyed, and the JP-form strings in the EBOOT are the template.
+
+### But it is NOT on the disc image — an honest negative
+
+Searched the whole 1,646,657,536-byte ISO for `main_lang`, `_lang.bin`, `general_archive` and
+`EN/main_lang`: **0 hits for all four.** It is also absent from `PACKAGE.BIN` (0 hits).
+
+So the name in RAM refers to a resource that is either renamed/generated at load time from data under
+a different name, or read from a path the emulator resolves outside the image (an install or
+memory-stick location). This closes the question: **no further ISO searching will produce a file by
+that name**, and the encoded archive text plus the decoded RAM copy (section 11) remain the working
+route — which is sufficient for a reader.
+
+### The byte before each menu string is a FLAG, not an index
+
+The pause-menu block at `0x09D16A68` is a real string table. The prefix histogram over 49 entries:
+
+```
+0x00 x40   0xFF x6   0x81 x2   0x04 x1
+```
+
+`0xFF` appears on conditional/notice lines only (`*EXP and character settings will be retained`,
+`*Invokes a penalty of 2 DP`, `You will lose all current progress.`), so it marks
+disabled/conditional entries; the rare single-character values are formatting codes. This refines the
+section 11 wording ("format prefix") — it is a flag byte, and it is **not** an item index.
+
+### What a reader has, and what is still missing
+
+| what a reader needs | state |
+|---|---|
+| menu / UI text | **found** — `0x09D16A68`+, UTF-16LE, flag byte per entry |
+| system / save / error text | **found** — ASCII, `0x09E58xxx` |
+| ability / skill names | **found** — UTF-16LE, `0x09E6Axxx` |
+| engine / manager names | **found** — ASCII, `0x08B7xxxx` |
+| the localisation source name | **named** — `general_archive/main/EN/main_lang.bin` (absent from the image) |
+| **which entry is SELECTED** | **not yet** |
+
+The remaining gap is the cursor. The text block has only **3** inbound absolute pointers, holding
+structures of the form `(text_ptr, 0x880, ...)` that look like a resource/manager header rather than a
+per-item list — so the selection index is most likely computed in code (the situation Rule 74
+describes). Finding it means reading the menu manager (`MENU MANAGER` is a named string in RAM at
+`0x08B837FC`), **not** diffing RAM further.
