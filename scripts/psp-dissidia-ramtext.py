@@ -27,6 +27,24 @@ except ImportError:
 
 RAM_BASE, RAM_SIZE = 0x08800000, 0x08000000
 
+# =====================================================================================
+# !!! SUPERSEDED -- DO NOT USE FOR ADDRESS-CRITICAL WORK !!!
+#
+# RAM_SIZE above is the HARD-CODED size, and it runs PAST the mapped end (Dissidia's user RAM
+# ends at 0x0A000000, not 0x08800000+0x08000000). A memory.read crossing the mapped end
+# returns 0 bytes WHOLE rather than truncating, so the loop keeps advancing while reads are
+# empty and later hits are attributed to a WRONG BASE ADDRESS. That is how a text hit came
+# out as 0x0AE59124 when the true address was 0x09E59124.
+#
+# It also swallows the debugger's {"event":"error","message":"Invalid address"} reply, making
+# "not mapped" indistinguishable from "mapped but empty".
+#
+# USE INSTEAD:  scripts/psp-ppsspp-client.py --find "<words>" --region 0x08800000:0x0C000000
+#               scripts/psp-dissidia-textdump.py
+# Both enumerate MAPPED spans first and surface error replies (skill Rules 82-83).
+# Kept only as a record of the bug.
+# =====================================================================================
+
 
 class Debugger:
     def __init__(self, url="ws://127.0.0.1:12345/debugger", timeout=25):
