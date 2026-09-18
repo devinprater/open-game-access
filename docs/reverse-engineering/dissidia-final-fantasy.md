@@ -3000,3 +3000,97 @@ the artifacts are on disk, and the answer is verifiable against the live game.
 > period analysis could not -- because period analysis cannot distinguish an index from a derived value,
 > but *content* can.
 
+
+
+---
+
+## 42. The render-array PRODUCER is identified and verified against the measured layout
+
+Section 41 concluded the `0x09DEE480` array is render state and that the remaining work is a code
+trace. A second agent (Codex) was given the decompilation artifacts with a single bounded question --
+*which function writes the value that selects the render block?* -- and its primary candidate has now
+been **verified against the measurements**.
+
+### Codex's answer (recorded verbatim in principle)
+
+* **`FUN_0025595c`** (Ghidra `0x0025595C`, RAM `0x08A5995C`) -- best concrete render-block writer
+  candidate, called once per drawable child by `FUN_0024aee0` immediately before the loop that reads
+  block `n` at `base + n * 0x50` via renderer `+0x14`.
+* **`FUN_0024aee0`** -- the confirmed **consumer** (the draw callback), with the render-array pointer at
+  renderer `+0x14`, block count at `+0x18`, primitive count at `+0x1C`.
+* **`FUN_00255170`** -- secondary, for nodes lacking the normal drawable at node `+0x10`.
+* And, importantly, Codex **declined to claim** a selection-index writer: *"The actual logical selection
+  index writer cannot be identified honestly from the supplied bodies."*
+
+### The verification
+
+Decompiling `FUN_0025595c` (size **2108**, **32 stores**) shows the block population directly:
+
+```c
+if (*(int *)(DAT_00397770 + 0x18) < 0xaa) {                    // count guard, max 0xAA
+    puVar12 = (undefined4 *)(*(int *)(DAT_00397770 + 0x14)     // array BASE
+                             + *(int *)(DAT_00397770 + 0x18) * 0x50);   // COUNT * stride
+    *(int *)(DAT_00397770 + 0x18) = *(int *)(DAT_00397770 + 0x18) + 1;
+} else puVar12 = 0;
+...
+*puVar12     = pbVar5;    // +0x00
+puVar12[1]   = psVar4;    // +0x04
+puVar12[2]   = param_5;   // +0x08
+puVar12[3]   = fVar15;    // +0x0C
+```
+
+**Every element of that matches what section 41 measured in RAM:**
+
+| prediction from the decompile | measurement from the live game |
+|---|---|
+| stride `0x50` | array of 13 blocks at stride `0x50` |
+| three leading pointers at `+0x00/+0x04/+0x08` | three pointers at block `+0x30/+0x34/+0x38` (same triple, block-relative `+0x00/+0x04/+0x08`) |
+| the first two are pointers into geometry | alternating pointers to quad/display-list records |
+| count lives beside the base | base/count read from the object `FUN_0025595c` uses |
+
+So the code that **writes** the measured array is identified, and the identification is corroborated by
+an independent layout match rather than by assertion. This is the first end-to-end verified link between
+a decompiled routine and a measured RAM structure in this investigation.
+
+### Also established this section
+
+The class-registration table in `FUN_000fa84c` (6,856 bytes) constructs the singletons:
+
+```c
+if (DAT_0132fdb0 == 0) { DAT_0132fdb0 = 1; FUN_000f7598(&DAT_0132fb40);
+                         FUN_0033c4d0(&DAT_00392bb8); }
+DAT_003925b0 = &DAT_0132fb40;      // the PAD OBJECT, ctor FUN_000f7598
+...
+if (iRam0006c080 == 0) { iRam0006c080 = 1; FUN_0024aa28(0x5e650); ... }
+DAT_00397770 = 0x5e650;            // a menu-class handle
+```
+
+A **query on the intersection of interest** produced this: listing every function referencing the menu
+static `DAT_00397770` and every function referencing the pad object `DAT_003925b0` yields exactly
+**2** functions -- the boot initialiser `FUN_002dbf50` (already analysed) and this registration routine.
+So there is no single small "menu update" function that touches both statics directly; the menu polls
+input through a layer, which is consistent with section 41's finding that the input path dead-ends in a
+generic pad library.
+
+### Honest status
+
+* **Verified:** the producer of the render array (`FUN_0025595c`), the consumer (`FUN_0024aee0`), the
+  array base/count fields, and the class-registration table.
+* **Not found:** the **logical selection index** -- the value that decides *which* row is rendered
+  highlighted. It is not written by anything directly reachable from the mapped input path, and no
+  function touches both the menu static and the pad object except the two initialisers.
+* **Why the next step is different in kind:** the selection must be computed by a routine that reads pad
+  state through the pad *layer* rather than the static. Finding it needs either (a) a write watchpoint on
+  the render array to catch the caller in the act -- if the debugger supports breakpoints -- or (b) a
+  search for readers of the **pad layer's** output field rather than the pad object itself. Both are
+  concrete and bounded; neither is more RAM scanning.
+
+### Method note
+
+> **Give a second agent a single bounded question and the artifacts, then verify its answer yourself.**
+> Codex produced a ranked candidate list *and* an explicit refusal to over-claim the index -- which was
+> correct and more useful than a confident guess. The verification step (does its predicted layout match
+> the bytes I measured?) is what converts its answer from a suggestion into a result. Delegation is
+> valuable here exactly because the question was well-specified; the earlier open-ended phases were not
+> delegable.
+
