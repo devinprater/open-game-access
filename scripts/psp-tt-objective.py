@@ -57,6 +57,18 @@ def is_world_triple(a, b, c):
     return big >= 2
 
 
+# ⚠️ PHASE GATE. The player triple at 0x08B6A08C holds world coordinates ONLY while on the flying
+# field. Off-field it reads exponent garbage (e.g. `0.0  -2.2e12  -9.1e12`), and then NOTHING looks
+# like a moving entity -- so every triple in the region gets classified as "fixed" and the result is
+# meaningless. Two runs of this exact test returned 0 fixed and 10 fixed purely because they started
+# in different states. Assert the phase BEFORE trusting any classification.
+PLAYER_TRIPLE = 0x08B6A08C
+
+
+class NotOnField(RuntimeError):
+    pass
+
+
 class Dev:
     def __init__(self):
         self.ws = None
@@ -91,6 +103,19 @@ class Dev:
             a += size
         return b"".join(out)
 
+    async def player_triple(self):
+        """Read the player triple and assert we are on the flying field."""
+        r = await self.req("memory.read", address="0x%08X" % PLAYER_TRIPLE, size=12)
+        b = base64.b64decode(r.get("base64", ""))
+        v = struct.unpack_from("<fff", b, 0)
+        if not is_world_triple(*v):
+            raise NotOnField(
+                "player triple at 0x%08X reads %s -- NOT on the flying field. "
+                "World coordinates exist only in field mode; off-field the value is exponent "
+                "garbage and every triple would be misclassified as FIXED."
+                % (PLAYER_TRIPLE, tuple(round(x, 1) for x in v)))
+        return v
+
     async def hold(self, x, y, secs):
         t0 = time.time()
         while time.time() - t0 < secs:
@@ -123,6 +148,16 @@ LEGS = [(0.0, -1.0), (1.0, 0.0), (0.0, 1.0), (-1.0, 0.0),
 async def run(args):
     dev = Dev()
     await dev.open()
+
+    # PHASE GATE first: without a valid player triple the classification is meaningless.
+    try:
+        pt = await dev.player_triple()
+        print("# phase OK: player triple = %.1f  %.1f  %.1f" % pt)
+    except NotOnField as e:
+        print("# REFUSING TO RUN: %s" % e)
+        print("# Get the game airborne on the world map (Dragon Walker field), then re-run.")
+        return [], []
+
     snaps = []
     await dev.rest(0.6)
 

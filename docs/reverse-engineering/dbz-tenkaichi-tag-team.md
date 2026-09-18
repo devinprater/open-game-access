@@ -5050,7 +5050,7 @@ from the start.
 | approach | result | verdict |
 |---|---|---|
 | floats constant while the player moves, **all user RAM** | **174,900** hits; 60,411 of them live (>=0x08900000) | ✗ most of memory is static (code, tables, assets, inactive entities), so constancy isolates nothing |
-| fixed **world-scale triples** in the entity band (`0x08B69000-0x08B6C000`) | **0 fixed**, 67 moving | ✗ that band holds only **player-side** data (player + camera/render copies) |
+| fixed **world-scale triples** in the entity band (`0x08B69000-0x08B6C000`) | **runs disagreed: 0 fixed / 10 fixed** | ⚠️ see "the contradiction" below — the disagreement was a PHASE problem, not a data problem |
 | fixed world-scale triples, full RAM | **60,411** | ✗ same constancy problem |
 
 ⭐ **Conclusion: "find the value that does not change" CANNOT isolate a single objective waypoint in
@@ -5120,6 +5120,70 @@ to see the arrow it needs in order to move.
 | player position | ✅ found and cross-validated |
 | text reader | ✅ verified |
 | beacon | ✅ built and validated, parked at the user's request |
+
+# ⚠️ The "0 fixed vs 10 fixed" contradiction — resolved, and it is a PHASE artefact
+
+## What happened
+
+The **same test** (`psp-tt-objective.py --legs 4`, entity band) was run twice and gave opposite results:
+
+```
+run A:  FIXED triples across all snapshots:   0
+run B:  FIXED triples across all snapshots:  10
+        0x08B6A124   208.0  -22.0  1728.0
+        0x08B6A1E4   206.0  -24.0  1815.0
+        0x08B6A3A4   222.0  -17.0  1737.0
+        (plus 7 x  -512.0 -32.0 -128.0 = Q7 camera-basis constants)
+```
+
+⛔ **I committed run A's "0 fixed" as a finding before noticing run B.** That was premature; the two
+runs disagree and the disagreement had to be explained before either could stand.
+
+## The explanation: the runs started in different GAME STATES
+
+Reading the triples directly, with nothing moving:
+
+```
+player  0x08B6A08C:  0.0   -2199023255552.0  -9087579324416.0    <- EXPONENT GARBAGE
+        0x08B6A124:  208.0      -22.0                1728.0      <- sane world coordinates
+        0x08B6A1E4:  206.0      -24.0                1815.0      <- sane
+        0x08B6A3A4:  222.0      -17.0                1737.0      <- sane
+-- all four IDENTICAL after 15 s with no input: every one is STATIC in this state --
+```
+
+⭐ **The player triple holds world coordinates ONLY while on the flying field.** Off-field it reads
+exponent garbage. When that happens, **nothing in the region looks like a moving player entity**, so
+every world-scale triple is classified as FIXED — producing run B's spurious 10 (including the Q7
+`-512/-32/-128` camera constants, which are obviously not waypoints).
+
+**Both runs were correct measurements of different phases:**
+* run A ran on the **field** -> the player triple was moving -> 0 stationary entities.
+* run B ran **off-field** -> no moving player -> everything looked "fixed".
+
+⚠️ This is the **phase-signature trap** again, and it produced a false negative that I published before
+catching it. The triples at `0x08B6A124`/`0x08B6A1E4`/`0x08B6A3A4` are **static in an off-field
+state**, which makes them look like waypoints; they must NOT be treated as objectives until they are
+observed to stay fixed **while the player is demonstrably moving on the field**.
+
+## The fix: a PHASE GATE in the tool
+
+`scripts/psp-tt-objective.py` now refuses to run unless the player triple is valid:
+
+```python
+class NotOnField(RuntimeError): ...
+# reads 0x08B6A08C and requires a plausible world triple, else:
+"REFUSING TO RUN: player triple reads (0.0, -2.2e12, -9.1e12) -- NOT on the flying field."
+```
+
+⚠️ **Rule reinforced:** the player triple at `0x08B6A08C` is itself the most reliable **field-mode
+indicator** found so far — saner than the HP signature, because it fails loudly (exponent garbage)
+rather than reading a plausible-looking `0`.
+
+## Status of the objective: still NOT found, and now for a known reason
+
+With the gate, the next run can be trusted: if it reports fixed world-scale triples **while the phase
+gate passed**, those are genuine candidates. Until that happens, treat all fixed-triple lists from
+off-field states as invalid — including the three addresses above.
 
 ## Status: BLOCKED on reaching a battle
 
