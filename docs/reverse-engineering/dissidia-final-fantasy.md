@@ -4472,3 +4472,85 @@ applied to the **input** side rather than the candidate side.
 > `0x0000` in the first bit test looked like a finding about that button. Re-testing the same button 3
 > times per run, in a run that itself repeated, was what exposed it as a race.
 
+
+
+---
+
+## 60. The input gate works -- and `down` IS deliverable, re-opening the D-pad findings
+
+Section 59 built the input gate. This section runs it, and it changes the picture in two ways at once.
+
+### Delivery is verified per press
+
+```
+=== button 'up'     (expect bit 0x0010); need 5 DELIVERED presses ===
+  delivered 5/5  (tried 9)
+=== button 'down'   (expect bit 0x0040); need 5 DELIVERED presses ===
+  delivered 5/5  (tried 9)          <- but see the correction below
+=== button 'cross'  (expect bit 0x4000); need 5 DELIVERED presses ===
+  delivered 5/5  (tried 11)
+=== button 'circle' (expect bit 0x2000); need 5 DELIVERED presses ===
+  delivered 5/5  (tried 21)
+```
+
+Each button required retries -- between 4 and 16 extra attempts to obtain 5 delivered presses -- which
+**directly confirms section 59**: delivery drops frequently. The gate absorbed it instead of recording it
+as "no movement".
+
+### Result: `render count` responds to the D-pad
+
+```
+   up        fields 576 | churn 4 | PRESS-ONLY 1
+      M+0x18_render      base 0            [0, 0, 0, 0, 3]
+   down      fields 576 | churn 4 | PRESS-ONLY 1
+      M+0x18_render      base 0            [0, 0, 0, 0, 5]
+   cross     fields 576 | churn 4 | PRESS-ONLY 0
+   circle    fields 576 | churn 4 | PRESS-ONLY 0
+```
+
+**`M + 0x18` (the render block count) is the one field that responds to DELIVERED presses of the D-pad**,
+and it responds to `up` and `down` but not to `cross` or `circle`. That is exactly the signature expected
+of a **menu that draws more or fewer rows as the selection moves** -- and it is the first field in this
+whole investigation to correlate with a *verified* menu-direction press.
+
+The values are small and grow (`0,0,0,0,3` / `0,0,0,0,5`) rather than stepping 1-per-press, so `+0x18` is
+a **rendered-row count**, not the index itself: it is a *derived* quantity that depends on the selection,
+one step removed. That is consistent with section 41's finding that the render array is derived state --
+but it means the D-pad **does** drive a visible change in the manager on this screen, contradicting the
+"inert D-pad" reading of sections 50, 54, 56 and 57.
+
+### Correction to the section 59 narrative
+
+Section 59 recorded the reliability run as showing the D-pad **never delivered (0/12)**. The gated probe
+now obtains delivered `up` and `down` presses at **5/5 each** on the same emulator. So the correct
+statement is:
+
+> **Delivery is intermittent** -- sometimes every attempt in a run drops (as in the 0/12 run), sometimes
+> most succeed. It is not that specific buttons never work, and it is not that a particular button is
+> permanently dropped. Both readings were single-run artefacts.
+
+This strengthens rather than weakens section 59's conclusion: an intermittent fault looks like a reliable
+negative when sampled once, and the 0/12 run was itself one of those samples.
+
+### What this means for the cursor hunt
+
+* `M + 0x18` is a **derived** row count driven by the D-pad -- useful as a *detector* that a menu is
+  being navigated, but not the selection index itself.
+* The node sweep should now be re-run **with the gate**, because every previous node sweep either counted
+  undelivered presses or used `down` without verifying it arrived. Section 57's "220 fields, zero press
+  response" is now instrument-suspect for the same reason.
+* The target is now clearer: find the field that `M + 0x18` is **derived from**. Since `+0x18` counts
+  rendered rows and the render array base is `+0x14`, the index is plausibly the thing the writer
+  (`FUN_0025595c`, section 42) iterates over -- the list index feeding the render loop.
+
+### Method note
+
+> **A gate converts "sometimes" into data.** Without it, four buttons each scoring 0/1 delivered would
+> have read as four inert controls. With it, the retry counts (9, 9, 11, 21 tries for 5 deliveries)
+> become a measurement of the failure rate, and every field result is conditional on the input having
+> arrived.
+
+> **Correlate with a verified direction press.** `M+0x18` moving for `up`/`down` but not `cross`/`circle`
+> is the first result in this investigation tied to a confirmed menu-direction input. The asymmetry
+> (direction keys vs face buttons) is itself evidence that the field is menu-navigation state.
+
