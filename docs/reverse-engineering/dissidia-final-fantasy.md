@@ -1965,3 +1965,91 @@ loader — which is exactly why no pointer table exists to find.
 > down a nonexistent pointer table. Cheap property tests on *candidate* results are as valuable as the
 > search itself: a scan's hit count is not evidence until the hits satisfy the type they claim to be.
 
+
+
+---
+
+## 29. `DAT_00397770` is the CHAPTER-NAME TABLE, not the manager (two models, one decisive test)
+
+Section 21 reconciled sections 17/20 by concluding that the menu manager is one static struct beginning
+with a chapter-name array, so `param_1` and `DAT_00397770` were the same object. Section 27 then
+recovered a 36-byte `{ int id; char name[32] }` record layout from it. What was never done is the one
+test that separates the two readings: **read the manager's own header fields and see whether they can be
+a list.**
+
+### The decompile that made the test possible
+
+`DisDecompile4.java` (which the failing WSL job never ran, but whose report already existed) fixed the
+layout of the object the event thunks receive:
+
+* `FUN_0024932c` walks a list from `param_1 + 0x28` (next pointer at `node + 0x24`), and a second list
+  from `param_1 + 0x34`.
+* `FUN_0024910c` maintains them as a **doubly-linked list** with a free pool at `+0x1490`/`+0x1494` and
+  counters at `param_1 + 0x30` and `param_1 + 0x3c`.
+* `FUN_0025468c` resolves a node only when `*(ushort *)(node + 0x20) & 1`, via
+  `base = *(int *)(table + 0xc) + (short)*(node + 0xc) * 0x1c`, bounds-checked against
+  `*(int *)(table + 0x2c)` — **so `node + 0xc` is an INDEX and `table + 0x2c` is a COUNT**.
+
+That gives a sharp prediction: if `DAT_00397770` were the manager, `+0x28` would be a list head and
+`+0x2c` a count-or-tail.
+
+### The test — read both models against the same 256 bytes
+
+**Model 1** — 36-byte records `{ int id; char name[32] }`:
+
+```
+rec0 @+0x000  name='one00'   OK
+rec1 @+0x024  name='two00'   OK
+rec2 @+0x048  name='thr00'   OK
+rec3 @+0x06C  name='for00'   OK
+rec4 @+0x090  name='fiv00'   OK
+rec5 @+0x0B4  name='six00'   OK
+rec6 @+0x0D8  name='sev00'   OK
+   -> 7/7 records parse as {id, printable name}
+```
+
+**Model 2** — manager header at the offsets `FUN_0024932c` uses:
+
+```
++0x28 headA   = 0x00000000   ASCII '....'
++0x2C tailA   = 0x306F7774   ASCII 'two0'
++0x30 countA  = 0x00000030   ASCII '0...'
++0x34 headB   = 0x00000000
+```
+
+**Model 1 wins 7/7 against 0/1**, and the arithmetic closes it exactly:
+
+> record 1's name field is at `0x24 + 0x08 = 0x2C`, and the bytes at `+0x2C` are literally
+> **`b'two00\x00'`** — the name of record 1, `two00`.
+
+So the "list" my first walk of `DAT_00397770` reported was an artefact: it read **string bytes as
+pointers**. `count = 48` is the ASCII value of the character `'0'` in `"two00"`, and `tail = 0x306F7774`
+is `"two0"`. A list walk over a string table produces exactly this kind of confident nonsense, and the
+model test is what exposed it.
+
+### Consequence: the manager is NOT a static struct
+
+This retires the third and final candidate for the manager object. The sequence of eliminations is now:
+
+| candidate | falsified by |
+|---|---|
+| `DAT_00392cd8` | holds engine-service pointers and a constant 290 that never moved (sections 24, 26) |
+| `param_1[8] = -1` | byte `+0x20` = menu-**sound** handle set to unloaded (section 22) |
+| `DAT_00397770` | **is a chapter-name table**, 7/7 records (this section) |
+| the three registered handlers | draw callbacks over a 4,776-byte renderer (section 27) |
+
+**Every object the constructor touches has now been given a different, verified identity — none of them
+is a menu selection container.** So the manager is either reached only through `FUN_00103c60`'s engine
+service (`*(param_1 + 0x2000)`, 28 call sites) or it is heap-allocated at menu-open time and has no
+static anchor at all. The second is more likely, and it is consistent with the constructor allocating a
+`0x40c`-byte object via `FUN_00247b40(0x40c)` and storing it at `param_1[1]`.
+
+### Method note
+
+> **When two structural models fit the same bytes, read the fields each model predicts and see which
+> prediction holds.** A list model predicted pointers at `+0x28`; the record model predicted a name at
+> `+0x2C` because record 1 starts at `0x24` and names sit at `+0x08`. Seven records parsed and the
+> bytes at `+0x2C` were literally `two00` — the models were not equally good, and the test said so in
+> one read. **Do not walk a structure as a list until its fields have been shown to be pointers** —
+> string bytes reinterpreted as addresses fabricate plausible-looking lists.
+
