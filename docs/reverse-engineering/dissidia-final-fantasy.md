@@ -5854,3 +5854,114 @@ lead -- it is the structure the pad layer *hands out*, and it is not the pad obj
 > of the program sees is what the *callback* receives. Looking for the consumer inside the poller is a
 > category error -- and it is what made four attempts land back in the pad layer.
 
+
+
+---
+
+## 74. The "descriptor globals" are a STRIDE-0xC SERVICE TABLE -- and the pad service is in it
+
+Section 73 found the menu never reads the pad object, and pointed at the engine's service registry as the
+missing link. This section resolves the registry's actual shape -- and it is not a linked list.
+
+### `FUN_0033c4d0` is a list insert, but the list is not where the services live
+
+```c
+void FUN_0033c4d0(int *param_1)
+{
+  if ((*param_1 != 0) || (param_1 == DAT_0000e8a0)) {
+    FUN_0033c4b4();
+  }
+  *param_1 = (int)DAT_0000e8a0;      // node->next = head
+  DAT_0000e8a0 = param_1;            // head = node
+  return;
+}
+```
+
+A classic **intrusive singly-linked list insert**, with the head at `DAT_0000e8a0` (`RAM 0x088128A0`). It is
+called **23 times from 23 distinct caller functions (93 references)** -- i.e. once per subsystem.
+
+Walking that list at run time, however, yields **0 nodes**: the head slot contains `0xC48C2B50`, not a RAM
+pointer. So the head is *not* populated in this state, and the registry list is not the structure the
+services are reached through.
+
+### The real structure: a stride-`0xC` table of three-pointer records
+
+The globals that section 73 read as a flat table of scalars are, in RAM, **an array of records** -- every
+word is a pointer, and each record's first field points at the **next** record:
+
+```
+vaddr 0x00392B70  = 0x08B96B7C   PTR
+vaddr 0x00392B74  = 0x09EF73B4   PTR
+vaddr 0x00392B78  = 0x088F9674   PTR   (code)
+vaddr 0x00392B7C  = 0x08B96B88   PTR   -> next record
+vaddr 0x00392B80  = 0x09EF72C4   PTR
+vaddr 0x00392B84  = 0x088F809C   PTR   (code)
+vaddr 0x00392B88  = 0x08B96B94   PTR   -> next record      <-- the "pad descriptor"
+vaddr 0x00392B8C  = 0x09EF72D0   PTR
+vaddr 0x00392B90  = 0x088F9E0C   PTR   (code)
+vaddr 0x00392B94  = 0x08B96BA0   PTR   -> next record
+vaddr 0x00392B98  = 0x08BF8E40   PTR
+vaddr 0x00392B9C  = 0x088EF4A4   PTR   (code)
+vaddr 0x00392BA0  = 0x08B96BAC   PTR   -> next record
+...
+```
+
+Read as records of **three words (0xC stride)**:
+
+| record base | field 0 (`+0x00`) | field 1 (`+0x04`) | field 2 (`+0x08`) |
+|---|---|---|---|
+| `0x08B96B7C` | `0x08B96B7C` (self) | `0x09EF73B4` | `0x088F9674` (code) |
+| `0x08B96B88` | `0x08B96B94` | `0x09EF72C4` | `0x088F809C` (code) |
+| `0x08B96B94` | `0x08B96BA0` | `0x09EF72D0` | `0x088F9E0C` (code) |
+| `0x08B96BA0` | `0x08B96BAC` | `0x08BF8E40` | `0x088EF4A4` (code) |
+
+Three properties are consistent and together they identify the shape:
+
+1. **Field 0 chains** -- each record points at the record `0xC` ahead, so the whole block is traversable
+   from any entry by following `+0x00`. The first record points at itself, so the chain closes.
+2. **Field 2 is always code** (`0x088F9674`, `0x088F809C`, `0x088F9E0C`, `0x088EF4A4` -- all inside the
+   loaded text image). These are **function pointers**.
+3. **Field 1 is always a data pointer** into a distinct region (`0x09EF73B4`, `0x09EF72C4`, `0x09EF72D0` --
+   all clustered, i.e. likely name/state strings or per-service state).
+
+So each record is `{next_record, data_ptr, function_ptr}` -- **a service descriptor**. And the pad's own
+descriptor is the record at `0x08B96B88`, whose handler is `0x088F809C`.
+
+### Why this is the route to the input consumer
+
+The pad service's entry carries a **function pointer**. A service table entry with a handler is exactly how
+an engine lets one subsystem call another without a direct reference -- which is the missing link section 73
+identified. Concretely:
+
+```
+pad static DAT_003925b0 (RAM 0x08B965B0) = 0x09EDA3A0      (the pad OBJECT, verified in s58)
+pad service record                        = 0x08B96B88      {next=0x08B96B94, data=0x09EF72C4, fn=0x088F809C}
+```
+
+The address to convert next is that **function pointer**: `0x088F809C` -> vaddr `0x000F409C`. That is the
+service's handler, and it is a bounded, single-address follow-up.
+
+### What this establishes
+
+* **`FUN_0033c4d0` is an intrusive list insert** (23 callers, one per subsystem) -- and the list head is
+  empty in this state, so the registry list is **not** the reachable route.
+* **The services live in a stride-`0xC` array of `{next, data, fn}` records** at vaddr
+  `0x00392B70`+, with `+0x00` chaining and `+0x08` holding code pointers.
+* **The pad has a service record**, `0x08B96B88`, with handler `0x000F409C` -- the concrete next address.
+
+### Method note
+
+> **Read a "table of scalars" as RAM before treating it as data.** In the ELF these locations look like a
+> flat run of small integers; at run time every one is a pointer, and the structure only becomes visible
+> once the *stride* is applied. The earlier reading (`0x000F5674`, `0x0134CA64`, ...) was the **file image**
+> of a region that is filled in at load time -- the same file-vs-RAM confusion that section 30 resolved for
+> the manager.
+
+> **A repeated stride is the identifier.** Three consecutive 12-byte records, each beginning with a pointer
+> to the next, is a stronger signal than any single field. Looking for `+0x00` chains at a constant delta is
+> what turned an unremarkable word list into a service table.
+
+> **A function pointer in a record is a hand-off.** The route from the pad to the menu is not through the pad
+> object (section 73: 0 of 21) but through the service's handler. That is where to look next, and it is a
+> single address rather than a search.
+
