@@ -2661,3 +2661,72 @@ behaviour from the screen, then require the memory candidate to match it. Here t
 > against the game's own observable behaviour is stronger than any amount of internal plausibility --
 > and it is cheap, because the screen was already being OCR'd.
 
+
+
+---
+
+## 38. The region is cleared: NO wrapping field, so the cursor is not in `0x08BE0000-0x08C20000`
+
+Section 37 ended with a decisive filter: a selection cursor must **return to a value it already held**
+once presses exceed the menu's rows. This section applies it as a positive test over the whole region.
+
+### The test and its result
+
+`psp-find-wrapping.py --press down --rounds 20 --maxperiod 12`: 20 presses (well past the ~6 visible
+rows), three instrument fixes in place (two connections, settle before capture, movement guard), and a
+report of **only** words whose series repeats within 12 samples.
+
+```
+presses that moved the display: 20/20
+
+=== words whose series REPEATS (a wrapping index) ===
+   NONE: no word in this region repeats within period 12
+```
+
+**Zero wrapping fields in the entire 0.25 MB region.** Delivery is now proven solid (20 of 20 presses
+moved the display -- the best rate of any run in this investigation), so this is a fact about the
+region, not another instrument fault.
+
+### What the region actually holds
+
+Combining this with sections 36-37, every press-responsive field in `0x08BE0000-0x08C20000` is
+accounted for, and none is navigation state:
+
+| field(s) | behaviour | identity |
+|---|---|---|
+| `0x08C023BC`..`0x08C026C0` | one-hot marker advancing one slot per press, **index 20 across 22 presses, never wraps** | press counter / growing list index |
+| `0x08C00134`..`0x08C00364` | one entry fills per press, then holds 17/18 forever | event log / allocation record |
+| `0x08BF9700` | alternates and reverts | toggle flag |
+| 3815 pointer-scale movers | advance by 8/56/64 | bump allocator / pool churn |
+
+All monotonic, all explained, none wrapping.
+
+### Conclusion, stated precisely
+
+**The selection index is not in this region.** Two possibilities remain, and they are now distinguishable:
+
+1. the menu's row count exceeds 12, so a wrapping cursor would need a longer sample; or
+2. the cursor lives **outside** this address range -- most likely in the **heap** where the manager was
+   allocated, which sections 27-29 concluded has **no static anchor**.
+
+Since section 37 showed the visible menu wraps at roughly **2-6 rows**, possibility 1 is unlikely: a
+period of 2-6 would have been detected by `maxperiod=12`. So **possibility 2 is the live hypothesis**, and
+it is consistent with the earlier structural conclusion that the menu manager is allocated at menu-open
+time rather than living in a static.
+
+### The next step this implies
+
+Find the **heap allocation** the constructor made. `FUN_002489d0` allocated a `0x40c`-byte object via
+`FUN_00247b40(0x40c)` and stored it at `param_1[1]`. On the **live pause menu**, resolve that pointer and
+read it -- that is where a heap-resident menu object's selection field would be. This is a targeted read
+of a known pointer, not another blind region diff.
+
+### Method note
+
+> **A positive test beats a growing exclusion list.** Rather than continuing to catalogue what each
+> press-responsive field *is* (sections 36-38 did that for four classes), state the one property the
+> target must have -- here, periodicity -- and test the whole region for it in a single run. "No word
+> repeats within period 12" clears 0.25 MB at once and, combined with the screen's own wrap behaviour,
+> tells you the target lies outside the range. Clearing a region is progress: it converts "not found
+> here" into "not here."
+
