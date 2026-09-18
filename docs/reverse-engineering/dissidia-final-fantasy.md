@@ -2564,3 +2564,100 @@ The corrected sequence is:
 > independently**; and keep the guard that refuses to analyse when the expected effect did not appear,
 > because that guard is what surfaced this.
 
+
+
+---
+
+## 37. The corrected press-diff found a real press-driven walk — and the wrap test rejected it
+
+Sections 31-36 progressively fixed the instrument. With all three faults repaired the press-diff finally
+produced a controlled result, and the **wrap test** then ruled the candidate out. Both halves matter.
+
+### The corrected run, with every fault fixed
+
+`psp-diff-press3.py`: **two debugger connections** (reader + presser, section 36), **1.5 s settle** after
+each bulk read before capture (section 36), **12 samples** for a ~6-row menu (section 34), and a **refusal
+guard** if no press moved the display (section 35).
+
+**Every press was verified delivered:**
+
+```
+press 1 :   247209 px        press 7 :   247189 px
+press 2 :   247209 px        press 8 :   247189 px
+press 3 :   247189 px        press 9 :   247189 px
+press 4 :   247313 px        press 10:   247189 px
+press 5 :   247313 px        press 11:   247189 px
+press 6 :        0 px <-- highlight already at a list boundary
+press 12:   247209 px
+```
+
+Only one press in twelve moved nothing (the boundary), and the log makes that visible instead of silent.
+
+### The candidate: a one-hit-per-press walk
+
+```
+0x08C023BC  [1,0,0,0,0,0,0,0,0,0,0,0,0]   press 1
+0x08C023FC  [0,1,0,0,0,0,0,0,0,0,0,0,0]   press 2
+0x08C0243C  [0,0,1,0,0,0,0,0,0,0,0,0,0]   press 3
+0x08C0247C  [0,0,0,1,0,0,0,0,0,0,0,0,0]   press 4
+0x08C024BC  [0,0,0,0,1,0,0,0,0,0,0,0,0]   press 5
+0x08C024FC  [0,0,0,0,0,1,1,0,0,0,0,0,0]   press 6   (boundary: two set)
+0x08C0253C  [0,0,0,0,0,0,0,1,0,0,0,0,0]   press 7
+```
+
+A second block filled one entry per press as well, by an alternating stride:
+
+```
+0x08C00134  [0,18,18,18,...]     0x08C001A4  [0,0,0,18,18,...]
+0x08C0016C  [0,0,17,17,...]      0x08C001DC  [0,0,0,0,17,...]
+```
+
+### The no-press control: clean
+
+The same fields sampled eight times with **no press at all**:
+
+```
+0x08C023BC..0x08C025FC   all 0
+0x08C00134   18 18 18 18 18 18 18 18
+0x08C0016C   17 17 17 17 17 17 17 17
+0x08C001A4   18 18 18 18 18 18 18 18
+```
+
+So the walk is genuinely press-driven, and the 17/18 block holds steady values when nothing is pressed.
+This is a much stronger result than any earlier attempt: real effect, clean control, verified delivery.
+
+### The wrap test rejects it
+
+The candidate index advances without bound:
+
+| presses | slot holding 1 |
+|---|---|
+| 12 | 11 |
+| 22 | **20** |
+
+**Maximum index 20 across 22 presses**, monotonic throughout. But the **visible menu wraps at about two
+items** -- OCR of the panel showed `Retry` -> `Return to Game`. A selection cursor must wrap at the list
+length; this one increments indefinitely.
+
+**Conclusion: it is a press counter / event index / growing list index, NOT the highlight.**
+
+The distinction is exactly the one section 33 established in reverse: measure the *game's* wrapping
+behaviour from the screen, then require the memory candidate to match it. Here the screen said "wraps at
+2" and the candidate said "wraps at never", and that single comparison settled it.
+
+### Where this leaves the cursor
+
+* The **measurement pipeline is now sound** and this is the first run where that is true: verified
+  delivery, clean control, adequate sampling, refusal guard.
+* The **cursor remains unfound**, and what the pipeline returns from `0x08BE0000-0x08C20000` is
+  allocation/list bookkeeping rather than navigation state.
+* The wrap test gives a decisive, cheap filter for the next candidate: **press more times than the menu
+  has rows and require the index to return to its start.**
+
+### Method note
+
+> **Derive the expected behaviour from the SCREEN, then require it of the candidate.** The screen showed a
+> 2-item wrap; the memory candidate never wrapped; so it is not the same quantity. Comparing a candidate
+> against the game's own observable behaviour is stronger than any amount of internal plausibility --
+> and it is cheap, because the screen was already being OCR'd.
+
