@@ -2134,3 +2134,110 @@ name field, which is static, while the fields around it are not.
 > binary the RX segment contains labelled "statics" that are really code and really BSS scratch, and
 > three prior identity conclusions were wrong for exactly that reason.
 
+
+
+---
+
+## 31. A controlled press-diff: press-responsive fields found, but NO selection index
+
+Sections 24-30 tried to find the highlight by reasoning about decompiled objects. This section uses a
+different method entirely -- **difference a bounded writable region across one press, then control for
+churn** -- and it produces a clean, well-controlled negative.
+
+### Why the method is different from the failed early scans
+
+Earlier full-RAM differencing produced 174,900 and 75,223 "fixed triples" dominated by static code,
+because the whole readable span was filtered for float shapes. Section 30 explained why that could
+never work: the EBOOT is **one RX segment (0x00000000-0x003A6860) plus a small RW segment**, so most of
+the span is immutable. This method diffs only a bounded region that can plausibly hold state and uses
+**one press**, not thousands of frames.
+
+### Step 1 -- region diff across a single `down`
+
+`psp-diff-press.py --press down --lo 0x08BA6860 --hi 0x08D20000` (3.5 MB), with the screen capture
+verified before and after so the press could not silently fail:
+
+```
+screen CHANGED (press landed)
+4-byte words that changed: 4109
+clusters (gaps < 0x40):
+   0x08BB3100..0x08BB70FC  4096 word(s)     <-- one 16 KB scratch buffer
+   0x08BFF928..0x08BFF980    13 word(s)
+   0x08C01A9C..0x08C01B14    17 word(s)
+   ... plus ~19 SMALL clusters of 1-3 words
+```
+
+The 4096-word cluster is a single contiguous 16 KB buffer (frame/audio scratch) -- unrelated churn. The
+**1-3 word clusters are the size a selection index would be**, so those became the candidates.
+
+### Step 2 -- watch the candidates across 5 presses
+
+`psp-watch-words.py --press down --steps 5` over 17 candidate words, classifying each series:
+
+```
+0x08BFC194  146798928 146798984 146799040 146799096 146799152 146799208  step 56
+0x08BFEA28  146798928 146798984 146799040 146799096 146799152 146799208  step 56
+0x08C00A28  146786392 146786400 146786408 146786416 146786424 146786432  step 8
+0x08C01990  146807512 146807576 146807640 146807704 146807768 146807832  step 64
+0x08C043D8  146803584 146803592 146803600 146803608 146803616 146803624  step 8
+0x08BAC75C  0 1 0 0 1 1        <- 0/1
+0x08BF9700  0 1 0 0 1 0        <- 0/1
+```
+
+### Step 3 -- the control that makes it meaningful
+
+The same six samples taken **with no press at all**, at the same 1.1 s interval:
+
+```
+0x08BFC194  [146799208 x6]  steps=[0]
+0x08BFEA28  [146799208 x6]  steps=[0]
+0x08C00A28  [146786432 x6]  steps=[0]
+0x08C01990  [146807832 x6]  steps=[0]
+0x08C043D8  [146803624 x6]  steps=[0]
+0x08BF8D68  steps=[1134466, 1134467]   <- free-running (not press-related)
+```
+
+**So the words are genuinely press-responsive: constant without presses, advancing by a fixed step with
+them.** They are not timing counters, and the press is definitely reaching the game's data.
+
+### The negative, and why it is informative
+
+**All five press-responsive words are pointer-scale, not ordinals:**
+
+```
+146798928 = 0x08BF...
+146786392 = 0x08BF...
+146807512 = 0x08C0...
+```
+
+A selection index is a *small* integer (0..20). These increments of 8 / 56 / 64 are consistent with a
+**bump allocator or record cursor advancing one entry per press**, i.e. press-driven allocation inside
+arrays whose record strides are 8, 56 and 64 bytes. Notably **`0x08BFC194` and `0x08BFEA28` hold the
+*same* value and step together**, which is what two aliases into one structure look like.
+
+So: **the press registers, the game does per-press work, and no small-ordinal field moved anywhere in
+the 3.5 MB writable region.** For the PAUSED menu that is consistent with the screen evidence -- `down`
+changed the display only 1 time in 3 earlier rounds, so this menu does not scroll with `down`. The
+correct conclusion is that the **pause menu is a poor target**, not that the cursor is absent from the
+game.
+
+### What the method is now good for
+
+The pipeline is proven and cheap, and it needs only a screen that actually scrolls:
+
+1. reach a **static UI screen** (`psp-reach-menu.py` finds it and names the button);
+2. diff a bounded region across **one press of the control that screen uses** (`psp-diff-press.py`);
+3. keep only the **small clusters** (discard any multi-hundred-word contiguous buffer);
+4. watch them across repeated presses **and run the no-press control** (`psp-watch-words.py`);
+5. accept only a **small-ordinal** series -- pointer-scale values are allocators.
+
+Step 4 is the one that cannot be skipped: without it, a free-running counter advancing once per press
+interval looks exactly like a cursor following the highlight.
+
+### Method note
+
+> **A field that moves when you press is not a cursor until you show it does NOT move when you don't.**
+> The no-press control promoted five words from "suspicious" to "definitely press-driven", and their
+> *magnitude* then demoted them from cursor candidates to allocator cursors. Both checks are cheap and
+> either one alone would have produced a wrong answer.
+
