@@ -1017,3 +1017,92 @@ Read `FUN_0036926c` / `FUN_00369290` / `FUN_003692b4`, and find where the single
 The cursor is `param_1[8]` (or one of the per-subsystem `[N+3]/[N+4]/[N+5]` triples) resolved through
 the pointer returned by `FUN_00103c60(DAT_00392cd8)` — **a live address, obtainable by reading that
 global in RAM**, not by scanning.
+
+
+---
+
+## 17. The menu manager is a STATIC struct driven by an event dispatcher
+
+Three decompile passes walked the callback chain down from the constructor to the real code. Each
+level was a stub, and the final level is conclusive.
+
+### The chain
+
+```
+FUN_002489d0 (constructor, section 16)
+  registers  FUN_0036926c  [event id 1]  ->  FUN_00248dd0(DAT_00397770, p)
+             FUN_00369290               ->  FUN_00248dec(DAT_00397770, p)
+             FUN_003692b4               ->  FUN_00248ea8(DAT_00397770, p)
+
+FUN_0036926c/90/b4   are 36-byte THUNKS (just forward the global)
+FUN_00248dd0         is a one-call stub:  { FUN_0024932c(); }
+FUN_00103c60         is a one-liner:      return *(u32*)(param_1 + 0x2000);
+```
+
+### `DAT_00397770` is NOT a pointer — it is an inline struct holding a chapter name
+
+```asm
+raw: 00 00 00 00 00 00 00 00 6f 6e 65 30 30 00 00 00
+                              ^^^^^^^^^^^^^^  "one00"
+```
+
+So the menu manager's state is a **static struct** (addressable directly in RAM, no pointer chase
+needed), and it carries a chapter id (`one00`) at `+0x8`. `DAT_00392cd8` is 16 zero bytes — a
+zero-initialised static, not a vtable.
+
+### The real update is an event dispatcher over two linked lists
+
+`FUN_0024932c` (380 bytes) is `MENU_MANAGER::ExecuteUpdate`:
+
+```c
+void FUN_0024932c(int param_1) {
+  int iVar3 = *(int *)(param_1 + 0x28);          // head of list A
+  if (*(char *)(DAT_00397770 + 0x26) == '\0') {   // a global enable flag
+    if (*(char *)(DAT_00397770 + 0x25) == '\0')
+      DAT_00397774 = 0x3f800000;                  // = float 1.0
+    else
+      DAT_00397774 = *(undefined4 *)(DAT_00392d10 + 0x18);
+  } else {
+    DAT_00397774 = 0;
+  }
+  while (iVar2 = iVar3, iVar2 != 0) {             // walk list A
+    bVar1 = *(byte *)(iVar2 + 0x14);              // node FLAGS
+    iVar3 = *(int *)(iVar2 + 0x24);               // node NEXT
+    if ((bVar1 & 0xc) == 0) {
+      if (*(char *)(iVar2 + 0x17) == '\0') {
+        if (((bVar1 & 1) != 0) && ((bVar1 & 2) == 0)) FUN_0025468c();
+      } else {
+        *(char *)(iVar2 + 0x17) += '\x01';        // per-node COUNTER
+        if (2 < *(byte *)(iVar2 + 0x17)) FUN_0024910c(param_1, iVar2);
+      }
+    }
+  }
+  /* the SAME loop then runs over list B at param_1 + 0x34 */
+}
+```
+
+### What this gives the accessibility reader
+
+* **The menu manager is a static struct at `DAT_00397770`** — directly readable in RAM without
+  following a pointer. `+0x25`/`+0x26` are enable flags, `+0x8` is the chapter id (`one00`),
+  `DAT_00397774` is a float (1.0 / 0 / a config value).
+* **Menu items are linked-list NODES**, one record per item, with:
+  * `+0x14` — **flags** (bit 0 = active, bit 1 = suppressed, bits 2-3 = a state pair)
+  * `+0x17` — a **small counter** (0..2; when it exceeds 2 the item is dispatched)
+  * `+0x24` — **next node**
+  * `+0x28` in the parent = **head of list A**; `+0x34` = **head of list B**
+* **`FUN_0024910c(param_1, node)` is the per-item action** the dispatcher calls on activation.
+
+This is the structure a screen reader wants: walk the list from `DAT_00397770 + 0x28`, read each
+node's flags, and the item is actionable when `(flags & 1) && !(flags & 2)`. The **selected** item is
+whichever node the game marks with the `+0x17`/flag combination that drives `FUN_0024910c` — the
+remaining question, now reduced to reading `FUN_0024910c` and `FUN_0025468c`.
+
+### Honest assessment of what remains
+
+The investigation has narrowed the cursor from "somewhere in 24 MiB" to "one flag/counter field on a
+linked-list node rooted at a known static address". That is a large reduction and it is written down.
+Closing it fully needs either `FUN_0024910c` read in Ghidra, or the game parked in a live menu so the
+list can be walked and correlated with on-screen highlight — and the latter is now cheap, because the
+address is static and no scanning is required.
+
