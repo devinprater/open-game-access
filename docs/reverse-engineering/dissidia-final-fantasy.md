@@ -7143,3 +7143,91 @@ reader enumeration conclusive: a consumer of a "just-pressed" bit is doing input
 > in decompiled output is faster than tracing the data flow, and it immediately explains the repeat timer
 > that follows.
 
+
+
+---
+
+## 86. CONFIRMED LIVE: `pad + 0xC0` IS the input event object, with one-frame edge bits
+
+Section 85 identified the event layout in code and predicted the object. This section verifies it at run time
+with the input gate -- and all three predictions hold.
+
+### At rest
+
+```
+=== pad+0xC0 (0x09EDA460) at rest ===
+      +0x00 current  = 0x00000000 0x00000000
+      +0x08 pressed  = 0x00000000 0x00000000
+      +0x10 released = 0x00000000 0x00000000
+      +0x18 changed  = 0x00000000 0x00000000
+      +0x30 timer    = 0
+=== pad+0x110 (0x09EDA4B0) at rest ===   (identical)
+```
+
+### During a gated press of `cross` (bit `0x4000`)
+
+```
+t=+0  current 0x00084004/0x00000004   pressed 0x00084004/0x00000004   released 0x00000000/0x00000000   timer 30
+t=+1  current 0x00000000/0x00000000   pressed 0x00000000/0x00000000   released 0x00000000/0x00000000   timer 30
+t=+2..+4  (all zeros)                                                        timer 30
+```
+
+**Three predictions confirmed at once:**
+
+1. **`pad + 0xC0` is the event object** -- the press writes directly into it, so the object the read
+   watchpoints kept landing in (sections 78, 81) is the object `FUN_000f6694` operates on. Sections 80's and
+   85's chains therefore terminate at the **same** structure, which is why the read watch found the same two
+   PCs both times.
+
+2. **The edge bits are one-frame.** At `t=+0` (immediately after the gated press) `pressed` mirrors
+   `current`; by `t=+1` it is **cleared** while `current` is also back to zero. A field that is set on the
+   press frame and gone the next sample is exactly `(new ^ old) & new` -- **just-pressed**, captured.
+
+3. **The timer reads 30**, matching the code's reload from `pad + 0x260` (`0x0000001E` = `30.0f`). That
+   independently confirms section 85's reading of `+0x30` as the key-repeat delay.
+
+### The bit values are informative beyond the confirmation
+
+`current = 0x00084004`. Decoding: `0x4000` = **cross** (the button pressed) and `0x0004`... which is **not** a
+standard PSP button bit (`0x0001` select, `0x0002` unused, `0x0004` unused in `sceCtrl`). So the second word
+of the pair (`0x00000004`) and the `0x0004` bit are in the **game's logical bit space**, not the hardware's --
+consistent with the translator (section 79) mapping raw bits to game actions, and with `0x0008`/`0x0004`
+being *action* bits. That is a further independent confirmation that this object holds **translated game
+input**, not raw pad state.
+
+### What this closes
+
+```
+sceCtrl -> pad object (+0x00 raw)
+        -> FUN_000f7138 reads raw
+        -> FUN_000f70c4 maps raw -> LOGICAL action bits          (s79)
+        -> FUN_000f7028 hands bits on                             (s85)
+        -> FUN_000f6694 writes EVENT STATE into pad+0xC0          (s85, CONFIRMED s86):
+             +0x00/+0x04 current | +0x08/+0x0C just-pressed
+             +0x10/+0x14 just-released | +0x30 repeat timer (30)
+```
+Verified at every link, and now verified **at run time** at the final one.
+
+### The decisive next measurement, now fully specified
+
+The menu's input handling reads `pad + 0xC0 + 0x08` (or `+0x0C`). A **READ watchpoint on `pad + 0xC0 + 0x08`**
+enumerates exactly those consumers -- and unlike the earlier reader enumerations, a consumer of a
+*one-frame just-pressed bit* is unambiguously doing input handling. That is the terminal measurement of this
+search, and every ingredient is in place: the address, the semantics, the instrument (verified in sections
+78/81), and the liveness guard.
+
+### Method note
+
+> **Predict the observation before running.** Section 85 derived the layout from code and stated the
+> expectation: `+0x08` set on the press frame, cleared the next; timer = 30. All three held. A verification
+> that can fail is worth more than one that only confirms.
+
+> **A one-frame field is identified by disappearing, not by appearing.** `pressed` at `t=+0` could have been
+> "current state"; what proves it is an edge is that it is **gone at `t=+1` while `current` also returns to
+> zero**. Designing the sampling to span the release is what made the distinction visible.
+
+> **The bit values falsify the raw-state reading.** `0x0004` is not a `sceCtrl` bit, so the object cannot be
+> raw pad state -- it holds the game's own action bits. Checking the *values* against the hardware spec is
+> what turned a layout confirmation into a confirmation of the **translation** as well, independently of
+> sections 79-80.
+
