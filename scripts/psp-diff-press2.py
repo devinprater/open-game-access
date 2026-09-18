@@ -112,13 +112,28 @@ def main():
 
     # verify the screen actually moved between consecutive samples, else the comparison is void
     print("=== screen movement between samples (must be > 0, else the press did not land) ===")
+    moved = 0
     for i in range(1, len(samples)):
         pa, pb = samples[i - 1][0], samples[i][0]
         if not pa or not pb:
             print("  sample %d: CAPTURE FAILED" % i)
             continue
         n = pixdiff(pa, pb)
+        if n:
+            moved += 1
         print("  sample %d: %d changed pixels %s" % (i, n, "" if n else "<-- SAME STATE"))
+
+    # REFUSE when the press did not move the display. Without this the script compares samples of an
+    # unchanging screen and every "changed field" it reports is unrelated to the highlight -- which is
+    # exactly the false positive that a previous run produced (doc sections 34/35).
+    if moved == 0:
+        print()
+        print("REFUSING TO ANALYSE: the display did not change across any press, so no field below")
+        print("could be attributed to a moving highlight. Nothing here is evidence about the cursor.")
+        print("Likely causes: the highlight is already at the list end, the menu closed, or this")
+        print("screen does not use '%s'. Re-reach a scrolling menu and confirm movement first." % a.press)
+        d.close()
+        return 2
 
     print()
     print("=== candidate fields: value moves AND stays in a small range (a real selection index) ===")

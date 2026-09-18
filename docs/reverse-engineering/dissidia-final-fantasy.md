@@ -2492,3 +2492,75 @@ the number of samples, not the target.
 > than its period is unsupported -- and the fix is to count the positions first, then sample past that
 > count, then reproduce.
 
+
+
+---
+
+## 36. ROOT CAUSE: hammering region reads on a PPSSPP debugger connection suppresses button presses
+
+Sections 34 and 35 produced contradictory results -- manual presses moved the highlight, but the tool's
+presses appeared to do nothing -- and section 35's refusal guard caught the contradiction. The cause is
+now identified and reproduced, and it invalidates several earlier runs.
+
+### The reproduction
+
+Three cases, all verified by comparing shell-captured screens:
+
+| case | press mechanism | result |
+|---|---|---|
+| manual (shell) | separate `psp-press-sweep.py` process | **247,189** px changed |
+| tool-like | press on the **same socket** after 20 region reads | **8,024** px changed |
+| fixed | press on a **separate debugger connection** after 20 reads | **247,189** px changed |
+
+So a button press sent on the **same connection that is being hammered with `memory.read`** is delivered
+at roughly **1/30th** of its effect -- the highlight does not move. Using a **second connection** for
+input restores full delivery.
+
+### Why this matters more than a nuisance bug
+
+Every press-diff run in sections 31, 34 and 35 sent presses on the connection it was also reading
+through. Concretely:
+
+* **Section 34's re-run** saw `0 changed pixels` across all 12 presses -- the presses were effectively
+  swallowed, and the script analysed anyway, producing the `[0,1,0,0]/[0,0,1,0]/[0,0,0,1]` pattern that
+  had to be retracted.
+* **Section 31** did observe screen changes and reported small-ordinal movers, but a suppressed press
+  produces a *partial* change (~8k px rather than ~247k px). Those "press-responsive" small ordinals are
+  therefore **not safely attributable to a moving highlight** -- they may be the game's response to a
+  partially delivered input.
+* The **no-press control** in section 31 remains valid (it showed 0), so the fields were genuinely
+  press-related; what is now doubtful is *what* they were tracking.
+
+So this is the fourth instrument defect in this investigation, and like the others it produced a
+**confident wrong answer** rather than an obvious failure.
+
+### The fix
+
+`psp-diff-press2.py` now refuses to analyse when no press moved the display (implemented in section 35,
+and what caught this case), and the corrected procedure is:
+
+> **Use a dedicated debugger connection for input, separate from the connection used for memory reads.**
+
+Verified working: reader connection hammered with reads + a second connection for the press yields the
+full 247,189-pixel change, i.e. the highlight really moves.
+
+### Consequence
+
+The press-diff route must be re-run with the two-connection split before any of its results are believed.
+The corrected sequence is:
+
+1. reach a **scrolling** menu and confirm the highlight moves (`psp-scroll-test.py`, or OCR the panel);
+2. hold a **read connection** for RAM and a **separate input connection** for presses;
+3. take **at least 12 presses** (more samples than menu rows -- section 34's rule);
+4. require the screen to change on each press (section 35's guard);
+5. follow **one** field through the full sequence, then reproduce it.
+
+### Method note
+
+> **A tool's I/O can interfere with the very thing it measures.** Here the measurement channel (bulk
+> `memory.read`) degraded the control channel (button input) on the same connection, at a 30x effect
+> ratio -- enough to make a working menu look inert, and small enough to survive as a plausible partial
+> response. When a probe both drives and observes, **separate the two paths and verify the drive
+> independently**; and keep the guard that refuses to analyse when the expected effect did not appear,
+> because that guard is what surfaced this.
+
