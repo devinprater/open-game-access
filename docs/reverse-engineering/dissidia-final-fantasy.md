@@ -4554,3 +4554,119 @@ negative when sampled once, and the 0/12 run was itself one of those samples.
 > is the first result in this investigation tied to a confirmed menu-direction input. The asymmetry
 > (direction keys vs face buttons) is itself evidence that the field is menu-navigation state.
 
+
+
+---
+
+## 61. The SELECTION recipe from the render loop -- extracted in code, and it resolves in RAM
+
+Section 60 pointed at the render writer's **caller** as the place the index must come from. This section
+decompiles that caller and extracts an explicit selection recipe from it.
+
+### The caller: `FUN_0024aee0` (the 4,776-byte render loop)
+
+`DisRenderCallers.java` (2 callers, `FUN_0024aee0` and `FUN_0025595c` itself) produced a 927-line report.
+The render loop walks the manager's list and, for every node, computes a value passed to a draw call:
+
+```c
+local_50 = (int *)param_2[3];
+for (puVar16 = (undefined4 *)*param_2; puVar16 != (undefined4 *)0x0;
+     puVar16 = (undefined4 *)puVar16[0xf]) {                 // walk list; next at +0x3C
+  if ((*(ushort *)(puVar16 + 8) & 0x8000) != 0) {            // active/visible flag
+    if ((int)*(short *)(puVar16 + 3) < local_50[0xb]) {
+      iVar13 = local_50[3] + *(short *)(puVar16 + 3) * 0x1c;  // index * 0x1c stride
+    } else {
+      iVar13 = 0;
+    }
+    iVar13 = FUN_0025595c(*puVar16, param_2, iVar13, puVar16[0xb], puVar16);
+    *(int *)(param_1 + 0x1c) = *(int *)(param_1 + 0x1c) + iVar13;
+  }
+}
+...
+iVar13 = -1;
+if ((undefined4 *)param_2[4] != (undefined4 *)0x0) {
+  iVar13 = (*(short *)(param_2[4] + 4) + -1) * 0x10000 >> 0x10;   // <-- SELECTION, 1-based
+}
+FUN_002478e0(*(undefined4 *)(param_1 + 4), *(undefined4 *)param_2[4], iVar13);
+```
+
+Two things are explicit here:
+
+1. **The node layout is confirmed a third time**: `puVar16 + 3` (i.e. `+0x0C`) is a **short index**, used
+   with the **`0x1c` stride** and bounded by a count at `local_50[0xb]` -- matching `FUN_0025468c`
+   (section 39) exactly.
+2. **The selection recipe is:** `param_2[4]` (= `node + 0x10`) is a **pointer**; the value at
+   `that_pointer + 4` read as a **signed short**, minus 1, is passed as the third argument to a draw
+   call. A `- 1` on a stored integer handed to the renderer is the signature of a **1-based selection
+   index**.
+
+`param_2` is a node of the manager's list (`FUN_0024aee0` ends with `param_2 = param_2[9]`, i.e. it
+advances by `+0x24` -- the node's `next` link, confirmed in sections 39 and 55).
+
+### The recipe in RAM: it resolves, structurally
+
+`psp-cursor-recipe.py` applies `q = read32(N + 0x10)`, `sel = read_s16(q + 4)` to every node, with the
+**input gate** verifying each press at the pad button word:
+
+```
+manager 0x08C08EB0  nodes 33  render 0
+   n0   q=0x08C160AC  SEL=10    idx=20936
+   n1   q=0x08C16124  SEL=2     idx=16528
+   n2   q=0x08C16110  SEL=2     idx=16412
+   n3   q=0x08C160FC  SEL=2     idx=16296
+   n4   q=0x08C160AC  SEL=10    idx=20588
+   n5   q=0x08C16084  SEL=2     idx=15252
+   n6   q=0x08C16070  SEL=3     idx=15136
+   n7   q=0x08C15F30  SEL=2     idx=20472
+```
+
+**Every node's `q` is a valid RAM pointer**, all landing in a contiguous block
+(`0x08C15F30`-`0x08C16214`), and `q + 4` reads a small ordinal. So the recipe is correct: `node + 0x10`
+really is a pointer, and the pointer really leads to a struct whose `+4` is the small index the draw
+call receives. That is an **independent confirmation from RAM of the decompiled expression**, and it
+identifies a concrete per-node selection field.
+
+### But SEL did not move under delivered presses
+
+```
+=== 'up'   (bit 0x0010): delivered 6/6 (tried 16) ===
+=== 'down' (bit 0x0040): delivered 6/6 (tried 24) ===
+
+   --- up ---     n0 [10,...]  n1 [2,...]  n4 [10,...]  n6 [3,...]   (all constant)
+   --- down ---   n0 [10,...]  n1 [2,...]  n4 [10,...]  n6 [3,...]   (all constant)
+   MOVES lines: 0
+   render count: [0, 0, 0, 0, 0, 0]
+```
+
+**The readings are valid** -- 6/6 delivered both times, liveness asserted, and the retry counts (16 and
+24 tries for 6 deliveries) again show the intermittence the gate is absorbing.
+
+`SEL` values look like a **per-item stored ordinal** (a definition index), not the highlight: several
+distinct nodes share `SEL=10`, `SEL=2` and even the same `q` pointer (`n0`, `n4`, `n12`, `n13`, `n16` all
+`q=0x08C160AC`), which is consistent with shared item definitions rather than one moving cursor.
+
+And critically: **`render count` was 0 on this screen.** Section 60 established that `M + 0x18` responds
+to delivered D-pad presses -- but only on a screen that *draws rows*. Here nothing is being drawn, so the
+render loop that consumes this recipe is not running, and a cursor would not be exercised.
+
+### Status
+
+* **Confirmed in code**: `node + 0x10` is a pointer; `(s16 at ptr + 4) - 1` is passed to a draw call as
+  a 1-based index; the node index/stride (`+0x0C`, `0x1c`) is confirmed a third time.
+* **Confirmed in RAM**: the pointer resolves and the field holds small ordinals -- the recipe is real.
+* **Not established**: that `SEL` is the *highlight* rather than a per-item stored index (the repetition
+  of values argues against), and whether it moves on a screen that actually draws -- this screen had
+  `render count = 0`.
+
+### Method note
+
+> **Follow the writer to its caller, then read the caller's arguments.** The selection was not found by
+> scanning; it was found by asking what the render loop passes to its draw call. `FUN_0025595c` said
+> *where rows are written*; `FUN_0024aee0` says *which index each row is drawn with* -- and the `- 1`
+> on a stored short is what identifies the second thing as a selection rather than a count.
+
+> **A recipe can be valid and still not fire.** The recipe resolves cleanly in RAM and is confirmed by
+> the decompile, yet it is static because the screen draws nothing (`render count = 0`). Validating the
+> *structure* is separable from observing the *behaviour*, and saying which one was achieved keeps the
+> result usable: the structure is settled, the behaviour needs a drawing menu.
+
