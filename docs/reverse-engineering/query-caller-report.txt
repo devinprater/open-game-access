@@ -1,0 +1,39 @@
+=== FUN_000f71c8: the ONLY caller of the bit-test predicate (doc section 87) ===
+predicate FUN_000f67c0 = 0x000F67C0
+
+############ LEVEL 1 ############
+
+=== FUN_000f71c8 @ 000f71c8  size=92 ===
+  MENU INDICATORS: (none)
+
+  --- decompiled ---
+
+undefined4 FUN_000f71c8(undefined4 param_1,undefined4 param_2,undefined4 param_3,undefined4 param_4)
+
+{
+  int iVar1;
+  undefined4 uVar2;
+  
+  iVar1 = FUN_00360828();
+  if (iVar1 == 0) {
+    uVar2 = FUN_000f67c0(param_1,param_2,param_3,param_4);
+  }
+  else {
+    uVar2 = 0;
+  }
+  return uVar2;
+}
+
+
+  ------------------
+
+  --- CALLS ---
+     00360828  FUN_00360828  size=24
+     000f67c0  FUN_000f67c0  size=28
+
+  --- CALLED BY ---
+     (none -- reached by pointer? or a root)
+
+
+=== ALL FUNCTIONS REACHED ===
+   000f71c8  FUN_000f71c8  size=92
