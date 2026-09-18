@@ -8184,3 +8184,107 @@ and it is a call-site read, not a search.
 > known node structure -- yet one contains `index < 0 || count <= index`. Ranking by *shape of the test*
 > found in minutes what value-diffing 24 MB could not, because the test is what defines a selection.
 
+
+
+---
+
+## 96. The getters confirm the roles -- and the consumer calls "what is selected"
+
+Section 95 found `FUN_00250538` (the bounds-checked list accessor) and left two checks: confirm the field
+roles in the getter bodies, and show who asks "what is selected". Both are now done.
+
+### The getter bodies ARE the field definitions
+
+```
+undefined4 FUN_00251278(int param_1)          // called as FUN_00251278(param_1 + 0x28)
+{
+  iVar1 = FUN_00251238();
+  if (iVar1 == 0) { uVar2 = 0xffffffff; }
+  else { uVar2 = *(undefined4 *)(param_1 + 0x14); }     // <-- THE INDEX, at +0x14 of the sub-object
+  return uVar2;
+}
+
+undefined4 FUN_0025236c(int param_1)          // called as FUN_0025236c(param_1 + 0x60)
+{
+  iVar1 = FUN_00252364();
+  if (iVar1 == 0) { uVar2 = 0; }
+  else { uVar2 = *(undefined4 *)(param_1 + 0x1e0); }    // <-- THE COUNT, at +0x1e0 of the sub-object
+  return uVar2;
+}
+
+int FUN_00252424(int param_1, uint param_2)   // called as FUN_00252424(param_1 + 0x60, index)
+{
+  iVar1 = FUN_00252364();
+  if (iVar1 == 0) { iVar1 = 0; }
+  else if (param_2 < 7) {
+    if (param_2 < *(uint *)(param_1 + 0x1e0)) {
+      iVar1 = param_1 + 4 + param_2 * 0x44;             // <-- ELEMENT = base + 4 + idx * 0x44
+    } else { iVar1 = 0; }
+  } else { iVar1 = 0; }
+  return iVar1;
+}
+
+undefined4 FUN_00251de4(int param_1)           // called on the resolved element
+{
+  iVar1 = FUN_00251da4();
+  if (iVar1 == 0) { uVar2 = 0xffffffff; }
+  else { uVar2 = *(undefined4 *)(param_1 + 0x18); }     // <-- the selected item's +0x18
+  return uVar2;
+}
+```
+
+Resolved to the caller's frame (`param_1` of `FUN_00250538`):
+
+| role | location | stride / bound |
+|---|---|---|
+| index | `param_1 + 0x28 + 0x14` = `param_1 + 0x3C` | signed, `-1` = none/invalid |
+| count | `param_1 + 0x60 + 0x1e0` = `param_1 + 0x240` | `0 <= idx < count` enforced twice |
+| element | `param_1 + 0x60 + 4 + idx * 0x44` | stride `0x44`, hard cap **7** entries |
+| selected value | element `+ 0x18` | `0xffffffff` when unavailable |
+
+The hard cap of **7** is notable: it matches a 7-row menu (the title menu's Story / Battle / Customize /
+Museum / Shop / Options / Data shape). The count check appears twice -- once in the caller, once in the
+accessor -- which is the shape of a shared list abstraction, not a one-off.
+
+### And the consumer calls it
+
+```
+--- CALL SITES OF FUN_00250538 (what is selected) ---
+   001257d0  in FUN_001256f4  size=592
+   001297a0  in FUN_0012961c  size=1128
+   0012ed10  in FUN_0012ebcc  size=540
+   00267e30  in FUN_00267cb8  size=540     <-- THE MENU-SIDE INPUT CONSUMER (s94)
+   001ba3a4  in FUN_001b97c8  size=17120
+   001ba5f0  in FUN_001b97c8  size=17120
+```
+
+Call site `0x00267e30` is inside `FUN_00267cb8` -- the function section 94 found calling the input API through
+the table. So the chain section 95 hypothesised is now **closed in code**:
+
+```
+FUN_00267cb8 reads input via the API table  -->  FUN_00250538 validates + resolves the index
+-->  FUN_00251278 / FUN_0025236c / FUN_00252424 read index / count / element
+```
+
+The other callers (`FUN_001256f4`, `FUN_0012961c`, `FUN_0012ebcc`, and the 17 KB `FUN_001b97c8`) are further
+consumers of "what is selected" -- `FUN_001b97c8` at 17,120 bytes is plausibly a UI root, worth reading next.
+
+### What this means for the project
+
+The adapter no longer needs a raw memory field. The read path is three calls:
+
+1. `FUN_00250538(obj)` -- returns the selected item, or `0xffffffff`;
+2. `FUN_00251278(obj + 0x28)` -- the raw index (for position announcements like "3 of 7");
+3. `FUN_0025236c(obj + 0x60)` -- the count.
+
+The remaining unknown is **which object** (`param_1`) the menu passes -- i.e. how the adapter obtains the
+live list object. The call site `0x00267e30` shows the argument expression; reading it names the source.
+
+### Method note
+
+> **A getter's body is the definition of the field.** No behaviour test was needed: `*(param_1 + 0x14)`
+> inside the index getter settles the location more cleanly than any press-diff could, because the code
+> states the contract.
+
+> **A hard cap is a UI fingerprint.** `param_2 < 7` in the table accessor bounds the list shape; matching
+> that number against known menus (the 7-row title menu) is a cheap cross-check on which UI this serves.
