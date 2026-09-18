@@ -4844,3 +4844,92 @@ follow-up.
 > (sections 31, 40, 60) but never on a screen with verified delivery; re-running it here collapsed 9,000
 > changed words to 4. The instrument, not the search space, was the limitation.
 
+
+
+---
+
+## 64. The top candidate FAILS the churn test -- and the gated diff's churn filter has a SAMPLING ALIAS
+
+Section 63's gated full-RAM diff reduced 9,000+ changed words to four survivors. This section tests them
+properly, and one of them produced the most cursor-like signal of the whole investigation -- then failed.
+
+### Two survivors respond, and one is striking
+
+```
+   delivered 5/5 (tried 7)
+   0x08BB4130  [4294901760, 4294967295, 4294901760, 4294901760, 4294967295]  <== RESPONDS
+   0x08BB42D8  [4294901760, ...]  constant
+   0x08BB4EE8  [4294901760, ...]  constant
+   0x08C0BD7C  [1090519040, 1088421888, 1088421888, 1086324736, 1073741824]  <== RESPONDS
+```
+
+Decoded, `0x08C0BD7C` reads as **floats**: `1090519040` = `0x41000000` = **8.0**, `1088421888` = **7.0**,
+`1086324736` = **6.0**, `1073741824` = **2.0**. A float holding small integers, decrementing as `down` is
+pressed. `0x08BB4130` alternates between `0xFFFF0000` and `0xFFFFFFFF` (`-65536` / `-1` as ints).
+
+A float that counts down in integers, on a screen where each `down` visibly moves the highlight, is the
+most cursor-shaped signal found in sixty-four sections.
+
+### It failed the churn test, and that is the result
+
+`0x08C0BD7C`, sampled **16 times at 1 s intervals with NO input at all**:
+
+```
+  t= 0s float 10    t= 4s float 9    t= 8s float 9    t=12s float 9
+  t= 1s float  7    t= 5s float 6    t= 9s float 6    t=13s float 2
+  t= 2s float  4    t= 6s float 4    t=10s float 3    t=14s float 0
+  t= 3s float  1    t= 7s float 1    t=11s float 1    t=15s float 9
+
+distinct values: [0, 1, 2, 3, 4, 6, 7, 9, 10]
+CHANGED WITHOUT INPUT: True
+```
+
+It cycles continuously **with no input**. It is a running counter (an animation/effect value), not a
+cursor.
+
+### Why the gated diff's churn filter missed it -- a real flaw
+
+Section 63's method read all 24 MB, then read again, and subtracted any word that differed during a
+**no-press window of the same duration**. That control *should* have caught a continuously running counter.
+
+It did not, because **the full-RAM read takes ~8.8 s per pass**, so each control comparison spans roughly
+**17 s**. `0x08C0BD7C` cycles with a period of about 5 s, so across a 17 s window it returns to a similar
+value and can be scored "unchanged" by coincidence. **A long read window aliases against a fast cycle**,
+and the churn filter silently passes periodic values through.
+
+That is the same class of error as the coarse 8x8 grid hash (section 33) and the sampling delay of
+section 58: **the measurement window interacts with the signal's period.** This time the window is long,
+not short.
+
+### What stands, and what does not
+
+* **Overturned**: `0x08C0BD7C` as the cursor. It is a free-running counter, evidenced by its behaviour
+  with no input at all.
+* **Not established**: `0x08BB4130`, which alternates `0xFFFF0000` / `0xFFFFFFFF` under delivered presses.
+  Two values only, and a no-press re-test has not been run on it specifically.
+* **Section 63's headline correction still stands**: the D-pad **does** move this menu under verified
+  delivery (three consecutive `down` presses of ~245,400 px each), overturning section 54. That result
+  did not depend on the churn filter.
+* **Section 63's "4 words survived" is weakened**: the filter that produced it is now known to pass
+  periodic values. The intersection step remains valid (a churning word would rarely be in *every*
+  round's changed set), but the churn subtraction is unreliable at this read duration.
+
+### The fix
+
+**Churn must be measured with a sampling rate matched to the signal, not inherited from the read
+duration.** Concretely: after the full-RAM diff nominates candidates, re-test **each candidate
+individually** with a fast poll (0.2-1 s, many samples, no input) before believing it. A single-address
+read is ~1 ms, so the control is cheap; the 8.8 s full-RAM read is what created the alias.
+
+### Method note
+
+> **A churn filter inherits the sampling window of whatever produced it.** Taking the control at the same
+> coarse cadence as the scan means a periodic signal can survive it. When the scan is slow (24 MB), the
+> control must still be fast -- **measure churn per candidate, at a rate well above the candidate's
+> expected period**, rather than once for the whole scan.
+
+> **Check the top candidate by its behaviour with no input, before interpreting any press response.** The
+> press series for `0x08C0BD7C` looked like a monotonically stepping integer (8,7,6,2) and was convincing;
+> 16 seconds of no-input sampling showed it cycling `10,7,4,1,9,6,...` the whole time. The no-press
+> control is what separated the two, and it cost 16 seconds.
+
