@@ -4131,3 +4131,82 @@ field (`N + 0x18`, bias = 25)** with a stated test.
 > and here is what is missing" would be a useful answer. It was: the missing piece is the menu-side input
 > consumer, or a before/after watchpoint trace on a moving menu.
 
+
+
+---
+
+## 56. A memory-level no-press control — and its first clean negative, on any screen
+
+Section 54 ended stuck: every press test needed a **static** screen, because delivery was judged by a
+pixel diff, and no reachable screen was both static and responsive. Section 56 removes that dependency.
+
+### The idea
+
+Delivery does not have to be judged by pixels. If a memory field changes when I press and does **not**
+change when I don't, that is a genuine press response **at the memory level** -- the same logic as the
+memory no-press control (Rule 120), which is indifferent to what the display is doing. So the test works
+on **any** screen, animating or not.
+
+### The instrument
+
+`psp-watch-chain.py` samples the full chain Codex validated in section 55 -- 90 fields covering the
+manager header, the render node `N`, its bias/callback fields, the descriptor `R`, and the first 24
+entries of the `0x1c`-stride table -- across two phases:
+
+1. **NO-PRESS phase** (8 samples): which fields vary on their own (churn);
+2. **PRESS phase** (8 presses): which fields vary with input;
+3. report fields that change **only** in the press phase.
+
+### First result: a clean negative
+
+```
+=== analysis ===
+  fields that vary with NO press (churn):        0
+  fields that vary during presses:               0
+
+=== PRESS-ONLY fields ===
+   NONE -- nothing in the chain responds to 'down' uniquely.
+
+=== the specific candidate Codex flagged ===
+   N+0x18 bias   no-press: [25, 25, 25, 25, 25, 25, 25, 25]
+   N+0x18 bias   pressed : [25, 25, 25, 25, 25, 25, 25, 25]
+   -> constant under presses; not the selection on this screen.
+
+=== liveness AFTER ===
+  after ticks delta 625411018 -> EXECUTING
+```
+
+**This is the strongest negative the investigation has produced**, for three reasons:
+
+* **zero churn** -- all 90 fields were constant across 8 no-press samples, so there is no noise to
+  confuse a response with;
+* **liveness asserted on both ends** (ticks advancing before and after);
+* **the control does not depend on the display**, so it cannot be voided by an animating screen -- the
+  failure mode that voided sections 47, 48, 49, 53 and 54.
+
+So on this screen the entire render-node chain -- including Codex's one concrete candidate `N + 0x18`
+(bias = 25) -- is **static under `down`**. That is consistent with section 54's finding that the D-pad is
+inert on the reachable screens, and it means the candidate is not exercised here rather than disproven
+in general.
+
+### What this changes
+
+* The **screen blocker is gone** for memory-level questions. Previously a candidate field could only be
+  tested on a screen that was both static and responsive; now it can be tested anywhere, because churn is
+  measured rather than assumed away.
+* The remaining need is narrower than "find a scrollable screen": it is **any screen where a control
+  produces a memory change**, which is a much easier thing to find than a pixel change on a static
+  display.
+
+### Method note
+
+> **Choose the observation channel that does not depend on the fragile thing.** Pixel diffs need a static
+> screen; memory needs only a no-press control. Every earlier void came from judging delivery through the
+> display. Moving the judgement into memory removes an entire class of refusal -- and it is the same
+> insight as Rule 120 (a field that moves with a press must not move without one), just applied to
+> delivery rather than to the candidate.
+
+> **Zero churn is a gift.** All 90 fields being constant without input means any change observed later is
+> attributable; with churn present, a single sample proves nothing. Worth noting as a property to check
+> *first*, because it determines how much sampling the rest of the test needs.
+
