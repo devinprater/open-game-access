@@ -4038,3 +4038,96 @@ that blind input cannot reach one. That is a precise, evidenced stopping point f
 > every reachable screen says those screens are not list menus -- which is why no selection index was
 > ever going to be exercised there.
 
+
+
+---
+
+## 55. Codex corrects my reading, and the render-node chain is validated against live RAM
+
+Section 54's next move was to hand a bounded code question to a second agent: in `FUN_0025595c` I had read
+
+```c
+iVar2 = (uint)*pbVar5 - (int)*(short *)(param_2 + 0x18);
+if (iVar2 < *(int *)(param_2 + 0x1c)) {
+    iVar2 = *(int *)(*(int *)(param_2 + 0xc) + 0xc) + iVar2 * 0x1c;
+}
+```
+
+as a **visible-window / scroll-offset** computation (`+0x18` base, `+0x1c` count, `+0xc` table). Codex
+returned a correction and a working chain.
+
+### The correction
+
+The actual decompile in `render-writer-report.txt` reads:
+
+```c
+if ((short)(ushort)*pbVar5 < *(short *)(param_2 + 0x18)) {
+    iVar2 = 0;
+} else {
+    iVar2 = (uint)*pbVar5 - (int)*(short *)(param_2 + 0x18);
+    if (iVar2 < *(int *)(*(int *)(param_2 + 0xc) + 0x2c)) {
+        iVar2 = *(int *)(*(int *)(param_2 + 0xc) + 0xc) + iVar2 * 0x1c;
+    } else { iVar2 = 0; }
+}
+```
+
+**Two errors in my reading:**
+
+* **`param_2 + 0x1c` is not the bound.** The bound is `(*(param_2 + 0xc)) + 0x2c` -- one more
+  dereference. `+0x1c` is a **callback pointer**, invoked by `FUN_00255170` as
+  `(*(code **)(N + 0x1c))(read32(N + 0x20), ...)`.
+* There is also a **guard** for `*pbVar5 < bias` that returns 0, which I had folded into the arithmetic.
+
+So the "contiguous `+0x18`/`+0x1c`/`+0xc` window" I proposed was wrong: the count is not adjacent, it is
+inside the descriptor the `+0xc` pointer leads to.
+
+### The chain, validated against live RAM
+
+Codex gave a recipe; every step dereferences cleanly on the running game:
+
+```
+M = read32(0x08B9B770)        = 0x08C08EB0
+N = read32(M + 0x28)          = 0x08C096E0     (first-list head, rendered by FUN_00248dec)
+  N + 0x18  bias   = 25
+  N + 0x1c  (cb)   = 0x00000000                <- confirms CALLBACK, not count
+  N + 0x0c  R      = 0x08C1475C
+    R + 0x0c table = 0x09DFAF80
+    R + 0x2c count = 11                        <- the REAL count
+M + 0x34 (second-list head) = 0           (empty on this screen)
+```
+
+Independent corroboration: `FUN_0024aee0` sets `local_50 = N[3]` (i.e. `R`), compares a child's signed
+short index against `local_50[0xb]` (`R + 0x2c`), and addresses `read32(R + 0x0c) + index * 0x1c` -- the
+same table/limit pattern, from a different function.
+
+Also useful: **`param_2` is the current outer render/menu node**, taken from one of the manager's two
+linked lists, so the draw path's object identity is now pinned down:
+
+```
+param_2 in FUN_0025595c  ==  read32(read32(0x08B9B770) + 0x28)
+```
+
+### What Codex explicitly did NOT claim
+
+It refused to call `N + 0x18` a scroll position or `R + 0x2c` a visible-row count, on four stated
+grounds: the alleged count was a callback; the real count lives in the descriptor; the indexed value
+`*pbVar5` is a byte in render/animation data rather than a demonstrated row ordinal; and **no supplied
+body shows pad input updating any field in this chain as the selection moves**. Its conclusion: *"there
+is no justified current-selection RAM recipe in the supplied artifacts"* -- and that a watchpoint on
+`N + 0x18` could test the weaker scroll-bias candidate, but treating it as the selection without such a
+trace would be speculation.
+
+That is the right answer, and it is more useful than a guess: it narrows to **one concrete candidate
+field (`N + 0x18`, bias = 25)** with a stated test.
+
+### Method note
+
+> **A second agent can catch a misreading of your own artifact.** The scroll-window interpretation came
+> from my own summary of a decompile I had read; the agent re-read the file and showed the count was one
+> dereference further in and that the adjacent field was a callback. Handing over the *artifacts plus the
+> claim* is what made the correction possible -- the task included the claim being tested.
+
+> **Ask for a refusal as a valid outcome.** The task said a clear "not resolvable from these artifacts,
+> and here is what is missing" would be a useful answer. It was: the missing piece is the menu-side input
+> consumer, or a before/after watchpoint trace on a moving menu.
+
