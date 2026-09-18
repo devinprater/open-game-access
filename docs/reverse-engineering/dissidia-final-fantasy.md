@@ -1885,3 +1885,83 @@ Two concrete, bounded next steps:
 > Reading sizes before decompiling bodies would have prevented treating these handlers as the menu
 > screen code at all.
 
+
+
+---
+
+## 28. The "pointers into the text table" hypothesis is FALSIFIED (alignment test)
+
+Section 27 closed with a stated lead: menu entries are contiguous in address order, therefore
+navigation state is "most likely an **index into a table of records** holding those strings", and the
+follow-up was to find what references the UI text table. **That lead has now been tested and it is
+wrong.** This section records the test because it retires a plausible-sounding idea cheaply.
+
+### The test, and why it is conclusive
+
+A full readable-RAM scan for any 4-byte value landing in the UI text range `0x09D16A00..0x09D19460`
+found **27 occurrences** — but clustered on only **5 distinct targets**, which already looked wrong for
+a per-entry pointer array:
+
+| target | hits |
+|---|---|
+| `0x09D18C69` | **20** |
+| `0x09D172E0` | 3 |
+| `0x09D19310` | 2 |
+| `0x09D172F0` | 1 |
+| `0x09D19320` | 1 |
+
+The decisive property is **alignment**. UTF-16LE text starts on an even address, and
+`0x09D18C69` is **odd**:
+
+```
+0x09D18C69: even=False -> '━.\x00FReplay repla'
+```
+
+Decoding from `0x09D18C69` yields junk and lands on `Replay repl…` at `+1`, which is where the real
+string begins. So:
+
+* **0 of 27** values are valid string pointers.
+* **Only 7 of 27** are even at all.
+* **No pointer arrays** exist — the run detector found **0** arrays with ≥4 consecutive entries.
+
+The 20 "references" to `0x09D18C69` sit in repeated, near-identical 32-byte blocks
+(`8B097280 0B86FDCC 09D18C69 …`) at `0x08CC3654`, `0x09407D74`, and elsewhere — duplicated data
+structures with byte patterns that look like instruction encodings, not pointer tables. They are
+coincidental 4-byte alignments against a value range, not references.
+
+### What this retires
+
+**Menus do not hold pointers to their text.** The contiguous-address observation from section 27 was
+correct but the inference drawn from it was wrong: contiguity means the strings are stored as a
+**block**, which is consistent with the entries being addressed by **offset/ID arithmetic inside a
+loader**, not by stored pointers. This agrees with the earlier independent finding that menus here are
+**ID lists** (section 13), and it means the "find the pointer table" approach is now a **dead route**,
+not merely an unfound one.
+
+### Corrected framing
+
+The record layout recovered from the static window in this pass is still useful and worth keeping
+explicit, since it defines what an ID indexes into:
+
+```
+DAT_00397770 + 0x000:  00 00 00 00 00 00 00 00  'one00'  00...
+             + 0x02C:  01 00 00 00  'two00'  ...
+             + 0x050:  'thr00' ...   +0x04C: 02 00 00 00
+             + 0x074:  'for00' ...   +0x090: 03 00 00 00
+             + 0x098:  'fiv00' ...   +0x0B8: 04 00 00 00
+             + 0x0BC:  'six00' ...   +0x0E0: 05 00 00 00
+             + 0x0E4:  'sev00' ...
+```
+
+i.e. **36-byte records of `{ int id; char name[32] }`** with an ascending id. So an "index" in this
+engine is an **ordinal into a fixed-stride record array**, and the text is resolved through the
+loader — which is exactly why no pointer table exists to find.
+
+### Method note
+
+> **When a pointer scan succeeds, check ALIGNMENT before believing it.** A pointer into a UTF-16 table
+> must be even; a pointer into an aligned struct should respect the struct's alignment. One parity
+> check turned 27 apparent references into **0** references, and would otherwise have sent the search
+> down a nonexistent pointer table. Cheap property tests on *candidate* results are as valuable as the
+> search itself: a scan's hit count is not evidence until the hits satisfy the type they claim to be.
+
