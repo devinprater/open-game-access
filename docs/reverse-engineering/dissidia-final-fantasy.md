@@ -1339,3 +1339,82 @@ argument vs object. `FUN_00248dd0(DAT_00397770, param_1)` names both, and readin
 subject inverted the entire structure. A live byte-dump then caught it immediately, which is the
 argument for reading the live value of a global before theorising about its layout.
 
+
+
+---
+
+## 21. The boot sequence names the localisation files and their load layout
+
+Following the constructor's caller chain to its root found the game's init function `FUN_002dbf50`
+(1192 bytes), which is the whole boot path. Two findings, both decisive.
+
+### The real localisation filenames, and where they are loaded
+
+```c
+iVar2 = FUN_00103aac();                                                    // a 2 MiB work buffer
+iVar3 = FUN_000e8dc0(PTR_s_general_archive_main_main_bin_0039b300);        // size of main.bin
+iVar4 = FUN_000e8dc0(PTR_s_general_archive_main_JP_main_lan_0039b304);     // size of main_lang.bin
+iVar5 = FUN_000e5710(iVar2, 0x200000, 0x40, 0);                            // allocate 2 MiB
+iVar8 = iVar5 + 0x180000;                                                  // language at +1.5 MiB
+iVar6 = FUN_000e8bc8(PTR_s_general_archive_main_main_bin_0039b300, iVar5, 0x180000, 1);   // load 1.5 MiB
+iVar3 = FUN_000e8bc8(PTR_s_general_archive_main_JP_main_lan_0039b304, iVar8, 0x80000, 1); // load 512 KiB
+```
+
+So the paths are, verbatim from the code:
+
+```
+general_archive/main/main.bin          <- base data,  loaded to buffer+0x000000
+general_archive/main/JP/main_lang.bin  <- LANGUAGE,   loaded to buffer+0x180000 (512 KiB)
+```
+
+**`main.bin` is the base and `main_lang.bin` is the language overlay**, both read into one 2 MiB
+buffer with their sizes checked before loading (the loads are guarded — `iVar6 == iVar3` etc. — and
+the whole block only runs if both lookups succeed).
+
+This explains the whole of section 12: the runtime path seen in RAM was
+`general_archive/main/**EN**/main_lang.bin` while the code carries `/**JP**/`. **The language
+component is a variable substituted into that template** — the code shown here is the JP branch.
+
+### `FUN_002489d0` is called with ONE argument
+
+```
+FUN_002489d0(DAT_00397770);
+FUN_0024adf8(DAT_00397770, auStack_30);
+```
+
+The constructor's decompiled signature is `undefined4 FUN_002489d0(int *param_1)`. Called as
+`FUN_002489d0(DAT_00397770)`, that means **`param_1 = DAT_00397770`** — the chapter/stage name table
+address from section 20 **is** the object the constructor builds into. It is not a separate manager.
+
+So the correct reading of section 16's output is: the fields the constructor writes
+(`param_1[8] = -1`, the five subsystem triples, etc.) live **in the same static region as the chapter
+name table**, starting at `DAT_00397770`. Section 17 built its field map on that same object and so
+was not wrong about the address; section 20 was right that the first bytes are a chapter table and
+wrong to conclude the object was something else entirely. Both readings describe one static struct
+that begins with a chapter-name array.
+
+### The boot order around it
+
+```
+... FUN_001f31f4(); FUN_000fce50(); FUN_000fd318();
+FUN_00107348(auStack_2c);
+FUN_002489d0(DAT_00397770);        <- MENU MANAGER constructor
+FUN_00269758(DAT_00398358, auStack_2c);
+... FUN_001f06cc(auStack_30, auStack_2c);   <- the system.bin loader identified in section 15
+FUN_001f8d10(auStack_30, auStack_2c);
+FUN_0024adf8(DAT_00397770, auStack_30);     <- a SECOND call on the same object
+```
+
+`FUN_0024adf8(DAT_00397770, auStack_30)` is the natural next target: it takes the object **and** a
+context, and runs after the menu manager is built.
+
+### Status
+
+| question | state |
+|---|---|
+| real localisation filenames | **found**: `general_archive/main/main.bin` + `.../JP/main_lang.bin` |
+| how they load | **found**: one 2 MiB buffer, language at `+0x180000`, 512 KiB, guarded loads |
+| why `/EN/` appears at runtime but `/JP/` in code | **answered**: language token substituted into a template |
+| what object holds the menu state | **`DAT_00397770`** (constructor called with it as the only arg) |
+| which field is the selection | **still open** — next: `FUN_0024adf8` and the `param_1[8]` sentinel |
+
