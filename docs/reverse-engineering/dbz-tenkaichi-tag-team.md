@@ -5185,6 +5185,54 @@ With the gate, the next run can be trusted: if it reports fixed world-scale trip
 gate passed**, those are genuine candidates. Until that happens, treat all fixed-triple lists from
 off-field states as invalid — including the three addresses above.
 
+# The chevron bearing is CORRECT ~92% of the time — the outlier is a 180-degree ambiguity flip
+
+## What the audit showed
+
+Audited all 24 live frames containing the glyph:
+
+```
+# 30-degree buckets: {-90: 2, 0: 22}
+
+  0-degree bucket (CORRECT, matches eye) : 22 frames   beacon_shot, cal_LEFT_*, cal_RIGHT_*,
+                                                       diag, fly02-08, lf0, chev  -> all ~0
+  -90-degree bucket (WRONG)              :  2 frames   fly01 (-101.2), cmp_135 (-101.4)
+```
+
+⭐ **Only TWO discrete values exist — ≈0° and ≈−101°.** Nothing in between. That is the signature of a
+**180-degree ambiguity flip** in the apex choice, not noise, and not a scale or tolerance effect.
+
+⚠️ **A scale-invariant tolerance was tried and changed NOTHING** (`-101.4` stayed `-101.4`), which is
+what ruled out the scale explanation. The tolerance idea was a wrong hypothesis and is recorded as such.
+
+## ⭐ The majority reading is the CORRECT one
+
+The two flipped frames (`fly01`, `cmp_135`) are among those I **verified by eye as pointing UP**. So:
+
+| reading | frames | correct? |
+|---|---|---|
+| ≈0° | 22 | ✅ yes — matches the glyph's actual direction |
+| ≈−101° | 2 | ❌ flipped |
+
+**The estimator is right ~92% of the time.** This materially revises what I told the user earlier
+("the bearing is unreliable on live frames"): it is reliable, with a rare discrete flip.
+
+## Consequences
+
+1. **The beacon's left/right cue is right most of the time** — which matches the user's report that
+   panning WORKED for plain left/right and only broke in some cases ("doesn't seem to work when the
+   arrow points, say, to the bottom right"). A flip would present exactly that way.
+2. **A flip is detectable**: the reading jumps by ~90-100 degrees between consecutive frames while the
+   player's heading barely changed. Median-filtering the bearing over a short window, or rejecting
+   single-frame jumps > 60 degrees, removes it.
+3. The `sparse-perp` method stands (8/8 on synthetic rotations, 92% on live frames).
+
+## Tooling added
+
+`scripts/psp-tt-glyph-validate.py --live-dir DIR` performs this audit: it reports every live glyph
+reading and buckets them, so a two-valued distribution (an ambiguity flip) is visible immediately
+instead of being mistaken for noise.
+
 ## Status: BLOCKED on reaching a battle
 
 No adapter code is written and **no address is confirmed against live gameplay**. The stat

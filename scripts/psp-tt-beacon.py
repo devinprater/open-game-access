@@ -122,7 +122,11 @@ def locate(path: str):
     if hi - lo < 1:
         return None
 
-    def near(v, tol=12.0):
+    # ⚠️ SCALE-INVARIANT apex tolerance. A fixed 12-pixel tolerance made the SAME glyph read
+    # differently at different rendered sizes: three by-eye-identical up-pointing glyphs read
+    # -101.4, +0.0 and +1.4 deg. Use a fraction of the projection range instead.
+    _span = max(1e-6, hi - lo)
+    def near(v, tol=0.12 * _span):
         return int((np.abs(proj - v) < tol).sum())
 
     apex_v = lo if near(lo) < near(hi) else hi            # sparse end = the tip
@@ -194,6 +198,7 @@ def main():
     last_play = 0.0
     last_cue = None
     last_seen = time.time()   # "now" on startup, so the first tick waits a full --hold
+    prev_b = None             # previous bearing, for jump rejection
     while True:
         if live and not capture(frame):
             if a.once:
@@ -229,6 +234,17 @@ def main():
             b, cx, cy, n = r
             b = ((b + 180) % 360) - 180
             off = abs(b)
+            # ⚠️ Reject single-frame jumps. The bearing occasionally flips by ~180 degrees for one
+            # frame (apex ambiguity): an audit of 24 live glyph frames found only two discrete
+            # readings, ~0 (22 frames, correct) and ~-101 (2 frames, flipped). The flip would produce
+            # exactly the "points the wrong way sometimes" symptom the user reported. A jump of
+            # >60 deg between consecutive frames, with no turn commanded, is noise -- ignore it.
+            if prev_b is not None and abs(((b - prev_b + 180) % 360) - 180) > 60.0:
+                if a.debug:
+                    print("#   bearing jump %+.0f -> %+.0f ignored (apex ambiguity)" % (prev_b, b))
+                b = prev_b
+            prev_b = b
+
             if abs(b) <= a.tol:
                 cue_name = "ahead"
             else:

@@ -78,10 +78,54 @@ def method_narrow_end(xs, ys, step=5):
     return best[0]
 
 
+
+def audit_live(directory):
+    """Report the distribution of live readings.
+
+    WHY: on live frames the same glyph reads either ~0 or ~-101 degrees. Those two values are about
+    100 degrees apart, which is the signature of a 180-degree AMBIGUITY FLIP in the apex choice --
+    NOT noise, and NOT a scale/tolerance effect (a scale-invariant tolerance was tried and changed
+    nothing, which is what ruled the scale explanation out).
+    """
+    import glob
+    from collections import Counter
+    vals = []
+    for f in sorted(glob.glob(os.path.join(directory, "*.png"))):
+        try:
+            im = Image.open(f).convert("RGB")
+        except Exception:
+            continue
+        m = fill_mask(np.asarray(im))
+        ys, xs = np.nonzero(m)
+        if len(xs) < 80:
+            continue
+        if xs.max() - xs.min() > 280 or ys.max() - ys.min() > 280:
+            continue
+        v = (((method_sparse_perp(xs.astype(float), ys.astype(float)) + 180) % 360) - 180)
+        vals.append((os.path.basename(f), v))
+    if not vals:
+        print("# no live glyphs found in %s" % directory)
+        return
+    print("# %d live glyph frame(s) in %s" % (len(vals), directory))
+    for n, v in vals[:20]:
+        print("    %-34s %+8.1f" % (n, v))
+    buckets = Counter(int(round(v / 30.0)) * 30 for _, v in vals)
+    print("# 30-degree buckets: %s" % dict(sorted(buckets.items())))
+    print("# TWO dominant buckets ~90-110 deg apart => 180-degree ambiguity flip, not noise.")
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--glyph", required=True, help="a PNG containing the glyph (up-pointing)")
+    ap.add_argument("--glyph", help="a PNG containing an up-pointing glyph")
+    ap.add_argument("--live-dir", help="directory of live frames to audit (reveals the flip)")
     a = ap.parse_args()
+
+    if a.live_dir:
+        audit_live(a.live_dir)
+        if not a.glyph:
+            return
+    if not a.glyph:
+        ap.error("give --glyph FILE (and optionally --live-dir DIR)")
 
     im = Image.open(a.glyph).convert("RGB")
     m = fill_mask(np.asarray(im))

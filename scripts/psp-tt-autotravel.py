@@ -93,7 +93,7 @@ def bearing(path):
     lo, hi = float(pr.min()), float(pr.max())
     if hi - lo < 1:
         return None
-    near = lambda v: int((np.abs(pr - v) < 12.0).sum())
+    near = lambda v: int((np.abs(pr - v) < 0.12 * max(1e-6, hi - lo)).sum())
     apex = lo if near(lo) < near(hi) else hi
     k = int(np.argmin(np.abs(pr - apex)))
     return math.degrees(math.atan2(xs[k] - cx, -(ys[k] - cy)))
