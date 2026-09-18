@@ -1486,3 +1486,70 @@ as other things. The honest next step is **not** another guess at offsets: it is
 a menu and read the object live while stepping the highlight (the approach section 14's sweep showed is
 possible once a live menu exists), or to locate the menu *screen* code rather than the menu *manager*.
 
+
+
+---
+
+## 23. Confirmed: the localisation text is NOT a member of any archive — it is resolved by a FILE SYSTEM
+
+Section 21 found the boot function loading two paths. This section confirms the strings **exactly**, by
+resolving the pointers independently in the ELF, and then establishes where those files are *not*.
+
+### The two paths, resolved from the ELF
+
+`FUN_002dbf50` calls `FUN_000e8dc0(PTR_s_general_archive_main_main_bin_0039b300)` — a **pointer**, not
+an inline string. Following it through the ELF's own load segments:
+
+```
+vaddr 0x0039B300 -> file 0x39B374 -> contents 0x003895BC -> "general_archive/main/main.bin"
+vaddr 0x0039B304 -> file 0x39B378 -> contents 0x003895DC -> "general_archive/main/JP/main_lang.bin"
+```
+
+Both confirmed **verbatim**. So the localisation loader opens, precisely:
+
+```
+general_archive/main/main.bin          <- base data      (1.5 MiB, to buffer+0x000000)
+general_archive/main/JP/main_lang.bin  <- LANGUAGE text  (512 KiB, to buffer+0x180000)
+```
+
+### Neither name is in the archive
+
+| where searched | `main.bin` | `main_lang.bin` | `general_archive` |
+|---|---|---|---|
+| all 388 MPK archive manifests (`all-names.txt`) | **0** | **0** | **0** |
+| `PACKAGE.BIN` (660 MB, byte search) | **0** | **0** | **0** |
+| the whole ISO (1.65 GB, byte search) | **0** | **0** | **0** |
+
+The archive names are things like `battle.bin`, `system.bin`, `item.bin`, `pause_help.bin`. There is no
+`general_archive` directory and no `main.bin` entry anywhere on the disc.
+
+### Therefore the localisation text is not in a file whose name appears on the disc
+
+This is a **positive conclusion, not a failure**. Three independent facts now agree:
+
+1. the code requests `general_archive/main/...` paths that contain **no bytes present anywhere on the disc**;
+2. the archive's own 1747 entry names contain **no matching member**;
+3. RAM at runtime held the substituted form `general_archive/main/**EN**/main_lang.bin` (section 12),
+   i.e. a path with a language component the disc does not spell out either.
+
+So `FUN_000e8dc0` is **not** an archive-member lookup. It is a **file-system service** that resolves a
+virtual path — and the name→data binding happens *inside that service*, not in the archive index. That is
+exactly why grep-ing the disc for the name has now returned 0 four separate times (sections 7, 12, 21, 23).
+
+### Where the text physically is
+
+Given the loader reads 1.5 MiB + 512 KiB into a 2 MiB buffer, and the decoded menu text appears in RAM
+around `0x09D16A68` / `0x09E58xxx`, the practical consequences for a reader are unchanged and good:
+
+* the **decoded text is in RAM** and readable (section 11) — this is what a reader needs;
+* the **encoded source** is reached through a virtual file system, so reproducing the decode offline
+  requires reading that service (function `FUN_000e8dc0` and its siblings), not the archive;
+* searching the disc for the resource by name is now **formally exhausted** — four attempts, all 0, with
+  the cause identified. Do not retry it.
+
+### Stop-condition recorded
+
+**Do not grep the disc image for `main_lang` / `general_archive` / the EN path again.** It has been done
+in four sections with four zeros, and section 23 explains why. The remaining routes are (a) the virtual
+file-system service, or (b) the decoded RAM text, which is already located.
+
