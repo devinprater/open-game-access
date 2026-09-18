@@ -1,0 +1,462 @@
+=== THE INPUT-CONSUMER CHAIN (doc sections 78-79) ===
+starting from the two non-pad-layer readers of the button word.
+
+================================================================
+=== FUN_000f70c4 @ 000f70c4  size=116 ===
+================================================================
+
+undefined8 FUN_000f70c4(undefined4 param_1,undefined4 param_2,uint param_3,uint param_4)
+
+{
+  uint uVar1;
+  uint uVar2;
+  uint uVar3;
+  uint uVar4;
+  uint *in_t0;
+  
+  uVar3 = *in_t0;
+  uVar4 = in_t0[1];
+  uVar2 = DAT_00371cc4;
+  uVar1 = DAT_00371cc0;
+  while ((uVar3 != DAT_00371cc0 || (uVar4 != DAT_00371cc4))) {
+    if (((param_3 & uVar3) == uVar3) && ((param_4 & uVar4) == uVar4)) {
+      uVar2 = uVar2 | in_t0[3];
+      uVar1 = uVar1 | in_t0[2];
+    }
+    uVar3 = in_t0[4];
+    uVar4 = in_t0[5];
+    in_t0 = in_t0 + 4;
+  }
+  return CONCAT44(uVar2,uVar1);
+}
+
+
+
+--- CALLED BY ---
+   000f7138  FUN_000f7138  size=112
+
+--- CALLS ---
+
+--- interesting instructions (andi / mask / compare / store) ---
+
+================================================================
+=== FUN_000f7138 @ 000f7138  size=112 ===
+================================================================
+
+void FUN_000f7138(int param_1)
+
+{
+  undefined4 *puVar1;
+  
+  puVar1 = *(undefined4 **)(param_1 + 0x40);
+  FUN_000f70c4(param_1,puVar1,*puVar1,puVar1[1]);
+  puVar1 = *(undefined4 **)(param_1 + 0x40);
+  if (*(int *)(param_1 + 0x4c) != 0) {
+    FUN_000f70c4(param_1,puVar1,*puVar1,puVar1[1]);
+    puVar1 = *(undefined4 **)(param_1 + 0x40);
+  }
+                    /* WARNING: Subroutine does not return */
+  FUN_00354db0(param_1 + 0x20,puVar1 + 8);
+}
+
+
+
+--- CALLED BY ---
+   000f6fc8  FUN_000f6fc8  size=84
+   000f7028  FUN_000f7028  size=156
+
+--- CALLS ---
+   00354db0  FUN_00354db0  size=40
+   000f70c4  FUN_000f70c4  size=116
+
+--- interesting instructions (andi / mask / compare / store) ---
+   000f713c  sw s0,0x0(sp)
+   000f7154  sw s2,0x4(sp)
+   000f7158  sw s3,0x8(sp)
+   000f715c  sw ra,0xc(sp)
+   000f719c  addiu a1,a1,0x20
+   000f71a4  _addiu a0,s0,0x20
+
+================================================================
+=== FUN_000f6fc8 @ 000f6fc8  size=84 ===
+================================================================
+
+void FUN_000f6fc8(undefined8 *param_1)
+
+{
+  undefined8 uVar1;
+  
+  *(uint *)((int)param_1 + 0x44) = *(uint *)((int)param_1 + 0x44) & 0xfffffffe;
+  FUN_000f6604(param_1,0xfffffffe,DAT_00371cc0,DAT_00371cc4);
+  uVar1 = FUN_000f7138(param_1);
+  *param_1 = uVar1;
+  return;
+}
+
+
+
+--- CALLED BY ---
+   000f7498  FUN_000f7498  size=88
+
+--- CALLS ---
+   000f6604  FUN_000f6604  size=132
+   000f7138  FUN_000f7138  size=112
+
+--- interesting instructions (andi / mask / compare / store) ---
+   000f6fcc  sw s0,0x0(sp)
+   000f6fe0  sw a0,0x44(s0)
+   000f6ff0  sw ra,0x4(sp)
+   000f7004  sw v1,0x4(s0)
+   000f7008  sw v0,0x0(s0)
+
+================================================================
+=== FUN_000f7028 @ 000f7028  size=156 ===
+================================================================
+
+void FUN_000f7028(undefined8 *param_1)
+
+{
+  int iVar1;
+  undefined4 uVar2;
+  undefined8 uVar3;
+  
+  iVar1 = FUN_000f701c();
+  if (iVar1 == 0) {
+    uVar3 = FUN_000f7138(param_1);
+    uVar2 = (undefined4)((ulonglong)uVar3 >> 0x20);
+    if ((*(uint *)((int)param_1 + 0x44) & 2) != 0) {
+      *param_1 = uVar3;
+    }
+    FUN_000f6694(param_1,uVar2,(int)uVar3,uVar2);
+    *(uint *)((int)param_1 + 0x44) = *(uint *)((int)param_1 + 0x44) & 0xfffffffd;
+  }
+  else {
+    FUN_000f6604(param_1);
+    *(uint *)((int)param_1 + 0x44) = *(uint *)((int)param_1 + 0x44) | 2;
+  }
+  return;
+}
+
+
+
+--- CALLED BY ---
+   000f73f0  FUN_000f73f0  size=48
+   000f778c  FUN_000f778c  size=100
+
+--- CALLS ---
+   000f6694  FUN_000f6694  size=232
+   000f6604  FUN_000f6604  size=132
+   000f7138  FUN_000f7138  size=112
+   000f701c  FUN_000f701c  size=12
+
+--- interesting instructions (andi / mask / compare / store) ---
+   000f702c  sw s0,0x0(sp)
+   000f7030  sw ra,0x4(sp)
+   000f7064  _sw a0,0x44(s0)
+   000f7078  andi a2,a2,0x2
+   000f707c  sltu a2,zero,a2
+   000f7080  andi a2,a2,0xff
+   000f708c  sw a1,0x4(s0)
+   000f7090  sw a0,0x0(s0)
+   000f70b0  sw a0,0x44(s0)
+
+================================================================
+=== FUN_00354db0 @ 00354db0  size=40 ===
+================================================================
+
+undefined4 * FUN_00354db0(undefined4 *param_1,undefined4 *param_2)
+
+{
+  undefined4 uVar1;
+  undefined4 uVar2;
+  undefined4 uVar3;
+  
+  uVar3 = param_2[3];
+  uVar1 = param_2[1];
+  uVar2 = param_2[2];
+  *param_1 = *param_2;
+  param_1[1] = uVar1;
+  param_1[2] = uVar2;
+  param_1[3] = uVar3;
+  return param_1;
+}
+
+
+
+--- CALLED BY ---
+   001a9988  FUN_001a9988  size=172
+   000a1424  FUN_000a1424  size=84
+   000a150c  FUN_000a150c  size=24
+   000010f0  FUN_000010f0  size=68
+   0007d478  FUN_0007d478  size=240
+   00002184  FUN_00002184  size=260
+   00008b04  FUN_00008b04  size=168
+   0009fdb8  FUN_0009fdb8  size=832
+   000a14f0  FUN_000a14f0  size=16
+   00004210  FUN_00004210  size=96
+   00004804  FUN_00004804  size=556
+   00005a18  FUN_00005a18  size=52
+   000a1a48  FUN_000a1a48  size=64
+   00007f98  FUN_00007f98  size=36
+   00008080  FUN_00008080  size=244
+   00009018  FUN_00009018  size=260
+   00009130  FUN_00009130  size=316
+   000a2840  FUN_000a2840  size=132
+   0000b228  FUN_0000b228  size=180
+   0000d568  FUN_0000d568  size=224
+   0000dfb0  FUN_0000dfb0  size=156
+   00010da8  FUN_00010da8  size=240
+   000109c8  FUN_000109c8  size=168
+   000af0e0  FUN_000af0e0  size=4428
+   000dc430  FUN_000dc430  size=156
+   000bf6c8  FUN_000bf6c8  size=232
+   000de534  FUN_000de534  size=120
+   000e2d58  FUN_000e2d58  size=696
+   000e3704  FUN_000e3704  size=152
+   000e42c0  FUN_000e42c0  size=260
+   000edf6c  FUN_000edf6c  size=28
+   0000eebc  FUN_0000eebc  size=316
+   0000f308  FUN_0000f308  size=204
+   0000fc74  FUN_0000fc74  size=168
+   000168f8  FUN_000168f8  size=1292
+   000a7414  FUN_000a7414  size=288
+   00010044  FUN_00010044  size=32
+   00010088  FUN_00010088  size=48
+   00017a98  FUN_00017a98  size=448
+   00016430  FUN_00016430  size=388
+   0009c39c  FUN_0009c39c  size=196
+   00010630  FUN_00010630  size=148
+   000106f4  FUN_000106f4  size=156
+   000107c0  FUN_000107c0  size=136
+   0001085c  FUN_0001085c  size=136
+   000108f8  FUN_000108f8  size=160
+   00012678  FUN_00012678  size=380
+   00012e04  FUN_00012e04  size=856
+   000682b4  FUN_000682b4  size=168
+   000683d4  FUN_000683d4  size=168
+   0006ea8c  FUN_0006ea8c  size=116
+   000e2898  FUN_000e2898  size=288
+   000ec7c8  FUN_000ec7c8  size=24
+   00011968  FUN_00011968  size=188
+   00012a54  FUN_00012a54  size=132
+   0001448c  FUN_0001448c  size=88
+   000145b4  FUN_000145b4  size=168
+   000147ec  FUN_000147ec  size=60
+   00014930  FUN_00014930  size=92
+   00014a24  FUN_00014a24  size=124
+   00062de8  FUN_00062de8  size=44
+   00018a7c  FUN_00018a7c  size=24
+   000f0c90  FUN_000f0c90  size=192
+   00018e58  FUN_00018e58  size=72
+   000371ec  FUN_000371ec  size=160
+   000405d4  FUN_000405d4  size=196
+   000452e8  FUN_000452e8  size=168
+   00045544  FUN_00045544  size=112
+   000460e0  FUN_000460e0  size=128
+   00055b00  FUN_00055b00  size=712
+   00055fe0  FUN_00055fe0  size=500
+   00036c74  FUN_00036c74  size=172
+   000441fc  FUN_000441fc  size=116
+   000244a0  FUN_000244a0  size=424
+   00036180  FUN_00036180  size=32
+   0003ac68  FUN_0003ac68  size=44
+   00041b58  FUN_00041b58  size=176
+   0003b6bc  FUN_0003b6bc  size=3968
+   000424b8  FUN_000424b8  size=176
+   000431fc  FUN_000431fc  size=1356
+   0009cf30  FUN_0009cf30  size=300
+   0006d438  FUN_0006d438  size=428
+   0006fd64  FUN_0006fd64  size=120
+   000705dc  FUN_000705dc  size=1240
+   001abfc8  FUN_001abfc8  size=672
+   000717f8  FUN_000717f8  size=268
+   00072c1c  FUN_00072c1c  size=544
+   00071d9c  FUN_00071d9c  size=876
+   0007437c  FUN_0007437c  size=1960
+   000f84a8  FUN_000f84a8  size=16
+   000f84ec  FUN_000f84ec  size=148
+   00076354  FUN_00076354  size=564
+   000edba8  FUN_000edba8  size=40
+   00077344  FUN_00077344  size=192
+   00077490  FUN_00077490  size=128
+   00087070  FUN_00087070  size=644
+   00086538  FUN_00086538  size=212
+   00086740  FUN_00086740  size=564
+   0008565c  FUN_0008565c  size=540
+   00084c48  FUN_00084c48  size=112
+   0009b424  FUN_0009b424  size=724
+   0009b85c  FUN_0009b85c  size=148
+   00084cf0  FUN_00084cf0  size=396
+   00078010  FUN_00078010  size=68
+   000849c4  FUN_000849c4  size=580
+   00085df8  FUN_00085df8  size=148
+   00088408  FUN_00088408  size=872
+   00088978  FUN_00088978  size=1096
+   00086260  FUN_00086260  size=96
+   0008507c  FUN_0008507c  size=428
+   000796cc  FUN_000796cc  size=940
+   00079a9c  FUN_00079a9c  size=1448
+   0007ea5c  FUN_0007ea5c  size=344
+   0007f99c  FUN_0007f99c  size=272
+   000ee448  FUN_000ee448  size=104
+   0008c850  FUN_0008c850  size=132
+   0008d754  FUN_0008d754  size=172
+   0008f204  FUN_0008f204  size=260
+   00090c14  FUN_00090c14  size=100
+   000900c8  FUN_000900c8  size=472
+   000eec00  FUN_000eec00  size=156
+   0008fe20  FUN_0008fe20  size=508
+   00090a1c  FUN_00090a1c  size=176
+   00092074  FUN_00092074  size=1336
+   000933b4  FUN_000933b4  size=432
+   0009607c  FUN_0009607c  size=220
+   0009bfe8  FUN_0009bfe8  size=56
+   000f588c  FUN_000f588c  size=124
+   000f5adc  FUN_000f5adc  size=112
+   000a2dd8  FUN_000a2dd8  size=72
+   000a5194  FUN_000a5194  size=320
+   0009d7e8  FUN_0009d7e8  size=172
+   0009d6cc  FUN_0009d6cc  size=180
+   0009d8dc  FUN_0009d8dc  size=548
+   0009dd18  FUN_0009dd18  size=64
+   0009dda4  FUN_0009dda4  size=64
+   0009de8c  FUN_0009de8c  size=232
+   0009e5c8  FUN_0009e5c8  size=312
+   0009e820  FUN_0009e820  size=260
+   000ae43c  FUN_000ae43c  size=760
+   000c3fc8  FUN_000c3fc8  size=720
+   000edec4  FUN_000edec4  size=36
+   000a1ee8  FUN_000a1ee8  size=16
+   000a2390  FUN_000a2390  size=364
+   000a4624  FUN_000a4624  size=184
+   000a4714  FUN_000a4714  size=188
+   000a4474  FUN_000a4474  size=336
+   000f0bd8  FUN_000f0bd8  size=164
+   000e6724  FUN_000e6724  size=16
+   000e6740  FUN_000e6740  size=16
+   000e675c  FUN_000e675c  size=16
+   000a9b54  FUN_000a9b54  size=428
+   000a94f8  FUN_000a94f8  size=52
+   000a91e0  FUN_000a91e0  size=60
+   000a9254  FUN_000a9254  size=60
+   000a92c8  FUN_000a92c8  size=60
+   000a9590  FUN_000a9590  size=68
+   000a9d74  FUN_000a9d74  size=1336
+   000eed3c  FUN_000eed3c  size=640
+   001a9260  FUN_001a9260  size=52
+   000aabec  FUN_000aabec  size=60
+   000aba3c  FUN_000aba3c  size=220
+   000abcc0  FUN_000abcc0  size=72
+   000ac014  FUN_000ac014  size=208
+   000ad868  FUN_000ad868  size=80
+   000ad56c  FUN_000ad56c  size=268
+   000d1154  FUN_000d1154  size=420
+   000d2378  FUN_000d2378  size=196
+   000b11a8  FUN_000b11a8  size=584
+   000b4bd8  FUN_000b4bd8  size=396
+   000bce84  FUN_000bce84  size=1224
+   0035ffec  FUN_0035ffec  size=416
+   000b5548  FUN_000b5548  size=332
+   000e21e8  FUN_000e21e8  size=388
+   000bd3e4  FUN_000bd3e4  size=1264
+   000c0098  FUN_000c0098  size=256
+   000c0c2c  FUN_000c0c2c  size=504
+   000c1a7c  FUN_000c1a7c  size=336
+   000e7b10  FUN_000e7b10  size=468
+   000c5068  FUN_000c5068  size=3152
+   000d9878  FUN_000d9878  size=92
+   000da98c  FUN_000da98c  size=472
+   000dab64  FUN_000dab64  size=892
+   000dba14  FUN_000dba14  size=652
+   000e1038  FUN_000e1038  size=324
+   000e1260  FUN_000e1260  size=320
+   000e3428  FUN_000e3428  size=692
+   000e45b8  FUN_000e45b8  size=784
+   000e4afc  FUN_000e4afc  size=232
+   000ee904  FUN_000ee904  size=72
+   000ef060  FUN_000ef060  size=124
+   000f7138  FUN_000f7138  size=112
+   000f753c  FUN_000f753c  size=32
+   000f9a50  FUN_000f9a50  size=52
+   00265024  FUN_00265024  size=40
+   0013dae0  FUN_0013dae0  size=336
+   0010fae0  FUN_0010fae0  size=176
+   00129f78  FUN_00129f78  size=44
+   0024aee0  FUN_0024aee0  size=4776
+   00121da0  FUN_00121da0  size=252
+   0013efc0  FUN_0013efc0  size=160
+   001408d4  FUN_001408d4  size=328
+   00141318  FUN_00141318  size=120
+   0013fedc  FUN_0013fedc  size=200
+   00141aa4  FUN_00141aa4  size=1692
+   00142490  FUN_00142490  size=656
+   0013f51c  FUN_0013f51c  size=108
+   001a7dcc  FUN_001a7dcc  size=60
+   001c7c44  FUN_001c7c44  size=584
+   001af92c  FUN_001af92c  size=280
+   001aff68  FUN_001aff68  size=300
+   00264ef8  FUN_00264ef8  size=168
+   002659fc  FUN_002659fc  size=1120
+   001b82e8  FUN_001b82e8  size=348
+   001b849c  FUN_001b849c  size=220
+   001bf378  FUN_001bf378  size=72
+   001bf58c  FUN_001bf58c  size=76
+   001fdd78  FUN_001fdd78  size=72
+   001fe250  FUN_001fe250  size=1092
+   00202acc  FUN_00202acc  size=140
+   00205044  FUN_00205044  size=36
+   00205218  FUN_00205218  size=1052
+   00205d98  FUN_00205d98  size=452
+   0020623c  FUN_0020623c  size=596
+   00206a64  FUN_00206a64  size=80
+   002079d0  FUN_002079d0  size=172
+   00209a48  FUN_00209a48  size=356
+   002426ac  FUN_002426ac  size=1020
+   00279ec8  FUN_00279ec8  size=512
+   0027a59c  FUN_0027a59c  size=276
+   0027b9a0  FUN_0027b9a0  size=496
+   0027e8f8  FUN_0027e8f8  size=208
+   0027ff78  FUN_0027ff78  size=240
+   00281104  FUN_00281104  size=316
+   0028bc8c  FUN_0028bc8c  size=580
+   002b4318  FUN_002b4318  size=108
+   002dc428  FUN_002dc428  size=36
+   0031e3d0  FUN_0031e3d0  size=1052
+   0031f6ec  FUN_0031f6ec  size=1028
+   00320bc4  FUN_00320bc4  size=1704
+   0032177c  FUN_0032177c  size=1060
+   00323f2c  FUN_00323f2c  size=1380
+   0032e12c  FUN_0032e12c  size=536
+   0036ba98  FUN_0036ba98  size=636
+   003289e0  FUN_003289e0  size=1508
+   00329328  FUN_00329328  size=520
+   00333a2c  FUN_00333a2c  size=388
+   003338ac  FUN_003338ac  size=368
+   003383f0  FUN_003383f0  size=68
+   003321a8  FUN_003321a8  size=452
+   003328b4  FUN_003328b4  size=572
+   00339550  FUN_00339550  size=40
+   0035ebdc  FUN_0035ebdc  size=16
+   0035ebf8  FUN_0035ebf8  size=16
+   001c2fa4  FUN_001c2fa4  size=716
+   00090354  FUN_00090354  size=532
+   001b34b4  FUN_001b34b4  size=620
+   0013ffb8  FUN_0013ffb8  size=364
+   001be060  FUN_001be060  size=1364
+   001c26e8  FUN_001c26e8  size=2104
+   001c0dd0  FUN_001c0dd0  size=4860
+   00097778  FUN_00097778  size=7656
+
+--- CALLS ---
+
+--- interesting instructions (andi / mask / compare / store) ---
+
+================================================================
+=== ONE LEVEL UP: callers of FUN_000f6fc8 / FUN_000f7028 ===
+================================================================
+  FUN_000f6fc8 @ 000f6fc8 called by:
+     000f7498  FUN_000f7498  size=88
+  FUN_000f7028 @ 000f7028 called by:
+     000f73f0  FUN_000f73f0  size=48
+     000f778c  FUN_000f778c  size=100
+

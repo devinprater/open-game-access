@@ -1,0 +1,132 @@
+=== THE BUTTON-WORD READERS (doc section 78) ===
+5 sites, 8 hits each, saturated. Identifying the function around each.
+
+  reader 0x000F7150
+     -> FUN_000f7138 @ 000f7138  size=112  (reader is entry+0x18)
+  reader 0x000F7184
+     -> FUN_000f7138 @ 000f7138  size=112  (reader is entry+0x4c)
+  reader 0x000F6698
+     -> FUN_000f6694 @ 000f6694  size=232  (reader is entry+0x4)
+  reader 0x000F66B0
+     -> FUN_000f6694 @ 000f6694  size=232  (reader is entry+0x1c)
+  reader 0x000F67C4
+     -> FUN_000f67c0 @ 000f67c0  size=28  (reader is entry+0x4)
+
+================================================================
+=== FUN_000f7138 @ 000f7138  size=112
+================================================================
+
+void FUN_000f7138(int param_1)
+
+{
+  undefined4 *puVar1;
+  
+  puVar1 = *(undefined4 **)(param_1 + 0x40);
+  FUN_000f70c4(param_1,puVar1,*puVar1,puVar1[1]);
+  puVar1 = *(undefined4 **)(param_1 + 0x40);
+  if (*(int *)(param_1 + 0x4c) != 0) {
+    FUN_000f70c4(param_1,puVar1,*puVar1,puVar1[1]);
+    puVar1 = *(undefined4 **)(param_1 + 0x40);
+  }
+                    /* WARNING: Subroutine does not return */
+  FUN_00354db0(param_1 + 0x20,puVar1 + 8);
+}
+
+
+
+--- CALLED BY (who invokes this) ---
+   000f6fc8  FUN_000f6fc8  size=84
+   000f7028  FUN_000f7028  size=156
+
+--- CALLS (what this invokes) ---
+   00354db0  FUN_00354db0  size=40
+   000f70c4  FUN_000f70c4  size=116
+
+--- instructions touching the pad static or small button-bit masks ---
+
+================================================================
+=== FUN_000f6694 @ 000f6694  size=232
+================================================================
+
+void FUN_000f6694(uint *param_1,undefined4 param_2,uint param_3,uint param_4)
+
+{
+  int iVar1;
+  uint uVar2;
+  uint uVar3;
+  uint uVar4;
+  uint uVar5;
+  float fVar6;
+  
+  iVar1 = DAT_003925b0;
+  uVar3 = param_1[1];
+  uVar2 = *param_1;
+  param_1[1] = param_4;
+  *param_1 = param_3;
+  uVar5 = (param_4 ^ uVar3) & param_4;
+  uVar4 = (param_3 ^ uVar2) & param_3;
+  param_1[3] = uVar5;
+  param_1[2] = uVar4;
+  param_1[5] = (param_4 ^ uVar3) & ~param_4;
+  param_1[4] = (param_3 ^ uVar2) & ~param_3;
+  uVar3 = DAT_00371cc4;
+  uVar2 = DAT_00371cc0;
+  param_1[7] = DAT_00371cc4;
+  param_1[6] = uVar2;
+  if ((uVar4 == uVar2) && (uVar5 == uVar3)) {
+    if ((param_3 != uVar2) || (param_4 != uVar3)) {
+      if (DAT_00392484 < 2.0) {
+        fVar6 = (float)param_1[0xc] - 2.0;
+      }
+      else {
+        fVar6 = (float)param_1[0xc] - DAT_00392484;
+      }
+      param_1[0xc] = (uint)fVar6;
+      if (fVar6 <= 0.0) {
+        uVar2 = *(uint *)(iVar1 + 0x260);
+        param_1[7] = param_4;
+        param_1[6] = param_3;
+        param_1[0xc] = uVar2;
+      }
+    }
+  }
+  else {
+    uVar2 = *(uint *)(iVar1 + 0x25c);
+    param_1[7] = uVar5;
+    param_1[6] = uVar4;
+    param_1[0xc] = uVar2;
+  }
+  return;
+}
+
+
+
+--- CALLED BY (who invokes this) ---
+   000f68e0  FUN_000f68e0  size=548
+   000f7028  FUN_000f7028  size=156
+   001203c0  FUN_001203c0  size=384
+   001fc36c  FUN_001fc36c  size=876
+
+--- CALLS (what this invokes) ---
+
+--- instructions touching the pad static or small button-bit masks ---
+
+================================================================
+=== FUN_000f67c0 @ 000f67c0  size=28
+================================================================
+
+bool FUN_000f67c0(uint *param_1,undefined4 param_2,uint param_3,uint param_4)
+
+{
+  return (param_1[1] & param_4) != 0 || (*param_1 & param_3) != 0;
+}
+
+
+
+--- CALLED BY (who invokes this) ---
+   000f71c8  FUN_000f71c8  size=92
+
+--- CALLS (what this invokes) ---
+
+--- instructions touching the pad static or small button-bit masks ---
+
