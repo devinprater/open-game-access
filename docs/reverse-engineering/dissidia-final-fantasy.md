@@ -2397,3 +2397,98 @@ have actually changed. Concretely, the re-run should:
 > time in this investigation that a *negative* result was an instrument artefact rather than a fact
 > about the game (the first being the "no change" sweep whose screenshot capture had crashed).
 
+
+
+---
+
+## 34. An unreproduced transient, and the over-reading it caused
+
+Section 33 reopened the press-diff route and section 34's run produced what looked like the answer:
+small-ordinal fields moving through a strided array. **It did not survive reproduction**, and the
+reason is a sampling error worth recording.
+
+### What the corrected run reported
+
+`psp-diff-press2.py --press down --lo 0x08BA0000 --hi 0x08D20000 --rounds 3` (4 samples: baseline plus
+three presses), comparing only words that moved and stayed in a small range:
+
+```
+SMALL-ORDINAL 0x08C01CFC  [0, 1, 0, 0]
+SMALL-ORDINAL 0x08C01D3C  [0, 1, 0, 0]
+SMALL-ORDINAL 0x08C01D7C  [0, 1, 0, 0]
+SMALL-ORDINAL 0x08C01DBC  [0, 1, 0, 0]
+SMALL-ORDINAL 0x08C01DFC  [0, 0, 1, 0]
+SMALL-ORDINAL 0x08C01E3C  [0, 0, 0, 1]
+SMALL-ORDINAL 0x08C01E40  [0, 0, 0, 1]
+   -> 8 small-ordinal field(s)
+```
+
+Reading it as a series, the values looked like a **one-hot marker walking one record per press**, at a
+record stride of `0x40` -- i.e. exactly a selection cursor advancing through menu rows.
+
+### Why that reading was wrong
+
+Two checks falsified it.
+
+**1. The 10-press follow-up reproduced nothing.** Watching the word at `record + 0x1C` for ten records
+across ten presses:
+
+```
+press#   r0  r1  r2  r3  r4  r5  r6  r7   r8        r9
+  0      0   0   0   0   0   0   0   0   164748704   0
+  1      0   0   0   0   0   0   0   0   0         164748704
+  2..10  0   0   0   0   0   0   0   0   0           0
+```
+
+No one-hot pattern at all.
+
+**2. Re-reading the window shows a fixed structure, not a moving marker.** `0x08C01C00`/`0x08C01D80` are
+identical `0x40`-strided record arrays with constant contents:
+
+```
+record +0x00 = -1        +0x0C = 2097344      +0x20 = 164748704
+record +0x24 = 11010065 or 11272210           +0x28 = 16908466 or 16908470
+record +0x2C = 145008992
+```
+
+and the specific addresses flagged (`0x08C01DBC`, `0x08C01DFC`, `0x08C01E3C`) read **0** now.
+
+### The sampling error
+
+> **With only four samples, "one-hot" and "four independent transients" are indistinguishable.**
+
+The tool compared 4 samples. A transient field that is `1` in exactly one sample and `0` in the other
+three produces the pattern `[0,1,0,0]` -- and three *different* such fields produce
+`[0,1,0,0] / [0,0,1,0] / [0,0,0,1]`. That is exactly what was observed. The `0x40` spacing of the
+addresses then has a second, simpler explanation: the region contains **fixed `0x40`-strided record
+arrays**, so any two transients sampled from that region are `0x40` apart by construction. Both halves
+of the "walking marker" interpretation have a boring explanation that fits the same data.
+
+A one-hot series requires **more samples than there are positions**. Four samples cannot show a marker
+visiting six menu rows, and cannot distinguish a walk from noise.
+
+### The requirement this imposes
+
+The press-diff route stays live (section 33's correction stands -- the menu does scroll), but any future
+run must:
+
+* take **many more samples** than the expected number of positions (the pause menu has ~6 rows, so
+  **≥12 presses**), and require the flagged field to be `1` in a *sequence*, not merely non-constant;
+* **reproduce the pattern** in a second independent run before treating it as the cursor;
+* prefer **one field followed through the whole sequence** over cross-sectional comparisons of many
+  fields, since the latter cannot tell a walk from a set of coincidences.
+
+### Status
+
+**No confirmed cursor.** What section 34 adds is negative but load-bearing: it removes a false positive
+that a 4-sample diff had produced, and it fixes the sampling requirement that let it through. Combined
+with section 33, the pause menu scroll is confirmed and the search method is sound -- what was wrong was
+the number of samples, not the target.
+
+### Method note
+
+> **A pattern needs more samples than the pattern has states.** "One-hot walking" was inferred from four
+> observations of a structure with many positions. Any inference about a *sequence* from samples fewer
+> than its period is unsupported -- and the fix is to count the positions first, then sample past that
+> count, then reproduce.
+
