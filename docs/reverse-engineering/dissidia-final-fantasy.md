@@ -517,17 +517,126 @@ files and read what it does. That is what the Ghidra project is for.
 project imported and analysed (71 s); the `packm` index header; the `MPK ` record layout **verified
 two ways**; **all 388 MPK archives decoded and every entry named** (2204 entries / 1747 distinct
 names written to a file); the menu resources identified **by name**; the EBOOT's own `text/JP/`
-asset paths recovered; 10 concrete encoding hypotheses measured and falsified.
+asset paths recovered; 10 concrete encoding hypotheses measured and falsified; the `ARC` format
+decoded; **the decoded text located in live RAM** (section 11).
 
-**Not yet done:** reading the menu/help text. The `*_help.bin` body is structured into 16-byte
-records; the 1008 `ARC` containers are undecoded; and the Dissidia **load base is still a
-placeholder** (`0x08804000` was used for the Ghidra import) — it must be derived from the live game
-before any RAM address is trusted.
+**Not yet done:** reading the menu/help text **through the app**; the `*_help.bin` on-disk encoding
+is still unexplained (though it no longer blocks the reader, since RAM holds the decoded form); the
+Dissidia **load base is still a placeholder** for the Ghidra import (`0x08804000`).
 
 **Next, in order:**
-1. Decode the `ARC` container format (`scripts/psp-dissidia-arc.py`) and look for the `text/JP/`
-   payloads.
-2. Find the `*_help.bin` reader in `EBOOT.dec` in Ghidra and read the decode out of the code.
-3. Load Dissidia in PPSSPP and scan live RAM for text (`scripts/psp-ram-utf16.py` — note the
-   debugger endpoint is **`ws://127.0.0.1:12345/debugger`**, not the root, which serves a file
-   server and answers `Handshake status 200 OK`).
+1. Map the decoded-text region in RAM (`0x09E59xxx`) — how it is grouped, and whether it is stable
+   while a menu is open. That is a text-table address for an adapter.
+2. Find the transform between the on-disk bytes and the decoded RAM text (the decoder the
+   FFVIII-style hook would sit on).
+3. Derive the real load base from the live game, then re-scan `EBOOT.dec` for the resource loaders
+   (the earlier attempt found 0 of 11 because of the `0x74` file-offset/vaddr skew — see section 7).
+
+---
+
+## 11. BREAKTHROUGH — the decoded text IS in RAM (Dissidia running, ULUS10437)
+
+Loaded the game myself (`C:\Program Files\PPSSPP\PPSSPPWindows64.exe --debugger=12345`) and confirmed
+the harness: `game.status` reports `id ULUS10437`, `title DISSIDIA FINAL FANTASY`.
+
+Scanning the **mapped** user-RAM span found real English UI text:
+
+```
+@0x09E59124  Other players can see the information on your friend card during wireless play.
+             Avoid entering personal information such as addresses, real names, or phone numbers;
+             as well as foul, vulgar ...
+@0x09E59152  friend card during wireless play. ...
+@0x09E59206  Other players can see the names of your artifacts during wireless play. Avoid entering
+             personal information ...
+```
+
+That is the **friend-card privacy warning** — text belonging to `friend_card.bin`.
+
+### This settles the encoding question
+
+Extracted `friend_card.bin` (4884 bytes) from MPK @1040384 and searched for the same English:
+
+```
+friend_card.bin: 0 plaintext hit(s) for 'wireless play'
+   UTF-16LE hits: 0
+```
+
+**The disk copy contains none of that text in any plain form, while RAM contains it as readable
+ASCII.** So the archive copy is genuinely encoded/compressed and the game decodes it at load time.
+The on-disk string tables (`*_help.bin`, `name.bin`, `friend_card.bin`) are the *encoded* form; RAM
+holds the *decoded* form at **`0x09E59124`**.
+
+This SUPERSEDES the section 9 conclusion that the 16-byte-record structure must be a parameter array:
+the same body is text, stored encoded, decoded at runtime. The 16-byte period is a property of the
+*encoded* representation, not evidence that no text is present. The measurement that decided it was
+searching for a known phrase in both places — disk 0 hits, RAM 2 hits.
+
+### CORRECTION: the address is 0x09E59124, not 0x0AE59124
+
+An earlier revision of this doc recorded the address with a wrong third nibble. The true address is
+**`0x09E59124`**. When re-probed, `0x0AE59100` returns
+`{"event":"error","message":"Invalid address"}` — it is not mapped at all. The misattribution came
+from chunk arithmetic in the older scanner (see the mapped-span note below).
+
+### The readable address space, measured (never assume it)
+
+`scripts/psp-ppsspp-client.py --find ... --region 0x08800000:0x0C000000` probes address by address:
+
+```
+readable spans:
+   0x08800000 .. 0x0A000000  (24 MiB)
+```
+
+Dissidia's user RAM window is **0x08800000–0x0A000000**; reads above it fail. Measured behaviour of a
+read crossing the boundary:
+
+```
+read @0x09C00000 size=4194304 -> 4194304 bytes   (entirely in range: fine)
+read @0x09F00000 size=1048576 -> 1048576 bytes   (in range: fine)
+read @0x09FF0000 size=1048576 ->       0 bytes   (crosses 0x0A000000: FAILS WHOLE)
+read @0x0A000000 size=4194304 ->       0 bytes
+```
+
+**A read past the mapped end fails completely rather than truncating** — which is exactly how the
+first naive scanner produced addresses with a wrong prefix: it advanced a chunk counter past the
+mapped end and kept attributing later hits to a wrong base.
+
+### Menu labels confirmed NOT to be strings — in RAM as well as on disk
+
+Scanning the readable span for the documented menu names:
+
+```
+Customize   0 hits
+Ability     0 hits
+```
+
+while `friend card` (1), `wireless play` (2) and `Other players` (2) all hit. So the **menu labels
+really are textures** (section 4), while genuine string resources exist and ARE decoded in RAM. Disk
+and memory now agree.
+
+### Debugger notes (each cost real time)
+
+* PPSSPP emits **asynchronous broadcast events** — observed `input.analog` for both sticks several
+  times a second. A client taking the next `ws.recv()` as its reply reads a broadcast instead. **Match
+  responses by `event` name and loop until you get your own.**
+* An unmapped address answers `{"event":"error","message":"Invalid address","level":2}`. **That is a
+  real answer, not noise.** Swallowing it and returning empty bytes cannot distinguish "not mapped"
+  from "mapped but zero", which silently corrupts any scan built on it. Surface it.
+* The endpoint is `ws://127.0.0.1:12345/debugger`; the root is PPSSPP's file server and replies
+  `Handshake status 200 OK`.
+
+### Ghidra correction: import an ELF as an ELF
+
+The first import used a raw `BinaryLoader` at `-loader-baseAddr 0x08804000`, which maps file offset N
+to `base + N`. The ELF's first LOAD segment is `file_off 0x74, vaddr 0x00000000`, so every address
+was skewed by **0x74** and a scan for the addresses of eleven resource-name strings found **0 matches
+across 683,649 instructions** — which reads as "the code never references these strings" when in fact
+the addresses were wrong. Re-imported with `ElfLoader` (project `DISSIDIA_ELF`, 115 s analysis), so the
+listing now uses the addresses the code actually references.
+
+### Ghidra correction: a ClassNotFoundException IS a compile error
+
+`analyzeHeadless` reports `java.lang.ClassNotFoundException: MyScript` when the Java failed to
+compile — Ghidra swallows javac's output. Compile it yourself against Ghidra's jars to see the real
+error. That is how this was found: `error: cannot find symbol — method getOpCode()`. Ghidra's
+`Instruction` has **no `getOpCode()`**; use `ins.getMnemonicString()`.
