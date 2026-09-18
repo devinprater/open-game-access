@@ -5652,3 +5652,101 @@ concrete forms:
 > per-sample presence or absence is not. Restating the claim that way both hardens it and makes it testable
 > at a sample size the method can actually afford.
 
+
+
+---
+
+## 72. Saturating the pool settles it: the node is written ONLY by the repaint path -- 14/14 overlap
+
+Section 71 retracted section 70's "press-only writers" and named two fixes: **saturate the pool** (6 samples
+could not cover 12+ sites) and **use a frequency claim** rather than a set membership. This section applies
+both.
+
+### The method change that made saturation possible
+
+The naive watchpoint loop takes **one hit per window** -- the breakpoint halts on the first store, so
+covering a 14-site pool took 14 windows per phase. This run instead **re-arms rapidly within each window**:
+
+```
+arm -> short wait -> read cpu.status.pc -> clear -> resume -> re-arm
+```
+
+collecting up to 40 hits per phase in the same wall-clock budget, so the pool is genuinely covered rather
+than sampled.
+
+### Result
+
+```
+=== PRESS phase (verified 'down' presses) ===
+  hits 40   distinct sites 14
+  ... 0x0024AF70 x3, 0x0024AF7C x3, 0x0024AF8C x3, 0x0024AFA4 x3,
+      0x0024AFC4 x3, 0x0024B000 x3, 0x0024B004 x2, 0x0024C10C x2  (the render loop)
+      0x00254694 ...                                              (the definition lookup)
+
+=== IDLE phase (NO input) ===
+  hits 40   distinct sites 14
+
+=== SATURATION CHECK ===
+  press pool size: 14     idle pool size: 14
+  overlap:         14
+  press-only:      none
+  idle-only:       none
+
+=== FREQUENCY CLAIM ===
+  press-only sites seen >=2 times: none
+  => NO press-specific writer: every site writes with no input too.
+```
+
+**Both phases find the SAME 14 store sites, with 14/14 overlap.** So:
+
+* section 70's press/idle separation is **fully retracted** -- it was 6-sample noise from a 14-site pool;
+* section 71's own "repaint only" answer is **confirmed at saturation**;
+* the node `0x08C09344` is written by **one pool of 14 store sites**, all on the repaint path, on every
+  frame, regardless of input.
+
+### Why this is the trustworthy version
+
+Three properties distinguish it from the retracted run:
+
+1. **Both pools saturated at the same size (14).** If sampling were still the limiting factor, the two
+   pools would differ in size; they do not, and the union equals each set.
+2. **Overlap is total (14/14), not partial.** An artefact would not produce complete agreement between two
+   independent collections.
+3. **The frequency claim is applied, not set membership.** "Present in every press sample and no idle
+   sample" is a claim chance cannot manufacture at N=40.
+
+And the instrument is verified on both ends: liveness asserted before the run, verified-delivered presses
+counted in the press phase, and the pool size reported so the reader can see saturation was reached.
+
+### What this settles about the cursor hunt
+
+**The node's fields, including `+0x0C` (the index short) and `+0x10` (the pointer), are pure render
+state.** They are rewritten every frame by the repaint path whether or not the player presses anything. So:
+
+* the selection index is **not** stored in this node, and
+* no amount of further watchpointing on node fields will find it -- the fields are *outputs* of the render
+  pass, overwritten continuously.
+
+This is consistent with everything else established: the render array is derived (section 41), `M + 0x18` is
+a derived row count (sections 60, 68), and the glyph bytes that respond to a press are derived drawing data
+(section 66). **The entire visible-state graph is downstream of the selection, and is rebuilt each frame.**
+
+Therefore the selection must be sought **upstream**: in the code that *reads* the pad and decides what to
+render -- the input-consumer path, which is precisely what the second agent named as the missing piece
+(section 55) and what every data-structure search has failed to reach.
+
+### Method note
+
+> **Saturate before comparing sets; report the pool size so the reader can see it happened.** The retracted
+> run and this one used the same comparison -- the difference is that this one collected until the set
+> stopped growing, and reports `14 / 14` so the saturation is visible in the output rather than inferred.
+
+> **Total agreement is the signature of a real result; total separation from small N is not.** Two
+> independent 40-sample collections returning the *same* 14 sites is strong. Two 6-sample collections
+> returning disjoint sets was noise -- and the earlier run looked convincing precisely because disjointness
+> reads as a clean finding.
+
+> **A field rewritten every frame cannot hold a selection.** If a slot is written on every repaint
+> regardless of input, then by construction it is an output of the render pass, not an input to it. That is
+> a structural argument, and it redirects the search upstream without needing to test each node field.
+
