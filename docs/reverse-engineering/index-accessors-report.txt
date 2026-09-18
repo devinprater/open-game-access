@@ -1,0 +1,174 @@
+=== INDEX ACCESSOR CONFIRMATION (doc section 95) ===
+
+================================================================
+=== FUN_00251278 (presumed INDEX getter, +0x28) ===
+=== FUN_00251278 @ 00251278  size=56 ===
+================================================================
+--- decompiled ---
+
+undefined4 FUN_00251278(int param_1)
+
+{
+  int iVar1;
+  undefined4 uVar2;
+  
+  iVar1 = FUN_00251238();
+  if (iVar1 == 0) {
+    uVar2 = 0xffffffff;
+  }
+  else {
+    uVar2 = *(undefined4 *)(param_1 + 0x14);
+  }
+  return uVar2;
+}
+
+
+------------------
+
+--- CALL SITES OF FUN_00251278 (vaddr 0x251278) ---
+   00250024  in FUN_0024ff20  size=392
+   00250558  in FUN_00250538  size=148
+   002508b8  in FUN_00250874  size=252
+   002509cc  in FUN_002509ac  size=212
+   00250ca0  in FUN_00250c38  size=500
+   002520dc  in FUN_002520cc  size=64
+
+================================================================
+=== FUN_0025236c (presumed COUNT getter, +0x60) ===
+=== FUN_0025236c @ 0025236c  size=56 ===
+================================================================
+--- decompiled ---
+
+undefined4 FUN_0025236c(int param_1)
+
+{
+  int iVar1;
+  undefined4 uVar2;
+  
+  iVar1 = FUN_00252364();
+  if (iVar1 == 0) {
+    uVar2 = 0;
+  }
+  else {
+    uVar2 = *(undefined4 *)(param_1 + 0x1e0);
+  }
+  return uVar2;
+}
+
+
+------------------
+
+--- CALL SITES OF FUN_0025236c (vaddr 0x25236c) ---
+   002503d8  in FUN_00250358  size=356
+   0025056c  in FUN_00250538  size=148
+   002505dc  in FUN_002505d4  size=28
+   00250608  in FUN_002505f0  size=120
+   002508c8  in FUN_00250874  size=252
+   002509dc  in FUN_002509ac  size=212
+
+================================================================
+=== FUN_00252424 (presumed TABLE accessor, +0x60) ===
+=== FUN_00252424 @ 00252424  size=128 ===
+================================================================
+--- decompiled ---
+
+int FUN_00252424(int param_1,uint param_2)
+
+{
+  int iVar1;
+  
+  iVar1 = FUN_00252364();
+  if (iVar1 == 0) {
+    iVar1 = 0;
+  }
+  else if (param_2 < 7) {
+    if (param_2 < *(uint *)(param_1 + 0x1e0)) {
+      iVar1 = param_1 + 4 + param_2 * 0x44;
+    }
+    else {
+      iVar1 = 0;
+    }
+  }
+  else {
+    iVar1 = 0;
+  }
+  return iVar1;
+}
+
+
+------------------
+
+--- CALL SITES OF FUN_00252424 (vaddr 0x252424) ---
+   00250584  in FUN_00250538  size=148
+   00250628  in FUN_002505f0  size=120
+   002511a8  in FUN_00251034  size=516
+
+================================================================
+=== FUN_00251de4 (unpacks the selected item) ===
+=== FUN_00251de4 @ 00251de4  size=56 ===
+================================================================
+--- decompiled ---
+
+undefined4 FUN_00251de4(int param_1)
+
+{
+  int iVar1;
+  undefined4 uVar2;
+  
+  iVar1 = FUN_00251da4();
+  if (iVar1 == 0) {
+    uVar2 = 0xffffffff;
+  }
+  else {
+    uVar2 = *(undefined4 *)(param_1 + 0x18);
+  }
+  return uVar2;
+}
+
+
+------------------
+
+--- CALL SITES OF FUN_00251de4 (vaddr 0x251de4) ---
+   002505b0  in FUN_00250538  size=148
+   0025064c  in FUN_002505f0  size=120
+
+================================================================
+=== FUN_002500f4 (availability test) ===
+=== FUN_002500f4 @ 002500f4  size=8 ===
+================================================================
+--- decompiled ---
+
+undefined1 FUN_002500f4(undefined1 *param_1)
+
+{
+  return *param_1;
+}
+
+
+------------------
+
+--- CALL SITES OF FUN_002500f4 (vaddr 0x2500f4) ---
+   002500b4  in FUN_002500a8  size=76
+   00250108  in FUN_002500fc  size=56
+   00250140  in FUN_00250134  size=120
+   002501e4  in FUN_002501ac  size=204
+   00250284  in FUN_00250278  size=64
+   00250388  in FUN_00250358  size=356
+   0024ff3c  in FUN_0024ff20  size=392
+   002504c8  in FUN_002504bc  size=96
+   00250548  in FUN_00250538  size=148
+   002502cc  in FUN_002502b8  size=88
+   00250324  in FUN_00250310  size=72
+
+################ WHO ASKS "WHAT IS SELECTED" ################
+
+=== FUN_00250538 @ 00250538  size=148 ===
+
+--- CALL SITES OF FUN_00250538 (what is selected) (vaddr 0x250538) ---
+   001257d0  in FUN_001256f4  size=592
+   001297a0  in FUN_0012961c  size=1128
+   0012ed10  in FUN_0012ebcc  size=540
+   00267e30  in FUN_00267cb8  size=540
+   001ba3a4  in FUN_001b97c8  size=17120
+   001ba5f0  in FUN_001b97c8  size=17120
+
