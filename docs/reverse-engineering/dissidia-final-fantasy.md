@@ -6698,3 +6698,108 @@ decidable by reading them rather than by instrumenting.
 > them is a bounded reading task, not a search. When instrumenting is exhausted, an enumeration of size 10
 > is the cheaper next move.
 
+
+
+---
+
+## 82. The 10 callers of the input driver are ALL pad/engine infrastructure -- the menu is not among them
+
+Section 81 concluded the menu must be a **callee** in the input path and nominated the 10 callers of
+`FUN_000f7498` (the function that drives both converted-input ports) as the next target. This section reads
+all ten.
+
+### All ten score zero on every menu indicator
+
+Scoring each caller for: calls into known menu code (`FUN_0024aee0` render loop, `FUN_0024932c` node
+manager, `FUN_0025468c` definition lookup, `FUN_002489d0` menu-manager ctor, `FUN_002dbf50` boot),
+references to the manager static `DAT_00397770`, string references, and update-loop-sized bodies:
+
+```
+=== SUMMARY (ranked by score) ===
+  FUN_000f55f0  size=124   score=0
+  FUN_001e5efc  size=568   score=0
+  FUN_001e7718  size=668   score=0
+  FUN_001e86cc  size=428   score=0
+  FUN_001e904c  size=764   score=0
+  FUN_001e974c  size=372   score=0
+  FUN_00287634  size=904   score=0
+  FUN_0028f224  size=432   score=0
+  FUN_002cda1c  size=124   score=0
+  FUN_002cdba4  size=372   score=0
+```
+
+**Zero for all ten** -- not one references the manager static, calls any known menu function, or contains a
+string. That is a strong, uniform negative, and the size range (`124`-`904` bytes) rules out "they are all
+too small to be the menu".
+
+### What they actually are: pad-layer polling
+
+The smallest, `FUN_000f55f0` (124 bytes), is representative:
+
+```c
+bool FUN_000f55f0(void)
+{
+  if (*DAT_00395480 == '\0') {
+    iVar2 = FUN_001e9730(DAT_0039547c);
+    bVar1 = iVar2 != 0 && iVar2 != -0x7feefffb;
+  } else {
+    bVar1 = true;
+  }
+  if (!bVar1) {
+    FUN_000f7498();                 // <- the input driver
+    FUN_001e9a30(DAT_00395480);
+  ...
+```
+
+It tests a **state flag** (`DAT_00395480`) and an error code (`-0x7feefffb` = `0x80110005`, a PSP
+driver-error constant), and only then calls the input driver. That is **device-level polling with error
+handling** -- pad infrastructure, not menu logic. Its own two callers (`FUN_0013e97c`, `FUN_0025c8d4`, both
+60 bytes) continue the same pattern.
+
+So the 10 callers are the pad/driver layer's *own* invocation path, and the menu is not among them.
+
+### The consistent architecture across sections 73-82
+
+| layer | finding | section |
+|---|---|---|
+| pad object | 21 refs, **0** touching the menu | 73 |
+| service table | 2 refs, both construction | 77 |
+| converted state `pad+0xC0` | 2 readers, both pad-internal | 81 |
+| input driver's 10 callers | **all score 0** for menu indicators | **82** |
+
+Four independent measurements, all negative in the same direction: **the menu does not appear anywhere in the
+input path's call graph or data references.**
+
+### What this means, stated plainly
+
+The input plumbing is now fully mapped, and the menu is not attached to it by any reference that a
+cross-reference or a reader enumeration can see. That leaves exactly two mechanisms:
+
+1. **The menu reads input through a copied state block** -- the pad layer writes a struct that the menu also
+   holds, so neither shares a static and neither reads the other's object. The candidate structures are the
+   pointer fields already observed at `pad+0xC0 + 0x34/0x40/0x4C` (`0x08BA46E8`, `0x09EDA400`/`0x09EDA3A0`,
+   `0x08BB2900`/`0x08BB2AC0`) -- one of those may be the state block the menu also references.
+2. **The menu is invoked through the engine's update/dispatch tables** -- the same class-registration
+   machinery found in `FUN_000fa84c`, where each subsystem registers with a descriptor and can be called
+   without a symbol reference.
+
+**The concrete next measurement is the first one**, and it is mechanical: take the four pointer values
+observed in the converted-input objects and **search all of RAM for other holders** -- exactly the pointer
+search that worked in section 76 (which found `rec5`'s data field holding the pad object). If one of those
+pointers is also held by a menu-side object, that object is the consumer.
+
+### Method note
+
+> **Score the whole set, and report the score distribution.** Ten callers all scoring zero is a much stronger
+> statement than "I read one and it was not the menu". Printing a ranked summary makes the uniformity
+> visible, and it also guards against the trap of picking the most promising-looking name.
+
+> **Uniform failure is a result about the architecture.** Four sections have now each failed to attach the
+> menu to the input path by a different method (data reference, table walk, reader enumeration, caller
+> scoring). That consistency is what licenses the conclusion that the coupling is by **copied state or
+> dispatch table** -- rather than prompting a fifth variant of the same search.
+
+> **Check whether the candidates are the right SIZE to be the target.** A 124-byte function cannot be a menu
+> update, but a 904-byte one could -- so reporting sizes alongside scores is what makes "all zero" mean
+> "absent" rather than "too small to tell".
+
