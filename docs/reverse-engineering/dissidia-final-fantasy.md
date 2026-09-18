@@ -4670,3 +4670,73 @@ render loop that consumes this recipe is not running, and a cursor would not be 
 > *structure* is separable from observing the *behaviour*, and saying which one was achieved keeps the
 > result usable: the structure is settled, the behaviour needs a drawing menu.
 
+
+
+---
+
+## 62. Input gate fully operational -- nine controls verified, and this screen draws no rows
+
+Section 61 extracted the selection recipe but could not exercise it because `render count` was 0. This
+section sweeps **every control with the input gate**, using `M + 0x18` as a "this screen draws" detector.
+
+### The run
+
+```
+  down     delivered 3/3 (tried 13)  RENDER max 0     SEL moved: none
+  up       delivered 3/3 (tried  5)  RENDER max 0     SEL moved: none
+  left     delivered 3/3 (tried  8)  RENDER max 0     SEL moved: none
+  right    delivered 3/3 (tried  5)  RENDER max 0     SEL moved: none
+  circle   delivered 3/3 (tried  6)  RENDER max 0     SEL moved: none
+  cross    delivered 3/3 (tried 10)  RENDER max 0     SEL moved: none
+  triangle delivered 3/3 (tried  6)  RENDER max 0     SEL moved: none
+  square   delivered 3/3 (tried 10)  RENDER max 0     SEL moved: none
+  start    delivered 3/3 (tried 10)  RENDER max 0     SEL moved: none
+  l        delivered 0/3 (tried 30)  RENDER max None  SEL moved: none
+  r        delivered 0/3 (tried 30)  RENDER max None  SEL moved: none
+
+=== liveness AFTER ===   ticks delta 899,998,938 -> EXECUTING
+```
+
+### What is now solid
+
+**The input gate works exactly as designed.** Nine controls were each verified delivered **3/3** at the
+pad button word, so their "no change" readings are real evidence. `l` and `r` were delivered **0/30** each
+and the script reports them with **no verdict** rather than as inert controls -- which is precisely the
+distinction sections 50-57 could not make. The retry counts (5-13 tries for 3 deliveries) again measure
+the intermittence the gate absorbs.
+
+### The result
+
+**`RENDER` stayed 0 for all nine verified-delivered controls, and no `SEL` field moved.** So this screen
+draws no rows at all, and the render loop that consumes the section-61 recipe is not running. The
+consequence is narrow and clear:
+
+> The selection recipe is **structurally confirmed** (code + RAM) but has still never been observed
+> *firing*, because a screen that draws rows has not been reached with a live control.
+
+This is now a **bounded, well-posed** gap. It is not "the cursor is unknown"; it is "the recipe is
+identified, and it needs a screen where `M + 0x18 > 0`".
+
+### Why this is a good place to stop for evidence
+
+Three things are true simultaneously and they are independent:
+
+1. **`M + 0x18` is a proven detector.** Section 60: it responded to delivered D-pad presses (`up`/`down`)
+   but not to `cross`/`circle` -- so it marks a drawing menu, and it is one 4-byte read.
+2. **Delivery can be verified per press.** Section 62: 9/9 controls gated, 2 correctly refused.
+3. **The recipe is known.** Section 61: `q = read32(node+0x10)`, `SEL = read_s16(q+4)`, 1-based.
+
+So the remaining work is a **single run on a drawing screen**: sweep with the gate, watch `M + 0x18`, and
+when it is non-zero read `SEL` per node. Everything needed for that is in place.
+
+### Method note
+
+> **A refused control is a result.** `l` and `r` scoring 0/30 delivered produced *no* claim about those
+> buttons -- which is the correct outcome. Earlier sections recorded exactly this situation as "the
+> D-pad is inert on the reachable screens" and it was wrong. Reporting the refusal, and naming it as a
+> refusal, is what prevents the error.
+
+> **Use a proven detector to define the remaining gap.** `M + 0x18` converts "we need a menu" into a
+> measurable predicate (`> 0`), which turns an open-ended search into a checkable condition. Naming the
+> gap as a predicate is what makes it closable in one run.
+
