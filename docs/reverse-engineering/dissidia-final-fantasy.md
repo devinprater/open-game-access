@@ -8085,3 +8085,102 @@ next step is to follow its callees -- `FUN_00267740` and `FUN_00267840` are the 
 > address was stored in an object field" as the explanation for five failed searches. This function is that
 > chain, in code: `object + 0x34` -> slot -> code pointer -> indirect call.
 
+
+
+---
+
+## 95. The SELECTION INDEX ACCESSOR: `0 <= index < count` with a `-1` sentinel
+
+Section 94 found the menu-side input consumer (`FUN_00267cb8`) and named its callees as the next step. Scoring
+all twelve for selection-index evidence produced one standout.
+
+### `FUN_00250538` is a bounds-checked list accessor
+
+```c
+undefined4 FUN_00250538(int param_1)
+{
+  iVar1 = FUN_002500f4();
+  if (iVar1 == 0) {
+    uVar3 = 0xffffffff;                                  // sentinel: unavailable
+  }
+  else {
+    iVar1 = FUN_00251278(param_1 + 0x28);                // <-- READ THE INDEX  (field +0x28)
+    if ((iVar1 < 0) || (iVar2 = FUN_0025236c(param_1 + 0x60), iVar2 <= iVar1)) {
+      uVar3 = 0xffffffff;                                // <-- 0 <= idx < count  ELSE -1
+    }
+    else {
+      iVar1 = FUN_00252424(param_1 + 0x60, iVar1);        // <-- INDEX INTO THE TABLE (field +0x60)
+      if (iVar1 == 0) {
+        uVar3 = 0xffffffff;
+      }
+      else {
+        uVar3 = FUN_00251de4(iVar1);                       // <-- RETURN THE SELECTED ITEM
+      }
+    }
+  }
+  return uVar3;
+}
+```
+
+The idiom is unmistakable and it is the one property this investigation has been hunting since section 40:
+
+```
+    if ((index < 0) || (count <= index)) return -1;      // validate
+    item = table[count_base, index];                     // resolve
+    return unwrap(item);                                 // deliver
+```
+
+**`index < 0 || count <= index` is the canonical selection-index bounds test.** Nothing else in the twelve
+callees has this shape. And it carries the **`-1` sentinel** that section 44 chased (there in the wrong
+object) and which section 61's render recipe also used (`iVar13 = -1` before the draw call).
+
+### The two fields it reads
+
+| field | accessor | role |
+|---|---|---|
+| `param_1 + 0x28` | `FUN_00251278(+0x28)` | **the selection index** |
+| `param_1 + 0x60` | `FUN_0025236c(+0x60)` | **the item count** |
+| `param_1 + 0x60` | `FUN_00252424(+0x60, idx)` | **the item table** (indexed accessor) |
+
+So index and table live at different offsets of the same object (or of two related ones), with the count
+alongside the table -- which is exactly how section 55's Codex answer described the render descriptor
+(`R + 0x0c` table, `R + 0x2c` count).
+
+### Why this is a better target than anything searched so far
+
+Every earlier attempt looked for the index by **behaviour** at run time (a wrapping value, a value that moves
+per press) or by **structure** at load time (a small ordinal in a known object). Both failed because the index
+is behind the indirection section 94 exposed.
+
+This is different in kind: it is a **function whose contract is to read the index and validate it**. So it
+gives the index's location **and** its accessor:
+
+* `FUN_00251278` is the **index getter** -- its body is the definition of where the index is stored;
+* `FUN_0025236c` is the **count getter**;
+* `FUN_00252424` is the **indexed table accessor** (so its arithmetic shows the element stride);
+* and `FUN_00250538` itself is the **"what is selected"** query that any accessibility layer would want.
+
+That last point matters for the project: **`FUN_00250538` is arguably the exact function a screen reader
+adapter should call** to learn the current selection, rather than hunting a raw memory field.
+
+### Testability, and the honest caveat
+
+Two independent checks are now available and both are cheap:
+
+1. **Static:** decompile `FUN_00251278`, `FUN_0025236c`, `FUN_00252424` and confirm the field roles (getter
+   bodies, element stride, count source).
+2. **Dynamic:** `FUN_00250538` returns `0xffffffff` when out of range, so calling it (or reading
+   `FUN_00251278`'s target) while pressing `down`/`up` on a scrolling menu should show the index moving and
+   the sentinel appearing at an edge.
+
+**Caveat, stated plainly:** `FUN_00250538` is one of `FUN_00267cb8`'s callees, but I have **not** shown the
+call sites' order or that its `param_1` is the same object as the consumer's `param_1`. The idiom is strong
+evidence of *what it does*; it is not yet evidence of *which UI it belongs to*. That check is the next step,
+and it is a call-site read, not a search.
+
+### Method note
+
+> **Score for the idiom, not for the field.** Twelve callees, none of which stores an ordinal or touches a
+> known node structure -- yet one contains `index < 0 || count <= index`. Ranking by *shape of the test*
+> found in minutes what value-diffing 24 MB could not, because the test is what defines a selection.
+
