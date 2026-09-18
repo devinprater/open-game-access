@@ -7320,3 +7320,121 @@ next step, and its own callers would be the menu's decision code.
 > function whose body is `(a & m) != 0 || (b & n) != 0` can only be answering a question about those bits.
 > Recognising the shape gives the caller's *intent* without reading the caller first.
 
+
+
+---
+
+## 88. The input QUERY API: `FUN_000f71c8` has no callers because it lives in a function-pointer table
+
+Section 87 ended at the bit-test predicate's only caller, `FUN_000f71c8`, and named reading it as the next
+step. Doing so produced a clean structural answer.
+
+### `FUN_000f71c8` has no callers at all
+
+`DisQueryCaller.java` walked up from `FUN_000f71c8` and reached exactly **one** function -- itself:
+
+```
+=== ALL FUNCTIONS REACHED ===
+   000f71c8  FUN_000f71c8  size=92
+```
+
+And the report says it plainly:
+
+```
+  --- CALLED BY ---
+     (none -- reached by pointer? or a root)
+```
+
+**Zero callers.** So the only way this function is invoked is through a **function pointer**.
+
+### Its body: a guarded wrapper around the predicate
+
+```c
+undefined4 FUN_000f71c8(undefined4 param_1, undefined4 param_2, undefined4 param_3, undefined4 param_4)
+{
+  iVar1 = FUN_00360828();
+  if (iVar1 == 0) {
+    uVar2 = FUN_000f67c0(param_1, param_2, param_3, param_4);   // the bit-test predicate
+  } else {
+    uVar2 = 0;
+  }
+  return uVar2;
+}
+```
+
+It takes the **same four arguments** as the predicate, calls a status function (`FUN_00360828`) first, and
+returns 0 when that status is non-zero -- otherwise it forwards to the predicate. So it is the
+**state-guarded, externally-callable form** of the query: *"is this button bit set?"*, with a gate.
+
+### And the pointer search finds exactly ONE holder
+
+Scanning all 24 MB for words equal to `FUN_000f71c8`'s address (`RAM 0x088FB1C8`):
+
+```
+=== holders of the pointer to FUN_000f71c8: 1 ===
+   0x08BA46F4   -8:0x00000000  -4:0x00000000  +4:0x00000000  +8:PTR 0x088FB224
+```
+
+For comparison, in the same pass:
+
+| function | holders |
+|---|---|
+| `FUN_000f67c0` (the predicate) | 1 |
+| `FUN_000f71c8` (the guarded query) | 1 |
+| `FUN_000f70c4` (the translator) | **0** |
+| `FUN_000f6694` (the edge processor) | **0** |
+
+So the **inner machinery is never referenced by pointer** (called directly), while the **query wrappers are
+each referenced exactly once** -- consistent with them being installed in a table.
+
+`0x08BA46F4` sits inside a run of code pointers (`+8` is `0x088FB224`, another code address in the same
+`0x088FBxxx` band as `FUN_000f71c8` itself). That is a **function-pointer table in the pad region**, and it
+is the interface a consumer uses.
+
+### What this completes
+
+The input path is now traced from hardware to a **published API**, and the API is a table:
+
+```
+sceCtrl -> pad object (+0x00 raw)
+        -> FUN_000f7138 reads raw
+        -> FUN_000f70c4 maps raw -> LOGICAL action bits        (s79)
+        -> FUN_000f7028 hands on                                (s85)
+        -> FUN_000f6694 writes EVENT STATE into pad+0xC0        (s85, verified s86)
+               +0x00 current | +0x08 just-pressed | +0x10 just-released
+        -> FUN_000f67c0  bit-test predicate over the event object   (s87)
+        -> FUN_000f71c8  guarded wrapper -- NO CALLERS, held in a function-pointer
+                         table at 0x08BA46F4                       (s88)
+```
+
+**This is the answer to the question that started this phase.** Sections 73-84 spent seven attempts trying to
+find the menu *reading* input and found nothing, because the interface is inverted: the pad layer
+**publishes a query function in a pointer table**, and the menu obtains it from that table. A caller that
+looks it up never mentions the pad static, the pad object, or the event object by symbol -- which is exactly
+why every cross-reference search came back empty.
+
+### The concrete next measurement
+
+Search for holders of **`0x08BA46F4`** (the table slot) and of the table's **base** -- the same pointer search
+that found `rec5` (s76), the delivery table (s83), and now the query function itself (s88). The table's base
+is somewhere below `0x08BA46F4` and can be located by scanning the surrounding run for its extent; whoever
+holds *the table* obtains the input API, and that consumer is the menu.
+
+Also worth noting for that follow-up: the table must be **populated at init**, so a write watchpoint on
+`0x08BA46F4` during startup would catch the registration -- and section 84 already established that this
+subsystem's dispatch tables are reached by registration rather than by stored pointer.
+
+### Method note
+
+> **"No callers" is the finding, not a dead end.** A function with zero callers is either dead code or
+> **pointer-reached**; given it is the guarded form of a query we traced from hardware, pointer-reached is
+> the answer. Recognising the distinction immediately made the pointer search the obvious next step.
+
+> **Compare holder counts across the whole chain in one pass.** Running the search for four functions at once
+> produced the contrast that made the result interpretable: inner machinery `0/0`, query wrappers `1/1`. A
+> single count would have said little; the pattern across the chain said "installed in a table".
+
+> **The guarded wrapper is the published form.** `if (status() == 0) { return predicate(...); } else return 0;`
+> -- adding a gate and a fixed signature is what turns an internal helper into something a table can hold.
+> The shape of the wrapper is what identified it as the API rather than an internal call.
+
