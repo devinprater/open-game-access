@@ -3481,3 +3481,98 @@ The node-field negative is **not** established. The decisive node test still has
 > self-consistent -- and was measuring a scene. Sections 43-47 have now had five faults of this kind; the
 > cost of one extra two-frame capture before each run is trivial next to a voided result.
 
+
+
+---
+
+## 48. The harness now works as designed — it refused twice instead of lying
+
+Section 47 implemented the animation guard. This section records the first runs where the harness
+**correctly refused** rather than producing another void "trustworthy" verdict. Two refusals, both
+accurate, are the useful result.
+
+### All three preconditions, measured separately
+
+Before the node test, the screen and CPU were verified by hand:
+
+```
+liveness:            ticks delta 888,888,000   stepping=False  -> EXECUTING
+no-press frame diff: 0 px                                     -> STATIC (menu)
+reached via 'l'      (STATIC+UI, sat 10.71%)
+```
+
+So both the CPU and the screen were correct at that moment.
+
+### Refusal 1 — the animation guard fired
+
+Running the probe immediately afterwards:
+
+```
+=== liveness BEFORE ===
+  before  ticks delta: 666,700,980  stepping=False -> EXECUTING
+  no-press frame diff: 1,330,967 px
+REFUSING: the display is ANIMATING on its own (a scene, not a menu), so a per-press
+movement check cannot distinguish a highlight move from ordinary motion.
+rc=5
+```
+
+The game had returned to a scene in the seconds between the manual check and the probe. **The guard
+caught it and returned a distinct exit code (5) instead of a verdict** -- which is exactly the behaviour
+section 47 asked for and which no previous run had.
+
+### Refusal 2 — the delivery check fired on a genuinely static screen
+
+Chaining "reach a static screen" and "run the probe" into one process removed the gap, and the guard
+then passed on a real menu:
+
+```
+  no-press frame diff: 0 px
+  -> STATIC screen confirmed; a per-press diff is now meaningful.
+manager 0x08C08EB0
+  head/tail/count: (146839792, 146838032, 9)   nodes walked: 9
+=== presses that moved the display: 0/12 ===
+node counts per sample: [9 x13]
+node ADDRESSES identical across samples: True
+=== node fields that changed ===   (no node field changed)
+=== liveness AFTER ===
+  after   ticks delta: 666,666,000   stepping=False -> EXECUTING
+VERDICT: VOID -- no press moved the display; readings are not evidence.
+```
+
+**This is the correct outcome.** On a screen confirmed static (0 px with no press) and a CPU confirmed
+executing, `down` moved **nothing** -- so the field readings above it are not evidence either way, and
+the harness says so instead of reporting "trustworthy negative".
+
+### What the two refusals establish
+
+* **The animation guard works**: it distinguishes a scene from a menu by measurement, not assumption, and
+  refuses with a distinct code.
+* **The delivery check now has teeth**: because the screen is verified static first, `0/12` is now
+  *informative* -- it means `down` genuinely did nothing on this screen. Previously the same `12/12`
+  certified nothing.
+* **The harness has become a filter, not a recorder.** Both runs were refused, and a refusal costs one
+  run rather than a withdrawn section.
+
+### What is still not established
+
+**The node-field negative.** The list walked cleanly (9 nodes on this screen; 11 and 35 on the other two
+screens seen, so the list length is definitively per-screen) and every node address was identical across
+13 samples -- but **no press moved the highlight**, so the node fields were never exercised. The
+decisive test still needs a static menu whose highlight actually moves.
+
+Practical requirement for the next attempt: find a static UI screen where a **d-pad direction actually
+moves the selection**. The earlier pause menu scrolled with `down` (verified twice by OCR of the changed
+panel), so the immediate next step is to return to *that* screen and re-run, rather than accepting a
+screen where `down` is inert.
+
+### Method note
+
+> **A refusal with a distinct exit code is a result.** Sections 43-47 each produced a confident verdict
+> that later had to be withdrawn; this section produced two refusals and no verdict, which is strictly
+> better -- the runs cost minutes and no part of the document had to be corrected. Building the guard
+> was worth more than any single measurement it protected, because it applies to every future run.
+>
+> **Distinguish "no press moved the display" from "the field is not the cursor."** Those are different
+> claims and only the first is supported here. The harness now separates them, which is why this
+> section can be honest about not having the answer.
+
