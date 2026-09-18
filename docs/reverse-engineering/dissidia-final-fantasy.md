@@ -6579,3 +6579,122 @@ Step 2 is the same instrument that worked in section 78, aimed at the right addr
 > companion state word sharing the translator's table. That is consistent with a converted-input object
 > rather than a bare bit pair. Noting it costs one line of reading and strengthens the identification.
 
+
+
+---
+
+## 81. A THIRD dead end of the same shape -- and what the repetition establishes
+
+Section 80 named the converted-input object (`pad + 0xC0`, two ports at stride `0x50`) and predicted that a
+read watchpoint on its `+0x00` would enumerate the input consumers. This section runs that, then follows the
+pad layer's tail calls -- and the third dead end, plus that tail-call result, together say something
+specific.
+
+### The converted-input objects, read live
+
+```
+--- port0 pad+0xC0 @ 0x09EDA460 ---
+     +0x00 = 0x00000000   <== LOGICAL BUTTON BITS (converted)
+     ...most fields zero, with pointers at +0x34/?/+0x40/+0x4C: 0x08BA46E8, 0x09EDA400, 0x08BB2900
+--- port1 pad+0x110 @ 0x09EDA4B0 ---
+     +0x00 = 0x00000000   <== LOGICAL BUTTON BITS (converted)
+     ...same shape: +0x34 PTR 0x08BA46E8, +0x40 PTR 0x09EDA400, +0x48 = 1, +0x4C PTR 0x08BB2AC0
+```
+
+Both objects have the same structure (`0x50` apart), most fields zero at rest, a few pointers at `+0x34`,
+`+0x40`, `+0x4C`, and `+0x48 = 1`. The converted bit word at `+0x00` is zero with no button held, as
+expected.
+
+### The read watchpoint: only TWO readers, both pad-internal
+
+```
+=== 2. READ watchpoint on port0 + 0x00 (the converted logical bits) ===
+   watching 0x09EDA460
+   hits 40  distinct PCs 2
+
+=== READERS of the CONVERTED input state ===
+   0x088FA698 x20  vaddr 0x000F6698  [pad routine]
+   0x088FA6B0 x20  vaddr 0x000F66B0  [pad routine]
+```
+
+**Two sites, 20 hits each** -- again a perfectly balanced, saturated set, and both are the **same pad routine
+that section 78 found reading the raw word three times** (the sites are the same two addresses).
+
+So the converted state is read **only inside the pad layer**. That is the third dead end of the same shape:
+
+| structure | referenced by | conclusion |
+|---|---|---|
+| pad object | 21 functions, **0** referencing the menu | not read by the menu (s73) |
+| service table | 2 references, both construction | never walked (s77) |
+| **converted input `pad+0xC0`** | **2 readers, both pad-internal** | **not read by the menu either** |
+
+### And the tail calls are not a dispatcher
+
+The pad layer's "does not return" tail calls were the natural next candidate for a delivery mechanism.
+Decompiling them:
+
+```c
+undefined4 * FUN_00354d84(undefined8 param_1, undefined8 param_2, undefined4 *param_3)
+{
+  *param_3      = (int)param_1;
+  param_3[1]    = (int)((ulonglong)param_1 >> 0x20);
+  param_3[2]    = (int)param_2;
+  param_3[3]    = (int)((ulonglong)param_2 >> 0x20);
+  return param_3;
+}
+```
+
+**This is a struct packer**, not a dispatcher: it unpacks a 64-bit value across four words of a caller
+buffer and returns the buffer. Its only branch is `jr ra`. So the tail call the controller read makes is
+**"write these four words into my buffer"** -- i.e. a value-return convention, consistent with section 79's
+finding that this input path communicates by **returned values, not published objects**.
+
+It has **111 references from 70 distinct callers** -- a pervasive utility, which is also why it cannot be a
+dispatcher to the menu: 70 unrelated subsystems use it to unpack values.
+
+### What the repetition establishes
+
+Three independent structures are all unreferenced-by-the-menu, and the pad layer communicates by **returned
+values**: `FUN_000f70c4` returns the mapped bits (s79), `FUN_000f6fc8` stores them locally (s80),
+`FUN_00354d84` packs values into caller buffers. Meanwhile the input is consumed **inside the pad layer
+only**.
+
+That is a coherent and complete picture of the *input plumbing* -- and it means the menu is not reading
+input state from any of these structures. The remaining possibility with support is the one section 77
+named:
+
+> **The menu is invoked by the pad/engine layer** -- i.e. it is a **callee** in the input path, not a caller
+> that polls.
+
+The evidence for that reading: the pad layer's consumers are all upstream (something calls *it*), the values
+flow by return, and nothing downstream polls. So the menu-side handler must be found in the **call graph
+above** `FUN_000f7498` (which drives both ports) rather than below it.
+
+`FUN_000f7498` has **10 callers**, already enumerated in section 80's report:
+
+```
+000f55f0  FUN_000f55f0    001e5efc  FUN_001e5efc    001e7718  FUN_001e7718
+001e86cc  FUN_001e86cc    001e904c  FUN_001e904c    001e974c  FUN_001e974c
+00287634  FUN_00287634    0028f224  FUN_0028f224    002cda1c  FUN_002cda1c
+002cdba4  FUN_002cdba4
+```
+
+Those ten are the next target: whichever of them is a **menu/UI update** is the consumer, and that is
+decidable by reading them rather than by instrumenting.
+
+### Method note
+
+> **A third dead end of the same shape is a stronger result than the first two.** One unreferenced structure
+> could be an omission; three (object, table, converted state) with the same signature is a **design
+> property**: input flows by returned value and the menu is not a poller. Recognising the repeat is what
+> makes the next step principled instead of another search.
+
+> **A "does not return" tail call is not necessarily a dispatcher.** `FUN_00354d84` looked promising --
+> marked `/* Subroutine does not return */`, called with a prepared struct -- and turned out to be a
+> **struct packer** with 70 unrelated callers. Checking whether the body contains an **indirect call**
+> (`jalr`/loaded-function-pointer) distinguishes a dispatcher from a utility, and here there was none.
+
+> **Enumerate the callers ABOVE, then read them.** `FUN_000f7498` has 10 callers; finding the UI one among
+> them is a bounded reading task, not a search. When instrumenting is exhausted, an enumeration of size 10
+> is the cheaper next move.
+
