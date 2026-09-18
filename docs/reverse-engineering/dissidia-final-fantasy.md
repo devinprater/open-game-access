@@ -1418,3 +1418,71 @@ context, and runs after the menu manager is built.
 | what object holds the menu state | **`DAT_00397770`** (constructor called with it as the only arg) |
 | which field is the selection | **still open** — next: `FUN_0024adf8` and the `param_1[8]` sentinel |
 
+
+
+---
+
+## 22. `FUN_0024adf8` is the menu SOUND loader — and the object is system-wide
+
+Section 21 named `FUN_0024adf8(DAT_00397770, auStack_30)` as "the natural next target for the
+selection field". **Read, it is not that.** It is 152 bytes and loads menu audio:
+
+```c
+void FUN_0024adf8(int param_1, int param_2) {
+  if (*(int *)(param_1 + 0x20) == -1) {                      // -1 == "not loaded yet"
+    if (param_2 == 0) {
+      uVar1 = FUN_0019f8f8(DAT_00394400, "sound/snd_menu.scd");
+      *(undefined4 *)(param_1 + 0x20) = uVar1;
+    } else {
+      iVar2 = FUN_000ef2d0(param_2, "snd_menu.scd");
+      if (iVar2 != 0) {
+        uVar1 = FUN_0019f924(DAT_00394400, "sound/snd_menu.scd",
+                             *(undefined4 *)(iVar2 + 4), *(undefined4 *)(iVar2 + 8));
+        *(undefined4 *)(param_1 + 0x20) = uVar1;
+      }
+    }
+  }
+}
+```
+
+So:
+
+* the "context" argument (`auStack_30`) is an **archive handle** the sound file is fetched from — not a
+  menu context;
+* `param_1 + 0x20` is a **sound-handle cache slot**, using `-1` as "not loaded", which is the *same
+  sentinel idiom* the constructor uses at `param_1[8] = -1` (section 16) — useful to know, and a warning
+  that a `-1` in this struct does not imply "selection" either;
+* the caller set is **four functions** (`FUN_0012445c`, `FUN_0019cd38`, `FUN_001cdc80`, and boot's
+  `FUN_002dbf50`), i.e. this "menu manager" object is used by several subsystems, not just menus.
+
+### What that means for the cursor hunt
+
+`DAT_00397770` is **not a menu object**. It is a system object that the menu manager constructor
+initialises along with sound, archive and other subsystems. Confirmed structure so far:
+
+| field | meaning | evidence |
+|---|---|---|
+| `+0x020` | menu-sound handle cache (`-1` = unloaded) | `FUN_0024adf8` |
+| chapter-name array | story/stage ids, 36-byte stride, from offset ~`+0x08` | section 20 live read |
+| `param_1[8]` = `+0x20` | **the same field** — so section 16's "selection sentinel" was actually this sound slot | reconciling 16 with 22 |
+
+⛔ **That last row matters.** `param_1[8]` in the constructor and `param_1 + 0x20` here are the *same
+4-byte slot* (index 8 = 8×4 = 0x20). So the constructor's `param_1[8] = -1` sets the sound handle to
+"unloaded" — it was **never a selection sentinel**. Section 16's claim is therefore **retracted**.
+
+### Status, stated plainly
+
+| claim | state |
+|---|---|
+| `FUN_002489d0(DAT_00397770)` builds the menu subsystem data | holds |
+| `param_1[8] = -1` is a **selection** sentinel | **RETRACTED** — it is `+0x20`, the sound handle |
+| menu items are linked lists in this object | **unverified** — the field map that suggested it came partly from this same misread |
+| which field holds the selection | **OPEN**, and this object is not obviously the place |
+
+**Where this leaves the investigation:** five decompile passes have mapped the boot sequence, the
+resource loaders, the localisation template, and this system object — but the object that holds
+*menu selection* has not been identified, and the fields previously nominated for it are now explained
+as other things. The honest next step is **not** another guess at offsets: it is to drive the game to
+a menu and read the object live while stepping the highlight (the approach section 14's sweep showed is
+possible once a live menu exists), or to locate the menu *screen* code rather than the menu *manager*.
+
