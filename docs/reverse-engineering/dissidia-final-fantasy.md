@@ -382,6 +382,70 @@ runs), `simple_character_select.bin` (14 B), `save_data.bin` (7.495), `common.bi
 `battle_voice_name.bin` (6.622 — a u16 table, `0x1001`, `0x1102`... incrementing pairs).
 
 
+### The index is fully characterised, and it does not point at text
+
+`PACKAGE_INFO.BIN` is EXACTLY a flat array: `16-byte header + 5741 x 12 bytes = 68908 = file size`.
+
+| word | property | interpretation |
+|---|---|---|
+| `w0` | strictly ascending **5740/5740**, max 4,294,062,453 (just under 2^32) | a monotonic counter/log, **NOT** a byte offset (only 886/5741 land inside PACKAGE.BIN) |
+| `w1` | sizes, sum = **1,067,318,536** bytes (1017.9 MiB) | per-entry length |
+| `w2` | **in range for 4994/5741 (87%)** vs ~15% by chance | a real offset into PACKAGE.BIN |
+
+`sum(w1) x 4 = 4,269,274,144` against `max(w0) = 4,294,062,453` — within **0.6 %**. Tempting as a
+`w0 = 4 x cumsum(w1)` law, it is **false**: tested exactly, it holds for only **1/5741** records. Do
+not resurrect it.
+
+Classifying the 64 bytes at every `w2` (`scripts/psp-dissidia-indexclass.py`):
+
+```
+binary                2268  39.5%
+floats/params         1611  28.1%
+zeros/empty           1098  19.1%
+OUT OF RANGE           747  13.0%
+ASCII text              16   0.3%   <- inspected: repeating bitmap patterns (K8K8]7. ...)
+UTF-16LE text            1   0.0%
+```
+
+So the index points at **asset data — textures and parameter blocks — not at text.** The "ASCII"
+hits are bitmap byte patterns, and their offsets cluster just above `0x20000000` (half the file).
+
+### The final on-disk text search: font codes
+
+Because the menu labels are textures and the game ships a real font (`libfont.prx`,
+`SYSTEM FONT T2/T3`, `sceLibFont`), and because `menu_pk_loading_seq_0.bin` holds UTF-16LE with codes
+above `0x7F`, the last on-disk hypothesis was **text stored as low-range u16 font codes**.
+`scripts/psp-dissidia-fontscan.py` searched the whole payload for long runs of u16 values with a
+zero high byte and a bounded code value: **no text runs exist.** The longest matching runs are 23
+tokens and are binary data patterns (`\x09\xBF\x06\xCE\x15...`); distinct codes used: 255, dominated
+by tiny values (0x01, 0x15, 0x06).
+
+### Conclusion for section 9-10: the text is NOT in PACKAGE.BIN in any plain form
+
+Every plain or semi-plain storage has now been excluded by measurement, over the entire 660 MB file:
+
+* UTF-16LE menu words — 0 hits
+* sentence-shaped prose, both encodings — 0 (only font atlases)
+* ASCII anywhere — only texture/tool metadata (`title_09_BattleLobby.tm2`, `.kuriki.`, `GimConv 1.41`)
+* low-range u16 font codes — 0 text runs
+* the `packm` index does not reference text
+* the EBOOT's own `text/JP/` paths (`menu_lang.bin`, `field_lang.bin`, `mess_pk_loading`) — **0
+  occurrences** in the payload
+* `.mes` files — all 11 are empty stubs
+* menu labels — baked into `.tm2`/`.gim` textures
+
+Two readings remain, and both now require reading **code**, not data:
+
+1. The localisation text is loaded from a resource **not inside PACKAGE.BIN** (a second archive, a
+   section the index addresses differently, or the install data).
+2. It is generated at load time by the font/text module from data that is not recognisable as text
+   until the decoder runs.
+
+**The next step is therefore unambiguous: read the decoder out of `EBOOT.dec` in the Ghidra project
+and stop searching the archive.** Every data-side hypothesis has been tested and falsified; guessing
+further has negative expected value.
+
+
 ---
 
 ## 9. The `*_help.bin` encoding — unresolved, with the falsifications recorded
