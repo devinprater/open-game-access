@@ -2730,3 +2730,99 @@ of a known pointer, not another blind region diff.
 > tells you the target lies outside the range. Clearing a region is progress: it converts "not found
 > here" into "not here."
 
+
+
+---
+
+## 39. The manager object is located and its list walked — the decompiled layout is CONFIRMED, and the list is static
+
+Section 38 ended by proposing a targeted read: follow the heap pointer the constructor stored. That was
+done, and it produced the strongest structural confirmation so far -- plus another cleared structure.
+
+### Finding the manager object
+
+`DAT_00397770 + 0` holds a heap pointer the ELF has as zero (`0x08C08EB0`). Following it:
+
+```
+DAT_00397770 +0x00 = 0x08C08EB0   (heap pointer, written at run time)
+             +0x04 = 0x3F800000   (float 1.0)
+             +0x08 = 'one0'        (chapter-name data begins -- section 29)
+```
+
+and the object at `0x08C08EB0`:
+
+```
++0x20 = 0xFFFFFFFF   <- -1   sentinel
++0x24 = 0x00000001   <- 1    count
++0x28 = 0x08C093F4   <- head
++0x2C = 0x08C093C8   <- tail
++0x30 = 0x00000023   <- 35   count / stride
++0x3C = 0x00000014   <- 20
+```
+
+**These are exactly the manager-header offsets used by the decompiled code.** `FUN_0024932c` walks a
+list from `param_1 + 0x28`; `FUN_0024910c` maintains head/tail and decrements counters at
+`param_1 + 0x30` and `param_1 + 0x3c`; the constructor sets `param_1[8] = -1`. So `0x08C08EB0` **is** the
+manager-class object, and section 38's hypothesis (a heap-allocated manager with no static anchor) is
+confirmed: the static holds only a **pointer** to it, written at run time.
+
+### The list walks correctly, and confirms the decompile
+
+`psp-walk-nodes.py --mgr 0x08C08EB0`:
+
+```
+head=0x08C093F4 tail=0x08C093C8 count=35 nodes=35
+
+0x08C093F4  def=146886532 flags14=0x03 f17=0 w20=0x0000 next=0x08C09FFC child=0x00000000
+0x08C09FFC  def=146883864 flags14=0x03 f17=0 w20=0x0000 next=0x08C09FD0 child=0x00000000
+0x08C09FD0  def=146883748 flags14=0x03 f17=0 w20=0x0000 next=0x08C09FA4 child=0x08C165E8
+... 35 nodes ...
+```
+
+The head/tail values match the header fields, the count matches, and the nodes link through `+0x24`
+exactly as `FUN_0024910c` unlinks them. **So the decompiled list layout is now validated against live
+data** -- head `+0x28`, tail `+0x2C`, count `+0x30`, next `+0x24`, flags `+0x14`, definition pointer
+`+0x0C` (recall `FUN_0025468c` reads `iVar3 = param_1[3]` = `+0x0C`), child list `+0x3C`.
+
+This is a real result: four prior sections reasoned about this layout from decompile text alone.
+
+### ...and it is completely static
+
+Three verified presses (247,209 px each, highlight moving `Retry` <-> `Return to Game`) changed
+**nothing**: the header fields and every node field were identical, and the node count stayed 35.
+
+```
+=== node fields that changed across presses ===
+   (no node field changed)
+```
+
+Also note **35 items is not the pause menu** (about 6 rows). So this list is the menu **definition
+table** -- all items the manager knows about -- not the visible list. That explains both its size and its
+static nature.
+
+### Where this leaves the cursor
+
+Every structure reachable from the manager is now either explained or static:
+
+| structure | status |
+|---|---|
+| `DAT_00392cd8` | engine-service pointers + constant 290 (s24, s26) |
+| `DAT_00397770` head | chapter-name table, 7/7 records (s29) |
+| `DAT_00397770 +0` | pointer to the manager (this section) |
+| manager header `+0x20/0x24/0x30/0x3C` | **static** across 14 presses (this section) |
+| manager list, 35 nodes | **static**, every field (this section) |
+| `0x08BE0000-0x08C20000` | no wrapping field (s38) |
+| three registered handlers | draw callbacks (s27) |
+
+**The highlight is stored somewhere none of these reach.** The remaining candidate class is the
+**per-screen / per-frame working set** the draw callback builds -- which is consistent with section 27's
+finding that the handlers fire a fixed render sequence rather than holding state.
+
+### Method note
+
+> **Walking a structure validates the decompile as a side effect.** Reading the manager through
+> `+0x28`/`+0x2C` returned head/tail/count that agreed with the header fields and linked 35 nodes
+> through `+0x24` -- which confirms four sections of decompile-derived reasoning in a single read. A
+> structure that walks cleanly is strong evidence the layout is right, **even when the field you want
+> turns out not to be in it.** Say so explicitly rather than reporting only the negative.
+
