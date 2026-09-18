@@ -6363,3 +6363,115 @@ function at or below `0x000F7150`, and its call graph.
 > unclassified readers as the only externally-interested parties, which is exactly the discrimination
 > needed.
 
+
+
+---
+
+## 79. The input CONSUMER found: a bit-mapping table that translates pad bits into logical game bits
+
+Section 78's read watchpoint found five readers of the pad button word, two in an unclassified function.
+This section identifies that function and its callee -- and lands on the input translation layer.
+
+### The reader: `FUN_000f7138` (112 bytes)
+
+```c
+void FUN_000f7138(int param_1) {
+  puVar1 = *(undefined4 **)(param_1 + 0x40);
+  FUN_000f70c4(param_1, puVar1, *puVar1, puVar1[1]);      // <- passes the raw button values
+  puVar1 = *(undefined4 **)(param_1 + 0x40);
+  if (*(int *)(param_1 + 0x4c) != 0) {
+    FUN_000f70c4(param_1, puVar1, *puVar1, puVar1[1]);
+    puVar1 = *(undefined4 **)(param_1 + 0x40);
+  }
+  FUN_00354db0(param_1 + 0x20, puVar1 + 8);              /* no return */
+}
+```
+
+Its callers are `FUN_000f6fc8` (84 B) and `FUN_000f7028` (156 B) -- both pad-layer-adjacent. It reads the
+button words **twice** (the two reader sites, `entry+0x18` and `entry+0x4c`, matching the two
+`FUN_000f70c4` calls) -- which explains why those two sites appeared with equal counts in the read watch.
+
+### The consumer: `FUN_000f70c4` -- a bit-mapping table walk
+
+```c
+undefined8 FUN_000f70c4(undefined4 param_1, undefined4 param_2, uint param_3, uint param_4)
+{
+  uVar3 = *in_t0;  uVar4 = in_t0[1];
+  uVar2 = DAT_00371cc4;  uVar1 = DAT_00371cc0;
+  while ((uVar3 != DAT_00371cc0 || (uVar4 != DAT_00371cc4))) {
+    if (((param_3 & uVar3) == uVar3) && ((param_4 & uVar4) == uVar4)) {
+      uVar2 = uVar2 | in_t0[3];      // accumulate output bit 1
+      uVar1 = uVar1 | in_t0[2];      // accumulate output bit 2
+    }
+    uVar3 = in_t0[4];  uVar4 = in_t0[5];
+    in_t0 = in_t0 + 4;
+  }
+  return CONCAT44(uVar2, uVar1);
+}
+```
+
+**This is an input translation routine, and its shape is unmistakable:**
+
+* It iterates a **table of 4-word entries** (`in_t0`, advancing by 4 words = `0x10` per row):
+  `{mask_a, mask_b, out_a, out_b}`.
+* For each row it tests whether the raw button words (`param_3`, `param_4`) **contain** both masks
+  (`(param_3 & mask_a) == mask_a`).
+* On a match it **accumulates** the row's two output words (`in_t0[2]`, `in_t0[3]`) into two accumulators.
+* It terminates when the row matches two sentinel globals (`DAT_00371cc0`, `DAT_00371cc4`) -- i.e. an
+  **end-of-table marker**.
+* It **returns the accumulated pair** (`CONCAT44(uVar2, uVar1)`).
+
+So the routine is a **key-binding / button-mapping translator**: it converts raw `sceCtrl` button bits into
+the game's own logical action bits, and returns them to the caller. That is exactly the hand-off section 77
+predicted had to exist -- and it confirms the prediction's *form*: input is not published as an object the
+menu polls, it is **translated and returned as a value**.
+
+### Why this is the right thing to have found
+
+Every earlier dead end is now explained:
+
+| section | finding | explanation |
+|---|---|---|
+| 73 | pad object not referenced by the menu (0 of 21) | the menu never sees raw pad state |
+| 77 | service table never walked (2 refs) | it is registration, not a lookup path |
+| 78 | only 5 sites read the button word | the pad layer reads it and **translates** it in 2 of them |
+| **79** | **the translator returns accumulated logical bits** | **this is the hand-off: a value, not an object** |
+
+The chain is now end-to-end and each link is code-verified:
+
+```
+sceCtrl  ->  pad object (button word at +0x00)
+         ->  FUN_000f7138 reads it (2 sites)
+         ->  FUN_000f70c4 maps raw bits -> LOGICAL BITS via a 4-word-entry table
+         ->  returns CONCAT44(accumulated_a, accumulated_b) to the caller
+```
+
+### What remains, and it is now narrow
+
+The translator's output is the **logical button state**. The next step is one level up: who calls
+`FUN_000f7138`'s callers (`FUN_000f6fc8` / `FUN_000f7028`) and **receives** the returned bit pair. That
+consumer is the menu-side input handler, and *it* is where a selection index changes.
+
+Two concrete follow-ups:
+
+1. trace callers of `FUN_000f6fc8` and `FUN_000f7028` (one more level up the same chain);
+2. watch `FUN_000f70c4`'s **return value** -- a breakpoint on its exit, or simply a breakpoint at the
+   translator's call site, gives the caller immediately.
+
+### Method note
+
+> **A read watchpoint leads to a translation layer, not to the menu.** Expecting the button-word reader to
+> *be* the consumer was wrong; the reader hands off to a mapper. Recognising the mapper's shape -- a table
+> of `{mask, mask, out, out}` rows accumulating bits, terminated by a sentinel pair -- is what identified
+> the layer, and it also explains why no *object* was ever reachable: the interface is a **returned value**.
+
+> **The table shape is the tell for a key-binding system: `{input_mask, output_bit}` rows with a sentinel
+> terminator.** Two masks tested with `(raw & mask) == mask`, two output words OR-ed into accumulators, and
+> a sentinel row ending the loop -- that is a binding table, and it is recognisable without knowing the
+> game's action list.
+
+> **Two equal reader counts matched two call sites in one function.** The read watch showed `0x000F7150` and
+> `0x000F7184` with 8 hits each; `FUN_000f7138` contains exactly two `FUN_000f70c4` calls, at `entry+0x18`
+> and `entry+0x4c`. The hit *count* predicted the code shape before the decompile confirmed it -- a useful
+> cross-check that the watchpoint was reporting genuine sites and not noise.
+
