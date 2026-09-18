@@ -5561,3 +5561,94 @@ press/idle control, would say which one the input path actually writes.
 > structure's fields. That is a different signature from a single increment -- and it is the signature to
 > expect from a routine that recomputes `base + index*0x1c` and stores the result.
 
+
+
+---
+
+## 71. RETRACTION of section 70 -- idle-vs-idle also shows ZERO overlap, so "press-only writers" was chance
+
+Section 70 reported a sharp result: watching node `0x08C09344` during verified presses versus no input gave
+**two disjoint PC sets**, so the press-only writers (`FUN_0024932c`, `FUN_00254668`) were identified as the
+input-responsive code and the rest as a per-frame repaint.
+
+Section 71 ran the same discrimination on the node's individual slots and got the **opposite** answer --
+"repaint only" for both `+0x0C` and `+0x10`. That contradiction forced the control that section 70 lacked.
+
+### The control that settles it: idle versus idle
+
+Two runs of **6 samples each with NO input at all**, same watched field, same procedure:
+
+```
+=== CONTROL: idle run A (no input) ===
+  ['0x8a4d388', '0x8a4d398', '0x8a4d3a0', '0x8a58694', '0x8a58698', '0x8a4ef70']
+
+=== CONTROL: idle run B (no input) ===
+  ['0x8a4ef8c', '0x8a4efa4', '0x8a4efc4', '0x8a4f000', '0x8a4f004', '0x8a5010c']
+
+  A only : 0x8a4d388 0x8a4d398 0x8a4d3a0 0x8a4ef70 0x8a58694 0x8a58698
+  B only : 0x8a4ef8c 0x8a4efa4 0x8a4efc4 0x8a4f000 0x8a4f004 0x8a5010c
+  BOTH   : []
+
+  overlap: 0    union: 12
+```
+
+**Zero overlap with no input whatsoever.** And the two sets are *exactly* the two sets section 70 recorded
+as "press-only" and "idle-only":
+
+| section 70 label | actual |
+|---|---|
+| "PRESS only" | `0x8a4d388…0x8a58698` -- one idle run |
+| "IDLE only" | `0x8a4ef8c…0x8a5010c` -- another idle run |
+
+So section 70's disjointness was a **sampling artefact**, not a property of the code. The node is written by
+a **pool of at least 12 distinct store sites** across the repaint path, and **6 samples per phase cannot
+cover that pool**. Any two 6-sample draws from a 12-site pool will frequently be disjoint by chance.
+
+### What this retracts
+
+* **"PRESS-ONLY writers found"** -- retracted. `FUN_0024932c` and `FUN_0025468c` were not shown to be
+  input-responsive; they were one arbitrary subset of the repaint pool.
+* **"The repaint set is ruled out"** -- retracted; no set was separated from any other.
+* **"Zero overlap is a sharper result than a repeated PC"** (section 70's method note) -- **wrong**. Zero
+  overlap is the *expected* outcome for small samples from a large pool. The sharper result would have been
+  a PC repeated across **all** samples of one phase and **absent** from all samples of the other, which is
+  a different and much stronger claim.
+
+### What survives
+
+* The **capability** is intact: watchpoints fire, PCs are captured, the CPU resumes between windows, and
+  the watched field is written by the repaint path -- all confirmed here.
+* The node `0x08C09344` (and its `+0x0C`/`+0x10` slots) is written **only by the repaint path**, in both
+  phases, on every sample. Section 71's own runs agree with each other, which is what section 70's did not.
+* Section 69's observation stands as an observation: hits during presses land in the render loop, the
+  definition lookup and the list manager -- but that is now understood as *the repaint pool*, not as
+  input-specific code.
+
+### The fix, stated as a sample-size rule
+
+A write-site discrimination needs **enough samples to cover the pool**, or a **different statistic**. Two
+concrete forms:
+
+1. **Saturate the pool**: collect hits until the set stops growing (say 30-50 samples per phase) and only
+   then compare. With 12+ sites, 6 samples is far too few.
+2. **Use a frequency claim instead of a set claim**: a *press-specific* writer should appear on **every**
+   press and **never** without one. Requiring "present in all N press samples and absent from all N idle
+   samples" is far stronger than "in one set and not the other", and it cannot be satisfied by chance at
+   modest N.
+
+### Method note
+
+> **Every set-comparison needs a null.** Section 70 compared press versus idle and concluded a separation.
+> The null -- idle versus idle -- shows the same separation with no treatment at all. **Run the comparison
+> you intend to interpret against its own null before believing the difference**, exactly as a memory field
+> needs a no-press control and a scan needs a churn baseline.
+
+> **A small sample from a large pool looks like a clean separation.** Twelve-plus store sites and six
+> samples per phase guarantees frequent disjointness. The tell was that the result was *too* clean -- a
+> total separation rather than a partial one -- and that a repeat with the same method gave the opposite
+> answer. **When a discrimination is perfect, check whether the sampling could produce it by chance.**
+
+> **Prefer "always present / always absent" to "in this set".** Set membership is fragile at small N;
+> per-sample presence or absence is not. Restating the claim that way both hardens it and makes it testable
+> at a sample size the method can actually afford.
+
