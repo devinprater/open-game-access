@@ -1798,3 +1798,90 @@ churn, not a selection. `DAT_00392cd8` remains **not** the cursor container — 
 > explicitly (`CAPTURE FAILED`) and never let "no file appeared" stand in for "the value did not
 > change" — a broken instrument and a true zero look identical otherwise.
 
+
+
+---
+
+## 27. The registered handlers are DRAW CALLBACKS — the manager layer is closed
+
+Section 26 left the impression that the constructor's three registered handlers were "the menu screen
+code" that sections 24/25 said was missing. **That is now tested and it is wrong.** This section
+records the closure, because it is the difference between a live lead and a spent one.
+
+### What the handlers actually are
+
+`DisMenuHandlers.java` decompiled all three plus the registration function and its context:
+
+```
+FUN_0036926c(undefined4 param_1)        size=36
+{
+  FUN_00248dd0(DAT_00397770, param_1);   // one-call thunk
+  return;
+}
+```
+
+```
+FUN_00103c60(int param_1)               size=8
+{
+  return *(undefined4 *)(param_1 + 0x2000);
+}
+```
+
+```
+FUN_0024aee0(int param_1, int *param_2) size=4776   // <-- the shared callee
+```
+
+Three facts together settle it:
+
+1. **The handlers are one-call thunks** into `FUN_00248dd0` / `FUN_00248dec` / `FUN_00248ea8`, which are
+   event bodies guarded on `*(char *)(param_1 + 0x24) != '\0'` and a pointer at `+0x28` or `+0x34`,
+   then fire a fixed sequence of `FUN_00351c8c(9)`, `FUN_00351c8c(4)`, `FUN_0035292c(6,0,0xff)` …
+   and finally `FUN_0024aee0(this, this+0x28)`. That sequence is a **render/state-swap sequence**.
+2. **`FUN_0024aee0` is 4,776 bytes** with dozens of float locals and buffer pointers. It is a
+   **renderer**, not a selection field. No 4.7 KB function is a menu index.
+3. **`FUN_00103c60` is an 8-byte accessor** — `return *(undefined4 *)(param_1 + 0x2000)` — and it has
+   **28 call sites** across the binary (`0x000b29f8` … `0x002d586c`). A function this widely used is a
+   **global engine handle**, not a menu object.
+
+So the handlers are **event/draw callbacks** registered on a global engine service. They are not button
+handling and they do not contain the highlight.
+
+### What this closes
+
+Combined with the earlier results, the "menu manager" line of enquiry is now exhausted from both ends:
+
+| layer | what it turned out to be | verdict |
+|---|---|---|
+| `DAT_00397770` (constructor arg) | static struct starting with chapter-name data (`one00`, `two00`, …) | **not** menu state (section 20/21) |
+| `param_1[8] = -1` | byte offset `+0x20` = the **menu-sound handle** being set to "unloaded" | **not** a sentinel (section 22) |
+| `DAT_00392cd8 + 0x20 = 290` | **never moved** across down/up on two different menus | **not** the cursor (sections 24, 26) |
+| the three registered handlers | one-call thunks → fixed render sequence over a 4,776-byte renderer | **draw callbacks** (this section) |
+| `FUN_00103c60` | 8-byte accessor `*(param_1 + 0x2000)`, 28 call sites | global engine service |
+
+**The cursor is not in the manager layer at all.** Every candidate field in it now has a different,
+verified explanation, which is a stronger result than "not found": the search space is genuinely
+reduced rather than merely unsearched.
+
+### The lead that follows
+
+The 179-string UI dump localises what is needed. The strings are **contiguous in address order** in
+`0x09D16A68..0x09D1943C` — `Return to Title Screen`, `Retry`, `Quicksave`, `Return to the Lobby`,
+`Help Manual`, `Skip Cutscene`, the Story Mode help line at `0x09D18994` — which means **menu entries
+are indexed into that table**. So navigation state is most likely an **index into a table of records
+that contain these strings**, and the tables themselves are the unsearched thing.
+
+Two concrete, bounded next steps:
+
+* **Find what references the UI text table** (search Ghidra's memory for the bytes at `0x09D16A68`, the
+  technique that worked in section 13 after the address-computation approach failed) and read the
+  neighbouring records for an index/count pair.
+* **Locate the mode-selection screen** (`"return to the mode selection screen"`, `0x09D191DC`) rather
+  than the manager — the screen code is where a highlight is drawn from an index.
+
+### Method note
+
+> **A "size" reading is a strong, cheap classifier.** A 36-byte function beside a 4,776-byte one is a
+> thunk beside a renderer; an 8-byte function with 28 call sites is an accessor, not a container.
+> Reading sizes before decompiling bodies would have prevented treating these handlers as the menu
+> screen code at all.
+
