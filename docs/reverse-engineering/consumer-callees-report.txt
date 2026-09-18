@@ -1,0 +1,441 @@
+=== FUN_00267cb8's CALLEES -- looking for the SELECTION ORDINAL (doc section 94) ===
+
+targets: 12
+
+================================================================
+=== FUN_00267740 @ 00267740  size=256 ===
+================================================================
+--- selection-index evidence: 0 line(s) ---
+
+--- CALLS ---
+   002471e8  FUN_002471e8  size=204
+   0026498c  FUN_0026498c  size=56
+   00250134  FUN_00250134  size=120
+   001a0fbc  FUN_001a0fbc  size=36
+   002501ac  FUN_002501ac  size=204
+   00250358  FUN_00250358  size=356
+   001942b0  FUN_001942b0  size=40
+   002678d4  FUN_002678d4  size=152
+   00250310  FUN_00250310  size=72
+   0026831c  FUN_0026831c  size=44
+   00250278  FUN_00250278  size=64
+   001a2160  FUN_001a2160  size=100
+   000f7420  FUN_000f7420  size=32
+
+--- decompiled ---
+
+void FUN_00267740(int param_1)
+
+{
+  undefined4 uVar1;
+  undefined *puVar2;
+  
+  FUN_002678d4(param_1,2);
+  puVar2 = &DAT_000012c4 + param_1;
+  FUN_00250134(puVar2);
+  FUN_00250278(puVar2);
+  FUN_002501ac(puVar2,0x3b,0xffffffff,0);
+  FUN_002501ac(puVar2,0x3a,0xffffffff,0);
+  FUN_00250310(puVar2,1);
+  uVar1 = FUN_000f7420(0);
+  FUN_00250358(puVar2,uVar1,0,0);
+  FUN_002471e8(param_1 + 0x1584);
+  FUN_001a0fbc(0,1);
+  FUN_001942b0(DAT_003940f0,1);
+  FUN_001a2160(1);
+  FUN_0026498c(param_1 + 0xeb0);
+  if (*(char *)(param_1 + 0xf60) != '\0') {
+    FUN_0026831c(param_1 + 0xf5c);
+  }
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_00267840 @ 00267840  size=148 ===
+================================================================
+--- selection-index evidence: 0 line(s) ---
+
+--- CALLS ---
+   002472b4  FUN_002472b4  size=204
+   00264930  FUN_00264930  size=92
+   002504bc  FUN_002504bc  size=96
+   00268348  FUN_00268348  size=44
+   001a0fbc  FUN_001a0fbc  size=36
+   001942b0  FUN_001942b0  size=40
+   002678d4  FUN_002678d4  size=152
+   001a2160  FUN_001a2160  size=100
+
+--- decompiled ---
+
+void FUN_00267840(int param_1)
+
+{
+  FUN_002504bc(&DAT_000012c4 + param_1);
+  FUN_002472b4(param_1 + 0x1584);
+  if (*(int *)(&DAT_000012b0 + param_1) != 3) {
+    FUN_002678d4(param_1,1);
+    FUN_001a0fbc(0,0);
+    FUN_001942b0(DAT_003940f0,0);
+    FUN_001a2160(0);
+    FUN_00264930(param_1 + 0xeb0);
+    if (*(char *)(param_1 + 0xf60) != '\0') {
+      FUN_00268348(param_1 + 0xf5c);
+    }
+  }
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_00250538 @ 00250538  size=148 ===
+================================================================
+--- selection-index evidence: 2 line(s) ---
+   STRIDE/COUNT iVar1 = FUN_00251278(param_1 + 0x28);
+   CMP  if ((iVar1 < 0) || (iVar2 = FUN_0025236c(param_1 + 0x60), iVar2 <= iVar1)) {
+
+--- CALLS ---
+   00251de4  FUN_00251de4  size=56
+   0025236c  FUN_0025236c  size=56
+   002500f4  FUN_002500f4  size=8
+   00251278  FUN_00251278  size=56
+   00252424  FUN_00252424  size=128
+
+--- decompiled ---
+
+undefined4 FUN_00250538(int param_1)
+
+{
+  int iVar1;
+  int iVar2;
+  undefined4 uVar3;
+  
+  iVar1 = FUN_002500f4();
+  if (iVar1 == 0) {
+    uVar3 = 0xffffffff;
+  }
+  else {
+    iVar1 = FUN_00251278(param_1 + 0x28);
+    if ((iVar1 < 0) || (iVar2 = FUN_0025236c(param_1 + 0x60), iVar2 <= iVar1)) {
+      uVar3 = 0xffffffff;
+    }
+    else {
+      iVar1 = FUN_00252424(param_1 + 0x60,iVar1);
+      if (iVar1 == 0) {
+        uVar3 = 0xffffffff;
+      }
+      else {
+        uVar3 = FUN_00251de4(iVar1);
+      }
+    }
+  }
+  return uVar3;
+}
+
+
+------------------
+
+================================================================
+=== FUN_0025051c @ 0025051c  size=28 ===
+================================================================
+--- selection-index evidence: 1 line(s) ---
+   STRIDE/COUNT FUN_00251240(param_1 + 0x28);
+
+--- CALLS ---
+   00251240  FUN_00251240  size=56
+
+--- decompiled ---
+
+void FUN_0025051c(int param_1)
+
+{
+  FUN_00251240(param_1 + 0x28);
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_001a0bc4 @ 001a0bc4  size=400 ===
+================================================================
+--- selection-index evidence: 6 line(s) ---
+   CMP  if (*(int *)(DAT_0135dcc0 + 0x600) < 1) {
+   STEP iVar3 = *(int *)(DAT_0135dcc0 + 0x600) + -1;
+   STORE piVar2[1] = param_2;
+   STEP piVar2[2] = -1;
+   STORE piVar2[3] = param_3;
+   STORE piVar2[4] = 0;
+
+--- CALLS ---
+   001a07bc  FUN_001a07bc  size=56
+   001a0714  FUN_001a0714  size=168
+
+--- decompiled ---
+
+int FUN_001a0bc4(undefined4 param_1,int param_2,int param_3)
+
+{
+  int iVar1;
+  int *piVar2;
+  int iVar3;
+  int *piVar4;
+  
+  if (DAT_00394418 == '\0') {
+    iVar1 = 0;
+  }
+  else {
+    if (*(int *)(DAT_0135dcc0 + 0x600) < 1) {
+      piVar2 = (int *)0x0;
+    }
+    else {
+      iVar3 = *(int *)(DAT_0135dcc0 + 0x600) + -1;
+      iVar1 = DAT_0135dcc0 + iVar3 * 4;
+      *(int *)(DAT_0135dcc0 + 0x600) = iVar3;
+      piVar2 = *(int **)(iVar1 + 0x500);
+    }
+    piVar4 = (int *)0x0;
+    if (piVar2 != (int *)0x0) {
+      *piVar2 = 0x13d8;
+      piVar2[1] = param_2;
+      piVar2[2] = -1;
+      piVar2[3] = param_3;
+      piVar2[4] = 0;
+      piVar4 = piVar2;
+    }
+    if (piVar4 == (int *)0x0) {
+      iVar1 = 0;
+    }
+    else {
+      iVar1 = 0;
+      iVar3 = FUN_001a07bc(0x5c);
+      if (iVar3 != 0) {
+        FUN_001a0714(iVar3,param_1,param_2,piVar4);
+        iVar1 = iVar3;
+      }
+      if (iVar1 == 0) {
+        if (piVar4 != (int *)0x0) {
+          (**(code **)(*piVar4 + 0xc))((int)piVar4 + (int)*(short *)(*piVar4 + 8),3);
+        }
+        iVar1 = 0;
+      }
+      else if (DAT_0135a804 == 0) {
+        DAT_0135a800 = iVar1;
+        DAT_0135a804 = iVar1;
+        *(undefined4 *)(iVar1 + 0x58) = 0;
+      }
+      else {
+        *(int *)(DAT_0135a804 + 0x58) = iVar1;
+        *(undefined4 *)(iVar1 + 0x58) = 0;
+        DAT_0135a804 = iVar1;
+      }
+    }
+  }
+  return iVar1;
+}
+
+
+------------------
+
+================================================================
+=== FUN_00267a2c @ 00267a2c  size=20 ===
+================================================================
+--- selection-index evidence: 0 line(s) ---
+
+--- CALLS ---
+
+--- decompiled ---
+
+void FUN_00267a2c(void)
+
+{
+  *(undefined4 *)(&DAT_000012b0 + DAT_003982f0) = 3;
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_00267840 @ 00267840  size=148 ===
+================================================================
+--- selection-index evidence: 0 line(s) ---
+
+--- CALLS ---
+   002472b4  FUN_002472b4  size=204
+   00264930  FUN_00264930  size=92
+   002504bc  FUN_002504bc  size=96
+   00268348  FUN_00268348  size=44
+   001a0fbc  FUN_001a0fbc  size=36
+   001942b0  FUN_001942b0  size=40
+   002678d4  FUN_002678d4  size=152
+   001a2160  FUN_001a2160  size=100
+
+--- decompiled ---
+
+void FUN_00267840(int param_1)
+
+{
+  FUN_002504bc(&DAT_000012c4 + param_1);
+  FUN_002472b4(param_1 + 0x1584);
+  if (*(int *)(&DAT_000012b0 + param_1) != 3) {
+    FUN_002678d4(param_1,1);
+    FUN_001a0fbc(0,0);
+    FUN_001942b0(DAT_003940f0,0);
+    FUN_001a2160(0);
+    FUN_00264930(param_1 + 0xeb0);
+    if (*(char *)(param_1 + 0xf60) != '\0') {
+      FUN_00268348(param_1 + 0xf5c);
+    }
+  }
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_00267740 @ 00267740  size=256 ===
+================================================================
+--- selection-index evidence: 0 line(s) ---
+
+--- CALLS ---
+   002471e8  FUN_002471e8  size=204
+   0026498c  FUN_0026498c  size=56
+   00250134  FUN_00250134  size=120
+   001a0fbc  FUN_001a0fbc  size=36
+   002501ac  FUN_002501ac  size=204
+   00250358  FUN_00250358  size=356
+   001942b0  FUN_001942b0  size=40
+   002678d4  FUN_002678d4  size=152
+   00250310  FUN_00250310  size=72
+   0026831c  FUN_0026831c  size=44
+   00250278  FUN_00250278  size=64
+   001a2160  FUN_001a2160  size=100
+   000f7420  FUN_000f7420  size=32
+
+--- decompiled ---
+
+void FUN_00267740(int param_1)
+
+{
+  undefined4 uVar1;
+  undefined *puVar2;
+  
+  FUN_002678d4(param_1,2);
+  puVar2 = &DAT_000012c4 + param_1;
+  FUN_00250134(puVar2);
+  FUN_00250278(puVar2);
+  FUN_002501ac(puVar2,0x3b,0xffffffff,0);
+  FUN_002501ac(puVar2,0x3a,0xffffffff,0);
+  FUN_00250310(puVar2,1);
+  uVar1 = FUN_000f7420(0);
+  FUN_00250358(puVar2,uVar1,0,0);
+  FUN_002471e8(param_1 + 0x1584);
+  FUN_001a0fbc(0,1);
+  FUN_001942b0(DAT_003940f0,1);
+  FUN_001a2160(1);
+  FUN_0026498c(param_1 + 0xeb0);
+  if (*(char *)(param_1 + 0xf60) != '\0') {
+    FUN_0026831c(param_1 + 0xf5c);
+  }
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_000ea978 @ 000ea978  size=32 ===
+================================================================
+--- selection-index evidence: 0 line(s) ---
+
+--- CALLS ---
+   000ea8b8  FUN_000ea8b8  size=24
+
+--- decompiled ---
+
+void FUN_000ea978(void)
+
+{
+  FUN_000ea8b8(DAT_00392480);
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_000ea998 @ 000ea998  size=32 ===
+================================================================
+--- selection-index evidence: 0 line(s) ---
+
+--- CALLS ---
+   000ea8d0  FUN_000ea8d0  size=28
+
+--- decompiled ---
+
+void FUN_000ea998(void)
+
+{
+  FUN_000ea8d0(DAT_00392480);
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_000f8808 @ 000f8808  size=92 ===
+================================================================
+--- selection-index evidence: 2 line(s) ---
+   STEP iVar2 = iVar2 + 1;
+   CMP  if (2 < iVar2) {
+
+--- CALLS ---
+
+--- decompiled ---
+
+undefined4 FUN_000f8808(void)
+
+{
+  int iVar1;
+  int iVar2;
+  
+  iVar1 = 0x3f0e0;
+  iVar2 = 0;
+  while ((*(int *)(iVar1 + 0x234) == 0 && (*(float *)(iVar1 + 0xc) == 0.0))) {
+    iVar2 = iVar2 + 1;
+    iVar1 = iVar1 + 0x240;
+    if (2 < iVar2) {
+      return 0;
+    }
+  }
+  return 1;
+}
+
+
+------------------
+
+================================================================
+=== FUN_000f7420 @ 000f7420  size=32 ===
+================================================================
+--- selection-index evidence: 0 line(s) ---
+
+--- CALLS ---
+
+--- decompiled ---
+
+int FUN_000f7420(int param_1)
+
+{
+  return DAT_003925b0 + param_1 * 0x50 + 0xc0;
+}
+
+
+------------------
+
