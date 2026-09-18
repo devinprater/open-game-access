@@ -7760,3 +7760,104 @@ API, and the populating code is the registration path.
 > link all come back empty by *different* methods, the productive conclusion is that the link is not what was
 > assumed -- here, that an indirect chain using all three forms was being probed one form at a time.
 
+
+
+---
+
+## 92. The slot is RESERVED across 7 screens -- and a liveness bug that produced a false FROZEN
+
+Section 91 asked whether API table slot `0x08BA46E8` (the address the pad's converted objects store at
+`+0x34`) is reserved or populated conditionally, and nominated reading it across screens as the test. This
+section ran it.
+
+### Result: the slot is zero on every screen
+
+```
+  screen    value at 0x08BA46E8   class
+  current   0x00000000            zero
+  l         0x00000000            zero
+  circle    0x00000000            zero
+  cross     0x00000000            zero
+  triangle  0x00000000            zero
+  square    0x00000000            zero
+  start     0x00000000            zero
+=== distinct values at the TARGET slot: 1 ===
+    0x00000000  zero   [current, l, circle, cross, triangle, square, start]
+VERDICT: the slot never changed across 7 screens -- consistent with RESERVED.
+```
+
+And the surrounding window confirms the table's shape is otherwise intact throughout:
+
+```
+   0x08BA46E4 = 0x08B64768  CODE vaddr 0x00360768
+   0x08BA46E8 = 0x00000000  zero                    <== TARGET
+   0x08BA46EC = 0x00000000
+   0x08BA46F0 = 0x00000000
+   0x08BA46F4 = 0x088FB1C8  CODE vaddr 0x000F71C8   (the guarded input query -- present)
+   0x08BA46FC = 0x088FB224  CODE vaddr 0x000F7224
+   0x08BA4704 = 0x088FB280  CODE vaddr 0x000F7280
+   0x08BA470C = 0x088FB2DC  CODE vaddr 0x000F72DC
+   0x08BA4714 = 0x088FB338  CODE vaddr 0x000F7338
+```
+
+So the API entries are populated while the target slot stays empty. **RESERVED is the supported reading**,
+and section 91's alternative ("conditionally populated") is disconfirmed for the seven screens tested.
+
+### And a real instrument bug, caught by its own symptom
+
+The first run of this test **refused with `FROZEN`**:
+
+```
+=== liveness BEFORE ===
+  before   ticks delta 1.5s: None         -> FROZEN
+REFUSING: frozen.
+```
+
+`None` for the delta was the tell -- not a plausible measurement. The cause: my liveness helper called
+`c.status()` and read `ticks` from it, but **`game.status` has no `ticks` field**:
+
+```
+status keys: ['event', 'game', 'paused']
+{"event": "game.status", "game": {"id": "ULUS10437", ...}, "paused": false}
+```
+
+`ticks` and `stepping` live in **`cpu.status`**, a different event:
+
+```
+{'event': 'cpu.status', 'stepping': False, 'paused': False, 'pc': 143693824, 'ticks': 125921935109}
+```
+
+So the helper was reading a nonexistent key, getting `None`, and concluding FROZEN. **The emulator was
+running the whole time** -- `paused: false` and ticks advancing throughout. Fixed by querying `cpu.status`
+and printing `stepping` alongside the delta; the corrected run reports `EXECUTING` at both ends:
+
+```
+  before  ...  -> EXECUTING
+  after   ticks delta 1.5s: 333333000  stepping=False -> EXECUTING
+```
+
+### Why this matters beyond the bug
+
+The refusal looked **correct**: it printed the guard's message, exited without a verdict, and did not
+contaminate the document with a false negative. That is the guard working as designed. But it was firing for
+the **wrong reason** -- and a guard that refuses when the system is healthy will silently discard good
+measurements.
+
+The distinguishing detail was that the printed value was `None` rather than a number. **A guard should print
+the raw quantity it measured, not only its verdict** -- otherwise "refused because frozen" and "refused
+because my probe is broken" are indistinguishable. That was already true of the value-diff guards (they print
+pixel counts) but not of this one.
+
+### Method note
+
+> **`None` in a measurement is a bug signal, not a measurement.** Printing the raw delta is what exposed the
+> wrong event; had the helper printed only "FROZEN" the failure would have looked like a property of the
+> emulator.
+
+> **Verify the field exists before trusting a threshold on it.** `paused: false` was available in
+> `game.status` and would have been a correct liveness signal; the helper reached past it for a field in
+> another event entirely. Checking a probe against a *known-good* sibling field is cheap insurance.
+
+> **A correct-looking refusal is not automatically a correct refusal.** Guards that suppress verdicts need
+> their own positive control -- otherwise they quietly convert instrument faults into missing data.
+
