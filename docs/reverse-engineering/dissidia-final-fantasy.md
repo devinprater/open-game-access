@@ -2916,3 +2916,87 @@ Stated precisely, because the distinction matters:
 > real signal, not churn, and it promoted the 3 pointer-valued words from "suspicious" to "the cursor's
 > neighbourhood".
 
+
+
+---
+
+## 41. RESOLVED: the block array is RENDER state, not the navigation index
+
+Section 40 flagged the honest ambiguity: the three alternating pointers might be the selection index or
+**derived render state**. Two targeted reads resolve it in favour of render state.
+
+### Localisation: only two bytes change per press
+
+Within `0x09DEE480-0x09DEE880` (1024 bytes), a byte-level diff across presses found **exactly 2 bytes
+changing**:
+
+```
+press 1:  +0x030  0x58 -> 0x68     +0x034  0x5C -> 0x9C
+press 2:  0 bytes differ
+press 3:  +0x030  0x68 -> 0x58     +0x034  0x9C -> 0x5C
+```
+
+So only the **low bytes of the two pointers at block offset `+0x30` and `+0x34`** move. The array
+itself is clean: **stride `0x50`**, 13 blocks, each *16 floats (a transform/orientation set) followed by
+three pointers*. Pointer word offsets sit at `+0x30, +0x80, +0xD0, +0x120, ...` -- i.e. every `0x50`
+starting at `+0x30`, one pointer triple per block.
+
+### What the pointers point at
+
+Following them:
+
+```
+0x09E36558: 00050102 09E37358 BF8001FF 09E37378 |   0.000   0.000  -1.000   0.000
+0x09E3735C: 000A0000 03700400 BF800000 00000000 |   0.000   0.000  -1.000   0.000
+            3F800000 3F800000 FF808080 00830004 |   1.000   1.000     nan   0.000
+```
+
+These are **quad / display-list records**: flag-and-float pairs (`00050102`, `BF8001FF`), consecutive
+sentinels (`-1.000`, `1.000`), and a **pointer chain** `09E37358 -> 09E37378 -> 09E37398 -> 09E373D8 ->
+09E37418 -> 09E37438` at stride `0x20`. Reading the same address twice shows the **contents are
+identical** while the pointer moves -- the data is static geometry, the pointer selects which geometry.
+
+### Conclusion
+
+**The block array at `0x09DEE480` is a render-node array.** Each block is a transform plus per-item
+geometry pointers, and the block that tracks the highlight does so because the highlighted row's
+geometry is rebuilt when the selection changes. It is **derived render state, not the navigation
+index** -- exactly the alternative section 40 could not rule out, now ruled in.
+
+This also explains the period-2 flip cleanly: with two rows there are two geometries, and the pointer
+swaps between them. It says nothing about where the *selection* is stored, because a renderer can be
+correctly driven from an index that lives anywhere.
+
+### What this closes and what it opens
+
+**Closes:** the last remaining candidate from the RAM side. Every structure is now identified:
+
+| structure | identity |
+|---|---|
+| `DAT_00392cd8`, `DAT_00397770` | engine handles / chapter table |
+| manager header + 35-node list | static definition table |
+| `0x08BE0000-0x08C20000` | no wrapping field |
+| **`0x09DEE480`** | **render-node array (derived)** |
+
+**Opens:** the search must move to **code**. Something writes the selection that drives this array, and
+the input path is now mapped:
+
+* `FUN_000f7994` calls `FUN_0036da44(1)` / `FUN_0036da54(0x411b)` (sceCtrl sampling setup) and registers
+  **`FUN_000f790c`** through `FUN_00103db0` -- **the same registration mechanism the menu manager uses**;
+* `DAT_003925b0` is the global pad object (`+0x264` = input flags); `FUN_000f76f4` / `FUN_000f68e0`
+  read the pad through `sceCtrl` (`FUN_0036da4c`) and feed a libpad-style layer.
+
+So the input path is understood up to a **generic pad library**; the button **consumers** -- the code
+that turns a d-pad press into a selection change -- are the remaining target. That is a bounded
+code-tracing task, and it is the natural point to bring in a second agent: the question is
+well-specified ("which function writes the value that selects the render block at `0x09DEE480`?"),
+the artifacts are on disk, and the answer is verifiable against the live game.
+
+### Method note
+
+> **Follow a candidate pointer all the way before calling it the target.** The alternating pointer
+> looked like a cursor for one section. Following it two levels showed quad records and a glyph chain,
+> which identifies it as rendering with no further speculation. Two reads settled a question that more
+> period analysis could not -- because period analysis cannot distinguish an index from a derived value,
+> but *content* can.
+
