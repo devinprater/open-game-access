@@ -1208,3 +1208,58 @@ code that *reads* `DAT_00397770 + 0x28` and compares against a stored value — 
 query on the static plus a search of its readers — or to observe the lists live in a menu with the
 node counter and flags recorded per row.
 
+
+
+---
+
+## 19. The load base is DERIVED and CONFIRMED: 0x08804000
+
+Every section from 7 onward carried the caveat "the Dissidia load base is still a placeholder
+(`0x08804000` was used for the Ghidra import) — it must be derived from the live game before any RAM
+address is trusted." **That is now resolved.**
+
+### Derivation (two independent measurements of the same bytes)
+
+The `DISSIDIA_ELF` project (ElfLoader) reports `MENU MANAGER` at Ghidra address `0x0037F7FC`.
+The live game's RAM scan found the same string at `0x08B837FC`.
+
+```
+RAM address    0x08B837FC
+Ghidra address 0x0037F7FC
+difference     0x08804000   <-- the load base
+```
+
+Because the ELF was imported **as an ELF**, Ghidra addresses are `vaddr`, so this one subtraction
+gives the base directly. (This is exactly why the earlier `BinaryLoader` import was unusable: it
+mapped offset+N, adding a `0x74` skew on top, which made even the correct base look wrong.)
+
+### Confirmation against the live game
+
+Four independent strings, each computed as `base + ghidra_addr` and read back from the running game:
+
+| Ghidra addr | expected string | live RAM | result |
+|---|---|---|---|
+| `0x0037F7FC` | `MENU MANAGER` | `0x08B837FC` | **FOUND** |
+| `0x00372E20` | `pause_help.bin` | `0x08B76E20` | **FOUND** |
+| `0x00372E60` | `MENU_MANAGER::ExecuteUpdate` | `0x08B8380C` | **FOUND** |
+| `0x003788E4` | `item_help.bin` | `0x08B7C8E4` | **FOUND** |
+
+**Conversion rule for this game: `RAM = 0x08804000 + ghidra_address`.**
+
+### Why this matters for the remaining work
+
+The open question (which menu item is highlighted) previously required locating an *allocated struct*
+behind a runtime pointer. Section 17 established the menu manager is instead a **static struct at
+`DAT_00397770`**, whose live address is now computable:
+
+```
+DAT_00397770 (Ghidra)  ->  RAM 0x08B9B770
+```
+
+with its item lists at `+0x28` (head), `+0x2c` (tail), `+0x30` (count) and `+0x34`/`+0x38`/`+0x3c`
+for the second list. So the live menu state is now **directly readable at known addresses** — no
+scanning, no pointer chase. That is the whole prerequisite for the cursor step, and it is complete.
+
+**Caveat retained:** the base is confirmed for *this* build (ULUS10437, disc v1.00). The project rule
+stands — never carry a base across games.
+
