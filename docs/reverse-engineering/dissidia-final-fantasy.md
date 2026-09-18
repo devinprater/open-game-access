@@ -3244,3 +3244,78 @@ render base and the list pointers — the most cursor-shaped field found in this
 > non-zero if the system is alive — here, the CPU tick delta — and refuse to interpret anything
 > otherwise.
 
+
+
+---
+
+## 45. The manager ordinal is ruled out — by a run that was actually valid
+
+Section 44 could not evaluate the manager's `+0x24 = 1` because the emulator was frozen. This section
+does it properly, and the result is a **trustworthy negative**.
+
+### The run satisfied every precondition
+
+```
+liveness BEFORE   ticks delta 1.5s: 666,666,000   stepping=False -> EXECUTING
+liveness AFTER    ticks delta 1.5s: 674,073,400   stepping=False -> EXECUTING
+presses that moved the display: 12/12
+manager for this screen: 0x08C08EB0
+```
+
+Three independent liveness signals agree: the CPU advanced before and after, **every one of 12 presses
+moved the display**, and two connections were used (reads vs input). So a null here is a fact about the
+data, not about the instrument -- which is exactly what sections 43 and 44 could not say.
+
+### The result
+
+```
+press        +0x14      +0x18      +0x1C      +0x20      +0x24      +0x28      +0x2C
+    0    165602240          0          0         -1          1  146838604  146838516
+    1    165602240          0          0         -1          1  146838604  146838516
+  ...                        (identical through press 12)
+
+=== fields that moved ===
+   (none)
+```
+
+**Every field of the manager object is static across 12 verified presses**, including `+0x24 = 1`, the
+small ordinal that was the most cursor-shaped field in the object.
+
+### What this rules out, and the refinement it forces
+
+**Ruled out:** the per-screen manager's header fields -- the render base, the block count, the `-1`
+sentinel, the `+0x24` ordinal, and the node-list head/tail. Note the header changed *between screens*
+(`+0x18` was `3` on the pause menu and `0` here), so it is screen state, but it is **not** selection
+state.
+
+**The refinement:** the highlighted row is **not stored in the manager object**, so it must live in one
+of the objects the manager *points at*. The manager's pointers are exactly:
+
+| field | points to | status |
+|---|---|---|
+| `+0x00` | `0x09DEE380` (render-related) | unexplored |
+| `+0x04` | `0x09DF18F0` | unexplored |
+| `+0x0C` | `0x09A3F000` | unexplored |
+| `+0x14` | render-node array `0x09DEE3C0` | identified as **derived** render state (s41) |
+| `+0x28` / `+0x2C` | the 35-node list | **static** (s39) |
+
+So the search now has a **small, enumerated list of targets** rather than a 24 MB span: follow
+`+0x00`, `+0x04` and `+0x0C` and look for a wrapping ordinal in each. That is three bounded reads, not
+another scan.
+
+### Why this section is worth recording despite being a negative
+
+Because it is the **first trustworthy negative in the cursor hunt**. Sections 40, 41, 43 and 44 each
+produced results that had to be withdrawn or re-qualified because of an instrument fault. This one has
+liveness asserted on both ends, delivery verified on every press, and connections separated -- so
+"the manager header is not the cursor" can now be relied upon, and it narrows the search to three
+pointers instead of clearing nothing.
+
+### Method note
+
+> **A negative is only as good as the run that produced it.** The same test, run twice, gives
+> "no field moved" both times -- but on a frozen emulator that means nothing and on a verified one it
+> means the field is not the cursor. Assert liveness *and* delivery, then the negative becomes load
+> -bearing. The earlier sections' negatives were not wrong so much as unsupported; this one is
+> supported, and it moves the target.
+
