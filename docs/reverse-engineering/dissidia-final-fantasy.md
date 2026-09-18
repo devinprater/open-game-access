@@ -1106,3 +1106,105 @@ Closing it fully needs either `FUN_0024910c` read in Ghidra, or the game parked 
 list can be walked and correlated with on-screen highlight — and the latter is now cheap, because the
 address is static and no scanning is required.
 
+
+
+---
+
+## 18. The dispatcher's two callees: node lookup and node removal
+
+Section 17 walked the update function down to its two calls. Both are now read.
+
+### `FUN_0025468c` — per-item DEFINITION LOOKUP (132 bytes)
+
+```c
+void FUN_0025468c(int *param_1) {
+  iVar3 = param_1[3];                      // a context object
+  iVar4 = *param_1;                        // list head
+  while (iVar1 = iVar4, iVar1 != 0) {
+    iVar4 = *(int *)(iVar1 + 0x3c);        // node NEXT
+    if ((*(ushort *)(iVar1 + 0x20) & 1) != 0) {           // node ACTIVE flag (bit 0 of a ushort)
+      if ((int)*(short *)(iVar1 + 0xc) < *(int *)(iVar3 + 0x2c)) {   // bounds check!
+        iVar2 = *(int *)(iVar3 + 0xc) + *(short *)(iVar1 + 0xc) * 0x1c;   // TABLE INDEX
+      } else {
+        iVar2 = 0;
+      }
+      FUN_00254354(iVar1, iVar2);
+    }
+  }
+}
+```
+
+So each active node refers to a **definition record in a stride-`0x1c` (28-byte) table**, indexed by
+the **short at node `+0xc`**, with the count at context `+0x2c` and the table base at context `+0xc`.
+This is the item→resource binding: the `0x1c`-stride table is where an item's own data lives.
+
+### `FUN_0024910c` — node REMOVAL / list repair (544 bytes)
+
+It unlinks a node from the list and repairs links on both sides, then decrements the list count.
+Measured field roles:
+
+```c
+/* unlink: param_2[10] (+0x28) = PREV, param_2[9] (+0x24) = NEXT */
+if (iVar1 == 0) { *(int *)(param_1 + 0x28) = iVar4; }   // head = next
+else            { *(int *)(iVar1 + 0x24) = iVar4; }     // prev->next = next
+if (iVar4 == 0) { *(int *)(param_1 + 0x2c) = iVar1; }   // tail = prev
+else            { *(int *)(iVar4 + 0x28) = iVar1; }     // next->prev = prev
+...
+*(int *)(param_1 + 0x30) += -1;                          // LIST A COUNT--
+```
+
+and the mirror branch for the second list, using `param_1 + 0x34` (head), `+0x38` (tail), `+0x3c`
+(count), selected by `(*(byte *)(param_2+5) & 0x10)` — i.e. **node byte `+0x14` bit 4 chooses which of
+the two lists the node belongs to**.
+
+It also maintains a free pool (`param_1 + 0x1490` / `+0x1494`) and pushes the removed node back onto
+it — so nodes are recycled, which is why they cannot be tracked by fixed address across screens.
+
+### The complete menu-manager field map (measured)
+
+| offset | meaning |
+|---|---|
+| `+0x8` | chapter id (`"one00"`) |
+| `+0x25`, `+0x26` | enable/behaviour flags read by the dispatcher |
+| `+0x28` | **list A head** |
+| `+0x2c` | **list A tail** |
+| `+0x30` | **list A count** |
+| `+0x34` | **list B head** |
+| `+0x38` | **list B tail** |
+| `+0x3c` | **list B count** |
+| `+0xa618`, `+0xa61c`, `+0xa620` | a separately-maintained queue (head/tail/count) |
+| `+0x1490`, `+0x1494` | **free-node pool** (head / write pointer) |
+
+Per-NODE fields:
+
+| offset | meaning |
+|---|---|
+| `+0xc` | **short: index into the stride-`0x1c` definition table** |
+| `+0x14` | byte flags — bits 0/1 = actionable, bit 4 selects list A or B, bits 2-3 a state pair |
+| `+0x17` | byte counter (0..2, then the item is dispatched) |
+| `+0x20` | ushort — bit 0 = **active** |
+| `+0x24`, `+0x28` | **next / prev** (doubly linked) |
+| `+0x3c` | **next** (the singly-linked walk order) |
+| `+0x9` (`param_2[9]`), `+0x10` (`param_2[10]`) | next / prev for the unlink path |
+
+### Honest conclusion on the cursor
+
+This is a **node/allocation system**, not a cursor field. The selection is tracked by the menu code
+that walks these lists, and the dispatcher's job is lifecycle (activate, count, retire, recycle) —
+**not** "which row is highlighted". The `+0x17` counter is a **debounce/confirm timer** (0..2 then
+dispatch), which is why it looked cursor-like and is not.
+
+So after four decompile passes the honest result is:
+
+* the **menu state is a static struct at `DAT_00397770`** — no pointer chase, directly readable;
+* **items are nodes in two linked lists** with an explicit active flag and an index into a
+  definition table;
+* the **selection index is not one of these fields** — it lives in the menu screen code above this
+  layer, which has not been located.
+
+That is a real narrowing (from "somewhere in 24 MiB" to "one layer above a known static struct"), but
+it is **not solved**, and no further RAM scanning will solve it. The next honest step is to find the
+code that *reads* `DAT_00397770 + 0x28` and compares against a stored value — a `getReferencesTo`
+query on the static plus a search of its readers — or to observe the lists live in a menu with the
+node counter and flags recorded per row.
+
