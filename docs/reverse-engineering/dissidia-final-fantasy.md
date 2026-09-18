@@ -7438,3 +7438,133 @@ subsystem's dispatch tables are reached by registration rather than by stored po
 > -- adding a gate and a fixed signature is what turns an internal helper into something a table can hold.
 > The shape of the wrapper is what identified it as the API rather than an internal call.
 
+
+
+---
+
+## 89. The pad API VTABLE: a stride-0x8 table exposing the whole input query API
+
+Section 88 found `FUN_000f71c8` (the guarded input query) held in exactly one place, `0x08BA46F4`, and named
+mapping that table as the next step. This section maps it.
+
+### The table is a stride-`0x8` array of `{code_ptr, zero}` entries
+
+```
+   0x08BA4684 = 0x088EEB78  CODE vaddr 0x000EAB78
+   0x08BA468C = 0x088EEBA0  CODE vaddr 0x000EABA0
+   0x08BA4694 = 0x088EEBC8  CODE vaddr 0x000EABC8
+   0x08BA469C = 0x088EECA4  CODE vaddr 0x000EACA4
+   ...
+   0x08BA46BC = 0x088FA7C0  CODE vaddr 0x000F67C0   <-- the BIT-TEST PREDICATE (s87)
+   0x08BA46C4 = 0x088FA7DC  CODE vaddr 0x000F67DC
+   0x08BA46CC = 0x088FA7F8  CODE vaddr 0x000F67F8
+   0x08BA46D4 = 0x088FA814  CODE vaddr 0x000F6814
+   0x08BA46DC = 0x088FA830  CODE vaddr 0x000F6830
+   0x08BA46E4 = 0x08B64768  CODE vaddr 0x00360768
+   0x08BA46F4 = 0x088FB1C8  CODE vaddr 0x000F71C8   <-- THE GUARDED INPUT QUERY (s88)
+   0x08BA46FC = 0x088FB224  CODE vaddr 0x000F7224
+   0x08BA4704 = 0x088FB280  CODE vaddr 0x000F7280
+   0x08BA470C = 0x088FB2DC  CODE vaddr 0x000F72DC
+   0x08BA4714 = 0x088FB338  CODE vaddr 0x000F7338
+   0x08BA471C = 0x08B647A4  CODE vaddr 0x003607A4
+```
+
+Two properties:
+
+1. **Regular stride `0x8`**, with the intervening word always zero -- `{code_ptr, 0, code_ptr, 0, ...}`. That
+   is a **slot layout**, not a struct array: each entry is a pointer plus a reserved/flag word.
+2. **The input API is contiguous in it.** The predicate `FUN_000f67c0` at slot `0x08BA46BC` is followed by
+   `FUN_000f67dc`, `FUN_000f67f8`, `FUN_000f6814`, `FUN_000f6830` -- and the guarded query `FUN_000f71c8` at
+   `0x08BA46F4` is followed by `FUN_000f7224`, `FUN_000f7280`, `FUN_000f72dc`, `FUN_000f7338`. Every one of
+   those is a function in the **pad band** (`0x000F6xxx`-`0x000F7xxx`) identified in section 85's band
+   listing.
+
+So the table exposes the pad subsystem's **query/action API**, and the two functions this investigation
+traced to (the predicate and the guarded query) sit **in the middle of it**.
+
+### The table is a STATIC, and its slots have no holders
+
+`0x08BA46F4 - 0x08804000 = 0x0039D674`, i.e. inside the loaded BSS/RW region -- **the table is statically
+allocated**, unlike section 83's heap delivery table. And the pointer search reports:
+
+```
+  0x08BA46F4  (the FUN_000f71c8 slot)  -> 0 holder(s)
+  0x08BA4674  (table slot)             -> 0 holder(s)
+  0x08BA4684  (table slot)             -> 0 holder(s)
+  ... all slots: 0 holders
+```
+
+**No code holds a pointer to any table slot.** The table is addressed **directly by constant** -- code that
+wants slot *n* computes the fixed address -- which is why a pointer search finds nothing.
+
+### And the fn VALUES each have exactly one holder -- the table itself
+
+```
+  0x088EEB78 -> 1 holder: 0x08BA4684     0x088FA7C0 -> 1 holder: 0x08BA46BC
+  0x088EEBA0 -> 1 holder: 0x08BA468C     0x088FA7DC -> 1 holder: 0x08BA46C4
+  0x088EEBC8 -> 1 holder: 0x08BA4694     ...
+```
+
+Every pad-band function pointer is stored **once, in its table slot**. The exception is informative:
+`0x088F9E0C` (vaddr `0x000F5E0C`, the service hook from section 75) has **2** holders -- its table slot
+`0x08BA46AC` **and** `0x08B96B90` (the service record chain from section 76). So the same function is
+published through **both** the service-record chain and this API table, confirming both are interfaces to the
+same subsystem.
+
+### What this completes
+
+The full picture of how a consumer obtains input:
+
+```
+                    static API VTABLE @ vaddr 0x0039D674 (RAM 0x08BA46BC..)
+                    [ {code_ptr, 0} stride 0x8 ]
+                       |  slot 0x08BA46BC -> FUN_000f67c0   bit-test predicate
+                       |  slot 0x08BA46F4 -> FUN_000f71c8   GUARDED INPUT QUERY
+                       |  slot 0x08BA46FC -> FUN_000f7224
+                       |  ... (pad-band functions)
+                       v
+   consumer calls table[slot](event_object, mask_a, mask_b)  ->  "is this button pressed?"
+                       ^
+                       | operates on
+   EVENT OBJECT pad+0xC0  (+0x00 current, +0x08 just-pressed, +0x10 just-released)   [s85, s86]
+```
+
+**This is the mechanism that defeated seven cross-reference searches.** The menu's input access is
+`call the function at a FIXED STATIC ADDRESS` -- so there is no symbol reference, no pointer to follow, and
+no holder to find. Sections 73-84 each searched for a *link*; here the link is an **address constant in the
+caller's code**.
+
+### The concrete next measurement -- and it is now precisely targeted
+
+Since the table is addressed by constant, the consumer is found by **searching the code for the constant**:
+any function whose instructions contain the address `0x08BA46F4` (or a nearby slot) is a user of the input
+API. That is a **static code search** -- no emulator needed -- and it is the natural inverse of the pointer
+search: not "who holds this address" but "who names this address".
+
+The slots to search for, in order of interest:
+
+| slot | target | why |
+|---|---|---|
+| `0x08BA46F4` | `FUN_000f71c8` | **the guarded input query** -- whoever calls it is polling input |
+| `0x08BA4704` | `FUN_000f7280` | adjacent query in the same group |
+| `0x08BA470C` | `FUN_000f72dc` | adjacent query |
+| `0x08BA4714` | `FUN_000f7338` | adjacent query |
+
+Any caller naming one of those addresses is doing input handling, and among them the menu's handler should
+appear.
+
+### Method note
+
+> **A stride with a zero interleave is a slot table, not a struct array.** `{ptr, 0, ptr, 0, ...}` at `0x8`
+> stride reads as "pointer plus reserved word" -- recognising that shape is what identified it as a dispatch
+> table rather than a struct with a padding field.
+
+> **Zero holders + no callers = addressed by constant.** Section 88 saw the query had no callers; this sees
+> the table slots have no holders. Together they say the interface is reached by a **fixed address literal**,
+> so the correct search is over **code**, not over memory. That inversion is the whole insight.
+
+> **One value with two holders is a cross-check.** Every pad function pointer is held exactly once (in its
+> slot) except the service hook `0x000F5E0C`, which is also in the service-record chain. That coincidence
+> independently links the two tables to the same subsystem, and it is the kind of anomaly worth reading
+> rather than smoothing over.
+
