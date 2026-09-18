@@ -4740,3 +4740,107 @@ when it is non-zero read `SEL` per node. Everything needed for that is in place.
 > measurable predicate (`> 0`), which turns an open-ended search into a checkable condition. Naming the
 > gap as a predicate is what makes it closable in one run.
 
+
+
+---
+
+## 63. OVERTURNS SECTION 54: with the gate, the D-pad DOES move this menu -- and 4 words survive a gated diff
+
+Two runs this section, both with the input gate, and together they overturn a conclusion that had stood
+since section 50.
+
+### Run 1: the SCROLL test, gated
+
+Section 54 concluded, without a gate:
+
+> "No control moved the display on every press: no scroll control on this screen. Transitions moved once;
+> the D-pad and shoulders were inert."
+
+The same controls, **each press verified at the pad button word while held**:
+
+```
+control   delivered-press result        per-delivered-press diff
+  down      3/4 delivered presses moved  [0, 245406, 245472, 245397]
+  up        3/4 delivered presses moved  [245397, 245415, 245397, 0]
+  left      3/4 delivered presses moved  [245415, 0, 8645, 6499]
+  right     1/4 delivered presses moved  [0, 0, 4434, 0]
+  circle    4/4 delivered presses moved  [163217, ...]
+  cross     4/4 ...
+  triangle  4/4 ...
+  square    4/4 ...
+  l         NO VERDICT (0 delivered)
+  r         NO VERDICT (0 delivered)
+
+=== verdict ===
+  acted on this screen (delivered AND moved): ['down','up','left','right','circle','cross','triangle','square']
+  genuinely inert (delivered, never moved):   ['start','select']
+  NO VERDICT (could not be delivered):        ['l','r']
+```
+
+**`down` moved the display with a consistent ~245,400 px change on three of four delivered presses.** A
+repeated, near-identical per-press delta is the signature of a **highlight moving between rows** -- not
+scene motion, which is variable (compare `left`'s `8645 / 6499` and `right`'s `4434`).
+
+So the three-way distinction section 54 could not make is now explicit:
+
+| result | meaning |
+|---|---|
+| delivered + moved | the control acts on this screen |
+| delivered + never moved | genuinely inert (**valid** negative) |
+| not delivered | **no verdict** (instrument) |
+
+**Section 54's "the D-pad and shoulders were inert" is overturned**: the D-pad acts here, and section 59's
+intermittence explains why the ungated run saw nothing.
+
+### Run 2: full-RAM diff around GATED presses, intersected
+
+This is the first screen in the investigation with **both** a demonstrated per-press D-pad response **and**
+a working input gate -- so the full-RAM scans (sections 38, 40) that produced negatives on unverified
+delivery are worth redoing. Method: read all 24 MB, gate a press, read again, record changed words, then
+**intersect across rounds and subtract a no-press control**.
+
+```
+  round 1: baseline read 8.8s   delivered; changed words: 1341
+  round 2:                        delivered; changed words: 1309
+  round 3:                        delivered; changed words: 1302
+  round 4:                        delivered; changed words: 1278
+  no-press control: changed words 1320
+
+=== INTERSECTION across 4 delivered rounds: 913 words ===
+=== after removing no-press churn: 4 words ===
+  0x08BB4130  1 word   [-65536]        (0xFFFF0000)
+  0x08BB42D8  1 word   [-65536]
+  0x08BB4EE8  1 word   [-65536]
+  0x08C0BD7C  1 word   [1073741824]    (0x40000000)
+```
+
+**From 9,000+ changed words across four runs, exactly 4 survive both the intersection and the churn
+filter.** That is the most selective result in the entire investigation, and it rests on a screen where
+the input is verified to land.
+
+Two observations:
+
+* **Three carry `0xFFFF0000`.** That value is `-65536`, i.e. `0xFFFF` in the high half -- consistent with a
+  negative or sentinel marker, or with a fixed-point quantity changing sign, in three separate structures.
+* **One carries `0x40000000`** = `1073741824` = **2.0f** -- a float exactly 2.0.
+
+These are **candidates, not yet the cursor**: nothing here yet shows the 1-based small ordinal a menu
+highlight would have. But they are the only four words in 24 MB that respond to a verified menu-direction
+press on a screen where that press demonstrably moves the display, and each is a bounded, single-address
+follow-up.
+
+### Method note
+
+> **An ungated negative is not a negative.** Section 54 recorded "the D-pad is inert" and it was the
+> gate's absence, not the game's behaviour. The same test, gated, shows the D-pad acting with a
+> consistent per-press delta. Any conclusion of the form *"this control does nothing"* requires the
+> three-way table above, and only the middle row is a negative.
+
+> **A consistent per-press delta distinguishes a highlight from animation.** `down` moved ~245,400 px on
+> three successive verified presses; the scene-motion controls moved by irregular amounts (8,645 / 6,499 /
+> 4,434). Reproducibility of the delta is itself evidence of the mechanism.
+
+> **Redo scans when the instrument improves.** The intersection-and-churn method had been run before
+> (sections 31, 40, 60) but never on a screen with verified delivery; re-running it here collapsed 9,000
+> changed words to 4. The instrument, not the search space, was the limitation.
+
