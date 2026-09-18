@@ -4294,3 +4294,84 @@ trace) showing which field changes when Up/Down changes the highlighted logical 
 > exactly what it needs (a reachable screen with a live control), instead of implying the question is
 > closed everywhere.
 
+
+
+---
+
+## 58. The pad object is located — and the press test has a TIMING blind spot
+
+Codex named the missing piece: *"the menu-side input consumer/state-update routine showing which field
+changes when Up/Down changes the highlighted logical item."* To find a consumer you need the address it
+consumes, so this section targeted the **pad object's button state**.
+
+### The object is addressable and now resolved
+
+```
+pad slot  0x08B965B0  (= 0x08804000 + 0x003925b0, the DAT_003925b0 static)
+pad obj   0x09EDA3A0
+known flags word: pad + 0x264 = 0x09EDA604
+```
+
+`DAT_003925b0` holds `&DAT_0132fb40` -- a pointer, written at run time -- and dereferencing it gives the
+pad object. The chain works, so the input state is addressable from a static.
+
+### The scan, and the 95 responding fields
+
+`psp-find-press-field.py --button cross --span 0x400 --samples 8`, with a memory-level no-press control
+(valid on any screen):
+
+```
+  words sampled:              256
+  vary with NO press (churn): 0        <- clean baseline
+  vary during presses:        95
+```
+
+So **95 words of the pad object respond to a press**, against **zero churn**. Representative shapes:
+
+```
+   pad + 0x0F0   0x09EDA490 -> [0, 0, 0, 1106247680, 1106247680, ...]    (0x41F00000 = 30.0f)
+   pad + 0x104   0x09EDA4A4 -> [3, 3, 0, 0, 0, 0, 0, 0]
+   pad + 0x154   0x09EDA4F4 -> [3, 3, 0, 0, 0, 0, 0, 0]
+   pad + 0x290   0x09EDA630 -> [0, 0, 0, 0, 0, 1111121292, 1111121292, ...]
+```
+
+### The flaw this exposes
+
+**Every one of those series is latch-shaped, not pulse-shaped**: values hold steady, then change once
+(`[3, 3, 0, 0, ...]`, `[0, 0, 0, V, V, V, ...]`). None shows the per-press alternation a live button bit
+would produce.
+
+The cause is a **timing blind spot in the method**: each press is sent with `frames=20` (a hold) and the
+sample is taken after `sleep(0.6)` -- i.e. **after the button has been released**. So a *transient* field
+(the held-button word) reads as unchanged, while only *latched* state (counters, flags set once, screen
+transitions) survives to be observed.
+
+**The clearest evidence is the known flags word itself.** `FUN_000f790c` sets `pad + 0x264` from the
+polled buttons, so `pad + 0x264` **must** change while `cross` is held -- and it does **not** appear in
+the 95 responding fields. That absence is the timing artefact, not a negative: I never sampled while the
+button was down.
+
+So the correct reading of this run:
+
+* **valid**: the pad object is at `0x09EDA3A0`; there is zero churn in it; and 95 fields carry
+  **latched** press-related state;
+* **not valid**: "the pad's button word does not respond" -- the method cannot see transient state.
+
+### The correction the next run needs
+
+Sample **while the button is held**, not after. Concretely: send the press, sample immediately with **no**
+settle delay, and repeat with a long hold (`frames=90`) so the button is down for the whole sample
+window. Then a pulse-shaped field -- the live button word -- becomes visible, and that is the address an
+input consumer must read.
+
+### Method note
+
+> **A sampling delay is part of the definition of what you can see.** Sampling after a press completes
+> measures latched state; it is structurally blind to transient state, and a held button is transient by
+> nature. The tell was that a field *known from the decompile* must change and did not -- so **when a
+> known-positive fails to appear, suspect the sampling window before doubting the field.**
+
+> **Use a decompile fact as a positive control.** `pad + 0x264` being written by the input poll gave a
+> field whose behaviour is independently known. Its silence located the flaw immediately; without it, 95
+> latch-shaped responses would have looked like success.
+
