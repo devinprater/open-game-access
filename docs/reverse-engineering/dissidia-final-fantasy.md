@@ -2321,3 +2321,79 @@ marking is the point.
 > When a detector returns everything, the detector has no discriminating power; the fix is to find a
 > signal that is *absent* on the other screens, not to add more markers.
 
+
+
+---
+
+## 33. CORRECTION: the pause menu DOES scroll — the earlier "does not respond to down" was an artefact
+
+Section 31 concluded that "the pause menu is a poor target" because `down` changed the display only 1
+time in 3 rounds, and section 32 built on that. **That conclusion was wrong**, and it was wrong because
+of the measuring instrument rather than the game. This section documents the correction because it
+reopens a line the previous two sections had closed.
+
+### Why the earlier measurement failed
+
+The "does not respond to `down`" finding came from a **coarse 8x8 luminance grid hash** (64 cells). A
+menu highlight is a **small, localized** change -- a few hundred moving pixels -- and averaging each cell
+over a 213x133 region can erase it entirely. The instrument could not see the thing it was measuring.
+
+### The full-resolution measurement
+
+`psp-scroll-test.py` counts exact changed pixels between consecutive captures, with a **no-press control**:
+
+```
+CONTROL (no press)   changed pixels: 0        bbox: None
+WITH PRESS (down)    round 1: 247189 px   bbox (478, 472, 1705, 720)
+                     round 2: 247189 px   (same bbox)
+                     round 3: 247189 px   (same bbox)
+                     round 4: 247189 px   (same bbox)
+```
+
+The control is **exactly 0**, so the screen is genuinely static and the press is genuinely doing
+something. The changed region is a **~1227x248 panel** (x 478-1705, y 472-720) -- text-sized, at the
+bottom of the screen. Capturing at increasing delays after a single press showed the change **persists**
+(t1..t4 all differ from t0 by the same ~247k px), so it is a real state change, not a frame effect.
+
+### What the panel says -- and the answer
+
+Cropping that exact region and OCRing the two states:
+
+```
+t0 (before press):    "4 Return to Game"
+t1 (after press):     "Return to Game"  /  "4 Retry"
+```
+
+**The highlight moved from "Return to Game" to "Retry".** The `4` is the cursor marker rendered beside
+the selected line, and it moved down one row. So:
+
+> **The pause menu scrolls with `down`, and the selection is a row index that advances by exactly one
+> per press.** The changed-pixel count is identical every round because the panel alternates between
+> two visually similar states (highlight on row N vs row N+1) as the press-diff is taken between
+> adjacent states.
+
+### Consequence for the search
+
+This **reopens** the press-diff route that section 31 closed. Its premises were:
+
+* "`down` does not change the display" -- **false** (this section);
+* "no small-ordinal field moved anywhere in the 3.5 MB region" -- measured *against that false premise*,
+  with the diff taken between captures that may not have bracketed the state change.
+
+So the section 31 negative is **not trustworthy** and must be re-run, this time bracketing the state
+change properly: capture, press, capture (allowing for the state to settle), and require the screen to
+have actually changed. Concretely, the re-run should:
+
+1. confirm the highlight moved via the panel crop (as above), not a grid hash;
+2. diff only around the press, after confirming two *distinct* highlight positions are being compared;
+3. look specifically for a **small ordinal (0..5)** -- the pause menu has ~6 rows -- rather than any
+   press-responsive value.
+
+### Method note
+
+> **A coarse summary statistic can silently erase the signal.** An 8x8 grid hash was adequate for
+> "menu vs scene" and completely inadequate for "did a highlight move one row". The same probe design
+> must be re-checked for sensitivity whenever it is reused for a finer question -- and this is the second
+> time in this investigation that a *negative* result was an instrument artefact rather than a fact
+> about the game (the first being the "no change" sweep whose screenshot capture had crashed).
+
