@@ -6175,3 +6175,106 @@ built.
 > store. Noticing that the zeros were *an observation* rather than a failed read is what kept it from
 > looking like a broken probe.
 
+
+
+---
+
+## 77. The service table is WRITE-ONLY too -- nothing walks the chain
+
+Section 76 found the hand-off (`service chain -> rec5 -> data -> pad object`) and named the next step: find
+the code that walks the chain. Because `0x08B96B7C - 0x08804000 = 0x00392B7C`, the records are a
+**statically-allocated table** in the RW segment, so the walker can be found by cross-reference with no
+emulator involvement.
+
+### The references into the table range
+
+`DisServiceWalk.java` asked for every reference into `0x00392B70`-`0x00392BE0`:
+
+```
+=== functions referencing the service-table range ===
+   000fa84c  FUN_000fa84c  size=6856  refs=9
+        0x000FAF80 -> 0x00392B70
+        0x000FAF4C -> 0x00392B7C
+        0x000FAF18 -> 0x00392B88
+        0x000FAEBC -> 0x00392B94
+        0x000FAE54 -> 0x00392BA0
+        0x000FAE1C -> 0x00392BAC
+        0x000FADE8 -> 0x00392BB8
+        0x000FADB4 -> 0x00392BC4
+        0x000FAD88 -> 0x00392BD0
+   000fc7dc  FUN_000fc7dc  size=204  refs=1
+        0x000FC858 -> 0x00392BC4
+```
+
+**Exactly two functions**, and both are already known:
+
+* **`FUN_000fa84c`** -- the global subsystem **initialiser**. Its 9 references are sequential, in descending
+  address order (`0x00392B70`, `+0xC`, `+0xC`, ...), which is the signature of **writing the table entries
+  one after another** -- i.e. constructing the chain, not walking it.
+* **`FUN_000fc7dc`** -- the **XOR decoder** identified in section 74 (it XORs a buffer against bytes at
+  `&DAT_00392be2`). Its single reference to `0x00392BC4` is the decode table adjacent to the service
+  records, not a walk.
+
+So **no function follows the chain**. The `+0x00` links exist and are correct (section 76 verified six of
+them arithmetically), but nothing in the binary reads them.
+
+### The `base+0xC` heuristic was a dead end, and instructively so
+
+The script also scanned for functions that load a pointer at `base+0xC` or `base+0x18` -- a plausible
+chain-following signature:
+
+```
+   total such functions: 1900
+```
+
+**1,900 of ~2,000 functions.** A "stride" heuristic over a compiler-generated binary matches essentially
+everything, because `0xC`/`0x18` are ordinary struct offsets. The cross-reference count (2) was the
+discriminating measurement; the pattern heuristic was noise. Recorded because it is the second time a
+density/pattern heuristic has ranked meaningless results highly (section 73's 117 "button-mask hits" in the
+initialiser).
+
+### What this settles
+
+The architecture is now consistent and complete:
+
+| structure | referenced by | conclusion |
+|---|---|---|
+| pad object (`0x09EDA3A0`) | 21 functions, **0** also referencing the menu | not read by the menu (s73) |
+| pad service record (`rec5`) | via the table, which nothing walks | not read either (s77) |
+| service table (`0x00392B7C`) | the initialiser (writing) + the decoder | **write-only** |
+
+So **both routes are dead in the same way**: the pad state is produced and registered, and no code reads it
+by following the structures. That is a strong, twice-repeated architectural signal -- and it means the menu
+receives input through something that is **neither the pad object nor the service chain**.
+
+### What remains, and why it is now sharper
+
+Two mechanisms can deliver input without either structure being read:
+
+1. **A callback registered at init** -- `FUN_000f7598(&DAT_0132fb40)` constructs the pad, and the service
+   `fn` hooks (`(obj, flags)` with the `& 1` test) are the lifecycle entries. A menu could be *called back*
+   rather than polling.
+2. **A copied/derived state block** -- the pad layer writes into a target the menu also holds (e.g. the
+   structure passed to the callback at `param_1 + 0x48`/`+0x49`/`+0x50` from section 73).
+
+The distinguishing measurement is now a **write watchpoint on the pad object's state fields during a verified
+press**, asking *which PC writes them and what it does with the result* — because the writer is by
+elimination the delivery mechanism, and its callees will contain the consumer.
+
+### Method note
+
+> **Cross-reference counts discriminate; pattern heuristics do not.** Two functions reference the service
+> table. The `base+0xC` "chain walker" pattern matched 1,900. When a structural question has a crisp answer
+> available by reference counting, do not substitute a pattern match for it -- and report both numbers so
+> the difference is visible.
+
+> **A table being written in address order is construction, not traversal.** The initialiser's references
+> run `0x00392B70`, `0x00392B7C`, `0x00392B88`, ... -- strictly increasing. A *walker* would show the same
+> site used repeatedly with a varying offset; a *constructor* shows many sites each used once. That
+> distinction is readable from the reference list alone.
+
+> **Two independent dead ends with the same shape is a finding about architecture.** The pad object is
+> unreferenced by the menu, and the service table is unwalked. Both point the same way: input reaches the
+> menu through **callbacks or copied state**, not through polling a published object. Recognising the repeat
+> is what makes the next probe well-aimed rather than another search.
+
