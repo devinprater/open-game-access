@@ -7861,3 +7861,122 @@ pixel counts) but not of this one.
 > **A correct-looking refusal is not automatically a correct refusal.** Guards that suppress verdicts need
 > their own positive control -- otherwise they quietly convert instrument faults into missing data.
 
+
+
+---
+
+## 93. The API table is ZERO IN THE ELF FILE -- so it is populated at runtime, and the base is never named in code
+
+Section 90-92 left a puzzle: the API table slots have no holders (s89), no code contains a scalar equal to a
+slot or the base (s90), and the pair test found nothing. This section found the reason, by checking the file.
+
+### The table is all zeros in `EBOOT.BIN.dec`
+
+`0x08BA46F4 - 0x08804000 = 0x0039D674`, and the ELF's first PT_LOAD covers vaddr `0x0`-`0x3A6860` with
+`filesz = memsz` -- so that address **is** present in the file. Reading it there:
+
+```
+=== ELF FILE bytes at vaddr 0x0039D674 ===
+  file[0x0039D674] = 0x00000000  zero
+  file[0x0039D678] = 0x00000000  zero
+  ... every word through 0x0039D6D0: 0x00000000
+```
+
+**The table is entirely zero in the file** and populated at runtime. That is decisive for two reasons:
+
+1. **It is not a compile-time `const` array.** A static function-pointer array with fixed contents would be
+   written in the file. Zeros mean the image reserves the space and **code fills it during startup** --
+   so a **registration path exists** and is reachable.
+2. It confirms section 84's conclusion about the *other* dispatch table (the heap delivery table at
+   `0x09FFF604`) generalises: this subsystem's tables are built at runtime.
+
+### And the base is genuinely never materialised in code
+
+The pair test was corrected this section: on MIPS a static address is most often reached as
+
+```
+    lui  reg, 0x08ba        (high half)
+    lw   reg, 0x46f4(reg)   (low half as a LOAD/STORE OFFSET)
+```
+
+**not** as `lui` + `addiu`. The previous pair test (sections 90-91) only accepted `addiu`/`ori`/`addi`, so it
+could never fire for a normal table access. After including `lw`/`sw`/`lb`/`sb`/`lh`/`sh` offsets, the run
+produced:
+
+```
+=== counts ===
+  EXACT base scalar hits: 0
+  resolved REF hits:      0
+  HI+LO PAIR PRESENT:     1
+```
+
+and that single pair is a **false positive**:
+
+```
+=== FUN_0015bfb0 @ 0015bfb0  size=272  [HI+LO PAIR PRESENT] ===
+   0015bfdc  HI half 0x39 (lui)  => base 0x390000  |  lui a0,0x39
+   0015c004  HI half 0x39 (lui)  => base 0x390000  |  lui a1,0x39
+```
+
+The high half `0x39` is the **vaddr** page (`0x00390000`), and the function it names is unrelated (it
+decompiles to float clamping against `DAT_003746f0`/`DAT_003746f4` and timer state at `param_1 + 0x28`). The
+"pair" fired because a `lw`/`sw` offset in that function happened to coincide with a candidate low half --
+exactly the class of coincidence section 90 recorded.
+
+**So the corrected search still finds nothing real**, and it is now a well-controlled negative: with the
+right MIPS idiom included, no function materialises the table base or any slot.
+
+### What the three negatives together imply
+
+| search | method | result |
+|---|---|---|
+| s89 | pointer holders of the slots | 0 |
+| s90 | code scalars / refs (loose filter -- invalidated) | 0 real |
+| s93 | code scalars / refs with the `lw`/`sw` idiom | 0 real |
+
+Combined with **the table being zero in the file**, the only consistent model is:
+
+* something **writes** the table at startup from a **base pointer held in a register or a variable** that is
+  not itself a symbol-reference to a slot;
+* and the writer computes slot addresses as **base + index**, so no individual slot address ever appears as
+  an immediate, a scalar, or a stored pointer.
+
+That is precisely a loop like:
+
+```c
+for (i = 0; i < N; i++) table[i].fn = src[i].fn;
+```
+
+with `table` obtained once (e.g. from a constructor argument or a returned pointer) and `src` being an array
+in the pad module. **`src` is the lead**: an array of pad-band function pointers exists *somewhere*, and its
+entries are the same `0x088Fxxxx` values the table holds. Section 89 already measured that each such value
+has **exactly one holder** -- the table slot -- which means the *source* array does **not** exist in RAM as a
+parallel copy. So the source must be **code that stores them individually**, i.e. an initialiser with one
+`sw` per slot, whose addresses are computed as `base + k*8`.
+
+### The concrete next step
+
+Search the code for **stores into the table's address range**: an instruction sequence pattern, not a scalar.
+Specifically, look for functions containing **several `sw` instructions whose decoded offsets fall in
+`0x4600`-0x4800`** (the page-relative slot offsets) applied to the same base register -- that is the shape of
+an initialiser writing consecutive slots. That is a **structural** search (many stores, same base, regular
+offsets) rather than an operand-equality search, and it is the inverse of everything tried so far: not "who
+names the address" but "who writes a run of regularly-spaced words".
+
+A cheaper probe is available first, though: a **WRITE watchpoint on the table during startup** (section 84
+proposed the same for the heap table). The emulator's write watchpoints are proven to work (s67, s70), and a
+startup window -- before any menu exists -- avoids the press/liveness complications entirely.
+
+### Method note
+
+> **Check the FILE before concluding a search is wrong.** Five searches for the table's referrers came back
+> empty; the reason was that the table has no compile-time contents at all. Reading the file answered in one
+> step what the code searches could not, and reframed the target from "who reads it" to "who fills it".
+
+> **A negative needs the right idiom before it means anything.** The `lui` + `lw`/`sw` form is how MIPS
+> actually reaches a static; testing only `lui` + `addiu` guaranteed a null. The corrected test still found
+> nothing -- which is what makes it a real negative rather than a broken filter.
+
+> **One candidate is not a discovery.** The single HI+LO pair was checked against its function's body and
+> discarded; the value of the fixed search is the *controlled emptiness*, not that lone hit.
+
