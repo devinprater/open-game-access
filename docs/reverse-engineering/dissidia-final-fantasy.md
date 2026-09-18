@@ -6069,3 +6069,109 @@ is a pointer search for the record's data field.
 > cross-reference is zero, look for the indirection that makes the reference unnecessary -- a function
 > pointer, an event, or a copied state struct.
 
+
+
+---
+
+## 76. The HAND-OFF found: a service record whose data field IS the pad object
+
+Section 75 named two steps: trace who holds the service record, or watch the pad's state fields. This ran
+the pointer search, and it resolves section 73's puzzle completely.
+
+### The scan
+
+A read-only sweep of all 24 MB for 32-bit words equal to the record address, the record interior, the data
+pointer value, the fn value, and the pad object address. Three hits per value at most -- a tightly bounded
+result:
+
+```
+  ptr to pad service record base  0x08B96B88  ->  1 hit   (a pointer to the next record: part of the chain)
+  ptr to record +0x04             0x08B96B8C  ->  0 hits
+  the pad data pointer VALUE      0x09EF72C4  ->  2 hits   (one is the record itself)
+  the pad fn VALUE                0x088F809C  ->  1 hit    (the record itself)
+  ptr to the pad object           0x09EDA3A0  ->  3 hits
+```
+
+### The service table is a chain of at least six records
+
+Reading the `0xC`-stride array live:
+
+```
+rec0 @0x08B96B7C: +0=0x08B96B88  +4=0x09EF72C4  +8=0x088F809C
+rec1 @0x08B96B88: +0=0x08B96B94  +4=0x09EF72D0  +8=0x088F9E0C
+rec2 @0x08B96B94: +0=0x08B96BA0  +4=0x08BF8E40  +8=0x088EF4A4
+rec3 @0x08B96BA0: +0=0x08B96BAC  +4=0x08BF8D60  +8=0x08909690
+rec4 @0x08B96BAC: +0=0x08B96BB8  +4=0x08C5DC80  +8=0x08907BDC
+rec5 @0x08B96BB8: +0=0x08B96BC4  +4=0x09EDA3A0  +8=0x088FB63C
+```
+
+Each record's `+0x00` is exactly the next record's address (`0x08B96B7C + 0xC = 0x08B96B88`, and so on),
+which **confirms section 74's `{next, data, fn}` layout** -- the field order was right.
+
+### And record 5's DATA field is the pad object
+
+```
+rec5 @0x08B96BB8:  next = 0x08B96BC4
+                   data = 0x09EDA3A0     <-- THE PAD OBJECT (verified in section 58)
+                   fn   = 0x088FB63C     (vaddr 0x000F763C)
+```
+
+`rec5` is the **pad service**, and its data pointer **is the pad object itself**. That is the hand-off
+section 73 was looking for:
+
+```
+service table  ->  rec5  ->  +0x04 data = 0x09EDA3A0  ->  pad object (button word at +0x00)
+```
+
+So the menu does not need to name `DAT_003925b0` to reach the pad. It follows the **service chain** to
+`rec5` and reads the pad object out of the record's data field. **That is exactly why section 73's
+cross-reference was zero** -- the reference is made through a pointer stored in a table, not through the
+static.
+
+### A confirmation of the design
+
+The pad object's own first 0x30 bytes are **all zero**:
+
+```
+pad+0x00 .. pad+0x2C = 0x00000000
+```
+
+while the button word read at `pad + 0x00` in section 58/60 showed live values (`0x4000` for cross, etc.).
+Zero here means the **object was just re-initialised** at the moment of this read (a fresh page), so the
+object's identity is stable but its contents are transient -- consistent with it being a per-frame polling
+target rather than a persistent state store.
+
+### What this settles
+
+* **The route is found**: `service chain -> rec5 -> data field -> pad object`. The menu reaches input state
+  through the service table's data pointer.
+* **Section 73's `both = 0` is fully explained**: the connection is a *stored pointer* in a service record,
+  so no shared static symbol is required.
+* **Section 74's layout is confirmed**: `{next, data, fn}`, verified by the chain arithmetic across six
+  records.
+
+### What remains
+
+The **selection index** is still not located, but the search space is now much smaller in kind: the menu's
+consumer is whatever code **walks the service chain** (`+0x00` links) and reads a record's data field. The
+next bounded step is to watch **`rec5 + 0x04`** -- the slot holding the pad object pointer -- and then to
+find what reads *that* during a verified press, which is a one-field watchpoint with the instrument already
+built.
+
+### Method note
+
+> **A pointer search answers "who holds this" in one pass.** Section 75 offered two routes; this one is pure
+> read, needs no input, no watchpoint and no gating, and it produced the answer -- 1 to 3 hits per target.
+> When the question is "what references this object", scanning for the **value** is cheaper than
+> instrumenting the writer.
+
+> **Confirm a field layout by the invariant it satisfies.** `{next, data, fn}` was proposed in section 74
+> from three examples; here six records show `rec[n].+0x00 == rec[n].address + 0xC` throughout, which is a
+> structural invariant rather than a guess.
+
+> **Zeroed memory is information.** The pad object reading all-zero for its first 0x30 bytes, while the same
+> offset held live button values in section 60, says the object is re-initialised regularly -- which is
+> itself evidence that input is polled into a transient target rather than accumulated in a persistent
+> store. Noticing that the zeros were *an observation* rather than a failed read is what kept it from
+> looking like a broken probe.
+
