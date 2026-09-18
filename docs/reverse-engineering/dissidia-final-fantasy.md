@@ -3391,3 +3391,93 @@ cannot be trusted, and it should be **re-run with the verified harness**.
 > naturally live) with the harness that can now certify a null. A list of unverified negatives is not a
 > narrowed search.
 
+
+
+---
+
+## 47. A FIFTH instrument fault: the delivery check passes trivially on an animating scene
+
+Section 46 nominated the node-list walk as the decisive test, and it was run under the verified harness.
+It returned a clean-looking result:
+
+```
+liveness BEFORE   ticks delta: EXECUTING
+head/tail/count: (146838868, 146838780, 11)   nodes walked: 11
+presses that moved the display: 12/12
+node counts per sample: [11 x13]
+node ADDRESSES identical across samples: True
+=== node fields that changed (compared by index) ===   (no node field changed)
+liveness AFTER    ticks delta: 666,611,252   stepping=False -> EXECUTING
+
+VERDICT: TRUSTWORTHY NEGATIVE -- the node list does not track the highlight,
+         so the selection is NOT in the manager's object graph.
+```
+
+**That verdict is void**, and the check that voids it took one command:
+
+```
+frame diff with NO press: 1,575,031 px -> ANIMATING (scene!)
+```
+
+The run was on an **animating 3D scene**, not a static menu.
+
+### The fault
+
+The harness's delivery check accepts a press as delivered when the display changed. On an animating
+scene the display changes continuously, so **every press passes trivially** -- `12/12` delivery told me
+nothing at all. The same trap then hides in the verdict logic: "presses moved the display" was supposed
+to certify that the *highlight* moved.
+
+This is the **fifth distinct instrument fault** in this investigation:
+
+| # | fault | how it produced a confident wrong answer |
+|---|---|---|
+| 1 | screenshot child died (`ModuleNotFoundError: PIL`) | "no change" from a crashed capture |
+| 2 | coarse 8x8 grid hash | erased a moving highlight; "menu does not scroll" |
+| 3 | reads on the input connection | suppressed presses to 1/30th effect |
+| 4 | debugger churn halts the CPU | frozen emulator reads exactly like a true negative |
+| 5 | **animating scene + per-press movement check** | **delivery reads 12/12 while measuring nothing** |
+
+All five share one shape: **the instrument's failure is indistinguishable from a real result.** And the
+common countermeasure is the same each time -- measure a quantity whose value pins down the instrument's
+liveness, and refuse to interpret otherwise.
+
+### The guard, now implemented
+
+`psp-probe-nodes.py` gains an **animation guard** between the liveness check and the walk:
+
+```python
+g1 = grab(); sleep(2.5); g2 = grab()
+base_diff = pixdiff(g1, g2)
+if base_diff > 2000:
+    REFUSE: the display animates on its own (a scene, not a menu), so a per-press movement
+            check cannot distinguish a highlight move from ordinary motion.
+            Reach a STATIC screen (two-frame diff ~0) before running this test.
+```
+
+So a run now requires **three** preconditions, each measured rather than assumed: ticks advancing
+(liveness), a static screen (animation guard), and a per-press change (delivery).
+
+### What survives from this run
+
+Only the structural observation, which does not depend on the delivery check:
+
+* the manager's node count on this screen is **11**, not the 35 measured in section 39 -- so the list is
+  **per-screen**, confirming the manager is rebuilt per screen;
+* the node addresses were **identical across all 13 samples** and the count never varied, so the list is
+  stable while the game runs.
+
+The node-field negative is **not** established. The decisive node test still has to be run, on a
+**static** screen, with the animation guard in place.
+
+### Method note
+
+> **A delivery check must be able to FAIL.** Counting any per-press movement certifies nothing when the
+> thing being measured moves on its own; the check has to be calibrated against a no-press baseline
+> first. This is the same discipline as the no-press control for memory (Rule 120) applied to the screen:
+> **measure the baseline, then require the press to exceed it.** A guard that cannot fail is not a guard.
+
+> **Re-verify the target's identity before trusting a null.** The run was clean, verified, and
+> self-consistent -- and was measuring a scene. Sections 43-47 have now had five faults of this kind; the
+> cost of one extra two-frame capture before each run is trivial next to a voided result.
+
