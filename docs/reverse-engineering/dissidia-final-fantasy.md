@@ -3878,3 +3878,89 @@ display-based test, which is slower but correct:
 > (`render 1, +0x20 1, nodes 9`). Any classifier built without asserting liveness would have learned
 > from that state as if it were a screen.
 
+
+
+---
+
+## 53. FACE BUTTONS found — but the reachable static screen still cannot be exercised
+
+Two attempts this section, both guarded, one encouraging and one another void.
+
+### Encouraging: `circle` and `triangle` DO move a static screen
+
+A hunt for a static screen, then a scan of all twelve controls **on the verified static screen**
+(`no-press diff 0 px`):
+
+```
+=== scanning all controls ON this verified static screen ===
+  down      ->         0 px
+  up        ->         0 px
+  left      ->         0 px
+  right     ->         0 px
+  l         ->         0 px
+  r         ->         0 px
+  circle    ->   1529922 px  <== MOVED (still static -> SELECTION MOVED)
+  cross     ->   1649726 px  <== MOVED (not static after -> scene motion)
+  triangle  ->    388654 px  <== MOVED (still static -> SELECTION MOVED)
+  square    ->         0 px
+  start     ->         0 px
+  select    ->         0 px
+```
+
+The distinction the scan draws is the important part. `circle` and `triangle` changed the display **and
+the screen was still static afterwards** -- which is the signature of a **UI transition**, not scene
+motion. `cross` changed it but did *not* stay static, which is scene motion. Earlier scans that tested
+only six controls (`down/up/left/right/l/r`) found nothing; adding the face buttons revealed two live
+controls.
+
+So the screen the investigation had been calling "inert" is **not** inert -- it responds to `circle` and
+`triangle`. Previous refusals were partly a **coverage gap in the control list**, not only a screen
+problem.
+
+### Void: the same screen does not respond to `triangle` when re-entered
+
+Reaching the screen via `l` and pressing `triangle` eight times:
+
+```
+=== liveness BEFORE === EXECUTING
+head/tail/count: (146838736, 146838032, 9)   nodes walked: 9
+=== presses that moved the display: 0/8 ===
+node counts per sample: [9 x9] ; node ADDRESSES identical
+=== node fields that changed ===   (no node field changed)
+=== liveness AFTER === EXECUTING
+VERDICT: VOID -- no press moved the display; readings are not evidence.
+```
+
+`0/8` delivery, so the node result is void again. The screen reached by `l` here is a *different* one
+from the screen where `circle`/`triangle` moved things -- `l` toggles something, and re-pressing it does
+not land on the same place.
+
+### What this section actually establishes
+
+* **The control list was incomplete.** `circle` and `triangle` move at least one static screen; the
+  six-control scans in section 50 could never have found that. This is a genuine coverage error and it
+  is corrected.
+* **A UI transition is distinguishable from scene motion** by checking staticness *after* the press: the
+  same guard that catches animating scenes also separates "the screen changed and settled" from "the
+  screen is just moving".
+* **Reachability remains the binding constraint**, and it is subtle: `l` reaches a static screen
+  repeatably for the *staticness* test, but not a screen that responds to a given control.
+
+### The next test, now well-specified
+
+The scan shows the right approach: **on a verified static screen, scan all twelve controls, and when one
+both moves the display and leaves it static, immediately run the node probe with that control** -- all in
+one process, with no `l` re-press in between. That is a single chained run, and it has not yet been done
+in exactly that form.
+
+### Method note
+
+> **When a search fails everywhere, check the search's COVERAGE before concluding the target is absent.**
+> Seven screens x six controls was read as "no screen is interactive", but the control list omitted the
+> face buttons -- and two of them work. A negative from an incomplete input set is not a negative about
+> the game.
+
+> **Distinguish "changed and settled" from "still changing".** Requiring the screen to be static *after*
+> a press separates a UI transition from ordinary motion, using the same measurement as the animation
+> guard. One extra capture per press buys that distinction.
+
