@@ -3319,3 +3319,75 @@ pointers instead of clearing nothing.
 > -bearing. The earlier sections' negatives were not wrong so much as unsupported; this one is
 > supported, and it moves the target.
 
+
+
+---
+
+## 46. Two more objects cleared with the verified harness — and the pattern that emerges
+
+Section 45's next step was to follow the manager's three unexplored pointers using the same
+verified-precondition harness. Two are now done.
+
+### The manager's pointers, resolved
+
+```
+manager +0x00 -> 0x09DEE380     struct with small ordinals (4, 4, 28, 4) and pointers
+manager +0x04 -> 0x09DF18F0     all zeros -- a buffer, deprioritised
+manager +0x08 -> 0x09DEE380     (same as +0x00)
+manager +0x0C -> 0x00000000     not a pointer on this screen
+manager +0x14 -> 0x09DEE3C0     render-node array (derived render state, s41)
+manager +0x28 -> 0x08C094D0     node-list head  (s39)
+manager +0x2C -> 0x08C09210     node-list tail
+```
+
+### Result: `0x09DEE380` is static, verified
+
+```
+liveness BEFORE   ticks delta: 666,666,000   stepping=False -> EXECUTING
+presses that moved the display: 12/12
+=== words that moved ===  (none)
+=== wrap test ===          (nothing to test)
+liveness AFTER    ticks delta: 666,666,000   stepping=False -> EXECUTING
+
+VERDICT: TRUSTWORTHY NEGATIVE -- nothing in this struct tracks the highlight.
+```
+
+So the struct carrying the small ordinals (`4`, `4`, `28`, `4`) does **not** track the highlight. Those
+ordinals are counts, and the object is stable while the selection changes.
+
+### The pattern worth recording: the manager is a SCREEN object, not a selection object
+
+Note that the manager's fields *do* differ between screens -- `+0x18` was `3` on the pause menu and `0`
+here, and `+0x28`/`+0x2C` differ too. So the manager genuinely is per-screen state. But across 24
+verified presses on two screens, **no field of the manager and no field of its `+0x00` target moves with
+the highlight.**
+
+That is a consistent, twice-confirmed finding:
+
+> **The manager records what the screen IS (its base, counts, node list) and not what is SELECTED.**
+> The selection is held elsewhere, and it is not in the object graph reachable by following the
+> manager's own pointer fields at these offsets.
+
+Combined with sections 40/41 (the render array is *derived* from the selection, not the selection), the
+remaining structural possibility is narrow: the selection lives in the **node list itself** (the 35 nodes
+at `+0x28`), which section 39 measured as static -- but on a *different* screen, and with **no
+liveness assertion**. That measurement is therefore of exactly the class that sections 43-45 showed
+cannot be trusted, and it should be **re-run with the verified harness**.
+
+### What to do next, precisely
+
+1. **Re-run the node-list walk with the verified harness.** Section 39's "35 nodes, no field changed" is
+   the last unverified negative in the hunt and the nodes are the natural home for a per-item
+   highlight flag. This is the single highest-value remaining test.
+2. If the nodes are static under a *verified* run, then the selection is **not in the manager's object
+   graph at all**, which would be a strong, defensible conclusion rather than another cleared address.
+
+### Method note
+
+> **Re-run old negatives with the new harness.** Every negative taken before the liveness precondition
+> existed is suspect -- the fault is silent, so a null measured on a frozen emulator is indistinguishable
+> from a real one. Rather than treating earlier clears as settled, the cheap and correct move is to
+> re-measure the *structural* ones (especially the node list, which is where a per-item flag would
+> naturally live) with the harness that can now certify a null. A list of unverified negatives is not a
+> narrowed search.
+
