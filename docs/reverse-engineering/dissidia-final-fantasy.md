@@ -7662,3 +7662,101 @@ That is a strictly narrower filter, and the earlier loose one should not be trus
 > section states that plainly rather than leaving a list that a later reader would mistake for findings. The
 > surviving evidence is the *absence* of any scalar/reference match, which is genuinely informative.
 
+
+
+---
+
+## 91. The third reference form: the pad's objects store TABLE SLOT ADDRESSES
+
+Section 90 corrected the code search and it produced a clean negative: **zero** exact base scalars, **zero**
+resolved references into the table, **zero** HI+LO pairs. All 2,860 raw candidates were generic `lui` high
+halves (`lui` with immediate `0x08ba` or `0x0039`), which is far too common to be evidence.
+
+This section followed a different detail, and it explains why no literal appears in code.
+
+### The converted objects hold a table slot address
+
+Reading the pad objects' `+0x30`-`+0x50` range:
+
+```
+  pad+0x34 = CODE vaddr 0x003A06B0
+```
+
+and the converted objects:
+
+```
+  converted_obj(+0x34) = 0x08BA46E8      <-- an address INSIDE the API table, one slot before the
+                                             guarded input query slot (0x08BA46F4)
+```
+
+So `converted_obj + 0x34` does not hold a function pointer and does not hold the table base: it holds
+**the address of one slot in the table**.
+
+And the table at that address is currently **empty**:
+
+```
+  0x08BA46E4 = 0x08B64768  CODE vaddr 0x00360768
+  0x08BA46E8 = 0x00000000  <-- the slot the converted object points at: ZERO
+  0x08BA46EC = 0x00000000
+  0x08BA46F0 = 0x00000000
+  0x08BA46F4 = 0x088FB1C8  CODE vaddr 0x000F71C8   (the guarded input query)
+```
+
+So the slot is either **reserved** or **populated only in certain states**.
+
+### And holders of that slot address are exactly the pad's own objects
+
+```
+=== holders of 0x08BA46E8 ===
+  2 holder(s):
+    0x09EDA494   -4:0x00000000  +4:0x00000000     <-- pad + 0xF4  = converted_obj0(0x09EDA460) + 0x34
+    0x09EDA4E4   -4:0x00000000  +4:0x00000000     <-- pad + 0x144 = converted_obj1(0x09EDA4B0) + 0x34
+```
+
+Both holders are **inside the pad's own converted objects** -- one per port, at the same offset, `+0x34`.
+
+### Why this matters: a THIRD reference form
+
+Three different ways to refer to the API have now been measured, and each defeated a different search:
+
+| form | example | why the search failed |
+|---|---|---|
+| **symbol reference** | `DAT_003925b0` (the pad static) | the menu never names it -- 0 of 21 (s73) |
+| **function-pointer holder** | `0x08BA46F4 -> FUN_000f71c8` | held once, by the table itself (s88); the *table* has 0 holders (s89) |
+| **stored slot address** | `converted_obj + 0x34 = 0x08BA46E8` | held only by the pad's own objects (this section) |
+
+So an entry can be reached by:
+
+1. calling a **function pointer** read from a slot,
+2. whose **slot address** was stored in an object field,
+3. which the object obtained at **init** from the table's base,
+
+and **no step in that chain names a symbol, and no code contains a literal**. That is precisely why a
+pointer search, a holder search, and a code-literal search each came back empty in turn -- they were each
+looking for one form and the chain uses all three.
+
+### What the state of the table tells us
+
+The slot at `0x08BA46E8` reads **zero** while the neighbouring slots hold pad-band function pointers. Two
+readings, both testable: it is **reserved** (never populated), or it is **populated conditionally** (only on
+certain screens/states). Given the converted objects *store its address*, the second is more likely -- a
+stored address to a permanently empty slot would be pointless.
+
+That gives a **concrete, bounded test**: read `0x08BA46E8` across a screen transition, or watch it for writes.
+If it becomes a code pointer on some screen, then that slot -- and whoever populates it -- is state-dependent
+API, and the populating code is the registration path.
+
+### Method note
+
+> **Follow the anomalous field, not the aggregate.** The 2,860-candidate `lui` result was noise; the useful
+> step was reading one object's `+0x34` and asking why it pointed *into* a table rather than *at* a function.
+
+> **A pointer into a structure is not a pointer to a function.** `0x08BA46E8` looked like a code address at a
+> glance (it is in the same band as `0x08BA46F4`, which *is* one) but it resolves to an empty slot. Checking
+> what the target actually contains -- rather than assuming from proximity -- is what exposed the third
+> reference form.
+
+> **Three reference forms, three failed searches, one explanation.** When consecutive searches for the same
+> link all come back empty by *different* methods, the productive conclusion is that the link is not what was
+> assumed -- here, that an indirect chain using all three forms was being probed one form at a time.
+
