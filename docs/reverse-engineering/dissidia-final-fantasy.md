@@ -3964,3 +3964,77 @@ in exactly that form.
 > a press separates a UI transition from ordinary motion, using the same measurement as the animation
 > guard. One extra capture per press buys that distinction.
 
+
+
+---
+
+## 54. SCROLL vs TRANSITION: a sharper criterion, and it finds no scroll control
+
+Section 53 credited `circle` and `triangle` as "MOVED and SETTLED", then the chained follow-up voided
+because they moved the display **once** and not again. That exposed a distinction worth formalising,
+because it separates two very different buttons:
+
+| kind | behaviour |
+|---|---|
+| **SCROLL** control | moves the selection WITHIN a screen -- so it moves the display on **every** press |
+| **TRANSITION** control | one press navigates to a *different* screen; further presses there do nothing |
+| **inert** control | no effect |
+
+A selection cursor needs a **scroll** control. The test is therefore direct: press a control N times and
+require the display to move on **all N**.
+
+### The test and its result
+
+`psp-find-scroll-control.py --reps 5`, after reaching a screen verified static (no-press diff `0`):
+
+```
+   down      moved 0/5, settled 0/5   inert
+   up        moved 0/5, settled 0/5   inert
+   left      moved 0/5, settled 0/5   inert
+   right     moved 0/5, settled 0/5   inert
+   l         moved 0/5, settled 0/5   inert
+   r         moved 3/5, settled 0/5   partial
+   circle    moved 4/5, settled 0/5   partial
+   cross     moved 4/5, settled 0/5   partial
+   triangle  moved 4/5, settled 0/5   partial
+   square    moved 4/5, settled 0/5   partial
+   start     moved 3/5, settled 1/5   partial
+   select    moved 0/5, settled 0/5   inert
+
+No control moved the display on every press: no scroll control on this screen.
+```
+
+**No scroll control exists on this screen.** The D-pad and both shoulders are entirely **inert**; the
+face buttons produce continuing motion which never settles (`settled 0/5` throughout), i.e. one press
+leaves the static screen and the rest occur on an **animating scene**.
+
+### What this settles
+
+* **The earlier "MOVED and SETTLED" reading was a one-shot artefact.** A single press measured on either
+  side of a transition looks like a settled UI change; repeating the press exposes it as a transition
+  that leaves the screen. **A transition test needs repetition; a single press cannot tell a scroll from
+  a transition.**
+* **No screen reachable by blind input has a scroll control.** Combined with section 50 (seven screens,
+  six controls) and this run (one verified-static screen, twelve controls, five repetitions each), the
+  reachable set offers no scrollable list. The two screens where `down` *was* seen to scroll (the pause
+  menu, verified twice by OCR) remain unreachable blind.
+* **The D-pad being inert on these screens is itself informative**: it means the screens reached are not
+  list menus at all -- list menus respond to the D-pad.
+
+### Status of the cursor hunt
+
+Every structural question except one is answered or verified-static, and the instrumentation is sound
+(guards fired correctly in sections 47-49, 52, 54). The single open question -- **do the manager's node
+fields track the highlight?** -- requires a screen with a scroll control, and the measured conclusion is
+that blind input cannot reach one. That is a precise, evidenced stopping point for the automated phase.
+
+### Method note
+
+> **Repeat a press to classify the control.** One press cannot distinguish a scroll from a transition;
+> five presses can, because a scroll moves every time and a transition moves once. The same reasoning as
+> "a pattern needs more samples than it has states" (Rule 126) applied to *input* rather than to memory.
+
+> **An inert control list is a clue about the screen, not just a dead end.** The D-pad being inert across
+> every reachable screen says those screens are not list menus -- which is why no selection index was
+> ever going to be exercised there.
+
