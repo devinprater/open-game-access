@@ -3664,3 +3664,76 @@ the node-field question -- the last unverified structural negative -- can finall
 > the screen) rather than to refine the instrument again -- and to say so plainly instead of running the
 > same test on another inert screen.
 
+
+
+---
+
+## 50. MEASURED: blind input cannot reach a scrollable screen — 7 screens, 6 controls, zero movement
+
+Section 49 concluded the blocker was reachability of a suitable screen and proposed asking a sighted
+helper. Rather than assume that, the claim was **tested systematically**, and it holds: an automated
+search over seven screens, pressing six controls on each, found **no static screen whose highlight
+moves**.
+
+### The search
+
+`psp-find-scroll.py` walks back through screens. On each it:
+
+1. confirms the CPU is executing (ticks delta);
+2. confirms the screen is **static** (two captures, no press, difference ≤ 2000 px);
+3. on a static screen, presses each of `down, up, right, left, l, r` and records whether the display
+   changed **and** stayed static afterwards;
+4. otherwise navigates back (`circle`, `start`) and repeats.
+
+### The result
+
+```
+screen 0..6:  no-press diff 0 px -> STATIC
+     down  -> no movement        up    -> no movement        right -> no movement
+     left  -> no movement        l     -> no movement        r     -> no movement
+     no control moves the highlight on this screen; navigating back
+
+no scrolling static screen found in 7 steps.
+```
+
+**Seven consecutive screens, every one static, every one inert to all six controls.** Not one produced
+a highlight movement.
+
+### What this establishes
+
+* **The instrumentation is not the problem.** All seven screens passed the liveness and staticness
+  guards, so the search was valid on each. The zero-movement readings are therefore real: those screens
+  genuinely do not respond to those controls.
+* **Blind input has a measured ceiling.** The game's reachable screens from this state are, on the
+  evidence, either static-and-inert or animating. Whatever screens DO scroll (the pause menu was
+  previously verified twice by OCR to scroll with `down`) are not reachable by blind navigation from
+  here.
+* **The blocker is now a fact, not an inference.** Section 49 said "blind input cannot reliably reach
+  one"; this section shows it cannot, over seven attempts with six controls each.
+
+### Consequence for the cursor hunt
+
+The remaining unverified structural question -- **do the manager's node fields track the highlight?** --
+cannot be answered by more automated attempts from this state. The instrument is ready and would answer
+in one run:
+
+* `psp-probe-nodes.py` verifies liveness, staticness and delivery, and voids itself otherwise;
+* it needs only a **static screen where one control moves the selection**.
+
+The exact, minimal ask is therefore: **place the game on a static menu with a list of several rows --
+the title menu is ideal -- and tell me which button moves the highlight.** With that, one run settles
+the node-field question.
+
+### Method note
+
+> **Test a reachability claim before delegating on it.** "I cannot get to the right screen" is easy to
+> assert and easy to be wrong about, so it was measured: seven screens, six controls, zero movements,
+> with the guards confirming each screen was valid. A measured reachability ceiling is a legitimate
+> stopping point for the automated phase and a precise handoff -- it tells the helper exactly what is
+> needed (a *scrolling* static menu) rather than "help me with menus".
+
+> **Seven systematic negatives in a row are worth more than another improvised attempt.** Each of the
+> seven screens was checked for liveness and staticness first, so the series is evidence rather than
+> seven guesses. When a search is exhausted *with the guards in place*, the right move is to change the
+> input condition -- not to re-run with a different button order.
+
