@@ -3576,3 +3576,91 @@ screen where `down` is inert.
 > claims and only the first is supported here. The harness now separates them, which is why this
 > section can be honest about not having the answer.
 
+
+
+---
+
+## 49. The guards hold on a third screen — and the blocker is now a SCREEN, not the method
+
+Section 48's next step was to return to the pause menu (verified twice by OCR to scroll with `down`)
+and re-run the node test. The chained script did everything right, and the guards caught the problem
+before any wrong conclusion was drawn.
+
+### The chained run, step by step
+
+```
+=== 1. open the pause menu (start) ===
+=== 2. static check (no press) ===
+   no-press diff: 0 px -> STATIC
+=== 3. does 'down' move the highlight here? ===
+   down-press diff: 0 px -> NO MOVEMENT
+```
+
+**Step 3 is the informative one.** The screen is genuinely static (`0 px` with no press) but `down`
+moves nothing, so this is **not** the pause menu -- `start` landed somewhere else. The node probe then
+re-verified and voided:
+
+```
+  no-press frame diff: 0 px  -> STATIC screen confirmed
+head/tail/count: (146840056, 146838032, 9)   nodes walked: 9
+=== presses that moved the display: 0/12 ===
+node counts per sample: [9 x13] ; node ADDRESSES identical
+=== node fields that changed ===   (no node field changed)
+=== liveness AFTER ===  EXECUTING
+VERDICT: VOID -- no press moved the display; readings are not evidence.
+```
+
+**A third screen, a third list length.** The node count has now been measured on three screens:
+**35** (section 39), **11** (section 47), **9** (here). The manager and its list are definitively
+**rebuilt per screen**, which is consistent with every other per-screen finding and confirms the
+manager is not a persistent object.
+
+### What this establishes about the method
+
+The harness has now produced **four correct refusals in a row** (sections 47, 48 x2, 49) and no void
+verdict has been mistaken for a result. The guards are doing exactly their job:
+
+| guard | what it caught here |
+|---|---|
+| liveness | emulator executing (passed) |
+| animation guard | no-press diff `0 px` -> static (passed) |
+| delivery check | `0/12` -> **void** (fired correctly) |
+
+So the run cost minutes and **nothing in the document needed correcting** -- a marked improvement over
+sections 43-47, each of which produced a verdict that later had to be withdrawn.
+
+### The blocker, stated precisely
+
+**The blocker is now a screen, not a method.** Everything except the target screen is in place:
+
+* the harness refuses invalid runs;
+* the manager object is located and mapped, and its list walks correctly;
+* every per-screen object that has been measured is either explained or verified-static;
+* the code side has the render producer and consumer identified and verified.
+
+What is missing is a **static UI screen on which a d-pad direction actually moves the highlight**.
+Blind input cannot reliably reach one: `start` here opened an inert screen, and the pause menu is
+reached only from a specific state. This is precisely the point where a sighted helper is worth more
+than another automated attempt -- the automated side can *verify* a screen in seconds, but it cannot
+*choose* one.
+
+### What to ask for
+
+Reaching the **title menu** (Story / Battle / Customize / Museum / Shop / Options / Data) settles two
+things at once:
+
+1. it is a **static** screen, so the animation guard passes;
+2. it has **seven rows**, so a real selection index would show **period 7 and step 1** -- which satisfies
+   section 40's rule that a two-item menu cannot distinguish an index from derived state.
+
+With the highlight on *Story*, the node probe and `psp-probe-struct.py` can both be run immediately, and
+the node-field question -- the last unverified structural negative -- can finally be answered.
+
+### Method note
+
+> **Verify before blaming the method.** Four consecutive refusals show the instrumentation is sound; the
+> same four refusals also show that the *reachability* of a suitable screen is the binding constraint.
+> When a well-instrumented pipeline keeps refusing, the next move is to change the input condition (here,
+> the screen) rather than to refine the instrument again -- and to say so plainly instead of running the
+> same test on another inert screen.
+
