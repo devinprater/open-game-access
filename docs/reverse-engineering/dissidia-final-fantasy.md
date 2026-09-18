@@ -5750,3 +5750,107 @@ render -- the input-consumer path, which is precisely what the second agent name
 > regardless of input, then by construction it is an output of the render pass, not an input to it. That is
 > a structural argument, and it redirects the search upstream without needing to test each node field.
 
+
+
+---
+
+## 73. The menu never reads the pad object -- the input path is fully abstracted
+
+Section 72 concluded the search must go **upstream** to the input consumer. This section looked for it, and
+found that the obvious target -- the code reading the pad's button word -- is a **self-contained pad
+layer** with no route to the menu.
+
+### The query
+
+`DisPadReaders.java` asked three questions of the pad static (`DAT_003925b0`):
+
+```
+functions referencing the pad static: 21
+of those, which ALSO touch the menu static DAT_00397770: 0
+functions with button-mask comparisons: 16
+```
+
+**`both = 0`.** Not one of the 21 functions that reference the pad object also references the menu static.
+That is a structural fact about the architecture, not a sampling result -- it is a static cross-reference
+over the whole binary.
+
+### What the pad readers actually are
+
+The two strongest-looking candidates both turn out to be infrastructure:
+
+**`FUN_000fa84c` (6,856 bytes, 117 "mask hits")** -- the top-ranked function. Decompiling it shows a long
+sequence of identical blocks:
+
+```c
+if (DAT_0132f9a0 == 0) { DAT_0132f9a0 = 1; FUN_00103918(0xb5520); FUN_0033c4d0(&DAT_00392bc4); }
+DAT_00392cd0 = 0xb5520;
+if (DAT_0132fdb0 == 0) { DAT_0132fdb0 = 1; FUN_000f7598(&DAT_0132fb40); FUN_0033c4d0(&DAT_00392bb8); }
+DAT_003925b0 = &DAT_0132fb40;      // <-- the pad static, assigned here
+...
+```
+
+That is the global **subsystem registration/initialisation** function, and it is where section 42 found the
+same class-registration table. Its 117 "mask hits" are incidental constants (`0x1` in guard flags, function
+ids), not button tests -- a useful reminder that a density heuristic ranks code by *literal frequency*, not
+by *meaning*.
+
+**`FUN_000f76f4` (152 bytes, 5 genuine bit tests)** -- the one function doing real bit manipulation:
+
+```c
+if ((*(uint *)(DAT_003925b0 + 0x264) & 1) == 0) {
+    iVar1 = 0;
+    do { FUN_000f68e0(param_1, iVar1); iVar1++; param_1 += 0x60; } while (iVar1 < 2);
+} else if ((*(uint *)(DAT_003925b0 + 0x264) & 8) == 0) {
+    FUN_000f68e0(param_1 + 0x1e0, 0);
+} else {
+    FUN_000f6868();
+}
+```
+
+It tests the pad flags word at `+0x264` for bits 1 and 8 -- port/connection state, not buttons -- and
+dispatches to `FUN_000f68e0`, the controller read. `FUN_000f68e0` in turn calls the sceCtrl stub
+(`FUN_0036da4c`), passes the result through `FUN_000f68c4`/`FUN_000f6694`, and stores into a **local**
+struct fed to a callback (`param_1 + 0x50`, `+0x48`, `+0x49`).
+
+### The architecture this reveals
+
+```
+sceCtrl read (FUN_000f68e0)  ->  pad object fields  ->  ???  ->  menu
+                                      ^
+                                21 functions reference the pad static
+                                 0 of them reference the menu static
+```
+
+So the pad object is **write-only as far as the menu is concerned**: the pad layer polls hardware, fills its
+own fields, and hands results to callbacks. **The game's menu code does not read the pad object at all.** It
+therefore receives input through some intermediate -- a callback, an event queue, or a copied state
+structure -- and *that* is where the selection logic must look.
+
+### Why this matters for the cursor hunt
+
+The absence is the finding. Every previous search assumed the menu reads the pad's button word, so the
+search kept landing back in the pad layer:
+
+* section 58 located the pad object and its button word;
+* section 60 used it to build the input **gate** -- and the gate remains correct and valuable;
+* but the menu's own state never appears in the pad object's readers.
+
+So the correct target is the **hand-off**: whatever `FUN_000f68c4`/`FUN_000f6694` publish, and whoever
+consumes it. The callback argument `param_1` (with fields at `+0x48`, `+0x49`, `+0x50`) is the most concrete
+lead -- it is the structure the pad layer *hands out*, and it is not the pad object itself.
+
+### Method note
+
+> **A cross-reference count of zero is a result.** "0 of 21 pad-referencing functions mention the menu
+> static" is a whole-binary static fact. It rules out an entire hypothesis -- *the menu reads the pad
+> directly* -- far more cleanly than any number of runtime probes could, and it cost one script.
+
+> **A literal-density heuristic ranks constants, not semantics.** `FUN_000fa84c` scored 117 "button-mask
+> hits" and is actually the subsystem initialiser, with `0x1` appearing in guard flags. Rank on *what the
+> instruction does* (an `andi` against a documented button bit in a comparison), not on how often the
+> literal occurs.
+
+> **Follow the hand-off, not the hardware.** When a component polls and then calls out, the state the rest
+> of the program sees is what the *callback* receives. Looking for the consumer inside the poller is a
+> category error -- and it is what made four attempts land back in the pad layer.
+
