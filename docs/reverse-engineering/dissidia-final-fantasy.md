@@ -6278,3 +6278,88 @@ elimination the delivery mechanism, and its callees will contain the consumer.
 > menu through **callbacks or copied state**, not through polling a published object. Recognising the repeat
 > is what makes the next probe well-aimed rather than another search.
 
+
+
+---
+
+## 78. READ watchpoints work -- and only FIVE sites read the pad button word
+
+Sections 73 and 77 produced two dead ends of the same shape: the pad object is not read by the menu, and the
+service table is never walked. Both were *structural* arguments. This section asks the question **directly**,
+with an instrument neither of those searches used: a **READ watchpoint** on the button word.
+
+### The read breakpoint is supported
+
+Testing breakpoint types against `pad + 0x00`:
+
+```
+  type=read  accepted=True  err=False  halted=True  pc=0x088FA698
+      --> READ breakpoint FIRES. reader pc 0x088FA698 (vaddr 0x000F6698)
+```
+
+`type: "read"` is accepted and halts immediately -- as it must, since the button word is polled every frame.
+That is a capability section 43 did not establish, and it turns "who consumes input" from an inference into
+a measurement.
+
+### Saturated collection: five reader sites
+
+40 hits collected, with resume + re-arm between them (so the set saturates rather than aliasing -- section
+71's lesson):
+
+```
+=== the READERS of the pad button word ===
+   0x088FA698 x8   vaddr 0x000F6698  FUN_000f6694
+   0x088FA6B0 x8   vaddr 0x000F66B0  FUN_000f6694
+   0x088FB150 x8   vaddr 0x000F7150  ?                 <-- unclassified
+   0x088FB184 x8   vaddr 0x000F7184  ?                 <-- unclassified
+   0x088FA7C4 x8   vaddr 0x000F67C4  FUN_000f6694
+  hits: 40   distinct PCs: 5
+```
+
+**Exactly five sites, perfectly balanced at 8 hits each.** That balance is the signature of a saturated set:
+each site is reached once per poll cycle, so 40 rounds over 5 sites gives 8 each. This is the opposite shape
+from section 70's artefact (6 samples from a 14-site pool, disjoint by chance) -- here the pool is genuinely
+small and fully covered.
+
+### What the five sites are
+
+* **Three are inside `FUN_000f6694`** (`0x000F6698`, `0x000F66B0`, `0x000F67C4`). Section 73 already saw
+  `FUN_000f6694` called from `FUN_000f68e0` -- the **controller read**. So these are the pad layer reading
+  back its own freshly-polled state. Expected, and not the menu.
+* **Two are in an unidentified function** at `0x000F7150` and `0x000F7184` -- not in any function range the
+  investigation has mapped. These are the **only readers of the button word that are not the pad layer
+  itself**, and they are therefore the strongest candidates for the input consumer found so far.
+
+### Why this is a better result than the previous two searches
+
+| search | method | result |
+|---|---|---|
+| section 73 | static cross-reference: pad static vs menu static | 0 of 21 |
+| section 77 | static cross-reference: service table range | 2, both construction |
+| **section 78** | **read watchpoint on the button word** | **5 sites, 2 unclassified** |
+
+The first two told us where input *is not* reachable from. This one names **the actual code that touches the
+input value**, and it needed no architectural inference: whoever reads the button word is by definition a
+consumer, and the list is short enough to enumerate.
+
+### The next step
+
+Decompile the function containing `0x000F7150`/`0x000F7184` and follow its callees. Two specific addresses,
+both in one function, both reading the button word 8 times per collection -- the natural target is the
+function at or below `0x000F7150`, and its call graph.
+
+### Method note
+
+> **Ask the question in the direction that has a short answer.** "Who is reachable from the menu" is a
+> whole-program reachability question with no crisp answer. "Who reads this value" has an answer of size 5.
+> The read watchpoint converted a structural puzzle into an enumeration, and it took one script.
+
+> **Balanced hit counts across sites prove saturation.** Five sites at exactly 8 hits each is what a
+> fully-covered pool looks like; the section 70 artefact was six samples spread over fourteen sites, which
+> cannot cover the pool. Reporting the per-site counts is what makes saturation visible rather than assumed.
+
+> **Expect the platform layer to read its own state.** Three of five readers are inside the pad routine --
+> it writes the button word and reads it back. Recognising those as *the layer itself* isolated the two
+> unclassified readers as the only externally-interested parties, which is exactly the discrimination
+> needed.
+
