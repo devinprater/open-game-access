@@ -75,7 +75,7 @@ def main():
     print("game:", d.status().get("game", {}).get("title"))
 
     m = measure()
-    print("start: %s" % (m if m else "CAPTURE FAILED"))
+    print("start: %s" % (m,))
     if m and m[0] < 0.5 and m[1] > 2.0:
         print("ALREADY a static UI screen")
         d.close()

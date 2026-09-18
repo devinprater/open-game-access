@@ -89,6 +89,61 @@ def grab(hwnd):
     return buf.raw, w, h
 
 
+def write_png(path, w, h, raw_rgba):
+    """Write a PNG using ONLY the stdlib.
+
+    WHY NOT PIL: capture is invoked as a subprocess from other scripts, and a bare `python.exe`
+    on Windows resolves to whichever interpreter the PARENT's PATH puts first. When the parent is
+    Hermes's own venv, that interpreter has no PIL, so the child died with
+    ModuleNotFoundError before writing anything -- which surfaced as a silent "no file produced"
+    and was misread as "the screen did not change". Encoding the PNG here removes the dependency,
+    so capture works under any interpreter.
+    """
+    import struct
+    import zlib
+
+    stride = w * 4
+    out = bytearray()
+    for y in range(h):
+        row = raw_rgba[y * stride:(y + 1) * stride]
+        if len(row) != stride:
+            row = row + b"\x00" * (stride - len(row))
+        rgb = bytearray(w * 3)
+        mv = memoryview(row)
+        rgb[0::3] = mv[0::4]
+        rgb[1::3] = mv[1::4]
+        rgb[2::3] = mv[2::4]
+        out.append(0)          # filter type 0 (None)
+        out.extend(rgb)
+
+    def chunk(tag, data):
+        return (struct.pack(">I", len(data)) + tag + data
+                + struct.pack(">I", zlib.crc32(tag + data) & 0xFFFFFFFF))
+
+    ihdr = struct.pack(">IIBBBBB", w, h, 8, 2, 0, 0, 0)   # 8-bit, truecolour RGB
+    png = (b"\x89PNG\r\n\x1a\n" + chunk(b"IHDR", ihdr)
+           + chunk(b"IDAT", zlib.compress(bytes(out), 6)) + chunk(b"IEND", b""))
+    with open(path, "wb") as fh:
+        fh.write(png)
+
+
+def save_rgb(path, w, h, raw_rgba, crop_rows=0):
+    """Save the capture, preferring PIL when present and falling back to the stdlib writer."""
+    if crop_rows:
+        stride = w * 4
+        raw_rgba = b"".join(raw_rgba[(y + crop_rows) * stride:(y + crop_rows + 1) * stride]
+                            for y in range(h - crop_rows))
+        h = h - crop_rows
+    try:
+        from PIL import Image
+        im = Image.frombytes("RGBA", (w, h), raw_rgba).convert("RGB")
+        im.save(path)
+        return "PIL"
+    except Exception:
+        write_png(path, w, h, raw_rgba)
+        return "stdlib"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("out")
@@ -106,12 +161,8 @@ def main():
         print("ERROR: zero-size window")
         return 1
 
-    from PIL import Image
-    im = Image.frombytes("RGBA", (w, h), raw).convert("RGB")
-    if args.chrome:
-        im = im.crop((0, args.chrome, w, h))
-    im.save(args.out)
-    print(f"OK {w}x{h} -> {args.out}   [{title}]")
+    how = save_rgb(args.out, w, h, raw, args.chrome)
+    print(f"OK {w}x{h} -> {args.out}   [{title}] via {how}")
     return 0
 
 

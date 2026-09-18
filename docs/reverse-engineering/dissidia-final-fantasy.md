@@ -1708,3 +1708,93 @@ general rule is now explicit:
 * **A press that changes nothing is not proof of a hang** — check which button the on-screen prompt
   names first.
 
+
+
+---
+
+## 26. Root cause of the silent capture failure: the child interpreter has no PIL
+
+Section 25 recorded that screenshot capture worked from the shell but produced **no file** when
+invoked in-process, and that this had broken three scripts. That is now **fixed at the root**, not
+worked around.
+
+### The diagnosis
+
+Reproducing both paths side by side and printing the child's stderr gave the cause immediately:
+
+```
+parent sys.executable: C:\Users\Devin Prater\AppData\Local\hermes\hermes-agent\venv\Scripts\python.exe
+rc: 1
+stderr: ModuleNotFoundError: No module named 'PIL'
+```
+
+`psp-shot.py` invoked `python.exe` by name. **A bare `python.exe` resolves to whichever interpreter
+the parent's PATH puts first**, and when the parent is Hermes's own venv that interpreter has no PIL.
+The child therefore died before writing anything — and because the caller only checked *whether a file
+appeared*, a crashed capture was indistinguishable from "the screen did not change".
+
+So the failure was never about window handles, permissions or timing. It was **an implicit
+interpreter dependency plus a caller that could not tell "no result" from "error"**.
+
+### The fix
+
+`psp-shot.py` now encodes the PNG itself with `struct` + `zlib` (stdlib only), falling back to that
+writer whenever PIL is unavailable, and reports which path it used:
+
+```
+via PIL      (shell: Hermes venv not first on PATH)
+via stdlib   (in-process: child runs under the Hermes venv)
+```
+
+Verified both ways: in-process capture now returns `rc: 0`, a 1,678,748-byte PNG that decodes to a
+real 1706x1066 RGB image with **45,969 unique colours** (not a blank frame).
+
+### What it unblocks
+
+The repaired `psp-reach-menu.py` then ran correctly for the first time and produced real measurements
+instead of nine `CAPTURE FAILED` lines:
+
+```
+start: (82.665, 4.04)
+  cross     diff=60.431  sat=2.72   animating
+  circle    diff=58.786  sat=5.64   animating
+  triangle  diff=67.629  sat=5.69   animating
+  square    diff=86.062  sat=3.38   animating
+  select    diff=76.664  sat=1.5    animating
+  start     diff=0.0     sat=5.68   STATIC+UI  <-- MENU
+
+REACHED a static UI screen via 'start' -- run the cursor test now.
+```
+
+It found the static UI screen by itself and named the button that produced it. That is the loop
+section 24 had to do by hand.
+
+Two further defects surfaced and were fixed while verifying:
+
+* `psp-reach-menu.py` crashed on `"start: %s" % (m if m else ...)` — a **tuple** formatted with `%`,
+  which raises `TypeError: not all arguments converted`. Now `% (m,)`.
+* `psp-menu-cursor2.py` raised `IndexError` when a read came back short; it now compares only the
+  width every sample actually has, and says so.
+
+### The cursor test on the PAUSED menu: still negative, and now for a known reason
+
+With capture working, the cursor test ran cleanly on the pause menu with its own list control
+(`down`/`up`):
+
+```
+=== fields that moved ===
+   +0x08  147184872 -> 147185240 -> 147185240 -> 166470912 -> 147185240 -> 147184872 -> 147184872
+```
+
+Only `+0x08` moves, and it moves in a **heap range** (`0x08C5...`/`0x09D...`): that is allocation
+churn, not a selection. `DAT_00392cd8` remains **not** the cursor container — consistent with section
+24, now confirmed on a second, different menu.
+
+### Rule
+
+> **A subprocess that dies is not a negative result — check the child's stderr and exit code.**
+> Invoking an interpreter by bare name (`python`, `python.exe`) inherits the parent's PATH, so the
+> child may run under a different interpreter with a different package set. Report capture failure
+> explicitly (`CAPTURE FAILED`) and never let "no file appeared" stand in for "the value did not
+> change" — a broken instrument and a true zero look identical otherwise.
+

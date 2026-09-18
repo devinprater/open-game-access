@@ -57,9 +57,19 @@ def main():
         press(d, b1); hist.append(words(d.read(a.addr, a.span))); marks.append(b1)
         press(d, b2); hist.append(words(d.read(a.addr, a.span))); marks.append(b2)
 
+    # Reads can come back SHORT (a partial read or a transient error), which made an earlier run
+    # raise IndexError on the comparison. Compare only the width every sample actually has.
+    width = min(len(h) for h in hist)
+    if width == 0:
+        print("\nno readable words returned -- is the debugger attached?")
+        d.close()
+        return
+    if any(len(h) != width for h in hist):
+        print("\nnote: some reads were shorter than others; comparing the first %d words" % width)
+
     print("\n=== fields that moved ===")
     moved = 0
-    for i in range(len(hist[0])):
+    for i in range(width):
         vals = [h[i] for h in hist]
         if len(set(vals)) > 1:
             moved += 1
