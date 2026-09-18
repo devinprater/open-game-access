@@ -7231,3 +7231,92 @@ search, and every ingredient is in place: the address, the semantics, the instru
 > what turned a layout confirmation into a confirmation of the **translation** as well, independently of
 > sections 79-80.
 
+
+
+---
+
+## 87. The just-pressed field has only TWO readers -- and one is a bit-test predicate
+
+Section 86 named this as the terminal measurement: read-watch the **one-frame just-pressed** field, because a
+consumer of a bit that exists for a single frame is unambiguously doing input handling. This section runs it
+on both ports.
+
+### Result: four reader sites per port, in only two functions
+
+```
+############ READ-watch port0 pad+0xC0 +0x08 (0x09EDA468) -- the JUST-PRESSED field ############
+  hits 40  distinct PCs 4
+   0x088FA6C0 x10  vaddr 0x000F66C0  FUN_000f6694 (edge processor)
+   0x088FA6C8 x10  vaddr 0x000F66C8  FUN_000f6694 (edge processor)
+   0x088FA7DC x10  vaddr 0x000F67DC  ? ** UNCLASSIFIED **
+   0x088FA7E0 x10  vaddr 0x000F67E0  ? ** UNCLASSIFIED **
+
+############ READ-watch port1 pad+0x110 +0x08 (0x09EDA4B8) -- the JUST-PRESSED field ############
+  hits 40  distinct PCs 4
+   0x088FA6C8 x14  0x088FA6C0 x13  FUN_000f6694
+   0x088FA7DC x7   0x088FA7E0 x6   ? ** UNCLASSIFIED **
+```
+
+Perfectly balanced counts (10/10/10/10 and 13/14/7/6) -- **saturated sets**, and only **two distinct
+functions** read the edge field on either port.
+
+### The unclassified pair resolves to `FUN_000f67c0`
+
+`0x000F67DC`/`0x000F67E0` fall just past `FUN_000f6694` (base `0x000f6694`, size 232, ending `0x000f677c`).
+The containing function is **`FUN_000f67c0`** -- a 28-byte routine already seen in section 78 as a reader of
+the raw button word (`entry+0x4`), and now identified:
+
+```c
+bool FUN_000f67c0(uint *param_1, undefined4 param_2, uint param_3, uint param_4)
+{
+  return (param_1[1] & param_4) != 0 || (*param_1 & param_3) != 0;
+}
+```
+
+**This is a bit-test predicate**: it takes an object, two masks, and returns whether **either** the object's
+`+0x04` word or its `+0x00` word intersects the corresponding mask. In other words: *"is (any of) this/these
+bit(s) set?"* -- a query over the event object's button words.
+
+Its only caller is **`FUN_000f71c8`** (92 bytes) -- a new function, not previously examined.
+
+### Why this is a satisfying terminal result
+
+The reader set for the one-frame input event is **two functions**:
+
+| reader | role |
+|---|---|
+| `FUN_000f6694` | the **producer** -- computes the edges (section 85) and reads its own fields back |
+| `FUN_000f67c0` | a **bit-test predicate**, called by `FUN_000f71c8` |
+
+The producer reading its own output is expected and uninteresting. **The predicate is the interesting one**:
+a function whose entire body is "test these bits" is a *query*, and a caller of it
+(`FUN_000f71c8`) is asking **"was button X just pressed?"** That is a menu's question.
+
+So the enumeration did what it was supposed to: it ruled the field down to a producer and **one query
+helper**, and it names the caller to read next.
+
+### What is deliberately NOT claimed
+
+This does **not** yet identify the selection write. It identifies the **question** the menu asks about input
+-- a boolean bit-test -- and names one caller. The distinction matters: the earlier attempts to find the
+*selection index* kept failing because they looked for state; this locates the **input query**, which is the
+thing upstream of any selection change. Reading `FUN_000f71c8` (92 bytes, a single function) is the bounded
+next step, and its own callers would be the menu's decision code.
+
+### Method note
+
+> **A one-frame field makes the enumeration conclusive.** Sections 78 and 81 both enumerated readers and both
+> turned out to be the platform layer reading its own state. Here the field only exists for one frame, so a
+> reader must be reacting to an *event* -- and the enumeration collapsed to a producer plus one predicate.
+> Choosing an observable whose *semantics* exclude the uninteresting readers is what made this run decisive
+> where the earlier ones were not.
+
+> **"Unclassified" in the reporter means "read the neighbourhood".** The two unknown PCs were `0x28` past a
+> known function's end, and a 28-byte function sat exactly between. Checking what function *contains* an
+> unknown PC -- rather than assuming the mapper's `?` meant missing code -- turned the last two readers into
+> a named predicate with a named caller.
+
+> **A predicate is a better lead than a setter.** A function that *writes* state could be doing anything; a
+> function whose body is `(a & m) != 0 || (b & n) != 0` can only be answering a question about those bits.
+> Recognising the shape gives the caller's *intent* without reading the caller first.
+
