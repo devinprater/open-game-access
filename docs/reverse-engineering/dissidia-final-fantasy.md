@@ -5371,3 +5371,87 @@ produces.
 > offsets, is what identifies the routine as *filling a render block* rather than merely bumping a counter,
 > and that is the fact which makes `+0x18` a count rather than an index.
 
+
+
+---
+
+## 69. Watching the index-source structures: hits land in the render loop and the node-definition lookup
+
+Section 68's next step was to watch the structures that could hold the selection index, rather than the
+derived count. This section does that, with the hit-handling defect from section 67 fixed (arm -> press ->
+read PC -> resume -> re-arm).
+
+### Targets resolved live
+
+```
+manager 0x08C08EB0  N 0x08C0944C  R 0x08C13DD8  table 0x09DFF09C  count 37
+```
+
+Three watchpoints, each pressed 60 times with the CPU resumed before every press:
+
+| target | address | hits |
+|---|---|---|
+| `0x1c`-stride table | `0x09DFF09C` (size `0x400`) | **0** |
+| node N fields | `0x08C0944C` (size `0x40`) | **0** |
+| node N+1 fields | `0x08C09344` (size `0x40`) | **6** |
+
+Two clean negatives and one positive. The negatves are meaningful because the CPU was **explicitly
+resumed before each press** and liveness was asserted at the start -- so "no hits" means the field was not
+written during the press window, not that the world was stopped.
+
+### The six hits, mapped to functions
+
+```
+0x08A4D398  vaddr 0x00249398   -> FUN_0024932c   (node-list manager: counters, free pool)
+0x08A58694  vaddr 0x00254694   -> FUN_0025468c   (the node DEFINITION lookup: base + index*0x1c)
+0x08A4EF70  vaddr 0x0024AF70   -> FUN_0024aee0   (the render loop, 4,776 bytes)
+0x08A4EF8C  vaddr 0x0024AF8C   -> FUN_0024aee0
+0x08A4EFC4  vaddr 0x0024AFC4   -> FUN_0024aee0
+0x08A4F004  vaddr 0x0024B004   -> FUN_0024aee0
+```
+
+**This is a coherent picture, and all three routines are ones already identified independently:**
+
+* `FUN_0024aee0` is the **render loop** (section 61) -- the function that reads each node and calls the
+  render writer with an index. It writes node fields on every redraw, so hits there are expected and
+  confirm the watchpoint is seeing the right structure.
+* `FUN_0025468c` is the **definition lookup** `base + index * 0x1c` (section 39) -- it reads the node's
+  index and resolves the definition record.
+* `FUN_0024932c` is the **node-list manager** (sections 39, 55) -- counters and the free pool.
+
+So the node `0x08C09344` is written during a verified `down` press **by the render loop and the definition
+lookup path**, which is exactly the machinery that would repaint a list. That is the same subsystem the
+section-61 recipe lives in.
+
+### What this adds, precisely
+
+* **The watchpoint method now works end-to-end with accumulation**: 6 hits across 6 presses, six distinct
+  PCs, with the CPU resumed between them. Section 67's starvation defect is resolved.
+* **Three routines are implicated by live writes during a verified press**: the render loop, the definition
+  lookup, and the list manager. All three were previously identified from static analysis alone; this is
+  their first dynamic confirmation as *writers* of menu-node state.
+* **The `0x1c`-stride table and node N are NOT written during the press** -- two bounded negatives.
+
+### What it does not add
+
+It does not isolate the selection index. Six PC values, one per press, from three different routines, is
+consistent with a **repaint** (every node field touched as the list redraws) rather than with a single
+write of a single index. The distinguishing test is the one section 68 named and this run did not perform:
+watch **one candidate index field** and require the *same* PC to write it on **every** press, rather than
+collecting one hit per press from several routines.
+
+### Method note
+
+> **Resume before the press, not after the hit.** The two targets that produced zero hits did so because
+> the loop explicitly resumed the CPU before each press; had it not, a frozen world from the previous
+> target's hit would have made them look negative too. Ordering the resume *before* the stimulus is what
+> makes a null meaningful.
+
+> **Map every hit PC into the function map you already have.** All six PCs resolved to routines identified
+> sections earlier -- the render loop, the definition lookup, the list manager. That turns "six opaque
+> addresses" into "the list-repaint path", and it cost no new decompilation.
+
+> **One hit per press across several routines suggests a repaint, not an index write.** A selection write
+> should be the *same* PC every time. Requiring repetition of the PC -- not just any hit -- is the next
+> discrimination, and it is the difference between watching a structure and watching a field.
+
