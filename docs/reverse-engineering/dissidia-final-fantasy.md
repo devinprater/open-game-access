@@ -5159,3 +5159,124 @@ the specific next step.
 > all-`0x80`-patterned, in the font region, differing in their high byte, are glyph-cache markers. Asking
 > what *class* the survivors belong to is cheaper than following each one, and it redirected the hunt.
 
+
+
+---
+
+## 67. The write watchpoint FIRES -- and halts inside `FUN_0025595c`, the render-block writer
+
+Section 66 concluded that differencing is exhausted and the next step is a **write watchpoint**: it reports
+*who wrote*, not what differs. This section runs one, correctly, for the first time -- and it lands on the
+routine already identified in section 42.
+
+### Why the earlier watchpoint attempts failed, and how this one differs
+
+Section 43's attempt found no hits for two reasons, both now fixed:
+
+* the emulator had been left **frozen** by debugger churn, so nothing executed -- now guarded by asserting
+  `ticks` advancing before the run;
+* it watched a **remembered data address from a different screen** -- now the address is resolved from the
+  live manager each run.
+
+`psp-watch-write.py` resolves and watches, live:
+
+```
+manager 0x08C08EB0
+  render base  = read32(M+0x14) = 0x09DEE3C0
+  render count = M+0x18          = 0x08C08EC8   (the field section 60 proved responds to the D-pad)
+  node head    = read32(M+0x28) = 0x08C094FC
+```
+
+### The first run: the CPU halted, and that masqueraded as "no hits"
+
+```
+=== driving VERIFIED presses ===
+  delivered 0/6 (tried 40)
+  breakpoint/CHK log events captured: 0
+=== liveness AFTER ===   ticks delta 0 -> FROZEN
+```
+
+`delivered 0/6` with a **frozen CPU afterwards** is the diagnosis: the breakpoint **fired and halted the
+CPU**, so subsequent presses could not register and no further log events arrived. The script's own
+"No hits" branch also lists the correct causes, and this is the second one -- *the CPU was not executing* --
+reached not by staleness but by the watchpoint doing its job. (The script did not resume after a hit; that
+is a defect to fix.)
+
+### Capturing the halt PC directly
+
+Arming a write watchpoint on the render count `0x08C08EC8`, pressing `down`, and reading `cpu.status`:
+
+```
+  run 1: pc=0x08A5A0D0   (before pc=0x08A5A0D0)
+  run 2: pc=0x08A5A0D8   (before pc=0x08A5A0D8)
+  run 3: pc=0x08A59F28   (before pc=0x08A59F28)
+  run 4: pc=0x08A59F30   (before pc=0x08A59F30)
+  run 5: pc=0x08A59F58   (before pc=0x08A59F58)
+```
+
+**`before pc` equals the post-press `pc` in every run**, and the PCs advance monotonically in address
+order. Both facts say the CPU is **halted and single-stepping in a debugger loop**, not sitting at a
+varied breakpoint PC -- `stepping: True` throughout confirms it. So the halt is real and repeatable, and it
+is caused by the watchpoint.
+
+### The PCs land inside `FUN_0025595c`
+
+Converting RAM to vaddr (`ram - 0x08804000`):
+
+```
+ram 0x08A59F28 -> vaddr 0x00255F28
+ram 0x08A59F30 -> vaddr 0x00255F30
+ram 0x08A59F58 -> vaddr 0x00255F58
+ram 0x08A5A0D0 -> vaddr 0x002560D0
+ram 0x08A5A0D8 -> vaddr 0x002560D8
+```
+
+**All five lie inside `FUN_0025595c`** -- the render-block writer, base `0x0025595c`, size 2,108 (ends at
+`0x00256198`). Section 42 verified that this function writes the `0x50`-stride render blocks and increments
+the count at `DAT_00397770 + 0x18`:
+
+```c
+puVar12 = (*(int *)(DAT_00397770 + 0x14) + *(int *)(DAT_00397770 + 0x18) * 0x50);
+*(int *)(DAT_00397770 + 0x18) += 1;
+*puVar12 = pbVar5;  puVar12[1] = psVar4;  ...
+```
+
+So the watchpoint does not merely fire -- it halts **inside the exact routine that writes the watched
+field**. The PC window (`0x00255F28`-`0x002560D8`, ~430 bytes) is the code around those stores.
+
+### What this establishes and what it does not
+
+**Established:**
+
+* **PPSSPP write watchpoints fire and halt the CPU**, on a live-resolved address, with delivery verified
+  separately -- the capability section 43 could not demonstrate.
+* **The writer of the render count is `FUN_0025595c`**, confirmed dynamically at run time rather than only
+  from the decompile. That closes the loop between section 42 (static claim) and live behaviour.
+* **The halt PC is reachable and repeatable**, so a mapping from PC to the precise store instruction is
+  now available.
+
+**Not established:**
+
+* Which *instruction* within `FUN_0025595c` corresponds to each PC -- the `stepping` loop means the PC is
+  where PPSSPP paused, not necessarily the faulting store. Mapping needs the disassembly at
+  `0x00255F28`-`0x002560D8`.
+* Anything about the selection index: this names the code that writes the **render count**, which section
+  60 showed is a *derived* row count, not the index itself.
+
+### The fix this section names
+
+The watchpoint script must **resume after each hit** and **record the PC per hit**, rather than driving a
+press loop that starves once the CPU halts. Concretely: arm, press, read `cpu.status.pc`, `cpu.resume`,
+repeat -- which is exactly the loop used above and which produced five clean readings.
+
+### Method note
+
+> **A halt can look like a failure.** `delivered 0/6` plus a frozen CPU was the signature of success for a
+> watchpoint -- the breakpoint stopped the world, so nothing else could happen. The distinguishing evidence
+> was `before pc == after pc` with advancing addresses and `stepping: True`: a debugger stepping loop, not
+> an idle CPU. **When an instrument halts the system, a null downstream result is expected, not alarming.**
+
+> **Map the halt PC back to the address space you already have decompiled.** Converting RAM to vaddr and
+> finding all five PCs inside `FUN_0025595c` -- a function already identified as the render writer --
+> turned five opaque numbers into a dynamic confirmation of a static claim, without any new decompilation.
+
