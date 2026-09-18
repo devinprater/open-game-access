@@ -1553,3 +1553,78 @@ around `0x09D16A68` / `0x09E58xxx`, the practical consequences for a reader are 
 in four sections with four zeros, and section 23 explains why. The remaining routes are (a) the virtual
 file-system service, or (b) the decoded RAM text, which is already located.
 
+
+
+---
+
+## 24. The live-menu cursor test: a clean NEGATIVE on `DAT_00392cd8`
+
+Sections 16-23 left the cursor open and said the next step was a live menu. **That step has now been
+taken** — the game was driven to a menu and the candidate object polled while stepping it.
+
+### Reaching a live menu (previously the blocker)
+
+A button sweep with screenshots captured **from the shell** (in-process capture silently fails, Rule 89)
+showed the screen genuinely changing:
+
+| button | mean lum | saturated % | signature |
+|---|---|---|---|
+| cross | 215 | 0.0 | `e8eea0ea` |
+| circle | 209 | **8.3** | `e9cf018f` CHANGED |
+| triangle | 209 | **8.3** | `72d81281` CHANGED |
+| start | 236 | 0.0 | `22d041c4` CHANGED |
+| select | 203 | **10.9** | `67b67381` CHANGED |
+| l | 203 | 10.7 | `daeaa939` CHANGED |
+| r / down / up | 203 | 10.7 | `daeaa939` (no change) |
+
+Colour appears only when `circle`/`triangle`/`select` are pressed — i.e. **those opened UI**. The screen
+then measured a two-frame difference of **0.000% with 10.7% saturated pixels**: a **static menu**, exactly
+the condition the cursor work required. This is the first time the investigation had that condition.
+
+### The test
+
+With the screen confirmed static, `DAT_00392cd8` was read, then `down` and `up` pressed alternately,
+re-reading the whole 0x40 window each time:
+
+```
++0x00 = 0x08C5DC80        +0x20 = 290 (0x122)
++0x08 = 0x08C5DCE8        +0x30 = 0x09D38400
++0x10 = 0x09EF73A8        +0x38 = 0x08BF8D60
++0x18 = 0x09D36510
++0x1C = 0x09D36510
+```
+
+### Result: NEGATIVE, and unambiguous
+
+| field | behaviour across base/down/up/down/up | verdict |
+|---|---|---|
+| **`+0x20` = 290** | **never changed** | **not the cursor** |
+| `+0x08` | changed once, in a heap range (`0x08C5...`) | **allocation churn** |
+| everything else | constant | — |
+
+So `0x122` (290) looked like a menu index — a plausible value in a plausible object — and **is not
+the selection**.
+
+Compounding it: `down` produced a screen change only once in three rounds, so **this particular screen
+does not scroll with `down`**. Whatever drives it is a different control, and the cursor test was run
+against the wrong input as well as the wrong object.
+
+### What this settles, and what it does not
+
+**Settled:** the "menu manager object" hypothesis chain (sections 16, 17, 21) does not lead to the
+selection. `DAT_00392cd8` holds system-service pointers and a constant 290; it is not a menu cursor
+container. Section 22's retraction of the `param_1[8]` sentinel was correct, and this closes the line.
+
+**Not settled:** which field, in which object, holds the highlight. But the *method* is now proven
+end-to-end — reach a static screen, poll candidates, press the actual scrolling control — and it needs
+only the correct control (try `l`/`r`, which did change the screen, and the d-pad on a screen that
+actually has a list) and a candidate set built from the menu *screen* code rather than the manager.
+
+### Method notes worth keeping
+
+* **Saturated-colour percentage is a good "is this UI?" detector**: 0.0 % on a scene, 8-11 % once UI
+  appears. Cheaper and more decisive than trying to read text in a screenshot.
+* **Screen signature alone conflates animation with navigation.** A live scene changes constantly; a
+  menu is static. Measure the two-frame difference *first*, then interpret presses — otherwise a press
+  on an animating screen looks like progress (Rule 88's lesson, now with the measurement attached).
+
