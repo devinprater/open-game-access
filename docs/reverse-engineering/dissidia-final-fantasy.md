@@ -5965,3 +5965,107 @@ service's handler, and it is a bounded, single-address follow-up.
 > object (section 73: 0 of 21) but through the service's handler. That is where to look next, and it is a
 > single address rather than a search.
 
+
+
+---
+
+## 75. The service records hold VIRTUAL-TABLE ENTRIES -- the pad's hand-off is a callable interface
+
+Section 74 identified the service table as a stride-`0xC` array of `{next, data, code}` records and named
+the pad's `code` pointer (`0x088F809C` -> vaddr `0x000F409C`) as the next address. This section resolves
+what those code pointers are, and it settles the architecture question.
+
+### All four are function ENTRIES with a shared signature
+
+```
+=== ram 0x088F9674 -> vaddr 0x000F5674 ===
+  function: FUN_000f5674 @ 000f5674  size=44   pointer is THE FUNCTION ENTRY
+  void FUN_000f5674(int param_1, uint param_2) {
+    if ((param_1 != 0) && ((param_2 & 1) != 0)) { FUN_0033c468(); }
+  }
+
+=== ram 0x088F809C -> vaddr 0x000F409C ===        <-- THE PAD'S RECORD
+  function: FUN_000f409c @ 000f409c  size=44   pointer is THE FUNCTION ENTRY
+  void FUN_000f409c(int param_1, uint param_2) {
+    if ((param_1 != 0) && ((param_2 & 1) != 0)) { FUN_0033c468(); }
+  }
+
+=== ram 0x088F9E0C -> vaddr 0x000F5E0C ===
+  function: FUN_000f5e0c @ 000f5e0c  size=88   pointer is THE FUNCTION ENTRY
+  void FUN_000f5e0c(int param_1, uint param_2) {
+    if (param_1 != 0) {
+      *(undefined **)(param_1 + 0x74) = &DAT_003a06a0;   // install a vtable pointer!
+      FUN_000f5e80(param_1);
+      if ((param_2 & 1) != 0) { FUN_0033c468(param_1); }
+    }
+  }
+
+=== ram 0x088EF4A4 -> vaddr 0x000EB4A4 ===
+  function: FUN_000eb4a4 @ 000eb4a4  size=104  pointer is THE FUNCTION ENTRY
+  void FUN_000eb4a4(int param_1, uint param_2) {
+    if (param_1 != 0) {
+      FUN_000ea820(param_1 + 0x8b0, 2);  FUN_000f7e80(param_1 + 0x7e0, 2);
+      FUN_000e64b0(param_1 + 0x720, 2);
+      if ((param_2 & 1) != 0) { ...
+```
+
+Four consistent properties:
+
+1. **Every pointer is a function entry**, not an interior address -- so the records reference callable
+   routines, not data.
+2. **Every signature is `(int param_1, uint param_2)`** -- an object pointer plus a **flags** word.
+3. **Every one tests `param_2 & 1`** and conditionally calls the same tail routine `FUN_0033c468`.
+4. **`FUN_000f5e0c` installs a vtable pointer**: `*(undefined **)(param_1 + 0x74) = &DAT_003a06a0`. That is
+   **explicit virtual dispatch setup** on the object at `param_1`.
+
+Together these identify the records as **virtual-table / lifecycle entries** -- an `init(obj, flags)`-style
+hook with a "do the base/registration step if flag bit 0 is set" convention. They are **not constructors**
+(a constructor returns a new object; these take an existing one and configure it).
+
+### What this settles
+
+Section 73's problem was: *0 of 21 functions referencing the pad object also reference the menu static, so
+the menu never reads the pad directly.* Section 74 found a service table entry for the pad. This section
+shows **that entry is a callable interface** -- which is exactly how a subsystem is reached without a
+shared static reference:
+
+```
+pad object   0x09EDA3A0          (state, written by the pad layer)
+pad service  record 0x08B96B88   {next=0x08B96B94, data=0x09EF72C4, fn=FUN_000f409c}
+              fn: (obj, flags) -> optional vtable/base step + registration
+```
+
+So the route from the menu to the pad is **through the service record's function**, not through the pad
+object. The menu can hold the service record (or the record's data pointer) and call `fn(obj, flags)`
+without ever naming `DAT_003925b0` -- which is precisely why the static cross-reference showed zero.
+
+### What this does not yet give
+
+The **selection index** is still not located. What this establishes is the *mechanism* by which the menu can
+reach input state, and it narrows the next step to a specific, small set:
+
+* watch the pad object's **state fields** (not the button word) for a write during a verified press, to see
+  which field the *service* exposes;
+* or trace who **holds** `0x08B96B88` / `0x09EF72C4` -- a menu-side object holding that data pointer is the
+  consumer.
+
+The first is a direct runtime test with the instrument already built (watchpoint + input gate); the second
+is a pointer search for the record's data field.
+
+### Method note
+
+> **A shared signature identifies a dispatch convention.** Four code pointers, all `(int, uint)`, all
+> testing `param_2 & 1`, all calling the same tail routine -- that regularity is what says "virtual/lifecycle
+> hook", not "four unrelated functions". Reading them individually would have missed it; reading them as a
+> **set** exposed the convention.
+
+> **"Constructor" and "init hook" look alike in a caller and differ in the body.** The init routine calls
+> `FUN_000f4094(&DAT_0134ca64)` before registering a descriptor, which reads like construction -- but the
+> body takes an existing object and configures it. Checking whether a pointer is a *function entry* and
+> whether the body **returns** an object is what separates them.
+
+> **The absence of a cross-reference is explained by indirection.** Section 73's `both = 0` was not an
+> anomaly: the menu reaches the pad through a vtable-style entry, so no shared static is needed. When a
+> cross-reference is zero, look for the indirection that makes the reference unnecessary -- a function
+> pointer, an event, or a copied state struct.
+
