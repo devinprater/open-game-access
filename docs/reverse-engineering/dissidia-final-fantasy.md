@@ -5455,3 +5455,109 @@ collecting one hit per press from several routines.
 > should be the *same* PC every time. Requiring repetition of the PC -- not just any hit -- is the next
 > discrimination, and it is the difference between watching a structure and watching a field.
 
+
+
+---
+
+## 70. The discrimination: PRESS-ONLY writers are the node-list manager and the definition lookup
+
+Section 69 could not tell a repaint from an index write: six hits on node `0x08C09344` came from six PCs
+in three routines, one per press. It named the test that settles it -- require the *same* PC, and compare
+against a no-input control.
+
+This section runs that test. The form of the control matters: because the observable here is **who wrote**
+rather than **what changed**, the no-press control has to be a **watchpoint run with no input**, not a
+value diff.
+
+### Method
+
+For the same watched field (`0x08C09344`, size `0x40`), two phases, each collecting up to 6 write hits,
+with the CPU **resumed before every window** and a `cpu.status` read after:
+
+* **PRESS phase** -- 6 verified-delivered `down` presses (delivery confirmed at the pad button word);
+* **IDLE phase** -- 6 windows of equal length with **no input at all**.
+
+### Result
+
+```
+=== PRESS phase ===
+     0x08A4D388 x1  vaddr 0x00249388  FUN_0024932c (node-list manager)
+     0x08A4D398 x1  vaddr 0x00249398  FUN_0024932c
+     0x08A4D3A0 x1  vaddr 0x002493A0  FUN_0024932c
+     0x08A4EF70 x1  vaddr 0x0024AF70  (render loop region)
+     0x08A58694 x1  vaddr 0x00254694  FUN_0025468c (def lookup idx*0x1c)
+     0x08A58698 x1  vaddr 0x00254698  FUN_0025468c
+
+=== IDLE phase ===
+     0x08A4EF8C, 0x08A4EFA4, 0x08A4EFC4, 0x08A4F000, 0x08A4F004, 0x08A5010C  (render loop region)
+
+=== DISCRIMINATION ===
+  PCs in PRESS only : 0x08A4D388 0x08A4D398 0x08A4D3A0 0x08A4EF70 0x08A58694 0x08A58698
+  PCs in IDLE only  : 0x08A4EF8C 0x08A4EFA4 0x08A4EFC4 0x08A4F000 0x08A4F004 0x08A5010C
+  PCs in BOTH       : none
+```
+
+**Zero overlap between the two phases.** That is a sharp result and it separates the two hypotheses
+completely:
+
+* the **IDLE** writers (`0x0024EF8C`-`0x0025010C`, inside the render-loop region) are the **repaint** -- they
+  touch the node every frame regardless of input, so they cannot be the index;
+* the **PRESS-only** writers are, by elimination, the code that responds to the menu input.
+
+### The press-only writers
+
+```
+vaddr 0x00249388  0x00249398  0x002493A0   ->  FUN_0024932c   the node-list manager
+vaddr 0x00254694  0x00254698                ->  FUN_0025468c   the definition lookup
+vaddr 0x0024AF70                            ->  render-loop region
+```
+
+`FUN_0024932c` and `FUN_0025468c` are both routines already identified:
+
+* **`FUN_0024932c`** -- the node-list manager (sections 39, 55, 69): counters, head/tail, free pool. Three
+  press-only stores from it, at `0x00249388`/`0x98`/`0xA0` -- a tight 24-byte cluster, i.e. **three
+  consecutive stores**, the shape of updating a record rather than a single counter bump.
+* **`FUN_0025468c`** -- the definition lookup `base + index * 0x1c` (section 39). Two press-only stores at
+  `0x00254694`/`0x98`, again adjacent.
+
+**`FUN_0025468c` is the most interesting of the two**, because section 39 established exactly what it
+does: it takes a node and resolves `base + index * 0x1c` -- and it *reads the node's `+0x0C` short index*
+(section 61 confirmed the same `0x1c` stride and index field in the render loop). A routine that computes
+`base + index*0x1c` and writes node state **only when input arrives** is precisely where a selection index
+would be consumed and a highlight flag updated.
+
+### What this establishes
+
+* **The watched node field is written by two disjoint sets of code**: a per-frame repaint set that ignores
+  input, and an input-specific set. That distinction is now measured, not assumed.
+* **The input-specific writers are the node-list manager and the definition lookup.** Both were identified
+  statically in earlier sections; this is their first dynamic identification as the *input-responsive*
+  writers of a menu node.
+* **The repaint set is ruled out** -- it writes with no input, so it cannot carry the selection.
+
+### What it does not establish
+
+Which of the two press-only routines holds the *index* versus which merely updates a *derived* field. Both
+write the same 64-byte node, so both are consistent with "the node's fields are refreshed when the
+selection moves". The next discrimination is to narrow the **watched byte range** within the node --
+section 61's recipe uses `node + 0x0C` (the index, a short) and `node + 0x10` (a pointer whose target +4
+holds the value passed to the draw call). Watching each of those two offsets separately, with the same
+press/idle control, would say which one the input path actually writes.
+
+### Method note
+
+> **When the observable is "who wrote", the no-press control must also be a watchpoint run.** A value diff
+> with no input would not answer this question at all. The instrument dictates the form of its own control,
+> and using a *value*-based control for a *write*-based observation would have left the repaint and
+> index-write hypotheses indistinguishable.
+
+> **Disjoint PC sets are a stronger result than a repeated PC.** The expectation was that the index writer
+> would be "the same PC every press". What the run showed is sharper: the two phases share **no** PCs at
+> all, so press-responsive and per-frame writers are cleanly separable. Reporting the overlap (or its
+> absence) between the phases is what makes the claim checkable.
+
+> **Adjacent stores suggest a record update, not a counter.** Three press-only stores from
+> `FUN_0024932c` inside 24 bytes, and two from `FUN_0025468c` inside 8, are the shape of writing a
+> structure's fields. That is a different signature from a single increment -- and it is the signature to
+> expect from a routine that recomputes `base + index*0x1c` and stores the result.
+
