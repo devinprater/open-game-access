@@ -4210,3 +4210,87 @@ in general.
 > attributable; with churn present, a single sample proves nothing. Worth noting as a property to check
 > *first*, because it determines how much sampling the rest of the test needs.
 
+
+
+---
+
+## 57. The node list does not hold the selection — 220 fields, zero churn, memory-level delivery
+
+Sections 39, 47 and 53 each reported "no node field changed", and every one of those runs was either
+void, taken on an unverified screen, or judged by pixel delivery. This section re-runs the test with the
+instrument that section 56 established: a **memory-level no-press control**, which is valid on any screen
+because it never depends on the display.
+
+### The run
+
+`psp-watch-nodes-wide.py --press down --samples 10`: samples **every word of every node** in the
+manager's list (220 fields: 16 words plus 8 individual bytes per node, across the whole walk), over a
+10-sample no-press phase and a 10-press phase.
+
+```
+=== liveness BEFORE ===  ticks delta ...  -> EXECUTING
+
+=== NO-PRESS phase ===   220 fields each of 10 samples
+=== PRESS phase ===      220 fields each of 10 presses
+
+=== analysis ===
+  fields sampled:                    220
+  fields that VARY WITH NO PRESS:    0   (churn)
+  fields that vary during presses:   0
+
+=== PRESS-ONLY fields ===
+   NONE -- nothing in the node list responds to 'down' uniquely.
+
+=== liveness AFTER ===   ticks delta 625,894,051  -> EXECUTING
+
+VERDICT: TRUSTWORTHY NEGATIVE -- zero churn and zero press response across the whole
+         node list; the selection is not stored in these nodes.
+```
+
+### Why this negative is load-bearing
+
+* **Zero churn** across 220 fields in 10 samples: there is no noise for a response to hide in, so a
+  change would have been unmistakable.
+* **Liveness asserted before and after.**
+* **Delivery judged in memory**, so an animating screen cannot void it -- the failure mode that voided
+  sections 47, 48, 49, 53 and 54.
+* **Full coverage of the candidate**: every word and flag byte of every node, not a chosen subset.
+
+### The caveat, stated plainly
+
+`down` was already known to be **inert on the reachable screens** (section 54: the D-pad scored `0/5`
+everywhere). So this run shows that the node list does not respond to `down` **on this screen**; it does
+not exercise the node fields with a control that *does* move the selection.
+
+The honest formulation: **the node list has now been tested on the strongest instrument available, and it
+does not respond to the only control that is available to press.** Combined with:
+
+* the manager header being static across 12 verified presses (section 45),
+* the render array being *derived* state (section 41),
+* the `+0x00` target struct being static (section 46),
+* the full-RAM scans finding no wrapping word or byte (sections 38, 40),
+
+the conclusion is that **nothing in the manager's object graph responds to the reachable input**. The
+selection is either reached only through a control that blind input cannot exercise, or it lives outside
+this object graph entirely.
+
+### What would settle it
+
+One thing, and it is not more scanning: **a screen where a control demonstrably moves the selection**,
+plus a watchpoint or a memory diff on that screen. Codex's answer in section 55 named the same missing
+piece -- *"the menu-side input consumer/state-update routine (or a verified moving-menu watchpoint
+trace) showing which field changes when Up/Down changes the highlighted logical item."*
+
+### Method note
+
+> **A strong instrument converts a repeated negative into a settled one.** "No node field changed" had
+> been reported three times (sections 39, 47, 53) and each time was dismissible -- void, unverified, or
+> delivered through the display. The same finding from an instrument with zero churn and asserted
+> liveness is a result. When a negative keeps recurring but keeps being untrustworthy, **upgrade the
+> instrument rather than re-running the test.**
+
+> **State the residual scope.** The negative is "does not respond to `down` on the reachable screens",
+> not "is never the selection". Saying which is meant keeps the result usable: it tells the next attempt
+> exactly what it needs (a reachable screen with a live control), instead of implying the question is
+> closed everywhere.
+
