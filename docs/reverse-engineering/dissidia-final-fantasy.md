@@ -6803,3 +6803,112 @@ pointers is also held by a menu-side object, that object is the consumer.
 > update, but a 904-byte one could -- so reporting sizes alongside scores is what makes "all zero" mean
 > "absent" rather than "too small to tell".
 
+
+
+---
+
+## 83. The DELIVERY TABLE found: a heap record table holding all three converted-input pointers
+
+Section 82's next step was the pointer search: take the converted-input objects' pointer fields and find
+other holders, exactly as section 76 found `rec5`. This found a structure **outside the pad object entirely**
+that holds **all three** of them.
+
+### The holders, by cluster
+
+```
+=== 4. CLUSTERS (a structure holding 2+ of these values) ===
+   cluster 0x08B965A8..0x08B965B0  3 hit(s):
+      0x08BB2900@0x08B965A8   0x08BB2AC0@0x08B965AC   0x09EDA3A0@0x08B965B0
+   cluster 0x09EDA494..0x09EDA4FC  6 hit(s):      (inside the pad object -- the source)
+      0x08BA46E8@0x09EDA494   0x09EDA3A0@0x09EDA4A0   0x08BB2900@0x09EDA4AC
+      0x08BA46E8@0x09EDA4E4   0x09EDA400@0x09EDA4F0   0x08BB2AC0@0x09EDA4FC
+   cluster 0x09FFF604..0x09FFF630  2 hit(s):
+      0x09EDA400@0x09FFF604   0x09EDA3A0@0x09FFF630
+```
+
+The first two clusters are the pad layer's own statics and the pad object itself. The third is **new**:
+`0x09FFF604` and `0x09FFF630`, at RAM `0x09FFF604` -- which is **`0x017FB604` above the ELF's BSS end
+(`0x01727F8C`)**, i.e. **heap**, not static.
+
+### What lives there: a dense `{state_ptr, flags, fn_ptr}` record table
+
+```
+0x09FFF604 = 0x09EDA400   <== port1 converted-input object
+0x09FFF608 = 0x00000001
+0x09FFF60C = 0x00000001
+0x09FFF610 = 0x09EDA460   <== port0 converted-input object      (same 0x2C stride)
+0x09FFF614 = 0x00000001
+0x09FFF618 = 0x08C5DFC8 PTR
+0x09FFF61C = 0x088FB070 PTR   (code)
+0x09FFF620 = 0x09EDA460 PTR
+0x09FFF624 = 0x088FB7CC PTR   (code)
+0x09FFF628 = 0x088FB768 PTR   (code)
+0x09FFF630 = 0x09EDA3A0   <== THE PAD OBJECT                (next record, 0x2C later)
+0x09FFF634 = 0x00000001
+0x09FFF638 = 0x088FB930 PTR   (code)
+0x09FFF63C = 0x08C5E304 PTR
+0x09FFF640 = 0x08C5DCC0 PTR
+0x09FFF644/48/4C = 0x08907F1C   (three identical code pointers)
+0x09FFF650 = 0x08BEAA00 PTR
+```
+
+Three properties identify this as the **delivery/dispatch table**:
+
+1. **It holds all three converted-input addresses** -- `0x09EDA400`, `0x09EDA460` (twice) and the pad object
+   `0x09EDA3A0` -- so it is the structure that *knows about* the converted input.
+2. **Every entry is `{pointer, small flags/1s, code pointer(s)}`** -- the same record shape as the service
+   table in section 74 (`{next|fn, data, fn}`), and `0x00000001` appears repeatedly as a companion field.
+3. **The code pointers are consecutive** (`0x088FB070`, `0x088FB7CC`, `0x088FB768`, `0x088FB930`) -- vaddrs
+   `0x000F7070`, `0x000F77CC`, `0x000F7768`, `0x000F7930`, all in the **pad-region address band**
+   (`0x000F7xxx`), i.e. functions of the same subsystem. A table of same-subsystem function pointers attached
+   to state pointers is a **vtable/dispatch table**.
+
+Also present: `0x80808080` and `0x7F800001` (a quiet-NaN sentinel) at record boundaries -- the NaN is the same
+sentinel pattern seen in section 64's counter, and `0x80808080` is the glyph-mask byte pattern from section
+66. Both are consistent with initialized-but-unused slot markers.
+
+### Why this is the answer to section 82's question
+
+Section 82 concluded the coupling must be **copied state or a dispatch table**, and named both mechanisms. The
+search found a structure that is **both**: a heap table holding the converted-input state pointers *together
+with* same-subsystem function pointers.
+
+```
+converted-input objects (pad+0xC0, pad+0x110)
+        ^ held by
+heap table @ 0x09FFF604 / 0x09FFF630  { state_ptr, flags, fn_ptr(s) }
+        ^ whose fn_ptr entries live in the pad address band and are callable by anything holding the table
+```
+
+So a consumer does not need to reference the pad static, the pad object, or the converted objects by symbol --
+it can **hold this table**, and reach both the state and the handlers through it. That is exactly the
+indirection that made four cross-reference searches come back empty, and it mirrors section 74's finding that
+service records carry callable entries.
+
+### The concrete next step
+
+Two bounded follow-ups, both mechanical:
+
+1. **Search all RAM for holders of `0x09FFF604` and `0x09FFF630`** -- the same pointer search again, one level
+   further out. Whoever holds *the table* is the dispatcher or the consumer.
+2. **Read-watch `0x09FFF604`'s first word** (`0x09EDA400`) -- readers of the entry are readers of the
+   converted input, and now we are watching the *published* interface rather than the object.
+
+Step 1 is one pass; step 2 uses the instrument already proven in sections 78 and 81.
+
+### Method note
+
+> **The first two clusters were the source; the third was the discovery.** Searching for holders of a
+> structure's own pointers naturally re-finds the source (the pad object holds its ports), so the signal is
+> in the **additional** cluster. Reporting clusters rather than a flat hit list is what made the new
+> structure visible at all.
+
+> **A heap address is a tell.** `0x09FFF604` lies `0x017FB604` past the ELF's BSS end, so it cannot be a
+> static -- it must be allocated at runtime. Anything holding a runtime-allocated pointer is a **constructed
+> object**, and constructed objects are where dispatch tables live.
+
+> **Record shape recurrence is evidence.** Section 74 identified `{pointer, data, fn}` records as service
+> descriptors; this table repeats that shape (`{state_ptr, flags/1, fn_ptr}`) with function pointers clustered
+> in one subsystem band. Recognising the same record form twice is what lets the second be read immediately
+> rather than re-derived.
+
