@@ -1,0 +1,142 @@
+=== THE MENU-REGION READERS OF THE PAD API TABLE (doc section 94) ===
+read watchpoint PCs: 0x000F7950 (pad band), 0x00267CFC and 0x00267D08 (MENU REGION)
+
+vaddr 0x267cfc  ->  FUN_00267cb8 @ 00267cb8  size=540
+vaddr 0x267d08  ->  FUN_00267cb8 @ 00267cb8  size=540
+vaddr 0xf7950  ->  FUN_000f790c @ 000f790c  size=136
+
+================================================================
+=== READER OF THE API TABLE
+=== FUN_00267cb8 @ 00267cb8  size=540 ===
+================================================================
+--- CALLED BY ---
+   (none -- pointer-reached or root)
+
+--- CALLS ---
+   00267740  FUN_00267740  size=256
+   000f7420  FUN_000f7420  size=32
+   000ea998  FUN_000ea998  size=32
+   00250538  FUN_00250538  size=148
+   000f8808  FUN_000f8808  size=92
+   0025051c  FUN_0025051c  size=28
+   001a0bc4  FUN_001a0bc4  size=400
+   00267a2c  FUN_00267a2c  size=20
+   000ea978  FUN_000ea978  size=32
+   00267840  FUN_00267840  size=148
+
+--- decompiled ---
+
+void FUN_00267cb8(int param_1)
+
+{
+  bool bVar1;
+  int iVar2;
+  int iVar3;
+  code *pcVar4;
+  
+  if ((*(char *)(param_1 + 0x1598) != '\0') && (*(char *)(param_1 + 0x159a) == '\0')) {
+    iVar2 = FUN_000f7420(0);
+    pcVar4 = *(code **)(*(int *)(iVar2 + 0x34) + 0x14);
+    iVar3 = (*pcVar4)(iVar2 + *(short *)(*(int *)(iVar2 + 0x34) + 0x10),pcVar4,DAT_00380a40,
+                      DAT_00380a44);
+    if ((iVar3 != 0) &&
+       (pcVar4 = *(code **)(*(int *)(iVar2 + 0x34) + 0x14),
+       iVar2 = (*pcVar4)(iVar2 + *(short *)(*(int *)(iVar2 + 0x34) + 0x10),pcVar4,DAT_00380a48,
+                         DAT_00380a4c), iVar2 == 0)) {
+      if ((&DAT_00001296)[param_1] == '\0') {
+        if (*(char *)(param_1 + 0x1599) == '\0') {
+          if (((&DAT_00001297)[param_1] == '\0') && (iVar2 = FUN_000f8808(), iVar2 == 0)) {
+            *(undefined1 *)(param_1 + 0x1599) = 1;
+            FUN_00267740(param_1);
+            FUN_000ea978(0);
+          }
+        }
+        else {
+          *(undefined1 *)(param_1 + 0x1599) = 0;
+          FUN_00267840(param_1);
+          FUN_000ea998();
+        }
+      }
+      else if ((&DAT_00001297)[param_1] == '\0') {
+        *(undefined1 *)(param_1 + 0x159a) = 1;
+        FUN_00267a2c();
+      }
+    }
+    if (*(char *)(param_1 + 0x1599) != '\0') {
+      bVar1 = false;
+      iVar2 = FUN_0025051c(&DAT_000012c4 + param_1);
+      if (iVar2 < 2) {
+        if (0 < iVar2) {
+          iVar2 = FUN_00250538(&DAT_000012c4 + param_1);
+          if (iVar2 == 0x3a) {
+            FUN_001a0bc4(0,0x2711,1,0);
+            *(undefined1 *)(param_1 + 0x159a) = 1;
+            FUN_00267a2c();
+          }
+          else {
+            FUN_001a0bc4(0,0x2712,1,0);
+          }
+          bVar1 = true;
+        }
+      }
+      else if (iVar2 < 3) {
+        FUN_001a0bc4(0,0x2712,1,0);
+        bVar1 = true;
+      }
+      if (bVar1) {
+        *(undefined1 *)(param_1 + 0x1599) = 0;
+        FUN_00267840(param_1);
+        FUN_000ea998();
+      }
+    }
+  }
+  return;
+}
+
+
+------------------
+
+================================================================
+=== READER OF THE API TABLE
+=== FUN_000f790c @ 000f790c  size=136 ===
+================================================================
+--- CALLED BY ---
+   00269d64  FUN_00269d64  size=304
+   000f7994  FUN_000f7994  size=152
+
+--- CALLS ---
+   000f778c  FUN_000f778c  size=100
+   000f76f4  FUN_000f76f4  size=152
+   000f77f0  FUN_000f77f0  size=100
+
+--- decompiled ---
+
+void FUN_000f790c(void)
+
+{
+  int iVar1;
+  int iVar2;
+  code *pcVar3;
+  
+  iVar1 = DAT_003925b0;
+  FUN_000f76f4(DAT_003925b0);
+  FUN_000f778c(iVar1);
+  FUN_000f77f0(iVar1);
+  pcVar3 = *(code **)(*(int *)(iVar1 + 0x34) + 0xc);
+  iVar2 = (*pcVar3)(iVar1 + *(short *)(*(int *)(iVar1 + 0x34) + 8),pcVar3,DAT_00371d18,DAT_00371d1c)
+  ;
+  if (iVar2 == 0) {
+    *(uint *)(iVar1 + 0x264) = *(uint *)(iVar1 + 0x264) & 0xfffffffb;
+  }
+  else {
+    *(uint *)(iVar1 + 0x264) = *(uint *)(iVar1 + 0x264) | 4;
+  }
+  return;
+}
+
+
+------------------
+
+
+################ CALLERS OF THE MENU-REGION READERS ################
+

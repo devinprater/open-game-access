@@ -7980,3 +7980,108 @@ startup window -- before any menu exists -- avoids the press/liveness complicati
 > **One candidate is not a discovery.** The single HI+LO pair was checked against its function's body and
 > discarded; the value of the fixed search is the *controlled emptiness*, not that lone hit.
 
+
+
+---
+
+## 94. FOUND: the menu-region CONSUMER calls the input API through a function pointer read from the table
+
+Sections 73-93 exhausted static searches for the input-API consumer. Section 93's conclusion was that the
+table is reached by a **computed** pointer, so no search over scalars, references, or holders could see it.
+This section applied the instrument that does not care how an address was computed -- a **READ watchpoint** --
+and it found the consumer immediately.
+
+### The watchpoint set
+
+READ-watching the API slots `0x08BA46BC`..`0x08BA4704` produced a **saturated 3-site set**, 10 hits each:
+
+```
+=== WHO READS THE API TABLE SLOTS ===
+   distinct PCs: 3
+     0x088FB950 x10   vaddr 0x000F7950   (pad band)
+     0x08A6BCFC x10   vaddr 0x00267CFC   <-- MENU REGION
+     0x08A6BD08 x10   vaddr 0x00267D08   <-- MENU REGION
+```
+
+Two readers at `vaddr 0x00267CFC` / `0x00267D08` -- **in the menu region `0x0022xxxx`-`0x002Bxxxx`**, 12 bytes
+apart, both inside **`FUN_00267cb8`** (540 bytes). These are the first menu-side accesses to the input API
+observed in this entire investigation.
+
+### And it calls the API through the table
+
+```c
+void FUN_00267cb8(int param_1)
+{
+  if ((*(char *)(param_1 + 0x1598) != '\0') && (*(char *)(param_1 + 0x159a) == '\0')) {
+    iVar2 = FUN_000f7420(0);
+    pcVar4 = *(code **)(*(int *)(iVar2 + 0x34) + 0x14);        // <-- LOADS A CODE POINTER FROM THE TABLE
+    iVar3 = (*pcVar4)(iVar2 + *(short *)(*(int *)(iVar2 + 0x34) + 0x10), pcVar4,
+                      DAT_00380a40, DAT_00380a44);              // <-- INDIRECT CALL
+    if ((iVar3 != 0) &&
+       (pcVar4 = *(code **)(*(int *)(iVar2 + 0x34) + 0x14),
+       iVar2 = (*pcVar4)(iVar2 + *(short *)(*(int *)(iVar2 + 0x34) + 0x10), pcVar4,
+                         DAT_00380a48, DAT_00380a4c), iVar2 == 0)) {
+      ...
+```
+
+Three properties identify it as the consumer:
+
+1. **It obtains the object** with `FUN_000f7420(0)` -- an input-device accessor (compare `FUN_000f7498`,
+   the input driver).
+2. **It loads a code pointer from `+0x34` then `+0x14`** -- the object's field `+0x34` is exactly the slot
+   address section 91 found stored in the pad's converted objects (`0x08BA46E8`), and `+0x14` from there is
+   one of the table's slots. So the chain is: object -> stored slot address -> **code pointer** -> call.
+   **That is the three-form reference chain section 91 predicted, executed.**
+3. **It passes two mask pairs** (`DAT_00380a40`/`DAT_00380a44` and `DAT_00380a48`/`DAT_00380a4c`) -- exactly
+   the `(mask_a, mask_b)` shape of the bit-test predicate from section 87.
+
+So the calls are `query(object, maskA, maskB)` -- and the results gate **state changes at
+`param_1 + 0x1598`/`+0x1599`/`+0x159a`**, which is a **UI state machine** (flags at a large object offset,
+toggled between 0 and 1).
+
+### And it is pointer-reached, matching the prediction
+
+```
+--- CALLED BY ---
+   (none -- pointer-reached or root)
+```
+
+**No callers** -- consistent with everything since section 87: the consumers are reached by pointer. It calls
+menu-side helpers (`FUN_00267740`, `FUN_00267840`, `FUN_00250538`, `FUN_001a0bc4`) and pad accessors
+(`FUN_000f7420`, `FUN_000f8808`) -- i.e. it sits **at the junction of the menu and the input layer**, which is
+precisely where the missing consumer had to be.
+
+### Why the static searches could not have found it
+
+The load is `*(code **)(*(int *)(iVar2 + 0x34) + 0x14)` -- a **two-level indirection through an object field**.
+There is no symbol, no literal, and no stored pointer to a slot address anywhere in this code; the address
+comes from `iVar2 + 0x34` at run time. Sections 89, 90 and 93 each looked for a form this code does not use.
+
+**The lesson is the inversion:** when a link is reached by computed indirection, a **runtime read watchpoint**
+answers in one run what any number of static searches cannot -- because it observes the *access*, not the
+*encoding*.
+
+### What this establishes and what remains
+
+**Established:** the menu-side consumer of the input API is `FUN_00267cb8`; it calls the API through a function
+pointer loaded from the object's `+0x34` -> `+0x14`; the calls carry mask pairs; the results drive a UI state
+machine at `param_1 + 0x1598`-`0x159a`.
+
+**Remaining:** the **selection index** itself. This function handles a state machine, not a list position. The
+next step is to follow its callees -- `FUN_00267740` and `FUN_00267840` are the two branches it takes, and
+`FUN_00250538` / `FUN_001a0bc4` are the next layer down -- looking for one that stores a small ordinal.
+
+### Method note
+
+> **A read watchpoint is the right instrument for a computed indirection.** Static search asks "where is this
+> address written?"; a computed access never writes it anywhere. The watchpoint asks "who touched this memory",
+> which is answerable regardless of how the address was formed.
+
+> **Two sites 12 bytes apart in the same function are one reader.** The `0x00267CFC`/`0x00267D08` pair is a
+> single function's two consecutive query calls -- reading them as one target (rather than two) is what
+> identified the mask-pair pattern.
+
+> **The predicted chain, executed.** Section 91 predicted "function pointer read from a slot, whose slot
+> address was stored in an object field" as the explanation for five failed searches. This function is that
+> chain, in code: `object + 0x34` -> slot -> code pointer -> indirect call.
+
