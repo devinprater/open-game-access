@@ -4827,6 +4827,105 @@ Expect for a real position: `S -> moved north -> returned` with `opposite=true`,
 (`S=0 A=-22 B=-7`), because a released-then-held sequence lets velocity read 0 at S. The cleaner
 variant is to sample at rest, then mid-hold, then mid-hold of the reverse leg **without releasing**.
 
+# ⭐ THE AUDIO BEACON: the objective chevron, and validating a bearing estimator
+
+## The glyph (measured from real frames, not assumed)
+
+The field draws an **objective indicator that rotates to point along the bearing**:
+
+```
+double chevron: a large `^` plus a smaller filled triangle beneath it
+  FILL     RGB(73,112,254) periwinkle, flat-shaded
+  OUTLINE  white glow
+  size     ~106x85 px, centred near x=1282 of a 1706-wide frame
+```
+
+⭐ **It only appears while the player is MOVING.** Holding the analog stick produced the glyph in
+**9/10** frames; sitting still produced **0/8**. That single fact explains a whole evening of
+"the arrow isn't there" confusion.
+
+## ⛔ Three detector attempts, and the one that was actually right
+
+| attempt | method | outcome |
+|---|---|---|
+| 1 | cyan test (`b>150 & b-r>55 & g>110`) | **nothing** — the glyph is not cyan |
+| 2 | fill colour ±46 tolerance | **2,220 px spanning 1704x978** — terrain + HUD portrait share the blue |
+| 3 | fill colour **exact (±8) + compactness gate (<=220 px extent)** | ✅ **validated**: finds the glyph, rejects frames without it |
+
+⚠️ Attempt 2's failure is the "instrument flatters a candidate" family again: a loose colour match on
+a 3D scene selects the WORLD, not the UI.
+
+## ⭐⭐ The bearing estimator: validated against known rotations
+
+Two estimators were tried on field frames, and **neither could be judged from field frames alone** —
+the frames all looked identical, yet the two methods disagreed wildly. The discipline that resolved it
+was to **test the instrument on known input**:
+
+```
+take the real up-pointing glyph, rotate it by an exact angle, and check the returned bearing
+
+rotate   sparse-perp        narrow-end
+------   -----------        ----------
+0           +0.0  OK          -50.0  WRONG
+45         +44.4  OK           -5.0  WRONG
+90         +90.0  OK         -140.0  WRONG
+135       +134.4  OK          -95.0  WRONG
+180       -180.0  OK          -50.0  WRONG
+-45        -45.6  OK          -95.0  WRONG
+-90        -90.0  OK         -140.0  WRONG
+-135      -134.6  OK           -5.0  WRONG
+```
+
+⭐⭐ **`sparse-perp` is CORRECT on 8/8. `narrow-end` is WRONG on 8/8.**
+
+### What `sparse-perp` does (the correct method)
+
+```python
+1. centroid of the fill pixels
+2. principal axis (theta) -- this runs through the two WINGS of the chevron
+3. pointing axis = perpendicular to the wings
+4. project pixels on that axis; the APEX is the extreme end with FEWER pixels nearby
+   (a chevron is concave/narrow at the tip and wide/dense at the base)
+5. bearing = atan2(dx, -dy) at the apex     # 0 = up, + = clockwise
+```
+
+⚠️ **I nearly discarded a correct method because a worse one disagreed with it.** The narrow-end scan
+was written specifically to replace `sparse-perp`, and it was broken. Field frames could not tell them
+apart — only known rotations could.
+
+## What this means for the user's calibration report
+
+The user reported: *"I went straight... the low beep meant [straight ahead], and AI said the arrow was
+pointing up."*
+
+✅ **That is consistent with a correct instrument.** Every field frame examined read `bearing ≈ 0`
+because the glyph in those frames genuinely points up — confirmed by rotating the actual glyph and by
+eye. The beacon's "AHEAD" reading was right.
+
+⛔ **Still UNVERIFIED: the left/right SIGN.** Left-right calibration attempts produced glyph frames
+that all pointed up (the objective stayed ahead), so the sign has **not** been exercised. It remains
+the one thing the user's ears must confirm.
+
+## Delivered tooling
+
+| script | purpose |
+|---|---|
+| `scripts/psp-tt-beacon.py` | live beacon: captures, locates the glyph, plays a panned tone (pan = side, pitch = off-axis). Includes atomic capture (`.part` + parse-verify) so a half-written PNG cannot kill it |
+| `scripts/psp-tt-indicators.py` | inventories saturated colours outside the HUD, to find drawn markers |
+| `scripts/psp-tt-glyph.py` | glyph locate + bearing |
+| `scripts/psp-tt-glyph-validate.py` | **validates a bearing estimator on known rotations** — the tool that caught the bad method |
+
+## ⛔ There are NO enemy markers to track
+
+The user asked to "track the enemies" when no arrow is shown. Inventoried across 8 live field frames:
+
+* saturated colours outside the HUD are **all terrain** — orange sea `(240,120,0)`, blue rock
+  `(72,144,192)`, green islands `(0,192,48)`;
+* **no enemy dots, markers, or edge indicators are drawn anywhere.**
+
+So there is nothing to track: a beacon can only key on something the game renders. The only enemy
+reference is the HUD's green **`2`** count badge.
+
 ## Status: BLOCKED on reaching a battle
 
 No adapter code is written and **no address is confirmed against live gameplay**. The stat
