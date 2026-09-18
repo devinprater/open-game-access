@@ -3737,3 +3737,80 @@ the node-field question.
 > seven guesses. When a search is exhausted *with the guards in place*, the right move is to change the
 > input condition -- not to re-run with a different button order.
 
+
+
+---
+
+## 51. The manager header is a SCREEN CLASSIFIER — and `render count` distinguishes interactive screens
+
+Section 50 established that seven reachable screens are static and inert. While probing the watchpoint, a
+correlation appeared that is worth recording, because it turns screen selection from blind pressing into
+a **measurement**.
+
+### The observation
+
+On the screen where the watchpoint silently did nothing, the manager's **render block count was 0**:
+
+```
+manager 0x08C08EB0   render base 0x09DEE3C0   render COUNT 0
+```
+
+A render count of 0 means **no render blocks are populated**. The manager is still present and valid --
+its node list walked fine -- but it is not building any drawable blocks. That is the signature of a screen
+that draws nothing interactive.
+
+### The census
+
+`psp-manager-census.py` reads the manager header and the node-list length, then presses a control and
+re-reads:
+
+```
+liveness: EXECUTING
+manager 0x08C08EB0
+  render base 0x09DEE3C0  render COUNT 0  +0x1C 0  +0x20 -1  +0x24 1  node COUNT 11
+  nodes walked from head: 11
+  no-press frame diff: 1,295,647 px -> ANIMATING
+
+press  render  f1C  f20  f24  nodes    display diff
+    1        0    0   -1    1    11     1,049,960 px
+    2        0    0   -1    1    11     1,692,119 px
+    3        0    0   -1    1    11     1,508,390 px
+    4        0    0   -1    1    11     1,664,256 px
+```
+
+Two things follow:
+
+* **The manager is a per-frame object, not a menu object.** It exists and is well-formed on an animating
+  3D scene (`node COUNT 11`, `+0x20 = -1`, `+0x24 = 1`, a walkable 11-node list) with a render count of
+  0. So the object is maintained continuously and is not itself "the menu".
+* **`render count` is a candidate screen classifier**: `0` on a scene that draws no blocks, and `> 0`
+   on the pause menu where the render array held populated blocks (sections 41/44 measured 3 and 13
+  blocks there).
+
+### What this changes
+
+The screen search in section 50 pressed six controls on seven screens and found nothing. If
+**`render count > 0`** reliably marks an interactive screen, then the search becomes a **read**, not a
+press: poll the manager's `+0x18` and look for a nonzero value, which costs one 64-byte read per candidate
+state instead of six button presses plus twelve screenshots.
+
+That does not by itself reach such a screen, but it makes recognising one trivial -- and it means the
+final step needs a helper only to *land* on an interactive screen, not to identify one.
+
+### Honest status
+
+* **Established:** the manager persists across screens and scene states; its render count is `0` on a
+  non-drawing screen and nonzero on the pause menu; node count varies per screen (9 / 11 / 35).
+* **Not established:** that `render count > 0` is a *reliable* classifier -- that needs sampling several
+  screens rather than one. The correlation is suggestive and cheap to test, and it is the natural next
+  measurement.
+* **Unchanged:** the node-field question is still open, and still needs a static screen on which a control
+  moves the highlight.
+
+### Method note
+
+> **Look for a cheap read that replaces an expensive search.** Six controls x N screenshots per screen is
+> a costly way to classify a screen; if a single 64-byte read of a manager field encodes "is this screen
+> drawing blocks", the search collapses to a poll. Whenever a probe is expensive, check whether some
+> already-located structure carries the same information as a scalar.
+
