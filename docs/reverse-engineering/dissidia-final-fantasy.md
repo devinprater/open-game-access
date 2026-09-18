@@ -4375,3 +4375,100 @@ input consumer must read.
 > field whose behaviour is independently known. Its silence located the flaw immediately; without it, 95
 > latch-shaped responses would have looked like success.
 
+
+
+---
+
+## 59. MAJOR CORRECTION: debugger input injection is INTERMITTENT — every "D-pad inert" result is suspect
+
+While hunting the live button word, the pad object's `+0x00` was found to be the **`sceCtrl` button
+word**, validated against documented PSP bit assignments:
+
+```
+button    expect   measured   observed during hold
+select    0x0001   0x0000     no
+start     0x0008   0x0008     MATCH   [0, 0, 0, 8, 8, 8]
+up        0x0010   0x0010     MATCH   [0, 16, 16, 16, 16, 16]
+right     0x0020   0x0020     MATCH   [0, 32, 32, 32, 0, 0]
+down      0x0040   0x0000     no
+left      0x0080   0x0080     MATCH   [0, 128, 128, 128, 128, 128]
+l         0x0100   0x0000     no
+r         0x0200   0x0000     no
+triangle  0x1000   0x1000     MATCH   [0, 0, 4096, 4096, 4096, 4096]
+circle    0x2000   0x2000     MATCH   [0, 8192, 0, 0, 0, 0]
+cross     0x4000   0x4000     MATCH   [0, 16384, 16384, 16384, 16384, 16384]
+square    0x8000   0x8000     MATCH   [0, 0, 32768, 32768, 32768, 32768]
+```
+
+Eight of twelve matched their documented bit **exactly**, and the pattern of the four that did not
+(`select`, `down`, `l`, `r` reading `0x0000`) looked like a clean statement about which buttons work.
+
+### It is not. The delivery is intermittent.
+
+A dedicated reliability run -- each D-pad button pressed **3 times**, holding 90 frames, sampling the pad
+word 7 times during the hold and 3 times after, with a 2 s settle between attempts:
+
+```
+idle word (no press): 0x0000
+
+  UP     delivered in 0/3 attempts   (during: all 0x0000)
+  RIGHT  delivered in 0/3 attempts   (during: all 0x0000)
+  DOWN   delivered in 0/3 attempts   (during: all 0x0000)
+  LEFT   delivered in 0/3 attempts   (during: all 0x0000)
+
+   all four: NEVER DELIVERED across 12 attempts
+```
+
+But the **same buttons delivered in the previous run**: `up` read `0x0010` and `left` read `0x0080`
+minutes earlier. And `down` read `0x0000` in one test and `0x0040` -- the correct down bit -- in another.
+
+**So the same button, same hold length, same code path, reads delivered once and undelivered another
+time.** That is a **race in the instrument**, not a property of the game or of the button.
+
+### What this invalidates
+
+Every conclusion of the form *"the D-pad is inert on the reachable screens"*:
+
+* section 50 -- "7 screens, 6 controls, zero movement" (D-pad among them),
+* section 54 -- "the D-pad scored 0/5 everywhere",
+* section 56 -- "`down` is inert" used to caveat the chain negative,
+* section 57 -- the node-list negative caveated with "`down` was already known to be inert".
+
+Those findings cannot distinguish **the game ignoring a delivered press** from **the instrument not
+delivering it**. Both produce "no change". The correct status of all of them is **instrument-suspect**,
+not negative.
+
+### What survives
+
+* **The pad object and its button word are solid**: `pad = 0x09EDA3A0` (via `DAT_003925b0`), and
+  `pad + 0x00` is the live `sceCtrl` button word carrying documented PSP bits -- confirmed for 8 buttons
+  across two runs.
+* **The face buttons and D-pad can both be delivered** -- each has been observed delivered at least once.
+* **The pause menu really does scroll** (verified twice by OCR) -- so the D-pad *can* reach the game.
+
+### The fix, and it is a gate rather than a hope
+
+Delivery must be **verified per press, at the pad word**, and undelivered presses discarded:
+
+```
+press(button)
+observed = sample pad+0x00 during the hold
+if observed does not contain the button's documented bit:
+    DISCARD this press -- do not count it as "no movement"
+```
+
+That converts the whole class of results from *"nothing happened"* to *"nothing happened **and the input
+arrived**"*, which is the only form that can support a negative. It is Rule 120's no-press control
+applied to the **input** side rather than the candidate side.
+
+### Method note
+
+> **Verify the INPUT, not just the output.** Every guard built so far asserted that the *system* was
+> alive (ticks) and that the *display* was measurable (static). None asserted that the **press reached
+> the game**. A silent input drop is indistinguishable from an inert control, and it produced four
+> sections of misleading negatives. Instrument the input path itself.
+
+> **An intermittent fault masquerades as a reliable negative when it is tested once.** `down` reading
+> `0x0000` in the first bit test looked like a finding about that button. Re-testing the same button 3
+> times per run, in a run that itself repeated, was what exposed it as a race.
+
