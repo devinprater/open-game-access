@@ -1,0 +1,499 @@
+=== WHO NAMES THE PAD API TABLE (doc section 89) ===
+table RAM 0x8ba4600-0x8ba4800  (vaddr 0x39d600-0x39d800)
+the guarded input query slot: RAM 0x08BA46F4 = vaddr 0x0039D6F4
+
+=== FUNCTIONS NAMING THE TABLE: 8 ===
+
+================================================================
+=== FUN_0022587c @ 0022587c  size=5988  (1 naming site(s)) ===
+================================================================
+   00225964  text  |  jal 0x00239d60
+
+--- CALLED BY ---
+   (none)
+
+--- CALLS ---
+   0021c980  FUN_0021c980  size=144
+   0021dd98  FUN_0021dd98  size=84
+   0021c404  FUN_0021c404  size=124
+   00221134  FUN_00221134  size=492
+   0021cff4  FUN_0021cff4  size=224
+   00221c98  FUN_00221c98  size=104
+   0021d80c  FUN_0021d80c  size=488
+   00228820  FUN_00228820  size=1660
+   0021e734  FUN_0021e734  size=240
+   0021ca10  FUN_0021ca10  size=156
+   002206ac  FUN_002206ac  size=76
+   0021ee40  FUN_0021ee40  size=464
+   0023c824  FUN_0023c824  size=32
+   0023caf4  FUN_0023caf4  size=32
+   0021e824  FUN_0021e824  size=68
+   0023e63c  FUN_0023e63c  size=20
+   0021d9f8  FUN_0021d9f8  size=408
+   0021e5ec  FUN_0021e5ec  size=328
+   0021e430  FUN_0021e430  size=292
+   0023cb14  FUN_0023cb14  size=32
+   0021fe6c  FUN_0021fe6c  size=344
+   00222c60  FUN_00222c60  size=1012
+   0021fb0c  FUN_0021fb0c  size=112
+   0021fb7c  FUN_0021fb7c  size=72
+   000f6b44  FUN_000f6b44  size=28
+   0023a9cc  FUN_0023a9cc  size=72
+   0021c664  FUN_0021c664  size=328
+   0021de28  FUN_0021de28  size=60
+   0021e554  FUN_0021e554  size=152
+   0021cb50  FUN_0021cb50  size=76
+   0021cc34  FUN_0021cc34  size=292
+   0024d114  FUN_0024d114  size=124
+   0023aaf4  FUN_0023aaf4  size=20
+   0023c804  FUN_0023c804  size=32
+   0023cb34  FUN_0023cb34  size=328
+   0023cc7c  FUN_0023cc7c  size=112
+   002242f8  FUN_002242f8  size=648
+   00253e0c  FUN_00253e0c  size=200
+   0021f078  FUN_0021f078  size=180
+   0021dd24  FUN_0021dd24  size=116
+   0021fd20  FUN_0021fd20  size=332
+   0021f12c  FUN_0021f12c  size=276
+   000f7420  FUN_000f7420  size=32
+   0021d0d4  FUN_0021d0d4  size=76
+   0023cad4  FUN_0023cad4  size=32
+   0021cf70  FUN_0021cf70  size=132
+   0024f720  FUN_0024f720  size=996
+   0021c4e4  FUN_0021c4e4  size=80
+   00220dac  FUN_00220dac  size=124
+   00253b88  FUN_00253b88  size=36
+   002206f8  FUN_002206f8  size=100
+   0021d1d0  FUN_0021d1d0  size=40
+   0022075c  FUN_0022075c  size=28
+   00220bdc  FUN_00220bdc  size=464
+   002235f4  FUN_002235f4  size=2116
+   0024df74  FUN_0024df74  size=76
+   0021c2ac  FUN_0021c2ac  size=52
+   00106b60  FUN_00106b60  size=128
+   0021c5f8  FUN_0021c5f8  size=108
+   0021c2e0  FUN_0021c2e0  size=220
+   0021dcf8  FUN_0021dcf8  size=44
+   0021fa28  FUN_0021fa28  size=228
+   0021db90  FUN_0021db90  size=360
+   00253bac  FUN_00253bac  size=40
+   002223d0  FUN_002223d0  size=1040
+   0024dcd8  FUN_0024dcd8  size=48
+   0022827c  FUN_0022827c  size=1032
+   0021c480  FUN_0021c480  size=100
+   0021c7ac  FUN_0021c7ac  size=468
+   0021c3bc  FUN_0021c3bc  size=72
+   00223e38  FUN_00223e38  size=1216
+   0021caac  FUN_0021caac  size=164
+   0021f9f8  FUN_0021f9f8  size=48
+   00224c58  FUN_00224c58  size=1964
+   0021c534  FUN_0021c534  size=196
+   00239d60  FUN_00239d60  size=108
+   0021eaec  FUN_0021eaec  size=468
+   0023a99c  FUN_0023a99c  size=48
+   0021e868  FUN_0021e868  size=380
+   00241140  FUN_00241140  size=1084
+   0023a430  FUN_0023a430  size=68
+   00220350  FUN_00220350  size=400
+
+(large -- see the naming sites above)
+
+================================================================
+=== FUN_0022d120 @ 0022d120  size=4280  (1 naming site(s)) ===
+================================================================
+   0022d268  text  |  jal 0x00239d60
+
+--- CALLED BY ---
+   (none)
+
+--- CALLS ---
+   0022bd8c  FUN_0022bd8c  size=792
+   0022b2dc  FUN_0022b2dc  size=136
+   002297e0  FUN_002297e0  size=88
+   0024df14  FUN_0024df14  size=96
+   0022c4a8  FUN_0022c4a8  size=516
+   0022a0dc  FUN_0022a0dc  size=56
+   0022a3cc  FUN_0022a3cc  size=76
+   0023be1c  FUN_0023be1c  size=232
+   0022a4f0  FUN_0022a4f0  size=40
+   00253ed4  FUN_00253ed4  size=8
+   0022a518  FUN_0022a518  size=40
+   0023bf04  FUN_0023bf04  size=40
+   0023c824  FUN_0023c824  size=32
+   0023caf4  FUN_0023caf4  size=32
+   0023e63c  FUN_0023e63c  size=20
+   0024d8bc  FUN_0024d8bc  size=152
+   0022a6d4  FUN_0022a6d4  size=44
+   000f6b44  FUN_000f6b44  size=28
+   002298b8  FUN_002298b8  size=84
+   0024d114  FUN_0024d114  size=124
+   0023aaf4  FUN_0023aaf4  size=20
+   0023c804  FUN_0023c804  size=32
+   0023cb34  FUN_0023cb34  size=328
+   0023cc7c  FUN_0023cc7c  size=112
+   0022b870  FUN_0022b870  size=152
+   00253e0c  FUN_00253e0c  size=200
+   0022a37c  FUN_0022a37c  size=80
+   000f7420  FUN_000f7420  size=32
+   0022b1ec  FUN_0022b1ec  size=240
+   00229740  FUN_00229740  size=96
+   0023cad4  FUN_0023cad4  size=32
+   002297a0  FUN_002297a0  size=64
+   00229c90  FUN_00229c90  size=40
+   0024f720  FUN_0024f720  size=996
+   00229cb8  FUN_00229cb8  size=364
+   00253b88  FUN_00253b88  size=36
+   0022a540  FUN_0022a540  size=172
+   0022ab54  FUN_0022ab54  size=212
+   00229954  FUN_00229954  size=60
+   0024df74  FUN_0024df74  size=76
+   0022c6ac  FUN_0022c6ac  size=816
+   0022a464  FUN_0022a464  size=80
+   0022b364  FUN_0022b364  size=196
+   00106b60  FUN_00106b60  size=128
+   0022990c  FUN_0022990c  size=72
+   0022b010  FUN_0022b010  size=476
+   0022a75c  FUN_0022a75c  size=272
+   0022aecc  FUN_0022aecc  size=324
+   00253bac  FUN_00253bac  size=40
+   0024dcd8  FUN_0024dcd8  size=48
+   00229878  FUN_00229878  size=64
+   0022a5ec  FUN_0022a5ec  size=232
+   00239d60  FUN_00239d60  size=108
+   0023a99c  FUN_0023a99c  size=48
+   00229838  FUN_00229838  size=64
+   00241140  FUN_00241140  size=1084
+   0022ae60  FUN_0022ae60  size=108
+   0022b428  FUN_0022b428  size=92
+   00241a1c  FUN_00241a1c  size=1216
+   0023bf74  FUN_0023bf74  size=400
+   0022ac28  FUN_0022ac28  size=328
+   0023a430  FUN_0023a430  size=68
+
+(large -- see the naming sites above)
+
+================================================================
+=== FUN_00232834 @ 00232834  size=4448  (1 naming site(s)) ===
+================================================================
+   002329b0  text  |  jal 0x00239d60
+
+--- CALLED BY ---
+   (none)
+
+--- CALLS ---
+   0022e368  FUN_0022e368  size=96
+   0022e410  FUN_0022e410  size=72
+   0022f738  FUN_0022f738  size=256
+   0024df14  FUN_0024df14  size=96
+   0022ebe8  FUN_0022ebe8  size=380
+   0022e320  FUN_0022e320  size=72
+   0022e4b4  FUN_0022e4b4  size=80
+   00253ed4  FUN_00253ed4  size=8
+   0022eb68  FUN_0022eb68  size=128
+   0022fdec  FUN_0022fdec  size=160
+   0022f958  FUN_0022f958  size=52
+   0023c824  FUN_0023c824  size=32
+   0023caf4  FUN_0023caf4  size=32
+   0022f3c0  FUN_0022f3c0  size=84
+   0023e63c  FUN_0023e63c  size=20
+   00230c34  FUN_00230c34  size=116
+   0024d8bc  FUN_0024d8bc  size=152
+   0022f838  FUN_0022f838  size=224
+   000f6b44  FUN_000f6b44  size=28
+   00232048  FUN_00232048  size=1004
+   0022e504  FUN_0022e504  size=68
+   0022f918  FUN_0022f918  size=64
+   0022fb88  FUN_0022fb88  size=488
+   0022f414  FUN_0022f414  size=80
+   0023084c  FUN_0023084c  size=356
+   0022e3c8  FUN_0022e3c8  size=72
+   0024d114  FUN_0024d114  size=124
+   0023aaf4  FUN_0023aaf4  size=20
+   0022f5fc  FUN_0022f5fc  size=48
+   0023c804  FUN_0023c804  size=32
+   0023cb34  FUN_0023cb34  size=328
+   0023cc7c  FUN_0023cc7c  size=112
+   0022fac8  FUN_0022fac8  size=88
+   0022e788  FUN_0022e788  size=704
+   00253e0c  FUN_00253e0c  size=200
+   000f7420  FUN_000f7420  size=32
+   00231040  FUN_00231040  size=180
+   0023cad4  FUN_0023cad4  size=32
+   0022ef58  FUN_0022ef58  size=144
+   00230bb4  FUN_00230bb4  size=128
+   0022e2b8  FUN_0022e2b8  size=104
+   0022f4b4  FUN_0022f4b4  size=168
+   0024f720  FUN_0024f720  size=996
+   0023bd38  FUN_0023bd38  size=100
+   00231984  FUN_00231984  size=1232
+   00253b88  FUN_00253b88  size=36
+   0024df74  FUN_0024df74  size=76
+   0022ff64  FUN_0022ff64  size=104
+   00106b60  FUN_00106b60  size=128
+   0022e458  FUN_0022e458  size=92
+   0022fb20  FUN_0022fb20  size=104
+   00231e54  FUN_00231e54  size=500
+   00253bac  FUN_00253bac  size=40
+   0024dcd8  FUN_0024dcd8  size=48
+   00230268  FUN_00230268  size=372
+   0023bd9c  FUN_0023bd9c  size=28
+   00230f88  FUN_00230f88  size=184
+   0022f62c  FUN_0022f62c  size=48
+   0022f65c  FUN_0022f65c  size=220
+   00239d60  FUN_00239d60  size=108
+   0023a99c  FUN_0023a99c  size=48
+   00241140  FUN_00241140  size=1084
+   0023be00  FUN_0023be00  size=28
+   00241a1c  FUN_00241a1c  size=1216
+   0022fe8c  FUN_0022fe8c  size=216
+   0023a430  FUN_0023a430  size=68
+   0022f55c  FUN_0022f55c  size=92
+
+(large -- see the naming sites above)
+
+================================================================
+=== FUN_002369e0 @ 002369e0  size=3208  (1 naming site(s)) ===
+================================================================
+   00236adc  text  |  jal 0x00239d60
+
+--- CALLED BY ---
+   (none)
+
+--- CALLS ---
+   0023cc7c  FUN_0023cc7c  size=112
+   00234574  FUN_00234574  size=432
+   00233ee0  FUN_00233ee0  size=64
+   00253e0c  FUN_00253e0c  size=200
+   00234c38  FUN_00234c38  size=44
+   0024df14  FUN_0024df14  size=96
+   0023c7e0  FUN_0023c7e0  size=36
+   000f7420  FUN_000f7420  size=32
+   0023cad4  FUN_0023cad4  size=32
+   00234958  FUN_00234958  size=100
+   00233e7c  FUN_00233e7c  size=100
+   00234b0c  FUN_00234b0c  size=228
+   0024f720  FUN_0024f720  size=996
+   00234a38  FUN_00234a38  size=212
+   00233f20  FUN_00233f20  size=112
+   0023613c  FUN_0023613c  size=548
+   002349bc  FUN_002349bc  size=124
+   00253b88  FUN_00253b88  size=36
+   002347bc  FUN_002347bc  size=140
+   00234de8  FUN_00234de8  size=348
+   0024df74  FUN_0024df74  size=76
+   00234bf0  FUN_00234bf0  size=72
+   00106b60  FUN_00106b60  size=128
+   0023c824  FUN_0023c824  size=32
+   0023caf4  FUN_0023caf4  size=32
+   00233f90  FUN_00233f90  size=112
+   00253bac  FUN_00253bac  size=40
+   0024d8bc  FUN_0024d8bc  size=152
+   00234d34  FUN_00234d34  size=180
+   00235c00  FUN_00235c00  size=1340
+   002340ec  FUN_002340ec  size=72
+   000f6b44  FUN_000f6b44  size=28
+   0024dd08  FUN_0024dd08  size=272
+   002344b8  FUN_002344b8  size=188
+   00239d60  FUN_00239d60  size=108
+   0023a99c  FUN_0023a99c  size=48
+   00234724  FUN_00234724  size=152
+   00241140  FUN_00241140  size=1084
+   0024d114  FUN_0024d114  size=124
+   00234000  FUN_00234000  size=164
+   0023c804  FUN_0023c804  size=32
+   0023cb34  FUN_0023cb34  size=328
+   0023a430  FUN_0023a430  size=68
+
+(large -- see the naming sites above)
+
+================================================================
+=== FUN_00240264 @ 00240264  size=2272  (1 naming site(s)) ===
+================================================================
+   00240408  text  |  jal 0x00239d60
+
+--- CALLED BY ---
+   (none)
+
+--- CALLS ---
+   00238c94  FUN_00238c94  size=128
+   00253e0c  FUN_00253e0c  size=200
+   0023c7e0  FUN_0023c7e0  size=36
+   00239494  FUN_00239494  size=232
+   000f7420  FUN_000f7420  size=32
+   0023cad4  FUN_0023cad4  size=32
+   0023a474  FUN_0023a474  size=192
+   0024f720  FUN_0024f720  size=996
+   00253b88  FUN_00253b88  size=36
+   0023fa48  FUN_0023fa48  size=1584
+   0024df74  FUN_0024df74  size=76
+   0029729c  FUN_0029729c  size=24
+   00106b60  FUN_00106b60  size=128
+   0023c824  FUN_0023c824  size=32
+   0023caf4  FUN_0023caf4  size=32
+   00296c08  FUN_00296c08  size=132
+   0023f7e4  FUN_0023f7e4  size=612
+   00242b40  FUN_00242b40  size=1476
+   0023e63c  FUN_0023e63c  size=20
+   00238bb0  FUN_00238bb0  size=72
+   0023cb14  FUN_0023cb14  size=32
+   00253bac  FUN_00253bac  size=40
+   00237f68  FUN_00237f68  size=36
+   0024d8bc  FUN_0024d8bc  size=152
+   000f6b44  FUN_000f6b44  size=28
+   0023eb64  FUN_0023eb64  size=264
+   00239d60  FUN_00239d60  size=108
+   001f4bdc  FUN_001f4bdc  size=240
+   00238b30  FUN_00238b30  size=128
+   0024d114  FUN_0024d114  size=124
+   00238360  FUN_00238360  size=880
+   0023c9ec  FUN_0023c9ec  size=108
+   0023c804  FUN_0023c804  size=32
+
+(large -- see the naming sites above)
+
+================================================================
+=== FUN_00270d44 @ 00270d44  size=316  (1 naming site(s)) ===
+================================================================
+   00270d88  text  |  jal 0x00239d60
+
+--- CALLED BY ---
+   002764c0  FUN_002764c0  size=5464
+
+--- CALLS ---
+   0023cc7c  FUN_0023cc7c  size=112
+   0026ff2c  FUN_0026ff2c  size=256
+   0026f680  FUN_0026f680  size=212
+   0026f064  FUN_0026f064  size=144
+   00239d60  FUN_00239d60  size=108
+   0026f978  FUN_0026f978  size=128
+   00275954  FUN_00275954  size=712
+   0024d114  FUN_0024d114  size=124
+   0024d8bc  FUN_0024d8bc  size=152
+   0026df74  FUN_0026df74  size=296
+
+--- decompiled ---
+
+void FUN_00270d44(int param_1)
+
+{
+  int iVar1;
+  
+  FUN_0024d114(*(int *)(param_1 + 0x138) + 4,*(int *)(param_1 + 0x138) + 0x404,&DAT_00381098);
+  FUN_00239d60(DAT_00397620,*(int *)(param_1 + 0x138) + 4,*(int *)(param_1 + 0x138) + 0x404);
+  iVar1 = *(int *)(param_1 + 0x138);
+  FUN_0023cc7c(iVar1 + 4,iVar1 + 0x404,iVar1 + 0x1276c);
+  FUN_0024d8bc(*(int *)(param_1 + 0x138) + 0x404,*(int *)(param_1 + 0x138) + 0x884,&DAT_00381aa0);
+  FUN_0024d8bc(*(int *)(param_1 + 0x138) + 0x404,*(int *)(param_1 + 0x138) + 0x884,&PTR_DAT_00381180
+              );
+  iVar1 = *(int *)(param_1 + 0x138);
+  if (*(int *)(iVar1 + 0x128dc) != -1) {
+    FUN_0024d8bc(iVar1 + 0x404,iVar1 + 0x884,&DAT_003811b0);
+    iVar1 = *(int *)(param_1 + 0x138);
+  }
+  if (*(int *)(iVar1 + 76000) != -1) {
+    FUN_0024d8bc(iVar1 + 0x404,iVar1 + 0x884,&DAT_003811c8);
+  }
+  FUN_0026ff2c(param_1);
+  FUN_0026df74(param_1);
+  FUN_0026f064(param_1);
+  FUN_0026f680(param_1);
+  FUN_00275954(param_1);
+  FUN_0026f978(param_1);
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_002726b0 @ 002726b0  size=424  (1 naming site(s)) ===
+================================================================
+   00272818  text  |  jal 0x00239d60
+
+--- CALLED BY ---
+   00278b7c  FUN_00278b7c  size=864
+   00278edc  FUN_00278edc  size=1212
+
+--- CALLS ---
+   002728a0  FUN_002728a0  size=344
+   00239d60  FUN_00239d60  size=108
+   0026eb94  FUN_0026eb94  size=308
+   001fce9c  FUN_001fce9c  size=76
+   00240b44  FUN_00240b44  size=688
+   00239cac  FUN_00239cac  size=180
+
+--- decompiled ---
+
+void FUN_002726b0(int param_1,short param_2)
+
+{
+  char cVar1;
+  int iVar2;
+  
+  iVar2 = FUN_001fce9c((int)param_2);
+  if (iVar2 != 0) {
+    cVar1 = *(char *)(iVar2 + 8);
+    if (cVar1 == '\0') {
+      FUN_002728a0(param_1,0,0xffffffff,0xffffffff);
+      *(uint *)(*(int *)(param_1 + 0x138) + 0x1275c) =
+           *(uint *)(*(int *)(param_1 + 0x138) + 0x1275c) | 0x2000;
+    }
+    else if (cVar1 == '\x01') {
+      FUN_002728a0(param_1,1,(int)*(short *)(*(int *)(param_1 + 0x138) + 0x1405a),0xffffffff);
+      *(uint *)(*(int *)(param_1 + 0x138) + 0x1275c) =
+           *(uint *)(*(int *)(param_1 + 0x138) + 0x1275c) | 0x2000;
+    }
+    else if (cVar1 == '\x02') {
+      FUN_002728a0(param_1,2,
+                   ((int)*(short *)(*(int *)(param_1 + 0x138) + 0x14058) -
+                   (int)*(short *)(*(int *)(param_1 + 0x138) + 0x14056)) * 0x10000 >> 0x10);
+      iVar2 = (int)*(short *)(*(int *)(param_1 + 0x138) + 0x1405a);
+      if (iVar2 != 0) {
+        FUN_002728a0(param_1,3,iVar2,0xffffffff);
+      }
+      FUN_00240b44(DAT_00397620);
+      FUN_00239cac(DAT_00397620,*(int *)(param_1 + 0x138) + 4,*(int *)(param_1 + 0x138) + 0x404,
+                   0xffffffff);
+      FUN_00239d60(DAT_00397620,*(int *)(param_1 + 0x138) + 4,*(int *)(param_1 + 0x138) + 0x404);
+      FUN_0026eb94(param_1,1);
+      *(uint *)(*(int *)(param_1 + 0x138) + 0x1275c) =
+           *(uint *)(*(int *)(param_1 + 0x138) + 0x1275c) | 0x2000;
+    }
+  }
+  return;
+}
+
+
+------------------
+
+================================================================
+=== FUN_002b1150 @ 002b1150  size=120  (1 naming site(s)) ===
+================================================================
+   002b1188  text  |  jal 0x00239d60
+
+--- CALLED BY ---
+   002b1310  FUN_002b1310  size=344
+
+--- CALLS ---
+   00239d60  FUN_00239d60  size=108
+   0024d114  FUN_0024d114  size=124
+   0024d8bc  FUN_0024d8bc  size=152
+   002b1050  FUN_002b1050  size=256
+   002b0fd8  FUN_002b0fd8  size=120
+
+--- decompiled ---
+
+void FUN_002b1150(int param_1)
+
+{
+  FUN_0024d114(*(int *)(param_1 + 0x138) + 4,*(int *)(param_1 + 0x138) + 0x404,&DAT_0038616c);
+  FUN_00239d60(DAT_00397620,*(int *)(param_1 + 0x138) + 4,*(int *)(param_1 + 0x138) + 0x404);
+  FUN_002b1050(param_1);
+  FUN_002b0fd8(param_1);
+  FUN_0024d8bc(*(int *)(param_1 + 0x138) + 0x404,*(int *)(param_1 + 0x138) + 0x884,&DAT_0038624c);
+  return;
+}
+
+
+------------------
+

@@ -7568,3 +7568,97 @@ appear.
 > independently links the two tables to the same subsystem, and it is the kind of anomaly worth reading
 > rather than smoothing over.
 
+
+
+---
+
+## 90. The code search for the table constant returned FALSE POSITIVES -- the filter matched instruction encodings
+
+Section 89's conclusion was that the API table is addressed by a **fixed address literal**, so the consumer
+should be found by searching the **code** for that constant -- "who names this address" rather than "who holds
+it". This section ran that search, and the result is a **negative about the method**, which has to be recorded
+as such.
+
+### What the search returned
+
+```
+=== FUNCTIONS NAMING THE TABLE: 8 ===
+=== FUN_0022587c @ 0022587c  size=5988  (1 naming site(s)) ===
+=== FUN_0022d120 @ 0022d120  size=4280  (1 naming site(s)) ===
+=== FUN_00232834 @ 00232834  size=4448  (1 naming site(s)) ===
+=== FUN_002369e0 @ 002369e0  size=3208  (1 naming site(s)) ===
+=== FUN_00240264 @ 00240264  size=2272  (1 naming site(s)) ===
+=== FUN_00270d44 @ 00270d44  size=316   (1 naming site(s)) ===
+=== FUN_002726b0 @ 002726b0  size=424   (1 naming site(s)) ===
+=== FUN_002b1150 @ 002b1150  size=120   (1 naming site(s)) ===
+```
+
+Eight functions, **exactly one "naming site" each** -- a suspiciously uniform pattern. And the sites are all
+the same shape:
+
+```
+   00225964  text  |  jal 0x00239d60
+   0022d268  text  |  jal 0x00239d60
+   002329b0  text  |  jal 0x00239d60
+   ...
+   002b1188  text  |  jal 0x00239d60
+```
+
+**Every one is a `jal` to the same function, `FUN_00239d60`.** None is an address-load of a table slot.
+
+### The cause: my filter matched instruction *encodings*
+
+The filter's text test was:
+
+```java
+if (s.contains("08ba46") || s.contains("08BA46") || s.contains("39d6") || s.contains("39D6") || ...)
+```
+
+`s` is the rendered instruction. `jal 0x00239d60` contains the substring **`39d6`** -- so it matched the
+`39D6` test, which was intended to catch the vaddr range `0x0039D600-0x0039D800`. The filter was matching a
+**substring of an unrelated target address**, not a reference to the table.
+
+**So all eight results are false positives, and the set is meaningless.** The `jal` target `0x00239d60` has
+nothing to do with the table; it merely happens to contain the hex digits `39d6`.
+
+### What is still true
+
+The scalar-operand and resolved-reference tests found **nothing at all** -- no instruction anywhere loaded a
+value in the table range. That part of the search is sound, and it is consistent with section 89's finding
+that the slots have no holders: if nothing holds a slot address in memory **and** no scalar operand equals a
+slot address, then either
+
+1. the slots are reached by a **computed** address (base + index) rather than a literal, or
+2. the table is used only by the pad subsystem's own code via a base pointer computed once and held in a
+   register across the table's use, or
+3. the "table" is in fact a **data structure read by indexed access**, so no individual slot address ever
+   appears as an immediate.
+
+All three would evade both a pointer search and an immediate-literal search.
+
+### The corrected method
+
+A base+index access means the search must find **the base**, not the slots: the base value
+(`0x08BA46BC`, or a nearby aligned start) would appear as a scalar or in a register. Concretely:
+
+* search for the scalar **`0x08BA46BC`** and the nearby `0x08BA4600`/`0x08BA4680` aligned bases;
+* or search for any **`lui`/`ori`** pair whose high half is `0x08ba` (`0x08BA0000`-`0x08BAFFFF`), which is
+  how a base in that region is materialised on MIPS;
+* and drop the loose substring test entirely -- match on **exact scalar operands** only.
+
+That is a strictly narrower filter, and the earlier loose one should not be trusted again.
+
+### Method note
+
+> **A substring filter over rendered instructions is unsound.** `"39d6"` matched a *different* address that
+> merely shared four hex digits. Hex-digit substrings have no address semantics; only **exact scalar
+> operands** or **resolved references** do. The correct fix is to delete the text branch, not to tighten it.
+
+> **Uniform output shape is a defect signal.** Eight functions each with *exactly one* naming site, all of the
+> identical form, is what a filter artefact looks like -- a genuine spread of API users would vary. Checking
+> *why* the results were uniform is what exposed the bug.
+
+> **A false positive must be recorded as a false positive.** The eight functions are not API users, and the
+> section states that plainly rather than leaving a list that a later reader would mistake for findings. The
+> surviving evidence is the *absence* of any scalar/reference match, which is genuinely informative.
+
