@@ -819,3 +819,72 @@ bytes**, and three separate regions were all static. So the emulator was parked 
 (not in a live menu), and no cursor could be exercised from that state. The cursor work needs the game
 actually sitting in a menu.
 
+---
+
+## 14. The game is NOT hung — a button sweep separates "static screen" from "dead game"
+
+Section 13 recorded, from byte-identical RAM samples, that the game "had stopped changing". That
+conclusion was **too strong and partly an instrument failure**. Two corrections, both measured.
+
+### `cpu.status.pc` is a stale field in this build — do not use it as an aliveness test
+
+Sampling `cpu.status` returned `pc = 0x08909800` on **every** call, and identically **before and after
+a full emulator restart** (`taskkill /F` then a fresh launch). A live PC cannot land on the same
+address across a restart, so this field is a placeholder in PPSSPP v1.20.4:
+
+```
+cpu.status  {"stepping": false, "paused": false, "pc": 143693824, "ticks": 21225743509}
+```
+
+`ticks` does advance steadily (222,222,000 per second), which only says the emulator is executing —
+not that the guest game is progressing. **An aliveness test must be the SCREEN or specific RAM, never
+`cpu.status.pc`.**
+
+### The decisive test: sweep every button and watch for change
+
+`scripts/psp-dissidia-sweep.py` sends each button in turn and re-signatures the screen plus five RAM
+regions after each one:
+
+```
+cross     no change        up      no change
+circle    no change        down    no change
+triangle  no change        left    no change
+square    no change        right   no change
+start     no change        l       CHANGED: RAM
+select    no change        r       CHANGED: RAM
+```
+
+**Input reaches the game** — the debugger broadcasts `{"event":"input.buttons","buttons":{"cross":true,...}}`
+then `cross:false` on every press, so the injection works. And **`l` and `r` produce a RAM change**
+while `cross`/`start`/directions produce none.
+
+So the game is **not hung, and not frozen**: it is sitting on a screen where only the shoulder
+buttons act (consistent with a cutscene/scene where `l`/`r` skip or switch), and the earlier
+"nothing changes" reading came from sampling regions that this particular screen does not touch.
+
+### The screenshot instrument failed inside the sweep
+
+`sweep.py` reported `img=None` for every button: the in-process `subprocess.run(["python.exe",
+"psp-shot.py", ...])` did **not** produce a file, although the same command from the shell works and
+writes 197,612 bytes. The environment differs (the sweep runs with `MSYS2_ARG_CONV_EXCL` set and
+inherits a different cwd), so the capture must be invoked the way that is known to work — from the
+shell, with the export set — and the image signature computed from the file afterwards. **A silent
+`None` for a capture is not evidence the screen is static**; it means the capture did not happen. That
+is the same class of error as the earlier beacon reading a half-written PNG: verify the instrument.
+
+### What is established, and what is still open
+
+| item | state |
+|---|---|
+| menu / UI text (UTF-16LE, flag byte per entry) | **found** — `0x09D16A68`+ |
+| system / save / error text (ASCII) | **found** — `0x09E58xxx` |
+| ability names, engine/manager names | **found** |
+| menus are ID lists (`0x09CED310`, ids 280–284) | **found** |
+| `MENU MANAGER` / `MENU_MANAGER::ExecuteUpdate` named | **found** (0 pointers — read in Ghidra) |
+| the localisation resource name | **found** — `general_archive/main/EN/main_lang.bin` |
+| which entry is SELECTED | **still open** |
+
+The cursor remains open, and it needs one thing this session never had: **the game parked in a live
+menu with a visible highlight**, so that a D-pad press visibly moves a selection. Sweeping from
+whatever screen the game happens to be on cannot find it, as section 14's result shows.
+
