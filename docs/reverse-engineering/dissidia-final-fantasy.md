@@ -6475,3 +6475,107 @@ Two concrete follow-ups:
 > and `entry+0x4c`. The hit *count* predicted the code shape before the decompile confirmed it -- a useful
 > cross-check that the watchpoint was reporting genuine sites and not noise.
 
+
+
+---
+
+## 80. The translated input is STORED at object offset +0x00 -- the published state the menu reads
+
+Section 79 ended at the translator. This section walks **up** the chain, and finds where the translated
+logical bits land.
+
+### Direct callers are few and unambiguous
+
+```
+=== direct callers of the TRANSLATOR (0x000F70C4) ===
+   refs=2  distinct caller functions=1
+      000f7138  FUN_000f7138   (the reader)
+
+=== direct callers of the READER (0x000F7138) ===
+   refs=2  distinct caller functions=2
+      000f6fc8  FUN_000f6fc8   size=84
+      000f7028  FUN_000f7028   size=156
+```
+
+Two callers of the reader, one caller of the translator. No function-pointer indirection in the chain --
+so the upstream path is fully walkable, and the upward walk reached **17 functions**.
+
+### The key function: `FUN_000f6fc8` stores the translated bits at `+0x00`
+
+```c
+void FUN_000f6fc8(undefined8 *param_1)
+{
+  *(uint *)((int)param_1 + 0x44) = *(uint *)((int)param_1 + 0x44) & 0xfffffffe;
+  FUN_000f6604(param_1, 0xfffffffe, DAT_00371cc0, DAT_00371cc4);
+  uVar1 = FUN_000f7138(param_1);      // <- the translator's RETURN VALUE
+  *param_1 = uVar1;                   // <- STORED AT OFFSET +0x00
+  return;
+}
+```
+
+Three things are explicit here:
+
+1. **`uVar1 = FUN_000f7138(param_1)`** -- the call whose return is the **translated logical bit pair**
+   (section 79: `CONCAT44(accumulated_a, accumulated_b)`).
+2. **`*param_1 = uVar1`** -- the result is written to **`param_1 + 0x00`**. So an object's **first word
+   holds the current logical button state** after this call.
+3. **`param_1 + 0x44` is masked with `0xfffffffe`** (clearing bit 0) before the translator runs, and
+   `FUN_000f6604(param_1, 0xfffffffe, sentinel_a, sentinel_b)` is called -- a same-shaped table walk with a
+   mask argument. So `+0x44` is a **related state word**, bit 0 being an "active" flag that is reset first.
+
+### Why this resolves the whole search
+
+This is the **published state** the menu reads, and it explains every structural dead end:
+
+| section | dead end | now explained |
+|---|---|---|
+| 73 | pad object not referenced by the menu | the menu reads the **converted** object, not the pad |
+| 77 | service table never walked | registration only; the route is a **stored value** |
+| 78 | only 5 sites read the button word | the pad layer converts and **stores** the result |
+| 79 | translator returns logical bits | those bits are **stored at object +0x00** |
+
+The chain is complete and code-verified end to end:
+
+```
+sceCtrl read
+  -> pad object (raw button word at +0x00)
+  -> FUN_000f7138 reads raw words (2 sites)
+  -> FUN_000f70c4 maps raw -> LOGICAL bits via {mask,mask,out,out} table
+  -> FUN_000f6fc8 stores the result at CONVERTED_OBJECT + 0x00
+  -> the menu reads CONVERTED_OBJECT + 0x00
+```
+
+**So the input interface is an object whose `+0x00` holds logical button bits** -- not the pad object, and
+not a service lookup. That is the concrete thing that was missing from section 55 onward.
+
+### The immediate, decisive follow-up
+
+The object is at `param_1`, and **`FUN_000f6fc8` is called by `FUN_000f7498`** -- so the object pointer is
+known at that call site. The concrete next measurements:
+
+1. **breakpoint on `FUN_000f6fc8`** to capture `param_1` -- that names the converted-input object's address;
+2. **read watchpoint on `CONVERTED_OBJECT + 0x00`** -- that list is *the* set of input consumers, and it is
+   now a bounded enumeration rather than a search;
+3. compare that reader set with the menu-side functions already identified (the render loop
+   `FUN_0024aee0`, the node manager `FUN_0024932c`, the definition lookup `FUN_0025468c`).
+
+Step 2 is the same instrument that worked in section 78, aimed at the right address this time.
+
+### Method note
+
+> **The upward walk was two levels deep and had no branching.** Two callers of the reader, one of the
+> translator -- so "who receives the translated value" had a short answer. Checking the **caller count
+> first** (2 and 1) before walking told us the chain would be tight, which is worth doing before committing
+> to a traversal.
+
+> **`*param_1 = <call result>` is the signature of a published state object.** A function that calls a
+> converter and stores the result at offset `0x00` of its argument is establishing that argument as *the*
+> place the converted value lives. Recognising this one line is what identified the interface -- and it
+> explains why no amount of searching for an object read by the menu succeeded: the object is written
+> *into* by the pad side, and the reader set was never enumerated.
+
+> **Adjacent masked state is a corroborating detail.** `param_1 + 0x44` masked with `0xfffffffe` immediately
+> before the conversion, plus a second same-shaped table call passing the same sentinels, says `+0x44` is a
+> companion state word sharing the translator's table. That is consistent with a converted-input object
+> rather than a bare bit pair. Noting it costs one line of reading and strengthens the identification.
+
