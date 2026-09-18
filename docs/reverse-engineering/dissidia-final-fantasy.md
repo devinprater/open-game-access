@@ -2053,3 +2053,84 @@ static anchor at all. The second is more likely, and it is consistent with the c
 > one read. **Do not walk a structure as a list until its fields have been shown to be pointers** —
 > string bytes reinterpreted as addresses fabricate plausible-looking lists.
 
+
+
+---
+
+## 30. The decisive test: compare FILE bytes against RAM bytes
+
+Sections 21-29 argued about which statics hold menu state by reasoning about decompiled fields. That
+reasoning kept producing objects that turned out to be something else. There is a direct test that
+settles "does this address hold state?" in one read, and it also explains the recurring confusion.
+
+### The ELF's real layout
+
+```
+entry = 0x002DC6C8     2 program headers
+
+PT_LOAD  vaddr 0x00000000-0x003A6860   filesz 0x3A6860   RX   (code + rodata)
+PT_LOAD  vaddr 0x003A6860-0x01727F8C   filesz 0x1AA0     RW   (initialised data; the rest is BSS)
+```
+
+So the **entire 3.7 MB image is one RX segment** and the writable segment is only **0x1AA0 bytes** at
+`0x003A6860`, with the remaining `0x01727F8C - 0x003A6860` bytes being **BSS (zero in file, allocated at
+run time)**.
+
+This matters because **`DAT_00397770`, `DAT_00392cd8` and `DAT_00392d10` all fall inside the RX
+segment** -- they are not writable data in the image. Yet they demonstrably change at run time (below).
+The resolution is that the game uses **BSS beyond the RW segment** as scratch, and Ghidra's "static"
+labels land in the RX address range while the *live* values come from the run-time allocation. That is
+exactly why three separate field-level analyses produced three different wrong identities for objects
+near those addresses.
+
+### The test, and its results
+
+Compare the bytes **in the file** against the bytes **in RAM** at the same virtual address. If they are
+equal, the location is a read-only constant and **cannot** hold state. If they differ, something wrote
+there at run time.
+
+| address | file | RAM | verdict |
+|---|---|---|---|
+| `0x00008608` | `B8 00 A5 24 00 00 A6 84 …` | identical | **code** — read-only, no state |
+| `0x0000860C` | `00 00 A6 84 04 00 A5 8C …` | identical | **code** — read-only, no state |
+| `0x00397770` | `00 00 00 00 00 00 00 00 6F 6E 65 30 30 …` | `B0 8E C0 08 00 00 80 3F 6F 6E 65 30 30 …` | **differs → runtime state** |
+| `0x00392cd8` | all zeros (16 B) | `80 DC C5 08 00 00 00 00 E8 DC C5 08 …` | **differs → runtime state** |
+| `0x09D16A68` (UI text) | not in file (BSS) | `2E 00 52 00 65 00 74 00 …` = `".Ret"` | **runtime state** |
+
+### The correction this forces
+
+**`FUN_00246d64` is not a lazy singleton.** Its body reads `if (iRam00008608 == 0) { iRam00008608 = 1;
+FUN_0024699c(0x860c); FUN_0033c4d0(&DAT_003976c0); } return 0x860c;` -- but `0x00008608` and `0x0000860C`
+are **identical in file and RAM**, i.e. they are **instructions**, and the walk of `0x0000860C` returned
+`+0x3C = 0x03E00008`, which is the MIPS encoding of **`jr $ra`**. Reading an object there produced
+instruction words reinterpreted as head pointers (`headA=0xC4CC44F4`, `headB=0x00872021`),
+the same failure mode as reading string bytes as pointers in section 29.
+
+The general lesson is now unambiguous: **a "static" address in a disassembly listing is not necessarily
+data.** On an RX segment, a plausible-looking field can be executable code, and the file-vs-RAM
+comparison is the cheap way to find out before building any model on top of it.
+
+### What is also revealed about `DAT_00397770`
+
+Its leading 8 bytes are **written at run time**:
+
+```
+file: 00 00 00 00  00 00 00 00  6F 6E 65 30 30   ("one00")
+RAM : B0 8E C0 08  00 00 80 3F  6F 6E 65 30 30
+      ^ pointer    ^ float 1.0
+```
+
+So the 36-byte record's first two words are **runtime fields** (a pointer and, in record 0, the float
+`1.0` = `0x3F800000`) followed by the static name. The *name* part is genuinely read-only chapter data,
+which is why section 29's 7/7 record parse was correct; the *head* of each record is per-run state and
+was not part of that model. Both findings stand, and this explains why: the model was tested on the
+name field, which is static, while the fields around it are not.
+
+### Method note
+
+> **To ask "does this address hold game state?", compare the file bytes with the RAM bytes at the same
+> virtual address.** Equal ⇒ read-only constant, and no amount of field-level reasoning will find state
+> there. Different ⇒ something writes it. Run this test *before* modelling a location, because on this
+> binary the RX segment contains labelled "statics" that are really code and really BSS scratch, and
+> three prior identity conclusions were wrong for exactly that reason.
+
