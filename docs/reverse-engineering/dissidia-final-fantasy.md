@@ -2826,3 +2826,93 @@ finding that the handlers fire a fixed render sequence rather than holding state
 > structure that walks cleanly is strong evidence the layout is right, **even when the field you want
 > turns out not to be in it.** Say so explicitly rather than reporting only the negative.
 
+
+
+---
+
+## 40. The cursor is TRACKED: a pointer array whose entries alternate with the highlight
+
+After 39 sections of clearing data structures from the decompile side, a full-RAM scan at **byte
+granularity with a no-press control** found the first data in this investigation that actually follows
+the cursor.
+
+### How it was found
+
+The earlier word-level wrap scan (section 38) covered only 0.25 MB. Measured throughput is **~3 MB/s**,
+so a 24 MB sample costs only ~8 s -- which made a whole-span scan practical. Two scans followed:
+
+* **word-level, all readable RAM** (6,291,456 words x 21 samples, 17/20 presses moving the display):
+  **no wrapping word anywhere.**
+* **byte-level, all readable RAM** (25,165,824 bytes x 21 samples), with every sample **saved to disk**
+  for offline re-analysis, and a **no-press control** run (6 samples) to reject churn.
+
+Gap this closed: a selection index is naturally a **byte**, and if the neighbouring bytes of its 32-bit
+word churn every frame then the *word* never repeats even though the *byte* does -- so a word-level
+period test cannot see a byte-sized cursor.
+
+### The filter that isolated it
+
+1. byte-level period-2 series with small values -> 73 candidates, **all** absent from the no-press
+   control (so genuinely press-related);
+2. widen to **word** level, any magnitude -> 503 press-only period-2 words;
+3. classify by value kind -> **3 words whose two values are both RAM pointers**;
+4. verify with a 4-press watch.
+
+### The candidates, verified
+
+```
+0x09DEE4B0   0x09E36568 <-> 0x09E36558
+0x09DEE4B4   0x09E3739C <-> 0x09E3735C
+0x09C5825C   0x08C50019 <-> 0x08C50018
+```
+
+watching them across four `down` presses:
+
+```
+A  A  B  A  B        <- exactly the 2-item cycle observed on screen
+```
+
+This is the first memory data that **tracks the visible highlight**.
+
+### What the structure is
+
+`0x09DEE480` is a clean array of **16-float transform blocks** with a three-pointer tail:
+
+```
+0x09DEE4B0   09E36558   09E3735C   08C11F3C     <- cursor candidate block
+... next block at +0x50 ...
+0x09DEE500   09E00CC4   09E01400   08C10028
+0x09DEE550   09E00CDC   09E01460   08C105BC
+```
+
+Each block is 16 floats (four `1.0` / `-1.0` / `0.0` groups -- a matrix or orientation set) followed by
+three pointers. In the block that tracks the highlight, the **first two pointers alternate** and the
+**third is stable**.
+
+### Honest status: TRACKED, not yet decoded
+
+Stated precisely, because the distinction matters:
+
+* **Established:** these words carry information about the current highlight and flip with it. They are
+  press-driven, absent from the no-press control, and they cycle in step with the on-screen selection.
+* **Not established:** that they are the canonical selection index. They may be *derived* render state
+  (a transform for the highlighted row, rebuilt when the selection changes) rather than the navigation
+  state itself. With a **2-item** menu, a derived value and an index are indistinguishable -- period 2
+  is the only signal a 2-item list can give.
+* **Next step, and it needs a bigger menu:** on a menu with **more than 2 items**, a true index would
+  show period `N` and step 1, while derived transform state would show something else. This menu cannot
+  answer the question, so the target must change to the **title menu** (Story / Battle / Customize /
+  Museum / Shop / Options / Data).
+
+### Method note
+
+> **Save every sample.** The byte-level scan wrote all 21 samples to disk, which is what made the
+> subsequent word-level and kind-classification passes possible **without touching the emulator again**.
+> The candidate was found on the *third* analysis of the same data. Re-reading would have cost minutes
+> per hypothesis; re-analysing a saved array costs milliseconds.
+
+> **A control at the right granularity.** The no-press run rejected 0 of 73 candidates because they were
+> all genuinely press-related -- which is itself the useful result: it means the filter was selecting
+> real signal, not churn, and it promoted the 3 pointer-valued words from "suspicious" to "the cursor's
+> neighbourhood".
+
