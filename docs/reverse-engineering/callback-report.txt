@@ -1,0 +1,433 @@
+=== THE DELIVERY MECHANISM (doc sections 73-81) ===
+Three structures are unreferenced by the menu (pad object, service table, converted
+state). The pad layer TAIL-CALLS instead -- so follow those tail calls.
+
+=== FUN_000f6694 @ 000f6694  size=232 ===
+
+void FUN_000f6694(uint *param_1,undefined4 param_2,uint param_3,uint param_4)
+
+{
+  int iVar1;
+  uint uVar2;
+  uint uVar3;
+  uint uVar4;
+  uint uVar5;
+  float fVar6;
+  
+  iVar1 = DAT_003925b0;
+  uVar3 = param_1[1];
+  uVar2 = *param_1;
+  param_1[1] = param_4;
+  *param_1 = param_3;
+  uVar5 = (param_4 ^ uVar3) & param_4;
+  uVar4 = (param_3 ^ uVar2) & param_3;
+  param_1[3] = uVar5;
+  param_1[2] = uVar4;
+  param_1[5] = (param_4 ^ uVar3) & ~param_4;
+  param_1[4] = (param_3 ^ uVar2) & ~param_3;
+  uVar3 = DAT_00371cc4;
+  uVar2 = DAT_00371cc0;
+  param_1[7] = DAT_00371cc4;
+  param_1[6] = uVar2;
+  if ((uVar4 == uVar2) && (uVar5 == uVar3)) {
+    if ((param_3 != uVar2) || (param_4 != uVar3)) {
+      if (DAT_00392484 < 2.0) {
+        fVar6 = (float)param_1[0xc] - 2.0;
+      }
+      else {
+        fVar6 = (float)param_1[0xc] - DAT_00392484;
+      }
+      param_1[0xc] = (uint)fVar6;
+      if (fVar6 <= 0.0) {
+        uVar2 = *(uint *)(iVar1 + 0x260);
+        param_1[7] = param_4;
+        param_1[6] = param_3;
+        param_1[0xc] = uVar2;
+      }
+    }
+  }
+  else {
+    uVar2 = *(uint *)(iVar1 + 0x25c);
+    param_1[7] = uVar5;
+    param_1[6] = uVar4;
+    param_1[0xc] = uVar2;
+  }
+  return;
+}
+
+
+--- calls ---
+
+=== FUN_000f68e0 @ 000f68e0  size=548 ===
+
+/* WARNING: Type propagation algorithm not settling */
+
+void FUN_000f68e0(int param_1,int param_2)
+
+{
+  undefined4 local_50;
+  undefined4 local_4c;
+  undefined4 local_48;
+  undefined4 local_44;
+  undefined1 auStack_40 [4];
+  uint local_3c;
+  byte local_38;
+  undefined1 local_37;
+  
+  local_50 = DAT_003719b4;
+  local_4c = DAT_003719b4;
+  local_48 = 0;
+  local_44 = 0;
+  if (*(int *)(param_1 + 0x50) == 1) {
+                    /* WARNING: Subroutine does not return */
+    FUN_00354d84((float)*(byte *)(param_1 + 0x48),0,&local_50,*(undefined1 *)(param_1 + 0x49));
+  }
+  if (param_2 == 0) {
+    FUN_0036da4c(auStack_40,1);
+    if ((local_3c & 0x20000) != 0) {
+      local_38 = 0x80;
+      local_37 = 0x80;
+    }
+                    /* WARNING: Subroutine does not return */
+    FUN_00354d84((float)local_38,0,&local_50,local_37);
+  }
+  FUN_000f68c4(param_1,&local_50);
+  FUN_000f6694(param_1);
+  return;
+}
+
+
+--- calls ---
+   000f68c4  FUN_000f68c4
+   000f6694  FUN_000f6694
+   0036da4c  FUN_0036da4c
+   00354d84  FUN_00354d84
+
+=== FUN_000f7138 @ 000f7138  size=112 ===
+
+void FUN_000f7138(int param_1)
+
+{
+  undefined4 *puVar1;
+  
+  puVar1 = *(undefined4 **)(param_1 + 0x40);
+  FUN_000f70c4(param_1,puVar1,*puVar1,puVar1[1]);
+  puVar1 = *(undefined4 **)(param_1 + 0x40);
+  if (*(int *)(param_1 + 0x4c) != 0) {
+    FUN_000f70c4(param_1,puVar1,*puVar1,puVar1[1]);
+    puVar1 = *(undefined4 **)(param_1 + 0x40);
+  }
+                    /* WARNING: Subroutine does not return */
+  FUN_00354db0(param_1 + 0x20,puVar1 + 8);
+}
+
+
+--- calls ---
+   00354db0  FUN_00354db0
+   000f70c4  FUN_000f70c4
+
+================================================================
+=== FUN_00354d84 @ 00354d84  size=24 ===
+================================================================
+
+undefined4 * FUN_00354d84(undefined8 param_1,undefined8 param_2,undefined4 *param_3)
+
+{
+  *param_3 = (int)param_1;
+  param_3[1] = (int)((ulonglong)param_1 >> 0x20);
+  param_3[2] = (int)param_2;
+  param_3[3] = (int)((ulonglong)param_2 >> 0x20);
+  return param_3;
+}
+
+
+
+--- INDIRECT CALLS / function-pointer loads (dispatcher tell) ---
+   00354d94  jr ra
+
+--- CALLED BY (count and sample) ---
+   refs=111  distinct callers=70
+   001a8244  FUN_001a8244  size=84
+   000019e8  FUN_000019e8  size=632
+   0000d568  FUN_0000d568  size=224
+   000dbcec  FUN_000dbcec  size=680
+   000de5c8  FUN_000de5c8  size=224
+   000bf93c  FUN_000bf93c  size=572
+   000bfd78  FUN_000bfd78  size=472
+   000a485c  FUN_000a485c  size=760
+   00015404  FUN_00015404  size=216
+   00015518  FUN_00015518  size=164
+   000156d8  FUN_000156d8  size=484
+   00012e04  FUN_00012e04  size=856
+   0006a6b8  FUN_0006a6b8  size=252
+   000462a0  FUN_000462a0  size=88
+   00066af0  FUN_00066af0  size=112
+   00066838  FUN_00066838  size=232
+   00068684  FUN_00068684  size=140
+   00073268  FUN_00073268  size=164
+   000737ec  FUN_000737ec  size=452
+   00072368  FUN_00072368  size=416
+   00078184  FUN_00078184  size=220
+   0007a504  FUN_0007a504  size=184
+   000858ac  FUN_000858ac  size=312
+   0008a740  FUN_0008a740  size=252
+   0008a008  FUN_0008a008  size=456
+   0008a228  FUN_0008a228  size=752
+   0008ae80  FUN_0008ae80  size=476
+   000e6690  FUN_000e6690  size=60
+   000ee6a0  FUN_000ee6a0  size=340
+   00104300  FUN_00104300  size=204
+   0008e3fc  FUN_0008e3fc  size=516
+   0008e7bc  FUN_0008e7bc  size=668
+   0008f668  FUN_0008f668  size=428
+   0008fc28  FUN_0008fc28  size=152
+   00092074  FUN_00092074  size=1336
+   00093cd4  FUN_00093cd4  size=748
+   00094790  FUN_00094790  size=608
+   00093930  FUN_00093930  size=680
+   000954f4  FUN_000954f4  size=460
+   00096334  FUN_00096334  size=328
+   ... more
+
+================================================================
+=== FUN_00354db0 @ 00354db0  size=40 ===
+================================================================
+
+undefined4 * FUN_00354db0(undefined4 *param_1,undefined4 *param_2)
+
+{
+  undefined4 uVar1;
+  undefined4 uVar2;
+  undefined4 uVar3;
+  
+  uVar3 = param_2[3];
+  uVar1 = param_2[1];
+  uVar2 = param_2[2];
+  *param_1 = *param_2;
+  param_1[1] = uVar1;
+  param_1[2] = uVar2;
+  param_1[3] = uVar3;
+  return param_1;
+}
+
+
+
+--- INDIRECT CALLS / function-pointer loads (dispatcher tell) ---
+   00354db4  lwc1 f1,0x0(a1)
+   00354db8  lwc1 f2,0x4(a1)
+   00354dbc  lwc1 f3,0x8(a1)
+   00354dd0  jr ra
+
+--- CALLED BY (count and sample) ---
+   refs=440  distinct callers=262
+   001a9988  FUN_001a9988  size=172
+   000a1424  FUN_000a1424  size=84
+   000a150c  FUN_000a150c  size=24
+   000010f0  FUN_000010f0  size=68
+   0007d478  FUN_0007d478  size=240
+   00002184  FUN_00002184  size=260
+   00008b04  FUN_00008b04  size=168
+   0009fdb8  FUN_0009fdb8  size=832
+   000a14f0  FUN_000a14f0  size=16
+   00004210  FUN_00004210  size=96
+   00004804  FUN_00004804  size=556
+   00005a18  FUN_00005a18  size=52
+   000a1a48  FUN_000a1a48  size=64
+   00007f98  FUN_00007f98  size=36
+   00008080  FUN_00008080  size=244
+   00009018  FUN_00009018  size=260
+   00009130  FUN_00009130  size=316
+   000a2840  FUN_000a2840  size=132
+   0000b228  FUN_0000b228  size=180
+   0000d568  FUN_0000d568  size=224
+   0000dfb0  FUN_0000dfb0  size=156
+   00010da8  FUN_00010da8  size=240
+   000109c8  FUN_000109c8  size=168
+   000af0e0  FUN_000af0e0  size=4428
+   000dc430  FUN_000dc430  size=156
+   000bf6c8  FUN_000bf6c8  size=232
+   000de534  FUN_000de534  size=120
+   000e2d58  FUN_000e2d58  size=696
+   000e3704  FUN_000e3704  size=152
+   000e42c0  FUN_000e42c0  size=260
+   000edf6c  FUN_000edf6c  size=28
+   0000eebc  FUN_0000eebc  size=316
+   0000f308  FUN_0000f308  size=204
+   0000fc74  FUN_0000fc74  size=168
+   000168f8  FUN_000168f8  size=1292
+   000a7414  FUN_000a7414  size=288
+   00010044  FUN_00010044  size=32
+   00010088  FUN_00010088  size=48
+   00017a98  FUN_00017a98  size=448
+   00016430  FUN_00016430  size=388
+   ... more
+
+================================================================
+=== FUN_00354db0 @ 00354db0  size=40 ===
+================================================================
+
+undefined4 * FUN_00354db0(undefined4 *param_1,undefined4 *param_2)
+
+{
+  undefined4 uVar1;
+  undefined4 uVar2;
+  undefined4 uVar3;
+  
+  uVar3 = param_2[3];
+  uVar1 = param_2[1];
+  uVar2 = param_2[2];
+  *param_1 = *param_2;
+  param_1[1] = uVar1;
+  param_1[2] = uVar2;
+  param_1[3] = uVar3;
+  return param_1;
+}
+
+
+
+--- INDIRECT CALLS / function-pointer loads (dispatcher tell) ---
+   00354db4  lwc1 f1,0x0(a1)
+   00354db8  lwc1 f2,0x4(a1)
+   00354dbc  lwc1 f3,0x8(a1)
+   00354dd0  jr ra
+
+--- CALLED BY (count and sample) ---
+   refs=440  distinct callers=262
+   001a9988  FUN_001a9988  size=172
+   000a1424  FUN_000a1424  size=84
+   000a150c  FUN_000a150c  size=24
+   000010f0  FUN_000010f0  size=68
+   0007d478  FUN_0007d478  size=240
+   00002184  FUN_00002184  size=260
+   00008b04  FUN_00008b04  size=168
+   0009fdb8  FUN_0009fdb8  size=832
+   000a14f0  FUN_000a14f0  size=16
+   00004210  FUN_00004210  size=96
+   00004804  FUN_00004804  size=556
+   00005a18  FUN_00005a18  size=52
+   000a1a48  FUN_000a1a48  size=64
+   00007f98  FUN_00007f98  size=36
+   00008080  FUN_00008080  size=244
+   00009018  FUN_00009018  size=260
+   00009130  FUN_00009130  size=316
+   000a2840  FUN_000a2840  size=132
+   0000b228  FUN_0000b228  size=180
+   0000d568  FUN_0000d568  size=224
+   0000dfb0  FUN_0000dfb0  size=156
+   00010da8  FUN_00010da8  size=240
+   000109c8  FUN_000109c8  size=168
+   000af0e0  FUN_000af0e0  size=4428
+   000dc430  FUN_000dc430  size=156
+   000bf6c8  FUN_000bf6c8  size=232
+   000de534  FUN_000de534  size=120
+   000e2d58  FUN_000e2d58  size=696
+   000e3704  FUN_000e3704  size=152
+   000e42c0  FUN_000e42c0  size=260
+   000edf6c  FUN_000edf6c  size=28
+   0000eebc  FUN_0000eebc  size=316
+   0000f308  FUN_0000f308  size=204
+   0000fc74  FUN_0000fc74  size=168
+   000168f8  FUN_000168f8  size=1292
+   000a7414  FUN_000a7414  size=288
+   00010044  FUN_00010044  size=32
+   00010088  FUN_00010088  size=48
+   00017a98  FUN_00017a98  size=448
+   00016430  FUN_00016430  size=388
+   ... more
+
+================================================================
+=== 0x00354D80  [no function] ===
+
+================================================================
+=== FUN_0033c468 @ 0033c468  size=76 ===
+================================================================
+
+void FUN_0033c468(int param_1)
+
+{
+  undefined4 local_80;
+  undefined1 local_7c;
+  undefined4 local_78;
+  
+  local_80 = DAT_0039c884;
+  local_7c = 2;
+  local_78 = 0;
+  if (param_1 != 0) {
+    DAT_0039c884 = &local_80;
+    FUN_0033fc2c();
+  }
+  DAT_0039c884 = (undefined4 *)local_80;
+  return;
+}
+
+
+
+--- INDIRECT CALLS / function-pointer loads (dispatcher tell) ---
+   0033c49c  lw a0,0x0(sp)
+   0033c4ac  jr ra
+
+--- CALLED BY (count and sample) ---
+   refs=429  distinct callers=429
+   00071284  FUN_00071284  size=88
+   00071574  FUN_00071574  size=104
+   0009b2fc  FUN_0009b2fc  size=80
+   000a8438  FUN_000a8438  size=92
+   00014090  FUN_00014090  size=144
+   000f3f9c  FUN_000f3f9c  size=44
+   000f4108  FUN_000f4108  size=44
+   001ac7d4  FUN_001ac7d4  size=52
+   001f3988  FUN_001f3988  size=188
+   001f2e6c  FUN_001f2e6c  size=76
+   001f29b8  FUN_001f29b8  size=44
+   0033c424  FUN_0033c424  size=68
+   000187c4  FUN_000187c4  size=88
+   00030fc4  FUN_00030fc4  size=88
+   000373fc  FUN_000373fc  size=304
+   0002eb4c  FUN_0002eb4c  size=88
+   00038ea0  FUN_00038ea0  size=108
+   00039304  FUN_00039304  size=108
+   0003982c  FUN_0003982c  size=108
+   00039db4  FUN_00039db4  size=108
+   0003a2a8  FUN_0003a2a8  size=216
+   00031fac  FUN_00031fac  size=88
+   00032bd0  FUN_00032bd0  size=88
+   00035e10  FUN_00035e10  size=88
+   0003ef04  FUN_0003ef04  size=108
+   0003f5d0  FUN_0003f5d0  size=108
+   0003fe54  FUN_0003fe54  size=108
+   00040460  FUN_00040460  size=120
+   00040bb8  FUN_00040bb8  size=108
+   000411f8  FUN_000411f8  size=108
+   000416c8  FUN_000416c8  size=108
+   00041a24  FUN_00041a24  size=108
+   00041ebc  FUN_00041ebc  size=108
+   000423a8  FUN_000423a8  size=108
+   00043cbc  FUN_00043cbc  size=88
+   000447b8  FUN_000447b8  size=88
+   000450ec  FUN_000450ec  size=88
+   00045e20  FUN_00045e20  size=100
+   00047b70  FUN_00047b70  size=88
+   00049bb0  FUN_00049bb0  size=100
+   ... more
+
+================================================================
+=== FUN_0033c4b4 @ 0033c4b4  size=28 ===
+================================================================
+
+void FUN_0033c4b4(void)
+
+{
+  FUN_0033c62c(4);
+  return;
+}
+
+
+
+--- INDIRECT CALLS / function-pointer loads (dispatcher tell) ---
+   0033c4c4  lw ra,0x0(sp)
+   0033c4c8  jr ra
+
+--- CALLED BY (count and sample) ---
+   refs=1  distinct callers=1
+   0033c4d0  FUN_0033c4d0  size=84
+
