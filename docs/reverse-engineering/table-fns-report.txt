@@ -1,0 +1,177 @@
+=== THE DELIVERY TABLE'S ENTRY POINTS (doc section 84) ===
+table @ RAM 0x09FFF604 holds fn pointers 0x088FB070/0x088FB7CC/0x088FB768/0x088FB930
+-> vaddrs 0x000F7070 / 0x000F77CC / 0x000F7768 / 0x000F7930
+
+=== 1. functions in the pad band 0xf7000-0xf7a00 ===
+   000f701c  FUN_000f701c  size=12
+   000f7028  FUN_000f7028  size=156
+   000f70c4  FUN_000f70c4  size=116
+   000f7138  FUN_000f7138  size=112
+   000f71c8  FUN_000f71c8  size=92
+   000f7224  FUN_000f7224  size=92
+   000f7280  FUN_000f7280  size=92
+   000f72dc  FUN_000f72dc  size=92
+   000f7338  FUN_000f7338  size=184
+   000f73f0  FUN_000f73f0  size=48
+   000f7420  FUN_000f7420  size=32
+   000f7440  FUN_000f7440  size=88
+   000f7498  FUN_000f7498  size=88
+   000f74f0  FUN_000f74f0  size=36
+   000f7514  FUN_000f7514  size=40
+   000f753c  FUN_000f753c  size=32
+   000f7580  FUN_000f7580  size=24
+   000f7598  FUN_000f7598  size=164
+   000f763c  FUN_000f763c  size=184
+   000f76f4  FUN_000f76f4  size=152
+   000f778c  FUN_000f778c  size=100
+   000f77f0  FUN_000f77f0  size=100
+   000f7854  FUN_000f7854  size=184
+   000f790c  FUN_000f790c  size=136
+   000f7994  FUN_000f7994  size=152
+
+================================================================
+=== FUN_000f7028 @ 000f7028  size=156  [interior +0x48] ===
+================================================================
+
+void FUN_000f7028(undefined8 *param_1)
+
+{
+  int iVar1;
+  undefined4 uVar2;
+  undefined8 uVar3;
+  
+  iVar1 = FUN_000f701c();
+  if (iVar1 == 0) {
+    uVar3 = FUN_000f7138(param_1);
+    uVar2 = (undefined4)((ulonglong)uVar3 >> 0x20);
+    if ((*(uint *)((int)param_1 + 0x44) & 2) != 0) {
+      *param_1 = uVar3;
+    }
+    FUN_000f6694(param_1,uVar2,(int)uVar3,uVar2);
+    *(uint *)((int)param_1 + 0x44) = *(uint *)((int)param_1 + 0x44) & 0xfffffffd;
+  }
+  else {
+    FUN_000f6604(param_1);
+    *(uint *)((int)param_1 + 0x44) = *(uint *)((int)param_1 + 0x44) | 2;
+  }
+  return;
+}
+
+
+
+--- CALLED BY ---
+   refs=2  distinct callers=2
+   000f73f0  FUN_000f73f0  size=48
+   000f778c  FUN_000f778c  size=100
+
+--- CALLS ---
+   000f701c  FUN_000f701c  size=12
+   000f6604  FUN_000f6604  size=132
+   000f6694  FUN_000f6694  size=232
+   000f7138  FUN_000f7138  size=112
+
+================================================================
+=== FUN_000f76f4 @ 000f76f4  size=152  [interior +0x74] ===
+================================================================
+
+void FUN_000f76f4(int param_1)
+
+{
+  int iVar1;
+  
+  if ((*(uint *)(DAT_003925b0 + 0x264) & 1) == 0) {
+    iVar1 = 0;
+    do {
+      FUN_000f68e0(param_1,iVar1);
+      iVar1 = iVar1 + 1;
+      param_1 = param_1 + 0x60;
+    } while (iVar1 < 2);
+  }
+  else if ((*(uint *)(DAT_003925b0 + 0x264) & 8) == 0) {
+    FUN_000f68e0(param_1 + 0x1e0,0);
+  }
+  else {
+    FUN_000f6868();
+  }
+  return;
+}
+
+
+
+--- CALLED BY ---
+   refs=1  distinct callers=1
+   000f790c  FUN_000f790c  size=136
+
+--- CALLS ---
+   000f6868  FUN_000f6868  size=92
+   000f68e0  FUN_000f68e0  size=548
+
+================================================================
+=== FUN_000f778c @ 000f778c  size=100  [interior +0x40] ===
+================================================================
+
+void FUN_000f778c(int param_1)
+
+{
+  int iVar1;
+  
+  if ((*(uint *)(DAT_003925b0 + 0x264) & 1) == 0) {
+    iVar1 = 0;
+    param_1 = param_1 + 0xc0;
+    do {
+      FUN_000f7028(param_1);
+      iVar1 = iVar1 + 1;
+      param_1 = param_1 + 0x50;
+    } while (iVar1 < 2);
+  }
+  return;
+}
+
+
+
+--- CALLED BY ---
+   refs=1  distinct callers=1
+   000f790c  FUN_000f790c  size=136
+
+--- CALLS ---
+   000f7028  FUN_000f7028  size=156
+
+================================================================
+=== FUN_000f790c @ 000f790c  size=136  [interior +0x24] ===
+================================================================
+
+void FUN_000f790c(void)
+
+{
+  int iVar1;
+  int iVar2;
+  code *pcVar3;
+  
+  iVar1 = DAT_003925b0;
+  FUN_000f76f4(DAT_003925b0);
+  FUN_000f778c(iVar1);
+  FUN_000f77f0(iVar1);
+  pcVar3 = *(code **)(*(int *)(iVar1 + 0x34) + 0xc);
+  iVar2 = (*pcVar3)(iVar1 + *(short *)(*(int *)(iVar1 + 0x34) + 8),pcVar3,DAT_00371d18,DAT_00371d1c)
+  ;
+  if (iVar2 == 0) {
+    *(uint *)(iVar1 + 0x264) = *(uint *)(iVar1 + 0x264) & 0xfffffffb;
+  }
+  else {
+    *(uint *)(iVar1 + 0x264) = *(uint *)(iVar1 + 0x264) | 4;
+  }
+  return;
+}
+
+
+
+--- CALLED BY ---
+   refs=2  distinct callers=2
+   00269d64  FUN_00269d64  size=304
+   000f7994  FUN_000f7994  size=152
+
+--- CALLS ---
+   000f76f4  FUN_000f76f4  size=152
+   000f77f0  FUN_000f77f0  size=100
+   000f778c  FUN_000f778c  size=100
+

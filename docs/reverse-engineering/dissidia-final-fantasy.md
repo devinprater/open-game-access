@@ -7011,3 +7011,135 @@ Two concrete follow-ups, both bounded:
 > the cumulative consistency across different methods that makes "reached by registry walk" the supported
 > conclusion rather than another guess.
 
+
+
+---
+
+## 85. THE INPUT EVENT STATE -- edge detection with just-pressed and just-released bits
+
+Section 84's follow-up was to read the delivery table's four entry points and find their callers. Doing so
+led straight to the function that produces the input events the menu would consume.
+
+### The entry points are interior addresses in pad-band functions, and the chain closes
+
+```
+0x000F7070  -> FUN_000f7028 @ 000f7028  [interior +0x48]
+0x000F7768  -> FUN_000f778c @ 000f778c  [interior +0x40]
+0x000F77CC  -> FUN_000f76f4 @ 000f76f4  [interior +0x74]
+0x000F7930  -> FUN_000f790c @ 000f790c  [interior +0x24]
+```
+
+The band contains **25 functions**, and the chain from section 79 onward is all present in it. The critical
+link is `FUN_000f7028` (containing entry `0x000F7070`):
+
+```c
+void FUN_000f7028(undefined8 *param_1)
+{
+  iVar1 = FUN_000f701c();
+  if (iVar1 == 0) {
+    uVar3 = FUN_000f7138(param_1);                    // <- the TRANSLATED logical bits (s79)
+    uVar2 = (undefined4)((ulonglong)uVar3 >> 0x20);
+    if ((*(uint *)((int)param_1 + 0x44) & 2) != 0) {
+      *param_1 = uVar3;                               // <- store at +0x00 (s80)
+    }
+    FUN_000f6694(param_1, uVar2, (int)uVar3, uVar2);  // <- HAND THE BITS ON
+    *(uint *)((int)param_1 + 0x44) = *(uint *)((int)param_1 + 0x44) & 0xfffffffd;
+  } else {
+    FUN_000f6604(param_1);
+    *(uint *)((int)param_1 + 0x44) = *(uint *)((int)param_1 + 0x44) | 2;
+  }
+}
+```
+
+So the translated bit pair is **passed as arguments** to `FUN_000f6694` -- and `FUN_000f6694` is exactly where
+all three read watchpoints landed (sections 78, 81).
+
+### `FUN_000f6694` is the BUTTON-EDGE processor
+
+```c
+void FUN_000f6694(uint *param_1, undefined4 param_2, uint param_3, uint param_4)
+{
+  iVar1 = DAT_003925b0;
+  uVar3 = param_1[1];  uVar2 = *param_1;
+  param_1[1] = param_4;                    // current B
+  *param_1   = param_3;                    // current A
+  uVar5 = (param_4 ^ uVar3) & param_4;     // B_cur & ~B_prev
+  uVar4 = (param_3 ^ uVar2) & param_3;     // A_cur & ~A_prev
+  param_1[3] = uVar5;                      // << JUST-PRESSED B
+  param_1[2] = uVar4;                      // << JUST-PRESSED A
+  param_1[5] = (param_4 ^ uVar3) & ~param_4;   // B_prev & ~B_cur
+  param_1[4] = (param_3 ^ uVar2) & ~param_3;   // A_prev & ~A_cur
+  ...
+  param_1[7] = DAT_00371cc4;  param_1[6] = DAT_00371cc0;   // reset "changed" to the sentinel
+  if ((uVar4 == uVar2) && (uVar5 == uVar3)) {              // nothing changed?
+    ...
+    fVar6 = (float)param_1[0xc] - 2.0;                     // else start the REPEAT TIMER
+    ...
+    param_1[0xc] = (uint)fVar6;
+    if (fVar6 <= 0.0) {
+      uVar2 = *(uint *)(iVar1 + 0x260);                    // reload repeat delay from the pad object
+      param_1[7] = param_4;  param_1[6] = param_3;         // re-arm "changed"
+      param_1[0xc] = uVar2;
+```
+
+This is **edge detection with auto-repeat**, and the offsets are now fully named:
+
+| field | meaning |
+|---|---|
+| `+0x00`, `+0x04` | **current** logical button state (A, B) |
+| `+0x08`, `+0x0C` | **just-PRESSED** this frame (A, B) |
+| `+0x10`, `+0x14` | **just-RELEASED** this frame (A, B) |
+| `+0x18`, `+0x1C` | "changed" flags, reset to the sentinel pair |
+| `+0x30` | **repeat timer** (float), decremented by 2.0 or by `DAT_00392484` |
+| pad `+0x260` | the **repeat delay** constant, reloaded on expiry |
+
+The `- 2.0` / `DAT_00392484` branch and the `<= 0.0` test with a reload from `pad + 0x260` is unmistakably
+**key-repeat timing**.
+
+### Why this is the answer to the whole search
+
+The menu does not need to read the pad object, the converted state, or the delivery table -- it needs
+**just-pressed and just-released bits**, and this function writes them into a struct at
+`param_1 + 0x08`, `+0x0C`, `+0x10`, `+0x14`. That is exactly the input representation a menu consumes to move
+a selection one row per press, and it explains every negative in sections 73-84: **nothing polls a raw state;
+consumers read *edges*.**
+
+The chain is now complete and every link is code-verified:
+
+```
+sceCtrl -> pad object (+0x00 raw)
+        -> FUN_000f7138 reads raw
+        -> FUN_000f70c4 maps raw -> LOGICAL bits via {mask,mask,out,out} table      (s79)
+        -> FUN_000f7028 stores at +0x00 and hands the bits to FUN_000f6694          (s85)
+        -> FUN_000f6694 computes JUST-PRESSED / JUST-RELEASED at +0x08/0x0C/0x10/0x14 (s85)
+        -> + repeat timer at +0x30, delay from pad+0x260                            (s85)
+```
+
+### The immediate next measurement
+
+The struct passed as `param_1` is the **input event object**, and its address is now the single most valuable
+value in the investigation. Two ways to get it, both bounded:
+
+1. **Breakpoint on `FUN_000f6694`** and read `param_1` (first argument) -- names the object directly.
+2. **Read-watch `param_1 + 0x08`** (just-pressed) once the address is known -- the readers of *that* field are
+   the menu's input handlers by definition, and it is the same instrument that worked in sections 78/81.
+
+This is the first address in the entire investigation whose semantics are known precisely enough to make a
+reader enumeration conclusive: a consumer of a "just-pressed" bit is doing input handling, unambiguously.
+
+### Method note
+
+> **Interior addresses in a function are dispatch entries.** All four of the table's code pointers were
+> *inside* functions (`+0x48`, `+0x40`, `+0x74`, `+0x24`), not at their entries: the table stores
+> **vtable-style slots**, not function starts. Recognising that removed the confusion about "interior
+> pointer" and pointed at `FUN_000f7028` as the containing unit.
+
+> **Read the callee when the caller passes values.** `FUN_000f7028` computed nothing of interest itself --
+> it stored and forwarded. Following the *arguments* into `FUN_000f6694` is what produced the edge state,
+> and that function had already been seen three times by the read watchpoints without being understood.
+
+> **`(new ^ old) & new` is the signature of edge detection.** Two lines of that form, one per button word,
+> is what identifies just-pressed bits -- and the `& ~new` twin gives just-released. Recognising the idiom
+> in decompiled output is faster than tracing the data flow, and it immediately explains the repeat timer
+> that follows.
+
