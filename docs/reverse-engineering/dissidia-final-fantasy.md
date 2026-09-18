@@ -1628,3 +1628,83 @@ actually has a list) and a candidate set built from the menu *screen* code rathe
   menu is static. Measure the two-frame difference *first*, then interpret presses — otherwise a press
   on an animating screen looks like progress (Rule 88's lesson, now with the measurement attached).
 
+
+
+---
+
+## 25. Driving the game: OCR, the prologue wall, and an honest status on Story Mode
+
+The task was to get into Story Mode. **Not reached**, and this section records exactly where the
+attempt stopped, because the blockers are real and repeatable rather than incidental.
+
+### A new instrument: OCR works, and it reads the plain UI font
+
+`scoop install tesseract` + `scoop install tesseract-languages`. Note the packaging trap:
+**`TESSDATA_PREFIX` must point at the `tesseract-languages` pack**, because scoops's `tesseract`
+ships no `eng.traineddata` of its own (the default path fails with
+`Error opening data file .../tesseract/current/tessdata/eng.traineddata`).
+
+Reading the screen as text is the right instrument for an accessibility project and it immediately
+paid off on the **plain UI font**:
+
+| screen | OCR read |
+|---|---|
+| pause | `PAUSED` … `Return to Game`, `Retry` |
+| tutorial | "Bravery attacks: use © to steal bravery!" then "HP attacks: use @ to deal damage!" |
+| save/title | `Load` … `DISSIDIA FINAL FANTASY` … `GAME DATA` |
+
+But it **cannot** read the stylized display font: on a scene it returns noise (`—EE`, `-™`, `Se`).
+So OCR is a good reader for menus in the plain font and useless for scene text — RAM text remains the
+general answer. Script `scripts/psp-ocr.py` wraps capture + preprocessing + tesseract.
+
+### What the input sweep established
+
+Driving with blind presses, the tutorial advanced in a repeatable, meaningful order:
+
+1. `Bravery attacks: use © to steal bravery!` — waits for **circle**
+2. `HP attacks: use @ to deal damage!` — waits for **square**
+3. `A @ attack can wm it!` — the finisher
+
+This is why the first `cross` sweep looked like a hang: **`cross` is not the button these tutorial
+prompts want.** A press that produces no change on a screen whose prompt names a different button is
+not evidence the game is stuck.
+
+### Where it stopped
+
+After finishing that scripted sequence the game returned to an animating scene, and a save
+(`ULUS10437GameData00/DISSIDIA.BIN`, 286,344 B) was written. The save **loads into the prologue
+tutorial battle**, not into Story Mode, so "Continue" does not lead there.
+
+Story Mode sits on the **title screen's** mode list (Story / Battle / Customize / Museum / Shop /
+Options / Data). Reaching Story Mode therefore requires either finishing the prologue or navigating
+the title menu by blind input, and the title menu's labels are in the stylized font that OCR cannot
+resolve — so the navigation loop is blind again. **That is the wall.**
+
+### Corrected in this section
+
+An earlier claim in this turn — "story mode is loaded, the region asset strings are resident" — was
+**wrong**, and the check that falsified it is worth keeping: every one of those strings
+(`region/storypoint.stp`, `talkevent/%s`, `region/map/st_%02d_%02d.rgn`,
+`region/prog/progress_%02d.prg`, `region/reward/DPB_get_tbl.dgt`) **is present in `EBOOT.BIN.dec`
+itself**. They are static EBOOT data and are resident in RAM whenever the module is loaded,
+regardless of game state. This is the **fourth instance of the same trap** (resident string pool ≠
+live state; menus are ID lists; chapter names are static; `main_lang.bin` is a template), and the
+general rule is now explicit:
+
+> **Before treating a resident string as evidence of game state, check whether the string exists in
+> the EBOOT.** If it does, its presence carries no state information at all. The only strings that
+> indicate live state are ones that are *absent* from the ELF and present in RAM (e.g. the
+> `main_lang.bin` menu labels), and even those are loaded once at startup rather than per-screen.
+
+### Method corrections to carry forward
+
+* **Screenshot capture from an in-process `subprocess.run()` silently produces no file**; capture
+  works from the shell. This has now bitten three separate scripts, so `psp-ocr.py` reports
+  `CAPTURE FAILED` explicitly rather than returning "no change" (a missing capture must never read as
+  a negative result).
+* **`taskkill //F` fails under MSYS** ("Invalid argument/option - '//F'") and `cmd /c start` without
+  care spawns duplicate emulator instances — two and then three PPSSPP processes were left running.
+  Kill with PowerShell `Stop-Process -Force` and verify the count is exactly 1 before driving.
+* **A press that changes nothing is not proof of a hang** — check which button the on-screen prompt
+  names first.
+
