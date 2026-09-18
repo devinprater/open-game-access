@@ -6912,3 +6912,102 @@ Step 1 is one pass; step 2 uses the instrument already proven in sections 78 and
 > in one subsystem band. Recognising the same record form twice is what lets the second be read immediately
 > rather than re-derived.
 
+
+
+---
+
+## 84. The delivery table is heap-allocated and NOTHING holds it -- the dispatch is by registration
+
+Section 83 found a heap record table holding all three converted-input pointers plus same-subsystem function
+pointers, and named the next step: find who holds it. This section runs that search.
+
+### Nothing holds the table
+
+Scanning all 24 MB for words equal to the table's own addresses:
+
+```
+  0x09FFF604  (delivery-table record A, port1)  -> 0 holder(s)
+  0x09FFF630  (delivery-table record B, pad obj) -> 0 holder(s)
+  0x09FFF5F0  (near table start)                -> 0 holder(s)
+  0x09FFF610  (record A+0xC)                    -> 0 holder(s)
+```
+
+**Zero holders for every table address.** The only hits at all are the table's own function-pointer values,
+each held exactly once -- by the table itself:
+
+```
+  0x088FB070  -> 1 holder: 0x09FFF61C  (-4:PTR 0x08C5DFC8  +4:PTR 0x09EDA460  +8:PTR 0x088FB7CC)
+  0x088FB7CC  -> 1 holder: 0x09FFF624  (-8:PTR 0x088FB070 -4:PTR 0x09EDA460  +4:PTR 0x088FB768)
+  0x088FB768  -> 1 holder: 0x09FFF628  (-8:PTR 0x09EDA460 +4:PTR 0x09EDA3A0)
+  0x088FB930  -> 1 holder: 0x09FFF638  (-8:PTR 0x09EDA3A0 -4:0x00000001  +4:PTR 0x08C5E304)
+```
+
+### The "function pointers" are verified code
+
+The apparent interior-pointer pattern resolves cleanly: the table's entries **interleave** state pointers
+and code pointers, so each code slot's neighbours are state addresses. Reading the targets:
+
+```
+  0x088FB070: 0x6800289A 0x00602825 0x30C60002 0x0006302B
+  0x088FB768: 0x68099E92 0x2A240002 0x1480FFFA 0x26100060
+  0x088FB7CC: 0x6800172A 0x2A240002 0x1480FFFB 0x26100050
+  0x088FB930: 0x6800307A 0x02002025 0x68003756 0x24860008
+```
+
+These are **MIPS instructions** (`0x6800289A`, `0x2A240002`, `0x1480FFFB` = `bne` with a negative offset,
+`0x24860008` = `addiu`). So they are genuine functions at vaddrs `0x000F7070`, `0x000F7768`, `0x000F77CC`,
+`0x000F7930` -- all in the pad band, confirming section 83's reading: **a heap dispatch table of
+`{state_ptr, flags, fn_ptr}` entries for the two pad ports**.
+
+### What this completes
+
+The full indirection chain, now measured at every level:
+
+| level | structure | referenced by |
+|---|---|---|
+| 1 | pad object `0x09EDA3A0` | 21 functions, **0** touching the menu (s73) |
+| 2 | service table `0x00392B7C` | 2 refs, both construction (s77) |
+| 3 | converted state `pad+0xC0` | 2 readers, both pad-internal (s81) |
+| 4 | input driver `FUN_000f7498` | 10 callers, **all score 0** for menu (s82) |
+| 5 | **delivery table `0x09FFF604`** | **0 holders** (s84) |
+
+**Five structures, five negatives, each arrived at by a different method.** The delivery table is the most
+revealing: it is a **runtime-allocated dispatch table with no referrer at all**, which means it is reached
+not by a stored pointer but by **position or lookup** -- exactly the shape of a registration mechanism like
+`FUN_0033c4d0`'s intrusive list (section 74), where an object joins a list and is found by walking it.
+
+### The conclusion this licenses
+
+The pad subsystem's input path is a **registered, self-contained service**: it allocates its own dispatch
+table, holds its own state, exposes nothing by symbol, and nothing holds a pointer to it. A consumer reaches
+it only by **walking a registry that is populated at init time**.
+
+That is consistent with every negative in sections 73-84, and it reframes the remaining problem precisely:
+the menu's input handling is reached through the **registry/dispatch machinery**, not through any object or
+static that a symbol-based search can see.
+
+Two concrete follow-ups, both bounded:
+
+1. **Find the registration call that adds this table** -- the table must be inserted somewhere at creation;
+   a write watchpoint on the table's address at *startup* (before the menu exists) would catch the
+   registration, which is a different, cleaner phase than the press-driven windows used so far.
+2. **Read the table's own pointers as the interface** -- the code pointers at `0x000F7070`/`0x000F7768`/
+   `0x000F77CC`/`0x000F7930` are the pad service's entry points; whichever caller invokes *those* is a
+   consumer, and they are four specific addresses now.
+
+### Method note
+
+> **A structure with zero holders is informative, not a failure.** "Nothing references the delivery table"
+> rules out the stored-pointer mechanism and points at registration/lookup instead. Reporting the *absence*
+> as the finding -- rather than as an inconclusive search -- is what redirected the reasoning.
+
+> **Interleaved records make pointers look interior.** The table alternates state and code pointers, so each
+> code slot's neighbours look like a containing range. **Reading the target bytes** (`0x1480FFFB` = a `bne`)
+> settled it: real functions, interleaved layout. Checking content, not just address arithmetic, is what
+> distinguishes the two readings.
+
+> **Five independent negatives license a mechanism claim.** Each earlier section ruled out one way the menu
+> could reach input; the fifth (no holder for the dispatch table) rules out stored pointers entirely. It is
+> the cumulative consistency across different methods that makes "reached by registry walk" the supported
+> conclusion rather than another guess.
+
