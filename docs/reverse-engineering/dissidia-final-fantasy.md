@@ -1263,3 +1263,79 @@ scanning, no pointer chase. That is the whole prerequisite for the cursor step, 
 **Caveat retained:** the base is confirmed for *this* build (ULUS10437, disc v1.00). The project rule
 stands — never carry a base across games.
 
+
+
+---
+
+## 20. CORRECTION to section 17: `DAT_00397770` is NOT the menu manager
+
+Section 17 stated that the menu manager is a static struct at `DAT_00397770`. **That is wrong**, and
+reading the live game proves it.
+
+### What `DAT_00397770` actually is: a chapter/stage name table
+
+With the load base now confirmed (section 19), the struct was read live at RAM `0x08B9B770`:
+
+```
++0x007  'one00'      +0x02C  'two00'      +0x050  'thr00'      +0x074  'for00'
++0x098  'fiv00'      +0x0BC  'six00'      +0x0E0  'sev00'      +0x104  'eht00'
++0x128  'nin00'      +0x14C  'ten00'      +0x170  'org50'      +0x194  'org00'
++0x1B8  'one01_easy' +0x1DC  'two01_easy'
+```
+
+**Stride 36 bytes (0x24), 14+ sequential entries.** These are story-chapter / stage identifiers, not
+menu list pointers. The fields section 17 labelled `listA tail +0x2c` and `listA count +0x30` are in
+fact the characters `"two0"` and `"0"` — i.e. the next entry of the name table.
+
+### The mistake, precisely
+
+`FUN_00248dd0(DAT_00397770, param_1)` — I read the first argument as "the manager" and built the
+section-17 field map from it. **`DAT_00397770` is the ARGUMENT passed in; `param_1` is the object.**
+The dispatcher's own code made this visible all along:
+
+```c
+void FUN_0024932c(int param_1) {
+  iVar3 = *(int *)(param_1 + 0x28);     // list inside param_1, NOT inside DAT_00397770
+```
+
+So the `+0x28`/`+0x2c`/`+0x30`/`+0x34` list fields belong to `param_1`, and the chapter table was
+being misread as those fields because I dumped the wrong object.
+
+### The real manager is reached through the singleton
+
+`FUN_00103c60` is `return *(u32*)(p + 0x2000);` and was called with `DAT_00392cd8`. Reading live:
+
+```
+DAT_00392cd8 (RAM 0x08B96CD8) = 0x08C5DC80   <-- a real pointer
+```
+
+and `0x08C5DC80` is a genuine allocated structure with an internal pointer network:
+
+```
++0x000  08C5DCB0 08C5FC80 000008C8 00000004
++0x010  08C5EBF0 08C5DCB0 00000000 0000001C
++0x020  00000004 08BA4468 00000000 00000000
++0x030  08C5DCD8 08C5DC94 00000028 00000004
++0x040  08C5DC80 08C5DE58 08C5E304 00000018
++0x050  08C5DCE8 08C5E304 08C5DD34 08C5DCB0
+```
+
+Its records cluster in `0x08C5DC80`–`0x08C5FC80` — a heap region, i.e. **allocated at runtime**, which
+is consistent with section 16's `param_1[8] = -1` selection sentinel being a field of an allocated
+struct (the Rule 65 situation). That remains the live hypothesis.
+
+### Status after this correction
+
+| claim | state |
+|---|---|
+| load base `0x08804000` | **confirmed** (section 19, four strings) |
+| `DAT_00397770` is the menu manager | **RETRACTED** — it is a chapter/stage name table (stride 36) |
+| menu items are linked lists inside the manager | **unverified** — the field map was built from the wrong object |
+| a manager object exists at `*(DAT_00392cd8)` = heap `0x08C5DC80` | **read live**, pointer network present |
+| which item is highlighted | **still open** |
+
+**Lesson:** before building a field map from a global, check **how the global is used in the call** —
+argument vs object. `FUN_00248dd0(DAT_00397770, param_1)` names both, and reading the argument as the
+subject inverted the entire structure. A live byte-dump then caught it immediately, which is the
+argument for reading the live value of a global before theorising about its layout.
+
