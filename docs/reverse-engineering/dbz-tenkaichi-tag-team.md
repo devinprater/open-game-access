@@ -4926,6 +4926,104 @@ The user asked to "track the enemies" when no arrow is shown. Inventoried across
 So there is nothing to track: a beacon can only key on something the game renders. The only enemy
 reference is the HUD's green **`2`** count badge.
 
+# ⭐ PLAYER POSITION FOUND: the REST-to-REST method (and why every earlier attempt failed)
+
+## The mistake that blocked three earlier searches
+
+Every previous position search sampled **while holding the analog stick**. That makes velocity
+nonzero, so velocity fields dominated every ranking, producing the families that were repeatedly
+mis-read:
+
+```
+S=0  A=-22  B=-7            <- velocity, zero at rest
+S=-128  A=-32  B=-128       <- Q7 camera basis (-1.0 / -0.25)
+0.01 / 0.01 / 0.01          <- denormal noise
+255 / 64                    <- constants
+```
+
+## The method that works: sample AT REST
+
+```
+fly NORTH, RELEASE, settle  -> snapshot A
+fly SOUTH, RELEASE, settle  -> snapshot B
+```
+
+**At rest, velocity is zero in BOTH snapshots, so velocity cannot appear in the difference.** Whatever
+remains is position (and things derived from it). This removed the entire velocity/camera-basis family
+automatically — no thresholds, no judgement.
+
+## ⭐ Cross-validated on both axes
+
+`scripts/psp-tt-pos.py --axis north-south` then `--axis east-west`:
+
+```
+            snapshot A               snapshot B
+N-S   1565.00  -13.00  1153.00  ->  1648.00   -8.00  1144.00
+E-W   1662.00  -16.00  1165.00  ->  1558.00   -6.00  1160.00
+```
+
+Same region (`0x08B69E0C` / `0x08B6A08C`), three adjacent floats, world-scale magnitudes, changing on
+**both** axes. A heading or angle would not respond to both. **This is the player position triple.**
+
+## Numbers
+
+| measure | value |
+|---|---|
+| floats changed north-south | 7,918 |
+| floats changed east-west | 7,946 |
+| changed on **both** axes | **4,040** |
+| adjacent runs of >=3 among those | 821 |
+
+The same coordinates recur at many addresses (the engine copies them for rendering/collision), so the
+triple is present in a cluster rather than once. `scripts/psp-tt-pos.py` is the tool.
+
+## ⛔ The Objective position: NOT found — and the "constant" filter does not work as written
+
+Attempting the complement — *"the objective is FIXED in world space while the player moves, so find
+floats that stay constant"* — via `scripts/psp-tt-waypoint.py` gave:
+
+```
+total constant plausible floats: 197,921
+  in 0x088xxxxx (static ELF data):  23,021
+  at/above 0x08900000 (live RAM) : 174,900
+runs in live RAM: 15,867
+```
+
+⛔ **174,900 constants across a short flight.** Most of RAM legitimately does not change during a few
+seconds of flying — code, tables, textures, inactive entities, HUD state. "Stays constant" is far too
+weak a filter to isolate an objective waypoint.
+
+⚠️ Also note the `0x08806xxx` hits are the **ELF's static data region** (constants baked into the
+binary), not live world state — they must be excluded from any world-data search.
+
+### What would actually isolate the objective
+
+1. **Find the objective the way identity was attempted: via the mission/HUD path.** The objective is
+   something the game *displays* (the chevron, the map orb), so the renderer that positions the chevron
+   is reachable — and its input vector is the true bearing.
+2. **Constrain the search by structure**: look for the fixed triple *inside the same cluster/stride as
+   the player triple* (near `0x08B69E00`-`0x08B6B200`), rather than across all of RAM.
+3. **Use the chevron's own geometry**: its screen position and rotation are computed from
+   (objective - player); reading either the inputs or the output of that calculation yields the
+   bearing. This is the FFXII approach in spirit — compute from positions, not from pixels.
+
+## Why this matters for the user's goal
+
+The user wants **pathfinding and auto-travel to the objective**. That needs:
+
+| need | status |
+|---|---|
+| player position | ✅ **FOUND** (rest-to-rest method, cross-validated both axes) |
+| objective position | ❌ not found (constant-filter approach abandoned as too weak) |
+| heading / camera yaw (to turn toward a bearing) | ⚠️ partially seen (Q7 basis values in `0x08B6A7xx`) |
+| the stick acts in CAMERA space, not world space | ⚠️ must be accounted for: the FFXII screen reader documents this exact constraint |
+
+⭐ The FFXII screen reader (github.com/bladestorm360/FFXII-Screen-Reader) documents the scaling
+approach: give directions **camera-relative** ("north" = the way an Up push sends you), because that is
+the only frame the stick can act in, and note that the game's own camera can swing and reverse the
+reading. **Auto-travel must therefore feed the stick in camera space**, converting a world-space
+bearing through the camera yaw.
+
 ## Status: BLOCKED on reaching a battle
 
 No adapter code is written and **no address is confirmed against live gameplay**. The stat
