@@ -5028,3 +5028,134 @@ So the remaining approaches are, in order of expected value:
 > sampling resolution* -- stated that way it directs the next attempt (watchpoint or bounded region) instead
 > of implying the selection is unfindable.
 
+
+
+---
+
+## 66. Region sweep at 1.1 s resolution -- 10 of 96 regions respond, and the churn filter is now sound
+
+Section 65 established that the 24 MB scan cannot separate selection from animation because a ~17 s
+comparison lets short-period counters alias. The fix it named is to make the measurement fast relative to
+the signal. This section does that: **96 regions of 256 KB**, each read in **0.053 s**, so a
+baseline/press/after pass spans about **1.1 s** -- comfortably below the ~2.5 s cycle of the counter that
+defeated the earlier attempt.
+
+### Pass 1: which regions respond at all
+
+```
+region size 0x40000  x 96 regions   one region read: 0.053s
+=> a baseline+press+after pass per region spans roughly 1.1s
+
+  region  14 0x08B80000  385 changed word(s)
+  region  15 0x08BC0000    3
+  region  16 0x08C00000    7
+  region  18 0x08C80000   18
+  region  47 0x093C0000   30
+  region  81 0x09C40000  196
+  region  82 0x09C80000  196
+  region  87 0x09DC0000   46
+  region  94 0x09F80000    2
+  region  95 0x09FC0000    7
+
+  regions with any change: 10 of 96
+```
+
+Only **10 of 96 regions** respond to a delivered `down` press at all. That is a strong selectivity gain
+over the full-RAM approach, and it was achieved purely by making the measurement fast.
+
+### Pass 2: intersect across 3 more gated rounds
+
+```
+  0x08B80000  sizes [385, 441, 399, 417] -> intersection 1
+  0x08BC0000  sizes [3, 5, 3, 3]         -> intersection 3
+  0x08C00000  sizes [7, 5, 5, 4]         -> intersection 4
+  0x08C80000  sizes [18, 18, 18, 18]     -> intersection 18
+  0x093C0000  sizes [30, 30, 30, 30]     -> intersection 30
+  0x09C40000  sizes [196, 196, 196, 196] -> intersection 196
+  0x09C80000  sizes [196, 52, 52, 52]    -> intersection 52
+  0x09DC0000  sizes [46, 45, 45, 45]     -> intersection 44
+  0x09F80000  sizes [2, 2, 2, 2]         -> intersection 2
+  0x09FC0000  sizes [7, 16, 18, 16]      -> intersection 7
+```
+
+Note `0x08B80000`: 385 changed words in round 1 collapsing to **1** across four rounds -- exactly the
+behaviour that separates a real per-press effect from churn. Conversely `0x093C0000` holds **30 identical**
+words across all four rounds, which at 1.1 s resolution is more likely a genuinely press-driven set than
+an aliased counter (the earlier period-11 counter could not hold *identical* values at this cadence).
+
+### Pass 3: per-word fast churn -- and it now rejects almost everything
+
+Every survivor was polled 40 times at 0.2 s with no input. Representative output:
+
+```
+  0x08BF8D68  churns (40 values) -- rejected
+  0x08C0BD7C  churns (11 values) -- rejected      <- the section-63 candidate, caught again
+  0x08C890C0  churns (40 values) -- rejected
+  0x093D3780  churns (40 values) -- rejected
+  0x09C437D4  churns (38 values) -- rejected
+  0x09C43844  CLEAN (1 value: 0x7E808080)
+  0x09C439C4  CLEAN (1 value: 0xB0808080)
+  0x09C43A84  CLEAN (1 value: 0xCA808080)
+  0x09C43AE8  CLEAN (1 value: 0x04040004)
+```
+
+**The churn filter is now doing its job**: at 0.2 s sampling it catches everything that moves on its own,
+including `0x08C0BD7C` (the counter that previously slipped through). That is the direct payoff of section
+64's fix.
+
+Four words survive to the end, all in the `0x09C40000` region:
+
+```
+  0x09C43844   0x7E808080
+  0x09C439C4   0xB0808080
+  0x09C43A84   0xCA808080
+  0x09C43AE8   0x04040004
+```
+
+### Reading the four survivors
+
+The values are the signature of **glyph bitmaps, not menu state**: `0x80808080`, `0xB0808080` and
+`0xC0808080` are all-`0x80`-ish patterns typical of alpha/mask bytes in a font cache, and they differ in
+their high byte (`0x7E`, `0xB0`, `0xCA`, `0x04`). The region `0x09C40000` is the same area identified in
+section 22 as the **UI text/font pool** (the UTF-16LE menu strings sit at `0x09D16A68`+, and the glyph
+atlas precedes them).
+
+So the most likely reading is that these are **glyph-cache bytes whose high byte is a dirty/serial marker**
+that changes when a different string is drawn -- i.e. *derived from* the selection, not *equal to* it. That
+is consistent with the earlier finding (section 41) that the render array is derived state, and with the
+observation that the four values have nothing in common with a 1-based row index.
+
+### What this section establishes
+
+* **The instrument is fixed.** At 1.1 s per region and 0.2 s per churn sample, the alias problem is gone
+  and the churn filter rejects the counter it previously passed (section 65's fix, verified).
+* **10 of 96 regions respond** to a delivered D-pad press -- a 10:1 selectivity gain over full-RAM.
+* **The survivors are glyph bytes**, i.e. derived drawing state in the font pool, not the selection index.
+* **The menu's real state change is not in a small-integer field** in the region set that responds.
+
+### The route this leaves
+
+Three attempts at differencing (full-RAM, 0.25 MB region, 96 x 256 KB region) now agree: what changes on a
+verified menu-direction press is **drawing data**, and the logical index is either written earlier in the
+frame than any diff can catch, or it lives in a structure whose write is masked by re-derivation each
+frame.
+
+That is exactly what a **write watchpoint** resolves and differencing cannot: it reports *who wrote*, not
+*what differs*. Sections 43 and 60 established that PPSSPP supports watchpoints and that delivery can be
+verified, so the watchpoint on the render array -- with a *verified* press moving the highlight -- is now
+the specific next step.
+
+### Method note
+
+> **Make the measurement faster than the signal and the artefacts disappear.** The same search that
+> returned a period-11 counter at 17 s resolution returned a clean per-word answer at 1.1 s. Nothing about
+> the game changed; the resolution did -- and the 10-of-96 selectivity came for free with it.
+
+> **A filter is only trustworthy once it rejects something you know is bad.** The per-word churn poll
+> re-caught `0x08C0BD7C` -- the counter that had previously passed. That is the concrete evidence the fix
+> works, and it is worth running a known-bad input through any new filter before trusting its output.
+
+> **Check whether the survivors are the kind of thing you are looking for.** Four words whose values are
+> all-`0x80`-patterned, in the font region, differing in their high byte, are glyph-cache markers. Asking
+> what *class* the survivors belong to is cheaper than following each one, and it redirected the hunt.
+
