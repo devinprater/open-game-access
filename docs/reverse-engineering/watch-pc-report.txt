@@ -1,0 +1,280 @@
+=== DISASSEMBLY AROUND THE WATCHPOINT HALT PCs (doc section 67) ===
+FUN_0025595c = the render-block writer (base 0x0025595c, size 2108)
+window 0x255e80 - 0x256198
+
+halt PCs (from the live watchpoint):
+   0x00255F28
+   0x00255F30
+   0x00255F58
+   0x002560D0
+   0x002560D8
+
+live addresses for reference:
+   DAT_00397770   vaddr 0x00397770   RAM 0x08B9B770
+   manager object RAM 0x08C08EB0
+   render count  manager+0x18 -> RAM 0x08C08EC8
+
+  00255e80   lwc1      lwc1 f12,0x8(a0)
+  00255e84   c.eq.S    c.eq.S f12,f22
+  00255e88   nop       nop
+  00255e8c   bc1f      bc1f 0x00255ec8
+        -> ref to 00255ec8
+  00255e90   _nop      _nop
+  00255e94   lwc1      lwc1 f12,0x10(a0)
+  00255e98   swc1      swc1 f12,0x40(sp)  [STORE]
+        -> ref to Stack[-0x70]
+  00255e9c   lwc1      lwc1 f12,0x14(a0)
+  00255ea0   swc1      swc1 f12,0x54(sp)  [STORE]
+        -> ref to Stack[-0x5c]
+  00255ea4   lh        lh a1,0xc(a0)
+  00255ea8   mtc1      mtc1 a1,f12
+  00255eac   cvt.s.W   cvt.s.W f12,f12
+  00255eb0   swc1      swc1 f12,0x70(sp)  [STORE]
+        -> ref to Stack[-0x40]
+  00255eb4   lh        lh a0,0xe(a0)
+  00255eb8   mtc1      mtc1 a0,f12
+  00255ebc   cvt.s.W   cvt.s.W f12,f12
+  00255ec0   b         b 0x00255edc
+        -> ref to 00255edc
+  00255ec4   _swc1     _swc1 f12,0x74(sp)
+        -> ref to Stack[-0x3c]
+  00255ec8   or        or a2,a0,zero
+  00255ecc   mov.S     mov.S f12,f22
+  00255ed0   addiu     addiu a1,sp,0x40
+  00255ed4   jal       jal 0x00255304
+        -> ref to 00255304
+  00255ed8   _or       _or a0,s0,zero
+  00255edc   beql      beql s2,zero,0x00255ef8
+        -> ref to 00255ef8
+  00255ee0   _lh       _lh a0,0x2(s6)
+  00255ee4   addiu     addiu a0,sp,0x40
+  00255ee8   or        or a1,a0,zero
+  00255eec   jal       jal 0x003554e0
+        -> ref to 003554e0
+  00255ef0   _or       _or a2,s2,zero
+  00255ef4   lh        lh a0,0x2(s6)
+  00255ef8   addiu     addiu a2,sp,0x40
+  00255efc   mtc1      mtc1 a0,f12
+  00255f00   or        or a1,s6,zero
+  00255f04   cvt.s.W   cvt.s.W f12,f12
+  00255f08   or        or a0,s0,zero
+  00255f0c   or        or a3,s3,zero
+  00255f10   jal       jal 0x0025595c
+        -> ref to 0025595c
+  00255f14   _mul.S    _mul.S f12,f12,f22
+  00255f18   b         b 0x0025613c
+        -> ref to 0025613c
+  00255f1c   _addu     _addu s4,s4,v0
+  00255f20   lui       lui a2,0x39
+  00255f24   lw        lw a2,0x7770(a2)
+        -> ref to 00397770
+  00255f28   lw        lw a3,0x18(a2)  <== HALT PC
+  00255f2c   slti      slti a3,a3,0xaa
+  00255f30   bnel      bnel a3,zero,0x00255f40  <== HALT PC
+        -> ref to 00255f40
+  00255f34   _lw       _lw a3,0x18(a2)
+  00255f38   b         b 0x00255f5c
+        -> ref to 00255f5c
+  00255f3c   _ori      _ori s6,zero,0x0
+  00255f40   lw        lw s6,0x14(a2)
+  00255f44   sll       sll t0,a3,0x6
+  00255f48   sll       sll t1,a3,0x4
+  00255f4c   addu      addu t0,t0,t1
+  00255f50   addiu     addiu a3,a3,0x1
+  00255f54   addu      addu s6,s6,t0
+  00255f58   sw        sw a3,0x18(a2)  <== HALT PC  [STORE]
+  00255f5c   beq       beq s6,zero,0x00255f9c
+        -> ref to 00255f9c
+  00255f60   _nop      _nop
+  00255f64   sw        sw a1,0x0(s6)  [STORE]
+  00255f68   sw        sw a0,0x4(s6)  [STORE]
+  00255f6c   swc1      swc1 f22,0xc(s6)  [STORE]
+  00255f70   sw        sw s3,0x8(s6)  [STORE]
+  00255f74   lbu       lbu a2,0x0(a1)
+  00255f78   lw        lw a1,0xc(s0)
+  00255f7c   lw        lw t0,0x24(a1)
+  00255f80   slt       slt a3,a2,t0
+  00255f84   beql      beql a3,zero,0x00255fa4
+        -> ref to 00255fa4
+  00255f88   _ori      _ori a2,zero,0x0
+  00255f8c   lw        lw a3,0x4(a1)
+  00255f90   sll       sll a2,a2,0x3
+  00255f94   b         b 0x00255fa4
+        -> ref to 00255fa4
+  00255f98   _addu     _addu a2,a3,a2
+  00255f9c   b         b 0x00256168
+        -> ref to 00256168
+  00255fa0   _or       _or v0,zero,zero
+  00255fa4   lw        lw t0,0x0(a2)
+  00255fa8   ori       ori a3,zero,0x0
+  00255fac   slt       slt t0,a3,t0
+  00255fb0   beq       beq t0,zero,0x00256088
+        -> ref to 00256088
+  00255fb4   _nop      _nop
+  00255fb8   sll       sll t0,a3,0x3
+  00255fbc   lw        lw t1,0x4(a2)
+  00255fc0   addu      addu t0,a3,t0
+  00255fc4   addu      addu t0,a3,t0
+  00255fc8   addu      addu t0,t1,t0
+  00255fcc   lbu       lbu t0,0x1(t0)
+        -> ref to 00a02026
+        -> ref to 00a02030
+  00255fd0   lw        lw t1,0x20(a1)
+  00255fd4   slt       slt t1,t0,t1
+  00255fd8   beql      beql t1,zero,0x0025601c
+        -> ref to 0025601c
+  00255fdc   _ori      _ori t0,zero,0x0
+  00255fe0   lw        lw t1,0x0(a1)
+  00255fe4   sll       sll t2,t0,0x2
+  00255fe8   addu      addu t1,t1,t2
+  00255fec   lh        lh t1,0x0(t1)
+  00255ff0   ori       ori t2,zero,0x1
+  00255ff4   beq       beq t1,t2,0x00256004
+        -> ref to 00256004
+  00255ff8   _nop      _nop
+  00255ffc   b         b 0x0025601c
+        -> ref to 0025601c
+  00256000   _ori      _ori t0,zero,0x0
+  00256004   lw        lw t1,0x0(a1)
+  00256008   sll       sll t0,t0,0x2
+  0025600c   addu      addu t0,t1,t0
+  00256010   lh        lh t0,0x2(t0)
+  00256014   b         b 0x0025601c
+        -> ref to 0025601c
+  00256018   _addu     _addu t0,t1,t0
+  0025601c   beq       beq t0,zero,0x00256074
+        -> ref to 00256074
+  00256020   _nop      _nop
+  00256024   lwc1      lwc1 f12,0x18(t0)
+  00256028   mtc1      mtc1 zero,f13
+  0025602c   c.eq.S    c.eq.S f12,f13
+  00256030   nop       nop
+  00256034   bc1t      bc1t 0x00256040
+        -> ref to 00256040
+  00256038   _nop      _nop
+  0025603c   addiu     addiu s4,s4,0x4
+  00256040   lwc1      lwc1 f12,0x1c(t0)
+  00256044   mtc1      mtc1 zero,f13
+  00256048   c.eq.S    c.eq.S f12,f13
+  0025604c   nop       nop
+  00256050   bc1t      bc1t 0x00256074
+        -> ref to 00256074
+  00256054   _nop      _nop
+  00256058   lwc1      lwc1 f12,0x18(t0)
+  0025605c   mtc1      mtc1 zero,f13
+  00256060   c.eq.S    c.eq.S f12,f13
+  00256064   nop       nop
+  00256068   bc1t      bc1t 0x00256074
+        -> ref to 00256074
+  0025606c   _addiu    _addiu s4,s4,0x4
+  00256070   addiu     addiu s4,s4,0x4
+  00256074   lw        lw t0,0x0(a2)
+  00256078   addiu     addiu a3,a3,0x1
+  0025607c   slt       slt t0,a3,t0
+  00256080   bne       bne t0,zero,0x00255fb8
+        -> ref to 00255fb8
+  00256084   _addiu    _addiu s4,s4,0x4
+  00256088   lhu       lhu a1,0x6(a0)
+  0025608c   andi      andi a1,a1,0x40
+  00256090   sltu      sltu a1,zero,a1
+  00256094   andi      andi a1,a1,0xff
+  00256098   bnel      bnel a1,zero,0x002560d0
+        -> ref to 002560d0
+  0025609c   _lwc1     _lwc1 f12,0x10(a0)
+  002560a0   lhu       lhu a1,0x6(a0)
+  002560a4   andi      andi a1,a1,0x10
+  002560a8   sltu      sltu a1,zero,a1
+  002560ac   andi      andi a1,a1,0xff
+  002560b0   beq       beq a1,zero,0x00256100
+        -> ref to 00256100
+  002560b4   _nop      _nop
+  002560b8   lwc1      lwc1 f12,0x8(a0)
+  002560bc   c.eq.S    c.eq.S f12,f22
+  002560c0   nop       nop
+  002560c4   bc1f      bc1f 0x00256100
+        -> ref to 00256100
+  002560c8   _nop      _nop
+  002560cc   lwc1      lwc1 f12,0x10(a0)
+  002560d0   swc1      swc1 f12,0x10(s6)  <== HALT PC  [STORE]
+  002560d4   lwc1      lwc1 f12,0x14(a0)
+  002560d8   swc1      swc1 f12,0x24(s6)  <== HALT PC  [STORE]
+  002560dc   lh        lh a1,0xc(a0)
+  002560e0   mtc1      mtc1 a1,f12
+  002560e4   cvt.s.W   cvt.s.W f12,f12
+  002560e8   swc1      swc1 f12,0x40(s6)  [STORE]
+  002560ec   lh        lh a0,0xe(a0)
+  002560f0   mtc1      mtc1 a0,f12
+  002560f4   cvt.s.W   cvt.s.W f12,f12
+  002560f8   b         b 0x00256114
+        -> ref to 00256114
+  002560fc   _swc1     _swc1 f12,0x44(s6)
+  00256100   or        or a2,a0,zero
+  00256104   mov.S     mov.S f12,f22
+  00256108   addiu     addiu a1,s6,0x10
+  0025610c   jal       jal 0x00255304
+        -> ref to 00255304
+  00256110   _or       _or a0,s0,zero
+  00256114   beq       beq s2,zero,0x0025613c
+        -> ref to 0025613c
+  00256118   _nop      _nop
+  0025611c   addiu     addiu s6,s6,0x10
+  00256120   or        or a0,s6,zero
+  00256124   or        or a1,s6,zero
+  00256128   jal       jal 0x003554e0
+        -> ref to 003554e0
+  0025612c   _or       _or a2,s2,zero
+  00256130   or        or a0,s6,zero
+  00256134   jal       jal 0x0035599c
+        -> ref to 0035599c
+  00256138   _or       _or a1,s6,zero
+  0025613c   b         b 0x00256158
+        -> ref to 00256158
+  00256140   _nop      _nop
+  00256144   lbu       lbu a0,0x1(a1)
+  00256148   addiu     addiu a2,a2,0x1
+  0025614c   slt       slt a0,a2,a0
+  00256150   bnel      bnel a0,zero,0x00255a60
+        -> ref to 00255a60
+  00256154   _lw       _lw a0,0x4(a1)
+  00256158   addiu     addiu s5,s5,-0x1
+  0025615c   bgez      bgez s5,0x002559ac
+        -> ref to 002559ac
+  00256160   _nop      _nop
+  00256164   or        or v0,s4,zero
+  00256168   lwc1      lwc1 f20,0x80(sp)
+        -> ref to Stack[-0x30]
+  0025616c   lwc1      lwc1 f22,0x84(sp)
+        -> ref to Stack[-0x2c]
+  00256170   lw        lw s0,0x88(sp)
+        -> ref to Stack[-0x28]
+  00256174   lw        lw s1,0x8c(sp)
+        -> ref to Stack[-0x24]
+  00256178   lw        lw s2,0x90(sp)
+        -> ref to Stack[-0x20]
+  0025617c   lw        lw s3,0x94(sp)
+        -> ref to Stack[-0x1c]
+  00256180   lw        lw s4,0x98(sp)
+        -> ref to Stack[-0x18]
+  00256184   lw        lw s5,0x9c(sp)
+        -> ref to Stack[-0x14]
+  00256188   lw        lw s6,0xa0(sp)
+        -> ref to Stack[-0x10]
+  0025618c   lw        lw ra,0xa4(sp)
+        -> ref to Stack[-0xc]
+  00256190   jr        jr ra
+  00256194   _addiu    _addiu sp,sp,0xb0
+  00256198   lw        lw a1,0x3c(a0)
+
+=== SUMMARY ===
+  instructions listed:      16
+  halt PCs found in window: 5 of 5
+  STORE instructions:       11
+  instructions naming the manager static: 0
+  instructions naming the render count:   0
+
+=== HOW TO READ THIS ===
+  The watched field is manager+0x18 (RAM 0x08C08EC8). A store that lands there is the
+  increment described in section 42. The halt PC is where PPSSPP paused -- likely the
+  instruction immediately AFTER the matching store, since the breakpoint fires on the
+  store's completion. So look for the store just BEFORE each halt PC, and check whether
+  its destination offset is 0x18 relative to the manager pointer.

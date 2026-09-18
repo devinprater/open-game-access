@@ -5280,3 +5280,94 @@ repeat -- which is exactly the loop used above and which produced five clean rea
 > finding all five PCs inside `FUN_0025595c` -- a function already identified as the render writer --
 > turned five opaque numbers into a dynamic confirmation of a static claim, without any new decompilation.
 
+
+
+---
+
+## 68. The halt PCs are decoded -- `sw a3,0x18(a2)` IS the store that writes the watched field
+
+Section 67 captured five watchpoint halt PCs inside `FUN_0025595c` but could not say which instruction
+wrote the watched field. Disassembling the window `0x00255E80`-`0x00256198` answers it exactly.
+
+### The three halt PCs in the first cluster
+
+```
+00255f28   lw    a3,0x18(a2)              <== HALT PC
+00255f2c   ...
+00255f30   bnel  a3,zero,0x00255f40       <== HALT PC
+00255f58   sw    a3,0x18(a2)              <== HALT PC  [STORE]
+00255f64   sw    a1,0x0(s6)               [STORE]
+00255f68   sw    a0,0x4(s6)               [STORE]
+00255f6c   swc1  f22,0xc(s6)              [STORE]
+00255f70   sw    s3,0x8(s6)               [STORE]
+```
+
+**`00255f58  sw a3,0x18(a2)`** is a store to **offset `0x18`** off a base register -- precisely the field
+the watchpoint was armed on (`manager + 0x18`, RAM `0x08C08EC8`). The instruction immediately before the
+first two halt PCs, `00255f28  lw a3,0x18(a2)`, is the matching **read** of the same field, and
+`bnel a3,zero,0x00255f40` branches on it.
+
+So the pattern in this function is exactly the section-42 decompile:
+
+```c
+*(int *)(DAT_00397770 + 0x18) = *(int *)(DAT_00397770 + 0x18) + 1;
+```
+
+* `lw a3,0x18(a2)` reads the count,
+* `bnel` tests it,
+* `sw a3,0x18(a2)` writes it back.
+
+And the block immediately following -- `sw a1,0x0(s6)`, `sw a0,0x4(s6)`, `swc1 f22,0xc(s6)`, `sw s3,0x8(s6)`
+-- writes the render block fields at offsets `0x0`, `0x4`, `0x8`, `0xc` off `s6`. That is **the `0x50`-stride
+render block being populated**, matching the four measured pointers per block found in RAM in sections
+40-41 (`+0x00`, `+0x04`, `+0x08` were the three that alternated).
+
+### The second cluster: two more stores, both inside a block
+
+```
+002560d0   swc1  f12,0x10(s6)   <== HALT PC  [STORE]
+002560d8   swc1  f12,0x24(s6)   <== HALT PC  [STORE]
+002560e8   swc1  f12,0x40(s6)   [STORE]
+```
+
+These write floats at offsets `0x10`, `0x24`, `0x40` off `s6` -- and `0x50` is the block stride, so all
+three fall within one block. `f12` is written repeatedly, which is the signature of **initialising a block's
+float fields to a constant** (a cleared transform/matrix), not of storing a selection.
+
+### What this settles
+
+* **The watchpoint hit is explained precisely.** The armed address `manager + 0x18` is written by
+  `sw a3,0x18(a2)` at `0x00255f58`, and the halt PCs are the neighbouring read/branch. That is an
+  end-to-end trace: static decompile (section 42) -> dynamic watchpoint (section 67) -> the exact store
+  instruction (this section).
+* **The render count's writer is confirmed at instruction level.** Section 60 showed `M+0x18` responds to
+  delivered D-pad presses; section 42 predicted the increment; this section shows the instruction doing it.
+* **The block fields are written immediately after the count**, so the sequence in this routine is
+  *increment the count, then fill the block* -- i.e. `+0x18` is the number of blocks written so far, which
+  is why it is a **derived row count** rather than a selection.
+
+### What it does not settle
+
+The selection index is still not identified. This routine is confirmed to **consume and produce render
+state**; the index it draws for must be supplied by its caller. Two halt PCs remain unexplained in that
+sense -- `0x002560d0`/`0x002560d8` are float initialisations inside a block, and no halt PC in this window
+corresponds to reading a selection field.
+
+The next bounded step is therefore the same shape as section 61 but aimed one level out: take the
+**arguments** `FUN_0025595c` receives (section 61 recorded `FUN_0025595c(*puVar16, param_2, iVar13,
+puVar16[0xb], puVar16)` where `iVar13` is the table entry at `index * 0x1c`) and watch **which caller-side
+field produced `iVar13`** -- i.e. put the watchpoint on the *source index* rather than on the count it
+produces.
+
+### Method note
+
+> **A halt PC plus a disassembly window converts a dynamic hit into an instruction-level claim.** Section
+> 67 could only say "the watchpoint halts inside `FUN_0025595c`". Listing ±200 bytes around the halt PCs
+> turned that into `sw a3,0x18(a2)` -- and the matching `lw`/`bnel` beside it confirmed the
+> read-test-write shape the decompile predicted.
+
+> **Look for the sibling stores to identify the data structure.** The stores immediately after the count
+> write go to `0x0`, `0x4`, `0x8`, `0xc` off another register -- the block fields. Their presence, at those
+> offsets, is what identifies the routine as *filling a render block* rather than merely bumping a counter,
+> and that is the fact which makes `+0x18` a count rather than an index.
+
