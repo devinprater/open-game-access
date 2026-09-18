@@ -51109,7 +51109,7 @@ LAB_0015acd4:
 ------------------
 
 ================================================================
-=== FUN_0015bfb0 @ 0015bfb0  size=272   [high half only -- check manually] ===
+=== FUN_0015bfb0 @ 0015bfb0  size=272   [HI+LO PAIR PRESENT -- likely a materialised table address] ===
 ================================================================
    0015bfdc  HI half 0x39 (lui)  => base 0x390000  |  lui a0,0x39
    0015c004  HI half 0x39 (lui)  => base 0x390000  |  lui a1,0x39
