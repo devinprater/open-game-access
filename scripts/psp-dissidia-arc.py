@@ -31,38 +31,26 @@ import argparse, os, struct, sys
 
 
 def read_arc(f, at, max_entries=4096):
+    """Header is 16 bytes: magic, count, 2 reserved words. Records are 16 bytes:
+    (u32 flag, 4-char tag, u32 offset, u32 size)."""
     f.seek(at)
     head = f.read(16)
     if head[:4] != b"ARC\x01":
         return None
-    # try both plausible headers: count at +4 (u32) or +8 (u32)
-    cands = []
-    for coff in (4, 8, 12):
-        n = struct.unpack_from("<I", head, coff)[0]
-        if 0 < n < max_entries:
-            cands.append((coff, n))
-    if not cands:
+    n = struct.unpack_from("<I", head, 4)[0]
+    if not (0 < n < max_entries):
         return None
-
-    best = None
-    for coff, n in cands:
-        f.seek(at + coff + 4)
-        recs = []
-        for i in range(n):
-            raw = f.read(12)
-            if len(raw) < 12:
-                break
-            tag = raw[:4]
-            a, b = struct.unpack_from("<II", raw, 4)
-            # a tag should be printable 4 ASCII chars for most entries
-            printable = sum(1 for c in tag if 32 <= c < 127)
-            recs.append({"tag": tag, "a": a, "b": b, "printable": printable})
-        score = sum(r["printable"] for r in recs) / (4.0 * max(1, len(recs)))
-        best_c = {"offset": coff, "count": n, "recs": recs, "score": score}
-        if best is None or score > best["score"]:
-            best = best_c
-    best["at"] = at
-    return best
+    f.seek(at + 16)
+    recs = []
+    for i in range(n):
+        raw = f.read(16)
+        if len(raw) < 16:
+            break
+        flag, tag, off, size = struct.unpack("<I4sII", raw)
+        printable = sum(1 for c in tag if 32 <= c < 127)
+        recs.append({"flag": flag, "tag": tag, "a": off, "b": size, "printable": printable})
+    score = sum(r["printable"] for r in recs) / (4.0 * max(1, len(recs)))
+    return {"at": at, "count": n, "recs": recs, "score": score, "records_at": at + 16}
 
 
 def main():
@@ -81,12 +69,13 @@ def main():
     if not arc:
         sys.exit("no ARC header at %d" % a.at)
 
-    print("=== ARC @%d  header field +%d, %d entries, tag-printability %.2f ==="
-          % (a.at, arc["offset"], arc["count"], arc["score"]))
-    print("%-4s %-6s %-12s %-12s" % ("n", "tag", "a", "b"))
+    print("=== ARC @%d  records at %d, %d entries, tag-printability %.2f ==="
+          % (a.at, arc["records_at"], arc["count"], arc["score"]))
+    print("%-4s %-6s %-5s %-12s %-12s %s" % ("n", "tag", "flag", "offset", "size", "data address"))
     for i, r in enumerate(arc["recs"][:a.limit]):
         tg = r["tag"].decode("latin1", "replace")
-        print("%-4d %-6s %-12d %-12d" % (i, tg, r["a"], r["b"]))
+        print("%-4d %-6s %-5d %-12d %-12d %d"
+              % (i, tg, r["flag"], r["a"], r["b"], arc["at"] + r["a"]))
 
     if a.extract:
         os.makedirs(a.out, exist_ok=True)
@@ -95,8 +84,8 @@ def main():
             if i >= len(arc["recs"]):
                 print("  %d out of range" % i); continue
             r = arc["recs"][i]
-            for label, off, ln in (("a,b", arc["at"] + r["a"], r["b"]),
-                                   ("a,b", r["a"], r["b"])):
+            for label, off, ln in (("rel-arc", arc["at"] + r["a"], r["b"]),
+                                   ("absolute", r["a"], r["b"])):
                 if 0 <= off < size and 0 <= ln <= size - off and ln > 0:
                     f.seek(off)
                     d = f.read(min(ln, 48))

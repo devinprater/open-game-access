@@ -326,6 +326,62 @@ A second copy of the whole menu MPK exists at **1425408** with *different sizes*
 `.mes` files are **stubs**: all 11 are 44–184 bytes and mostly zero-filled (e.g. `one00.mes` is 44
 bytes of `00`; `eht00.mes` holds only a `MAPS$` tag). Not the text.
 
+### A second text lead: the "sequence" resources DO hold UTF-16LE
+
+`menu_pk_loading_seq_0.bin` (7248 bytes) has an entropy of only **2.881** — very structured — and
+openly begins with UTF-16LE:
+
+```
+80 80 80 ff | 74 00 70 00 75 00 71 00 | 00 00 ... | ff ff ff ff ...
+            ^^^^^^^^^^^^^^^^^^^^^^^^^^^  UTF-16LE "tpuq"
+
+... 89 00 68 00 8a 00 69 00 | 00 00 ...
+```
+
+Note the codes at/above `0x80` (`0x89`, `0x8A`), which are **not ASCII** — consistent with the
+`SYSTEM FONT T2 / T3` and `sceLibFont` strings in the EBOOT, i.e. a font that assigns the upper
+range. The file also carries RGBA colour values (`80 80 80 ff`, `78 64 b0 ff`, `65 59 99 ff`) and
+float pairs, so these are **layout+text records**, not plain string tables — which matches
+`menu_pk_loading_seq_0.bin` being the payload of the EBOOT's `text/JP/mess_pk_loading_0.bin`.
+
+Read them with `scripts/psp-dissidia-seqtext.py`.
+
+### `ARC` containers decoded
+
+The `ARC\x01` record layout is now confirmed (see section 8 fix): 16-byte header
+(`ARC\x01`, u32 count, 2 reserved), then `count` × 16-byte records of
+`(u32 flag, 4-char tag, u32 offset, u32 size)`, offsets relative to the ARC header.
+
+```
+ARC @14736   (8 entries)
+  spec @144 len 9976 | sklp @10120 len 316 | nekp @10436 len 1256 | scrb @11692 len 184
+  camr @11876 len 972 | chrg @12848 len 5300 | atkp @18148 len 428 | scra @18576 len 4472
+
+ARC @43943936 (8 entries)
+  R_FF @144 len 19080 | r_ff @19224 len 5946 | snd_ @25216 len 215280
+  even @240496 len 572 | comm @241072 len 21200 | comm @262288 len 34072
+```
+
+### `.enc` / `.fin` / `.arr` per chapter — plaintext numeric, despite the names
+
+Each story chapter has a triple, e.g. `one00.enc` (3568 B) + `one00.arr` (100 B) + `one00.fin`
+(20 B), and `eht00.*`, `org00.*`. **The `.enc` extension does not mean encrypted**: the contents are
+plaintext little-endian numeric records (tag pairs like `0B00 E703` repeated, `FFFFFFFF` sentinels,
+small counts). `.arr` files are largely zero-filled. `.fin` is 20 bytes with a small count and a
+sentinel `0x4416`.
+
+### Where the text still is NOT
+
+`general_archive`, `menu_lang`, `field_lang`, `text/JP` — the paths the EBOOT names — have **0
+occurrences in `PACKAGE.BIN`**. Those resources are addressed another way (a different container,
+or a second image/section), so following the EBOOT's *names* is not sufficient: the name→data
+binding happens somewhere not yet found.
+
+Other small resources checked and ruled out as plain text: `name.bin` (entropy 6.740, no ASCII
+runs), `simple_character_select.bin` (14 B), `save_data.bin` (7.495), `common.bin` (6.840),
+`battle_voice_name.bin` (6.622 — a u16 table, `0x1001`, `0x1102`... incrementing pairs).
+
+
 ---
 
 ## 9. The `*_help.bin` encoding — unresolved, with the falsifications recorded
