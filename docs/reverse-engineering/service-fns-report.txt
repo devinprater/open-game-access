@@ -1,0 +1,97 @@
+=== SERVICE RECORD CODE POINTERS (doc section 74) ===
+ram -> vaddr conversion: vaddr = ram - 0x8804000
+
+================================================================
+=== ram 0x088F9674  -> vaddr 0x000F5674
+  function: FUN_000f5674 @ 000f5674  size=44
+  pointer is THE FUNCTION ENTRY
+
+void FUN_000f5674(int param_1,uint param_2)
+
+{
+  if ((param_1 != 0) && ((param_2 & 1) != 0)) {
+    FUN_0033c468();
+  }
+  return;
+}
+
+
+  --- calls from FUN_000f5674 ---
+     0033c468  FUN_0033c468
+
+================================================================
+=== ram 0x088F809C  -> vaddr 0x000F409C
+  function: FUN_000f409c @ 000f409c  size=44
+  pointer is THE FUNCTION ENTRY
+
+void FUN_000f409c(int param_1,uint param_2)
+
+{
+  if ((param_1 != 0) && ((param_2 & 1) != 0)) {
+    FUN_0033c468();
+  }
+  return;
+}
+
+
+  --- calls from FUN_000f409c ---
+     0033c468  FUN_0033c468
+
+================================================================
+=== ram 0x088F9E0C  -> vaddr 0x000F5E0C
+  function: FUN_000f5e0c @ 000f5e0c  size=88
+  pointer is THE FUNCTION ENTRY
+
+void FUN_000f5e0c(int param_1,uint param_2)
+
+{
+  if (param_1 != 0) {
+    *(undefined **)(param_1 + 0x74) = &DAT_003a06a0;
+    FUN_000f5e80(param_1);
+    if ((param_2 & 1) != 0) {
+      FUN_0033c468(param_1);
+    }
+  }
+  return;
+}
+
+
+  --- calls from FUN_000f5e0c ---
+     0033c468  FUN_0033c468
+     000f5e80  FUN_000f5e80
+
+================================================================
+=== ram 0x088EF4A4  -> vaddr 0x000EB4A4
+  function: FUN_000eb4a4 @ 000eb4a4  size=104
+  pointer is THE FUNCTION ENTRY
+
+void FUN_000eb4a4(int param_1,uint param_2)
+
+{
+  if (param_1 != 0) {
+    FUN_000ea820(param_1 + 0x8b0,2);
+    FUN_000f7e80(param_1 + 0x7e0,2);
+    FUN_000e64b0(param_1 + 0x720,2);
+    if ((param_2 & 1) != 0) {
+      FUN_0033c468(param_1);
+    }
+  }
+  return;
+}
+
+
+  --- calls from FUN_000eb4a4 ---
+     000f7e80  FUN_000f7e80
+     0033c468  FUN_0033c468
+     000ea820  FUN_000ea820
+     000e64b0  FUN_000e64b0
+
+================================================================
+=== for comparison: the constructors the init routine calls ===
+  0x000F4094  FUN_000f4094 @ 000f4094  size=8  [ENTRY]
+  0x000F5674  FUN_000f5674 @ 000f5674  size=44  [ENTRY]
+  0x000F5E0C  FUN_000f5e0c @ 000f5e0c  size=88  [ENTRY]
+  0x000EF4A4  FUN_000ef490 @ 000ef490  size=44  [interior]
+  0x000F7598  FUN_000f7598 @ 000f7598  size=164  [ENTRY]
+  0x000F68E0  FUN_000f68e0 @ 000f68e0  size=548  [ENTRY]
+
