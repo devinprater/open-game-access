@@ -2241,3 +2241,83 @@ interval looks exactly like a cursor following the highlight.
 > *magnitude* then demoted them from cursor candidates to allocator cursors. Both checks are cheap and
 > either one alone would have produced a wrong answer.
 
+
+
+---
+
+## 32. Screen identification by "which strings are resident" does NOT discriminate — superseded
+
+Section 31 left navigation dependent on OCR, which cannot read Dissidia's stylized title/mode font. The
+natural fix is to identify the current screen by which UI strings are resident in RAM instead. **That
+was tried and it is invalid.** Recorded because the failure is instructive and the tool is kept as a
+marked trap.
+
+### The test, and its result
+
+`psp-screen-id.py` scanned the readable span for distinctive markers per screen and reported:
+
+```
+title / mode menu        dynamic=5  MATCH   Museum, Shop, Options, Story, Battle, Arcade Mode, Lobby
+story / region map       dynamic=3  MATCH   Level Progression, Story Mode, storypoint, Quit Level Progression
+pause menu               dynamic=6  MATCH   Return to Game, Retry, Quicksave, Help Manual, Skip Cutscene
+battle (tutorial/help)   dynamic=3  MATCH   HP attacks, EX Mode, EX Burst
+save / load dialog       dynamic=4  MATCH   GAME DATA, Memory Stick, autosave, Saved data is corrupt
+result screen            dynamic=2  MATCH   Continue to Next Battle, DP
+data setup / first run   dynamic=0  -
+```
+
+**Every screen matched.** The tool cannot distinguish the pause menu from the title menu, a battle, a
+save dialog or a result screen.
+
+### Why — and it is the fourth instance of one error
+
+The markers are real and were found at real addresses:
+
+```
+Return to Game        0x09D16AFC   (pause menu marker)
+Help Manual           0x09D16D70   (pause menu marker)
+Continue to Next Battle 0x09D17046 (result-screen marker)
+Museum                0x09D16F36   (title-menu marker)
+```
+
+They all resolve into the **one contiguous UI text pool at `0x09D16A68`+**, which holds the whole menu
+string set at once, with further pools at `0x09A3Fxxx`, `0x09A40xxx` and `0x09E58xxx`. So a string's
+presence carries **no information about the current screen**.
+
+This is the same mistake as section 25 ("the region assets are resident, so story mode is loaded"), and
+it is now the **fourth** time a resident string has been treated as evidence of state (see also sections
+13, 27). It also refines the earlier rule in an important way:
+
+> **"Absent from the EBOOT" is necessary but NOT sufficient for "indicates current state."**
+> These strings are *not* in `EBOOT.BIN.dec` — they are loaded into RAM by the resource loader — and they
+> are *still* not per-screen. The earlier formulation (section 25) was too weak in one direction and too
+> strong in the other: the ELF test rules out static constants, but surviving it does not prove that a
+> string tracks anything.
+
+### What actually does discriminate
+
+| approach | verdict |
+|---|---|
+| resident UI strings | **no** — all screens resident at once (this section) |
+| EBOOT-resident test alone | **necessary, not sufficient** |
+| **OCR of on-screen banners** | **yes** — OCR reliably read `PAUSED` on the pause menu; that is a positive identification |
+| **frame structure** | **yes** — two-frame diff + saturated-colour % separates "menu" from "scene" (already correct in `psp-reach-menu.py`) |
+| a screen INDEX field | would be ideal; not located, and sections 27-31 show the manager has no static anchor |
+
+So the practical recipe is: use **frame structure** to tell menu from scene, **OCR of the banner/plain-font
+text** to name the screen, and **RAM text** only to read the *contents* a screen is showing — never to
+infer *which* screen is showing.
+
+### Disposition
+
+`psp-screen-id.py` is replaced with a stub that documents the failure and `exit(1)`s. Keeping the
+non-discriminating implementation as a working script would make it a trap for a future session, so the
+marking is the point.
+
+### Method note
+
+> **A probe must be validated against a case where the answer is known to be NO.** This tool reported
+> six simultaneous positives, and that alone proved it was broken — no screen is six screens at once.
+> When a detector returns everything, the detector has no discriminating power; the fix is to find a
+> signal that is *absent* on the other screens, not to add more markers.
+
