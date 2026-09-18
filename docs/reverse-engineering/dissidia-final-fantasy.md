@@ -3094,3 +3094,74 @@ generic pad library.
 > valuable here exactly because the question was well-specified; the earlier open-ended phases were not
 > delegable.
 
+
+
+---
+
+## 43. PPSSPP DOES support write watchpoints — and the first attempt froze the game
+
+Section 42's next step was a write watchpoint. This section records the capability, the address-validity
+problem, and a self-inflicted failure worth knowing about.
+
+### The capability exists
+
+Probing the debugger protocol found working breakpoint events:
+
+```
+memory.breakpoint.add  {address, size, type}     -> accepted ("size" is REQUIRED)
+memory.breakpoint.clear.all                      -> accepted
+cpu.breakpoint.add                               -> accepted
+```
+
+and the game **logged a hit** on the first probe with no breakpoint even intended:
+
+```
+CHK Write128(CPU) at 09dee480 ((09dee480)), PC=08...
+```
+
+So PPSSPP **does** report the writing PC for a watched memory address -- which is exactly the mechanism
+needed to name the code that writes the render block. That capability is now established and scripted
+(`scripts/psp-watch-render.py`, `psp-watch-render2.py`).
+
+### Two problems, both real
+
+**1. The watched address is only valid for one screen instance.** The render-array base is
+`*(int *)(DAT_00397770 + 0x14)`, i.e. a field *inside the manager object*. Since the manager is
+heap-allocated per screen (section 39), the array moves between screens -- so `0x09DEE480` was the
+pause-menu instance's base and is **not** where the title screen renders. With the game at the title
+screen, a watchpoint on `0x09DEE480` produced **zero hits** while the CPU was confirmed free-running
+(`ticks delta 781,501,783`, `stepping: False`). The correct watch target is therefore **the manager's
+base/count fields** (or a freshly resolved base per screen), not a remembered data address.
+
+**2. Debugger churn FROZE the game, and that looks exactly like "the address is not written".**
+After a series of `cpu.resume` calls, breakpoint add/clear cycles and repeated probes, the game halted:
+`ticks delta 0` over 2.5 s, `pc` pinned at `0x08B5A6C0`, `stepping: true`, and a **screen diff of
+exactly 0 pixels** across a button press. The watchpoint then appeared never to fire -- but the truth was
+that *nothing was executing*. A frozen game and an unwritten address produce the same reading, and only
+the **ticks delta** distinguishes them.
+
+Recovery: kill PPSSPP and relaunch (`Stop-Process -Force`, verify the process count is 1). The game
+returned to the title screen and `ticks delta 781,501,783` confirmed normal execution.
+
+### What this leaves
+
+* **Capability proven and scripted** -- a write watchpoint can name the writing PC. This is the direct
+  route to the remaining question and it does not need more RAM scanning.
+* **Correct target identified** -- watch the manager's **base/count fields**, or resolve the array base
+  fresh for whatever screen is on, rather than reusing an address measured on a different screen.
+* **A new failure mode logged** -- debugger churn freezes the emulator, and a frozen emulator is
+  indistinguishable from a null result unless the ticks delta is checked every time. Any watchpoint run
+  must assert `ticks` advances *before* trusting a zero-hit outcome.
+
+### Method note
+
+> **Check the CPU is executing before believing a watchpoint's silence.** "No hit" has two very
+> different causes -- the address was not written, or nothing ran -- and only a ticks delta separates
+> them. This is the same class as every other instrument fault in this investigation: a broken
+> instrument and a true negative look identical unless the instrument's liveness is asserted
+> independently.
+
+> **Do not watch a data address remembered from a previous screen.** When an object is heap-allocated per
+> screen, its internal arrays move. Watch the field that *points* to the array, or re-resolve the base on
+> the screen in front of you.
+
