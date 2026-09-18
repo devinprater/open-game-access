@@ -4933,3 +4933,98 @@ read is ~1 ms, so the control is cheap; the 8.8 s full-RAM read is what created 
 > 16 seconds of no-input sampling showed it cycling `10,7,4,1,9,6,...` the whole time. The no-press
 > control is what separated the two, and it cost 16 seconds.
 
+
+
+---
+
+## 65. ALL FOUR candidates rejected -- the fast churn poll shows every one is a free-running counter
+
+Section 64 diagnosed the flaw: the churn control for the full-RAM diff was taken at the **same coarse
+cadence as the scan** (~8.8 s per 24 MB pass, so ~17 s per comparison), which lets a signal with a period
+shorter than the window alias back to a similar value and pass as "unchanged". The fix is to measure churn
+**per candidate at a rate well above the candidate's expected period**.
+
+`psp-fast-churn.py` does exactly that: 40 polls at 0.25 s (~10 s) per candidate with **no input**, then a
+gated press phase. Result:
+
+```
+=== PHASE 1: NO-INPUT churn, 40 samples at 0.25s ===
+  0x08BB4130  3 distinct value(s)   CHURNING -- reject
+  0x08BB42D8  2 distinct value(s)   CHURNING -- reject
+  0x08BB4EE8  3 distinct value(s)   CHURNING -- reject
+  0x08C0BD7C  11 distinct value(s)  CHURNING -- reject
+      series: 3, 0, 8, 5, 2, 10, 7, 4, 1, 9, 6, 3, 0, 8, 5, 2 ...
+
+=== PHASE 2: gated press phase ===
+  delivered 6/6 (tried 10)
+
+=== VERDICT per candidate ===
+  0x08BB4130  3 vals  yes  REJECT (churns with no input)
+  0x08BB42D8  2 vals  no   REJECT (churns with no input)
+  0x08BB4EE8  3 vals  yes  REJECT (churns with no input)
+  0x08C0BD7C  11 vals yes  REJECT (churns with no input)
+```
+
+**Every one of section 63's four survivors churns with no input at all.** The `0x08C0BD7C` series is a
+clean **period-11 counter**: `3, 0, 8, 5, 2, 10, 7, 4, 1, 9, 6` then repeating. That is a 10-value cycle
+(skipping a step), i.e. an animation or effect counter, and it fully explains why its press series looked
+like stepping integers -- the press series was sampling the cycle at unrelated phase offsets.
+
+### What this says about the gated full-RAM diff
+
+The method was:
+
+1. read all 24 MB, gate a press, read again -> the changed-word set;
+2. **intersect** across rounds;
+3. **subtract** a no-press control taken at the same cadence.
+
+Step 3 is now known to be broken for short-period signals. Step 2, however, is still doing real work: a
+free-running counter of period 11 would have to be caught in the *changed* set of **every** round to
+survive the intersection, and with 4 rounds at ~11 s spacing that is possible by aliasing -- which is
+exactly what happened. So both steps were necessary but neither was sufficient: **the intersection does not
+protect against periodicity, and the coarse control does not detect it.**
+
+### Consequence
+
+The correct conclusion is narrower than section 63's: **the gated full-RAM diff at ~17 s resolution does
+not isolate the selection index.** Any candidate it nominates must be checked with a fast per-candidate
+churn poll before being believed -- and when that check is applied, this screen yields **zero** surviving
+candidates.
+
+That is a negative about the *instrument* at 24 MB scale, not about the game: the scan is too slow
+relative to the game's animation rates to separate selection state from rendering state by differencing.
+
+### Where that leaves the hunt
+
+Three things are established and they jointly point at the remaining route:
+
+* **The D-pad works on this screen** (section 63: ~245,400 px per verified `down` press) -- so a
+  *watchpoint* has a real target: whatever writes the highlighted row.
+* **The full-RAM differencing route is exhausted at this scale** -- 24 MB per sample aliases against
+  animation; this section is the evidence.
+* **The code route produced the recipe** (section 61: `SEL = read_s16(read32(node+0x10) + 4)`) but the
+  recipe did not move here.
+
+So the remaining approaches are, in order of expected value:
+
+1. **a write watchpoint on the render array or the node fields, while a verified D-pad press moves the
+   highlight** -- PPSSPP supports watchpoints (section 43) and delivery can now be verified;
+2. **narrow the diff to a bounded region** where the animation counters are not (the earlier 0.25 MB
+   region diff was reliable in sections 31/33 precisely because it was fast);
+3. **follow the draw call from the recipe** -- `FUN_002478e0(manager+4, node+0x10, index)` receives the
+   candidate index; decompiling it may name the field it reads back.
+
+### Method note
+
+> **Fast controls beat thorough ones when the signal is periodic.** A 1 ms single-address read repeated 40
+> times in 10 s detected a period-11 counter that a 17 s full-RAM comparison could not. **Match the control's
+> sampling rate to the signal's period, not to the cost of the primary measurement.**
+
+> **Intersection protects against noise, not against periodicity.** A periodic value can appear in every
+> round's changed set by aliasing, so intersecting rounds does not filter it. Periodicity needs a *rate*
+> check, not a repetition check.
+
+> **Report an instrument limit as an instrument limit.** The 24 MB differencing route is exhausted *at this
+> sampling resolution* -- stated that way it directs the next attempt (watchpoint or bounded region) instead
+> of implying the selection is unfindable.
+
