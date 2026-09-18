@@ -701,3 +701,121 @@ structures of the form `(text_ptr, 0x880, ...)` that look like a resource/manage
 per-item list — so the selection index is most likely computed in code (the situation Rule 74
 describes). Finding it means reading the menu manager (`MENU MANAGER` is a named string in RAM at
 `0x08B837FC`), **not** diffing RAM further.
+
+---
+
+## 13. The menu manager is NAMED in RAM — and the text pool is not per-menu
+
+Two more structures found while hunting the selection index.
+
+### The engine registers its own function names
+
+At `0x08B837FC` the engine holds a named-function registry:
+
+```
+MENU MANAGER
+MENU_MANAGER::ExecuteUpdate
+MENU_MAN...
+```
+
+alongside the debug names already recorded (`SYSTEM_FONT::Draw`, `VOLATILE_MEMORY_LOADER`,
+`SQEXTEC MoviePlayer Display Async`). `MENU_MANAGER::ExecuteUpdate` is the function to read for
+cursor behaviour — **but no pointer to the name exists anywhere in readable RAM**: a full scan for
+u32 references to `0x08B8380C` and `0x08B837FC` returned **0**. So the registry is consumed by name
+lookup (hashed/compared at runtime), not by stored pointers, and the code cannot be reached by chasing
+a pointer. The route is Ghidra: find where these names are compared, which is what the `DISSIDIA_ELF`
+project is for.
+
+### The text pool at 0x09D16A68 is NOT one menu's item list
+
+The full listing shows strings from **several different screens** interleaved in one block —
+`Return to Game` / `Retry` / `Quicksave` (pause menu), `Dark Knight` / `Paladin` / `Normal` /
+`EX Mode` (character/mode selection), `Saving replay...` / `Replay saved`, and conditional notices.
+
+So it is a **resident string pool**, not a per-screen item table:
+
+```
+0x09D16A68  [0x04] Return to Title Screen
+0x09D16A98  [0x00] Return to Start Menu
+0x09D16AC4  [0x00] Return to Mode Top
+0x09D16AEE  [0x00] Retry
+0x09D16AFC  [0x00] Return to Game
+0x09D16B48  [0x00] Retry Level
+0x09D16B8A  [0x00] Quick Select
+0x09D16BBC  [0x00] Forfeit
+0x09D16BCE  [0x00] Rematch
+0x09D16BE0  [0x00] Flee
+0x09D16C12  [0x00] Quicksave
+0x09D16C38  [0x00] .Quit Level Progression
+0x09D16C6A  [0x00] Forfeit this battle?
+0x09D16C9A  [0xFF] *EXP and character settings will be retained
+0x09D16CF8  [0x00] Dark Knight
+0x09D16D12  [0x00] Paladin
+0x09D16D24  [0x00] Normal
+0x09D16D34  [0x00] EX Mode
+0x09D16D4A  [0x81] Close
+0x09D16D70  [0x00] Help Manual
+0x09D16D8A  [0x00] Skip Cutscene
+0x09D16DA8  [0x00] Resume
+0x09D16DB8  [0x00] Save replay
+0x09D16DD8  [0xFF] Saving replay...
+0x09D16E04  [0xFF] Replay saved
+0x09D16E22  [0x00] Continue
+0x09D16E48  [0x00] 2Play to next camera data
+0x09D16E7C  [0x00] "Camera Edit mode
+0x09D16EA2  [0x00] Replay mode
+0x09D16EBA  [0x00] (Play from beginning
+0x09D16EE4  [0x00] $Reset camera data
+0x09D16F0C  [0x00] Save data
+0x09D16F20  [0x00] "Return to Museum
+0x09D16F84  [0x00] "Return to Museum
+0x09D16FAA  [0x00] Quit this battle and return to the level map?
+0x09D1700C  [0xFF] *Invokes a penalty of 2 DP
+0x09D17044  [0x00] 0Continue to Next Battle
+0x09D17078  [0x00] Return to the Arcade Mode selection screen?
+0x09D170D6  [0xFF] You will lose all current progress.
+0x09D17120  [0x00] .Return to Battle Setup
+0x09D17150  [0x00] <Return to Character Selection
+0x09D1718E  [0x00]  Return to Lobby
+0x09D171B2  [0x00] Return to the title screen?
+```
+
+The rare prefixes `[0x04]` and `[0x81]` sit on the first entry and on `Close`, i.e. they are
+**per-entry attribute/format codes**, while `[0xFF]` marks notice/conditional lines. Consistent with
+section 12.
+
+### The item list IS in RAM, referenced by ID
+
+Immediately before the `main_lang.bin` name string live two node records, one of which holds a
+**contiguous ascending list of small integer ids**:
+
+```
+0x09CED300  09CED480 09C98280 00000170 00000004
+0x09CED310  00000118 00000119 0000011A 0000011B     <- 0x118=280, 0x119=281, 0x11A=282, 0x11B=283
+0x09CED320  0000011C 00000000 ...                   <- 284
+```
+
+`0x09CED310` is pointed to directly by the resource record at `0x09CED510`
+(`09D169B0 09CED530 00000000 0000001C`), and `0x09CED500` in turn is pointed to by the
+`main_lang.bin` record. So the chain is:
+
+```
+main_lang.bin resource record @0x09EF7244
+    -> 0x09CED500   (09CED530 09D1C100 00029D10 00000010)
+    -> 0x09CED510   (09D169B0 09CED530 00000000 0000001C)
+    -> 0x09CED310 = an ascending ID list (280..284)
+    -> 0x09D169B0 = the text pool region
+```
+
+**A menu is therefore an ID list plus a text pool**, not an array of text pointers — which is why no
+per-item pointer table exists to find. The missing selection index is most likely one of the small
+integers in such a node, and reading `MENU_MANAGER::ExecuteUpdate` in Ghidra is the way to confirm
+which.
+
+### Session state at the time of writing
+
+The game had stopped changing: sampling the node arena and the text pool 1.5 s apart gave **identical
+bytes**, and three separate regions were all static. So the emulator was parked on a static screen
+(not in a live menu), and no cursor could be exercised from that state. The cursor work needs the game
+actually sitting in a menu.
+
