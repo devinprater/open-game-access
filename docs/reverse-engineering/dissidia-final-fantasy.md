@@ -3814,3 +3814,67 @@ final step needs a helper only to *land* on an interactive screen, not to identi
 > drawing blocks", the search collapses to a poll. Whenever a probe is expensive, check whether some
 > already-located structure carries the same information as a scalar.
 
+
+
+---
+
+## 52. RETRACTION: the manager header does NOT classify screens — `render count` and `+0x20` both fail
+
+Section 51 proposed `manager +0x18` (render block count) as a screen classifier, and the `+0x20`
+sentinel as a second candidate. Both are now **falsified** by comparing two screen states directly.
+
+### The sample table
+
+| screen state | render `+0x18` | `+0x1C` | `+0x20` | `+0x24` | node COUNT |
+|---|---|---|---|---|---|
+| animating 3D scene (fresh title) | **0** | 0 | **-1** | 1 | 11 |
+| static UI screen (reached via `l`) | **0** | 0 | **-1** | 1 | 11 |
+| frozen / halted emulator | 1 | 0 | 1 | 1 | 9 |
+| pause menu (sections 41/44) | 3 | 12 | -1 | 1 | 35 |
+
+The two states that matter — an **animating scene** and a **static UI screen** — produce **byte-identical
+headers**:
+
+```
+render COUNT 0   +0x1C 0   +0x20 -1   +0x24 1   node COUNT 11
+```
+
+So neither `render count` nor `+0x20` distinguishes them. The apparent correlation in section 51 came
+from comparing a *scene* (0) against the *pause menu* (3) — but the static UI screen also reads 0, and
+that is precisely the screen type the classifier needed to find.
+
+### What is actually true
+
+* **The manager is a persistent global object, not a per-screen one.** It is present and structurally
+  identical across an animating scene and a static UI screen. The earlier per-screen "differences"
+  (node counts 9 / 11 / 35) are better explained by a **halted emulator** (9, where the state is not a
+  screen at all) and by the pause menu genuinely having more nodes (35).
+* **No cheap manager-side classifier exists** among the fields measured. Screen type has to be
+  determined from the display, as `psp-reach-menu.py` already does reliably (two-frame diff plus
+  saturated-colour percentage).
+* The `frozen` row is a useful reminder that a halted emulator's header is **not** a screen's header —
+  it is a fourth state that would silently pollute any classifier trained on it.
+
+### Consequence
+
+Section 51's plan to replace an expensive screen search with a single 64-byte read **does not work**;
+the measurement it was based on conflated two screen types. The screen search must continue to use the
+display-based test, which is slower but correct:
+
+* `psp-reach-menu.py` — two-frame diff plus colour saturation, which has correctly identified static UI
+  screens repeatedly ("STATIC+UI <-- MENU via 'l'");
+* and the scrollability test (`psp-find-scroll.py`), which presses each control and requires the display
+  to change **and stay static**.
+
+### Method note
+
+> **A classifier must be tested on the pair of classes it is meant to separate.** `render count = 0`
+> looked like a scene-vs-menu discriminator because the comparison in section 51 was scene (0) against
+> the pause menu (3). Adding one more sample — a *static UI screen* — showed it also reads 0, i.e. the
+> value is **constant across the two classes that matter**. Two samples can support a hypothesis that
+> three refute; the third sample is what makes the test meaningful.
+
+> **Watch for a fourth state.** A halted emulator produced a header that fits no screen category
+> (`render 1, +0x20 1, nodes 9`). Any classifier built without asserting liveness would have learned
+> from that state as if it were a screen.
+
