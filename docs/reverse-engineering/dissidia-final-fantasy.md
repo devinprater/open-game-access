@@ -3165,3 +3165,82 @@ returned to the title screen and `ticks delta 781,501,783` confirmed normal exec
 > screen, its internal arrays move. Watch the field that *points* to the array, or re-resolve the base on
 > the screen in front of you.
 
+
+
+---
+
+## 44. The manager object IS mapped — and a second frozen-emulator false negative
+
+Section 43 concluded the watch target should be the *field that points to* the render array. Finding it
+produced the fullest map of the manager so far, plus a repeat of the instrument fault that section 43
+had just diagnosed.
+
+### The manager, fully mapped
+
+`DAT_00397770 + 0` holds `0x08C08EB0`; the array base `0x09DEE3C0` occurs **exactly once** in all
+readable RAM — at `0x08C08EC4`, i.e. **manager `+0x14`**, the field the decompiled writer reads:
+
+```
+manager +0x00 = 0x09DEE380        +0x18 = 3            <- render block COUNT (writer's field)
+manager +0x04 = 0x09DF18F0        +0x1C = 12
+manager +0x08 = 0x09DEE380        +0x20 = -1
+manager +0x0C = 0x09A3F000        +0x24 = 1            <- small ordinal
+manager +0x10 = 0                +0x28 = 0x08C09344
+manager +0x14 = 0x09DEE3C0   <-- RENDER ARRAY BASE   +0x2C = 0x08C09210
+```
+
+Two things worth noting:
+
+* **`+0x14` = the render base and `+0x18` = the count** are confirmed as *live fields of this object* —
+  this is precisely the target section 43 said to watch (the field, not the remembered array address).
+* **`+0x28 = 0x08C09344` / `+0x2C = 0x08C09210`** are the head/tail of the 35-node list walked in
+  section 39. So the same object carries the render base, the node list, the `-1` sentinel and the
+  count fields `3` and `1`.
+
+### The false negative, twice
+
+Polling `+0x14`, `+0x18`, `+0x1C`, `+0x20`, `+0x24`, `+0x28`, `+0x2C` across six `down` presses showed
+**no field moved**. The delivery check then reported the reason:
+
+```
+display change on the last press: 0 px
+ticks delta 2.5s: 0   stepping=True   paused=False   (screen blank, lum 237)
+```
+
+**The emulator was frozen again.** Probing the debugger protocol — repeated `cpu.resume`, breakpoint
+add/clear cycles, many short-lived connections — halts PPSSPP with `stepping: true` and `ticks` frozen,
+and a halted emulator produces *exactly* the readings a true negative produces: 0-pixel diffs, no
+watchpoint hits, unmoving fields.
+
+This is the second occurrence in two sections, so it is now a **standing precondition** rather than a
+one-off:
+
+> **Assert that the emulator is EXECUTING (ticks advancing) before AND after any observation run.**
+> If `ticks` does not advance, no conclusion is valid. Recovery that works reliably is kill-and-relaunch
+> (`Stop-Process -Force`, verify the process count is 1); clearing breakpoints plus `cpu.resume` does
+> **not** reliably clear the frozen `stepping` state.
+
+`scripts/psp-live-check.py` implements this check with an optional `--recover` attempt, so future runs
+fail loudly instead of returning a plausible-looking null.
+
+### Where the cursor hunt actually stands
+
+The manager object is now **completely mapped**, and `+0x24 = 1` is a small ordinal sitting beside the
+render base and the list pointers — the most cursor-shaped field found in this object so far. But it
+**cannot be evaluated from the run above**, because nothing was executing. It needs a clean run with:
+
+1. `psp-live-check.py` confirming `ticks` advances;
+2. two connections (reads vs input);
+3. presses verified to move the display;
+4. **a menu with more than two rows**, since section 40's rule stands: a 2-item list cannot distinguish
+   an index from derived state.
+
+### Method note
+
+> **An instrument that freezes produces true-looking negatives.** This is the fourth distinct instrument
+> fault in this investigation (silent capture crash; coarse grid erasing a highlight; reads suppressing
+> presses; now a halted CPU) and every one of them yielded a *confident wrong answer* rather than an
+> error. The countermeasure that works is not care but **assertion**: measure a quantity that must be
+> non-zero if the system is alive — here, the CPU tick delta — and refuse to interpret anything
+> otherwise.
+
