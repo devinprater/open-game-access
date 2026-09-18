@@ -5024,6 +5024,103 @@ the only frame the stick can act in, and note that the game's own camera can swi
 reading. **Auto-travel must therefore feed the stick in camera space**, converting a world-space
 bearing through the camera yaw.
 
+# What Dragon Walker actually IS (external research), and why the objective resists RAM search
+
+## Research findings (GameFAQs / forums / wiki)
+
+Searched per the user's instruction. The important structural facts:
+
+| fact | source |
+|---|---|
+| **Dragon Walker IS the story mode** | GameFAQs answers ("Dragon walker itself is the story mode") |
+| it is a **free-flight world map** you hover over | DBZ wiki: "move into a virtually liberal environment and hover over different places on the map" |
+| objectives are **THINGS ON THE MAP**: towns you fly to, enemies, items, NPCs | wiki + board threads |
+| **"the white monster flies around the world map and runs away if he sees you... just fly around the world and if you see something moving away from you, chase it"** | GameFAQs board |
+| completion is confirmed by **talking to the NPC again** ("if he/she/it doesn't give you money, you haven't completed it yet") | GameFAQs board |
+| missions get a **star**; **116 stars** total; some are greyed out | GameFAQs board + save thread |
+| rank (S/A/B) scores **time, remaining health, combo size, damage per move** | GameFAQs board |
+| side missions include **escort** ("Take Dende to the Designated Area") and **search** ("go see Guru, speak to Dende") | walkthrough indices |
+
+⭐ **The key implication:** objectives are **entities with positions on the map**, not abstract vectors.
+That is exactly why the chevron is drawn for them — and why the search should have been structural
+from the start.
+
+## ⛔ Both RAM routes to the objective are now EXHAUSTED (recorded as dead ends)
+
+| approach | result | verdict |
+|---|---|---|
+| floats constant while the player moves, **all user RAM** | **174,900** hits; 60,411 of them live (>=0x08900000) | ✗ most of memory is static (code, tables, assets, inactive entities), so constancy isolates nothing |
+| fixed **world-scale triples** in the entity band (`0x08B69000-0x08B6C000`) | **0 fixed**, 67 moving | ✗ that band holds only **player-side** data (player + camera/render copies) |
+| fixed world-scale triples, full RAM | **60,411** | ✗ same constancy problem |
+
+⭐ **Conclusion: "find the value that does not change" CANNOT isolate a single objective waypoint in
+this RAM image.** The signal-to-noise is hopeless. This is a genuine negative result and should not be
+retried with a looser or stricter threshold — the method is wrong for this data.
+
+### What the entity band DOES contain (useful)
+
+67 moving triples, in **repeating clusters with a small y offset**:
+
+```
+0x08B69B4C  237  -16  1611
+0x08B69B64  223  -16  1692
+0x08B69B7C  156  -16  1597
+0x08B69C3C  142  -16  1678
+0x08B69E0C 1556   -6  1164     <- the player's own triple (large X)
+0x08B69E24 1635   -6  1136     <- and its neighbour
+```
+
+The `-16` / `-23` / `-6` small components differ by cluster, and the two large components repeat with
+small offsets. This is **player position plus several derivative copies** (camera-relative, render,
+collision) — consistent with a single entity replicated for different subsystems, NOT with an entity
+array of distinct objects.
+
+⚠️ So the world-map entities (towns, the white monster, NPCs) are **elsewhere in memory**, and finding
+them requires locating the **entity list head / spawn table**, not differencing positions.
+
+## The chevron closed-loop: built, and it needs the FIELD
+
+`scripts/psp-tt-autotravel.py` implements the approach that needs no objective address:
+
+```
+read the chevron  ->  push the stick that way  ->  repeat
+```
+
+Rationale: the chevron already IS the bearing, and the stick acts in **camera space** anyway (the
+FFXII screen reader documents this), so following the glyph is in the correct frame by construction.
+Following the chevron IS pathfinding, and it sidesteps the whole RAM dead end. It also reports whether
+|bearing| CONVERGES, which is the real test of whether the loop works.
+
+⚠️ **Two attempts returned "no chevron in 60 s" — because the game had LEFT THE FIELD.** Confirmed:
+
+```
+player triple @0x08B6A08C:  0.0   -2.2e12   -9.1e12    <- garbage, not world data
+periwinkle px: 13                                       <- essentially no glyph
+```
+
+⭐ **The position triple only holds world coordinates while on the flying field**, and the chevron is
+only drawn there too. Both the RAM work and the beacon are **field-mode only**. A menu/battle/cutscene
+invalidates them (this is the phase-signature rule again: assert the phase before measuring).
+
+### To resume
+
+1. get the game back to the **flying field** (Dragon Walker, airborne);
+2. confirm the player triple is sane (e.g. `1565 -13 1153`-style values, not exponent garbage);
+3. run `python scripts/psp-tt-autotravel.py --seconds 60` and read the convergence verdict.
+
+A dry run cannot work by construction: the glyph is only drawn while moving, so the loop needs to move
+to see the arrow it needs in order to move.
+
+## Status of the user's two asks
+
+| ask | status |
+|---|---|
+| "solve the objective" (position in RAM) | ❌ **not achieved** — two methods exhausted, both recorded as dead ends |
+| auto-travel to the objective | ⚠️ **built, not yet demonstrated** — blocked on returning to the field |
+| player position | ✅ found and cross-validated |
+| text reader | ✅ verified |
+| beacon | ✅ built and validated, parked at the user's request |
+
 ## Status: BLOCKED on reaching a battle
 
 No adapter code is written and **no address is confirmed against live gameplay**. The stat
