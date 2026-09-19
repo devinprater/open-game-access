@@ -354,11 +354,36 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Enemy: HP 338 of 338. Bravery 530. 15 away, below you.") == 0,
           "battle foe");
 
-    // 25. lock-on pending
+    // 25. lock states (P0+0x2EC; live: target==enemy at round start)
+    // enemy lock: tgt == P1 (paired); dist P0->P1 = 15.8 -> 15
+    put32(BP0 + 0x2ECu, BP1);
     NSPOKEN = 0;
     a->command(oga::Command::NextEnemy);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Lock-on state not tracked yet.") == 0,
-          "lock pending");
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Locked on the enemy. 15 away.") == 0,
+          "lock enemy");
+    // lock off
+    put32(BP0 + 0x2ECu, 0u);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Lock off.") == 0,
+          "lock off");
+    // EX-core lock: alternate target in the generic list
+    const uint32_t BO1 = 0x08903500u, BO2 = 0x08903600u;
+    put32(BP0 + 0x2ECu, BO2);
+    put32(BM2 + 0x0Cu, BO1);
+    put32(BO1 + 0x490u, BO2);
+    put32(BO2 + 0x490u, 0u);
+    putf(BO2 + 0x80u, -7.5f); putf(BO2 + 0x84u, 10.0f); putf(BO2 + 0x88u, 41.3f);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Locked on the EX core. 8 away.") == 0,
+          "lock core");
+    // retired target (not in list) -> lost
+    put32(BO1 + 0x490u, 0u);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Lock target lost.") == 0,
+          "lock lost");
 
     // 26. down state (dmg >= max)
     put16(BS0 + 0x02u, 1000u);
