@@ -8992,3 +8992,18 @@ EX-core watch (~26 L/R presses over 19 consistency-checked polls across two batt
 lock never verifiably left enemy. One ALT candidate (pos 0,0,0, absent from generic
 list) correctly refused by the lifecycle rule. Adapter covers all four states honestly,
 so this stays opportunistic, not blocking.
+
+## 116. Stage-service addresses CORRECTED + validated (10B)
+
+Bias resolved: code +0x08800000 vs data +0x08804000 are both real (different segments);
+Codex's E/F were unresolved addends, not objects. Corrected live-validated reads:
+
+- Field DB F=0x08BAC30C: counts 123/16/21 with heap pointers (populated, sane).
+- Env list: count=6 at 0x08BAC864, items at 0x08BAC868; 6 objects, finite positions
+  ((-36,0.5,0), origin cluster) -- the SAME 6 kind-2 objects as ANSWER9's generic-list
+  walk, cross-validated across two independent lists.
+- World/aux roots re-confirmed non-null.
+
+Honest-negative core unchanged: enumerable with positions, but no semantic labels
+(wall/cover/ramp/trap) without stage-specific evidence. The surroundings primitive
+(count + items + XYZ) now exists for the adapter when a stage profile gives it meaning.

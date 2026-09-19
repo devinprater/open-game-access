@@ -208,3 +208,71 @@ independent references**. A universal collision-mesh layout, nearest-feature API
 ids, and BRV-zero trigger id are **not established by this executable**. Those semantic
 labels require stage asset/profile analysis or a narrowly scoped live differential; none was
 invented here.
+
+## TASK10B correction — segment-relative singleton addresses
+
+The original answer treated the decompiler constants `0x1AAC` and `0x1E48` as complete ELF
+virtual addresses. They are not. `FUN_00030A18` and `FUN_00066314` are code at ELF vaddrs
+`0x00030A18` and `0x00066314`; the constants returned by them are **segment-1-relative
+addends** for singleton objects in the second `PT_LOAD`, not addresses in the code segment.
+
+The second load segment has ELF vaddr `0x003A6860`. Resolving the addends gives:
+
+```text
+field singleton:       0x003A6860 + 0x1AAC = ELF vaddr 0x003A830C
+environment singleton: 0x003A6860 + 0x1E48 = ELF vaddr 0x003A86A8
+```
+
+Both lie in `.bss`, which begins at ELF vaddr `0x003A8300`. The associated one-time guards
+are immediately before them: `0x003A8308` and `0x003A86A4`.
+
+This is supported independently in two ways. First, the PSP relocation entries on each
+function's `lui`/low-half address-building instructions select target segment 1
+(`r_info` values `0x00010005` and `0x00010006`), so Ghidra's raw `0x1AAC`/`0x1E48`
+rendering is missing the segment-1 base. Second, `FUN_0003083C` initializes fields through
+`object+0x2A4` and `FUN_00065B28` initializes the corresponding environment subobjects,
+while their many independent consumers reuse the values returned by the singleton
+accessors. They are writable objects, consistent with the normalized `.bss` locations and
+inconsistent with the low addresses inside the executable code segment.
+
+Using the two candidate biases explicitly:
+
+| Item | ELF vaddr | `+0x08800000` | `+0x08804000` |
+|---|---:|---:|---:|
+| `FUN_00030A18` code | `0x00030A18` | `0x08830A18` (code mapping) | `0x08834A18` |
+| field singleton `F` | `0x003A830C` | `0x08BA830C` | **`0x08BAC30C`** |
+| `FUN_00066314` code | `0x00066314` | `0x08866314` (code mapping) | `0x0886A314` |
+| environment singleton `E` | `0x003A86A8` | `0x08BA86A8` | **`0x08BAC6A8`** |
+
+The bold addresses are the live object addresses under the independently validated data
+bias. In contrast, `0x08805AAC` and `0x08805E48` result from adding the data bias directly
+to unresolved segment-relative addends; they are not these objects, hence the garbage.
+Likewise, `0x08801AAC` and `0x08801E48` merely add the code bias to those unresolved
+addends. Their zeros are unrelated low-address contents, not valid empty singleton state.
+
+### Corrected minimal validator reads
+
+Use the data bias only after converting each segment-relative addend to its full ELF vaddr:
+
+```text
+F = 0x08BAC30C                         // 0x003A830C + data bias
+read32(F + 0x0E4), read32(F + 0x0E8)  // 0x08BAC3F0, 0x08BAC3F4
+read32(F + 0x144), read32(F + 0x148)  // 0x08BAC450, 0x08BAC454
+read32(F + 0x1D8), read32(F + 0x1DC)  // 0x08BAC4E4, 0x08BAC4E8
+
+E = 0x08BAC6A8                         // 0x003A86A8 + data bias
+L = E + 0x1B8 = 0x08BAC860
+count = read32(0x08BAC864)             // L + 4
+items = read32(0x08BAC868)             // L + 8
+```
+
+Retain the original bounds checks: counts must be small and nonnegative; a pointer required
+by a nonzero count must be aligned and in RAM; and any object walk must be capped by the
+validated count. Zero count/null pointer pairs can be legitimate for unloaded or empty
+groups and do not establish that an address is correct by themselves.
+
+The honest-negative result is unchanged. The field singleton's count/pointer groups are
+supported by loader plus accessor references, and the environment `+0x1B8` list is supported
+by the two enumerators already cited. Those references establish structure and lifetime,
+not English meanings such as wall, cover, ramp, trap, or BRV-zero trigger. No such semantic
+label should be emitted without separate stage-specific evidence.
