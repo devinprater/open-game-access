@@ -8979,3 +8979,16 @@ Adapter NextEnemy in battle: "Locked on the enemy. N away." / "Lock off." /
 incl. self-guard). Beacon contract in-code: app beeps low, rate rising as distance
 closes; per-frame beeping needs a query API the Adapter interface lacks (on-demand
 command is the stopgap). 41/41 tests.
+
+## 115. Surroundings = honest negative; EX-core alternate still unobserved
+
+ANSWER10: no enumerable typed geometry in the executable (no nearest-feature API, no
+BRV-zero trigger id). Validated live: world root + aux handles non-null; Codex's E/F
+service addresses caught mixing the two load biases (code +0x08800000 vs data
++0x08804000; TASK10B sent). Practical path: offline per-stage profiles from legally
+available data + live BRV-transition differentials (S+0x0E is ground truth).
+
+EX-core watch (~26 L/R presses over 19 consistency-checked polls across two battles):
+lock never verifiably left enemy. One ALT candidate (pos 0,0,0, absent from generic
+list) correctly refused by the lifecycle rule. Adapter covers all four states honestly,
+so this stays opportunistic, not blocking.
