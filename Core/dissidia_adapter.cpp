@@ -19,6 +19,13 @@
  *     0x30 Quit Level Progression, 0x39 Help Manual.
  *   Reader: FUN_00250538(obj) validates 0 <= idx < count else returns -1.
  *
+ * DP LOGIC (s104, write-watchpoint proven):
+ *   Spend/adjust: FUN_001b6084(obj, delta) does s16[[obj+0x38]+6] += delta with
+ *     clamps (floor -10, cap 0x14) then calls FUN_001ca124 to refresh the cache.
+ *     Called from the battle-UI dispatcher FUN_001b97c8 (3 sites) + FUN_001bffa8.
+ *   Cache refresh: FUN_001d5438 (HUD draw tick) rewrites [U+0xD78] on every input
+ *     tick -- presentation only, never game logic.
+ *
  * INPUT CHAIN (code-verified end to end, sections 79-88):
  *   sceCtrl -> pad object +0x00 (live button word) -> FUN_000f7138 reads raw
  *   -> FUN_000f70c4 maps raw bits to LOGICAL action bits

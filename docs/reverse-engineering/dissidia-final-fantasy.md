@@ -8642,3 +8642,50 @@ announcements until then.
 Cursor world position / node id, live `T` owner + highlight id, DP-positive commit test
 (`0x001BF078`/`0x001AE3B4`/`0x001CA7EC` break set), right-down-right table read, item-name
 mapping, board surfaces in the adapter.
+
+## 104. DP spend path MAPPED: `FUN_001b6084` adjusts, `FUN_001ca124` refreshes, HUD tick rewrites
+
+Write watchpoints (scripts/bd-watch-dp.py) on a fresh DP-01 board, direction press per round:
+
+- Authoritative s16 `R+6`: halts at vaddrs `0x001B6090/9C/A8` on rounds 1-3. Round 1 spent DP
+  1 -> 0 (both chains) with a 55K-px move; rounds 2-3 wrote with 0-px display (same-value
+  refreshes); rounds 4-6 (cursor-only moves) no halts. R+6 is written on spend AND refreshed
+  per input tick -- a watchpoint alone cannot distinguish; the VALUE transition can.
+- Cache `U+0xD78`: halts at vaddr `0x001D5758` x4 (every round incl. 0-px ones). Cache is
+  rewritten on EVERY direction press regardless of effect.
+
+Decompile (Ghidra DisDpSpend, docs/reverse-engineering/dp-spend-report.txt in the Ghidra
+project; key bodies below):
+
+`FUN_001b6084(obj, delta)` -- the GENERAL DP adjuster (refines ANSWER4, which named only
+`FUN_001ca7ec`):
+
+```c
+s16[[obj+0x38]+6] += delta;   // signed! spend = negative, grant = positive
+[obj+0x1d4] = delta;
+clamp: < -10 -> 0xFFF6 (-10); > 0x14 (20) -> 0x14; sync s16[[obj+0x38]+8];
+FUN_001ca124(new_dp, [obj+0x38]+8);   // cache refresh
+```
+
+Callers: `FUN_001b6a0c`, `FUN_001bffa8`, and THREE sites in the battle-UI dispatcher
+`FUN_001b97c8` (`0x001BB8BC/0x001BC344/0x001BC394`) -- the same dispatcher that serves the
+pause widget. The direction-press spend path runs through it.
+
+`FUN_001ca7ec` confirmed as ANSWER4 described (subtract primitive with `[0,max-1]` clamp,
+called from two `FUN_001b97c8` sites) -- the battle-side twin of `FUN_001b6084`. Our board
+spend used `FUN_001b6084`.
+
+`FUN_001d5438` (4,768 bytes, contains cache site `0x001D5758`) is the DP/HUD DRAW tick:
+compares `[U+0xD80]` vs `[U+0xD78]`, splits digits with `%10` (glyph tables `0x3949e2`,
+`0x3949f6`, `0x3949ce`), issues draw calls. Presentation only -- never game logic.
+
+### Adapter rule from this
+
+Read `R+6` for logic, `U+0xD78` for display; never infer a spend from a cache write (the HUD
+tick rewrites it constantly). The adapter already implements both chains (s101); header now
+cites the adjuster. No behavior change, no new tests needed (addresses are per-boot heap).
+
+### Still open (unchanged)
+
+Cursor world position / node id, live tile-table `T` owner, right-down-right table read
+(`FUN_001c5bb4` call site), item-name mapping, board surfaces in adapter.
