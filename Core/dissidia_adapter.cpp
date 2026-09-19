@@ -67,12 +67,27 @@ constexpr uint32_t RAM_HI = 0x0A000000u;
 constexpr uint32_t BATTLE_ROOT_HOLDER = 0x08B98940u;
 constexpr uint32_t PAUSE_WIDGET_OFF   = 0x234u;
 
+// ---- Board chains (ANSWER5, s105; VALIDATED LIVE: cursor tracks, DP spends/refunds) ----
+// M = [0x08B98940]; P = [M+0x118]; B = [P+0x04]; T = [B+0x0C]; D = [B+0x10].
+// highlight (x,y) = u8[D+0x194], u8[D+0x195]; origin = u8[[D+0x38]+0x02], +0x03.
+// Progress: G = [0x08B99338]; chapter = u8[M+0x120]; C = G+0x1AE80+chapter*0xF74;
+//   slot = u8[C+2]; R = C+slot*0x314+8; DP = s16[R+6].
+constexpr uint32_t PROGRESS_HOLDER = 0x08B99338u;
+constexpr uint32_t OFF_P = 0x118u, OFF_B = 0x04u, OFF_T = 0x0Cu, OFF_D = 0x10u;
+constexpr uint32_t OFF_HX = 0x194u, OFF_HY = 0x195u, OFF_DORG = 0x38u;
+constexpr uint32_t OFF_CH = 0x120u, CH_BASE = 0x1AE80u, CH_STRIDE = 0xF74u;
+constexpr uint32_t SLOT_STRIDE = 0x314u, OFF_DP = 0x06u;
+
 static const Host* g_host = nullptr;
 // W = the CURRENT menu's list widget (index at W+0x3C, count at W+0x240).
 // 0 = not tracked yet. Heap addresses shift per boot, so this is re-discovered
 // from static holders on every use -- never a constant, never cached across menus.
 static uint32_t g_widgetRoot = 0;
+// True when the harness explicitly pinned the widget (it owns the validity claim);
+// false when the adapter discovered it (may go stale when the menu closes).
+static bool g_widgetPinned = false;
 
+static uint8_t u8(uint32_t a) { return g_host ? g_host->read8(g_host->ctx, a) : 0; }
 static uint32_t u32(uint32_t a) { return g_host ? g_host->read32(g_host->ctx, a) : 0; }
 
 static void Say(const char* s, bool interrupt = true)
@@ -84,7 +99,7 @@ static bool InRam(uint32_t a) { return a >= RAM_LO && a < RAM_HI; }
 
 /// The harness may pin a known-live widget directly. Prefer discovery: heap
 /// addresses shift per boot, so a pinned widget is only valid for its own menu.
-void SetWidgetRoot(uint32_t w) { g_widgetRoot = w; }
+void SetWidgetRoot(uint32_t w) { g_widgetRoot = w; g_widgetPinned = (w != 0); }
 uint32_t WidgetRoot(void) { return g_widgetRoot; }
 
 /// Discover the pause-menu widget from its static holder (Codex ANSWER3, s101).
@@ -124,24 +139,87 @@ static int SelectionIndex(uint32_t* countOut)
     return (int) idx;
 }
 
+/// Walk the board chain M -> P -> B -> D. Returns D (dispatcher) or 0.
+/// Every hop is validated (in RAM, aligned); 0 means "board not available".
+static uint32_t BoardDispatcher(void)
+{
+    if (!g_host) return 0;
+    uint32_t m = u32(BATTLE_ROOT_HOLDER);
+    if (!InRam(m) || (m & 3)) return 0;
+    uint32_t p = u32(m + OFF_P);
+    if (!InRam(p) || (p & 3)) return 0;
+    uint32_t b = u32(p + OFF_B);
+    if (!InRam(b) || (b & 3)) return 0;
+    uint32_t d = u32(b + OFF_D);
+    if (!InRam(d) || (d & 3)) return 0;
+    return d;
+}
+
+/// Authoritative DP (s16 progress record). Returns -1000 when unreadable.
+static int BoardDP(void)
+{
+    if (!g_host) return -1000;
+    uint32_t m = u32(BATTLE_ROOT_HOLDER);
+    uint32_t g = u32(PROGRESS_HOLDER);
+    if (!InRam(m) || !InRam(g)) return -1000;
+    uint32_t ch = u8(m + OFF_CH);
+    if (ch > 40) return -1000;
+    uint32_t c = g + CH_BASE + ch * CH_STRIDE;
+    if (!InRam(c)) return -1000;
+    uint32_t slot = u8(c + 2);
+    if (slot > 4) return -1000;
+    uint32_t r = c + slot * SLOT_STRIDE + 8;
+    if (!InRam(r + OFF_DP + 1)) return -1000;
+    return (int) (int16_t) ((u8(r + OFF_DP + 1) << 8) | u8(r + OFF_DP));
+}
+
 static void CmdWhereAmI(void)
 {
     if (!ManagerOk()) { Say("Game not ready yet."); return; }
+    // Board first when no menu widget is live: pause widget validates itself
+    // (count 1..7), so a live pause menu still wins via the pinned root below.
     if (!g_widgetRoot) {
-        // No root yet: try the pause widget before refusing. Heap addresses shift
-        // per boot, so this re-reads the static holder every time -- never cached.
         g_widgetRoot = DiscoverPauseWidget();
+        g_widgetPinned = false;
     }
-    if (!g_widgetRoot) { Say("Menu not tracked yet."); return; }
-    uint32_t cnt = 0;
-    int idx = SelectionIndex(&cnt);
-    if (idx < 0) { Say("No selection."); return; }
-    char line[96];
-    snprintf(line, sizeof(line), "Row %d of %u.", idx + 1, cnt);
+    if (g_widgetRoot) {
+        uint32_t cnt = 0;
+        int idx = SelectionIndex(&cnt);
+        if (idx >= 0) {
+            char line[96];
+            snprintf(line, sizeof(line), "Row %d of %u.", idx + 1, cnt);
+            Say(line);
+            return;
+        }
+        // Explicitly pinned widgets speak for their menu even when empty.
+        if (g_widgetPinned) { Say("No selection."); return; }
+        // Auto-discovered widgets go stale when the menu closes: clear and
+        // fall through to the board instead of announcing a dead menu.
+        g_widgetRoot = 0;
+    }
+    uint32_t d = BoardDispatcher();
+    if (!d) { Say("Menu not tracked yet."); return; }
+    int dp = BoardDP();
+    uint32_t hx = u8(d + OFF_HX), hy = u8(d + OFF_HY);
+    uint32_t org = u32(d + OFF_DORG);
+    uint32_t ox = 999, oy = 999;
+    if (InRam(org)) { ox = u8(org + 2); oy = u8(org + 3); }
+    char line[128];
+    if (hx > 60 || hy > 60 || ox > 60 || oy > 60) {
+        Say("Board state unreadable.");
+        return;
+    }
+    if (dp == -1000) {
+        snprintf(line, sizeof(line), "Cursor %u, %u. Origin %u, %u.", hx, hy, ox, oy);
+    } else if (hx == ox && hy == oy) {
+        snprintf(line, sizeof(line), "DP %d. Cursor home at %u, %u.", dp, hx, hy);
+    } else {
+        snprintf(line, sizeof(line), "DP %d. Cursor %u, %u. Origin %u, %u.",
+                 dp, hx, hy, ox, oy);
+    }
     Say(line);
-    // TODO: resolve the selected item's text. FUN_00251de4(element+0x18) names the
-    // value, but the value->string mapping is not yet established. Speak position
-    // only until it is -- never a guess.
+    // TODO: item names (tag->string mapping open), available directions (tile-table
+    // owner open), nearby objects. Position only until proven -- never a guess.
 }
 
 static void CmdDump(void)
@@ -156,6 +234,13 @@ static void CmdDump(void)
         uint32_t cnt = 0;
         int idx = SelectionIndex(&cnt);
         snprintf(line, sizeof(line), "index %d count %u.", idx, cnt);
+        if (g_host && g_host->log) g_host->log(g_host->ctx, line);
+    }
+    uint32_t d = BoardDispatcher();
+    if (d) {
+        int dp = BoardDP();
+        snprintf(line, sizeof(line), "board D=0x%08X cursor %u,%u dp %d.", d,
+                 u8(d + OFF_HX), u8(d + OFF_HY), dp);
         if (g_host && g_host->log) g_host->log(g_host->ctx, line);
     }
 }
@@ -183,10 +268,11 @@ static bool Attach(const Host* host)
 {
     g_host = host;
     g_widgetRoot = 0;   // never inherit a root across attach
+    g_widgetPinned = false;
     return true;        // the game code check already happened in the registry
 }
 
-static void Detach(void) { g_host = nullptr; g_widgetRoot = 0; }
+static void Detach(void) { g_host = nullptr; g_widgetRoot = 0; g_widgetPinned = false; }
 
 } // namespace dissidia
 

@@ -8689,3 +8689,65 @@ cites the adjuster. No behavior change, no new tests needed (addresses are per-b
 
 Cursor world position / node id, live tile-table `T` owner, right-down-right table read
 (`FUN_001c5bb4` call site), item-name mapping, board surfaces in adapter.
+
+## 105. Board cursor MODEL CLOSED: `D+0x194/+0x195`, origin, spend/refund sites, adapter speaks
+
+Codex TASK5 -> ANSWER5 (`docs/reverse-engineering/codex-findings/TASK5.md`, `ANSWER5.md`).
+Chain (all hops validated live this boot):
+
+```text
+M = [0x08B98940] = 0x08C168F0
+P = [M+0x118]    = 0x09C11540   (active board/piece controller)
+B = [P+0x04]     = 0x09C116C0   (board-data bundle)
+T = [B+0x0C]     = 0x09C11840   (coordinate-node table object)
+D = [B+0x10]     = 0x09C118C0   (input/state dispatcher)
+highlight (x,y)  = u8[D+0x194], u8[D+0x195]
+origin (x,y)     = u8[[D+0x38]+0x02], +0x03
+```
+
+### Spend AND refund, both value-proven live (Codex's exact prediction)
+
+From home (1,2), DP 1: `right` (563K px) -> cursor (2,2), DP 1 -> 0 (spend on leaving home);
+`left` (567K px) -> cursor (1,2), DP 0 -> 1 (REFUND on returning home). Moves cost only on
+crossing the home/non-home boundary -- further directions while away do not re-spend (the
+saved flag is already set). Write halts land at the shared store `0x001B6090` inside
+`FUN_001b6084` regardless of site (a write bp halts at the store, not the call): site
+attribution (`0x001BC394` spend / `0x001BC344` refund / `0x001BB8BC` cancel) rests on Codex's
+delay-slot constants + this value proof jointly.
+
+### Table notes
+
+`[D+0x40]` is the SAME object as `T` (not a second table). `T`'s node array IS the `R+0x114`
+marker array (32 slots stride 0x10); count (`u16 *[T+0]`) reads 1 with node[0] = (6,2) --
+the single active destination marker, not the full tile map. The full tile graph (all tiles +
+types) is still open; the marker table covers destinations/objects only.
+`D+0x196/+0x198` are preview coordinates, not the highlight; render floats rejected (again).
+
+### Home-area prompt: strong candidate, not proven
+
+`FUN_00267740` builds the `0x3B/0x3A` two-item list and `FUN_00267CB8` takes the `0x3A`
+branch (confirm sound, `+0x159A=1`) -- behavior matches the observed YES/NO exactly, but the
+localized text-to-code link is absent. Its owner (`DAT_003982F0`) is a separate global modal
+object, NOT a field of the cursor dispatcher.
+
+### Adapter: board WhereAmI LIVE (25/25 host tests)
+
+`WhereAmI` now: pause widget when live ("Row N of M", pinned pins speak "No selection" when
+empty) else board chains ("DP 1. Cursor home at 1, 2." / "DP 1. Cursor 2, 2. Origin 1, 2." /
+cursor-only when DP unreadable / refusals for broken chains). Live board reads produce
+exactly the tested string. `DumpState` also logs the board line. Pin provenance (`g_widgetPinned`)
+distinguishes harness-owned vs discovered widgets (regression caught by tests 4-7).
+
+### Instrument lessons (appended to the skill's standing rules)
+
+- `memory.breakpoint.clear.all` does NOT clear -- remove each bp by address+size or the game
+  freezes on HUD-tick reads (froze the session; recovered via `memory.breakpoint.list`).
+- PPSSPP arms read+write regardless of requested type -- a "write" halt PC is still the
+  triggering instruction (stores confirmed), but same-value/refresh halts need value proof.
+- `memory.breakpoint.list` exists -- use it to audit stale breakpoints first when the game
+  goes stepping-True with crawling ticks.
+
+### Remaining (narrowed)
+
+Full tile table + types, available-directions enumeration, item-name mapping, PPSSPP stall.
+The adapter speaks position + DP; directions/objects await the tile graph.
