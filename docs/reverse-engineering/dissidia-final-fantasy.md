@@ -8946,3 +8946,19 @@ airborne chase on screen. List walk = exactly 2 entries.
 Stage hazards stay a separate module (collision/gimmick services, no fabricated ids).
 Idle player lost twice to Garland AI during the hunt (Retry -> Opponent Info ->
 battle); battles are plentiful and re-enterable.
+
+## 113. Battle speech wired (38/38); lock design confirmed; TASK9 dispatched
+
+User-confirmed battle contract: opponent position ON DEMAND (opponents audible anyway);
+arena surroundings on demand; beacon = lock target centered + low beep, rate rising with
+closeness (app audio layer; adapter exposes identity + distance). L1 lock ring
+enemy -> ex-core -> off -> enemy, distinct game sound per state, optional newcomer
+announcements later.
+
+Adapter: battle-first mode dispatch (board M stays set mid-battle, so board-first would
+speak stale cursor garbage). WhereAmI -> "HP 901 of 1000. Bravery 2. EX 3 percent."
+(live-verified strings); NextAlly -> "Enemy: HP 338 of 338. Bravery 497. 10 away."
+(+above/below on dy>5); NextEnemy -> "Lock-on state not tracked yet." (honest pending);
+HP 0 -> "You are down. Retry or flee." 38/38 host tests incl. board-no-regression.
+
+TASK9 to Codex: lock-on state representation + EX-core list/positions/flags.
