@@ -8925,3 +8925,39 @@ Adapter: `NextEnemy` now walks the catalog (C=[T+0], K=[C+4], O=[C+8]+[K+key*4],
 type=s16[O+4]) and speaks verified names: enemy / potion / Stigma of Chaos; unknown
 types as "unknown object type N"; unreadable catalog as "special tile". Fixed a real
 bug found by tests: keytab/base live in C, not T. 33/33 host tests.
+
+## 111. Battle-state thrust opened; marker type names wired (33/33)
+
+User chose the battle state model as the next thrust (hazards noted: cover, ramps,
+BRV-zero traps -- they build on participant positions). TASK8 dispatched to Codex.
+
+Live battle differential (WoL vs Garland, idle player, verified full snapshots R0/R1/R2):
+12 persistent drops, incl. 0x09D8EBC8 755->243 HELD, 0x09B27974 512->256->0,
+0x09D75B78/7C 1274->0, 0x08BAC79C slow drain. Transient (BRV churn): 0x09C53xx array,
+0x09B3Cxxx triple (effect data per neighborhood floats/pointers).
+
+Adapter: `NextEnemy` now walks the catalog (C=[T+0], K=[C+4], O=[C+8]+[K+key*4],
+type=s16[O+4]) and speaks verified names: enemy / potion / Stigma of Chaos; unknown
+types as "unknown object type N"; unreadable catalog as "special tile". Fixed a real
+bug found by tests: keytab/base live in C, not T. 33/33 host tests.
+
+## 112. Battle participant chain VALIDATED live (fresh retry, full values)
+
+8B correction applied: the holder slot is 0x08B955A0 (I was 0x4000 low). Live reads:
+
+- M = 0x08BFB190 (heap manager object, stable across retries -- the "slot should contain
+  0x08854930" prediction was wrong; the SLOT is static, its CONTENT is heap).
+- P0 (WoL): S OK; HPmax=1000 dmg=94 HPcur=906; BRV=41 (base 95); EX=0.0;
+  pos=(-7.5, 18.4, 41.3).
+- paired P1 = list-next (same object): False Hero: HPmax=338 dmg=0; BRV=530 (base 49);
+  EX=912.0; pos=(-7.5, 2.6, 41.3).
+
+Cross-checks: enemy max 338 + base 49 EXACTLY match the pre-battle Opponent Info menu
+("HP 338 (1000 - 662)", "BRV 49 (95 - 46)") -- S holds TOTAL post-equipment values.
+HPcur=max-dmg derives correctly (906 after real damage). BRV dynamics visible both ways
+(WoL 95->41 taken; enemy 49->530 gained). Vertical separation (y 18.4 vs 2.6) matches the
+airborne chase on screen. List walk = exactly 2 entries.
+
+Stage hazards stay a separate module (collision/gimmick services, no fabricated ids).
+Idle player lost twice to Garland AI during the hunt (Retry -> Opponent Info ->
+battle); battles are plentiful and re-enterable.
