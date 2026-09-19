@@ -8461,3 +8461,67 @@ byte, or bitfield (the pair test reads full words), or the count may include hid
 > **A negative inherits the strength of its delivery proof.** v3-v5's zeros were inconclusive (2-3
 > delivered presses against a >= 3-sample rule). v7's zero rests on 9 verified moves -- it actually
 > constrains the model, and points at the menu-system hypothesis instead of more scanning.
+
+## 101. FOUND AND TRACKED LIVE: the pause-menu cursor is `[battle_ui_root] + 0x234`
+
+Codex ANSWER3 (`docs/reverse-engineering/codex-findings/ANSWER3.md`, from TASK3) broke the hunt
+open by naming a DIFFERENT object per menu instead of one global widget. Its decisive points,
+each verified before use:
+
+- `param_1` is unequivocally a pointer (`lbu a0,0x1296(s0)`, `addiu s1,s0,0x12c4` at the
+  instruction level) -- the s97 correction holds.
+- `FUN_00267cb8` is a field/talk-event YES/NO confirm handler (selected VALUE `0x3a` = Yes/OK
+  tag vs `0x3b` = No/Cancel, confirm/cancel sounds `0x2711`/`0x2712`). It never served the pause
+  or mode-select menus -- explaining all eleven blank hunts at once.
+- Pause candidate: `W = [[vaddr 0x00394940]] + 0x234` (battle UI root + 0x234).
+- Mode-select candidate: `W = [[vaddr 0x003931A0]] + 0x3E54`.
+- The guard "singletons" are per-object availability bytes (`lbu v0,0(a0)`), not global anchors;
+  `FUN_0025051c` returns an action enum (0 none / 1 confirm / 2 cancel) from `[W+0x28]`+`[W+0x38]`.
+
+### Live validation (board pause menu, display-verified moves, red-bar ground truth)
+
+Pause opened on the board: `W2 = 0x08C16B24`, `idx = 0`, `count = 4` -- count matches the 4 rows
+exactly. Then, with the red highlight bar's y-position read independently per screenshot:
+
+| move | display | bar (row) | idx | verdict |
+|---|---|---|---|---|
+| down x1 | 237K | 550 -> 650 (Return -> Quicksave) | 0 -> 1 | TRACKS |
+| down x2-7 | still/shimmer | static 650 | static 1 | drops correctly ignored |
+| down x8 | moved | 750 (Quit Level Progression) | 1 -> 2 | TRACKS |
+| down x10 | moved | 850 -> 550 (Help -> Return, WRAP) | 3 -> 0 | TRACKS, wraps |
+| up x2 | moved | 550 -> 850 (Return -> Help, WRAP) | 0 -> 3 | TRACKS, wraps |
+| up x3 | moved | 850 -> 750 | 3 -> 2 | TRACKS |
+
+Every acted move tracked; every dropped press ignored; wrap works both directions. Pause closed
+reads `idx -1 / count 0`, as the model predicts. Element tags observed live at
+`W+0x64+i*0x44+0x18`: row0 `0x0C`, row1 `0x2E`, row2 `0x30`, row3 `0x39` (command IDs; row0's
+`0x0C` matches the modal handler's known value set).
+
+### Codex's mode-select candidate is WRONG (controlled negative)
+
+`W = [[0x003931A0]] + 0x3E54 = 0x09EF4084` reads `idx -1 / count 0 / status 0 / action 0` while the
+mode-select menu is displayed AND while its highlight moves under verified downs (5/6 MOVED, up to
+339K px). Frozen fields + moving highlight = not the tracking object. Its fallback
+(`FUN_0012961c` owner `+0x2C`) is untested; so is the static confirm object (`P = 0x01356D30`,
+holder `[0x003982F0]` read `0x09F01590`, not the predicted value).
+
+### What changed in the repo
+
+- `Core/dissidia_adapter.cpp`: status LIVE. `DiscoverPauseWidget()` reads the static holder
+  `0x08B98940` fresh on every `WhereAmI` with no root (heap shifts per boot -- never cached),
+  validates `1 <= count <= 7` + index in range, and refuses closed/corrupt states. `SetWidgetRoot`
+  pins a known widget for its own menu only.
+- `Core/dissidia_adapter_test.cpp`: 21 checks green, including discovery, closed-pause refusal,
+  corrupt-holder refusal, and detach/re-attach hygiene (the last caught a real harness bug: detach
+  nulls the host, later tests must re-attach).
+- Instrument lesson: highlight moves on this UI are ~237K px; ~8K px "moves" are shimmer. The
+  display gate threshold should sit well above shimmer (~50K+), and every rhythm/series test needs
+  per-frame ground truth (red-bar y), never assumed advance.
+
+### What is left, concretely (updated)
+
+1. **Mode-select widget** -- Codex fallbacks untested (`FUN_0012961c` owner+0x2C). Same red-bar
+   instrument, same wrap protocol.
+2. **Item-name speech** -- tags known per row on pause; value->string mapping still open.
+3. **Board surfaces** (DP, tile highlight, piece position) -- separate surface, pause menu first.
+4. **PPSSPP boot stall + `memory_descriptors = false`** (s98) -- unchanged.

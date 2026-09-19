@@ -1,11 +1,7 @@
 /*
  * dissidia_adapter.cpp — Dissidia Final Fantasy (PSP, ULUS10437) adapter skeleton.
  *
- * STATUS: SCAFFOLD. The memory map below is VERIFIED against the live game
- * (docs/reverse-engineering/dissidia-final-fantasy.md, sections 40-96); the one
- * thing still missing is the live address P of the current menu's UI root, which
- * the ongoing hunt (scripts/psp-find-uiroot*.py) has not yet named. Until P is
- * set, every command refuses with "menu not tracked yet" rather than guessing.
+ * STATUS: LIVE. The pause-menu cursor is found, named, and tracked (s101).
  *
  * VERIFIED MAP (all confirmed against live RAM + decompile):
  *   TEXT_POOL   0x09D16A68  UTF-16LE menu/UI strings, one flag byte per entry
@@ -14,13 +10,13 @@
  *   MGR_SLOT    0x08B9B770  holds heap pointer -> manager object (e.g. 0x08C08EB0).
  *   Manager +0x18           render block COUNT (derived row count; responds to
  *                             delivered up/down but is NOT the index).
- *   Widget W = P + 0x12c4  (P = menu UI root; the `&DAT_000012c4 + param_1` in the
- *                             decompile is a field offset -- file bytes at 0x12c4
- *                             are MIPS code, so it cannot be a global).
- *   Index at W+0x3C (= P+0x1300), signed, -1 = none/invalid.
- *   Count at W+0x240 (= P+0x1504), 1..7.
- *   Element = W+0x60+4+idx*0x44 (stride 0x44, hard cap 7 -- matches the 7-row
- *     title menu). Selected value at element+0x18, 0xffffffff when unavailable.
+ *   PAUSE WIDGET  W = [[0x08B98940]] + 0x234  (battle_ui_root holder + 0x234;
+ *                             Codex ANSWER3; TRACKED LIVE incl. wrap both ways).
+ *   Index at W+0x3C, signed, -1 = none/invalid (pause closed reads -1 / 0).
+ *   Count at W+0x240, 1..7 (pause menu: 4).
+ *   Element = W+0x64+idx*0x44 (stride 0x44, hard cap 7); tag at element+0x18.
+ *     Pause tags observed live: 0x0C Return to Game, 0x2E Quicksave,
+ *     0x30 Quit Level Progression, 0x39 Help Manual.
  *   Reader: FUN_00250538(obj) validates 0 <= idx < count else returns -1.
  *
  * INPUT CHAIN (code-verified end to end, sections 79-88):
@@ -48,7 +44,6 @@ namespace dissidia {
 constexpr uint32_t TEXT_POOL  = 0x09D16A68u;
 constexpr uint32_t MGR_SLOT   = 0x08B9B770u;
 constexpr uint32_t MGR_OFF_RENDER = 0x18u;   // derived row count (NOT the index)
-constexpr uint32_t WIDGET_FIELD   = 0x12c4u; // W = P + 0x12c4
 constexpr uint32_t IDX_OFF    = 0x3Cu;       // index at W+0x3C (= P+0x1300)
 constexpr uint32_t CNT_OFF    = 0x240u;      // count at W+0x240 (= P+0x1504)
 constexpr uint32_t ELT_BASE   = 0x60u;       // elements at W+0x60+4+idx*0x44
@@ -59,9 +54,16 @@ constexpr int32_t  NO_SELECTION = -1;
 constexpr uint32_t RAM_LO = 0x08800000u;
 constexpr uint32_t RAM_HI = 0x0A000000u;
 
+// ---- Codex ANSWER3 objects (doc s101; VALIDATED LIVE on the board pause menu) ----
+// battle_ui_root holder (vaddr 0x00394940): pause widget W = [holder] + 0x234.
+// index [W+0x3C], count [W+0x240]; pause closed reads idx -1 / count 0.
+constexpr uint32_t BATTLE_ROOT_HOLDER = 0x08B98940u;
+constexpr uint32_t PAUSE_WIDGET_OFF   = 0x234u;
+
 static const Host* g_host = nullptr;
-// P = menu UI root for the CURRENT menu. 0 = not tracked yet. Set by the
-// harness once the live hunt names it (see scripts/psp-find-uiroot*.py).
+// W = the CURRENT menu's list widget (index at W+0x3C, count at W+0x240).
+// 0 = not tracked yet. Heap addresses shift per boot, so this is re-discovered
+// from static holders on every use -- never a constant, never cached across menus.
 static uint32_t g_widgetRoot = 0;
 
 static uint32_t u32(uint32_t a) { return g_host ? g_host->read32(g_host->ctx, a) : 0; }
@@ -73,11 +75,26 @@ static void Say(const char* s, bool interrupt = true)
 
 static bool InRam(uint32_t a) { return a >= RAM_LO && a < RAM_HI; }
 
-/// The harness calls this once the live hunt names P. Separated from attach so
-/// a stale P can never survive a menu change: whoever observes a new menu must
-/// re-set (or clear) the root.
-void SetWidgetRoot(uint32_t p) { g_widgetRoot = p; }
+/// The harness may pin a known-live widget directly. Prefer discovery: heap
+/// addresses shift per boot, so a pinned widget is only valid for its own menu.
+void SetWidgetRoot(uint32_t w) { g_widgetRoot = w; }
 uint32_t WidgetRoot(void) { return g_widgetRoot; }
+
+/// Discover the pause-menu widget from its static holder (Codex ANSWER3, s101).
+/// Returns 0 unless the widget looks live (count 1..7, index in range): a closed
+/// pause menu reads count 0, and we refuse that rather than track a dead object.
+uint32_t DiscoverPauseWidget(void)
+{
+    if (!g_host) return 0;
+    uint32_t root = u32(BATTLE_ROOT_HOLDER);
+    if (!InRam(root) || (root & 3)) return 0;
+    uint32_t w = root + PAUSE_WIDGET_OFF;
+    uint32_t cnt = u32(w + CNT_OFF);
+    if (cnt == 0 || cnt > ELT_CAP) return 0;
+    int32_t idx = (int32_t) u32(w + IDX_OFF);
+    if (idx < 0 || (uint32_t) idx >= cnt) return 0;
+    return w;
+}
 
 static bool ManagerOk(void)
 {
@@ -91,7 +108,7 @@ static int SelectionIndex(uint32_t* countOut)
 {
     if (countOut) *countOut = 0;
     if (!g_widgetRoot || !InRam(g_widgetRoot)) return -2;
-    uint32_t w = g_widgetRoot + WIDGET_FIELD;
+    uint32_t w = g_widgetRoot;   // g_widgetRoot IS the widget (index W+0x3C)
     int32_t idx = (int32_t) u32(w + IDX_OFF);
     uint32_t cnt = u32(w + CNT_OFF);
     if (countOut) *countOut = cnt;
@@ -103,6 +120,11 @@ static int SelectionIndex(uint32_t* countOut)
 static void CmdWhereAmI(void)
 {
     if (!ManagerOk()) { Say("Game not ready yet."); return; }
+    if (!g_widgetRoot) {
+        // No root yet: try the pause widget before refusing. Heap addresses shift
+        // per boot, so this re-reads the static holder every time -- never cached.
+        g_widgetRoot = DiscoverPauseWidget();
+    }
     if (!g_widgetRoot) { Say("Menu not tracked yet."); return; }
     uint32_t cnt = 0;
     int idx = SelectionIndex(&cnt);
