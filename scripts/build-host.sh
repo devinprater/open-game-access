@@ -60,6 +60,7 @@ compile() {
   printf '%s|cxx|fe_adapter\n'   "$ROOT/Core/fe_adapter.cpp"
   printf '%s|cxx|gba_adapter\n'  "$ROOT/Core/gba_adapter.cpp"
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
+  printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
   printf '%s|cxx|adapters\n'     "$ROOT/Core/adapters.cpp"
 } > "$OBJ/list.txt"
 

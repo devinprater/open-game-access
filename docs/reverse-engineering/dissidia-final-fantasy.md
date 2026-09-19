@@ -8288,3 +8288,130 @@ live list object. The call site `0x00267e30` shows the argument expression; read
 
 > **A hard cap is a UI fingerprint.** `param_2 < 7` in the table accessor bounds the list shape; matching
 > that number against known menus (the 7-row title menu) is a cheap cross-check on which UI this serves.
+
+## 97. CORRECTION: `DAT_000012c4` is a field offset, not a global array -- the widget is `P + 0x12c4`
+
+Section 96 left one question: which object the menu passes to `FUN_00250538`. The call site reads
+`FUN_00250538(&DAT_000012c4 + param_1)`, and the first hypothesis was a global widget array rooted at
+`DAT_000012c4`. That hypothesis is now dead, by file bytes.
+
+### The address `0x12c4` is inside CODE
+
+The EBOOT's first `PT_LOAD` maps file offset 0 to vaddr 0, so vaddr `0x12c4` is file byte `0x12c4`.
+Those bytes decode as MIPS instructions -- and Ghidra itself places functions at `0x1024`, `0x1078`,
+`0x10f0`, and `0x12c8` (`FUN_000012c8`, four bytes after the label). A global array cannot live in the
+middle of the code segment. Ghidra labelled the *immediate* `0x12c4` in an address computation as a
+data symbol, and the eleven `DATA` xrefs from the `0x002eb8xx`-band functions are the same
+mislabelling of the same immediate, not reads of a global.
+
+### The corrected model
+
+`param_1` of `FUN_00267cb8` / `FUN_00267740` is used as a **pointer** everywhere else in the same
+functions (`param_1 + 0x1584`, `param_1 + 0xeb0`, `param_1 + 0xf60`), so the call-site expression is a
+field access: the list widget is **`W = P + 0x12c4`**, where `P` is the menu's UI root object. The
+`(&DAT_00001296)[param_1]` / `(&DAT_00001297)[param_1]` forms in the decompile are likewise byte fields
+at `P + 0x1296` / `P + 0x1297`, not array indexing. Resolved to `P`:
+
+| role | location | note |
+|---|---|---|
+| widget | `P + 0x12c4` | sub-object of the UI root |
+| index | `P + 0x1300` | `W + 0x3C`, signed, `-1` = none |
+| count | `P + 0x1504` | `W + 0x240`, `1..7` |
+| index/count gap | `0x204` | the pair-signature distance used by the live hunt |
+| flag bytes | `P+0x1296/0x1297`, `P+0x1598/0x1599/0x159a`, `P+0xf60` | 0/1 state, not yet discriminating |
+
+### The live hunt this forces
+
+`P` is a heap object, so the search changed from "scan around a static base" to a **pair-signature
+scan**: one full-RAM snapshot, every address `X` with `[X - 0x204]` in `0..N-1` and `[X] == N`, then
+churn-poll, then gated-press filtering with per-press display verification
+(`scripts/psp-find-uiroot*.py`, v1 through v5). Results so far, all on the 4-row board pause menu
+(Return to Game / Quicksave / Quit Level Progression / Help Manual), all with liveness EXECUTING both
+ends and every press gate-verified:
+
+- v1 (`count 1..7`): 17,537 pair candidates -- the signature alone is far too weak, and the run died on
+  an unguarded short read (fixed with retrying safe reads afterwards).
+- v2 (`count == 4` + open-vs-closed diff): 1856 -> 6, but all 6 static under delivered presses while the
+  display moved ~80K px. The diff itself likely rejected the true `P` (the widget may persist across
+  close, or the "closed" snapshot still had pause open) -- a filter too clever for its evidence.
+- v3/v4 (`count == 4`, no diff, display-verified): ~1860 candidates, ~700 calm, but only 2-3 presses
+  delivered per run (intermittent delivery), and the `>= 3 samples` rule made the runs inconclusive
+  by construction. v4 raised the gate budget to 24 tries.
+- v5 (counts `2..7` in one run, display-verified): running at time of writing.
+
+`P` is still unnamed. The hunt design is sound; what it needs is a run with 6+ delivered presses.
+
+### Method note
+
+> **File bytes outrank the decompiler's labels.** When Ghidra prints `&DAT_xxxxxxxx + reg`, check what
+> lives at that address in the binary before modelling a global. Four bytes of context (`0x12c8` is a
+> function) killed the array theory in one look.
+>
+> **A filter that rejects the truth is worse than no filter.** v2's open-vs-closed diff cut 1856 to 6
+> and all 6 were wrong. Prefer testing every candidate (2K single-read polls are cheap) over a clever
+> pre-filter whose own preconditions were never verified.
+
+## 98. The PPSSPP core route: obtained, loads, kernel runs -- but the game never reaches video
+
+For wiring PSP into the app, the PPSSPP core (`ppsspp_libretro.dll`, libretro nightly, 15.78 MB) was
+downloaded into the RetroArch cores dir and driven through the established harness
+(`scripts/retroarch-run.sh`). Findings, all controlled:
+
+- The core **loads and runs**: exit 0 at 58 fps, `sceKernel` creates its file-system thread and an exit
+  callback, JIT builds, framebuffer initialises at 480x270.
+- But across **four runs** (120 / 1800 / 5400 / 3600 frames) the kernel never advances past those first
+  two objects -- no game threads, no module load -- and every screenshot is black. The game code never
+  starts.
+- Two candidate causes were tested and **excluded**: missing system files (copied `flash0` fonts from
+  the standalone install into `system/PPSSPP/` -- no change) and fast-memory emulation (disabled
+  `ppsspp_fast_memory` -- no change).
+- One architectural finding matters regardless of the boot stall: the core's info file declares
+  **`memory_descriptors = "false"`** -- the PPSSPP libretro core does NOT expose emulated RAM through
+  the libretro API. An in-app libretro host could run the game but could not read PSP RAM through the
+  standard interface; game-state reads would need core-specific hooks.
+
+So the PPSSPP-core route is staged but not proven: the core is in place and the harness drives it, and
+the next steps are (a) diagnosing the boot stall (a further core option or a core/standalone version
+mismatch -- standalone 1.20.4 boots the same CSO fine), and (b) a RAM-access design that does not rely
+on libretro memory descriptors. Neither blocks the adapter itself, which reads absolute PSP addresses
+through the host interface.
+
+## 99. The Dissidia adapter EXISTS: scaffold with verified addresses, 16/16 host tests green
+
+`Core/dissidia_adapter.cpp` + `Core/dissidia_adapter_test.cpp`, registered in `Core/adapters.cpp`
+(`ULUS10437`), added to `OGA_GLUE` (`scripts/core-sources.sh`) and the host build list
+(`scripts/build-host.sh`). Built with g++ 13 in WSL against the canonical tree and run -- all 16
+checks green: adapter id, game code, registry resolution, attach, ready, refusal without a widget
+root, "Row 2 of 4", sentinel -1, count 0, count above cap, idx == count, not-ready refusal, silent
+dump with two log lines, detach clearing the root.
+
+Design, following the AotS adapter's conventions:
+
+- **Validated constants only**: text pool `0x09D16A68`, manager slot `0x08B9B770`, widget field `+0x12c4`,
+  index `W+0x3C`, count `W+0x240`, element stride `0x44`, cap 7, sentinel `-1` -- each confirmed against
+  live RAM or decompile, each cited in the file header.
+- **The widget root `P` is runtime state, never a constant**: `SetWidgetRoot(P)` is called by whoever
+  names the live object; attach and detach both clear it, so a stale root can never survive a menu
+  change. Until it is set, `WhereAmI` says "Menu not tracked yet" -- it refuses rather than guesses.
+- **The same validation the game applies**: `SelectionIndex` enforces `0 <= idx < count`, `count <= 7`,
+  exactly as `FUN_00250538` does. The test's synthetic RAM uses absolute PSP addresses through an
+  offset-translating mock, per the rule the AotS test documents.
+- **Honest TODOs in the file**: resolving the selected item's text (`element+0x18` value -> string
+  mapping not yet established) -- position ("Row 2 of 4") is spoken; item names are not, until the
+  mapping is proven.
+
+Two build traps, recorded so nobody re-hits them: the adapter instance must live at `oga` scope, not
+inside `namespace dissidia` (the registry's declaration will not link otherwise -- the AotS test warns
+about the same trap), and `const` globals have internal linkage in C++, so the test's sibling-adapter
+stubs need explicit `extern`.
+
+### What is left, concretely
+
+1. **Name `P`** -- the v5 hunt (counts 2..7, display-verified) is running; it needs one run with 6+
+   delivered presses.
+2. **Validate live** -- watch `[P+0x1300]` move under verified up/down on a scrolling menu, count stable.
+3. **Item text mapping** -- establish what `element+0x18` names and where its strings live, then speak names.
+4. **PPSSPP boot stall** -- diagnose why the libretro core never starts game code (s98), then a RAM-access
+   design around `memory_descriptors = false`.
+5. **Board surfaces** -- DP count, tile highlight, piece position are a separate surface from menus; the
+   `<PROLOGUE 1>` pause menu is the first screen to announce.

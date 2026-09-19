@@ -58,5 +58,6 @@ poke_platform.cpp pokecore.cpp
 fe_access.cpp fe_adapter.cpp
 gba_adapter.cpp
 dbz_adapter.cpp
+dissidia_adapter.cpp
 adapters.cpp
 "
