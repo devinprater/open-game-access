@@ -118,7 +118,9 @@ def main():
     print("pad object 0x%08X   button word at 0x%08X" % (PAD, PAD))
 
     def clear_resume():
-        c.ws.send(json.dumps({"event": "memory.breakpoint.clear.all", "requestId": 5}))
+        # clear.all does NOT clear (verified live) -- remove explicitly.
+        c.ws.send(json.dumps({"event": "memory.breakpoint.remove", "requestId": 5,
+                              "address": PAD, "size": 4}))
         drain(c.ws, 0.06)
         c.ws.send(json.dumps({"event": "cpu.resume", "requestId": 6}))
         drain(c.ws, 0.08)

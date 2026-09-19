@@ -8751,3 +8751,113 @@ distinguishes harness-owned vs discovered widgets (regression caught by tests 4-
 
 Full tile table + types, available-directions enumeration, item-name mapping, PPSSPP stall.
 The adapter speaks position + DP; directions/objects await the tile graph.
+
+## 106. Movement is a DIRECTED GRAPH, not a grid -- Phase 2 answered live
+
+Tracking RAM cursor bytes (`D+0x194/+0x195`, ANSWER5 chain) under display-verified moves
+(big = 140-560K px advance; ~80K uniform = blocked-bump feedback; ~0 = dropped press):
+
+```text
+(4,2) --right BLOCKED-->   coords frozen at (4,2)
+(4,2) --up--> (4,1)
+(4,1) --down/left/up--> ALL BLOCKED (frozen at (4,1))
+(4,1) --right--> (5,1)
+(5,1) --up/right--> BLOCKED; --down--> (5,2)
+(5,2) --left--> BLOCKED
+```
+
+Eastward row-2 travel ends at x=4; the route continues up-right-down:
+`(4,2) -> (4,1) -> (5,1) -> (5,2)`. EDGES ARE ONE-WAY: `(4,2)->(4,1)` exists but
+`(4,1)->(4,2)` does not; `(5,1)->(5,2)` exists but `(5,2)->(4,2)` does not. The visible
+tiles give no hint (identical `2` coins, no gaps) -- the block reason lives in the graph,
+not the scenery.
+
+### Consequences
+
+- The coordinate-adjacency model (s103/ANSWER4 `FUN_001c5bb4` lookup) CANNOT express one-way
+  edges and is rejected as the movement model. The graph must store per-node neighbor lists.
+- Cursor-vs-piece stays separated: all of the above at DP 00 (free cursor); DP spends only
+  on leaving home (s105).
+- An accessibility "available directions" feature CANNOT be derived from coordinates -- it
+  needs the neighbor lists (Codex TASK6) or live probing (risky). No grid assumption anywhere.
+- Bump feedback (~80K px, uniform) vs advance (140K+, varied) vs drop (~0) is now a calibrated
+  three-way display classifier for direction presses.
+
+### Open (Codex TASK6)
+
+Full tile array + neighbor-list layout, tile-type/object catalog (marker (6,2) = ?),
+block-reason encoding, available-directions primitive.
+
+## 107. RETRACTION of s106 + GRID confirmed + real west edge
+
+s106's directed-graph conclusion was built on eaten inputs and is RETRACTED. What happened:
+display-diff magnitude does NOT classify moves -- genuine cursor advances showed 0 px while
+non-moves showed ~80-90K px (camera settle). Every "blocked" edge from s106 evaporated on
+retry with RAM-poll truth except one (below). New protocol (scripts/bd-probe.py): poll RAM
+`(x,y)` at 2 Hz up to 6 s per press, 3 tries per direction; truth is the RAM, never pixels.
+
+With that protocol, 10/10 diverse moves succeeded in all four directions, both ways --
+including every edge s106 called one-way (`(4,2)->(5,2)`, `(5,2)->(4,2)`, all of `(4,1)`'s
+"missing" exits). ANSWER6's filter model (coordinate probes, no stored edges) stands
+unopposed; the neighbor-list theory is dead.
+
+### One REAL edge: west boundary at x=1 (15 failed presses)
+
+Eight `left` probes from (4,2): (3,2), (2,2), (1,2), then BLOCKED x5 (3 tries each).
+Movement IS validated against tile data -- but the tile row data is still unfound: the `N`
+array holds only the (6,2) marker, and the cursor's tiles are absent from it. Candidates for
+the validation source: per-row/per-board dimension bounds (Phase 1 Q7!), or a tile array
+elsewhere (`B+0x100`'s `[0x08C3B7B2]` pointer into the R record is one unexamined lead).
+
+### Instrument rules (amendments)
+
+- RAM-poll truth + retries before any BLOCKED verdict; single-press verdicts are worthless.
+- `0 px` moves are real (highlight swaps without camera pan); `~90K` stills are settle.
+- bd-probe.py is the standard direction instrument now.
+
+## 108. Dense grid FOUND live + adapter speaks directions and markers (28/28)
+
+Codex TASK7 -> ANSWER7 (`docs/reverse-engineering/codex-findings/TASK7.md`, `ANSWER7.md`),
+corrected a conflation: `B+0x08` = dense terrain grid `G`, `B+0x0C` = sparse markers `T`,
+`B+0x10` = dispatcher `D` (with `D+0x3C == G`, `D+0x40 == T` cross-links).
+
+### Live validation (prologue board, same boot throughout)
+
+- `G = 0x09C117C0`, `A = [G] = 0x09C11BC0`, `cells = [G+4] = 0x08C3B7B2` (= `R+0x12`,
+  confirming Codex's init provenance), `w = 8`, `h = 5`.
+- Full 40-byte map (matches the photographed `2`-coin field exactly):
+
+```text
+y=0  00 * 8
+y=1  00 01 01 01 01 01 00 00
+y=2  00 01 01 01 01 01 11 00
+y=3  00 01 01 01 01 01 00 00
+y=4  00 * 8
+```
+
+- West byte `(0,2) = 0x00` -> illegal by the recipe -> the x=1 edge, mechanism closed.
+- Recipe `legal = (f&2) || (f && !(f&0x2C))` from cursor (1,2): W=False E/N/S=True --
+  every probe in s107's grid survey agrees.
+- Marker (6,2) decoded through the catalog chain: `key=0`, `O=0x09C11470`, `type=5`,
+  `assoc=(-1,-1)`. Type 5's localized name stays UNRESOLVED (candidate: exit/Stigma;
+  the event table maps type 5 -> class 6, event `0xCC`).
+- Dynamic gate observed: (5,2)->(6,2) succeeded once, then refused 9x with marker flags
+  `0x00` (traversal bit clear) -- the ANSWER6 two-stage model (grid approves, marker
+  stage gates) now has a live instance. Grid-legal is NECESSARY, NOT SUFFICIENT; the
+  adapter documents this caveat in-code.
+
+### Adapter (Phase 6, incremental)
+
+- `WhereAmI`: pause priority, then board DP + cursor/origin (s105, unchanged).
+- `NextAlly` -> available directions from the grid recipe:
+  "Open: east, north, south. Blocked: west." (live values match the tested string).
+- `NextEnemy` -> marker report with relative direction/distance:
+  "Special tile east 5 away at 6, 2, type 0." ("type" = marker catalog KEY; the s16
+  catalog type needs the C-chain -- explicitly not spoken, never guessed).
+- 28/28 host tests (synthetic 8x5 live bytes + chains + refusals).
+
+### Remaining
+
+Item-name speech (tag/string mapping), marker-gate dynamics, board overview (refused as
+speculative per the task), PPSSPP stall, Phase 7 items 9-10 (heap addresses across
+transitions re-verified this boot: M/U/G/R stable, P/B/T/D heap but chained).

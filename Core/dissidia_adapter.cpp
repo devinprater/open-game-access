@@ -78,6 +78,13 @@ constexpr uint32_t OFF_HX = 0x194u, OFF_HY = 0x195u, OFF_DORG = 0x38u;
 constexpr uint32_t OFF_CH = 0x120u, CH_BASE = 0x1AE80u, CH_STRIDE = 0xF74u;
 constexpr uint32_t SLOT_STRIDE = 0x314u, OFF_DP = 0x06u;
 
+// ---- Dense grid (ANSWER7, s108; VALIDATED LIVE: 8x5 map, west byte 0x00) ----
+// G = [B+8]; A = [G+0]; cells = [G+4]; w = u8[A], h = u8[A+1];
+// cell(x,y) = u8[cells + y*w + x]; legal = (f&2) || (f && !(f&0x2C)).
+// Marker array: N = [T+4], 32 slots stride 0x10, key u8[+0], x/y s8[+2/+3].
+constexpr uint32_t OFF_G = 0x08u;
+constexpr uint32_t MARK_SLOTS = 32u, MARK_STRIDE = 0x10u;
+
 static const Host* g_host = nullptr;
 // W = the CURRENT menu's list widget (index at W+0x3C, count at W+0x240).
 // 0 = not tracked yet. Heap addresses shift per boot, so this is re-discovered
@@ -153,6 +160,139 @@ static uint32_t BoardDispatcher(void)
     uint32_t d = u32(b + OFF_D);
     if (!InRam(d) || (d & 3)) return 0;
     return d;
+}
+
+/// Walk M -> P -> B, returning B (board bundle) or 0. Shared by grid + markers.
+static uint32_t BoardBundle(void)
+{
+    if (!g_host) return 0;
+    uint32_t m = u32(BATTLE_ROOT_HOLDER);
+    if (!InRam(m) || (m & 3)) return 0;
+    uint32_t p = u32(m + OFF_P);
+    if (!InRam(p) || (p & 3)) return 0;
+    uint32_t b = u32(p + OFF_B);
+    if (!InRam(b) || (b & 3)) return 0;
+    return b;
+}
+
+struct Grid {
+    uint32_t cells;
+    uint32_t w, h;
+    bool ok;
+};
+
+/// Read the dense grid header. Validates dimensions (boards are small).
+static Grid BoardGrid(uint32_t b)
+{
+    Grid g = {0, 0, 0, false};
+    if (!b) return g;
+    uint32_t gg = u32(b + OFF_G);
+    if (!InRam(gg) || (gg & 3)) return g;
+    uint32_t a = u32(gg + 0);
+    uint32_t cells = u32(gg + 4);
+    if (!InRam(a) || !InRam(cells)) return g;
+    uint32_t w = u8(a), h = u8(a + 1);
+    if (w == 0 || w > 60 || h == 0 || h > 60) return g;
+    if (!InRam(cells + w * h - 1)) return g;
+    g.cells = cells; g.w = w; g.h = h; g.ok = true;
+    return g;
+}
+
+/// The game's own rule (FUN_001b72e4): in-bounds plus flag test.
+static bool GridLegal(const Grid& g, int x, int y)
+{
+    if (!g.ok) return false;
+    if (x < 0 || y < 0 || (uint32_t) x >= g.w || (uint32_t) y >= g.h) return false;
+    uint32_t f = u8(g.cells + (uint32_t) y * g.w + (uint32_t) x);
+    return (f & 0x02) != 0 || (f != 0 && (f & 0x2Cu) == 0);
+}
+
+static void CmdDirections(void)
+{
+    if (!ManagerOk()) { Say("Game not ready yet."); return; }
+    uint32_t d = BoardDispatcher();
+    if (!d) { Say("Board not available."); return; }
+    Grid g = BoardGrid(BoardBundle());
+    if (!g.ok) { Say("Board map unreadable."); return; }
+    int hx = u8(d + OFF_HX), hy = u8(d + OFF_HY);
+    if (hx > 60 || hy > 60) { Say("Cursor unreadable."); return; }
+    static const char* names[4] = {"west", "east", "north", "south"};
+    static const int dx[4] = {-1, 1, 0, 0};
+    static const int dy[4] = {0, 0, -1, 1};
+    char open[64] = {0}, shut[64] = {0};
+    for (int i = 0; i < 4; i++) {
+        bool ok = GridLegal(g, hx + dx[i], hy + dy[i]);
+        snprintf(open + strlen(open), sizeof(open) - strlen(open), "%s%s",
+                 (ok && open[0]) ? ", " : "", ok ? names[i] : "");
+        snprintf(shut + strlen(shut), sizeof(shut) - strlen(shut), "%s%s",
+                 (!ok && shut[0]) ? ", " : "", !ok ? names[i] : "");
+    }
+    char line[160];
+    if (!open[0]) {
+        snprintf(line, sizeof(line), "No open direction. Blocked: %s.", shut);
+    } else if (!shut[0]) {
+        snprintf(line, sizeof(line), "Open: %s.", open);
+    } else {
+        snprintf(line, sizeof(line), "Open: %s. Blocked: %s.", open, shut);
+    }
+    Say(line);
+    // Caveat (s108): the grid recipe approves cells the marker/story stage may
+    // still gate (observed once at (6,2)). Grid-legal is necessary, not sufficient.
+}
+
+static void CmdMarkers(void)
+{
+    if (!ManagerOk()) { Say("Game not ready yet."); return; }
+    uint32_t b = BoardBundle();
+    if (!b) { Say("Board not available."); return; }
+    uint32_t t = u32(b + OFF_T);
+    if (!InRam(t) || (t & 3)) { Say("Board not available."); return; }
+    uint32_t n = u32(t + 4);
+    if (!InRam(n) || (n & 3)) { Say("Board not available."); return; }
+    uint32_t d = BoardDispatcher();
+    int hx = -1, hy = -1;
+    if (d) { hx = u8(d + OFF_HX); hy = u8(d + OFF_HY); }
+    char line[192];
+    int found = 0;
+    for (uint32_t i = 0; i < MARK_SLOTS; i++) {
+        uint32_t e = n + i * MARK_STRIDE;
+        if (!InRam(e + MARK_STRIDE - 1)) break;
+        int mx = (int) (int8_t) u8(e + 2), my = (int) (int8_t) u8(e + 3);
+        uint32_t fl = u8(e + 0x0C), key = u8(e + 0);
+        bool active = !(mx == 0 && my == 0 && fl == 0 && key == 0);
+        if (!active) continue;
+        found++;
+        if (found == 1) {
+            if (hx >= 0 && mx == hx && my == hy) {
+                snprintf(line, sizeof(line),
+                         "Special tile here at %d, %d, type %u.", mx, my, key);
+            } else if (hx >= 0) {
+                int dx = mx - hx, dy = my - hy;
+                char dir[32];
+                snprintf(dir, sizeof(dir), "%s%s",
+                         dy < 0 ? "north" : (dy > 0 ? "south" : ""),
+                         dx < 0 ? "west" : (dx > 0 ? "east" : ""));
+                int dist = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
+                snprintf(line, sizeof(line),
+                         "Special tile %s %d away at %d, %d, type %u.",
+                         dir[0] ? dir : "here", dist, mx, my, key);
+            } else {
+                snprintf(line, sizeof(line),
+                         "Special tile at %d, %d, type %u.", mx, my, key);
+            }
+            Say(line, false);
+        }
+    }
+    if (!found) {
+        Say("No special tiles recorded.");
+        return;
+    }
+    if (found > 1) {
+        snprintf(line, sizeof(line), "%d special tiles. First announced.", found);
+        Say(line, false);
+    }
+    // NOTE: "type" here is the marker KEY (catalog key u8[+0]); the catalog type
+    // s16[O+4] needs the C-chain (ANSWER7) and is not yet spoken. Never a guess.
 }
 
 /// Authoritative DP (s16 progress record). Returns -1000 when unreadable.
@@ -253,11 +393,13 @@ static void Command(Command cmd)
 {
     switch (cmd) {
         case Command::WhereAmI: CmdWhereAmI(); break;
-        // Cursor-following commands need the live index first; until the hunt
-        // names P they refuse inside CmdWhereAmI rather than walking blind.
-        case Command::NextAlly:
+        // Board mapping of the shared commands (documented, game-specific):
+        //   NextAlly      -> available movement directions from the cursor.
+        //   NextEnemy     -> nearby special tiles/markers.
+        // Other unit-cycling commands fall back to position.
+        case Command::NextAlly: CmdDirections(); break;
+        case Command::NextEnemy: CmdMarkers(); break;
         case Command::PrevAlly:
-        case Command::NextEnemy:
         case Command::PrevEnemy:
         case Command::NextUnactedAlly: CmdWhereAmI(); break;
         case Command::DumpState: CmdDump(); break;
