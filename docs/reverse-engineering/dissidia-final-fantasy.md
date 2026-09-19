@@ -8525,3 +8525,120 @@ holder `[0x003982F0]` read `0x09F01590`, not the predicted value).
 2. **Item-name speech** -- tags known per row on pause; value->string mapping still open.
 3. **Board surfaces** (DP, tile highlight, piece position) -- separate surface, pause menu first.
 4. **PPSSPP boot stall + `memory_descriptors = false`** (s98) -- unchanged.
+
+## 102. Story board, Phase 1 interim: cursor/piece separation, DP candidates, restore loop, two traps
+
+Pause-cursor work (s101) is preserved and untouched. This section logs the board investigation;
+Codex TASK4 runs in parallel on the static side.
+
+### Cursor vs piece: SEPARATE (verified)
+
+- With DP 00, the D-pad highlight moves freely in all four directions (up/down and left/right are
+  exact inverses by screenshot diff: 1.5K/1.9K px residuals). DP gates NOTHING about the cursor.
+- With DP 01, one `right` press moved the PIECE one tile east, spent DP 01 -> 00, changed LEVEL
+  BONUS 300 -> 100 gil, and left the highlight on the origin (west) tile. So a direction press
+  can CONFIRM a move; cursor motion and piece motion follow different rules (Phase 2's core).
+- A->B full-RAM diff on the confirmed move: 34,327 changed words (heavy render churn).
+
+### DP candidates (unverified)
+
+Two isolated words `1 -> 0` on the confirmed move: RAM `0x08C0403C` and `0x08C0413C` (vaddrs
+`0x0004003C`/`0x0004013C`, 0x100 apart, zero neighborhoods). HUD showed DP 01 -> 00. One is
+plausibly DP; the other is unknown (allowance? undo flag?). Writers unidentified -- Codex TASK4 Q1.
+
+### Restore loop (proven, reusable)
+
+Quicksave (pause -> Quicksave -> YES) prints "Save complete! Select LOAD GAME from the title" and
+returns to the title splash. Title -> (movie skip) -> Load screen -> quicksave entry (297 KB) ->
+"Resume from quicksave data?" YES -> board with DP 00 restored exactly (piece, origin highlight,
+LEVEL BONUS 100 gil). Full cycle ~5 minutes; used twice.
+
+### TRAP: `0x09B3FED8` is a free-running counter, not cursor state
+
+Small int that tracked cursor moves convincingly (7 -> 13 -> 11 -> 8 -> 5) but hands-off reads
+show a mod-16-ish down-counter (0,14,13,11,8,6,4,3,1,15,14,12 over 12 s, no input). It also
+changed 4 -> 0 on a 0-px press. Sampling a fast counter at move intervals mimics response.
+Rule restated: no-input control BEFORE any input correlation.
+
+### Cursor hunts: word/pair/one-hot ALL blank (12 runs total)
+
+- No wrapping small-int word in 24 MB under verified highlight moves.
+- No index/count pair (`[X-0x204]` + count 2..8) on pause or mode-select menus.
+- No one-hot flag with wrap rhythm (115 binary words, 0 period-5 hits).
+- Origin-return triples (V -> V' -> V, 6 verified): 855 survivors, ZERO small-int; survivors are
+  float/camera state (e.g. UD-only `0x08DF5EA8`: 3.6 -> 1.8; `-13.0 -> -9.0` pairs). The board
+  cursor is not a plain RAM ordinal -- suspect world floats, node id in a tile struct, or
+  derived state. Codex TASK4 Q2-Q4.
+
+### Observed walk: bump uniformity vs advance variance (unverified, needs RAM labels)
+
+30-step walk (12R/6D/12R) at DP 00, display-judged: first rights advanced (150-570K px, camera
+pans), rights 6-12 all ~78-84K px suspiciously UNIFORM; downs 1-2 advanced (400K/141K), 3-6
+~82-86K uniform. Uniform diffs smell like blocked-bump feedback replayed identically; advances
+vary. If true, the cursor DOES block (east edge reached after 5 advances?) while DP 00 -- but
+without RAM labels this is magnitude-reading, not proof. Also the camera swings hard (final view
+faces opposite), decoupling tiles from screen positions -- observational mapping needs the camera
+accounted for. Parked until Codex names structures; then re-walk with RAM labels.
+
+### Next
+
+Codex ANSWER4 (DP writers, board struct, movement-validation table, commit function) -> targeted
+live tests -> s103 with the verified model.
+
+## 103. Story board, Phase 1 verified: DP chains PROVEN, markers do NOT track the cursor
+
+Codex TASK4 -> ANSWER4 (`docs/reverse-engineering/codex-findings/TASK4.md`, `ANSWER4.md`),
+then its ranked live tests executed in order. Per-boot heap addresses throughout; chains, not
+constants.
+
+### VERIFIED: DP cache chain (ANSWER4 test 1)
+
+`M = [0x08B98940] = 0x08C168F0` (this boot) -> `U = [M+0x56C] = 0x09B3F0C0` ->
+`DP_cache s32 [U+0xD78] = 0`, matching HUD DP 00. Codex predicted `U+0xD78 == 0x08C0403C`
+from the earlier boot's heap; this boot it is `0x09B3FE38` (which WAS in the 1->0 list).
+The chain validates (value follows HUD); the constant does not (heap shifts). Twin `U+0xE78`
+reads garbage (`-1298596459`), consistent with "adjacent HUD/work value, not canonical DP".
+
+### VERIFIED: authoritative DP chain (ANSWER4 test 2)
+
+`G = [0x08B99338] = 0x08C16E90` -> `chapter = u8[M+0x120] = 10` ->
+`C = G+0x1AE80+chapter*0xF74 = 0x08C3B798` -> `slot = u8[C+2] = 0` ->
+`R = C+slot*0x314+8 = 0x08C3B7A0` -> `DP s16[R+6] = 0`, markers `s16[R+8] = 1`.
+Authoritative halfword agrees with spent DP. (Side note: `R = 0x08C3B7A0` was the first
+origin-return survivor in the cursor hunt -- its render-adjacent words move discretely, but the
+DP/marker fields themselves are logic state.)
+
+### NEGATIVE: R+0x114 marker array does NOT track the free cursor
+
+The 32x0x10 entries at `R+0x114` sit almost all zero at DP 00 (only `[0] = 0x02060000`), and a
+526K-px verified cursor advance changed ZERO bytes across `R+0x100..0x340`. Markers are
+confirmed-destination state (or static), not cursor state. Cursor position remains open:
+not a plain word, pair, one-hot, or marker flag.
+
+### INCONCLUSIVE: tile-lookup execute breakpoint (ANSWER4 test 5)
+
+`memory.breakpoint.add` type `execute` at `FUN_001c5bb4` (RAM `0x089C9BB4`) produced no stop in
+3 s after a down press -- but the press was not display-verified, and `cpu.status` exposes no
+registers, so even a hit could not yield `(T,x,y)`. Needs a display-verified press + a register
+read path before it can confirm or reject the coordinate/flags movement model.
+
+### Also confirmed along the way
+
+- Mode-select widget candidate `[[0x003931A0]]+0x3E54` FROZEN (`idx -1/count 0`) under moving
+  highlight -> REJECTED as the tracking object (Codex fallback `FUN_0012961c` owner+0x2C open).
+- Static confirm object `P = 0x01356D30` holder reads `0x09F01590`, not the predicted value ->
+  unvalidated, deprioritized.
+- `cpu.status` sometimes answers nothing under load (third occurrence) -- retry before FROZEN.
+
+### Adapter consequences
+
+The adapter can speak DP today via EITHER chain (cache: 2 hops from a static holder; authoritative:
+5 hops). Cache is cheaper and presentation-exact; authoritative is save-exact. Both re-discovered
+per boot. Cursor/available-directions/objects need the tile-table owner (open) -- no board
+announcements until then.
+
+### What is left (needs DP > 0: fresh prologue board or battle reward)
+
+Cursor world position / node id, live `T` owner + highlight id, DP-positive commit test
+(`0x001BF078`/`0x001AE3B4`/`0x001CA7EC` break set), right-down-right table read, item-name
+mapping, board surfaces in the adapter.
