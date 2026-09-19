@@ -207,6 +207,33 @@ static bool GridLegal(const Grid& g, int x, int y)
     return (f & 0x02) != 0 || (f != 0 && (f & 0x2Cu) == 0);
 }
 
+/// Marker catalog type names, semantically verified via the game's own tile text
+/// (s110): type 0 = enemy ("False... Lv 1 BATTLE..."), type 4 = potion ("Potion /
+/// Restores HP and EX Gauge to 100%."), type 5 = Stigma ("Stigma of Chaos /
+/// Engaging this piece finishes the level."). Catalog walk: K = [C+4], O = [C+8] +
+/// [K + key*4]; type = s16[O+4], where C = [T+0]. Unlisted types speak as
+/// "unknown object" -- never guessed.
+static const char* MarkerTypeName(uint32_t cobj, uint32_t key, uint32_t* typeOut)
+{
+    if (typeOut) *typeOut = 0xFFFFFFFFu;
+    if (!InRam(cobj) || (cobj & 3)) return nullptr;
+    uint32_t ktab = u32(cobj + 4);
+    uint32_t base = u32(cobj + 8);
+    if (!InRam(ktab) || !InRam(base)) return nullptr;
+    uint32_t off = u32(ktab + key * 4);
+    if (off > 0x10000u) return nullptr;
+    uint32_t o = base + off;
+    if (!InRam(o + 6)) return nullptr;
+    uint32_t ty = (uint32_t) (uint16_t) (u8(o + 4) | ((uint32_t) u8(o + 5) << 8));
+    if (typeOut) *typeOut = ty;
+    switch (ty) {
+        case 0: return "enemy";
+        case 4: return "potion";
+        case 5: return "Stigma of Chaos";
+        default: return nullptr;
+    }
+}
+
 static void CmdDirections(void)
 {
     if (!ManagerOk()) { Say("Game not ready yet."); return; }
@@ -262,10 +289,20 @@ static void CmdMarkers(void)
         bool active = !(mx == 0 && my == 0 && fl == 0 && key == 0);
         if (!active) continue;
         found++;
+        uint32_t ty = 0xFFFFFFFFu;
+        const char* name = MarkerTypeName(u32(t), key, &ty);
+        char what[48];
+        if (name) {
+            snprintf(what, sizeof(what), "%s", name);
+        } else if (ty != 0xFFFFFFFFu) {
+            snprintf(what, sizeof(what), "unknown object type %u", ty);
+        } else {
+            snprintf(what, sizeof(what), "special tile");
+        }
         if (found == 1) {
             if (hx >= 0 && mx == hx && my == hy) {
                 snprintf(line, sizeof(line),
-                         "Special tile here at %d, %d, type %u.", mx, my, key);
+                         "%s here at %d, %d.", what, mx, my);
             } else if (hx >= 0) {
                 int dx = mx - hx, dy = my - hy;
                 char dir[32];
@@ -274,11 +311,11 @@ static void CmdMarkers(void)
                          dx < 0 ? "west" : (dx > 0 ? "east" : ""));
                 int dist = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
                 snprintf(line, sizeof(line),
-                         "Special tile %s %d away at %d, %d, type %u.",
-                         dir[0] ? dir : "here", dist, mx, my, key);
+                         "%s %s %d away at %d, %d.",
+                         what, dir[0] ? dir : "here", dist, mx, my);
             } else {
                 snprintf(line, sizeof(line),
-                         "Special tile at %d, %d, type %u.", mx, my, key);
+                         "%s at %d, %d.", what, mx, my);
             }
             Say(line, false);
         }
@@ -291,8 +328,8 @@ static void CmdMarkers(void)
         snprintf(line, sizeof(line), "%d special tiles. First announced.", found);
         Say(line, false);
     }
-    // NOTE: "type" here is the marker KEY (catalog key u8[+0]); the catalog type
-    // s16[O+4] needs the C-chain (ANSWER7) and is not yet spoken. Never a guess.
+    // NOTE: unlisted catalog types speak as "unknown object type N"; an unreadable
+    // catalog speaks as "special tile". Names are never guessed (s110).
 }
 
 /// Authoritative DP (s16 progress record). Returns -1000 when unreadable.
