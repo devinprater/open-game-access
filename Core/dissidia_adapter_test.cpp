@@ -53,6 +53,8 @@ const Adapter kDragonBallZSaiyans = { "dbz", "stub", "BRPE", NoAttach, NoFrame, 
 static const oga::Host HOST = { r8, r16, r32, spk, lg, btn, nullptr };
 
 static void put32(uint32_t a, uint32_t v) { memcpy(&RAM[OFF(a)], &v, 4); }
+static void put8(uint32_t a, uint8_t v) { RAM[OFF(a)] = v; }
+static void put16(uint32_t a, uint16_t v) { memcpy(&RAM[OFF(a)], &v, 2); }
 
 // Synthetic layout: manager at 0x08C08EB0 (as observed live); battle root holder
 // at 0x08B98940 -> fake root 0x08C168F0; pause widget W = root + 0x234.
@@ -183,6 +185,56 @@ int main(void)
     NSPOKEN = 0;
     a->command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Row 3 of 4.") == 0, "Row 3 of 4");
+
+    // ---- board surfaces (synthetic M/P/B/D + progress chain, live-observed values)
+    // The 2 MB mock maps absolute addresses through a mask, applied identically on
+    // every access -- so the REAL chain math (chapter stride etc.) runs unmodified
+    // with small stand-in bases. Live game validated the real offsets.
+    const uint32_t BM = 0x08C168F0u, BP = 0x08C17000u, BB = 0x08C17100u, BD = 0x08C17200u;
+    const uint32_t G2 = 0x08900000u;
+    const uint32_t C2 = G2 + 0x1AE80u + 0u * 0xF74u;   // chapter 0
+    const uint32_t R2 = C2 + 0u * 0x314u + 8u;         // slot 0
+
+    // 14. board WhereAmI: DP 1, cursor home (1,2) -> "DP 1. Cursor home at 1, 2."
+    reset();
+    put32(0x08B9B770u, BM);
+    put32(0x08B98940u, BM);
+    put32(BM + 0x118u, BP);
+    put32(BP + 0x04u, BB);
+    put32(BB + 0x10u, BD);
+    put32(0x08B99338u, G2);
+    put8(BM + 0x120u, 0u);
+    put8(C2 + 2u, 0u);
+    put16(R2 + 6u, 1u);
+    put8(BD + 0x194u, 1u); put8(BD + 0x195u, 2u);
+    put32(BD + 0x38u, BB);
+    put8(BB + 0x02u, 1u); put8(BB + 0x03u, 2u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "DP 1. Cursor home at 1, 2.") == 0,
+          "board DP + cursor home");
+
+    // 15. cursor away from origin -> "DP 1. Cursor 2, 2. Origin 1, 2."
+    put8(BD + 0x194u, 2u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "DP 1. Cursor 2, 2. Origin 1, 2.") == 0,
+          "board cursor away");
+
+    // 16. broken chain (B null) -> refuses
+    put32(BP + 0x04u, 0u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Menu not tracked yet.") == 0,
+          "broken board chain refuses");
+
+    // 17. DP unreadable (progress holder null) -> cursor-only speech
+    put32(BP + 0x04u, BB);
+    put32(0x08B99338u, 0u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Cursor 2, 2. Origin 1, 2.") == 0,
+          "board DP unreadable");
 
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
