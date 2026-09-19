@@ -8880,3 +8880,33 @@ With explicit authorization, the cursor walked to the (6,2) marker and CROSS eng
 Notes: the (5,2)->(6,2) gate opened on this attempt (it refused 9x before with marker flags
 0x00) -- gate dynamics still unexplained, but traversal-bit/story-gate hypothesis stands.
 DP was 00 throughout; engaging needed no DP (events are not moves).
+
+## 110. Prologue 2 cleared WITHOUT the HP hack; Stigma gate = DP 00; catalog types closed
+
+Board: 8x5 with holes at (3,1)/(3,3); markers key0 (3,2) / key1 (5,2) / key2 (6,2).
+Catalog decode (key -> O -> s16[O+4]) plus game-text verification closes three types:
+
+- type 0 = ENEMY ("False [Hero] Lv 1 BATTLE MA...", helmet icon).
+- type 4 = POTION ("Potion / Restores HP and EX Gauge to 100%.", bottle; cross -> "Use this
+  potion?" -> YES -> "HP fully restored!"; kept-then-used, no waste).
+- type 5 = STIGMA ("Stigma of Chaos / Engaging this piece finishes the level. / Destroy
+  the Stigma of Chaos?") -- same type id as prologue 1's exit.
+
+Battle: "Fight this battle piece? YES" -> tutorial carousel ("Gain experience through HP
+damage!") x several -> Garland/Gilgamesh-vs-Warrior-of-Light arena, "EX Core in play".
+Won by 13 rounds of square/circle mashing ("Received 20 PP" victory pose) -- the
+authorized HP-to-0 was NOT needed. S0/S1/S2 snapshots taken but unused (battle ended
+mid-mash; S2 short).
+
+Post-battle: results watched to settle -> bonus board on the SAME structures (M stable,
+grid identical, defeated-enemy slot flags 0x00 -> 0x02).
+
+Stigma gate rule FOUND: (5,2)->(6,2) refused 21x at DP 01 (potion use changed nothing);
+after spending DP 01 -> 00 via a confirmed west step (which asked "Make this area your
+home are[a?]"), the gate walked open first try (3,2)->(4,2)->(5,2)->(6,2). Prologue 1's
+"mystery opening" retro-explained: that board was already DP 00. Rule: Stigma opens at
+DP 00. Engage -> results (Destiny Points 0, Engagements 3 stars, full HP) -> PROLOGUE 3
+"The Shattered World" card.
+
+Adapter consequences: available-directions recipe is necessary-not-sufficient (documented
+s108 caveat confirmed twice); marker flags/type now speakable (type names 0/4/5 verified).
