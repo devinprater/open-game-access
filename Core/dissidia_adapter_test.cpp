@@ -54,10 +54,12 @@ static const oga::Host HOST = { r8, r16, r32, spk, lg, btn, nullptr };
 
 static void put32(uint32_t a, uint32_t v) { memcpy(&RAM[OFF(a)], &v, 4); }
 
-// Synthetic layout: manager at 0x08C08EB0 (as observed live), widget root P at 0x08C10000.
+// Synthetic layout: manager at 0x08C08EB0 (as observed live); battle root holder
+// at 0x08B98940 -> fake root 0x08C168F0; pause widget W = root + 0x234.
 static const uint32_t MGR = 0x08C08EB0u;
-static const uint32_t P   = 0x08C10000u;
-static const uint32_t W   = P + 0x12c4u;   // widget = P + 0x12c4
+static const uint32_t BATTLE_HOLDER = 0x08B98940u;
+static const uint32_t BROOT = 0x08C168F0u;
+static const uint32_t W = BROOT + 0x234u;   // the widget itself
 
 static void reset(void)
 {
@@ -65,6 +67,7 @@ static void reset(void)
     NSPOKEN = 0; NLOGGED = 0;
     put32(0x08B9B770u, MGR);   // MGR_SLOT -> manager
     put32(MGR + 0x18u, 3u);    // render count (derived; nonzero = drawing)
+    put32(BATTLE_HOLDER, BROOT);
     oga::dissidia::SetWidgetRoot(0);
 }
 
@@ -89,14 +92,17 @@ int main(void)
     CHECK(a->attach(&HOST), "attach returns true");
     CHECK(a->ready(), "ready with valid manager");
 
-    // 2. no widget root -> refuses, does not guess
+    // 2. no widget pinned -> auto-discovers the pause widget from its holder
     NSPOKEN = 0;
+    put32(W + 0x3Cu, 0u);
+    put32(W + 0x240u, 4u);
     a->command(oga::Command::WhereAmI);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Menu not tracked yet.") == 0,
-          "WhereAmI without root refuses");
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Row 1 of 4.") == 0,
+          "WhereAmI discovers pause widget");
+    CHECK(oga::dissidia::WidgetRoot() == W, "discovery pins the widget");
 
-    // 3. root set, idx=1 count=4 -> "Row 2 of 4."
-    oga::dissidia::SetWidgetRoot(P);
+    // 3. pinned root, idx=1 count=4 -> "Row 2 of 4."
+    oga::dissidia::SetWidgetRoot(W);
     put32(W + 0x3Cu, 1u);
     put32(W + 0x240u, 4u);
     NSPOKEN = 0;
@@ -138,7 +144,7 @@ int main(void)
 
     // 9. DumpState logs (does not speak)
     reset();
-    oga::dissidia::SetWidgetRoot(P);
+    oga::dissidia::SetWidgetRoot(W);
     put32(W + 0x3Cu, 2u);
     put32(W + 0x240u, 4u);
     NSPOKEN = 0; NLOGGED = 0;
@@ -149,6 +155,34 @@ int main(void)
     // 10. detach clears the root (never inherit across attach)
     a->detach();
     CHECK(oga::dissidia::WidgetRoot() == 0, "detach clears root");
+    CHECK(a->attach(&HOST), "re-attach for remaining tests");
+
+    // 11. closed pause (count 0) -> discovery refuses, says not tracked
+    reset();
+    put32(W + 0x3Cu, 0xFFFFFFFFu);
+    put32(W + 0x240u, 0u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Menu not tracked yet.") == 0,
+          "closed pause refuses discovery");
+
+    // 12. corrupt holder -> discovery refuses
+    reset();
+    put32(BATTLE_HOLDER, 0u);
+    put32(W + 0x3Cu, 1u);
+    put32(W + 0x240u, 4u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Menu not tracked yet.") == 0,
+          "corrupt holder refuses discovery");
+
+    // 13. live pause tags observed on hardware (Return/Quicksave/Quit/Help)
+    reset();
+    put32(W + 0x3Cu, 2u);
+    put32(W + 0x240u, 4u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Row 3 of 4.") == 0, "Row 3 of 4");
 
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
