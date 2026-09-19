@@ -34,11 +34,18 @@ extern const Adapter kGameBoyAdvance;
 // character record array, and each member's HP/Ki sit at fixed offsets in the record.
 // Every address was confirmed against the game's own Status screens, not inferred.
 extern const Adapter kDragonBallZSaiyans;
+// Implemented in dissidia_adapter.cpp — Dissidia Final Fantasy (PSP, ULUS10437).
+// SCAFFOLD: menu text pool, manager object, and the selection-index accessor
+// (FUN_00250538: index at widget+0x3C, count at widget+0x240, stride 0x44, cap 7)
+// are all verified against live RAM + decompile; the live widget root P is still
+// hunted (scripts/psp-find-uiroot*.py), so commands refuse until it is set.
+extern const Adapter kDissidiaFinalFantasy;
 
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
     &kGameBoyAdvance,
     &kDragonBallZSaiyans,
+    &kDissidiaFinalFantasy,
 };
 
 const Adapter* const* all_adapters(int* count)
