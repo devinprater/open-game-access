@@ -8415,3 +8415,49 @@ stubs need explicit `extern`.
    design around `memory_descriptors = false`.
 5. **Board surfaces** -- DP count, tile highlight, piece position are a separate surface from menus; the
    `<PROLOGUE 1>` pause menu is the first screen to announce.
+
+## 100. The pad-word gate is BLIND to real presses -- display judgment replaces it; and the pair model draws a meaningful blank on the pause menu
+
+Two results, one instrument fix and one substantive negative.
+
+### The gate was the failure, not the delivery (v6)
+
+v6 (triple-send, 20 tries) refused at the first step: "start not delivered" after 200+ pad-word polls.
+But the start press had demonstrably ACTED -- the pause menu was closed afterwards. A follow-up
+showed the same dissociation cleanly: a single start press with 0/10 pad-word polls reading the hold
+bit, yet the game acted on it. The pad-word readback misses real holds (stale or mistimed reads on
+the polling connection), so every v1-v5 "NOT delivered -- discarded" verdict is suspect: presses were
+likely acting while the gate reported drops. Delivery was never the bottleneck; the verdict was.
+
+v7 judges delivery by display movement only (screenshot diff > 2000 px): fire-and-forget sends, pause
+opened on the FIRST start attempt (1.66M px), and 9 of 10 down presses moved the display
+(~237K px each, one 8.7K px partial, one 70 px still). This is the correct gate -- the display never
+lies about the game acting -- and it is now the standard: `scripts/psp-find-uiroot7.py`.
+
+### The pair model draws a blank on the pause menu (v7)
+
+With 9 display-verified highlight moves and liveness EXECUTING both ends: 9,225 pair candidates
+(counts 2..7) -> 3,994 calm -> **0 survivors**. No address anywhere in the 24 MB holds an index word
+at `X - 0x204` that moves within `0..count-1` while `[X]` stays a stable count. Given the delivery
+fix, this negative is trustworthy for what it tests.
+
+What it does NOT test: the title menu. The pause menu (Return to Game / Quicksave / Quit Level
+Progression / Help Manual) may not use `FUN_00250538`'s widget at all -- it could be a simple dialog
+on a different menu path, while the accessor's hard cap of 7 matches the 7-row TITLE menu exactly.
+The next hunt belongs on the title menu (Story / Battle / Customize / Museum / Shop / Options /
+Data), reached by quitting level progression from the board. The v7 instrument (display judgment +
+pair scan + moved-press rule) transfers unchanged; only the screen changes.
+
+Alternative if the title menu also blanks: relax the word assumption -- the index may be a short,
+byte, or bitfield (the pair test reads full words), or the count may include hidden rows outside
+2..7. But the menu-system hypothesis is cheaper to test first: one navigation, same script.
+
+### Method note
+
+> **Judge delivery in the channel the game acts in.** The pad word is the game's input latch, but our
+> *read* of it is not the game's *receipt* of it. A gate must observe an effect the game produced
+> (pixels moved), never re-read the stimulus through a lossy side channel.
+>
+> **A negative inherits the strength of its delivery proof.** v3-v5's zeros were inconclusive (2-3
+> delivered presses against a >= 3-sample rule). v7's zero rests on 9 verified moves -- it actually
+> constrains the model, and points at the menu-system hypothesis instead of more scanning.
