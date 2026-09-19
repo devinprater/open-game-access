@@ -8861,3 +8861,22 @@ y=4  00 * 8
 Item-name speech (tag/string mapping), marker-gate dynamics, board overview (refused as
 speculative per the task), PPSSPP stall, Phase 7 items 9-10 (heap addresses across
 transitions re-verified this boot: M/U/G/R stable, P/B/T/D heap but chained).
+
+## 109. Stigma engaged: type 5 = level-exit VERIFIED; victory screen; Prologue 2 reached
+
+With explicit authorization, the cursor walked to the (6,2) marker and CROSS engaged it:
+
+- The marker tile shows its own tooltip first: "Stigma of Chaos / Engaging this piece
+  finishes the level. / Destroy the Stigma of Chaos?" YES (default) / NO. So catalog
+  **type 5 = Stigma of Chaos = level exit**. Semantic label VERIFIED via the game's own
+  text for the tile under the cursor (assoc ids were (-1,-1)).
+- YES -> no battle fought (instant resolve at DP 00) -> results tally unfurling watched
+  to settle (~8 s of animation, then shimmer): "Destiny Points 0 / BONUS 100 / PP WON 40 /
+  Engagements (star) / Remaining HP (full yellow bar) / Remaining DP". Busy animated screen
+  as predicted; values read only after motion died.
+- Dismiss -> story card "- PROLOGUE 2 - [The Shattered World] Forces forged of darkness
+  stand in the warrior's way...". Tutorial section complete; new chapter board pending.
+
+Notes: the (5,2)->(6,2) gate opened on this attempt (it refused 9x before with marker flags
+0x00) -- gate dynamics still unexplained, but traversal-bit/story-gate hypothesis stands.
+DP was 00 throughout; engaging needed no DP (events are not moves).
