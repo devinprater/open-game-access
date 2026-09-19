@@ -266,18 +266,53 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Open: east, north, south. Blocked: west.") == 0,
           "directions from (1,2)");
 
-    // 19. marker report: slot0 (6,2) key 0
+    // 19. marker report with real catalog: slot0 (6,2) key 0 -> type 0 -> enemy
+    // NOTE: T/catalog kept clear of the 32-slot span BN..BN+0x1FF.
     const uint32_t BN = 0x08902300u;
-    const uint32_t BT = 0x08902400u;
+    const uint32_t BT = 0x08902800u;
+    const uint32_t BCAT = 0x08902900u, BCTAB = 0x08902A00u, BO = 0x08902B00u;
     put32(BB + 0x0Cu, BT);
     put32(BT + 4u, BN);
+    put32(BT + 0u, BCAT);
+    put32(BCAT + 4u, BCTAB);
+    put32(BCAT + 8u, BO);
+    put32(BCTAB + 0u, 0u);          // key 0 -> offset 0 -> O
+    put16(BO + 4u, 0u);             // type 0 = enemy
     put8(BN + 0u, 0u); put8(BN + 2u, 6u); put8(BN + 3u, 2u);
     NSPOKEN = 0;
     a->command(oga::Command::NextEnemy);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Special tile east 5 away at 6, 2, type 0.") == 0,
-          "marker east");
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "enemy east 5 away at 6, 2.") == 0,
+          "marker enemy east");
 
-    // 20. broken grid (G null) -> refuses honestly
+    // 20. potion + stigma + unknown names
+    put32(BCTAB + 4u, 0x10u); put16(BO + 0x14u, 4u);   // key 1 -> type 4
+    put32(BCTAB + 8u, 0x20u); put16(BO + 0x24u, 5u);   // key 2 -> type 5
+    put32(BCTAB + 12u, 0x30u); put16(BO + 0x34u, 9u);  // key 3 -> type 9 (unknown)
+    put8(BN + 0u, 1u); put8(BN + 2u, 5u); put8(BN + 3u, 2u);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "potion east 4 away at 5, 2.") == 0,
+          "marker potion here");
+    put8(BN + 0u, 2u); put8(BN + 2u, 6u);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Stigma of Chaos east 5 away at 6, 2.") == 0,
+          "marker stigma east");
+    put8(BN + 0u, 3u);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "unknown object type 9 east 5 away at 6, 2.") == 0,
+          "marker unknown type");
+
+    // 21. unreadable catalog -> honest fallback
+    put32(BCAT + 8u, 0u);
+    put8(BN + 0u, 0u);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "special tile east 5 away at 6, 2.") == 0,
+          "marker catalog unreadable");
+
+    // 22. broken grid (G null) -> refuses honestly
     put32(BB + 0x08u, 0u);
     NSPOKEN = 0;
     a->command(oga::Command::NextAlly);

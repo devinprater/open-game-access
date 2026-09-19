@@ -8910,3 +8910,18 @@ DP 00. Engage -> results (Destiny Points 0, Engagements 3 stars, full HP) -> PRO
 
 Adapter consequences: available-directions recipe is necessary-not-sufficient (documented
 s108 caveat confirmed twice); marker flags/type now speakable (type names 0/4/5 verified).
+
+## 111. Battle-state thrust opened; marker type names wired (33/33)
+
+User chose the battle state model as the next thrust (hazards noted: cover, ramps,
+BRV-zero traps -- they build on participant positions). TASK8 dispatched to Codex.
+
+Live battle differential (WoL vs Garland, idle player, verified full snapshots R0/R1/R2):
+12 persistent drops, incl. 0x09D8EBC8 755->243 HELD, 0x09B27974 512->256->0,
+0x09D75B78/7C 1274->0, 0x08BAC79C slow drain. Transient (BRV churn): 0x09C53xx array,
+0x09B3Cxxx triple (effect data per neighborhood floats/pointers).
+
+Adapter: `NextEnemy` now walks the catalog (C=[T+0], K=[C+4], O=[C+8]+[K+key*4],
+type=s16[O+4]) and speaks verified names: enemy / potion / Stigma of Chaos; unknown
+types as "unknown object type N"; unreadable catalog as "special tile". Fixed a real
+bug found by tests: keytab/base live in C, not T. 33/33 host tests.
