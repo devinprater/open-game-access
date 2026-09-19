@@ -236,6 +236,54 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Cursor 2, 2. Origin 1, 2.") == 0,
           "board DP unreadable");
 
+    // ---- grid + markers (live prologue 8x5 bytes, cursor (1,2))
+    const uint32_t BG2 = 0x08902000u, BA2 = 0x08902100u, BC2 = 0x08902200u;
+    const uint8_t ROW0[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    const uint8_t ROW1[8] = {0, 1, 1, 1, 1, 1, 0, 0};
+    const uint8_t ROW2[8] = {0, 1, 1, 1, 1, 1, 0x11, 0};
+    const uint8_t ROW3[8] = {0, 1, 1, 1, 1, 1, 0, 0};
+    const uint8_t ROW4[8] = {0, 0, 0, 0, 0, 0, 0, 0};
+    reset();
+    put32(0x08B9B770u, BM);
+    put32(0x08B98940u, BM);
+    put32(BM + 0x118u, BP);
+    put32(BP + 0x04u, BB);
+    put32(BB + 0x10u, BD);
+    put32(BB + 0x08u, BG2);
+    put32(BG2 + 0u, BA2);
+    put32(BG2 + 4u, BC2);
+    put8(BA2 + 0u, 8u); put8(BA2 + 1u, 5u);
+    memcpy(&RAM[OFF(BC2) + 0 * 8], ROW0, 8);
+    memcpy(&RAM[OFF(BC2) + 1 * 8], ROW1, 8);
+    memcpy(&RAM[OFF(BC2) + 2 * 8], ROW2, 8);
+    memcpy(&RAM[OFF(BC2) + 3 * 8], ROW3, 8);
+    memcpy(&RAM[OFF(BC2) + 4 * 8], ROW4, 8);
+    put8(BD + 0x194u, 1u); put8(BD + 0x195u, 2u);
+
+    // 18. available directions from (1,2)
+    NSPOKEN = 0;
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Open: east, north, south. Blocked: west.") == 0,
+          "directions from (1,2)");
+
+    // 19. marker report: slot0 (6,2) key 0
+    const uint32_t BN = 0x08902300u;
+    const uint32_t BT = 0x08902400u;
+    put32(BB + 0x0Cu, BT);
+    put32(BT + 4u, BN);
+    put8(BN + 0u, 0u); put8(BN + 2u, 6u); put8(BN + 3u, 2u);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Special tile east 5 away at 6, 2, type 0.") == 0,
+          "marker east");
+
+    // 20. broken grid (G null) -> refuses honestly
+    put32(BB + 0x08u, 0u);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Board map unreadable.") == 0,
+          "broken grid refuses");
+
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
     return failures != 0;

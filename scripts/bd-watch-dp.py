@@ -82,16 +82,22 @@ def main():
 
     print("game:", c.status().get("game", {}).get("title"), flush=True)
     print("watching WRITES to 0x%08X size %d" % (addr, a.size), flush=True)
+    # NOTE: memory.breakpoint.clear.all does NOT clear (verified live) -- remove
+    # each armed breakpoint explicitly with address+size, or the game stays halted
+    # on HUD-tick reads. PPSSPP arms read+write regardless of the type requested.
+    armed = []
     pcs = []
     prev = shot("wp0")
     for i in range(a.rounds):
-        c.ws.send(json.dumps({"event": "memory.breakpoint.clear.all", "requestId": 5}))
+        c.ws.send(json.dumps({"event": "memory.breakpoint.remove", "requestId": 5,
+                              "address": addr, "size": a.size}))
         drain(c.ws)
         c.ws.send(json.dumps({"event": "cpu.resume", "requestId": 6}))
         drain(c.ws)
         c.ws.send(json.dumps({"event": "memory.breakpoint.add", "requestId": 7,
                               "address": addr, "size": a.size, "type": "write"}))
         drain(c.ws)
+        armed = [(addr, a.size)]
         pad.ws.send(json.dumps({"event": "input.buttons.press", "requestId": 1,
                                 "button": a.button, "frames": 120}))
         time.sleep(2.5)
@@ -105,8 +111,10 @@ def main():
         cur = shot("wp%d" % (i + 1))
         print("    display %d px" % diff(prev, cur), flush=True)
         prev = cur
-    c.ws.send(json.dumps({"event": "memory.breakpoint.clear.all", "requestId": 5}))
-    drain(c.ws)
+    for ad, sz in armed:
+        c.ws.send(json.dumps({"event": "memory.breakpoint.remove", "requestId": 5,
+                              "address": ad, "size": sz}))
+        drain(c.ws)
     c.ws.send(json.dumps({"event": "cpu.resume", "requestId": 6}))
     drain(c.ws)
     print("=== writer PCs ===", flush=True)
