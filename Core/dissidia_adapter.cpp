@@ -78,6 +78,20 @@ constexpr uint32_t OFF_HX = 0x194u, OFF_HY = 0x195u, OFF_DORG = 0x38u;
 constexpr uint32_t OFF_CH = 0x120u, CH_BASE = 0x1AE80u, CH_STRIDE = 0xF74u;
 constexpr uint32_t SLOT_STRIDE = 0x314u, OFF_DP = 0x06u;
 
+// ---- Battle participants (ANSWER8/8B, s112; VALIDATED LIVE incl. defeat state) ----
+// BM = [0x08B955A0] (heap manager); P0 = [BM+0x14]; P1 = [P0+0x2F0] (paired);
+// next = [P+0x4EA8]; S = [P+0x51C]; HPmax = u16[S+8]; dmg = u16[S+2];
+// HPcur = max(0, max - dmg); BRV = s16[S+0x0E]; base = s16[S+0x10];
+// EX = float[S+0x14] (full at 10000); pos = floats[P+0x80/+0x84/+0x88].
+// Lock-on state + EX-core objects NOT YET FOUND (next RE task).
+constexpr uint32_t BATTLE_MGR_HOLDER = 0x08B955A0u;
+constexpr uint32_t OFF_FIGHTERS = 0x14u, OFF_PAIR = 0x2F0u, OFF_NEXT = 0x4EA8u;
+constexpr uint32_t OFF_STAT = 0x51Cu;
+constexpr uint32_t OFF_HPMAX = 0x08u, OFF_HPDMG = 0x02u;
+constexpr uint32_t OFF_BRV = 0x0Eu, OFF_BRVBASE = 0x10u, OFF_EX = 0x14u;
+constexpr float EX_FULL = 10000.0f;
+constexpr uint32_t OFF_PX = 0x80u, OFF_PY = 0x84u, OFF_PZ = 0x88u;
+
 // ---- Dense grid (ANSWER7, s108; VALIDATED LIVE: 8x5 map, west byte 0x00) ----
 // G = [B+8]; A = [G+0]; cells = [G+4]; w = u8[A], h = u8[A+1];
 // cell(x,y) = u8[cells + y*w + x]; legal = (f&2) || (f && !(f&0x2C)).
@@ -399,6 +413,124 @@ static void CmdWhereAmI(void)
     // owner open), nearby objects. Position only until proven -- never a guess.
 }
 
+static uint16_t u16(uint32_t a) { return g_host ? g_host->read16(g_host->ctx, a) : 0; }
+static float f32(uint32_t a)
+{
+    if (!g_host) return 0.0f;
+    uint32_t v = g_host->read32(g_host->ctx, a);
+    float f;
+    memcpy(&f, &v, 4);
+    return f;
+}
+
+struct Fighter {
+    uint32_t p;
+    uint32_t s;
+    uint32_t hpMax, hpDmg;
+    int brv, brvBase;
+    float ex;
+    float x, y, z;
+    bool ok;
+};
+
+static Fighter ReadFighter(uint32_t p)
+{
+    Fighter f = {0, 0, 0, 0, 0, 0, 0.0f, 0.0f, 0.0f, 0.0f, false};
+    if (!InRam(p) || (p & 3)) return f;
+    uint32_t s = u32(p + OFF_STAT);
+    if (!InRam(s) || (s & 1)) return f;
+    f.p = p; f.s = s;
+    f.hpMax = u16(s + OFF_HPMAX);
+    f.hpDmg = u16(s + OFF_HPDMG);
+    f.brv = (int) (int16_t) u16(s + OFF_BRV);
+    f.brvBase = (int) (int16_t) u16(s + OFF_BRVBASE);
+    f.ex = f32(s + OFF_EX);
+    if (f.hpMax == 0 || f.hpMax > 99999) return f;
+    if (f.hpDmg > f.hpMax + 5000) return f;   // overkill margin (defeat lingers)
+    if (f.ex < 0.0f || f.ex > EX_FULL) return f;
+    f.x = f32(p + OFF_PX); f.y = f32(p + OFF_PY); f.z = f32(p + OFF_PZ);
+    if (f.x != f.x || f.y != f.y || f.z != f.z) return f;  // NaN guard
+    if (f.x > 1e6f || f.x < -1e6f || f.y > 1e6f || f.y < -1e6f ||
+        f.z > 1e6f || f.z < -1e6f) return f;
+    f.ok = true;
+    return f;
+}
+
+struct Battle {
+    Fighter self;
+    Fighter foe;
+    bool ok;
+};
+
+/// Battle mode iff the fighter chain resolves with sane stats. P0 = self.
+/// NOTE: stale defeat structs linger (HP 0) -- still battle mode ("down").
+static Battle BattleFighters(void)
+{
+    Battle b = {Fighter(), Fighter(), false};
+    if (!g_host) return b;
+    uint32_t m = u32(BATTLE_MGR_HOLDER);
+    if (!InRam(m) || (m & 3)) return b;
+    uint32_t p0 = u32(m + OFF_FIGHTERS);
+    Fighter self = ReadFighter(p0);
+    if (!self.ok) return b;
+    b.self = self;
+    Fighter foe = ReadFighter(u32(p0 + OFF_PAIR));
+    if (foe.ok) b.foe = foe;
+    b.ok = true;
+    return b;
+}
+
+static uint32_t FighterHP(const Fighter& f)
+{
+    uint32_t cur = f.hpMax > f.hpDmg ? f.hpMax - f.hpDmg : 0;
+    return cur;
+}
+
+static void CmdBattleSelf(void)
+{
+    Battle b = BattleFighters();
+    if (!b.ok) { Say("No battle in progress."); return; }
+    char line[128];
+    if (FighterHP(b.self) == 0) {
+        Say("You are down. Retry or flee.");
+        return;
+    }
+    snprintf(line, sizeof(line), "HP %u of %u. Bravery %d. EX %d percent.",
+             FighterHP(b.self), b.self.hpMax, b.self.brv,
+             (int) (b.self.ex / 100.0f));
+    Say(line);
+}
+
+static void CmdBattleFoe(void)
+{
+    Battle b = BattleFighters();
+    if (!b.ok || !b.foe.ok) { Say("No opponent tracked."); return; }
+    float dx = b.foe.x - b.self.x, dy = b.foe.y - b.self.y, dz = b.foe.z - b.self.z;
+    float dist = dx * dx + dy * dy + dz * dz;
+    // sqrt without libm dependency.
+    float lo = 0.0f, hi = dist > 1.0f ? dist : 1.0f;
+    for (int i = 0; i < 24; i++) {
+        float mid = (lo + hi) * 0.5f;
+        if (mid * mid < dist) lo = mid; else hi = mid;
+    }
+    char vert[16];
+    if (dy > 5.0f) snprintf(vert, sizeof(vert), ", above you");
+    else if (dy < -5.0f) snprintf(vert, sizeof(vert), ", below you");
+    else vert[0] = 0;
+    char line[192];
+    snprintf(line, sizeof(line), "Enemy: HP %u of %u. Bravery %d. %d away%s.",
+             FighterHP(b.foe), b.foe.hpMax, b.foe.brv, (int) lo, vert);
+    Say(line);
+}
+
+static void CmdLock(void)
+{
+    // Lock-on state + EX-core objects NOT YET FOUND. Refuse honestly; the game
+    // already plays a distinct sound per lock state (enemy/ex-core/off ring on L1),
+    // so this command only needs to add the optional newcomer announcements later.
+    Say("Lock-on state not tracked yet.");
+}
+
 static void CmdDump(void)
 {
     char line[160];
@@ -428,17 +560,30 @@ static void OnFrame(void) { /* nothing per-frame: this adapter polls on demand *
 
 static void Command(Command cmd)
 {
+    // Mode priority: BATTLE first (fighters resolve even when board leftovers
+    // linger), then pause menu, then board. Verified live: board M stays set
+    // during battle, so board-first would speak stale cursor garbage mid-fight.
+    bool battle = BattleFighters().ok;
     switch (cmd) {
-        case Command::WhereAmI: CmdWhereAmI(); break;
-        // Board mapping of the shared commands (documented, game-specific):
-        //   NextAlly      -> available movement directions from the cursor.
-        //   NextEnemy     -> nearby special tiles/markers.
+        case Command::WhereAmI:
+            if (battle) { CmdBattleSelf(); break; }
+            CmdWhereAmI(); break;
+        // Mappings depend on mode (documented, game-specific):
+        //   board: NextAlly -> directions, NextEnemy -> markers.
+        //   battle: NextAlly -> opponent state + distance (on demand; opponents
+        //     are audible anyway), NextEnemy -> lock-on state (pending RE).
         // Other unit-cycling commands fall back to position.
-        case Command::NextAlly: CmdDirections(); break;
-        case Command::NextEnemy: CmdMarkers(); break;
+        case Command::NextAlly:
+            if (battle) { CmdBattleFoe(); break; }
+            CmdDirections(); break;
+        case Command::NextEnemy:
+            if (battle) { CmdLock(); break; }
+            CmdMarkers(); break;
         case Command::PrevAlly:
         case Command::PrevEnemy:
-        case Command::NextUnactedAlly: CmdWhereAmI(); break;
+        case Command::NextUnactedAlly:
+            if (battle) { CmdBattleSelf(); break; }
+            CmdWhereAmI(); break;
         case Command::DumpState: CmdDump(); break;
     }
 }

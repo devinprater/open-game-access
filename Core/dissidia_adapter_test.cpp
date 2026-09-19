@@ -319,6 +319,75 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Board map unreadable.") == 0,
           "broken grid refuses");
 
+    // ---- battle mode (live retry values: WoL vs False Hero) ----
+    // NOTE: battle-holder 0x08B955A0 maps through the mock mask like all addrs.
+    const uint32_t BH = 0x08B955A0u;
+    const uint32_t BM2 = 0x08903000u, BP0 = 0x08903100u, BP1 = 0x08903200u;
+    const uint32_t BS0 = 0x08903300u, BS1 = 0x08903400u;
+    reset();
+    put32(0x08B9B770u, BM);
+    put32(BH, BM2);
+    put32(BM2 + 0x14u, BP0);
+    put32(BP0 + 0x51Cu, BS0);
+    put32(BP0 + 0x2F0u, BP1);
+    put32(BP0 + 0x4EA8u, BP1);
+    put32(BP1 + 0x51Cu, BS1);
+    auto putf = [](uint32_t ad, float v) { memcpy(&RAM[OFF(ad)], &v, 4); };
+    put16(BS0 + 0x08u, 1000u); put16(BS0 + 0x02u, 94u);    // HP 906/1000
+    put16(BS0 + 0x0Eu, 41u); put16(BS0 + 0x10u, 95u);      // BRV 41/95
+    putf(BS0 + 0x14u, 0.0f);
+    putf(BP0 + 0x80u, -7.5f); putf(BP0 + 0x84u, 18.4f); putf(BP0 + 0x88u, 41.3f);
+    put16(BS1 + 0x08u, 338u); put16(BS1 + 0x02u, 0u);      // HP 338/338
+    put16(BS1 + 0x0Eu, 530u); put16(BS1 + 0x10u, 49u);     // BRV 530/49
+    putf(BS1 + 0x14u, 912.0f);
+    putf(BP1 + 0x80u, -7.5f); putf(BP1 + 0x84u, 2.6f); putf(BP1 + 0x88u, 41.3f);
+
+    // 23. battle self speech
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "HP 906 of 1000. Bravery 41. EX 0 percent.") == 0,
+          "battle self");
+
+    // 24. battle foe speech: dy=2.6-18.4=-15.8 -> below; dist=sqrt(15.8^2)=15 (int)
+    NSPOKEN = 0;
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Enemy: HP 338 of 338. Bravery 530. 15 away, below you.") == 0,
+          "battle foe");
+
+    // 25. lock-on pending
+    NSPOKEN = 0;
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Lock-on state not tracked yet.") == 0,
+          "lock pending");
+
+    // 26. down state (dmg >= max)
+    put16(BS0 + 0x02u, 1000u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "You are down. Retry or flee.") == 0,
+          "battle down");
+
+    // 27. no battle (holder null) -> board path still works (proves no regression)
+    put32(BH, 0u);
+    put32(0x08B98940u, BM);
+    put32(BM + 0x118u, BP);
+    put32(BP + 0x04u, BB);
+    put32(BB + 0x10u, BD);
+    put32(BB + 0x08u, BG2);
+    put32(BG2 + 0u, BA2);
+    put32(BG2 + 4u, BC2);
+    put8(BA2 + 0u, 8u); put8(BA2 + 1u, 5u);
+    memcpy(&RAM[OFF(BC2) + 0 * 8], ROW0, 8);
+    memcpy(&RAM[OFF(BC2) + 1 * 8], ROW1, 8);
+    memcpy(&RAM[OFF(BC2) + 2 * 8], ROW2, 8);
+    memcpy(&RAM[OFF(BC2) + 3 * 8], ROW3, 8);
+    memcpy(&RAM[OFF(BC2) + 4 * 8], ROW4, 8);
+    put8(BD + 0x194u, 1u); put8(BD + 0x195u, 2u);
+    NSPOKEN = 0;
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Open: east, north, south. Blocked: west.") == 0,
+          "board after battle");
+
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
     return failures != 0;
