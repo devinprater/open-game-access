@@ -8962,3 +8962,20 @@ speak stale cursor garbage). WhereAmI -> "HP 901 of 1000. Bravery 2. EX 3 percen
 HP 0 -> "You are down. Retry or flee." 38/38 host tests incl. board-no-regression.
 
 TASK9 to Codex: lock-on state representation + EX-core list/positions/flags.
+
+## 114. Lock target VALIDATED + wired (41/41); beacon contract set
+
+ANSWER9 (`TASK9.md`): lock target = P+0x2EC (null = off; == P+0x2F0 = enemy; else
+alternate = EX core under the player-confirmed L1 ring). Generic object list M+0x0C /
++0x490; positions O+0x80/84/88. No core subtype or consumed flag -- lifecycle
+membership instead (disappearance = retired). Unresolved items named, nothing invented.
+
+Live: target == enemy at round start (ENEMY lock); 8-entry generic list (2 fighters +
+6 kind-2 effects, correctly unlabeled); lock speech verified: "Locked on the enemy.
+22 away."
+
+Adapter NextEnemy in battle: "Locked on the enemy. N away." / "Lock off." /
+"Locked on the EX core. N away." (list-verified) / "Lock target lost." (stale/retired,
+incl. self-guard). Beacon contract in-code: app beeps low, rate rising as distance
+closes; per-frame beeping needs a query API the Adapter interface lacks (on-demand
+command is the stopgap). 41/41 tests.

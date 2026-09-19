@@ -501,11 +501,9 @@ static void CmdBattleSelf(void)
     Say(line);
 }
 
-static void CmdBattleFoe(void)
+static float VecDist(float x0, float y0, float z0, float x1, float y1, float z1)
 {
-    Battle b = BattleFighters();
-    if (!b.ok || !b.foe.ok) { Say("No opponent tracked."); return; }
-    float dx = b.foe.x - b.self.x, dy = b.foe.y - b.self.y, dz = b.foe.z - b.self.z;
+    float dx = x1 - x0, dy = y1 - y0, dz = z1 - z0;
     float dist = dx * dx + dy * dy + dz * dz;
     // sqrt without libm dependency.
     float lo = 0.0f, hi = dist > 1.0f ? dist : 1.0f;
@@ -513,22 +511,83 @@ static void CmdBattleFoe(void)
         float mid = (lo + hi) * 0.5f;
         if (mid * mid < dist) lo = mid; else hi = mid;
     }
+    return lo;
+}
+
+static void CmdBattleFoe(void)
+{
+    Battle b = BattleFighters();
+    if (!b.ok || !b.foe.ok) { Say("No opponent tracked."); return; }
+    float d = VecDist(b.self.x, b.self.y, b.self.z, b.foe.x, b.foe.y, b.foe.z);
+    float dy = b.foe.y - b.self.y;
     char vert[16];
     if (dy > 5.0f) snprintf(vert, sizeof(vert), ", above you");
     else if (dy < -5.0f) snprintf(vert, sizeof(vert), ", below you");
     else vert[0] = 0;
     char line[192];
     snprintf(line, sizeof(line), "Enemy: HP %u of %u. Bravery %d. %d away%s.",
-             FighterHP(b.foe), b.foe.hpMax, b.foe.brv, (int) lo, vert);
+             FighterHP(b.foe), b.foe.hpMax, b.foe.brv, (int) d, vert);
     Say(line);
 }
 
+/// Lock target (ANSWER9, s114; VALIDATED LIVE: enemy-lock state + 8-entry list).
+/// P+0x2EC: null = off; == P+0x2F0 (enemy) = enemy; else alternate object, which
+/// under the player-confirmed L1 ring (enemy -> ex-core -> off) is the EX core.
+/// An alternate target is only exposed while present in the M+0x0C/+0x490 list
+/// (lifecycle rule: disappearance = consumed/retired).
 static void CmdLock(void)
 {
-    // Lock-on state + EX-core objects NOT YET FOUND. Refuse honestly; the game
-    // already plays a distinct sound per lock state (enemy/ex-core/off ring on L1),
-    // so this command only needs to add the optional newcomer announcements later.
-    Say("Lock-on state not tracked yet.");
+    Battle b = BattleFighters();
+    if (!b.ok) { Say("No battle in progress."); return; }
+    uint32_t m = u32(BATTLE_MGR_HOLDER);
+    uint32_t enemy = u32(b.self.p + OFF_PAIR);
+    uint32_t tgt = u32(b.self.p + 0x2ECu);
+    char line[192];
+    if (tgt == 0) {
+        Say("Lock off.");
+        return;
+    }
+    if (tgt == enemy) {
+        if (!b.foe.ok) { Say("No opponent tracked."); return; }
+        float d = VecDist(b.self.x, b.self.y, b.self.z, b.foe.x, b.foe.y, b.foe.z);
+        snprintf(line, sizeof(line), "Locked on the enemy. %d away.", (int) d);
+        Say(line);
+        return;
+    }
+    // Alternate: verify list membership before exposing. (Self is also listed but
+    // can never be a lock target; refuse it rather than mislabel it a core.)
+    bool listed = false;
+    if (InRam(m) && !(m & 3)) {
+        uint32_t o = u32(m + 0x0Cu);
+        for (int i = 0; i < 64 && InRam(o) && !(o & 3) && o != 0; i++) {
+            if (o == tgt) { listed = true; break; }
+            o = u32(o + 0x490u);
+        }
+    }
+    if (!listed) {
+        Say("Lock target lost.");
+        return;
+    }
+    if (tgt == b.self.p) {
+        Say("Lock target lost.");
+        return;
+    }
+    if (!InRam(tgt + 0x88u)) {
+        Say("Lock target lost.");
+        return;
+    }
+    float tx = f32(tgt + OFF_PX), ty = f32(tgt + OFF_PY), tz = f32(tgt + OFF_PZ);
+    if (tx != tx || ty != ty || tz != tz) {
+        Say("Lock target lost.");
+        return;
+    }
+    float d = VecDist(b.self.x, b.self.y, b.self.z, tx, ty, tz);
+    snprintf(line, sizeof(line), "Locked on the EX core. %d away.", (int) d);
+    Say(line);
+    // BEACON CONTRACT (app audio layer, not this adapter): while locked, the target
+    // stays centered; the app beeps low with rate rising as this distance closes.
+    // This command is the on-demand equivalent; per-frame beeping needs a query API
+    // the current Adapter interface does not provide yet.
 }
 
 static void CmdDump(void)
