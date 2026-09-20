@@ -45,6 +45,20 @@ final class GameSession: ObservableObject {
     /// reader group the moment a game with a native reader finishes loading.
     @Published private(set) var adapterName: String?
     @Published private(set) var adapterID: String?
+    /// The loaded ROM's four-letter game code (header 0x0C), e.g. "IRBO" for
+    /// Pokémon Black or "YFEE" for Fire Emblem USA. Read once per ROM like the
+    /// adapter id. The UI uses it to show the Lua script's buttons only for the
+    /// games the script actually knows (Pokémon Black/White 1) instead of
+    /// offering dead controls for everything else.
+    @Published private(set) var romGameCode: String?
+
+    /// True only for the ROMs the bundled Lua script can narrate: Pokémon
+    /// Black/White 1. main.lua's detect_game() knows IRAO/IRBO by header (plus
+    /// a ROM-name fallback the core cannot see); every other game gets
+    /// "unknown" and the script stays silent, so its buttons must stay hidden.
+    var isPokemonROM: Bool {
+        romGameCode == "IRAO" || romGameCode == "IRBO"
+    }
 
     private var core: OpaquePointer?
     private weak var speech: SpeechEngine?
@@ -161,6 +175,7 @@ final class GameSession: ObservableObject {
         adapterID = nil
         adapterName = nil
         adapterReady = false
+        romGameCode = nil
 
         let name = url.lastPathComponent
         guard let local = try? ROMStore.importROM(from: url) else {
@@ -288,6 +303,10 @@ final class GameSession: ObservableObject {
         if adapterName == nil, let c = poke_adapter_name(core) {
             let s = String(cString: c)
             if !s.isEmpty { adapterName = s }
+        }
+        if romGameCode == nil, let c = poke_game_code(core) {
+            let s = String(cString: c)
+            if !s.isEmpty { romGameCode = s }
         }
 
         let ready = poke_adapter_ready(core)

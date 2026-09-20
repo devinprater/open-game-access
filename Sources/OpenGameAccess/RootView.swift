@@ -216,11 +216,51 @@ private struct GameControl: View {
 
 /// The script's commands, grouped by the screen they apply to.
 private struct ReaderGroups: View {
+    @EnvironmentObject private var session: GameSession
+
     var body: some View {
         VStack(spacing: 18) {
             AdapterGroup()
-            PathFindingGroup()
-            ReadingGroup()
+            ReaderStatusLine()
+            // The script's own hotkeys only narrate Pokémon Black/White 1. For
+            // every other game they are dead buttons, so they stay hidden.
+            if session.isPokemonROM {
+                PathFindingGroup()
+                ReadingGroup()
+            }
+        }
+    }
+}
+
+/// The honest one-line status when there are no reader controls to show.
+///
+/// Two cases, and they mean different things: a known adapter that is not
+/// ready yet is still loading (its game state does not exist yet, e.g. still
+/// on a title screen), while a running game with no adapter at all simply has
+/// no reader — including the game code so a wrong-region ROM is diagnosable
+/// instead of silently buttonless.
+private struct ReaderStatusLine: View {
+    @EnvironmentObject private var session: GameSession
+
+    private var gameActive: Bool {
+        if case .ready = session.status { return true }
+        if case .running = session.status { return true }
+        return false
+    }
+
+    var body: some View {
+        if !session.availableAdapterCommands.isEmpty,
+           !session.adapterReady, let name = session.adapterName {
+            Text("\(name) reader loading…")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("\(name) reader loading")
+        } else if gameActive, session.adapterID == nil,
+                  let code = session.romGameCode, !code.isEmpty {
+            Text("No reader for this game (code \(code)).")
+                .font(.footnote)
+                .foregroundStyle(.secondary)
+                .accessibilityLabel("No reader for this game, code \(code)")
         }
     }
 }
