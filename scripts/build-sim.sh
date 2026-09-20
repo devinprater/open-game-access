@@ -69,7 +69,7 @@ echo "llvm-ar = $LLVM_AR"
 mkdir -p "$OBJ" "$OUT"
 source "$ROOT/scripts/core-sources.sh"
 
-COMMON="-target $TRIPLE -isysroot $SDKROOT -O2 -g -fPIC -fwrapv -fno-strict-aliasing -D__IOS__=1 -DHAVE_PTHREADS=1 -DPOKE_IOS=1 -Wno-everything"
+COMMON="-target $TRIPLE -isysroot $SDKROOT -O2 -g -fPIC -fwrapv -fno-strict-aliasing -D__IOS__=1 -DHAVE_PTHREADS=1 -DPOKE_IOS=1 -DFE_NO_MAIN=1 -Wno-everything"
 INC="-I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$SRC/src -I$LUA_SRC/src -I$SRC/src/teakra/include"
 CXXFLAGS="$COMMON $INC -std=c++17 -stdlib=libc++"
 CFLAGS="$COMMON $INC -std=gnu11"
