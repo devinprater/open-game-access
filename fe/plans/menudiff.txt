@@ -1,0 +1,17 @@
+# Selection flip-flop: Right (Normal->Hard), Left (Hard->Normal).
+# Selection-linked bytes return to start; counters keep rising.
+KEY 360  START  1
+KEY 378  START  0
+KEY 620  A  1
+KEY 640  A  0
+KEY 760  A  1
+KEY 780  A  0
+SNAP 1050 /home/devin/fe/out/s0.ram
+KEY 1120 RIGHT 1
+KEY 1140 RIGHT 0
+SNAP 1300 /home/devin/fe/out/s1.ram
+KEY 1360 LEFT 1
+KEY 1380 LEFT 0
+SNAP 1540 /home/devin/fe/out/s2.ram
+SHOT 1540 /home/devin/fe/out/s2.ppm
+SHOT 1540 /home/devin/fe/out/s2-other.ppm 1

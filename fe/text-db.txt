@@ -1,0 +1,2139 @@
+02000C34  [SDK+Abiosso:libVCT 1.3.1]
+020C9703   !!!""###$$%%&&&''(())**++,,--..//00112334456677899:;;<=>>?@@ABCCDEFGGHIJKLMMNOPQRSTUVWXYZ[\]^_`bcdefgijklmopqstuwxy{|~~@ABCCDEFGGHIJKLLMNOPQRSTUVWXYZ[\]^_`abdefghiklmnpqrtuvxy{|}~@ABBCDEFFGHIJKKLMNOPQRSTUVWXYZ[\]^_`abcefghijlmnoqrsuvwyz|}~
+020C98F0   !"#$%&'()*+,-./0123456789:;<=>?@abcdefghijklmnopqrstuvwxyz[\]^_`abcdefghijklmnopqrstuvwxyz{|}~
+020C9970   !"#$%&'()*+,-./0123456789:;<=>?@ABCDEFGHIJKLMNOPQRSTUVWXYZ[\]^_`ABCDEFGHIJKLMNOPQRSTUVWXYZ{|}~
+020CBDE1   " & 3 ; 
+020CFB0C  Map Unit
+020CFB3C  Main Menu
+020CFB54  Mike Test
+020CFB78  Load Menu
+020CFB84  Talk Other
+020CFBF0  Name Input
+020CFC08  Map Effect
+020CFC14  Kaneko 2nd
+020CFC38  Staff Roll
+020CFC44  START : %s
+020CFC50  Map Record
+020CFC8C  Online Shop
+020CFCBC  Friend List
+020CFD4C  Preview Map
+020CFF14  Dual Effect
+020CFF44  Offline Shop
+020CFF64  Talk 016-204
+020CFF74  Talk 005-015
+020CFF94  Preview Face
+020CFFC4  Anytime Load
+020CFFE4  Sound Player
+020D0034  Battle Aging
+020D0064  Wi-Fi Utility
+020D00B4  My Unit Entry
+020D00E4  LR : Round %2d
+020D0114  Practice Match
+020D0124  Wireless Match
+020D0134  Preview Battle
+020D0144  Preview Effect
+020D01A4  Title Sequence
+020D0488  Job Introduction
+020D04C4  Wi-Fi World Match
+020D0578  Wi-Fi Friend Match
+020D05B4  Event Recollection
+020D05C8  Event Illustration
+020D05F0  Battle Magic Aging
+020D0618  Battle Aging(Skip)
+020D0640  User Data Initialize
+020D0670  Is data initialized?
+020D06D0  Win Effect(Kawasaki)
+020D0718  Lose Effect(Kawasaki)
+020D0810  Battle Magic Aging(Skip)
+020D0864  Link Match Record(Kawasaki)
+020DBBC8  ALLOC DWCauth
+020DBBD8  FREE DWCauth
+020DBC08  ALLOC bmwork
+020DBC18  FREE bmwork
+020DBD80  Nitro WiFi SDK/%d.%d
+020DBDE4  ALLOC http->lowrecvbuf
+020DBDFC  ALLOC http->lowsendbuf
+020DBE44  Content-Length: 
+020DBE5C  FREE http->lowrecvbuf
+020DBE74  FREE http->lowsendbuf
+020DBE8C  POST /%s HTTP/1.0
+020DBE9F  Content-type: application/x-www-form-urlencoded
+020DBED0  Host: %s
+020DBEE0  GET /%s HTTP/1.0
+020DBF1C  ALLOC buf->buffer
+020DBF30  FREE buf->buffer
+020DBF44  ALLOC newptr
+020DBF70  ALLOC result->entry[i].label
+020DBF90  ALLOC result->entry[i].value
+020DBFB0  FREE result->entry[i].label
+020DBFCC  FREE result->entry[i].value
+020DC008  FREE array_entry[i].label
+020DC024  FREE array_entry[i].value
+020DC068  ALLOC DWCnetcheck
+020DC07C  ALLOC DWChttp
+020DC08C  FREE DWChttp
+020DC09C  FREE DWCnetcheck->body_302
+020DC0B8  FREE DWCnetcheck->body_wayport
+020DC0D8  FREE DWCnetcheck
+020DC0EC  ALLOC DWCnetcheck->body_302
+020DC108  ALLOC url
+020DC114  ALLOC data_len
+020DC124  ALLOC wait_len
+020DC134  ALLOC DWCnetcheck->body_wayport
+020DC1D0  FREE url
+020DC1DC  FREE data
+020DC1E8  FREE wait
+020DC1F4  GET / HTTP/1.0
+020DC204  Host: conntest.nintendowifi.net
+020DC28C  Fri, 03 Mar 2006 01:28:13 GMT
+020DC3A4  BE, GlobalSign nv-sa, Root CA, GlobalSign Root CA
+020DC4F0  IE, Baltimore, CyberTrust, Baltimore CyberTrust Root
+020DC640  US, GTE Corporation, GTE CyberTrust Solutions, Inc., GTE CyberTrust Global Root
+020DC728  US, GTE Corporation, GTE CyberTrust Root
+020DC7EC  US, Washington, Nintendo of America Inc, NOA, Nintendo CA, ca@noa.nintendo.com
+020DC953  7ZA, Western Cape, Cape Town, Thawte Consulting cc, Certification Services Division, Thawte Premium Server CA, premium-server@thawte.com
+020DC9F4  ZA, Western Cape, Cape Town, Thawte Consulting cc, Certification Services Division, Thawte Server CA, server-certs@thawte.com
+020DCB89  O\gUS, VeriSign, Inc., Class 3 Public Primary Certification Authority - G2, (c) 1998 VeriSign, Inc. - For authorized use only, VeriSign Trust Network
+020DCC38  US, VeriSign, Inc., VeriSign Trust Network, (c) 1999 VeriSign, Inc. - For authorized use only, VeriSign Class 3 Public Primary Certification Authority - G3
+020DCDEC  US, VeriSign, Inc., Class 3 Public Primary Certification Authority
+020DCEC8  US, RSA Data Security, Inc., Secure Server Certification Authority
+020DCFA4  GlobalSign Root CA - R2, GlobalSign, GlobalSign
+020DD19C  Init state
+020DD1A8  Server full
+020DD1B4  Unknown connect attempt
+020DD20C   and (%s)
+020DD220  %s = %d and %s != %u and maxplayers = %d and numplayers < %d and %s = %d and %s != %s
+020DEAF9  P kzlTotzP}@
+020E0A7F  v'v v!v"v$v4v0v;vGvHvFv\vXvavbvhvivjvgvlvpvrvvvxv|v
+020E0B37  x&y x*yEx
+020E34D0  Assertion (%s) failed in "%s", function "%s", line %d
+020E3A50  basic_string::reserve length_error
+020E3AAC  basic_string: out_of_range
+020E3B00  basic_string: length_error
+020E9DFF   *0+0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0+4*4-0.010101010101010101060708090:0:494847464101010101010101010.4;0L0M010101010101010101010101010F0F410101010101010101010101010M4O0P0Q010101010101010101010101010101010101010101010101010101010Q4S0L0M0101010101010N01010101010101010101010101010N4101010101010M4O0P0Q0/00010203040501010101010101010101010101010544430241004/4Q4S0<0=084>0?0@0A0B0C0D0E010101010101010101010E4D4C4B4A4@4?4>480=4G0H0I0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0J0I4K0
+020E9EFF   .0/000000000000000000000000000000000000000000000000000000000/4.41020304050607080905050:0;0<0=0>0>4=4<4;4:450509484706450443424?0@0A0<4B0C0D0E0F0G0H0I050505050J0J450505050I4H4G4F4E4D4C4B4<0A4K0L0M0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0N0M4O0
+020EDD91   B0C0C0C0C0C0C0C0C0C0C0C0C0H0
+020F69CF  +,0V4 8p7
+02102962  0g3" bC42#
+02102B4E   CC44"!c43
+02102DF3   1U2DS21
+02104BB1  TD$" Q4542B2#
+02104C77  (%4! !c4$
+02104D4C   uD3#3S4E#!
+0210530F   CS#345344
+021053B3   S443C4C33"
+02105925  b44%C353" 
+02105E83   C!222S#GD
+02106AA8   B5D45CCCC3D2443D2434$$3CC23434C3C3$34C2C#33C223%
+02106D9A   TE44$#C35D2$#$CCCC2$344C3C2$3CC33434CCC33$#3343CB24C3$""
+02106E4B   S5"232C4"
+02107122   BcS354D3D344CC34C3C34C2C233C33$#"#!
+021075FD   B46DC44S344CC3C34C343C3C3343343342"
+02107849   BS25TS4D$4CCC34C23$3CC34CCCCC3CC334$33###!
+02107A3C   D55D4S3S2C2$$3C2C24S34444CCC#$2223##
+02107EBB   SD4D4C4DBB2$C343%34B23C2C23C3343C22"
+02108118   DD34C32
+021081A1   E44CDC2#
+021084D2   cEDC44C"
+0210854E   DD45S35CCC3CC$$C34C3C3C"
+0210877A   sF554D44C33
+0210878A   S45D2$2#!
+02108A19   B355D443"
+02108AC3   SD34C#$!
+02108B04   T4342C34"
+02108B31   dD54C2"
+02108C2C   B2!1UE43#"
+02108C6F   FEC3333$
+02108C83   SDS3%32"
+02108CC2   TSCCC2"
+02108D7F   C4C3D3$"
+02108DBE   2%344533#
+02108FBB   SSSC$33#!
+021090CB   "S3422B2DSES444$#"
+021090E2   U454343$"
+0210924C   TUDC4#3##244ESB233#
+0210940C   R$22S33
+02109508   SC3335#
+0210957D   FDS3333#CC454D3433
+0210969E   CTC3C3"
+021098FC   !!45C3#$C434
+02109A63   B4C3""25D44434C2C354D2332"
+02109AF0   cD45C3422"
+02109AF7   S4CCC333
+02109B64   TDC4C333BCSSCCC342C"#""!
+02109B75   C45CCC""
+02109C0A   SCS3433"
+02109E41   365D2222"
+02109E80   SSSC3322"
+02109F3D   C6D3C22#
+0210A2B8   FD33"2sC3$2"
+0210A2E6   "433"23S
+0210A488   4C5652##
+0210A4AD   3D344$!
+0210A5A7   C33CDC#
+0210A86F   sS4D3%33C2333$344454C3$""
+0210AD96   C333#!!3353&CC2424C"2
+0210AE03   SCC3"B5
+0210B1C9   TT3C32!
+0210B25D   CSSD4$!
+0210B723   344422125DC2"
+0210B7BA   B4C333$
+0210B7F9   C44$322
+0210BBD1   CDCC233C"
+0210BD0C   4TS24C#"
+0210BFC2   BBC334C3
+0210C558   sT44C#$!
+0210C779   S4#"C225
+0210CAB4   3DF44ES2"
+0210CDAB   44BB35534"
+0210D115   CE5433"
+0210D2BC   "1S3BE53
+0210D571   c4544C223#
+0210DD67   RT4D"332"
+0210F52B   SSUCC32#
+0210F580   CS5D23#
+0210F670   TU4C323C
+0210FAD8   463""c4E2
+0210FB17   2532EDD34
+0210FDF7   CeU443"
+0210FE59   BDSDC33
+0210FF15   E44BB4D2"
+0211005A   R3!c444332"
+021100CA   D4#3DC2
+021103AC   22FE$333"
+02110668   e542422$
+021108CE   CSC33C"
+021109F5   SC4B222"
+021115C9   4343454
+0211312F   3VE#!B2
+0211410C   D"BU424
+0211814B   CDD3D3%$C33
+02118E0B   TcCD23"
+0211D6FF   254D44C3C2"""
+0211E7C6  (DC3#! R4
+0211EBEF   CTC33E$
+0211EE8E   "BC2BU4
+0211EEC6   #442CeC
+02128DFB   2D443TU2
+0212CB96   4$335343$
+0212D320   D2CC2"C$
+0212D8B6   B"!222B$
+0212DAD9   2R55CCC#
+0212DEF0   C3D4D#3C
+0212EE69   C3#BFS2
+0212F781   4D45$32C3
+0212FAC9   C$"3UDS2
+0213076A   eD3333C
+02130FD9   SCTDC$2!
+02131091   T5%#C3$334D23
+02131469   3T44CD3#4##2D24DDCC3"
+021314F5   B4333C3$B34SCDSC4342C
+0213166F   S$#BDS3DCC34B"122#
+0213192E   TDDB"333423223$#46$
+02131D3C   D3CT45D3DB34$##3#!
+02131EAF   cc34554C#2$3B224$"
+02132CCA   S$2SE4333
+02132F97  !4" !45CS44"
+02132FAD   WD#"CC2C434
+02133056   !!C55$DC2
+0213322D   E434CD$
+02133504   4333C32"
+02133653   C#D54D2#3CDC3C#35#
+021338D1   TS3$C3CC43#
+021338EA   65#C323S3
+02133BAD   55C#2D4D3S3$34333S4C"
+02133CC7   2DD22$344543%32
+02134887   43TED32
+021348F0   DC3ES32
+02134959   T36CCC3"
+02135666   E5C""22!
+02248104   prologu!e
+022481C3   UBJRBov
+02248304  xn, ma_k
+02248AAE  TAL_DECI DE
+02248B50  0.NEWG AM@-TEMPO
+0225AD47     ! " # 0 1 2 3 
+0225AD67  ! !!!"!#!0!1!2!3!
+0225ADC7  0 0!0"0#000102030
+0225ADE7  1 1!1"1#101112131
+0225AE07  2 2!2"2#202122232
+0225AE27  3 3!3"3#303132333<
+0227F5A6  ````mmm`mmmmmm `mmmmmm `mmmmmm `mmmmmmm`mmmmmm``mmmmmm
+0227F8D7  mm`[[mm```[[Nmmm  !
+0227FFC5   mm`[[[ m`
+02281DB4  ZVNN[`mm[NN[`mm [N[[`m 
+02281DDC  ZN[[`mm NNNNNNNN```
+02281E01    m!!!!!!!
+02281E51   m[!!!!!
+02281E5A  m[!!!!! m
+02282FB2  !mmm !!mV.
+02282FE4   VLLLA..PA.AAAAA.P.AAAAPPPPPPPAA
+022835DE  `mm  m2222\\\\\\VVVVVVV$NNNNNNN[[[[[NN[[
+0228360D  ```````mmmmmmmmmmm     VV$NNN[[V$NN[[[[NNN[[[[[N[[[[[
+02283663   [[[[[[[[[[[[[[[[[
+02283DCC  [N[[ mm[N$$N
+02283DD6  `[[N[[ mm[N$$N
+02283E40    mm  mmmmm`mm```
+02285E85  ```````[[[[[[[[[[[[[[[NNNNNNNN$mmmmmmmmm 
+0228651D  !!!!!!!`m 
+02286529   mmmmm    
+02286D5C   mmmmmm 
+02287495     mmmmmmmmmmmm!!
+0228755B  [[[[[[[[[m 
+02287571  !!!`mmm 
+0228763A  [[mmmmmmm`  mmmmm`mmmmmmm`mmmmm mmmm`mmmmmV$N$$$$$[[[NNNNN[[[[[[[[`
+022876C7  `mmmm[``mmmmm[`mmm  m`
+02287FB1  [[[mmmmm```mmm   mm 
+0228801E   mmmmmV$V$$VVV[[[[NNNN``
+02288722  !!mmmmmmmmmmmmmmmmmm mmmmm         
+02288774  mmmmmmmm mmmmmmm
+022887BC  mm    mmmm    mm
+022887E5   mmmmmm mmm```
+02289077    mmm!!!
+022890CB  [ mmmmm`[  mmmm`
+022890DC    mmmm``[[[[[[NNNNNNNNNNNVVVVV$$NVVVVV$$NVVVV$NNN$VV$NN[[N$NN[[[[NNN[[
+02289824     mmmm mmmmmmmmmmm```mm mmm```` mmmmmmm
+02289933  [mmmmm``[ 
+02289CC4  ```m !!!mmm !!!!mm
+02289CF0  [[[[m   mmm`!
+02289D03   !!!!!!!!!!!!!!!!!!!!!!!!!
+02289D52   m!!!!!!
+02289D87  [[[[[mmmmmmmm     mm 
+02289F5F  `mmm !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+02289FA0    mm!!!!!!!!!!!!!!!
+0228A222   !!!!!!!!!
+0228A22D  !!!!!!! 
+0228A249  !!! !!!!!!!
+0228A2AB  [ mmmmmm` mmmmmmmmmmmmmm mmmmm  
+0228A3C3  [``mmmm``mmmmmmmmmmmmmm  mmmmmm  NNNNN[[[NN[[[
+0228A415    mmmmm   mmmmm
+0228A515   mmmmmmmm`
+0228A546  mmmmm  mmmmmmmmmm````
+0228A580   mmm  mmmm``mmm``
+0228A98D  2[ !!!!.$
+0228A9D7  !!!! NN[
+0228AA8E  !!!!!!mm  
+0228AAD6     mmmmmmmm```
+0228B19F  ! m`[\\V$[[[[VVV$NNN[[NNN[[
+0228B95C  55555511!!!! m`
+0228BC34  m`mmm  mmmmm mmm   mmmmm
+0228BC55    mmm`[ mmmm`
+0228C3B4  mmmmmm  mm         
+0228C696  !!!! `!!
+0228CB14  mm  mm``[[[[[[NV!
+0228CCB1  [[[  mmmmmm
+0228CCFE   mmmmm!!
+0228CD15  mmmmm mm````mmm[NNN[[[[[[[[[[[[
+0228CE08  [[[[  m`
+0228CE1E  ! mmmm!!!!!
+0228CE84  m     mm[
+0228CEBE   mmmmm  
+0228D454  !!!!!!!!!!!!!!!!```m    
+0228D4A7   mmm`mmmmm`
+0228D727  mmmmmmmmmm m
+0228D8C8  `[NN mm`[[NNNN[NNNNN\\VNNVVV!
+0228DB7E  ``mm  ```m            !!!!
+0228DCD5  [[[[[[[[[[[[NNN````mmm [[
+0228DE77      mmmmmm mm`
+0228E284  [[[NNNN[NNNNNNNNNNNNNNNN[NNNN[[N 
+0228E735  [NV2.++mmmmm```mmmmmmmm`mmmmmmmmmm   mm
+0228E7CF  [[NN[`mmmmmm`m 
+0228E8A1   m V$NN[`m
+0228EBB2           mmmmm   mmmmmmmmm```mmmmm
+0228F11B  !!!!!!!!!  mmmm    m````m
+0228F48C  VVNNN[[[\VVV$NNN2\\\\VVV   
+0228F4B3   mmmm  mm```mmmmm
+0228F50D  [[[[[[[NNNNNNN[$$VVVV$N``mmm 
+0228F5E7   mmm !!! m```!!!
+0228F62B  !m    `m
+0228F656  m  `N$!!!!
+0228F857  !!!! !!!!!!
+0228FED1  [[NNNN[[NNNNNNNNNNNmmm 
+0228FF1B   N[`mmmmm!!!!!!!
+02290879  !!!``mmm m ```mmmmmm 
+02290891   mm !!!!
+02292022    [[[N[[[[[[[[[[
+02295E9A  !!VN[``m 
+022960A0    mm!!!!
+022960C8             m    mmmmmmmmmmmm!!!!!!!!
+02296114  mmmmm   mmmmmmmm!
+022966CA  !!VN[`m 
+022967AC  mmmmmmm ``mmmmmm
+022967F4          mmmmmm mmmmmmmmmmmmmmmmmmmmmmmmmmmmmmm``
+02296844  mmmm    mmmmmmmmmmmmmmmm``mmmmmm
+0229765C  ``[[NNN[mmm mm 
+02297674  mmmm    mmmmm   mmmmmmmm`mmmmmmm``mmm```
+02297750   m`[!!!!
+02297D9C  2\$NN[[Z``mmmm  mmmmm  m      mm    mm``
+0229B4D3   N2$[[`!!
+0229CB24  V[mm !!!`m 
+0229CB3A  !!``mmm  
+0229DE03   [[[[`mme[NNN[[[[NNNNNNNNNN$$$VV\"
+022A018D   m``mmmmmmmmmmmmm
+022A2A83  N$N[[m!! m!
+022A2B14  NNN$[m!" 
+022A30CA  NN`m mm`[[`mmmmm`
+022A5E5B  [mm   mm`N[`m 
+022A5EAC   mmmmmmm`
+022A6E83  ![NN[` !!NN[
+022B6D0C  sssssssssstsssssts tttss
+022B7DA1  v"u tsss!qq
+022B8524  t t stuu tttt
+022B8539  utq ttuvq
+022BA6B3  j1T")) i6
+022CF289  vvtvvv r`
+022D1267  vvtttssttttv stvv
+022D6779  GTf888IHQ T88Z
+022DF94E  3[e!  1[]
+022E0916  !  s  "! !      
+022E0BD1  XRR! !XS
+022E0BDA  11   YIXR3RF5
+022E10BD  "!!!!!s"!!!!! !!!!!!!!!!!!!!!! !!!!!! !! !  s  !!!s     ! !    !!!  s   ! !   s!!! !   ! !!  s !!! s! !          
+022E1132   !      !
+022E186D  "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
+023C19DB  aha =BP ?
+023C283E  99w9= ;:
+023C2C3D  JIOJ{Q k
+023C30AD  HS  T! L
+023C3738  :FFIF dQ
+023C38CC  kk<GGOPH II
+023C394D  :W___bwuyu 
+023C39B9  5 3LL0LL
+023C5079  BGAj _jj@Dg,E7Lx
+023C5972  =bb 8HsXz
+023C5D32  )JJ ?O D
+023C5ECF  F=555050 
+023C6124  0?1#:@o W4 
+023C620B  aaa^a Aa :@
+023C6294  r//rrr!2 
+023C62A1  p<?mm?? 
+023C62AB  ___.    
+023C62D3  A<KK7A1 
+023C62E9  ?Jg;r jx
+023C63C2  dUETRMM 
+023C6471  kwr#v w;)
+023C6491  _II m? I
+023C669A  c_USI ^__@V
+023C6ABC  P LKHP(T._
+023C6D9B  ~p[@~ CPxll99"nn0C
+023C7116   m?4?*3r
+023C72EB  C@D0Ue A`
+023C72F9   RT(ZVebAE
+023C72FA  0< aCDTUT b
+023C734C  ZCy!W!Nb 
+023C7456  33wE4CxU De!
+023C74F8  Cf Je Nd2
+023C754E  7wF b4SAa5 1#
+023C7579   o0{D`4P(F
+023C75B8  5SL305 ]W3>C]Boy
+023C7872  fdfgF) D.f
+023C7979   .vpc*]m 
+023C7AF1  TTb4" _!&
+023C7B6C  ,%FV<O g9V
+023C7D4D  !{9V<(FF 
+023C7D97  SJFJJSB= bb
+023C7E5C  2JFP2WFJ 
+023C7ECF  (;Q*3v1 
+023C8053  TQF 6?qjB
+023C8574  Long ago, Medeus, king of the dragonkin,
+023C859D  conquered the continent of Archanea,
+023C85C3  giving rise to an age of fear and despair
+023C85ED  for all its people.
+023C8603  That tyranny was broken, however, when
+023C8603  Kr:G<a k= 
+023C862A  an unlikely hero intervened.
+023C8648  A young man hailing from the Altea region
+023C8672  appeared with a divine blade in hand.
+023C8699  Fang of dragon and blade of light locked in
+023C86C5  battle; and in the end, blade prevailed.
+023C86EF  For some time after, the land enjoyed an
+023C8718  age of peace.
+023C8728  However, after a century's passing, the
+023C8750  Shadow Dragon returned.
+023C8769  He forged an alliance with a fiendish
+023C878F  sorcerer who sought to rule the world,
+023C87B7  and their combined might toppled kingdom
+023C87E0  upon unsuspecting kingdom.
+023C87FC  Again, darkness threatened to engulf
+023C8821  the continent.
+023C8832  It fell upon the king of Altea, sole
+023C8838  2~2?XX5eX Q
+023C8857  descendant of the dragon-slayer hero,
+023C887E  to sally forth with the divine blade and
+023C88A7  fulfill his blood destiny.
+023C88C4  His son, Prince Marth, remained at home
+023C88EC  with the boy's mother, his elder sister,
+023C8916  and a garrison manned by Altea's neighbor
+023C8940  and ally, Gra.
+023C8950  Thus the boy applied himself to the ways of
+023C897C  both pen and sword, until one day...
+023C8A33  But he was betrayed by his neighbor and
+023C8A5B  ally, Gra
+023C8A68  and both king and kingdom fell.
+023C8A8A  Altea's prince, Marth, escaped the castle
+023C8AB4  and found refuge on the isle of Talys,
+023C8ADC  but at a dear cost: his sister stayed
+023C8B02  behind to buy his freedom.
+023C8B1E  Marth, prince of Altea, was lucky.
+023C8B42  Though Dolhr took from him his kingdom and
+023C8B6D  all but a handful of knights,
+023C8B8C  they could not take his life. Marth lived
+023C8BB6  and made it to the eastern isle of Talys.
+023C8BE1  Talys was a small border kingdom, with no
+023C8C0B  grand order of knights to boast of,
+023C8C30  but its king selflessly gave Marth use of
+023C8C5A  the isle's eastern fortress.
+023C8C78  And as he saw the boy shake with anger
+023C8C9F  and grief, he also gave wise counsel:
+023C8CC8  Prince Marth,
+023C8CD7   he said, 
+023C8CE3  I do not doubt
+023C8CF2   you love your sister something great.
+023C8D1C  But you must be patient...
+023C8D37   Time is on your side.
+023C8D51  If you stay here, and grow stronger, a
+023C8D78   time will come when you can help her.
+023C8DA2  So Marth stayed in Talys, protected by its
+023C8DCD  kind people, and the years went by...
+023C8DF4  One thing could always be said about Galder
+023C8E20  Harbor, the mainland port nearest Talys:
+023C8E4A  it never had much in the way of riches,
+023C8E72  but neither did it have much trouble.
+023C8E99  All that changed when a pirate crew fell
+023C8EC2  upon the town and made it their hideout.
+023C8EEC  Here, in Galder, history records Marth's
+023C8F15  first steps toward freeing his homeland.
+023C8F3F  When journeying in from the borderlands,
+023C8F68  one particular peril would spring to mind:
+023C8F94  the Samsooth Mountains, whose gnashing
+023C8FBB  peaks rose up and divided the peninsula.
+023C8FE5  Since before anyone could remember,
+023C9009  the mountains had belonged to bandits,
+023C9031  blights on the land whose acts of plunder,
+023C905C  kidnapping, and arson knew no bounds.
+023C9083  Out of fear, their victims gave these peaks
+023C90AF  another name: the Ghoul's Teeth;
+023C90D1  while the bandits who ruled atop the Teeth's
+023C90FE  craggy crowns took a name as well:
+023C9122  the Samsooth Sires, or Soothsires...
+023C9148  After a hard battle, Marth's Altean army
+023C9173  for it had grown to be called such
+023C9199  set foot at last in the kingdom of
+023C91C6  However, joining his might to that of the
+023C91F0  Aurelians would have to wait.
+023C920F  As Marth descended into the vast green
+023C9236  lea separating his troops from theirs,
+023C925E  he heard a terrible sound: the galloping of
+023C928A  enemy destriers,
+023C929C  far away at first...then closer...
+023C92BF  ...Then far too close.
+023C92D7  Trace a line around the continent's north-
+023C9302  eastern plains, and you have Aurelis.
+023C9329  This kingdom alone had somehow resisted
+023C9351  Dolhr's attempts to conquer it,
+023C9372  but only by some miracle.
+023C938C  By the time Marth arrived in Aurelis,
+023C93B3  much of its territory had already been
+023C93DA  carved up by Dolhr's ally Macedon.
+023C93FE  Still, the king's younger brother, Hardin,
+023C9429  refused to give up the fight.
+023C9448  The people called him Coyote, and he
+023C946D  intended to live up to the name.
+023C948F  Since its founding, Aurelis and the holy
+023C94B8  kingdom of Archanea shared close ties,
+023C94E0  and some months ago Princess Nyna of
+023C9505  Archanea had come to Hardin's aid.
+023C9529  By his side, she had called on the people to
+023C955D  but now few remained to answer.
+023C957E  Macedon's finest soldiers were closing in.
+023C95A9  Nyna knew they were out of time...
+023C95CD  After shattering Macedon's main force
+023C95F3  outside Aurelis Castle,
+023C960C  Marth next led his army into the castle's
+023C9636  halls to liberate the kingdom.
+023C9656  A number of treasures slept in Aurelis
+023C967D  Castle's nooks and corners,
+023C969A  but how to extract them before they could
+023C96C4  fall into enemy hands?
+023C96DE  Only a thief could open chests locked that
+023C9712   grumbled one of Marth's men.
+023C9733  But we don't have any thieves with us.
+023C975A   ...Do we?
+023C9768  Aurelis was free, but Marth and his army
+023C9793  now known as the Archanean League
+023C97B8  still had much work ahead of them.
+023C97DC  They followed the middleroad south, bound
+023C9806  for Archanea Palace
+023C981B  a perilous route,
+023C982E  for it took them right into Lefcandith Valley
+023C985C  and the jaws of trouble.
+023C9876  The countless fortresses lining the valley
+023C98A1  made it a veritable gauntlet,
+023C98C0  and compounding the danger was the
+023C98E3  presence of the Whitewings,
+023C9900  a knightly order led by Princess Minerva of
+023C992C  Macedon. 'Twould be a fierce battle...
+023C9954  The League had reached Archanean soil,
+023C997B  so Marth gave them leave to recuperate
+023C99A3  in Port Warren, a harbor town known for
+023C99CB  commerce. Coin alone kept the town free:
+023C99F5  they paid Dolhr dearly in taxes to preserve
+023C9A21  their autonomy.
+023C9A32  Naturally, then, theirs was a warm welcome
+023C9A5D  when the Archanean League arrived.
+023C9A81  Marth's soldiers were glad to rest there,
+023C9AAB  nestled between mountain and sea,
+023C9ACE  but their joy was spoiled by news that the
+023C9AF9  enemy was fast approaching
+023C9B17  as harsh an awakening as a rock beneath
+023C9B3F  the pillow.
+023C9B4C  Grust had caught the League unawares,
+023C9B72  forcing them to flee to Pyrathi.
+023C9B94  But the kingdom of Pyrathi seldom made
+023C9BBB  contact with the outside world,
+023C9BDC  and their king, Mannu, was wroth when he
+023C9C05  heard of the League's unexpected visit.
+023C9C2E  There were whispers Mannu was a dragon-
+023C9C5B  rumors soon to be proven true.
+023C9C7B  Not all of the League's soldiers took Catria
+023C9CA8  of the Whitewings at her word.
+023C9CC8  Some insisted her plea was a ruse, a trap
+023C9CF2  concocted by Princess Minerva herself.
+023C9D1A  Marth doubted that, though; he had seen
+023C9D42  the woman in Lefcandith Valley,
+023C9D63  and she did not strike him as the sort of
+023C9D8D  conniving menace his followers feared.
+023C9DB5  As the brunt of Grust's might drew closer,
+023C9DE0  Marth led the League to Castle Deil,
+023C9E06  determined to attack the citadel and rescue
+023C9E32  the young Macedonian princess Maria.
+023C9E58  Tired from many long battles, Marth and
+023C9E80  the League arrived at last in Archanea,
+023C9EA9  Princess Nyna's mother kingdom.
+023C9ECA  Past the mountains lay the royal palace,
+023C9EF3  known to some as Millennium Court;
+023C9F17  and within its walls awaited many treasures
+023C9F43  and captives the enemy had taken.
+023C9F66  With each step, Marth drew nearer to one
+023C9F8F  of the great waypoints on his journey.
+023C9FB7  The holy kingdom of Archanea had come
+023C9FDD  into being six centuries earlier
+023C9FFF  when the region's numerous city-states
+023CA026  were unified under one monarch.
+023CA047  The first king, Adrah, had fought valiantly
+023CA073  to accomplish this,
+023CA088  wielding three weapons he came to call his
+023CA0BC  gifts from the gods, some said.
+023CA0DD  The kingdom Adrah forged was pronounced
+023CA105  holy; its kings were esteemed.
+023CA125  With Archanea's aid, six more independent
+023CA14F  kingdoms sprang up in their own time.
+023CA176  But Archanea was always the greatest
+023CA19E  and now, Marth was about to take his first
+023CA1C9  walk through its historic palace's halls.
+023CA1F4  The Archanean heroes hurried to Altea,
+023CA21B  but they would not go unchallenged.
+023CA240  Waiting for them at Fort Menedy
+023CA260  were Grust's artillery regiment,
+023CA282  the dreaded 
+023CA290  Wooden Cavalry.
+023CA2A3  Missiles crashed down, rocking the earth
+023CA2CC  as the enemy ballistae rumbled forward.
+023CA2F5  Had Marth and the League any hope of
+023CA31A  triumphing over such firepower?
+023CA33B  Gra's betrayal of Altea years earlier had
+023CA365  come as a shock, of course:
+023CA382  until that day they attacked Marth's
+023CA3A7  kingdom in the name of Dolhr,
+023CA3C6  Gra had been a trustworthy neighbor
+023CA3EA  and ally.
+023CA3F5  While the Altean army was out on an
+023CA419  expedition, Gra struck from the rear,
+023CA440  annihilating the Altean soldiers,
+023CA462  killing Marth's father, King Cornelius,
+023CA48B  and stealing Falchion, the blade of light.
+023CA4B6  It was a crushing blow.
+023CA4CF  Much time had passed since that sad day,
+023CA4F8  and much had changed.
+023CA50F  Now it was Marth's turn to descend on
+023CA535  Gra Bastion,
+023CA543  and face King Jiol, the man who had
+023CA567  robbed him of his father.
+023CA582  Khadein, city of magic.
+023CA59B  Ever since Gharnef named himself ruler of
+023CA5C5  this mecca for the magically inclined,
+023CA5ED  the sands surrounding it had run red.
+023CA613  Many knights had tried to oust Gharnef,
+023CA63C  but what defense did they have against the
+023CA667  mages the fiend had bent to his purpose?
+023CA691  One by one the heroes fell to blades unseen
+023CA6BD  and fires within their armor;
+023CA6DC  and it was not long at all before Khadein's
+023CA708  wickedness outstripped its wisdom.
+023CA72C  Still smarting from their bitter experience
+023CA730  y,Dt EC0[pK5
+023CA758  with Gharnef and the dark magic Imhullu,
+023CA782  Prince Marth and the League regrouped
+023CA7A8  and marched south
+023CA7C1  to Altea.
+023CA7CC  Once Marth's kingdom had been beautiful,
+023CA7F5  blessed with rich soil and clear waters;
+023CA81F  now the eyes tended to notice instead the
+023CA849  barren farms; the ruins; forlorn stares.
+023CA873  Marth vowed to free Altea from its torment
+023CA89E  without any further delay.
+023CA8BA  The League had routed Hollstadt's knights
+023CA8E4  and recaptured most of the kingdom,
+023CA909  but there was still the castle to deal with
+023CA935  before Altea would be free;
+023CA952  the mage-dragon Morzas remained
+023CA972  entrenched within its walls.
+023CA990  Unlike General Camus who preceded him,
+023CA9B7  Morzas had been a cruel warden,
+023CA9D8  slaughtering many innocent Alteans at the
+023CAA02  slightest provocation.
+023CAA1A  Marth roiled to think such a monster still
+023CAA45  sat upon his noble father's throne.
+023CAA6A  For Gotoh to create the magic that could
+023CAA93  defeat Gharnef,
+023CAAA4  he needed two orbs: the Lightsphere and
+023CAACC  the Starsphere.
+023CAADD  Marth and company set off to Chiasmir and
+023CAB07  the Fane of Raman to find them,
+023CAB28  but in their path stood a cohort of Grustian
+023CAB55  knights known as the Sable Order.
+023CAB78  The bridges across the strait would soon be
+023CABA4  choked with the brave and the dead...
+023CABCB  The Sable Order fought valiantly to keep
+023CABF4  Marth's army from reaching Chiasmir,
+023CAC1A  but in the end Grust's knights buckled:
+023CAC42  the world's mightiest only in song.
+023CAC67  The League marched on to the Fane
+023CAC89  of Raman,
+023CAC94  a holy sanctuary built by the divine dragons
+023CACC1  to house their most priceless treasures.
+023CACEB  There, another story was set to
+023CAD15  It was General Ordwin, one of the
+023CAD37  Three Heroes of the War of Liberation,
+023CAD50  Start a new game.
+023CAD5F  who put Grust on the map.
+023CAD62  Continue from save data.
+023CAD7A  His peerless knights tamed their neighbors
+023CAD7B  Resume from a suspend point.
+023CAD98  Copy save data.
+023CADA5  the barbarians in the kingdom's infancy,
+023CADA8  Delete save data.
+023CADBA  See more choices.
+023CADCC  Open the wireless-play menu.
+023CADCF  securing its place as one of the greatest
+023CADE9  Open Nintendo Wi-Fi Connection menu.
+023CADF9  of the Seven Kingdoms.
+023CAE0E  Delete all of your data.
+023CAE11  However, the current king, Ludwik, was
+023CAE27  Rewatch scenes from the game.
+023CAE38  weak willed and easily cowed;
+023CAE45  Listen to music from the game.
+023CAE57  Dolhr had little trouble forcing him into
+023CAE64  Play against friends and other opponents.
+023CAE81  an alliance. Now he had taken ill,
+023CAE8E  Register friends so you can play wirelessly.
+023CAEA5  even as Grust suffered its string of
+023CAEBB  Borrow units from friends, or loan them out.
+023CAECA  defeats at the hands of the League.
+023CAEE8  Connect to a shop to buy and sell items.
+023CAEEF  The once mighty kingdom was poised
+023CAF11  Test the microphone for voice chat.
+023CAF12  to fall...
+023CAF1E  Grust would harry the League no more.
+023CAF35  Set up Nintendo WFC.
+023CAF45  Marth led his forces on to Macedon.
+023CAF4A  Recommended for beginners and those playing
+023CAF6A  However, Macedon's Dragoons were ready
+023CAF76  this game for the first time. A special prologue
+023CAF91  to waylay them at the border;
+023CAFA7  introduces the story and game play.
+023CAFB0  countless reinforcements hovered within the
+023CAFCB  Recommended for those seeking a challenge.
+023CAFDC  fortresses, waiting to strike...
+023CAFF6  Enemies are up to five degrees tougher than
+023CAFFE  Would Marth be able to lead the League
+023CB022  those in Normal mode. No prologue is included.
+023CB025  safely through the gauntlet?
+023CB043  The Macedon Minerva and Maria
+023CB058  Play Wirelessly
+023CB061  remembered best was one of peace:
+023CB068  Play Anyone
+023CB074  Play a Friend
+023CB084  a quiet, prosperous kingdom famed for the
+023CB08B  Battle Data
+023CB097  Create and view squads.
+023CB0AE  flying beasts favored by dracoknights.
+023CB0AF  Play friends over DS Wireless Communications.
+023CB0D6  But then their brother, Prince Michalis,
+023CB0DD  Play other people connected to Nintendo WFC.
+023CB0FF  succumbed to his lust for power.
+023CB10A  Play friends over Nintendo WFC.
+023CB121  Despite his sisters' adamant opposition,
+023CB12A  Practice using versus-battle rules.
+023CB14A  he swore allegiance to Dolhr;
+023CB14E  View stats for your last 20 battles.
+023CB169  and when Macedon's Dragoons took flight,
+023CB173  Use Loans
+023CB192  the world suffered.
+023CB19D  Select loan units you have downloaded from
+023CB1A7  Even now that the tides had turned,
+023CB1C8  friends to use in your own save data.
+023CB1CB  Michalis took position for one last stand.
+023CB1EE  Connect two DS systems wirelessly to borrow
+023CB1F7  Dracoknights filled the sky end to end,
+023CB21A  and loan units directly.
+023CB21F  eager to pluck Marth from the earth.
+023CB233  Connect to a friend over Nintendo WFC
+023CB245  With the aid of the White Sage Gotoh's
+023CB259  to borrow and loan units directly.
+023CB26C  powerful Warp magic,
+023CB27C  Store units you want to loan to friends on
+023CB282  Marth and company were transported to
+023CB2A7  the game server.
+023CB2A8  the faraway city of Thabes.
+023CB2B8  Retrieve units your friends have loaned you
+023CB2C5  Thabes was once an advanced civilization,
+023CB2E4  from the game server.
+023CB2EF  but only its decay advanced now.
+023CB2FA  Placing a unit on the castle will change the
+023CB311  The League traced the lifeless streets to
+023CB327  castle's flag to that army's color.
+023CB33B  the temple at the city's heart;
+023CB34B  To win, make sure the flag is your color
+023CB35C  somewhere within its walls, Gharnef
+023CB374  when the battle ends
+023CB380  was waiting, and now,
+023CB38A  or just annihilate
+023CB397  it was up to Marth to wrest Falchion and
+023CB39D  your opponent first.
+023CB3C0  his sister, Elice, from the fiend's grip.
+023CB3C7  What would you like to do?
+023CB3E2  Choose a location to create your squad.
+023CB3F4  Land of the Manaketes.
+023CB40A  Select the squad you want to view.
+023CB40C  Before Medeus, the dragonkin had few
+023CB42D  Select the squad you want to delete.
+023CB431  dealings with the human realm,
+023CB451  but when the Shadow Dragon came,
+023CB452  Select a squad to change its card.
+023CB472  everything changed.
+023CB475  Make your preparations.
+023CB487  He sunk all Archanea into a cycle of war,
+023CB48D  Enter a name for this squad.
+023CB4AA  Choose a card for this squad.
+023CB4B1  in which heroes rose and heroes fell
+023CB4C8  Select a squad to deploy.
+023CB4D9  always claiming his cause was just and the
+023CB504  human deaths deserved.
+023CB516  Fleet Feet
+023CB51C  But now Medeus's empire was crumbling...
+023CB545  He was nearing the end of his reign...
+023CB56D  even as Marth was nearing the end of his
+023CB596  long quest.
+023CB598  Raises strength
+023CB5A3  The long war had been fought, Archanea's
+023CB5A8  of all friendly
+023CB5B8  units by 1.
+023CB5C4  Raises skill
+023CB5CC  many lands freed,
+023CB5DF  and now the League had cornered their
+023CB5ED  Raises speed
+023CB605  archenemy within his castle.
+023CB616  Raises magic
+023CB623  They broke into four groups and stormed
+023CB63F  Raises defense
+023CB64B  the four gates of Dolhr Keep
+023CB66A  Raises resistance
+023CB66B  unaware that this was exactly what
+023CB68E  Medeus was expecting.
+023CB698  Raises movement
+023CB6A5  Bravely, these warriors fate had chosen
+023CB6A8  of armored units
+023CB6BF  Lowers HP of
+023CB6CC  all enemy units
+023CB6CD  steeled themselves for one last struggle.
+023CB6DC  by 20% in the
+023CB6EA  opening turn.
+023CB6F8  Nullifies critical
+023CB6F8  Not long after Marth's army freed the
+023CB70B  hits from both
+023CB71A  friendly and
+023CB71E  kingdom of Aurelis,
+023CB727  enemy units.
+023CB733  messengers arrived from a western village
+023CB734  Lowers movement
+023CB744  of enemy fliers
+023CB75A  Raises friendly
+023CB75D  to plea for the prince's help.
+023CB76A  units' hit rate
+023CB77A  when using
+023CB77D  Pirates had struck the war-torn village at
+023CB785  swords by 10%.
+023CB7A8  its weakest and abducted its children.
+023CB7BF  lances by 10%.
+023CB7D0  Marth could not ignore such an injustice
+023CB7F9  axes by 10%.
+023CB7F9  and rode with his army to the rescue...
+023CB822  After taking back the palace, the League
+023CB831  bows by 10%.
+023CB84B  rode across Archanea,
+023CB862  freeing the greater part of the kingdom as
+023CB869  magic by 10%.
+023CB877  Nullifies bonus
+023CB887  damage from
+023CB88D  they went
+023CB893  both friendly and
+023CB898  all except the west.
+023CB8AE  A landed knight there named Horace, who
+023CB8B2  Restores 2 HP
+023CB8C0  to all friendly
+023CB8D0  units each turn.
+023CB8D6  had betrayed Archanea to join Dolhr,
+023CB8F1  cost for all
+023CB8FC  continued to stubbornly hold out against
+023CB8FE  terrain by 1.
+023CB90C  Lowers visibility
+023CB91E  for both friendly
+023CB925  Marth's forces.
+023CB930  and enemy units
+023CB936  Nyna could not fathom why such a fiercely
+023CB946  Awards two
+023CB951  cards if you win
+023CB960  loyal knight would turn to treachery,
+023CB962  the wireless
+023CB987  but with her other knights calling for
+023CB98C  Remove this friend code?
+023CB9A5  Save your changes?
+023CB9AE  Horace's blood,
+023CB9B8  Select friend code.
+023CB9BF  she had no choice but to give in and ask
+023CB9CC  Register a friend code.
+023CB9E4  Edit friend data.
+023CB9E8  Marth to bring the traitor to justice.
+023CB9F6  Remove friend code.
+023CBA0A  Enter a friend code.
+023CBA10  At long last, Altea was free again.
+023CBA27  Store this unit on the game server?
+023CBA35  Marth took the League to Helena Castle in
+023CBA4B  Add this loan unit to your list?
+023CBA5F  the north,
+023CBA6B  an old fortress and key supply point during
+023CBA6C  Use this loan unit?
+023CBA94  Your current loan unit will be replaced.
+023CBA97  Dolhr and Grust's occupation.
+023CBAB6  There he meant to seize the last of the
+023CBABD  Dismiss the unit you have on loan?
+023CBADE  enemy's gold and provisions
+023CBAE9  You cannot use a loan unit unless that
+023CBAFD  but Grust would not give up the castle
+023CBB10  character exists in your save data.
+023CBB24  without a fight...
+023CBB34  No loan units have been sent to you.
+023CBB38  Having won the day and put Camus and
+023CBB59  Ending communications.
+023CBB5D  his Sable Order to rout,
+023CBB76  Select units to send.
+023CBB77  Marth and the League moved on to the
+023CBB8C  Select a friend to receive units from.
+023CBB9C  mountains in eastern Grust,
+023CBBB3  Select units to receive.
+023CBBB9  to crush the last of the opposition.
+023CBBCC  Select the loan unit you want to use.
+023CBBDF  The surviving Grustian soldiers, in a
+023CBC05  mad attempt to hang on to their lives,
+023CBC21  Please speak into the microphone.
+023CBC2D  took all the residents of a nearby village
+023CBC43  Adjusting the microphone. Please wait...
+023CBC58  hostage to keep Marth from striking.
+023CBC6C  The microphone is not picking up sound.
+023CBC7E  However, they could not have picked a
+023CBC94  You need to speak louder.
+023CBCA4  worse village to harass...
+023CBCAE  (The game may not pick up your voice.)
+023CBCC0  Marth did as Gotoh instructed and chose
+023CBCD5  You are speaking at a good volume.
+023CBCE8  soldiers for his journey into the unseen.
+023CBCF8  You are speaking at an ample volume.
+023CBD13  What lay within the tower in this alternate
+023CBD3F  world to test him?
+023CBD53  Marth's heart wavered.
+023CBD6B  But with neither the divine blade Falchion
+023CBD96  nor the divine-dragon girl to aid him,
+023CBDBE  the tower's master was his last hope of
+023CBDE6  defeating Medeus.
+023CBDF9  Gotoh had told Marth to find a coffin.
+023CBE21  So, while most of his companions remained
+023CBE4B  in the material world to battle Dolhr,
+023CBE73  Marth and his chosen few scoured the
+023CBE98  tower in search of a mysterious savior.
+023CBEC1  Thus Prince Marth escaped Altea Castle
+023CBEE8  with Sir Jagen and company at his side.
+023CBF11  However, this success would mean little to
+023CBF3C  him once he learned the cost.
+023CBF5B  The boy's woes were just beginning.
+023CBF80  Marth and his knights took refuge in a
+023CBFA7  forest near Altea's borders,
+023CBFC5  lying low while they waited for the right
+023CBFEF  chance to escape the kingdom.
+023CC00E  Before long, the enemy grew less watchful:
+023CC039  the time to slip away had come.
+023CC05A  Still, the prince could not quell the sadness
+023CC088  in his heart for his sister, Elice.
+023CC7F8  Movement (Buttons)
+023CC80B  Movement (Stylus)
+023CC81D  Commanding Units
+023CC82E  Direct Combat (Buttons)
+023CC846  Direct Combat (Stylus)
+023CC85D  Indirect Combat
+023CC86D  Magical Combat
+023CC87C  Bonus Damage
+023CC889  The Weapon Triangle
+023CC8A2  Movement Cost
+023CC8B8  The Combat Forecast
+023CC8CC  Using Items
+023CC8D8  Discarding Items
+023CC8E9  Trading Items
+023CC907  Issuing Orders
+023CC91E  Specialized Units
+023CC938  Long-Distance Attacks
+023CC94E  Battle Preparations
+023CC962  Reclassing Units
+023CC973  Alternating Turns
+023CC985  Losing Units
+023CC992  The System Menu
+023CC9A2  Item Drops
+023CC9C7  The Convoy
+023CC9D2  Useful Tricks
+023CC9E0  Checking for Danger
+023CC9F4  Highlight a unit and press 
+023CCA13   to display
+023CCA1F  the unit's blue movement range.
+023CCA3F  Select a space within this range,
+023CCA61  then press 
+023CCA70   to move there.
+023CCA80  You can also move with the stylus.
+023CCAA3  Touch a unit, then touch a space within the
+023CCACF  unit's blue movement range to move there
+023CCAFA  or you can slide the stylus if you prefer to
+023CCB27  chart a specific path to your destination.
+023CCB52  You can also move with the buttons.
+023CCB76  After you move your unit, a menu appears.
+023CCBA0  Highlight a command and press 
+023CCBC6  confirm your choice
+023CCBDB  or you can just
+023CCBEB  touch the command with the stylus.
+023CCC1D   to end the unit's turn.
+023CCC36  While moving, you can also select a target
+023CCC61  to attack. Highlight an enemy and press 
+023CCC8E  to display the combat forecast, then press
+023CCCBD   again to enter combat.
+023CCCD5  You can also select a target with the stylus.
+023CCD2E  to attack. Touch an enemy to display the
+023CCD57  combat forecast, then touch the enemy again
+023CCD83  to enter combat. You can also select a
+023CCDAA  target with the buttons.
+023CCDC3  Units armed with bows can strike from two
+023CCDED  spaces away. However, they cannot attack
+023CCE16  adjacent spaces.
+023CCE27  Units armed with magic tomes can attack
+023CCE4F  enemies in adjacent spaces as well as
+023CCE75  those two spaces away.
+023CCE8C  Some weapons deal more damage than usual
+023CCEB5  when wielded against certain units.
+023CCED9  The bow, for example, will make short work
+023CCF04  of pegasus knights and dracoknights.
+023CCF29  Weapons possess a unique hierarchy:
+023CCF9D  This is called the weapon triangle.
+023CCFC1  Keys can open doors, lower drawbridges, or
+023CCFEC  open chests
+023CCFF9  depending on the type of key.
+023CD017  When units move, terrain affects how far
+023CD040  they can travel. Some units can pass
+023CD065  through terrain others cannot; pirates can
+023CD090  move through water, for example, while
+023CD0B7  mountains halt cavaliers in their tracks.
+023CD0E1  Units positioned in forests, mountains, or
+023CD10C  the sea have a better chance of avoiding
+023CD135  enemy attack. Castle gates, thrones, and
+023CD15E  forts provide a defensive boost as well
+023CD186  and restore HP each turn.
+023CD1A0  A panel with helpful combat information
+023CD1C8  appears before you attack an enemy unit.
+023CD1F1  Items like vulneraries can be used by
+023CD217  selecting the 
+023CD22E   command, followed
+023CD241  by the item's name, then 
+023CD263  Items displayed in grey cannot be used.
+023CD28B  Surplus weapons and items can be discarded
+023CD2B6  by selecting the 
+023CD306  Discarded items are gone for good.
+023CD329  (Some items may not be discarded.)
+023CD34C  Move next to an ally and select the 
+023CD37A  command to exchange items.
+023CD395  Move Marth onto a village and select the
+023CD3C7   command to pay its residents a visit.
+023CD3EE  You might be able to obtain valuable items
+023CD419  or even meet new allies.
+023CD432  Curates and clerics wield staves.
+023CD454  With the right staff, you can restore HP
+023CD47D  to allies, or even transport them to
+023CD4A2  another location.
+023CD4B4  You can issue orders to any unit but Marth,
+023CD4E0  telling the unit how to behave when not
+023CD508  otherwise instructed. They will take action
+023CD534  after you end your turn.
+023CD54D  To clear the map, move Marth onto the
+023CD573  yellow space and choose 
+023CD596  Some classes have special abilities unique to
+023CD5C4  that class. Thieves, for example, can open
+023CD5EF  doors or chests without the use of items.
+023CD619  After a unit moves, select 
+023CD63C   from the
+023CD646  menu that appears to end the unit's turn.
+023CD670  You can also press 
+023CD687   or touch the B icon
+023CD69C  at the top of the screen to cancel the move.
+023CD6C9  Ballisticians can use siege weapons to
+023CD6F0  strike enemies a great distance away.
+023CD716  From chapter four onward, you can make
+023CD73D  preparations before going into battle.
+023CD764  During preparations, you have the option of
+023CD790  changing a unit's class
+023CD7A9  but there are limits.
+023CD7BF  You (blue) and the enemy (red) take turns
+023CD7E9  to progress the game. To end your turn,
+023CD811  either move all of your units, or select
+023CD841   from the System menu.
+023CD858  If the enemy reduces a unit's HP to zero,
+023CD882  that unit will be removed from the game.
+023CD8AB  Lost units are gone for good; you won't be
+023CD8D6  able to use the unit again after that point.
+023CD903  If Marth's HP run out, it's game over.
+023CD92A  Highlight a space not occupied by a unit and
+023CD961   or touch the MENU button
+023CD97B  to display the System menu.
+023CD997  From here, you can suspend the game,
+023CD9BC  adjust game options, or end your turn.
+023CD9E3  Items shown in green text in the enemy-status
+023CDA11  window are yours if you defeat that foe.
+023CDA3A  Sometimes enemy reinforcements will appear
+023CDA65  during battle. You can stop this from
+023CDA8B  happening by placing a unit on the space
+023CDAB4  from which they emerge.
+023CDACC  Move to the savepoint on the map and
+023CDB00   to save your progress.
+023CDB18  Each savepoint can only be used once.
+023CDB3E  The convoy allows you to store items for
+023CDB67  later retrieval.
+023CDB78  Use the buttons above to toggle the upper
+023CDBA2  display or view an enemy's attack range.
+023CDBD5   to show the attack range for all
+023CDBF7  enemies at once.
+023CE0EA  Forgive me,
+023CE0F6  3 my friends...
+023CE118  3 Marth!
+023CE129  Don't leave me...
+023CE173  4 Get up, sire!
+023CE185  What of Altea's future?
+023CE1CE  Marth, no...
+023CE1DD  You cannot die here!
+023CE1F4  There's too much to be done!
+023CE24A  3 Prince Marth!
+023CE25C  You are our leader!
+023CE270  3 Stand up!
+023CE29D  3 friends...
+023CE2B8  Goodbye, Marth...
+023CE2CC  Stay strong...
+023CE2DB  3for me...
+023CE2FD  Fight for Altea...
+023CE31B  Prince Marth...
+023CE32B  4 Tell them...
+023CE33C  I did not run...
+023CE37D  Take care,
+023CE388  2 sire...
+023CE394  Altea needs you...
+023CE3C6  It was...
+023CE3D0  3an honor...
+023CE3F2  This is beyond healing...
+023CE424  3 I'm sorry...
+023CE446  2 Captain Ogma...
+023CE463  Captain Ogma...
+023CE473  3 Nngh...
+023CE498  3 Rrgh...
+023CE4BB  I tried...
+023CE4C6  3my best...
+023CE4E6  3 So this be the end...
+023CE50B  Looks like...
+023CE519  3the jig is up...
+023CE533  2 so long...
+023CE54B  Lords above...
+023CE55C  Take me...
+023CE567  3into your embrace...
+023CE5B4  I was glad...
+023CE5C2  3to know you...
+023CE5E8  Forgive your...
+023CE5F8  3fool of a brother...
+023CE61B  Forgive me...
+023CE642  3 Coyote...
+023CE6B7  Why here...
+023CE6C3  3when I've no love...
+023CE6DB  for war...
+023CE6F3  Dang it...
+023CE700  What a way to
+023CE738  3 Tiki...
+023CE757  What was I...
+023CE77C  End of...
+023CE786  3the road...
+023CE7B8  Princess Nyna...
+023CE7CB  I fought...
+023CE7F4  3 Sister...
+023CE817  3 My kingdom...
+023CE855  I'll be with you...
+023CE87D  So long,
+023CE886  2 Anna...
+023CE892  I'll miss you...
+023CE8A3  3the most...
+023CE8DF  3Princess Nyna...
+023CE949  Princess Nyna,
+023CE958  2 my child...
+023CE968  Be strong...
+023CE980  After comin'...
+023CE990  3so far...
+023CE9DD  3 Forgive me...
+023CEA20  At least I died...
+023CEA4D  Always knew...
+023CEA5C  3I'd breathe my last...
+023CEA7B  1 on the battlefield...
+023CEAA9  3 Princey...
+023CEAB8  It's been...
+023CEAE4  3 I gave it my all...
+023CEB0D  I don't want to be...
+023CEB48  2 must be fate...
+023CEB6F  3my brother...
+023CEB98  The end...
+023CEBA3  3was so close...
+023CEBBF  Luck be...
+023CEBCA  3with you,
+023CEC1B  Vat a vay...
+023CEC28  3to go...
+023CEC4C  I must...
+023CEC56  3break my vow...
+023CEC9E  You'll never...
+023CECAE  3get the best of...
+023CECDE  I must keep...
+023CECF9  Too much...
+023CED05  3at stake...
+023CED12  4 Ahh...
+023CED25  |With me,
+023CED2F  2 Sisters!
+023CED45  1 Attack!!!
+023CED5B  |We have you now!
+023CED8C  |It's just you and me!
+023CEDA9  3And my sisters!
+023CEDFE  I never got to thank you for coming
+023CEE22  along with us.
+023CEE31  4 There's no swordsman I
+023CEE4A  trust more.
+023CEE56  4 I've seen your strength.
+023CEE72  You don't need to thank me,
+023CEE8E  1 Princess.
+023CEE9C  I'm just doing my job.
+023CEEB4  Speaking of which,
+023CEEC7  2 your father would flay
+023CEEE0  me if you came to any harm.
+023CEEFD  Do me a favor,
+023CEF0C  2 and leave the dangerous
+023CEF26  fighting to me and my men.
+023CEF42  I don't need protecting,
+023CEF6A  3I've got another job for you.
+023CEF8B  Protect Marth for me.
+023CEFA9  2 Princess...
+023CEFB8  He's very important to me.
+023CEFD5  And the world...
+023CEFE6  4 But mostly to me.
+023CEFFB  So do as I ask,
+023CF015  Keep him safe.
+023CF024  3 That's my first and last
+023CF049  Very well.
+023CF056  How could I say no to you?
+023CF073  sThank you,
+023CF089  I knew you'd understand.
+023CF0A3  All right,
+023CF0AE  2 I have to go.
+023CF0C0  But I hope we get to talk like this more.
+023CF0EC  You're a good listener.
+023CF11B  You keep yourself safe,
+023CF13C  Marth would grieve if anything befell
+023CF168  Fair enough.
+023CF177  Thank you,
+023CF18C  You're very kind.
+023CF1CC  Are you all right?
+023CF1E6  4 Have you heard?
+023CF1FA  Marth made me one of his soldiers!
+023CF227  3I made him make me one.
+023CF245  3What am I going to do with you?
+023CF267  Listen to me,
+023CF275  2 Maria...
+023CF280  3 You cannot stay
+023CF298  4 It's too dangerous.
+023CF2AF  Real war is nothing like your stories of
+023CF2D8  princes and damsels.
+023CF2EF  aI'm not going anywhere!
+023CF30A  I want to stay with you!
+023CF32D  2 you're being selfish
+023CF347  I am not!
+023CF353  I'm just...
+023CF35F  3sick of being helpless.
+023CF379  I've burdened you long enough.
+023CF39A  How can I ever help you
+023CF3B2  1 if you don't give
+023CF3C6  me a chance to be strong?
+023CF3E1  I'm staying here and fighting!
+023CF402  No protesting!
+023CF422  Somehow I knew you would say that.
+023CF451  2 Maria.
+023CF45C  If you feel that strongly about it,
+023CF480  2 who am
+023CF489  I to stop you?
+023CF499  All I ask is that you be careful.
+023CF4BB  If you need help,
+023CF4CD  2 you come find me.
+023CF4F1  sOf course!
+023CF50A  1 Sister!
+023CF532  2 I presume?
+023CF541  My name's Merric.
+023CF553  3 Prince Marth asked
+023CF568  me to look after you.
+023CF57F  Not that we mages need any help looking
+023CF5A7  after ourselves,
+023CF5B8  2 mind you.
+023CF5C9  2 you've studied magic?
+023CF5E7  2 in Khadein.
+023CF601  3 The school?
+023CF611  My father was a student there a long
+023CF636  time ago.
+023CF641  The school is beautiful
+023CF65B  4was beautiful,
+023CF66D  until Gharnef took over and changed
+023CF69E  I was blessed with wonderful teachers,
+023CF6C7  and I found a healthy mix of friends and
+023CF6F0  rivals in the other aspiring mages.
+023CF715  It sounds nice,
+023CF725  2 I suppose.
+023CF734  But my father was the only teacher and
+023CF75B  friend I ever needed.
+023CF77A  I'm sorry,
+023CF785  2 Linde...
+023CF792  sDon't be.
+023CF79F  I'm tough like my father,
+023CF7C5  3Let's talk about you,
+023CF7DC  2 Merric.
+023CF7E8  And about Khadein.
+023CF7FB  4 I've never been to a
+023CF812  school before.
+023CF821  3 How do they teach?
+023CF84C  Bishop Boah.
+023CF85E  2 Astram.
+023CF868  3 Welcome back.
+023CF87A  I must say I am relieved.
+023CF895  Where would Archanea's army be
+023CF8B4  1 without
+023CF8BE  its finest knight?
+023CF8E0  I am but one arrow in the quiver.
+023CF904  Princess Nyna is the bow.
+023CF91F  So long as we have her to lead us,
+023CF944  Archanea's light shall never fade.
+023CF969  aWell spoken,
+023CF977  1 child.
+023CF980  3 But let us be honest:
+023CF99A  that light has not shone as bright
+023CF9C5  our defeat at the hands of Dolhr.
+023CF9E8  It will take a miracle to restore
+023CFA0A  Archanea's prestige after this...
+023CFA32  2 perhaps,
+023CFA3D  2 some clever thinking.
+023CFA56  If our next king were to be foreign...
+023CFA86  A king who's not Archanean?
+023CFAAB  1 of course,
+023CFAB8  2 the princess would need
+023CFAD2  to approve of him.
+023CFAE5  4 How do you feel about
+023CFB01  1 Astram?
+023CFB0C  I don't.
+023CFB17  I am a knight.
+023CFB27  I will leave the feeling to those whose job
+023CFB53  it is to feel
+023CFB61  3 and content myself with
+023CFB7B  serving my kingdom...
+023CFB92  no matter how the kingdom might
+023CFBBB  Then you are a loyal knight indeed.
+023CFBE8  3the future can wait a tad longer.
+023CFC0D  We have a war to fight first...
+023CFC2D  3and win.
+023CFC39  Archanea's tomorrow depends on it.
+023CFC5D  That it does,
+023CFC6B  1 Bishop.
+023CFC8B  Palla, I am truly sorry.
+023CFCA4  I never meant to involve you and your
+023CFCCA  sisters in my personal battles.
+023CFCEB  Your battles are our battles,
+023CFD15  But our kingdom has fallen apart: sons
+023CFD3C  slay their fathers; brothers and sisters
+023CFD65  trade blows instead of kisses...
+023CFD87  I have let Macedon be destroyed.
+023CFDA9  I do not think so.
+023CFDBC  Nor do I think you should feel troubled for
+023CFDE8  our sake.
+023CFDF4  sYou are our home, more than Macedon;
+023CFE1A  our true house is the sky around you.
+023CFE41  We will always serve you, Commander,
+023CFE66  through thick and thin. I swear it.
+023CFEC3  3Princess Minerva?
+023CFEE1  2 sorry...
+023CFEEE  Now I've taken to daydreaming on the
+023CFF20  4 How Michalis would laugh.
+023CFF45  3it was your brother you were
+023CFF63  thinking about?
+023CFF7C  He made his choice;
+023CFF90  3 I, mine.
+023CFF9D  I've no time to stew in my own sorrow
+023CFFC3  when my path is clear before me.
+023CFFEB  1 Catria.
+023D0020  2 did anybody tell you?
+023D003A  I flew all the way to Grust and brought
+023D0062  back Mercurius.
+023D0073  Pretty spiffy,
+023D008F  2 Marth told me all about it.
+023D00AF  Very brave of you to undertake such a
+023D00D5  dangerous task alone.
+023D00EB  3 Well done,
+023D0100  Hee hee!
+023D0109  3 You mean it?
+023D0122  1 Commander!
+023D0130  You should have seen the arrows
+023D0152  whooshing past me left and right!
+023D0175  But I'm a Whitewing,
+023D018A  2 right?
+023D0195  So I swooped down and let 'em have it!
+023D01BD  Just watch,
+023D01C9  1 though.
+023D01D5  I'll find some way to top it.
+023D01F4  I don't doubt it.
+023D0208  I expect great things from you,
+023D0261  2 Palla.
+023D026A  3 I'm not slowing you and Catria
+023D029A  Why would you say that?
+023D02B3  I don't know...
+023D02C3  3 You and she have so
+023D02D9  much more experience.
+023D02EF  4 Sometimes I...
+023D0302  I just feel like I'm not pulling my load.
+023D032D  Ha ha...
+023D0336  2 Est...
+023D0341  You're doing just fine.
+023D035A  There are no half-Whitewings
+023D0377  2 or almost-
+023D0390  4 You're one of us
+023D03A3  1 because
+023D03AD  you're every bit as good as us.
+023D03CE  Have a little confidence.
+023D03F0  2 confidence...
+023D0405  3Feel better?
+023D041E  3 Thanks,
+023D0428  1 Palla.
+023D0432  It's funny...
+023D0442  Whenever I talk to you,
+023D045A  1 I calm right
+023D0470  Promise you'll always be there for me,
+023D04A1  I will...
+023D04AB  3 I promise.
+023D04DC  4 It's about time you made it back.
+023D0502  I was so worried...
+023D0522  I won't leave you like that again.
+023D0546  We belong together anyway.
+023D0563  When the three of us surround an enemy,
+023D058D  we're just about unstoppable!
+023D05B4  3but even so,
+023D05C2  2 I like having you
+023D05D6  somewhere I can keep an eye on you.
+023D060B  What's that supposed to mean?
+023D0644  2 where'd you go?
+023D0694  Why are you imitating me!
+023D06D6  Cut that out
+023D0715  2 I HATE you,
+023D0723  1 Xaney!
+023D0750  2 come on.
+023D075B  3 I was just jokin' around!
+023D0779  Tryin' to lighten the mood!
+023D07A1  It's not like I can transform into a dragon
+023D07CD  like you,
+023D07D7  2 so just
+023D07E9  2 would you come back?
+023D0811  So how are you holdin' up,
+023D082C  2 kiddo?
+023D0838  sI'm all right.
+023D084A  sStill having those bad dreams?
+023D0878  They're really scary...
+023D0891  I bet they are.
+023D08A8  3Ugh, what does Lord Gotoh expect
+023D08CA  me to do?)
+023D08D6  Did you say something?
+023D08FE  2 it's nothin'.
+023D0915  2 you know that Marth's countin' on
+023D0939  those powers of yours.
+023D096F  3you just take care of
+023D0990  2 that's all.
+023D099E  4 You're one special
+023D09DA  Princess Elice!
+023D09EA  3 You're safe!
+023D0A02  3 Merric,
+023D0A0C  2 is that you?
+023D0A1D  I haven't seen you in ages...
+023D0A40  3So you've been fighting with the
+023D0A6A  4 Thank you for keeping Marth
+023D0A95  2 I did learn a spell or two in
+023D0AD2  2 Get behind me.
+023D0AE5  I'll face the enemy for us both.
+023D0B11  3face the...
+023D0B31  2 Merric!
+023D0B42  3what's so funny,
+023D0B54  2 Princess?
+023D0B62  I was quite serious,
+023D0B77  2 I'll have you know!
+023D0B95  2 forgive me,
+023D0BAF  It's just,
+023D0BBA  3 I remembered you when you were
+023D0BE6  You were always a bit delicate.
+023D0C08  Oftentimes I had to
+023D0C24  1 you back to
+023D0C3A  3 Remember?
+023D0C47  But that was
+023D0C56  3 I couldn't
+023D0C6D  And look at you now.
+023D0C84  Such a brave,
+023D0C92  3 strong man!
+023D0CA2  A far cry from the old Merric.
+023D0CC2  But you don't have to pretend.
+023D0CE3  I know you're far too sweet
+023D0CFF  1 to mow
+023D0D08  down hordes of enemies.
+023D0D28  3I think I prefer it that way.
+023D0D4F  3you do?
+023D14DF  Obtained 
+023D1517  Enemy swiped 
+023D152A  0 broke!
+023D1547  Weapon level up: 
+023D155D  0 can now be used.
+023D1570  Saving to the Game Card.
+023D1589  Do not touch the Game Card
+023D15A4  or the Power Button.
+023D15B9  All data has been erased.
+023D15D3  (No items)
+023D15DF  All units took 
+023D15EF  0 damage.
+023D1607  Peg. Knight
+023D16B1  Dark Mage
+023D170D  M. Dragon
+023D1717  E. Dragon
+023D1721  F. Dragon
+023D172B  D. Dragon
+023D1B82  Aurelis King
+023D1B8F  Talys King
+023D1C93  Iron Sword
+023D1C9E  Steel Sword
+023D1CAA  Silv. Sword
+023D1CB6  Killing Edge
+023D1CC3  Levin Sword
+023D1CCF  Devil Sword
+023D1D0A  Brv. Sword
+023D1D1E  Iron Lance
+023D1D29  Steel Lance
+023D1D35  Silv. Lance
+023D1D49  Killer Lance
+023D1D56  Wing Spear
+023D1D77  Brv. Lance
+023D1D8B  Iron Axe
+023D1D94  Steel Axe
+023D1D9E  Silver Axe
+023D1DA9  Hand Axe
+023D1DB9  Killer Axe
+023D1DCB  Devil Axe
+023D1DD5  Brave Axe
+023D1DEA  Iron Bow
+023D1DF3  Steel Bow
+023D1DFD  Silver Bow
+023D1E08  Killer Bow
+023D1E1B  Brave Bow
+023D1F20  Door Key
+023D1F29  Bridge Key
+023D1F34  Master Key
+023D1F49  Pure Water
+023D1F54  Energy Drop
+023D1F60  Spirit Dust
+023D1F6C  Secret Book
+023D1FB9  Arms Scroll
+023D1FC5  Silver Card
+023D1FD1  VIP Card
+023D1FDA  Master Seal
+023D1FE6  Elysian Whip
+023D1FF9  Iote's Shield
+023D2028  Fire Emblem
+023D2034  Bullion (S)
+023D2040  Bullion (M)
+023D204C  Bullion (L)
+023D2058  Bullion (XL)
+023D20A5  Free Units
+023D2110  Order All
+023D217F  Pick Units
+023D218A  View Map
+023D224A  You have reached the
+023D225F  maximum name length.
+023D2274  Save the game in progress?
+023D228F  (Resuming later will erase this data.)
+023D22C1  Exit practice mode?
+023D22D5  Suspend data will be lost. Proceed?
+023D22F9  Save here?
+023D2304  Previous data will be overwritten.
+023D2327  Proceed without saving?
+023D233F  Copy data?
+023D236D  Erase this data?
+023D237E  This will erase all save data,
+023D239D  including your Nintendo WFC
+023D23B9  information. This includes your
+023D23D9  Friend Code, Nintendo WFC
+023D23F3  Friends, and all squads that
+023D2410  you have created and received.
+023D242F  Do you wish to proceed?
+023D2447  Are you sure you want to erase all data?
+023D2470  End communications?
+023D2484  Proceed to the next chapter?
+023D24A1  Make this unit a decoy?
+023D24B9  Conclude preparations?
+023D24D0  Cancel these changes?
+023D24E6  Are you sure?
+023D24F4  Send this item to the convoy?
+023D2512  Discard this item?
+023D2525  Change orders to your units?
+023D2542  Use the Fortify staff?
+023D2559  Use the Aum staff?
+023D2578  Fight another round?
+023D258D  Merge these items?
+023D25B3  (Surplus uses will be lost.)
+023D25D0  Store all items in the convoy?
+023D2600  Turn on game-play tutorials?
+023D261D  (You can change this setting later.)
+023D2642  Play with the fog of war?
+023D265C  (Fog of war is disabled for the enemy.)
+023D2684  Choose an enemy level.
+023D269B  (More stars means stronger foes.)
+023D26EA  Display a list of your units.
+023D2708  Review tutorials on how the game is played.
+023D2734  Adjust game options.
+023D2749  Review the actions you have taken so far.
+023D2773  Suspend the game.
+023D2785  Surrender and end wireless play.
+023D27A6  Exit this practice session.
+023D27C2  End the player phase. The enemy will move next.
+023D27F2  Talk to a neighboring unit. (Shortcuts: 
+023D2826  Attack with an available weapon. (Shortcuts: 
+023D285F  Use an available staff. (Shortcuts: 
+023D288F  Use, discard, or otherwise manage items.
+023D28B8  Trade items with a neighboring unit.
+023D28DD  Visit this village or home.
+023D28F9  Open this door so units can pass through.
+023D2923  Lower this drawbridge so units can cross it.
+023D2950  Open this chest and claim the item inside.
+023D297B  Visit the armory to buy and sell weapons.
+023D29A5  Visit the vendor to buy and sell magic tomes, staves, and items.
+023D29E6  Visit this hidden shop to buy and sell weapons and items.
+023D2A20  Visit the arena to test your might with gold at stake.
+023D2A57  Summon the convoy to store and retrieve items.
+023D2A86  Issue orders to all units at once.
+023D2AA9  Tell a unit how to behave when not given a command.
+023D2ADD  End the battle by securing this vital position.
+023D2B0D  Save your progress. You can only use this savepoint once.
+023D2B47  Transform into a neighboring allied unit. The transformation lasts five turns.
+023D2B96  End this unit's turn.
+023D2BAC  Use this unit as a decoy.
+023D2BC6  Order units to stay put unless otherwise instructed.
+023D2BFB  Order units to attack nearby enemies unless otherwise instructed.
+023D2C3D  Order units to protect Marth unless otherwise instructed.
+023D2C77  Order units to stay with Marth unless otherwise instructed.
+023D2CB3  Order units to stay out of enemy range unless otherwise instructed.
+023D2CF7  Select one unit to resurrect.
+023D2D15  Select a destination.
+023D2D2B  Select a target. (Change weapons with 
+023D2D60  Select a target. (Change staves with 
+023D2D94  Select a target.
+023D2DA5  Select two units to have them trade starting positions.
+023D2DDD  Too many items. Send
+023D2DF2  one to the convoy.
+023D2E05  Too many items.
+023D2E15  Choose one to discard.
+023D2E2C  Select units to send into
+023D2E46  this chapter's battle.
+023D2E5D  Only a certain number
+023D2E73  of units can fight in
+023D2E89  each battle, and Marth
+023D2EA0  must be one of them.
+023D2ECF  battle. You can deploy
+023D2EE6  up to five units.
+023D2EF8  Check battlefield terrain
+023D2F12  and the enemy units you
+023D2F2A  will be facing. You can
+023D2F42  also reposition your own
+023D2F5B  units, except Marth,
+023D2F70  whose position is fixed.
+023D2F89  Manage the items your
+023D2F9F  units are carrying.
+023D2FB3  (Any commands that are
+023D2FCA   greyed out cannot be
+023D2FE0   used at this time.)
+023D2FF5  Assign a new class to a
+023D300D  unit. Some classes may
+023D3024  not be available.
+023D3036  Purchase weapons,
+023D3048  staves, or magic tomes
+023D305F  or sell unwanted items.
+023D3077  You can also craft
+023D308A  stronger weapons at
+023D309E  the forge.
+023D30A9  Adjust game options like
+023D30C2  brightness and sound.
+023D30D8  Save the preparations
+023D30EE  you have made.
+023D30FD  Begin the battle.
+023D3110  (You can also press
+023D3124   START to begin.)
+023D3136  End your preparations.
+023D3162   START when finished.)
+023D317F  You can pick 
+023D3195  Select units to deploy. (R Button: Unit List)
+023D31C3  Select a unit.
+023D31D2  View a full list of items available for trade.
+023D3201  Trade items with another unit.
+023D3220  Select someone to trade with.
+023D323E  Equip or discard items.
+023D3256  Combine two identical items to restore uses.
+023D3283  Store and retrieve items in the convoy.
+023D32AB  Store all this unit's items in the convoy.
+023D32E5  Available Classes
+023D32FE  Select a save file.
+023D3312  As the game progresses, tutorials like
+023D3339  the one on the top screen will appear to
+023D3362  walk you through how to play.
+023D3390   from the System menu to
+023D33A9  review tutorials you have already seen.
+023D33D1  Touch icons appear when you
+023D33ED  touch the Touch Screen.
+023D3405  If you press a button, they'll disappear.
+023D342F  Move Marth farther down the corridor.
+023D3455  Attack an enemy soldier.
+023D346E  Defeat the soldier guarding the throne.
+023D3496  First, touch Marth.
+023D34AA  First, select Marth with the cursor and press 
+023D34DE  Marth can move anywhere within the blue area.
+023D350C  Slide the stylus onto the space you want him to move to.
+023D3545  Select the space you want him to move to, then press 
+023D3580  Marth can only move to spaces inside the blue area.
+023D35B4  Marth can attack any enemy in a red space.
+023D35DF  Move Marth onto the throne, then select 
+023D3610   from the menu.
+023D3620  Use the stylus to touch the enemy you want to attack.
+023D3656  Select the enemy you want to attack, then press 
+023D368C  Marth dies
+023D36A0  Defeat boss
+023D36AC  Rout enemy
+023D36BD  Defend base
+023D36CB  0 remaining
+023D37AF  Arch. League
+023D37F3  Sable Order
+023D380A  Galder Pirates
+023D382D  House Macedon
+023D383B  Blue Army
+023D3845  Red Army
+023D3869  Please adjust your game settings below.
+023D3907  Game Speed
+023D3912  Message Speed
+023D3920  Skip Enemy Act.
+023D394B  Autoend Turns
+023D3963  Help Captions
+023D3971  HP Gauges
+023D397B  Sound Output
+023D398E  Sound Effects
+023D399C  Map Brightness
+023D39B0  Turn top-screen combat animations on or off.
+023D39DD  Adjust how quickly the game progresses.
+023D3A05  Adjust how quickly text messages display.
+023D3A2F  Select the enemy actions you'd like to skip.
+023D3A5C  Set your preferred control method.
+023D3A7F  Turn orders on or off.
+023D3A96  Set the cursor to start on Marth each turn.
+023D3AC2  Set turns to end once all units have moved.
+023D3AEE  Turn in-game tutorials on or off.
+023D3B10  Turn help captions on or off.
+023D3B2E  Turn mini HP gauges on or off.
+023D3B4D  Adjust sound-output settings.
+023D3B6B  Turn music on or off.
+023D3B81  Turn sound effects on or off.
+023D3B9F  Adjust brightness of maps.
+023D3BBA  Adjust opacity of map grid.
+023D3BDF  The host is setting the rules...
+023D3C00  Create Room
+023D3C0C  Use voice chat
+023D3C1B  Don't use voice chat
+023D3C34  Fog of War
+023D3C3F  Turn Limit
+023D3C4A  Time Per Turn
+023D3C75  Select a map on which to wage battle.
+023D3C9B  Limit visibility to spaces surrounding your units.
+023D3CCE  Set the maximum number of turns.
+023D3CEF  Set the time limit for each turn.
+023D3D11  Turn the use of cards on or off.
+023D3D32  Set units to level up based on opponent's skill.
+023D3D63  Hold down the L Button to use the microphone.
+023D3D91  Your opponent has voice chat disabled.
+023D3DEF  Ch. 99 - Debug Map
+023D3E02  Ch. 1 - Marth Embarks
+023D3E18  Ch. 2 - The Pirates of Galder
+023D3E36  Ch. 3 - A Brush in the Teeth
+023D3E53  Ch. 4 - Battle in the Lea
+023D3E6D  Ch. 5 - Champions of Aurelis
+023D3E8A  Ch. 6 - Fire Emblem
+023D3E9E  Ch. 7 - Lefcandith Gauntlet
+023D3EBA  Ch. 8 - Port Warren
+023D3ECE  Ch. 9 - The Pyrathi Dragon
+023D3EE9  Ch. 10 - Princess Minerva
+023D3F03  Ch. 11 - Knorda Market
+023D3F1A  Ch. 12 - The Ageless Palace
+023D3F36  Ch. 13 - The Wooden Cavalry
+023D3F52  Ch. 14 - Land of Sorrow
+023D3F6A  Ch. 15 - An Oasis of Magic
+023D3F85  Ch. 16 - The Battle for Altea
+023D3FA3  Ch. 17 - Star and Savior
+023D3FBC  Ch. 18 - The Sable Order
+023D3FD5  Ch. 19 - Manakete Princess
+023D3FF0  Ch. 20 - Camus the Sable
+023D4009  Ch. 21 - Clash in Macedon
+023D4023  Ch. 22 - A Knight-Filled Sky
+023D4040  Ch. 23 - Dark Pontifex
+023D4057  Ch. 24 - The Dragonkin Realm
+023D4074  Endgame - Chosen by Fate
+023D408D  Ch. 6x - In War's Grip
+023D40A4  Ch. 12x - A Traitor's Worth
+023D40C0  Ch. 17x - Helena Castle
+023D40D8  Ch. 20x - The Lair of Fire
+023D40F3  Ch. 24x - The Alterspire
+023D410C  Prologue I
+023D4117  Prologue II
+023D4123  Prologue III
+023D4130  Prologue IV
+023D414D  Arena II
+023D4156  Arena III
+023D4160  Arena IV
+023D4171  Arena VI
+023D417A  Ch. 99            Debug Map
+023D4196  Ch. 1         Marth Embarks
+023D41B2  Ch. 2 The Pirates of Galder
+023D41CE  Ch. 3   A Brush in the Teeth
+023D41EB  Ch. 4       Battle in the Lea
+023D4209  Ch. 5   Champions of Aurelis
+023D4226  Ch. 6             Fire Emblem
+023D4244  Ch. 7    Lefcandith Gauntlet
+023D4261  Ch. 8            Port Warren
+023D427E  Ch. 9    The Pyrathi Dragon
+023D429A  Ch. 10     Princess Minerva
+023D42B6  Ch. 11       Knorda Market
+023D42D1  Ch. 12   The Ageless Palace
+023D42ED  Ch. 13 The Wooden Cavalry
+023D4307  Ch. 14      Land of Sorrow
+023D4322  Ch. 15    An Oasis of Magic
+023D433E  Ch. 16 The Battle for Altea
+023D435A  Ch. 17     Star and Savior
+023D4375  Ch. 18      The Sable Order
+023D4391  Ch. 19   Manakete Princess
+023D43AC  Ch. 20      Camus the Sable
+023D43C8  Ch. 21     Clash in Macedon
+023D43E4  Ch. 22   A Knight-Filled Sky
+023D4401  Ch. 23        Dark Pontifex
+023D441D  Ch. 24 The Dragonkin Realm
+023D4438  Endgame      Chosen by Fate
+023D4454  Ch. 6x          In War's Grip
+023D4472  Ch. 12x  A Traitor's Worth
+023D448D  Ch. 17x        Helena Castle
+023D44AA  Ch. 20x    The Lair of Fire
+023D44C6  Ch. 24x       The Alterspire
+023D44E3                         Prologue I
+023D4505                        Prologue II
+023D4527                        Prologue III
+023D454A                       Prologue IV
+023D456B                           Epilogue
+023D458D                          NO DATA
+023D45AD  Chapter 99
+023D45B8  Chapter 1
+023D45C2  Chapter 2
+023D45CC  Chapter 3
+023D45D6  Chapter 4
+023D45E0  Chapter 5
+023D45EA  Chapter 6
+023D45F4  Chapter 7
+023D45FE  Chapter 8
+023D4608  Chapter 9
+023D4612  Chapter 10
+023D461D  Chapter 11
+023D4628  Chapter 12
+023D4633  Chapter 13
+023D463E  Chapter 14
+023D4649  Chapter 15
+023D4654  Chapter 16
+023D465F  Chapter 17
+023D466A  Chapter 18
+023D4675  Chapter 19
+023D4680  Chapter 20
+023D468B  Chapter 21
+023D4696  Chapter 22
+023D46A1  Chapter 23
+023D46AC  Chapter 24
+023D46B7  the Endgame
+023D46C3  Chapter 6x
+023D46CE  Chapter 12x
+023D46DA  Chapter 17x
+023D46E6  Chapter 20x
+023D46F2  Chapter 24x
+023D46FE  the Prologue
+023D4732  An affordable sword that is easy to wield.
+023D475D  A weighty but more powerful sword.
+023D4780  A sword whose mighty blows offset its steep price.
+023D47B3  A sword whose design yields frequent critical hits.
+023D47E7  A sword of lightning used to attack indirectly.
+023D4817  A mighty but cursed sword known to harm its user.
+023D4849  A sword effective against dragons.
+023D486C  A sword effective against armored units.
+023D4895  A powerful blade, and regalia of House Archanea.
+023D48C6  Strong against cavalry/armored units. For Marth.
+023D48F7  A foreign sword that yields frequent critical hits.
+023D492B  A sword with which the wielder always strikes twice.
+023D4960  A gift from the Divine Dragon King. For Marth.
+023D49ED  An affordable lance that is easy to wield.
+023D4A18  A weighty but more powerful lance.
+023D4A3B  A lance whose mighty blows offset its steep price.
+023D4A6E  A throwing spear used to attack enemies indirectly.
+023D4AA2  A lance whose design yields frequent critical hits.
+023D4AD6  A lance effective against cavalry.
+023D4AF9  Strong against cavalry/armored units. For Caeda.
+023D4B2A  A lance effective against dragons.
+023D4B4D  A lance with which the wielder always strikes twice.
+023D4B82  A mighty lance, and regalia of House Archanea.
+023D4BB1  An affordable axe that is easy to wield.
+023D4BDA  A weighty but more powerful axe.
+023D4BFB  An axe whose mighty blows offset its steep price.
+023D4C2D  A throwing axe used to attack enemies indirectly.
+023D4C5F  An axe whose design yields frequent critical hits.
+023D4C92  An axe weapon effective against armored units.
+023D4CC1  An axe weapon effective against cavalry.
+023D4CEA  A mighty but cursed axe known to harm its user.
+023D4D1A  An axe with which the wielder always strikes twice.
+023D4D4E  A formidable axe whose power is second to none.
+023D4D7E  An affordable bow that is easy to wield.
+023D4DA7  A weighty but more powerful bow.
+023D4DC8  A bow whose might offsets its steep price.
+023D4DF3  A bow whose design yields frequent critical hits.
+023D4E25  A bow with great range used to strike distant foes.
+023D4E59  A bow with which the wielder always strikes twice.
+023D4E8C  A formidable bow, and regalia of House Archanea.
+023D4EBD  A ballista strong against fliers.
+023D4EDF  A ballista for striking distant enemies.
+023D4F31  A magical ballista strong against ballisticians.
+023D4F8B  A stone used to transform into a fire dragon.
+023D4FB9  A stone used to transform into an earth dragon.
+023D4FE9  A stone used to transform into a mage dragon.
+023D5017  A divine dragonstone effective against Manaketes.
+023D5049  Magic used to attack with flames.
+023D506B  Magic used to attack with lightning.
+023D5090  Potent magic used to attack with ice.
+023D50B6  Potent magic used to attack with flames.
+023D50DF  Dark magic that nullifies all attacks on its bearer.
+023D5114  Superior magic used to attack with flames.
+023D513F  Superior magic used to attack with lightning.
+023D516D  Magic used to attack a distant enemy.
+023D5193  Light magic for women (Linde can use at level E).
+023D51C5  Wind magic for men (Merric can use at level E).
+023D522A  The sole magic capable of thwarting Imhullu's power.
+023D525F  A staff used to restore HP to an adjacent ally.
+023D528F  Greatly restores HP to an adjacent ally.
+023D52B8  Completely restores HP to an adjacent ally.
+023D52E4  A staff used to restore HP to a distant ally.
+023D5312  A staff used to restore HP to all allies.
+023D533C  Transports an adjacent ally to another location.
+023D541A  A key used to open a door.
+023D5435  A key used to lower a drawbridge.
+023D5457  A key effective on any locked door, chest, or
+023D548D  Medicine that restores HP.
+023D54A8  Medicine that boosts resistance.
+023D54C9  The effect lessens with each passing turn.
+023D54F4  An item that increases strength by 2.
+023D551A  An item that increases magic by 2.
+023D553D  An item that increases skill by 2.
+023D5560  An item that increases speed by 2.
+023D5583  An item that increases luck by 2.
+023D55A5  An item that increases defense by 2.
+023D55CA  An item that increases resistance by 2.
+023D55F2  An item that increases maximum HP by 7.
+023D561A  An item that increases movement by 2.
+023D5640  An item that increases a unit's weapon level for
+023D5671  whatever weapon or magic is equipped.
+023D5697  A card whose bearer can purchase weapons and
+023D56C4  items at half price.
+023D56D9  A card that grants the bearer purchasing privileges
+023D570D  at special shops.
+023D571F  An item that promotes a lesser-class unit at level
+023D5752  10 or above to a higher class.
+023D5771  An item that promotes a pegasus knight at level 10
+023D57A4  or above to falcoknight.
+023D57BD  A helpful item that lights the surrounding area.
+023D57EE  Its effect lessens with each passing turn.
+023D5819  A shield that negates bonus damage to the flier who
+023D584D  carries it.
+023D5859  Needed to create a blast of Starlight.
+023D5880  Carrying it nullifies the effects of terrain.
+023D58AE  Needed to create a blast of Starlight. Carrying
+023D58DE  it prevents the depletion of magic and weapons.
+023D590E  An orb that deals damage evenly to all units.
+023D593C  A gift from House Archanea. Its bearer is granted
+023D596E  access to the treasure chests throughout the land.
+023D59A1  A small lump of gold that fetches 10,000G at
+023D59D6  A lump of gold that fetches 15,000G at market.
+023D5A05  A large lump of gold that fetches 20,000G at
+023D5A3A  A huge lump of gold that fetches 30,000G at
+023D5A6E  Unable to load data.
+023D5A83  Please turn the power off, reinsert
+023D5AA7  the Game Card, and try again.
+023D5AC5  Unable to save data.
+023D5B1C  A portion of your save data is corrupt
+023D5B43  and will be deleted.
+023D5B58  Error Code:
+023D5B64  You do not have a friend code.
+023D5B83  Your friend code will be generated
+023D5BA6  once you connect to Nintendo Wi-Fi
+023D5BD5  You cannot enter your own
+023D5BEF  friend code.
+023D5BFC  The friend code you entered is
+023D5C1B  already registered on your
+023D5C36  friend roster.
+023D5C45  This friend code is incorrect.
+023D5C64  Please check that you have not
+023D5C83  made a mistake when entering it.
+023D5CA4  OK to delete friend information?
+023D5CC5  Unable to connect to Nintendo Wi-Fi
+023D5CE9  Connection. For help, check the
+023D5D09  software Instruction Booklet, or visit
+023D5D46  Either Nintendo Wi-Fi Connection
+023D5D67  is experiencing high traffic volumes
+023D5D8C  or the service is down. Please try
+023D5DAF  again later. For help, visit
+023D5DE2  This Nintendo Wi-Fi Connection ID
+023D5E04  was removed because it was
+023D5E1F  inactive for a long time. For help,
+023D5E43  visit support.nintendo.com.
+023D5E5F  Nintendo Wi-Fi Connection service for
+023D5E85  this software has been discontinued.
+023D5EAA  Visit support.nintendo.com
+023D5EC5  for a list of current Nintendo
+023D5EE4  Wi-Fi Connection-compatible software.
+023D5F0A  The access point is busy. You cannot
+023D5F2F  connect. Try again later. For help,
+023D5F6F  No access point in range. Please
+023D5F90  try again when closer to an
+023D5FAC  access point. For help, visit
+023D5FE0  No compatible access point
+023D5FFB  in range. Check your connection
+023D601B  settings and try again. For help,
+023D6059  Unable to connect to the Nintendo
+023D607B  Wi-Fi USB Connector. Confirm
+023D6098  connection settings in the Nintendo
+023D60BC  Wi-Fi Connection setup. For help,
+023D60FA  Unable to connect to
+023D610F  Nintendo Wi-Fi Connection.
+023D612A  Confirm connection settings
+023D6146  and access-point settings.
+023D6161  For help, visit support.nintendo.com.
+023D6187  There is no response. Either
+023D61A4  the player is not connected to
+023D61C3  Nintendo Wi-Fi Connection or
+023D61E0  you have been removed from
+023D61FB  the player's friend roster.
+023D6217  Communication error. You
+023D6230  have been disconnected from
+023D628D  Download failed.
+023D62C4  Communication error.
+023D6300  Your Nintendo Wi-Fi Connection
+023D631F  User Information may have been
+023D633E  erased. Check your connection
+023D635C  settings. For help,
+023D638C  Connect to Nintendo Wi-Fi
+023D63B2  Nintendo Wi-Fi Connection treats
+023D63D3  your Nintendo DS Game Card and
+023D63F2  Nintendo DS as a set.
+023D6408  Save this Nintendo DS system's
+023D6427  Nintendo Wi-Fi Connection User
+023D6446  Information to this Game Card and
+023D6468  connect to Nintendo Wi-Fi Connection?
+023D64AD  Information for this Nintendo DS has
+023D64D2  been saved to the Game Card.
+023D64EF  From now on, please use this
+023D650C  Nintendo DS to connect to
+023D6541  Unable to connect to Nintendo
+023D655F  Wi-Fi Connection because the
+023D659B  Information from the Nintendo DS
+023D65BC  and the Game Card do not match.
+023D65DC  Update Nintendo Wi-Fi Connection
+023D65FD  User Information saved on the
+023D661B  Game Card?
+023D6626  When you update your Nintendo
+023D6644  Wi-Fi Connection User Information,
+023D6667  you will lose all data used to connect
+023D668E  to Nintendo Wi-Fi Connection.
+023D66AC  Even if you update Nintendo Wi-Fi
+023D66CE  Connection User Information,
+023D66EB  your friend roster will be saved.
+023D670D  However, your friends will have
+023D672D  to reregister your new friend code.
+023D6751  Do you still want to update?
+023D676E  Connecting to Nintendo Wi-Fi
+023D6799  Please wait a moment...
+023D67B1  You cannot access Nintendo
+023D67CC  Wi-Fi Connection using this
+023D67E8  user name. Please change
+023D6801  your user name and try again.
+023D681F  OK to disconnect from Nintendo
+023D683E  Wi-Fi Connection?
+023D6850  Disconnecting from Nintendo
+023D686C  Wi-Fi Connection...
+023D6880  You have been disconnected from
+023D68BB  A connection error has occurred.
+023D68FD  Please turn the power off and
+023D691B  try again.
+023D6926  Other player has disconnected.
+023D6945  Unable to join the match.
+023D695F  Please select how you would like
+023D6980  opponents to be chosen.
+023D6998  Please enter a friend code.
+023D69B4  Please create/select a room.
+023D69D1  Waiting for connection...
+023D69EB  Please set voice-chat options.
+023D6A0A  Awaiting opponent response...
+023D6A48  Download has been canceled.
+023D6A64  Awaiting server response...
+023D6A80  Unable to connect to the server.
+023D6AA1  Connection to the server has been
+023D6ACD  Unable to retrieve data.
+023D6AFB  Transmitting data...
+023D6B10  Data transmission failed.
+023D6B2A  Unable to retrieve the list of
+023D6B56  Your opponent has surrendered.
+023D6B75  Waiting for room to be finalized...
