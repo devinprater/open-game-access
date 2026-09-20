@@ -736,6 +736,11 @@ const char *poke_adapter_name(PokeCore *core)
     return (core && core->adapter) ? core->adapter->display_name : nullptr;
 }
 
+const char *poke_game_code(PokeCore *core)
+{
+    return (core && core->gameCode[0]) ? core->gameCode : "";
+}
+
 bool poke_adapter_ready(PokeCore *core)
 {
     if (!core || !core->adapter || !core->adapterAttached) return false;

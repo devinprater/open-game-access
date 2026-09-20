@@ -108,6 +108,12 @@ const char *poke_adapter_id(PokeCore *core);
  * there is none. */
 const char *poke_adapter_name(PokeCore *core);
 
+/* The loaded ROM's four-letter game code from header offset 0x0C, e.g. "IRBO"
+ * or "YFEE". Empty string when no ROM is loaded. This is what decides BOTH the
+ * adapter AND whether the bundled Lua script knows the game, so the UI reads
+ * it to hide the script's buttons for games the script cannot narrate. */
+const char *poke_game_code(PokeCore *core);
+
 /* True when the selected adapter has usable game state RIGHT NOW.
  *
  * This is the gate the UI asks before offering adapter commands: a map may not
