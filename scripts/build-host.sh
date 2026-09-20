@@ -21,7 +21,7 @@ source "$ROOT/scripts/core-sources.sh"
 
 # POKE_HOST, not POKE_IOS: the platform layer picks clock_gettime/usleep instead
 # of mach_absolute_time. Same core, same Lua, same script.
-COMMON="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything"
+COMMON="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -DFE_NO_MAIN=1 -Wno-everything"
 INC="-I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$SRC/src -I$LUA_SRC/src -I$SRC/src/teakra/include"
 CXXFLAGS="$COMMON $INC -std=c++17"
 CFLAGS="$COMMON $INC -std=gnu11"

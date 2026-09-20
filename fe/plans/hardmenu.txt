@@ -1,0 +1,15 @@
+# Hard-submenu probe: boot to difficulty, move Right to Hard, confirm, see what opens.
+KEY 360  START  1
+KEY 378  START  0
+KEY 620  A  1
+KEY 640  A  0
+KEY 760  A  1
+KEY 780  A  0
+KEY 1120 RIGHT 1
+KEY 1140 RIGHT 0
+SNAP 1300 /home/devin/fe/out/h0.ram
+KEY 1360 A 1
+KEY 1380 A 0
+SNAP 1600 /home/devin/fe/out/h1.ram
+SHOT 1600 /home/devin/fe/out/h1.ppm
+SHOT 1600 /home/devin/fe/out/h1-other.ppm 1

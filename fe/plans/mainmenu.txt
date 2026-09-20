@@ -1,0 +1,16 @@
+# Main-menu capture: reach the title menu, shot it, probe Down, shot again.
+KEY 360  START  1
+KEY 378  START  0
+SNAP 520 /home/devin/fe/out/mm0.ram
+SHOT 520 /home/devin/fe/out/mm0.ppm
+SHOT 520 /home/devin/fe/out/mm0-other.ppm 1
+KEY 620 DOWN 1
+KEY 640 DOWN 0
+SNAP 740 /home/devin/fe/out/mm1.ram
+SHOT 740 /home/devin/fe/out/mm1.ppm
+SHOT 740 /home/devin/fe/out/mm1-other.ppm 1
+KEY 800 A 1
+KEY 820 A 0
+SNAP 950 /home/devin/fe/out/mm2.ram
+SHOT 950 /home/devin/fe/out/mm2.ppm
+SHOT 950 /home/devin/fe/out/mm2-other.ppm 1
