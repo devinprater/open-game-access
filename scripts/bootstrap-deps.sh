@@ -18,6 +18,13 @@ cd "$DEST"
 # Pinned revisions. `main`/`master` would make every build a moving target and
 # make a published binary impossible to reproduce; pin and bump deliberately.
 MELONDS_LUA_REPO="${MELONDS_LUA_REPO:-https://github.com/NPO-197/melonDS-lua.git}"
+MGBA_REPO="${MGBA_REPO:-https://github.com/mgba-emu/mgba.git}"
+# ⛔ PINNED TO THE HOST-PROVEN REVISION. The GBA core (Core/gba_core.cpp +
+# scripts/core-sources.sh MGBA list) was proven against this exact commit with
+# the audited HAVE_* defines in core-sources.sh; moving the pin means
+# re-running the host proof (boot Emerald, Ready, byte-exact reads) before it
+# ships. See Core/mgba_version_stub.cpp — its baked-in revision must match.
+MGBA_REV="${MGBA_REV:-543a197582c30364584d773a974d7f991892fa43}"
 LUA_VER="${LUA_VER:-5.4.7}"
 
 fetch() { # fetch <url> <dir> <ref>
@@ -41,6 +48,12 @@ fetch() { # fetch <url> <dir> <ref>
 # to support accessibility features and trackers"). Upstream melonDS has no Lua.
 fetch "$MELONDS_LUA_REPO" melonds-lua master
 
+# ---- mGBA (Game Boy Advance core) ----
+# Fetched for headers + the fixed TU subset in core-sources.sh. No CMake, no
+# configure: the build scripts compile the subset directly with the audited
+# MGBA_DEFS and a generated flags.h (see build-core.sh).
+fetch "$MGBA_REPO" mgba "$MGBA_REV"
+
 # ---- Lua 5.4 (MIT) ----
 if [ ! -d "lua-$LUA_VER" ]; then
   echo "== fetching Lua $LUA_VER"
@@ -57,6 +70,7 @@ cat <<EOF
 == done. Source tree: $DEST
 
   melonds-lua  $( [ -d melonds-lua ] && echo present || echo MISSING )
+  mgba         $( [ -d mgba ] && echo present || echo MISSING )
   lua-$LUA_VER      $( [ -d "lua-$LUA_VER" ] && echo present || echo MISSING )
 
 Next:

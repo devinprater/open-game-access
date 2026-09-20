@@ -65,6 +65,7 @@ jobs:
         env:
           MELONDS_SRC: ${{ runner.temp }}/src/melonds-lua
           LUA_SRC: ${{ runner.temp }}/src/lua-5.4.7
+          MGBA_SRC: ${{ runner.temp }}/src/mgba
         run: |
           # Xcode's own simulator SDK, at whatever version this runner has. The
           # script defaults to xtool's fetched SDK path, which does not exist here.

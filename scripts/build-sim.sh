@@ -21,6 +21,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 # SRC is the melonDS TREE root, not its src/ dir — every use appends /src.
 SRC="${MELONDS_SRC:-$HOME/src/melonds-lua}"
 LUA_SRC="${LUA_SRC:-$HOME/src/lua-5.4.7}"
+MGBA_SRC="${MGBA_SRC:-$HOME/src/mgba}"
 OUT="$ROOT/Vendor/sim"
 OBJ="$OUT/obj"
 TRIPLE="${TRIPLE:-arm64-apple-ios17.0-simulator}"
@@ -59,6 +60,7 @@ fi
 
 [ -d "$SRC/src" ]  || { echo "!! no melonDS source at $SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 [ -d "$LUA_SRC/src" ] || { echo "!! no Lua source at $LUA_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
+[ -d "$MGBA_SRC/src" ] || { echo "!! no mGBA source at $MGBA_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 [ -d "$SDKROOT" ] || { echo "!! no iPhoneSimulator SDK at $SDKROOT" >&2; exit 1; }
 
 echo "CXX     = $CXX"
@@ -68,6 +70,16 @@ echo "llvm-ar = $LLVM_AR"
 
 mkdir -p "$OBJ" "$OUT"
 source "$ROOT/scripts/core-sources.sh"
+
+# ---- mGBA generated flags.h (same as build-core.sh; see the comment there) ----
+MGBA_GEN="$OBJ/mgba-gen"
+mkdir -p "$MGBA_GEN/mgba"
+if [ ! -f "$MGBA_GEN/mgba/flags.h" ] || [ "$MGBA_SRC/src/core/flags.h.in" -nt "$MGBA_GEN/mgba/flags.h" ]; then
+  sed -e 's/#cmakedefine01 \([A-Za-z_0-9]*\).*/#ifndef \1\n#endif/' \
+      -e 's/#cmakedefine \([A-Za-z_0-9]*\).*/#ifndef \1\n#endif/' \
+      "$MGBA_SRC/src/core/flags.h.in" > "$MGBA_GEN/mgba/flags.h"
+fi
+MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
 COMMON="-target $TRIPLE -isysroot $SDKROOT -O2 -g -fPIC -fwrapv -fno-strict-aliasing -D__IOS__=1 -DHAVE_PTHREADS=1 -DPOKE_IOS=1 -DFE_NO_MAIN=1 -Wno-everything"
 INC="-I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$SRC/src -I$LUA_SRC/src -I$SRC/src/teakra/include"
@@ -82,6 +94,7 @@ compile() {
   case "$lang" in
     cc)  flags="$CFLAGS"; cc="$CC" ;;
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC" ;;
+    mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC" ;;
   esac
   if ! "$cc" $flags -c "$src" -o "$out" 2> "$OBJ/$tag.err"; then
     echo "FAIL $tag"; tail -25 "$OBJ/$tag.err"; touch "$OBJ/.failed"
@@ -95,6 +108,7 @@ compile() {
   for f in "$LUA_SRC"/src/*.c; do b="$(basename "$f" .c)"
     [ "$b" = "lua" ] || [ "$b" = "luac" ] || printf '%s|lua|%s\n' "$f" "lua_$b"
   done
+  for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   # ⛔ THE GLUE LIST COMES FROM core-sources.sh, NOT FROM HERE. It used to be two
   # hardcoded lines, which meant the simulator core had no adapters at all and the
   # device core had all of them — a drift that only surfaced as an undefined symbol
