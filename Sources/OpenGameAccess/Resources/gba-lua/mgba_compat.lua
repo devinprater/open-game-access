@@ -1,0 +1,632 @@
+-- mgba_compat.lua — host-API shim: BizHawk-style reader calls → mGBA's Lua API.
+--
+-- ⛔ WHAT THIS IS. The Pokémon Access GB/GBC/GBA reader set (166 Lua files, 688 KB) is
+-- written against BizHawk's Lua API. mGBA's API is object-oriented and different. This
+-- shim presents the BizHawk surface the readers actually use and forwards to mGBA. The
+-- readers are NOT edited — if a reader needs a change, that is evidence this shim is
+-- incomplete, not a licence to modify the scripts.
+--
+-- ⛔ THE SURFACE IS MEASURED, NOT GUESSED. tools/re/platforms/gba/grep-reader-api.py
+-- enumerates every host call in all 166 files. The result is 16 distinct functions:
+--
+--   emu.     frameadvance (2)   platform (1)
+--   memory.  readbyte (161)          readword (80)          readdword (76)
+--            getregister (72)        gbromreadbyte (48)     readbyteunsigned (6)
+--            registerexec (6)        readbyterange (6)      gbromreadword (2)
+--            readbytesigned (2)      registerwrite (1)      readdwordsigned (1)
+--   input.   read (1)
+--
+-- ⛔ THREE REAL MISMATCHES, each handled explicitly below:
+--
+--   1. readbyterange must return a 1-BASED TABLE of byte values, not a string. The
+--      readers do `raw_text[i+j]` with i starting at 1 (gb.lua:47-59). mGBA's
+--      emu:readRange() returns a STRING, and indexing a Lua string with [1] yields nil —
+--      so a naive passthrough would silently produce empty text rather than an error.
+--      This is the single most dangerous mapping in the shim.
+--
+--   2. registerexec/registerwrite have NO mGBA equivalent. mGBA offers no exec hook, and
+--      these are not decorative: registerexec is how the readers detect FOOTSTEPS (the
+--      primary accessibility feature), and registerwrite is used once for GBA DMA-into-
+--      VRAM detection. Both are emulated by a per-frame poll.
+--
+--   3. getregister needs a name mapping. BizHawk uses uppercase and may ask for combined
+--      pairs (BC/DE/HL/AF); mGBA's docs list lowercase names plus those pairs.
+--
+-- Install: load this file in mGBA's Tools → Scripting window, then load the reader's
+-- own entry point (pokemon.lua / gb.lua / gba.lua) via the reader's normal boot path.
+
+----------------------------------------------------------------------
+-- host access, with a clear failure if the shim runs on the wrong host
+----------------------------------------------------------------------
+
+local HOST = emu
+if HOST == nil then
+  -- Not fatal in a way that should abort: report and continue so the message is visible.
+  if console and console.error then
+    console:error("[oga-shim] no `emu' object — this shim must run inside mGBA with a game loaded")
+  end
+  return
+end
+
+local function log(msg)
+  if console and console.log then console:log("[oga-shim] " .. tostring(msg)) end
+end
+
+----------------------------------------------------------------------
+-- signedness helpers
+--
+-- BizHawk exposes separate signed/unsigned reads because Lua has no integer types.
+-- mGBA returns unsigned values, so the signed variants must be converted by hand.
+-- Getting this wrong turns a -1 tile id into 255, which reads as a valid but WRONG tile.
+----------------------------------------------------------------------
+
+local function sign8(v)  v = v % 0x100;        return v >= 0x80 and v - 0x100 or v end
+local function sign16(v) v = v % 0x10000;      return v >= 0x8000 and v - 0x10000 or v end
+local function sign32(v) v = v % 0x100000000;  return v >= 0x80000000 and v - 0x100000000 or v end
+
+-- ⛔ mGBA's readRegister returns a raw LITTLE-ENDIAN byte string, so it must be decoded at full
+-- width. The shim first did `v:byte(1)` (low byte only), which turns a PC of 0x08000123 into
+-- 0x23 = 35 — and footstep detection compares the polled PC against a registered address, so a
+-- truncated PC can NEVER match and walking is silent while everything else works. One shared
+-- implementation so the two call sites cannot drift apart.
+local function decodeRegister(v)
+  if type(v) ~= "string" then return v end
+  local n = #v
+  if n == 0 then return 0 end
+  local val = 0
+  for i = n, 1, -1 do
+    val = val * 0x100 + v:byte(i)
+  end
+  return val
+end
+
+----------------------------------------------------------------------
+-- 0. RESTORE `unpack`, REMOVED IN LUA 5.2
+--
+-- ⛔⛔ THIS SILENTLY DISABLED EVERY HOTKEY. ⛔⛔
+--
+-- The readers are LuaJIT-era code, where `unpack` is a GLOBAL. Lua 5.1 had it; **Lua 5.2
+-- removed it and moved it to `table.unpack`**, which mGBA's stock 5.4 follows.
+--
+-- pokemon.lua:492 is the line that decodes EVERY hotkey command:
+--
+--     local fn, needs_script, needs_map = unpack(command)
+--
+-- With `unpack` nil that line raises. It sits inside the reader's per-frame `main_loop`, and
+-- the reader's own error handling turns the failure into ... nothing observable: the reader
+-- still announces `Ready`, still runs, and then never responds to a single key press. No
+-- error reaches the console, because the reader calls this straight from `main_loop` inside
+-- its own `while true`.
+--
+-- Seven call sites across the set (pokemon.lua:492, gba.lua:1540/1589/1750/1768,
+-- game/common/gsc.lua:308, rby.lua:321), so this is not one stray line.
+--
+-- This is the FOURTH LuaJIT-era implicit global the shim has had to restore, after `ffi`,
+-- `module()`, `bit` — and like `bit` it appears in no BizHawk documentation, because under
+-- BizHawk it is simply part of the runtime.
+if _G.unpack == nil then
+  _G.unpack = table.unpack
+end
+
+----------------------------------------------------------------------
+-- register name mapping: BizHawk names → mGBA names
+--
+-- The readers use 72 register reads, so a bad mapping here is high-impact. Both
+-- uppercase and lowercase forms are accepted because a reader may use either.
+----------------------------------------------------------------------
+
+local REG_MAP = {
+  -- GB (and the GBA's ARM registers share letters where they overlap)
+  A="a", B="b", C="c", D="d", E="e", H="h", L="l", F="f",
+  BC="bc", DE="de", HL="hl", AF="af", PC="pc", SP="sp",
+  -- GBA ARM registers
+  R0="r0", R1="r1", R2="r2", R3="r3", R4="r4", R5="r5", R6="r6", R7="r7",
+  R8="r8", R9="r9", R10="r10", R11="r11", R12="r12", R13="r13", R14="r14", R15="r15",
+  IP="ip", LR="lr", CPSR="cpsr",
+}
+
+local function mapReg(name)
+  if type(name) ~= "string" then return nil end
+  return REG_MAP[name] or REG_MAP[name:upper()] or name:lower()
+end
+
+----------------------------------------------------------------------
+-- emu
+--
+-- ⛔⛔ THE BIGGEST BUG IN THE WHOLE SHIM, FOUND ONLY BY RUNNING ON REAL mGBA. ⛔⛔
+--
+-- On real mGBA, `emu` is a USERDATA object, not a Lua table:
+--
+--     type(emu)            --> "userdata"
+--     emu.platform = fn    --> error: Invalid key
+--     emu:platform()       --> works (colon call)
+--
+-- The shim originally did `emu.frameadvance = function() ... end`, which is the natural way
+-- to write it and which passed EVERY test — because the stub host defined `emu` as a plain
+-- table, and a plain table accepts field assignment. The harness was MORE PERMISSIVE THAN
+-- REALITY, so the shim looked correct right up until it ran on the actual emulator, where it
+-- died at the bootstrap's first `emu.platform()` call:
+--
+--     oga_bootstrap.lua:321: Error calling function (invoking failed)
+--
+-- FIX: keep mGBA's userdata in a local, and SHADOW the global `emu` with a plain Lua table
+-- that carries the BizHawk surface and delegates to the real object through colon calls.
+-- A plain table can be assigned to; userdata cannot. Nothing outside this file should ever
+-- touch the raw object again.
+----------------------------------------------------------------------
+
+local REAL = emu   -- mGBA's CoreAdapter (userdata). NEVER reassigned, NEVER written to.
+
+-- Fresh colon-bound call on REAL. `fn(REAL, ...)` is the same as `REAL:fn(...)` and does not
+-- depend on the global `emu` name, which is what makes it safe here.
+local function callReal(name, ...)
+  local fn = REAL[name]
+  if fn == nil then return nil end
+  return fn(REAL, ...)
+end
+
+-- The BizHawk surface, as a SEPARATE table. The readers use `emu.frameadvance()` and will
+-- resolve `emu` to THIS table once the reader chunk is loaded with the env the bootstrap
+-- builds. mGBA's object is never touched, so the core binding never goes invalid.
+-- Forward declaration: BIZ_EMU.frameadvance calls this, but poll_hooks is defined further
+-- down (it needs decodeRegister and the hook tables). Referencing the local keeps the closure
+-- bound to the real function rather than a global that may never exist.
+local poll_hooks
+
+local BIZ_EMU = {}
+
+BIZ_EMU.platform    = function()      return callReal("platform")     end
+BIZ_EMU.frameadvance = function()
+  local r = callReal("runFrame")
+  -- Hook polling rides on frameadvance: a frame callback would break runFrame (see
+  -- the note above poll_hooks). One sample per frame, driven by the reader's own loop.
+  if poll_hooks then poll_hooks() end
+  return r
+end
+BIZ_EMU.framecount  = function()      return callReal("currentFrame") end
+BIZ_EMU.read8       = function(a)     return callReal("read8", a)     end
+BIZ_EMU.read16      = function(a)     return callReal("read16", a)    end
+BIZ_EMU.read32      = function(a)     return callReal("read32", a)    end
+BIZ_EMU.readRange   = function(a, n)  return callReal("readRange", a, n) end
+BIZ_EMU.readRegister = function(r)    return callReal("readRegister", r) end
+BIZ_EMU.getKeys     = function()      return callReal("getKeys")      end
+
+-- Handed to the reader's environment by oga_bootstrap.lua. Named with the `oga_` prefix so
+-- it is obvious this is ours, not mGBA's.
+_G.oga_biz_emu = BIZ_EMU
+
+-- BizHawk's emu.platform() returns a NUMERIC enum, and the readers compare it to numbers.
+-- pokemon.lua:897 does exactly:
+--
+--     function get_device()
+--       local id = emu.platform()
+--       if id == 0 then return "gba"
+--       elseif id == 1 then return "gb" end
+--       return nil
+--     end
+--
+-- ⛔ RETURNING A STRING HERE BREAKS THE READER. get_device() then returns nil, `device`
+-- stays nil, and the failure surfaces far away as
+-- `attempt to concatenate a nil value (global 'device')` at the boot line that builds a
+-- script path. Returning the raw mGBA number is both simpler and correct, because mGBA
+-- uses the SAME values (0 = GBA, 1 = GB).
+
+----------------------------------------------------------------------
+-- memory
+----------------------------------------------------------------------
+
+memory = memory or {}
+
+memory.readbyte = function(a) return callReal("read8", a) end
+memory.readword = function(a) return callReal("read16", a) end
+memory.readdword = function(a) return callReal("read32", a) end
+
+memory.readbyteunsigned = function(a) return callReal("read8", a) end
+memory.readbytesigned   = function(a) return sign8(callReal("read8", a)) end
+memory.readwordsigned   = function(a) return sign16(callReal("read16", a)) end
+memory.readdwordsigned  = function(a) return sign32(callReal("read32", a)) end
+
+-- ⛔ THE CRITICAL MAPPING. See the header note: readers index this as a 1-based table.
+-- mGBA's readRange returns a string, which yields nil when indexed numerically — a
+-- silent empty-text bug rather than an error. Convert to a table, 1-based, to match
+-- BizHawk exactly.
+memory.readbyterange = function(addr, length)
+  local raw = callReal("readRange", addr, length)
+  if type(raw) ~= "string" then
+    -- Some mGBA builds may already return a table; accept it if it is 1-based.
+    if type(raw) == "table" then
+      log("readbyterange returned a table (not a string) — check 1-based assumption")
+      return raw
+    end
+    log("readRange returned " .. type(raw) .. " — expected string")
+    return {}
+  end
+  local out = {}
+  for i = 1, length do
+    -- string.byte with an explicit index is 1-based, which is what the readers want.
+    out[i] = raw:byte(i) or 0
+  end
+  return out
+end
+
+-- GB ROM reads. On a banked cartridge a plain read8 at a 0x0000-0x7FFF address returns
+-- whatever bank is currently mapped, which is what the readers want (they read the bank
+-- byte from HRAM separately and account for it themselves).
+memory.gbromreadbyte = function(a)
+  local ok, v = pcall(function() return callReal("read8", a) end)
+  if ok and v then return v end
+  log("gbromreadbyte failed at 0x" .. string.format("%x", a))
+  return 0
+end
+
+memory.gbromreadword = function(a)
+  local lo = memory.gbromreadbyte(a)
+  local hi = memory.gbromreadbyte(a + 1)
+  return lo + hi * 0x100
+end
+
+memory.getregister = function(name)
+  local mapped = mapReg(name)
+  if mapped == nil then return 0 end
+  local ok, v = pcall(function() return callReal("readRegister", mapped) end)
+  if not ok or v == nil then
+    log("getregister failed for " .. tostring(name))
+    return 0
+  end
+  return decodeRegister(v)
+end
+
+----------------------------------------------------------------------
+-- registerexec / registerwrite — emulated by per-frame polling
+--
+-- ⛔ mGBA HAS NO EXEC HOOK OR WRITE HOOK. These are implemented as frame callbacks that
+-- re-evaluate the original predicate. This is an approximation and it must be verified
+-- rather than assumed:
+--
+--   - A routine that runs and returns WITHIN one frame can be missed by a frame poll.
+--     Footstep detection is exactly this shape, and footsteps are the primary
+--     accessibility feature, so this is the highest-risk part of the shim.
+--   - If footsteps prove unreliable, the fallback is to poll the observable EFFECT
+--     (the ROM bank byte plus a position change) rather than the PC.
+--
+-- Do not add that fallback pre-emptively: establish whether it is needed first.
+----------------------------------------------------------------------
+
+local exec_hooks  = {}   -- address -> callback
+local last_player_x, last_player_y   -- for the observable-effect poll
+local write_hooks = {}   -- address -> { cb = fn, last = value }
+
+-- ⛔⛔ registerexec: REIMPLEMENTED AS AN OBSERVABLE-EFFECT POLL, NOT A PC HOOK. ⛔⛔
+--
+-- WHY THE OBVIOUS MAPPINGS CANNOT WORK. Measured on mGBA 0.11, and confirmed from mGBA's own
+-- source (src/arm/debugger/debugger.c, src/debugger/debugger.c):
+--
+--   * Polling the PC after runFrame() gives 0 hits from 38 hooks. runFrame() completes a WHOLE
+--     frame, so the sampled PC is the CPU's end-of-frame resting place (a ~60-byte window),
+--     never the ROM code the readers register.
+--   * `setBreakpoint` is checked ONLY from the debugger's run loop, which a script driving
+--     frames via runFrame() never enters. Installed, counted by hasBreakpoints(), never checked.
+--   * READ watchpoints do not install on this build at all; READWRITE installs but fired 0 times
+--     on every code/RAM address tried.
+--
+-- So there is NO way to intercept execution here. Instead, DETECT THE OBSERVABLE EFFECT.
+--
+-- This works because the readers' registered callbacks turn out to read live game state rather
+-- than needing the moment of execution. gba.lua's footstep hook is the proof:
+--
+--     function play_footsteps()
+--       local player_x, player_y = get_player_xy()      -- live RAM read
+--       local blocks = get_map_blocks()                 -- live RAM read
+--       play_tile_sound(get_block_type(blocks[player_y][player_x]), 0, 30, false)
+--     end
+--
+-- No register is consulted. The callback only needs to run WHEN THE PLAYER MOVES, which is an
+-- effect we can poll directly.
+--
+-- The heuristic below is deliberately conservative: fire when the game's own position value
+-- changes. `get_player_xy` is not reachable from the shim (it lives in the reader loaded after
+-- this file), so the poll watches the reader's exported globals once they exist and falls back
+-- to a no-op rather than guessing at addresses.
+local function pollExecEffects()
+  if next(exec_hooks) == nil then return end
+  -- The reader publishes get_player_xy() on the global table; use it when present.
+  local getxy = _G.get_player_xy
+  if type(getxy) ~= "function" then return end
+  local ok, x, y = pcall(getxy)
+  if not ok or type(x) ~= "number" or type(y) ~= "number" then return end
+  if x ~= last_player_x or y ~= last_player_y then
+    local moved = (last_player_x ~= nil)
+    last_player_x, last_player_y = x, y
+    if moved then
+      for _, cb in pairs(exec_hooks) do
+        local okc, err = pcall(cb)
+        if not okc then log("effect hook errored: " .. tostring(err)) end
+      end
+    end
+  end
+end
+
+memory.registerexec = function(address, fn)
+  if fn == nil then
+    exec_hooks[address] = nil
+    return
+  end
+  exec_hooks[address] = fn
+end
+
+-- ⛔ USE mGBA'S REAL MEMORY WATCHPOINT WHERE AVAILABLE.
+--
+-- Frame-polling a value cannot see a write that is overwritten again inside the same frame, and
+-- ROM exec hooks were measured firing ZERO times this way (38 registered, 0 hits). mGBA 0.11
+-- offers genuine hooks, and MEASURED behaviour differs by kind:
+--
+--   setRangeWatchpoint(0x04000000, 0x04000010, type=2)  -> FIRED 3 times in 60 frames  ✓
+--   setBreakpoint(pc, segment=-1)                       -> installed, fired 0 times     ✗
+--
+-- So the WRITE path can use a real watchpoint now. A watchpoint fires on ACCESS, which is
+-- strictly better than polling a value: it catches a write even when the value returns to what
+-- it was before the frame ends.
+--
+-- `type` is the mDebuggerWatchpointType enum: 0 = WRITE, 1 = READ, 2 = READWRITE.
+local WATCH_WRITE = 0
+local WATCH_READWRITE = 2
+
+memory.registerwrite = function(address, fn)
+  if fn == nil then
+    local existing = write_hooks[address]
+    if existing and existing.id then
+      pcall(function() REAL.clearBreakpoint(REAL, existing.id) end)
+    end
+    write_hooks[address] = nil
+    return
+  end
+
+  -- Prefer a real watchpoint. Keep the value-polling record as a fallback so a build without
+  -- the API still behaves as before rather than losing the feature silently.
+  local hook = { cb = fn, last = callReal("read32", address) }
+  local ok, id = pcall(function()
+    return REAL.setRangeWatchpoint(REAL, function()
+      local okc, err = pcall(fn)
+      if not okc then log("write hook at " .. tostring(address) .. " errored: " .. tostring(err)) end
+    end, address, address + 4, WATCH_WRITE, -1)
+  end)
+  if ok and id then
+    hook.id = id
+    hook.real = true
+    log("registerwrite(0x" .. string.format("%X", address) .. ") -> REAL watchpoint id=" .. tostring(id))
+  else
+    log("registerwrite(0x" .. string.format("%X", address) .. ") -> value polling (no watchpoint API)")
+  end
+  write_hooks[address] = hook
+end
+
+-- ⛔⛔ DO NOT REGISTER A `frame` CALLBACK. IT BREAKS `runFrame`. ⛔⛔
+--
+-- Measured on real mGBA 0.11:
+--
+--     emu:runFrame() x5, no callback registered   -->  5/5 OK
+--     callbacks:add("frame", fn)
+--     emu:runFrame()                              -->  FAILED at call 2:
+--                                                     "Function called from invalid context"
+--
+-- mGBA switches to callback-driven emulation the moment a `frame` callback exists, and
+-- `runFrame` stops being legal. The reader drives its own frames (`while true do
+-- emu.frameadvance(); main_loop() end`), so registering a frame callback here would cripple
+-- the very loop the reader depends on.
+--
+-- The hook emulation therefore hangs off frameadvance itself: every frame the READER asks for
+-- also samples the PC and the write watches. Same one-sample-per-frame fidelity as a frame
+-- callback, no callback registration, and the reader's own loop is what drives it.
+----------------------------------------------------------------------
+
+-- ⛔ DRIVING A HOTKEY INSIDE THE READER'S OWN LOOP.
+--
+-- The reader owns `while true do emu.frameadvance(); main_loop() end`, so nothing after
+-- `dofile(bootstrap)` ever runs — a harness cannot set a key and then wait. But poll_hooks is
+-- invoked from frameadvance on EVERY frame the reader asks for, which makes it the one place a
+-- harness can reach into that loop.
+--
+-- `oga_key_script{ {at=100, keys={"y"}, release_at=105} }` presses keys at a frame count and
+-- releases them later. The RELEASE matters: pokemon.lua compares this frame's key set against
+-- the previous frame's, so a key that never goes back up is seen once and then ignored forever.
+local synthetic_keys = {}    -- key name -> true; read by BIZ_INPUT.read()
+local oga_set_keys           -- assigned below; run_key_script calls it every frame
+
+local frame_counter = 0
+local key_script = _G.oga_key_script_pending or {}
+_G.oga_key_script_pending = nil
+
+-- ⛔ ALSO READ FROM A GLOBAL, SO A HARNESS CAN SCHEDULE KEYS *BEFORE* LOADING THE SHIM.
+-- A harness naturally wants to say "when the reader gets going, press y" before it calls
+-- dofile(bootstrap) — but oga_key_script does not exist yet at that point and the chunk dies.
+-- Stashing the schedule in a plain global sidesteps the ordering problem entirely.
+function oga_key_script(steps)
+  key_script = steps or {}
+  frame_counter = 0
+end
+
+local function run_key_script()
+  frame_counter = frame_counter + 1
+  if #key_script == 0 then return end
+  for i = #key_script, 1, -1 do
+    local step = key_script[i]
+    if step.at and frame_counter >= step.at then
+      oga_set_keys(step.keys)
+      if step.release_at then
+        key_script[#key_script + 1] = { at = step.release_at, keys = {} }
+      end
+      table.remove(key_script, i)
+    end
+  end
+end
+
+-- Uses the exec_hooks / write_hooks tables declared above.
+-- Assigns the forward-declared local above.
+-- ⛔ PAD DRIVING, SEPARATE FROM THE KEYBOARD KEYS.
+--
+-- The reader's `input.read()` reports KEYBOARD keys (for hotkeys). Moving the PLAYER needs the
+-- emulator PAD via `emu:setKeys`. Confusing the two is an easy mistake: a harness that sets
+-- keyboard keys makes the reader speak but leaves the player standing still, so movement-based
+-- features (footsteps) can never fire and the test looks like a failure of the feature.
+--
+-- mGBA pad bits: A=0, B=1, SELECT=2, START=3, RIGHT=4, LEFT=5, UP=6, DOWN=7, R=8, L=9.
+local PAD_BITS = { A=0, B=1, SELECT=2, START=3, RIGHT=4, LEFT=5, UP=6, DOWN=7, R=8, L=9 }
+local pad_script = _G.oga_pad_script_pending or {}
+_G.oga_pad_script_pending = nil
+
+function oga_pad_script(steps)
+  pad_script = steps or {}
+end
+
+local function run_pad_script()
+  if #pad_script == 0 then return end
+  for i = #pad_script, 1, -1 do
+    local step = pad_script[i]
+    if step.at and frame_counter >= step.at then
+      local mask = 0
+      for _, name in ipairs(step.pad or {}) do
+        local bit = PAD_BITS[name]
+        if bit then mask = mask + 2 ^ bit end
+      end
+      pcall(function() REAL.setKeys(REAL, mask) end)
+      if step.release_at then
+        pad_script[#pad_script + 1] = { at = step.release_at, pad = {} }
+      end
+      table.remove(pad_script, i)
+    end
+  end
+end
+
+function poll_hooks()
+  run_key_script()
+  run_pad_script()
+  pollExecEffects()
+
+  if next(exec_hooks) ~= nil then
+    local pc_ok, pc = pcall(function()
+      return decodeRegister(callReal("readRegister", "pc"))
+    end)
+    if pc_ok and pc then
+      local cb = exec_hooks[pc]
+      if cb then
+        -- A reader callback that errors must not kill the emulator session.
+        local ok, err = pcall(cb)
+        if not ok then log("exec hook at " .. tostring(pc) .. " errored: " .. tostring(err)) end
+      end
+    end
+  end
+
+  for addr, h in pairs(write_hooks) do
+    -- ⛔ SKIP REAL WATCHPOINTS. If the hook was installed as a genuine mGBA watchpoint it fires
+    -- on its own; polling it here as well would invoke the reader's callback TWICE per write.
+    if not h.real then
+      local ok, now = pcall(function() return callReal("read32", addr) end)
+      if ok and now ~= h.last then
+        h.last = now
+        local okc, err = pcall(h.cb)
+        if not okc then log("write hook at " .. tostring(addr) .. " errored: " .. tostring(err)) end
+      end
+    end
+  end
+end
+
+----------------------------------------------------------------------
+-- input
+--
+-- BizHawk's input.read() returns the current pad state. mGBA exposes key queries via
+-- emu:getKey / emu:getKeys. One call site uses this, so a minimal shape is enough —
+-- but it must return SOMETHING the reader can index rather than nil.
+----------------------------------------------------------------------
+
+-- ⛔ `input` IS ALSO mGBA-OWNED USERDATA (0.11 added a top-level InputContext).
+--
+-- `input.read = function() ... end` fails with the SAME "Invalid key" error as `emu` did, at
+-- a completely unrelated line, which reads like a second bug in a second place. It is not:
+-- it is the same mistake. mGBA 0.11 occupies:
+--
+--     emu (userdata)  input (userdata)  callbacks (userdata)  console (userdata)
+--     util  storage  image  canvas  system   (all userdata)
+--
+-- `memory` is genuinely free, so the shim may create it. `emu` and `input` are NOT, and
+-- neither may be reassigned — see the emu section above for what that costs.
+--
+-- The raw InputContext is kept for reading real key state; the readers get a BizHawk-shaped
+-- table in its place.
+local REAL_INPUT = input
+
+-- ⛔ DO NOT DO `input = {}`. `input` is mGBA-OWNED USERDATA in 0.11, so reassigning the global
+-- is the same class of mistake as reassigning `emu`. Build a separate table instead; the
+-- bootstrap gives it to the reader through the same chunk environment.
+local BIZ_INPUT = {}
+
+-- ⛔ READERS ARE HOTKEY-DRIVEN, NOT CONTINUOUS. Verified from pokemon.lua:465:
+--
+--     function handle_user_actions()
+--       local kbd = input.read()          -- a TABLE of key -> boolean
+--       ... collects the keys that are true, sorts them, and looks the set up in `commands`
+--       if #pressed_keys == 0 or compare(pressed_keys, old_pressed_keys) then return end
+--
+-- So the reader speaks ONLY when a key transitions from up to down. Silence after `Ready`
+-- is correct behaviour, not a broken reader — and it is why a long run with no input
+-- produces exactly one utterance.
+--
+-- mGBA's own keyboard state is a userdata InputContext; rather than depend on being able to
+-- synthesise OS key events, the shim keeps a small synthetic key table that a harness (or a
+-- future OGA input bridge) can drive. `oga_press("m")` holds a key for N frames.
+BIZ_INPUT.read = function()
+  local out = {}
+  for k, v in pairs(synthetic_keys) do out[k] = v end
+  -- ⛔⛔ DO NOT ADD EXTRA FIELDS TO THIS TABLE. ⛔⛔
+  --
+  -- The reader collects keys by iterating EVERY truthy entry:
+  --
+  --     for k, v in pairs(kbd) do
+  --       if v and k ~= "capslock" and k ~= "numlock" and k ~= "scrolllock" then
+  --         table.insert(pressed_keys, k)
+  --       end
+  --     end
+  --
+  -- So an extra `mask = 0` field becomes a PHANTOM KEY called "mask". The key set then reads
+  -- {"Y", "mask"}, which can never equal commands[{"Y"}], and EVERY hotkey silently does
+  -- nothing — no error, no output, just a reader that says `Ready` and then never speaks
+  -- again. Adding a helpful-looking extra field here disables the entire command system.
+  --
+  -- (The pad bitmask is still available via BIZ_EMU.getKeys() for anything that needs it.)
+  return out
+end
+
+-- Harness/input-bridge hook. `keys` is a list of key names ({"m"}, {"t"}, ...).
+-- An EMPTY list releases everything, which is what makes the reader see a fresh edge.
+function oga_set_keys(keys)
+  synthetic_keys = {}
+  for _, k in ipairs(keys or {}) do synthetic_keys[k] = true end
+end
+
+_G.oga_biz_input = BIZ_INPUT
+
+----------------------------------------------------------------------
+-- speech output
+--
+-- The readers ultimately produce text. How that reaches a screen reader is a HOST
+-- concern: on Windows the shim writes it to the mGBA console, and the Open Game Access
+-- layer (Phase C) is what turns it into speech. Keeping it here means the readers emit
+-- text without knowing anything about accessibility plumbing.
+----------------------------------------------------------------------
+
+local speech_sink = function(text, interrupt)
+  log(text)
+end
+
+function oga_set_speech_sink(fn)
+  speech_sink = fn
+end
+
+function oga_say(text, interrupt)
+  speech_sink(text, interrupt ~= false)
+end
+
+-- ⛔ `emu` HERE IS mGBA'S USERDATA, so this must be a COLON call. The shim no longer
+-- reassigns `emu` (see the emu section): the BizHawk-shaped table lives in `BIZ_EMU` and is
+-- handed to the reader through its chunk environment. Using dot-syntax on the userdata raises
+-- "Error calling function (invoking failed)", which is exactly how this line first failed.
+log("shim installed; host platform = " .. tostring(REAL:platform()))

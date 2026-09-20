@@ -23,6 +23,7 @@ fi
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${MELONDS_SRC:-$HOME/src/melonds-lua}"
 LUA_SRC="${LUA_SRC:-$HOME/src/lua-5.4.7}"
+MGBA_SRC="${MGBA_SRC:-$HOME/src/mgba}"
 OUT="$ROOT/Vendor"
 OBJ="$OUT/obj"
 SDK="$HOME/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
@@ -34,8 +35,27 @@ CC="${CC:-/usr/local/swift/bin/clang}"
 [ -d "$SDK" ] || { echo "!! no iPhoneOS SDK at $SDK" >&2; exit 1; }
 [ -d "$SRC/src" ] || { echo "!! no melonDS source at $SRC" >&2; exit 1; }
 [ -d "$LUA_SRC/src" ] || { echo "!! no Lua source at $LUA_SRC" >&2; exit 1; }
+[ -d "$MGBA_SRC/src" ] || { echo "!! no mGBA source at $MGBA_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 
 mkdir -p "$OBJ" "$OUT"
+
+# ---- mGBA generated flags.h ----
+#
+# CMake normally generates this from src/core/flags.h.in. The iOS build does
+# not run CMake (it cannot run Apple's toolchain checks from here), so the
+# template's #cmakedefine lines are neutralised and every enabled feature
+# comes from the audited -D flags in MGBA_DEFS (scripts/core-sources.sh).
+# The two MUST agree: a symbol #defined here AND -D on the command line is
+# harmless, but a symbol the code expects from flags.h that is in neither
+# place silently takes the #else path.
+MGBA_GEN="$OBJ/mgba-gen"
+mkdir -p "$MGBA_GEN/mgba"
+if [ ! -f "$MGBA_GEN/mgba/flags.h" ] || [ "$MGBA_SRC/src/core/flags.h.in" -nt "$MGBA_GEN/mgba/flags.h" ]; then
+  sed -e 's/#cmakedefine01 \([A-Za-z_0-9]*\).*/#ifndef \1\n#endif/' \
+      -e 's/#cmakedefine \([A-Za-z_0-9]*\).*/#ifndef \1\n#endif/' \
+      "$MGBA_SRC/src/core/flags.h.in" > "$MGBA_GEN/mgba/flags.h"
+fi
+MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
 # -fwrapv matters: melonDS's ARM interpreter relies on wrapping arithmetic.
 # No JIT_ENABLED: see scripts/README.md — the ARM64 JIT needs MAP_JIT and
@@ -68,9 +88,10 @@ compile() { # compile <lang> <src> <tag>
   case "$lang" in
     cc)  flags="$CFLAGS" ;;
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS" ;;
+    mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC" ;;
   esac
   local cc="$CXX"
-  if [ "$lang" = "cc" ] || [ "$lang" = "lua" ]; then cc="$CC"; fi
+  if [ "$lang" = "cc" ] || [ "$lang" = "lua" ] || [ "$lang" = "mgba" ]; then cc="$CC"; fi
   if ! "$cc" $flags -c "$src" -o "$out" 2> "$OBJ/$tag.err"; then
     echo "FAIL $tag"; tail -30 "$OBJ/$tag.err"; touch "$OBJ/.failed"
   fi
@@ -83,6 +104,7 @@ compile() { # compile <lang> <src> <tag>
   for f in "$LUA_SRC"/src/*.c; do b="$(basename "$f" .c)"
     [ "$b" = "lua" ] || [ "$b" = "luac" ] || printf '%s|lua|%s\n' "$f" "lua_$b"
   done
+  for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $GLUE; do printf '%s|cxx|%s\n' "$f" "$(basename "$f" .cpp)"; done
 } > "$OBJ/list.txt"
 

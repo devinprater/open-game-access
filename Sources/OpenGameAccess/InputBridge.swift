@@ -79,6 +79,10 @@ enum ROMStore {
         // .nds has no system type; declare it locally so the picker can filter.
         var types: [UTType] = []
         if let nds = UTType(filenameExtension: "nds") { types.append(nds) }
+        // Game Boy ROMs run in the mGBA core (see Core/gba_core.cpp).
+        if let gba = UTType(filenameExtension: "gba") { types.append(gba) }
+        if let gbc = UTType(filenameExtension: "gbc") { types.append(gbc) }
+        if let gb = UTType(filenameExtension: "gb") { types.append(gb) }
         types.append(.data)
         return types
     }
@@ -124,7 +128,7 @@ enum ROMStore {
             options: [.skipsHiddenFiles]
         )) ?? []
         return contents
-            .filter { $0.pathExtension.lowercased() == "nds" }
+            .filter { ["nds", "gba", "gbc", "gb"].contains($0.pathExtension.lowercased()) }
             .sorted { a, b in
                 let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
                 let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
@@ -141,5 +145,16 @@ enum BundleResources {
             ?? Bundle.module.url(forResource: name, withExtension: ext)
         guard let url, let data = try? Data(contentsOf: url) else { return nil }
         return String(data: data, encoding: .utf8)
+    }
+
+    /// Filesystem path of the bundled Pokémon Access reader set (gba-lua/),
+    /// handed to poke_set_script_dir for Game Boy ROMs. Nil when the resource
+    /// is missing — the core then fails loudly at start, it does not boot a
+    /// game with no reader.
+    static var gbaScriptDir: String? {
+        let base = Bundle.module.resourceURL ?? Bundle.main.resourceURL
+        let url = base?.appendingPathComponent("Resources/gba-lua", isDirectory: true)
+        guard let url, FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url.path
     }
 }

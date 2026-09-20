@@ -185,6 +185,13 @@ final class GameSession: ObservableObject {
 
         let save = ROMStore.savePath(for: local)
         if poke_load_rom(core, local.path, save.path) {
+            // Game Boy ROMs do not use the concatenated NDS script installed in
+            // init (the GBA core ignores it): their reader set loads itself
+            // from this directory. Set before Start Game, which boots it.
+            if ["gba", "gbc", "gb"].contains(local.pathExtension.lowercased()),
+               let dir = BundleResources.gbaScriptDir {
+                dir.withCString { poke_set_script_dir(core, $0) }
+            }
             romName = name
             status = .ready(name: name)
             speech?.announce("\(name) loaded. Choose Start Game to begin.")

@@ -22,8 +22,20 @@
 #include "adapter.h"
 #include "Savestate.h"
 #include "Platform.h"
+#include "gba_core.h"
+
+// The GBA adapter's symbols (defined in gba_adapter.cpp). A GBA ROM selects
+// its native reader the same way an NDS ROM is matched from the registry —
+// except the registry cannot match it (its game_code is empty by design: it
+// matches by the code the host hands over at load, plus GB/GBC by platform),
+// so the GBA load path below names it directly.
+namespace oga {
+extern const Adapter kGameBoyAdvance;
+void gba_set_game_code(const char* code);
+}
 
 #include <algorithm>
+#include <cctype>
 #include <cstdarg>
 #include <cstdio>
 #include <cstring>
@@ -47,6 +59,15 @@ struct PokeCore {
     std::unique_ptr<NDS> nds;
     char error[512] = {0};
     std::string savePath;
+
+    // ---- Game Boy backend ----
+    //
+    // A GBA ROM does not go through melonDS at all: it runs in the mGBA core
+    // (Core/gba_core.cpp) with the unmodified Pokémon Access Lua reader set.
+    // isGba is decided once at load from the file extension and never changes
+    // after; every poke_* entry point below branches on it first.
+    GbaCore* gba = nullptr;
+    bool isGba = false;
 
     // ---- script engine ----
     lua_State* L = nullptr;
@@ -636,6 +657,7 @@ void poke_destroy(PokeCore* core)
         core->adapter->detach();
     if (core->nds) core->nds->Stop();
     if (core->L) lua_close(core->L);
+    if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
     if (gCurrentCore == core) gCurrentCore = nullptr;
     delete core;
 }
@@ -668,7 +690,17 @@ const char* poke_last_error(PokeCore* core) { return core ? core->error : "no co
 static bool AdapterReadScalar(PokeCore* core, uint32_t addr, int width, uint32_t* out)
 {
     *out = 0;
-    if (!core || !core->nds) return false;
+    if (!core) return false;
+    if (core->isGba)
+    {
+        // GBA addresses go straight to the mGBA bus: the same read path the
+        // Lua reader's memory.* bindings use, so an adapter and the script
+        // cannot disagree about what an address contains.
+        if (!core->gba || (width != 1 && width != 2 && width != 4)) return false;
+        *out = gba_debug_read(core->gba, addr, width);
+        return true;
+    }
+    if (!core->nds) return false;
     uint8_t bytes[4] = {0};
     int n = 0;
     const auto& domains = DomainsFor(core);
@@ -865,6 +897,17 @@ void poke_set_script(PokeCore* core, const char* script)
     core->script = script;
 }
 
+// The directory holding the Pokémon Access Lua reader set (oga_bootstrap.lua
+// + the reader tree), for Game Boy ROMs. NDS ROMs use poke_set_script with a
+// concatenated source string instead; the GBA reader loads its ~177 files
+// itself with loadfile, so it needs a directory, not a string.
+void poke_set_script_dir(PokeCore* core, const char* dir)
+{
+    if (!core || !dir) return;
+    if (!core->isGba || !core->gba) return;
+    gba_set_script_dir(core->gba, dir);
+}
+
 // --------------------------------------------------------------------- loading
 
 // Read a whole file into a vector. Returns false if it cannot be read or is
@@ -896,10 +939,94 @@ void poke_set_firmware(PokeCore* core, const char* bios9, const char* bios7, con
     core->firmwarePath = firmware ? firmware : "";
 }
 
+// ------------------------------------------------------------------ Game Boy
+//
+// A .gba/.gbc/.gb ROM never touches melonDS: it loads into the mGBA core with
+// the unmodified Pokémon Access Lua reader set. The native GBA adapter is
+// SELECTED here but, like every NDS adapter, ATTACHED lazily by
+// poke_adapter_ready — attaching only wires callbacks, and ready() still
+// guards against uninitialised game state.
+
+// The speech/log sinks the mGBA core calls, forwarded to the app's callbacks.
+static void GbaSayForward(const char* utf8, bool interrupt, void* ctx)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (core && core->speechCb && utf8) core->speechCb(utf8, interrupt, core->speechUserdata);
+}
+static void GbaLogForward(const char* utf8, void* ctx)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (core && core->logCb && utf8) core->logCb(utf8, core->logUserdata);
+}
+
+static bool HasGbaExtension(const char* path)
+{
+    if (!path) return false;
+    size_t n = strlen(path);
+    if (n < 4) return false;
+    const char* ext = path + n - 4;
+    char lower[5] = {0};
+    for (int i = 0; i < 4; i++) lower[i] = (char) tolower((unsigned char) ext[i]);
+    return strcmp(lower, ".gba") == 0 || strcmp(lower, ".gbc") == 0 || strcmp(lower, ".gb") == 0;
+}
+
+static bool LoadGbaRom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    // A GBA game loaded after an NDS one (same session, new ROM): stop the DS
+    // and drop its adapter first, mirroring the teardown the NDS path does.
+    if (core->adapter && core->adapterAttached && core->adapter->detach)
+        core->adapter->detach();
+    if (core->nds) { core->nds->Stop(); core->nds.reset(); }
+    if (core->L) { lua_close(core->L); core->L = nullptr; core->coroutine = nullptr; core->scriptLoaded = false; }
+    if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
+    core->adapter = nullptr;
+    core->adapterAttached = false;
+
+    core->gba = gba_create();
+    if (!core->gba) { SetError(core, "Could not create the Game Boy core."); return false; }
+    char code[16] = {0};
+    int plat = -1;
+    if (!gba_load_rom(core->gba, rom_path, save_path ? save_path : "", code, &plat))
+    {
+        SetError(core, "%s", gba_last_error(core->gba));
+        gba_destroy(core->gba);
+        core->gba = nullptr;
+        return false;
+    }
+    core->isGba = true;
+    strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
+    // The adapter matches by the code the host hands over (its registry entry
+    // is empty by design); GB/GBC titles additionally match by platform.
+    // Selected here, attached later by poke_adapter_ready like every adapter.
+    oga::gba_set_game_code(code);
+    gba_set_speech_callback(core->gba, GbaSayForward, core);
+    gba_set_log_callback(core->gba, GbaLogForward, core);
+    core->adapter = &oga::kGameBoyAdvance;
+    return true;
+}
+
 bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
 {
     if (!core || !rom_path) { SetError(core, "No ROM path given."); return false; }
     core->error[0] = 0;
+
+    // Game Boy ROMs go to the mGBA core, never to melonDS. The extension
+    // decides: a GBA header inside an .nds-named file (or vice versa) is a
+    // misnamed file, and failing loudly beats emulating the wrong console.
+    if (HasGbaExtension(rom_path)) return LoadGbaRom(core, rom_path, save_path);
+
+    // A new NDS ROM on a core that previously ran a GBA game: tear the Game
+    // Boy backend down first, or every branch below would keep serving it.
+    if (core->gba)
+    {
+        if (core->adapter && core->adapterAttached && core->adapter->detach)
+            core->adapter->detach();
+        gba_destroy(core->gba);
+        core->gba = nullptr;
+    }
+    core->isGba = false;
+    core->adapter = nullptr;
+    core->adapterAttached = false;
 
     FILE* f = fopen(rom_path, "rb");
     if (!f) { SetError(core, "Could not open the game file."); return false; }
@@ -1139,7 +1266,17 @@ static bool StartScript(PokeCore* core)
 
 bool poke_start(PokeCore* core)
 {
-    if (!core || !core->nds) { SetError(core, "Load a game first."); return false; }
+    if (!core) { return false; }
+    if (core->isGba)
+    {
+        if (!core->gba) { SetError(core, "Load a game first."); return false; }
+        // The reader boots inside gba_start (it prints Ready when it finds
+        // the game); there is no concatenated script to install first.
+        if (!gba_start(core->gba)) { SetError(core, "%s", gba_last_error(core->gba)); return false; }
+        core->running = true;
+        return true;
+    }
+    if (!core->nds) { SetError(core, "Load a game first."); return false; }
     core->nds->Start();
     if (!StartScript(core)) return false;
     core->running = true;
@@ -1150,6 +1287,7 @@ void poke_stop(PokeCore* core)
 {
     if (!core) return;
     core->running = false;
+    if (core->isGba) { if (core->gba) gba_stop(core->gba); return; }
     if (core->nds) core->nds->Stop();
 }
 
@@ -1218,7 +1356,21 @@ static void ApplyInput(PokeCore* core)
 
 bool poke_frame(PokeCore* core)
 {
-    if (!core || !core->nds || !core->running) return false;
+    if (!core || !core->running) return false;
+    if (core->isGba)
+    {
+        if (!core->gba) return false;
+        if (!gba_frame(core->gba)) return false;
+        core->frameCounter++;
+        // Drive the native adapter's per-frame hook. For GBA this is what
+        // notices the game reaching a readable state (ready) and tracks the
+        // player; the FE and DBZ hooks are documented no-ops, so driving it
+        // unconditionally changes nothing for NDS.
+        if (core->adapterAttached && core->adapter && core->adapter->on_frame)
+            core->adapter->on_frame();
+        return true;
+    }
+    if (!core->nds) return false;
 
     ApplyInput(core);
     core->nds->RunFrame();
@@ -1244,6 +1396,13 @@ bool poke_frame(PokeCore* core)
     if (core->frameCounter % 60 == 0 && !core->savePath.empty())
         FlushSave(core);
 
+    // The adapter contract (adapter.h) gives every adapter a per-frame hook;
+    // until now nothing called it, so the GBA adapter could never become
+    // ready. The FE and DBZ hooks are documented no-ops, so this changes
+    // nothing for NDS games and fixes GBA readiness.
+    if (core->adapterAttached && core->adapter && core->adapter->on_frame)
+        core->adapter->on_frame();
+
     return true;
 }
 
@@ -1251,6 +1410,22 @@ bool poke_frame(PokeCore* core)
 
 bool poke_framebuffer(PokeCore* core, int screen, int* width, int* height)
 {
+    // The Game Boy screen is one 240x160 panel; the screen argument (top /
+    // bottom) is an NDS concept and is ignored.
+    if (core && core->isGba)
+    {
+        if (!core->gba) return false;
+        if (!gba_framebuffer(core->gba, width, height)) return false;
+        // The app reads pixels through poke_framebuffer_ptr, which serves the
+        // NDS staging buffer — mirror the GBA pixels into it (both RGBA8888).
+        const uint8_t* src = gba_framebuffer_ptr(core->gba);
+        if (!src) return false;
+        size_t n = (size_t)(*width) * (size_t)(*height) * 4;
+        if (core->frameRGBA.size() != n) core->frameRGBA.resize(n);
+        memcpy(core->frameRGBA.data(), src, n);
+        core->frameScreen = screen;
+        return true;
+    }
     if (width) *width = 256;
     if (height) *height = 192;
     if (!core || !core->nds) return false;
@@ -1288,7 +1463,17 @@ const uint8_t* poke_framebuffer_ptr(PokeCore* core, int screen)
 
 void poke_set_button(PokeCore* core, int ds_button, bool down)
 {
-    if (!core || ds_button < 0 || ds_button >= POKE_BTN_COUNT) return;
+    if (!core || ds_button < 0) return;
+    if (core->isGba)
+    {
+        // GBA buttons are indices 0-9 in the same order (A/B/Select/Start/
+        // dpad/R/L); X/Y (10/11) have no GBA equivalent and are ignored.
+        // The mGBA core applies them on the next frame (setKeys each frame).
+        if (ds_button >= 10 || !core->gba) return;
+        gba_set_button(core->gba, ds_button, down);
+        return;
+    }
+    if (ds_button >= POKE_BTN_COUNT) return;
     if (down) core->buttonsDown |= (1u << ds_button);
     else core->buttonsDown &= ~(1u << ds_button);
 }
@@ -1296,6 +1481,7 @@ void poke_set_button(PokeCore* core, int ds_button, bool down)
 void poke_touch(PokeCore* core, int x, int y, bool down)
 {
     if (!core) return;
+    if (core->isGba) return;   // no touch screen on a Game Boy
     core->touchX = (uint16_t) x;
     core->touchY = (uint16_t) y;
     core->touchDown = down;
@@ -1304,6 +1490,13 @@ void poke_touch(PokeCore* core, int x, int y, bool down)
 void poke_set_hotkey(PokeCore* core, const char* key, bool down)
 {
     if (!core || !key || !*key) return;
+    if (core->isGba)
+    {
+        // Hotkeys go straight to the reader (its command layer); there is no
+        // NDS hotkey table to maintain.
+        if (core->gba) gba_set_hotkey(core->gba, key, down);
+        return;
+    }
     char k = key[0];
     auto it = std::find(core->hotkeysDown.begin(), core->hotkeysDown.end(), k);
     if (down && it == core->hotkeysDown.end()) core->hotkeysDown.push_back(k);
@@ -1314,7 +1507,9 @@ void poke_set_hotkey(PokeCore* core, const char* key, bool down)
 
 int poke_read_audio(PokeCore* core, int16_t* out, int max_frames)
 {
-    if (!core || !core->nds || !core->audioEnabled || !out || max_frames <= 0) return 0;
+    if (!core || !out || max_frames <= 0) return 0;
+    if (core->isGba) return 0;   // no GBA audio path yet (reader cues are text)
+    if (!core->nds || !core->audioEnabled) return 0;
     return core->nds->SPU.ReadOutput(out, max_frames);
 }
 
@@ -1327,7 +1522,14 @@ void poke_set_audio_enabled(PokeCore* core, bool enabled)
 
 bool poke_save_state(PokeCore* core, const char* path)
 {
-    if (!core || !core->nds || !path) return false;
+    if (!core || !path) return false;
+    if (core->isGba)
+    {
+        if (!core->gba) return false;
+        if (!gba_save_state(core->gba, path)) { SetError(core, "Could not save the game state."); return false; }
+        return true;
+    }
+    if (!core->nds) return false;
     Savestate state;
     core->nds->DoSavestate(&state);
     if (state.Error) { SetError(core, "Could not save the game state."); return false; }
@@ -1341,7 +1543,14 @@ bool poke_save_state(PokeCore* core, const char* path)
 
 bool poke_load_state(PokeCore* core, const char* path)
 {
-    if (!core || !core->nds || !path) return false;
+    if (!core || !path) return false;
+    if (core->isGba)
+    {
+        if (!core->gba) return false;
+        if (!gba_load_state(core->gba, path)) { SetError(core, "The saved state could not be loaded."); return false; }
+        return true;
+    }
+    if (!core->nds) return false;
     FILE* f = fopen(path, "rb");
     if (!f) { SetError(core, "No saved state found."); return false; }
     fseek(f, 0, SEEK_END);

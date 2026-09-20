@@ -61,6 +61,10 @@ void poke_set_firmware(PokeCore *core, const char *bios9_path,
 /* True when a real, bootable firmware image was installed. */
 bool poke_has_firmware(PokeCore *core);
 void poke_set_script(PokeCore *core, const char *script);
+/* Directory holding the Game Boy Lua reader set (oga_bootstrap.lua + tree).
+ * Game Boy ROMs only: call after poke_load_rom, before poke_start. NDS ROMs
+ * use poke_set_script instead. */
+void poke_set_script_dir(PokeCore *core, const char *dir);
 bool poke_start(PokeCore *core);
 void poke_stop(PokeCore *core);
 bool poke_running(PokeCore *core);

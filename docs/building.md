@@ -18,7 +18,7 @@ own copy of the game you want to play**.
 ## 1. Get the dependencies
 
 ```bash
-./scripts/bootstrap-deps.sh        # fetches melonDS-lua + Lua 5.4 into ~/src
+./scripts/bootstrap-deps.sh        # fetches melonDS-lua + mGBA + Lua 5.4 into ~/src
 ```
 
 The emulator core is **not vendored** in this repository — it is a separate
