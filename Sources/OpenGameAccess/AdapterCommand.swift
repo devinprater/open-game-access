@@ -109,6 +109,13 @@ enum AdapterCommand: Int32, CaseIterable {
             // parallel set of controls would be confusing rather than helpful.
             return []
 
+        case "dissidia":
+            // Dissidia Final Fantasy: board directions, map markers, battle
+            // foe/lock state, and dump are real. The prev/next fallbacks in the
+            // adapter just repeat position (aliases for whereAmI), so they stay
+            // hidden by the same rule as dbz-saiyans' alias.
+            return [.whereAmI, .nextAlly, .nextEnemy, .dumpState]
+
         default:
             return []
         }
