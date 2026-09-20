@@ -743,7 +743,19 @@ const char *poke_game_code(PokeCore *core)
 
 bool poke_adapter_ready(PokeCore *core)
 {
-    if (!core || !core->adapter || !core->adapterAttached) return false;
+    if (!core || !core->adapter) return false;
+    // Attach here as well as on first command. The UI offers the buttons only
+    // when ready() is true, so attaching solely inside poke_command deadlocks:
+    // no buttons, no command, no attach, ever — "reader loading" forever.
+    // Attaching only wires callbacks (and refuses when the console does not
+    // exist yet); ready() below still guards against uninitialised game state.
+    if (!core->adapterAttached)
+    {
+        BuildHost(core);
+        if (!core->adapter->attach || !core->adapter->attach(&core->host))
+            return false;
+        core->adapterAttached = true;
+    }
     return core->adapter->ready ? core->adapter->ready() : true;
 }
 
