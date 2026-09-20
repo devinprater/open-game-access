@@ -62,7 +62,11 @@ const Adapter* find_by_game_code(const char* code)
     for (int i = 0; i < n; i++) {
         const Adapter* a = list[i];
         if (!a || !a->game_code || !*a->game_code) continue;
-        if (strncmp(code, a->game_code, 4) == 0) return a;
+        // FULL-string compare, not a 4-char prefix: NDS codes are exactly 4
+        // chars so this is identical for them, but PSP IDs share prefixes
+        // (every USA game starts ULUS) and a prefix match would hand every
+        // PSP game to whichever PSP adapter sorts first.
+        if (strcmp(code, a->game_code) == 0) return a;
     }
     return nullptr;
 }

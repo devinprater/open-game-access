@@ -23,6 +23,7 @@
 #include "Savestate.h"
 #include "Platform.h"
 #include "gba_core.h"
+#include "psp_core.h"
 
 // The GBA adapter's symbols (defined in gba_adapter.cpp). A GBA ROM selects
 // its native reader the same way an NDS ROM is matched from the registry —
@@ -69,6 +70,18 @@ struct PokeCore {
     GbaCore* gba = nullptr;
     bool isGba = false;
 
+    // ---- PlayStation Portable backend ----
+    //
+    // A PSP game (.iso/.cso/.pbp/.elf) runs in the PPSSPP core
+    // (Core/psp_core.cpp, IR interpreter + software GPU). Same contract as
+    // the Game Boy backend: isPsp is decided once at load from the file
+    // extension, and every poke_* entry point branches on it. Unlike GBA,
+    // the adapter comes from the REGISTRY by game ID (ULUS10437 -> Dissidia),
+    // exactly like an NDS game — a PSP game with no adapter is the normal
+    // no-reader case, not an error.
+    PspCore* psp = nullptr;
+    bool isPsp = false;
+
     // ---- script engine ----
     lua_State* L = nullptr;
     lua_State* coroutine = nullptr;
@@ -84,7 +97,9 @@ struct PokeCore {
     // and the Lua script is the only accessibility layer.
     const oga::Adapter* adapter = nullptr;
     bool adapterAttached = false;
-    char gameCode[8] = {0};
+    // ROM game ID: 4 chars for NDS (header 0x0C), up to 9+ for PSP (PARAM.SFO,
+    // e.g. ULUS10437). 16 covers both with room.
+    char gameCode[16] = {0};
     // The Host handed to the adapter. Stored in the core so its address stays
     // valid for as long as the adapter holds it.
     oga::Host host = {};
@@ -658,6 +673,7 @@ void poke_destroy(PokeCore* core)
     if (core->nds) core->nds->Stop();
     if (core->L) lua_close(core->L);
     if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
+    if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
     if (gCurrentCore == core) gCurrentCore = nullptr;
     delete core;
 }
@@ -698,6 +714,14 @@ static bool AdapterReadScalar(PokeCore* core, uint32_t addr, int width, uint32_t
         // cannot disagree about what an address contains.
         if (!core->gba || (width != 1 && width != 2 && width != 4)) return false;
         *out = gba_debug_read(core->gba, addr, width);
+        return true;
+    }
+    if (core->isPsp)
+    {
+        // PSP addresses (user RAM 0x08800000..0x0A000000 and friends) go to
+        // PPSSPP's memory map; validity is checked inside.
+        if (!core->psp || (width != 1 && width != 2 && width != 4)) return false;
+        *out = psp_debug_read(core->psp, addr, width);
         return true;
     }
     if (!core->nds) return false;
@@ -970,17 +994,47 @@ static bool HasGbaExtension(const char* path)
     return strcmp(lower, ".gba") == 0 || strcmp(lower, ".gbc") == 0 || strcmp(lower, ".gb") == 0;
 }
 
-static bool LoadGbaRom(PokeCore* core, const char* rom_path, const char* save_path)
+static bool HasPspExtension(const char* path)
 {
-    // A GBA game loaded after an NDS one (same session, new ROM): stop the DS
-    // and drop its adapter first, mirroring the teardown the NDS path does.
+    if (!path) return false;
+    size_t n = strlen(path);
+    if (n < 4) return false;
+    const char* ext4 = path + n - 4;
+    char lower4[5] = {0};
+    for (int i = 0; i < 4; i++) lower4[i] = (char) tolower((unsigned char) ext4[i]);
+    if (strcmp(lower4, ".iso") == 0 || strcmp(lower4, ".cso") == 0 ||
+        strcmp(lower4, ".pbp") == 0 || strcmp(lower4, ".elf") == 0 ||
+        strcmp(lower4, ".prx") == 0)
+        return true;
+    // .ppdmp (raw memory dumps, 6-char extension).
+    if (n >= 6 && path[n - 6] == '.')
+    {
+        char lower6[7] = {0};
+        for (int i = 0; i < 6; i++) lower6[i] = (char) tolower((unsigned char) path[n - 6 + i]);
+        if (strcmp(lower6, ".ppdmp") == 0) return true;
+    }
+    return false;
+}
+
+// Tear down whichever backend ran before, so a new ROM never inherits a live
+// core, a Lua state, or an attached adapter from the previous game.
+static void TeardownBackends(PokeCore* core)
+{
     if (core->adapter && core->adapterAttached && core->adapter->detach)
         core->adapter->detach();
     if (core->nds) { core->nds->Stop(); core->nds.reset(); }
     if (core->L) { lua_close(core->L); core->L = nullptr; core->coroutine = nullptr; core->scriptLoaded = false; }
     if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
+    if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
     core->adapter = nullptr;
     core->adapterAttached = false;
+    core->isGba = false;
+    core->isPsp = false;
+}
+
+static bool LoadGbaRom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    TeardownBackends(core);
 
     core->gba = gba_create();
     if (!core->gba) { SetError(core, "Could not create the Game Boy core."); return false; }
@@ -1005,6 +1059,29 @@ static bool LoadGbaRom(PokeCore* core, const char* rom_path, const char* save_pa
     return true;
 }
 
+static bool LoadPspRom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    TeardownBackends(core);
+
+    core->psp = psp_create();
+    if (!core->psp) { SetError(core, "Could not create the PSP core."); return false; }
+    char code[16] = {0};
+    if (!psp_load_rom(core->psp, rom_path, save_path ? save_path : "", code))
+    {
+        SetError(core, "%s", psp_last_error(core->psp));
+        psp_destroy(core->psp);
+        core->psp = nullptr;
+        return false;
+    }
+    core->isPsp = true;
+    strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
+    // The adapter comes from the registry by game ID (ULUS10437 -> Dissidia),
+    // exactly like an NDS game. A PSP game with no adapter is the normal
+    // no-reader case. Selected here, attached later by poke_adapter_ready.
+    core->adapter = oga::find_by_game_code(core->gameCode);
+    return true;
+}
+
 bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
 {
     if (!core || !rom_path) { SetError(core, "No ROM path given."); return false; }
@@ -1014,19 +1091,13 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
     // decides: a GBA header inside an .nds-named file (or vice versa) is a
     // misnamed file, and failing loudly beats emulating the wrong console.
     if (HasGbaExtension(rom_path)) return LoadGbaRom(core, rom_path, save_path);
+    if (HasPspExtension(rom_path)) return LoadPspRom(core, rom_path, save_path);
 
-    // A new NDS ROM on a core that previously ran a GBA game: tear the Game
-    // Boy backend down first, or every branch below would keep serving it.
-    if (core->gba)
-    {
-        if (core->adapter && core->adapterAttached && core->adapter->detach)
-            core->adapter->detach();
-        gba_destroy(core->gba);
-        core->gba = nullptr;
-    }
-    core->isGba = false;
-    core->adapter = nullptr;
-    core->adapterAttached = false;
+    // A new NDS ROM on a core that previously ran another backend: tear it
+    // down first, or every branch below would keep serving the old game.
+    // (TeardownBackends also clears the adapter selection, which the NDS
+    // adapter-select below re-does from the registry.)
+    TeardownBackends(core);
 
     FILE* f = fopen(rom_path, "rb");
     if (!f) { SetError(core, "Could not open the game file."); return false; }
@@ -1276,6 +1347,15 @@ bool poke_start(PokeCore* core)
         core->running = true;
         return true;
     }
+    if (core->isPsp)
+    {
+        if (!core->psp) { SetError(core, "Load a game first."); return false; }
+        // PSP boot (kernel + game) happens inside psp_start; the native
+        // adapter attaches later via poke_adapter_ready and gates on ready().
+        if (!psp_start(core->psp)) { SetError(core, "%s", psp_last_error(core->psp)); return false; }
+        core->running = true;
+        return true;
+    }
     if (!core->nds) { SetError(core, "Load a game first."); return false; }
     core->nds->Start();
     if (!StartScript(core)) return false;
@@ -1287,6 +1367,7 @@ void poke_stop(PokeCore* core)
 {
     if (!core) return;
     core->running = false;
+    if (core->isPsp && core->psp) { psp_stop(core->psp); return; }
     if (core->isGba) { if (core->gba) gba_stop(core->gba); return; }
     if (core->nds) core->nds->Stop();
 }
@@ -1370,6 +1451,17 @@ bool poke_frame(PokeCore* core)
             core->adapter->on_frame();
         return true;
     }
+    if (core->isPsp)
+    {
+        if (!core->psp) return false;
+        if (!psp_frame(core->psp)) return false;
+        core->frameCounter++;
+        // Same per-frame handshake; Dissidia's on_frame is a no-op (it polls
+        // on demand), but future PSP adapters may track state here.
+        if (core->adapterAttached && core->adapter && core->adapter->on_frame)
+            core->adapter->on_frame();
+        return true;
+    }
     if (!core->nds) return false;
 
     ApplyInput(core);
@@ -1410,15 +1502,26 @@ bool poke_frame(PokeCore* core)
 
 bool poke_framebuffer(PokeCore* core, int screen, int* width, int* height)
 {
-    // The Game Boy screen is one 240x160 panel; the screen argument (top /
-    // bottom) is an NDS concept and is ignored.
-    if (core && core->isGba)
+    // The app reads pixels through poke_framebuffer_ptr, which serves the
+    // NDS staging buffer — mirror the non-NDS pixels into it (all RGBA8888).
+    if (core && (core->isGba || core->isPsp))
     {
-        if (!core->gba) return false;
-        if (!gba_framebuffer(core->gba, width, height)) return false;
-        // The app reads pixels through poke_framebuffer_ptr, which serves the
-        // NDS staging buffer — mirror the GBA pixels into it (both RGBA8888).
-        const uint8_t* src = gba_framebuffer_ptr(core->gba);
+        const uint8_t* src = nullptr;
+        if (core->isGba)
+        {
+            // The Game Boy screen is one 240x160 panel; the screen argument
+            // (top / bottom) is an NDS concept and is ignored.
+            if (!core->gba) return false;
+            if (!gba_framebuffer(core->gba, width, height)) return false;
+            src = gba_framebuffer_ptr(core->gba);
+        }
+        else
+        {
+            // The PSP screen is one 480x272 panel; same NDS-argument note.
+            if (!core->psp) return false;
+            if (!psp_framebuffer(core->psp, width, height)) return false;
+            src = psp_framebuffer_ptr(core->psp);
+        }
         if (!src) return false;
         size_t n = (size_t)(*width) * (size_t)(*height) * 4;
         if (core->frameRGBA.size() != n) core->frameRGBA.resize(n);
@@ -1473,6 +1576,29 @@ void poke_set_button(PokeCore* core, int ds_button, bool down)
         gba_set_button(core->gba, ds_button, down);
         return;
     }
+    if (core->isPsp)
+    {
+        // The PSP has no touch screen and four face buttons where the DS has
+        // four: A->Cross (confirm), B->Circle (cancel), X->Triangle, Y->Square.
+        // Shoulders map straight across; Select/Start and the dpad are shared.
+        static const int kDsToPsp[POKE_BTN_COUNT] = {
+            PSP_BTN_CROSS,    // A
+            PSP_BTN_CIRCLE,   // B
+            PSP_BTN_SELECT,   // Select
+            PSP_BTN_START,    // Start
+            PSP_BTN_RIGHT,    // Right
+            PSP_BTN_LEFT,     // Left
+            PSP_BTN_UP,       // Up
+            PSP_BTN_DOWN,     // Down
+            PSP_BTN_R,        // R
+            PSP_BTN_L,        // L
+            PSP_BTN_TRIANGLE, // X
+            PSP_BTN_SQUARE,   // Y
+        };
+        if (ds_button >= POKE_BTN_COUNT || !core->psp) return;
+        psp_set_button(core->psp, kDsToPsp[ds_button], down);
+        return;
+    }
     if (ds_button >= POKE_BTN_COUNT) return;
     if (down) core->buttonsDown |= (1u << ds_button);
     else core->buttonsDown &= ~(1u << ds_button);
@@ -1482,6 +1608,7 @@ void poke_touch(PokeCore* core, int x, int y, bool down)
 {
     if (!core) return;
     if (core->isGba) return;   // no touch screen on a Game Boy
+    if (core->isPsp) return;   // no touch screen on a PSP either
     core->touchX = (uint16_t) x;
     core->touchY = (uint16_t) y;
     core->touchDown = down;
@@ -1497,6 +1624,7 @@ void poke_set_hotkey(PokeCore* core, const char* key, bool down)
         if (core->gba) gba_set_hotkey(core->gba, key, down);
         return;
     }
+    if (core->isPsp) return;   // no hotkey layer on PSP (native adapters only)
     char k = key[0];
     auto it = std::find(core->hotkeysDown.begin(), core->hotkeysDown.end(), k);
     if (down && it == core->hotkeysDown.end()) core->hotkeysDown.push_back(k);
@@ -1509,6 +1637,7 @@ int poke_read_audio(PokeCore* core, int16_t* out, int max_frames)
 {
     if (!core || !out || max_frames <= 0) return 0;
     if (core->isGba) return 0;   // no GBA audio path yet (reader cues are text)
+    if (core->isPsp) return 0;   // no PSP audio path yet (adapter text first)
     if (!core->nds || !core->audioEnabled) return 0;
     return core->nds->SPU.ReadOutput(out, max_frames);
 }
@@ -1527,6 +1656,12 @@ bool poke_save_state(PokeCore* core, const char* path)
     {
         if (!core->gba) return false;
         if (!gba_save_state(core->gba, path)) { SetError(core, "Could not save the game state."); return false; }
+        return true;
+    }
+    if (core->isPsp)
+    {
+        if (!core->psp) return false;
+        if (!psp_save_state(core->psp, path)) { SetError(core, "Could not save the game state."); return false; }
         return true;
     }
     if (!core->nds) return false;
@@ -1548,6 +1683,12 @@ bool poke_load_state(PokeCore* core, const char* path)
     {
         if (!core->gba) return false;
         if (!gba_load_state(core->gba, path)) { SetError(core, "The saved state could not be loaded."); return false; }
+        return true;
+    }
+    if (core->isPsp)
+    {
+        if (!core->psp) return false;
+        if (!psp_load_state(core->psp, path)) { SetError(core, "The saved state could not be loaded."); return false; }
         return true;
     }
     if (!core->nds) return false;
