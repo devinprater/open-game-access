@@ -21,7 +21,10 @@
 #include <vector>
 
 #include "Common/Common.h"
+#include "Common/CPUDetect.h"
 #include "Common/GPU/GraphicsContext.h"
+#include "Common/Log/LogManager.h"
+#include "Common/Thread/ThreadManager.h"
 #include "Common/File/FileUtil.h"
 #include "Common/File/Path.h"
 #include "Common/File/VFS/VFS.h"
@@ -47,6 +50,14 @@
 #include "GPU/Software/SoftGpu.h"
 #include "Core/Screenshot.h"
 
+// The software GPU never touches GL, but a few shared CPU-side helpers
+// (vertex decoding) read the global GL-capability struct. There is no GL
+// here, so it stays zero-initialized: no extensions, no version.
+#include "Common/GPU/OpenGL/GLFeatures.h"
+GLExtensions gl_extensions{};
+std::string g_all_gl_extensions;
+std::string g_all_egl_extensions;
+
 struct PspCore {
     bool created = false;
     bool booted = false;
@@ -59,6 +70,7 @@ struct PspCore {
     uint32_t buttonsDown = 0;   // PSP_CTRL_* bits currently held
     uint64_t frames = 0;
     std::vector<uint8_t> rgba;  // 480x272x4 staging, served to the app
+    void *gfxCtx = nullptr;     // owned NullGraphicsContext (lives till stop)
     PspSpeechCallback sayCb = nullptr;
     void *sayUser = nullptr;
     PspLogCallback logCb = nullptr;
@@ -90,6 +102,8 @@ void System_Notify(SystemNotification) {}
 void System_PostUIMessage(UIMessage, std::string_view) {}
 void System_RunCallbackInWndProc(void (*)()) {}
 bool System_MakeRequest(SystemRequestType, RequesterToken, std::string_view, std::string_view, std::string_view, int64_t, bool) { return false; }
+bool System_MakeRequest(SystemRequestType, int, const std::string &, const std::string &, int64_t, int64_t) { return false; }
+std::vector<std::string> System_GetCameraDeviceList() { return {}; }
 int64_t System_GetPropertyInt(SystemProperty prop)
 {
     // A 60Hz progressive display; the software GPU renders 480x272.
@@ -131,6 +145,7 @@ void psp_destroy(PspCore *core)
 {
     if (!core) return;
     if (core->booted) PSP_Shutdown(true);
+    delete (GraphicsContext *)core->gfxCtx;
     delete core;
 }
 
@@ -181,14 +196,35 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
     g_VFS.Clear();
     g_VFS.Register("", new DirectoryReader(Path(core->assetDir)));
 
-    // Config: stock defaults, sound off (no audio path yet — adapter text
-    // first), software rendering, memstick under the app's save dir.
+    // Config FIRST: Load() resets everything to defaults (including the
+    // logging toggle the log manager holds a pointer to), so logging init
+    // must come after or it gets silently switched back off.
     static bool configInit = false;
     if (!configInit)
     {
         g_Config.Load("");
         configInit = true;
     }
+
+    // PPSSPP's loader/kernel log to stderr (host proofs and Xcode console).
+    // Initialized once; the app never shows this to the player.
+    static bool logInit = false;
+    if (!logInit)
+    {
+        g_Config.bEnableLogging = true;
+        g_logManager.Init(&g_Config.bEnableLogging, false);
+        for (int i = 0; i < (int)Log::NUMBER_OF_LOGS; i++)
+        {
+            Log type = (Log)i;
+            g_logManager.SetEnabled(type, true);
+            g_logManager.SetLogLevel(type, LogLevel::LDEBUG);
+        }
+        g_logManager.EnableOutput(LogOutput::Printf);
+        logInit = true;
+    }
+
+    // Stock defaults, sound off (no audio path yet — adapter text
+    // first), software rendering, memstick under the app's save dir.
     g_Config.bEnableSound = false;
     g_Config.bSoftwareRendering = true;
     g_Config.memStickDirectory = Path(core->saveRoot) / "ppsspp-memstick";
@@ -196,10 +232,25 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
     CreateSysDirectories();
     g_Config.nandRootDirectory = GetSysDirectory(DIRECTORY_NAND);
 
+    // Worker threads for the software rasterizer's binning. Without Init the
+    // looper count is 0 and the rasterizer divides by it (SIGFPE on first
+    // overlapping draw) — exactly what upstream's headless runner inits.
+    // Once: the manager is a process-global singleton.
+    static bool threadsInit = false;
+    if (!threadsInit)
+    {
+        g_threadManager.Init(cpu_info.num_cores, cpu_info.logical_cpu_count);
+        threadsInit = true;
+    }
+
     CoreParameter param;
     param.cpuCore = CPUCore::IR_INTERPRETER;   // no JIT pages on iOS
     param.gpuCore = GPUCORE_SOFTWARE;          // no GL context
-    param.graphicsContext = new NullGraphicsContext();
+    // The core (soft GPU) may touch this until shutdown, so it lives on the
+    // core struct — deleting it after boot is a use-after-free.
+    delete (GraphicsContext *)core->gfxCtx;
+    core->gfxCtx = new NullGraphicsContext();
+    param.graphicsContext = (GraphicsContext *)core->gfxCtx;
     param.enableSound = false;
     param.fileToStart = Path(core->romPath);
     param.startBreak = false;
@@ -222,7 +273,6 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
     while (PSP_InitUpdate(&err) == BootState::Booting)
     {
     }
-    delete param.graphicsContext;
     if (!PSP_IsInited())
     {
         SetError(core, "%s", err.empty() ? "The game could not be booted." : err.c_str());
@@ -254,6 +304,9 @@ bool psp_start(PspCore *core)
         return false;
     }
     core->running = true;
+    // The frontend owns the run state: a fresh boot leaves it down, and only
+    // the first start lifts it (exactly like upstream's headless runner).
+    coreState = CORE_RUNNING_CPU;
     if (gpu) gpu->BeginHostFrame(g_Config.GetDisplayLayoutConfig(DeviceOrientation::Landscape));
     return true;
 }
@@ -305,7 +358,7 @@ bool psp_frame(PspCore *core)
 
     if (coreState == CORE_RUNTIME_ERROR || coreState == CORE_POWERDOWN)
     {
-        SetError(core, "The game stopped unexpectedly.");
+        SetError(core, "The game stopped unexpectedly (core state %d).", (int)coreState);
         core->running = false;
         return false;
     }
@@ -324,8 +377,9 @@ bool psp_framebuffer(PspCore *core, int *width, int *height)
     if (!core || !core->booted || !gpu) return false;
 
     GPUDebugBuffer buf;
-    if (!gpu->GetOutputFramebuffer(buf)) return false;
-    u32 w = 0, h = 0;
+    if (!gpu->GetOutputFramebuffer(buf)) { fprintf(stderr, "PSPDBG: GetOutputFramebuffer false\n"); return false; }
+    // w/h are in/out: preset from the buffer or the convert yields an empty shot.
+    u32 w = buf.GetStride(), h = buf.GetHeight();
     u8 *tmp = nullptr;
     const u8 *rgb = ConvertBufferToScreenshot(buf, false, tmp, w, h);
     if (!rgb || w == 0 || h == 0)
