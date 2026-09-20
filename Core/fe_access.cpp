@@ -59,6 +59,11 @@ static void (*g_log)(const char* utf8) = nullptr;
 extern "C" {
 void fe_set_say_sink(void (*say)(const char*, bool)) { g_say = say; }
 void fe_set_log_sink(void (*log)(const char*)) { g_log = log; }
+
+// MainRAM accessor for translation units that must not include NDS.h (see the
+// note in fe_adapter.cpp). Returns nullptr when there is no console yet.
+void* fe_main_ram(void* nds) { return nds ? ((melonDS::NDS*) nds)->MainRAM : nullptr; }
+void fe_bind_ram(void* ram) { gRam = (uint8_t*) ram; }
 }
 
 static void FeSay(const char* fmt, ...)
@@ -82,7 +87,7 @@ static void FeLog(const char* fmt, ...)
 }
 
 static bool InRam(uint32_t a, uint32_t n = 1)
-{ return a >= RAM_BASE && (uint64_t) a + n <= (uint64_t) RAM_BASE + RAM_SIZE; }
+{ return gRam && a >= RAM_BASE && (uint64_t) a + n <= (uint64_t) RAM_BASE + RAM_SIZE; }
 static uint8_t  R8 (uint32_t a){ return InRam(a)   ? gRam[a - RAM_BASE] : 0; }
 static uint16_t R16(uint32_t a){ return InRam(a,2) ? (uint16_t)(gRam[a-RAM_BASE] | (gRam[a-RAM_BASE+1]<<8)) : 0; }
 static uint32_t R32(uint32_t a){ return InRam(a,4) ? (uint32_t)(gRam[a-RAM_BASE] | (gRam[a-RAM_BASE+1]<<8)

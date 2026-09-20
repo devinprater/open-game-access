@@ -54,6 +54,8 @@ void fe_cmd_next_ally(int dir);
 void fe_cmd_next_enemy(int dir);
 void fe_cmd_dump(void);
 bool fe_ready(void);
+void* fe_main_ram(void* nds);
+void fe_bind_ram(void* ram);
 }
 
 // The core's host-only hook for reaching the live console. Declared rather than
@@ -87,6 +89,7 @@ bool Attach(const Host* host)
     melonDS::NDS* nds = poke_debug_nds(core);
     if (!nds) return false;
     g_nds = nds;
+    fe_bind_ram(fe_main_ram(nds));
 
     // Route the reader's output. Set on EVERY attach rather than once at startup:
     // the host pointer is per-core and a fresh core is built per ROM.
@@ -101,6 +104,7 @@ void Detach(void)
 {
     fe_set_say_sink(nullptr);
     fe_set_log_sink(nullptr);
+    fe_bind_ram(nullptr);
     g_nds = nullptr;
     g_host = nullptr;
 }
