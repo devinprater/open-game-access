@@ -662,16 +662,93 @@ static void MenuSpeakRow(void)
              kMainEntries[g_menuRow], g_menuRow + 1);
     Say(line);
 }
+static bool g_optLive = false;  // owned by the options block below
+static void OptSync(void);      // defined with the options menu below
 static void CmdMenuState(void)
 {
-    MenuSync();
+    MenuSync(); OptSync();
     const char* st = "MENU none";
     if (g_menuMain) st = "MENU main";
     else if (TitleIndex() >= 0) st = "MENU title";
     else if (BonusIndex() >= 0 || PlayIndex() >= 0) st = "MENU setup";
     else if (BattleFighters().ok) st = "MENU battle";
     else if (BoardDispatcher() != 0) st = "MENU board";
+    else if (g_optLive) st = "MENU options";
     if (g_host && g_host->log) g_host->log(g_host->ctx, st);
+}
+
+// ---- Options menu (from main row 8; host-RE s-options) ----
+// Third UI system: the setup struct is freed and no pause widget exists.
+// Its UI-state trio reads (6, 8, 4) iff the options list is open — main
+// settles at (1,-1), board and battle-pause at (0,0). No RAM cursor was
+// found (fca4 saturates at 6; 8d74 is attract junk), so the adapter tracks
+// the cursor from host input exactly like the main menu: entry = row 1,
+// 1:1 moves, wraps both ways, 23 rows. Values echo from verified literals
+// (all On/Off rows default On; Camera Normal; Control Analog; Info Beginner);
+// rows whose value sets are unverified speak name-only, never a guess.
+static const uint32_t OPT_FCA4 = 0x09B3FCA4u, OPT_FCAC = 0x09B3FCACu,
+                      OPT_VISN = 0x09B43468u;  // visible-count-1 while open
+static const char* kOnOff[] = { "On", "Off" };
+static const char* kNormInv[] = { "Normal", "Inverse" };
+static const char* kCtrl[] = { "Analog Stick", "Directional Buttons" };
+static const char* kBInfo[] = { "Beginner", "Normal", "Off" };
+struct OptRow { const char* name; const char* const* vals; int nvals; };
+static const OptRow kOptRows[23] = {
+    { "Battle Tutorials", nullptr, 0 },
+    { "Battle Mode", nullptr, 0 },
+    { "Character Control", kCtrl, 2 },
+    { "Camera: Vertical Control", kNormInv, 2 },
+    { "Camera: Horizontal Control", kNormInv, 2 },
+    { "Camera Auto-Follow", kOnOff, 2 },
+    { "Camera Sensitivity", nullptr, 0 },
+    { "Quickmove Indicator", kOnOff, 2 },
+    { "Lock-on Cursor Display", kOnOff, 2 },
+    { "Target Indicator", kOnOff, 2 },
+    { "Lock-on at Battle Start", kOnOff, 2 },
+    { "Battle Information", kBInfo, 3 },
+    { "Movie at Battle Start", nullptr, 0 },
+    { "Battle Voice Subtitles", kOnOff, 2 },
+    { "Subtitles", kOnOff, 2 },
+    { "Skip All Cutscenes", nullptr, 0 },
+    { "BGM Volume", kOnOff, 2 },
+    { "SFX Volume", kOnOff, 2 },
+    { "Voice Volume", kOnOff, 2 },
+    { "Play Plan Notification", kOnOff, 2 },
+    { "Data Install", nullptr, 0 },
+    { "Save Battle Replays", nullptr, 0 },
+    { "Data Management", nullptr, 0 },
+};
+static int g_optRow = 0;
+static int g_optVal[23] = { 0 };
+static bool OptionsLive(void)
+{
+    if (u32(OPT_FCA4) != 6 || u32(OPT_FCAC) != 8 || u32(OPT_VISN) != 4)
+        return false;
+    if (MainLive() || TitleIndex() >= 0 || BonusIndex() >= 0 || PlayIndex() >= 0)
+        return false;
+    if (BattleFighters().ok) return false;
+    return true;
+}
+static void OptSync(void)
+{
+    bool live = OptionsLive();
+    if (live && !g_optLive) {
+        g_optLive = true; g_optRow = 0;
+        for (int i = 0; i < 23; i++) g_optVal[i] = 0;
+    } else if (!live && g_optLive) {
+        g_optLive = false;
+    }
+}
+static void OptSpeakRow(void)
+{
+    const OptRow& r = kOptRows[g_optRow];
+    char line[128];
+    if (r.vals)
+        snprintf(line, sizeof(line), "%s: %s. Row %d of 23.",
+                 r.name, r.vals[g_optVal[g_optRow]], g_optRow + 1);
+    else
+        snprintf(line, sizeof(line), "%s. Row %d of 23.", r.name, g_optRow + 1);
+    Say(line);
 }
 
 static uint32_t FighterHP(const Fighter& f)
@@ -833,7 +910,25 @@ static void Command(Command cmd)
         }
     }
     if (cmd == Command::MenuState) { CmdMenuState(); return; }
-    if (cmd == Command::MenuNext || cmd == Command::MenuPrev) return;  // silent off-menu
+    MenuSync(); OptSync();
+    if (g_optLive && !battle) {
+        const OptRow* orow = &kOptRows[g_optRow];
+        switch (cmd) {
+            case Command::WhereAmI: OptSpeakRow(); return;
+            case Command::MenuNext: g_optRow = (g_optRow + 1) % 23; OptSpeakRow(); return;
+            case Command::MenuPrev: g_optRow = (g_optRow + 22) % 23; OptSpeakRow(); return;
+            case Command::MenuLeft:
+                if (orow->nvals > 0)
+                    g_optVal[g_optRow] = (g_optVal[g_optRow] + orow->nvals - 1) % orow->nvals;
+                OptSpeakRow(); return;
+            case Command::MenuRight:
+                if (orow->nvals > 0)
+                    g_optVal[g_optRow] = (g_optVal[g_optRow] + 1) % orow->nvals;
+                OptSpeakRow(); return;
+            default: break;
+        }
+    }
+    if (cmd == Command::MenuLeft || cmd == Command::MenuRight) return;  // silent off-menu
     switch (cmd) {
         case Command::WhereAmI:
             if (battle) { CmdBattleSelf(); break; }
@@ -863,6 +958,8 @@ static bool Attach(const Host* host)
     g_host = host;
     g_widgetRoot = 0;   // never inherit a root across attach
     g_menuMain = false; g_menuRow = 0;  // menu cursor never inherits either
+    g_optLive = false; g_optRow = 0;  // options cursor neither
+    for (int i = 0; i < 23; i++) g_optVal[i] = 0;
     g_widgetPinned = false;
     return true;        // the game code check already happened in the registry
 }
