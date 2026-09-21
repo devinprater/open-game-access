@@ -81,7 +81,7 @@ if [ ! -f "$MGBA_GEN/mgba/flags.h" ] || [ "$MGBA_SRC/src/core/flags.h.in" -nt "$
 fi
 MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
-COMMON="-target $TRIPLE -isysroot $SDKROOT -O2 -g -fPIC -fwrapv -fno-strict-aliasing -D__IOS__=1 -DHAVE_PTHREADS=1 -DPOKE_IOS=1 -DFE_NO_MAIN=1 -Wno-everything"
+COMMON="-target $TRIPLE -isysroot $SDKROOT -O2 -g -fPIC -fwrapv -fno-strict-aliasing -D__IOS__=1 -DHAVE_PTHREADS=1 -DPOKE_IOS=1 -Wno-everything"
 INC="-I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$SRC/src -I$LUA_SRC/src -I$SRC/src/teakra/include"
 CXXFLAGS="$COMMON $INC -std=c++17 -stdlib=libc++"
 CFLAGS="$COMMON $INC -std=gnu11"
@@ -119,6 +119,10 @@ compile() {
 rm -f "$OBJ/.failed"
 echo "== compiling $(wc -l < "$OBJ/list.txt") TUs for the SIMULATOR ($TRIPLE)"
 export CXX CC CXXFLAGS CFLAGS OBJ
+# ⛔ These MUST be exported: compile() runs in xargs-spawned child shells via
+# `export -f`, and children only inherit exported vars. Without this the mGBA
+# TUs silently lose their -I flags and die on mgba/internal/... not found.
+export MGBA_DEFS MGBA_INC
 export -f compile
 # stdin, not `xargs -a` (GNU-only).
 # shellcheck disable=SC2002

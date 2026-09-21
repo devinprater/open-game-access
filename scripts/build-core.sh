@@ -111,6 +111,9 @@ compile() { # compile <lang> <src> <tag>
 rm -f "$OBJ/.failed"
 echo "== compiling $(wc -l < "$OBJ/list.txt") translation units =="
 export CXX CC CXXFLAGS CFLAGS OBJ
+# ⛔ Exported for xargs-spawned compile() children (see build-sim.sh): without
+# this the mGBA TUs lose their -I flags and die on mgba/internal/... not found.
+export MGBA_DEFS MGBA_INC
 export -f compile
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED. Without it xargs reads STDIN, which is
 # empty under a non-interactive shell, so it compiles ZERO files, the archive is
