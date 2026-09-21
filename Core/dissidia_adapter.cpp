@@ -2,7 +2,8 @@
  * dissidia_adapter.cpp — Dissidia Final Fantasy (PSP, ULUS10437) adapter skeleton.
  *
  * STATUS: LIVE. The pause-menu cursor is found, named, and tracked (s101);
- *   the pre-game title menu speaks its three rows via fingerprints (s1xx).
+ *   the pre-game title menu speaks its three rows via fingerprints (s1xx),
+ *   and Data Setup > Play Plan speaks Casual/Average/Hardcore (sN3-N6).
  *
  * VERIFIED MAP (all confirmed against live RAM + decompile):
  *   TEXT_POOL   0x09D16A68  UTF-16LE menu/UI strings, one flag byte per entry
@@ -92,6 +93,17 @@ constexpr uint32_t TITLE_DESC_CNT = 0x0Cu;
 constexpr uint32_t TITLE_DESC_E0 = 0x20u;
 constexpr uint32_t TITLE_W_CNT = 0x0Cu;
 static const char* kTitleEntries[3] = { "New Game", "Load Game", "Data Install" };
+
+// ---- Data Setup > Play Plan (host-RE sN3-N6; same build as title) ----
+// After NEW GAME the setup flow asks "What sort of gamer are you?":
+// Casual / Average / Hardcore. Its cursor is a u32 index in a setup-menu
+// struct; entry names are fixed game data verified against the screen.
+//   PLAY_CURSOR 0x09B3FA30  u32 0..2 (wraps both ways), max u32 at +0x38 == 2.
+// Live test: valid cursor+max and no board live. (The battle holder is NOT
+// a gate: it reads 0 or stale-nonzero on the same screen across runs.)
+constexpr uint32_t PLAY_CURSOR = 0x09B3FA30u;
+constexpr uint32_t PLAY_MAX = 0x09B3FA38u;
+static const char* kPlayEntries[3] = { "Casual", "Average", "Hardcore" };
 
 // ---- Codex ANSWER3 objects (doc s101; VALIDATED LIVE on the board pause menu) ----
 // battle_ui_root holder (vaddr 0x00394940): pause widget W = [holder] + 0x234.
@@ -204,6 +216,19 @@ static int TitleIndex(void)
     uint32_t idx = u32(TITLE_CURSOR);
     if (idx > 2) return -1;
     return (int) idx;
+}
+
+/// Play Plan cursor 0..2, or -1 when that screen is not live. The setup
+/// struct does not exist on the title screen (garbage there), so a valid
+/// cursor+max is sufficient with the holder/dispatcher gates. Play takes
+/// precedence over title: the title's structs linger intact into the setup
+/// flow, so title must defer when play validates (checked by call order).
+static int PlayIndex(void)
+{
+    if (u32(PLAY_CURSOR) > 2) return -1;
+    if (u32(PLAY_MAX) != 2) return -1;
+    if (BoardDispatcher() != 0) return -1;
+    return (int) u32(PLAY_CURSOR);
 }
 
 static bool ManagerOk(void)
@@ -434,8 +459,17 @@ static int BoardDP(void)
 static void CmdWhereAmI(void)
 {
     if (!ManagerOk()) { Say("Game not ready yet."); return; }
-    // Pre-game title first: it never builds battle/board structures, and its
-    // gate (holder + dispatcher both 0) can only pass when they are absent.
+    // Screen precedence, newest-flow-first: setup screens allocate after the
+    // title, and the title's structs linger, so Play Plan is checked first.
+    // Data Setup > Play Plan first: it takes precedence because the title's
+    // structs linger intact into the setup flow (title defers by call order).
+    int pi = PlayIndex();
+    if (pi >= 0) {
+        char line[96];
+        snprintf(line, sizeof(line), "Play Plan. %s. Row %d of 3.", kPlayEntries[pi], pi + 1);
+        Say(line);
+        return;
+    }
     int ti = TitleIndex();
     if (ti >= 0) {
         char line[96];
