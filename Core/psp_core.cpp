@@ -99,6 +99,11 @@ std::string NativeLoadSecret(std::string_view) { return std::string(); }
 
 void System_Toast(std::string_view) {}
 void System_Notify(SystemNotification) {}
+// No audio backend on this embedding yet (host proof or iOS without audio):
+// the mixer runs so sound-gated game logic advances, but output goes nowhere.
+void System_AudioGetDebugStats(char *, size_t) {}
+void System_AudioClear() {}
+void System_AudioPushSamples(const int32_t *, int, float) {}
 void System_PostUIMessage(UIMessage, std::string_view) {}
 void System_RunCallbackInWndProc(void (*)()) {}
 bool System_MakeRequest(SystemRequestType, RequesterToken, std::string_view, std::string_view, std::string_view, int64_t, bool) { return false; }
@@ -223,9 +228,12 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
         logInit = true;
     }
 
-    // Stock defaults, sound off (no audio path yet — adapter text
-    // first), software rendering, memstick under the app's save dir.
-    g_Config.bEnableSound = false;
+    // Stock defaults (sound mixing on: see below), software rendering,
+    // memstick under the app's save dir.
+    // Sound MIXING stays on even though the app has no audible output path yet:
+    // games routinely gate menu input on sound-effect completion, and with
+    // mixing off that ack never comes (title cursor froze after one move).
+    g_Config.bEnableSound = true;
     g_Config.bSoftwareRendering = true;
     g_Config.memStickDirectory = Path(core->saveRoot) / "ppsspp-memstick";
     File::CreateDir(g_Config.memStickDirectory, true);
