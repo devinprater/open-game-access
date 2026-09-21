@@ -25,6 +25,14 @@ enum AdapterCommand: Int32, CaseIterable {
     case nextUnactedAlly = 5
     /// Writes the reader's current state to the debug log, for reporting bugs.
     case dumpState = 6
+    /// Logs which menu is live ("MENU main" etc.) for the host's menu tracker.
+    /// Host-programmatic: never shown as a player button.
+    case menuState = 7
+    /// Moves the tracked menu cursor down one row and reads it. Adapters that
+    /// are not on a tracked menu ignore it silently.
+    case menuNext = 8
+    /// Moves the tracked menu cursor up one row and reads it.
+    case menuPrev = 9
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -37,6 +45,9 @@ enum AdapterCommand: Int32, CaseIterable {
         case .prevEnemy:       return "Previous enemy"
         case .nextUnactedAlly: return "Next waiting ally"
         case .dumpState:       return "Copy state to log"
+        case .menuState:       return "Menu status"
+        case .menuNext:        return "Next item"
+        case .menuPrev:        return "Previous item"
         }
     }
 
@@ -59,6 +70,12 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Reads the next party member who has not acted yet."
         case .dumpState:
             return "Writes the reader's current state to the debug log."
+        case .menuState:
+            return "Reports which menu is live, for the host's menu tracker."
+        case .menuNext:
+            return "Moves down one menu row and reads it."
+        case .menuPrev:
+            return "Moves up one menu row and reads it."
         }
     }
 
@@ -72,6 +89,9 @@ enum AdapterCommand: Int32, CaseIterable {
         case .prevEnemy:       return "exclamationmark.triangle.fill"
         case .nextUnactedAlly: return "hourglass"
         case .dumpState:       return "doc.text.magnifyingglass"
+        case .menuState:       return "list.bullet.rectangle"
+        case .menuNext:        return "chevron.down"
+        case .menuPrev:        return "chevron.up"
         }
     }
 
@@ -110,11 +130,9 @@ enum AdapterCommand: Int32, CaseIterable {
             return []
 
         case "dissidia":
-            // Dissidia Final Fantasy: board directions, map markers, battle
-            // foe/lock state, and dump are real. The prev/next fallbacks in the
-            // adapter just repeat position (aliases for whereAmI), so they stay
-            // hidden by the same rule as dbz-saiyans' alias.
-            return [.whereAmI, .nextAlly, .nextEnemy, .dumpState]
+            // Dissidia PSP: location, menu-row navigation, and debug dump are
+            // real. menuState is host-programmatic (menu tracker), not a button.
+            return [.whereAmI, .menuNext, .menuPrev, .dumpState]
 
         default:
             return []
