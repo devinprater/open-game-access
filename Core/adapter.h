@@ -58,6 +58,8 @@ enum class Command {
     MenuState,
     MenuNext,
     MenuPrev,
+    MenuLeft,   // D-pad left on a tracked menu: previous value + speak
+    MenuRight,  // D-pad right on a tracked menu: next value + speak
 };
 
 struct Adapter {

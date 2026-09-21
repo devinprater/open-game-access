@@ -31,8 +31,12 @@ enum AdapterCommand: Int32, CaseIterable {
     /// Moves the tracked menu cursor down one row and reads it. Adapters that
     /// are not on a tracked menu ignore it silently.
     case menuNext = 8
-    /// Moves the tracked menu cursor up one row and reads it.
+    /// Moves up one row on a tracked menu and reads it.
     case menuPrev = 9
+    /// Previous value on a tracked options row.
+    case menuLeft = 10
+    /// Next value on a tracked options row.
+    case menuRight = 11
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -48,6 +52,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .menuState:       return "Menu status"
         case .menuNext:        return "Next item"
         case .menuPrev:        return "Previous item"
+        case .menuLeft:        return "Previous value"
+        case .menuRight:       return "Next value"
         }
     }
 
@@ -76,6 +82,10 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Moves down one menu row and reads it."
         case .menuPrev:
             return "Moves up one menu row and reads it."
+        case .menuLeft:
+            return "Previous value on this options row."
+        case .menuRight:
+            return "Next value on this options row."
         }
     }
 
@@ -92,6 +102,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .menuState:       return "list.bullet.rectangle"
         case .menuNext:        return "chevron.down"
         case .menuPrev:        return "chevron.up"
+        case .menuLeft:        return "chevron.left"
+        case .menuRight:       return "chevron.right"
         }
     }
 
@@ -132,7 +144,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case "dissidia":
             // Dissidia PSP: location, menu-row navigation, and debug dump are
             // real. menuState is host-programmatic (menu tracker), not a button.
-            return [.whereAmI, .menuNext, .menuPrev, .dumpState]
+            return [.whereAmI, .menuNext, .menuPrev, .menuLeft, .menuRight, .dumpState]
 
         default:
             return []
