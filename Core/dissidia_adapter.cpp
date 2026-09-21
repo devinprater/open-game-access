@@ -3,7 +3,8 @@
  *
  * STATUS: LIVE. The pause-menu cursor is found, named, and tracked (s101);
  *   the pre-game title menu speaks its three rows via fingerprints (s1xx),
- *   and Data Setup > Play Plan speaks Casual/Average/Hardcore (sN3-N6).
+ *   Data Setup > Play Plan speaks Casual/Average/Hardcore (sN3-N6),
+ *   Data Setup > Bonus Day speaks Mon..Sun (sS1-S3).
  *
  * VERIFIED MAP (all confirmed against live RAM + decompile):
  *   TEXT_POOL   0x09D16A68  UTF-16LE menu/UI strings, one flag byte per entry
@@ -218,11 +219,30 @@ static int TitleIndex(void)
     return (int) idx;
 }
 
+// ---- Data Setup > Bonus Day (host-RE sS1-S3; same build) ----
+// "Which day of the week do you play the most?": Mon..Sun. Same setup-menu
+// struct as Play Plan (cursor 09B3FA30), new content: max 6. The item-array
+// heap (08bfxxxx) shifts run to run past the OSK flow, so NO item address
+// is pinned: screen ID is cursor-valid + max==6 + no board live. A future
+// 7-item menu will need its own discriminator (shots catch mis-speech).
+// Entry names are fixed game data verified against the screen.
+static const char* kBonusEntries[7] =
+    { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" };
+
+/// Bonus Day cursor 0..6, or -1 when that screen is not live.
+static int BonusIndex(void)
+{
+    if (u32(PLAY_CURSOR) > 6) return -1;
+    if (u32(PLAY_MAX) != 6) return -1;
+    if (BoardDispatcher() != 0) return -1;
+    return (int) u32(PLAY_CURSOR);
+}
+
 /// Play Plan cursor 0..2, or -1 when that screen is not live. The setup
 /// struct does not exist on the title screen (garbage there), so a valid
-/// cursor+max is sufficient with the holder/dispatcher gates. Play takes
-/// precedence over title: the title's structs linger intact into the setup
-/// flow, so title must defer when play validates (checked by call order).
+/// cursor+max is sufficient with the dispatcher gate. Play takes precedence
+/// over title: the title's structs linger intact into the setup flow, so
+/// title must defer when play validates (checked by call order).
 static int PlayIndex(void)
 {
     if (u32(PLAY_CURSOR) > 2) return -1;
@@ -460,9 +480,15 @@ static void CmdWhereAmI(void)
 {
     if (!ManagerOk()) { Say("Game not ready yet."); return; }
     // Screen precedence, newest-flow-first: setup screens allocate after the
-    // title, and the title's structs linger, so Play Plan is checked first.
-    // Data Setup > Play Plan first: it takes precedence because the title's
-    // structs linger intact into the setup flow (title defers by call order).
+    // title, and the title's structs linger, so Bonus Day, then Play Plan,
+    // then title.
+    int bi = BonusIndex();
+    if (bi >= 0) {
+        char line[96];
+        snprintf(line, sizeof(line), "Bonus Day. %s. Row %d of 7.", kBonusEntries[bi], bi + 1);
+        Say(line);
+        return;
+    }
     int pi = PlayIndex();
     if (pi >= 0) {
         char line[96];
