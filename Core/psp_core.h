@@ -85,6 +85,10 @@ const char *psp_last_error(PspCore *core);
  * adapter Host path and binding verification. */
 uint32_t psp_debug_read(PspCore *core, uint32_t addr, int width);
 
+/* Raw PSP memory write for test cheats (e.g. zeroing foe HP to skip a
+ * fight the bot cannot win). Same guards as the read; no-op on bad input. */
+void psp_debug_write(PspCore *core, uint32_t addr, uint32_t value, int width);
+
 #ifdef __cplusplus
 }
 #endif
