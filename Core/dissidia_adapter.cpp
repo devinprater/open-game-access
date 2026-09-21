@@ -616,6 +616,64 @@ static Battle BattleFighters(void)
     return b;
 }
 
+// ---- Main menu (top-level: Story .. Options; host-RE s-main) ----
+// The setup struct at 09B3FA00 survives onto the main menu with cursor+max
+// zeroed, but the selection pointers stay live: [09B3FA04] (cursor sprite)
+// and [09B3FA10] (selected row's banner group), where record0 -> descriptor
+// -> texture pixels at desc+8. The banners play a nonstop attract reel, so
+// no heap value identifies the SELECTED row (verified over ~20 runs:
+// spotlight cycles, textures re-render, titles are not ASCII). The adapter
+// therefore tracks the cursor itself: entry is always row 1 (verified on
+// screenshots), D-pad wraps both ways (Up from row 1 -> row 8, verified),
+// and the host forwards D-pad taps as MenuNext/MenuPrev alongside set_button.
+// MainLive gates everything: TITLE_CURSOR==8 (left title/setup), no board,
+// no battle, no setup cursor, and the A10 chain resolves (menu UI live).
+constexpr uint32_t MAIN_SELGROUP = 0x09B3FA10u;
+static const char* kMainEntries[8] = { "Story Mode", "Arcade Mode",
+    "Quick Battle", "Communications Mode", "PP Catalog", "Museum",
+    "Player Settings", "Options" };
+static bool g_menuMain = false;
+static int g_menuRow = 0;
+static bool MainLive(void)
+{
+    if (u32(TITLE_CURSOR) != 8) return false;
+    if (u32(PLAY_CURSOR) != 0 || u32(PLAY_MAX) != 0) return false;
+    if (BoardDispatcher() != 0) return false;
+    if (BattleFighters().ok) return false;
+    uint32_t grp = u32(MAIN_SELGROUP);
+    if (!InRam(grp) || (grp & 3)) return false;
+    uint32_t desc = u32(grp);
+    if (!InRam(desc) || (desc & 3)) return false;
+    uint32_t tex = u32(desc + 8);
+    if (!InRam(tex) || (tex & 3)) return false;
+    return true;
+}
+/// Re-enter resets to row 1 (the game always opens the menu on Story Mode).
+static void MenuSync(void)
+{
+    bool live = MainLive();
+    if (live && !g_menuMain) { g_menuMain = true; g_menuRow = 0; }
+    if (!live && g_menuMain) { g_menuMain = false; }
+}
+static void MenuSpeakRow(void)
+{
+    char line[96];
+    snprintf(line, sizeof(line), "%s. Row %d of 8.",
+             kMainEntries[g_menuRow], g_menuRow + 1);
+    Say(line);
+}
+static void CmdMenuState(void)
+{
+    MenuSync();
+    const char* st = "MENU none";
+    if (g_menuMain) st = "MENU main";
+    else if (TitleIndex() >= 0) st = "MENU title";
+    else if (BonusIndex() >= 0 || PlayIndex() >= 0) st = "MENU setup";
+    else if (BattleFighters().ok) st = "MENU battle";
+    else if (BoardDispatcher() != 0) st = "MENU board";
+    if (g_host && g_host->log) g_host->log(g_host->ctx, st);
+}
+
 static uint32_t FighterHP(const Fighter& f)
 {
     uint32_t cur = f.hpMax > f.hpDmg ? f.hpMax - f.hpDmg : 0;
@@ -759,6 +817,23 @@ static void Command(Command cmd)
     // linger), then pause menu, then board. Verified live: board M stays set
     // during battle, so board-first would speak stale cursor garbage mid-fight.
     bool battle = BattleFighters().ok;
+    // Tracked-menu navigation: the host forwards D-pad taps as MenuNext/Prev
+    // alongside set_button. The adapter moves its own cursor and speaks the
+    // row (input-echo): no heap value identifies the selected row (attract
+    // reel), so announcements follow the input the game also received.
+    MenuSync();
+    if (g_menuMain && !battle) {
+        switch (cmd) {
+            case Command::WhereAmI: MenuSpeakRow(); return;
+            case Command::MenuNext:
+                g_menuRow = (g_menuRow + 1) % 8; MenuSpeakRow(); return;
+            case Command::MenuPrev:
+                g_menuRow = (g_menuRow + 7) % 8; MenuSpeakRow(); return;
+            default: break;
+        }
+    }
+    if (cmd == Command::MenuState) { CmdMenuState(); return; }
+    if (cmd == Command::MenuNext || cmd == Command::MenuPrev) return;  // silent off-menu
     switch (cmd) {
         case Command::WhereAmI:
             if (battle) { CmdBattleSelf(); break; }
@@ -787,6 +862,7 @@ static bool Attach(const Host* host)
 {
     g_host = host;
     g_widgetRoot = 0;   // never inherit a root across attach
+    g_menuMain = false; g_menuRow = 0;  // menu cursor never inherits either
     g_widgetPinned = false;
     return true;        // the game code check already happened in the registry
 }

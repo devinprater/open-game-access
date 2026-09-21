@@ -52,6 +52,12 @@ enum class Command {
     PrevEnemy,
     NextUnactedAlly,
     DumpState,      // the attachable debug dump
+    // Menu navigation (append-only: raw values are the C ABI shared with Swift).
+    // Sent by the host alongside D-pad taps; adapters that are not on a tracked
+    // menu ignore them silently. MenuState logs "MENU <name>" via Host::log.
+    MenuState,
+    MenuNext,
+    MenuPrev,
 };
 
 struct Adapter {
