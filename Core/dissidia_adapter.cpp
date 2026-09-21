@@ -1,7 +1,8 @@
 /*
  * dissidia_adapter.cpp — Dissidia Final Fantasy (PSP, ULUS10437) adapter skeleton.
  *
- * STATUS: LIVE. The pause-menu cursor is found, named, and tracked (s101).
+ * STATUS: LIVE. The pause-menu cursor is found, named, and tracked (s101);
+ *   the pre-game title menu speaks its three rows via fingerprints (s1xx).
  *
  * VERIFIED MAP (all confirmed against live RAM + decompile):
  *   TEXT_POOL   0x09D16A68  UTF-16LE menu/UI strings, one flag byte per entry
@@ -60,6 +61,37 @@ constexpr uint32_t ELT_VAL    = 0x18u;       // selected value at element+0x18
 constexpr int32_t  NO_SELECTION = -1;
 constexpr uint32_t RAM_LO = 0x08800000u;
 constexpr uint32_t RAM_HI = 0x0A000000u;
+
+// ---- Title menu (host-RE s1xx; VALIDATED LIVE on PPSSPP f293b10 + USA CSO) ----
+// The pre-game title (NEW GAME / LOAD GAME / DATA INSTALL) never builds the
+// battle/board structures, so the pause/board paths stay silent there. Its
+// cursor is a plain 0..2 index (wraps) in a title-menu struct; entry names are
+// fixed game data (verified against the rendered screen), NOT read from RAM:
+// the menu text is not stored as plain strings anywhere in user RAM (full-RAM
+// scan, UTF-16LE + ASCII, 0 hits), and the old TEXT_POOL slot holds an
+// unrelated pointer on this build.
+//   TITLE_CURSOR 0x09A3F0CC  u32 cursor 0..2, tag u32 at -4 == 1.
+//   TITLE_TABLE  0x09DA8D80  menu content: count 4 at +0xC, entries
+//     (id 1..3, string ids 18,25/26/27) at +0x20/+0x30/+0x40.
+//   TITLE_LINK   0x09D8E900  [0] -> title widget W; W+0 -> TITLE_WDESC,
+//     count 4 at W+0xC; WDESC+4 -> W (back-link, proves the pair is live).
+// Heap layout is deterministic on the proven build (identical across 10+ boots
+// here), but every use revalidates the fingerprints below: a mismatch falls
+// through to the existing paths rather than speaking a stale name. The title
+// only speaks when no board is live (dispatcher walk fails); battle mode is
+// routed away before CmdWhereAmI ever runs.
+// Chain: LINK[0] -> widget W; W[0] -> WDESC; WDESC[1] -> W (back-link);
+// WDESC[0] -> render struct -> TABLE (menu content: count 4 at +0xC,
+// entries id 1..3 with string ids 18,25/26/27 at +0x20/+0x30/+0x40).
+constexpr uint32_t TITLE_CURSOR = 0x09A3F0CCu;
+constexpr uint32_t TITLE_CURSOR_TAG = 0x09A3F0C8u;
+constexpr uint32_t TITLE_TABLE = 0x09DA8D80u;
+constexpr uint32_t TITLE_WDESC = 0x09D90728u;
+constexpr uint32_t TITLE_LINK = 0x09D8E900u;
+constexpr uint32_t TITLE_DESC_CNT = 0x0Cu;
+constexpr uint32_t TITLE_DESC_E0 = 0x20u;
+constexpr uint32_t TITLE_W_CNT = 0x0Cu;
+static const char* kTitleEntries[3] = { "New Game", "Load Game", "Data Install" };
 
 // ---- Codex ANSWER3 objects (doc s101; VALIDATED LIVE on the board pause menu) ----
 // battle_ui_root holder (vaddr 0x00394940): pause widget W = [holder] + 0x234.
@@ -137,6 +169,41 @@ uint32_t DiscoverPauseWidget(void)
     int32_t idx = (int32_t) u32(w + IDX_OFF);
     if (idx < 0 || (uint32_t) idx >= cnt) return 0;
     return w;
+}
+
+static uint32_t BoardDispatcher(void);  // defined with the board chain below
+
+/// Title-menu fingerprints: content checks on the menu table, the
+/// LINK -> widget -> descriptor chain including the descriptor back-link,
+/// and the cursor struct tag. All cheap reads; any mismatch means "not the
+/// proven layout" (fall through, stay silent).
+static bool TitleFingerprintsOk(void)
+{
+    if (!g_host) return false;
+    if (u32(TITLE_TABLE + TITLE_DESC_CNT) != 4) return false;
+    if (u32(TITLE_TABLE + TITLE_DESC_E0) != 1) return false;
+    if (u32(TITLE_TABLE + TITLE_DESC_E0 + 4) != 0x00190012u) return false;
+    if (u32(TITLE_CURSOR_TAG) != 1) return false;
+    uint32_t w = u32(TITLE_LINK);
+    if (!InRam(w) || (w & 3)) return false;
+    if (u32(w) != TITLE_WDESC) return false;
+    if (u32(w + TITLE_W_CNT) != 4) return false;
+    if (u32(TITLE_WDESC + 4) != w) return false;  // back-link: pair is live
+    return true;
+}
+
+/// Title cursor 0..2, or -1 when the title menu is not live here. The title
+/// speaks only when no board is live (dispatcher 0), so stale pins can never
+/// talk over gameplay. NOTE: the battle holder is nonzero even on the title
+/// screen, so it must NOT be used as the veto -- only the dispatcher walk.
+static int TitleIndex(void)
+{
+    if (!TitleFingerprintsOk()) return -1;
+    uint32_t bd = BoardDispatcher();
+    if (bd != 0) return -1;
+    uint32_t idx = u32(TITLE_CURSOR);
+    if (idx > 2) return -1;
+    return (int) idx;
 }
 
 static bool ManagerOk(void)
@@ -367,6 +434,15 @@ static int BoardDP(void)
 static void CmdWhereAmI(void)
 {
     if (!ManagerOk()) { Say("Game not ready yet."); return; }
+    // Pre-game title first: it never builds battle/board structures, and its
+    // gate (holder + dispatcher both 0) can only pass when they are absent.
+    int ti = TitleIndex();
+    if (ti >= 0) {
+        char line[96];
+        snprintf(line, sizeof(line), "%s. Row %d of 3.", kTitleEntries[ti], ti + 1);
+        Say(line);
+        return;
+    }
     // Board first when no menu widget is live: pause widget validates itself
     // (count 1..7), so a live pause menu still wins via the pinned root below.
     if (!g_widgetRoot) {
