@@ -499,3 +499,17 @@ uint32_t psp_debug_read(PspCore *core, uint32_t addr, int width)
     if (width == 2) return (uint32_t)p[0] | ((uint32_t)p[1] << 8);
     return (uint32_t)p[0] | ((uint32_t)p[1] << 8) | ((uint32_t)p[2] << 16) | ((uint32_t)p[3] << 24);
 }
+
+void psp_debug_write(PspCore *core, uint32_t addr, uint32_t value, int width)
+{
+    if (!core || !core->booted) return;
+    if (width != 1 && width != 2 && width != 4) return;
+    if (!Memory::IsValidAddress(addr)) return;
+    if (!Memory::IsValidAddress(addr + (uint32_t)width - 1)) return;
+    try {
+        uint8_t *p = Memory::GetPointerWriteRangeOrException(addr, (uint32_t)width);
+        p[0] = (uint8_t)value;
+        if (width >= 2) p[1] = (uint8_t)(value >> 8);
+        if (width == 4) { p[2] = (uint8_t)(value >> 16); p[3] = (uint8_t)(value >> 24); }
+    } catch (...) { /* treat as no-op, like a failed read yielding 0 */ }
+}
