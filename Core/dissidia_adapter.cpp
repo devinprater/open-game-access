@@ -665,6 +665,7 @@ static void MenuSpeakRow(void)
 static bool g_optLive = false;  // owned by the options block below
 static void OptSync(void);      // defined with the options menu below
 static bool DialogLive(void);   // defined with the YES/NO dialog block below
+static bool StoryDlgLive(void); // defined with the story-dialog block below
 static void CmdMenuState(void)
 {
     MenuSync(); OptSync();
@@ -673,7 +674,7 @@ static void CmdMenuState(void)
     else if (TitleIndex() >= 0) st = "MENU title";
     else if (BonusIndex() >= 0 || PlayIndex() >= 0) st = "MENU setup";
     else if (BattleFighters().ok) st = "MENU battle";
-    else if (DialogLive()) st = "MENU dialog";
+    else if (DialogLive() || StoryDlgLive()) st = "MENU dialog";
     else if (BoardDispatcher() != 0) st = "MENU board";
     else if (g_optLive) st = "MENU options";
     if (g_host && g_host->log) g_host->log(g_host->ctx, st);
@@ -764,8 +765,8 @@ static void OptSpeakRow(void)
 // it is primary.) The question text is glyph-rendered (no ASCII in RAM), so
 // v1 speaks the selection only, never the question. No input tracking: every
 // nav command re-reads RAM, so a dropped D-pad can never desync speech.
-// NOTE: on this dialog only Left visibly moves (NO->YES); Right/Up/Down leave
-// the cursor. The adapter reports truth either way.
+// NOTE: early "Right does nothing" findings were a rig bug (button 6 is
+// TRIANGLE, Right is 3); with real D-pad both directions verify.
 static const uint32_t DLG_SLOT = 0x08C0CC3Cu, DLG_X = 0x08C0CCB0u;
 static bool DialogLive(void) { return u32(DLG_SLOT) != 0; }
 static int DialogSel(void)  // 0 = YES (row 1), 1 = NO (row 2)
@@ -773,9 +774,25 @@ static int DialogSel(void)  // 0 = YES (row 1), 1 = NO (row 2)
     float x = f32(DLG_X);
     return (x < 200.0f) ? 0 : 1;
 }
+// ---- Story-mode YES/NO dialogs: second dialog system (host-RE s-dialogs) ----
+// The story UI (chapter detail "Continue this story?") does NOT use the
+// battle slot above: [08c0cc3c] stays 0. Its own record pair lives nearby:
+//   ([08c0b508],[08c0b65c]) == (5,1) : YES selected (left, row 1)
+//   ([08c0b508],[08c0b65c]) == (4,2) : NO selected (right, row 2)
+//   (8,13) on the chapter detail underneath (no dialog).
+// Both directions verified with real D-pad in-harness.
+static const uint32_t SDLG_A = 0x08C0B508u, SDLG_B = 0x08C0B65Cu;
+static bool StoryDlgLive(void)
+{
+    // Low u16 only: upper half is a per-record tag (ffff), not state.
+    uint32_t a = u32(SDLG_A) & 0xffffu, b = u32(SDLG_B) & 0xffffu;
+    return (a == 5 && b == 1) || (a == 4 && b == 2);
+}
+static int StoryDlgSel(void) { return (u32(SDLG_A) & 0xffffu) == 5 ? 0 : 1; }
+static bool AnyDialogLive(void) { return DialogLive() || StoryDlgLive(); }
 static void DlgSpeak(void)
 {
-    int s = DialogSel();
+    int s = DialogLive() ? DialogSel() : StoryDlgSel();
     char b[64];
     snprintf(b, sizeof b, "%s. Row %d of 2.", s == 0 ? "YES" : "NO", s + 1);
     Say(b);
@@ -941,7 +958,7 @@ static void Command(Command cmd)
     }
     if (cmd == Command::MenuState) { CmdMenuState(); return; }
     MenuSync(); OptSync();
-    if (DialogLive() && !battle) {
+    if (AnyDialogLive() && !battle) {
         // Modal YES/NO sits over pause/board/options: RAM re-read, no tracking.
         if (cmd == Command::WhereAmI || cmd == Command::MenuState) { DlgSpeak(); return; }
         if (cmd == Command::MenuNext || cmd == Command::MenuPrev ||
