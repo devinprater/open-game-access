@@ -664,6 +664,7 @@ static void MenuSpeakRow(void)
 }
 static bool g_optLive = false;  // owned by the options block below
 static void OptSync(void);      // defined with the options menu below
+static bool DialogLive(void);   // defined with the YES/NO dialog block below
 static void CmdMenuState(void)
 {
     MenuSync(); OptSync();
@@ -672,6 +673,7 @@ static void CmdMenuState(void)
     else if (TitleIndex() >= 0) st = "MENU title";
     else if (BonusIndex() >= 0 || PlayIndex() >= 0) st = "MENU setup";
     else if (BattleFighters().ok) st = "MENU battle";
+    else if (DialogLive()) st = "MENU dialog";
     else if (BoardDispatcher() != 0) st = "MENU board";
     else if (g_optLive) st = "MENU options";
     if (g_host && g_host->log) g_host->log(g_host->ctx, st);
@@ -749,6 +751,34 @@ static void OptSpeakRow(void)
     else
         snprintf(line, sizeof(line), "%s. Row %d of 23.", r.name, g_optRow + 1);
     Say(line);
+}
+
+// ---- YES/NO dialogs (suspend/quit/fight confirms; host-RE s-dialogs) ----
+// A modal YES/NO prompt allocates a fixed dialog-widget slot at 08c0cc18
+// (heap is boot-stable, no ASLR). Slot presence + selection both verified:
+//   [08c0cc3c] == 0           : no dialog (board, pause, main, battle)
+//   [08c0cc3c] != 0           : dialog live (YES/NO over pause etc.)
+//   [08c0ccb0] float ~119.0   : glove/ribbon on YES (left, row 1)
+//   [08c0ccb0] float ~266.0   : glove/ribbon on NO (right, row 2)
+// ([08c0cc24] low-u16 mirrors 0/1 but the X float is the physical cursor, so
+// it is primary.) The question text is glyph-rendered (no ASCII in RAM), so
+// v1 speaks the selection only, never the question. No input tracking: every
+// nav command re-reads RAM, so a dropped D-pad can never desync speech.
+// NOTE: on this dialog only Left visibly moves (NO->YES); Right/Up/Down leave
+// the cursor. The adapter reports truth either way.
+static const uint32_t DLG_SLOT = 0x08C0CC3Cu, DLG_X = 0x08C0CCB0u;
+static bool DialogLive(void) { return u32(DLG_SLOT) != 0; }
+static int DialogSel(void)  // 0 = YES (row 1), 1 = NO (row 2)
+{
+    float x = f32(DLG_X);
+    return (x < 200.0f) ? 0 : 1;
+}
+static void DlgSpeak(void)
+{
+    int s = DialogSel();
+    char b[64];
+    snprintf(b, sizeof b, "%s. Row %d of 2.", s == 0 ? "YES" : "NO", s + 1);
+    Say(b);
 }
 
 static uint32_t FighterHP(const Fighter& f)
@@ -911,6 +941,12 @@ static void Command(Command cmd)
     }
     if (cmd == Command::MenuState) { CmdMenuState(); return; }
     MenuSync(); OptSync();
+    if (DialogLive() && !battle) {
+        // Modal YES/NO sits over pause/board/options: RAM re-read, no tracking.
+        if (cmd == Command::WhereAmI || cmd == Command::MenuState) { DlgSpeak(); return; }
+        if (cmd == Command::MenuNext || cmd == Command::MenuPrev ||
+            cmd == Command::MenuLeft || cmd == Command::MenuRight) { DlgSpeak(); return; }
+    }
     if (g_optLive && !battle) {
         const OptRow* orow = &kOptRows[g_optRow];
         switch (cmd) {
