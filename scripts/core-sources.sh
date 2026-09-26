@@ -83,6 +83,7 @@ adapters.cpp
 #   GB core (src/gb/* except audio) — M_CORE_GB is OFF until the GB core is
 #       host-proven the way the GBA core was. .gb/.gbc ROMs fail loudly at
 #       load, they do not silently run the wrong core.
+# NOTE: mGBA's third-party/lzma/* is deliberately absent. Nothing in the kept mGBA subset references it (verified by object scan); PPSSPP's identical 19.00 SDK copy (ext/lzma-sdk, in PPSPP_EXT_C) is the single LZMA in the archive. Two copies break the app link the way lua/xxhash did.
 MGBA="
 src/arm/arm.c src/arm/debugger/cli-debugger.c src/arm/debugger/debugger.c
 src/arm/debugger/memory-debugger.c src/arm/decoder-arm.c src/arm/decoder-thumb.c
@@ -115,7 +116,6 @@ src/script/canvas.c src/script/console.c src/script/context.c src/script/input.c
 src/script/image.c src/script/socket.c src/script/stdlib.c src/script/types.c
 src/script/engines/lua.c
 src/third-party/inih/ini.c
-# NOTE: mGBA's third-party/lzma/* is deliberately absent. Nothing in the kept mGBA subset references it (verified by object scan); PPSSPP's identical 19.00 SDK copy (ext/lzma-sdk, in PPSPP_EXT_C) is the single LZMA in the archive. Two copies break the app link the way lua/xxhash did.
 src/util/audio-buffer.c src/util/audio-resampler.c src/util/circle-buffer.c
 src/util/configuration.c src/util/convolve.c src/util/crc32.c src/util/elf-read.c
 src/util/formatting.c src/util/gbk-table.c src/util/geometry.c src/util/hash.c
