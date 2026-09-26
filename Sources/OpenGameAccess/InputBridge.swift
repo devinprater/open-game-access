@@ -164,8 +164,7 @@ enum BundleResources {
     /// packaging step did not run — the PSP core then fails loudly at load,
     /// it does not boot a game with no compat tables.
     static var ppssppAssetDir: String? {
-        guard let base = Bundle.main.bundleURL else { return nil }
-        let url = base.appendingPathComponent("ppsspp-assets", isDirectory: true)
+        let url = Bundle.main.bundleURL.appendingPathComponent("ppsspp-assets", isDirectory: true)
         guard FileManager.default.fileExists(atPath: url.path) else { return nil }
         return url.path
     }
