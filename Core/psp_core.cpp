@@ -719,6 +719,21 @@ std::vector<std::string> DisassembleX86(const u8 *, int) { return {}; }
 // interpreter (only the crash handler and the stubbed debugger reference it).
 std::vector<std::string> DisassembleArm64(const u8 *, int) { return {}; }
 
+#include "Core/Util/DarwinFileSystemServices.h"
+#if PPSSPP_PLATFORM(IOS) || PPSSPP_PLATFORM(MAC)
+// Darwin sandbox-bookmark helpers, stubbed for an embedding with no document
+// picker (see the PPSPP_MM note in scripts/core-sources.sh):
+//   - Bookmarks are only ever created by the picker UI, which is not compiled
+//     in, so reauthorize always finds nothing — exactly what the real method
+//     returns when no bookmark exists. Both callers treat empty as "keep the
+//     original path", so behavior is unchanged.
+//   - Scoped-access tokens only ever enter the table via the picker UI, so
+//     the table is always empty here and stop is a no-op, exactly like the
+//     real method with no matching token.
+Path DarwinFileSystemServices::reauthorizeBookmarkByPath(const Path &) { return Path(); }
+void DarwinFileSystemServices::stopAccessingPath(const Path &) {}
+#endif
+
 // Version string: upstream generates this from git; pin the validated tree.
 
 // CHD (MAME compressed disk) images: libchdr's CHD unit needs the LZMA

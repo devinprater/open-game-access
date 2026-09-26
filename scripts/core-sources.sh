@@ -444,8 +444,14 @@ PPSPP_ASSETS="
 # helpers. Referenced by kept code only under __APPLE__ (which is why the
 # Linux host proof links without them); the iOS build scripts compile them
 # with ARC (they use __bridge_transfer). The Linux host proof skips them.
+# NOTE: Core/Util/DarwinFileSystemServices.mm is deliberately NOT here. It
+# implements the document-picker UI, which needs kUTType* and a
+# sharedViewController the app target cannot provide. The only two methods the
+# kept code references (reauthorizeBookmarkByPath, stopAccessingPath) are
+# stubbed in Core/psp_core.cpp with behavior identical to the real ones for
+# this embedding (no picker means no bookmarks and no scoped-access tokens).
 PPSPP_MM="
-    Core/Util/DarwinFileSystemServices.mm Common/Render/Text/draw_text_cocoa.mm
+    Common/Render/Text/draw_text_cocoa.mm
 "
 PPSPP_GLUE="
     psp_core.cpp
