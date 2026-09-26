@@ -142,17 +142,17 @@ compile() {
     [ "$b" = "lua" ] || [ "$b" = "luac" ] || printf '%s|lua|%s\n' "$f" "lua_$b"
   done
   for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
-  for f in $PPSPP_CORE; do printf '%s|ppspp|%s\\n' "$PPSPP_SRC/$f" "ppspp_$(echo "$f" | tr '/' '_' | sed 's/\\.cpp$//')"; done
-  for f in $PPSPP_EXT_CPP; do printf '%s|ppspp|%s\\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\\.cpp$//')"; done
-  for f in $PPSPP_EXT_C; do printf '%s|ppsppc|%s\\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\\.c$//')"; done
-  for f in $PPSPP_LUA; do printf '%s|ppsppc|%s\\n' "$PPSPP_SRC/ext/lua/$f" "ppssplua_$(basename "$f" .c)"; done
-  for f in $PPSPP_GLUE; do printf '%s|ppspp|%s\\n' "$ROOT/Core/$f" "ppsppglue_$(basename "$f" .cpp)"; done
+  for f in $PPSPP_CORE; do printf '%s|ppspp|%s\n' "$PPSPP_SRC/$f" "ppspp_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
+  for f in $PPSPP_EXT_CPP; do printf '%s|ppspp|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
+  for f in $PPSPP_EXT_C; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  for f in $PPSPP_LUA; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/ext/lua/$f" "ppssplua_$(basename "$f" .c)"; done
+  for f in $PPSPP_GLUE; do printf '%s|ppspp|%s\n' "$ROOT/Core/$f" "ppsppglue_$(basename "$f" .cpp)"; done
   # x86_64-only helpers (see the PPSPP_X86 comment in core-sources.sh). The
   # device build is always arm64; the simulator follows $TRIPLE when set.
   case "${TRIPLE:-arm64-apple-ios}" in
     x86_64*)
-      for f in $PPSPP_X86; do printf '%s|ppsppx|%s\\n' "$PPSPP_SRC/$f" "ppsspx86_$(echo "$f" | tr '/' '_' | sed 's/\\.c$//')"; done
-      for f in $PPSPP_X86_ASM; do printf '%s|ppsppasm|%s\\n' "$PPSPP_SRC/$f" "ppsspx86_$(basename "$f" .S)"; done ;;
+      for f in $PPSPP_X86; do printf '%s|ppsppx|%s\n' "$PPSPP_SRC/$f" "ppsspx86_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+      for f in $PPSPP_X86_ASM; do printf '%s|ppsppasm|%s\n' "$PPSPP_SRC/$f" "ppsspx86_$(basename "$f" .S)"; done ;;
   esac
   # ⛔ THE GLUE LIST COMES FROM core-sources.sh, NOT FROM HERE. It used to be two
   # hardcoded lines, which meant the simulator core had no adapters at all and the
