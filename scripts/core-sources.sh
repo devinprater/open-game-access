@@ -24,7 +24,7 @@ NDSCart/CartHomebrew.cpp NDSCart/CartR4.cpp
 
 CORE_C="
 fatfs/ff.c fatfs/ffsystem.c fatfs/ffunicode.c
-sha1/sha1.c tiny-AES-c/aes.c xxhash/xxhash.c blip-buf/blip_buf.c
+sha1/sha1.c tiny-AES-c/aes.c blip-buf/blip_buf.c
 "
 
 # teakra: the DSi DSP emulator, a hard dependency of DSi_DSP.cpp. Its C wrapper
@@ -402,6 +402,15 @@ PPSPP_EXT_C="
     ext/miniupnp/miniupnpc/src/receivedata.c
     ext/miniupnp/miniupnpc/src/addr_is_reserved.c
 "
+# NOTE: PPSPP_LUA is satisfied by the app's own lua-5.4.7, not compiled
+# separately. The two trees are the same 5.4.7 release (verified by diff), so
+# one copy serves both the script engine and PPSSPP's LuaContext; compiling
+# both puts 446 duplicate lua/xxhash-class symbols in the archive, which the
+# app link (force_load) rejects. The list stays as a drift guard: the subset
+# test verifies these files still exist upstream. The Linux host proof keeps
+# compiling this list because it links no app lua.
+# (Same story for xxhash: the app's xxhash/xxhash.c was unreferenced — verified
+# by object scan — while PPSSPP hashes textures through zstd's bundled copy.)
 PPSPP_LUA="
     lapi.c lauxlib.c lbaselib.c lcode.c lcorolib.c lctype.c ldblib.c ldebug.c ldo.c ldump.c lfunc.c
     lgc.c linit.c liolib.c llex.c lmathlib.c lmem.c loadlib.c lobject.c lopcodes.c loslib.c

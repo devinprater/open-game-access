@@ -46,7 +46,7 @@ NDSCart/CartHomebrew.cpp NDSCart/CartR4.cpp
 "
 CORE_C="
 fatfs/ff.c fatfs/ffsystem.c fatfs/ffunicode.c
-sha1/sha1.c tiny-AES-c/aes.c xxhash/xxhash.c blip-buf/blip_buf.c
+sha1/sha1.c tiny-AES-c/aes.c blip-buf/blip_buf.c
 "
 TEAKRA="
 teakra/src/teakra.cpp

@@ -145,7 +145,8 @@ compile() { # compile <lang> <src> <tag>
   for f in $PPSPP_CORE; do printf '%s|ppspp|%s\n' "$PPSPP_SRC/$f" "ppspp_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
   for f in $PPSPP_EXT_CPP; do printf '%s|ppspp|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
   for f in $PPSPP_EXT_C; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
-  for f in $PPSPP_LUA; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/ext/lua/$f" "ppssplua_$(basename "$f" .c)"; done
+  # PPSPP_LUA is NOT compiled here: the app lua-5.4.7 objects (lua_*)
+  # already provide the identical ABI (see the PPSPP_LUA note).
   for f in $PPSPP_MM; do printf '%s|ppsppmm|%s\n' "$PPSPP_SRC/$f" "ppsppmm_$(basename "$f" .mm)"; done
   for f in $PPSPP_GLUE; do printf '%s|ppspp|%s\n' "$ROOT/Core/$f" "ppsppglue_$(basename "$f" .cpp)"; done
   # ARM-only helpers (libpng NEON; x86_64 builds skip these the way ARM
