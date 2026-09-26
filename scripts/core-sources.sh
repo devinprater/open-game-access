@@ -404,6 +404,15 @@ PPSPP_LUA="
     lparser.c lstate.c lstring.c lstrlib.c ltable.c ltablib.c ltm.c lundump.c lutf8lib.c lvm.c
     lzio.c
 "
+# ARM-only: libpng's NEON init + intrinsics. Upstream builds these on 64-bit
+# ARM (their CMake picks filter_neon_intrinsics.c for 64-bit, the .S only for
+# 32-bit); iOS is always 64-bit ARM. x86_64 needs nothing extra — libpng's
+# SSE path is opt-in, while its NEON path is default-on for ARM — and these
+# files do not compile on x86, so iOS builds gate them by target below while
+# the Linux host proof skips them the same way it skips the x86 helpers.
+PPSPP_ARM="
+    ext/libpng17/arm/arm_init.c ext/libpng17/arm/filter_neon_intrinsics.c
+"
 # x86_64-only: cpuid helpers. ARM64 (every iOS target) never references
 # them (USE_CPU_FEATURES is x86-only upstream), so iOS builds skip these.
 PPSPP_X86="
