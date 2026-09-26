@@ -11,12 +11,12 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
-OUT="${TMPDIR:-/tmp}/gba_adapter_test"
-LOG="${TMPDIR:-/tmp}/gba_adapter_build.log"
-g++ -O2 -ICore -std=c++17 -o "$OUT" \
-    Core/gba_adapter_test.cpp Core/gba_adapter.cpp Core/adapters.cpp >"$LOG" 2>&1
-if [ $? -ne 0 ]; then
-  echo "!! build failed:" >&2; head -20 "$LOG" >&2; exit 1
+OUT="${OUT:-$HOME/oga-gba-test}"
+rm -f "$OUT"
+if ! g++ -O2 -ICore -std=c++17 -o "$OUT" \
+    Core/gba_adapter_test.cpp Core/gba_adapter.cpp Core/dbz_adapter.cpp \
+    Core/dissidia_adapter.cpp Core/adapters.cpp; then
+  echo "!! build failed" >&2
+  exit 1
 fi
-grep -E '\berror\b' "$LOG" && { echo "!! compile errors" >&2; exit 1; }
 "$OUT"
