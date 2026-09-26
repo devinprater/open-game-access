@@ -43,6 +43,16 @@ enum GameSystem {
         }
     }
 
+    /// Whether the system has any script speech keys. When it does not (Game
+    /// Boy, PSP), the speech group offers a direct engine stop instead of
+    /// hotkey buttons.
+    var hasDirectSpeechStop: Bool {
+        switch self {
+        case .ds: return false
+        case .gameBoy, .gameBoyAdvance, .psp: return true
+        }
+    }
+
     /// Screens the console draws. Only the DS has two; the Settings screen
     /// picker exists for it alone.
     var screenCount: Int {
@@ -105,6 +115,7 @@ enum GameSystem {
         case .gameBoy, .gameBoyAdvance:
             return [
                 ("Find path", "P", "Guides you to the selected place, turn by turn. Press again to stop. Key P."),
+                ("Where am I", "M", "Reads the current map name. Key M."),
                 ("Tiles", "E", "Reads the tiles around you. Only useful where the ground matters, such as the dark. Key E."),
             ]
         case .psp:
@@ -139,10 +150,9 @@ enum GameSystem {
     }
 
     /// Script hotkeys that act on speech itself. DS-only: on Game Boy, R
-    /// moves the camera and U is unbound, so a "Stop speech" button there
-    /// would either do nothing or do harm. Stopping adapter speech on
-    /// scriptless systems needs a direct speech-stop path that does not
-    /// exist yet.
+    /// moves the camera and U is unbound, so hotkey buttons there would
+    /// either do nothing or do harm. Systems without speech keys get a
+    /// direct engine stop instead (see SpeechGroup) — no script key needed.
     var speechKeys: [(title: String, key: String, hint: String)] {
         switch self {
         case .ds:
