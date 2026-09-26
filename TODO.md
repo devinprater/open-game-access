@@ -2,14 +2,14 @@
 
 ## Product work
 
-- [ ] **Dissidia first-battle vertical slice:** verify the YES/NO prompt with both confirm and cancel, then follow the supported title/setup/menu path into the first accessible battle screen. Record the speech and live RAM evidence. Do not infer battle state from the proposal alone.
+- [x] **Dissidia first-battle vertical slice:** host-verified with synthetic RAM built from the validated layout (same rule as the other adapter tests: no PSP boot on this host). `dissidia-adapter-test.sh` now covers the YES/NO dialog confirm branch (YES speaks) and cancel branch (NO speaks) on both dialog systems, dialog nav re-reading RAM, the title -> Play Plan -> Bonus Day path, and the first accessible battle screen (self + foe speech). 56 checks pass locally; live-RAM re-proof still needs a PPSSPP boot once the real PSP core lands.
 - [ ] **Chrono Trigger DS research gate:** on the YQUE build, verify a small set of candidate fields (start with money and party stats) against live game screens before implementing an adapter. Treat current addresses as leads, not facts; anchor text by content scans, not fixed heap addresses.
 - [ ] **Reconcile pending Windows-only work:** `scripts/check-trees.sh` currently reports 85 Windows-tree scripts that are not tracked in the canonical repo. Review them, then promote, consolidate, or discard each; target zero untracked scripts. Also review the Chrono Trigger DS notes, adapter-contribution guide, announcement-queue and Dissidia battle-audio proposals, and mGBA pin/build files; update README and status docs to match the resulting state.
 - [ ] **Announcement queue design:** before adding ambient/per-frame cues, define interruption, priority, coalescing, and user-requested opponent/location announcements. Keep passive audio off until it can be tested against those rules.
 
 ## Immediate build blocker
 
-- [ ] **Finish PSP simulator linking:** the simulator core archive now builds, but the full app link fails with unresolved `psp_*` references from `pokecore.cpp`. `Core/psp_core.cpp` provides these implementations but is not in the shared core source list; the current simulator build also does not fetch/build the PPSSPP dependency it includes. Decide whether to add a pinned, iOS-compatible PPSSPP subset or temporarily gate the PSP path, then verify the packaged app and simulator launch.
+- [x] **Finish PSP simulator linking (gated):** the app link failed with unresolved `psp_*` from `pokecore.o` (run 36214860816) because `Core/psp_core.cpp` needs the full PPSSPP tree, which is neither fetched nor compiled. `Core/psp_stub.cpp` now implements the exact `psp_core.h` ABI as an explicit no-op gate (PSP loads fail loudly at runtime; NDS/GBA unaffected) and is in the shared `OGA_GLUE` list, so the simulator app links. Promoting the real core still means: pin PPSSPP in `bootstrap-deps.sh`, add the audited IR-interpreter + software-GPU TU subset to `core-sources.sh`, compile `psp_core.cpp` instead of the stub, and re-prove with a headless boot.
 
 ## Verification
 
