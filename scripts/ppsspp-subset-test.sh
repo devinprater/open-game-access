@@ -28,6 +28,7 @@ check PPSPP_EXT_C ""
 check PPSPP_X86 ""
 check PPSPP_ARM ""
 check PPSPP_X86_ASM ""
+check PPSPP_MM ""
 n=0
 for f in $PPSPP_LUA; do
   n=$((n + 1))
