@@ -186,6 +186,15 @@ else
   echo "!! no resource bundle — the Lua script would be missing from the app" >&2
   exit 1
 fi
+# PPSSPP runtime assets (compat tables, soft-GPU atlas, VFPU LUTs): staged
+# from the fetched tree into the app next to the resource bundle. The core
+# reads them via psp_set_asset_dir(); without them psp_load_rom fails loudly
+# naming the missing file.
+PPSPP_SRC="${PPSPP_SRC:-$HOME/src/ppsspp}"
+if ! bash "$ROOT/scripts/ppsspp-stage-assets.sh" "$PPSPP_SRC" "$APP/ppsspp-assets"; then
+  echo "!! PPSSPP runtime assets missing" >&2
+  exit 1
+fi
 
 cat > "$APP/Info.plist" <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>

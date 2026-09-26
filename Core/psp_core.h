@@ -58,6 +58,13 @@ void psp_set_log_callback(PspCore *core, PspLogCallback cb, void *userdata);
  * game ID (e.g. ULUS10437, from PARAM.SFO) into code_out. save_path is the
  * memstick root this core gets (savedata lives under PSP/SAVEDATA below it).
  */
+/* Asset root override. The app calls this with its bundled ppsspp-assets
+ * directory (see scripts/ppsspp-stage-assets.sh) before loading; without it
+ * the core falls back to $PPSSPP_ASSETS, then ./ppsspp-assets. Must outlive
+ * the core or until replaced.
+ */
+void psp_set_asset_dir(PspCore *core, const char *asset_dir);
+
 bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path,
                   char code_out[16]);
 

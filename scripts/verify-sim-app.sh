@@ -59,6 +59,14 @@ else
 fi
 
 echo
+echo "== PPSSPP runtime assets inside the bundle =="
+ASSETS_OK=0
+if [ -f "$APP/ppsspp-assets/compat.ini" ] && [ -f "$APP/ppsspp-assets/ppge_atlas.zim" ] && [ -f "$APP/ppsspp-assets/vfpu/vfpu_sin_lut8192.dat" ]; then
+  echo "  ppsspp-assets present"
+  ASSETS_OK=1
+else
+  echo "!! ppsspp-assets incomplete" >&2
+fi
 echo "== Info.plist platform keys =="
 grep -A2 -E "CFBundleSupportedPlatforms|DTPlatformName" "$APP/Info.plist" 2>/dev/null
 
@@ -73,10 +81,11 @@ grep -q 'iPhoneSimulator' "$APP/Info.plist" 2>/dev/null && PLIST_OK=1
 
 echo "simulator platform : $PLAT_OK"
 echo "scripts present    : $SCRIPT_OK"
+echo "ppsspp assets      : $ASSETS_OK"
 echo "Info.plist sim keys: $PLIST_OK"
 echo "core linked in     : $([ "${TOTAL:-0}" -gt 5000 ] && echo 1 || echo 0)  (total symbols $TOTAL)"
 
-if [ "$PLAT_OK" = "1" ] && [ "$SCRIPT_OK" = "1" ] && [ "$PLIST_OK" = "1" ] && [ "${TOTAL:-0}" -gt 5000 ]; then
+if [ "$PLAT_OK" = "1" ] && [ "$SCRIPT_OK" = "1" ] && [ "$ASSETS_OK" = "1" ] && [ "$PLIST_OK" = "1" ] && [ "${TOTAL:-0}" -gt 5000 ]; then
   echo "PASS — a simulator-targeted app with the core and scripts inside."
   exit 0
 fi

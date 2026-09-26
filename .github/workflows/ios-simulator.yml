@@ -78,6 +78,8 @@ jobs:
           SDKROOT="$(xcrun --sdk iphonesimulator --show-sdk-path)" bash scripts/build-sim.sh
 
       - name: Build the app with xtool
+        env:
+          PPSPP_SRC: ${{ runner.temp }}/src/ppsspp
         run: |
           export POKECORE_LIB="$PWD/Vendor/sim/libpokecore-sim.a"
           echo "POKECORE_LIB=$POKECORE_LIB"

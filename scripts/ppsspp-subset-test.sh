@@ -34,6 +34,12 @@ for f in $PPSPP_LUA; do
   [ -f "$PPSPP_SRC/ext/lua/$f" ] || { echo "FAIL: PPSPP_LUA names 'ext/lua/$f' but it is missing" >&2; fail=1; }
 done
 echo "ok: PPSPP_LUA ($n files present)"
+n=0
+for f in $PPSPP_ASSETS; do
+  n=$((n + 1))
+  [ -f "$PPSPP_SRC/assets/$f" ] || { echo "FAIL: PPSPP_ASSETS names 'assets/$f' but it is missing" >&2; fail=1; }
+done
+echo "ok: PPSPP_ASSETS ($n files present)"
 for f in $PPSPP_GLUE; do
   [ -f "$ROOT/Core/$f" ] || { echo "FAIL: PPSPP_GLUE names 'Core/$f' but it is missing" >&2; fail=1; }
 done

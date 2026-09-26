@@ -426,6 +426,16 @@ PPSPP_X86_ASM="
 "
 # psp_core.cpp is OGA glue but needs the PPSSPP tree, so it has its own
 # list and lang (ppspp) rather than riding OGA_GLUE's plain cxx.
+# Runtime assets the boot path actually opens (strace-proven, Sep 2026):
+# compat.ini + langregion.ini (config tables), ppge_atlas (debug-draw font
+# the soft GPU keeps mapped), vfpu/*.dat (VFPU sin LUTs the IR interpreter
+# consults). Total ~5.5 MB, all free files from PPSSPP's own assets tree.
+# NOT bundled and NOT needed: shaders (GL only), lang/*.ini (no system UI),
+# debugger/ (stubbed), flash0 (Sony IP — PPSSPP auto-installs it from the
+# game disc's own updater partition on first boot; verified with Dissidia).
+PPSPP_ASSETS="
+    compat.ini langregion.ini ppge_atlas.meta ppge_atlas.zim vfpu/vfpu_sin_lut8192.dat vfpu/vfpu_sin_lut_delta.dat vfpu/vfpu_sin_lut_exceptions.dat vfpu/vfpu_sin_lut_interval_delta.dat
+"
 PPSPP_GLUE="
     psp_core.cpp
 "
