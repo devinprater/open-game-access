@@ -86,7 +86,11 @@ if [ ! -f "$MGBA_GEN/mgba/flags.h" ] || [ "$MGBA_SRC/src/core/flags.h.in" -nt "$
 fi
 MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
-COMMON="-target $TRIPLE -isysroot $SDKROOT -O2 -g -fPIC -fwrapv -fno-strict-aliasing -D__IOS__=1 -DHAVE_PTHREADS=1 -DPOKE_IOS=1 -Wno-everything"
+# -DFE_NO_MAIN=1 MUST stay in step with scripts/build-core.sh: fe_access.cpp owns
+# a standalone-host main() behind #ifndef FE_NO_MAIN, and without this define the
+# simulator archive ships a second _main that fails the app link with
+# `duplicate symbol '_main'` (fe_access.o vs the app). Device had it; sim did not.
+COMMON="-target $TRIPLE -isysroot $SDKROOT -O2 -g -fPIC -fwrapv -fno-strict-aliasing -D__IOS__=1 -DHAVE_PTHREADS=1 -DPOKE_IOS=1 -DFE_NO_MAIN=1 -Wno-everything"
 INC="-I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$SRC/src -I$LUA_SRC/src -I$SRC/src/teakra/include"
 CXXFLAGS="$COMMON $INC -std=c++17 -stdlib=libc++"
 CFLAGS="$COMMON $INC -std=gnu11"

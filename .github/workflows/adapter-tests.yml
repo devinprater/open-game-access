@@ -29,3 +29,5 @@ jobs:
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols
         run: bash scripts/mgba-version-stub-test.sh
+      - name: Verify device/sim build flag parity
+        run: bash scripts/build-flag-parity-test.sh
