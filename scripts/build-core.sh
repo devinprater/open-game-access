@@ -111,6 +111,7 @@ compile() { # compile <lang> <src> <tag>
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     ppspp) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE" ;;
+    ppsppmm) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE -fobjc-arc" ;;
     ppsppc) flags="$CFLAGS $PPSPP_INC -DMOBILE_DEVICE -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     ppsppx) flags="$CFLAGS $PPSPP_INC -DMOBILE_DEVICE -DSTACK_LINE_READER_BUFFER_SIZE=1024"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     ppsppasm) flags="$COMMON"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
@@ -145,6 +146,7 @@ compile() { # compile <lang> <src> <tag>
   for f in $PPSPP_EXT_CPP; do printf '%s|ppspp|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
   for f in $PPSPP_EXT_C; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $PPSPP_LUA; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/ext/lua/$f" "ppssplua_$(basename "$f" .c)"; done
+  for f in $PPSPP_MM; do printf '%s|ppsppmm|%s\n' "$PPSPP_SRC/$f" "ppsppmm_$(basename "$f" .mm)"; done
   for f in $PPSPP_GLUE; do printf '%s|ppspp|%s\n' "$ROOT/Core/$f" "ppsppglue_$(basename "$f" .cpp)"; done
   # ARM-only helpers (libpng NEON; x86_64 builds skip these the way ARM
   # builds skip the x86 helpers above).

@@ -715,6 +715,9 @@ BranchInfo::BranchInfo(u32 pc, MIPSOpcode o, MIPSOpcode delayO, bool al, bool l)
 }
 
 std::vector<std::string> DisassembleX86(const u8 *, int) { return {}; }
+// Same story on ARM64: JIT-block debug disassembly, never called by the
+// interpreter (only the crash handler and the stubbed debugger reference it).
+std::vector<std::string> DisassembleArm64(const u8 *, int) { return {}; }
 
 // Version string: upstream generates this from git; pin the validated tree.
 

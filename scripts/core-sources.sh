@@ -160,6 +160,10 @@ ppspp_inc() {
 #
 # Excluded, and why:
 #   native JIT backends (ARM/x86/RISC-V/...) — interpreter-only embedding.
+#       Common/Thunk.cpp is JIT-only thunk emission too: nothing in the subset
+#       references it (verified by object scan), and its x86 emitter calls
+#       dangle on ARM64, which breaks the app link (the archive force-loads
+#       every object). Dropped, not stubbed.
 #   hardware GPU backends (GLES/Vulkan/D3D11) + GPU/GPU.cpp — its factory
 #       references every hardware backend; psp_core.cpp provides the
 #       software-only factory instead.
@@ -206,7 +210,7 @@ PPSPP_CORE="
     Common/Render/TextureAtlas.cpp Common/RiscVCPUDetect.cpp Common/Serialize/Serializer.cpp
     Common/StringUtils.cpp Common/SysError.cpp Common/System/Display.cpp Common/System/OSD.cpp
     Common/System/Request.cpp Common/Thread/ParallelLoop.cpp Common/Thread/ThreadManager.cpp
-    Common/Thread/ThreadUtil.cpp Common/Thunk.cpp Common/TimeUtil.cpp
+    Common/Thread/ThreadUtil.cpp Common/TimeUtil.cpp
     Common/UI/AsyncImageFileView.cpp Common/UI/Context.cpp Common/UI/IconCache.cpp
     Common/UI/Notice.cpp Common/UI/PopupScreens.cpp Common/UI/Root.cpp Common/UI/Screen.cpp
     Common/UI/ScreenManager.cpp Common/UI/ScrollView.cpp Common/UI/TabHolder.cpp Common/UI/Tween.cpp
@@ -435,6 +439,13 @@ PPSPP_X86_ASM="
 # game disc's own updater partition on first boot; verified with Dissidia).
 PPSPP_ASSETS="
     compat.ini langregion.ini ppge_atlas.meta ppge_atlas.zim vfpu/vfpu_sin_lut8192.dat vfpu/vfpu_sin_lut_delta.dat vfpu/vfpu_sin_lut_exceptions.dat vfpu/vfpu_sin_lut_interval_delta.dat
+"
+# Apple-only ObjC++: the Cocoa text drawer and the Darwin sandbox-bookmark
+# helpers. Referenced by kept code only under __APPLE__ (which is why the
+# Linux host proof links without them); the iOS build scripts compile them
+# with ARC (they use __bridge_transfer). The Linux host proof skips them.
+PPSPP_MM="
+    Core/Util/DarwinFileSystemServices.mm Common/Render/Text/draw_text_cocoa.mm
 "
 PPSPP_GLUE="
     psp_core.cpp
