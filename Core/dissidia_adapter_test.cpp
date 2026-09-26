@@ -413,6 +413,137 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Open: east, north, south. Blocked: west.") == 0,
           "board after battle");
 
+    // ---- YES/NO dialogs (confirm + cancel) + title/setup path to first battle ----
+    // The question text is glyph-rendered (no ASCII in RAM), so v1 speaks the
+    // selection only. Confirm = Cross on YES, cancel = Cross/Circle on NO: both
+    // branches must speak before the player commits, or the choice is a guess.
+    const uint32_t DLG_SLOT = 0x08C0CC3Cu, DLG_X = 0x08C0CCB0u;
+    const uint32_t SDLG_A = 0x08C0B508u, SDLG_B = 0x08C0B65Cu;
+
+    // 28. battle-slot dialog, glove on YES -> confirm branch speaks
+    reset();
+    put32(DLG_SLOT, 1u);
+    putf(DLG_X, 119.0f);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "dialog YES speaks");
+
+    // 29. dialog nav re-reads RAM (no tracking to desync on a dropped D-pad)
+    NSPOKEN = 0;
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "dialog nav re-reads YES");
+    NSPOKEN = 0;
+    a->command(oga::Command::MenuLeft);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "dialog left re-reads YES");
+
+    // 30. glove moves to NO -> cancel branch speaks
+    putf(DLG_X, 266.0f);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
+          "dialog NO speaks");
+    NSPOKEN = 0;
+    a->command(oga::Command::MenuPrev);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
+          "dialog nav re-reads NO");
+
+    // 31. story dialog (chapter detail) YES
+    reset();
+    put32(SDLG_A, 5u); put32(SDLG_B, 1u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "story dialog YES speaks");
+
+    // 32. story dialog NO
+    put32(SDLG_A, 4u); put32(SDLG_B, 2u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
+          "story dialog NO speaks");
+
+    // 33. chapter detail WITHOUT dialog (8,13) falls through, never a dialog read
+    put32(SDLG_A, 8u); put32(SDLG_B, 13u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Menu not tracked yet.") == 0,
+          "no dialog falls through");
+
+    // 34. title menu: fingerprints + cursor -> New Game / Data Install
+    reset();
+    const uint32_t TT = 0x09DA8D80u, TW = 0x08C18000u;
+    put32(TT + 0x0Cu, 4u);
+    put32(TT + 0x20u, 1u);
+    put32(TT + 0x24u, 0x00190012u);
+    put32(0x09A3F0C8u, 1u);
+    put32(0x09D8E900u, TW);
+    put32(TW, 0x09D90728u);
+    put32(TW + 0x0Cu, 4u);
+    put32(0x09D90728u + 4u, TW);
+    put32(0x09A3F0CCu, 0u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "New Game. Row 1 of 3.") == 0,
+          "title New Game");
+    put32(0x09A3F0CCu, 2u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Data Install. Row 3 of 3.") == 0,
+          "title Data Install");
+
+    // 35. Data Setup > Play Plan after NEW GAME
+    reset();
+    put32(0x09B3FA30u, 0u); put32(0x09B3FA38u, 2u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Play Plan. Casual. Row 1 of 3.") == 0,
+          "play plan Casual");
+    put32(0x09B3FA30u, 1u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Play Plan. Average. Row 2 of 3.") == 0,
+          "play plan Average");
+
+    // 36. Data Setup > Bonus Day
+    reset();
+    put32(0x09B3FA30u, 5u); put32(0x09B3FA38u, 6u);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Bonus Day. Sat. Row 6 of 7.") == 0,
+          "bonus day Sat");
+
+    // 37. first accessible battle screen: self + foe read clean
+    reset();
+    const uint32_t BH2 = 0x08B955A0u;
+    const uint32_t BM3 = 0x08903000u, BP3 = 0x08903100u, BP4 = 0x08903200u;
+    const uint32_t BS3 = 0x08903300u, BS4 = 0x08903400u;
+    put32(0x08B9B770u, BM);
+    put32(BH2, BM3);
+    put32(BM3 + 0x14u, BP3);
+    put32(BP3 + 0x51Cu, BS3);
+    put32(BP3 + 0x2F0u, BP4);
+    put32(BP3 + 0x4EA8u, BP4);
+    put32(BP4 + 0x51Cu, BS4);
+    put16(BS3 + 0x08u, 1000u); put16(BS3 + 0x02u, 94u);
+    put16(BS3 + 0x0Eu, 41u); put16(BS3 + 0x10u, 95u);
+    putf(BS3 + 0x14u, 0.0f);
+    putf(BP3 + 0x80u, -7.5f); putf(BP3 + 0x84u, 18.4f); putf(BP3 + 0x88u, 41.3f);
+    put16(BS4 + 0x08u, 338u); put16(BS4 + 0x02u, 0u);
+    put16(BS4 + 0x0Eu, 530u); put16(BS4 + 0x10u, 49u);
+    putf(BS4 + 0x14u, 912.0f);
+    putf(BP4 + 0x80u, -7.5f); putf(BP4 + 0x84u, 2.6f); putf(BP4 + 0x88u, 41.3f);
+    NSPOKEN = 0;
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "HP 906 of 1000. Bravery 41. EX 0 percent.") == 0,
+          "first battle self");
+    NSPOKEN = 0;
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Enemy: HP 338 of 338. Bravery 530. 15 away, below you.") == 0,
+          "first battle foe");
+
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
     return failures != 0;
