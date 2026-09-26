@@ -60,6 +60,7 @@ let package = Package(
                     "-Xlinker", vendorLib,
                 ]),
                 .linkedLibrary("c++"),
+                .linkedLibrary("z"),
             ]
         ),
         .target(

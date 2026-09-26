@@ -26,6 +26,7 @@ check PPSPP_CORE ""
 check PPSPP_EXT_CPP ""
 check PPSPP_EXT_C ""
 check PPSPP_X86 ""
+check PPSPP_ARM ""
 check PPSPP_X86_ASM ""
 n=0
 for f in $PPSPP_LUA; do

@@ -146,6 +146,12 @@ compile() { # compile <lang> <src> <tag>
   for f in $PPSPP_EXT_C; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $PPSPP_LUA; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/ext/lua/$f" "ppssplua_$(basename "$f" .c)"; done
   for f in $PPSPP_GLUE; do printf '%s|ppspp|%s\n' "$ROOT/Core/$f" "ppsppglue_$(basename "$f" .cpp)"; done
+  # ARM-only helpers (libpng NEON; x86_64 builds skip these the way ARM
+  # builds skip the x86 helpers above).
+  case "${TRIPLE:-arm64-apple-ios}" in
+    x86_64*) ;;
+    *) for f in $PPSPP_ARM; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/$f" "ppssparmm_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done ;;
+  esac
   # x86_64-only helpers (see the PPSPP_X86 comment in core-sources.sh). The
   # device build is always arm64; the simulator follows $TRIPLE when set.
   case "${TRIPLE:-arm64-apple-ios}" in
