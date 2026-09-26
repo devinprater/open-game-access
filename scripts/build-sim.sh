@@ -63,6 +63,11 @@ fi
 [ -d "$MGBA_SRC/src" ] || { echo "!! no mGBA source at $MGBA_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 [ -d "$SDKROOT" ] || { echo "!! no iPhoneSimulator SDK at $SDKROOT" >&2; exit 1; }
 
+source "$ROOT/scripts/build-cache.sh"
+CXX_CACHE_ID="$(oga_cache_compiler_id "$CXX")" || { echo "!! cannot identify C++ compiler: $CXX" >&2; exit 1; }
+CC_CACHE_ID="$(oga_cache_compiler_id "$CC")" || { echo "!! cannot identify C compiler: $CC" >&2; exit 1; }
+SDK_CACHE_ID="$(oga_cache_sdk_id "$SDKROOT")" || { echo "!! cannot identify SDK: $SDKROOT" >&2; exit 1; }
+
 echo "CXX     = $CXX"
 echo "JOBS    = $JOBS"
 echo "SDKROOT = $SDKROOT"
@@ -88,22 +93,32 @@ CFLAGS="$COMMON $INC -std=gnu11"
 
 compile() {
   local lang="$1" src="$2" tag="$3"
-  local out="$OBJ/$tag.o"
-  [ -f "$out" ] && [ "$out" -nt "$src" ] \
-    && [ "$out" -nt "$ROOT/scripts/build-sim.sh" ] \
-    && [ "$out" -nt "$ROOT/scripts/core-sources.sh" ] && return 0
-  local flags="$CXXFLAGS" cc="$CXX"
+  local out="$OBJ/$tag.o" depfile="$OBJ/$tag.d" signature="$OBJ/$tag.sig" done="$OBJ/.done.$tag"
+  local flags="$CXXFLAGS" cc="$CXX" compiler_id="$CXX_CACHE_ID" fingerprint
   case "$lang" in
     cxx)
       # gba_core.cpp is OGA glue but uses mGBA's configured public API.
       if [ "$(basename "$src")" = "gba_core.cpp" ]; then
         flags="$CXXFLAGS $MGBA_DEFS $MGBA_INC"
       fi ;;
-    cc)  flags="$CFLAGS"; cc="$CC" ;;
-    lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC" ;;
-    mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC" ;;
+    cc)  flags="$CFLAGS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
   esac
-  if ! "$cc" $flags -c "$src" -o "$out" 2> "$OBJ/$tag.err"; then
+  fingerprint="$(oga_cache_fingerprint "$cc" "$compiler_id" "$flags" "$SDK_CACHE_ID" "$TRIPLE" "$SDKROOT")" || {
+    echo "FAIL $tag: cannot fingerprint compile inputs" >&2; touch "$OBJ/.failed"; return 1;
+  }
+  if oga_cache_is_valid "$out" "$depfile" "$signature" "$fingerprint" \
+      "$src" "$ROOT/scripts/build-sim.sh" "$ROOT/scripts/core-sources.sh"; then
+    touch "$done" || { echo "FAIL $tag: cannot record compile completion" >&2; touch "$OBJ/.failed"; return 1; }
+    return 0
+  fi
+  if "$cc" $flags -MMD -MF "$depfile" -MT "$out" -c "$src" -o "$out" 2> "$OBJ/$tag.err"; then
+    oga_cache_write_fingerprint "$signature" "$fingerprint" || {
+      echo "FAIL $tag: cannot record compile fingerprint" >&2; touch "$OBJ/.failed"; return 1;
+    }
+    touch "$done" || { echo "FAIL $tag: cannot record compile completion" >&2; touch "$OBJ/.failed"; return 1; }
+  else
     echo "FAIL $tag"; tail -25 "$OBJ/$tag.err"; touch "$OBJ/.failed"
   fi
 }
@@ -123,20 +138,31 @@ compile() {
   for f in $OGA_GLUE; do printf '%s|cxx|%s\n' "$ROOT/Core/$f" "$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
 } > "$OBJ/list.txt"
 
-rm -f "$OBJ/.failed"
+rm -f "$OBJ/.failed" "$OBJ"/.done.*
 echo "== compiling $(wc -l < "$OBJ/list.txt") TUs for the SIMULATOR ($TRIPLE)"
-export CXX CC CXXFLAGS CFLAGS OBJ
+export ROOT CXX CC CXXFLAGS CFLAGS OBJ TRIPLE SDKROOT CXX_CACHE_ID CC_CACHE_ID SDK_CACHE_ID
 # ⛔ These MUST be exported: compile() runs in xargs-spawned child shells via
-# `export -f`, and children only inherit exported vars. Without this the mGBA
-# TUs silently lose their -I flags and die on mgba/internal/... not found.
+# `export -f`; children need the compiler, SDK, flags, and cache helpers too.
 export MGBA_DEFS MGBA_INC
-export -f compile
+export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # stdin, not `xargs -a` (GNU-only).
 # shellcheck disable=SC2002
 cat "$OBJ/list.txt" | xargs -P "$JOBS" -I{} bash -c '
   IFS="|" read -r src lang tag <<< "{}"
   compile "$lang" "$src" "$tag"
 '
+
+# A cache hit is still completed work. Verify each requested TU was either
+# compiled or accepted from a current cache entry, so xargs no-ops remain fatal.
+_want=$(wc -l < "$OBJ/list.txt")
+_done=0
+for _marker in "$OBJ"/.done.*; do
+  [ -f "$_marker" ] && _done=$((_done + 1))
+done
+if [ "$_done" -ne "$_want" ]; then
+  echo "!! processed $_done of $_want translation units — compile step incomplete" >&2
+  exit 1
+fi
 
 # ⛔ FAIL LOUDLY. The first CI run compiled nothing (xargs -a failed on macOS) and
 # then reported "poke symbols: 0" while exiting 0 — the job only died later, at a
