@@ -146,7 +146,7 @@ MGBA_DEFS="-DBUILD_STATIC -DENABLE_DEBUGGERS -DENABLE_DIRECTORIES -DENABLE_SCRIP
 # needs. ONE definition: build-core.sh, build-sim.sh and psp-host-proof.sh all
 # call this, so the iOS and host-proof builds can never drift apart.
 ppspp_inc() {
-  echo "-I$1 -I$1/Common -I$1/ext -I$1/ext/snappy -I$1/ext/libpng17 -I$1/ext/zstd/lib -I$1/ext/cpu_features/include -I$1/ext/armips -I$1/ext/armips/ext/filesystem/include -I$1/ext/libchdr/include -I$1/ext/lua -I$1/ext/naett-lib -I$1/ext/libzip -I$1/ext/aemu_postoffice/client"
+  echo "-I$1 -I$1/Common -I$1/ext -I$1/ext/snappy -I$1/ext/libpng17 -I$1/ext/zstd/lib -I$1/ext/cpu_features/include -I$1/ext/armips -I$1/ext/armips/ext/filesystem/include -I$1/ext/libchdr/include -I$1/ext/lua -I$1/ext/naett-lib -I$1/ext/libzip -I$1/ext/aemu_postoffice/client -I$1/ext/miniupnp/miniupnpc/include -I$1/ext/miniupnp/miniupnpc/src"
 }
 
 # ---- PPSSPP (PlayStation Portable) ----
@@ -168,8 +168,11 @@ ppspp_inc() {
 #       psp_core.cpp (same shape upstream blesses for libretro builds).
 #   CHD images — libchdr needs the LZMA *encoder*, which upstream does not
 #       vendor (ext/lzma-sdk is decode-only); CHD opens fail cleanly.
-#   HTTP (naett/libcurl), glslang shader translation, miniupnpc, and every
-#       platform frontend (SDL/Qt/Android/iOS UI).
+#   HTTP (naett/libcurl), glslang shader translation, and every platform
+#       frontend (SDL/Qt/Android/iOS UI). UPnP stays: the adhoc net stack
+#       references it, and miniupnpc is small, portable C (its one generated
+#       header, miniupnpcstrings.h, is produced at build time by miniupnp's
+#       own updateminiupnpcstrings.sh, exactly like their Makefile does).
 #   version reporting — upstream generates it from git; PPSSPP_GIT_VERSION is
 #       pinned in psp_core.cpp instead.
 PPSPP_CORE="
@@ -380,6 +383,20 @@ PPSPP_EXT_C="
     ext/libkirk/bn.c
     ext/libkirk/ec.c
     ext/libkirk/kirk_engine.c
+    ext/miniupnp/miniupnpc/src/igd_desc_parse.c
+    ext/miniupnp/miniupnpc/src/miniupnpc.c
+    ext/miniupnp/miniupnpc/src/minixml.c
+    ext/miniupnp/miniupnpc/src/minisoap.c
+    ext/miniupnp/miniupnpc/src/minissdpc.c
+    ext/miniupnp/miniupnpc/src/miniwget.c
+    ext/miniupnp/miniupnpc/src/upnpcommands.c
+    ext/miniupnp/miniupnpc/src/upnpdev.c
+    ext/miniupnp/miniupnpc/src/upnpreplyparse.c
+    ext/miniupnp/miniupnpc/src/upnperrors.c
+    ext/miniupnp/miniupnpc/src/connecthostport.c
+    ext/miniupnp/miniupnpc/src/portlistingparse.c
+    ext/miniupnp/miniupnpc/src/receivedata.c
+    ext/miniupnp/miniupnpc/src/addr_is_reserved.c
 "
 PPSPP_LUA="
     lapi.c lauxlib.c lbaselib.c lcode.c lcorolib.c lctype.c ldblib.c ldebug.c ldo.c ldump.c lfunc.c

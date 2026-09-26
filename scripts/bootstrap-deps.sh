@@ -66,7 +66,7 @@ fetch "$PPSSPP_REPO" ppsspp "$PPSSPP_REV"
 # Only the submodules the audited subset compiles (see core-sources.sh).
 # The rest (SDL, Qt, GLES, glslang, ...) are desktop/GPU frontends iOS
 # cannot use; fetching them would pull hundreds of MB for nothing.
-git -C ppsspp submodule update --init --depth 1 ext/armips ext/cpu_features ext/zstd ext/libchdr ext/aemu_postoffice ext/lua
+git -C ppsspp submodule update --init --depth 1 ext/armips ext/cpu_features ext/zstd ext/libchdr ext/aemu_postoffice ext/lua ext/miniupnp
 # armips vendors its filesystem polyfill as a nested submodule.
 git -C ppsspp/ext/armips submodule update --init --depth 1 ext/filesystem
 

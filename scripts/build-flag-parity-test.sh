@@ -8,7 +8,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 fail=0
-for flag in FE_NO_MAIN POKE_IOS; do
+for flag in FE_NO_MAIN POKE_IOS MOBILE_DEVICE; do
   for script in build-core.sh build-sim.sh; do
     if grep -q "\-D$flag" "$ROOT/scripts/$script"; then
       echo "ok: $script defines -D$flag"

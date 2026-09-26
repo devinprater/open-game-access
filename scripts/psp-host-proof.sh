@@ -27,9 +27,14 @@ fi
 [ -d "$PPSPP_SRC/Core" ] || { echo "FAIL: no PPSSPP tree at $PPSPP_SRC" >&2; exit 1; }
 command -v g++ >/dev/null || { echo "FAIL: host g++ not found" >&2; exit 1; }
 
-INC="$(ppspp_inc "$PPSPP_SRC")"
-CXX="g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -std=c++17 $INC -I$ROOT/Core"
-CC="gcc -O1 -g -fPIC -fwrapv -fno-strict-aliasing $INC"
+GEN="$OUT/host-gen"
+mkdir -p "$GEN"
+if [ ! -f "$GEN/miniupnpcstrings.h" ] || [ "$PPSPP_SRC/ext/miniupnp/miniupnpc/VERSION" -nt "$GEN/miniupnpcstrings.h" ]; then
+  ( cd "$PPSPP_SRC/ext/miniupnp/miniupnpc" && sh updateminiupnpcstrings.sh "$GEN/miniupnpcstrings.h" miniupnpcstrings.h.in ) > /dev/null
+fi
+INC="$(ppspp_inc "$PPSPP_SRC") -I$GEN"
+CXX="g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -std=c++17 $INC -I$ROOT/Core -DMOBILE_DEVICE"
+CC="gcc -O1 -g -fPIC -fwrapv -fno-strict-aliasing $INC -DMOBILE_DEVICE -DLUA_USE_IOS"
 mkdir -p "$OUT/host-obj" "$OUT/host-save"
 
 n=0
