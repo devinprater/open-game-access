@@ -86,7 +86,16 @@ if [ ! -f "$MGBA_GEN/mgba/flags.h" ] || [ "$MGBA_SRC/src/core/flags.h.in" -nt "$
       -e 's/#cmakedefine \([A-Za-z_0-9]*\).*/#ifndef \1\n#endif/' \
       "$MGBA_SRC/src/core/flags.h.in" > "$MGBA_GEN/mgba/flags.h"
 fi
-PPSPP_INC="$(ppspp_inc "$PPSPP_SRC")"
+# ---- miniupnpc generated miniupnpcstrings.h ----
+# Core/Util/PortManager.h pulls in miniwget.h, which needs miniupnpcstrings.h;
+# miniupnp generates it from its VERSION via their own script (same command
+# their Makefile runs). Generated per build dir, like mGBA's flags.h above.
+PPSPP_GEN="$OBJ/ppspp-gen"
+mkdir -p "$PPSPP_GEN"
+if [ ! -f "$PPSPP_GEN/miniupnpcstrings.h" ] || [ "$PPSPP_SRC/ext/miniupnp/miniupnpc/VERSION" -nt "$PPSPP_GEN/miniupnpcstrings.h" ]; then
+  ( cd "$PPSPP_SRC/ext/miniupnp/miniupnpc" && sh updateminiupnpcstrings.sh "$PPSPP_GEN/miniupnpcstrings.h" miniupnpcstrings.h.in ) > /dev/null
+fi
+PPSPP_INC="$(ppspp_inc "$PPSPP_SRC") -I$PPSPP_GEN"
 MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
 # -DFE_NO_MAIN=1 MUST stay in step with scripts/build-core.sh: fe_access.cpp owns
@@ -111,9 +120,9 @@ compile() {
     cc)  flags="$CFLAGS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
-    ppspp) flags="$CXXFLAGS $PPSPP_INC" ;;
-    ppsppc) flags="$CFLAGS $PPSPP_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
-    ppsppx) flags="$CFLAGS $PPSPP_INC -DSTACK_LINE_READER_BUFFER_SIZE=1024"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    ppspp) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE" ;;
+    ppsppc) flags="$CFLAGS $PPSPP_INC -DMOBILE_DEVICE -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    ppsppx) flags="$CFLAGS $PPSPP_INC -DMOBILE_DEVICE -DSTACK_LINE_READER_BUFFER_SIZE=1024"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     ppsppasm) flags="$COMMON"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
   esac
   fingerprint="$(oga_cache_fingerprint "$cc" "$compiler_id" "$flags" "$SDK_CACHE_ID" "$TRIPLE" "$SDKROOT")" || {

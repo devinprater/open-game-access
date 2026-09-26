@@ -598,12 +598,16 @@ bool HardcoreModeActive() { return false; }
 bool WarnUserIfHardcoreModeActive(bool, std::string_view) { return false; }
 }
 
+// Upstream declares class AVIDump only when MOBILE_DEVICE is off
+// (Core/AVIDump.h) — the shims follow the same guard.
+#ifndef MOBILE_DEVICE
 // AVI capture: SaveState only calls these when bDumpFrames is set, which the
 // embedding never sets (there is no recorder UI).
 bool AVIDump::Start(int, int) { return false; }
 void AVIDump::Stop() {}
-
-// UPnP port mapping: no miniupnpc in the subset, so adhoc stays local-only.
+#endif
+// UPnP port mapping: the embedding never maps ports, so adhoc stays
+// local-only even though miniupnpc itself is compiled in.
 void UPnP_Add(const char *, unsigned short, unsigned short) {}
 void UPnP_Remove(const char *, unsigned short) {}
 void UPnP_Notify() {}
