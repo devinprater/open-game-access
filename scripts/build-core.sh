@@ -83,9 +83,16 @@ for _f in $OGA_GLUE; do GLUE="$GLUE $ROOT/Core/$_f"; done
 compile() { # compile <lang> <src> <tag>
   local lang="$1" src="$2" tag="$3"
   local out="$OBJ/$tag.o"
-  [ -f "$out" ] && [ "$out" -nt "$src" ] && return 0
+  [ -f "$out" ] && [ "$out" -nt "$src" ] \
+    && [ "$out" -nt "$ROOT/scripts/build-core.sh" ] \
+    && [ "$out" -nt "$ROOT/scripts/core-sources.sh" ] && return 0
   local flags="$CXXFLAGS"
   case "$lang" in
+    cxx)
+      # gba_core.cpp is OGA glue but uses mGBA's configured public API.
+      if [ "$(basename "$src")" = "gba_core.cpp" ]; then
+        flags="$CXXFLAGS $MGBA_DEFS $MGBA_INC"
+      fi ;;
     cc)  flags="$CFLAGS" ;;
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS" ;;
     mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC" ;;
