@@ -89,9 +89,16 @@ CFLAGS="$COMMON $INC -std=gnu11"
 compile() {
   local lang="$1" src="$2" tag="$3"
   local out="$OBJ/$tag.o"
-  [ -f "$out" ] && [ "$out" -nt "$src" ] && return 0
+  [ -f "$out" ] && [ "$out" -nt "$src" ] \
+    && [ "$out" -nt "$ROOT/scripts/build-sim.sh" ] \
+    && [ "$out" -nt "$ROOT/scripts/core-sources.sh" ] && return 0
   local flags="$CXXFLAGS" cc="$CXX"
   case "$lang" in
+    cxx)
+      # gba_core.cpp is OGA glue but uses mGBA's configured public API.
+      if [ "$(basename "$src")" = "gba_core.cpp" ]; then
+        flags="$CXXFLAGS $MGBA_DEFS $MGBA_INC"
+      fi ;;
     cc)  flags="$CFLAGS"; cc="$CC" ;;
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC" ;;
     mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC" ;;

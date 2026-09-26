@@ -12,25 +12,19 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 
-OBJ="$ROOT/Vendor/hostobj"
 OUT="${OUT:-$HOME/oga-dbz-test}"
 
-if [ ! -f "$OBJ/adapters.o" ] || [ ! -f "$OBJ/dbz_adapter.o" ]; then
-  echo "== host objects missing; building"
-  bash scripts/build-host.sh >/dev/null 2>&1 || { echo "!! build-host.sh failed" >&2; exit 1; }
-fi
-
-for f in dbz_adapter adapters; do
-  [ -f "$OBJ/$f.o" ] || { echo "!! missing $OBJ/$f.o — is Core/$f.cpp in build-host.sh?" >&2; exit 1; }
-done
-
 echo "== compiling + linking the adapter test"
-g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 \
+# This focused test supplies FE/GBA registry stubs. Link the real DBZ and
+# Dissidia implementations too, because adapters.cpp now registers both.
+rm -f "$OUT"
+if ! g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 \
     -Wno-everything -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" -std=c++17 \
-    -o "$OUT" Core/dbz_adapter_test.cpp "$OBJ/dbz_adapter.o" "$OBJ/adapters.o" \
-    -lpthread -ldl -lm 2>&1 | grep -viE '^$|warning:' | head -12
-
-[ -x "$OUT" ] || { echo "!! test failed to build" >&2; exit 1; }
+    -o "$OUT" Core/dbz_adapter_test.cpp Core/dbz_adapter.cpp \
+    Core/dissidia_adapter.cpp Core/adapters.cpp -lpthread -ldl -lm; then
+  echo "!! test failed to build" >&2
+  exit 1
+fi
 
 echo "== running"
 "$OUT"
