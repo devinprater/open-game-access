@@ -125,6 +125,17 @@ final class GameSession: ObservableObject {
         poke_set_button(core, raw, down)
     }
 
+    /// Silence that sticks, without any script key.
+    ///
+    /// A VoiceOver two-finger tap (or the synth stopping) only ends the
+    /// current utterance; the script produces new lines every frame, so
+    /// speech resumes a frame later. Engine-level silence drops those lines
+    /// until the player asks for something. This is the only stop available
+    /// on systems whose script has no stop key (Game Boy, PSP).
+    func stopSpeech() {
+        speech?.stopAll()
+    }
+
     func setHotkey(_ key: String, down: Bool) {
         guard let core else { return }
         key.withCString { poke_set_hotkey(core, $0, down) }

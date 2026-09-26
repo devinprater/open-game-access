@@ -409,15 +409,35 @@ private struct SpeechGroup: View {
     @EnvironmentObject private var session: GameSession
 
     var body: some View {
-        // R/U are DS script keys. On Game Boy R moves the camera, so a
-        // "Stop speech" button there would act on the game instead of the
-        // speech; on PSP hotkeys do nothing at all. Absent, not dead.
-        let keys = (session.system ?? .ds).speechKeys
-        if !keys.isEmpty {
+        let system = session.system ?? .ds
+        if !system.speechKeys.isEmpty {
+            // R/U are DS script keys: R tells the script itself to stop, so
+            // its queue clears as well as the audio.
             HStack(spacing: 6) {
-                ForEach(Array(keys.enumerated()), id: \.offset) { _, item in
+                ForEach(Array(system.speechKeys.enumerated()), id: \.offset) { _, item in
                     HotkeyButton(item.title, key: item.key, hint: item.hint)
                 }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Speech controls")
+        } else if system.hasDirectSpeechStop {
+            // No script key stops speech on this system (on Game Boy, R moves
+            // the camera), so stop at the engine: clear the queue and drop
+            // background lines until the player asks for something. A
+            // VoiceOver two-finger tap only ends the current utterance while
+            // the script keeps producing lines; this is what makes it stick.
+            // It also works with VoiceOver off, where the tap does not exist.
+            HStack(spacing: 6) {
+                Button {
+                    session.stopSpeech()
+                } label: {
+                    Text("Stop speech")
+                        .font(.subheadline)
+                        .frame(maxWidth: .infinity, minHeight: 48)
+                }
+                .buttonStyle(.bordered)
+                .accessibilityLabel("Stop speech")
+                .accessibilityHint("Stops the current speech and stays silent until you ask for something.")
             }
             .accessibilityElement(children: .contain)
             .accessibilityLabel("Speech controls")
