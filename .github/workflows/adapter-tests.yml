@@ -27,3 +27,5 @@ jobs:
         run: bash scripts/adapter-tests.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
+      - name: Verify mGBA version stub symbols
+        run: bash scripts/mgba-version-stub-test.sh
