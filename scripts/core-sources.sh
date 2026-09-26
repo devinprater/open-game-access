@@ -53,8 +53,13 @@ teakra/src/timer.cpp teakra/src/test_generator.cpp
 # Order is irrelevant to the linker (these are objects, not a library), but the
 # adapters are grouped last because they are the feature layer sitting on top of
 # pokecore.cpp's registry.
+# PSP backend gate: psp_stub.cpp satisfies the psp_* ABI pokecore.cpp calls so
+# the app links. The real Core/psp_core.cpp needs the full PPSSPP tree, which
+# is not fetched or compiled here (see Core/psp_stub.cpp header); compiling
+# psp_core.cpp without that tree breaks the build, omitting both breaks the
+# link with undefined _psp_* from pokecore.o.
 OGA_GLUE="
-poke_platform.cpp pokecore.cpp
+poke_platform.cpp pokecore.cpp psp_stub.cpp
 fe_access.cpp fe_adapter.cpp
 gba_adapter.cpp
 gba_core.cpp mgba_version_stub.cpp
