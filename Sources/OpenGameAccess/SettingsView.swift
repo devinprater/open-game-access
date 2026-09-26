@@ -7,6 +7,9 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
+            // Only the DS draws two screens; for every other console this
+            // picker would offer a choice that changes nothing.
+            if (session.system ?? .ds) == .ds {
             Section {
                 Picker("Screen shown", selection: $session.focusScreen) {
                     Text("Bottom screen").tag(Int32(POKE_SCREEN_BOTTOM))
@@ -17,6 +20,7 @@ struct SettingsView: View {
                 Text("Display")
             } footer: {
                 Text("The reading commands work on both screens regardless of which one is shown.")
+            }
             }
 
             Section {

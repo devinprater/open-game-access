@@ -31,6 +31,12 @@ final class GameSession: ObservableObject {
     /// but the player is looking at whichever one matters right now.
     @Published var focusScreen: Int32 = POKE_SCREEN_BOTTOM
 
+    /// The console the loaded ROM runs on. Set from the file extension at
+    /// load; the pad, the reader groups, and the Settings screen picker all
+    /// read it. Nil before the first load — nothing system-specific shows
+    /// until a game is in.
+    @Published private(set) var system: GameSystem?
+
     /// ⛔ THIS MUST BE @Published, NOT COMPUTED. Whether an adapter is ready is read
     /// from live C state, but SwiftUI only re-renders when an @Published property
     /// changes. A computed `adapterReady` would read the correct value and still never
@@ -181,6 +187,14 @@ final class GameSession: ObservableObject {
         guard let local = try? ROMStore.importROM(from: url) else {
             status = .failed("Could not read \(name).")
             return
+        }
+
+        system = GameSystem.forROMExtension(local.pathExtension)
+        if let system, system == .psp, let assets = BundleResources.ppssppAssetDir {
+            // The PSP core refuses to boot without its staged assets (compat
+            // tables, soft-GPU atlas, VFPU LUTs); the path is set here so a
+            // missing bundle fails loudly at load, not mid-boot.
+            assets.withCString { poke_set_psp_asset_dir(core, $0) }
         }
 
         let save = ROMStore.savePath(for: local)

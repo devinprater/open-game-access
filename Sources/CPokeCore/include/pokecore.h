@@ -65,6 +65,8 @@ void poke_set_script(PokeCore *core, const char *script);
  * Game Boy ROMs only: call after poke_load_rom, before poke_start. NDS ROMs
  * use poke_set_script instead. */
 void poke_set_script_dir(PokeCore *core, const char *dir);
+// PSP runtime assets inside the app bundle; set before loading a PSP ROM.
+void poke_set_psp_asset_dir(PokeCore *core, const char *asset_dir);
 bool poke_start(PokeCore *core);
 void poke_stop(PokeCore *core);
 bool poke_running(PokeCore *core);
