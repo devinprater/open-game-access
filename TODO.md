@@ -17,7 +17,12 @@ naming any missing file. flash0 needs nothing: PPSSPP auto-installs it from
 the game disc's updater partition on first boot (verified: fresh memstick
 boots Dissidia 900/900). Remaining: no Swift PSP path exists yet (the picker
 only offers nds/gba) — when it lands, it must call psp_set_asset_dir() with
-the bundle path before psp_load_rom. Update 2026-09-26: iOS simulator CI is green with the real core (run 36242939387 — 640+ PPSSPP TUs under AppleClang, app links, boots on a simulated iPhone).
+the bundle path before psp_load_rom. Update 2026-09-26: both landed — the
+picker offers iso/cso/pbp, loadROM points the core at the bundled
+ppsspp-assets via poke_set_psp_asset_dir(), and the UI adapts per system
+(GameSystem: PSP shows Cross/Circle/Triangle/Square with no script keys, GB
+shows A/B with the verified P/E/K/J/L reader keys, the screen picker is
+DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-09-26: iOS simulator CI is green with the real core (run 36242939387 — 640+ PPSSPP TUs under AppleClang, app links, boots on a simulated iPhone).
 
 ## Verification
 
