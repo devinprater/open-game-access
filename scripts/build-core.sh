@@ -24,6 +24,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${MELONDS_SRC:-$HOME/src/melonds-lua}"
 LUA_SRC="${LUA_SRC:-$HOME/src/lua-5.4.7}"
 MGBA_SRC="${MGBA_SRC:-$HOME/src/mgba}"
+PPSPP_SRC="${PPSPP_SRC:-$HOME/src/ppsspp}"
 OUT="$ROOT/Vendor"
 OBJ="$OUT/obj"
 SDK="$HOME/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
@@ -36,6 +37,7 @@ CC="${CC:-/usr/local/swift/bin/clang}"
 [ -d "$SRC/src" ] || { echo "!! no melonDS source at $SRC" >&2; exit 1; }
 [ -d "$LUA_SRC/src" ] || { echo "!! no Lua source at $LUA_SRC" >&2; exit 1; }
 [ -d "$MGBA_SRC/src" ] || { echo "!! no mGBA source at $MGBA_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
+[ -d "$PPSPP_SRC/Core" ] || { echo "!! no PPSSPP source at $PPSPP_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 
 source "$ROOT/scripts/build-cache.sh"
 CXX_CACHE_ID="$(oga_cache_compiler_id "$CXX")" || { echo "!! cannot identify C++ compiler: $CXX" >&2; exit 1; }
@@ -60,6 +62,7 @@ if [ ! -f "$MGBA_GEN/mgba/flags.h" ] || [ "$MGBA_SRC/src/core/flags.h.in" -nt "$
       -e 's/#cmakedefine \([A-Za-z_0-9]*\).*/#ifndef \1\n#endif/' \
       "$MGBA_SRC/src/core/flags.h.in" > "$MGBA_GEN/mgba/flags.h"
 fi
+PPSPP_INC="$(ppspp_inc "$PPSPP_SRC")"
 MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
 # -fwrapv matters: melonDS's ARM interpreter relies on wrapping arithmetic.
@@ -98,6 +101,10 @@ compile() { # compile <lang> <src> <tag>
     cc)  flags="$CFLAGS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    ppspp) flags="$CXXFLAGS $PPSPP_INC" ;;
+    ppsppc) flags="$CFLAGS $PPSPP_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    ppsppx) flags="$CFLAGS $PPSPP_INC -DSTACK_LINE_READER_BUFFER_SIZE=1024"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    ppsppasm) flags="$COMMON"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
   esac
   fingerprint="$(oga_cache_fingerprint "$cc" "$compiler_id" "$flags" "$SDK_CACHE_ID" "$SDK")" || {
     echo "FAIL $tag: cannot fingerprint compile inputs" >&2; touch "$OBJ/.failed"; return 1;
@@ -125,6 +132,18 @@ compile() { # compile <lang> <src> <tag>
     [ "$b" = "lua" ] || [ "$b" = "luac" ] || printf '%s|lua|%s\n' "$f" "lua_$b"
   done
   for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  for f in $PPSPP_CORE; do printf '%s|ppspp|%s\\n' "$PPSPP_SRC/$f" "ppspp_$(echo "$f" | tr '/' '_' | sed 's/\\.cpp$//')"; done
+  for f in $PPSPP_EXT_CPP; do printf '%s|ppspp|%s\\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\\.cpp$//')"; done
+  for f in $PPSPP_EXT_C; do printf '%s|ppsppc|%s\\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\\.c$//')"; done
+  for f in $PPSPP_LUA; do printf '%s|ppsppc|%s\\n' "$PPSPP_SRC/ext/lua/$f" "ppssplua_$(basename "$f" .c)"; done
+  for f in $PPSPP_GLUE; do printf '%s|ppspp|%s\\n' "$ROOT/Core/$f" "ppsppglue_$(basename "$f" .cpp)"; done
+  # x86_64-only helpers (see the PPSPP_X86 comment in core-sources.sh). The
+  # device build is always arm64; the simulator follows $TRIPLE when set.
+  case "${TRIPLE:-arm64-apple-ios}" in
+    x86_64*)
+      for f in $PPSPP_X86; do printf '%s|ppsppx|%s\\n' "$PPSPP_SRC/$f" "ppsspx86_$(echo "$f" | tr '/' '_' | sed 's/\\.c$//')"; done
+      for f in $PPSPP_X86_ASM; do printf '%s|ppsppasm|%s\\n' "$PPSPP_SRC/$f" "ppsspx86_$(basename "$f" .S)"; done ;;
+  esac
   for f in $GLUE; do printf '%s|cxx|%s\n' "$f" "$(basename "$f" .cpp)"; done
 } > "$OBJ/list.txt"
 
@@ -134,7 +153,7 @@ export ROOT CXX CC CXXFLAGS CFLAGS OBJ SDK CXX_CACHE_ID CC_CACHE_ID SDK_CACHE_ID
 # ⛔ Exported for xargs-spawned compile() children: they need the same compiler,
 # SDK and cache helpers as the parent so each translation unit validates its own
 # command fingerprint and generated header dependencies.
-export MGBA_DEFS MGBA_INC
+export MGBA_DEFS MGBA_INC PPSPP_INC
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED. Without it xargs reads STDIN, which is
 # empty under a non-interactive shell, so it compiles ZERO files, the archive is

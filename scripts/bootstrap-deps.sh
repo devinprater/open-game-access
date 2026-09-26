@@ -54,6 +54,22 @@ fetch "$MELONDS_LUA_REPO" melonds-lua master
 # MGBA_DEFS and a generated flags.h (see build-core.sh).
 fetch "$MGBA_REPO" mgba "$MGBA_REV"
 
+# ---- PPSSPP (PlayStation Portable core) ----
+# Fetched for headers + the audited IR-interpreter/software-GPU TU subset in
+# core-sources.sh. No CMake: the build scripts compile the subset directly.
+# PINNED TO THE HOST-PROVEN REVISION (see scripts/psp-host-proof.sh): the
+# real Core/psp_core.cpp booted the Dissidia CSO against this exact commit.
+# Moving the pin means re-running the host proof AND the subset test.
+PPSSPP_REPO="${PPSSPP_REPO:-https://github.com/hrydgard/ppsspp.git}"
+PPSSPP_REV="${PPSSPP_REV:-f293b10fb2d9dc0c2bc10281444ee3d3e932e6ad}"
+fetch "$PPSSPP_REPO" ppsspp "$PPSSPP_REV"
+# Only the submodules the audited subset compiles (see core-sources.sh).
+# The rest (SDL, Qt, GLES, glslang, ...) are desktop/GPU frontends iOS
+# cannot use; fetching them would pull hundreds of MB for nothing.
+git -C ppsspp submodule update --init --depth 1 ext/armips ext/cpu_features ext/zstd ext/libchdr ext/aemu_postoffice ext/lua
+# armips vendors its filesystem polyfill as a nested submodule.
+git -C ppsspp/ext/armips submodule update --init --depth 1 ext/filesystem
+
 # ---- Lua 5.4 (MIT) ----
 if [ ! -d "lua-$LUA_VER" ]; then
   echo "== fetching Lua $LUA_VER"
@@ -71,6 +87,7 @@ cat <<EOF
 
   melonds-lua  $( [ -d melonds-lua ] && echo present || echo MISSING )
   mgba         $( [ -d mgba ] && echo present || echo MISSING )
+  ppsspp       $( [ -d ppsspp ] && echo present || echo MISSING )
   lua-$LUA_VER      $( [ -d "lua-$LUA_VER" ] && echo present || echo MISSING )
 
 Next:

@@ -22,6 +22,7 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${MELONDS_SRC:-$HOME/src/melonds-lua}"
 LUA_SRC="${LUA_SRC:-$HOME/src/lua-5.4.7}"
 MGBA_SRC="${MGBA_SRC:-$HOME/src/mgba}"
+PPSPP_SRC="${PPSPP_SRC:-$HOME/src/ppsspp}"
 OUT="$ROOT/Vendor/sim"
 OBJ="$OUT/obj"
 TRIPLE="${TRIPLE:-arm64-apple-ios17.0-simulator}"
@@ -61,6 +62,7 @@ fi
 [ -d "$SRC/src" ]  || { echo "!! no melonDS source at $SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 [ -d "$LUA_SRC/src" ] || { echo "!! no Lua source at $LUA_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 [ -d "$MGBA_SRC/src" ] || { echo "!! no mGBA source at $MGBA_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
+[ -d "$PPSPP_SRC/Core" ] || { echo "!! no PPSSPP source at $PPSPP_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 [ -d "$SDKROOT" ] || { echo "!! no iPhoneSimulator SDK at $SDKROOT" >&2; exit 1; }
 
 source "$ROOT/scripts/build-cache.sh"
@@ -84,6 +86,7 @@ if [ ! -f "$MGBA_GEN/mgba/flags.h" ] || [ "$MGBA_SRC/src/core/flags.h.in" -nt "$
       -e 's/#cmakedefine \([A-Za-z_0-9]*\).*/#ifndef \1\n#endif/' \
       "$MGBA_SRC/src/core/flags.h.in" > "$MGBA_GEN/mgba/flags.h"
 fi
+PPSPP_INC="$(ppspp_inc "$PPSPP_SRC")"
 MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
 # -DFE_NO_MAIN=1 MUST stay in step with scripts/build-core.sh: fe_access.cpp owns
@@ -108,6 +111,10 @@ compile() {
     cc)  flags="$CFLAGS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    ppspp) flags="$CXXFLAGS $PPSPP_INC" ;;
+    ppsppc) flags="$CFLAGS $PPSPP_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    ppsppx) flags="$CFLAGS $PPSPP_INC -DSTACK_LINE_READER_BUFFER_SIZE=1024"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    ppsppasm) flags="$COMMON"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
   esac
   fingerprint="$(oga_cache_fingerprint "$cc" "$compiler_id" "$flags" "$SDK_CACHE_ID" "$TRIPLE" "$SDKROOT")" || {
     echo "FAIL $tag: cannot fingerprint compile inputs" >&2; touch "$OBJ/.failed"; return 1;
@@ -135,6 +142,18 @@ compile() {
     [ "$b" = "lua" ] || [ "$b" = "luac" ] || printf '%s|lua|%s\n' "$f" "lua_$b"
   done
   for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  for f in $PPSPP_CORE; do printf '%s|ppspp|%s\\n' "$PPSPP_SRC/$f" "ppspp_$(echo "$f" | tr '/' '_' | sed 's/\\.cpp$//')"; done
+  for f in $PPSPP_EXT_CPP; do printf '%s|ppspp|%s\\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\\.cpp$//')"; done
+  for f in $PPSPP_EXT_C; do printf '%s|ppsppc|%s\\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\\.c$//')"; done
+  for f in $PPSPP_LUA; do printf '%s|ppsppc|%s\\n' "$PPSPP_SRC/ext/lua/$f" "ppssplua_$(basename "$f" .c)"; done
+  for f in $PPSPP_GLUE; do printf '%s|ppspp|%s\\n' "$ROOT/Core/$f" "ppsppglue_$(basename "$f" .cpp)"; done
+  # x86_64-only helpers (see the PPSPP_X86 comment in core-sources.sh). The
+  # device build is always arm64; the simulator follows $TRIPLE when set.
+  case "${TRIPLE:-arm64-apple-ios}" in
+    x86_64*)
+      for f in $PPSPP_X86; do printf '%s|ppsppx|%s\\n' "$PPSPP_SRC/$f" "ppsspx86_$(echo "$f" | tr '/' '_' | sed 's/\\.c$//')"; done
+      for f in $PPSPP_X86_ASM; do printf '%s|ppsppasm|%s\\n' "$PPSPP_SRC/$f" "ppsspx86_$(basename "$f" .S)"; done ;;
+  esac
   # ⛔ THE GLUE LIST COMES FROM core-sources.sh, NOT FROM HERE. It used to be two
   # hardcoded lines, which meant the simulator core had no adapters at all and the
   # device core had all of them — a drift that only surfaced as an undefined symbol
@@ -147,7 +166,7 @@ echo "== compiling $(wc -l < "$OBJ/list.txt") TUs for the SIMULATOR ($TRIPLE)"
 export ROOT CXX CC CXXFLAGS CFLAGS OBJ TRIPLE SDKROOT CXX_CACHE_ID CC_CACHE_ID SDK_CACHE_ID
 # ⛔ These MUST be exported: compile() runs in xargs-spawned child shells via
 # `export -f`; children need the compiler, SDK, flags, and cache helpers too.
-export MGBA_DEFS MGBA_INC
+export MGBA_DEFS MGBA_INC PPSPP_INC
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # stdin, not `xargs -a` (GNU-only).
 # shellcheck disable=SC2002
