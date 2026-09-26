@@ -86,11 +86,17 @@ xcrun simctl terminate "$UDID" "$BUNDLE_ID" >/dev/null 2>&1 || true
 sleep 2
 xcrun simctl launch "$UDID" "$BUNDLE_ID" >/tmp/oga-launch2.txt 2>&1 || true
 cat /tmp/oga-launch2.txt
-sleep 6
+sleep 10
+# Same two-probe rule as the first launch: a UIKit app's launchctl label is not
+# guaranteed to contain the bundle id (observed: relaunch issued a fresh pid and
+# the app rendered its UI, yet launchctl list never named it), so the pid from
+# the launch output is the backstop. Screenshot after this confirms foreground UI.
+PID2=$(sed -nE 's/.*: ([0-9]+)$/\1/p' /tmp/oga-launch2.txt | head -1)
+ALIVE2=0
 if xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "$BUNDLE_ID"; then
   ALIVE2=1
-else
-  ALIVE2=0
+elif [ -n "$PID2" ] && xcrun simctl spawn "$UDID" ps -A 2>/dev/null | grep -q " $PID2 "; then
+  ALIVE2=1
 fi
 echo "  alive after relaunch: $ALIVE2"
 
