@@ -1,0 +1,27 @@
+name: Adapter host tests
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'Core/**'
+      - 'scripts/**'
+      - '.github/workflows/adapter-tests.yml'
+  pull_request:
+    paths:
+      - 'Core/**'
+      - 'scripts/**'
+      - '.github/workflows/adapter-tests.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  adapter-host-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - name: Run standalone adapter tests
+        run: bash scripts/adapter-tests.sh
