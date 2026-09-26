@@ -8,9 +8,15 @@ import PackageDescription
 // static archive by scripts/build-core.sh; Sources/CPokeCore is the only thing
 // Swift is allowed to see of it.
 //
-// The archive is force-loaded: nothing in Swift takes the address of a poke_*
-// entry point, so without -force_load the linker drops every object in it that
-// no Swift symbol referenced, and the app dies at the first core call.
+// The archive is linked normally (no -force_load): Swift calls the poke_*
+// entry points directly, so ordinary archive semantics pull exactly the
+// objects the app references. force_load is not just unnecessary, it is
+// unworkable: melonDS, mGBA, and PPSSPP each vendor third-party sources
+// (LZMA SDK 19.00 twice, and historically lua and xxhash), and force-loading
+// every object turns those identical twins into duplicate-symbol errors.
+// Normal linking resolves them first-wins instead. The duplicate-symbol gate
+// in scripts/verify-sim-app.sh keeps that honest: a NEW overlap where the
+// two copies differ semantically must still be deduped by hand.
 //
 // ⛔ THE PATH MUST BE ABSOLUTE, AND #filePath IS WHAT MAKES IT SO. SwiftPM does
 // not pin the linker's working directory to the package root, so a relative
@@ -56,7 +62,6 @@ let package = Package(
             ],
             linkerSettings: [
                 .unsafeFlags([
-                    "-Xlinker", "-force_load",
                     "-Xlinker", vendorLib,
                 ]),
                 .linkedLibrary("c++"),

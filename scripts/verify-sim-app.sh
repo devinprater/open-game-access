@@ -71,6 +71,27 @@ echo "== Info.plist platform keys =="
 grep -A2 -E "CFBundleSupportedPlatforms|DTPlatformName" "$APP/Info.plist" 2>/dev/null
 
 echo
+echo
+echo "== duplicate global text symbols in the core archive (must be none) =="
+# Without -force_load the app link resolves twins first-wins, which is only
+# safe while the twins are identical (same LZMA SDK 19.00 in mGBA and PPSSPP).
+# A NEW overlap with semantic differences would link silently wrong, so it
+# fails here instead: dedupe by hand (one lua, one xxhash) like before.
+ARCHIVE="${POKECORE_LIB:-$ROOT/Vendor/sim/libpokecore-sim.a}"
+DUPS_OK=0
+if [ -f "$ARCHIVE" ]; then
+  DUPNAMES="$("$NM" -g --defined-only "$ARCHIVE" 2>/dev/null | awk '$2=="T" {print $3}' | sort | uniq -d | head -n 10)"
+  if [ -z "$DUPNAMES" ]; then
+    echo "  none"
+    DUPS_OK=1
+  else
+    echo "!! duplicate globals in $ARCHIVE:" >&2
+    echo "$DUPNAMES" >&2
+  fi
+else
+  echo "!! no archive at $ARCHIVE" >&2
+fi
+
 echo "== verdict =="
 PLAT_OK=0
 [ "$(macho_platform "$BIN")" = "iossimulator" ] && PLAT_OK=1
@@ -82,10 +103,11 @@ grep -q 'iPhoneSimulator' "$APP/Info.plist" 2>/dev/null && PLIST_OK=1
 echo "simulator platform : $PLAT_OK"
 echo "scripts present    : $SCRIPT_OK"
 echo "ppsspp assets      : $ASSETS_OK"
+echo "no duplicate globals: $DUPS_OK"
 echo "Info.plist sim keys: $PLIST_OK"
 echo "core linked in     : $([ "${TOTAL:-0}" -gt 5000 ] && echo 1 || echo 0)  (total symbols $TOTAL)"
 
-if [ "$PLAT_OK" = "1" ] && [ "$SCRIPT_OK" = "1" ] && [ "$ASSETS_OK" = "1" ] && [ "$PLIST_OK" = "1" ] && [ "${TOTAL:-0}" -gt 5000 ]; then
+if [ "$PLAT_OK" = "1" ] && [ "$SCRIPT_OK" = "1" ] && [ "$ASSETS_OK" = "1" ] && [ "$PLIST_OK" = "1" ] && [ "$DUPS_OK" = "1" ] && [ "${TOTAL:-0}" -gt 5000 ]; then
   echo "PASS — a simulator-targeted app with the core and scripts inside."
   exit 0
 fi
