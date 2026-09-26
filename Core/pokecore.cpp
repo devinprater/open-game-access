@@ -81,6 +81,11 @@ struct PokeCore {
     // no-reader case, not an error.
     PspCore* psp = nullptr;
     bool isPsp = false;
+    // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
+    // the app bundle; the app points the core at them before loading a PSP
+    // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
+    // which is what the host proof and a bare checkout rely on.
+    std::string pspAssetDir;
 
     // ---- script engine ----
     lua_State* L = nullptr;
@@ -925,6 +930,12 @@ void poke_set_script(PokeCore* core, const char* script)
 // + the reader tree), for Game Boy ROMs. NDS ROMs use poke_set_script with a
 // concatenated source string instead; the GBA reader loads its ~177 files
 // itself with loadfile, so it needs a directory, not a string.
+void poke_set_psp_asset_dir(PokeCore* core, const char* asset_dir)
+{
+    if (!core) return;
+    core->pspAssetDir = (asset_dir && *asset_dir) ? asset_dir : "";
+}
+
 void poke_set_script_dir(PokeCore* core, const char* dir)
 {
     if (!core || !dir) return;
@@ -1065,6 +1076,8 @@ static bool LoadPspRom(PokeCore* core, const char* rom_path, const char* save_pa
 
     core->psp = psp_create();
     if (!core->psp) { SetError(core, "Could not create the PSP core."); return false; }
+    if (!core->pspAssetDir.empty())
+        psp_set_asset_dir(core->psp, core->pspAssetDir.c_str());
     char code[16] = {0};
     if (!psp_load_rom(core->psp, rom_path, save_path ? save_path : "", code))
     {

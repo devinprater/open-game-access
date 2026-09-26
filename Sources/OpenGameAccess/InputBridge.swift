@@ -3,8 +3,12 @@ import SwiftUI
 import UniformTypeIdentifiers
 import CPokeCore
 
-/// The DS buttons, named as the player thinks of them.
-enum DSButton {
+/// The pad buttons, named as the player thinks of them.
+///
+/// The raw values are the shared pad indices (POKE_BTN_*, melonDS bit order);
+/// the C core maps them per backend (A confirms everywhere — Cross on PSP),
+/// so one enum serves every console and only the UI labels change per system.
+enum GamePadButton {
     case a, b, x, y, start, select, up, down, left, right, l, r
 
     /// melonDS's own key bit order (NDS::SetKeyMask): A,B,Select,Start,Right,
@@ -43,7 +47,7 @@ enum InputBridge {
         self.session = session
     }
 
-    static func setButton(_ button: DSButton, down: Bool) {
+    static func setButton(_ button: GamePadButton, down: Bool) {
         let raw = button.rawValue
         if down { held.insert(raw) } else { held.remove(raw) }
         session?.setButton(raw, down: down)
@@ -83,6 +87,10 @@ enum ROMStore {
         if let gba = UTType(filenameExtension: "gba") { types.append(gba) }
         if let gbc = UTType(filenameExtension: "gbc") { types.append(gbc) }
         if let gb = UTType(filenameExtension: "gb") { types.append(gb) }
+        // PSP images run in the PPSSPP core (see Core/psp_core.cpp).
+        if let iso = UTType(filenameExtension: "iso") { types.append(iso) }
+        if let cso = UTType(filenameExtension: "cso") { types.append(cso) }
+        if let pbp = UTType(filenameExtension: "pbp") { types.append(pbp) }
         types.append(.data)
         return types
     }
@@ -128,7 +136,7 @@ enum ROMStore {
             options: [.skipsHiddenFiles]
         )) ?? []
         return contents
-            .filter { ["nds", "gba", "gbc", "gb"].contains($0.pathExtension.lowercased()) }
+            .filter { ["nds", "gba", "gbc", "gb", "iso", "cso", "pbp"].contains($0.pathExtension.lowercased()) }
             .sorted { a, b in
                 let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
                 let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
@@ -151,6 +159,17 @@ enum BundleResources {
     /// handed to poke_set_script_dir for Game Boy ROMs. Nil when the resource
     /// is missing — the core then fails loudly at start, it does not boot a
     /// game with no reader.
+    /// Filesystem path of the staged PPSSPP runtime assets (ppsspp-assets/),
+    /// copied into the app by scripts/package-sim-app.sh. Nil when the
+    /// packaging step did not run — the PSP core then fails loudly at load,
+    /// it does not boot a game with no compat tables.
+    static var ppssppAssetDir: String? {
+        guard let base = Bundle.main.bundleURL else { return nil }
+        let url = base.appendingPathComponent("ppsspp-assets", isDirectory: true)
+        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url.path
+    }
+
     static var gbaScriptDir: String? {
         let base = Bundle.module.resourceURL ?? Bundle.main.resourceURL
         let url = base?.appendingPathComponent("Resources/gba-lua", isDirectory: true)

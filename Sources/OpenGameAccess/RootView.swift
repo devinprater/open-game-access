@@ -333,44 +333,54 @@ private struct AdapterButton: View {
 }
 
 /// Path finding and the map: choosing a destination and being guided to it.
+///
+/// The buttons come from the loaded system's key list (GameSystem.pathKeys):
+/// the DS answers P/C/E, the Game Boy answers P/E, and the PSP answers none
+/// (hotkeys are inert there), so this whole group is absent on PSP.
 private struct PathFindingGroup: View {
+    @EnvironmentObject private var session: GameSession
+
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 6) {
-                HotkeyButton("Find path", key: "P",
-                             hint: "Guides you to the selected place, turn by turn. Press again to stop. Key P.")
-                HotkeyButton("Where am I", key: "C",
-                             hint: "Reads the place name and your coordinates. Key C.")
-                HotkeyButton("Tiles", key: "E",
-                             hint: "Reads the tiles around you. Only useful where the ground matters, such as the dark. Key E.")
+        let keys = (session.system ?? .ds).pathKeys
+        if !keys.isEmpty {
+            VStack(spacing: 6) {
+                ForEach(Array(keys.chunked(into: 3).enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: 6) {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, item in
+                            HotkeyButton(item.title, key: item.key, hint: item.hint)
+                        }
+                    }
+                }
             }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Path finding and map")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Path finding and map")
     }
 }
 
 /// Reading a list: items on the map, or options on a menu.
+///
+/// Same per-system rule as path finding: K/J/L everywhere a script runs,
+/// I/O group switching on the DS only (on Game Boy that is shift-J/shift-L,
+/// which a single tap cannot send).
 private struct ReadingGroup: View {
+    @EnvironmentObject private var session: GameSession
+
     var body: some View {
-        VStack(spacing: 6) {
-            HStack(spacing: 6) {
-                HotkeyButton("Read item", key: "K",
-                             hint: "Reads the selected item again. Key K.")
-                HotkeyButton("Previous item", key: "J",
-                             hint: "Moves to the previous item. Key J.")
-                HotkeyButton("Next item", key: "L",
-                             hint: "Moves to the next item. Key L.")
+        let keys = (session.system ?? .ds).readingKeys
+        if !keys.isEmpty {
+            VStack(spacing: 6) {
+                ForEach(Array(keys.chunked(into: 3).enumerated()), id: \.offset) { _, row in
+                    HStack(spacing: 6) {
+                        ForEach(Array(row.enumerated()), id: \.offset) { _, item in
+                            HotkeyButton(item.title, key: item.key, hint: item.hint)
+                        }
+                    }
+                }
             }
-            HStack(spacing: 6) {
-                HotkeyButton("Previous group", key: "I",
-                             hint: "Previous group of items, such as people or signs. Key I.")
-                HotkeyButton("Next group", key: "O",
-                             hint: "Next group of items. Key O.")
-            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Reading items and lists")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Reading items and lists")
     }
 }
 
@@ -381,8 +391,12 @@ private struct SystemButtons: View {
         HStack(spacing: 6) {
             HoldButton(title: "Start", symbol: "play.circle", hint: "Start button, opens the menu") { .start }
             HoldButton(title: "Select", symbol: "square.circle", hint: "Select button") { .select }
-            HoldButton(title: "L", symbol: "l.circle", hint: "Left shoulder button") { .l }
-            HoldButton(title: "R", symbol: "r.circle", hint: "Right shoulder button") { .r }
+            // The original Game Boy has no shoulder buttons; showing L/R for
+            // it would be controls that do nothing.
+            if (session.system ?? .ds).hasShoulders {
+                HoldButton(title: "L", symbol: "l.circle", hint: "Left shoulder button") { .l }
+                HoldButton(title: "R", symbol: "r.circle", hint: "Right shoulder button") { .r }
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("System buttons")
@@ -392,15 +406,22 @@ private struct SystemButtons: View {
 /// The controls that act on speech itself, kept separate from the game keys
 /// because they are the ones a player reaches for when narration goes wrong.
 private struct SpeechGroup: View {
+    @EnvironmentObject private var session: GameSession
+
     var body: some View {
-        HStack(spacing: 6) {
-            HotkeyButton("Stop speech", key: "R",
-                         hint: "Stops the current speech. Key R.")
-            HotkeyButton("Repeat", key: "U",
-                         hint: "Repeats the last thing said. Key U.")
+        // R/U are DS script keys. On Game Boy R moves the camera, so a
+        // "Stop speech" button there would act on the game instead of the
+        // speech; on PSP hotkeys do nothing at all. Absent, not dead.
+        let keys = (session.system ?? .ds).speechKeys
+        if !keys.isEmpty {
+            HStack(spacing: 6) {
+                ForEach(Array(keys.enumerated()), id: \.offset) { _, item in
+                    HotkeyButton(item.title, key: item.key, hint: item.hint)
+                }
+            }
+            .accessibilityElement(children: .contain)
+            .accessibilityLabel("Speech controls")
         }
-        .accessibilityElement(children: .contain)
-        .accessibilityLabel("Speech controls")
     }
 }
 
@@ -420,12 +441,18 @@ private struct DPad: View {
 }
 
 private struct ActionButtons: View {
+    @EnvironmentObject private var session: GameSession
+
     var body: some View {
         HStack(spacing: 6) {
-            HoldButton(title: "A", symbol: "a.circle", hint: "Confirm, talk, select") { .a }
-            HoldButton(title: "B", symbol: "b.circle", hint: "Cancel, back") { .b }
-            HoldButton(title: "X", symbol: "x.circle", hint: "Menu") { .x }
-            HoldButton(title: "Y", symbol: "y.circle", hint: "Use item") { .y }
+            // The raw values are shared pad indices; the C core maps them per
+            // backend, so only the labels change: A/B on Game Boy, Cross/
+            // Circle/Triangle/Square on PSP.
+            ForEach(Array(((session.system ?? .ds).faceButtons).enumerated()), id: \.offset) { _, item in
+                HoldButton(title: item.title, symbol: item.symbol, hint: item.hint) {
+                    GamePadButton(raw: item.raw)
+                }
+            }
         }
         .accessibilityElement(children: .contain)
         .accessibilityLabel("Action buttons")
@@ -440,7 +467,7 @@ private struct HoldButton: View {
     let title: String
     let symbol: String
     let hint: String
-    let button: () -> DSButton
+    let button: () -> GamePadButton
 
     @State private var isDown = false
 
@@ -509,5 +536,35 @@ private struct HotkeyButton: View {
         .buttonStyle(.bordered)
         .accessibilityLabel(title)
         .accessibilityHint(hint)
+    }
+}
+
+/// GamePadButton by shared pad index, for the per-system face-button lists.
+extension GamePadButton {
+    init(raw: Int32) {
+        switch raw {
+        case POKE_BTN_A: self = .a
+        case POKE_BTN_B: self = .b
+        case POKE_BTN_X: self = .x
+        case POKE_BTN_Y: self = .y
+        case POKE_BTN_START: self = .start
+        case POKE_BTN_SELECT: self = .select
+        case POKE_BTN_L: self = .l
+        case POKE_BTN_R: self = .r
+        case POKE_BTN_UP: self = .up
+        case POKE_BTN_DOWN: self = .down
+        case POKE_BTN_LEFT: self = .left
+        default: self = .right
+        }
+    }
+}
+
+extension Array {
+    /// Successive non-overlapping slices, for laying key lists out in rows.
+    func chunked(into size: Int) -> [[Element]] {
+        guard size > 0 else { return [] }
+        return stride(from: 0, to: count, by: size).map { i in
+            Array(self[i..<Swift.min(i + size, count)])
+        }
     }
 }
