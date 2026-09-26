@@ -214,6 +214,12 @@ static std::string BaseName(const std::string &p)
     return (i == std::string::npos) ? p : p.substr(i + 1);
 }
 
+void psp_set_asset_dir(PspCore *core, const char *asset_dir)
+{
+    if (!core) return;
+    core->assetDir = (asset_dir && *asset_dir) ? asset_dir : "";
+}
+
 bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, char code_out[16])
 {
     if (!core || !rom_path || !*rom_path || !code_out)
@@ -240,6 +246,23 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
     }
     g_VFS.Clear();
     g_VFS.Register("", new DirectoryReader(Path(core->assetDir)));
+
+    // Loud boot check: the audited asset subset (scripts/ppsspp-stage-assets.sh
+    // manifest) must be present. A missing dir or file means packaging dropped
+    // the assets; fail here naming it instead of limping into a game with no
+    // compat tables or VFPU LUTs. flash0 is deliberately NOT checked: it is
+    // Sony IP that PPSSPP auto-installs from the game disc on first boot.
+    static const char *kAssets[] = {
+        "compat.ini", "langregion.ini", "ppge_atlas.meta", "ppge_atlas.zim",
+        "vfpu/vfpu_sin_lut8192.dat", "vfpu/vfpu_sin_lut_delta.dat",
+        "vfpu/vfpu_sin_lut_exceptions.dat", "vfpu/vfpu_sin_lut_interval_delta.dat",
+    };
+    for (const char *name : kAssets) {
+        if (!File::Exists(Path(core->assetDir) / name)) {
+            SetError(core, "PPSSPP assets missing: %s not found under %s (run scripts/ppsspp-stage-assets.sh)", name, core->assetDir.c_str());
+            return false;
+        }
+    }
 
     // Config FIRST: Load() resets everything to defaults (including the
     // logging toggle the log manager holds a pointer to), so logging init
