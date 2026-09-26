@@ -18,5 +18,17 @@ for flag in FE_NO_MAIN POKE_IOS; do
     fi
   done
 done
+# Same drift class as FE_NO_MAIN, different shape: both scripts must carry
+# the PPSSPP wiring, or one archive silently ships without the PSP core.
+for token in PPSPP_SRC PPSPP_INC "ppspp)"; do
+  for script in build-core.sh build-sim.sh; do
+    if grep -qF -- "$token" "$ROOT/scripts/$script"; then
+      echo "ok: $script carries $token"
+    else
+      echo "FAIL: $script is missing $token" >&2
+      fail=1
+    fi
+  done
+done
 [ "$fail" -eq 0 ] || exit 1
-echo "PASS: device/sim builds agree on linkage-changing defines"
+echo "PASS: device/sim builds agree on linkage inputs (incl. PPSSPP)"

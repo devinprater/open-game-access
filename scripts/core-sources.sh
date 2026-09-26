@@ -53,13 +53,11 @@ teakra/src/timer.cpp teakra/src/test_generator.cpp
 # Order is irrelevant to the linker (these are objects, not a library), but the
 # adapters are grouped last because they are the feature layer sitting on top of
 # pokecore.cpp's registry.
-# PSP backend gate: psp_stub.cpp satisfies the psp_* ABI pokecore.cpp calls so
-# the app links. The real Core/psp_core.cpp needs the full PPSSPP tree, which
-# is not fetched or compiled here (see Core/psp_stub.cpp header); compiling
-# psp_core.cpp without that tree breaks the build, omitting both breaks the
-# link with undefined _psp_* from pokecore.o.
+# PSP backend: the real Core/psp_core.cpp (IR interpreter + software GPU)
+# satisfies the psp_* ABI pokecore.cpp calls. It rides PPSPP_GLUE with the
+# ppspp lang, not plain cxx, because it needs the PPSSPP tree headers.
 OGA_GLUE="
-poke_platform.cpp pokecore.cpp psp_stub.cpp
+poke_platform.cpp pokecore.cpp
 fe_access.cpp fe_adapter.cpp
 gba_adapter.cpp
 gba_core.cpp mgba_version_stub.cpp
@@ -143,3 +141,265 @@ src/util/vfs/vfs-fifo.c src/util/vfs/vfs-lzma.c src/util/vfs/vfs-mem.c
 # these -D lines ARE that forcing, baked in. Do not "refresh" them from a
 # CMake run on this machine without re-auditing.
 MGBA_DEFS="-DBUILD_STATIC -DENABLE_DEBUGGERS -DENABLE_DIRECTORIES -DENABLE_SCRIPTING -DENABLE_VFS -DENABLE_VFS_FD -DHAVE_FREELOCALE -DHAVE_LOCALE -DHAVE_LOCALTIME_R -DHAVE_NEWLOCALE -DHAVE_PTHREAD_CREATE -DHAVE_PTHREAD_SETNAME_NP -DHAVE_PTHREAD_SET_NAME_NP -DHAVE_REALPATH -DHAVE_SETLOCALE -DHAVE_STRDUP -DHAVE_STRLCPY -DHAVE_STRNDUP -DHAVE_USELOCALE -DHAVE_VASPRINTF -DHAVE_XLOCALE -DLUA_VERSION_ONLY='\"5.4\"' -DM_CORE_GBA -DUSE_LUA -DUSE_LZMA -DUSE_PTHREADS -D_DARWIN_C_SOURCE"
+
+# ppspp_inc <ppsspp-src-root> — the include path every PPSSPP translation unit
+# needs. ONE definition: build-core.sh, build-sim.sh and psp-host-proof.sh all
+# call this, so the iOS and host-proof builds can never drift apart.
+ppspp_inc() {
+  echo "-I$1 -I$1/Common -I$1/ext -I$1/ext/snappy -I$1/ext/libpng17 -I$1/ext/zstd/lib -I$1/ext/cpu_features/include -I$1/ext/armips -I$1/ext/armips/ext/filesystem/include -I$1/ext/libchdr/include -I$1/ext/lua -I$1/ext/naett-lib -I$1/ext/libzip -I$1/ext/aemu_postoffice/client"
+}
+
+# ---- PPSSPP (PlayStation Portable) ----
+#
+# AUDITED SUBSET, host-proven September 2026: the real Core/psp_core.cpp (IR
+# interpreter + software GPU, no GL, no native JIT) booted the Dissidia CSO
+# (ULUS10437, 900/900 frames, live 480x272 framebuffer) linked against exactly
+# these PPSSPP f293b10 translation units. scripts/psp-host-proof.sh reproduces
+# that proof from these same lists; scripts/ppsspp-subset-test.sh guards them
+# against upstream layout drift in CI.
+#
+# Excluded, and why:
+#   native JIT backends (ARM/x86/RISC-V/...) — interpreter-only embedding.
+#   hardware GPU backends (GLES/Vulkan/D3D11) + GPU/GPU.cpp — its factory
+#       references every hardware backend; psp_core.cpp provides the
+#       software-only factory instead.
+#   debugger WebSocket server, Reporting, RetroAchievements, AVIDump, UPnP,
+#       VR, Lua console service calls — documented fail-closed shims in
+#       psp_core.cpp (same shape upstream blesses for libretro builds).
+#   CHD images — libchdr needs the LZMA *encoder*, which upstream does not
+#       vendor (ext/lzma-sdk is decode-only); CHD opens fail cleanly.
+#   HTTP (naett/libcurl), glslang shader translation, miniupnpc, and every
+#       platform frontend (SDL/Qt/Android/iOS UI).
+#   version reporting — upstream generates it from git; PPSSPP_GIT_VERSION is
+#       pinned in psp_core.cpp instead.
+PPSPP_CORE="
+    /ext/disarm.cpp /ext/jpge/jpgd.cpp /ext/jpge/jpge.cpp /ext/loongarch-disasm.cpp
+    /ext/riscv-disas.cpp Common/ABI.cpp Common/ArmCPUDetect.cpp Common/Buffer.cpp
+    Common/CPUDetect.cpp Common/Crypto/md5.cpp Common/Crypto/sha1.cpp Common/Crypto/sha256.cpp
+    Common/Data/Color/RGBAUtil.cpp Common/Data/Convert/ColorConv.cpp
+    Common/Data/Convert/SmallDataConvert.cpp Common/Data/Encoding/Base64.cpp
+    Common/Data/Encoding/Compression.cpp Common/Data/Encoding/Utf8.cpp
+    Common/Data/Format/DDSLoad.cpp Common/Data/Format/IniFile.cpp Common/Data/Format/JSONReader.cpp
+    Common/Data/Format/JSONWriter.cpp Common/Data/Format/PNGLoad.cpp Common/Data/Format/RIFF.cpp
+    Common/Data/Format/ZIMLoad.cpp Common/Data/Format/ZIMSave.cpp Common/Data/Hash/Hash.cpp
+    Common/Data/Text/Demangle.cpp Common/Data/Text/I18n.cpp Common/Data/Text/Parsers.cpp
+    Common/Data/Text/WrapText.cpp Common/ExceptionHandlerSetup.cpp Common/FakeCPUDetect.cpp
+    Common/File/DirListing.cpp Common/File/DiskFree.cpp Common/File/FileDescriptor.cpp
+    Common/File/FileUtil.cpp Common/File/Path.cpp Common/File/PathBrowser.cpp
+    Common/File/VFS/DirectoryReader.cpp Common/File/VFS/SevenZipFileReader.cpp
+    Common/File/VFS/VFS.cpp Common/File/VFS/ZipFileReader.cpp Common/GPU/GPUBackendCommon.cpp
+    Common/GPU/ShaderWriter.cpp Common/GhidraClient.cpp Common/Input/GestureDetector.cpp
+    Common/Input/InputState.cpp Common/Log.cpp Common/Log/ConsoleListener.cpp
+    Common/Log/LogManager.cpp Common/LoongArchCPUDetect.cpp Common/Math/Statistics.cpp
+    Common/Math/curves.cpp Common/Math/expression_parser.cpp Common/Math/lin/matrix4x4.cpp
+    Common/Math/lin/vec3.cpp Common/Math/math_util.cpp Common/MemArenaDarwin.cpp
+    Common/MemArenaHorizon.cpp Common/MemArenaPosix.cpp Common/MemoryUtil.cpp
+    Common/MemoryUtilHorizon.cpp Common/Net/HTTPClient.cpp Common/Net/HTTPHeaders.cpp
+    Common/Net/HTTPNaettRequest.cpp Common/Net/HTTPRequest.cpp Common/Net/HTTPServer.cpp
+    Common/Net/NetBuffer.cpp Common/Net/Resolve.cpp Common/Net/Sinks.cpp Common/Net/URL.cpp
+    Common/Net/WebsocketServer.cpp Common/OSVersion.cpp Common/Profiler/Profiler.cpp
+    Common/Render/AtlasGen.cpp Common/Render/DrawBuffer.cpp Common/Render/ManagedTexture.cpp
+    Common/Render/Text/draw_text.cpp Common/Render/Text/draw_text_win.cpp
+    Common/Render/TextureAtlas.cpp Common/RiscVCPUDetect.cpp Common/Serialize/Serializer.cpp
+    Common/StringUtils.cpp Common/SysError.cpp Common/System/Display.cpp Common/System/OSD.cpp
+    Common/System/Request.cpp Common/Thread/ParallelLoop.cpp Common/Thread/ThreadManager.cpp
+    Common/Thread/ThreadUtil.cpp Common/Thunk.cpp Common/TimeUtil.cpp
+    Common/UI/AsyncImageFileView.cpp Common/UI/Context.cpp Common/UI/IconCache.cpp
+    Common/UI/Notice.cpp Common/UI/PopupScreens.cpp Common/UI/Root.cpp Common/UI/Screen.cpp
+    Common/UI/ScreenManager.cpp Common/UI/ScrollView.cpp Common/UI/TabHolder.cpp Common/UI/Tween.cpp
+    Common/UI/UI.cpp Common/UI/UIScreen.cpp Common/UI/View.cpp Common/UI/ViewGroup.cpp
+    Common/x64Analyzer.cpp Core/CmdLine.cpp Core/Compatibility.cpp Core/Config.cpp
+    Core/ConfigSettings.cpp Core/ControlMapper.cpp Core/Core.cpp Core/CoreTiming.cpp
+    Core/CwCheat.cpp Core/Debugger/Breakpoints.cpp Core/Debugger/DisassemblyManager.cpp
+    Core/Debugger/LineInfo.cpp Core/Debugger/MemBlockInfo.cpp Core/Debugger/SymbolMap.cpp
+    Core/Dialog/PSPDialog.cpp Core/Dialog/PSPGamedataInstallDialog.cpp Core/Dialog/PSPMsgDialog.cpp
+    Core/Dialog/PSPNetconfDialog.cpp Core/Dialog/PSPNpSigninDialog.cpp
+    Core/Dialog/PSPOskConstants.cpp Core/Dialog/PSPOskDialog.cpp
+    Core/Dialog/PSPPlaceholderDialog.cpp Core/Dialog/PSPSaveDialog.cpp
+    Core/Dialog/PSPScreenshotDialog.cpp Core/Dialog/SavedataParam.cpp Core/ELF/ElfReader.cpp
+    Core/ELF/PBPReader.cpp Core/ELF/ParamSFO.cpp Core/ELF/PrxDecrypter.cpp Core/EmuThread.cpp
+    Core/FileLoaders/CachingFileLoader.cpp Core/FileLoaders/DiskCachingFileLoader.cpp
+    Core/FileLoaders/HTTPFileLoader.cpp Core/FileLoaders/LocalFileLoader.cpp
+    Core/FileLoaders/RamCachingFileLoader.cpp Core/FileLoaders/RetryingFileLoader.cpp
+    Core/FileLoaders/ZipFileLoader.cpp Core/FileSystems/BlobFileSystem.cpp
+    Core/FileSystems/BlockDevices.cpp Core/FileSystems/DirectoryFileSystem.cpp
+    Core/FileSystems/FileSystem.cpp Core/FileSystems/ISOFileSystem.cpp
+    Core/FileSystems/MetaFileSystem.cpp Core/FileSystems/VirtualDiscFileSystem.cpp
+    Core/FileSystems/tlzrc.cpp Core/Font/PGF.cpp Core/FrameTiming.cpp Core/HDRemaster.cpp
+    Core/HLE/AtracCtx.cpp Core/HLE/AtracCtx2.cpp Core/HLE/HLE.cpp Core/HLE/HLEHelperThread.cpp
+    Core/HLE/HLETables.cpp Core/HLE/KUBridge.cpp Core/HLE/NetAdhocCommon.cpp
+    Core/HLE/NetInetConstants.cpp Core/HLE/Plugins.cpp Core/HLE/ReplaceTables.cpp
+    Core/HLE/SocketManager.cpp Core/HLE/__sceAudio.cpp Core/HLE/proAdhoc.cpp
+    Core/HLE/proAdhocServer.cpp Core/HLE/sceAac.cpp Core/HLE/sceAdler.cpp Core/HLE/sceAtrac.cpp
+    Core/HLE/sceAudio.cpp Core/HLE/sceAudioRouting.cpp Core/HLE/sceAudiocodec.cpp
+    Core/HLE/sceCcc.cpp Core/HLE/sceChkreg.cpp Core/HLE/sceChnnlsv.cpp Core/HLE/sceCtrl.cpp
+    Core/HLE/sceDeflt.cpp Core/HLE/sceDisplay.cpp Core/HLE/sceDmac.cpp Core/HLE/sceFont.cpp
+    Core/HLE/sceG729.cpp Core/HLE/sceGameUpdate.cpp Core/HLE/sceGe.cpp Core/HLE/sceHeap.cpp
+    Core/HLE/sceHprm.cpp Core/HLE/sceHttp.cpp Core/HLE/sceImpose.cpp Core/HLE/sceIo.cpp
+    Core/HLE/sceJpeg.cpp Core/HLE/sceKernel.cpp Core/HLE/sceKernelAlarm.cpp
+    Core/HLE/sceKernelEventFlag.cpp Core/HLE/sceKernelHeap.cpp Core/HLE/sceKernelInterrupt.cpp
+    Core/HLE/sceKernelMbx.cpp Core/HLE/sceKernelMemory.cpp Core/HLE/sceKernelModule.cpp
+    Core/HLE/sceKernelMsgPipe.cpp Core/HLE/sceKernelMutex.cpp Core/HLE/sceKernelSemaphore.cpp
+    Core/HLE/sceKernelThread.cpp Core/HLE/sceKernelTime.cpp Core/HLE/sceKernelVTimer.cpp
+    Core/HLE/sceMd5.cpp Core/HLE/sceMp3.cpp Core/HLE/sceMp4.cpp Core/HLE/sceMpeg.cpp
+    Core/HLE/sceMpegbase.cpp Core/HLE/sceMt19937.cpp Core/HLE/sceNet.cpp Core/HLE/sceNetAdhoc.cpp
+    Core/HLE/sceNetAdhocMatching.cpp Core/HLE/sceNetApctl.cpp Core/HLE/sceNetInet.cpp
+    Core/HLE/sceNetResolver.cpp Core/HLE/sceNet_lib.cpp Core/HLE/sceNp.cpp Core/HLE/sceNp2.cpp
+    Core/HLE/sceOpenPSID.cpp Core/HLE/sceP3da.cpp Core/HLE/sceParseHttp.cpp Core/HLE/sceParseUri.cpp
+    Core/HLE/scePauth.cpp Core/HLE/scePower.cpp Core/HLE/scePsmf.cpp Core/HLE/scePspNpDrm_user.cpp
+    Core/HLE/sceReg.cpp Core/HLE/sceResmgr.cpp Core/HLE/sceRtc.cpp Core/HLE/sceSas.cpp
+    Core/HLE/sceSfmt19937.cpp Core/HLE/sceSha256.cpp Core/HLE/sceSircs.cpp Core/HLE/sceSsl.cpp
+    Core/HLE/sceUmd.cpp Core/HLE/sceUsb.cpp Core/HLE/sceUsbAcc.cpp Core/HLE/sceUsbCam.cpp
+    Core/HLE/sceUsbGps.cpp Core/HLE/sceUsbMic.cpp Core/HLE/sceUtility.cpp Core/HLE/sceVaudio.cpp
+    Core/HLE/sceVideocodec.cpp Core/HLE/sceVshBridge.cpp Core/HW/AsyncIOManager.cpp
+    Core/HW/Atrac3Standalone.cpp Core/HW/AvcDecoder.cpp Core/HW/BufferQueue.cpp Core/HW/Camera.cpp
+    Core/HW/Display.cpp Core/HW/GpioMMIO.cpp Core/HW/GranularMixer.cpp Core/HW/MediaEngine.cpp
+    Core/HW/MemoryStick.cpp Core/HW/MpegDemux.cpp Core/HW/SasAudio.cpp Core/HW/SasReverb.cpp
+    Core/HW/SimpleAudioDec.cpp Core/HW/StereoResampler.cpp Core/Instance.cpp Core/KeyMap.cpp
+    Core/KeyMapDefaults.cpp Core/Loaders.cpp Core/MIPS/IR/IRAnalysis.cpp Core/MIPS/IR/IRFrontend.cpp
+    Core/MIPS/IR/IRInst.cpp Core/MIPS/IR/IRInterpreter.cpp Core/MIPS/IR/IRPassSimplify.cpp
+    Core/MIPS/Interpreter.cpp Core/MIPS/InterpreterDispatch.cpp Core/MIPS/InterpreterVFPU.cpp
+    Core/MIPS/MIPS.cpp Core/MIPS/MIPSAnalyst.cpp Core/MIPS/MIPSCodeUtils.cpp
+    Core/MIPS/MIPSDebugInterface.cpp Core/MIPS/MIPSDis.cpp Core/MIPS/MIPSDisVFPU.cpp
+    Core/MIPS/MIPSStackWalk.cpp Core/MIPS/MIPSTables.cpp Core/MIPS/MIPSTracer.cpp
+    Core/MIPS/MIPSVFPUFallbacks.cpp Core/MIPS/MIPSVFPUUtils.cpp Core/MIPS/fake/FakeJit.cpp
+    Core/MemFault.cpp Core/MemMap.cpp Core/MemMapFunctions.cpp Core/PSPLoaders.cpp
+    Core/SaveState.cpp Core/SaveStateRewind.cpp Core/Screenshot.cpp Core/System.cpp
+    Core/TiltEventProcessor.cpp Core/Util/AtracTrack.cpp Core/Util/AudioFormat.cpp
+    Core/Util/BlockAllocator.cpp Core/Util/DisArm64.cpp Core/Util/GameDB.cpp
+    Core/Util/GameManager.cpp Core/Util/KL4E.cpp Core/Util/MemStick.cpp Core/Util/PPGeDraw.cpp
+    Core/Util/PSARUnpack.cpp Core/Util/PathUtil.cpp Core/Util/PkgUnpack.cpp
+    Core/Util/RecentFiles.cpp Core/Util/VideoPlayer.cpp Core/WaveFile.cpp
+    GPU/Common/DepalettizeShaderCommon.cpp GPU/Common/DepthBufferCommon.cpp
+    GPU/Common/DepthRaster.cpp GPU/Common/Draw2D.cpp GPU/Common/DrawEngineCommon.cpp
+    GPU/Common/FragmentShaderGenerator.cpp GPU/Common/FramebufferManagerCommon.cpp
+    GPU/Common/GPUDebugInterface.cpp GPU/Common/GPUStateUtils.cpp GPU/Common/IndexGenerator.cpp
+    GPU/Common/PostShader.cpp GPU/Common/PresentationCommon.cpp
+    GPU/Common/ReinterpretFramebuffer.cpp GPU/Common/ReplacedTexture.cpp GPU/Common/ShaderCommon.cpp
+    GPU/Common/ShaderId.cpp GPU/Common/ShaderUniforms.cpp GPU/Common/SoftwareTransformCommon.cpp
+    GPU/Common/SplineCommon.cpp GPU/Common/StencilCommon.cpp GPU/Common/TextureCacheCommon.cpp
+    GPU/Common/TextureDecoder.cpp GPU/Common/TextureReplacer.cpp GPU/Common/TextureScalerCommon.cpp
+    GPU/Common/TextureShaderCommon.cpp GPU/Common/TransformCommon.cpp
+    GPU/Common/VertexDecoderArm.cpp GPU/Common/VertexDecoderArm64.cpp
+    GPU/Common/VertexDecoderCommon.cpp GPU/Common/VertexDecoderHandwritten.cpp
+    GPU/Common/VertexDecoderLoongArch64.cpp GPU/Common/VertexDecoderRiscV.cpp
+    GPU/Common/VertexDecoderX86.cpp GPU/Common/VertexShaderGenerator.cpp
+    GPU/Debugger/Breakpoints.cpp GPU/Debugger/Debugger.cpp GPU/Debugger/GECommandTable.cpp
+    GPU/Debugger/Playback.cpp GPU/Debugger/Record.cpp GPU/Debugger/State.cpp
+    GPU/Debugger/Stepping.cpp GPU/GPUCommon.cpp GPU/GPUState.cpp GPU/GeConstants.cpp
+    GPU/GeDisasm.cpp GPU/Math3D.cpp GPU/Software/BinManager.cpp GPU/Software/Clipper.cpp
+    GPU/Software/DrawPixel.cpp GPU/Software/DrawPixelX86.cpp GPU/Software/FuncId.cpp
+    GPU/Software/Lighting.cpp GPU/Software/Rasterizer.cpp GPU/Software/RasterizerRectangle.cpp
+    GPU/Software/RasterizerRegCache.cpp GPU/Software/Sampler.cpp GPU/Software/SamplerX86.cpp
+    GPU/Software/SoftGpu.cpp GPU/Software/TransformUnit.cpp Core/MIPS/IR/IRCompALU.cpp
+    Core/MIPS/IR/IRCompBranch.cpp Core/MIPS/IR/IRCompFPU.cpp Core/MIPS/IR/IRCompLoadStore.cpp
+    Core/MIPS/IR/IRCompVFPU.cpp Core/MIPS/IR/IRRegCache.cpp Core/MIPS/IR/IRJit.cpp
+    Core/MIPS/JitCommon/JitBlockCache.cpp Common/GPU/thin3d.cpp Common/File/AndroidContentURI.cpp
+    Core/Replay.cpp Common/ArmEmitter.cpp Common/Arm64Emitter.cpp Common/x64Emitter.cpp
+    Core/LuaContext.cpp Core/MIPS/JitCommon/JitState.cpp
+"
+PPSPP_EXT_CPP="
+    ext/gason/gason.cpp ext/basis_universal/basisu_transcoder.cpp ext/armips/Core/Types.cpp
+    ext/aemu_postoffice/client/mutex_impl_cpp.cpp ext/aemu_postoffice/client/delay_impl_cpp.cpp
+    ext/aemu_postoffice/client/log_impl_ppsspp.cpp ext/at3_standalone/atrac.cpp
+    ext/at3_standalone/atrac3.cpp ext/at3_standalone/atrac3plus.cpp
+    ext/at3_standalone/atrac3plusdec.cpp ext/at3_standalone/atrac3plusdsp.cpp
+    ext/at3_standalone/fft.cpp ext/at3_standalone/get_bits.cpp ext/at3_standalone/mem.cpp
+    ext/at3_standalone/compat.cpp ext/minimp3/minimp3.cpp ext/xbrz/xbrz.cpp ext/snappy/snappy-c.cpp
+    ext/snappy/snappy.cpp ext/snappy/snappy-sinksource.cpp ext/snappy/snappy-stubs-internal.cpp
+    ext/cityhash/city.cpp
+"
+PPSPP_EXT_C="
+    ext/xxhash.c ext/sfmt19937/SFMT.c ext/libpng17/png.c ext/libpng17/pngerror.c
+    ext/libpng17/pngget.c ext/libpng17/pngmem.c ext/libpng17/pngpread.c ext/libpng17/pngread.c
+    ext/libpng17/pngrio.c ext/libpng17/pngrtran.c ext/libpng17/pngrutil.c ext/libpng17/pngset.c
+    ext/libpng17/pngtrans.c ext/libpng17/pngwio.c ext/libpng17/pngwrite.c ext/libpng17/pngwtran.c
+    ext/libpng17/pngwutil.c ext/zstd/lib/common/debug.c ext/zstd/lib/common/entropy_common.c
+    ext/zstd/lib/common/error_private.c ext/zstd/lib/common/fse_decompress.c
+    ext/zstd/lib/common/pool.c ext/zstd/lib/common/threading.c ext/zstd/lib/common/xxhash.c
+    ext/zstd/lib/common/zstd_common.c ext/zstd/lib/compress/fse_compress.c
+    ext/zstd/lib/compress/hist.c ext/zstd/lib/compress/huf_compress.c
+    ext/zstd/lib/compress/zstd_compress.c ext/zstd/lib/compress/zstd_compress_literals.c
+    ext/zstd/lib/compress/zstd_compress_sequences.c ext/zstd/lib/compress/zstd_compress_superblock.c
+    ext/zstd/lib/compress/zstd_double_fast.c ext/zstd/lib/compress/zstd_fast.c
+    ext/zstd/lib/compress/zstd_lazy.c ext/zstd/lib/compress/zstd_ldm.c
+    ext/zstd/lib/compress/zstd_opt.c ext/zstd/lib/compress/zstd_preSplit.c
+    ext/zstd/lib/compress/zstdmt_compress.c ext/zstd/lib/decompress/huf_decompress.c
+    ext/zstd/lib/decompress/zstd_ddict.c ext/zstd/lib/decompress/zstd_decompress.c
+    ext/zstd/lib/decompress/zstd_decompress_block.c ext/libzip/zip_add.c ext/libzip/zip_add_dir.c
+    ext/libzip/zip_add_entry.c ext/libzip/zip_algorithm_deflate.c ext/libzip/zip_buffer.c
+    ext/libzip/zip_close.c ext/libzip/zip_delete.c ext/libzip/zip_dir_add.c ext/libzip/zip_dirent.c
+    ext/libzip/zip_discard.c ext/libzip/zip_entry.c ext/libzip/zip_err_str.c ext/libzip/zip_error.c
+    ext/libzip/zip_error_clear.c ext/libzip/zip_error_get.c ext/libzip/zip_error_get_sys_type.c
+    ext/libzip/zip_error_strerror.c ext/libzip/zip_error_to_str.c ext/libzip/zip_extra_field.c
+    ext/libzip/zip_extra_field_api.c ext/libzip/zip_fclose.c ext/libzip/zip_fdopen.c
+    ext/libzip/zip_file_add.c ext/libzip/zip_file_error_clear.c ext/libzip/zip_file_error_get.c
+    ext/libzip/zip_file_get_comment.c ext/libzip/zip_file_get_external_attributes.c
+    ext/libzip/zip_file_get_offset.c ext/libzip/zip_file_rename.c ext/libzip/zip_file_replace.c
+    ext/libzip/zip_file_set_comment.c ext/libzip/zip_file_set_encryption.c
+    ext/libzip/zip_file_set_external_attributes.c ext/libzip/zip_file_set_mtime.c
+    ext/libzip/zip_file_strerror.c ext/libzip/zip_fopen.c ext/libzip/zip_fopen_encrypted.c
+    ext/libzip/zip_fopen_index.c ext/libzip/zip_fopen_index_encrypted.c ext/libzip/zip_fread.c
+    ext/libzip/zip_fseek.c ext/libzip/zip_ftell.c ext/libzip/zip_get_archive_comment.c
+    ext/libzip/zip_get_archive_flag.c ext/libzip/zip_get_encryption_implementation.c
+    ext/libzip/zip_get_file_comment.c ext/libzip/zip_get_name.c ext/libzip/zip_get_num_entries.c
+    ext/libzip/zip_get_num_files.c ext/libzip/zip_hash.c ext/libzip/zip_io_util.c
+    ext/libzip/zip_libzip_version.c ext/libzip/zip_memdup.c ext/libzip/zip_mkstempm.c
+    ext/libzip/zip_name_locate.c ext/libzip/zip_new.c ext/libzip/zip_open.c ext/libzip/zip_pkware.c
+    ext/libzip/zip_progress.c ext/libzip/zip_random_unix.c ext/libzip/zip_rename.c
+    ext/libzip/zip_replace.c ext/libzip/zip_set_archive_comment.c ext/libzip/zip_set_archive_flag.c
+    ext/libzip/zip_set_default_password.c ext/libzip/zip_set_file_comment.c
+    ext/libzip/zip_set_file_compression.c ext/libzip/zip_set_name.c
+    ext/libzip/zip_source_accept_empty.c ext/libzip/zip_source_begin_write.c
+    ext/libzip/zip_source_begin_write_cloning.c ext/libzip/zip_source_buffer.c
+    ext/libzip/zip_source_call.c ext/libzip/zip_source_close.c ext/libzip/zip_source_commit_write.c
+    ext/libzip/zip_source_compress.c ext/libzip/zip_source_crc.c ext/libzip/zip_source_error.c
+    ext/libzip/zip_source_file_common.c ext/libzip/zip_source_file_stdio.c
+    ext/libzip/zip_source_file_stdio_named.c ext/libzip/zip_source_free.c
+    ext/libzip/zip_source_function.c ext/libzip/zip_source_get_file_attributes.c
+    ext/libzip/zip_source_is_deleted.c ext/libzip/zip_source_layered.c ext/libzip/zip_source_open.c
+    ext/libzip/zip_source_pkware_decode.c ext/libzip/zip_source_pkware_encode.c
+    ext/libzip/zip_source_read.c ext/libzip/zip_source_remove.c
+    ext/libzip/zip_source_rollback_write.c ext/libzip/zip_source_seek.c
+    ext/libzip/zip_source_seek_write.c ext/libzip/zip_source_stat.c ext/libzip/zip_source_supports.c
+    ext/libzip/zip_source_tell.c ext/libzip/zip_source_tell_write.c ext/libzip/zip_source_window.c
+    ext/libzip/zip_source_write.c ext/libzip/zip_source_zip.c ext/libzip/zip_source_zip_new.c
+    ext/libzip/zip_stat.c ext/libzip/zip_stat_index.c ext/libzip/zip_stat_init.c
+    ext/libzip/zip_strerror.c ext/libzip/zip_string.c ext/libzip/zip_unchange.c
+    ext/libzip/zip_unchange_all.c ext/libzip/zip_unchange_archive.c ext/libzip/zip_unchange_data.c
+    ext/libzip/zip_utf-8.c ext/libchdr/src/libchdr_bitstream.c ext/libchdr/src/libchdr_cdrom.c
+    ext/libchdr/src/libchdr_flac.c ext/libchdr/src/libchdr_huffman.c ext/lzma-sdk/7zArcIn.c
+    ext/lzma-sdk/7zBuf.c ext/lzma-sdk/7zCrc.c ext/lzma-sdk/7zCrcOpt.c ext/lzma-sdk/7zDec.c
+    ext/lzma-sdk/7zFile.c ext/lzma-sdk/7zStream.c ext/lzma-sdk/Bcj2.c ext/lzma-sdk/Bra.c
+    ext/lzma-sdk/Bra86.c ext/lzma-sdk/CpuArch.c ext/lzma-sdk/Delta.c ext/lzma-sdk/Lzma2Dec.c
+    ext/lzma-sdk/LzmaDec.c ext/aemu_postoffice/client/postoffice.c
+    ext/aemu_postoffice/client/postoffice_mem_stdc.c ext/aemu_postoffice/client/sock_impl_linux.c
+    ext/libkirk/AES.c
+    ext/libkirk/SHA1.c
+    ext/libkirk/amctrl.c
+    ext/libkirk/bn.c
+    ext/libkirk/ec.c
+    ext/libkirk/kirk_engine.c
+"
+PPSPP_LUA="
+    lapi.c lauxlib.c lbaselib.c lcode.c lcorolib.c lctype.c ldblib.c ldebug.c ldo.c ldump.c lfunc.c
+    lgc.c linit.c liolib.c llex.c lmathlib.c lmem.c loadlib.c lobject.c lopcodes.c loslib.c
+    lparser.c lstate.c lstring.c lstrlib.c ltable.c ltablib.c ltm.c lundump.c lutf8lib.c lvm.c
+    lzio.c
+"
+# x86_64-only: cpuid helpers. ARM64 (every iOS target) never references
+# them (USE_CPU_FEATURES is x86-only upstream), so iOS builds skip these.
+PPSPP_X86="
+    ext/cpu_features/src/filesystem.c ext/cpu_features/src/stack_line_reader.c
+    ext/cpu_features/src/string_view.c ext/cpu_features/src/impl_x86_linux_or_android.c
+"
+# x86_64-only: zstd's AMD64 Huffman asm. ARM64 uses the C fallback and
+# cannot assemble this file, so iOS builds skip it.
+PPSPP_X86_ASM="
+    ext/zstd/lib/decompress/huf_decompress_amd64.S
+"
+# psp_core.cpp is OGA glue but needs the PPSSPP tree, so it has its own
+# list and lang (ppspp) rather than riding OGA_GLUE's plain cxx.
+PPSPP_GLUE="
+    psp_core.cpp
+"

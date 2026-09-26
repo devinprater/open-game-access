@@ -50,6 +50,46 @@
 #include "GPU/Software/SoftGpu.h"
 #include "Core/Screenshot.h"
 
+// ---- software-only GPU factory (replaces GPU/GPU.cpp) -----------------------
+// GPU.cpp's factory references every hardware backend (GLES/Vulkan/D3D11) by
+// construction, so compiling it would drag the GL context code this embedding
+// exists to avoid. The subset therefore excludes GPU/GPU.cpp and this file
+// provides the five symbols the kept code actually uses: the globals, the
+// lifecycle pair System.cpp drives during PSP_Init/PSP_Shutdown, and the
+// channel-name helper the framebuffer manager logs through. SOFTWARE is the
+// only backend this embedding can construct; anything else fails loudly.
+GPUStatistics gpuStats{};
+GPUCommon *gpu = nullptr;
+
+bool GPU_Init(GPUCore gpuCore, GraphicsContext *ctx, Draw::DrawContext *draw)
+{
+    if (gpuCore != GPUCORE_SOFTWARE || gpu) return false;
+    gpu = new SoftGPU(ctx, draw);
+    return gpu != nullptr;
+}
+
+void GPU_Shutdown()
+{
+    delete gpu;
+    gpu = nullptr;
+}
+
+// ---- debugger-protocol shims (replaces Core/Debugger/WebSocket/*) -------------
+// The WebSocket debugger serves the desktop UI over HTTP; this embedding has
+// its own reads (psp_debug_read) and no HTTP server. Upstream blesses exactly
+// this shape for builds without it (see the __LIBRETRO__ branch of
+// Core/Debugger/WebSocket.h): the tick/notify calls in the run loop resolve
+// to harmless no-ops instead of dragging the whole subscriber tree in.
+#include "Core/Debugger/WebSocket.h"
+void WebSocketDebuggerTick() {}
+bool WebSocketDebuggerHasClients() { return false; }
+void WebSocketNotifyBreakpointHit(const BreakpointHit &) {}
+
+const char *RasterChannelToString(RasterChannel channel)
+{
+    return channel == RASTER_COLOR ? "COLOR" : "DEPTH";
+}
+
 // The software GPU never touches GL, but a few shared CPU-side helpers
 // (vertex decoding) read the global GL-capability struct. There is no GL
 // here, so it stays zero-initialized: no extensions, no version.
@@ -513,3 +553,196 @@ void psp_debug_write(PspCore *core, uint32_t addr, uint32_t value, int width)
         if (width == 4) { p[2] = (uint8_t)(value >> 16); p[3] = (uint8_t)(value >> 24); }
     } catch (...) { /* treat as no-op, like a failed read yielding 0 */ }
 }
+
+// ---- embedding-disabled service shims -------------------------------------
+// The subset below excludes PPSSPP's desktop/service layers (telemetry,
+// achievements, AVI capture, UPnP, VR, hardware-GPU probes, Lua console,
+// native JIT selection). The kept code still references a few of their
+// entry points, so this file provides them with embedding-honest behavior:
+// features the frontend cannot use fail closed (false/empty/no-op), while
+// anything affecting emulation state or save layout keeps upstream semantics.
+// Each group notes why the real implementation is absent.
+
+#include "Core/Reporting.h"
+#include "Core/RetroAchievements.h"
+#include "Core/AVIDump.h"
+#include "Core/MIPS/JitCommon/JitCommon.h"
+#include "Core/MIPS/MIPSTables.h"
+#include "Core/MIPS/MIPSCodeUtils.h"
+#include "Common/Render/DrawBuffer.h"
+#include "Common/UI/Notice.h"
+#include "Common/UI/Context.h"
+#include "naett.h"
+#include "Common/Serialize/Serializer.h"
+#include "Common/Serialize/SerializeFuncs.h"
+#include "Common/GPU/ShaderTranslation.h"
+
+// Crash-report server: the embedding has no network and never opts in.
+namespace Reporting {
+void Init() {}
+void Shutdown() {}
+void DoState(PointerWrap &) {}
+void NotifyDebugger() {}
+void NotifyExecModule(const char *, int, uint32_t) {}
+void ReportMessage(const char *, ...) {}
+void ReportMessageFormatted(const char *, const char *) {}
+bool ShouldLogNTimes(const char *, int) { return false; }
+}
+
+// RetroAchievements: the frontend has no login UI, so achievements can never
+// activate; hardcore mode (which would disable savestates) stays off.
+namespace Achievements {
+void ChangeUMD(const Path &, FileLoader *) {}
+void DoState(PointerWrap &) {}
+bool HardcoreModeActive() { return false; }
+bool WarnUserIfHardcoreModeActive(bool, std::string_view) { return false; }
+}
+
+// AVI capture: SaveState only calls these when bDumpFrames is set, which the
+// embedding never sets (there is no recorder UI).
+bool AVIDump::Start(int, int) { return false; }
+void AVIDump::Stop() {}
+
+// UPnP port mapping: no miniupnpc in the subset, so adhoc stays local-only.
+void UPnP_Add(const char *, unsigned short, unsigned short) {}
+void UPnP_Remove(const char *, unsigned short) {}
+void UPnP_Notify() {}
+
+// VR: never present in this embedding.
+bool IsVREnabled() { return false; }
+bool IsGameVRScene() { return false; }
+bool IsFlatVRGame() { return false; }
+bool IsImmersiveVRMode() { return false; }
+bool IsBigScreenVRMode() { return false; }
+
+// Hardware-GPU probes: the software-only factory above is the sole backend,
+// so no hardware backend is ever available and shaders never need
+// translation (the software renderer consumes them directly).
+bool VulkanMayBeAvailable() { return false; }
+bool TranslateShader(std::string *, ShaderLanguage, const ShaderLanguageDesc &,
+                     TranslatedShaderMetadata *, std::string, ShaderLanguage,
+                     ShaderStage, std::string *) { return false; }
+
+// Single-threaded embedding: callers expect this queued on the UI thread,
+// but the emulator and frontend share one thread, so run it inline.
+void System_RunOnMainThread(std::function<void()> f) { f(); }
+
+// Debugger web server port policy: there is no web server in the embedding
+// (CmdLine parses the flag, nothing listens).
+void WebServerSetRequireExactPort(bool) {}
+
+// Native JIT selection: this embedding only ever runs
+// CPUCore::IR_INTERPRETER, so MIPS.cpp's JIT branches are never taken. The
+// null jit pointer is exactly what MemFault's guards expect, and
+// DoDummyJitState keeps the verbatim upstream section layout so savestates
+// stay well-formed (saves are embedding-local: same writer, same reader).
+namespace MIPSComp {
+JitInterface *jit = nullptr;
+JitInterface *CreateNativeJit(MIPSState *, bool) { return nullptr; }
+void DoDummyJitState(PointerWrap &p) {
+    auto sec = p.Section("Jit", 1, 2);
+    if (!sec)
+        return;
+    bool dummy = false;
+    Do(p, dummy);
+    if (sec >= 2) {
+        dummy = true;
+        Do(p, dummy);
+    }
+}
+}
+
+// x86 disassembler: only MemFault's crash-dump path and the debugger's JIT
+// listing call this. libudis86 is excluded from the subset, so crash logs
+// note the absence instead of printing disassembly.
+
+// IR branch analysis (verbatim upstream bodies from JitCommon.cpp, which is
+// excluded only because it also houses the native-JIT factory): the
+// interpreter's block cache resolves not-taken targets through these.
+namespace MIPSComp {
+BranchInfo::BranchInfo(u32 pc, MIPSOpcode o, MIPSOpcode delayO, bool al, bool l)
+		: compilerPC(pc), op(o), delaySlotOp(delayO), likely(l), andLink(al) {
+		delaySlotInfo = MIPSGetInfo(delaySlotOp).value;
+		delaySlotIsBranch = (delaySlotInfo & (IS_JUMP | IS_CONDBRANCH)) != 0;
+	}
+
+	u32 ResolveNotTakenTarget(const BranchInfo &branchInfo) {
+		u32 notTakenTarget = branchInfo.compilerPC + 8;
+		if ((branchInfo.delaySlotInfo & (IS_JUMP | IS_CONDBRANCH)) != 0) {
+			// If a branch has a j/jr/jal/jalr as a delay slot, that is run if the branch is not taken.
+			// TODO: Technically, in the likely case, we should somehow suppress andLink on this exit.
+			bool isJump = (branchInfo.delaySlotInfo & IS_JUMP) != 0;
+			// If the delay slot is a branch, likely skips it.
+			if (isJump || !branchInfo.likely)
+				notTakenTarget -= 4;
+
+			// For a branch (not a jump), it actually should try the delay slot and take its target potentially.
+			// This is similar to the VFPU case and has not been seen, so just report it.
+			if (!isJump && SignExtend16ToU32(branchInfo.delaySlotOp) != SignExtend16ToU32(branchInfo.op) - 1)
+				ERROR_LOG_REPORT(Log::JIT, "Branch in branch delay slot at %08x with different target", branchInfo.compilerPC);
+			if (isJump && branchInfo.likely && (branchInfo.delaySlotInfo & (OUT_RA | OUT_RD)) != 0)
+				ERROR_LOG_REPORT(Log::JIT, "Jump in likely branch delay slot with link at %08x", branchInfo.compilerPC);
+	}
+		return notTakenTarget;
+}
+}
+
+std::vector<std::string> DisassembleX86(const u8 *, int) { return {}; }
+
+// Version string: upstream generates this from git; pin the validated tree.
+
+// CHD (MAME compressed disk) images: libchdr's CHD unit needs the LZMA
+// *encoder*, which upstream does not vendor (ext/lzma-sdk is decode-only),
+// so CHD cannot be opened in this embedding. The frontend only opens
+// CSO/ISO; a CHD passed in fails cleanly at open time.
+#include "libchdr/chd.h"
+chd_error chd_open_core_file(core_file *, int, chd_file *, chd_file **) {
+    return CHDERR_INVALID_PARAMETER;
+}
+void chd_close(chd_file *) {}
+const char *chd_error_string(chd_error) { return "CHD unsupported in this build"; }
+const chd_header *chd_get_header(chd_file *) { return nullptr; }
+chd_error chd_read(chd_file *, uint32_t, void *) { return CHDERR_INVALID_PARAMETER; }
+
+
+// On-screen notice widget: its measure/draw bodies live in UI/OnScreenDisplay.cpp
+// (dropped with the desktop UI), so provide the verbatim wrappers over the
+// kept MeasureNotice/RenderNotice helpers. Nothing in the embedding shows
+// notices, but PopupScreens constructs one.
+void NoticeView::GetContentDimensionsBySpec(const UIContext &dc, UI::MeasureSpec horiz, UI::MeasureSpec vert, float &w, float &h) const {
+    float layoutWidth = layoutParams_->width;
+    if (layoutWidth < 0) {
+        layoutWidth = horiz.size;
+    }
+    ApplyBoundBySpec(layoutWidth, horiz);
+    const int align = wrapText_ ? FLAG_WRAP_TEXT : 0;
+    MeasureNotice(dc, level_, text_, detailsText_, iconName_, align, layoutWidth, &w, &h, &height1_);
+}
+
+void NoticeView::Draw(UIContext &dc) {
+    dc.PushScissor(bounds_);
+    const int align = wrapText_ ? FLAG_WRAP_TEXT : 0;
+    RenderNotice(dc, bounds_, height1_, level_, text_, detailsText_, iconName_, align, 1.0f, OSDMessageFlags::None, 0.0f);
+    dc.PopScissor();
+}
+
+// HTTP client (naett): needs libcurl, which has no place in an offline
+// embedding, so every entry point fails closed. The frontend only opens
+// local files; remote URLs and resolve requests never succeed.
+void naettInit(naettInitData) {}
+naettOption *naettMethod(const char *) { return nullptr; }
+naettOption *naettHeader(const char *, const char *) { return nullptr; }
+naettOption *naettBody(const char *, int) { return nullptr; }
+naettOption *naettBodyWriter(naettWriteFunc, void *) { return nullptr; }
+naettOption *naettTimeout(int) { return nullptr; }
+naettOption *naettUserAgent(const char *) { return nullptr; }
+naettReq *naettRequestWithOptions(const char *, int, const naettOption **) { return nullptr; }
+naettRes *naettMake(naettReq *) { return nullptr; }
+void naettFree(naettReq *) {}
+int naettComplete(const naettRes *) { return 0; }
+int naettGetStatus(const naettRes *) { return 0; }
+int naettGetTotalBytesRead(naettRes *, int *) { return 0; }
+void naettClose(naettRes *) {}
+extern "C" int naettCurlLoad(void) { return 0; }
+
+const char *PPSSPP_GIT_VERSION = "f293b10-oga";
