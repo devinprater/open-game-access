@@ -37,6 +37,11 @@ CC="${CC:-/usr/local/swift/bin/clang}"
 [ -d "$LUA_SRC/src" ] || { echo "!! no Lua source at $LUA_SRC" >&2; exit 1; }
 [ -d "$MGBA_SRC/src" ] || { echo "!! no mGBA source at $MGBA_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 
+source "$ROOT/scripts/build-cache.sh"
+CXX_CACHE_ID="$(oga_cache_compiler_id "$CXX")" || { echo "!! cannot identify C++ compiler: $CXX" >&2; exit 1; }
+CC_CACHE_ID="$(oga_cache_compiler_id "$CC")" || { echo "!! cannot identify C compiler: $CC" >&2; exit 1; }
+SDK_CACHE_ID="$(oga_cache_sdk_id "$SDK")" || { echo "!! cannot identify SDK: $SDK" >&2; exit 1; }
+
 mkdir -p "$OBJ" "$OUT"
 
 # ---- mGBA generated flags.h ----
@@ -82,24 +87,32 @@ for _f in $OGA_GLUE; do GLUE="$GLUE $ROOT/Core/$_f"; done
 
 compile() { # compile <lang> <src> <tag>
   local lang="$1" src="$2" tag="$3"
-  local out="$OBJ/$tag.o"
-  [ -f "$out" ] && [ "$out" -nt "$src" ] \
-    && [ "$out" -nt "$ROOT/scripts/build-core.sh" ] \
-    && [ "$out" -nt "$ROOT/scripts/core-sources.sh" ] && return 0
-  local flags="$CXXFLAGS"
+  local out="$OBJ/$tag.o" depfile="$OBJ/$tag.d" signature="$OBJ/$tag.sig" done="$OBJ/.done.$tag"
+  local flags="$CXXFLAGS" cc="$CXX" compiler_id="$CXX_CACHE_ID" fingerprint
   case "$lang" in
     cxx)
       # gba_core.cpp is OGA glue but uses mGBA's configured public API.
       if [ "$(basename "$src")" = "gba_core.cpp" ]; then
         flags="$CXXFLAGS $MGBA_DEFS $MGBA_INC"
       fi ;;
-    cc)  flags="$CFLAGS" ;;
-    lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS" ;;
-    mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC" ;;
+    cc)  flags="$CFLAGS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
   esac
-  local cc="$CXX"
-  if [ "$lang" = "cc" ] || [ "$lang" = "lua" ] || [ "$lang" = "mgba" ]; then cc="$CC"; fi
-  if ! "$cc" $flags -c "$src" -o "$out" 2> "$OBJ/$tag.err"; then
+  fingerprint="$(oga_cache_fingerprint "$cc" "$compiler_id" "$flags" "$SDK_CACHE_ID" "$SDK")" || {
+    echo "FAIL $tag: cannot fingerprint compile inputs" >&2; touch "$OBJ/.failed"; return 1;
+  }
+  if oga_cache_is_valid "$out" "$depfile" "$signature" "$fingerprint" \
+      "$src" "$ROOT/scripts/build-core.sh" "$ROOT/scripts/core-sources.sh"; then
+    touch "$done" || { echo "FAIL $tag: cannot record compile completion" >&2; touch "$OBJ/.failed"; return 1; }
+    return 0
+  fi
+  if "$cc" $flags -MMD -MF "$depfile" -MT "$out" -c "$src" -o "$out" 2> "$OBJ/$tag.err"; then
+    oga_cache_write_fingerprint "$signature" "$fingerprint" || {
+      echo "FAIL $tag: cannot record compile fingerprint" >&2; touch "$OBJ/.failed"; return 1;
+    }
+    touch "$done" || { echo "FAIL $tag: cannot record compile completion" >&2; touch "$OBJ/.failed"; return 1; }
+  else
     echo "FAIL $tag"; tail -30 "$OBJ/$tag.err"; touch "$OBJ/.failed"
   fi
 }
@@ -115,13 +128,14 @@ compile() { # compile <lang> <src> <tag>
   for f in $GLUE; do printf '%s|cxx|%s\n' "$f" "$(basename "$f" .cpp)"; done
 } > "$OBJ/list.txt"
 
-rm -f "$OBJ/.failed"
+rm -f "$OBJ/.failed" "$OBJ"/.done.*
 echo "== compiling $(wc -l < "$OBJ/list.txt") translation units =="
-export CXX CC CXXFLAGS CFLAGS OBJ
-# ⛔ Exported for xargs-spawned compile() children (see build-sim.sh): without
-# this the mGBA TUs lose their -I flags and die on mgba/internal/... not found.
+export ROOT CXX CC CXXFLAGS CFLAGS OBJ SDK CXX_CACHE_ID CC_CACHE_ID SDK_CACHE_ID
+# ⛔ Exported for xargs-spawned compile() children: they need the same compiler,
+# SDK and cache helpers as the parent so each translation unit validates its own
+# command fingerprint and generated header dependencies.
 export MGBA_DEFS MGBA_INC
-export -f compile
+export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED. Without it xargs reads STDIN, which is
 # empty under a non-interactive shell, so it compiles ZERO files, the archive is
 # relinked from whatever objects happen to be lying around, and the build prints
@@ -134,15 +148,16 @@ xargs -P "$JOBS" -I{} bash -c '
   compile "$lang" "$src" "$tag"
 ' < "$OBJ/list.txt"
 
-# Fail loudly if the compile step produced nothing it was asked for.
-#
-# The no-op above was invisible because nothing compared the work requested with
-# the work done. This gate makes the same failure impossible to mistake for
-# success: a build that compiles 116 units must yield objects for them.
+# Fail loudly if xargs did not process every requested translation unit. A valid
+# cache hit counts as completed work just like a fresh compile; object mtimes alone
+# cannot distinguish that from xargs silently doing nothing.
 _want=$(wc -l < "$OBJ/list.txt")
-_have=$(find "$OBJ" -name '*.o' -newer "$OBJ/list.txt" 2>/dev/null | wc -l)
-if [ "$_have" -eq 0 ]; then
-  echo "!! compiled NOTHING (wanted $_want translation units) — the compile step is a no-op" >&2
+_have=0
+for _marker in "$OBJ"/.done.*; do
+  [ -f "$_marker" ] && _have=$((_have + 1))
+done
+if [ "$_have" -ne "$_want" ]; then
+  echo "!! processed $_have of $_want translation units — compile step incomplete" >&2
   exit 1
 fi
 
