@@ -159,14 +159,22 @@ enum BundleResources {
     /// handed to poke_set_script_dir for Game Boy ROMs. Nil when the resource
     /// is missing — the core then fails loudly at start, it does not boot a
     /// game with no reader.
-    /// Filesystem path of the staged PPSSPP runtime assets (ppsspp-assets/),
-    /// copied into the app by scripts/package-sim-app.sh. Nil when the
-    /// packaging step did not run — the PSP core then fails loudly at load,
-    /// it does not boot a game with no compat tables.
+    /// Filesystem path of the bundled PPSSPP runtime assets (ppsspp-assets/).
+    /// Two homes, checked in order: the bundle root (put there by
+    /// scripts/package-sim-app.sh or a manual stage), then the SwiftPM
+    /// resource bundle (Sources/OpenGameAccess/Resources/ppsspp-assets,
+    /// vendored from the pinned PPSSPP — this is what the xtool device
+    /// build carries, since its packager re-assembles the .app and wipes
+    /// anything staged post-hoc). Nil when both are missing — the PSP core
+    /// then fails loudly at load, it does not boot a game with no compat
+    /// tables.
     static var ppssppAssetDir: String? {
-        let url = Bundle.main.bundleURL.appendingPathComponent("ppsspp-assets", isDirectory: true)
-        guard FileManager.default.fileExists(atPath: url.path) else { return nil }
-        return url.path
+        let fm = FileManager.default
+        let atRoot = Bundle.main.bundleURL.appendingPathComponent("ppsspp-assets", isDirectory: true)
+        if fm.fileExists(atPath: atRoot.path) { return atRoot.path }
+        if let base = Bundle.module.resourceURL?.appendingPathComponent("Resources/ppsspp-assets", isDirectory: true),
+           fm.fileExists(atPath: base.path) { return base.path }
+        return nil
     }
 
     static var gbaScriptDir: String? {
