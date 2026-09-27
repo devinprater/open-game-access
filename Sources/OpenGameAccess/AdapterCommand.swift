@@ -58,6 +58,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .menuPrev:        return "Previous item"
         case .menuLeft:        return "Previous value"
         case .menuRight:       return "Next value"
+        case .custToggle:      return "Customize row"
         }
     }
 
