@@ -40,7 +40,7 @@ static void CapSpeak(const char *text, bool interrupt, void *ud) {
 int main(int argc, char **argv) {
     // Battle-probe mode appends: <cmd> <cmd-period> — issue adapter command
     // <cmd> every <cmd-period> frames and log every SPEAK line with its frame.
-    if (argc != 6 && argc != 7 && argc != 10 && argc != 12) {
+    if (argc != 6 && argc != 7 && argc != 10 && argc != 12 && argc != 13 && argc != 15) {
         fprintf(stderr, "usage: %s <image> <savedir> <outdir> <frames> <interval> [script] | <image> <savedir> <outdir> <frames> <interval> <script-or--> <resume-state> <tap-btn> <tap-period> [<cmd> <cmd-period>]\n", argv[0]);
         return 2;
     }
@@ -53,20 +53,46 @@ int main(int argc, char **argv) {
     // tap-period frames (held 60). argv[6] is script-or-placeholder.
     const char *resume = nullptr;
     int tapBtn = -1, tapPeriod = 0;
+    int tapCycle[8]; int tapCycleN = 0;
     int probeCmd = -1, probePeriod = 0;
-    if (argc == 10 || argc == 12) {
+    int tapHold = 60;
+    if (argc == 10 || argc == 12 || argc == 13 || argc == 15) {
         if (strcmp(argv[6], "--") != 0) script = argv[6];
         resume = argv[7];
-        tapBtn = atoi(argv[8]);
+        // tap button may be a comma cycle ("10,11,0") for scripted mash.
+        {
+            const char *p8 = argv[8];
+            while (*p8 && tapCycleN < 8) {
+                tapCycle[tapCycleN++] = atoi(p8);
+                while (*p8 && *p8 != ',') p8++;
+                if (*p8 == ',') p8++;
+            }
+            if (tapCycleN > 0) tapBtn = tapCycle[0];
+        }
         tapPeriod = atoi(argv[9]);
     }
     if (argc == 12) {
         probeCmd = atoi(argv[10]);
         probePeriod = atoi(argv[11]);
     }
+    if (argc == 13 || argc == 15) {
+        probeCmd = atoi(argv[10]);
+        probePeriod = atoi(argv[11]);
+        tapHold = atoi(argv[argc - 1]);
+    }
     PokeCore *core = poke_create();
     if (!core) { fprintf(stderr, "CAP-FAIL: no core\n"); return 1; }
     poke_set_speech_callback(core, CapSpeak, nullptr);
+    static FILE *g_hostLog = nullptr;
+    {
+        std::string hlog = std::string(argv[3]) + "/host.log";
+        g_hostLog = fopen(hlog.c_str(), "w");
+    }
+    struct HostLogCap { static void cb(const char *t, void *u) {
+        FILE *f = (FILE *)u;
+        if (f && t) { fprintf(f, "%s\n", t); fflush(f); }
+    } };
+    poke_set_log_callback(core, HostLogCap::cb, g_hostLog);
     if (probeCmd >= 0) {
         std::string slog = std::string(argv[3]) + "/speak.log";
         g_speakLog = fopen(slog.c_str(), "w");
@@ -112,7 +138,22 @@ int main(int argc, char **argv) {
             poke_command(core, probeCmd);
         if (tapBtn >= 0 && tapPeriod > 0) {
             int ph = frames % tapPeriod;
-            poke_set_button(core, tapBtn, ph < 60);
+            int cyc = tapCycleN > 0 ? tapCycle[(frames / tapPeriod) % tapCycleN] : tapBtn;
+            bool want = ph < tapHold;
+            static int lastCyc = -999;
+            if (cyc != lastCyc) {
+                if (lastCyc >= 0) poke_set_button(core, lastCyc, false);
+                lastCyc = cyc;
+            }
+            tapBtn = cyc;
+            static bool had = false;
+            static int lastLoggedCyc = -999;
+            if (want != had || cyc != lastLoggedCyc) {
+                fprintf(stderr, "CAP-INPUT: frame=%d btn=%d %s\n",
+                        frames, cyc, want ? "DOWN" : "UP");
+                had = want; lastLoggedCyc = cyc;
+            }
+            poke_set_button(core, cyc, want);
         }
         if (audio) {
             int got = poke_read_audio(core, abuf, 3000);
@@ -132,6 +173,7 @@ int main(int argc, char **argv) {
     }
     if (audio) fclose(audio);
     if (g_speakLog) fclose(g_speakLog);
+    if (g_hostLog) fclose(g_hostLog);
     printf("CAP-DONE: frames=%d/%d\n", frames, cap);
     poke_stop(core);
     poke_destroy(core);
