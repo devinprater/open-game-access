@@ -664,6 +664,8 @@ static void MenuSpeakRow(void)
     Say(line);
 }
 static bool g_optLive = false;  // owned by the options block below
+static bool g_custLive = false;  // customize tracker state (rows owned below)
+static int g_custRow = 0;
 static void OptSync(void);      // defined with the options menu below
 static bool DialogLive(void);   // defined with the YES/NO dialog block below
 static bool StoryDlgLive(void); // defined with the story-dialog block below
@@ -676,6 +678,7 @@ static void CmdMenuState(void)
     else if (BonusIndex() >= 0 || PlayIndex() >= 0) st = "MENU setup";
     else if (BattleFighters().ok) st = "MENU battle";
     else if (DialogLive() || StoryDlgLive()) st = "MENU dialog";
+    else if (g_custLive) st = "MENU customize";
     else if (BoardDispatcher() != 0) st = "MENU board";
     else if (g_optLive) st = "MENU options";
     if (g_host && g_host->log) g_host->log(g_host->ctx, st);
@@ -752,6 +755,32 @@ static void OptSpeakRow(void)
                  r.name, r.vals[g_optVal[g_optRow]], g_optRow + 1);
     else
         snprintf(line, sizeof(line), "%s. Row %d of 23.", r.name, g_optRow + 1);
+    Say(line);
+}
+
+// ---- Customize menu (story-map Triangle; host-RE mx-map1..mx-map4) ----
+// Fourth UI system: Triangle on the board opens Customize (via a first-visit
+// Help Manual pop-up, which the YES/NO dialog block below already detects, so
+// dialog priority covers it). The 9 category rows are glyph-rendered (no ASCII
+// in RAM) and a setup-family + 3x4KB wide scan came back identical map-vs-
+// Customize and cursor-moved, so there is no RAM gate or cursor: the adapter
+// tracks from player input exactly like the main menu. Entry = row 1
+// (Abilities, glove-verified live); 1:1 moves both directions, wraps both
+// ways (Up from Abilities lands Options, Down from Equipment returns -- all
+// three transitions screenshot-verified). Stats panel values (HP/CP/BRV/ATK)
+// are display-only and unverified: rows speak name + position only, never a
+// guess. CustToggle is player-in-the-loop: tap on entry, tap on exit.
+// Leaving Customize for a fight always passes through battle, which clears
+// the flag, so a stale flag can never speak menu rows mid-fight.
+static const char* kCustRows[9] = {
+    "Abilities", "Equipment", "Accessories", "Summons", "EX Mode",
+    "Battlegen", "Accomplishments", "Shop", "Options",
+};
+static void CustSpeakRow(void)
+{
+    char line[96];
+    snprintf(line, sizeof(line), "%s. Row %d of 9.",
+             kCustRows[g_custRow], g_custRow + 1);
     Say(line);
 }
 
@@ -942,6 +971,14 @@ static void Command(Command cmd)
     // linger), then pause menu, then board. Verified live: board M stays set
     // during battle, so board-first would speak stale cursor garbage mid-fight.
     bool battle = BattleFighters().ok;
+    if (cmd == Command::CustToggle) {
+        if (battle) { g_custLive = false; Say("Customize menu is not open."); return; }
+        g_custLive = !g_custLive;
+        if (g_custLive) { g_custRow = 0; CustSpeakRow(); }
+        else Say("Customize menu closed.");
+        return;
+    }
+    if (battle) g_custLive = false;
     // Tracked-menu navigation: the host forwards D-pad taps as MenuNext/Prev
     // alongside set_button. The adapter moves its own cursor and speaks the
     // row (input-echo): no heap value identifies the selected row (attract
@@ -982,6 +1019,14 @@ static void Command(Command cmd)
             default: break;
         }
     }
+    if (g_custLive && !battle) {
+        switch (cmd) {
+            case Command::WhereAmI: CustSpeakRow(); return;
+            case Command::MenuNext: g_custRow = (g_custRow + 1) % 9; CustSpeakRow(); return;
+            case Command::MenuPrev: g_custRow = (g_custRow + 8) % 9; CustSpeakRow(); return;
+            default: break;
+        }
+    }
     if (cmd == Command::MenuLeft || cmd == Command::MenuRight) return;  // silent off-menu
     switch (cmd) {
         case Command::WhereAmI:
@@ -1013,6 +1058,7 @@ static bool Attach(const Host* host)
     g_widgetRoot = 0;   // never inherit a root across attach
     g_menuMain = false; g_menuRow = 0;  // menu cursor never inherits either
     g_optLive = false; g_optRow = 0;  // options cursor neither
+    g_custLive = false; g_custRow = 0;  // customize tracker neither
     for (int i = 0; i < 23; i++) g_optVal[i] = 0;
     g_widgetPinned = false;
     return true;        // the game code check already happened in the registry

@@ -544,6 +544,59 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Enemy: HP 338 of 338. Bravery 530. 15 units away, below you.") == 0,
           "first battle foe");
 
+    // ---- Customize tracker (story-map Triangle; host-RE mx-map4) ----
+    // No RAM gate (glyph-rendered rows, scans identical): player-in-the-loop
+    // toggle. Entry = Abilities row 1; 1:1 moves; wraps both ways (live-verified).
+    reset();
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::CustToggle);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Abilities. Row 1 of 9.") == 0,
+          "customize toggle on speaks row 1");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Abilities. Row 1 of 9.") == 0,
+          "customize whereami row 1");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Equipment. Row 2 of 9.") == 0,
+          "customize next to equipment");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuPrev);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Abilities. Row 1 of 9.") == 0,
+          "customize prev back to abilities");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuPrev);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Options. Row 9 of 9.") == 0,
+          "customize wrap to options");
+    // Modal Help Manual (YES/NO slot) keeps priority over the tracker.
+    put32(DLG_SLOT, 1u);
+    putf(DLG_X, 119.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "customize dialog keeps priority");
+    // Tracker survives dialog close with its row (no RAM to resync from).
+    put32(DLG_SLOT, 0u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Options. Row 9 of 9.") == 0,
+          "customize row survives dialog");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::CustToggle);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Customize menu closed.") == 0,
+          "customize toggle off");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 0, "customize nav silent after exit");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    {
+        bool clean = true;
+        for (int i = 0; i < NSPOKEN; i++)
+            if (strstr(SPOKEN[i], "of 9.") != nullptr) clean = false;
+        CHECK(clean, "customize rows gone after exit");
+    }
+
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
     return failures != 0;

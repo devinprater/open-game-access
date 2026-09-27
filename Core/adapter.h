@@ -60,6 +60,11 @@ enum class Command {
     MenuPrev,
     MenuLeft,   // D-pad left on a tracked menu: previous value + speak
     MenuRight,  // D-pad right on a tracked menu: next value + speak
+    // Player-in-the-loop tracked menus (append-only: raw values are the C ABI
+    // shared with Swift; never reorder). The game opens these with a single
+    // button whose screen has no RAM signature, so the player taps the button
+    // on entry and on exit and the adapter tracks the cursor from MenuNext/Prev.
+    CustToggle, // Dissidia story-map Customize: toggle tracking + speak row 1
 };
 
 struct Adapter {
