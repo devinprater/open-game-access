@@ -85,8 +85,10 @@ behaviour of the announcement notification, not a bug in this app.
 
 Consequences:
 
-1. There is no retry that makes announcements reliable, because VoiceOver gives
-   no failure callback for a dropped announcement.
+1. A retry cannot make announcements *reliable*, but a dropped line is at least
+   reported: `announcementDidFinishNotification` carries
+   `announcementWasSuccessfulUserInfoKey` = false. The announcement queue retries a
+   requested (High) line once on that signal; see `announcement-queue.md`.
 2. So announcements are **not the only channel**. The game screen element
    carries the same state in its `accessibilityValue` (`Running <game>`,
    position, status), so a dropped line can still be reached by re-focusing the
