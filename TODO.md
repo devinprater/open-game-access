@@ -27,6 +27,9 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 
 ## Game readers
 
+- [ ] **Dissidia name-entry reader:** New Game's name entry has no adapter
+  coverage (title rows are fingerprinted; name entry is not). Silence there
+  is a coverage gap, not a lock-on failure.
 - [ ] **FE11 menu reader:** the Shadow Dragon adapter's ready gate is map
   state only, so the title screen, menus, and pre-chapter flow sit at
   "reader loading" forever (confirmed on-device 2026-09-27, YFEE ROM from
