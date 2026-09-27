@@ -25,6 +25,8 @@ jobs:
       - uses: actions/checkout@v4
       - name: Run standalone adapter tests
         run: bash scripts/adapter-tests.sh
+      - name: Announcement queue (tests + sabotage verification)
+        run: bash scripts/announce-test.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols
