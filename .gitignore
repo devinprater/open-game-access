@@ -145,3 +145,5 @@ Thumbs.db
 *.key
 .env
 secrets*
+
+__pycache__/
