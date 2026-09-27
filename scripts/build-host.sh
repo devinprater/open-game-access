@@ -13,11 +13,28 @@ set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="${MELONDS_SRC:-$HOME/src/melonds-lua}"
 LUA_SRC="${LUA_SRC:-$HOME/src/lua-5.4.7}"
+MGBA_SRC="${MGBA_SRC:-$HOME/src/mgba}"
 OBJ="$ROOT/Vendor/hostobj"
 SDKINC=""
 
 mkdir -p "$OBJ"
 source "$ROOT/scripts/core-sources.sh"
+
+# mGBA needs its generated flags.h (mirrors build-core.sh; same audited DEFS).
+MGBA_GEN="$OBJ/mgba-gen"
+mkdir -p "$MGBA_GEN/mgba"
+if [ ! -f "$MGBA_GEN/mgba/flags.h" ] || [ "$MGBA_SRC/src/core/flags.h.in" -nt "$MGBA_GEN/mgba/flags.h" ]; then
+  sed -e 's/#cmakedefine01 \([A-Za-z_0-9]*\).*/#ifndef \1\n#endif/' \
+      -e 's/#cmakedefine \([A-Za-z_0-9]*\).*/#ifndef \1\n#endif/' \
+      "$MGBA_SRC/src/core/flags.h.in" > "$MGBA_GEN/mgba/flags.h"
+fi
+MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$LUA_SRC/src"
+# Host glibc has no <xlocale.h> (merged into <locale.h>); the audited DEFS
+# target the Mac toolchain where it exists. Everything else carries over.
+# -DHAVE_XLOCALE: glibc merged xlocale.h into locale.h (no such header).
+# -DHAVE_PTHREAD_SET_NAME_NP: macOS pthread_set_name_np; glibc wants the
+# plain HAVE_PTHREAD_SETNAME_NP branch (pthread_setname_np(thread, name)).
+HOST_MGBA_DEFS="$(echo "$MGBA_DEFS" | sed -e 's/-DHAVE_XLOCALE//' -e 's/-DHAVE_PTHREAD_SET_NAME_NP//')"
 
 # POKE_HOST, not POKE_IOS: the platform layer picks clock_gettime/usleep instead
 # of mach_absolute_time. Same core, same Lua, same script.
@@ -29,15 +46,26 @@ CFLAGS="$COMMON $INC -std=gnu11"
 
 compile() {
   local lang="$1" src="$2" tag="$3"
-  local out="$OBJ/$tag.o"
-  [ -f "$out" ] && [ "$out" -nt "$src" ] && return 0
+  local out="$OBJ/$tag.o" flagfile="$OBJ/$tag.flags"
   local flags="$CXXFLAGS" cc=g++
   case "$lang" in
-    cc)  flags="$CFLAGS"; cc=gcc ;;
-    lua) flags="$CFLAGS -DLUA_USE_POSIX"; cc=gcc ;;
+    cxx)
+      # gba_core.cpp is OGA glue but uses mGBA's configured public API.
+      if [ "$(basename "$src")" = "gba_core.cpp" ]; then
+        flags="$CXXFLAGS ${HOST_MGBA_DEFS:-$MGBA_DEFS} $MGBA_INC"
+      fi ;;
+    cc)   flags="$CFLAGS"; cc=gcc ;;
+    lua)  flags="$CFLAGS -DLUA_USE_POSIX"; cc=gcc ;;
+    mgba) flags="$CFLAGS $HOST_MGBA_DEFS $MGBA_INC"; cc=gcc ;;
   esac
+  # Timestamp alone is not enough: flag changes (DEFS, includes) must rebuild.
+  # The flags file records the exact command that produced $out.
+  if [ -f "$out" ] && [ "$out" -nt "$src" ] && [ -f "$flagfile" ] && \
+     [ "$(cat "$flagfile")" = "$cc $flags" ]; then return 0; fi
   if ! $cc $flags -c "$src" -o "$out" 2> "$OBJ/$tag.err"; then
     echo "FAIL $tag"; head -20 "$OBJ/$tag.err"; touch "$OBJ/.failed"
+  else
+    echo "$cc $flags" > "$flagfile"
   fi
 }
 
@@ -59,6 +87,9 @@ compile() {
   printf '%s|cxx|fe_access\n'    "$ROOT/Core/fe_access.cpp"
   printf '%s|cxx|fe_adapter\n'   "$ROOT/Core/fe_adapter.cpp"
   printf '%s|cxx|gba_adapter\n'  "$ROOT/Core/gba_adapter.cpp"
+  printf '%s|cxx|gba_core\n'     "$ROOT/Core/gba_core.cpp"
+  printf '%s|cxx|mgba_version\n' "$ROOT/Core/mgba_version_stub.cpp"
+  for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
   printf '%s|cxx|adapters\n'     "$ROOT/Core/adapters.cpp"
@@ -66,7 +97,8 @@ compile() {
 
 rm -f "$OBJ/.failed"
 echo "== host objects: $(wc -l < "$OBJ/list.txt") TUs, $JOBS jobs"
-export CXXFLAGS CFLAGS OBJ
+export CXXFLAGS CFLAGS OBJ MGBA_SRC
+export MGBA_DEFS MGBA_INC MGBA_GEN HOST_MGBA_DEFS
 export -f compile
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED — see the same line in build-core.sh.
 # Without it xargs reads STDIN (empty under a non-interactive shell), compiles
