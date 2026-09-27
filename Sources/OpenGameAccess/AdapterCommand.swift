@@ -60,6 +60,8 @@ enum AdapterCommand: Int32, CaseIterable {
     case exQteSquare = 26
     case exQteTriangle = 27
     case exQteCross = 28
+    case exBurstGoMash = 29
+    case exBurstLevel = 30
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -94,6 +96,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .exQteSquare: return "QTE Square"
         case .exQteTriangle: return "QTE Triangle"
         case .exQteCross: return "QTE Cross"
+        case .exBurstGoMash: return "Mash Burst Go"
+        case .exBurstLevel: return "Burst Level"
         }
     }
 
@@ -160,6 +164,10 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Burst minigame prompt: Triangle."
         case .exQteCross:
             return "Burst minigame prompt: Cross."
+        case .exBurstGoMash:
+            return "Mash-type Burst started: mash the button."
+        case .exBurstLevel:
+            return "Mash-type Burst power level up."
         }
     }
 
@@ -195,6 +203,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .exQteSquare: return "square"
         case .exQteTriangle: return "triangle"
         case .exQteCross: return "xmark"
+        case .exBurstGoMash: return "repeat"
+        case .exBurstLevel: return "arrow.up"
         }
     }
 

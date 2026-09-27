@@ -81,6 +81,8 @@ enum class Command {
     ExQteSquare,   // Dissidia EX Burst QTE: face-button prompt (no dedup)
     ExQteTriangle, // Dissidia EX Burst QTE: face-button prompt (no dedup)
     ExQteCross,    // Dissidia EX Burst QTE: face-button prompt (no dedup)
+    ExBurstGoMash, // Dissidia EX Burst (mash type, e.g. Garland Soul of Chaos): mash prompt
+    ExBurstLevel,  // Dissidia EX Burst (mash type): power level up (no dedup)
 };
 
 struct Adapter {

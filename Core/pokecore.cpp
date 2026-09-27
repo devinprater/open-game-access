@@ -823,7 +823,7 @@ bool poke_adapter_ready(PokeCore *core)
 bool poke_command(PokeCore *core, int cmd)
 {
     if (!core || !core->adapter) return false;
-    if (cmd < 0 || cmd > (int) oga::Command::ExQteCross) return false;
+    if (cmd < 0 || cmd > (int) oga::Command::ExBurstLevel) return false;
     if (!core->adapter->command) return false;
 
     // Attach lazily, on the first command rather than at ROM load.
