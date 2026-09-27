@@ -597,6 +597,45 @@ int main(void)
         CHECK(clean, "customize rows gone after exit");
     }
 
+    // ---- Character-select tracker (main-menu Triangle; mx-charsel1-4) ----
+    // 10 Cosmos heroes I-X, 1:1, wraps 10->1, entry resets to row 1.
+    reset();
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::CharToggle);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Warrior of Light. Row 1 of 10.") == 0,
+          "charsel toggle on speaks row 1");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Firion. Row 2 of 10.") == 0,
+          "charsel next to firion");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Onion Knight. Row 3 of 10.") == 0,
+          "charsel next to onion knight");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuPrev);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Firion. Row 2 of 10.") == 0,
+          "charsel prev back to firion");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuPrev);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Warrior of Light. Row 1 of 10.") == 0,
+          "charsel prev back to row 1");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuPrev);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Tidus. Row 10 of 10.") == 0,
+          "charsel wrap up to tidus");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Warrior of Light. Row 1 of 10.") == 0,
+          "charsel wrap down to row 1");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::CharToggle);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Character select closed.") == 0,
+          "charsel toggle off");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 0, "charsel nav silent after exit");
+
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
     return failures != 0;
