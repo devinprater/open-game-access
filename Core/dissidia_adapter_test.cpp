@@ -455,6 +455,59 @@ int main(void)
     a->command(oga::Command::QuickOn);
     CHECK(NSPOKEN == 0, "quickmove silent outside battle");
 
+    // ---- EX Mode / EX Burst reader (battle only, detector + input-echo) ----
+    reset();
+    put32(0x08B9B770u, BM);
+    put32(BH, BM2);
+    put32(BM2 + 0x14u, BP0);
+    put32(BP0 + 0x51Cu, BS0);
+    put32(BP0 + 0x2F0u, BP1);
+    put32(BP0 + 0x4EA8u, BP1);
+    put32(BP1 + 0x51Cu, BS1);
+    put16(BS0 + 0x08u, 1000u); put16(BS0 + 0x02u, 94u);
+    put16(BS1 + 0x08u, 338u); put16(BS1 + 0x02u, 0u);
+    // E1. gauge fills: ready announced once
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::ExReady);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "EX Mode ready.") == 0, "ex ready");
+    // E2. still full: no repeat
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::ExReady);
+    CHECK(NSPOKEN == 0, "ex ready once per fill");
+    // E3. spent then full again: re-announced
+    a->command(oga::Command::ExSpent);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::ExReady);
+    CHECK(NSPOKEN == 1, "ex ready re-arms");
+    // E4. player enters EX Mode (app input-echo)
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::ExActive);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "EX Mode on.") == 0, "ex active");
+    // E5. Burst popup live after HP attack
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::ExBurstGo);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Press Square now!") == 0, "ex burst go");
+    // E6. QTE prompts speak raw: identical twice still speaks twice
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::ExQteUp);
+    a->command(oga::Command::ExQteUp);
+    a->command(oga::Command::ExQteLeft);
+    a->command(oga::Command::ExQteCircle);
+    CHECK(NSPOKEN == 4 && strcmp(SPOKE(0), "Up!") == 0 &&
+          strcmp(SPOKE(1), "Up!") == 0 && strcmp(SPOKE(2), "Left!") == 0 &&
+          strcmp(SPOKE(3), "Circle!") == 0, "ex qte raw repeat");
+    // E7. EX over speaks and disarms ready latch
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::ExEnded);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "EX Mode over.") == 0, "ex ended");
+    // E8. EX silent outside battle (gate, not once-rule)
+    reset();
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    a->command(oga::Command::ExReady);
+    a->command(oga::Command::ExQteUp);
+    CHECK(NSPOKEN == 1, "ex silent outside battle");
+
     // ---- YES/NO dialogs (confirm + cancel) + title/setup path to first battle ----
     // The question text is glyph-rendered (no ASCII in RAM), so v1 speaks the
     // selection only. Confirm = Cross on YES, cancel = Cross/Circle on NO: both

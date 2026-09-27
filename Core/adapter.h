@@ -68,6 +68,19 @@ enum class Command {
     CharToggle, // Dissidia main-menu Triangle character select: toggle + row 1
     QuickOn,  // Dissidia battle: Quickmove marker appeared (rising edge)
     QuickOff, // Dissidia battle: Quickmove marker gone (re-arms QuickOn)
+    ExReady,    // Dissidia battle: EX gauge full (rising edge, detector)
+    ExSpent,    // Dissidia battle: EX gauge no longer full (re-arms ExReady)
+    ExActive,   // Dissidia battle: player entered EX Mode (app input-echo)
+    ExEnded,    // Dissidia battle: EX Mode over (gauge drained or Burst done)
+    ExBurstGo,  // Dissidia EX Mode: HP attack landed, Square prompt is live
+    ExQteUp,    // Dissidia EX Burst QTE: speak direction (no dedup)
+    ExQteDown,  // Dissidia EX Burst QTE: speak direction (no dedup)
+    ExQteLeft,  // Dissidia EX Burst QTE: speak direction (no dedup)
+    ExQteRight, // Dissidia EX Burst QTE: speak direction (no dedup)
+    ExQteCircle,   // Dissidia EX Burst QTE: face-button prompt (no dedup)
+    ExQteSquare,   // Dissidia EX Burst QTE: face-button prompt (no dedup)
+    ExQteTriangle, // Dissidia EX Burst QTE: face-button prompt (no dedup)
+    ExQteCross,    // Dissidia EX Burst QTE: face-button prompt (no dedup)
 };
 
 struct Adapter {
