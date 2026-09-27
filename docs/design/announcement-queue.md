@@ -42,6 +42,8 @@ Per-frame data must collapse before it reaches the speaker:
   not on every hit. Footsteps are game audio, not speech — never narrated.
 - Silence wins ties: if a coalesced line is still waiting when its key updates
   again, the old text is discarded without speaking.
+- `once`: identical text never speaks twice in a row; repeats reset the
+  rate-cap clock instead of queuing.
 
 ## User-requested announcements
 
@@ -58,10 +60,14 @@ These are `requested` level and always available, per system:
 ## Lock-on beacon (audio, not speech)
 
 With lock-on active, an optional beacon marks the target without spending the
-speech queue:
+speech queue. One tone carries the vector (per the BT2 mod's proven encoding,
+see `docs/research/bt2-accessibility-lessons.md`):
 
-- Centered (no stereo pan — lock-on means "this one").
-- Slightly low-pitched beep; repeat rate rises as distance closes.
+- Stereo pan = left/right, pitch = forward/back, repeat rate = distance.
+  (Lock-on still centers the *meaning* — the pan is small, a nudge, not a mix.)
+- Slightly low-pitched beep; a distinct arrival figure when in range.
+- Degraded timbre (hollow harmonic) when the bearing is honest but the target
+  is unconfirmed — confidence is audible, not read out.
 - Silent when there is no lock, the target is dead, or the player asked for
   silence. It never interrupts speech; speech ducks or mutes it.
 - Off by default until playtested against the matrix above.
