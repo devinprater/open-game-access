@@ -70,8 +70,12 @@ and fight airborne as much as grounded. Launched players get an
 "X: Aerial recovery" prompt. Camera follows and pulls back with
 distance. This is the "zoom around the stage" part: no separate map
 or zoom mode exists; traversal is the movement itself.
-- Triangle in battle is guard (blue bubble), not a zoom or map.
-Probed twice (750f + 150/300f): no overlay, camera move, or menu.
+- Triangle in battle is Quickmove (Map Action): wall runs, rail
+grinds, and dash-jumps between platforms, but ONLY while the yellow
+target marker shows. Probed twice with no marker in view: no effect,
+no overlay. The blue guard bubble seen in one capture was the CPU
+guarding on its own; guard is a separate mechanic (front-only
+blocking, timed blocks stagger for a counter opening).
 - Lock-on shows as a blue reticle ring over the opponent: the visual
 anchor for a centered audio beacon.
 - EX Cores spawn mid-fight ("EX Core in play!" banner, glowing orb
