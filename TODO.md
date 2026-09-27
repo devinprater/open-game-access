@@ -4,7 +4,7 @@
 
 - [x] **Dissidia first-battle vertical slice:** host-verified with synthetic RAM built from the validated layout (same rule as the other adapter tests: no PSP boot on this host). `dissidia-adapter-test.sh` now covers the YES/NO dialog confirm branch (YES speaks) and cancel branch (NO speaks) on both dialog systems, dialog nav re-reading RAM, the title -> Play Plan -> Bonus Day path, and the first accessible battle screen (self + foe speech). 56 checks pass locally; live-RAM re-proof is now unblocked (real PSP core landed — see below) but not yet run.
 - [x] **Reconcile pending Windows-only work:** `scripts/check-trees.sh` reports 0 untracked scripts and 0 untracked docs (2026-09-27). The 85 Windows-only files were all obsolete one-shot commit/sync helpers whose payloads the repo had superseded (verified by content diff); deleted. The named proposal docs (adapter-contribution guide, announcement-queue, Dissidia battle-audio, Chrono Trigger DS notes) exist in neither tree — nothing to review; the announcement design lives at `docs/design/announcements-vs-live-regions.md`. (Chrono Trigger DS research dropped — SNES version instead.)
-- [ ] **Announcement queue design:** before adding ambient/per-frame cues, define interruption, priority, coalescing, and user-requested opponent/location announcements. Keep passive audio off until it can be tested against those rules.
+- [x] **Announcement queue design:** `docs/design/announcement-queue.md` defines the four priority levels, the interruption matrix, same-key coalescing with rate caps, on-demand opponent/location queries, and the lock-on audio beacon. Passive speech stays off until a playtest passes the criteria in that doc.
 
 ## Immediate build blocker
 
