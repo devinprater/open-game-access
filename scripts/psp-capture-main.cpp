@@ -160,6 +160,10 @@ int main(int argc, char **argv) {
             if (got > 0) fwrite(abuf, sizeof(int16_t), (size_t)got * 2, audio);
         }
         if (frames % interval == 0) {
+            // Release every button before the savestate: PPSSPP persists the
+            // latched pad, so a state saved mid-hold resumes with key-repeat
+            // running and the next run's inputs land on the wrong rows.
+            for (unsigned b = 0; b < 16; b++) poke_set_button(core, b, false);
             char shot[512], st[512];
             snprintf(shot, sizeof(shot), "%s/fb-%06d.rgba", outdir, frames);
             snprintf(st, sizeof(st), "%s/state-%06d.ppz", outdir, frames);
