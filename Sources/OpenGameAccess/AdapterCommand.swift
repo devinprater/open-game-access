@@ -47,6 +47,19 @@ enum AdapterCommand: Int32, CaseIterable {
     /// so they stay out of supported(adapterID:).
     case quickOn = 14
     case quickOff = 15
+    case exReady = 16
+    case exSpent = 17
+    case exActive = 18
+    case exEnded = 19
+    case exBurstGo = 20
+    case exQteUp = 21
+    case exQteDown = 22
+    case exQteLeft = 23
+    case exQteRight = 24
+    case exQteCircle = 25
+    case exQteSquare = 26
+    case exQteTriangle = 27
+    case exQteCross = 28
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -68,6 +81,19 @@ enum AdapterCommand: Int32, CaseIterable {
         case .charToggle:       return "Character"
         case .quickOn:          return "Quickmove available"
         case .quickOff:         return "Quickmove gone"
+        case .exReady: return "EX ready"
+        case .exSpent: return "EX spent"
+        case .exActive: return "EX Mode on"
+        case .exEnded: return "EX Mode over"
+        case .exBurstGo: return "EX Burst go"
+        case .exQteUp: return "QTE up"
+        case .exQteDown: return "QTE down"
+        case .exQteLeft: return "QTE left"
+        case .exQteRight: return "QTE right"
+        case .exQteCircle: return "QTE Circle"
+        case .exQteSquare: return "QTE Square"
+        case .exQteTriangle: return "QTE Triangle"
+        case .exQteCross: return "QTE Cross"
         }
     }
 
@@ -108,6 +134,32 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Sent by the marker detector when Quickmove appears."
         case .quickOff:
             return "Sent by the marker detector when Quickmove vanishes."
+        case .exReady:
+            return "Detector: EX gauge turned yellow (full)."
+        case .exSpent:
+            return "Detector: EX gauge no longer full."
+        case .exActive:
+            return "Sent after the player presses R+Square."
+        case .exEnded:
+            return "EX gauge drained or Burst finished."
+        case .exBurstGo:
+            return "HP attack landed in EX Mode; Square prompt live."
+        case .exQteUp:
+            return "Burst minigame prompt: d-pad up."
+        case .exQteDown:
+            return "Burst minigame prompt: d-pad down."
+        case .exQteLeft:
+            return "Burst minigame prompt: d-pad left."
+        case .exQteRight:
+            return "Burst minigame prompt: d-pad right."
+        case .exQteCircle:
+            return "Burst minigame prompt: Circle."
+        case .exQteSquare:
+            return "Burst minigame prompt: Square."
+        case .exQteTriangle:
+            return "Burst minigame prompt: Triangle."
+        case .exQteCross:
+            return "Burst minigame prompt: Cross."
         }
     }
 
@@ -130,6 +182,19 @@ enum AdapterCommand: Int32, CaseIterable {
         case .charToggle:        return "person"
         case .quickOn:          return "bolt"
         case .quickOff:         return "bolt.slash"
+        case .exReady: return "bolt.fill"
+        case .exSpent: return "bolt"
+        case .exActive: return "flame.fill"
+        case .exEnded: return "flame"
+        case .exBurstGo: return "exclamationmark.triangle.fill"
+        case .exQteUp: return "arrow.up"
+        case .exQteDown: return "arrow.down"
+        case .exQteLeft: return "arrow.left"
+        case .exQteRight: return "arrow.right"
+        case .exQteCircle: return "circle"
+        case .exQteSquare: return "square"
+        case .exQteTriangle: return "triangle"
+        case .exQteCross: return "xmark"
         }
     }
 
