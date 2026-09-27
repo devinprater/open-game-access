@@ -40,7 +40,6 @@ CC="${CC:-/usr/local/swift/bin/clang}"
 [ -d "$PPSPP_SRC/Core" ] || { echo "!! no PPSSPP source at $PPSPP_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 
 source "$ROOT/scripts/build-cache.sh"
-source "$ROOT/scripts/core-sources.sh"
 CXX_CACHE_ID="$(oga_cache_compiler_id "$CXX")" || { echo "!! cannot identify C++ compiler: $CXX" >&2; exit 1; }
 CC_CACHE_ID="$(oga_cache_compiler_id "$CC")" || { echo "!! cannot identify C compiler: $CC" >&2; exit 1; }
 SDK_CACHE_ID="$(oga_cache_sdk_id "$SDK")" || { echo "!! cannot identify SDK: $SDK" >&2; exit 1; }
@@ -73,7 +72,6 @@ mkdir -p "$PPSPP_GEN"
 if [ ! -f "$PPSPP_GEN/miniupnpcstrings.h" ] || [ "$PPSPP_SRC/ext/miniupnp/miniupnpc/VERSION" -nt "$PPSPP_GEN/miniupnpcstrings.h" ]; then
   ( cd "$PPSPP_SRC/ext/miniupnp/miniupnpc" && sh updateminiupnpcstrings.sh "$PPSPP_GEN/miniupnpcstrings.h" miniupnpcstrings.h.in ) > /dev/null
 fi
-PPSPP_INC="$(ppspp_inc "$PPSPP_SRC") -I$PPSPP_GEN"
 # ---- ffmpeg (video decode for sceVideocodec/sceMpeg) ----
 # Minimal static libs from scripts/build-ffmpeg.sh; their objects are extracted
 # into $OBJ with an ffav_ prefix so the archive glob below picks them up.
@@ -82,7 +80,9 @@ FFMPEG_OUT="${FFMPEG_OUT:-$HOME/ffmpeg-ios}/device"
 FFMPEG_SRC="$PPSPP_SRC/ffmpeg" bash "$ROOT/scripts/build-ffmpeg.sh" device || exit 1
 FFMPEG_INC="$FFMPEG_OUT/include"
 FFMPEG_LIB="$FFMPEG_OUT/lib"
-PPSPP_INC="$PPSPP_INC -DUSE_FFMPEG -I$FFMPEG_INC"
+# PPSPP_INC base paths are set after core-sources.sh is sourced below
+# (ppspp_inc lives there); start empty so `set -u` stays happy.
+PPSPP_INC="-DUSE_FFMPEG -I$FFMPEG_INC"
 MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
 # -fwrapv matters: melonDS's ARM interpreter relies on wrapping arithmetic.
@@ -101,7 +101,7 @@ TEAKRA=""
 # The source list lives in one place, shared with scripts/build-sim.sh: two
 # copies is exactly how the simulator build ends up missing a translation unit
 # and fails at the FINAL link with a symbol the device build has.
-# (sourced at the top; ppspp_inc is needed by the miniupnpc block above.)
+source "$ROOT/scripts/core-sources.sh"
 # ⛔ BUILT FROM THE SHARED LIST, NOT A PRIVATE COPY. This line used to be a second,
 # hand-maintained list of the same files — and it is why adding a new adapter meant
 # remembering two places, and why the simulator build silently had none.
@@ -183,6 +183,7 @@ export ROOT CXX CC CXXFLAGS CFLAGS OBJ SDK CXX_CACHE_ID CC_CACHE_ID SDK_CACHE_ID
 # ⛔ Exported for xargs-spawned compile() children: they need the same compiler,
 # SDK and cache helpers as the parent so each translation unit validates its own
 # command fingerprint and generated header dependencies.
+PPSPP_INC="$(ppspp_inc "$PPSPP_SRC") -I$PPSPP_GEN $PPSPP_INC"
 export MGBA_DEFS MGBA_INC PPSPP_INC
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED. Without it xargs reads STDIN, which is
