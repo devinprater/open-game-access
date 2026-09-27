@@ -27,6 +27,13 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 
 ## Game readers
 
+- [ ] **Dissidia title tap-to-read diagnosis:** on-device (same CSO as the
+  harness), the New/Load title reports nothing either way while reader
+  controls are present. Native adapters only speak on command tap — find out
+  what "Where am I" says there (row name vs "not ready yet" vs silence):
+  silence-after-success means the title fingerprint misses on device and the
+  s1xx addresses need a device-side re-proof; "not ready" means the ready
+  gate excludes title. Consider auto-reading the title row on cursor change.
 - [ ] **Dissidia name-entry reader:** New Game's name entry has no adapter
   coverage (title rows are fingerprinted; name entry is not). Silence there
   is a coverage gap, not a lock-on failure.
