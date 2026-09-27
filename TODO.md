@@ -25,6 +25,16 @@ ppsspp-assets via poke_set_psp_asset_dir(), and the UI adapts per system
 shows A/B with the verified P/E/K/J/L reader keys, the screen picker is
 DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-09-26: iOS simulator CI is green with the real core (run 36242939387 — 640+ PPSSPP TUs under AppleClang, app links, boots on a simulated iPhone).
 
+## Game readers
+
+- [ ] **FE11 menu reader:** the Shadow Dragon adapter's ready gate is map
+  state only, so the title screen, menus, and pre-chapter flow sit at
+  "reader loading" forever (confirmed on-device 2026-09-27, YFEE ROM from
+  Dropbox, menus). Map out the menu screens (title, file select, preps,
+  unit list) with the same content-scan anchoring the map reader uses
+  (NUL-separated blobs shift every boot — never hardcoded addresses),
+  then add menu states to the ready gate and menu commands to the adapter.
+
 ## Verification
 
 - [x] Add `MGBA_DEFS` and `MGBA_INC` specifically to the `gba_core.cpp` C++ compile; validate cached objects against compiler/toolchain, effective flags, target, SDK metadata, and compiler-emitted header dependencies (including generated `flags.h`). `scripts/build-cache-test.sh` passes, and both archive builds pass locally with verified cache hits on the next run; the remote simulator core-build step passed in [run 36212903265](https://github.com/devinprater/open-game-access/actions/runs/36212903265).
