@@ -108,6 +108,7 @@ struct PspCore {
     std::string saveRoot;
     std::string assetDir;
     uint32_t buttonsDown = 0;   // PSP_CTRL_* bits currently held
+    float analogX = 0.0f, analogY = 0.0f;
     uint64_t frames = 0;
     std::vector<uint8_t> rgba;  // 480x272x4 staging, served to the app
     // Mixer output staging: interleaved stereo s16 at 44100 Hz. The app pulls
@@ -592,6 +593,16 @@ void psp_set_button(PspCore *core, int psp_button, bool down)
     if (!core || psp_button < 0 || psp_button >= PSP_BTN_COUNT) return;
     if (down) core->buttonsDown |= kPspButtonBits[psp_button];
     else core->buttonsDown &= ~kPspButtonBits[psp_button];
+}
+
+void psp_set_analog(PspCore *core, float x, float y)
+{
+    if (!core) return;
+    if (x < -1.0f) x = -1.0f; else if (x > 1.0f) x = 1.0f;
+    if (y < -1.0f) y = -1.0f; else if (y > 1.0f) y = 1.0f;
+    core->analogX = x;
+    core->analogY = y;
+    __CtrlSetAnalogXY(0, x, y);
 }
 
 // ---------------------------------------------------------------------------

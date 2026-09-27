@@ -66,6 +66,8 @@ enum class Command {
     // on entry and on exit and the adapter tracks the cursor from MenuNext/Prev.
     CustToggle, // Dissidia story-map Customize: toggle tracking + speak row 1
     CharToggle, // Dissidia main-menu Triangle character select: toggle + row 1
+    QuickOn,  // Dissidia battle: Quickmove marker appeared (rising edge)
+    QuickOff, // Dissidia battle: Quickmove marker gone (re-arms QuickOn)
 };
 
 struct Adapter {

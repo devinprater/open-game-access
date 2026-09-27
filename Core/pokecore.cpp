@@ -823,7 +823,7 @@ bool poke_adapter_ready(PokeCore *core)
 bool poke_command(PokeCore *core, int cmd)
 {
     if (!core || !core->adapter) return false;
-    if (cmd < 0 || cmd > (int) oga::Command::CharToggle) return false;
+    if (cmd < 0 || cmd > (int) oga::Command::QuickOff) return false;
     if (!core->adapter->command) return false;
 
     // Attach lazily, on the first command rather than at ROM load.
@@ -1615,6 +1615,12 @@ void poke_set_button(PokeCore* core, int ds_button, bool down)
     if (ds_button >= POKE_BTN_COUNT) return;
     if (down) core->buttonsDown |= (1u << ds_button);
     else core->buttonsDown &= ~(1u << ds_button);
+}
+
+void poke_set_analog(PokeCore *core, float x, float y)
+{
+    if (!core || !core->isPsp || !core->psp) return;
+    psp_set_analog(core->psp, x, y);
 }
 
 void poke_touch(PokeCore* core, int x, int y, bool down)

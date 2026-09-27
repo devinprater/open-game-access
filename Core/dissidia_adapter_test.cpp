@@ -354,6 +354,7 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Enemy: HP 338 of 338. Bravery 530. 15 units away, below you.") == 0,
           "battle foe");
 
+
     // 25. lock states (P0+0x2EC; live: target==enemy at round start)
     // enemy lock: tgt == P1 (paired); dist P0->P1 = 15.8 -> 15
     put32(BP0 + 0x2ECu, BP1);
@@ -412,6 +413,47 @@ int main(void)
     a->command(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Open: east, north, south. Blocked: west.") == 0,
           "board after battle");
+
+    // ---- Quickmove marker edge (battle only; detector lives app-side) ----
+    // Self-contained: re-establishes the battle pointers torn down above.
+    reset();
+    put32(0x08B9B770u, BM);
+    put32(BH, BM2);
+    put32(BM2 + 0x14u, BP0);
+    put32(BP0 + 0x51Cu, BS0);
+    put32(BP0 + 0x2F0u, BP1);
+    put32(BP0 + 0x4EA8u, BP1);
+    put32(BP1 + 0x51Cu, BS1);
+    put16(BS0 + 0x08u, 1000u); put16(BS0 + 0x02u, 94u);
+    put16(BS1 + 0x08u, 338u); put16(BS1 + 0x02u, 0u);
+    // Q1. rising edge speaks
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::QuickOn);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Quickmove available.") == 0,
+          "quickmove rising edge speaks");
+    // Q2. held marker: repeat QuickOn is silent (edge, not level)
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::QuickOn);
+    CHECK(NSPOKEN == 0, "quickmove held silent");
+    // Q3. QuickOff re-arms silently; next QuickOn speaks again
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::QuickOff);
+    CHECK(NSPOKEN == 0, "quickoff silent");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::QuickOn);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Quickmove available.") == 0,
+          "quickmove re-armed speaks");
+    // Q4. outside battle QuickOn stays silent (battle gate, not once-rule:
+    // an intervening WhereAmI breaks the identical-line chain first).
+    // The dialogs block below starts with reset(), so leaving RAM clear
+    // here is safe.
+    reset();
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1, "nonbattle whereami speaks first");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::QuickOn);
+    CHECK(NSPOKEN == 0, "quickmove silent outside battle");
 
     // ---- YES/NO dialogs (confirm + cancel) + title/setup path to first battle ----
     // The question text is glyph-rendered (no ASCII in RAM), so v1 speaks the
