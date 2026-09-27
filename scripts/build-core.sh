@@ -45,6 +45,7 @@ CC_CACHE_ID="$(oga_cache_compiler_id "$CC")" || { echo "!! cannot identify C com
 SDK_CACHE_ID="$(oga_cache_sdk_id "$SDK")" || { echo "!! cannot identify SDK: $SDK" >&2; exit 1; }
 
 mkdir -p "$OBJ" "$OUT"
+: > "$OBJ/.expected"
 
 # ---- mGBA generated flags.h ----
 #
@@ -109,6 +110,7 @@ for _f in $OGA_GLUE; do GLUE="$GLUE $ROOT/Core/$_f"; done
 compile() { # compile <lang> <src> <tag>
   local lang="$1" src="$2" tag="$3"
   local out="$OBJ/$tag.o" depfile="$OBJ/$tag.d" signature="$OBJ/$tag.sig" done="$OBJ/.done.$tag"
+  echo "$tag.o" >> "$OBJ/.expected"
   local flags="$CXXFLAGS" cc="$CXX" compiler_id="$CXX_CACHE_ID" fingerprint
   case "$lang" in
     cxx)
@@ -218,9 +220,17 @@ for _lib in avcodec avformat avutil swresample swscale; do
   mkdir -p "$_lib" && cd "$_lib" || exit 1
   "$LLVM_AR" x "$FFMPEG_LIB/lib${_lib}.a" || exit 1
   for _o in *.o; do mv "$_o" "ffav_${_lib}_${_o}"; done
+  for _m in ffav_*.o; do echo "$_m" >> "$OBJ/.expected"; done
   mv ffav_*.o "$OBJ/" && cd "$OBJ/ffav" || exit 1
 done
 cd "$OBJ" && rm -rf ffav
+# Sweep strays: a TU dropped from the source lists must not linger in $OBJ
+# (its ghost .o would still match the archive glob and resurrect twins like
+# the mGBA lzma set did). Anything not visited this run goes.
+for _o in "$OBJ"/*.o; do
+  _b="$(basename "$_o")"
+  grep -qx "$_b" "$OBJ/.expected" || rm -f "$_o"
+done
 rm -f "$OUT/libpokecore.a"
 # GNU ar's index is not readable by ld64.lld ("archive has no index"), so the
 # archive is built and indexed with the Swift toolchain's LLVM binutils — the

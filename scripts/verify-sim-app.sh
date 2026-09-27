@@ -80,7 +80,9 @@ echo "== duplicate global text symbols in the core archive (must be none) =="
 ARCHIVE="${POKECORE_LIB:-$ROOT/Vendor/sim/libpokecore-sim.a}"
 DUPS_OK=0
 if [ -f "$ARCHIVE" ]; then
-  DUPNAMES="$("$NM" -g --defined-only "$ARCHIVE" 2>/dev/null | awk '$2=="T" {print $3}' | sort | uniq -d | head -n 10)"
+  # nm -m marks vague-linkage C++ templates "weak external" (the linker
+  # dedups those); only STRONG text definitions are real twins.
+  DUPNAMES="$("$NM" -m "$ARCHIVE" 2>/dev/null | grep "(__TEXT,__text) external " | awk '{print $NF}' | sort | uniq -d | head -n 10)"
   if [ -z "$DUPNAMES" ]; then
     echo "  none"
     DUPS_OK=1

@@ -76,6 +76,7 @@ echo "SDKROOT = $SDKROOT"
 echo "llvm-ar = $LLVM_AR"
 
 mkdir -p "$OBJ" "$OUT"
+: > "$OBJ/.expected"
 source "$ROOT/scripts/core-sources.sh"
 
 # ---- mGBA generated flags.h (same as build-core.sh; see the comment there) ----
@@ -119,6 +120,7 @@ CFLAGS="$COMMON $INC -std=gnu11"
 compile() {
   local lang="$1" src="$2" tag="$3"
   local out="$OBJ/$tag.o" depfile="$OBJ/$tag.d" signature="$OBJ/$tag.sig" done="$OBJ/.done.$tag"
+  echo "$tag.o" >> "$OBJ/.expected"
   local flags="$CXXFLAGS" cc="$CXX" compiler_id="$CXX_CACHE_ID" fingerprint
   case "$lang" in
     cxx)
@@ -236,9 +238,17 @@ for _lib in avcodec avformat avutil swresample swscale; do
   mkdir -p "$_lib" && cd "$_lib" || exit 1
   "$LLVM_AR" x "$FFMPEG_LIB/lib${_lib}.a" || exit 1
   for _o in *.o; do mv "$_o" "ffav_${_lib}_${_o}"; done
+  for _m in ffav_*.o; do echo "$_m" >> "$OBJ/.expected"; done
   mv ffav_*.o "$OBJ/" && cd "$OBJ/ffav" || exit 1
 done
 cd "$OBJ" && rm -rf ffav
+# Sweep strays: a TU dropped from the source lists must not linger in $OBJ
+# (its ghost .o would still match the archive glob and resurrect twins like
+# the mGBA lzma set did). Anything not visited this run goes.
+for _o in "$OBJ"/*.o; do
+  _b="$(basename "$_o")"
+  grep -qx "$_b" "$OBJ/.expected" || rm -f "$_o"
+done
 rm -f "$OUT/libpokecore-sim.a"
 "$LLVM_AR" rcs "$OUT/libpokecore-sim.a" "$OBJ"/*.o || { echo "!! ar failed" >&2; exit 1; }
 "$LLVM_RANLIB" "$OUT/libpokecore-sim.a" 2>/dev/null || true
