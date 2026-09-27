@@ -47,7 +47,7 @@ DECODERS="--enable-decoder=h263 --enable-decoder=h263p --enable-decoder=h264 \
 DEMUXERS="--enable-demuxer=h264 --enable-demuxer=mpegps \
   --enable-demuxer=mpegvideo --enable-demuxer=aac --enable-demuxer=oma"
 
-STAMP="arch=$FFARCH target=$TARGET sdk=$SDK cc=$CC decoders=$DECODERS demuxers=$DEMUXERS"
+STAMP="arch=$FFARCH target=$TARGET sdk=$SDK cc=$CC noasm=1 decoders=$DECODERS demuxers=$DEMUXERS"
 if [ -f "$FF_OUT/lib/libavcodec.a" ] && [ -f "$FF_OUT/stamp" ] && \
    [ "$(cat "$FF_OUT/stamp")" = "$STAMP" ]; then
   echo "== ffmpeg $SLICE/$ARCH up to date =="
@@ -76,11 +76,11 @@ cd "$FF_SRC" || exit 1
   --cc="$CC" --sysroot="$SDK" --target-os=darwin --cpu=generic --enable-pic \
   --extra-cflags="-target $TARGET -isysroot $SDK" \
   --extra-ldflags="-target $TARGET -isysroot $SDK $LDWRAP_FLAGS" \
-  --disable-shared --enable-static \
+  --disable-shared --enable-static --disable-asm \
   --disable-iconv --disable-videotoolbox --disable-vda \
   --enable-zlib --disable-lzma --disable-bzlib \
-  --disable-filters --disable-programs --disable-network --disable-avfilter \
-  --disable-postproc --disable-encoders --disable-doc \
+  --disable-programs --disable-doc --disable-network \
+  --disable-encoders \
   --disable-everything \
   $DECODERS $DEMUXERS \
   --enable-parser=h264 --enable-parser=aac --enable-parser=mpegaudio \
