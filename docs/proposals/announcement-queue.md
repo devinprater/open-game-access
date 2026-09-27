@@ -1,6 +1,8 @@
 # OGA announcement queue
 
-Status: proposal. Problem: `Host.speak(text, interrupt)` in `Core/adapter.h` is a bare wire from adapter to platform speech. It has no priority, no replacement group, no dedup key, no expiry, no player context. Every lesson from CFC2 and pd-access says this wire will flood, drop play speech when diagnostics are silenced, and speak stale lines as if they were fresh.
+Status: **superseded** by `docs/design/announcement-queue.md` (implemented in `Core/announce.*`). Kept for section 1, the evidence. Where the two differ, the design doc wins: notably one line in flight, three levels with same-group-only High interruption, Low interval 2 s, and expiry measured from eligibility.
+
+Original status: proposal. Problem: `Host.speak(text, interrupt)` in `Core/adapter.h` is a bare wire from adapter to platform speech. It has no priority, no replacement group, no dedup key, no expiry, no player context. Every lesson from CFC2 and pd-access says this wire will flood, drop play speech when diagnostics are silenced, and speak stale lines as if they were fresh.
 
 ## 1. Problem, with evidence
 
