@@ -33,8 +33,9 @@ if [ ! -f "$GEN/miniupnpcstrings.h" ] || [ "$PPSPP_SRC/ext/miniupnp/miniupnpc/VE
   ( cd "$PPSPP_SRC/ext/miniupnp/miniupnpc" && sh updateminiupnpcstrings.sh "$GEN/miniupnpcstrings.h" miniupnpcstrings.h.in ) > /dev/null
 fi
 INC="$(ppspp_inc "$PPSPP_SRC") -I$GEN"
-CXX="g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -std=c++17 $INC -I$ROOT/Core -DMOBILE_DEVICE"
-CC="gcc -O1 -g -fPIC -fwrapv -fno-strict-aliasing $INC -DMOBILE_DEVICE -DLUA_USE_IOS"
+FFMPEG_HOST="${FFMPEG_HOST:-$HOME/ffmpeg-host}"
+CXX="g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -std=c++17 $INC -I$ROOT/Core -DMOBILE_DEVICE -DUSE_FFMPEG -I$FFMPEG_HOST/include"
+CC="gcc -O1 -g -fPIC -fwrapv -fno-strict-aliasing $INC -DMOBILE_DEVICE -DLUA_USE_IOS -DUSE_FFMPEG -I$FFMPEG_HOST/include"
 mkdir -p "$OUT/host-obj" "$OUT/host-save"
 
 n=0
@@ -92,7 +93,7 @@ done
 echo "== compiled $t translation units =="
 
 $CXX -c "$ROOT/scripts/psp-host-proof-main.cpp" -o "$OUT/host-obj/proof-main.o"
-g++ -O1 -g "$OUT"/host-obj/*.o -o "$OUT/psp-proof" -lz -lpthread -ldl
+g++ -O1 -g "$OUT"/host-obj/*.o -o "$OUT/psp-proof" -lz -lpthread -ldl "$FFMPEG_HOST"/lib/libavcodec.a "$FFMPEG_HOST"/lib/libavformat.a "$FFMPEG_HOST"/lib/libavutil.a "$FFMPEG_HOST"/lib/libswresample.a "$FFMPEG_HOST"/lib/libswscale.a
 echo "== linked $OUT/psp-proof =="
 
 out="$("$OUT/psp-proof" "$IMG" "$OUT/host-save" "$FRAMES" 2>"$OUT/proof-stderr.log")"
