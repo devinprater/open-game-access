@@ -172,7 +172,7 @@ enum BundleResources {
         let fm = FileManager.default
         let atRoot = Bundle.main.bundleURL.appendingPathComponent("ppsspp-assets", isDirectory: true)
         if fm.fileExists(atPath: atRoot.path) { return atRoot.path }
-        if let base = Bundle.module.resourceURL?.appendingPathComponent("Resources/ppsspp-assets", isDirectory: true),
+        if let base = Bundle.module.resourceURL?.appendingPathComponent("ppsspp-assets", isDirectory: true),
            fm.fileExists(atPath: base.path) { return base.path }
         return nil
     }
@@ -192,8 +192,10 @@ enum BundleResources {
     }
 
     static var gbaScriptDir: String? {
+        // .copy("Resources") flattens: the bundle holds gba-lua/ at top level,
+        // not under Resources/ (proven by on-device bundle listing 2026-09-27).
         let base = Bundle.module.resourceURL ?? Bundle.main.resourceURL
-        let url = base?.appendingPathComponent("Resources/gba-lua", isDirectory: true)
+        let url = base?.appendingPathComponent("gba-lua", isDirectory: true)
         guard let url, FileManager.default.fileExists(atPath: url.path) else { return nil }
         return url.path
     }
