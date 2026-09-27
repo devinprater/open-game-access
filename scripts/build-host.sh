@@ -93,6 +93,7 @@ compile() {
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
   printf '%s|cxx|adapters\n'     "$ROOT/Core/adapters.cpp"
+  printf '%s|cxx|announce\n'     "$ROOT/Core/announce.cpp"
 } > "$OBJ/list.txt"
 
 rm -f "$OBJ/.failed"

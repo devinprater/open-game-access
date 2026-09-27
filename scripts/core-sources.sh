@@ -64,6 +64,7 @@ gba_core.cpp mgba_version_stub.cpp
 dbz_adapter.cpp
 dissidia_adapter.cpp
 adapters.cpp
+announce.cpp
 "
 
 # ---- mGBA (Game Boy Advance) ----
