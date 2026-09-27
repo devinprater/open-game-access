@@ -102,7 +102,7 @@ PPSPP_INC="$(ppspp_inc "$PPSPP_SRC") -I$PPSPP_GEN"
 # into $OBJ with an ffav_ prefix so the archive glob below picks them up.
 # The ffmpeg build is stamp-gated (no-op when current).
 FFMPEG_OUT="${FFMPEG_OUT:-$HOME/ffmpeg-ios}/sim"
-PPSPP_SRC="$PPSPP_SRC" bash "$ROOT/scripts/build-ffmpeg.sh" sim || exit 1
+FFMPEG_SRC="$PPSPP_SRC/ffmpeg" bash "$ROOT/scripts/build-ffmpeg.sh" sim || exit 1
 FFMPEG_INC="$FFMPEG_OUT/include"
 FFMPEG_LIB="$FFMPEG_OUT/lib"
 PPSPP_INC="$PPSPP_INC -DUSE_FFMPEG -I$FFMPEG_INC"
