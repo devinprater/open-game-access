@@ -54,7 +54,8 @@ int main(int argc, char **argv) {
     const char *resume = nullptr;
     int tapBtn = -1, tapPeriod = 0;
     int tapCycle[8]; int tapCycleN = 0;
-    int onceBtn = -1, onceFrame = -1; bool onceMode = false;
+    int onceBtn = -1, onceBtn2 = -1, onceFrame = -1;
+    bool onceMode = false, hasBtn2 = false;
     int probeCmd = -1, probePeriod = 0;
     int tapHold = 60;
     // Walk mode: argv[8] "walk:x1,y1,hold1;x2,y2,hold2;..." (x/y -100..100,
@@ -74,7 +75,10 @@ int main(int argc, char **argv) {
             onceMode = true;
             onceBtn = atoi(argv[8] + 5);
             const char *q8 = argv[8] + 5;
-            while (*q8 && *q8 != ',') q8++; if (*q8 == ',') q8++;
+            while (*q8 && *q8 != ',' && *q8 != '+') q8++;
+            if (*q8 == '+') { q8++; onceBtn2 = atoi(q8); hasBtn2 = true;
+                while (*q8 && *q8 != ',') q8++; }
+            if (*q8 == ',') q8++;
             onceFrame = atoi(q8);
             tapBtn = onceBtn;
         } else if (strncmp(argv[8], "walk:", 5) == 0) {
@@ -193,6 +197,7 @@ int main(int argc, char **argv) {
             if (onceMode) {
                 cyc = onceBtn;
                 want = (frames >= onceFrame && frames < onceFrame + tapHold);
+                if (hasBtn2) poke_set_button(core, onceBtn2, want);
             }
             static int lastCyc = -999;
             if (cyc != lastCyc) {
