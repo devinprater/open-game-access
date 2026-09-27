@@ -37,6 +37,10 @@ enum AdapterCommand: Int32, CaseIterable {
     case menuLeft = 10
     /// Next value on a tracked options row.
     case menuRight = 11
+    /// Tracks the Dissidia story-map Customize menu (no RAM signature, so the
+    /// player taps on entry and on exit; the adapter tracks rows from Next /
+    /// Previous item). Toggles tracking and reads the current row.
+    case custToggle = 12
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -86,6 +90,8 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Previous value on this options row."
         case .menuRight:
             return "Next value on this options row."
+        case .custToggle:
+            return "Tracks the Customize menu. Tap when opening it and when leaving it."
         }
     }
 
@@ -104,6 +110,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .menuPrev:        return "chevron.up"
         case .menuLeft:        return "chevron.left"
         case .menuRight:       return "chevron.right"
+        case .custToggle:       return "slider.horizontal.3"
         }
     }
 
@@ -142,9 +149,11 @@ enum AdapterCommand: Int32, CaseIterable {
             return []
 
         case "dissidia":
-            // Dissidia PSP: location, menu-row navigation, and debug dump are
-            // real. menuState is host-programmatic (menu tracker), not a button.
-            return [.whereAmI, .menuNext, .menuPrev, .menuLeft, .menuRight, .dumpState]
+            // Dissidia PSP: location, menu-row navigation, Customize tracking,
+            // and debug dump are real. menuState is host-programmatic (menu
+            // tracker), not a button.
+            return [.whereAmI, .menuNext, .menuPrev, .menuLeft, .menuRight,
+                    .custToggle, .dumpState]
 
         default:
             return []
