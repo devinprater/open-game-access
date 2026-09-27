@@ -767,7 +767,10 @@ static void OptSpeakRow(void)
 // tracks from player input exactly like the main menu. Entry = row 1
 // (Abilities, glove-verified live); 1:1 moves both directions, wraps both
 // ways (Up from Abilities lands Options, Down from Equipment returns -- all
-// three transitions screenshot-verified). Stats panel values (HP/CP/BRV/ATK)
+// three transitions screenshot-verified). Rows 6-8 (Battlegen, Accomplishments, Shop)
+// are focusable but entry-locked at story start (Cross does nothing: the game
+// shows "You cannot select this yet.", mx-shop7); they unlock with story progress.
+// The cursor order stays 1:1 throughout, so tracking is unaffected. Stats panel values (HP/CP/BRV/ATK)
 // are display-only and unverified: rows speak name + position only, never a
 // guess. CustToggle is player-in-the-loop: tap on entry, tap on exit.
 // Leaving Customize for a fight always passes through battle, which clears
