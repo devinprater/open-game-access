@@ -59,8 +59,8 @@ The mod sees a visit happened but not whether the story advanced — the player
 knows instantly, so one keystroke (F = free event, S = story, U = nothing
 there) records it. Human labels what automation cannot observe.
 
-Worth adopting for OGA destination tagging later: a "that was X" key per
-adapter instead of guessing story progress from RAM.
+Status 2026-09-27: deferred — unneeded for now. Revisit only if adapters
+start guessing story progress from RAM.
 
 ## 6. Temporal confirmation kills jitter-speech (objective.py)
 
