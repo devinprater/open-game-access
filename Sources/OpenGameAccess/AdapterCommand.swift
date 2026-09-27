@@ -41,6 +41,7 @@ enum AdapterCommand: Int32, CaseIterable {
     /// player taps on entry and on exit; the adapter tracks rows from Next /
     /// Previous item). Toggles tracking and reads the current row.
     case custToggle = 12
+    case charToggle = 13
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -59,6 +60,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .menuLeft:        return "Previous value"
         case .menuRight:       return "Next value"
         case .custToggle:      return "Customize row"
+        case .charToggle:       return "Character"
         }
     }
 
@@ -93,6 +95,8 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Next value on this options row."
         case .custToggle:
             return "Tracks the Customize menu. Tap when opening it and when leaving it."
+        case .charToggle:
+            return "Tracks character select. Tap when opening it and when leaving it."
         }
     }
 
@@ -112,6 +116,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .menuLeft:        return "chevron.left"
         case .menuRight:       return "chevron.right"
         case .custToggle:       return "slider.horizontal.3"
+        case .charToggle:        return "person"
         }
     }
 
@@ -154,7 +159,7 @@ enum AdapterCommand: Int32, CaseIterable {
             // and debug dump are real. menuState is host-programmatic (menu
             // tracker), not a button.
             return [.whereAmI, .menuNext, .menuPrev, .menuLeft, .menuRight,
-                    .custToggle, .dumpState]
+                    .custToggle, .charToggle, .dumpState]
 
         default:
             return []

@@ -65,6 +65,7 @@ enum class Command {
     // button whose screen has no RAM signature, so the player taps the button
     // on entry and on exit and the adapter tracks the cursor from MenuNext/Prev.
     CustToggle, // Dissidia story-map Customize: toggle tracking + speak row 1
+    CharToggle, // Dissidia main-menu Triangle character select: toggle + row 1
 };
 
 struct Adapter {

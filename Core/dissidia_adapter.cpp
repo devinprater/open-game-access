@@ -666,6 +666,8 @@ static void MenuSpeakRow(void)
 static bool g_optLive = false;  // owned by the options block below
 static bool g_custLive = false;  // customize tracker state (rows owned below)
 static int g_custRow = 0;
+static bool g_charLive = false;  // character-select tracker (rows owned below)
+static int g_charRow = 0;
 static void OptSync(void);      // defined with the options menu below
 static bool DialogLive(void);   // defined with the YES/NO dialog block below
 static bool StoryDlgLive(void); // defined with the story-dialog block below
@@ -679,6 +681,7 @@ static void CmdMenuState(void)
     else if (BattleFighters().ok) st = "MENU battle";
     else if (DialogLive() || StoryDlgLive()) st = "MENU dialog";
     else if (g_custLive) st = "MENU customize";
+    else if (g_charLive) st = "MENU charselect";
     else if (BoardDispatcher() != 0) st = "MENU board";
     else if (g_optLive) st = "MENU options";
     if (g_host && g_host->log) g_host->log(g_host->ctx, st);
@@ -784,6 +787,26 @@ static void CustSpeakRow(void)
     char line[96];
     snprintf(line, sizeof(line), "%s. Row %d of 9.",
              kCustRows[g_custRow], g_custRow + 1);
+    Say(line);
+}
+
+// ---- Character select (main-menu Triangle; host-RE mx-charsel1-4) ----
+// Cosmos heroes I-X as a vertical game-logo carousel, 1:1 Up/Down, wraps
+// 10->1 (mx-charsel2: Tidus then Warrior of Light). No RAM gate (glyphs),
+// so CharToggle is player-in-the-loop: tap on Triangle-entry, tap on exit.
+// Entry always resets to Warrior of Light row 1 (mx-charsel4 re-entry probe).
+// R/L do nothing here (mx-charsel3); villains are picked in a later flow
+// step, not this carousel. Levels change with progression, so rows speak
+// name + position only, never a level guess. Battle clears the flag.
+static const char* kCharRows[10] = {
+    "Warrior of Light", "Firion", "Onion Knight", "Cecil", "Bartz",
+    "Terra", "Cloud", "Squall", "Zidane", "Tidus",
+};
+static void CharSpeakRow(void)
+{
+    char line[96];
+    snprintf(line, sizeof(line), "%s. Row %d of 10.",
+             kCharRows[g_charRow], g_charRow + 1);
     Say(line);
 }
 
@@ -981,7 +1004,14 @@ static void Command(Command cmd)
         else Say("Customize menu closed.");
         return;
     }
-    if (battle) g_custLive = false;
+    if (cmd == Command::CharToggle) {
+        if (battle) { g_charLive = false; Say("Character select is not open."); return; }
+        g_charLive = !g_charLive;
+        if (g_charLive) { g_charRow = 0; CharSpeakRow(); }
+        else Say("Character select closed.");
+        return;
+    }
+    if (battle) { g_custLive = false; g_charLive = false; }
     // Tracked-menu navigation: the host forwards D-pad taps as MenuNext/Prev
     // alongside set_button. The adapter moves its own cursor and speaks the
     // row (input-echo): no heap value identifies the selected row (attract
@@ -1030,6 +1060,14 @@ static void Command(Command cmd)
             default: break;
         }
     }
+    if (g_charLive && !battle) {
+        switch (cmd) {
+            case Command::WhereAmI: CharSpeakRow(); return;
+            case Command::MenuNext: g_charRow = (g_charRow + 1) % 10; CharSpeakRow(); return;
+            case Command::MenuPrev: g_charRow = (g_charRow + 9) % 10; CharSpeakRow(); return;
+            default: break;
+        }
+    }
     if (cmd == Command::MenuLeft || cmd == Command::MenuRight) return;  // silent off-menu
     switch (cmd) {
         case Command::WhereAmI:
@@ -1062,6 +1100,7 @@ static bool Attach(const Host* host)
     g_menuMain = false; g_menuRow = 0;  // menu cursor never inherits either
     g_optLive = false; g_optRow = 0;  // options cursor neither
     g_custLive = false; g_custRow = 0;  // customize tracker neither
+    g_charLive = false; g_charRow = 0;  // character-select tracker neither
     for (int i = 0; i < 23; i++) g_optVal[i] = 0;
     g_widgetPinned = false;
     return true;        // the game code check already happened in the registry
