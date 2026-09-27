@@ -201,11 +201,16 @@ final class GameSession: ObservableObject {
         }
 
         system = GameSystem.forROMExtension(local.pathExtension)
-        if let system, system == .psp, let assets = BundleResources.ppssppAssetDir {
-            // The PSP core refuses to boot without its staged assets (compat
-            // tables, soft-GPU atlas, VFPU LUTs); the path is set here so a
-            // missing bundle fails loudly at load, not mid-boot.
-            assets.withCString { poke_set_psp_asset_dir(core, $0) }
+        if let system, system == .psp {
+            if let assets = BundleResources.ppssppAssetDir {
+                // The PSP core refuses to boot without its staged assets (compat
+                // tables, soft-GPU atlas, VFPU LUTs); the path is set here so a
+                // missing bundle fails loudly at load, not mid-boot.
+                assets.withCString { poke_set_psp_asset_dir(core, $0) }
+            } else {
+                status = .failed("PPSSPP assets missing. \(BundleResources.ppssppAssetDiagnosis)")
+                return
+            }
         }
 
         let save = ROMStore.savePath(for: local)
