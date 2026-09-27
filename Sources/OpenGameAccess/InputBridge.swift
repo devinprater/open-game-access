@@ -177,6 +177,20 @@ enum BundleResources {
         return nil
     }
 
+    /// Human-readable account of where the PSP assets were looked for, for
+    /// the load-failure message. The core's own error only names the dir it
+    /// got (often the unset relative fallback), which cannot tell a stale
+    /// install from a wrong resource path — this can.
+    static var ppssppAssetDiagnosis: String {
+        let atRoot = Bundle.main.bundleURL.appendingPathComponent("ppsspp-assets", isDirectory: true).path
+        let modBase = Bundle.module.resourceURL?.appendingPathComponent("Resources/ppsspp-assets", isDirectory: true).path
+        let fm = FileManager.default
+        let modList = (try? fm.contentsOfDirectory(atPath: Bundle.module.resourceURL?.path ?? "")) ?? []
+        return "bundle-root: \(atRoot) (\(fm.fileExists(atPath: atRoot) ? "present" : "absent")); " +
+            "module: \(modBase ?? "nil") (\(modBase != nil && fm.fileExists(atPath: modBase!) ? "present" : "absent")); " +
+            "bundle contents: \(modList.joined(separator: ","))"
+    }
+
     static var gbaScriptDir: String? {
         let base = Bundle.module.resourceURL ?? Bundle.main.resourceURL
         let url = base?.appendingPathComponent("Resources/gba-lua", isDirectory: true)
