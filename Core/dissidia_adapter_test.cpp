@@ -508,6 +508,34 @@ int main(void)
     a->command(oga::Command::ExQteUp);
     CHECK(NSPOKEN == 1, "ex silent outside battle");
 
+    // E9. Mash-type Burst: go prompt speaks, level-ups never dedup
+    reset();
+    put32(0x08B9B770u, BM);
+    put32(BH, BM2);
+    put32(BM2 + 0x14u, BP0);
+    put32(BP0 + 0x51Cu, BS0);
+    put32(BP0 + 0x2F0u, BP1);
+    put32(BP0 + 0x4EA8u, BP1);
+    put32(BP1 + 0x51Cu, BS1);
+    put16(BS0 + 0x08u, 1000u); put16(BS0 + 0x02u, 94u);
+    put16(BS1 + 0x08u, 338u); put16(BS1 + 0x02u, 0u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::ExBurstGoMash);
+    a->command(oga::Command::ExBurstLevel);
+    a->command(oga::Command::ExBurstLevel);
+    CHECK(NSPOKEN == 3, "mash burst speaks");
+    CHECK(strcmp(SPOKE(0), "Mash Circle now!") == 0, "mash go text");
+    CHECK(strcmp(SPOKE(1), "Power up!") == 0 &&
+          strcmp(SPOKE(2), "Power up!") == 0, "level raw repeat");
+    // E10. Mash prompts silent outside battle
+    reset();
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    a->command(oga::Command::ExBurstGoMash);
+    a->command(oga::Command::ExBurstLevel);
+    CHECK(NSPOKEN == 1, "mash silent outside battle");
+
+
     // ---- YES/NO dialogs (confirm + cancel) + title/setup path to first battle ----
     // The question text is glyph-rendered (no ASCII in RAM), so v1 speaks the
     // selection only. Confirm = Cross on YES, cancel = Cross/Circle on NO: both

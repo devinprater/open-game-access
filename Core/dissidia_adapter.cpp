@@ -1067,6 +1067,14 @@ static void Command(Command cmd)
         if (battle) SayRaw("Cross!");
         return;
     }
+    if (cmd == Command::ExBurstGoMash) {
+        if (battle) Say("Mash Circle now!");
+        return;
+    }
+    if (cmd == Command::ExBurstLevel) {
+        if (battle) SayRaw("Power up!");
+        return;
+    }
     if (cmd == Command::CharToggle) {
         if (battle) { g_charLive = false; Say("Character select is not open."); return; }
         g_charLive = !g_charLive;
