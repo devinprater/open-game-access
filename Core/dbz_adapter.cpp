@@ -61,6 +61,7 @@ uint32_t u32(uint32_t a) { return g_host ? g_host->read32(g_host->ctx, a) : 0; }
 
 void Say(const char* s, bool interrupt = true)
 {
+    if (!oga::AdapterNoteSpoken(s)) return;
     if (g_host && g_host->speak) g_host->speak(g_host->ctx, s, interrupt);
 }
 void Log(const char* s)

@@ -95,6 +95,10 @@ const Adapter* find_by_game_code(const char* code);
 /// The registered adapters. Order matters only for adapters that share a code.
 const Adapter* const* all_adapters(int* count);
 
+/// Consecutive-duplicate speech suppression; see adapters.cpp.
+bool AdapterNoteSpoken(const char* s);
+void AdapterSpeechReset(void);
+
 } // namespace oga
 
 #endif // OGA_ADAPTER_H

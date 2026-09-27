@@ -54,6 +54,30 @@ const Adapter* const* all_adapters(int* count)
     return kAdapters;
 }
 
+/// `once` suppression (BT2 Speaker.say(once=True)): consecutive identical
+/// lines never speak twice. A repeated query re-press ("where is the foe?")
+/// re-announces only when the text CHANGED (foe moved, HP band crossed);
+/// otherwise the second press stays silent instead of parroting stale state.
+/// Tests reset this alongside their NSPOKEN counters via AdapterSpeechReset.
+static char g_lastSpoken[256] = {0};
+static bool g_haveLast = false;
+
+bool AdapterNoteSpoken(const char* s)
+{
+    if (!s || !*s) return true;
+    if (g_haveLast && strcmp(g_lastSpoken, s) == 0) return false;
+    strncpy(g_lastSpoken, s, sizeof(g_lastSpoken) - 1);
+    g_lastSpoken[sizeof(g_lastSpoken) - 1] = 0;
+    g_haveLast = true;
+    return true;
+}
+
+void AdapterSpeechReset(void)
+{
+    g_lastSpoken[0] = 0;
+    g_haveLast = false;
+}
+
 const Adapter* find_by_game_code(const char* code)
 {
     if (!code || !*code) return nullptr;

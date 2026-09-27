@@ -94,7 +94,7 @@ int main()
 
     // ---- an empty party is reported, not guessed at --------------------------
     set_party(nullptr, 0);
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No party members"),
           "an empty party says so instead of inventing a member");
 
@@ -103,32 +103,32 @@ int main()
     set_party(party, 3);
     CHECK(oga::kDragonBallZSaiyans.ready(), "ready once the party array is valid");
 
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN >= 1 && strstr(SPOKEN[0], "Krillin")
                        && strstr(SPOKEN[0], "300")
                        && strstr(SPOKEN[0], "105"),
           "the FIRST NextAlly reads slot 0 (Krillin, HP 300 / Ki 105)");
 
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN >= 1 && strstr(SPOKEN[0], "Tien") && strstr(SPOKEN[0], "320"),
           "the second NextAlly advances to Tien with HP 320");
 
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::PrevAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::PrevAlly);
     CHECK(NSPOKEN >= 1 && strstr(SPOKEN[0], "Krillin"),
           "PrevAlly steps back to Krillin");
 
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN >= 1 && strstr(SPOKEN[0], "Tien"), "NextAlly steps forward again");
 
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN >= 1 && strstr(SPOKEN[0], "Yamcha") && strstr(SPOKEN[0], "305"),
           "the third NextAlly advances to Yamcha with HP 305");
 
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN >= 1 && strstr(SPOKEN[0], "Krillin"),
           "NextAlly wraps back to the first member");
 
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextEnemy);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Not applicable"),
           "NextEnemy refuses honestly rather than inventing an answer");
 
@@ -138,21 +138,21 @@ int main()
     // this pointer it will name a wrong character and the test will see it.
     const uint32_t offb[1] = { RB + 3*ST + 0x20 };
     set_party(offb, 1);
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No party members"),
           "a pointer off a record boundary is REJECTED, not decoded to a neighbour");
 
     // A pointer past the end of the array.
     const uint32_t past[1] = { RB + 40*ST };
     set_party(past, 1);
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No party members"),
           "a pointer past the end of the array is rejected");
 
     // A pointer with a bad alignment.
     const uint32_t mis[1] = { RB + 3*ST + 2 };
     set_party(mis, 1);
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No party members"),
           "a misaligned pointer is rejected");
 
@@ -163,7 +163,7 @@ int main()
     put16(RB + 3*ST + NAME, 0x0102);      // non-printable where the name should be
     const uint32_t corrupt[1] = { krillin };
     set_party(corrupt, 1);
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No party members"),
           "a record whose name is not text is rejected");
     putname(RB + 3*ST + NAME, "Krillin");
@@ -175,7 +175,7 @@ int main()
                        && strstr(LOGGED[0], "stride=0x24C"),
           "DumpState logs the verified base and stride");
 
-    NSPOKEN = 0; oga::kDragonBallZSaiyans.command(oga::Command::WhereAmI);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); oga::kDragonBallZSaiyans.command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Krillin"),
           "WhereAmI names the current member without claiming map knowledge");
 

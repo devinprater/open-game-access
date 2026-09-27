@@ -158,6 +158,7 @@ static uint32_t u32(uint32_t a) { return g_host ? g_host->read32(g_host->ctx, a)
 
 static void Say(const char* s, bool interrupt = true)
 {
+    if (!oga::AdapterNoteSpoken(s)) return;
     if (g_host && g_host->speak) g_host->speak(g_host->ctx, s, interrupt);
 }
 
@@ -437,7 +438,7 @@ static void CmdMarkers(void)
                          dx < 0 ? "west" : (dx > 0 ? "east" : ""));
                 int dist = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
                 snprintf(line, sizeof(line),
-                         "%s %s %d away at %d, %d.",
+                         "%s %s %d units away at %d, %d.",
                          what, dir[0] ? dir : "here", dist, mx, my);
             } else {
                 snprintf(line, sizeof(line),
@@ -843,7 +844,7 @@ static void CmdBattleFoe(void)
     else if (dy < -5.0f) snprintf(vert, sizeof(vert), ", below you");
     else vert[0] = 0;
     char line[192];
-    snprintf(line, sizeof(line), "Enemy: HP %u of %u. Bravery %d. %d away%s.",
+    snprintf(line, sizeof(line), "Enemy: HP %u of %u. Bravery %d. %d units away%s.",
              FighterHP(b.foe), b.foe.hpMax, b.foe.brv, (int) d, vert);
     Say(line);
 }
@@ -868,7 +869,7 @@ static void CmdLock(void)
     if (tgt == enemy) {
         if (!b.foe.ok) { Say("No opponent tracked."); return; }
         float d = VecDist(b.self.x, b.self.y, b.self.z, b.foe.x, b.foe.y, b.foe.z);
-        snprintf(line, sizeof(line), "Locked on the enemy. %d away.", (int) d);
+        snprintf(line, sizeof(line), "Locked on the enemy. %d units away.", (int) d);
         Say(line);
         return;
     }
@@ -900,7 +901,7 @@ static void CmdLock(void)
         return;
     }
     float d = VecDist(b.self.x, b.self.y, b.self.z, tx, ty, tz);
-    snprintf(line, sizeof(line), "Locked on the EX core. %d away.", (int) d);
+    snprintf(line, sizeof(line), "Locked on the EX core. %d units away.", (int) d);
     Say(line);
     // BEACON CONTRACT (app audio layer, not this adapter): while locked, the target
     // stays centered; the app beeps low with rate rising as this distance closes.
