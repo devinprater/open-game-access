@@ -171,7 +171,7 @@ int main(void) {
     g_stub.pointer_valid = false;
     a->on_frame();
     check("not ready when SaveBlock1 is unallocated", a->ready(), false);
-    g_stub.spoke = 0;
+    g_stub.spoke = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);
     check_str("says 'loading' rather than inventing (0,0)",
               g_stub.spoke ? g_stub.spoken[0] : "", "Still loading.");
@@ -182,20 +182,20 @@ int main(void) {
     setup_saveblock(SB, 6, 6);
     a->on_frame();
     check("ready when SaveBlock1 is allocated", a->ready(), true);
-    g_stub.spoke = 0;
+    g_stub.spoke = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);
     check_str("reports the player position", g_stub.spoke ? g_stub.spoken[0] : "", "x 6, y 6.");
 
     printf("\n-- a second read after moving reports a DELTA --\n");
     setup_saveblock(SB, 10, 8);
     a->on_frame();
-    g_stub.spoke = 0;
+    g_stub.spoke = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);
     check_str("reports movement, not just coordinates",
               g_stub.spoke ? g_stub.spoken[0] : "", "x 10, y 8. Moved 4 right, 2 down.");
 
     printf("\n-- commands that do not apply say so --\n");
-    g_stub.spoke = 0;
+    g_stub.spoke = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::NextEnemy);
     check_str("NextEnemy is refused honestly",
               g_stub.spoke ? g_stub.spoken[0] : "", "Not applicable in this game.");

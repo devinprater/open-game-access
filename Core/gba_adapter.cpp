@@ -164,6 +164,12 @@ static void gba_detach(void) {
     g_code[0] = '\0';
 }
 
+static void Say(const char* line, bool interrupt)
+{
+    if (!oga::AdapterNoteSpoken(line)) return;
+    if (g_host && g_host->speak) g_host->speak(g_host->ctx, line, interrupt);
+}
+
 static void gba_command(Command cmd) {
     if (!g_host) return;
 
@@ -173,7 +179,7 @@ static void gba_command(Command cmd) {
         if (!player_xy(&x, &y)) {
             // ⛔ SAY SO RATHER THAN GUESS. Reporting "0, 0" during boot would be a
             // confident lie about a position the game has not established yet.
-            if (g_host->speak) g_host->speak(g_host->ctx, "Still loading.", true);
+            Say("Still loading.", true);
             return;
         }
         char line[160];
@@ -187,16 +193,14 @@ static void gba_command(Command cmd) {
             snprintf(line, sizeof line, "x %u, y %u.", x, y);
         }
         g_last_x = x; g_last_y = y; g_have_last = true;
-        if (g_host->speak) g_host->speak(g_host->ctx, line, true);
+        Say(line, true);
         break;
     }
 
     case Command::NextUnactedAlly:
         // Fire Emblem concept; the GBA readers have no equivalent, and inventing one would
         // be a guess. Say what is true instead of mapping it to something approximate.
-        if (g_host->speak) {
-            g_host->speak(g_host->ctx, "Not a tactical game; use the map name key.", true);
-        }
+        Say("Not a tactical game; use the map name key.", true);
         break;
 
     case Command::DumpState: {
@@ -222,9 +226,7 @@ static void gba_command(Command cmd) {
         // Pokémon has no "next enemy" — encounters are not units on a map. Saying so is
         // better than a plausible-looking mapping onto "nearest trainer", which would be
         // wrong in exactly the situations a player would rely on it.
-        if (g_host->speak) {
-            g_host->speak(g_host->ctx, "Not applicable in this game.", true);
-        }
+        Say("Not applicable in this game.", true);
         break;
     }
 }
