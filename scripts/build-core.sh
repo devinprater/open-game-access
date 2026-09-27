@@ -72,6 +72,15 @@ if [ ! -f "$PPSPP_GEN/miniupnpcstrings.h" ] || [ "$PPSPP_SRC/ext/miniupnp/miniup
   ( cd "$PPSPP_SRC/ext/miniupnp/miniupnpc" && sh updateminiupnpcstrings.sh "$PPSPP_GEN/miniupnpcstrings.h" miniupnpcstrings.h.in ) > /dev/null
 fi
 PPSPP_INC="$(ppspp_inc "$PPSPP_SRC") -I$PPSPP_GEN"
+# ---- ffmpeg (video decode for sceVideocodec/sceMpeg) ----
+# Minimal static libs from scripts/build-ffmpeg.sh; their objects are extracted
+# into $OBJ with an ffav_ prefix so the archive glob below picks them up.
+# The ffmpeg build is stamp-gated (no-op when current).
+FFMPEG_OUT="${FFMPEG_OUT:-$HOME/ffmpeg-ios}/device"
+bash "$ROOT/scripts/build-ffmpeg.sh" device || exit 1
+FFMPEG_INC="$FFMPEG_OUT/include"
+FFMPEG_LIB="$FFMPEG_OUT/lib"
+PPSPP_INC="$PPSPP_INC -DUSE_FFMPEG -I$FFMPEG_INC"
 MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
 # -fwrapv matters: melonDS's ARM interpreter relies on wrapping arithmetic.
@@ -201,6 +210,17 @@ fi
 if [ -f "$OBJ/.failed" ]; then echo "!! compile errors above" >&2; exit 1; fi
 
 echo "== archiving =="
+# Merge the ffmpeg static slices into the core archive via $OBJ.
+# (One subdir per lib: generic names like utils.o exist in several libs and
+# would overwrite each other in a shared dir.)
+rm -rf "$OBJ/ffav" && mkdir -p "$OBJ/ffav" && cd "$OBJ/ffav" || exit 1
+for _lib in avcodec avformat avutil swresample swscale; do
+  mkdir -p "$_lib" && cd "$_lib" || exit 1
+  "$LLVM_AR" x "$FFMPEG_LIB/lib${_lib}.a" || exit 1
+  for _o in *.o; do mv "$_o" "ffav_${_lib}_${_o}"; done
+  mv ffav_*.o "$OBJ/" && cd "$OBJ/ffav" || exit 1
+done
+cd "$OBJ" && rm -rf ffav
 rm -f "$OUT/libpokecore.a"
 # GNU ar's index is not readable by ld64.lld ("archive has no index"), so the
 # archive is built and indexed with the Swift toolchain's LLVM binutils — the
