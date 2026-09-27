@@ -668,6 +668,7 @@ static bool g_custLive = false;  // customize tracker state (rows owned below)
 static int g_custRow = 0;
 static bool g_charLive = false;  // character-select tracker (rows owned below)
 static int g_charRow = 0;
+static bool g_quickLive = false;  // Quickmove marker currently announced
 static void OptSync(void);      // defined with the options menu below
 static bool DialogLive(void);   // defined with the YES/NO dialog block below
 static bool StoryDlgLive(void); // defined with the story-dialog block below
@@ -1004,6 +1005,11 @@ static void Command(Command cmd)
         else Say("Customize menu closed.");
         return;
     }
+    if (cmd == Command::QuickOn) {
+        if (battle && !g_quickLive) { g_quickLive = true; Say("Quickmove available."); }
+        return;
+    }
+    if (cmd == Command::QuickOff) { g_quickLive = false; return; }
     if (cmd == Command::CharToggle) {
         if (battle) { g_charLive = false; Say("Character select is not open."); return; }
         g_charLive = !g_charLive;
@@ -1011,7 +1017,7 @@ static void Command(Command cmd)
         else Say("Character select closed.");
         return;
     }
-    if (battle) { g_custLive = false; g_charLive = false; }
+    if (battle) { g_custLive = false; g_charLive = false; g_quickLive = false; }
     // Tracked-menu navigation: the host forwards D-pad taps as MenuNext/Prev
     // alongside set_button. The adapter moves its own cursor and speaks the
     // row (input-echo): no heap value identifies the selected row (attract
@@ -1101,6 +1107,7 @@ static bool Attach(const Host* host)
     g_optLive = false; g_optRow = 0;  // options cursor neither
     g_custLive = false; g_custRow = 0;  // customize tracker neither
     g_charLive = false; g_charRow = 0;  // character-select tracker neither
+    g_quickLive = false;  // Quickmove edge neither
     for (int i = 0; i < 23; i++) g_optVal[i] = 0;
     g_widgetPinned = false;
     return true;        // the game code check already happened in the registry

@@ -42,6 +42,11 @@ enum AdapterCommand: Int32, CaseIterable {
     /// Previous item). Toggles tracking and reads the current row.
     case custToggle = 12
     case charToggle = 13
+    /// Dissidia battle Quickmove marker. Detector-driven (app sends these
+    /// when the yellow marker appears/vanishes); never a player button,
+    /// so they stay out of supported(adapterID:).
+    case quickOn = 14
+    case quickOff = 15
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -61,6 +66,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .menuRight:       return "Next value"
         case .custToggle:      return "Customize row"
         case .charToggle:       return "Character"
+        case .quickOn:          return "Quickmove available"
+        case .quickOff:         return "Quickmove gone"
         }
     }
 
@@ -97,6 +104,10 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Tracks the Customize menu. Tap when opening it and when leaving it."
         case .charToggle:
             return "Tracks character select. Tap when opening it and when leaving it."
+        case .quickOn:
+            return "Sent by the marker detector when Quickmove appears."
+        case .quickOff:
+            return "Sent by the marker detector when Quickmove vanishes."
         }
     }
 
@@ -117,6 +128,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .menuRight:       return "chevron.right"
         case .custToggle:       return "slider.horizontal.3"
         case .charToggle:        return "person"
+        case .quickOn:          return "bolt"
+        case .quickOff:         return "bolt.slash"
         }
     }
 

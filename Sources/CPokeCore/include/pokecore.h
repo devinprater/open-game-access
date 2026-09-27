@@ -81,6 +81,8 @@ const uint8_t *poke_framebuffer_ptr(PokeCore *core, int screen);
 
 /* Input. Buttons/touch are read by the core at the start of each frame. */
 void poke_set_button(PokeCore *core, int ds_button, bool down);
+/* PSP analog stick, -1..1. No-op on other cores. */
+void poke_set_analog(PokeCore *core, float x, float y);
 void poke_touch(PokeCore *core, int x, int y, bool down);
 /* Hotkeys are the letters main.lua listens for: J K L I O P C E N B R U. */
 void poke_set_hotkey(PokeCore *core, const char *key, bool down);

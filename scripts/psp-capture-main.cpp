@@ -54,13 +54,47 @@ int main(int argc, char **argv) {
     const char *resume = nullptr;
     int tapBtn = -1, tapPeriod = 0;
     int tapCycle[8]; int tapCycleN = 0;
+    int onceBtn = -1, onceFrame = -1; bool onceMode = false;
     int probeCmd = -1, probePeriod = 0;
     int tapHold = 60;
+    // Walk mode: argv[8] "walk:x1,y1,hold1;x2,y2,hold2;..." (x/y -100..100,
+    // hold in frames). Segments run in order, then hold the last. Drives the
+    // PSP analog stick via poke_set_analog. No buttons are touched.
+    struct WalkSeg { float x, y; int hold; };
+    WalkSeg walkSeg[32]; int walkSegN = 0, walkTotal = 0;
+    bool walkMode = false;
     if (argc == 10 || argc == 12 || argc == 13 || argc == 15) {
         if (strcmp(argv[6], "--") != 0) script = argv[6];
         resume = argv[7];
-        // tap button may be a comma cycle ("10,11,0") for scripted mash.
-        {
+        // tap button may be a comma cycle ("10,11,0") for scripted mash,
+        // or a walk script ("walk:x,y,hold;...") for analog movement.
+        if (strncmp(argv[8], "once:", 5) == 0) {
+            // One-shot: "once:BTN,FRAME" presses BTN for tapHold frames
+            // starting at FRAME, then releases. Exact single inputs.
+            onceMode = true;
+            onceBtn = atoi(argv[8] + 5);
+            const char *q8 = argv[8] + 5;
+            while (*q8 && *q8 != ',') q8++; if (*q8 == ',') q8++;
+            onceFrame = atoi(q8);
+            tapBtn = onceBtn;
+        } else if (strncmp(argv[8], "walk:", 5) == 0) {
+            walkMode = true;
+            const char *p8 = argv[8] + 5;
+            while (*p8 && walkSegN < 32) {
+                float x = (float)atof(p8);
+                while (*p8 && *p8 != ',') p8++; if (*p8 == ',') p8++;
+                float y = (float)atof(p8);
+                while (*p8 && *p8 != ',') p8++; if (*p8 == ',') p8++;
+                int hold = atoi(p8);
+                while (*p8 && *p8 != ';') p8++; if (*p8 == ';') p8++;
+                if (hold <= 0) hold = 60;
+                walkSeg[walkSegN].x = x / 100.0f;
+                walkSeg[walkSegN].y = y / 100.0f;
+                walkSeg[walkSegN].hold = hold;
+                walkTotal += hold;
+                walkSegN++;
+            }
+        } else {
             const char *p8 = argv[8];
             while (*p8 && tapCycleN < 8) {
                 tapCycle[tapCycleN++] = atoi(p8);
@@ -136,10 +170,30 @@ int main(int argc, char **argv) {
         g_capFrame = frames;
         if (probeCmd >= 0 && probePeriod > 0 && (frames % probePeriod) == 0)
             poke_command(core, probeCmd);
-        if (tapBtn >= 0 && tapPeriod > 0) {
+        if (walkMode && walkSegN > 0) {
+            int t = frames - 1, acc = 0, si = walkSegN - 1;
+            if (t < walkTotal) {
+                for (int i = 0; i < walkSegN; i++) {
+                    if (t < acc + walkSeg[i].hold) { si = i; break; }
+                    acc += walkSeg[i].hold;
+                }
+            }
+            static int lastWalk = -999;
+            if (si != lastWalk) {
+                poke_set_analog(core, walkSeg[si].x, walkSeg[si].y);
+                fprintf(stderr, "CAP-INPUT: frame=%d walk=%d x=%.2f y=%.2f\n",
+                        frames, si, walkSeg[si].x, walkSeg[si].y);
+                lastWalk = si;
+            }
+        }
+        if (!walkMode && tapBtn >= 0 && tapPeriod > 0) {
             int ph = frames % tapPeriod;
             int cyc = tapCycleN > 0 ? tapCycle[(frames / tapPeriod) % tapCycleN] : tapBtn;
             bool want = ph < tapHold;
+            if (onceMode) {
+                cyc = onceBtn;
+                want = (frames >= onceFrame && frames < onceFrame + tapHold);
+            }
             static int lastCyc = -999;
             if (cyc != lastCyc) {
                 if (lastCyc >= 0) poke_set_button(core, lastCyc, false);
@@ -164,6 +218,7 @@ int main(int argc, char **argv) {
             // latched pad, so a state saved mid-hold resumes with key-repeat
             // running and the next run's inputs land on the wrong rows.
             for (unsigned b = 0; b < 16; b++) poke_set_button(core, b, false);
+            if (walkMode) poke_set_analog(core, 0.0f, 0.0f);
             char shot[512], st[512];
             snprintf(shot, sizeof(shot), "%s/fb-%06d.rgba", outdir, frames);
             snprintf(st, sizeof(st), "%s/state-%06d.ppz", outdir, frames);

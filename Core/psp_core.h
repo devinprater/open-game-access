@@ -84,6 +84,7 @@ bool psp_framebuffer(PspCore *core, int *width, int *height);
 const uint8_t *psp_framebuffer_ptr(PspCore *core);
 
 void psp_set_button(PspCore *core, int psp_button, bool down);
+void psp_set_analog(PspCore *core, float x, float y);
 
 /* Whole-core states (PPSSPP savestates), same contract as poke_save_state. */
 bool psp_save_state(PspCore *core, const char *path);
