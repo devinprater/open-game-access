@@ -40,6 +40,7 @@ CC="${CC:-/usr/local/swift/bin/clang}"
 [ -d "$PPSPP_SRC/Core" ] || { echo "!! no PPSSPP source at $PPSPP_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
 
 source "$ROOT/scripts/build-cache.sh"
+source "$ROOT/scripts/core-sources.sh"
 CXX_CACHE_ID="$(oga_cache_compiler_id "$CXX")" || { echo "!! cannot identify C++ compiler: $CXX" >&2; exit 1; }
 CC_CACHE_ID="$(oga_cache_compiler_id "$CC")" || { echo "!! cannot identify C compiler: $CC" >&2; exit 1; }
 SDK_CACHE_ID="$(oga_cache_sdk_id "$SDK")" || { echo "!! cannot identify SDK: $SDK" >&2; exit 1; }
@@ -100,7 +101,7 @@ TEAKRA=""
 # The source list lives in one place, shared with scripts/build-sim.sh: two
 # copies is exactly how the simulator build ends up missing a translation unit
 # and fails at the FINAL link with a symbol the device build has.
-source "$ROOT/scripts/core-sources.sh"
+# (sourced at the top; ppspp_inc is needed by the miniupnpc block above.)
 # ⛔ BUILT FROM THE SHARED LIST, NOT A PRIVATE COPY. This line used to be a second,
 # hand-maintained list of the same files — and it is why adding a new adapter meant
 # remembering two places, and why the simulator build silently had none.
