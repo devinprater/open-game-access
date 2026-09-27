@@ -25,9 +25,23 @@ static bool DumpFb(PokeCore *core, const char *path, int *wOut, int *hOut) {
     return n == (size_t)w * h * 4;
 }
 
+static FILE *g_speakLog = nullptr;
+static int g_capFrame = 0;
+
+static void CapSpeak(const char *text, bool interrupt, void *ud) {
+    (void)ud;
+    if (g_speakLog && text) {
+        fprintf(g_speakLog, "frame=%d intr=%d %s\n", g_capFrame,
+                (int)interrupt, text);
+        fflush(g_speakLog);
+    }
+}
+
 int main(int argc, char **argv) {
-    if (argc != 6 && argc != 7 && argc != 10) {
-        fprintf(stderr, "usage: %s <image> <savedir> <outdir> <frames> <interval> [script] | <image> <savedir> <outdir> <frames> <interval> <script-or--> <resume-state> <tap-btn> <tap-period>\n", argv[0]);
+    // Battle-probe mode appends: <cmd> <cmd-period> — issue adapter command
+    // <cmd> every <cmd-period> frames and log every SPEAK line with its frame.
+    if (argc != 6 && argc != 7 && argc != 10 && argc != 12) {
+        fprintf(stderr, "usage: %s <image> <savedir> <outdir> <frames> <interval> [script] | <image> <savedir> <outdir> <frames> <interval> <script-or--> <resume-state> <tap-btn> <tap-period> [<cmd> <cmd-period>]\n", argv[0]);
         return 2;
     }
     const char *image = argv[1], *savedir = argv[2], *outdir = argv[3];
@@ -39,15 +53,25 @@ int main(int argc, char **argv) {
     // tap-period frames (held 60). argv[6] is script-or-placeholder.
     const char *resume = nullptr;
     int tapBtn = -1, tapPeriod = 0;
-    if (argc == 10) {
+    int probeCmd = -1, probePeriod = 0;
+    if (argc == 10 || argc == 12) {
         if (strcmp(argv[6], "--") != 0) script = argv[6];
         resume = argv[7];
         tapBtn = atoi(argv[8]);
         tapPeriod = atoi(argv[9]);
     }
-
+    if (argc == 12) {
+        probeCmd = atoi(argv[10]);
+        probePeriod = atoi(argv[11]);
+    }
     PokeCore *core = poke_create();
     if (!core) { fprintf(stderr, "CAP-FAIL: no core\n"); return 1; }
+    poke_set_speech_callback(core, CapSpeak, nullptr);
+    if (probeCmd >= 0) {
+        std::string slog = std::string(argv[3]) + "/speak.log";
+        g_speakLog = fopen(slog.c_str(), "w");
+    }
+
     // poke_set_script takes Lua SOURCE, not a path (NDS convention).
     std::string scriptSrc;
     if (script) {
@@ -83,6 +107,9 @@ int main(int argc, char **argv) {
     int frames = 0;
     while (frames < cap && poke_frame(core)) {
         frames++;
+        g_capFrame = frames;
+        if (probeCmd >= 0 && probePeriod > 0 && (frames % probePeriod) == 0)
+            poke_command(core, probeCmd);
         if (tapBtn >= 0 && tapPeriod > 0) {
             int ph = frames % tapPeriod;
             poke_set_button(core, tapBtn, ph < 60);
@@ -104,6 +131,7 @@ int main(int argc, char **argv) {
         }
     }
     if (audio) fclose(audio);
+    if (g_speakLog) fclose(g_speakLog);
     printf("CAP-DONE: frames=%d/%d\n", frames, cap);
     poke_stop(core);
     poke_destroy(core);
