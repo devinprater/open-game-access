@@ -68,6 +68,10 @@ void psp_set_asset_dir(PspCore *core, const char *asset_dir);
 bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path,
                   char code_out[16]);
 
+/* Drain mixer output at the app's 32768 Hz (interleaved stereo s16).
+ * Returns frames written; 0 when dry. Mirrors poke_read_audio's contract. */
+int psp_read_audio(PspCore *core, int16_t *out, int max_frames);
+
 bool psp_start(PspCore *core);
 void psp_stop(PspCore *core);
 bool psp_running(PspCore *core);

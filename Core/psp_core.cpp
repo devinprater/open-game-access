@@ -110,6 +110,13 @@ struct PspCore {
     uint32_t buttonsDown = 0;   // PSP_CTRL_* bits currently held
     uint64_t frames = 0;
     std::vector<uint8_t> rgba;  // 480x272x4 staging, served to the app
+    // Mixer output staging: interleaved stereo s16 at 44100 Hz. The app pulls
+    // 32768 Hz (see psp_read_audio); the ring absorbs production/consumption
+    // jitter. Single-game-at-a-time embedding: the System_* callbacks below
+    // serve whichever core created last (g_audioCore).
+    std::vector<int16_t> audio;
+    size_t audioRead = 0;   // consumed frames (compacts when fully drained)
+    double audioFrac = 0.0;  // resampler phase carried across reads
     void *gfxCtx = nullptr;     // owned NullGraphicsContext (lives till stop)
     PspSpeechCallback sayCb = nullptr;
     void *sayUser = nullptr;
@@ -139,11 +146,87 @@ std::string NativeLoadSecret(std::string_view) { return std::string(); }
 
 void System_Toast(std::string_view) {}
 void System_Notify(SystemNotification) {}
-// No audio backend on this embedding yet (host proof or iOS without audio):
-// the mixer runs so sound-gated game logic advances, but output goes nowhere.
 void System_AudioGetDebugStats(char *, size_t) {}
-void System_AudioClear() {}
-void System_AudioPushSamples(const int32_t *, int, float) {}
+namespace {
+PspCore *g_audioCore = nullptr;
+constexpr size_t kAudioCapFrames = 16384;  // ~371 ms at 44100 Hz
+constexpr int kPspMixRate = 44100;
+constexpr int kAppRate = 32768;  // must match GameSession.audioSampleRate
+
+int16_t Clamp16(int32_t v) {
+    if (v < -32767) return -32767;
+    if (v > 32767) return 32767;
+    return (int16_t)v;
+}
+}  // namespace
+
+void System_AudioClear() {
+    if (g_audioCore) {
+        g_audioCore->audio.clear();
+        g_audioCore->audioRead = 0;
+        g_audioCore->audioFrac = 0.0;
+    }
+}
+// Mixer output (s32 stereo, s16-range, mix rate) -> the per-core ring.
+// Volume is the mixer's (mute / fast-forward ducking); the app has its own
+// volume downstream, like libretro which ignores this one. We apply it:
+// silence in means silence out, which is what mute/fast-forward need.
+void System_AudioPushSamples(const int32_t *audio, int numSamples, float volume) {
+    PspCore *core = g_audioCore;
+    if (!core || !audio || numSamples <= 0) return;
+    size_t have = (core->audio.size() / 2 > core->audioRead)
+        ? core->audio.size() / 2 - core->audioRead : 0;
+    // Room first: drop oldest whole pushes when full (never grow unbounded
+    // when frames run faster than the audio thread drains).
+    while (have + (size_t)numSamples > kAudioCapFrames && have > 0) {
+        size_t drop = have > (size_t)numSamples ? (size_t)numSamples : have;
+        core->audioRead += drop;
+        have -= drop;
+    }
+    if (core->audioRead > 0 && core->audioRead * 2 <= core->audio.size()) {
+        core->audio.erase(core->audio.begin(),
+                          core->audio.begin() + (ptrdiff_t)(core->audioRead * 2));
+        core->audioRead = 0;
+    }
+    core->audio.reserve(core->audio.size() + (size_t)numSamples * 2);
+    for (int i = 0; i < numSamples; i++) {
+        core->audio.push_back(Clamp16((int32_t)(audio[i * 2] * volume)));
+        core->audio.push_back(Clamp16((int32_t)(audio[i * 2 + 1] * volume)));
+    }
+}
+
+// Drain up to max_frames at the app's 32768 Hz (linear resample from the
+// mixer's 44100 Hz). Returns frames written; 0 when the ring is dry (the
+// app fades the tail instead of clicking).
+int psp_read_audio(PspCore *core, int16_t *out, int max_frames) {
+    if (!core || !out || max_frames <= 0) return 0;
+    size_t avail = (core->audio.size() / 2 > core->audioRead)
+        ? core->audio.size() / 2 - core->audioRead : 0;
+    if (avail == 0) return 0;
+    const double step = (double)kPspMixRate / kAppRate;
+    double pos = core->audioFrac;
+    int wrote = 0;
+    const int16_t *base = core->audio.data() + core->audioRead * 2;
+    while (wrote < max_frames) {
+        size_t idx = (size_t)pos;
+        double frac = pos - (double)idx;
+        if (idx + 1 >= avail) break;
+        for (int ch = 0; ch < 2; ch++) {
+            double a = base[idx * 2 + ch];
+            double b = base[idx * 2 + 2 + ch];
+            out[wrote * 2 + ch] = (int16_t)(a + (b - a) * frac);
+        }
+        wrote++;
+        pos += step;
+    }
+    core->audioRead += (size_t)pos;
+    core->audioFrac = pos - (double)(size_t)pos;
+    if (core->audioRead * 2 >= core->audio.size()) {
+        core->audio.clear();
+        core->audioRead = 0;
+    }
+    return wrote;
+}
 void System_PostUIMessage(UIMessage, std::string_view) {}
 void System_RunCallbackInWndProc(void (*)()) {}
 bool System_MakeRequest(SystemRequestType, RequesterToken, std::string_view, std::string_view, std::string_view, int64_t, bool) { return false; }
@@ -181,6 +264,7 @@ bool System_AudioRecordingState() { return false; }
 PspCore *psp_create(void)
 {
     PspCore *core = new PspCore();
+    g_audioCore = core;
     core->created = true;
     core->rgba.resize((size_t)PSP_FB_W * PSP_FB_H * 4, 0);
     return core;
@@ -188,6 +272,7 @@ PspCore *psp_create(void)
 
 void psp_destroy(PspCore *core)
 {
+    if (g_audioCore == core) g_audioCore = nullptr;
     if (!core) return;
     if (core->booted) PSP_Shutdown(true);
     delete (GraphicsContext *)core->gfxCtx;

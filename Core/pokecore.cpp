@@ -1650,7 +1650,10 @@ int poke_read_audio(PokeCore* core, int16_t* out, int max_frames)
 {
     if (!core || !out || max_frames <= 0) return 0;
     if (core->isGba) return 0;   // no GBA audio path yet (reader cues are text)
-    if (core->isPsp) return 0;   // no PSP audio path yet (adapter text first)
+    if (core->isPsp) {
+        if (!core->psp || !core->audioEnabled) return 0;
+        return psp_read_audio(core->psp, out, max_frames);
+    }
     if (!core->nds || !core->audioEnabled) return 0;
     return core->nds->SPU.ReadOutput(out, max_frames);
 }
