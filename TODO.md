@@ -6,7 +6,15 @@
 - [x] **Reconcile pending Windows-only work:** `scripts/check-trees.sh` reports 0 untracked scripts and 0 untracked docs (2026-09-27). The 85 Windows-only files were all obsolete one-shot commit/sync helpers whose payloads the repo had superseded (verified by content diff); deleted. The adapter-contribution guide and announcement-queue proposals are tracked under `docs/proposals/` (the latter sketches the C queue API behind the policy in `docs/design/announcement-queue.md`). The Chrono Trigger DS notes were removed (SNES version instead; git history keeps them). The Dissidia battle-audio spec is tracked at `docs/proposals/dissidia-battle-audio.md` (in-battle cues, speech for menus/queries only). The `reverse-engineering/ctds/` dir holds SNES ChronoAccess research (live WRAM verification) and is tracked. (Chrono Trigger DS research dropped — SNES version instead.)
 - [x] **Announcement queue design:** `docs/design/announcement-queue.md` defines the four priority levels, the interruption matrix, same-key coalescing with rate caps, on-demand opponent/location queries, and the lock-on audio beacon. Passive speech stays off until a playtest passes the criteria in that doc.
 - [x] **Announcement queue core:** `Core/announce.*` implements `docs/design/announcement-queue.md` (one line in flight, 3 levels, groups, dedup, expiry, time rate limit, bounds, stop, retry). `scripts/announce-test.sh`: 49 checks plus 7 sabotage builds that must fail; runs in the adapter-tests CI workflow.
-- [ ] **Wire the queue into hosts:** adapters call `oga::announce`; iOS feeds `announcementDidFinishNotification` / `AVSpeechSynthesizerDelegate` into `announce_speech_done`; Android feeds `UtteranceProgressListener`, and the TalkBack live-region path runs with `host_reports_done=false`. Needs device testing with VoiceOver and TalkBack on and off.
+- [ ] **Wire the queue into hosts** (sequenced in `docs/design/announcement-queue.md`
+  "Host wiring"): (1) Core owns one queue per core, tick per frame, estimate pacing,
+  additive `poke_announce_done` ABI; (2) adapters migrate to `oga::announce` with
+  per-site groups (Dissidia first — it has the host tests); (3) iOS completion hooks
+  (`AVSpeechSynthesizerDelegate` methods are currently unimplemented; VoiceOver path
+  needs `announcementDidFinishNotification`); (4) Android needs native adapter JNI
+  plumbing first (no `AccessibilitySpeech.kt` exists — the app is a WebView+TTS shell),
+  then `UtteranceProgressListener`. Needs device testing with VoiceOver and TalkBack
+  on and off.
 
 ## Immediate build blocker
 

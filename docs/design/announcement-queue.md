@@ -136,17 +136,33 @@ The beacon never uses the speech queue. The per-game encoding lives with the gam
 
 ## Host wiring (not done yet)
 
-- **Adapters** call `oga::announce()` instead of `Host::speak` once the host owns a queue; the
-  drain calls the platform through `AnnounceSink::speak(text, interrupt, id)`.
-- **iOS** (`SpeechEngine.swift`): VoiceOver path — observe
-  `UIAccessibility.announcementDidFinishNotification`, map the announced string back to its
-  id, pass `announcementWasSuccessfulUserInfoKey` as `success`. Direct path —
-  `AVSpeechSynthesizerDelegate` `didFinish` (success) / `didCancel` (not). `announce(_:)` for
-  UI replies bypasses the queue.
-- **Android** (`AccessibilitySpeech.kt`): TTS path — pass the id as the `utteranceId`;
-  `UtteranceProgressListener.onDone` / `onError`. TalkBack live-region path — no signal, so
-  that queue runs with `host_reports_done=false`, or the host switches the flag when
-  `screenReaderRunning()` changes.
+Sequenced; each step is host-testable except the last line of each platform.
+
+1. **Core owns the queue.** One `AnnounceQueue` per `PokeCore`, created at attach with
+   `AnnounceSink::speak` -> the existing `speechCb` path (the sink remembers id->text so no
+   speech-callback signature change is needed) and `host_reports_done=false` (estimate
+   pacing: safe on both platforms until completion hooks land). `announce_tick()` once per
+   frame from `poke_frame()`; `announce_stop()` from the stop key. Additive C ABI:
+   `poke_announce_done(core, id, success)`.
+2. **Adapters** call `oga::announce()` with per-site group/priority instead of `Host::speak`.
+   The `Host` gains a clock (`uint64_t now_ms`) — every literal `Host` initializer in the
+   host tests grows one field in the same commit. Migrate Dissidia first (it has the host
+   tests); FE/GBA/DBZ follow. Until a platform reports done, pacing is by estimate, which
+   the host tests assert with a fake clock.
+3. **iOS** (`SpeechEngine.swift`): the class already conforms to
+   `AVSpeechSynthesizerDelegate` but implements no delegate methods — add `didFinish`
+   (success) / `didCancel` (not) -> `poke_announce_done`. VoiceOver path — observe
+   `UIAccessibility.announcementDidFinishNotification`, map the announced string back to
+   its id, pass `announcementWasSuccessfulUserInfoKey` as `success`; until that hook
+   exists the VoiceOver path stays estimate-paced. `announce(_:)` for UI replies bypasses
+   the queue. Needs on-device proof with VoiceOver on and off.
+4. **Android**: there is no `AccessibilitySpeech.kt` — the app is a WebView+TTS shell
+   (`MainActivity.kt`, 71 lines) with NO native adapter bindings at all, so the first step
+   is plumbing `poke_command`/`poke_adapter_ready` through JNI and routing adapter speech
+   to TTS. Only then: TTS path passes the id as `utteranceId` with
+   `UtteranceProgressListener.onDone`/`onError`; TalkBack live-region path runs with
+   `host_reports_done=false` (no signal exists). Needs on-device proof with TalkBack on
+   and off.
 - `announce_speech_done()` is thread-safe; everything else runs on the frame thread, and
   `announce_tick()` is called once per frame.
 
