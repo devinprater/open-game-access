@@ -27,13 +27,18 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 
 ## Game readers
 
-- [ ] **Dissidia title tap-to-read diagnosis:** on-device (same CSO as the
-  harness), the New/Load title reports nothing either way while reader
-  controls are present. Native adapters only speak on command tap — find out
-  what "Where am I" says there (row name vs "not ready yet" vs silence):
-  silence-after-success means the title fingerprint misses on device and the
-  s1xx addresses need a device-side re-proof; "not ready" means the ready
-  gate excludes title. Consider auto-reading the title row on cursor change.
+- [x] **Dissidia title tap-to-read diagnosis + fix:** root cause was the
+  ready gate, not the fingerprint — `Ready()` was `ManagerOk()` only and
+  `CmdWhereAmI` gated on the manager before reaching the title, so on-device
+  (manager slot not live on the pre-game title) every command was refused as
+  "Game state is not ready yet." Fixed: title/setup screens are fingerprint
+  readers — `Ready()` includes title/Play-Plan/Bonus-Day, `CmdWhereAmI`
+  speaks them before the manager gate, and D-pad MenuNext/Prev/Left/Right
+  re-read the title/setup cursor from RAM (no tracking to desync, same rule
+  as the YES/NO dialog nav). Host tests cover manager-dead title speech,
+  D-pad re-reads, and the still-not-ready neither-live case. Needs on-device
+  re-proof with the same CSO (title row should now speak on Where-Am-I and
+  on D-pad moves).
 - [ ] **Dissidia name-entry reader:** New Game's name entry has no adapter
   coverage (title rows are fingerprinted; name entry is not). Silence there
   is a coverage gap, not a lock-on failure.

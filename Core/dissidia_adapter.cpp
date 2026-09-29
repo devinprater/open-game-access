@@ -484,33 +484,45 @@ static int BoardDP(void)
     return (int) (int16_t) ((u8(r + OFF_DP + 1) << 8) | u8(r + OFF_DP));
 }
 
-static void CmdWhereAmI(void)
+/// Title/setup row speech (Bonus Day, Play Plan, pre-game title). Returns true
+/// when one of those screens is live and spoke. Deliberately OUTSIDE the
+/// manager gate: on-device the manager slot is not live on the pre-game title,
+/// so gating these screens on ManagerOk() (here and in Ready() below) left the
+/// New/Load title silent behind "Game state is not ready yet." The fingerprints
+/// plus cursor re-read are the validity claim, not the manager.
+/// Screen precedence, newest-flow-first: setup screens allocate after the
+/// title, and the title's structs linger, so Bonus Day, then Play Plan,
+/// then title.
+static bool SpeakTitleSetup(void)
 {
-    if (!ManagerOk()) { Say("Game not ready yet."); return; }
-    // Screen precedence, newest-flow-first: setup screens allocate after the
-    // title, and the title's structs linger, so Bonus Day, then Play Plan,
-    // then title.
     int bi = BonusIndex();
     if (bi >= 0) {
         char line[96];
         snprintf(line, sizeof(line), "Bonus Day. %s. Row %d of 7.", kBonusEntries[bi], bi + 1);
         Say(line);
-        return;
+        return true;
     }
     int pi = PlayIndex();
     if (pi >= 0) {
         char line[96];
         snprintf(line, sizeof(line), "Play Plan. %s. Row %d of 3.", kPlayEntries[pi], pi + 1);
         Say(line);
-        return;
+        return true;
     }
     int ti = TitleIndex();
     if (ti >= 0) {
         char line[96];
         snprintf(line, sizeof(line), "%s. Row %d of 3.", kTitleEntries[ti], ti + 1);
         Say(line);
-        return;
+        return true;
     }
+    return false;
+}
+
+static void CmdWhereAmI(void)
+{
+    if (SpeakTitleSetup()) return;
+    if (!ManagerOk()) { Say("Game not ready yet."); return; }
     // Board first when no menu widget is live: pause widget validates itself
     // (count 1..7), so a live pause menu still wins via the pinned root below.
     if (!g_widgetRoot) {
@@ -996,7 +1008,20 @@ static void CmdDump(void)
     }
 }
 
-static bool Ready(void) { return ManagerOk(); }
+/// Silent twin of SpeakTitleSetup() for Ready(): same validity claim, no speech.
+static bool SpeakTitleSetupProbe(void)
+{
+    return BonusIndex() >= 0 || PlayIndex() >= 0 || TitleIndex() >= 0;
+}
+
+static bool Ready(void)
+{
+    // The pre-game title and setup screens are usable readers without the
+    // manager: without this the host refuses every command there as "not
+    // ready" and the title stays silent. Fingerprinted screens are ready.
+    if (SpeakTitleSetupProbe()) return true;
+    return ManagerOk();
+}
 
 static void OnFrame(void) { /* nothing per-frame: this adapter polls on demand */ }
 
@@ -1105,6 +1130,14 @@ static void Command(Command cmd)
         if (cmd == Command::WhereAmI || cmd == Command::MenuState) { DlgSpeak(); return; }
         if (cmd == Command::MenuNext || cmd == Command::MenuPrev ||
             cmd == Command::MenuLeft || cmd == Command::MenuRight) { DlgSpeak(); return; }
+    }
+    // Title/setup D-pad echo: no tracking to desync (cursor re-read from RAM,
+    // like the dialog block); silent when those screens are not live.
+    if (!battle &&
+        (cmd == Command::MenuNext || cmd == Command::MenuPrev ||
+         cmd == Command::MenuLeft || cmd == Command::MenuRight ||
+         cmd == Command::WhereAmI)) {
+        if (SpeakTitleSetup()) return;
     }
     if (g_optLive && !battle) {
         const OptRow* orow = &kOptRows[g_optRow];
