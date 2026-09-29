@@ -43,7 +43,9 @@
  */
 
 #include "adapter.h"
+#include "osk_echo.h"
 #include <stdio.h>
+#include <string>
 #include <string.h>
 #include <stdint.h>
 
@@ -152,8 +154,12 @@ static uint32_t g_widgetRoot = 0;
 // True when the harness explicitly pinned the widget (it owns the validity claim);
 // false when the adapter discovered it (may go stale when the menu closes).
 static bool g_widgetPinned = false;
+// OSK echo live flag (state owned by the OSK block below; declared up here
+// because CmdMenuState needs it).
+static bool g_oskLive = false;
 
 static uint8_t u8(uint32_t a) { return g_host ? g_host->read8(g_host->ctx, a) : 0; }
+static uint16_t u16(uint32_t a) { return g_host ? g_host->read16(g_host->ctx, a) : 0; }
 static uint32_t u32(uint32_t a) { return g_host ? g_host->read32(g_host->ctx, a) : 0; }
 
 static void Say(const char* s, bool interrupt = true)
@@ -569,7 +575,6 @@ static void CmdWhereAmI(void)
     // owner open), nearby objects. Position only until proven -- never a guess.
 }
 
-static uint16_t u16(uint32_t a) { return g_host ? g_host->read16(g_host->ctx, a) : 0; }
 static float f32(uint32_t a)
 {
     if (!g_host) return 0.0f;
@@ -702,6 +707,7 @@ static void CmdMenuState(void)
     else if (BattleFighters().ok) st = "MENU battle";
     else if (DialogLive() || StoryDlgLive()) st = "MENU dialog";
     else if (g_custLive) st = "MENU customize";
+    else if (g_oskLive) st = "MENU osk";
     else if (g_charLive) st = "MENU charselect";
     else if (BoardDispatcher() != 0) st = "MENU board";
     else if (g_optLive) st = "MENU options";
@@ -1014,12 +1020,175 @@ static bool SpeakTitleSetupProbe(void)
     return BonusIndex() >= 0 || PlayIndex() >= 0 || TitleIndex() >= 0;
 }
 
+// ---- Universal OSK name entry (docs/research/dissidia-name-entry.md) ----
+// The Player Name Entry screen is the PSP system OSK (sceUtilityOsk), HLEd by
+// PPSSPP: cursor + typed text live host-side, so the adapter tracks them with
+// the shared input-echo engine (Core/osk_echo.h) and grounds the text against
+// the game's guest outtext buffer after every edit. Verified live:
+//   OSK_PARAMS 0x09B3FAE4  SceUtilityOskParams AT this address (game heap;
+//     deterministic across 7 boots/sessions here, revalidated on every use):
+//     size u32+0 == 64, fieldCount u32+48 == 1, fields u32+52 -> OskData.
+//   OskData @fields: intext u32+32, outtextlen u32+36, outtext u32+40.
+//     Observed: intext == outtext == 0x09B3FC00 (UTF-16LE, NUL-terminated,
+//     tracks typing live, receives the Finish write), outtextlen == 13.
+// Entry/exit is player-tapped (OskToggle, like CustToggle): the setup-struct
+// cursor pins are heap garbage while the OSK is open, so no RAM signature can
+// gate entry — but the OskParams chain above IS a live-struct fingerprint and
+// gates Ready() plus every grounding read.
+constexpr uint32_t OSK_PARAMS = 0x09B3FAE4u;
+constexpr uint32_t OSK_P_FC = 48u;
+constexpr uint32_t OSK_P_FIELDS = 52u;
+constexpr uint32_t OSK_D_INTEXT = 32u;
+constexpr uint32_t OSK_D_OUTLEN = 36u;
+constexpr uint32_t OSK_D_OUTTEXT = 40u;
+static OskEcho g_osk;
+
+/// OskParams chain live? Validates the struct on every use; heap pins are
+/// never trusted blind. Returns the outtext buffer + char cap when asked.
+static bool OskStructLive(uint32_t* outText, int* outMax)
+{
+    if (!g_host) return false;
+    if (u32(OSK_PARAMS) != 64) return false;
+    if (u32(OSK_PARAMS + OSK_P_FC) != 1) return false;
+    uint32_t f = u32(OSK_PARAMS + OSK_P_FIELDS);
+    if (!InRam(f) || (f & 1)) return false;
+    uint32_t it = u32(f + OSK_D_INTEXT), ot = u32(f + OSK_D_OUTTEXT);
+    uint32_t ol = u32(f + OSK_D_OUTLEN);
+    if (!InRam(it) || !InRam(ot)) return false;
+    if (ol < 2 || ol > 65) return false;
+    if (ot + ol * 2u > RAM_HI) return false;
+    if (outText) *outText = ot;
+    if (outMax) *outMax = (int) ol - 1;
+    return true;
+}
+
+/// Guest UTF-16LE buffer (units incl. NUL) -> UTF-8. BMP only; surrogates
+/// become U+FFFD rather than garbage.
+static std::string OskReadText(uint32_t addr, int units)
+{
+    std::string out;
+    for (int i = 0; i < units; i++) {
+        uint16_t w = u16(addr + (uint32_t) i * 2u);
+        if (w == 0) break;
+        if (w < 0x80) out += (char) w;
+        else if (w < 0x800) {
+            out += (char) (0xC0 | (w >> 6));
+            out += (char) (0x80 | (w & 0x3F));
+        } else if (w >= 0xD800 && w <= 0xDFFF) {
+            out += "\xEF\xBF\xBD";
+        } else {
+            out += (char) (0xE0 | (w >> 12));
+            out += (char) (0x80 | ((w >> 6) & 0x3F));
+            out += (char) (0x80 | (w & 0x3F));
+        }
+    }
+    return out;
+}
+
+static void OskSayName(const std::string& t)
+{
+    if (t.empty()) { Say("Name is empty."); return; }
+    char line[192];
+    snprintf(line, sizeof(line), "Name %s.", OskEcho::spell(t).c_str());
+    Say(line);
+}
+
+/// Post-edit grounding: the guest buffer tracks typing live, so after every
+/// Cross/Circle/Square the mirror must equal it. On mismatch the RAM text
+/// wins (announced) and the echo resyncs — never the reverse.
+static void OskEdit(std::string (OskEcho::*op)())
+{
+    std::string line = (g_osk.*op)();
+    uint32_t t = 0;
+    int m = 0;
+    if (OskStructLive(&t, &m)) {
+        std::string ram = OskReadText(t, m + 1);
+        if (ram != g_osk.text) {
+            g_osk.resync(ram);
+            OskSayName(ram);
+            return;
+        }
+    }
+    Say(line.c_str());
+}
+
+static void OskToggle(void)
+{
+    if (g_oskLive) {
+        uint32_t t = 0;
+        int m = 0;
+        std::string fin = g_osk.text;
+        if (OskStructLive(&t, &m)) fin = OskReadText(t, m + 1);
+        g_oskLive = false;
+        g_osk.reset();
+        OskSayName(fin);
+        return;
+    }
+    uint32_t t = 0;
+    int m = 0;
+    if (!OskStructLive(&t, &m)) {
+        if (g_host && g_host->log)
+            g_host->log(g_host->ctx, "OSK toggle refused: params chain invalid");
+        Say("Name entry is not open.");
+        return;
+    }
+    std::string seed = OskReadText(t, m + 1);
+    Say(g_osk.enter().c_str());
+    g_osk.seed(seed);
+    g_osk.maxChars = m;
+    g_oskLive = true;
+}
+
+static void OskFinish(void)
+{
+    uint32_t t = 0;
+    int m = 0;
+    std::string fin = g_osk.text;
+    if (OskStructLive(&t, &m)) fin = OskReadText(t, m + 1);
+    g_osk.resync(fin);
+    g_oskLive = false;
+    g_osk.reset();
+    OskSayName(fin);
+}
+
+/// OSK-mode command routing. Returns true when the command was consumed.
+/// Backstop first: Play Plan validating means Start finished the name and a
+/// Finish edge was missed — announce the final name once and exit.
+static bool OskCommand(Command cmd)
+{
+    if (PlayIndex() >= 0) {
+        uint32_t t = 0;
+        int m = 0;
+        std::string fin = g_osk.text;
+        if (OskStructLive(&t, &m)) fin = OskReadText(t, m + 1);
+        g_oskLive = false;
+        g_osk.reset();
+        OskSayName(fin);
+        return true;
+    }
+    switch (cmd) {
+        case Command::WhereAmI: Say(g_osk.where().c_str()); return true;
+        case Command::MenuNext: Say(g_osk.moveDown().c_str()); return true;
+        case Command::MenuPrev: Say(g_osk.moveUp().c_str()); return true;
+        case Command::MenuLeft: Say(g_osk.moveLeft().c_str()); return true;
+        case Command::MenuRight: Say(g_osk.moveRight().c_str()); return true;
+        case Command::OskType: OskEdit(&OskEcho::type); return true;
+        case Command::OskDelete: OskEdit(&OskEcho::erase); return true;
+        case Command::OskSpace: OskEdit(&OskEcho::space); return true;
+        case Command::OskShift: Say(g_osk.shift().c_str()); return true;
+        case Command::OskFinish: OskFinish(); return true;
+        default: break;
+    }
+    return false;
+}
+
 static bool Ready(void)
 {
     // The pre-game title and setup screens are usable readers without the
     // manager: without this the host refuses every command there as "not
     // ready" and the title stays silent. Fingerprinted screens are ready.
     if (SpeakTitleSetupProbe()) return true;
+    if (OskStructLive(nullptr, nullptr)) return true;  // OSK params live
     return ManagerOk();
 }
 
@@ -1107,7 +1276,12 @@ static void Command(Command cmd)
         else Say("Character select closed.");
         return;
     }
-    if (battle) { g_custLive = false; g_charLive = false; g_quickLive = false; g_exReady = false; }
+    if (battle) { g_custLive = false; g_charLive = false; g_quickLive = false; g_exReady = false; g_oskLive = false; }
+    // Universal OSK reader: toggle works in both directions; live mode routes
+    // D-pad + WhereAmI + Osk* to the echo tracker (cursor pins are garbage on
+    // this screen, so the normal title/setup paths must not see these).
+    if (!battle && cmd == Command::OskToggle) { OskToggle(); return; }
+    if (g_oskLive && !battle && OskCommand(cmd)) return;
     // Tracked-menu navigation: the host forwards D-pad taps as MenuNext/Prev
     // alongside set_button. The adapter moves its own cursor and speaks the
     // row (input-echo): no heap value identifies the selected row (attract
@@ -1207,12 +1381,13 @@ static bool Attach(const Host* host)
     g_charLive = false; g_charRow = 0;  // character-select tracker neither
     g_quickLive = false;  // Quickmove edge neither
     g_exReady = false;  // EX ready latch neither
+    g_oskLive = false; g_osk.reset();  // OSK echo tracker neither
     for (int i = 0; i < 23; i++) g_optVal[i] = 0;
     g_widgetPinned = false;
     return true;        // the game code check already happened in the registry
 }
 
-static void Detach(void) { g_host = nullptr; g_widgetRoot = 0; g_widgetPinned = false; }
+static void Detach(void) { g_host = nullptr; g_widgetRoot = 0; g_widgetPinned = false; g_oskLive = false; }
 
 } // namespace dissidia
 

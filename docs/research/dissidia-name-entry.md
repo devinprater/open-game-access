@@ -205,3 +205,31 @@ cookie-validated), dialog truth with `ppzosk.py`.
   `psp-ramdump`, `rgba2png.py`, `cursor-hunt.py`, `run-s1/s2b/...` plans;
   lineage B `ppzparse.py`, `ppzosk.py`, `verify_chain.py`, `ramdiff.py`,
   `run-s1/s2/s3/s4/s5/s7/s9/s10/s11/s12/s13/s14/s15.sh`, `check-*.sh`.
+
+## Implementation (post-research, committed)
+
+The reader proposed above is implemented; this section records what changed
+so the proposal stays honest about what shipped:
+
+- **Universal engine** `Core/osk_echo.h` / `Core/osk_echo.cpp` (namespace
+  `oga::OskEcho`): the 12x5 Latin-lowercase + Latin-uppercase tables verbatim
+  from PPSSPP `oskKeys[0..1]`, `((idx%60)+60)%60` wrap arithmetic, UTF-8 text
+  mirror, and the exact speech strings from the proposal. No Host dependency;
+  any PSP adapter can embed it. Full-width/kana layouts are follow-up work.
+- **New C ABI commands** (append-only): `OskToggle` (player-tapped, like
+  CustToggle) plus auto-forwarded `OskType/Delete/Space/Shift/Finish`.
+  `pokecore.cpp` bound moved to `OskFinish`; Swift `AdapterCommand` mirrors
+  all six, `supported["dissidia"]` exposes only `oskToggle`.
+- **Dissidia wiring** (`Core/dissidia_adapter.cpp`): toggle with buffer seed,
+  D-pad/WhereAmI routing while live, per-edit grounding (RAM wins, echo
+  resyncs), Finish + toggle-off + Play-Plan auto-exit all announce the final
+  name, `Ready()` includes the validated params chain, `MenuState` reports
+  `MENU osk`.
+- **iOS forward** (`GameSession.forwardPadCommand`, `InputBridge.setButton`):
+  pad A/B/X/Start/Select down-edges forward silently (no refusal speech);
+  other adapters ignore the commands (switches have no matching case).
+- **Tests**: `scripts/osk-echo-test.sh` (engine tables/arithmetic/speech) +
+  8 OSK cases in `dissidia_adapter_test.cpp` (refusal, seed, echo walk,
+  grounded type, resync, finish, auto-exit, toggle-off); all four suites in
+  `scripts/adapter-tests.sh` green. Swift side is uncompiled here — needs an
+  Xcode/archive check before release.

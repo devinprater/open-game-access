@@ -83,6 +83,19 @@ enum class Command {
     ExQteCross,    // Dissidia EX Burst QTE: face-button prompt (no dedup)
     ExBurstGoMash, // Dissidia EX Burst (mash type, e.g. Garland Soul of Chaos): mash prompt
     ExBurstLevel,  // Dissidia EX Burst (mash type): power level up (no dedup)
+    // Universal PPSSPP OSK reader (append-only: raw values are the C ABI
+    // shared with Swift; never reorder). Every PSP game that needs text entry
+    // calls the same system OSK (sceUtilityOsk), so one echo engine
+    // (Core/osk_echo.h) serves all of them; each game wires its own
+    // entry/exit gates. OskToggle is a player button (tap on entry and exit,
+    // like CustToggle); the rest are auto-forwarded by the host on game-pad
+    // down-edges and ignored by every adapter that is not tracking an OSK.
+    OskToggle, // OSK open: start echo tracking + speak entry (player-tapped)
+    OskType,   // Cross on the OSK: type the highlighted key + speak
+    OskDelete, // Circle on the OSK: delete last char + speak
+    OskSpace,  // Square on the OSK: type a space + speak
+    OskShift,  // Select on the OSK: toggle case table + speak
+    OskFinish, // Start on the OSK: finish entry, speak the final name
 };
 
 struct Adapter {

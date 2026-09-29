@@ -5,6 +5,8 @@ R=/home/devin/oga-work
 W="/mnt/c/Users/Devin Prater/open-game-access"
 cp -f "$W/Core/dissidia_adapter.cpp" "$R/Core/dissidia_adapter.cpp"
 cp -f "$W/Core/dissidia_adapter_test.cpp" "$R/Core/dissidia_adapter_test.cpp"
+cp -f "$W/Core/osk_echo.cpp" "$R/Core/osk_echo.cpp" 2>/dev/null || true
+cp -f "$W/Core/osk_echo.h" "$R/Core/osk_echo.h" 2>/dev/null || true
 cp -f "$W/Core/adapters.cpp" "$R/Core/adapters.cpp"
 cp -f "$W/scripts/build-host.sh" "$R/scripts/build-host.sh"
 cp -f "$W/scripts/core-sources.sh" "$R/scripts/core-sources.sh"
@@ -21,6 +23,7 @@ g++ -O1 -g -fwrapv -fno-strict-aliasing -I"$R/Core" -I"$R/Sources/CPokeCore/incl
   -o /home/devin/oga-test/dissidia-test \
   "$R/Core/dissidia_adapter_test.cpp" \
   "$R/Core/dissidia_adapter.cpp" \
+  "$R/Core/osk_echo.cpp" \
   "$R/Core/adapters.cpp"
 echo "build rc=$?"
 echo "=== run ==="

@@ -81,6 +81,26 @@ static int failures = 0;
 
 #define SPOKE(i) (i < NSPOKEN ? SPOKEN[i] : "<nothing>")
 
+// ---- Universal OSK reader tests: synthetic OskParams chain (verified layout:
+// params AT 0x09B3FAE4 size=64 fc=1 fields=0x09B3FB24; OskData intext/outtext
+// 0x09B3FC00, outtextlen 13). Mock maps absolute PSP addresses by masking.
+static const uint32_t OSK_P = 0x09B3FAE4u, OSK_F = 0x09B3FB24u, OSK_B = 0x09B3FC00u;
+static void putU16str(uint32_t a, const char* s)
+{
+    for (; *s; s++, a += 2) put16(a, (uint16_t)(unsigned char) *s);
+    put16(a, 0);
+}
+static void oskSetup(const char* seed)
+{
+    put32(OSK_P, 64u);
+    put32(OSK_P + 48u, 1u);
+    put32(OSK_P + 52u, OSK_F);
+    put32(OSK_F + 32u, OSK_B);
+    put32(OSK_F + 36u, 13u);
+    put32(OSK_F + 40u, OSK_B);
+    putU16str(OSK_B, seed);
+}
+
 int main(void)
 {
     const oga::Adapter* a = &oga::kDissidiaFinalFantasy;
@@ -806,6 +826,97 @@ int main(void)
     reset();
     put32(0x08B9B770u, 0u);   // manager slot dead, no title either
     CHECK(!a->ready(), "not ready with no manager and no title");
+
+    // 38. OSK toggle refused when the params chain is absent.
+    reset();
+    put32(0x08B9B770u, 0u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::OskToggle);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name entry is not open.") == 0,
+          "osk toggle refused with no chain");
+
+    // 39. OSK toggle on seeds the prefill; WhereAmI reads name + cursor.
+    reset();
+    oskSetup("PPSSPP");
+    CHECK(a->ready(), "osk ready via params chain");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::OskToggle);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Player name. Type your name.") == 0,
+          "osk toggle entry line");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Player name entry. Name P P S S P P. Cursor on 1.") == 0,
+          "osk where with prefill");
+
+    // 40. D-pad echo walks the grid (Right 0->1, Down 1->13, Left 13->12,
+    // Up 12->0).
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuRight);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "2. Row 1 of 5. Column 2 of 12.") == 0,
+          "osk right to 2");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "w. Row 2 of 5. Column 2 of 12.") == 0,
+          "osk down to w");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuLeft);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "q. Row 2 of 5. Column 1 of 12.") == 0,
+          "osk left to q");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuPrev);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "1. Row 1 of 5. Column 1 of 12.") == 0,
+          "osk up back to 1");
+
+    // 41. Type with the game buffer in agreement speaks the echo line.
+    putU16str(OSK_B, "PPSSPP1");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::OskType);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "1. Name P P S S P P 1.") == 0,
+          "osk type grounded");
+
+    // 42. Type with a stale buffer resyncs to RAM and says so.
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::OskDelete);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name P P S S P P 1.") == 0,
+          "osk delete mismatch resyncs to RAM");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Player name entry. Name P P S S P P 1. Cursor on 1.") == 0,
+          "osk mirror follows RAM after resync");
+
+    // 43. Finish announces the final name and stops tracking.
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::OskFinish);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name P P S S P P 1.") == 0,
+          "osk finish announces name");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::OskType);
+    CHECK(NSPOKEN == 0, "osk type silent after finish");
+
+    // 44. Play Plan validating mid-track auto-exits with the final name.
+    reset();
+    oskSetup("PPSSPP");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::OskToggle);
+    put32(0x09B3FA30u, 0u); put32(0x09B3FA38u, 2u);  // Play Plan Casual
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name P P S S P P.") == 0,
+          "osk auto-exit announces name on Play Plan");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Play Plan. Casual. Row 1 of 3.") == 0,
+          "play plan speaks after osk exit");
+
+    // 45. Toggle off announces the final name.
+    reset();
+    oskSetup("AB");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::OskToggle);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::OskToggle);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name A B.") == 0,
+          "osk toggle off announces name");
 
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
