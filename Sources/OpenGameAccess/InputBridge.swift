@@ -51,6 +51,20 @@ enum InputBridge {
         let raw = button.rawValue
         if down { held.insert(raw) } else { held.remove(raw) }
         session?.setButton(raw, down: down)
+        // Universal OSK echo: the pad button the game also received is echoed
+        // to the reader on the down-edge. Pad ids are console-mapped by the
+        // core (A confirms everywhere — Cross on PSP), so one mapping serves
+        // every system; adapters without a live OSK ignore these silently.
+        if down {
+            switch button {
+            case .a: session?.forwardPadCommand(.oskType)
+            case .b: session?.forwardPadCommand(.oskDelete)
+            case .x: session?.forwardPadCommand(.oskSpace)
+            case .start: session?.forwardPadCommand(.oskFinish)
+            case .select: session?.forwardPadCommand(.oskShift)
+            default: break
+            }
+        }
     }
 
     /// Hotkeys are edge-triggered by the script: send down, then up a frame or

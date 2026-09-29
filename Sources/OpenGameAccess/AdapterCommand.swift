@@ -62,6 +62,15 @@ enum AdapterCommand: Int32, CaseIterable {
     case exQteCross = 28
     case exBurstGoMash = 29
     case exBurstLevel = 30
+    /// Universal PPSSPP OSK reader. OskToggle is a player button (tap on OSK
+    /// entry and exit, like custToggle); the rest are auto-forwarded by the
+    /// host on game-pad down-edges and stay out of supported(adapterID:).
+    case oskToggle = 31
+    case oskType = 32
+    case oskDelete = 33
+    case oskSpace = 34
+    case oskShift = 35
+    case oskFinish = 36
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -98,6 +107,12 @@ enum AdapterCommand: Int32, CaseIterable {
         case .exQteCross: return "QTE Cross"
         case .exBurstGoMash: return "Mash Burst Go"
         case .exBurstLevel: return "Burst Level"
+        case .oskToggle: return "Name entry"
+        case .oskType: return "OSK type"
+        case .oskDelete: return "OSK delete"
+        case .oskSpace: return "OSK space"
+        case .oskShift: return "OSK shift"
+        case .oskFinish: return "OSK finish"
         }
     }
 
@@ -168,6 +183,18 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Mash-type Burst started: mash the button."
         case .exBurstLevel:
             return "Mash-type Burst power level up."
+        case .oskToggle:
+            return "Tracks the system name-entry keyboard. Tap when it opens and when leaving it."
+        case .oskType:
+            return "Sent when the player presses Cross on the name-entry keyboard."
+        case .oskDelete:
+            return "Sent when the player presses Circle on the name-entry keyboard."
+        case .oskSpace:
+            return "Sent when the player presses Square on the name-entry keyboard."
+        case .oskShift:
+            return "Sent when the player presses Select on the name-entry keyboard."
+        case .oskFinish:
+            return "Sent when the player presses Start on the name-entry keyboard."
         }
     }
 
@@ -205,6 +232,12 @@ enum AdapterCommand: Int32, CaseIterable {
         case .exQteCross: return "xmark"
         case .exBurstGoMash: return "repeat"
         case .exBurstLevel: return "arrow.up"
+        case .oskToggle: return "keyboard"
+        case .oskType: return "character"
+        case .oskDelete: return "delete.left"
+        case .oskSpace: return "space"
+        case .oskShift: return "shift"
+        case .oskFinish: return "checkmark"
         }
     }
 
@@ -244,10 +277,10 @@ enum AdapterCommand: Int32, CaseIterable {
 
         case "dissidia":
             // Dissidia PSP: location, menu-row navigation, Customize tracking,
-            // and debug dump are real. menuState is host-programmatic (menu
-            // tracker), not a button.
+            // name-entry tracking, and debug dump are real. menuState is
+            // host-programmatic (menu tracker), not a button.
             return [.whereAmI, .menuNext, .menuPrev, .menuLeft, .menuRight,
-                    .custToggle, .charToggle, .dumpState]
+                    .custToggle, .charToggle, .oskToggle, .dumpState]
 
         default:
             return []

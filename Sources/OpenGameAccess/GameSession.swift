@@ -374,6 +374,16 @@ final class GameSession: ObservableObject {
         }
     }
 
+    /// Forward a game-pad down-edge to the native reader for OSK echo.
+    ///
+    /// Silent by contract: adapters that are not tracking an OSK ignore these
+    /// commands, and a not-ready core drops them without the refusal speech —
+    /// announcing "not ready" on every Cross press would be chatter, not help.
+    func forwardPadCommand(_ command: AdapterCommand) {
+        guard let core, adapterReady else { return }
+        _ = poke_command(core, command.rawValue)
+    }
+
     private func refreshFramebuffer() {
         guard let core else { return }
         var w: Int32 = 0

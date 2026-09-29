@@ -92,6 +92,7 @@ compile() {
   for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
+  printf '%s|cxx|osk_echo\n'  "$ROOT/Core/osk_echo.cpp"
   printf '%s|cxx|adapters\n'     "$ROOT/Core/adapters.cpp"
   printf '%s|cxx|announce\n'     "$ROOT/Core/announce.cpp"
 } > "$OBJ/list.txt"

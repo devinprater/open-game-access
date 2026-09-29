@@ -47,9 +47,14 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   D-pad re-reads, and the still-not-ready neither-live case. Needs on-device
   re-proof with the same CSO (title row should now speak on Where-Am-I and
   on D-pad moves).
-- [ ] **Dissidia name-entry reader:** New Game's name entry has no adapter
-  coverage (title rows are fingerprinted; name entry is not). Silence there
-  is a coverage gap, not a lock-on failure.
+- [x] **Dissidia name-entry reader:** implemented as the universal PPSSPP OSK
+  reader (`Core/osk_echo.h/.cpp` input-echo engine + `OskToggle/Type/Delete/
+  Space/Shift/Finish` commands, `oga::Command::OskToggle..OskFinish`): Dissidia
+  wires it with guest-buffer grounding (`OskParams` 0x09B3FAE4 chain, outtext
+  0x09B3FC00 revalidated every use) and Play-Plan auto-exit; iOS auto-forwards
+  pad A/B/X/Start/Select on the down-edge (silent unless OSK live). Host tests:
+  `scripts/osk-echo-test.sh` + 8 OSK cases in the Dissidia suite, full
+  `scripts/adapter-tests.sh` green. Needs on-device proof with the same CSO.
 - [ ] **FE11 menu reader:** the Shadow Dragon adapter's ready gate is map
   state only, so the title screen, menus, and pre-chapter flow sit at
   "reader loading" forever (confirmed on-device 2026-09-27, YFEE ROM from

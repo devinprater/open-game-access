@@ -21,7 +21,7 @@ rm -f "$OUT"
 if ! g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 \
     -Wno-everything -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" -std=c++17 \
     -o "$OUT" Core/dbz_adapter_test.cpp Core/dbz_adapter.cpp \
-    Core/dissidia_adapter.cpp Core/adapters.cpp -lpthread -ldl -lm; then
+    Core/dissidia_adapter.cpp Core/osk_echo.cpp Core/adapters.cpp -lpthread -ldl -lm; then
   echo "!! test failed to build" >&2
   exit 1
 fi
