@@ -759,6 +759,54 @@ int main(void)
     a->command(oga::Command::MenuNext);
     CHECK(NSPOKEN == 0, "charsel nav silent after exit");
 
+    // ---- Title/setup WITHOUT the manager (on-device title gate; s-title-diag) ----
+    // On-device the manager slot is not live on the pre-game title, which left
+    // the New/Load title silent behind "Game state is not ready yet." The
+    // title/setup screens are fingerprinted readers: ready + speaking there
+    // must not depend on the manager.
+    reset();
+    put32(0x08B9B770u, 0u);   // manager slot dead
+    {
+        const uint32_t TT = 0x09DA8D80u, TW = 0x08C18000u;
+        put32(TT + 0x0Cu, 4u);
+        put32(TT + 0x20u, 1u);
+        put32(TT + 0x24u, 0x00190012u);
+        put32(0x09A3F0C8u, 1u);
+        put32(0x09D8E900u, TW);
+        put32(TW, 0x09D90728u);
+        put32(TW + 0x0Cu, 4u);
+        put32(0x09D90728u + 4u, TW);
+        put32(0x09A3F0CCu, 0u);
+    }
+    CHECK(a->ready(), "title ready without manager");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "New Game. Row 1 of 3.") == 0,
+          "title speaks without manager");
+    // D-pad nav re-reads the title cursor (RAM, no tracking to desync).
+    put32(0x09A3F0CCu, 1u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
+          "title MenuNext re-reads row");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuPrev);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
+          "title MenuPrev re-reads row");
+    // Play Plan without manager: same gate.
+    reset();
+    put32(0x08B9B770u, 0u);   // manager slot dead
+    put32(0x09B3FA30u, 2u); put32(0x09B3FA38u, 2u);
+    CHECK(a->ready(), "play plan ready without manager");
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Play Plan. Hardcore. Row 3 of 3.") == 0,
+          "play plan speaks without manager");
+    // Neither title nor manager: genuinely not ready.
+    reset();
+    put32(0x08B9B770u, 0u);   // manager slot dead, no title either
+    CHECK(!a->ready(), "not ready with no manager and no title");
+
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
     return failures != 0;
