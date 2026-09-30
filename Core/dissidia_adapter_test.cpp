@@ -918,6 +918,127 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name A B.") == 0,
           "osk toggle off announces name");
 
+    // ---- Frame-polled auto-speech watch (menus speak without a tap) ----
+    // on_frame runs every emulated frame via poke_frame. Two consecutive
+    // validations before speaking (flicker guard); silence on steady rows.
+    // 46. title entry speaks after two frames, then stays silent
+    reset();
+    CHECK(a->attach(&HOST), "watch attach");
+    put32(TT + 0x0Cu, 4u);
+    put32(TT + 0x20u, 1u);
+    put32(TT + 0x24u, 0x00190012u);
+    put32(0x09A3F0C8u, 1u);
+    put32(0x09D8E900u, TW);
+    put32(TW, 0x09D90728u);
+    put32(TW + 0x0Cu, 4u);
+    put32(0x09D90728u + 4u, TW);
+    put32(0x09A3F0CCu, 0u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN == 0, "watch silent on first sighting");
+    a->on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "New Game. Row 1 of 3.") == 0,
+          "watch speaks title entry");
+
+    // 47. steady row stays silent; cursor move speaks after two frames
+    a->on_frame();
+    CHECK(NSPOKEN == 1, "watch silent on steady row");
+    put32(0x09A3F0CCu, 1u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN == 0, "watch silent on first changed frame");
+    a->on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
+          "watch speaks cursor move");
+
+    // 48. broken fingerprints silence the watch; restore re-announces
+    put32(0x09A3F0C8u, 0u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 0, "watch silent when fingerprints break");
+    put32(0x09A3F0C8u, 1u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
+          "watch re-announces after restore");
+
+    // 49. main-menu entry announces row 1 (TITLE_CURSOR 8 + live A10 chain)
+    reset();
+    CHECK(a->attach(&HOST), "watch attach main");
+    put32(0x09A3F0CCu, 8u);
+    put32(0x09B3FA10u, 0x08C18100u);
+    put32(0x08C18100u, 0x08C18200u);
+    put32(0x08C18208u, 0x08C18300u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Story Mode. Row 1 of 8.") == 0,
+          "watch announces main-menu entry");
+
+    // 50. a live board suspends the watch (cursor could be stale menu pins)
+    put32(BROOT + 0x118u, 0x08C18400u);
+    put32(0x08C18400u + 0x04u, 0x08C18500u);
+    put32(0x08C18500u + 0x10u, 0x08C18600u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 0, "watch silent on live board");
+    put32(BROOT + 0x118u, 0u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Story Mode. Row 1 of 8.") == 0,
+          "watch resumes after board clears");
+
+    // 51. a live battle suspends the watch even with title pins set
+    reset();
+    CHECK(a->attach(&HOST), "watch attach battle");
+    put32(TT + 0x0Cu, 4u);
+    put32(TT + 0x20u, 1u);
+    put32(TT + 0x24u, 0x00190012u);
+    put32(0x09A3F0C8u, 1u);
+    put32(0x09D8E900u, TW);
+    put32(TW, 0x09D90728u);
+    put32(TW + 0x0Cu, 4u);
+    put32(0x09D90728u + 4u, TW);
+    put32(0x09A3F0CCu, 0u);
+    put32(0x08B955A0u, 0x08C19000u);
+    put32(0x08C19000u + 0x14u, 0x08C19100u);
+    put32(0x08C19100u + 0x51Cu, 0x08C19200u);
+    put16(0x08C19200u + 0x08u, 5000u);
+    put16(0x08C19200u + 0x02u, 0u);
+    put16(0x08C19200u + 0x0Eu, 100u);
+    put16(0x08C19200u + 0x10u, 100u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 0, "watch silent in battle");
+    put32(0x08B955A0u, 0u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "New Game. Row 1 of 3.") == 0,
+          "watch resumes after battle clears");
+
+    // 52. YES/NO dialog appearance auto-speaks the selection
+    reset();
+    CHECK(a->attach(&HOST), "watch attach dialog");
+    put32(DLG_SLOT, 1u);
+    putf(DLG_X, 119.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "watch announces dialog entry");
+    putf(DLG_X, 266.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
+          "watch announces dialog move");
+
+    // 53. options-menu entry announces row 1
+    reset();
+    CHECK(a->attach(&HOST), "watch attach options");
+    put32(0x09B3FCA4u, 6u); put32(0x09B3FCACu, 8u); put32(0x09B43468u, 4u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Battle Tutorials. Row 1 of 23.") == 0,
+          "watch announces options entry");
+
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
     return failures != 0;

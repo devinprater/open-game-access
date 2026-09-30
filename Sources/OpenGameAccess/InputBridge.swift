@@ -62,6 +62,14 @@ enum InputBridge {
             case .x: session?.forwardPadCommand(.oskSpace)
             case .start: session?.forwardPadCommand(.oskFinish)
             case .select: session?.forwardPadCommand(.oskShift)
+            // Tracked-menu echo: the game also received this D-pad edge, so the
+            // reader moves its own cursor alongside it (the MenuNext/Prev/Left/
+            // Right contract in Core/adapter.h). Silent: adapters with no tracked
+            // menu ignore these; RAM-gated menus just re-announce the settled row.
+            case .up: session?.forwardPadCommand(.menuPrev)
+            case .down: session?.forwardPadCommand(.menuNext)
+            case .left: session?.forwardPadCommand(.menuLeft)
+            case .right: session?.forwardPadCommand(.menuRight)
             default: break
             }
         }
