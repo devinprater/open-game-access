@@ -1469,8 +1469,9 @@ bool poke_frame(PokeCore* core)
         if (!core->psp) return false;
         if (!psp_frame(core->psp)) return false;
         core->frameCounter++;
-        // Same per-frame handshake; Dissidia's on_frame is a no-op (it polls
-        // on demand), but future PSP adapters may track state here.
+        // Same per-frame handshake; Dissidia's on_frame runs its automatic
+        // menu-speech watch here (identity change = speak), so menus announce
+        // without a reader-control tap.
         if (core->adapterAttached && core->adapter && core->adapter->on_frame)
             core->adapter->on_frame();
         return true;

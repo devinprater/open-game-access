@@ -5,6 +5,8 @@
  *   the pre-game title menu speaks its three rows via fingerprints (s1xx),
  *   Data Setup > Play Plan speaks Casual/Average/Hardcore (sN3-N6),
  *   Data Setup > Bonus Day speaks Mon..Sun (sS1-S3).
+ *   All of those menus auto-speak on cursor change through the
+ *   frame-polled identity watch in OnFrame (no tap needed).
  *
  * VERIFIED MAP (all confirmed against live RAM + decompile):
  *   TEXT_POOL   0x09D16A68  UTF-16LE menu/UI strings, one flag byte per entry
@@ -1192,7 +1194,78 @@ static bool Ready(void)
     return ManagerOk();
 }
 
-static void OnFrame(void) { /* nothing per-frame: this adapter polls on demand */ }
+// ---- Automatic menu speech: the frame-polled identity watch ----
+// Reader controls are player-tapped, and no Menu command arrives between taps,
+// so menus stayed silent while the player moved (title tap-to-read diagnosis).
+// poke_frame already drives on_frame every emulated frame, so the watch lives
+// here: re-validate the cheap menu gates each frame and speak when the
+// (screen, index) identity changes. Screen-text rules: compare identities, not
+// texts; confirm on two consecutive frames (flicker guard, one frame = 16 ms);
+// reset on screen change; treat first sighting as a change. Battle, board, and
+// the player-toggled trackers (customize/charselect/OSK) suspend the watch --
+// those paths keep their own speech. Say() dedups identical repeats, so a
+// watch line plus a later identical command line never double-speaks.
+enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN, WS_OPTIONS };
+static int g_wsScreen = WS_NONE;
+static int g_wsIndex = -1;
+static int g_wsStable = 0;
+static void WatchSpeak(int s, int i)
+{
+    char line[96];
+    switch (s) {
+        case WS_DIALOG: DlgSpeak(); return;
+        case WS_BONUS:
+            snprintf(line, sizeof(line), "Bonus Day. %s. Row %d of 7.",
+                     kBonusEntries[i], i + 1);
+            Say(line); return;
+        case WS_PLAY:
+            snprintf(line, sizeof(line), "Play Plan. %s. Row %d of 3.",
+                     kPlayEntries[i], i + 1);
+            Say(line); return;
+        case WS_TITLE:
+            snprintf(line, sizeof(line), "%s. Row %d of 3.",
+                     kTitleEntries[i], i + 1);
+            Say(line); return;
+        case WS_MAIN: MenuSpeakRow(); return;
+        case WS_OPTIONS: OptSpeakRow(); return;
+        default: return;
+    }
+}
+static void WatchReset(void) { g_wsScreen = WS_NONE; g_wsIndex = -1; g_wsStable = 0; }
+static void OnFrame(void)
+{
+    // Gameplay suspends the watch: battle first (fighter structs resolve even
+    // when board leftovers linger), then board, then the toggled trackers.
+    if (BattleFighters().ok) { WatchReset(); return; }
+    if (BoardDispatcher() != 0) { WatchReset(); return; }
+    if (g_custLive || g_charLive || g_oskLive) { WatchReset(); return; }
+    MenuSync(); OptSync();
+    int s = WS_NONE, i = -1;
+    if (AnyDialogLive()) {
+        s = WS_DIALOG;
+        i = DialogLive() ? DialogSel() : StoryDlgSel();
+    } else {
+        int bi = BonusIndex();
+        if (bi >= 0) { s = WS_BONUS; i = bi; }
+        else {
+            int pi = PlayIndex();
+            if (pi >= 0) { s = WS_PLAY; i = pi; }
+            else {
+                int ti = TitleIndex();
+                if (ti >= 0) { s = WS_TITLE; i = ti; }
+                else if (g_menuMain) { s = WS_MAIN; i = g_menuRow; }
+                else if (g_optLive) { s = WS_OPTIONS; i = g_optRow; }
+            }
+        }
+    }
+    if (s < 0) { WatchReset(); return; }
+    if (s == g_wsScreen && i == g_wsIndex) {
+        if (g_wsStable < 2) g_wsStable++;
+        if (g_wsStable >= 2) WatchSpeak(s, i);
+        return;
+    }
+    g_wsScreen = s; g_wsIndex = i; g_wsStable = 1;
+}
 
 static void Command(Command cmd)
 {
@@ -1380,6 +1453,7 @@ static bool Attach(const Host* host)
     g_custLive = false; g_custRow = 0;  // customize tracker neither
     g_charLive = false; g_charRow = 0;  // character-select tracker neither
     g_quickLive = false;  // Quickmove edge neither
+    WatchReset();  // auto-speech watch neither
     g_exReady = false;  // EX ready latch neither
     g_oskLive = false; g_osk.reset();  // OSK echo tracker neither
     for (int i = 0; i < 23; i++) g_optVal[i] = 0;

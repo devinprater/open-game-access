@@ -46,7 +46,16 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   as the YES/NO dialog nav). Host tests cover manager-dead title speech,
   D-pad re-reads, and the still-not-ready neither-live case. Needs on-device
   re-proof with the same CSO (title row should now speak on Where-Am-I and
-  on D-pad moves).
+  on D-pad moves). Update 2026-09-30: menus now speak with no tap at all --
+  the adapter gained a frame-polled identity watch (OnFrame, driven by
+  poke_frame every frame): title/setup/dialog RAM cursors plus main-menu and
+  options entry announce on change after a 2-frame confirm, battle/board and
+  the toggled trackers suspend it. iOS InputBridge now forwards D-pad edges
+  as MenuNext/Prev/Left/Right (the adapter.h contract -- previously only OSK
+  keys were forwarded, so echo-tracked menus never moved). Host tests: 8 new
+  watch cases (entry, move, steady-silence, fingerprint-break/restore, board
+  and battle suspension, dialog, options). Needs on-device re-proof: title
+  row should announce on appearance and on every D-pad move.
 - [x] **Dissidia name-entry reader:** implemented as the universal PPSSPP OSK
   reader (`Core/osk_echo.h/.cpp` input-echo engine + `OskToggle/Type/Delete/
   Space/Shift/Finish` commands, `oga::Command::OskToggle..OskFinish`): Dissidia
