@@ -64,6 +64,17 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   Future: a real RAM reader -- record format known (u16 len, u16 0x0010?,
   01 01 81 FF magic, name, 1B 0A seps, wrapped desc lines) but index scheme +
   base pointer unknown (no absolute pointers into the block).
+- [ ] **Dissidia enemy pop-up text:** the roster exists in RAM (heroes +
+  enemy titles as a length-prefixed UTF-16LE name pool, e.g. prologue-3
+  0x9C10878: Warrior of Light..Shantotto then False Stalwart..Counterfeit
+  Youth), but marker->name is unmapped. Candidates: slot+4 (enemy at (2,2)
+  reads 0x0152=338, others 0) and catalog O+0 (type0 0x8A, type2 0xCF, type5
+  0x9B) -- neither is a local/global record ordinal (falsified by count), so
+  O+0 may be a global lang message ID (needs the loader map) and slot+4 may
+  be HP/flags, not an ID at all. Enemy level also unpinned (O+20=6
+  candidate, unverified). Next: one live pass, cursor on TWO different
+  enemies, tooltip OCR as ground truth, then correlate. Until then enemies
+  stay "enemy here." -- never guess.
 - [ ] **Dissidia Tutorial-mode prompts:** tutorial fights already get the
   battle/QTE path (fighters + prompts resolve there), but the scripted
   instruction sentences ("Bravery attacks: use circle") are OCR-only with no
