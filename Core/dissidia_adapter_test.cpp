@@ -1060,7 +1060,7 @@ int main(void)
     put8(WBD + 0x194u, 6); put8(WBD + 0x195u, 2);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->on_frame(); a->on_frame();
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Stigma of Chaos here.") == 0,
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Stigma of Chaos. Engaging this piece finishes the level.") == 0,
           "watch announces stigma arrival");
     a->on_frame();
     CHECK(NSPOKEN == 1, "watch silent standing on stigma");
@@ -1072,7 +1072,7 @@ int main(void)
     put8(WBD + 0x194u, 1); put8(WBD + 0x195u, 1);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->on_frame(); a->on_frame();
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "potion here.") == 0,
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Potion. Restores HP and EX Gauge to 100%.") == 0,
           "watch announces potion arrival");
     // 56. enemy arrival (key 0 is a real marker, not absent); unknown types
     // speak as unknown with the number, never a guess

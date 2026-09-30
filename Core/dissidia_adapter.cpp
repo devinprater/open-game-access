@@ -1243,10 +1243,32 @@ static int MarkerKeyAt(int hx, int hy, const char** nameOut, uint32_t* typeOut)
     }
     return -1;
 }
-/// Board arrival speech for a packed (cell, marker) identity. Empty cells stay
-/// silent (position stays on demand via WhereAmI); a present marker speaks its
-/// verified type name only -- the pop-up description has no pinned address yet
-/// (TODO), so it is never guessed. The type number goes to the debug log.
+/// Fixed pop-up text per marker type, read verbatim from the game's own tile
+/// strings (never guessed, never paraphrased):
+///   type 4 potion: "Potion / Restores HP and EX Gauge to 100%."
+///   type 5 stigma: "Stigma of Chaos / Engaging this piece finishes the level."
+/// Verified twice: prologue-1 tooltip OCR (s109/s110) and a live prologue-3 RAM
+/// dump (UTF-16LE tile table: potion 0x9C10C3C, stigma 0x9C10D02 -- heap, moves
+/// every boot, so the TEXT is pinned, not the address). Enemy names vary per
+/// marker, so enemies keep the bare "enemy here."; unverified types stay on
+/// their number ("Unknown N here.") until their text is verified the same way.
+/// Record format for a future RAM reader: u16 len, u16 0x0010?, 01 01 81 FF
+/// magic, name, 1B 0A separators, wrapped desc lines (TODO: index scheme + base
+/// pointer -- the block carries no absolute pointers, offsets are computed).
+struct TileText { uint32_t type; const char* name; const char* desc; };
+static const TileText kTileText[] = {
+    { 4, "Potion", "Restores HP and EX Gauge to 100%." },
+    { 5, "Stigma of Chaos", "Engaging this piece finishes the level." },
+};
+static const TileText* TileTextFor(uint32_t ty)
+{
+    for (size_t i = 0; i < sizeof(kTileText) / sizeof(kTileText[0]); i++)
+        if (kTileText[i].type == ty) return &kTileText[i];
+    return nullptr;
+}
+/// Board arrival speech: the cursor reached a new (cell, marker) identity.
+/// Empty cells stay silent (position stays on demand); a present marker reads
+/// the text that pops up. Logs the type number for the debug trail.
 static void BoardArriveSpeak(int id)
 {
     int cell = id / 256;
@@ -1254,8 +1276,10 @@ static void BoardArriveSpeak(int id)
     const char* name = nullptr;
     uint32_t ty = 0xFFFFFFFFu;
     if (MarkerKeyAt(hx, hy, &name, &ty) < 0) return;  // vanished: silence
-    char line[96];
-    if (name) snprintf(line, sizeof(line), "%s here.", name);
+    const TileText* tt = (ty != 0xFFFFFFFFu) ? TileTextFor(ty) : nullptr;
+    char line[128];
+    if (tt) snprintf(line, sizeof(line), "%s. %s", tt->name, tt->desc);
+    else if (name) snprintf(line, sizeof(line), "%s here.", name);
     else if (ty != 0xFFFFFFFFu) snprintf(line, sizeof(line), "Unknown %u here.", ty);
     else snprintf(line, sizeof(line), "Unknown here.");
     Say(line);

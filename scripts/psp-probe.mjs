@@ -327,7 +327,7 @@ async function cmdPress(db) {
   const list = (args[1] || "").split(",").map(s => s.trim()).filter(Boolean);
   if (!list.length) { console.error("usage: psp-probe.mjs press cross[,circle...]"); process.exit(2); }
   for (const b of list) {
-    await db.press([b]);
+    await db.press(b);
     process.stdout.write(`  pressed ${b} (${HOLD_FRAMES} frames)\n`);
     await new Promise(r => setTimeout(r, 120));
   }
