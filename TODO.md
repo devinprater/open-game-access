@@ -56,11 +56,14 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   watch cases (entry, move, steady-silence, fingerprint-break/restore, board
   and battle suspension, dialog, options). Needs on-device re-proof: title
   row should announce on appearance and on every D-pad move.
-- [ ] **Dissidia board pop-up descriptions:** arrivals announce the verified
-  type name only ("Stigma of Chaos here.") because the pop-up sentence has no
-  pinned address (s110 tile text seen, unaddressed). Next: with the cursor on
-  a stigma, scan for the description string and pin its table, then read it
-  tersely on arrival.
+- [x] **Dissidia board pop-up descriptions:** arrivals read the pop-up verbatim
+  from a pinned per-type TEXT table ("Stigma of Chaos. Engaging this piece
+  finishes the level." / "Potion. Restores HP and EX Gauge to 100%."). Text
+  verified twice (s109/s110 tooltip OCR + live prologue-3 RAM tile table at
+  0x9C10C3C/0x9C10D02 -- heap, moves per boot, so TEXT is pinned, not address).
+  Future: a real RAM reader -- record format known (u16 len, u16 0x0010?,
+  01 01 81 FF magic, name, 1B 0A seps, wrapped desc lines) but index scheme +
+  base pointer unknown (no absolute pointers into the block).
 - [ ] **Dissidia Tutorial-mode prompts:** tutorial fights already get the
   battle/QTE path (fighters + prompts resolve there), but the scripted
   instruction sentences ("Bravery attacks: use circle") are OCR-only with no
