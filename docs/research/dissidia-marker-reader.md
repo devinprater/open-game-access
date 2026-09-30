@@ -32,6 +32,10 @@ digits. Blue lock-on reticle/arrows are separate (enemy location).
 
 ## Reader design (v1, honest)
 
+Update 2026-09-30: battles stay silent except QTE prompts (player rule),
+so chevron sightings no longer announce; the detector spec below is kept
+for the edge/latch path, which stays silent.
+
 Announce chevron appearance with screen direction: "Marker left" =
 someone is behind geometry that way. Usually the opponent (player is
 usually the visible one); when the camera is clipped it can be the

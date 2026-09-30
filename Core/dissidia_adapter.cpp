@@ -6,7 +6,10 @@
  *   Data Setup > Play Plan speaks Casual/Average/Hardcore (sN3-N6),
  *   Data Setup > Bonus Day speaks Mon..Sun (sS1-S3).
  *   All of those menus auto-speak on cursor change through the
- *   frame-polled identity watch in OnFrame (no tap needed).
+ *   frame-polled identity watch in OnFrame (no tap needed); the board
+ *   cursor announces marker arrivals ("Stigma of Chaos here.").
+ *   Battles stay silent except QTE prompts; every line uses the fewest
+ *   syllables that still make sense.
  *
  * VERIFIED MAP (all confirmed against live RAM + decompile):
  *   TEXT_POOL   0x09D16A68  UTF-16LE menu/UI strings, one flag byte per entry
@@ -378,11 +381,11 @@ static const char* MarkerTypeName(uint32_t cobj, uint32_t key, uint32_t* typeOut
 
 static void CmdDirections(void)
 {
-    if (!ManagerOk()) { Say("Game not ready yet."); return; }
+    if (!ManagerOk()) { Say("Not ready."); return; }
     uint32_t d = BoardDispatcher();
-    if (!d) { Say("Board not available."); return; }
+    if (!d) { Say("No board."); return; }
     Grid g = BoardGrid(BoardBundle());
-    if (!g.ok) { Say("Board map unreadable."); return; }
+    if (!g.ok) { Say("Board unreadable."); return; }
     int hx = u8(d + OFF_HX), hy = u8(d + OFF_HY);
     if (hx > 60 || hy > 60) { Say("Cursor unreadable."); return; }
     static const char* names[4] = {"west", "east", "north", "south"};
@@ -398,7 +401,7 @@ static void CmdDirections(void)
     }
     char line[160];
     if (!open[0]) {
-        snprintf(line, sizeof(line), "No open direction. Blocked: %s.", shut);
+        snprintf(line, sizeof(line), "Blocked: %s.", shut);
     } else if (!shut[0]) {
         snprintf(line, sizeof(line), "Open: %s.", open);
     } else {
@@ -411,13 +414,13 @@ static void CmdDirections(void)
 
 static void CmdMarkers(void)
 {
-    if (!ManagerOk()) { Say("Game not ready yet."); return; }
+    if (!ManagerOk()) { Say("Not ready."); return; }
     uint32_t b = BoardBundle();
-    if (!b) { Say("Board not available."); return; }
+    if (!b) { Say("No board."); return; }
     uint32_t t = u32(b + OFF_T);
-    if (!InRam(t) || (t & 3)) { Say("Board not available."); return; }
+    if (!InRam(t) || (t & 3)) { Say("No board."); return; }
     uint32_t n = u32(t + 4);
-    if (!InRam(n) || (n & 3)) { Say("Board not available."); return; }
+    if (!InRam(n) || (n & 3)) { Say("No board."); return; }
     uint32_t d = BoardDispatcher();
     int hx = -1, hy = -1;
     if (d) { hx = u8(d + OFF_HX); hy = u8(d + OFF_HY); }
@@ -437,9 +440,9 @@ static void CmdMarkers(void)
         if (name) {
             snprintf(what, sizeof(what), "%s", name);
         } else if (ty != 0xFFFFFFFFu) {
-            snprintf(what, sizeof(what), "unknown object type %u", ty);
+            snprintf(what, sizeof(what), "unknown %u", ty);
         } else {
-            snprintf(what, sizeof(what), "special tile");
+            snprintf(what, sizeof(what), "tile");
         }
         if (found == 1) {
             if (hx >= 0 && mx == hx && my == hy) {
@@ -453,7 +456,7 @@ static void CmdMarkers(void)
                          dx < 0 ? "west" : (dx > 0 ? "east" : ""));
                 int dist = (dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy);
                 snprintf(line, sizeof(line),
-                         "%s %s %d units away at %d, %d.",
+                         "%s %s %d away at %d, %d.",
                          what, dir[0] ? dir : "here", dist, mx, my);
             } else {
                 snprintf(line, sizeof(line),
@@ -463,15 +466,15 @@ static void CmdMarkers(void)
         }
     }
     if (!found) {
-        Say("No special tiles recorded.");
+        Say("No tiles.");
         return;
     }
     if (found > 1) {
-        snprintf(line, sizeof(line), "%d special tiles. First announced.", found);
+        snprintf(line, sizeof(line), "%d tiles. First spoken.", found);
         Say(line, false);
     }
     // NOTE: unlisted catalog types speak as "unknown object type N"; an unreadable
-    // catalog speaks as "special tile". Names are never guessed (s110).
+    // catalog speaks as "tile". Names are never guessed (s110).
 }
 
 /// Authoritative DP (s16 progress record). Returns -1000 when unreadable.
@@ -530,7 +533,7 @@ static bool SpeakTitleSetup(void)
 static void CmdWhereAmI(void)
 {
     if (SpeakTitleSetup()) return;
-    if (!ManagerOk()) { Say("Game not ready yet."); return; }
+    if (!ManagerOk()) { Say("Not ready."); return; }
     // Board first when no menu widget is live: pause widget validates itself
     // (count 1..7), so a live pause menu still wins via the pinned root below.
     if (!g_widgetRoot) {
@@ -553,7 +556,7 @@ static void CmdWhereAmI(void)
         g_widgetRoot = 0;
     }
     uint32_t d = BoardDispatcher();
-    if (!d) { Say("Menu not tracked yet."); return; }
+    if (!d) { Say("Not tracked yet."); return; }
     int dp = BoardDP();
     uint32_t hx = u8(d + OFF_HX), hy = u8(d + OFF_HY);
     uint32_t org = u32(d + OFF_DORG);
@@ -561,15 +564,15 @@ static void CmdWhereAmI(void)
     if (InRam(org)) { ox = u8(org + 2); oy = u8(org + 3); }
     char line[128];
     if (hx > 60 || hy > 60 || ox > 60 || oy > 60) {
-        Say("Board state unreadable.");
+        Say("Board unreadable.");
         return;
     }
     if (dp == -1000) {
-        snprintf(line, sizeof(line), "Cursor %u, %u. Origin %u, %u.", hx, hy, ox, oy);
+        snprintf(line, sizeof(line), "%u, %u. Origin %u, %u.", hx, hy, ox, oy);
     } else if (hx == ox && hy == oy) {
-        snprintf(line, sizeof(line), "DP %d. Cursor home at %u, %u.", dp, hx, hy);
+        snprintf(line, sizeof(line), "DP %d. Home %u, %u.", dp, hx, hy);
     } else {
-        snprintf(line, sizeof(line), "DP %d. Cursor %u, %u. Origin %u, %u.",
+        snprintf(line, sizeof(line), "DP %d. %u, %u. Origin %u, %u.",
                  dp, hx, hy, ox, oy);
     }
     Say(line);
@@ -892,13 +895,13 @@ static uint32_t FighterHP(const Fighter& f)
 static void CmdBattleSelf(void)
 {
     Battle b = BattleFighters();
-    if (!b.ok) { Say("No battle in progress."); return; }
+    if (!b.ok) { Say("No battle."); return; }
     char line[128];
     if (FighterHP(b.self) == 0) {
-        Say("You are down. Retry or flee.");
+        Say("Down. Retry or flee.");
         return;
     }
-    snprintf(line, sizeof(line), "HP %u of %u. Bravery %d. EX %d percent.",
+    snprintf(line, sizeof(line), "HP %u of %u. Bravery %d. EX %d.",
              FighterHP(b.self), b.self.hpMax, b.self.brv,
              (int) (b.self.ex / 100.0f));
     Say(line);
@@ -920,7 +923,7 @@ static float VecDist(float x0, float y0, float z0, float x1, float y1, float z1)
 static void CmdBattleFoe(void)
 {
     Battle b = BattleFighters();
-    if (!b.ok || !b.foe.ok) { Say("No opponent tracked."); return; }
+    if (!b.ok || !b.foe.ok) { Say("No opponent."); return; }
     float d = VecDist(b.self.x, b.self.y, b.self.z, b.foe.x, b.foe.y, b.foe.z);
     float dy = b.foe.y - b.self.y;
     char vert[16];
@@ -928,7 +931,7 @@ static void CmdBattleFoe(void)
     else if (dy < -5.0f) snprintf(vert, sizeof(vert), ", below you");
     else vert[0] = 0;
     char line[192];
-    snprintf(line, sizeof(line), "Enemy: HP %u of %u. Bravery %d. %d units away%s.",
+    snprintf(line, sizeof(line), "Enemy HP %u of %u. Bravery %d. %d away%s.",
              FighterHP(b.foe), b.foe.hpMax, b.foe.brv, (int) d, vert);
     Say(line);
 }
@@ -941,7 +944,7 @@ static void CmdBattleFoe(void)
 static void CmdLock(void)
 {
     Battle b = BattleFighters();
-    if (!b.ok) { Say("No battle in progress."); return; }
+    if (!b.ok) { Say("No battle."); return; }
     uint32_t m = u32(BATTLE_MGR_HOLDER);
     uint32_t enemy = u32(b.self.p + OFF_PAIR);
     uint32_t tgt = u32(b.self.p + 0x2ECu);
@@ -951,9 +954,9 @@ static void CmdLock(void)
         return;
     }
     if (tgt == enemy) {
-        if (!b.foe.ok) { Say("No opponent tracked."); return; }
+        if (!b.foe.ok) { Say("No opponent."); return; }
         float d = VecDist(b.self.x, b.self.y, b.self.z, b.foe.x, b.foe.y, b.foe.z);
-        snprintf(line, sizeof(line), "Locked on the enemy. %d units away.", (int) d);
+        snprintf(line, sizeof(line), "Locked. %d away.", (int) d);
         Say(line);
         return;
     }
@@ -968,24 +971,24 @@ static void CmdLock(void)
         }
     }
     if (!listed) {
-        Say("Lock target lost.");
+        Say("Lock lost.");
         return;
     }
     if (tgt == b.self.p) {
-        Say("Lock target lost.");
+        Say("Lock lost.");
         return;
     }
     if (!InRam(tgt + 0x88u)) {
-        Say("Lock target lost.");
+        Say("Lock lost.");
         return;
     }
     float tx = f32(tgt + OFF_PX), ty = f32(tgt + OFF_PY), tz = f32(tgt + OFF_PZ);
     if (tx != tx || ty != ty || tz != tz) {
-        Say("Lock target lost.");
+        Say("Lock lost.");
         return;
     }
     float d = VecDist(b.self.x, b.self.y, b.self.z, tx, ty, tz);
-    snprintf(line, sizeof(line), "Locked on the EX core. %d units away.", (int) d);
+    snprintf(line, sizeof(line), "EX core. %d away.", (int) d);
     Say(line);
     // BEACON CONTRACT (app audio layer, not this adapter): while locked, the target
     // stays centered; the app beeps low with rate rising as this distance closes.
@@ -1089,7 +1092,7 @@ static std::string OskReadText(uint32_t addr, int units)
 
 static void OskSayName(const std::string& t)
 {
-    if (t.empty()) { Say("Name is empty."); return; }
+    if (t.empty()) { Say("Name empty."); return; }
     char line[192];
     snprintf(line, sizeof(line), "Name %s.", OskEcho::spell(t).c_str());
     Say(line);
@@ -1131,7 +1134,7 @@ static void OskToggle(void)
     if (!OskStructLive(&t, &m)) {
         if (g_host && g_host->log)
             g_host->log(g_host->ctx, "OSK toggle refused: params chain invalid");
-        Say("Name entry is not open.");
+        Say("Not open.");
         return;
     }
     std::string seed = OskReadText(t, m + 1);
@@ -1201,14 +1204,70 @@ static bool Ready(void)
 // here: re-validate the cheap menu gates each frame and speak when the
 // (screen, index) identity changes. Screen-text rules: compare identities, not
 // texts; confirm on two consecutive frames (flicker guard, one frame = 16 ms);
-// reset on screen change; treat first sighting as a change. Battle, board, and
-// the player-toggled trackers (customize/charselect/OSK) suspend the watch --
-// those paths keep their own speech. Say() dedups identical repeats, so a
-// watch line plus a later identical command line never double-speaks.
-enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN, WS_OPTIONS };
+// reset on screen change; treat first sighting as a change.
+// Player speech rules: battles stay silent except QTE prompts ("Square!",
+// "Mash Circle!", directions); every other line uses the fewest syllables
+// that still make sense. Say() dedups identical repeats, so a watch line plus
+// a later identical command line never double-speaks.
+enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN, WS_OPTIONS, WS_BOARD };
 static int g_wsScreen = WS_NONE;
 static int g_wsIndex = -1;
 static int g_wsStable = 0;
+static int g_wsLoggedId = -1;  // board-arrival debug log fires on change only
+static void WatchReset(void) { g_wsScreen = WS_NONE; g_wsIndex = -1; g_wsStable = 0; g_wsLoggedId = -1; }
+/// Marker key on a board cell, or -1 when no marker sits there. The name comes
+/// from the verified catalog (MarkerTypeName); the type number rides along for
+/// the debug log. A key of 0 is a real marker (nonzero cell), never "absent".
+static int MarkerKeyAt(int hx, int hy, const char** nameOut, uint32_t* typeOut)
+{
+    if (nameOut) *nameOut = nullptr;
+    if (typeOut) *typeOut = 0xFFFFFFFFu;
+    uint32_t b = BoardBundle();
+    if (!b) return -1;
+    uint32_t t = u32(b + OFF_T);
+    if (!InRam(t) || (t & 3)) return -1;
+    uint32_t n = u32(t + 4);
+    if (!InRam(n) || (n & 3)) return -1;
+    uint32_t cobj = u32(t);
+    for (uint32_t i = 0; i < MARK_SLOTS; i++) {
+        uint32_t e = n + i * MARK_STRIDE;
+        if (!InRam(e + MARK_STRIDE - 1)) break;
+        int mx = (int) (int8_t) u8(e + 2), my = (int) (int8_t) u8(e + 3);
+        uint32_t fl = u8(e + 0x0C), key = u8(e + 0);
+        if (mx == 0 && my == 0 && fl == 0 && key == 0) continue;
+        if (mx == hx && my == hy) {
+            const char* nm = MarkerTypeName(cobj, key, typeOut);
+            if (nameOut) *nameOut = nm;
+            return (int) key;
+        }
+    }
+    return -1;
+}
+/// Board arrival speech for a packed (cell, marker) identity. Empty cells stay
+/// silent (position stays on demand via WhereAmI); a present marker speaks its
+/// verified type name only -- the pop-up description has no pinned address yet
+/// (TODO), so it is never guessed. The type number goes to the debug log.
+static void BoardArriveSpeak(int id)
+{
+    int cell = id / 256;
+    int hx = cell % 64, hy = cell / 64;
+    const char* name = nullptr;
+    uint32_t ty = 0xFFFFFFFFu;
+    if (MarkerKeyAt(hx, hy, &name, &ty) < 0) return;  // vanished: silence
+    char line[96];
+    if (name) snprintf(line, sizeof(line), "%s here.", name);
+    else if (ty != 0xFFFFFFFFu) snprintf(line, sizeof(line), "Unknown %u here.", ty);
+    else snprintf(line, sizeof(line), "Unknown here.");
+    Say(line);
+    if (id != g_wsLoggedId) {
+        g_wsLoggedId = id;
+        if (g_host && g_host->log) {
+            char lg[96];
+            snprintf(lg, sizeof(lg), "board arrival type %u at %d,%d.", ty, hx, hy);
+            g_host->log(g_host->ctx, lg);
+        }
+    }
+}
 static void WatchSpeak(int s, int i)
 {
     char line[96];
@@ -1228,23 +1287,36 @@ static void WatchSpeak(int s, int i)
             Say(line); return;
         case WS_MAIN: MenuSpeakRow(); return;
         case WS_OPTIONS: OptSpeakRow(); return;
+        case WS_BOARD: BoardArriveSpeak(i); return;
         default: return;
     }
 }
-static void WatchReset(void) { g_wsScreen = WS_NONE; g_wsIndex = -1; g_wsStable = 0; }
+/// Confirm an identity: two consecutive frames before speaking; anything else
+/// resets. First sighting counts as a change (announces entries, not just moves).
+static void WatchOk(int s, int i)
+{
+    if (s < 0) { WatchReset(); return; }
+    if (s == g_wsScreen && i == g_wsIndex) {
+        if (g_wsStable < 2) g_wsStable++;
+        if (g_wsStable >= 2) WatchSpeak(s, i);
+        return;
+    }
+    g_wsScreen = s; g_wsIndex = i; g_wsStable = 1;
+}
 static void OnFrame(void)
 {
-    // Gameplay suspends the watch: battle first (fighter structs resolve even
-    // when board leftovers linger), then board, then the toggled trackers.
+    // Battles stay silent except QTE prompts: no watch here at all.
     if (BattleFighters().ok) { WatchReset(); return; }
-    if (BoardDispatcher() != 0) { WatchReset(); return; }
     if (g_custLive || g_charLive || g_oskLive) { WatchReset(); return; }
-    MenuSync(); OptSync();
-    int s = WS_NONE, i = -1;
+    // Modal YES/NO wins over whatever sits underneath (pause, board, options).
     if (AnyDialogLive()) {
-        s = WS_DIALOG;
-        i = DialogLive() ? DialogSel() : StoryDlgSel();
-    } else {
+        WatchOk(WS_DIALOG, DialogLive() ? DialogSel() : StoryDlgSel());
+        return;
+    }
+    uint32_t bd = BoardDispatcher();
+    if (bd == 0) {
+        MenuSync(); OptSync();
+        int s = WS_NONE, i = -1;
         int bi = BonusIndex();
         if (bi >= 0) { s = WS_BONUS; i = bi; }
         else {
@@ -1257,14 +1329,17 @@ static void OnFrame(void)
                 else if (g_optLive) { s = WS_OPTIONS; i = g_optRow; }
             }
         }
-    }
-    if (s < 0) { WatchReset(); return; }
-    if (s == g_wsScreen && i == g_wsIndex) {
-        if (g_wsStable < 2) g_wsStable++;
-        if (g_wsStable >= 2) WatchSpeak(s, i);
+        WatchOk(s, i);
         return;
     }
-    g_wsScreen = s; g_wsIndex = i; g_wsStable = 1;
+    // Board arrival watch: identity is (cell, marker key-or-absent), so moves
+    // across empty cells and standing still both stay silent while arriving on
+    // a marker speaks it. Manager-gated like the on-demand marker list.
+    if (!ManagerOk()) { WatchReset(); return; }
+    int hx = u8(bd + OFF_HX), hy = u8(bd + OFF_HY);
+    if (hx > 60 || hy > 60) { WatchReset(); return; }
+    int key = MarkerKeyAt(hx, hy, nullptr, nullptr);
+    WatchOk(WS_BOARD, (hy * 64 + hx) * 256 + (key + 1));
 }
 
 static void Command(Command cmd)
@@ -1274,32 +1349,34 @@ static void Command(Command cmd)
     // during battle, so board-first would speak stale cursor garbage mid-fight.
     bool battle = BattleFighters().ok;
     if (cmd == Command::CustToggle) {
-        if (battle) { g_custLive = false; Say("Customize menu is not open."); return; }
+        if (battle) { g_custLive = false; Say("Not open."); return; }
         g_custLive = !g_custLive;
         if (g_custLive) { g_custRow = 0; CustSpeakRow(); }
-        else Say("Customize menu closed.");
+        else Say("Closed.");
         return;
     }
+    // Battles stay silent except QTE prompts (player rule): the edge/latch
+    // commands below update state only. Kept (not deleted) so a future
+    // detector keeps its ABI and gating.
     if (cmd == Command::QuickOn) {
-        if (battle && !g_quickLive) { g_quickLive = true; Say("Quickmove available."); }
+        if (battle && !g_quickLive) { g_quickLive = true; }
         return;
     }
     if (cmd == Command::QuickOff) { g_quickLive = false; return; }
     if (cmd == Command::ExReady) {
-        if (battle && !g_exReady) { g_exReady = true; Say("EX Mode ready."); }
+        if (battle && !g_exReady) { g_exReady = true; }  // silent edge
         return;
     }
     if (cmd == Command::ExSpent) { g_exReady = false; return; }
     if (cmd == Command::ExActive) {
-        if (battle) Say("EX Mode on.");
-        return;
+        return;  // silent: battles speak QTE prompts only
     }
     if (cmd == Command::ExEnded) {
-        if (battle) { g_exReady = false; Say("EX Mode over."); }
+        if (battle) { g_exReady = false; }  // silent edge
         return;
     }
     if (cmd == Command::ExBurstGo) {
-        if (battle) Say("Press Square now!");
+        if (battle) Say("Square!");
         return;
     }
     if (cmd == Command::ExQteUp) {
@@ -1335,7 +1412,7 @@ static void Command(Command cmd)
         return;
     }
     if (cmd == Command::ExBurstGoMash) {
-        if (battle) Say("Mash Circle now!");
+        if (battle) Say("Mash Circle!");
         return;
     }
     if (cmd == Command::ExBurstLevel) {
@@ -1343,10 +1420,10 @@ static void Command(Command cmd)
         return;
     }
     if (cmd == Command::CharToggle) {
-        if (battle) { g_charLive = false; Say("Character select is not open."); return; }
+        if (battle) { g_charLive = false; Say("Not open."); return; }
         g_charLive = !g_charLive;
         if (g_charLive) { g_charRow = 0; CharSpeakRow(); }
-        else Say("Character select closed.");
+        else Say("Closed.");
         return;
     }
     if (battle) { g_custLive = false; g_charLive = false; g_quickLive = false; g_exReady = false; g_oskLive = false; }

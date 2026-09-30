@@ -257,10 +257,10 @@ private struct ReaderStatusLine: View {
                 .accessibilityLabel("\(name) reader loading")
         } else if gameActive, session.adapterID == nil,
                   let code = session.romGameCode, !code.isEmpty {
-            Text("No reader for this game (code \(code)).")
+            Text("No reader (code \(code)).")
                 .font(.footnote)
                 .foregroundStyle(.secondary)
-                .accessibilityLabel("No reader for this game, code \(code)")
+                .accessibilityLabel("No reader, code \(code)")
         }
     }
 }

@@ -67,7 +67,7 @@ struct OskEcho {
     std::string erase();   // Circle: "Deleted <c>. Name <s>." / "Name is empty."
     std::string space();   // Square: "Space. Name <s>."
     std::string shift();   // Select: toggle case table, "Uppercase."/"Lowercase."
-    std::string where();   // Where-Is: "Player name entry. <name>. Cursor on <key>."
+    std::string where();   // Where-Is: "Name <name>. On <key>."
     std::string exitLine();// "Name <spelled>." for the exit announcement
 };
 

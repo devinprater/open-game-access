@@ -53,7 +53,7 @@ int main(void)
     // Down 0->12, Up 12->0, Down 11->23).
     {
         OskEcho e;
-        CHECKSTR(e.enter(), "Player name. Type your name.", "enter line");
+        CHECKSTR(e.enter(), "Type your name.", "enter line");
         CHECK(e.live && e.idx == 0, "enter homes cursor");
         CHECKSTR(e.moveLeft(), "+. Row 1 of 5. Column 12 of 12.", "left wraps 0->11");
         CHECKSTR(e.moveRight(), "1. Row 1 of 5. Column 1 of 12.", "right wraps 11->0");
@@ -86,15 +86,15 @@ int main(void)
         e.maxChars = 7;
         CHECKSTR(e.type(), "Full. Name P P S S P P 1.", "cap refuses + says full");
         e.resync("AB");
-        CHECKSTR(e.where(), "Player name entry. Name A B. Cursor on 1.", "resync + where");
+        CHECKSTR(e.where(), "Name A B. On 1.", "resync + where");
     }
     // Empty-buffer paths.
     {
         OskEcho e;
         e.enter();
-        CHECKSTR(e.erase(), "Name is empty.", "delete on empty");
-        CHECKSTR(e.where(), "Player name entry. Name is empty. Cursor on 1.", "where on empty");
-        CHECKSTR(e.exitLine(), "Name is empty.", "exit on empty");
+        CHECKSTR(e.erase(), "Name empty.", "delete on empty");
+        CHECKSTR(e.where(), "Name empty. On 1.", "where on empty");
+        CHECKSTR(e.exitLine(), "Name empty.", "exit on empty");
     }
     // Shift toggles the case table (symbols shift too, per PPSSPP).
     {

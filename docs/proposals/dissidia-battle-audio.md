@@ -54,7 +54,8 @@ Formatting rule: no tables in this doc. Lists only.
   real button presses (adapter.h). Cues change feedback only, never aim,
   damage, or movement.
 - Interface gap, VERIFIED in source: the current Adapter interface has no
-  per-frame cue query. Dissidia OnFrame is a no-op, and CmdLock carries an
+  per-frame cue query (Dissidia OnFrame now runs its menu/board speech
+watch, still no cue query), and CmdLock carries an
   explicit BEACON CONTRACT comment: per-frame beeping needs a query API
   the interface does not provide yet. Building cues requires extending the
   interface, for example with a poll function returning a battle snapshot
