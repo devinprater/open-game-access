@@ -67,14 +67,25 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 - [ ] **Dissidia enemy pop-up text:** the roster exists in RAM (heroes +
   enemy titles as a length-prefixed UTF-16LE name pool, e.g. prologue-3
   0x9C10878: Warrior of Light..Shantotto then False Stalwart..Counterfeit
-  Youth), but marker->name is unmapped. Candidates: slot+4 (enemy at (2,2)
-  reads 0x0152=338, others 0) and catalog O+0 (type0 0x8A, type2 0xCF, type5
-  0x9B) -- neither is a local/global record ordinal (falsified by count), so
-  O+0 may be a global lang message ID (needs the loader map) and slot+4 may
-  be HP/flags, not an ID at all. Enemy level also unpinned (O+20=6
-  candidate, unverified). Next: one live pass, cursor on TWO different
-  enemies, tooltip OCR as ground truth, then correlate. Until then enemies
-  stay "enemy here." -- never guess.
+  Youth), but marker->name is unmapped. Candidates: catalog O+8 (type0 reads
+  1; possible one-based character index), catalog O+10 (0x98), and O+20 (6;
+  possible level), all unverified. Falsified: slot+4 is not a name ID -- the
+  enemy at (2,2) reads 0x0152=338, exactly the foe HP observed when that
+  battle is instantiated -- and catalog O+0 (type0 0x8A, type2 0xCF, type5
+  0x9B) is not a local/global record ordinal (counts do not match).
+  Live retry 2026-09-30: clean boot/load reached the same chained board
+  (M=0x08C168F0, P=0x9C115C0, B=0x9C11740, D=0x9C11940), and a no-press dump
+  reproduced cursor (0,2), the sole enemy at (2,2), slot+4=338, and catalog
+  fields O+8=1/O+10=0x98/O+20=6. The screen remained in the noninteractive
+  board-camera presentation: repeated debugger D-pad presses were accepted
+  while D+0x194/195 stayed (0,2), so no enemy tooltip appeared and no press
+  was treated as evidence. Offline follow-up found an adjacent integer/offset
+  table at 0x9C106F8..0x9C107BC and two ordered manikin-title sets in the
+  pool, but did not find a pointer or proven field joining the active catalog
+  record to a title. Next: obtain tooltip OCR with the cursor on TWO different
+  enemies (potentially on successive boards), then correlate O+8/O+10 and
+  O+20 against the two ground-truth names/levels. Until then enemies stay
+  "enemy here." -- never guess.
 - [ ] **Dissidia Tutorial-mode prompts:** tutorial fights already get the
   battle/QTE path (fighters + prompts resolve there), but the scripted
   instruction sentences ("Bravery attacks: use circle") are OCR-only with no
