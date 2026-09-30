@@ -368,8 +368,8 @@ final class GameSession: ObservableObject {
             // not ready yet. Saying so is the honest report — silence here reads as
             // a broken button.
             speech?.announce(adapterName == nil
-                             ? "This game has no reader controls."
-                             : "Game state is not ready yet.")
+                             ? "No reader."
+                             : "Not ready yet.")
             return
         }
     }

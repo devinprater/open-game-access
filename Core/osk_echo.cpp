@@ -101,7 +101,7 @@ std::string OskEcho::enter()
     idx = 0;
     layout = OskLayout::LatinLower;
     text.clear();
-    return "Player name. Type your name.";
+    return "Type your name.";
 }
 
 void OskEcho::seed(const std::string& t) { text = t; }
@@ -117,7 +117,7 @@ std::string OskEcho::keySpeech() const
 
 std::string OskEcho::nameSpeech() const
 {
-    if (text.empty()) return "Name is empty.";
+    if (text.empty()) return "Name empty.";
     return "Name " + spell(text) + ".";
 }
 
@@ -157,7 +157,7 @@ std::string OskEcho::type()
 
 std::string OskEcho::erase()
 {
-    if (text.empty()) return "Name is empty.";
+    if (text.empty()) return "Name empty.";
     // Drop the last UTF-8 code point and report it.
     size_t end = text.size();
     size_t start = end - 1;
@@ -183,7 +183,7 @@ std::string OskEcho::shift()
 
 std::string OskEcho::where()
 {
-    return "Player name entry. " + nameSpeech() + " Cursor on " + keyAt(layout, idx) + ".";
+    return nameSpeech() + " On " + keyAt(layout, idx) + ".";
 }
 
 std::string OskEcho::exitLine() { return nameSpeech(); }

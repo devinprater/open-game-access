@@ -56,6 +56,16 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   watch cases (entry, move, steady-silence, fingerprint-break/restore, board
   and battle suspension, dialog, options). Needs on-device re-proof: title
   row should announce on appearance and on every D-pad move.
+- [ ] **Dissidia board pop-up descriptions:** arrivals announce the verified
+  type name only ("Stigma of Chaos here.") because the pop-up sentence has no
+  pinned address (s110 tile text seen, unaddressed). Next: with the cursor on
+  a stigma, scan for the description string and pin its table, then read it
+  tersely on arrival.
+- [ ] **Dissidia Tutorial-mode prompts:** tutorial fights already get the
+  battle/QTE path (fighters + prompts resolve there), but the scripted
+  instruction sentences ("Bravery attacks: use circle") are OCR-only with no
+  RAM source pinned. Next: find the prompt-text source and speak each new
+  instruction tersely on change.
 - [x] **Dissidia name-entry reader:** implemented as the universal PPSSPP OSK
   reader (`Core/osk_echo.h/.cpp` input-echo engine + `OskToggle/Type/Delete/
   Space/Shift/Finish` commands, `oga::Command::OskToggle..OskFinish`): Dissidia
