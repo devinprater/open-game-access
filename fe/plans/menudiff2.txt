@@ -1,0 +1,13 @@
+# menudiff2.txt — cross-boot validation of the 020E3CA8 screen-stage byte (Oct 2026).
+# Proven timings from mainmenu (menu @ 950) + menudiff (difficulty @ 1050):
+# START past title, A to menu, snap menu, A to difficulty, snap difficulty.
+KEY 360 START 1
+KEY 378 START 0
+KEY 800 A 1
+KEY 818 A 0
+SNAP 950 md2m.ram
+SHOT 950 md2m.ppm 1
+KEY 1050 A 1
+KEY 1068 A 0
+SNAP 1250 md2d.ram
+SHOT 1250 md2d.ppm 1

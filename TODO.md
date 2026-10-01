@@ -106,13 +106,17 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   pad A/B/X/Start/Select on the down-edge (silent unless OSK live). Host tests:
   `scripts/osk-echo-test.sh` + 8 OSK cases in the Dissidia suite, full
   `scripts/adapter-tests.sh` green. Needs on-device proof with the same CSO.
-- [ ] **FE11 menu reader:** the Shadow Dragon adapter's ready gate is map
-  state only, so the title screen, menus, and pre-chapter flow sit at
-  "reader loading" forever (confirmed on-device 2026-09-27, YFEE ROM from
-  Dropbox, menus). Map out the menu screens (title, file select, preps,
-  unit list) with the same content-scan anchoring the map reader uses
-  (NUL-separated blobs shift every boot — never hardcoded addresses),
-  then add menu states to the ready gate and menu commands to the adapter.
+- [x] **FE11 menu reader:** DONE Oct 1 2026 (was: ready gate map-only, pre-map
+  flow sat at "reader loading" — confirmed on-device 2026-09-27). Title, main
+  menu, and difficulty now speak via content-anchored predicates in
+  `Core/fe_access.cpp` (menu string-bank scan + stage byte 0x020E3CA8 +
+  difficulty cursor flip-flop, all gated so drift yields silence, never a wrong
+  line) with MenuState/Next/Prev/Left/Right in the adapter; ready gate is map
+  OR tracked menu. Proven live on two boots (title/menu/Normal/Hard speech).
+  Queued RE: save-file landing rows, file-select/preps screens (need a save),
+  prologue advance. (Original brief: map out the menu screens with the same
+  content-scan anchoring the map reader uses, add menu states to the ready gate
+  and menu commands to the adapter.)
 
 ## Verification
 

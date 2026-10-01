@@ -19,10 +19,13 @@
  * that can silently drift.
  *
  * ⛔ SCOPE, STATED HONESTLY: this adapter answers the tactical-map questions the
- * reader implements — where am I, next ally, next enemy, and a dump. It does NOT
- * read menus, dialogue or the intro cutscene; those have no reader yet. So the
- * `ready()` gate below is the map state, and the adapter stays silent until a map
- * actually exists rather than narrating whatever is in RAM.
+ * reader implements — where am I, next ally, next enemy, and a dump — plus the
+ * front-menu flow (title, main menu, difficulty) via the content-anchored menu
+ * predicates in fe_access.cpp. It does NOT read file-select/preps screens,
+ * prologue narration, or in-map menus; those have no verified reader yet. So
+ * the `ready()` gate below is the map state OR a tracked menu screen, and the
+ * adapter stays silent on anything else rather than narrating whatever is in
+ * RAM.
  */
 #include "adapter.h"
 #include "pokecore.h"
@@ -50,6 +53,8 @@ void fe_set_log_sink(void (*log)(const char*));
 // non-static wrappers instead of exposing its internals.
 extern "C" {
 void fe_cmd_where_am_i(void);
+void fe_cmd_menu_state(void);
+void fe_cmd_menu_nav(void);
 void fe_cmd_next_ally(int dir);
 void fe_cmd_next_enemy(int dir);
 void fe_cmd_dump(void);
@@ -129,8 +134,19 @@ void HandleCommand(oga::Command cmd)
         case oga::Command::PrevAlly:        fe_cmd_next_ally(-1);  break;
         case oga::Command::NextEnemy:       fe_cmd_next_enemy(+1); break;
         case oga::Command::PrevEnemy:       fe_cmd_next_enemy(-1); break;
-        // No reader exists for these yet. Saying so is the honest answer; staying
-        // silent would look like a broken control.
+        // Front-menu echo (milestone 2): title / main menu / difficulty are
+        // tracked by content-anchored predicates in fe_access.cpp. All four
+        // directions land in fe_cmd_menu_nav: difficulty is a 2-state toggled
+        // by any direction, and the main menu cursor is fresh-boot-locked on
+        // New Game, so the nav call re-reads RAM and echoes verified state
+        // rather than predicting where the tap went.
+        case oga::Command::MenuState:        fe_cmd_menu_state();    break;
+        case oga::Command::MenuNext:         fe_cmd_menu_nav();      break;
+        case oga::Command::MenuPrev:         fe_cmd_menu_nav();      break;
+        case oga::Command::MenuLeft:         fe_cmd_menu_nav();      break;
+        case oga::Command::MenuRight:        fe_cmd_menu_nav();      break;
+        // No reader exists for this yet. Saying so is the honest answer;
+        // staying silent would look like a broken control.
         case oga::Command::NextUnactedAlly:
             HostSay("Reading unacted units is not available yet.", false); break;
         case oga::Command::DumpState:       fe_cmd_dump();         break;

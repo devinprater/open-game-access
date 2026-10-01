@@ -63,6 +63,7 @@ gba_adapter.cpp
 gba_core.cpp mgba_version_stub.cpp
 dbz_adapter.cpp
 dissidia_adapter.cpp
+dq9_adapter.cpp
 osk_echo.cpp
 adapters.cpp
 announce.cpp

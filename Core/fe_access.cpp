@@ -110,6 +110,24 @@ static std::string ReadCStr(uint32_t a, int maxLen = 48)
     return s;
 }
 
+// Menu-bank descriptions separate display lines with 0x0A, which ReadCStr
+// (rightly) rejects as non-text. This variant folds newlines to spaces and
+// keeps the same give-up rule for every other control byte — verified clean
+// (printable + 0x0A only) on both difficulty descriptions, Oct 2026.
+static std::string ReadMenuText(uint32_t a, int maxLen = 200)
+{
+    std::string s;
+    if (!InRam(a)) return s;
+    for (int i = 0; i < maxLen; i++) {
+        uint8_t c = R8(a + i);
+        if (c == 0) break;
+        if (c == 0x0A) { s.push_back(' '); continue; }
+        if (c < 0x20 || c >= 0x7F) { return std::string(); }
+        s.push_back((char) c);
+    }
+    return s;
+}
+
 static const uint32_t A_gMapStateManager = 0x021E3328;
 static const uint32_t A_gUnitList        = 0x021974D8;
 // gFE11Database — fe11-us config/YFEE01/arm9/symbols.txt, kind:bss 0x02197254.
@@ -353,6 +371,137 @@ static Cursor ReadCursor()
     return c;
 }
 
+// ---- front-menu reader (milestone 2) -----------------------------------------
+//
+// The pre-map flow (title -> main menu -> difficulty) has no map manager, so
+// every map predicate fails there and the reader used to sit silent. The
+// technique is the DQ9 one: read the game's own finished text. FE11 keeps one
+// shared menu string bank in heap (NUL-separated ASCII with markup); its
+// residence marks the menu flow, and a screen-stage byte plus the difficulty
+// cursor separate the screens. docs/research/fe11-menu-reader.md has the full
+// evidence; the table below is the contract, re-proven Oct 2026:
+//
+//   Title      = manager NULL + NO "Start a new game." bank  -> "Waiting to start."
+//   Main menu  = bank resident + stage byte 0                -> "Main menu. Start a new game."
+//   Difficulty = bank + difficulty descs + stage 1 + cursor {0,1}
+//                                                        -> "Difficulty. Normal/Hard."
+//
+// EVIDENCE (all live, two boots Oct 1 2026, YFEE USA):
+//  * Title art (FIRE EMBLEM logo, no menu) with manager NULL and no bank.
+//  * Main Menu banner + "Start a new game." description on the touch screen,
+//    fresh-boot cursor locked on New Game: FIVE DOWN presses, description
+//    never moved (fe/plans/menurows.txt, mr0-mr5). Entry anchor = New Game.
+//  * "Select a Difficulty" + Normal description on screen; cursor byte
+//    0x020E6049 flip-flops Normal=1/Hard=0 across three snaps AND a second
+//    boot (fe/plans/menudiff.txt + menudiff2.txt).
+//  * Stage byte 0x020E3CA8: 00 on title and all seven menu snaps, 01 on all
+//    five difficulty snaps (two boots). Its neighbour 0x020E3CA9 reads 00 on
+//    title, 02 on menu/difficulty: if CA9 holds anything else the fixed
+//    addresses have drifted and the stage read is discarded.
+//
+// HEAP WARNING (memory rule): the bank is found by CONTENT SCAN, never by
+// address — the archive sits at 0x023CAD50-ish but that is one boot's luck.
+// The stage/cursor addresses ARE fixed ARM9 RAM (0x020E...), observed stable
+// across boots, but every use is gated: bank residence AND the CA9 sanity
+// value AND (for difficulty) the cursor range check must all agree, otherwise
+// the state falls through to untracked and the reader stays silent. A wrong
+// fixed address can only ever produce silence, never a wrong announcement.
+//
+// KNOWN LIMITS (queued RE, not guessed):
+//  * With a SAVE file present the title->menu landing row is unproven (fresh
+//    boot always lands New Game). Nav commands re-speak the anchor; save
+//    owners get the documented caveat, not a tracked cursor.
+//  * File-select / preps screens need a save to reach; unreachable headless,
+//    they fall through to untracked.
+//  * Prologue narration is detected nowhere on purpose: advancing it needs
+//    input proof the harness cannot give yet.
+
+// The whole menu string bank travels as one NUL-separated blob; any one of
+// these strings proves the flow is up.
+static uint32_t RamFind(const char* needle)
+{
+    if (!gRam || !needle || !*needle) return 0;
+    size_t n = strlen(needle);
+    if (n == 0 || n > RAM_SIZE) return 0;
+    for (size_t i = 0; i + n <= RAM_SIZE; i++) {
+        if (gRam[i] == (uint8_t) needle[0] && memcmp(gRam + i, needle, n) == 0)
+            return RAM_BASE + (uint32_t) i;
+    }
+    return 0;
+}
+
+// Content anchor: remembers where a string lived, revalidates on every use,
+// rescans on mismatch (heap moves between boots AND mid-session).
+struct MenuAnchor {
+    const char* text = nullptr;
+    uint32_t addr = 0;
+    uint32_t get()
+    {
+        size_t n = text ? strlen(text) : 0;
+        if (n == 0) return 0;
+        if (addr && InRam(addr, (uint32_t) n + 1) &&
+            memcmp(gRam + (addr - RAM_BASE), text, n) == 0)
+            return addr;
+        addr = RamFind(text);
+        return addr;
+    }
+};
+
+static MenuAnchor bankNewGame{ "Start a new game." };
+static MenuAnchor descNormal{ "Recommended for beginners" };
+static MenuAnchor descHard{ "Recommended for those" };
+
+static const uint32_t A_FE_STAGE = 0x020E3CA8;   // 00 title/menu, 01 difficulty
+static const uint32_t A_FE_DIFFCURSOR = 0x020E6049; // 01 Normal, 00 Hard (gated)
+
+static bool FeBankUp() { return bankNewGame.get() != 0; }
+static bool FeDescsUp() { return descNormal.get() != 0 || descHard.get() != 0; }
+
+// Stage read with the CA9 sanity neighbour: title=00, menu/difficulty=02.
+// Anything else means the fixed addresses drifted -> discard, stay silent.
+static int FeStage()
+{
+    if (!InRam(A_FE_STAGE, 2)) return -1;
+    uint8_t s = R8(A_FE_STAGE), sanity = R8(A_FE_STAGE + 1);
+    if (sanity != 0 && sanity != 2) return -1;
+    if (s != 0 && s != 1) return -1;
+    return s;
+}
+
+static bool FeOnMap() { return ReadCursor().ok; }
+
+static bool FeTitleActive()
+{
+    if (FeOnMap()) return false;
+    if (R32(A_gMapStateManager) != 0) return false;
+    return !FeBankUp();
+}
+
+static bool FeDifficultyActive()
+{
+    if (FeOnMap()) return false;
+    if (!FeBankUp() || !FeDescsUp()) return false;
+    if (FeStage() != 1) return false;
+    if (!InRam(A_FE_DIFFCURSOR, 1)) return false;
+    uint8_t cur = R8(A_FE_DIFFCURSOR);
+    return cur == 0 || cur == 1;   // the flip-flop; anything else = drift
+}
+
+static bool FeMenuActive()
+{
+    if (FeOnMap()) return false;
+    if (!FeBankUp()) return false;
+    if (FeDifficultyActive()) return false;
+    return FeStage() == 0;   // bank says menu flow, stage excludes difficulty
+}
+
+// 0 = Hard, 1 = Normal, -1 = unreadable (caller falls back, never guesses).
+static int FeDifficultySel()
+{
+    if (!FeDifficultyActive()) return -1;
+    return R8(A_FE_DIFFCURSOR) == 1 ? 1 : 0;
+}
+
 // ---------------------------------------------------------------- commands
 
 // ---- movement range -----------------------------------------------------
@@ -455,7 +604,20 @@ static bool MovementRange(const Unit& u, Range& out)
 static void cmdWhereAmI()
 {
     Cursor c = ReadCursor();
-    if (!c.ok) { FeSay("Not on a map yet.\n"); return; }
+    if (!c.ok) {
+        // Pre-map flow: the map manager does not exist yet, but the menu
+        // states above ARE tracked (content-anchored, gated). Anything else
+        // (transitions, prologue, save-only screens) stays silent.
+        if (FeDifficultyActive()) {
+            int sel = FeDifficultySel();
+            FeSay("Difficulty. %s.\n", sel < 0 ? "Selection unclear" : sel ? "Normal" : "Hard");
+            return;
+        }
+        if (FeMenuActive()) { FeSay("Main menu. Start a new game.\n"); return; }
+        if (FeTitleActive()) { FeSay("Waiting to start.\n"); return; }
+        FeSay("Not on a map yet.\n");
+        return;
+    }
     FeSay("Cursor %d, %d.", c.x, c.y);
 
     // Terrain: report the game's own category, and say it is a number because no
@@ -549,6 +711,55 @@ static void cmdNextEnemy(int dir)
            u.label().c_str(), u.hp, u.x, u.y, d);
 }
 
+// ---- front-menu commands ------------------------------------------------------
+//
+// MenuState is the "read the whole menu" analog (DQ9's O key): full context
+// including the difficulty description, which is what a blind player needs to
+// CHOOSE, not just to locate. WhereAmI stays positional (short form).
+// Nav commands (Next/Prev/Left/Right all land here: difficulty is a 2-state
+// toggled by any direction) re-read RAM and speak what is true NOW — an echo
+// of verified state, never a prediction of where the tap went.
+static void cmdMenuState()
+{
+    if (FeOnMap()) {
+        Cursor c = ReadCursor();
+        FeLog("MENU map cursor %d,%d\n", c.x, c.y);
+        return;
+    }
+    if (FeDifficultyActive()) {
+        int sel = FeDifficultySel();
+        if (sel < 0) { FeSay("Difficulty. Selection unclear.\n"); return; }
+        // Descriptions read LIVE from the bank (ReadMenuText), not quoted from a
+        // capture: a retranslation or region change keeps working.
+        uint32_t daddr = (sel ? descNormal : descHard).get();
+        std::string desc = daddr ? ReadMenuText(daddr) : "";
+        FeSay("Difficulty. %s. %s\n", sel ? "Normal" : "Hard", desc.c_str());
+        return;
+    }
+    if (FeMenuActive()) { FeSay("Main menu. Start a new game.\n"); return; }
+    if (FeTitleActive()) { FeSay("Waiting to start.\n"); return; }
+    // Adapters not on a tracked menu ignore MenuState: stay silent.
+}
+
+static void cmdMenuNav()
+{
+    if (FeOnMap() || FeTitleActive()) return;   // no tracked cursor here
+    if (FeDifficultyActive()) {
+        int sel = FeDifficultySel();
+        FeSay("Difficulty. %s.\n", sel < 0 ? "Selection unclear" : sel ? "Normal" : "Hard");
+        return;
+    }
+    if (FeMenuActive()) {
+        // Fresh boot locks the cursor on New Game (five DOWNs, no movement,
+        // menurows.txt) so re-speaking the anchor is truthful. With a SAVE
+        // file present rows CAN move and this echo is unconfirmed: the next
+        // RE item is save-row detection, and until then save owners are told
+        // the limit in the docs, not given a tracked cursor that could lie.
+        FeSay("Main menu. Start a new game.\n");
+        return;
+    }
+}
+
 static void cmdDump()
 {
     Cursor c = ReadCursor();
@@ -556,6 +767,21 @@ static void cmdDump()
     FeLog("map state     : %s\n", c.ok ? "on a map" : "NOT on a map (gMapStateManager invalid)");
     FeLog("gMapStateManager = 0x%08X\n", R32(A_gMapStateManager));
     if (c.ok) FeLog("cursor        : 0x%08X  x=%d y=%d visible=%d\n", c.addr, c.x, c.y, c.vis);
+    else {
+        // Snapshot-key analog (DQ9's R+SELECT): the menu evidence that drove
+        // the current state, so a silent-reader report carries data.
+        FeLog("menu bank     : %s (NewGame @ 0x%08X)\n",
+              FeBankUp() ? "resident" : "absent", bankNewGame.get());
+        FeLog("menu descs    : Normal=%s Hard=%s\n",
+              descNormal.get() ? "resident" : "absent",
+              descHard.get() ? "resident" : "absent");
+        FeLog("stage/sanity  : %d / %s\n", FeStage(),
+              InRam(A_FE_STAGE, 2) ? "readable" : "unreadable");
+        if (InRam(A_FE_DIFFCURSOR, 1))
+            FeLog("diff cursor   : 0x%02X\n", R8(A_FE_DIFFCURSOR));
+        FeLog("menu state    : %s\n", FeDifficultyActive() ? "Difficulty" :
+              FeMenuActive() ? "MainMenu" : FeTitleActive() ? "Title" : "untracked");
+    }
     uint32_t base = R32(A_gUnitList);
     FeLog("gUnitList     : 0x%08X  stride=0x%02X  slots=%d\n", base, UNIT_STRIDE, UNIT_SLOTS);
     auto us = AllUnits();
@@ -611,14 +837,21 @@ static void cmdDump()
 extern "C" {
 
 void fe_cmd_where_am_i(void) { cmdWhereAmI(); }
+void fe_cmd_menu_state(void) { cmdMenuState(); }
+void fe_cmd_menu_nav(void) { cmdMenuNav(); }
 void fe_cmd_next_ally(int dir) { cmdNextAlly(dir); }
 void fe_cmd_next_enemy(int dir) { cmdNextEnemy(dir); }
 void fe_cmd_dump(void) { cmdDump(); }
 
-// True when a map is loaded. This is what the adapter's ready() gate reports: the
-// game does not initialise gMapStateManager until a map exists, so before that
-// every read is meaningless and must not be narrated.
-bool fe_ready(void) { return ReadCursor().ok; }
+// True on a map OR on a tracked front-menu screen (title / main menu /
+// difficulty). Before milestone 2 this was map-only and the whole pre-map
+// flow sat at "reader loading" forever; the menu predicates above are what
+// opened it. Untracked states (transitions, prologue, save-only screens)
+// still read not-ready: silence beats a guess.
+bool fe_ready(void)
+{
+    return ReadCursor().ok || FeTitleActive() || FeMenuActive() || FeDifficultyActive();
+}
 
 } // extern "C"
 
@@ -683,6 +916,13 @@ int main(int argc, char** argv)
     cmdDump();
     FeLog("\n--- accessibility commands ---\n");
     FeLog("Where am I?  -> "); cmdWhereAmI();
+    if (!ReadCursor().ok) {
+        // Off-map runs (title / menu / difficulty) exercise the menu commands
+        // instead of the map ones: this is the harness proving the milestone-2
+        // speech on a live boot.
+        FeLog("Menu state   -> "); cmdMenuState();
+        FeLog("Menu nav     -> "); cmdMenuNav();
+    }
     FeLog("Next enemy   -> "); cmdNextEnemy(+1);
     FeLog("Next ally    -> "); cmdNextAlly(+1);
     FeLog("Next ally    -> "); cmdNextAlly(+1);

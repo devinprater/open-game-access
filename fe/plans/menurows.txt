@@ -1,0 +1,31 @@
+# menurows.txt — main-menu DOWN-walk for row-order discovery (Oct 2026).
+# Reaches the Main Menu (START on title, A past it), then walks DOWN five
+# times with a touch-screen shot after each step. The description bar shows
+# the active row's description, so the shot sequence reveals the row order
+# (or proves DOWN does not move on a fresh boot).
+KEY 360 START 1
+KEY 378 START 0
+KEY 800 A 1
+KEY 818 A 0
+SNAP 1100 mr0.ram
+SHOT 1100 mr0.ppm 1
+KEY 1200 DOWN 1
+KEY 1218 DOWN 0
+SNAP 1320 mr1.ram
+SHOT 1320 mr1.ppm 1
+KEY 1400 DOWN 1
+KEY 1418 DOWN 0
+SNAP 1520 mr2.ram
+SHOT 1520 mr2.ppm 1
+KEY 1600 DOWN 1
+KEY 1618 DOWN 0
+SNAP 1720 mr3.ram
+SHOT 1720 mr3.ppm 1
+KEY 1800 DOWN 1
+KEY 1818 DOWN 0
+SNAP 1920 mr4.ram
+SHOT 1920 mr4.ppm 1
+KEY 2000 DOWN 1
+KEY 2018 DOWN 0
+SNAP 2120 mr5.ram
+SHOT 2120 mr5.ppm 1
