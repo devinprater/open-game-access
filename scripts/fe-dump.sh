@@ -15,8 +15,11 @@ cd "$ROOT" || exit 1
 export PA_SHIM="$ROOT/Sources/OpenGameAccess/Resources/bizhawk_compat.lua"
 
 bash "$ROOT/scripts/build-host.sh" || exit 1
-g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
-  -o Vendor/fedump Core/fedump.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
+# host_harness_stub.cpp supplies the PSP-backend and 7z-archive symbols the
+# host object set does not build (NDS harnesses never call them; the stubs
+# abort if they ever do). It must never enter core-sources.sh app lists.
+g++ -O2 -g -DPOKE_HOST=1 -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
+  -o Vendor/fedump Core/fedump.cpp Core/host_harness_stub.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -10
 [ -x Vendor/fedump ] || { echo "!! fedump did not link"; exit 1; }
 

@@ -18,8 +18,13 @@ echo "== building fe_access"
 # there — so the run reports pre-fix behaviour as if it were new. Capture the log,
 # report errors, exit non-zero.
 BUILD_LOG="$(mktemp)"
-g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$HOME/src/melonds-lua/src" -std=c++17 \
-  -o Vendor/fe_access Core/fe_access.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>"$BUILD_LOG"
+# hostobj already contains fe_access.o (build-host compiles every Core source),
+# so linking the fresh fe_access.cpp against the whole set would define main()
+# and the reader twice. Link everything EXCEPT it; the fresh object below is
+# what carries the current reader + main().
+FE_OBJS="$(ls Vendor/hostobj/*.o | grep -v '/fe_access\.o$')"
+g++ -O2 -g -DPOKE_HOST=1 -ICore -ISources/CPokeCore/include -I"$HOME/src/melonds-lua/src" -std=c++17 \
+  -o Vendor/fe_access Core/fe_access.cpp Core/host_harness_stub.cpp $FE_OBJS -lpthread -lm -ldl 2>"$BUILD_LOG"
 if [ -s "$BUILD_LOG" ] && grep -qE '\berror\b' "$BUILD_LOG"; then
   echo "!! compile failed — refusing to run a stale binary:" >&2
   grep -E '\berror\b' "$BUILD_LOG" | head -20 >&2
