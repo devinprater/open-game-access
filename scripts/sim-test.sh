@@ -26,8 +26,8 @@ g++ -O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -W
   -std=c++17 -c Core/pokecore.cpp -o Vendor/hostobj/pokecore.o 2>&1 | grep -E '\berror\b' | head -8
 echo "pokecore: $([ -f Vendor/hostobj/pokecore.o ] && echo ok || echo FAIL)"
 
-g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
-  -o Vendor/simrun Core/simrun.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
+g++ -O2 -g -DPOKE_HOST=1 -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
+  -o Vendor/simrun Core/simrun.cpp Core/host_harness_stub.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -8
 [ -x Vendor/simrun ] || { echo "!! simrun did not link"; exit 1; }
 echo "simrun: linked"
