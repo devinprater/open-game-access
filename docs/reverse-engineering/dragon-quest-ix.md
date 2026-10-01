@@ -56,13 +56,25 @@ for turns, no phantom prices in the Who list, versioned startup line.
 
 ## Native adapter status (`Core/dq9_adapter.cpp`, game code `YDQE`)
 
-Scaffold: `WhereAmI` (map code + tile position + battle/exploring),
-party cycling (`NextAlly`/`PrevAlly`/`NextUnactedAlly`), `DumpState`.
-Ready-gated on a printable slot-0 record name; silent before the game
-allocates its party.
+`WhereAmI` (map code + tile position + battle/exploring), party cycling
+(`NextAlly`/`PrevAlly`/`NextUnactedAlly`), nearby-object scan on
+`NextEnemy`/`PrevEnemy` with camera-relative directions (object table
+`0x02107600`/`0x02107680`, camera `0x0210A134`, nearest-first, generic
+labels — someone / something / story character; learned names stay mod
+territory), menu-cursor echo on `MenuState` (`<CURSOR=n>` + `<N=i>` items,
+battle lists trusted only at phase 3, yes/no prompts named without guessing
+the cursor), `DumpState`. Ready-gated on map code AND printable slot-0 name;
+either alone lies (see below).
 
-Deliberately NOT claimed yet: the on-screen map NAME at `0x022A4266`
+Live-checked Oct 1 2026 against a title snapshot (`fe/plans/dq9-title.txt`
+boots the US ROM headless, `dq9-t0.ram`): slot 0 holds printable junk
+("NineRZ") with no map, the battle flag reads SET, menu/message buffers are
+empty — the gates refuse all of it (not-ready / no-menu / unknown, nothing
+spoken). In-game speech still needs scripted play past name entry.
+
+Deliberately NOT claimed: the on-screen map NAME at `0x022A4266`
 sits above the Host's 4 MiB main-RAM window, so `WhereAmI` reports the map
-code (`0x020FB3FC`, e.g. `M01M0100`) instead of guessing a name. Menu
-deltas, shop windows and travel stay mod (Lua) territory until a live-ROM
-pass confirms them through this front.
+code (`0x020FB3FC`, e.g. `M01M0100`) instead of guessing a name. Dialogue
+queueing, shop/skill flows, route planning + auto-walk, and place marks stay
+mod (Lua) territory — porting that state machine would fork it into a copy
+that drifts.

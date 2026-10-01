@@ -47,6 +47,9 @@ static void putbytes(uint32_t a, const char* s, size_t n) { memcpy(&RAM[OFF(a)],
 static const uint32_t PARTY0 = 0x020F3888u, PSTRIDE = 0x964u;
 static const uint32_t MAPCODE = 0x020FB3FCu, PPTR = 0x020F33E0u;
 static const uint32_t GOLD = 0x020F6D48u, BATTLE = 0x020EF0E8u;
+static const uint32_t CAMERA = 0x0210A134u;
+static const uint32_t OBJTABLE = 0x02107600u, OBJCOUNT = 0x02107680u;
+static const uint32_t MENU = 0x02118FFCu, PHASE = 0x02109DA6u, CHOICE = 0x021153A4u;
 
 int main()
 {
@@ -66,8 +69,28 @@ int main()
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No party members"),
           "empty party says so instead of reading zeros");
 
-    // Build the world the mod documents: map Angel Falls, player placed,
-    // two named members, some gold, exploring (not battle).
+    // A live title snapshot (dq9-t0.ram, Oct 2026): slot 0 holds printable junk
+    // ("NineRZ") with no map code, battle flag SET, empty menu buffer. Every
+    // command must refuse; nothing may speak the junk.
+    putbytes(PARTY0, "NineRZ", 7);
+    put8(BATTLE, 1);
+    CHECK(!oga::kDragonQuestIX.ready(), "title junk without a map is not ready");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No party members"),
+          "title junk never cycles as a party member");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::MenuState);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No menu"),
+          "title with set battle flag but empty buffer reads as no menu");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Position unknown"),
+          "title with no player pointer has no nearby");
+    memset(&RAM[OFF(PARTY0)], 0, 32);
+    put8(BATTLE, 0);
+    // Build the world the mod documents: map code, player placed, two named
+    // members, some gold, exploring (not battle).
     putbytes(MAPCODE, "M01M0100", 8);
     put32(PPTR, 0x02100000u);
     put32(0x02100044u, (uint32_t)(10 * 4096));
@@ -122,6 +145,77 @@ int main()
     oga::kDragonQuestIX.command(oga::Command::DumpState);
     CHECK(NLOGGED >= 3 && strstr(LOGGED[0], "M01M0100") && strstr(LOGGED[0], "1234"),
           "DumpState logs map code and gold");
+
+    // Nearby scan: player at tile (10,20), camera south of the player so
+    // screen-up is world +z. Object 0 is a person 5 tiles up; object 1 is
+    // a story model 20 tiles to the side (farther, spoken second).
+    put32(CAMERA, (uint32_t)(10 * 4096));
+    put32(CAMERA + 8, (uint32_t)(12 * 4096));
+    put32(OBJCOUNT, 2);
+    put32(OBJTABLE, 0x02110000u);
+    put32(OBJTABLE + 4, 0x02111000u);
+    put32(0x02110008u, 0x02112000u);
+    putbytes(0x02112004u, "n001a", 6);
+    put32(0x02110024u, (uint32_t)(10 * 4096));
+    put32(0x0211002Cu, (uint32_t)(25 * 4096));
+    put32(0x02111008u, 0x02113000u);
+    putbytes(0x02113004u, "s025x", 6);
+    put32(0x02111064u, (uint32_t)(30 * 4096));
+    put32(0x0211106Cu, (uint32_t)(20 * 4096));
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Someone") && strstr(SPOKEN[0], "5 steps up"),
+          "NextEnemy names the nearest person with camera-relative direction");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Story character") && strstr(SPOKEN[0], "20 steps left"),
+          "second NextEnemy steps to the farther story model");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::PrevEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Someone"),
+          "PrevEnemy steps back to the nearest");
+
+    // An over-count is a corrupt table, not a crowd: silence, not 65 labels.
+    put32(OBJCOUNT, 99);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Nobody nearby"),
+          "over-count object table reads as nobody nearby");
+    put32(OBJCOUNT, 0);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Nobody nearby"),
+          "empty object table reads as nobody nearby");
+
+    // Menu echo: cursor + items straight from the markup buffer.
+    putbytes(MENU, "<CURSOR=1><N=0>Fight</N><N=1>Spells</N>", 39);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::MenuState);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Menu. Spells. 2 items"),
+          "MenuState echoes the cursor item with the item count");
+
+    // In battle away from the command phase the buffer can hold a pre-built
+    // list: say busy, never the stale words.
+    put8(BATTLE, 1); put8(PHASE, 0);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::MenuState);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Menu. Busy"),
+          "battle menu away from the command phase reads as busy");
+    put8(BATTLE, 0);
+
+    // Yes/no prompt with no item list: name the choice, never the cursor.
+    RAM[OFF(MENU)] = 0;
+    put32(CHOICE, 1);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::MenuState);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Choose. Yes or no"),
+          "event choice names the prompt without guessing the cursor");
+    put32(CHOICE, 0);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kDragonQuestIX.command(oga::Command::MenuState);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No menu"),
+          "no markup and no prompt reads as no menu");
 
     // Registry: YDQE must resolve to this adapter.
     CHECK(oga::find_by_game_code("YDQE") == &oga::kDragonQuestIX,

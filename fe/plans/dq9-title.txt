@@ -1,0 +1,7 @@
+# dq9-title.txt — boot Dragon Quest IX with no input and snapshot the title.
+# The native DQ9 adapter has never met a live ROM; these snapshots verify its
+# gates refuse title RAM (no party allocated) and check the mod's documented
+# addresses for plausible content. Outputs land in the repo root (fedump runs
+# with CWD at ROOT): dq9-t0.ram + shots.
+SNAP 1200 dq9-t0.ram
+SHOT 1200 dq9-t0.ppm 1
