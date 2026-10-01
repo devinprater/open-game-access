@@ -78,10 +78,18 @@ bool InRam(uint32_t a, uint32_t n)
     return a >= 0x02000000u && (uint64_t) a + n <= (uint64_t) 0x02000000u + 0x400000u;
 }
 
-void Say(const char* s, bool interrupt = true)
+// Speech routed through the announcement queue with a per-site group and
+// priority. Null-queue hosts fall back to the direct wire, which keeps the
+// host tests' synchronous stubs working unchanged.
+void Say(const char* s, const char* group, oga::Priority pri)
 {
     if (!oga::AdapterNoteSpoken(s)) return;
-    if (g_host && g_host->speak) g_host->speak(g_host->ctx, s, interrupt);
+    if (g_host && g_host->announce_q)
+        oga::announce(g_host->announce_q,
+                      oga::Announcement{s, pri, group, nullptr, 0, 0, -1},
+                      g_host->now_ms);
+    else if (g_host && g_host->speak)
+        g_host->speak(g_host->ctx, s, pri == oga::Priority::High);
 }
 void Log(const char* s)
 {
@@ -257,17 +265,17 @@ int g_objcursor = -1;
 void CmdNearby(int dir)
 {
     double px = 0, pz = 0;
-    if (!PlayerPos(&px, &pz)) { Say("Position unknown."); return; }
+    if (!PlayerPos(&px, &pz)) { Say("Position unknown.", "nearby", oga::Priority::High); return; }
     Nearby list[64];
     int n = CollectNearby(list, 64, px, pz);
-    if (n <= 0) { Say("Nobody nearby."); return; }
+    if (n <= 0) { Say("Nobody nearby.", "nearby", oga::Priority::High); return; }
     g_objcursor = (g_objcursor + dir + n * 4) % n;
     char where[96];
     if (!DirectionsTo(list[g_objcursor].x, list[g_objcursor].z, where, sizeof(where)))
-    { Say("Position unknown."); return; }
+    { Say("Position unknown.", "nearby", oga::Priority::High); return; }
     char line[160];
     snprintf(line, sizeof(line), "%s. %s.", list[g_objcursor].label, where);
-    Say(line);
+    Say(line, "nearby", oga::Priority::High);
 }
 
 // ---- menu echo (the mod's menu reader, stateless part) -------------------------
@@ -342,34 +350,34 @@ void CmdMenuState()
     }
     bool battle = u8(BATTLE_FLAG) == 1;
     if (haveMenu) {
-        if (battle && u8(BATTLE_PHASE) != 3) { Say("Menu. Busy."); return; }
+        if (battle && u8(BATTLE_PHASE) != 3) { Say("Menu. Busy.", "menu", oga::Priority::High); return; }
         if (cursor < count) {
             char line[128];
             snprintf(line, sizeof(line), "Menu. %s. %d item%s.",
                      items[cursor], count, count == 1 ? "" : "s");
-            Say(line);
+            Say(line, "menu", oga::Priority::High);
             return;
         }
         char line[64];
         snprintf(line, sizeof(line), "Menu. %d item%s.", count, count == 1 ? "" : "s");
-        Say(line);
+        Say(line, "menu", oga::Priority::High);
         return;
     }
     // A yes/no prompt with no item list (the mod's EVENT_CHOICE). The 0/1 ->
     // Yes/No assignment is the mod's runtime knowledge, not in the addresses,
     // so the native side names the choice, never the cursor.
     if (u32(EVENT_CHOICE_COUNT) > 0 && u32(EVENT_CHOICE_COUNT) < 256) {
-        Say("Choose. Yes or no.");
+        Say("Choose. Yes or no.", "menu", oga::Priority::High);
         return;
     }
-    Say("No menu.");
+    Say("No menu.", "menu", oga::Priority::High);
 }
 
 void CmdWhereAmI()
 {
     char map[16];
     if (!MapCode(map, sizeof(map))) {
-        Say("Location unknown. The map is still loading.");
+        Say("Location unknown. The map is still loading.", "whereami", oga::Priority::High);
         return;
     }
     int32_t x = 0, z = 0;
@@ -378,12 +386,12 @@ void CmdWhereAmI()
         char line[128];
         snprintf(line, sizeof(line), "On %s, position %d, %d. %s.",
                  map, x, z, battle ? "In battle" : "Exploring");
-        Say(line);
+        Say(line, "whereami", oga::Priority::High);
     } else {
         char line[96];
         snprintf(line, sizeof(line), "On %s. %s.",
                  map, battle ? "In battle" : "Exploring");
-        Say(line);
+        Say(line, "whereami", oga::Priority::High);
     }
 }
 
@@ -392,7 +400,7 @@ void CmdStepAlly(int dir)
     // The party slots can hold printable junk before the game allocates them
     // (a live title snapshot reads "NineRZ" at slot 0): the ready gate owns
     // the allocated-or-not decision, and cycling refuses when it is shut.
-    if (!Dq9Ready()) { Say("No party members found."); return; }
+    if (!Dq9Ready()) { Say("No party members found.", "party", oga::Priority::High); return; }
     // Walk the four record slots from the cursor, skipping empties; wrap once.
     for (int step = 1; step <= (int) PARTY_MAX; step++) {
         int slot = (g_cursor + dir * step + (int) PARTY_MAX * 4) % (int) PARTY_MAX;
@@ -401,11 +409,11 @@ void CmdStepAlly(int dir)
             g_cursor = slot;
             char line[64];
             snprintf(line, sizeof(line), "%s, %d of %d.", nm, slot + 1, PARTY_MAX);
-            Say(line);
+            Say(line, "party", oga::Priority::High);
             return;
         }
     }
-    Say("No party members found.");
+    Say("No party members found.", "party", oga::Priority::High);
 }
 
 void CmdDump()
