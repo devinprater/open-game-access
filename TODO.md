@@ -89,15 +89,27 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   api-base:67587-67698; string lookup is FUN_00194df0 on DAT_00394218).
   So O+10 is the species/name index (0x98 observed), not display text --
   live proof still needs O+10 read + f1750 deref + OCR match on TWO
-  different enemies. Next: obtain tooltip OCR with the cursor on TWO different
-  enemies (potentially on successive boards), then correlate O+8/O+10 and
-  O+20 against the two ground-truth names/levels. Until then enemies stay
-  "enemy here." -- never guess.
+  different enemies. 2026-10-01: live board reached (Trunks save, Odyssey
+  I-1 Order's Sanctuary, Epyon save chapters verified turning I->II->III).
+  Tooltip OCR ground truth "False Hero / Lv 1 / BATTLE MAP / Order's
+  Sanctuary" on big figure AND blue pawns (second species still open).
+  Same-boot RAM diffs: tooltip latch pair (low u16 2->3 + 0xFFFF->0x0000)
+  + hover flag 0->1; pool string present with tooltip closed (pool, not a
+  display copy); NO in-RAM pointers to pool strings anywhere (species table
+  lives outside user RAM) -- reader must use index/latch method, and all
+  addresses shift per boot. Next: cursor-tile field (float-block +
+  small-int candidates noted) + a second species name. Until then enemies
+  stay "enemy here." -- never guess.
 - [ ] **Dissidia Tutorial-mode prompts:** tutorial fights already get the
   battle/QTE path (fighters + prompts resolve there), but the scripted
   instruction sentences ("Bravery attacks: use circle") are OCR-only with no
   RAM source pinned. Next: find the prompt-text source and speak each new
   instruction tersely on change.
+- [x] **Dissidia cutscene AD (2026-10-01):** best practices researched --
+  present tense, describe-then-dialogue, name speakers (boxes have no
+  names), voice unvoiced on-screen text, fit between lines, never over
+  them. Opening narration + Chaos-speaks + Garland-answers described:
+  script + 3 audio renders in docs/research/audio-description.md.
 - [x] **Dissidia name-entry reader:** implemented as the universal PPSSPP OSK
   reader (`Core/osk_echo.h/.cpp` input-echo engine + `OskToggle/Type/Delete/
   Space/Shift/Finish` commands, `oga::Command::OskToggle..OskFinish`): Dissidia
