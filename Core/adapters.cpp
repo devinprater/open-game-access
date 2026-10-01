@@ -41,11 +41,19 @@ extern const Adapter kDragonBallZSaiyans;
 // hunted (scripts/psp-find-uiroot*.py), so commands refuse until it is set.
 extern const Adapter kDissidiaFinalFantasy;
 
+// Implemented in dq9_adapter.cpp — Dragon Quest IX: Sentinels of the Starry
+// Skies (US, YDQE). A NATIVE scaffold over the mod's own documented addresses
+// (third-party/DQ9-Access): WhereAmI, party cycling and DumpState. Menus,
+// battles and travel stay mod (Lua) territory until a live-ROM pass confirms
+// them through this front.
+extern const Adapter kDragonQuestIX;
+
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
     &kGameBoyAdvance,
     &kDragonBallZSaiyans,
     &kDissidiaFinalFantasy,
+    &kDragonQuestIX,
 };
 
 const Adapter* const* all_adapters(int* count)

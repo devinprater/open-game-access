@@ -1,0 +1,3 @@
+[submodule "third-party/DQ9-Access"]
+	path = third-party/DQ9-Access
+	url = https://github.com/RetroSanity/DQ9-Access.git
