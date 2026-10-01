@@ -77,7 +77,14 @@ char g_code[8] = {0};
 
 void HostSay(const char* utf8, bool interrupt)
 {
-    if (g_host && g_host->speak) g_host->speak(g_host->ctx, utf8, interrupt);
+    if (g_host && g_host->announce_q)
+        oga::announce(g_host->announce_q,
+                      oga::Announcement{utf8, interrupt ? oga::Priority::High
+                                                       : oga::Priority::Normal,
+                                        "fe", nullptr, 0, 0, -1},
+                      g_host->now_ms);
+    else if (g_host && g_host->speak)
+        g_host->speak(g_host->ctx, utf8, interrupt);
 }
 
 void HostLog(const char* utf8)

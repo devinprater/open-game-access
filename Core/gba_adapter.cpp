@@ -164,10 +164,18 @@ static void gba_detach(void) {
     g_code[0] = '\0';
 }
 
-static void Say(const char* line, bool interrupt)
+// Speech routed through the announcement queue with a per-site group and
+// priority. Null-queue hosts fall back to the direct wire, which keeps the
+// host tests' synchronous stubs working unchanged.
+static void Say(const char* s, const char* group, oga::Priority pri)
 {
-    if (!oga::AdapterNoteSpoken(line)) return;
-    if (g_host && g_host->speak) g_host->speak(g_host->ctx, line, interrupt);
+    if (!oga::AdapterNoteSpoken(s)) return;
+    if (g_host && g_host->announce_q)
+        oga::announce(g_host->announce_q,
+                      oga::Announcement{s, pri, group, nullptr, 0, 0, -1},
+                      g_host->now_ms);
+    else if (g_host && g_host->speak)
+        g_host->speak(g_host->ctx, s, pri == oga::Priority::High);
 }
 
 static void gba_command(Command cmd) {
@@ -179,7 +187,7 @@ static void gba_command(Command cmd) {
         if (!player_xy(&x, &y)) {
             // ⛔ SAY SO RATHER THAN GUESS. Reporting "0, 0" during boot would be a
             // confident lie about a position the game has not established yet.
-            Say("Still loading.", true);
+            Say("Still loading.", "status", oga::Priority::High);
             return;
         }
         char line[160];
@@ -193,14 +201,14 @@ static void gba_command(Command cmd) {
             snprintf(line, sizeof line, "x %u, y %u.", x, y);
         }
         g_last_x = x; g_last_y = y; g_have_last = true;
-        Say(line, true);
+        Say(line, "whereami", oga::Priority::High);
         break;
     }
 
     case Command::NextUnactedAlly:
         // Fire Emblem concept; the GBA readers have no equivalent, and inventing one would
         // be a guess. Say what is true instead of mapping it to something approximate.
-        Say("Not a tactical game; use the map name key.", true);
+        Say("Not a tactical game; use the map name key.", "status", oga::Priority::High);
         break;
 
     case Command::DumpState: {
@@ -226,7 +234,7 @@ static void gba_command(Command cmd) {
         // Pokémon has no "next enemy" — encounters are not units on a map. Saying so is
         // better than a plausible-looking mapping onto "nearest trainer", which would be
         // wrong in exactly the situations a player would rely on it.
-        Say("Not applicable in this game.", true);
+        Say("Not applicable in this game.", "status", oga::Priority::High);
         break;
     }
 }

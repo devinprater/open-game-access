@@ -10,11 +10,11 @@
   "Host wiring"): (1) core owns one `AnnounceQueue` per `PokeCore` (`QueueSpeak` sink into the
   unchanged `speechCb`, `EndFrame` stamps `Host.now_ms` + ticks on all three console paths,
   the `StopSpeech` command and the script stop key clear the queue, additive
-  `poke_announce_done` / `poke_announce_id_for_text` ABI); (2) Dissidia migrated to
-  `oga::announce` with per-site groups/priorities (`Say`/`SayRaw`, null-queue fallback to the
-  direct wire) plus queue-mapping host tests (High interrupt, estimate pacing, group
-  replacement — 149/149 green); FE/GBA/DBZ/DQ9 stay on direct `Host::speak` (behavior
-  unchanged, migrate next); (3) iOS completion hooks: synth `didFinish`/`didCancel` +
+  `poke_announce_done` / `poke_announce_id_for_text` ABI); (2) ALL FIVE adapters migrated
+  to `oga::announce` with per-site groups/priorities (Dissidia `Say`/`SayRaw`; FE `HostSay`;
+  GBA/DBZ/DQ9 `Say`; null-queue fallback keeps the host-test stubs synchronous) plus
+  Dissidia queue-mapping host tests (High interrupt, estimate pacing, group replacement);
+  full suite green (dbz 17, dissidia 149, dq9 26, gba, osk); (3) iOS completion hooks: synth `didFinish`/`didCancel` +
   `announcementDidFinishNotification` report done via id lookup, the Stop-speech button also
   sends `StopSpeech` (raw 37, never a player button); (4) Android: per-utterance ids +
   `UtteranceProgressListener` in `MainActivity` (observed/logged). REMAINING: the Android

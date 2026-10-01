@@ -59,10 +59,18 @@ constexpr uint32_t OFF_NEXT   = 0x240;
 uint16_t u16(uint32_t a) { return g_host ? g_host->read16(g_host->ctx, a) : 0; }
 uint32_t u32(uint32_t a) { return g_host ? g_host->read32(g_host->ctx, a) : 0; }
 
-void Say(const char* s, bool interrupt = true)
+// Speech routed through the announcement queue with a per-site group and
+// priority. Null-queue hosts fall back to the direct wire, which keeps the
+// host tests' synchronous stubs working unchanged.
+void Say(const char* s, const char* group, oga::Priority pri)
 {
     if (!oga::AdapterNoteSpoken(s)) return;
-    if (g_host && g_host->speak) g_host->speak(g_host->ctx, s, interrupt);
+    if (g_host && g_host->announce_q)
+        oga::announce(g_host->announce_q,
+                      oga::Announcement{s, pri, group, nullptr, 0, 0, -1},
+                      g_host->now_ms);
+    else if (g_host && g_host->speak)
+        g_host->speak(g_host->ctx, s, pri == oga::Priority::High);
 }
 void Log(const char* s)
 {
@@ -122,7 +130,7 @@ void SpeakMember(int rec)
 {
     uint32_t base = REC_BASE + (uint32_t) rec * REC_STRIDE;
     char nm[24];
-    if (!ReadName(base + NAME_OFF, nm, sizeof(nm))) { Say("Unknown member."); return; }
+    if (!ReadName(base + NAME_OFF, nm, sizeof(nm))) { Say("Unknown member.", "party", oga::Priority::High); return; }
 
     uint16_t hp  = u16(base + OFF_HP);
     uint16_t hp2 = u16(base + OFF_HP + 2);
@@ -138,11 +146,11 @@ void SpeakMember(int rec)
                  nm, hp, hp2, ki, ki2 ? ki2 : ki);
     else
         snprintf(line, sizeof(line), "%s. HP %u. Ki %u.", nm, hp, ki);
-    Say(line);
+    Say(line, "party", oga::Priority::High);
 
     if (nxt) {
         snprintf(line, sizeof(line), "%u experience to the next level.", nxt);
-        Say(line, false);   // queue behind the stats rather than interrupting
+        Say(line, "party", oga::Priority::Normal);   // queue behind the stats rather than interrupting
     }
 }
 
@@ -153,12 +161,12 @@ void CmdWhereAmI(void)
     // guess it says what it actually knows: which party screen is current.
     int slot = (g_cursor >= 0) ? g_cursor : 0;
     int rec = PartySlot(slot);
-    if (rec < 0) { Say("Party not available yet."); return; }
+    if (rec < 0) { Say("Party not available yet.", "party", oga::Priority::High); return; }
     char nm[24];
     ReadName(REC_BASE + (uint32_t) rec * REC_STRIDE + NAME_OFF, nm, sizeof(nm));
     char line[96];
     snprintf(line, sizeof(line), "Showing %s, party slot %d.", nm, slot + 1);
-    Say(line);
+    Say(line, "party", oga::Priority::High);
 }
 
 void CmdNextAlly(int dir)
@@ -176,7 +184,7 @@ void CmdNextAlly(int dir)
             return;
         }
     }
-    Say("No party members found.");
+    Say("No party members found.", "party", oga::Priority::High);
 }
 
 void CmdNextEnemy(int /*dir*/)
@@ -185,7 +193,7 @@ void CmdNextEnemy(int /*dir*/)
     // data was not located (only the enemy NAME table in the ROM was). Inventing an
     // answer here would be worse than refusing — the same rule the GBA adapter
     // follows for its own unsupported commands.
-    Say("Not applicable in this game.");
+    Say("Not applicable in this game.", "status", oga::Priority::High);
 }
 
 void CmdDump(void)
