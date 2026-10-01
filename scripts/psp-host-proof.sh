@@ -93,9 +93,18 @@ done
 echo "== compiled $t translation units =="
 
 $CXX -c "$ROOT/scripts/psp-host-proof-main.cpp" -o "$OUT/host-obj/proof-main.o"
+# A stale capture-main.o from a September experiment once sat in this shared
+# object dir and the link below (host-obj/*.o) picked it up, failing on
+# poke_* the proof never uses. The capture tool gets its own OUT dir when it
+# grows a build; nothing but proof-main.o may define main() here.
+rm -f "$OUT/host-obj/capture-main.o"
 g++ -O1 -g "$OUT"/host-obj/*.o -o "$OUT/psp-proof" -lz -lpthread -ldl "$FFMPEG_HOST"/lib/libavcodec.a "$FFMPEG_HOST"/lib/libavformat.a "$FFMPEG_HOST"/lib/libavutil.a "$FFMPEG_HOST"/lib/libswresample.a "$FFMPEG_HOST"/lib/libswscale.a
 echo "== linked $OUT/psp-proof =="
 
+# The core resolves its boot assets (compat.ini, VFPU LUTs) from $PPSSPP_ASSETS
+# or ./ppsspp-assets. Point at the staged subset so a fresh checkout (no env,
+# no CWD copy) boots.
+export PPSSPP_ASSETS="$ROOT/build-assets/ppsspp-assets"
 out="$("$OUT/psp-proof" "$IMG" "$OUT/host-save" "$FRAMES" 2>"$OUT/proof-stderr.log")"
 echo "$out"
 echo "$out" | grep -q "PROOF: gameid=ULUS10437" || { echo "FAIL: unexpected game id" >&2; exit 1; }
