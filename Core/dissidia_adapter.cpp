@@ -167,17 +167,33 @@ static uint8_t u8(uint32_t a) { return g_host ? g_host->read8(g_host->ctx, a) : 
 static uint16_t u16(uint32_t a) { return g_host ? g_host->read16(g_host->ctx, a) : 0; }
 static uint32_t u32(uint32_t a) { return g_host ? g_host->read32(g_host->ctx, a) : 0; }
 
-static void Say(const char* s, bool interrupt = true)
+// Speech routed through the announcement queue with a per-site group and
+// priority. AdapterNoteSpoken stays the first gate (exact-repeat
+// suppression); the queue adds replacement, pacing, and interruption. When
+// the host predates the queue (announce_q null), fall back to the direct
+// wire, barging only for High.
+static void Say(const char* s, const char* group, oga::Priority pri)
 {
     if (!oga::AdapterNoteSpoken(s)) return;
-    if (g_host && g_host->speak) g_host->speak(g_host->ctx, s, interrupt);
+    if (g_host && g_host->announce_q)
+        oga::announce(g_host->announce_q,
+                      oga::Announcement{s, pri, group, nullptr, 0, 0, -1},
+                      g_host->now_ms);
+    else if (g_host && g_host->speak)
+        g_host->speak(g_host->ctx, s, pri == oga::Priority::High);
 }
 
 // QTE prompts are timed and sequential: every prompt speaks, even two
-// identical prompts in a row ("Up! ... Up!" are separate steps).
-static void SayRaw(const char* s, bool interrupt = true)
+// identical prompts in a row ("Up! ... Up!" are separate steps). Normal
+// priority, "qte" group, no dedup key — so the queue never merges them.
+static void SayRaw(const char* s)
 {
-    if (g_host && g_host->speak) g_host->speak(g_host->ctx, s, interrupt);
+    if (g_host && g_host->announce_q)
+        oga::announce(g_host->announce_q,
+                      oga::Announcement{s, oga::Priority::Normal, "qte", nullptr, 0, 0, -1},
+                      g_host->now_ms);
+    else if (g_host && g_host->speak)
+        g_host->speak(g_host->ctx, s, false);
 }
 
 static bool InRam(uint32_t a) { return a >= RAM_LO && a < RAM_HI; }
@@ -381,13 +397,13 @@ static const char* MarkerTypeName(uint32_t cobj, uint32_t key, uint32_t* typeOut
 
 static void CmdDirections(void)
 {
-    if (!ManagerOk()) { Say("Not ready."); return; }
+    if (!ManagerOk()) { Say("Not ready.", "dir", oga::Priority::High); return; }
     uint32_t d = BoardDispatcher();
-    if (!d) { Say("No board."); return; }
+    if (!d) { Say("No board.", "dir", oga::Priority::High); return; }
     Grid g = BoardGrid(BoardBundle());
-    if (!g.ok) { Say("Board unreadable."); return; }
+    if (!g.ok) { Say("Board unreadable.", "dir", oga::Priority::High); return; }
     int hx = u8(d + OFF_HX), hy = u8(d + OFF_HY);
-    if (hx > 60 || hy > 60) { Say("Cursor unreadable."); return; }
+    if (hx > 60 || hy > 60) { Say("Cursor unreadable.", "dir", oga::Priority::High); return; }
     static const char* names[4] = {"west", "east", "north", "south"};
     static const int dx[4] = {-1, 1, 0, 0};
     static const int dy[4] = {0, 0, -1, 1};
@@ -407,20 +423,20 @@ static void CmdDirections(void)
     } else {
         snprintf(line, sizeof(line), "Open: %s. Blocked: %s.", open, shut);
     }
-    Say(line);
+    Say(line, "dir", oga::Priority::High);
     // Caveat (s108): the grid recipe approves cells the marker/story stage may
     // still gate (observed once at (6,2)). Grid-legal is necessary, not sufficient.
 }
 
 static void CmdMarkers(void)
 {
-    if (!ManagerOk()) { Say("Not ready."); return; }
+    if (!ManagerOk()) { Say("Not ready.", "markers", oga::Priority::High); return; }
     uint32_t b = BoardBundle();
-    if (!b) { Say("No board."); return; }
+    if (!b) { Say("No board.", "markers", oga::Priority::High); return; }
     uint32_t t = u32(b + OFF_T);
-    if (!InRam(t) || (t & 3)) { Say("No board."); return; }
+    if (!InRam(t) || (t & 3)) { Say("No board.", "markers", oga::Priority::High); return; }
     uint32_t n = u32(t + 4);
-    if (!InRam(n) || (n & 3)) { Say("No board."); return; }
+    if (!InRam(n) || (n & 3)) { Say("No board.", "markers", oga::Priority::High); return; }
     uint32_t d = BoardDispatcher();
     int hx = -1, hy = -1;
     if (d) { hx = u8(d + OFF_HX); hy = u8(d + OFF_HY); }
@@ -462,16 +478,16 @@ static void CmdMarkers(void)
                 snprintf(line, sizeof(line),
                          "%s at %d, %d.", what, mx, my);
             }
-            Say(line, false);
+            Say(line, "markers", oga::Priority::High);
         }
     }
     if (!found) {
-        Say("No tiles.");
+        Say("No tiles.", "markers", oga::Priority::High);
         return;
     }
     if (found > 1) {
         snprintf(line, sizeof(line), "%d tiles. First spoken.", found);
-        Say(line, false);
+        Say(line, "markers", oga::Priority::High);
     }
     // NOTE: unlisted catalog types speak as "unknown object type N"; an unreadable
     // catalog speaks as "tile". Names are never guessed (s110).
@@ -510,21 +526,21 @@ static bool SpeakTitleSetup(void)
     if (bi >= 0) {
         char line[96];
         snprintf(line, sizeof(line), "Bonus Day. %s. Row %d of 7.", kBonusEntries[bi], bi + 1);
-        Say(line);
+        Say(line, "title", oga::Priority::High);
         return true;
     }
     int pi = PlayIndex();
     if (pi >= 0) {
         char line[96];
         snprintf(line, sizeof(line), "Play Plan. %s. Row %d of 3.", kPlayEntries[pi], pi + 1);
-        Say(line);
+        Say(line, "title", oga::Priority::High);
         return true;
     }
     int ti = TitleIndex();
     if (ti >= 0) {
         char line[96];
         snprintf(line, sizeof(line), "%s. Row %d of 3.", kTitleEntries[ti], ti + 1);
-        Say(line);
+        Say(line, "title", oga::Priority::High);
         return true;
     }
     return false;
@@ -533,7 +549,7 @@ static bool SpeakTitleSetup(void)
 static void CmdWhereAmI(void)
 {
     if (SpeakTitleSetup()) return;
-    if (!ManagerOk()) { Say("Not ready."); return; }
+    if (!ManagerOk()) { Say("Not ready.", "whereami", oga::Priority::High); return; }
     // Board first when no menu widget is live: pause widget validates itself
     // (count 1..7), so a live pause menu still wins via the pinned root below.
     if (!g_widgetRoot) {
@@ -546,17 +562,17 @@ static void CmdWhereAmI(void)
         if (idx >= 0) {
             char line[96];
             snprintf(line, sizeof(line), "Row %d of %u.", idx + 1, cnt);
-            Say(line);
+            Say(line, "whereami", oga::Priority::High);
             return;
         }
         // Explicitly pinned widgets speak for their menu even when empty.
-        if (g_widgetPinned) { Say("No selection."); return; }
+        if (g_widgetPinned) { Say("No selection.", "whereami", oga::Priority::High); return; }
         // Auto-discovered widgets go stale when the menu closes: clear and
         // fall through to the board instead of announcing a dead menu.
         g_widgetRoot = 0;
     }
     uint32_t d = BoardDispatcher();
-    if (!d) { Say("Not tracked yet."); return; }
+    if (!d) { Say("Not tracked yet.", "whereami", oga::Priority::High); return; }
     int dp = BoardDP();
     uint32_t hx = u8(d + OFF_HX), hy = u8(d + OFF_HY);
     uint32_t org = u32(d + OFF_DORG);
@@ -564,7 +580,7 @@ static void CmdWhereAmI(void)
     if (InRam(org)) { ox = u8(org + 2); oy = u8(org + 3); }
     char line[128];
     if (hx > 60 || hy > 60 || ox > 60 || oy > 60) {
-        Say("Board unreadable.");
+        Say("Board unreadable.", "whereami", oga::Priority::High);
         return;
     }
     if (dp == -1000) {
@@ -575,7 +591,7 @@ static void CmdWhereAmI(void)
         snprintf(line, sizeof(line), "DP %d. %u, %u. Origin %u, %u.",
                  dp, hx, hy, ox, oy);
     }
-    Say(line);
+    Say(line, "whereami", oga::Priority::High);
     // TODO: item names (tag->string mapping open), available directions (tile-table
     // owner open), nearby objects. Position only until proven -- never a guess.
 }
@@ -685,12 +701,12 @@ static void MenuSync(void)
     if (live && !g_menuMain) { g_menuMain = true; g_menuRow = 0; }
     if (!live && g_menuMain) { g_menuMain = false; }
 }
-static void MenuSpeakRow(void)
+static void MenuSpeakRow(oga::Priority pri)
 {
     char line[96];
     snprintf(line, sizeof(line), "%s. Row %d of 8.",
              kMainEntries[g_menuRow], g_menuRow + 1);
-    Say(line);
+    Say(line, "menu", pri);
 }
 static bool g_optLive = false;  // owned by the options block below
 static bool g_custLive = false;  // customize tracker state (rows owned below)
@@ -781,7 +797,7 @@ static void OptSync(void)
         g_optLive = false;
     }
 }
-static void OptSpeakRow(void)
+static void OptSpeakRow(oga::Priority pri)
 {
     const OptRow& r = kOptRows[g_optRow];
     char line[128];
@@ -790,7 +806,7 @@ static void OptSpeakRow(void)
                  r.name, r.vals[g_optVal[g_optRow]], g_optRow + 1);
     else
         snprintf(line, sizeof(line), "%s. Row %d of 23.", r.name, g_optRow + 1);
-    Say(line);
+    Say(line, "options", pri);
 }
 
 // ---- Customize menu (story-map Triangle; host-RE mx-map1..mx-map4) ----
@@ -814,12 +830,12 @@ static const char* kCustRows[9] = {
     "Abilities", "Equipment", "Accessories", "Summons", "EX Mode",
     "Battlegen", "Accomplishments", "Shop", "Options",
 };
-static void CustSpeakRow(void)
+static void CustSpeakRow(oga::Priority pri)
 {
     char line[96];
     snprintf(line, sizeof(line), "%s. Row %d of 9.",
              kCustRows[g_custRow], g_custRow + 1);
-    Say(line);
+    Say(line, "custom", pri);
 }
 
 // ---- Character select (main-menu Triangle; host-RE mx-charsel1-4) ----
@@ -834,12 +850,12 @@ static const char* kCharRows[10] = {
     "Warrior of Light", "Firion", "Onion Knight", "Cecil", "Bartz",
     "Terra", "Cloud", "Squall", "Zidane", "Tidus",
 };
-static void CharSpeakRow(void)
+static void CharSpeakRow(oga::Priority pri)
 {
     char line[96];
     snprintf(line, sizeof(line), "%s. Row %d of 10.",
              kCharRows[g_charRow], g_charRow + 1);
-    Say(line);
+    Say(line, "char", pri);
 }
 
 // ---- YES/NO dialogs (suspend/quit/fight confirms; host-RE s-dialogs) ----
@@ -878,12 +894,12 @@ static bool StoryDlgLive(void)
 }
 static int StoryDlgSel(void) { return (u32(SDLG_A) & 0xffffu) == 5 ? 0 : 1; }
 static bool AnyDialogLive(void) { return DialogLive() || StoryDlgLive(); }
-static void DlgSpeak(void)
+static void DlgSpeak(oga::Priority pri)
 {
     int s = DialogLive() ? DialogSel() : StoryDlgSel();
     char b[64];
     snprintf(b, sizeof b, "%s. Row %d of 2.", s == 0 ? "YES" : "NO", s + 1);
-    Say(b);
+    Say(b, "dialog", pri);
 }
 
 static uint32_t FighterHP(const Fighter& f)
@@ -895,16 +911,16 @@ static uint32_t FighterHP(const Fighter& f)
 static void CmdBattleSelf(void)
 {
     Battle b = BattleFighters();
-    if (!b.ok) { Say("No battle."); return; }
+    if (!b.ok) { Say("No battle.", "self", oga::Priority::High); return; }
     char line[128];
     if (FighterHP(b.self) == 0) {
-        Say("Down. Retry or flee.");
+        Say("Down. Retry or flee.", "self", oga::Priority::High);
         return;
     }
     snprintf(line, sizeof(line), "HP %u of %u. Bravery %d. EX %d.",
              FighterHP(b.self), b.self.hpMax, b.self.brv,
              (int) (b.self.ex / 100.0f));
-    Say(line);
+    Say(line, "self", oga::Priority::High);
 }
 
 static float VecDist(float x0, float y0, float z0, float x1, float y1, float z1)
@@ -923,7 +939,7 @@ static float VecDist(float x0, float y0, float z0, float x1, float y1, float z1)
 static void CmdBattleFoe(void)
 {
     Battle b = BattleFighters();
-    if (!b.ok || !b.foe.ok) { Say("No opponent."); return; }
+    if (!b.ok || !b.foe.ok) { Say("No opponent.", "foe", oga::Priority::High); return; }
     float d = VecDist(b.self.x, b.self.y, b.self.z, b.foe.x, b.foe.y, b.foe.z);
     float dy = b.foe.y - b.self.y;
     char vert[16];
@@ -933,7 +949,7 @@ static void CmdBattleFoe(void)
     char line[192];
     snprintf(line, sizeof(line), "Enemy HP %u of %u. Bravery %d. %d away%s.",
              FighterHP(b.foe), b.foe.hpMax, b.foe.brv, (int) d, vert);
-    Say(line);
+    Say(line, "foe", oga::Priority::High);
 }
 
 /// Lock target (ANSWER9, s114; VALIDATED LIVE: enemy-lock state + 8-entry list).
@@ -944,20 +960,20 @@ static void CmdBattleFoe(void)
 static void CmdLock(void)
 {
     Battle b = BattleFighters();
-    if (!b.ok) { Say("No battle."); return; }
+    if (!b.ok) { Say("No battle.", "lock", oga::Priority::High); return; }
     uint32_t m = u32(BATTLE_MGR_HOLDER);
     uint32_t enemy = u32(b.self.p + OFF_PAIR);
     uint32_t tgt = u32(b.self.p + 0x2ECu);
     char line[192];
     if (tgt == 0) {
-        Say("Lock off.");
+        Say("Lock off.", "lock", oga::Priority::High);
         return;
     }
     if (tgt == enemy) {
-        if (!b.foe.ok) { Say("No opponent."); return; }
+        if (!b.foe.ok) { Say("No opponent.", "lock", oga::Priority::High); return; }
         float d = VecDist(b.self.x, b.self.y, b.self.z, b.foe.x, b.foe.y, b.foe.z);
         snprintf(line, sizeof(line), "Locked. %d away.", (int) d);
-        Say(line);
+        Say(line, "lock", oga::Priority::High);
         return;
     }
     // Alternate: verify list membership before exposing. (Self is also listed but
@@ -971,25 +987,25 @@ static void CmdLock(void)
         }
     }
     if (!listed) {
-        Say("Lock lost.");
+        Say("Lock lost.", "lock", oga::Priority::High);
         return;
     }
     if (tgt == b.self.p) {
-        Say("Lock lost.");
+        Say("Lock lost.", "lock", oga::Priority::High);
         return;
     }
     if (!InRam(tgt + 0x88u)) {
-        Say("Lock lost.");
+        Say("Lock lost.", "lock", oga::Priority::High);
         return;
     }
     float tx = f32(tgt + OFF_PX), ty = f32(tgt + OFF_PY), tz = f32(tgt + OFF_PZ);
     if (tx != tx || ty != ty || tz != tz) {
-        Say("Lock lost.");
+        Say("Lock lost.", "lock", oga::Priority::High);
         return;
     }
     float d = VecDist(b.self.x, b.self.y, b.self.z, tx, ty, tz);
     snprintf(line, sizeof(line), "EX core. %d away.", (int) d);
-    Say(line);
+    Say(line, "lock", oga::Priority::High);
     // BEACON CONTRACT (app audio layer, not this adapter): while locked, the target
     // stays centered; the app beeps low with rate rising as this distance closes.
     // This command is the on-demand equivalent; per-frame beeping needs a query API
@@ -1092,10 +1108,10 @@ static std::string OskReadText(uint32_t addr, int units)
 
 static void OskSayName(const std::string& t)
 {
-    if (t.empty()) { Say("Name empty."); return; }
+    if (t.empty()) { Say("Name empty.", "osk", oga::Priority::High); return; }
     char line[192];
     snprintf(line, sizeof(line), "Name %s.", OskEcho::spell(t).c_str());
-    Say(line);
+    Say(line, "osk", oga::Priority::High);
 }
 
 /// Post-edit grounding: the guest buffer tracks typing live, so after every
@@ -1114,7 +1130,7 @@ static void OskEdit(std::string (OskEcho::*op)())
             return;
         }
     }
-    Say(line.c_str());
+    Say(line.c_str(), "osk", oga::Priority::High);
 }
 
 static void OskToggle(void)
@@ -1134,11 +1150,11 @@ static void OskToggle(void)
     if (!OskStructLive(&t, &m)) {
         if (g_host && g_host->log)
             g_host->log(g_host->ctx, "OSK toggle refused: params chain invalid");
-        Say("Not open.");
+        Say("Not open.", "osk", oga::Priority::High);
         return;
     }
     std::string seed = OskReadText(t, m + 1);
-    Say(g_osk.enter().c_str());
+    Say(g_osk.enter().c_str(), "osk", oga::Priority::High);
     g_osk.seed(seed);
     g_osk.maxChars = m;
     g_oskLive = true;
@@ -1172,15 +1188,15 @@ static bool OskCommand(Command cmd)
         return true;
     }
     switch (cmd) {
-        case Command::WhereAmI: Say(g_osk.where().c_str()); return true;
-        case Command::MenuNext: Say(g_osk.moveDown().c_str()); return true;
-        case Command::MenuPrev: Say(g_osk.moveUp().c_str()); return true;
-        case Command::MenuLeft: Say(g_osk.moveLeft().c_str()); return true;
-        case Command::MenuRight: Say(g_osk.moveRight().c_str()); return true;
+        case Command::WhereAmI: Say(g_osk.where().c_str(), "osk", oga::Priority::High); return true;
+        case Command::MenuNext: Say(g_osk.moveDown().c_str(), "osk", oga::Priority::High); return true;
+        case Command::MenuPrev: Say(g_osk.moveUp().c_str(), "osk", oga::Priority::High); return true;
+        case Command::MenuLeft: Say(g_osk.moveLeft().c_str(), "osk", oga::Priority::High); return true;
+        case Command::MenuRight: Say(g_osk.moveRight().c_str(), "osk", oga::Priority::High); return true;
         case Command::OskType: OskEdit(&OskEcho::type); return true;
         case Command::OskDelete: OskEdit(&OskEcho::erase); return true;
         case Command::OskSpace: OskEdit(&OskEcho::space); return true;
-        case Command::OskShift: Say(g_osk.shift().c_str()); return true;
+        case Command::OskShift: Say(g_osk.shift().c_str(), "osk", oga::Priority::High); return true;
         case Command::OskFinish: OskFinish(); return true;
         default: break;
     }
@@ -1282,7 +1298,7 @@ static void BoardArriveSpeak(int id)
     else if (name) snprintf(line, sizeof(line), "%s here.", name);
     else if (ty != 0xFFFFFFFFu) snprintf(line, sizeof(line), "Unknown %u here.", ty);
     else snprintf(line, sizeof(line), "Unknown here.");
-    Say(line);
+    Say(line, "board", oga::Priority::Normal);
     if (id != g_wsLoggedId) {
         g_wsLoggedId = id;
         if (g_host && g_host->log) {
@@ -1296,21 +1312,21 @@ static void WatchSpeak(int s, int i)
 {
     char line[96];
     switch (s) {
-        case WS_DIALOG: DlgSpeak(); return;
+        case WS_DIALOG: DlgSpeak(oga::Priority::Normal); return;
         case WS_BONUS:
             snprintf(line, sizeof(line), "Bonus Day. %s. Row %d of 7.",
                      kBonusEntries[i], i + 1);
-            Say(line); return;
+            Say(line, "bonus", oga::Priority::Normal); return;
         case WS_PLAY:
             snprintf(line, sizeof(line), "Play Plan. %s. Row %d of 3.",
                      kPlayEntries[i], i + 1);
-            Say(line); return;
+            Say(line, "playplan", oga::Priority::Normal); return;
         case WS_TITLE:
             snprintf(line, sizeof(line), "%s. Row %d of 3.",
                      kTitleEntries[i], i + 1);
-            Say(line); return;
-        case WS_MAIN: MenuSpeakRow(); return;
-        case WS_OPTIONS: OptSpeakRow(); return;
+            Say(line, "title", oga::Priority::Normal); return;
+        case WS_MAIN: MenuSpeakRow(oga::Priority::Normal); return;
+        case WS_OPTIONS: OptSpeakRow(oga::Priority::Normal); return;
         case WS_BOARD: BoardArriveSpeak(i); return;
         default: return;
     }
@@ -1373,10 +1389,10 @@ static void Command(Command cmd)
     // during battle, so board-first would speak stale cursor garbage mid-fight.
     bool battle = BattleFighters().ok;
     if (cmd == Command::CustToggle) {
-        if (battle) { g_custLive = false; Say("Not open."); return; }
+        if (battle) { g_custLive = false; Say("Not open.", "custom", oga::Priority::High); return; }
         g_custLive = !g_custLive;
-        if (g_custLive) { g_custRow = 0; CustSpeakRow(); }
-        else Say("Closed.");
+        if (g_custLive) { g_custRow = 0; CustSpeakRow(oga::Priority::Normal); }
+        else Say("Closed.", "custom", oga::Priority::High);
         return;
     }
     // Battles stay silent except QTE prompts (player rule): the edge/latch
@@ -1400,7 +1416,7 @@ static void Command(Command cmd)
         return;
     }
     if (cmd == Command::ExBurstGo) {
-        if (battle) Say("Square!");
+        if (battle) Say("Square!", "qte", oga::Priority::Normal);
         return;
     }
     if (cmd == Command::ExQteUp) {
@@ -1436,7 +1452,7 @@ static void Command(Command cmd)
         return;
     }
     if (cmd == Command::ExBurstGoMash) {
-        if (battle) Say("Mash Circle!");
+        if (battle) Say("Mash Circle!", "qte", oga::Priority::Normal);
         return;
     }
     if (cmd == Command::ExBurstLevel) {
@@ -1444,10 +1460,10 @@ static void Command(Command cmd)
         return;
     }
     if (cmd == Command::CharToggle) {
-        if (battle) { g_charLive = false; Say("Not open."); return; }
+        if (battle) { g_charLive = false; Say("Not open.", "char", oga::Priority::High); return; }
         g_charLive = !g_charLive;
-        if (g_charLive) { g_charRow = 0; CharSpeakRow(); }
-        else Say("Closed.");
+        if (g_charLive) { g_charRow = 0; CharSpeakRow(oga::Priority::Normal); }
+        else Say("Closed.", "char", oga::Priority::High);
         return;
     }
     if (battle) { g_custLive = false; g_charLive = false; g_quickLive = false; g_exReady = false; g_oskLive = false; }
@@ -1463,11 +1479,11 @@ static void Command(Command cmd)
     MenuSync();
     if (g_menuMain && !battle) {
         switch (cmd) {
-            case Command::WhereAmI: MenuSpeakRow(); return;
+            case Command::WhereAmI: MenuSpeakRow(oga::Priority::High); return;
             case Command::MenuNext:
-                g_menuRow = (g_menuRow + 1) % 8; MenuSpeakRow(); return;
+                g_menuRow = (g_menuRow + 1) % 8; MenuSpeakRow(oga::Priority::High); return;
             case Command::MenuPrev:
-                g_menuRow = (g_menuRow + 7) % 8; MenuSpeakRow(); return;
+                g_menuRow = (g_menuRow + 7) % 8; MenuSpeakRow(oga::Priority::High); return;
             default: break;
         }
     }
@@ -1475,9 +1491,9 @@ static void Command(Command cmd)
     MenuSync(); OptSync();
     if (AnyDialogLive() && !battle) {
         // Modal YES/NO sits over pause/board/options: RAM re-read, no tracking.
-        if (cmd == Command::WhereAmI || cmd == Command::MenuState) { DlgSpeak(); return; }
+        if (cmd == Command::WhereAmI || cmd == Command::MenuState) { DlgSpeak(oga::Priority::High); return; }
         if (cmd == Command::MenuNext || cmd == Command::MenuPrev ||
-            cmd == Command::MenuLeft || cmd == Command::MenuRight) { DlgSpeak(); return; }
+            cmd == Command::MenuLeft || cmd == Command::MenuRight) { DlgSpeak(oga::Priority::High); return; }
     }
     // Title/setup D-pad echo: no tracking to desync (cursor re-read from RAM,
     // like the dialog block); silent when those screens are not live.
@@ -1490,33 +1506,33 @@ static void Command(Command cmd)
     if (g_optLive && !battle) {
         const OptRow* orow = &kOptRows[g_optRow];
         switch (cmd) {
-            case Command::WhereAmI: OptSpeakRow(); return;
-            case Command::MenuNext: g_optRow = (g_optRow + 1) % 23; OptSpeakRow(); return;
-            case Command::MenuPrev: g_optRow = (g_optRow + 22) % 23; OptSpeakRow(); return;
+            case Command::WhereAmI: OptSpeakRow(oga::Priority::High); return;
+            case Command::MenuNext: g_optRow = (g_optRow + 1) % 23; OptSpeakRow(oga::Priority::High); return;
+            case Command::MenuPrev: g_optRow = (g_optRow + 22) % 23; OptSpeakRow(oga::Priority::High); return;
             case Command::MenuLeft:
                 if (orow->nvals > 0)
                     g_optVal[g_optRow] = (g_optVal[g_optRow] + orow->nvals - 1) % orow->nvals;
-                OptSpeakRow(); return;
+                OptSpeakRow(oga::Priority::High); return;
             case Command::MenuRight:
                 if (orow->nvals > 0)
                     g_optVal[g_optRow] = (g_optVal[g_optRow] + 1) % orow->nvals;
-                OptSpeakRow(); return;
+                OptSpeakRow(oga::Priority::High); return;
             default: break;
         }
     }
     if (g_custLive && !battle) {
         switch (cmd) {
-            case Command::WhereAmI: CustSpeakRow(); return;
-            case Command::MenuNext: g_custRow = (g_custRow + 1) % 9; CustSpeakRow(); return;
-            case Command::MenuPrev: g_custRow = (g_custRow + 8) % 9; CustSpeakRow(); return;
+            case Command::WhereAmI: CustSpeakRow(oga::Priority::High); return;
+            case Command::MenuNext: g_custRow = (g_custRow + 1) % 9; CustSpeakRow(oga::Priority::High); return;
+            case Command::MenuPrev: g_custRow = (g_custRow + 8) % 9; CustSpeakRow(oga::Priority::High); return;
             default: break;
         }
     }
     if (g_charLive && !battle) {
         switch (cmd) {
-            case Command::WhereAmI: CharSpeakRow(); return;
-            case Command::MenuNext: g_charRow = (g_charRow + 1) % 10; CharSpeakRow(); return;
-            case Command::MenuPrev: g_charRow = (g_charRow + 9) % 10; CharSpeakRow(); return;
+            case Command::WhereAmI: CharSpeakRow(oga::Priority::High); return;
+            case Command::MenuNext: g_charRow = (g_charRow + 1) % 10; CharSpeakRow(oga::Priority::High); return;
+            case Command::MenuPrev: g_charRow = (g_charRow + 9) % 10; CharSpeakRow(oga::Priority::High); return;
             default: break;
         }
     }

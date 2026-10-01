@@ -6,18 +6,21 @@
 - [x] **Reconcile pending Windows-only work:** `scripts/check-trees.sh` reports 0 untracked scripts and 0 untracked docs (2026-09-27). The 85 Windows-only files were all obsolete one-shot commit/sync helpers whose payloads the repo had superseded (verified by content diff); deleted. The adapter-contribution guide and announcement-queue proposals are tracked under `docs/proposals/` (the latter sketches the C queue API behind the policy in `docs/design/announcement-queue.md`). The Chrono Trigger DS notes were removed (SNES version instead; git history keeps them). The Dissidia battle-audio spec is tracked at `docs/proposals/dissidia-battle-audio.md` (in-battle cues, speech for menus/queries only). The `reverse-engineering/ctds/` dir holds SNES ChronoAccess research (live WRAM verification) and is tracked. (Chrono Trigger DS research dropped — SNES version instead.)
 - [x] **Announcement queue design:** `docs/design/announcement-queue.md` defines the four priority levels, the interruption matrix, same-key coalescing with rate caps, on-demand opponent/location queries, and the lock-on audio beacon. Passive speech stays off until a playtest passes the criteria in that doc.
 - [x] **Announcement queue core:** `Core/announce.*` implements `docs/design/announcement-queue.md` (one line in flight, 3 levels, groups, dedup, expiry, time rate limit, bounds, stop, retry). `scripts/announce-test.sh`: 49 checks plus 7 sabotage builds that must fail; runs in the adapter-tests CI workflow.
-- [ ] **Wire the queue into hosts** (sequenced in `docs/design/announcement-queue.md`
-  "Host wiring"): (1) Core owns one queue per core, tick per frame, estimate pacing,
-  additive `poke_announce_done` ABI; (2) adapters migrate to `oga::announce` with
-  per-site groups (Dissidia first — it has the host tests); (3) iOS completion hooks
-  (`AVSpeechSynthesizerDelegate` methods are currently unimplemented; VoiceOver path
-  needs `announcementDidFinishNotification`); (4) Android needs native adapter JNI
-  plumbing first (no `AccessibilitySpeech.kt` exists — the app is a WebView+TTS shell),
-  then `UtteranceProgressListener`. Needs device testing with VoiceOver and TalkBack
-  on and off.
-
-## Immediate build blocker
-
+- [x] **Wire the queue into hosts** (2026-10-01; sequenced in `docs/design/announcement-queue.md`
+  "Host wiring"): (1) core owns one `AnnounceQueue` per `PokeCore` (`QueueSpeak` sink into the
+  unchanged `speechCb`, `EndFrame` stamps `Host.now_ms` + ticks on all three console paths,
+  the `StopSpeech` command and the script stop key clear the queue, additive
+  `poke_announce_done` / `poke_announce_id_for_text` ABI); (2) Dissidia migrated to
+  `oga::announce` with per-site groups/priorities (`Say`/`SayRaw`, null-queue fallback to the
+  direct wire) plus queue-mapping host tests (High interrupt, estimate pacing, group
+  replacement — 149/149 green); FE/GBA/DBZ/DQ9 stay on direct `Host::speak` (behavior
+  unchanged, migrate next); (3) iOS completion hooks: synth `didFinish`/`didCancel` +
+  `announcementDidFinishNotification` report done via id lookup, the Stop-speech button also
+  sends `StopSpeech` (raw 37, never a player button); (4) Android: per-utterance ids +
+  `UtteranceProgressListener` in `MainActivity` (observed/logged). REMAINING: the Android
+  native port (the app embeds melonDS-android, not the shared core, so adapter commands
+  and `poke_announce_done` need the NDK port first) and device proof with VoiceOver and
+  TalkBack on and off.
 - [x] **Finish PSP simulator linking (gated):** the app link failed with unresolved `psp_*` from `pokecore.o` (run 36214860816); `Core/psp_stub.cpp` gated it as an explicit no-op so the simulator app links.
 - [x] **Promote the real PPSSPP core:** PPSSPP is pinned in `bootstrap-deps.sh` (`f293b10`, IR interpreter + software GPU only), the audited 386-TU subset lives in `core-sources.sh` (`PPSPP_CORE`/`PPSPP_EXT_*`/`PPSPP_LUA`/`PPSPP_X86*`), both build scripts compile it via the `ppspp` lang cases, and `scripts/psp-host-proof.sh` re-proves the pin from those same lists (Dissidia ULUS10437, 900/900 frames, live 480x272 framebuffer, clean shutdown). `scripts/ppsspp-subset-test.sh` guards the lists against upstream drift in CI. Done 2026-09-26: PPSSPP runtime assets bundle with the app — the strace-proven
 8-file manifest (PPSPP_ASSETS) is staged by scripts/ppsspp-stage-assets.sh

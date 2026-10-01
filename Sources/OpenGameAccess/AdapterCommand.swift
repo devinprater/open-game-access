@@ -71,6 +71,10 @@ enum AdapterCommand: Int32, CaseIterable {
     case oskSpace = 34
     case oskShift = 35
     case oskFinish = 36
+    /// Player stop key. Sent by the Stop-speech button, never shown as a
+    /// button: it clears the announcement queue and stops the platform voice.
+    /// Append-only: raw values are the C ABI shared with the core.
+    case stopSpeech = 37
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -113,6 +117,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .oskSpace: return "OSK space"
         case .oskShift: return "OSK shift"
         case .oskFinish: return "OSK finish"
+        case .stopSpeech: return "Stop speech"
         }
     }
 
@@ -195,6 +200,8 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Sent when the player presses Select on the name-entry keyboard."
         case .oskFinish:
             return "Sent when the player presses Start on the name-entry keyboard."
+        case .stopSpeech:
+            return "Sent by the Stop-speech button; clears queued announcements."
         }
     }
 
@@ -238,6 +245,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .oskSpace: return "space"
         case .oskShift: return "shift"
         case .oskFinish: return "checkmark"
+        case .stopSpeech: return "stop.fill"
         }
     }
 

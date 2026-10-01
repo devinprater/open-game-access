@@ -23,6 +23,8 @@
 #include <stdint.h>
 #include <stdbool.h>
 
+#include "announce.h"
+
 namespace oga {
 
 /// What an adapter may ask the host to do. Kept as function pointers rather than
@@ -35,6 +37,16 @@ struct Host {
     uint32_t (*read32)(void* ctx, uint32_t addr);
     /// Speak. `interrupt=false` queues behind whatever is speaking.
     void (*speak)(void* ctx, const char* utf8, bool interrupt);
+    /// Monotonic clock, ms. The core stamps it before every adapter call
+    /// (command, on_frame); host tests stamp it by hand. Queue-routed
+    /// speech reads it as "now".
+    uint64_t now_ms;
+    /// The core's announcement queue, or nullptr in hosts that predate it.
+    AnnounceQueue* announce_q;
+    /// Migrated adapters route speech through oga::announce() and read the
+    /// queue from here; Host::speak stays the direct wire for adapters not
+    /// yet migrated (and for the Lua script path, which never shares a ROM
+    /// with a migrated adapter).
     /// Silent developer line, for the app's reading log.
     void (*log)(void* ctx, const char* utf8);
     /// Press/release an emulated console button (adapter drives the REAL game,
@@ -96,6 +108,8 @@ enum class Command {
     OskSpace,  // Square on the OSK: type a space + speak
     OskShift,  // Select on the OSK: toggle case table + speak
     OskFinish, // Start on the OSK: finish entry, speak the final name
+    StopSpeech, // Player stop key: clear the announcement queue + stop the
+                // platform voice (append-only; raw values are the C ABI).
 };
 
 struct Adapter {

@@ -139,8 +139,20 @@ bool poke_adapter_ready(PokeCore *core);
 bool poke_command(PokeCore *core, int cmd);
 
 /* The DS button id for an adapter command, so the UI can label a button with the
- * same control the game itself uses. -1 when the command has no game button. */
+same control the game itself uses. -1 when the command has no game button. */
 int poke_command_button(PokeCore *core, int cmd);
+
+/* Announcement-queue completion hooks (additive: estimate pacing works without
+ * them). The queue releases one line at a time; a platform that can report
+ * "finished" calls poke_announce_done with the utterance id it got through
+ * the speech callback path (see poke_announce_id_for_text), so the next line
+ * releases immediately instead of waiting out its estimate. Thread-safe: may
+ * be called from any thread; the frame thread applies it. */
+void poke_announce_done(PokeCore *core, uint32_t utterance_id, int success);
+/* Newest utterance id whose text equals utf8_text, or 0. Lets a platform
+ * completion hook (which sees only the finished string) report back the
+ * right id. */
+uint32_t poke_announce_id_for_text(PokeCore *core, const char *utf8_text);
 
 const char *poke_version(void);
 

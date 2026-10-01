@@ -132,8 +132,13 @@ final class GameSession: ObservableObject {
     /// speech resumes a frame later. Engine-level silence drops those lines
     /// until the player asks for something. This is the only stop available
     /// on systems whose script has no stop key (Game Boy, PSP).
+    /// Silence that sticks: stop the platform voice AND clear the core's
+    /// announcement queue, so a queued High line cannot resume speech after
+    /// the stop. Silent by contract (no refusal speech): with no adapter the
+    /// command is refused and there is nothing queued anyway.
     func stopSpeech() {
         speech?.stopAll()
+        if let core { _ = poke_command(core, AdapterCommand.stopSpeech.rawValue) }
     }
 
     func setHotkey(_ key: String, down: Bool) {
@@ -168,6 +173,7 @@ final class GameSession: ObservableObject {
         guard let core else { return }
         poke_set_speech_callback(core, GameSession.speechCallback,
                                  Unmanaged.passUnretained(speech).toOpaque())
+        speech.queueCore = core
         speech.configureAudioSession()
     }
 

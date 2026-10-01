@@ -50,7 +50,24 @@ const Adapter kGameBoyAdvance = { "gba", "stub", "AGB", NoAttach, NoFrame, NoCom
 const Adapter kDragonBallZSaiyans = { "dbz", "stub", "BRPE", NoAttach, NoFrame, NoCommand, NoReady, NoDetach };
 }
 
-static const oga::Host HOST = { r8, r16, r32, spk, lg, btn, nullptr };
+static oga::AnnounceQueue* Q = nullptr;  // recreated by reset(): test isolation
+static uint64_t NOW = 0;                  // fake clock, stamped + advanced by hand
+static void qspk(void*, const char* t, bool, uint32_t) { spk(nullptr, t, false); }
+// Tiny estimates (10 ms + 1 ms/byte) so sync() flushes fast. The queue RULES
+// are covered by announce_test.cpp; here we assert adapter logic: the right
+// text, groups, and priorities reach the sink.
+static oga::Host HOST = { r8, r16, r32, spk, 0, nullptr, lg, btn, nullptr };
+static void sync(void)
+{
+    for (int n = 0; n < 400; n++) {
+        if (!oga::announce_in_flight(Q) && oga::announce_pending_count(Q) == 0) break;
+        NOW += 25;
+        HOST.now_ms = NOW;
+        oga::announce_tick(Q, NOW);
+    }
+}
+#define CMD(c) do { a->command(c); sync(); } while (0)
+#define FRAME() do { a->on_frame(); sync(); } while (0)
 
 static void put32(uint32_t a, uint32_t v) { memcpy(&RAM[OFF(a)], &v, 4); }
 static void put8(uint32_t a, uint8_t v) { RAM[OFF(a)] = v; }
@@ -67,6 +84,20 @@ static void reset(void)
 {
     memset(RAM, 0, sizeof(RAM));
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); NLOGGED = 0;
+    if (Q) oga::announce_destroy(Q);
+    oga::AnnounceConfig cfg{};
+    cfg.host_reports_done = false;
+    cfg.diag_verbose = false;
+    cfg.est_base_ms = 10;
+    cfg.est_ms_per_byte = 1;
+    oga::AnnounceSink sink{};
+    sink.speak = qspk;
+    sink.log = nullptr;
+    sink.ctx = nullptr;
+    Q = oga::announce_create(sink, cfg);
+    NOW = 0;
+    HOST.now_ms = 0;
+    HOST.announce_q = Q;
     put32(0x08B9B770u, MGR);   // MGR_SLOT -> manager
     put32(MGR + 0x18u, 3u);    // render count (derived; nonzero = drawing)
     put32(BATTLE_HOLDER, BROOT);
@@ -118,7 +149,7 @@ int main(void)
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
     put32(W + 0x3Cu, 0u);
     put32(W + 0x240u, 4u);
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Row 1 of 4.") == 0,
           "WhereAmI discovers pause widget");
     CHECK(oga::dissidia::WidgetRoot() == W, "discovery pins the widget");
@@ -128,40 +159,40 @@ int main(void)
     put32(W + 0x3Cu, 1u);
     put32(W + 0x240u, 4u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Row 2 of 4.") == 0, "Row 2 of 4");
 
     // 4. sentinel idx=-1 -> "No selection."
     put32(W + 0x3Cu, 0xFFFFFFFFu);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "No selection.") == 0, "sentinel -1");
 
     // 5. count=0 -> "No selection."
     put32(W + 0x3Cu, 0u);
     put32(W + 0x240u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "No selection.") == 0, "count 0");
 
     // 6. count above cap (9 > 7) -> "No selection."
     put32(W + 0x240u, 9u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "No selection.") == 0, "count above cap");
 
     // 7. idx == count (out of range) -> "No selection."
     put32(W + 0x3Cu, 4u);
     put32(W + 0x240u, 4u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "No selection.") == 0, "idx == count");
 
     // 8. manager invalid -> not ready, refuses
     put32(0x08B9B770u, 0u);
     CHECK(!a->ready(), "not ready with null manager");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Not ready.") == 0, "refuses when not ready");
 
     // 9. DumpState logs (does not speak)
@@ -170,7 +201,7 @@ int main(void)
     put32(W + 0x3Cu, 2u);
     put32(W + 0x240u, 4u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); NLOGGED = 0;
-    a->command(oga::Command::DumpState);
+    CMD(oga::Command::DumpState);
     CHECK(NSPOKEN == 0, "dump does not speak");
     CHECK(NLOGGED == 2, "dump logs two lines");
 
@@ -184,7 +215,7 @@ int main(void)
     put32(W + 0x3Cu, 0xFFFFFFFFu);
     put32(W + 0x240u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Not tracked yet.") == 0,
           "closed pause refuses discovery");
 
@@ -194,7 +225,7 @@ int main(void)
     put32(W + 0x3Cu, 1u);
     put32(W + 0x240u, 4u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Not tracked yet.") == 0,
           "corrupt holder refuses discovery");
 
@@ -203,7 +234,7 @@ int main(void)
     put32(W + 0x3Cu, 2u);
     put32(W + 0x240u, 4u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Row 3 of 4.") == 0, "Row 3 of 4");
 
     // ---- board surfaces (synthetic M/P/B/D + progress chain, live-observed values)
@@ -230,21 +261,21 @@ int main(void)
     put32(BD + 0x38u, BB);
     put8(BB + 0x02u, 1u); put8(BB + 0x03u, 2u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "DP 1. Home 1, 2.") == 0,
           "board DP + cursor home");
 
     // 15. cursor away from origin -> "DP 1. 2, 2. Origin 1, 2."
     put8(BD + 0x194u, 2u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "DP 1. 2, 2. Origin 1, 2.") == 0,
           "board cursor away");
 
     // 16. broken chain (B null) -> refuses
     put32(BP + 0x04u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Not tracked yet.") == 0,
           "broken board chain refuses");
 
@@ -252,7 +283,7 @@ int main(void)
     put32(BP + 0x04u, BB);
     put32(0x08B99338u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "2, 2. Origin 1, 2.") == 0,
           "board DP unreadable");
 
@@ -282,7 +313,7 @@ int main(void)
 
     // 18. available directions from (1,2)
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextAlly);
+    CMD(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Open: east, north, south. Blocked: west.") == 0,
           "directions from (1,2)");
 
@@ -300,7 +331,7 @@ int main(void)
     put16(BO + 4u, 0u);             // type 0 = enemy
     put8(BN + 0u, 0u); put8(BN + 2u, 6u); put8(BN + 3u, 2u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextEnemy);
+    CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "enemy east 5 away at 6, 2.") == 0,
           "marker enemy east");
 
@@ -310,17 +341,17 @@ int main(void)
     put32(BCTAB + 12u, 0x30u); put16(BO + 0x34u, 9u);  // key 3 -> type 9 (unknown)
     put8(BN + 0u, 1u); put8(BN + 2u, 5u); put8(BN + 3u, 2u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextEnemy);
+    CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "potion east 4 away at 5, 2.") == 0,
           "marker potion here");
     put8(BN + 0u, 2u); put8(BN + 2u, 6u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextEnemy);
+    CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Stigma of Chaos east 5 away at 6, 2.") == 0,
           "marker stigma east");
     put8(BN + 0u, 3u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextEnemy);
+    CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "unknown 9 east 5 away at 6, 2.") == 0,
           "marker unknown type");
 
@@ -328,14 +359,14 @@ int main(void)
     put32(BCAT + 8u, 0u);
     put8(BN + 0u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextEnemy);
+    CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "tile east 5 away at 6, 2.") == 0,
           "marker catalog unreadable");
 
     // 22. broken grid (G null) -> refuses honestly
     put32(BB + 0x08u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextAlly);
+    CMD(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Board unreadable.") == 0,
           "broken grid refuses");
 
@@ -364,13 +395,13 @@ int main(void)
 
     // 23. battle self speech
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "HP 906 of 1000. Bravery 41. EX 0.") == 0,
           "battle self");
 
     // 24. battle foe speech: dy=2.6-18.4=-15.8 -> below; dist=sqrt(15.8^2)=15 (int)
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextAlly);
+    CMD(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Enemy HP 338 of 338. Bravery 530. 15 away, below you.") == 0,
           "battle foe");
 
@@ -379,13 +410,13 @@ int main(void)
     // enemy lock: tgt == P1 (paired); dist P0->P1 = 15.8 -> 15
     put32(BP0 + 0x2ECu, BP1);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextEnemy);
+    CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Locked. 15 away.") == 0,
           "lock enemy");
     // lock off
     put32(BP0 + 0x2ECu, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextEnemy);
+    CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Lock off.") == 0,
           "lock off");
     // EX-core lock: alternate target in the generic list
@@ -396,20 +427,20 @@ int main(void)
     put32(BO2 + 0x490u, 0u);
     putf(BO2 + 0x80u, -7.5f); putf(BO2 + 0x84u, 10.0f); putf(BO2 + 0x88u, 41.3f);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextEnemy);
+    CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "EX core. 8 away.") == 0,
           "lock core");
     // retired target (not in list) -> lost
     put32(BO1 + 0x490u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextEnemy);
+    CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Lock lost.") == 0,
           "lock lost");
 
     // 26. down state (dmg >= max)
     put16(BS0 + 0x02u, 1000u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Down. Retry or flee.") == 0,
           "battle down");
 
@@ -430,7 +461,7 @@ int main(void)
     memcpy(&RAM[OFF(BC2) + 4 * 8], ROW4, 8);
     put8(BD + 0x194u, 1u); put8(BD + 0x195u, 2u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextAlly);
+    CMD(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Open: east, north, south. Blocked: west.") == 0,
           "board after battle");
 
@@ -448,16 +479,16 @@ int main(void)
     put16(BS1 + 0x08u, 338u); put16(BS1 + 0x02u, 0u);
     // Q1-Q3. battles stay silent except QTE prompts: edges update the latch only
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::QuickOn);
+    CMD(oga::Command::QuickOn);
     CHECK(NSPOKEN == 0, "quickmove silent in battle");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::QuickOn);
+    CMD(oga::Command::QuickOn);
     CHECK(NSPOKEN == 0, "quickmove repeat silent");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::QuickOff);
+    CMD(oga::Command::QuickOff);
     CHECK(NSPOKEN == 0, "quickoff silent");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::QuickOn);
+    CMD(oga::Command::QuickOn);
     CHECK(NSPOKEN == 0, "quickmove re-arm silent");
     // Q4. outside battle QuickOn stays silent (battle gate, not once-rule:
     // an intervening WhereAmI breaks the identical-line chain first).
@@ -465,10 +496,10 @@ int main(void)
     // here is safe.
     reset();
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1, "nonbattle whereami speaks first");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::QuickOn);
+    CMD(oga::Command::QuickOn);
     CHECK(NSPOKEN == 0, "quickmove silent outside battle");
 
     // ---- EX Mode / EX Burst reader (battle only, detector + input-echo) ----
@@ -484,44 +515,44 @@ int main(void)
     put16(BS1 + 0x08u, 338u); put16(BS1 + 0x02u, 0u);
     // E1. gauge fills: silent (battles speak QTE only)
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::ExReady);
+    CMD(oga::Command::ExReady);
     CHECK(NSPOKEN == 0, "ex ready silent");
     // E2. still full: no repeat
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::ExReady);
+    CMD(oga::Command::ExReady);
     CHECK(NSPOKEN == 0, "ex ready repeat silent");
     // E3. spent then full again: still silent
-    a->command(oga::Command::ExSpent);
+    CMD(oga::Command::ExSpent);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::ExReady);
+    CMD(oga::Command::ExReady);
     CHECK(NSPOKEN == 0, "ex re-arm silent");
     // E4. player enters EX Mode (app input-echo): silent
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::ExActive);
+    CMD(oga::Command::ExActive);
     CHECK(NSPOKEN == 0, "ex active silent");
     // E5. Burst popup live after HP attack: terse prompt
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::ExBurstGo);
+    CMD(oga::Command::ExBurstGo);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Square!") == 0, "ex burst go");
     // E6. QTE prompts speak raw: identical twice still speaks twice
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::ExQteUp);
-    a->command(oga::Command::ExQteUp);
-    a->command(oga::Command::ExQteLeft);
-    a->command(oga::Command::ExQteCircle);
+    CMD(oga::Command::ExQteUp);
+    CMD(oga::Command::ExQteUp);
+    CMD(oga::Command::ExQteLeft);
+    CMD(oga::Command::ExQteCircle);
     CHECK(NSPOKEN == 4 && strcmp(SPOKE(0), "Up!") == 0 &&
           strcmp(SPOKE(1), "Up!") == 0 && strcmp(SPOKE(2), "Left!") == 0 &&
           strcmp(SPOKE(3), "Circle!") == 0, "ex qte raw repeat");
     // E7. EX over speaks and disarms ready latch
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::ExEnded);
+    CMD(oga::Command::ExEnded);
     CHECK(NSPOKEN == 0, "ex ended silent");
     // E8. EX silent outside battle (gate, not once-rule)
     reset();
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
-    a->command(oga::Command::ExReady);
-    a->command(oga::Command::ExQteUp);
+    CMD(oga::Command::WhereAmI);
+    CMD(oga::Command::ExReady);
+    CMD(oga::Command::ExQteUp);
     CHECK(NSPOKEN == 1, "ex silent outside battle");
 
     // E9. Mash-type Burst: go prompt speaks, level-ups never dedup
@@ -536,9 +567,9 @@ int main(void)
     put16(BS0 + 0x08u, 1000u); put16(BS0 + 0x02u, 94u);
     put16(BS1 + 0x08u, 338u); put16(BS1 + 0x02u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::ExBurstGoMash);
-    a->command(oga::Command::ExBurstLevel);
-    a->command(oga::Command::ExBurstLevel);
+    CMD(oga::Command::ExBurstGoMash);
+    CMD(oga::Command::ExBurstLevel);
+    CMD(oga::Command::ExBurstLevel);
     CHECK(NSPOKEN == 3, "mash burst speaks");
     CHECK(strcmp(SPOKE(0), "Mash Circle!") == 0, "mash go text");
     CHECK(strcmp(SPOKE(1), "Power up!") == 0 &&
@@ -546,9 +577,9 @@ int main(void)
     // E10. Mash prompts silent outside battle
     reset();
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
-    a->command(oga::Command::ExBurstGoMash);
-    a->command(oga::Command::ExBurstLevel);
+    CMD(oga::Command::WhereAmI);
+    CMD(oga::Command::ExBurstGoMash);
+    CMD(oga::Command::ExBurstLevel);
     CHECK(NSPOKEN == 1, "mash silent outside battle");
 
 
@@ -564,28 +595,28 @@ int main(void)
     put32(DLG_SLOT, 1u);
     putf(DLG_X, 119.0f);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
           "dialog YES speaks");
 
     // 29. dialog nav re-reads RAM (no tracking to desync on a dropped D-pad)
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuNext);
+    CMD(oga::Command::MenuNext);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
           "dialog nav re-reads YES");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuLeft);
+    CMD(oga::Command::MenuLeft);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
           "dialog left re-reads YES");
 
     // 30. glove moves to NO -> cancel branch speaks
     putf(DLG_X, 266.0f);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
           "dialog NO speaks");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuPrev);
+    CMD(oga::Command::MenuPrev);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
           "dialog nav re-reads NO");
 
@@ -593,21 +624,21 @@ int main(void)
     reset();
     put32(SDLG_A, 5u); put32(SDLG_B, 1u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
           "story dialog YES speaks");
 
     // 32. story dialog NO
     put32(SDLG_A, 4u); put32(SDLG_B, 2u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
           "story dialog NO speaks");
 
     // 33. chapter detail WITHOUT dialog (8,13) falls through, never a dialog read
     put32(SDLG_A, 8u); put32(SDLG_B, 13u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Not tracked yet.") == 0,
           "no dialog falls through");
 
@@ -624,12 +655,12 @@ int main(void)
     put32(0x09D90728u + 4u, TW);
     put32(0x09A3F0CCu, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "New Game. Row 1 of 3.") == 0,
           "title New Game");
     put32(0x09A3F0CCu, 2u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Data Install. Row 3 of 3.") == 0,
           "title Data Install");
 
@@ -637,12 +668,12 @@ int main(void)
     reset();
     put32(0x09B3FA30u, 0u); put32(0x09B3FA38u, 2u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Play Plan. Casual. Row 1 of 3.") == 0,
           "play plan Casual");
     put32(0x09B3FA30u, 1u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Play Plan. Average. Row 2 of 3.") == 0,
           "play plan Average");
 
@@ -650,7 +681,7 @@ int main(void)
     reset();
     put32(0x09B3FA30u, 5u); put32(0x09B3FA38u, 6u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Bonus Day. Sat. Row 6 of 7.") == 0,
           "bonus day Sat");
 
@@ -675,11 +706,11 @@ int main(void)
     putf(BS4 + 0x14u, 912.0f);
     putf(BP4 + 0x80u, -7.5f); putf(BP4 + 0x84u, 2.6f); putf(BP4 + 0x88u, 41.3f);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "HP 906 of 1000. Bravery 41. EX 0.") == 0,
           "first battle self");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::NextAlly);
+    CMD(oga::Command::NextAlly);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Enemy HP 338 of 338. Bravery 530. 15 away, below you.") == 0,
           "first battle foe");
 
@@ -688,47 +719,47 @@ int main(void)
     // toggle. Entry = Abilities row 1; 1:1 moves; wraps both ways (live-verified).
     reset();
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::CustToggle);
+    CMD(oga::Command::CustToggle);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Abilities. Row 1 of 9.") == 0,
           "customize toggle on speaks row 1");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Abilities. Row 1 of 9.") == 0,
           "customize whereami row 1");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuNext);
+    CMD(oga::Command::MenuNext);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Equipment. Row 2 of 9.") == 0,
           "customize next to equipment");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuPrev);
+    CMD(oga::Command::MenuPrev);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Abilities. Row 1 of 9.") == 0,
           "customize prev back to abilities");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuPrev);
+    CMD(oga::Command::MenuPrev);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Options. Row 9 of 9.") == 0,
           "customize wrap to options");
     // Modal Help Manual (YES/NO slot) keeps priority over the tracker.
     put32(DLG_SLOT, 1u);
     putf(DLG_X, 119.0f);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
           "customize dialog keeps priority");
     // Tracker survives dialog close with its row (no RAM to resync from).
     put32(DLG_SLOT, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Options. Row 9 of 9.") == 0,
           "customize row survives dialog");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::CustToggle);
+    CMD(oga::Command::CustToggle);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Closed.") == 0,
           "customize toggle off");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuNext);
+    CMD(oga::Command::MenuNext);
     CHECK(NSPOKEN == 0, "customize nav silent after exit");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     {
         bool clean = true;
         for (int i = 0; i < NSPOKEN; i++)
@@ -740,39 +771,39 @@ int main(void)
     // 10 Cosmos heroes I-X, 1:1, wraps 10->1, entry resets to row 1.
     reset();
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::CharToggle);
+    CMD(oga::Command::CharToggle);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Warrior of Light. Row 1 of 10.") == 0,
           "charsel toggle on speaks row 1");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuNext);
+    CMD(oga::Command::MenuNext);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Firion. Row 2 of 10.") == 0,
           "charsel next to firion");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuNext);
+    CMD(oga::Command::MenuNext);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Onion Knight. Row 3 of 10.") == 0,
           "charsel next to onion knight");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuPrev);
+    CMD(oga::Command::MenuPrev);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Firion. Row 2 of 10.") == 0,
           "charsel prev back to firion");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuPrev);
+    CMD(oga::Command::MenuPrev);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Warrior of Light. Row 1 of 10.") == 0,
           "charsel prev back to row 1");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuPrev);
+    CMD(oga::Command::MenuPrev);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Tidus. Row 10 of 10.") == 0,
           "charsel wrap up to tidus");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuNext);
+    CMD(oga::Command::MenuNext);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Warrior of Light. Row 1 of 10.") == 0,
           "charsel wrap down to row 1");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::CharToggle);
+    CMD(oga::Command::CharToggle);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Closed.") == 0,
           "charsel toggle off");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuNext);
+    CMD(oga::Command::MenuNext);
     CHECK(NSPOKEN == 0, "charsel nav silent after exit");
 
     // ---- Title/setup WITHOUT the manager (on-device title gate; s-title-diag) ----
@@ -796,17 +827,17 @@ int main(void)
     }
     CHECK(a->ready(), "title ready without manager");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "New Game. Row 1 of 3.") == 0,
           "title speaks without manager");
     // D-pad nav re-reads the title cursor (RAM, no tracking to desync).
     put32(0x09A3F0CCu, 1u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuNext);
+    CMD(oga::Command::MenuNext);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
           "title MenuNext re-reads row");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuPrev);
+    CMD(oga::Command::MenuPrev);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
           "title MenuPrev re-reads row");
     // Play Plan without manager: same gate.
@@ -815,7 +846,7 @@ int main(void)
     put32(0x09B3FA30u, 2u); put32(0x09B3FA38u, 2u);
     CHECK(a->ready(), "play plan ready without manager");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Play Plan. Hardcore. Row 3 of 3.") == 0,
           "play plan speaks without manager");
     // Neither title nor manager: genuinely not ready.
@@ -827,7 +858,7 @@ int main(void)
     reset();
     put32(0x08B9B770u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::OskToggle);
+    CMD(oga::Command::OskToggle);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Not open.") == 0,
           "osk toggle refused with no chain");
 
@@ -836,71 +867,71 @@ int main(void)
     oskSetup("PPSSPP");
     CHECK(a->ready(), "osk ready via params chain");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::OskToggle);
+    CMD(oga::Command::OskToggle);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Type your name.") == 0,
           "osk toggle entry line");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name P P S S P P. On 1.") == 0,
           "osk where with prefill");
 
     // 40. D-pad echo walks the grid (Right 0->1, Down 1->13, Left 13->12,
     // Up 12->0).
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuRight);
+    CMD(oga::Command::MenuRight);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "2. Row 1 of 5. Column 2 of 12.") == 0,
           "osk right to 2");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuNext);
+    CMD(oga::Command::MenuNext);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "w. Row 2 of 5. Column 2 of 12.") == 0,
           "osk down to w");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuLeft);
+    CMD(oga::Command::MenuLeft);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "q. Row 2 of 5. Column 1 of 12.") == 0,
           "osk left to q");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::MenuPrev);
+    CMD(oga::Command::MenuPrev);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "1. Row 1 of 5. Column 1 of 12.") == 0,
           "osk up back to 1");
 
     // 41. Type with the game buffer in agreement speaks the echo line.
     putU16str(OSK_B, "PPSSPP1");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::OskType);
+    CMD(oga::Command::OskType);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "1. Name P P S S P P 1.") == 0,
           "osk type grounded");
 
     // 42. Type with a stale buffer resyncs to RAM and says so.
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::OskDelete);
+    CMD(oga::Command::OskDelete);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name P P S S P P 1.") == 0,
           "osk delete mismatch resyncs to RAM");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name P P S S P P 1. On 1.") == 0,
           "osk mirror follows RAM after resync");
 
     // 43. Finish announces the final name and stops tracking.
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::OskFinish);
+    CMD(oga::Command::OskFinish);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name P P S S P P 1.") == 0,
           "osk finish announces name");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::OskType);
+    CMD(oga::Command::OskType);
     CHECK(NSPOKEN == 0, "osk type silent after finish");
 
     // 44. Play Plan validating mid-track auto-exits with the final name.
     reset();
     oskSetup("PPSSPP");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::OskToggle);
+    CMD(oga::Command::OskToggle);
     put32(0x09B3FA30u, 0u); put32(0x09B3FA38u, 2u);  // Play Plan Casual
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name P P S S P P.") == 0,
           "osk auto-exit announces name on Play Plan");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::WhereAmI);
+    CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Play Plan. Casual. Row 1 of 3.") == 0,
           "play plan speaks after osk exit");
 
@@ -908,9 +939,9 @@ int main(void)
     reset();
     oskSetup("AB");
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::OskToggle);
+    CMD(oga::Command::OskToggle);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
-    a->command(oga::Command::OskToggle);
+    CMD(oga::Command::OskToggle);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Name A B.") == 0,
           "osk toggle off announces name");
 
@@ -930,31 +961,31 @@ int main(void)
     put32(0x09D90728u + 4u, TW);
     put32(0x09A3F0CCu, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame();
+    FRAME();
     CHECK(NSPOKEN == 0, "watch silent on first sighting");
-    a->on_frame();
+    FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "New Game. Row 1 of 3.") == 0,
           "watch speaks title entry");
 
     // 47. steady row stays silent; cursor move speaks after two frames
-    a->on_frame();
+    FRAME();
     CHECK(NSPOKEN == 1, "watch silent on steady row");
     put32(0x09A3F0CCu, 1u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame();
+    FRAME();
     CHECK(NSPOKEN == 0, "watch silent on first changed frame");
-    a->on_frame();
+    FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
           "watch speaks cursor move");
 
     // 48. broken fingerprints silence the watch; restore re-announces
     put32(0x09A3F0C8u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 0, "watch silent when fingerprints break");
     put32(0x09A3F0C8u, 1u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
           "watch re-announces after restore");
 
@@ -966,7 +997,7 @@ int main(void)
     put32(0x08C18100u, 0x08C18200u);
     put32(0x08C18208u, 0x08C18300u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Story Mode. Row 1 of 8.") == 0,
           "watch announces main-menu entry");
 
@@ -975,11 +1006,11 @@ int main(void)
     put32(0x08C18400u + 0x04u, 0x08C18500u);
     put32(0x08C18500u + 0x10u, 0x08C18600u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 0, "watch silent on live board");
     put32(BROOT + 0x118u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Story Mode. Row 1 of 8.") == 0,
           "watch resumes after board clears");
 
@@ -1003,11 +1034,11 @@ int main(void)
     put16(0x08C19200u + 0x0Eu, 100u);
     put16(0x08C19200u + 0x10u, 100u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 0, "watch silent in battle");
     put32(0x08B955A0u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "New Game. Row 1 of 3.") == 0,
           "watch resumes after battle clears");
 
@@ -1017,12 +1048,12 @@ int main(void)
     put32(DLG_SLOT, 1u);
     putf(DLG_X, 119.0f);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
           "watch announces dialog entry");
     putf(DLG_X, 266.0f);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
           "watch announces dialog move");
 
@@ -1031,7 +1062,7 @@ int main(void)
     CHECK(a->attach(&HOST), "watch attach options");
     put32(0x09B3FCA4u, 6u); put32(0x09B3FCACu, 8u); put32(0x09B43468u, 4u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Battle Tutorials. Row 1 of 23.") == 0,
           "watch announces options entry");
 
@@ -1059,34 +1090,75 @@ int main(void)
     // 54. arriving on the stigma speaks it, then steadies to silence
     put8(WBD + 0x194u, 6); put8(WBD + 0x195u, 2);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Stigma of Chaos. Engaging this piece finishes the level.") == 0,
           "watch announces stigma arrival");
-    a->on_frame();
+    FRAME();
     CHECK(NSPOKEN == 1, "watch silent standing on stigma");
     // 55. empty cells stay silent; potion arrival speaks
     put8(WBD + 0x194u, 0); put8(WBD + 0x195u, 0);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 0, "watch silent on empty cell");
     put8(WBD + 0x194u, 1); put8(WBD + 0x195u, 1);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Potion. Restores HP and EX Gauge to 100%.") == 0,
           "watch announces potion arrival");
     // 56. enemy arrival (key 0 is a real marker, not absent); unknown types
     // speak as unknown with the number, never a guess
     put8(WBD + 0x194u, 2); put8(WBD + 0x195u, 3);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "enemy here.") == 0,
           "watch announces enemy arrival");
     put16(WBASE + 0x30u + 4u, 9u);
     put8(WBD + 0x194u, 1); put8(WBD + 0x195u, 1);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    a->on_frame(); a->on_frame();
+    FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Unknown 9 here.") == 0,
           "watch announces unknown type with number");
+
+    // ---- Queue mapping: interruption, pacing, replacement (fake clock) ----
+    // Raw a->command bypasses the CMD() auto-sync so lines stay queued.
+    // Q1. Two rapid WhereAmI answers (High, same "whereami" group): the second
+    // interrupts the first; both speak, in order.
+    reset();
+    CHECK(a->attach(&HOST), "q attach");
+    oga::dissidia::SetWidgetRoot(W);
+    put32(W + 0x3Cu, 0u);
+    put32(W + 0x240u, 4u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    put32(W + 0x3Cu, 1u);
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 2 && strcmp(SPOKE(0), "Row 1 of 4.") == 0 &&
+          strcmp(SPOKE(1), "Row 2 of 4.") == 0, "rapid answers both speak in order");
+    CHECK(oga::announce_stats(Q).interrupted == 1, "second answer interrupted first");
+    // Q2. A Normal "qte" line queued behind an in-flight High waits for the
+    // estimate; it must not speak early.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sync();
+    put32(W + 0x3Cu, 2u);
+    a->command(oga::Command::WhereAmI);
+    put32(0x08B955A0u, 0x08903000u);
+    put32(0x08903000u + 0x14u, 0x08903100u);
+    put32(0x08903100u + 0x51Cu, 0x08903300u); put16(0x08903300u + 0x08u, 1000u);
+    a->command(oga::Command::ExQteUp);
+    CHECK(NSPOKEN == 1, "qte waits while answer in flight");
+    sync();
+    CHECK(NSPOKEN == 2 && strcmp(SPOKE(1), "Up!") == 0, "qte speaks after estimate");
+    // Q3. Three rapid QTE prompts (Normal, same "qte" group): the middle one is
+    // replaced while pending; only first and last speak.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sync();
+    a->command(oga::Command::ExQteUp);
+    a->command(oga::Command::ExQteDown);
+    a->command(oga::Command::ExQteLeft);
+    sync();
+    CHECK(NSPOKEN == 2 && strcmp(SPOKE(0), "Up!") == 0 &&
+          strcmp(SPOKE(1), "Left!") == 0, "middle qte replaced");
+    CHECK(oga::announce_stats(Q).replaced == 1, "replacement counted");
 
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);
