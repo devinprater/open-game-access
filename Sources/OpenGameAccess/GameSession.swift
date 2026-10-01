@@ -59,9 +59,9 @@ final class GameSession: ObservableObject {
     @Published private(set) var romGameCode: String?
 
     /// True only for the ROMs the bundled Lua script can narrate: Pokémon
-    /// Black/White 1. main.lua's detect_game() knows IRAO/IRBO by header (plus
-    /// a ROM-name fallback the core cannot see); every other game gets
-    /// "unknown" and the script stays silent, so its buttons must stay hidden.
+    /// Black/White 1. The bundled loader's GAMES table knows IRAO/IRBO by
+    /// header (plus a ROM-name fallback); every other game gets "unknown"
+    /// and the script stays silent, so its buttons must stay hidden.
     var isPokemonROM: Bool {
         romGameCode == "IRAO" || romGameCode == "IRBO"
     }
