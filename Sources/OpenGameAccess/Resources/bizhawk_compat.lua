@@ -148,6 +148,9 @@ end
 -- ---------- console / gameinfo ----------
 console = console or {}
 function console.writeline(s) print(tostring(s)) end
+-- Ola's loader reports through console.log (a BizHawk native the core does
+-- not provide): same sink, so the split-tree loader speaks on mobile too.
+function console.log(s) print(tostring(s)) end
 
 gameinfo = gameinfo or {}
 if not gameinfo.getromname then

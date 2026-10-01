@@ -13,8 +13,8 @@ FRAMES="${FRAMES:-30000}"
 
 bash "$ROOT/scripts/build-host.sh" || exit 1
 
-g++ -O2 -g -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
-  -o Vendor/simboot Core/fwtest.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
+g++ -O2 -g -DPOKE_HOST=1 -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 \
+  -o Vendor/simboot Core/fwtest.cpp Core/host_harness_stub.cpp Vendor/hostobj/*.o -lpthread -lm -ldl 2>&1 \
   | grep -E '\berror\b|undefined reference' | head -8
 [ -x Vendor/simboot ] || { echo "!! simboot did not link"; exit 1; }
 
