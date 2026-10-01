@@ -45,6 +45,11 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
     /// Queue for lines that arrive before the audio session/synthesizer is
     /// usable; flushed in order so the loader line is never lost.
     private var pendingSpeech: [String] = []
+    /// The core whose announcement queue this engine drains. Set once by
+    /// `GameSession.attach(to:)`; read from the nonisolated synthesizer
+    /// delegate below, hence the unsafe opt-out (set-once before any speech).
+    nonisolated(unsafe) var queueCore: OpaquePointer?
+    private var voDoneObserver: NSObjectProtocol?
 
     /// Set while VoiceOver is running.
     ///
@@ -66,6 +71,18 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         voice = preferred ?? AVSpeechSynthesisVoice(language: "en-US")
         super.init()
         synth.delegate = self
+        // VoiceOver-side completion: when the platform voice finishes one of
+        // OUR queued lines, report it so the next releases immediately instead
+        // of waiting out its estimate. UI announce() lines bypass the queue
+        // and map to no id, so they are ignored here.
+        voDoneObserver = NotificationCenter.default.addObserver(
+            forName: UIAccessibility.announcementDidFinishNotification,
+            object: nil, queue: nil) { [weak self] note in
+            guard let text = note.userInfo?[UIAccessibility.announcementStringValueUserInfoKey] as? String,
+                  !text.isEmpty else { return }
+            let ok = (note.userInfo?[UIAccessibility.announcementWasSuccessfulUserInfoKey] as? Bool) ?? true
+            Task { @MainActor [weak self] in self?.reportStringDone(text, success: ok) }
+        }
     }
 
     // MARK: - Script bridge (speech.say / speech.stop / hermes_tts)
@@ -179,5 +196,34 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
             // Not fatal: the game runs silently rather than not at all.
             NSLog("[poke] audio session unavailable: \(error.localizedDescription)")
         }
+    }
+
+    // MARK: - Completion hooks (drain for the core's announcement queue)
+    //
+    // nonisolated: the synthesizer calls these on its own thread, and Swift 6
+    // forbids a @MainActor witness for the protocol. They touch only the
+    // thread-safe core entry points, so no isolation is needed.
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
+                                       didFinish utterance: AVSpeechUtterance) {
+        reportUtteranceDone(utterance.speechString, success: true)
+    }
+
+    nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
+                                       didCancel utterance: AVSpeechUtterance) {
+        reportUtteranceDone(utterance.speechString, success: false)
+    }
+
+    nonisolated private func reportUtteranceDone(_ text: String, success: Bool) {
+        guard let core = queueCore else { return }
+        let id = text.withCString { poke_announce_id_for_text(core, $0) }
+        guard id != 0 else { return }
+        poke_announce_done(core, id, success ? 1 : 0)
+    }
+
+    private func reportStringDone(_ text: String, success: Bool) {
+        guard let core = queueCore else { return }
+        let id = text.withCString { poke_announce_id_for_text(core, $0) }
+        guard id != 0 else { return }  // not ours: UI announce() bypasses the queue
+        poke_announce_done(core, id, success ? 1 : 0)
     }
 }

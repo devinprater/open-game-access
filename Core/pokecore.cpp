@@ -20,6 +20,7 @@
 #include "NDSCart.h"
 #include "SPU.h"
 #include "adapter.h"
+#include "announce.h"
 #include "Savestate.h"
 #include "Platform.h"
 #include "gba_core.h"
@@ -41,6 +42,7 @@ void gba_set_game_code(const char* code);
 #include <cstdio>
 #include <cstring>
 #include <ctime>
+#include <chrono>
 #include <memory>
 #include <string>
 #include <vector>
@@ -55,6 +57,11 @@ using namespace melonDS;
 
 // Implemented in poke_platform.cpp.
 #include "poke_internal.h"
+
+// Forward: defined beside HostSpeak below; used by the Lua bindings and
+// lifecycle functions above it.
+static uint64_t CoreNowMs(void);
+static void QueueSpeak(void* ctx, const char* utf8, bool interrupt, uint32_t id);
 
 struct PokeCore {
     std::unique_ptr<NDS> nds;
@@ -108,6 +115,19 @@ struct PokeCore {
     // The Host handed to the adapter. Stored in the core so its address stays
     // valid for as long as the adapter holds it.
     oga::Host host = {};
+
+    // ---- announcement queue ----
+    // One queue per core (docs/design/announcement-queue.md). The sink forwards
+    // to speechCb unchanged; done-reports arrive via poke_announce_done() from
+    // any thread. Until a platform reports done, pacing is by estimate
+    // (host_reports_done=false), which is safe on both platforms.
+    oga::AnnounceQueue* announceQ = nullptr;
+    // Recent (id, text-prefix) pairs, so a platform completion hook can map its
+    // finished utterance back to a queue id with no callback signature change.
+    static constexpr int kAnnounceHist = 8;
+    uint32_t annIds[kAnnounceHist] = {0};
+    char annTexts[kAnnounceHist][64] = {{0}};
+    int annNext = 0;
 
     // ---- input ----
     // DS keys are active-low in hardware: a set bit means "not pressed", and
@@ -589,6 +609,7 @@ static int LuaSpeak(lua_State* L)
 static int LuaStopSpeech(lua_State* L)
 {
     PokeCore* core = CoreFromLua(L);
+    if (core && core->announceQ) oga::announce_stop(core->announceQ, CoreNowMs());
     if (core && core->speechCb) core->speechCb(nullptr, true, core->speechUserdata);
     return 0;
 }
@@ -663,6 +684,14 @@ PokeCore* poke_create(void)
 {
     auto* core = new PokeCore();
     Platform::PokeSetLogForward(ForwardLog);
+    oga::AnnounceSink sink{};
+    sink.speak = QueueSpeak;
+    sink.log = nullptr;
+    sink.ctx = core;
+    oga::AnnounceConfig cfg{};
+    cfg.host_reports_done = false;  // estimate pacing until completion hooks land
+    cfg.diag_verbose = false;
+    core->announceQ = oga::announce_create(sink, cfg);
     gCurrentCore = core;
     return core;
 }
@@ -675,6 +704,8 @@ void poke_destroy(PokeCore* core)
     // frame would call into freed memory.
     if (core->adapter && core->adapterAttached && core->adapter->detach)
         core->adapter->detach();
+    oga::announce_destroy(core->announceQ);
+    core->announceQ = nullptr;
     if (core->nds) core->nds->Stop();
     if (core->L) lua_close(core->L);
     if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
@@ -758,6 +789,26 @@ static uint8_t  HostRead8 (void* ctx, uint32_t a) { uint32_t v=0; AdapterReadSca
 static uint16_t HostRead16(void* ctx, uint32_t a) { uint32_t v=0; AdapterReadScalar((PokeCore*)ctx, a, 2, &v); return (uint16_t) v; }
 static uint32_t HostRead32(void* ctx, uint32_t a) { uint32_t v=0; AdapterReadScalar((PokeCore*)ctx, a, 4, &v); return v; }
 
+static uint64_t CoreNowMs(void)
+{
+    using namespace std::chrono;
+    return (uint64_t) duration_cast<milliseconds>(
+        steady_clock::now().time_since_epoch()).count();
+}
+
+// AnnounceSink::speak for the per-core queue: the existing speechCb path, with
+// the (id, text) remembered for poke_announce_id_for_text().
+static void QueueSpeak(void* ctx, const char* utf8, bool interrupt, uint32_t id)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (!core || !utf8) return;
+    int slot = core->annNext % PokeCore::kAnnounceHist;
+    core->annNext++;
+    core->annIds[slot] = id;
+    snprintf(core->annTexts[slot], sizeof(core->annTexts[slot]), "%s", utf8);
+    if (core->speechCb) core->speechCb(utf8, interrupt, core->speechUserdata);
+}
+
 static void HostSpeak(void* ctx, const char* utf8, bool interrupt)
 {
     PokeCore* core = (PokeCore*) ctx;
@@ -782,6 +833,8 @@ static void BuildHost(PokeCore* core)
     core->host.read16     = HostRead16;
     core->host.read32     = HostRead32;
     core->host.speak      = HostSpeak;
+    core->host.now_ms     = 0;
+    core->host.announce_q = core->announceQ;
     core->host.log        = HostLog;
     core->host.set_button = HostSetButton;
     core->host.ctx        = core;
@@ -820,10 +873,38 @@ bool poke_adapter_ready(PokeCore *core)
     return core->adapter->ready ? core->adapter->ready() : true;
 }
 
+void poke_announce_done(PokeCore* core, uint32_t utterance_id, int success)
+{
+    if (!core) return;
+    oga::announce_speech_done(core->announceQ, utterance_id, success != 0);
+}
+
+uint32_t poke_announce_id_for_text(PokeCore* core, const char* utf8_text)
+{
+    if (!core || !utf8_text) return 0;
+    // Newest first: a repeated line maps to its latest utterance.
+    for (int n = 0; n < PokeCore::kAnnounceHist; n++) {
+        int slot = (core->annNext - 1 - n) % PokeCore::kAnnounceHist;
+        if (slot < 0) slot += PokeCore::kAnnounceHist;
+        if (core->annIds[slot] != 0 &&
+            std::strcmp(core->annTexts[slot], utf8_text) == 0)
+            return core->annIds[slot];
+    }
+    return 0;
+}
+
 bool poke_command(PokeCore *core, int cmd)
 {
     if (!core || !core->adapter) return false;
-    if (cmd < 0 || cmd > (int) oga::Command::OskFinish) return false;
+    if (cmd < 0 || cmd > (int) oga::Command::StopSpeech) return false;
+    if (cmd == (int) oga::Command::StopSpeech)
+    {
+        // Player stop key: clear queued lines and stop the platform voice.
+        // Works without attaching: silence must not depend on game state.
+        if (core->announceQ) oga::announce_stop(core->announceQ, CoreNowMs());
+        if (core->speechCb) core->speechCb(nullptr, true, core->speechUserdata);
+        return true;
+    }
     if (!core->adapter->command) return false;
 
     // Attach lazily, on the first command rather than at ROM load.
@@ -846,6 +927,7 @@ bool poke_command(PokeCore *core, int cmd)
     // is nobody's.
     if (core->adapter->ready && !core->adapter->ready()) return false;
 
+    core->host.now_ms = CoreNowMs();
     core->adapter->command((oga::Command) cmd);
     return true;
 }
@@ -1448,6 +1530,15 @@ static void ApplyInput(PokeCore* core)
         core->nds->ReleaseScreen();
 }
 
+// Stamp the adapter clock, run its per-frame hook, and pump the announcement
+// queue: called on every emulated frame, on all three console paths.
+static void EndFrame(PokeCore* core)
+{
+    core->host.now_ms = CoreNowMs();
+    EndFrame(core);
+    if (core->announceQ) oga::announce_tick(core->announceQ, core->host.now_ms);
+}
+
 bool poke_frame(PokeCore* core)
 {
     if (!core || !core->running) return false;
@@ -1460,8 +1551,7 @@ bool poke_frame(PokeCore* core)
         // notices the game reaching a readable state (ready) and tracks the
         // player; the FE and DBZ hooks are documented no-ops, so driving it
         // unconditionally changes nothing for NDS.
-        if (core->adapterAttached && core->adapter && core->adapter->on_frame)
-            core->adapter->on_frame();
+        EndFrame(core);
         return true;
     }
     if (core->isPsp)
@@ -1472,8 +1562,7 @@ bool poke_frame(PokeCore* core)
         // Same per-frame handshake; Dissidia's on_frame runs its automatic
         // menu-speech watch here (identity change = speak), so menus announce
         // without a reader-control tap.
-        if (core->adapterAttached && core->adapter && core->adapter->on_frame)
-            core->adapter->on_frame();
+        EndFrame(core);
         return true;
     }
     if (!core->nds) return false;
@@ -1506,8 +1595,7 @@ bool poke_frame(PokeCore* core)
     // until now nothing called it, so the GBA adapter could never become
     // ready. The FE and DBZ hooks are documented no-ops, so this changes
     // nothing for NDS games and fixes GBA readiness.
-    if (core->adapterAttached && core->adapter && core->adapter->on_frame)
-        core->adapter->on_frame();
+    EndFrame(core);
 
     return true;
 }

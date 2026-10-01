@@ -3,6 +3,8 @@ package com.devin.opengameaccess
 import android.app.Activity
 import android.os.Bundle
 import android.speech.tts.TextToSpeech
+import android.speech.tts.UtteranceProgressListener
+import android.util.Log
 import android.webkit.JavascriptInterface
 import android.webkit.WebChromeClient
 import android.webkit.WebView
@@ -15,6 +17,7 @@ class MainActivity : Activity() {
     private lateinit var webView: WebView
     private var tts: TextToSpeech? = null
     private var ttsReady = false
+    private var utteranceSeq = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -48,6 +51,21 @@ class MainActivity : Activity() {
             if (ttsReady) {
                 tts?.language = Locale.US
             }
+            // Completion hook for the speech queue: every utterance carries a
+            // unique id so its finish/cancel maps back to exactly one line.
+            // Today this is observed (log); when the shared core's
+            // announcement queue is ported to this frontend, onUtteranceDone
+            // is where poke_announce_done gets called from.
+            tts?.setOnUtteranceProgressListener(object : UtteranceProgressListener() {
+                override fun onStart(utteranceId: String) {}
+                override fun onDone(utteranceId: String) {
+                    Log.d("OGA-TTS", "done " + utteranceId)
+                }
+                @Suppress("DEPRECATION")
+                override fun onError(utteranceId: String) {
+                    Log.d("OGA-TTS", "error " + utteranceId)
+                }
+            })
         }
     }
 
@@ -60,8 +78,10 @@ class MainActivity : Activity() {
         @JavascriptInterface
         fun speak(text: String, mode: String) {
             if (!ttsReady) return
-            if (mode == "queue") tts?.speak(text, TextToSpeech.QUEUE_ADD, null, "a11y")
-            else tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, "a11y")
+            utteranceSeq += 1
+            val utteranceId = "oga" + utteranceSeq
+            if (mode == "queue") tts?.speak(text, TextToSpeech.QUEUE_ADD, null, utteranceId)
+            else tts?.speak(text, TextToSpeech.QUEUE_FLUSH, null, utteranceId)
         }
         @JavascriptInterface
         fun stop() {
