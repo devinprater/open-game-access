@@ -82,7 +82,14 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   was treated as evidence. Offline follow-up found an adjacent integer/offset
   table at 0x9C106F8..0x9C107BC and two ordered manikin-title sets in the
   pool, but did not find a pointer or proven field joining the active catalog
-  record to a title. Next: obtain tooltip OCR with the cursor on TWO different
+  record to a title. Decompile 2026-10-01: the board tooltip builder is
+  FUN_001cfe78 (key->O via FUN_001c5d90, then name via O+10 through
+  FUN_001f1750, title from +5, name text from +4 via
+  FUN_00194e24->FUN_0024e5d8->FUN_000fd0f4; task6:5176/5249-5286,
+  api-base:67587-67698; string lookup is FUN_00194df0 on DAT_00394218).
+  So O+10 is the species/name index (0x98 observed), not display text --
+  live proof still needs O+10 read + f1750 deref + OCR match on TWO
+  different enemies. Next: obtain tooltip OCR with the cursor on TWO different
   enemies (potentially on successive boards), then correlate O+8/O+10 and
   O+20 against the two ground-truth names/levels. Until then enemies stay
   "enemy here." -- never guess.
