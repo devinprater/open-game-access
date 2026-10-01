@@ -15,13 +15,13 @@ cd "$ROOT" || exit 1
 OUT="${OUT:-$HOME/oga-dbz-test}"
 
 echo "== compiling + linking the adapter test"
-# This focused test supplies FE/GBA registry stubs. Link the real DBZ and
-# Dissidia implementations too, because adapters.cpp now registers both.
+# This focused test supplies FE/GBA registry stubs. Link the real DBZ,
+# Dissidia and DQ9 implementations too, because adapters.cpp registers them.
 rm -f "$OUT"
 if ! g++ -O1 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 \
     -Wno-everything -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" -std=c++17 \
     -o "$OUT" Core/dbz_adapter_test.cpp Core/dbz_adapter.cpp \
-    Core/dissidia_adapter.cpp Core/osk_echo.cpp Core/adapters.cpp -lpthread -ldl -lm; then
+    Core/dissidia_adapter.cpp Core/dq9_adapter.cpp Core/osk_echo.cpp Core/adapters.cpp -lpthread -ldl -lm; then
   echo "!! test failed to build" >&2
   exit 1
 fi
