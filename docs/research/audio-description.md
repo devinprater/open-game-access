@@ -2,65 +2,75 @@
 
 Date: 2026-10-01. Sources: Gov. of Canada AD checklist, 3PlayMedia,
 AMI Accessible Media tiers, RVS Digital / W3C description writing tips,
-Netflix timed-text AD guide.
+Netflix timed-text AD guide. Division of labor per Devin (2026-10-01):
+dialogue boxes belong to the SCREEN READER; AD covers scene visuals.
+
+## The split
+
+- **Reader:** speaks every dialogue/narration box as `Speaker: line`
+  ("Garland: Of course, my lord."). Dissidia boxes show no speaker
+  names — only portraits — so the reader needs a portrait→speaker map
+  per scene (open task, see TODO).
+- **AD:** describes characters and environment ONCE per scene, plus
+  visual-only beats (turn passes, box empties, continue arrow). Never
+  re-describes a standing scene.
+- **AD yields to voiced narration:** if a narrator is speaking, AD does
+  not read the captions. Unvoiced text is the reader's job, framed as
+  "Story text:" — AD only describes the card itself.
 
 ## Best practices (distilled for game cutscenes)
 
 1. **Describe what is seen, not what it means.** Actions, settings,
    clothing, expressions, on-screen text. No interpretation, no
-   editorializing, no guessing at motives ("cold loyalty" is out;
-   "he bows his armored head" is in).
-2. **Present tense, concise.** Speak in the gaps: description must fit
+   editorializing, no guessing at motives.
+2. **Present tense, concise.** Speak in the gaps: description fits
    between dialogue lines, never over them. Fewer words win.
-3. **Name the speaker when the game doesn't.** Dissidia's dialogue boxes
-   have no speaker names — only portraits. AD must say "Chaos speaks"
-   / "Garland answers" so a blind player can follow turn-taking.
-4. **Voice on-screen text the game doesn't speak.** Narration cards and
-   unvoiced dialogue must be read aloud — otherwise they don't exist
-   for the listener. Mark dialogue as quote for clarity.
+3. **Name the speaker when the game doesn't** — via the reader's
+   `Speaker: line` format, not inside AD prose.
+4. **Voice unvoiced on-screen text** (reader's job); **skip captions a
+   narrator already speaks.**
 5. **Identify new people, places, and actions once, then refer back.**
-   ("The same burning realm" — no re-description.)
+   ("Same scene." — no re-description.)
 6. **Note visual-only state changes.** Empty/active boxes, continue
-   arrows, scene transitions ("A small arrow blinks: more to follow").
+   arrows, scene transitions.
 7. **Match tone, stay neutral.** Urgent scenes get tighter sentences;
-   never sound bored, never upstage the scene.
+   never upstage the scene.
 8. **AMI tiers applied:** Tier 1 (who is in the scene) → Tier 2 (what
-   they do) → Tier 3 (what it means for the story). Our scripts below
-   cover Tiers 1–2; Tier 3 belongs in a plot recap, not AD.
+   they do) → Tier 3 (what it means). Scripts below cover Tiers 1–2;
+   Tier 3 belongs in a plot recap, not AD.
 
 ## Dissidia scripts (Trunks save, Odyssey I intro)
 
-Scene 1 — Opening narration card (white text on black void, typewriter):
+Scene 1 — Opening narration card (AD describes the card; reader reads
+the text):
 
 > Opening. A black void, streaked with faint blue mist. Centered
-> storybook text glows white, and types itself out, line by line. It
-> reads: The world is shrouded in darkness. It seems that Chaos's
+> storybook text glows white, typing itself out line by line. Story
+> text: The world is shrouded in darkness. It seems that Chaos's
 > shadows would engulf all... But light is not gone. The crystals,
 > shining even in the depths of despair — The final line flares into
 > white light, and the words are lost in the glow.
 
-Scene 2 — Chaos speaks (realm of Discord, two dialogue boxes):
+Scene 2 — Chaos speaks (scene established once; line in reader form):
 
 > The realm of Discord. A burning wasteland under a black and purple
-> sky. Streaks of fire fall like rain, and jagged, lava-lit spires
-> glow orange on a mirrored black plain. Two dialogue boxes frame the
-> screen. Top left, half lost in shadow: a demonic face with glowing
-> red eyes. This is Chaos, god of discord. Bottom right, in profile: a
-> knight in ornate silver plate, a single yellow eye burning through
-> his helm. This is Garland. Chaos speaks. Quote: The conflict will be
-> brought to an end as soon as I regain my lost strength. End quote.
+> sky. Fire falls like rain, and lava-lit spires glow orange on a
+> mirrored black plain. Two dialogue boxes frame the screen. Top left,
+> half lost in shadow, a demonic face with red eyes: Chaos, god of
+> discord. Bottom right, a knight in ornate silver plate, one yellow
+> eye burning through his helm: Garland. Chaos: The conflict will be
+> brought to an end as soon as I regain my lost strength.
 
-Scene 3 — Garland answers (same scene, turn passes):
+Scene 3 — Garland answers (standing scene: no re-description):
 
-> The same burning realm. The top box stands empty. The turn passes to
-> the knight. Garland answers. Quote: Of course, my lord. End quote. A
-> small arrow blinks: more to follow.
+> Same scene. The turn passes to the knight. Garland: Of course, my
+> lord.
 
-Audio renders (edge TTS, 2026-10-01) — re-render on script change:
+Audio renders (edge TTS, 2026-10-01 v2) — re-render on script change:
 
-- Scene 1: `tts_20261001_113201_643487.ogg`
-- Scene 2: `tts_20261001_113204_374852.ogg`
-- Scene 3: `tts_20261001_113206_585269.ogg`
+- Scene 1: `tts_20261001_114729_482630.ogg`
+- Scene 2: `tts_20261001_114731_979119.ogg`
+- Scene 3: `tts_20261001_114733_982894.ogg`
 
 Stills: `~/enemy-out/trunks5/step0.ppm` (narration),
 `~/enemy-out/trunks7/step2.ppm` (Chaos speaks),

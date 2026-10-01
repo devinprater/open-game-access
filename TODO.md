@@ -110,6 +110,10 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   names), voice unvoiced on-screen text, fit between lines, never over
   them. Opening narration + Chaos-speaks + Garland-answers described:
   script + 3 audio renders in docs/research/audio-description.md.
+- [ ] **Dissidia dialogue-box reader:** speak cutscene boxes as
+  "Speaker: line" ("Garland: Of course, my lord."). Boxes carry no
+  speaker names (portraits only), so reader needs a portrait->speaker
+  map per scene; AD describes scene once, reader owns all lines.
 - [x] **Dissidia name-entry reader:** implemented as the universal PPSSPP OSK
   reader (`Core/osk_echo.h/.cpp` input-echo engine + `OskToggle/Type/Delete/
   Space/Shift/Finish` commands, `oga::Command::OskToggle..OskFinish`): Dissidia
