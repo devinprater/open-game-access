@@ -377,6 +377,9 @@ static bool GridLegal(const Grid& g, int x, int y)
 /// The species key is s16[O+10] (O = [C+8] + [K + key*4], C = [T+0]); keys are
 /// globally unique per enemy (Trunks base 0x30, Cecil base 0x137). Unknown
 /// keys keep enemy and are logged so the next board run can extend the map.
+///   Terra board (EPYON 100% save, Destiny Odyssey VI, ch.5 Lunar
+///   Subterrane): 0x177 = Phantasmal Girl (tooltip OCR Lv 1, HP 338),
+///   0x178 = Delusory Knight (tooltip OCR Lv 2); 0x179-0x17D pending.
 /// NOTE: field +4 of the species record is NOT the pool index (falsified:
 /// 0x37 renders pool entry 13, not 10), and pool indices are not spoken --
 /// only the table below, every entry live-verified, is ever announced.
@@ -387,6 +390,8 @@ static const EnemySpecies kEnemySpecies[] = {
     { 0x138u, "Transient Lion" },
     { 0x139u, "Imaginary Soldier" },
     { 0x13Au, "Capricious Thief" },
+    { 0x177u, "Phantasmal Girl" },
+    { 0x178u, "Delusory Knight" },
 };
 static const char* EnemySpeciesName(uint32_t o)
 {
