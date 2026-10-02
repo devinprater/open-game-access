@@ -9026,3 +9026,20 @@ Honest-negative core unchanged: enumerable with positions, but no semantic label
   (no absolute pointer into the script buffer found -- position is tracked as
   an offset/index elsewhere); full portrait table; dialogue-live gate beyond
   verified-IDs-only.
+
+## Story-dialogue scene transcript (Odyssey I intro, Trunks save, 2026-10-02)
+Chaos/Garland throne scene, portrait byte @ 0x08BB376A per line:
+- L1 Chaos (9E): "I am the god of discord--destined to rule this world. Am I not?"
+- L2 Garland (9A): "Indeed. Our objective is clear: to defeat Cosmos and bring chaos to the world."
+- L3 Chaos (C5): "The conflict will be brought to an end as soon as I regain my lost strength."
+- L4 Chaos (D0): "It is only a matter of time until all the pieces are in place for victory."
+- L5 Chaos (ID missed, mid-probe): "And yet... Something does not feel right."
+- L6 Chaos (46): "Garland, are your words truly worthy of my trust?"
+- L7 Garland (ID missed, mid-probe): "...Of course, my lord."
+- L8 Warrior of Light (board intro, spkbyte FF): "I feel the presence of evil.. Does anyone dare stand in my way?"
+Portrait IDs are per-line variants, NOT per-character: enumerating IDs cannot
+converge. The scalable fix is parsing the scene script files off the disc
+(event format in the decomp): the RAM script buffer is loaded from a scene
+file whose opcodes name the speaker per line. Static data, no RAM, no boot
+issues. Per-line u16 codes after each NUL NUL (9E/9A/96...) are still
+unidentified (voice-clip index? face opcode?).

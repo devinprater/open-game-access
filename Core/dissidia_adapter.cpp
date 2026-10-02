@@ -1277,7 +1277,7 @@ constexpr uint32_t STORY_PORTRAIT = 0x08BB376Au;
 static const char* StoryPortraitName(uint8_t por)
 {
     switch (por) {
-        case 0x9Eu: case 0xC5u: case 0xD0u: return "Chaos";
+        case 0x9Eu: case 0xC5u: case 0xD0u: case 0x46u: return "Chaos";
         case 0x9Au: return "Garland";
         default: return nullptr;
     }
