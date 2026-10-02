@@ -101,8 +101,19 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   display copy); NO in-RAM pointers to pool strings anywhere (species table
   lives outside user RAM) -- reader must use index/latch method, and all
   addresses shift per boot. Next: cursor-tile field (float-block +
-  small-int candidates noted) + a second species name. Until then enemies
-  stay "enemy here." -- never guess.
+  small-int candidates noted) + a second species name. 2026-10-02: WIRED for 5 live-verified keys (commit 8b59694, 155/155 Dissidia
+  checks): 0x30 False Hero (Trunks board), 0x137 Delusory Knight / 0x138 Transient
+  Lion / 0x139 Imaginary Soldier / 0x13A Capricious Thief (Cecil board, EPYON 100%
+  save Destiny Odyssey IV). Species key = s16[O+10]; keys globally unique per
+  enemy (Trunks base 0x30, Cecil base 0x137). Table: kEnemySpecies in
+  Core/dissidia_adapter.cpp. Unknown keys keep "enemy here." + log the key.
+  Still open: Trunks 0x31/0x7F/0x80/0x32 (tooltips AND Opponent Info blank --
+  Scan mechanic suspected), Terra board.
+  Until then unverified enemies stay "enemy here." -- never guess.
+- [ ] **NEXT LIST (easiest first, est. 2026-10-02):** (1) Terra board, same
+  100%-save recipe, ~30-45 min; (2) tutorial prompts RAM source, ~1-2 h;
+  (3) dialogue portrait->speaker map, ~2-4 h; (4) Trunks unknowns via Scan,
+  ~2-4 h uncertain; (5) FE11 past-prologue save, open-ended hours+.
 - [ ] **Dissidia Tutorial-mode prompts:** tutorial fights already get the
   battle/QTE path (fighters + prompts resolve there), but the scripted
   instruction sentences ("Bravery attacks: use circle") are OCR-only with no
