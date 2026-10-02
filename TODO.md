@@ -110,10 +110,20 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   Still open: Trunks 0x31/0x7F/0x80/0x32 (tooltips AND Opponent Info blank --
   Scan mechanic suspected), Terra board.
   Until then unverified enemies stay "enemy here." -- never guess.
-- [ ] **NEXT LIST (easiest first, est. 2026-10-02):** (1) Terra board, same
-  100%-save recipe, ~30-45 min; (2) tutorial prompts RAM source, ~1-2 h;
-  (3) dialogue portrait->speaker map, ~2-4 h; (4) Trunks unknowns via Scan,
-  ~2-4 h uncertain; (5) FE11 past-prologue save, open-ended hours+.
+- [x] **NEXT LIST coroutine 2026-10-02:** (1) Terra board banked 2/7
+  (0x177/0x178 wired; 0x179-0x17D fight-gated, needs battle automation);
+  (2) tutorial hints DONE (engage + DP-zero, eebdc25); (3) dialogue: portrait
+  names + 137-scene tables + runtime scene-ID/title all DONE
+  (044b59a/d7db670/889eecd/1796757, 175/175 green).
+- [ ] **Dialogue remainder:** (a) advance-map (portrait change -> table order
+  -> per-line speaker, needs box-line segmentation validation); (b) portrait
+  address boot-stability proof across boots; (c) current-line text anchor
+  (heap, no pointer found); (d) portrait table growth per scene walked.
+- [ ] **Trunks unknowns via Scan** (0x31/0x7F/0x80/0x32 tooltips blank +
+  Opponent Info blank, likely Scan-gated), ~2-4 h uncertain.
+- [ ] **FE11 past-prologue save,** open-ended hours+.
+- [ ] **Device build:** v0.4.0 predates all Oct-2 Dissidia work; cut a new
+  release so the board hints, portrait names, and scene titles reach hardware.
 - [ ] **Dissidia Tutorial-mode prompts:** tutorial fights already get the
   battle/QTE path (fighters + prompts resolve there), but the scripted
   instruction sentences ("Bravery attacks: use circle") are OCR-only with no
@@ -124,10 +134,10 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   names), voice unvoiced on-screen text, fit between lines, never over
   them. Opening narration + Chaos-speaks + Garland-answers described:
   script + 3 audio renders in docs/research/audio-description.md.
-- [ ] **Dissidia dialogue-box reader:** speak cutscene boxes as
-  "Speaker: line" ("Garland: Of course, my lord."). Boxes carry no
-  speaker names (portraits only), so reader needs a portrait->speaker
-  map per scene; AD describes scene once, reader owns all lines.
+- [ ] **Dissidia dialogue-box reader (partly done 2026-10-02):** scene title
+  on entry + speaker name per portrait change (verified IDs) are wired and
+  tested. Still missing: per-line speaker via advance-map, quoting the line
+  text itself (needs current-line anchor), portraits beyond the 5 verified.
 - [x] **Dissidia name-entry reader:** implemented as the universal PPSSPP OSK
   reader (`Core/osk_echo.h/.cpp` input-echo engine + `OskToggle/Type/Delete/
   Space/Shift/Finish` commands, `oga::Command::OskToggle..OskFinish`): Dissidia
