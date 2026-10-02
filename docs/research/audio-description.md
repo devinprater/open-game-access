@@ -76,3 +76,42 @@ Stills: `~/enemy-out/trunks5/step0.ppm` (narration),
 `~/enemy-out/trunks7/step2.ppm` (Chaos speaks),
 `~/enemy-out/trunks8/step2.ppm` (Garland answers).
 Resumable states: `trunks5..trunks8/final.ppst` (same boot chain).
+
+## DES01_001 — Destiny Odyssey I scene 1 (WoL vs Garland duel, 42 s)
+
+Source: `DES01_001.PMF` (8.7 MB, 480x272, 42.1 s) extracted from the disc
+image (`PSP_GAME/USRDIR/DATA/MOVIE/` holds 60 PMFs: OPN/END, DES00-10,
+M_FF01-10, M_ST, M_TUTO, LOP, ANOTHER_EPISODE). Story scenes are
+PRE-RENDERED video, not engine-rendered: the engine only plays them
+(cf. decomp `talkevent/` strings are EBOOT-resident, not live state).
+Voiced English dialogue is present; no subtitles are shown and no STT was
+available, so lines are not transcribed — AD covers visuals only and yields
+to the voices. Stills: `~/scframes/f01..f11.png` (1 frame / 4 s).
+
+> A horned knight in black skeletal armor and a purple cape — Garland —
+> looms in a golden doorway, a giant silver shield before him.
+>
+> The Warrior of Light in silver armor and a yellow cape leaps through a
+> collapsing hall as carved stone faces crumble and rubble falls.
+>
+> Smoke fills the frame. Garland's horned shoulder passes; pink magic burns
+> beside a distant tower.
+>
+> Red and silver fragments tumble through gray smoke.
+>
+> The Warrior charges down a red-carpeted hall, sword raised.
+>
+> Steel meets steel: his sword crashes against Garland's raised shield in a
+> columned hall.
+>
+> Face to face. The Warrior levels a spear; Garland towers over him.
+>
+> Garland swings his greatsword; the Warrior answers with the spear.
+>
+> A dark warrior with a streaming yellow mane lunges, twin blades flashing.
+>
+> Garland raises a fist beneath a war banner, triumphant.
+>
+> Above a night city, the Warrior hurls himself shield-first at Garland.
+
+Audio render (edge TTS): `tts_des01_001.ogg` — re-render on script change.
