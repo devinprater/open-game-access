@@ -1266,10 +1266,22 @@ static bool Ready(void)
 // "Mash Circle!", directions); every other line uses the fewest syllables
 // that still make sense. Say() dedups identical repeats, so a watch line plus
 // a later identical command line never double-speaks.
-enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN, WS_OPTIONS, WS_BOARD };
+enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN, WS_OPTIONS, WS_BOARD, WS_STORY };
 static int g_wsScreen = WS_NONE;
 static int g_wsIndex = -1;
 static int g_wsStable = 0;
+/// Story-dialogue speaker portrait byte (visual-novel box, no name tag).
+/// Tracks the active portrait across advances (Chaos/Garland scene: 4/4).
+/// Only verified portrait IDs speak; everything else stays silent.
+constexpr uint32_t STORY_PORTRAIT = 0x08BB376Au;
+static const char* StoryPortraitName(uint8_t por)
+{
+    switch (por) {
+        case 0x9Eu: case 0xC5u: case 0xD0u: return "Chaos";
+        case 0x9Au: return "Garland";
+        default: return nullptr;
+    }
+}
 static int g_wsLoggedId = -1;  // board-arrival debug log fires on change only
 static void WatchReset(void) { g_wsScreen = WS_NONE; g_wsIndex = -1; g_wsStable = 0; g_wsLoggedId = -1; }
 /// Marker key on a board cell, or -1 when no marker sits there. The name comes
@@ -1380,6 +1392,11 @@ static void WatchSpeak(int s, int i)
             Say(line, "title", oga::Priority::Normal); return;
         case WS_MAIN: MenuSpeakRow(oga::Priority::Normal); return;
         case WS_OPTIONS: OptSpeakRow(oga::Priority::Normal); return;
+        case WS_STORY: {
+            const char* nm = StoryPortraitName((uint8_t)i);
+            if (nm) { snprintf(line, sizeof(line), "%s.", nm); Say(line, "story", oga::Priority::Normal); }
+            return;
+        }
         case WS_BOARD: BoardArriveSpeak(i); return;
         default: return;
     }
@@ -1420,6 +1437,10 @@ static void OnFrame(void)
                 if (ti >= 0) { s = WS_TITLE; i = ti; }
                 else if (g_menuMain) { s = WS_MAIN; i = g_menuRow; }
                 else if (g_optLive) { s = WS_OPTIONS; i = g_optRow; }
+                if (s == WS_NONE) {
+                    uint8_t por = u8(STORY_PORTRAIT);
+                    if (StoryPortraitName(por)) { s = WS_STORY; i = (int)por; }
+                }
             }
         }
         WatchOk(s, i);

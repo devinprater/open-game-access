@@ -1032,6 +1032,24 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
           "watch re-announces after restore");
 
+    // 48b. story-dialogue portrait names the speaker (verified IDs only)
+    reset();
+    CHECK(a->attach(&HOST), "watch attach story");
+    put8(0x08BB376Au, 0x9Au);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Garland.") == 0,
+          "story portrait names Garland");
+    put8(0x08BB376Au, 0x9Eu);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Chaos.") == 0,
+          "story portrait change names Chaos");
+    put8(0x08BB376Au, 0x0Cu);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "unverified portrait stays silent");
+
     // 49. main-menu entry announces row 1 (TITLE_CURSOR 8 + live A10 chain)
     reset();
     CHECK(a->attach(&HOST), "watch attach main");
