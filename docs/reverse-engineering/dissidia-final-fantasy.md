@@ -9043,3 +9043,21 @@ converge. The scalable fix is parsing the scene script files off the disc
 file whose opcodes name the speaker per line. Static data, no RAM, no boot
 issues. Per-line u16 codes after each NUL NUL (9E/9A/96...) are still
 unidentified (voice-clip index? face opcode?).
+
+## Talk-event format from the decomp (Ghidra DISSIDIA project, 2026-10-02)
+- Story scenes load as `talkevent/<name>.evex` (cp: `talkevent/%s.evex`,
+  `talkevent/movie/DEMO.evex`, `talkevent/rt_free/r_strt_op.ed`);
+  manager init FUN_001c3654; loader FUN_001b4df0/FUN_001b5ca4 (index).
+- Loaded evex data model: mgr{+4: u32 offset table, +8: data base};
+  entry = base + offsets[idx] (FUN_001c488c). Index records are 0x10 bytes,
+  first byte = sub-entry id (FUN_001c5eac). Entry fields seen: +0x16 short,
+  +0x24 u32, +6/+10 shorts (portrait/text refs live here, exact assignment open).
+- Dialogue TEXT on disc is NOT plaintext/zlib: full-PACKAGE scan (5741
+  records, zlib/gzip attempts) + raw scan for the scene line found nothing.
+  Custom codec or glyph-index streams (RAM shows glyph-ID runs ahead of the
+  decoded UTF-16). Codec RE is the deep path.
+- Practical completion path: GameFAQs script 57905 carries every scene with
+  speaker + exact line text (DO scene N / DO <numeral> part <n>). Build static
+  (scene -> speaker, line) tables from it; at runtime match the RAM script
+  buffer (whole scene, UTF-16) to identify the scene, portrait byte for the
+  speaker. No codec RE needed.
