@@ -49,6 +49,7 @@
 #include "GPU/Common/GPUDebugInterface.h"
 #include "GPU/Software/SoftGpu.h"
 #include "Core/Screenshot.h"
+#include "Core/Debugger/Breakpoints.h"
 
 // ---- software-only GPU factory (replaces GPU/GPU.cpp) -----------------------
 // GPU.cpp's factory references every hardware backend (GLES/Vulkan/D3D11) by
@@ -123,6 +124,10 @@ struct PspCore {
     void *sayUser = nullptr;
     PspLogCallback logCb = nullptr;
     void *logUser = nullptr;
+    // Host-trace only (never set on device): run the classic MIPS interpreter
+    // instead of the IR interpreter so debugger MemChecks fire (the IR
+    // interpreter's memory ops bypass them). Used by scripts/psp-memtrace.
+    bool traceClassicCpu = false;
 };
 
 static void SetError(PspCore *core, const char *fmt, ...)
@@ -402,6 +407,9 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
 
     CoreParameter param;
     param.cpuCore = CPUCore::IR_INTERPRETER;   // no JIT pages on iOS
+    // Host trace override (scripts/psp-memtrace): the classic interpreter's
+    // memory ops fire debugger MemChecks; the IR interpreter's do not.
+    if (core->traceClassicCpu) param.cpuCore = CPUCore::INTERPRETER;
     param.gpuCore = GPUCORE_SOFTWARE;          // no GL context
     // The core (soft GPU) may touch this until shutdown, so it lives on the
     // core struct — deleting it after boot is a use-after-free.
@@ -671,6 +679,38 @@ void psp_debug_write(PspCore *core, uint32_t addr, uint32_t value, int width)
         if (width >= 2) p[1] = (uint8_t)(value >> 8);
         if (width == 4) { p[2] = (uint8_t)(value >> 16); p[3] = (uint8_t)(value >> 24); }
     } catch (...) { /* treat as no-op, like a failed read yielding 0 */ }
+}
+
+void psp_set_classic_interpreter(PspCore *core)
+{
+    if (!core) return;
+    core->traceClassicCpu = true;
+}
+
+void psp_watch_read(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end, MEMCHECK_READ, BREAK_ACTION_NONE);
+}
+
+void psp_watch_read_log(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end, MEMCHECK_READ, BREAK_ACTION_LOG);
+}
+
+int psp_watch_poll(PspCore *core, uint32_t start, uint32_t end,
+                   uint32_t *hits_out, uint32_t *pc_out,
+                   uint32_t *addr_out, int *size_out)
+{
+    if (!core || !core->booted) return 0;
+    MemCheck mc;
+    if (!g_breakpoints.GetMemCheck(start, end, &mc)) return 0;
+    if (hits_out) *hits_out = mc.numHits;
+    if (pc_out) *pc_out = mc.lastPC;
+    if (addr_out) *addr_out = mc.lastAddr;
+    if (size_out) *size_out = mc.lastSize;
+    return 1;
 }
 
 // ---- embedding-disabled service shims -------------------------------------

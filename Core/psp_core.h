@@ -101,6 +101,21 @@ uint32_t psp_debug_read(PspCore *core, uint32_t addr, int width);
  * fight the bot cannot win). Same guards as the read; no-op on bad input. */
 void psp_debug_write(PspCore *core, uint32_t addr, uint32_t value, int width);
 
+/* Host-trace MemChecks (scripts/psp-memtrace only, never on device).
+ * psp_watch_read plants a read watch on [start, end); psp_watch_poll copies
+ * out its cumulative hit count plus the most recent (pc, addr, size). Poll
+ * once per frame and diff: a new pc is an instruction that read the watched
+ * bytes that frame. Requires the classic interpreter (see above). */
+void psp_set_classic_interpreter(PspCore *core);
+void psp_watch_read(PspCore *core, uint32_t start, uint32_t end);
+/* Same, but each hit also emits a log line with (pc, addr, size) through the
+ * core log callback path. Use sparingly on hot ranges: every watched read
+ * prints. */
+void psp_watch_read_log(PspCore *core, uint32_t start, uint32_t end);
+int psp_watch_poll(PspCore *core, uint32_t start, uint32_t end,
+                   uint32_t *hits_out, uint32_t *pc_out,
+                   uint32_t *addr_out, int *size_out);
+
 #ifdef __cplusplus
 }
 #endif
