@@ -9007,3 +9007,22 @@ Codex's E/F were unresolved addends, not objects. Corrected live-validated reads
 Honest-negative core unchanged: enumerable with positions, but no semantic labels
 (wall/cover/ramp/trap) without stage-specific evidence. The surroundings primitive
 (count + items + XYZ) now exists for the adapter when a stage profile gives it meaning.
+
+## Story dialogue boxes (Destiny Odyssey I opening, live-verified 2026-10-02)
+- Script buffer: UTF-16LE scene text near 0x09B3FF00 (heap, per-boot; anchor by
+  content scan, never hardcode). Lines end NUL NUL + one u16 code of unknown
+  purpose (9E/9A/96 seen; NOT the speaker: line3 Chaos carries 96 while the
+  portrait byte reads C5). No separate display buffer (single copy in RAM).
+- Speaker portrait byte: u8 @ 0x08BB376A. Tracked 4/4 advances in the
+  Chaos/Garland scene (9E Chaos L1, 9A Garland L2, C5 Chaos L3, D0 Chaos L4;
+  Chaos uses one portrait ID per line variant). Single byte in 32 MB matching
+  the 9E->9A transition. Non-dialogue states read outside the verified set
+  (title menus 0x0C/0x45, confirm 0x21, narration 0x00, Terra board 0xBC).
+- Portrait IDs are per-variant, not per-character: the portrait table still
+  needs enumerating (Chaos {9E,C5,D0,...}, Garland {9A,...}). Only verified
+  IDs speak; everything else stays silent. No name tag exists on screen, so
+  the spoken name completes the voiced line.
+- OPEN: boot-stability of 0x08BB376A across boots; current-line text anchor
+  (no absolute pointer into the script buffer found -- position is tracked as
+  an offset/index elsewhere); full portrait table; dialogue-live gate beyond
+  verified-IDs-only.
