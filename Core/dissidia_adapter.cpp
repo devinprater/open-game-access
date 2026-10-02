@@ -1291,6 +1291,85 @@ const char* DissidiaStoryTitleFor(const char* id)
     return sc ? sc->title : nullptr;
 }
 
+/// One-time story-scene matcher: finds the live dialogue buffer by content
+/// (heap, per-boot: never hardcoded) and identifies the scene from the
+/// static tables. Runs once per dialogue entry, not per frame.
+constexpr uint32_t STORY_SCAN_LO = 0x09900000u;
+constexpr uint32_t STORY_SCAN_HI = 0x09F00000u;
+constexpr uint32_t STORY_SCAN_WIN = 65536u;
+constexpr uint32_t STORY_SCAN_OVL = 128u;
+static uint8_t g_storyWin[STORY_SCAN_WIN];
+static size_t EncodeUtf16LE(const char* utf8, uint16_t* out, size_t cap)
+{
+    size_t n = 0;
+    for (size_t k = 0; utf8[k] && n < cap;) {
+        unsigned c = (unsigned char)utf8[k];
+        uint32_t cp;
+        if (c < 0x80) { cp = c; k += 1; }
+        else if ((c & 0xE0) == 0xC0) { cp = ((c & 0x1F) << 6) | ((unsigned char)utf8[k+1] & 0x3F); k += 2; }
+        else { cp = ((c & 0x0F) << 12) | (((unsigned char)utf8[k+1] & 0x3F) << 6) | ((unsigned char)utf8[k+2] & 0x3F); k += 3; }
+        if (cp >= 0x10000) cp = 0xFFFD;
+        out[n++] = (uint16_t)cp;
+    }
+    return n;
+}
+static bool WinHasPrefix(uint32_t base, const uint16_t* needle, size_t nlen, uint32_t* hit)
+{
+    if (nlen == 0 || nlen * 2 > STORY_SCAN_WIN) return false;
+    for (uint32_t o = 0; o < STORY_SCAN_WIN; o += 4) {
+        uint32_t w = u32(base + o);
+        g_storyWin[o] = (uint8_t)w; g_storyWin[o+1] = (uint8_t)(w >> 8);
+        g_storyWin[o+2] = (uint8_t)(w >> 16); g_storyWin[o+3] = (uint8_t)(w >> 24);
+    }
+    size_t hlen = STORY_SCAN_WIN / 2;
+    for (size_t i = 0; i + nlen <= hlen; i++) {
+        size_t j = 0;
+        while (j < nlen) {
+            uint16_t h = (uint16_t)(g_storyWin[(i+j)*2] | (g_storyWin[(i+j)*2+1] << 8));
+            if (h != needle[j]) break;
+            j++;
+        }
+        if (j == nlen) { if (hit) *hit = base + (uint32_t)(i * 2); return true; }
+    }
+    return false;
+}
+static bool StoryPrefixNear(uint32_t center, const char* prefix)
+{
+    uint16_t needle[32];
+    size_t nlen = EncodeUtf16LE(prefix, needle, 32);
+    if (!nlen) return true;
+    uint32_t lo = center > 65536u ? center - 65536u : STORY_SCAN_LO;
+    uint32_t hi = center + 65536u;
+    if (lo < STORY_SCAN_LO) lo = STORY_SCAN_LO;
+    if (hi > STORY_SCAN_HI) hi = STORY_SCAN_HI;
+    for (uint32_t base = lo; base < hi; base += STORY_SCAN_WIN - STORY_SCAN_OVL)
+        if (WinHasPrefix(base, needle, nlen, nullptr)) return true;
+    return false;
+}
+static const StoryScene* MatchStoryScene(void)
+{
+    for (const auto& sc : kStoryScenes) {
+        if (!sc.raw1 || !sc.raw1[0]) continue;
+        uint16_t needle[32];
+        size_t nlen = EncodeUtf16LE(sc.raw1, needle, 32);
+        if (!nlen) continue;
+        for (uint32_t base = STORY_SCAN_LO; base < STORY_SCAN_HI; base += STORY_SCAN_WIN - STORY_SCAN_OVL) {
+            uint32_t hit = 0;
+            if (!WinHasPrefix(base, needle, nlen, &hit)) continue;
+            if (!sc.raw2 || !sc.raw2[0] || StoryPrefixNear(hit, sc.raw2)) return &sc;
+            break;
+        }
+    }
+    return nullptr;
+}
+const char* DissidiaMatchStoryScene(void)
+{
+    const StoryScene* sc = MatchStoryScene();
+    return sc ? sc->id : nullptr;
+}
+static const StoryScene* g_storyScene = nullptr;
+static bool g_storyScanned = false;
+static void StoryStateClear(void) { g_storyScene = nullptr; g_storyScanned = false; }
 constexpr uint32_t STORY_PORTRAIT = 0x08BB376Au;
 static const char* StoryPortraitName(uint8_t por)
 {
@@ -1302,6 +1381,7 @@ static const char* StoryPortraitName(uint8_t por)
 }
 static int g_wsLoggedId = -1;  // board-arrival debug log fires on change only
 static void WatchReset(void) { g_wsScreen = WS_NONE; g_wsIndex = -1; g_wsStable = 0; g_wsLoggedId = -1; }
+static void WatchResetStory(void) { WatchReset(); StoryStateClear(); }
 /// Marker key on a board cell, or -1 when no marker sits there. The name comes
 /// from the verified catalog (MarkerTypeName); the type number rides along for
 /// the debug log. A key of 0 is a real marker (nonzero cell), never "absent".
@@ -1411,6 +1491,11 @@ static void WatchSpeak(int s, int i)
         case WS_MAIN: MenuSpeakRow(oga::Priority::Normal); return;
         case WS_OPTIONS: OptSpeakRow(oga::Priority::Normal); return;
         case WS_STORY: {
+            if (!g_storyScanned) {
+                g_storyScanned = true;
+                g_storyScene = MatchStoryScene();
+                if (g_storyScene) { snprintf(line, sizeof(line), "%s.", g_storyScene->title); Say(line, "storytitle", oga::Priority::Normal); }
+            }
             const char* nm = StoryPortraitName((uint8_t)i);
             if (nm) { snprintf(line, sizeof(line), "%s.", nm); Say(line, "story", oga::Priority::Normal); }
             return;
@@ -1423,7 +1508,7 @@ static void WatchSpeak(int s, int i)
 /// resets. First sighting counts as a change (announces entries, not just moves).
 static void WatchOk(int s, int i)
 {
-    if (s < 0) { WatchReset(); return; }
+    if (s < 0) { WatchResetStory(); return; }
     if (s == g_wsScreen && i == g_wsIndex) {
         if (g_wsStable < 2) g_wsStable++;
         if (g_wsStable >= 2) WatchSpeak(s, i);
@@ -1434,8 +1519,8 @@ static void WatchOk(int s, int i)
 static void OnFrame(void)
 {
     // Battles stay silent except QTE prompts: no watch here at all.
-    if (BattleFighters().ok) { WatchReset(); return; }
-    if (g_custLive || g_charLive || g_oskLive) { WatchReset(); return; }
+    if (BattleFighters().ok) { WatchResetStory(); return; }
+    if (g_custLive || g_charLive || g_oskLive) { WatchResetStory(); return; }
     // Modal YES/NO wins over whatever sits underneath (pause, board, options).
     if (AnyDialogLive()) {
         WatchOk(WS_DIALOG, DialogLive() ? DialogSel() : StoryDlgSel());
@@ -1459,6 +1544,7 @@ static void OnFrame(void)
                     uint8_t por = u8(STORY_PORTRAIT);
                     if (StoryPortraitName(por)) { s = WS_STORY; i = (int)por; }
                 }
+                if (s != WS_STORY) StoryStateClear();
             }
         }
         WatchOk(s, i);
@@ -1467,9 +1553,10 @@ static void OnFrame(void)
     // Board arrival watch: identity is (cell, marker key-or-absent), so moves
     // across empty cells and standing still both stay silent while arriving on
     // a marker speaks it. Manager-gated like the on-demand marker list.
-    if (!ManagerOk()) { WatchReset(); return; }
+    if (!ManagerOk()) { WatchResetStory(); return; }
     int hx = u8(bd + OFF_HX), hy = u8(bd + OFF_HY);
     if (hx > 60 || hy > 60) { WatchReset(); return; }
+    StoryStateClear();
     int key = MarkerKeyAt(hx, hy, nullptr, nullptr);
     WatchOk(WS_BOARD, (hy * 64 + hx) * 256 + (key + 1));
 }

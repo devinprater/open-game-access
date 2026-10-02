@@ -35,6 +35,7 @@ void SetWidgetRoot(uint32_t p);
 uint32_t WidgetRoot(void);
 const char* DissidiaStoryRunFor(const char* id);
 const char* DissidiaStoryTitleFor(const char* id);
+const char* DissidiaMatchStoryScene(void);
 }
 // Focused-test stubs: the registry TU references the sibling adapters, but this
 // binary tests ONLY the Dissidia adapter, so the siblings are null shells that
@@ -1070,6 +1071,27 @@ int main(void)
         CHECK(t3 && strcmp(t3, "Prologue") == 0, "DO 3 title is Prologue");
     }
 
+    // 48d. story scene match by content: planted DO-3 buffer lines
+    reset();
+    CHECK(a->attach(&HOST), "watch attach storymatch");
+    putU16str(0x09980000u, "Cosmos!");
+    putU16str(0x09980100u, "I have been defeated by ");
+    CHECK(oga::dissidia::DissidiaMatchStoryScene() && strcmp(oga::dissidia::DissidiaMatchStoryScene(), "DO 3") == 0,
+          "content scan identifies DO 3");
+    // 48e. dialogue entry speaks the scene title once, then names only
+    reset();
+    CHECK(a->attach(&HOST), "watch attach storyentry");
+    putU16str(0x09980000u, "Cosmos!");
+    putU16str(0x09980100u, "I have been defeated by ");
+    put8(0x08BB376Au, 0x0Cu);
+    FRAME(); FRAME();
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x08BB376Au, 0x9Au);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 2, "entry speaks twice");
+    CHECK(strcmp(SPOKE(0), "Prologue.") == 0, "entry first is title");
+    CHECK(strcmp(SPOKE(1), "Garland.") == 0, "entry second is name");
     // 49. main-menu entry announces row 1 (TITLE_CURSOR 8 + live A10 chain)
     reset();
     CHECK(a->attach(&HOST), "watch attach main");
