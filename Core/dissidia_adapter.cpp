@@ -369,6 +369,39 @@ static bool GridLegal(const Grid& g, int x, int y)
 }
 
 /// Marker catalog type names, semantically verified via the game's own tile text
+/// Enemy species names, verified live one board at a time (no guessing):
+///   Trunks board: 0x30 = False Hero (tooltip OCR + battle + Opponent Info).
+///   Cecil board (EPYON 100% save, Destiny Odyssey IV): 0x137 = Delusory
+///   Knight (Opponent Info OCR: Lv 1, HP 338), 0x138 = Transient Lion,
+///   0x139 = Imaginary Soldier, 0x13A = Capricious Thief (tooltip OCR).
+/// The species key is s16[O+10] (O = [C+8] + [K + key*4], C = [T+0]); keys are
+/// globally unique per enemy (Trunks base 0x30, Cecil base 0x137). Unknown
+/// keys keep enemy and are logged so the next board run can extend the map.
+/// NOTE: field +4 of the species record is NOT the pool index (falsified:
+/// 0x37 renders pool entry 13, not 10), and pool indices are not spoken --
+/// only the table below, every entry live-verified, is ever announced.
+struct EnemySpecies { uint32_t key; const char* name; };
+static const EnemySpecies kEnemySpecies[] = {
+    { 0x30u, "False Hero" },
+    { 0x137u, "Delusory Knight" },
+    { 0x138u, "Transient Lion" },
+    { 0x139u, "Imaginary Soldier" },
+    { 0x13Au, "Capricious Thief" },
+};
+static const char* EnemySpeciesName(uint32_t o)
+{
+    if (!InRam(o + 11)) return nullptr;
+    int16_t key = (int16_t) (uint16_t) (u8(o + 10) | ((uint32_t) u8(o + 11) << 8));
+    for (size_t i = 0; i < sizeof(kEnemySpecies) / sizeof(kEnemySpecies[0]); i++)
+        if ((int16_t) kEnemySpecies[i].key == key) return kEnemySpecies[i].name;
+    if (g_host && g_host->log && key != 0) {
+        char lg[64];
+        snprintf(lg, sizeof(lg), "board unknown enemy key.");
+        g_host->log(g_host->ctx, lg);
+    }
+    return nullptr;
+}
+///
 /// (s110): type 0 = enemy ("False... Lv 1 BATTLE..."), type 4 = potion ("Potion /
 /// Restores HP and EX Gauge to 100%."), type 5 = Stigma ("Stigma of Chaos /
 /// Engaging this piece finishes the level."). Catalog walk: K = [C+4], O = [C+8] +
@@ -388,7 +421,10 @@ static const char* MarkerTypeName(uint32_t cobj, uint32_t key, uint32_t* typeOut
     uint32_t ty = (uint32_t) (uint16_t) (u8(o + 4) | ((uint32_t) u8(o + 5) << 8));
     if (typeOut) *typeOut = ty;
     switch (ty) {
-        case 0: return "enemy";
+        case 0: {
+            const char* sp = EnemySpeciesName(o);
+            return sp ? sp : "enemy";
+        }
         case 4: return "potion";
         case 5: return "Stigma of Chaos";
         default: return nullptr;
@@ -1266,7 +1302,9 @@ static int MarkerKeyAt(int hx, int hy, const char** nameOut, uint32_t* typeOut)
 /// Verified twice: prologue-1 tooltip OCR (s109/s110) and a live prologue-3 RAM
 /// dump (UTF-16LE tile table: potion 0x9C10C3C, stigma 0x9C10D02 -- heap, moves
 /// every boot, so the TEXT is pinned, not the address). Enemy names vary per
-/// marker, so enemies keep the bare "enemy here."; unverified types stay on
+/// marker, so enemies speak their species name when the O+10 key is in the
+/// live-verified table (kEnemySpecies) and keep the bare "enemy here." when
+/// it is not; unverified types stay on
 /// their number ("Unknown N here.") until their text is verified the same way.
 /// Record format for a future RAM reader: u16 len, u16 0x0010?, 01 01 81 FF
 /// magic, name, 1B 0A separators, wrapped desc lines (TODO: index scheme + base

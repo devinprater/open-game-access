@@ -334,6 +334,39 @@ int main(void)
     CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "enemy east 5 away at 6, 2.") == 0,
           "marker enemy east");
+    // 19b. known species keys speak their live-verified names; unknown keys
+    // keep "enemy". O = BO here (key 0 -> offset 0), species key = s16[O+10].
+    put16(BO + 10u, 0x30u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "False Hero east 5 away at 6, 2.") == 0,
+          "marker False Hero");
+    put16(BO + 10u, 0x137u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Delusory Knight east 5 away at 6, 2.") == 0,
+          "marker Delusory Knight");
+    put16(BO + 10u, 0x138u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Transient Lion east 5 away at 6, 2.") == 0,
+          "marker Transient Lion");
+    put16(BO + 10u, 0x139u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Imaginary Soldier east 5 away at 6, 2.") == 0,
+          "marker Imaginary Soldier");
+    put16(BO + 10u, 0x13Au);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Capricious Thief east 5 away at 6, 2.") == 0,
+          "marker Capricious Thief");
+    put16(BO + 10u, 0x31u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "enemy east 5 away at 6, 2.") == 0,
+          "marker unknown species key");
+    put16(BO + 10u, 0u);
 
     // 20. potion + stigma + unknown names
     put32(BCTAB + 4u, 0x10u); put16(BO + 0x14u, 4u);   // key 1 -> type 4
