@@ -151,3 +151,35 @@ glider. Kefka — white clown makeup, jester motley, shrieking laugh.
 > things. Having a dream gives a person strength."
 
 Audio render (edge TTS, description track only): `tts_des06_001.ogg`.
+
+## Synced AD — Kefka-Terra conversations (original-audio gap timing)
+
+Source audio: no-commentary playthrough audio (`EIJRbzStFMY`), sliced to
+the two Kefka-Terra dialogue movies; gaps measured with
+`ffmpeg silencedetect=-35dB:d=0.3` on the ORIGINAL mixed audio
+(voices+music+sfx). Audio kept local only, never committed.
+
+Movie A — first meeting (playthrough 4:44–5:40, 56 s): Kefka appears
+("hello, my pretty"), tempts Terra ("come with me and destroy the
+world"), Terra refuses ("I found a future that I want to protect").
+Gaps >= 0.3 s: NONE. Wall-to-wall dialogue.
+
+Movie B — taunt (playthrough 6:06–6:56, 50 s): Kefka's "better toy"
+sneer through "come on, let's play!" Gaps >= 0.3 s: exactly ONE —
+1.5 s at ~22 s (playthrough ~6:28, between "destroyed by me" and
+"come on, let's play").
+
+Film-AD treatment for gapless dialogue (the standard craft answer): a
+setup line BEFORE the audio (who + where, once per scene), silence
+during, one short action line only where a true gap exists.
+
+> [pre-roll A] Destiny Odyssey Six. The clown villain Kefka corners
+> Terra, the green-haired magic user, in a carved stone temple.
+> [Kefka and Terra talk, no gaps — no description]
+> [pre-roll B] Moments later, on a rooftop at sunset, Kefka taunts her
+> again.
+> [Kefka: "...better off being destroyed by me."]
+> [gap 1.5 s] Kefka laughs, arms wide.
+> [Kefka: "Come on — let's play!"]
+
+Audio render (description track only): `tts_des06_sync.ogg`.
