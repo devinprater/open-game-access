@@ -103,13 +103,18 @@ static void QuietLog(const char* msg, void* ud)
 
 int main(int argc, char** argv)
 {
-    if (argc != 7 && argc != 8 && argc != 9) {
-        fprintf(stderr, "usage: %s <cso> <savedir> <assets> <state|-> <out> <taps> [shots-every] [lead]\n", argv[0]);
+    if (argc != 7 && argc != 8 && argc != 9 && argc != 10) {
+        fprintf(stderr, "usage: %s <cso> <savedir> <assets> <state|-> <out> <taps> [shots-every] [lead] [trail]\n", argv[0]);
         return 2;
     }
     PspCore* c = psp_create();
     psp_set_log_callback(c, QuietLog, nullptr);
     psp_set_asset_dir(c, argv[3]);
+    // Host only: PSP_CLASSIC=1 runs the classic interpreter, whose checked
+    // memory ops tolerate the game's low-address reads. The 64-bit host
+    // build lacks MASKED_PSP_MEMORY, so the IR interpreter's unchecked
+    // fastmem reads SIGSEGV on them (iOS defines MASKED, unaffected).
+    if (getenv("PSP_CLASSIC")) psp_set_classic_interpreter(c);
     char code[16] = {0};
     // Every exit path stops and destroys the core: PPSSPP's threads hang
     // process exit if they are still running when main returns.
@@ -143,6 +148,7 @@ int main(int argc, char** argv)
         // Lead-in: wait this many frames before the first tap (e.g. logos
         // and FMV between a milestone state and the menu being driven).
         int lead = (argc == 9) ? atoi(argv[8]) : 60;
+        int trail = (argc == 10) ? atoi(argv[9]) : 0;
         Run(c, lead);
         for (int s = 0; s <= n; s++) {
             char sp[512], dp[512];
@@ -164,6 +170,12 @@ int main(int argc, char** argv)
                 }
                 Run(c, 150);
             }
+        }
+        if (trail > 0) {
+            Run(c, trail);
+            char sp[512];
+            snprintf(sp, sizeof(sp), "%s/stepT.ppm", argv[5]);
+            printf("stepT shot=%d\n", (int)Shot(c, sp));
         }
         }
         if (rc == 0) {
