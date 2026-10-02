@@ -1328,6 +1328,7 @@ static const TileText* TileTextFor(uint32_t ty)
 /// Board arrival speech: the cursor reached a new (cell, marker) identity.
 /// Empty cells stay silent (position stays on demand); a present marker reads
 /// the text that pops up. Logs the type number for the debug trail.
+static bool g_dpEmptySpoken = false;
 static void BoardArriveSpeak(int id)
 {
     int cell = id / 256;
@@ -1342,6 +1343,15 @@ static void BoardArriveSpeak(int id)
     else if (ty != 0xFFFFFFFFu) snprintf(line, sizeof(line), "Unknown %u here.", ty);
     else snprintf(line, sizeof(line), "Unknown here.");
     Say(line, "board", oga::Priority::Normal);
+    // Contextual board hints, verbatim from the game's own prompt pool
+    // (static UTF-16LE 0x9B40A3E/0x9B40A7C, live-verified Terra board):
+    // every enemy arrival can be engaged, and DP hitting 0 ends movement.
+    if (ty == 0) Say("Press X to engage.", "boardhint", oga::Priority::Normal);
+    int dp = BoardDP();
+    if (dp == 0 && !g_dpEmptySpoken) {
+        g_dpEmptySpoken = true;
+        Say("You're out of Destiny Points!", "boardalert", oga::Priority::Normal);
+    } else if (dp > 0) g_dpEmptySpoken = false;
     if (id != g_wsLoggedId) {
         g_wsLoggedId = id;
         if (g_host && g_host->log) {

@@ -154,3 +154,5 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 - [x] Make all three adapter tests link the complete four-adapter registry; `scripts/adapter-tests.sh` passed locally.
 - [x] Add a Linux GitHub Actions workflow; the adapter-host-tests check passed on [PR #1](https://github.com/devinprater/open-game-access/pull/1).
 - [x] Re-ran the full simulator workflow after the link fixes: `.app` packages and boots on a simulated iPhone (run 36235169070, all steps green; screenshot shows the idle UI).
+
+2026-10-02: task1 banked 2/7 Terra species (0x177/0x178 wired, tests 160/160); 0x179-0x17D fight-gated. Task2 DONE: board hints (engage + DP-zero, verbatim pool).

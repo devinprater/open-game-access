@@ -1153,14 +1153,41 @@ int main(void)
     put8(WBD + 0x194u, 2); put8(WBD + 0x195u, 3);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     FRAME(); FRAME();
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "enemy here.") == 0,
-          "watch announces enemy arrival");
+    CHECK(NSPOKEN == 2 && strcmp(SPOKE(0), "enemy here.") == 0 &&
+          strcmp(SPOKE(1), "Press X to engage.") == 0,
+          "watch announces enemy arrival plus engage hint");
     put16(WBASE + 0x30u + 4u, 9u);
     put8(WBD + 0x194u, 1); put8(WBD + 0x195u, 1);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Unknown 9 here.") == 0,
           "watch announces unknown type with number");
+    // 56b. DP-zero alert speaks once per emptying (progress chain mirrors
+    // test 14: G2/C2/R2 with slot 0); enemy arrivals keep the engage hint.
+    put32(0x08B98940u, BM);
+    put32(0x08B99338u, G2);
+    put8(BM + 0x120u, 0u);
+    put8(C2 + 2u, 0u);
+    put16(R2 + 6u, 0u);
+    put8(WBD + 0x194u, 2); put8(WBD + 0x195u, 3);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 3 && strcmp(SPOKE(0), "enemy here.") == 0 &&
+          strcmp(SPOKE(1), "Press X to engage.") == 0 &&
+          strcmp(SPOKE(2), "You're out of Destiny Points!") == 0,
+          "dp-zero alert on first empty arrival");
+    put8(WBD + 0x194u, 6); put8(WBD + 0x195u, 2);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1,
+          "dp-zero alert not repeated on next arrival");
+    put16(R2 + 6u, 1u);
+    put8(WBD + 0x194u, 2); put8(WBD + 0x195u, 3);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 2 && strcmp(SPOKE(0), "enemy here.") == 0 &&
+          strcmp(SPOKE(1), "Press X to engage.") == 0,
+          "no dp alert once DP refills");
 
     // ---- Queue mapping: interruption, pacing, replacement (fake clock) ----
     // Raw a->command bypasses the CMD() auto-sync so lines stay queued.
