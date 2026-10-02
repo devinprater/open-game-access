@@ -115,3 +115,39 @@ to the voices. Stills: `~/scframes/f01..f11.png` (1 frame / 4 s).
 > Above a night city, the Warrior hurls himself shield-first at Garland.
 
 Audio render (edge TTS): `tts_des01_001.ogg` — re-render on script change.
+
+## DES06_001 — Destiny Odyssey VI scene 1 (Terra vs Kefka, 65 s)
+
+Source: `DES06_001.PMF` (13.4 MB, 480x272, 64.6 s) from disc `MOVIE/`.
+Film-AD rules applied (Ofcom/ITC + ITU-T T.701.21, 2026-10-02): describe
+ONLY in non-dialogue pauses, never over dialogue or plot-critical music;
+present tense; name characters early and reuse names; do not fill every
+moment — let the scene breathe; prioritize plot-relevant visuals.
+Voiced lines below are the scene's known dialogue (playthrough transcript
+timestamps 6:08–10:32); exact PMF sync is DRAFT — the PMF carries video
+only and the voices live in the data archive (AT3, future extraction for
+sample-exact gap timing). Stills: `~/sc6b/h01..h13.png` (1 frame / 5 s).
+
+Cast (named once): Terra — blonde ponytail, red top, white skirt, magic
+glider. Kefka — white clown makeup, jester motley, shrieking laugh.
+
+> Terra falls backward through a carved stone temple, arm outstretched.
+> [gap: landing music]
+> She dashes left across a dark stone arena, sleeves streaming.
+> Kefka: "If you just let your powers take over... you would have made
+> such a better toy."
+> Above a rooftop, Kefka flings his arms wide, laughing.
+> Kefka: "A coward that refuses to destroy anything is better off being
+> destroyed by me. Come on — let's play!"
+> Terra drops through a black industrial chasm past glowing orbs.
+> Kefka lies flat on his back, motionless.
+> [gap: he rises — scrambling pipes and valves behind him]
+> Terra races on through the temple, determined.
+> Kefka looms over her, grinning. Terra: "I can protect everything. I
+> won't be defeated!"
+> A glass cylinder glows on a carved pedestal; a masked figure floats in
+> light while a white beast watches.
+> Terra, resolved, straight to us: "A dream can be about the smallest
+> things. Having a dream gives a person strength."
+
+Audio render (edge TTS, description track only): `tts_des06_001.ogg`.
