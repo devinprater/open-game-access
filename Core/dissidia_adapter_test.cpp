@@ -361,6 +361,16 @@ int main(void)
     CMD(oga::Command::NextEnemy);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Capricious Thief east 5 away at 6, 2.") == 0,
           "marker Capricious Thief");
+    put16(BO + 10u, 0x177u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Phantasmal Girl east 5 away at 6, 2.") == 0,
+          "marker Phantasmal Girl");
+    put16(BO + 10u, 0x178u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Delusory Knight east 5 away at 6, 2.") == 0,
+          "marker Delusory Knight Terra");
     put16(BO + 10u, 0x31u);
     NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
     CMD(oga::Command::NextEnemy);
