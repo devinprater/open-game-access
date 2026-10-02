@@ -183,3 +183,13 @@ during, one short action line only where a true gap exists.
 > [Kefka: "Come on — let's play!"]
 
 Audio render (description track only): `tts_des06_sync.ogg`.
+
+## Technique note — describing over entrance SFX (2026-10-02)
+
+When a visual beat (e.g. Ultimecia materializing) sits in a wall-to-wall
+stretch with no speech gap (verified to 0.15 s), the working method is:
+pin the beat's screen time from video frames (subtitle on/off + effect
+start), place a short AD line (~1.5 s, TTS at 1.7x) over the SFX swell,
+and duck the game bed to ~0.35x under the line with a timed volume
+envelope — never over voiced dialogue, only over non-verbal sound.
+Proven in `mixA.mp3` (Ultimecia entrance, DES06 first meeting).
