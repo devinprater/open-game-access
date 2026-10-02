@@ -1049,6 +1049,11 @@ int main(void)
     NSPOKEN = 0; oga::AdapterSpeechReset();
     FRAME(); FRAME();
     CHECK(NSPOKEN == 0, "unverified portrait stays silent");
+    put8(0x08BB376Au, 0x46u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Chaos.") == 0,
+          "second Chaos variant names Chaos");
 
     // 49. main-menu entry announces row 1 (TITLE_CURSOR 8 + live A10 chain)
     reset();
