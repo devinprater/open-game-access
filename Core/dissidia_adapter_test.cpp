@@ -33,6 +33,8 @@ extern const Adapter kDissidiaFinalFantasy;
 namespace dissidia {
 void SetWidgetRoot(uint32_t p);
 uint32_t WidgetRoot(void);
+const char* DissidiaStoryRunFor(const char* id);
+const char* DissidiaStoryTitleFor(const char* id);
 }
 // Focused-test stubs: the registry TU references the sibling adapters, but this
 // binary tests ONLY the Dissidia adapter, so the siblings are null shells that
@@ -1054,6 +1056,19 @@ int main(void)
     FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Chaos.") == 0,
           "second Chaos variant names Chaos");
+
+    // 48c. story scene table: DO 3 (throne scene) run + DO 5 (WoL/Garland)
+    {
+        const char* r3 = oga::dissidia::DissidiaStoryRunFor("DO 3");
+        CHECK(r3 && strstr(r3, "Chaos|Garland") != nullptr,
+              "DO 3 run carries Chaos/Garland");
+        const char* r5 = oga::dissidia::DissidiaStoryRunFor("DO 5");
+        CHECK(r5 && strcmp(r5, "Warrior of Light|Garland|Warrior of Light|Garland|Warrior of Light|Garland") == 0,
+              "DO 5 run alternates WoL/Garland");
+        CHECK(oga::dissidia::DissidiaStoryRunFor("DO 999") == nullptr, "unknown scene id is null");
+        const char* t3 = oga::dissidia::DissidiaStoryTitleFor("DO 3");
+        CHECK(t3 && strcmp(t3, "Prologue") == 0, "DO 3 title is Prologue");
+    }
 
     // 49. main-menu entry announces row 1 (TITLE_CURSOR 8 + live A10 chain)
     reset();

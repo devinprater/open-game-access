@@ -1273,6 +1273,24 @@ static int g_wsStable = 0;
 /// Story-dialogue speaker portrait byte (visual-novel box, no name tag).
 /// Tracks the active portrait across advances (Chaos/Garland scene: 4/4).
 /// Only verified portrait IDs speak; everything else stays silent.
+#include "story/dissidia_story_scenes.inc"
+static const StoryScene* StorySceneById(const char* id)
+{
+    for (const auto& sc : kStoryScenes)
+        if (strcmp(sc.id, id) == 0) return &sc;
+    return nullptr;
+}
+const char* DissidiaStoryRunFor(const char* id)
+{
+    const StoryScene* sc = StorySceneById(id);
+    return sc ? sc->run : nullptr;
+}
+const char* DissidiaStoryTitleFor(const char* id)
+{
+    const StoryScene* sc = StorySceneById(id);
+    return sc ? sc->title : nullptr;
+}
+
 constexpr uint32_t STORY_PORTRAIT = 0x08BB376Au;
 static const char* StoryPortraitName(uint8_t por)
 {
