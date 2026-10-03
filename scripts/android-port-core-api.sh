@@ -127,9 +127,16 @@ s = s.replace("nds->GPU.SetRenderer3D(std::make_unique<SoftRenderer>());",
 # ENABLE_OGLRENDERER=OFF means GLRenderer and ComputeRenderer do not exist at all,
 # so these cases cannot name them. Fall back to software, which is what the
 # selection would have to be anyway on this core.
-s = s.replace("nds->SetRenderer(std::make_unique<GLRenderer>(*nds, true));",
-              "// No GL/compute renderer in this build; software is the only option.\n"
-              "                nds->SetRenderer(std::make_unique<SoftRenderer>(*nds));")
+# NOTE the order trap: the generic SetRenderer3D(...) -> SetRenderer(...) rewrite
+# above may already have transformed this line, so match BOTH the original and the
+# post-rewrite form. Otherwise a GLRenderer::New() survives into a build where
+# GLRenderer does not exist.
+for _gl_form in ("nds->GPU.SetRenderer3D(GLRenderer::New());",
+                 "nds->SetRenderer(std::make_unique<GLRenderer>(*nds, true));",
+                 "nds->SetRenderer(GLRenderer::New());"):
+    s = s.replace(_gl_form,
+                  "// No GL renderer in this build (ENABLE_OGLRENDERER=OFF); software.\n"
+                  "                nds->SetRenderer(std::make_unique<SoftRenderer>(*nds));")
 # Compute is not selected by upstream's own frontend any more; keep the software
 # path rather than inventing a constructor that may not exist.
 s = s.replace("nds->GPU.SetRenderer3D(ComputeRenderer::New());",
@@ -147,6 +154,10 @@ s = s.replace("static_cast<ComputeRenderer&>(nds->GPU.GetRenderer()).SetRenderSe
               "{ melonDS::RendererSettings rs {}; rs.ScaleFactor = computeRenderSettings.scale;\n"
               "              rs.HiresCoordinates = computeRenderSettings.highResCoordinates;\n"
               "              nds->GPU.GetRenderer().SetRenderSettings(rs); }")
+
+# Catch-all: whatever form it ended up in, no GLRenderer::New() may reach a build
+# where GLRenderer does not exist.
+s = s.replace("GLRenderer::New()", "std::make_unique<SoftRenderer>(*nds)")
 
 # `Accelerated` and `SetOutputTexture` no longer exist on the renderer. Software
 # vs accelerated is decided by which renderer class is current.
