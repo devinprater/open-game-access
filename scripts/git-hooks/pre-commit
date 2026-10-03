@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# pre-commit — refuse to commit game data or build output.
+#
+# ⛔ ROMs, BIOS/firmware dumps and save files are copyrighted; players supply
+# their own. .gitignore is the first line of defence, but `git add -f` bypasses
+# it. This checks the names actually staged, so nothing game-shaped can reach a
+# commit. Enable once per checkout:
+#
+#   git config core.hooksPath scripts/git-hooks
+set -euo pipefail
+
+BAD="$(git diff --cached --name-only --diff-filter=ACMR | grep -iE \
+  '\.(nds|dsi|gba|gbc|gb|sav|srm|dsv|state|st[0-9]|ss[0-9]|savestate|sram|ppst|iso|cso|pbp|chd|cue|elf|prx|xip|ram|apk|ipa|a|o|obj|so|dylib)$|(^|/)bios[^/]*\.bin$|(^|/)firmware[^/]*\.bin$' \
+  || true)"
+
+if [ -n "$BAD" ]; then
+  echo "!! REFUSING TO COMMIT — game data or build output staged:" >&2
+  echo "$BAD" >&2
+  echo "   Unstage with: git restore --staged <path>" >&2
+  exit 1
+fi

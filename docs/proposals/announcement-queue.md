@@ -61,7 +61,7 @@ int oga_announce(const oga_announcement_t* a);
 
 ## 5. Test plan
 
-- Unit tests live with the adapter tests (`Core/*_test.cpp` pattern, e.g. `gba_adapter_test.cpp`): drive `oga_announce` with a stub `Host` recording `speak` and `log` calls. No ROMs, no emulator, per `scripts/stage-repo.sh` enforcement.
+- Unit tests live with the adapter tests (`Core/*_test.cpp` pattern, e.g. `gba_adapter_test.cpp`): drive `oga_announce` with a stub `Host` recording `speak` and `log` calls. No ROMs, no emulator, per the scripts/git-hooks/pre-commit guard.
 - Replacement: enqueue WhereAmI A then WhereAmI B before draining; assert only B speaks. Then enqueue WhereAmI C plus ally D; assert both speak (different groups do not replace).
 - Dedup: same text plus same key twice; assert one speech, one logged suppression. Same text with a cleared group (group change re-arms) speaks again. The repeat path (HIGH re-request) bypasses dedup.
 - Expiry: enqueue LOW with `expiry_ms=100`, advance the fake clock 200 ms, drain; assert dropped with `decision=expired` in the log.

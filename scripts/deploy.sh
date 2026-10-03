@@ -1,19 +1,12 @@
 #!/usr/bin/env bash
-# deploy.sh — sync to WSL, build the core, then build + install + launch the app
-# on the attached iPhone via xtool.
+# deploy.sh — build the core if needed, then build + install + launch the app
+# on the attached iPhone via xtool. Runs in place in this checkout.
 #
 # The device link is the Windows Apple-mobile-device mux forwarded into WSL;
 # see the xtool-ios-on-wsl skill for why usbipd cannot be used here.
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-
-WIN_SRC="/mnt/c/Users/Devin Prater/open-game-access"
 WSL_DST="$ROOT"
-
-rsync -a --delete \
-  --exclude '.build/' --exclude 'xtool/' \
-  --exclude 'Vendor/obj/' --exclude 'Vendor/*.a' \
-  "$WIN_SRC/" "$WSL_DST/"
 
 cd "$WSL_DST"
 

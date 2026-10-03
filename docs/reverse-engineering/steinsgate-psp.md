@@ -1272,5 +1272,5 @@ input.**
 `DATA0.CPK` (778 MB) and the decompressed ISO (1.39 GB) were written to
 `%LOCALAPPDATA%\Temp\psp-iso` and `%LOCALAPPDATA%\Temp\psp-extract` for this work.
 **They are game data and must never be committed or uploaded** — the project's rule is
-that players supply their own ROMs. The repo's `stage-repo.sh` allow-list and
+that players supply their own ROMs. The repo pre-commit hook (scripts/git-hooks) and
 `check-no-roms.sh` enforce this; nothing from these directories is staged.

@@ -7,7 +7,7 @@
 # legal problem, so the check looks for game data AND for the emulator build
 # output that should never be committed, and exits non-zero on either.
 #
-# Run by CI before upload and by scripts/stage-repo.sh before staging.
+# Run by CI before upload. Commits are guarded by scripts/git-hooks/pre-commit.
 set -uo pipefail
 ROOT="${1:-.}"
 cd "$ROOT" || exit 2
