@@ -127,7 +127,10 @@ compile() {
       # gba_core.cpp is OGA glue but uses mGBA's configured public API.
       if [ "$(basename "$src")" = "gba_core.cpp" ]; then
         flags="$CXXFLAGS $MGBA_DEFS $MGBA_INC"
-      fi ;;
+      fi
+      # Our own Core/ code only (not melonDS): a self-calling EndFrame once
+      # crashed every game on its first frame (v0.4.0) behind a mere warning.
+      case "$src" in "$ROOT"/Core/*) flags="$flags -Werror=infinite-recursion" ;; esac ;;
     cc)  flags="$CFLAGS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;

@@ -1558,7 +1558,11 @@ static void ApplyInput(PokeCore* core)
 static void EndFrame(PokeCore* core)
 {
     core->host.now_ms = CoreNowMs();
-    EndFrame(core);
+    // ⛔ The adapter hook, NOT EndFrame: a replace-all once turned this line
+    // into a self-call, which overflowed the stack on the first frame of
+    // every game (v0.4.0). -Werror=infinite-recursion now guards it.
+    if (core->adapterAttached && core->adapter && core->adapter->on_frame)
+        core->adapter->on_frame();
     if (core->announceQ) oga::announce_tick(core->announceQ, core->host.now_ms);
 }
 
