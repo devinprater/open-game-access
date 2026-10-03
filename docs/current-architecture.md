@@ -6,7 +6,8 @@ below was read from the tree, not remembered.
 
 ## The tree today
 
-The working project is `C:\Users\Devin Prater\open-game-access` — a SwiftUI iOS
+The working project (then at `C:\Users\Devin Prater\open-game-access`; now the
+git checkout described in `docs/where-things-run.md`) is a SwiftUI iOS
 app around a melonDS core with a Lua accessibility script. Its name is now a
 misnomer: the machinery under it is not Pokémon-specific (details in
 "What is actually reusable").

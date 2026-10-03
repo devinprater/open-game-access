@@ -1,16 +1,16 @@
 /*
  * adapters.cpp — the adapter registry.
  *
- * Only two adapters exist today and they are different in kind, which is the
- * honest current picture:
+ * Adapters come in two kinds:
  *
- *   * Pokémon Black/White — a SCRIPT adapter. All its logic is Ola's main.lua,
- *     bundled as an asset; the core needs nothing from it beyond the Lua memory/
- *     input/speech surface it already provides. It is not registered here because
- *     it needs no native code at all.
- *   * Fire Emblem: Shadow Dragon — a NATIVE adapter, because its tactical state is
- *     a pointer graph (gMapStateManager -> cursor, gUnitList array of records) that
- *     is far cheaper to read in C++ than to walk from Lua every frame.
+ *   * SCRIPT — Pokémon Black/White. All its logic is Ola's main.lua, bundled as
+ *     an asset; the core needs nothing from it beyond the Lua memory/input/speech
+ *     surface it already provides. It is not registered here because it needs no
+ *     native code at all.
+ *   * NATIVE — the five registered below. Fire Emblem set the pattern: its
+ *     tactical state is a pointer graph (gMapStateManager -> cursor, gUnitList
+ *     array of records) that is far cheaper to read in C++ than to walk from Lua
+ *     every frame.
  *
  * ⛔ The registry is keyed on the ROM header's game code (0x0C..0x0F) so an
  * adapter is selected at ROM-load time and the Pokémon path is untouched.
@@ -35,10 +35,10 @@ extern const Adapter kGameBoyAdvance;
 // Every address was confirmed against the game's own Status screens, not inferred.
 extern const Adapter kDragonBallZSaiyans;
 // Implemented in dissidia_adapter.cpp — Dissidia Final Fantasy (PSP, ULUS10437).
-// SCAFFOLD: menu text pool, manager object, and the selection-index accessor
-// (FUN_00250538: index at widget+0x3C, count at widget+0x240, stride 0x44, cap 7)
-// are all verified against live RAM + decompile; the live widget root P is still
-// hunted (scripts/psp-find-uiroot*.py), so commands refuse until it is set.
+// The largest adapter: title/setup and main menus (RAM cursors, frame-polled),
+// YES/NO dialogs, battle + EX Burst prompts, the story board, the PPSSPP OSK
+// name entry and story-dialogue speakers. Status and open RE are in TODO.md and
+// docs/reverse-engineering/dissidia-final-fantasy.md.
 extern const Adapter kDissidiaFinalFantasy;
 
 // Implemented in dq9_adapter.cpp — Dragon Quest IX: Sentinels of the Starry

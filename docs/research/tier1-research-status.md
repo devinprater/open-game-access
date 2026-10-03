@@ -1,6 +1,6 @@
 # Tier-1 games — memory-mapping and research status
 
-The four most tractable titles from `NDS-GAME-FEASIBILITY.md`, taken in order of
+The four most tractable titles from `nds-game-feasibility.md`, taken in order of
 how easily a reader could be built. What follows distinguishes **verified** from
 **claimed**, because a cheat-code list is a claim and internet claims about RAM
 addresses are routinely stale, region-specific, or mistyped.

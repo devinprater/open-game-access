@@ -14,36 +14,39 @@ automation — by asking the game what it already knows.
 ## What this is now
 
 This began as `pokemon-access-mobile` — an accessible Pokémon Black/White player
-for Android and iOS. It is being refactored **incrementally, not rewritten**, into a
+for Android and iOS. It has been refactored **incrementally, not rewritten**, into a
 general framework with game-specific adapters. The working Pokémon code is
 untouched and still runs.
 
+Current work and open items live in [`TODO.md`](TODO.md); dated status snapshots
+from earlier milestones are in [`docs/history/`](docs/history/).
+
+### Platform
+
 | Piece | State |
 |---|---|
-| Emulator integration (melonDS + Lua 5.4, iOS build + host build) | working |
-| Memory access, speech engine, VoiceOver routing, input bridging | working |
-| Pokémon Black/White reader (Ola's `main.lua`, 33 screen modules) | working |
-| Fire Emblem: Shadow Dragon adapter | **milestone 1 reached** |
-| Adapter seam (`Core/adapter.h`) | defined; keyed on ROM game code |
+| DS emulation (melonDS + Lua 5.4) | working; iOS, host harness |
+| GB / GBC / GBA emulation (mGBA) | working; iOS, Android |
+| PSP emulation (PPSSPP, IR interpreter + software GPU) | working; iOS simulator boots Dissidia in CI |
+| Adapter seam (`Core/adapter.h`) | five native adapters, keyed on ROM game code |
+| Announcement queue (`Core/announce.*`) | one line in flight, priorities, dedup; wired on iOS and in all adapters |
+| Speech engine, VoiceOver routing, input bridging | working; device proof of the queue pending |
+| Android | Pokémon Lua readers only — native adapters need the NDK port |
 
-### Fire Emblem: Shadow Dragon, milestone 1
+### Games
 
-Read from the game's own structures, verified against a running emulator:
+| Game | Kind | State |
+|---|---|---|
+| Pokémon Black/White (DS) | Lua (Ola's `main.lua`) | working |
+| Pokémon Red/Blue/Yellow, Gold/Silver/Crystal, Emerald, FireRed/LeafGreen | Lua (`gba-lua` readers) | working |
+| Fire Emblem: Shadow Dragon (DS) | native | map reader (cursor, terrain, units, allies/enemies) and title/menu/difficulty — [notes](docs/fire-emblem-shadow-dragon-memory.md) |
+| Dissidia Final Fantasy (PSP, ULUS10437) | native | menus, dialogs, battle + EX Burst prompts, board, name entry, story speakers — host-tested; [notes](docs/reverse-engineering/dissidia-final-fantasy.md) |
+| Dragon Ball Z: Attack of the Saiyans (DS) | native | party HP/Ki — [notes](docs/reverse-engineering/dbz-attack-of-the-saiyans.md) |
+| Dragon Quest IX (DS, YDQE) | native | scaffold: where-am-I, party cycling, dump — [notes](docs/reverse-engineering/dragon-quest-ix.md) |
 
-```
-Where am I?  -> Cursor 1, 20. Terrain: unknown (tile id not yet verified).
-                Unit here: Marth, 18 HP, unacted.
-Next ally    -> Marth, 18 HP, position 1, 20, unacted, 0.0 tiles away.
-
-gUnitList 0x0227527C  stride 0xA8   slot 1 @ 0x02275328   Lv 1  HP 18  at (1,20)
-  PersonData -> pid 'PID_MARS'      JobData -> jid 'JID_LORD'
-```
-
-Character identity is read from the game's own identifier strings, not a hard-coded
-table. The cursor is confirmed two independent ways (direct correlation, and pixel
-position ÷ camera tile size reproducing the tile coordinate across five snapshots).
-What is verified, what is not, and the method for each:
-[`docs/fire-emblem-shadow-dragon-memory.md`](docs/fire-emblem-shadow-dragon-memory.md).
+Every native reader reads the game's own structures, verified against a running
+emulator; what is verified, what is not, and the method for each is in the linked
+notes.
 
 ## ⛔ No ROMs, ever
 
@@ -114,7 +117,20 @@ is other people's work, and their licences apply.
 
 ### mGBA — Game Boy / GBC / GBA emulation core
 - <https://mgba.io/> / <https://github.com/mgba-emu/mgba> — **MPL-2.0**
-- Used by the Android build for the Game Boy family of scripts.
+- Runs the Game Boy family of scripts on iOS and Android.
+
+### PPSSPP — PlayStation Portable emulation core
+- <https://www.ppsspp.org/> / <https://github.com/hrydgard/ppsspp> — **GPL-2.0-or-later**
+- Copyright Henrik Rydgård and the PPSSPP contributors.
+- Fetched at a pinned revision by `scripts/bootstrap-deps.sh` (not vendored); an
+  audited subset (IR interpreter + software GPU) is compiled into the iOS core, and
+  its runtime asset files (`compat.ini`, `langregion.ini`, the PPGe atlas, VFPU
+  tables) are bundled with the app.
+
+### DQ9-Access
+- <https://github.com/RetroSanity/DQ9-Access> — the Dragon Quest IX accessibility
+  mod whose documented addresses the DQ9 adapter is built on (git submodule at
+  `third-party/DQ9-Access`). Credited to its authors.
 
 ### Apple SDK / Swift
 - The iOS build uses Apple's Darwin SDK, obtained via your own Apple Developer
@@ -181,7 +197,8 @@ Studied for approach; no code copied:
 The code in this repository is licensed under the **GNU General Public License
 v3.0 or later**, because it links against melonDS, which is GPL-3.0. See
 [`LICENSE`](LICENSE). Where a bundled component carries a different licence
-(Lua 5.4 — MIT; teakra — MIT/CC0; mGBA — MPL-2.0), that component's licence governs
+(Lua 5.4 — MIT; teakra — MIT/CC0; mGBA — MPL-2.0; PPSSPP — GPL-2.0-or-later,
+compatible with GPL-3.0), that component's licence governs
 it; those are listed above.
 
 The accessibility Lua scripts have their own authorship — see the attribution
