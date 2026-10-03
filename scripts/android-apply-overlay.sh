@@ -215,4 +215,90 @@ print("   added androidx.webkit")
 PY
 fi
 
+# ---------------------------------------------------------------------------
+# 7. Accessibility: label the MENUS.
+#
+# Per Devin: label the menus, not all 571 UI files. The game itself is narrated by
+# the accessibility Lua script, so labelling every on-screen control would be fluff.
+# These are the two places a blind player actually has to navigate BY HAND.
+# ---------------------------------------------------------------------------
+say "labelling the menus for TalkBack"
+
+# --- 7a. The ROM row: one merged, labelled item instead of text fragments. ---
+ROMITEM="$FRONTEND/app/src/main/java/me/magnum/melonds/ui/common/component/romlist/ConfigurableRomItem.kt"
+if [ -f "$ROMITEM" ] && ! grep -q 'ogaRomItemLabel\|mergeDescendants' "$ROMITEM"; then
+  python3 - "$ROMITEM" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+
+# Needs the semantics imports.
+old_imports = "import androidx.compose.ui.res.stringResource"
+new_imports = """import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics"""
+assert old_imports in s, "import anchor not found"
+s = s.replace(old_imports, new_imports, 1)
+
+# A single label from the ROM's own fields, and mergeDescendants so the row is one
+# item. Without this TalkBack reads the title, the system and the file name as
+# separate stops and the Settings button as another.
+old_row = """                modifier = Modifier.height(IntrinsicSize.Min).focusRequester(mainFocusRequester)
+                    .focusProperties {
+                        end = romDetailsFocusRequester
+                    }
+                    .clickable(enabled = enabled, onClick = onClick),"""
+new_row = """                modifier = Modifier.height(IntrinsicSize.Min).focusRequester(mainFocusRequester)
+                    .focusProperties {
+                        end = romDetailsFocusRequester
+                    }
+                    // One accessibility stop for the whole row, labelled from the ROM's
+                    // own fields. Without this TalkBack reads the title, the system and
+                    // the file name as separate fragments. No extra words: if the system
+                    // is blank it is simply left out, rather than announced as "unknown".
+                    .semantics(mergeDescendants = true) {
+                        contentDescription = listOf(rom.name, rom.developerName)
+                            .filter { it.isNotBlank() }
+                            .joinToString(", ")
+                    }
+                    .clickable(enabled = enabled, onClick = onClick),"""
+assert old_row in s, "row modifier anchor not found"
+s = s.replace(old_row, new_row, 1)
+
+open(p, "w", encoding="utf-8").write(s)
+print("     ROM row now reads as one labelled item")
+PY
+else
+  echo "     ROM row: already labelled, or not found"
+fi
+
+# --- 7b. The pause menu: give the dialog a title so TalkBack announces it. ---
+EMUACT="$FRONTEND/app/src/main/java/me/magnum/melonds/ui/emulator/EmulatorActivity.kt"
+if [ -f "$EMUACT" ] && ! grep -q 'ogaPauseMenuAnnounced' "$EMUACT"; then
+  python3 - "$EMUACT" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+old = """        activeOverlays.addActiveOverlay(EmulatorOverlay.PAUSE_MENU)
+        AlertDialog.Builder(this)
+                .setTitle(R.string.pause)
+                .setItems(options) { _, which ->"""
+new = """        activeOverlays.addActiveOverlay(EmulatorOverlay.PAUSE_MENU)
+        // ogaPauseMenuAnnounced: the dialog title is what TalkBack announces when the
+        // menu opens over the emulator surface. Without it a blind player who pressed
+        // back has no confirmation the menu appeared at all.
+        AlertDialog.Builder(this)
+                .setTitle(R.string.pause)
+                .setItems(options) { _, which ->"""
+if old in s:
+    s = s.replace(old, new, 1)
+    open(p, "w", encoding="utf-8").write(s)
+    print("     pause menu: title kept and documented as the announcement")
+else:
+    print("     pause menu: shape changed upstream; left alone")
+PY
+else
+  echo "     pause menu: already annotated, or not found"
+fi
+
 say "overlay applied"
