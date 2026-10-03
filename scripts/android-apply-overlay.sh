@@ -158,6 +158,14 @@ new = '''        externalNativeBuild {
                     val abi = (findProperty("ogaJitArchitecture") as String?)
                         ?: "ARM64"
                     add("-DARCHITECTURE=$abi")
+                    // OUR CORE'S OPENGL RENDERER IS DESKTOP GL, NOT GLES. Its GL
+                    // files differ from the shell core's by 2071 lines and its
+                    // shaders carry no "#version 320 es", so on Android it calls
+                    // things GLES3 does not have (glClearDepth, glDrawBuffer,
+                    // glMapBuffer, ...). Porting that GL is a project of its own;
+                    // turn the renderer off instead. The software renderer is
+                    // built unconditionally, so games still run.
+                    add("-DENABLE_OGLRENDERER=OFF")
                 }
             }
         }'''
