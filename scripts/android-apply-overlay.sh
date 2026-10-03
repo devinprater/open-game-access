@@ -128,69 +128,65 @@ fi
 #    backend ARMJIT_A64; ARCHITECTURE=ARM -> ENABLE_JIT=OFF (correct -- 32-bit
 #    ARM has no A64 backend and must stay on the interpreter).
 # ---------------------------------------------------------------------------
-say "forcing the core's JIT on for 64-bit ABIs"
-GRADLE="$FRONTEND/app/build.gradle.kts"
-if grep -q 'ogaJitArchitecture\|ARCHITECTURE=' "$GRADLE"; then
+say "forcing the core's JIT on and its GL renderer off (in CMake, not Gradle)"
+CMAKE="$FRONTEND/app/CMakeLists.txt"
+if grep -q 'OGA_BUILD_SETTINGS' "$CMAKE"; then
   echo "   already set; nothing to do"
 else
-  python3 - "$GRADLE" <<'PY'
+  python3 - "$CMAKE" <<'PY'
 import sys
 p = sys.argv[1]
 s = open(p, encoding="utf-8").read()
-old = '''    externalNativeBuild {
-        cmake {
-            path = file("CMakeLists.txt")
-            version = "3.22.1"
-        }
-    }'''
-new = '''    externalNativeBuild {
-        cmake {
-            path = file("CMakeLists.txt")
-            version = "3.22.1"
 
-            // NOTE: this file has TWO externalNativeBuild blocks. THIS is the
-            // controlling one; an `arguments` list inside defaultConfig is
-            // overridden by it, and the override is SILENT -- CMake simply never
-            // receives the flags, no warning is printed. That is how a JIT build
-            // quietly became an interpreter build once already.
-            arguments.apply {
-                add("-DCMAKE_BUILD_TYPE=Release")
+# Must run BEFORE add_subdirectory of the core: these are cache options the core
+# reads when it configures.
+anchor = "add_subdirectory(${CORE-LIB} ./melonDS-android-lib)"
+assert anchor in s, "core add_subdirectory anchor not found"
 
-                // JIT IS ON BY DEFAULT FOR arm64, BUT ONLY IF THE CORE KNOWS IT IS
-                // arm64. melonDS derives ARCHITECTURE from a compiler-macro probe
-                // (check_symbol_exists on __aarch64__), which is unreliable when
-                // cross-compiling; if it comes back empty, ENABLE_JIT silently falls
-                // to OFF. Pass it explicitly and require it. Measured on melonDS's
-                // own option: ARCHITECTURE=ARM64 -> ON with backend ARMJIT_A64,
-                // x86_64 -> ON with ARMJIT_x64, ARM -> OFF (correct: 32-bit ARM has
-                // no A64 backend and must stay on the interpreter).
-                add("-DENABLE_JIT=ON")
-                val abi = (findProperty("ogaJitArchitecture") as String?) ?: "ARM64"
-                add("-DARCHITECTURE=$abi")
+block = """# ---------------------------------------------------------------------------
+# OGA_BUILD_SETTINGS -- Open Game Access build settings.
+#
+# Set here rather than in Gradle because Gradle's Kotlin DSL does not accept an
+# `arguments` list in the top-level externalNativeBuild block (it fails with
+# "Unresolved reference 'arguments'"), and because CMAKE_ANDROID_ARCH_ABI is only
+# known once CMake is configuring. Deriving ARCHITECTURE from it removes a whole
+# class of silent mismatch between a Gradle property and the actual compiler.
+# ---------------------------------------------------------------------------
 
-                // OUR CORE'S OPENGL RENDERER IS DESKTOP GL, NOT GLES. Its GL files
-                // differ from this shell core's by 2071 lines (GPU_OpenGL.cpp alone:
-                // 1017) and its shaders carry no "#version 320 es", so on Android it
-                // calls what GLES3 does not have (glClearDepth, glDepthRange,
-                // glDrawBuffer, glMapBuffer, glBindFragDataLocation,
-                // GL_UNSIGNED_SHORT_1_5_5_5_REV). Porting that GL is a project of its
-                // own. Switch the renderer off instead: GPU_Soft.cpp/GPU2D_Soft.cpp/
-                // GPU3D_Soft.cpp build unconditionally, so games still run.
-                add("-DENABLE_OGLRENDERER=OFF")
-            }
-        }
-    }'''
-# Keep the cppFlags-only copy in defaultConfig (harmless) but never let a second
-# `arguments` list live there: it would be silently ignored and mislead the next
-# person into thinking the flags are set.
-if 'defaultConfig' in s and s.count("arguments.apply") > 1:
-    print("   !! more than one arguments block; refusing to guess")
-    sys.exit(1)
-if old not in s:
-    print("   !! could not find the cppFlags-only externalNativeBuild block")
-    sys.exit(1)
-open(p, "w", encoding="utf-8").write(s.replace(old, new, 1))
-print("   added CMAKE_BUILD_TYPE=Release, ENABLE_JIT=ON and ARCHITECTURE")
+# OUR CORE'S OPENGL RENDERER IS DESKTOP GL, NOT GLES. Its GL files differ from the
+# shell core's by 2071 lines (GPU_OpenGL.cpp alone: 1017) and its shaders carry no
+# "#version 320 es", so on Android it calls what GLES3 does not have (glClearDepth,
+# glDepthRange, glDrawBuffer, glMapBuffer, glBindFragDataLocation,
+# GL_UNSIGNED_SHORT_1_5_5_5_REV). Porting that GL is a project of its own; switch
+# the renderer off instead. GPU_Soft.cpp / GPU2D_Soft.cpp / GPU3D_Soft.cpp are NOT
+# behind this option and build unconditionally, so games still run.
+set(ENABLE_OGLRENDERER OFF CACHE BOOL "" FORCE)
+
+# JIT: on for 64-bit ABIs only. ARCHITECTURE must match what the compiler really
+# is, because the core uses it both to pick the JIT sources (ARMJIT_x64 vs
+# ARMJIT_A64) and to decide ENABLE_JIT -- and ARMJIT_Compiler.h hard-errors with
+# "The current target platform doesn't have a JIT backend" if they disagree.
+# Derive it from the ABI CMake already knows instead of trusting a Gradle
+# property.
+if (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
+    set(ARCHITECTURE "ARM64" CACHE STRING "" FORCE)
+    set(ENABLE_JIT ON CACHE BOOL "" FORCE)
+elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
+    set(ARCHITECTURE "x86_64" CACHE STRING "" FORCE)
+    set(ENABLE_JIT ON CACHE BOOL "" FORCE)
+else()
+    # 32-bit ARM has no A64 backend in this core; the interpreter is correct.
+    set(ENABLE_JIT OFF CACHE BOOL "" FORCE)
+endif ()
+
+# Release, not Debug: the native code was being built with no optimisation at all.
+set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)
+
+"""
+
+s = s.replace(anchor, block + anchor, 1)
+open(p, "w", encoding="utf-8").write(s)
+print("   CMAKE_BUILD_TYPE=Release, ENABLE_JIT (per ABI), ARCHITECTURE, ENABLE_OGLRENDERER=OFF")
 PY
 fi
 
@@ -199,6 +195,7 @@ fi
 #    does not depend on. Without it the Kotlin step fails with
 #    "Unresolved reference 'webkit'".
 # ---------------------------------------------------------------------------
+GRADLE="$FRONTEND/app/build.gradle.kts"
 say "adding the androidx.webkit dependency"
 if grep -q 'androidx.webkit' "$GRADLE"; then
   echo "   already present; nothing to do"
