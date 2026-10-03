@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 set -uo pipefail
-cd "$HOME/open-game-access" || exit 1
+cd "$ROOT" || exit 1
 echo "=== every Lua file that would be published (path / bytes / sha256 prefix) ==="
 find . -name '*.lua' -print0 | while IFS= read -r -d '' f; do
   printf '%-72s %9d  %s\n' "$f" "$(wc -c < "$f")" "$(sha256sum "$f" | cut -c1-16)"

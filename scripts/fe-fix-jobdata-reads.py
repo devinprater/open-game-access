@@ -3,7 +3,6 @@
 whitespace, and the region was edited more than once)."""
 import pathlib
 
-p = pathlib.Path("C:/Users/Devin Prater/open-game-access/Core/feterrain2.cpp")
 lines = p.read_text(encoding="utf-8").splitlines(keepends=True)
 
 # Locate the block by content, not by a fixed line number.

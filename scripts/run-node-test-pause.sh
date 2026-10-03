@@ -2,7 +2,7 @@
 # Chain: open the PAUSE MENU (which is known to scroll with 'down'), verify it is static AND that
 # 'down' actually moves the highlight, then run the node probe immediately (no drift gap).
 set -u
-cd "/c/Users/Devin Prater/open-game-access" || exit 1
+cd "$ROOT" || exit 1
 S="$LOCALAPPDATA/Temp"
 H="python.exe"
 E="$LOCALAPPDATA/Temp"

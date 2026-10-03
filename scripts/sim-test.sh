@@ -15,11 +15,11 @@ FRAMES="${1:-30000}"
 BOOT="${2:-20000}"
 cd "$ROOT" || exit 1
 
-# Windows is the source of truth; mirror it in.
-for f in pokecore.cpp poke_platform.cpp simrun.cpp; do
-  cp "/mnt/c/Users/Devin Prater/open-game-access/Core/$f" Core/ 2>/dev/null
-done
-cp "/mnt/c/Users/Devin Prater/open-game-access/Sources/CPokeCore/include/pokecore.h" Sources/CPokeCore/include/
+# ⛔ There is no Windows tree. This used to `cp` pokecore.cpp, poke_platform.cpp,
+# simrun.cpp and pokecore.h in from /mnt/c/.../open-game-access with 2>/dev/null
+# and no error check, so the copy silently did nothing and the script built
+# whatever was already in Core/ — correct output by accident, from a file that
+# no longer exists. The checkout this script lives in is the source of truth.
 
 g++ -O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything \
   -ICore -ISources/CPokeCore/include -I"$SRC" -I"$HOME/src/lua-5.4.7/src" -I"$SRC/teakra/include" \
@@ -33,12 +33,13 @@ g++ -O2 -g -DPOKE_HOST=1 -ICore -ISources/CPokeCore/include -I"$SRC" -std=c++17 
 echo "simrun: linked"
 
 # The app's own concatenation: shim first, then main.lua, one chunk.
-cat Sources/OpenGameAccess/Resources/bizhawk_compat.lua > /tmp/combined.lua
-printf '\n' >> /tmp/combined.lua
-cat Sources/OpenGameAccess/Resources/main.lua >> /tmp/combined.lua
-echo "script: $(wc -c < /tmp/combined.lua) bytes"
+COMBINED="$(mktemp)"
+cat Sources/OpenGameAccess/Resources/bizhawk_compat.lua > "$COMBINED"
+printf '\n' >> "$COMBINED"
+cat Sources/OpenGameAccess/Resources/main.lua >> "$COMBINED"
+echo "script: $(wc -c < "$COMBINED") bytes"
 echo
 echo "===== DIRECT BOOT (what the app does) + real script + hotkeys, $FRAMES frames ====="
-export PA_SCRIPT=/tmp/combined.lua
+export PA_SCRIPT="$COMBINED"
 timeout 900 ./Vendor/simrun "$HOME/hosttest-data/black.nds" - - - "$FRAMES" "$BOOT" 2>&1 | tail -50
 echo "EXIT=$?"

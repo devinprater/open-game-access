@@ -7,9 +7,6 @@ ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SRC="$HOME/src/melonds-lua/src"
 cd "$ROOT" || exit 1
 
-cp "/mnt/c/Users/Devin Prater/open-game-access/Core/fwtest.cpp" Core/
-cp "/mnt/c/Users/Devin Prater/open-game-access/Core/pokecore.cpp" Core/
-cp "/mnt/c/Users/Devin Prater/open-game-access/Sources/CPokeCore/include/pokecore.h" Sources/CPokeCore/include/
 
 # Rebuild the glue with the CURRENT core sources' semantics.
 g++ -O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything \

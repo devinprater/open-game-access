@@ -13,9 +13,6 @@ for f in bios7.bin bios9.bin firmware.bin; do
 done
 ls -la "$HOME/ds-bios/"
 
-cp "/mnt/c/Users/Devin Prater/open-game-access/Core/fwtest.cpp" Core/
-cp "/mnt/c/Users/Devin Prater/open-game-access/Core/pokecore.cpp" Core/
-cp "/mnt/c/Users/Devin Prater/open-game-access/Sources/CPokeCore/include/pokecore.h" Sources/CPokeCore/include/
 
 # rebuild pokecore (it changed)
 g++ -O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything \

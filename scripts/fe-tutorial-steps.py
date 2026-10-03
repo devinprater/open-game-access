@@ -18,7 +18,7 @@ import os
 import subprocess
 import sys
 
-ROOT = os.path.expanduser("~/open-game-access")
+ROOT = os.path.expanduser("~/oga-work")
 ROM = os.path.expanduser("~/roms/Fire Emblem - Shadow Dragon (USA).nds")
 PLAN = sys.argv[1] if len(sys.argv) > 1 else "play"
 FRAMES = [int(x) for x in (sys.argv[2].split(",") if len(sys.argv) > 2
