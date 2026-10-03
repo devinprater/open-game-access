@@ -124,8 +124,12 @@ s = s.replace("nds->GPU.GetRenderer3D()", "nds->GPU.GetRenderer()")
 # lives on NDS, not GPU, in this version.
 s = s.replace("nds->GPU.SetRenderer3D(std::make_unique<SoftRenderer>());",
               "nds->SetRenderer(std::make_unique<SoftRenderer>(*nds));")
-s = s.replace("nds->GPU.SetRenderer3D(GLRenderer::New());",
-              "nds->SetRenderer(std::make_unique<GLRenderer>(*nds, true));")
+# ENABLE_OGLRENDERER=OFF means GLRenderer and ComputeRenderer do not exist at all,
+# so these cases cannot name them. Fall back to software, which is what the
+# selection would have to be anyway on this core.
+s = s.replace("nds->SetRenderer(std::make_unique<GLRenderer>(*nds, true));",
+              "// No GL/compute renderer in this build; software is the only option.\n"
+              "                nds->SetRenderer(std::make_unique<SoftRenderer>(*nds));")
 # Compute is not selected by upstream's own frontend any more; keep the software
 # path rather than inventing a constructor that may not exist.
 s = s.replace("nds->GPU.SetRenderer3D(ComputeRenderer::New());",
@@ -146,9 +150,12 @@ s = s.replace("static_cast<ComputeRenderer&>(nds->GPU.GetRenderer()).SetRenderSe
 
 # `Accelerated` and `SetOutputTexture` no longer exist on the renderer. Software
 # vs accelerated is decided by which renderer class is current.
+# There is no accelerated renderer in this build, so this is a compile-time
+# constant rather than a cast -- GLRenderer does not exist with OGL off.
 s = s.replace("bool isRendererAccelerated = nds->GPU.GetRenderer().Accelerated;",
-              "// Our core has no `Accelerated` flag: the renderer class decides.\n"
-              "    bool isRendererAccelerated = dynamic_cast<melonDS::GLRenderer*>(&nds->GPU.GetRenderer()) != nullptr;")
+              "// No hardware renderer is built for Android (the core is compiled with\n"
+              "    // ENABLE_OGLRENDERER=OFF: its GL is desktop GL, not GLES).\n"
+              "    bool isRendererAccelerated = false;")
 
 # GetScaleFactor is GONE from our core's renderer (the only such getter left is on
 # the 3D renderer, which is no longer what we hold). The fork's own frontend reads
@@ -215,9 +222,11 @@ s = open(p, encoding="utf-8").read()
 # ⛔ GPU_Soft.h / GPU_OpenGL.h, NOT the GPU3D_* headers. The GPU3D_Soft.h header
 # only forward-declares SoftRenderer and defines SoftRenderer3D, so including it
 # leaves the type incomplete ("allocation of incomplete type" at the make_unique).
+# Only the software renderer. The core is built with ENABLE_OGLRENDERER=OFF for
+# Android (our core's GL is stock desktop GL, not GLES -- see the note below), so
+# GPU_OpenGL.h / GLRenderer do not exist in that build and must not be included.
 need = []
-for hdr, marker in (("GPU_Soft.h", "SoftRenderer"),
-                    ("GPU_OpenGL.h", "GLRenderer")):
+for hdr, marker in (("GPU_Soft.h", "SoftRenderer"),):
     if marker in s and f'#include "{hdr}"' not in s:
         need.append(hdr)
 if not need:
@@ -228,7 +237,8 @@ else:
              # the compute path is retargeted to software, so it is now unused.
              if l.strip() not in ('#include "GPU3D_Soft.h"',
                                   '#include "GPU3D_OpenGL.h"',
-                                  '#include "GPU3D_Compute.h"')]
+                                  '#include "GPU3D_Compute.h"',
+                                  '#include "GPU_OpenGL.h"')]
     # insert after the last existing #include at the top
     last = max(i for i, l in enumerate(lines[:60]) if l.startswith("#include"))
     for h in reversed(need):
