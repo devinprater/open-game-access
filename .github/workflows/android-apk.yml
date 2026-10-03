@@ -65,6 +65,13 @@ jobs:
       - name: Apply the Open Game Access overlay
         run: bash scripts/android-apply-overlay.sh "$GITHUB_WORKSPACE/frontend" "$GITHUB_WORKSPACE"
 
+      # The shell is melonDS 2025; our core is melonDS-lua 2026, which refactored
+      # the renderer (Renderer3D -> one Renderer) and Args.h. This edits the SHELL
+      # to match our core -- the Lua-enabled emulator is the piece we want, and it
+      # is already proven on iOS.
+      - name: Retarget the shell to our core's API
+        run: bash scripts/android-port-core-api.sh "$GITHUB_WORKSPACE/frontend"
+
       - name: Build debug APK
         working-directory: frontend
         run: |
