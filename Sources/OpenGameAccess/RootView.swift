@@ -8,6 +8,7 @@ import CPokeCore
 struct RootView: View {
     @EnvironmentObject private var session: GameSession
     @EnvironmentObject private var speech: SpeechEngine
+    @EnvironmentObject private var controllers: ControllerInput
 
     var body: some View {
         NavigationStack {
@@ -22,6 +23,15 @@ struct RootView: View {
             }
             .navigationTitle("Open Game Access")
             .navigationBarTitleDisplayMode(.inline)
+            // The on-screen pad appears or vanishes with the controller; say so,
+            // or a screen-reader user finds the buttons gone with no reason.
+            .onChange(of: controllers.connectedName) { _, name in
+                if let name {
+                    speech.announce("\(name) connected. On-screen game buttons hidden.")
+                } else {
+                    speech.announce("Controller disconnected. On-screen game buttons shown.")
+                }
+            }
             .toolbar {
                 ToolbarItem(placement: .topBarTrailing) {
                     NavigationLink {
@@ -46,18 +56,9 @@ private struct ScreenView: View {
         GeometryReader { geo in
             ZStack {
                 Color.black
-                if let image = session.currentFrame {
-                    Image(decorative: image, scale: 1.0)
-                        .resizable()
-                        .interpolation(.none)
-                        .aspectRatio(contentMode: .fit)
-                        .frame(width: geo.size.width, height: geo.size.height)
-                } else {
-                    Text(session.status == .needROM ? "Choose a game to begin" : "Starting…")
-                        .font(.title2)
-                        .foregroundStyle(.secondary)
-                        .padding()
-                }
+                FrameImage(frames: session.frames,
+                           placeholder: session.status == .needROM ? "Choose a game to begin" : "Starting…")
+                    .frame(width: geo.size.width, height: geo.size.height)
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
@@ -75,6 +76,27 @@ private struct ScreenView: View {
         case .needROM: return "No game loaded"
         case .failed(let message): return message
         case .idle: return "Starting"
+        }
+    }
+}
+
+/// The picture itself: the only view that observes the 60 Hz frame store, so
+/// a new frame redraws this and nothing else.
+private struct FrameImage: View {
+    @ObservedObject var frames: FrameStore
+    let placeholder: String
+
+    var body: some View {
+        if let image = frames.image {
+            Image(decorative: image, scale: 1.0)
+                .resizable()
+                .interpolation(.none)
+                .aspectRatio(contentMode: .fit)
+        } else {
+            Text(placeholder)
+                .font(.title2)
+                .foregroundStyle(.secondary)
+                .padding()
         }
     }
 }
@@ -167,6 +189,7 @@ private struct SetupPanel: View {
 /// run of buttons.
 private struct Controls: View {
     @EnvironmentObject private var session: GameSession
+    @EnvironmentObject private var controllers: ControllerInput
 
     var body: some View {
         ScrollView {
@@ -174,9 +197,18 @@ private struct Controls: View {
                 // Movement and the game's own buttons stay first: they are what a
                 // player reaches for continuously, as opposed to the reading
                 // commands which are consulted at a decision point.
-                DPad()
-                ActionButtons()
-                SystemButtons()
+                //
+                // With a physical controller connected, the console's buttons are
+                // on the controller (ControllerInput), so the on-screen pad would
+                // only be duplicate stops to swipe past. The reader, speech and
+                // quit controls stay: not every command has a trigger chord.
+                // No "controller connected" line: the connect announcement and
+                // plugging it in already say so.
+                if controllers.connectedName == nil {
+                    DPad()
+                    ActionButtons()
+                    SystemButtons()
+                }
                 ReaderGroups()
                 SpeechGroup()
                 GameControl()

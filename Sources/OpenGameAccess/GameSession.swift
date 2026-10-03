@@ -69,9 +69,12 @@ final class GameSession: ObservableObject {
     private var core: OpaquePointer?
     private weak var speech: SpeechEngine?
     private var displayLink: CADisplayLink?
-    private var frameImage: CGImage?
+    /// The emulated screen, published on its OWN object: only ScreenView
+    /// observes it, so a new frame redraws the picture and nothing else.
+    let frames = FrameStore()
     private var audioEngine: AVAudioEngine?
     private var audioSource: AudioSourceNode?
+    private var thermalObserver: NSObjectProtocol?
 
     /// The emulation core's output sample rate.
     ///
@@ -111,6 +114,33 @@ final class GameSession: ObservableObject {
         // Let the on-screen pad talk to this session's core.
         InputBridge.connect(self)
         status = .needROM
+
+        // Heat, not leaks, is what makes a long PSP session choppy: the
+        // interpreter and software GPU run flat out on the main thread, and
+        // iOS throttles the CPU as the phone warms. Log every change so a
+        // slowdown report can be matched to it, and say so when it is bad
+        // enough to be heard.
+        thermalObserver = NotificationCenter.default.addObserver(
+            forName: ProcessInfo.thermalStateDidChangeNotification,
+            object: nil, queue: .main) { [weak self] _ in
+            MainActor.assumeIsolated { self?.thermalStateChanged() }
+        }
+    }
+
+    private func thermalStateChanged() {
+        let state = ProcessInfo.processInfo.thermalState
+        let name: String
+        switch state {
+        case .nominal: name = "nominal"
+        case .fair: name = "fair"
+        case .serious: name = "serious"
+        case .critical: name = "critical"
+        @unknown default: name = "unknown"
+        }
+        appendDebug("thermal: \(name)")
+        if state == .serious || state == .critical, case .running = status {
+            speech?.announce("The phone is getting hot. The game may slow down.")
+        }
     }
 
     /// Placeholder used only until `attach(to:)` supplies the real engine, so
@@ -403,7 +433,10 @@ final class GameSession: ObservableObject {
         let bytesPerRow = Int(w) * 4
         let data = Data(bytes: buffer, count: bytesPerRow * Int(h))
         guard let provider = CGDataProvider(data: data as CFData) else { return }
-        frameImage = CGImage(
+        // ⛔ NOT objectWillChange on the session: that re-ran the body of every
+        // view observing GameSession — the whole control panel — 60 times a
+        // second, on the same main thread that runs the emulator.
+        frames.image = CGImage(
             width: Int(w), height: Int(h),
             bitsPerComponent: 8, bitsPerPixel: 32, bytesPerRow: bytesPerRow,
             space: CGColorSpaceCreateDeviceRGB(),
@@ -411,10 +444,7 @@ final class GameSession: ObservableObject {
             provider: provider, decode: nil, shouldInterpolate: false,
             intent: .defaultIntent
         )
-        objectWillChange.send()
     }
-
-    var currentFrame: CGImage? { frameImage }
 
     // MARK: - Audio
 
@@ -560,4 +590,12 @@ private final class AudioSourceNode: AVAudioSourceNode {
             ptr[(got + j) * 2 + 1] = Int16(Float(lastR) * gain)
         }
     }
+}
+
+/// The latest emulated frame. Separate from GameSession so the 60 Hz picture
+/// update invalidates only the view that draws it (FrameImage in RootView),
+/// not every view that reads session state.
+@MainActor
+final class FrameStore: ObservableObject {
+    @Published var image: CGImage?
 }
