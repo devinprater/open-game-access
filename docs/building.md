@@ -72,7 +72,7 @@ Signing an `.ipa` requires a certificate and provisioning profile tied to your
 Apple account, so no generic download can install on your phone. Build it yourself:
 
 ```bash
-./wsl.sh deploy           # mirror, build core, build+sign+install+launch
+./wsl.sh deploy           # build core if needed, build+sign+install+launch
 ```
 
 `deploy` needs the phone visible to the build machine. On Windows/WSL the working

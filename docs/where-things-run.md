@@ -7,35 +7,40 @@ only one side has, or running a script that silently reads a stale copy.
 
 ## The rule
 
-**Windows is the source of truth for the repository. WSL is where the builds
-happen.** They are separate copies connected by `wsl.sh` (rsync), and the copies
-drift if you skip the sync.
+**There is one copy of the project: the git checkout in WSL.** Edit, build and
+commit there. Windows reaches the same files through the WSL share.
 
 ```
-C:\Users\Devin Prater\open-game-access    <-- edit here (Windows)
-/home/devin/open-game-access              <-- build here (WSL)
+/home/devin/oga-work                                   <-- the repo (WSL)
+\\wsl.localhost\Ubuntu-24.04\home\devin\oga-work       <-- same files, from Windows
 ```
 
-⛔ **Never edit the WSL copy directly.** `wsl.sh sync` (and `stage-all`) copy
-Windows → WSL. An edit made on the WSL side is overwritten by the next sync
-without warning.
+⛔ **There is no mirror any more.** The old Windows tree
+(`C:\Users\Devin Prater\open-game-access`) and the WSL build mirror
+(`/home/devin/open-game-access`) are retired; the rsync scripts that linked them
+(`wsl.sh` sync, `sync-and-build`, `stage-repo`/`stage-all`, `oga-publish`) were
+removed because running any of them against the repo replaced it with the
+stale copy. Do not recreate a second tree.
 
-⛔ **Never run a build from the Windows copy.** `xtool`, `clang++` for iOS, the
-Darwin SDK and the melonDS source tree are all WSL-only.
+⛔ **Never run a build from Windows.** `xtool`, `clang++` for iOS, the Darwin
+SDK and the melonDS source tree are all WSL-only.
+
+⛔ **Game data never reaches a commit.** `scripts/git-hooks/pre-commit` refuses
+staged ROMs, saves, BIOS/firmware and build output. Enable it once per clone:
+`git config core.hooksPath scripts/git-hooks`.
 
 ## What lives where
 
 | Thing | Side | Absolute path |
 |---|---|---|
-| Repo (edit here) | **Windows** | `C:\Users\Devin Prater\open-game-access` |
-| Repo (build here) | **WSL** | `/home/devin/open-game-access` |
-| `wsl.sh` dispatcher | **Windows** (runs WSL) | `<repo>/wsl.sh <script>` |
-| Scripts | **Windows**, run in WSL | `<repo>/scripts/*.sh` |
+| Repo (edit, build, commit) | **WSL** | `/home/devin/oga-work` |
+| `wsl.sh` dispatcher | **WSL** | `<repo>/wsl.sh <script>` |
+| Scripts | **WSL** | `<repo>/scripts/*.sh` |
 | iOS core archive | **WSL** (build output) | `Vendor/libpokecore.a` |
 | Simulator archive | **WSL** (build output) | `Vendor/sim/libpokecore-sim.a` |
 | Host harness objects | **WSL** (build output) | `Vendor/hostobj/*.o` |
 | Host probe binaries | **WSL** (build output) | `Vendor/fe_access`, `Vendor/dbz_probe`, ... |
-| Swift package + app sources | **Windows** (edit) | `Sources/`, `Package.swift` |
+| Swift package + app sources | **WSL** (in the repo) | `Sources/`, `Package.swift` |
 | Built `.app` | **WSL** (build output) | `xtool/OpenGameAccess.app` |
 | Built sim `.app` | **WSL** (build output) | `xtool-sim/OpenGameAccess.app` |
 | melonDS source | **WSL** | `~/src/melonds-lua` (and `-irpatch`) |
@@ -65,10 +70,10 @@ readable by `ld64.lld`).
 ## The commands that actually work
 
 ```bash
-# From Windows (git-bash). wsl.sh must run INSIDE WSL.
-wsl.exe -d Ubuntu-24.04 -- bash -lc 'cd /home/devin/open-game-access && bash ./wsl.sh sync'
-wsl.exe -d Ubuntu-24.04 -- bash -lc 'cd /home/devin/open-game-access && bash ./wsl.sh stage-all'
-wsl.exe -d Ubuntu-24.04 -- bash -lc 'cd /home/devin/open-game-access && bash ./wsl.sh commit-push'
+# From Windows (git-bash). wsl.sh must run INSIDE WSL, in the repo.
+wsl.exe -d Ubuntu-24.04 -- bash -lc 'cd /home/devin/oga-work && bash ./wsl.sh build-core'
+# Publishing is plain git in the repo (the pre-commit hook guards game data):
+wsl.exe -d Ubuntu-24.04 -- bash -lc 'cd /home/devin/oga-work && git status'
 ```
 
 ```bash
@@ -99,21 +104,6 @@ shell.** The parent shell expands `$PATH` and any `$VAR` inside your single
 quotes before WSL sees it. Parentheses in the string are worse: they break the
 whole command with a syntax error pointing at the wrong place. **Write a script
 file.**
-
-## Sync rules
-
-`wsl.sh sync` excludes build outputs, deliberately:
-
-```
---exclude '.build/'  --exclude 'xtool/'  --exclude 'xtool-sim/'
---exclude 'Vendor/obj/'  --exclude 'Vendor/*.a'  --exclude 'Vendor/hostobj/'
-```
-
-So a sync never clobbers a built archive, and never copies 64 MB of objects back
-to Windows. To publish, use the allow-list staging instead (`stage-all`), which
-copies only named sources into a clean tree — see
-`references/publishing-allowlist-repos.md` for why that allow-list must be kept
-in sync with new files.
 
 ## Verifying an install (iPhone)
 

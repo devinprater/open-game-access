@@ -238,6 +238,5 @@ Host reads cross a boundary. Treat each one as a cost and budget them.
     registry falls through; ready() gates speech on real state.
 - No ROMs, saves, BIOS, firmware, or emulator objects in the repo, ever.
   Testers supply their own legally obtained game files.
-  scripts/stage-repo.sh enforces this with an allow-list plus a
-  fail-closed scan; .gitignore is the second line of defence, not
-  the first.
+  scripts/git-hooks/pre-commit refuses staged game data and build
+  output; .gitignore is the second line of defence, not the first.

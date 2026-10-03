@@ -51,10 +51,11 @@ What is verified, what is not, and the method for each:
 save files, no patches derived from them. You supply your own legally obtained game
 files.
 
-`scripts/stage-repo.sh` enforces this: it assembles the publish tree from an
-allow-list of paths and then **fails the build** if anything matching a ROM, save,
-BIOS, firmware or emulator object file is found in it. `.gitignore` is a second
-line of defence, not the first.
+`scripts/git-hooks/pre-commit` enforces this: it **refuses the commit** if anything
+matching a ROM, save, BIOS, firmware or emulator object file is staged (enable it
+with `git config core.hooksPath scripts/git-hooks`), and CI runs
+`scripts/check-no-roms.sh` before uploading builds. `.gitignore` is a further line
+of defence, not the first.
 
 ## Downloads
 
