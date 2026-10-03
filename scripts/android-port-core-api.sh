@@ -169,6 +169,31 @@ s = s.replace("        int backBuffer = nds->GPU.FrontBuffer ? 0 : 1;\n"
               "        // script's note); accelerated output needs the GL path adapted.\n"
               "        isRendererAccelerated = false;")
 
+# The software path then reads nds->GPU.Framebuffer[frontbuf][0..1]. Our core
+# COMMENTED THAT OUT; GetFramebuffers() is the only route to pixels and it hands
+# back the CURRENT front buffers, so there is no index to choose.
+s = s.replace("""        int frontbuf = nds->GPU.FrontBuffer;
+        if (nds->GPU.Framebuffer[frontbuf][0] && nds->GPU.Framebuffer[frontbuf][1])
+        {
+            glBindTexture(GL_TEXTURE_2D, renderFrame->frameTexture);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 192, GL_RGBA, GL_UNSIGNED_BYTE, nds->GPU.Framebuffer[frontbuf][0].get());
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 192 + 2, 256, 192, GL_RGBA, GL_UNSIGNED_BYTE, nds->GPU.Framebuffer[frontbuf][1].get());
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }""",
+"""        // FrontBuffer and Framebuffer[] are GONE from our core (upstream
+        // commented the code out); GetFramebuffers() is the only route to pixels
+        // and it hands back the CURRENT front buffers, so there is no index to
+        // choose. It returns false for a renderer that does not use RAM buffers.
+        void* top = nullptr;
+        void* bottom = nullptr;
+        if (nds->GPU.GetFramebuffers(&top, &bottom) && top && bottom)
+        {
+            glBindTexture(GL_TEXTURE_2D, renderFrame->frameTexture);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, 256, 192, GL_RGBA, GL_UNSIGNED_BYTE, top);
+            glTexSubImage2D(GL_TEXTURE_2D, 0, 0, 192 + 2, 256, 192, GL_RGBA, GL_UNSIGNED_BYTE, bottom);
+            glBindTexture(GL_TEXTURE_2D, 0);
+        }""")
+
 if s == before:
     print("   (no changes: already ported)")
 else:
@@ -184,15 +209,23 @@ python3 - "$CPP/MelonInstance.cpp" <<'PY'
 import sys, os
 p = sys.argv[1]
 s = open(p, encoding="utf-8").read()
+# ⛔ GPU_Soft.h / GPU_OpenGL.h, NOT the GPU3D_* headers. The GPU3D_Soft.h header
+# only forward-declares SoftRenderer and defines SoftRenderer3D, so including it
+# leaves the type incomplete ("allocation of incomplete type" at the make_unique).
 need = []
-for hdr, marker in (("GPU3D_Soft.h", "SoftRenderer"),
-                    ("GPU3D_OpenGL.h", "GLRenderer")):
+for hdr, marker in (("GPU_Soft.h", "SoftRenderer"),
+                    ("GPU_OpenGL.h", "GLRenderer")):
     if marker in s and f'#include "{hdr}"' not in s:
         need.append(hdr)
 if not need:
     print("   (nothing to add)")
 else:
-    lines = s.split("\n")
+    lines = [l for l in s.split("\n")
+             # GPU3D_Compute.h only defines ComputeRenderer3D in our core, and
+             # the compute path is retargeted to software, so it is now unused.
+             if l.strip() not in ('#include "GPU3D_Soft.h"',
+                                  '#include "GPU3D_OpenGL.h"',
+                                  '#include "GPU3D_Compute.h"')]
     # insert after the last existing #include at the top
     last = max(i for i, l in enumerate(lines[:60]) if l.startswith("#include"))
     for h in reversed(need):
