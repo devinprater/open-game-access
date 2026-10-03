@@ -17,8 +17,14 @@ export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
 TRIPLE="${TRIPLE:-arm64-apple-ios-simulator}"
 
 SIMLIB="$ROOT/Vendor/sim/libpokecore-sim.a"
-[ -f "$SIMLIB" ] || { echo "== simulator core archive missing, building it"; bash "$ROOT/scripts/build-sim.sh" || exit 1; }
+# Always (re)build: build-sim.sh's object cache makes an up-to-date archive a
+# few seconds, and building only when the archive was MISSING linked the app
+# against a stale core (undefined poke_* symbols added since it was made).
+echo "== simulator core (cached rebuild)"
+bash "$ROOT/scripts/build-sim.sh" || exit 1
 [ -f "$SIMLIB" ] || { echo "!! still no $SIMLIB" >&2; exit 1; }
+# llvm-nm, never GNU nm: GNU nm cannot read Mach-O and reports 0.
+LLVM_NM="$(command -v llvm-nm || echo /usr/local/swift/bin/llvm-nm)"
 echo "== simulator core: $(ls -la "$SIMLIB" | awk '{print $5}') bytes, $("$LLVM_NM" -g "$SIMLIB" | grep -c ' T _poke_') poke symbols"
 
 export POKECORE_LIB="$SIMLIB"
