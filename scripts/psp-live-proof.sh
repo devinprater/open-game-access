@@ -17,16 +17,25 @@ bash "$ROOT/scripts/build-host.sh" > /dev/null || exit 1
 # have run once so host-obj/ exists. Exclude its proof-main.o (own main()).
 ls "$OUT"/host-obj/c_*.o > /dev/null 2>&1 || { echo "!! run psp-host-proof.sh once first (PPSSPP host objects)" >&2; exit 1; }
 
+# live-main.o lives OUTSIDE host-obj/: psp-host-proof.sh links host-obj/*.o
+# whole, and a second main() (or poke_* refs) there breaks its link.
+rm -f "$OUT/host-obj/live-main.o"
 g++ -O1 -g -std=c++17 -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" \
-  "$ROOT/scripts/psp-live-proof-main.cpp" -c -o "$OUT/host-obj/live-main.o" || exit 1
+  "$ROOT/scripts/psp-live-proof-main.cpp" -c -o "$OUT/live-main.o" || exit 1
 # Pack a host archive (same first-wins semantics as the iOS archive: the two
 # vendored xxhash/lua copies coexist, exactly one definition linked).
 # shellcheck disable=SC2086
 rm -f "$OUT/liblive.a"
 ar rcs "$OUT/liblive.a" "$ROOT"/Vendor/hostobj/*.o \
-  $(ls "$OUT"/host-obj/*.o | grep -v "proof-main.o" | grep -v "live-main.o") || exit 1
-g++ -O1 -g "$OUT/host-obj/live-main.o" "$OUT/liblive.a" \
-  -o "$OUT/psp-live-proof" -lz -lpthread -ldl -lm > "$OUT/live-link.log" 2>&1 \
+  $(ls "$OUT"/host-obj/*.o | grep -v "proof-main.o") || exit 1
+# FFmpeg: the PPSSPP core decodes audio/video through it (USE_FFMPEG), same
+# static set psp-host-proof.sh links.
+FFMPEG_HOST="${FFMPEG_HOST:-$HOME/ffmpeg-host}"
+g++ -O1 -g "$OUT/live-main.o" "$OUT/liblive.a" \
+  -o "$OUT/psp-live-proof" -lz -lpthread -ldl -lm \
+  "$FFMPEG_HOST"/lib/libavformat.a "$FFMPEG_HOST"/lib/libavcodec.a \
+  "$FFMPEG_HOST"/lib/libswresample.a "$FFMPEG_HOST"/lib/libswscale.a \
+  "$FFMPEG_HOST"/lib/libavutil.a > "$OUT/live-link.log" 2>&1 \
   || { echo "!! live link failed (see $OUT/live-link.log)" >&2; exit 1; }
 echo "== linked $OUT/psp-live-proof =="
 
