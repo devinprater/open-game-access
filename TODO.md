@@ -53,6 +53,36 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
        reader would be rewritten natively against the `Native*` layer.
   Prerequisite before this is even discussable: the DS APK must build and ship.
 
+- [x] **Android APK BUILDS (2026-10-03, run 37151443355, all steps green):** the first
+  successful Android build. 51 MB APK, artifact `open-game-access-android` uploaded,
+  and the Lua-assets check passes. Reached by retargeting the borrowed shell to our
+  core's API, then compiling the core with `ENABLE_OGLRENDERER=OFF` (its GL is desktop
+  GL, not GLES -- 2071 differing lines), then setting the build flags in CMake rather
+  than Gradle. NOT yet done: install it on a device and boot a ROM.
+
+- [ ] **Wire the overlay's GBA/GB sources into the Android build -- THEY ARE NOT
+  COMPILED.** `app/src/main/cpp/MGBACore.cpp` (1255 lines), `MGBARunner.cpp` (398 lines),
+  `MGBAScriptJNI.cpp` and `MGBACore.h`/`MGBARunner.h` are copied into
+  `frontend/app/src/main/cpp/` by the overlay, and `GbAccessibilityScript.kt` /
+  `GbRomResolver.kt` are copied into the Java tree -- but **none of the C++ files appear
+  in `app/CMakeLists.txt`'s source list**, so `libmgba` is never linked and the GBA path
+  is dead code in the APK. This is the whole "GBA on Android" claim; it needs the four
+  .cpp files added to the build plus libmgba cross-compiled for Android.
+
+- [ ] **The CI 'Lua assets present' check is NOT proof of GBA support.** It greps the
+  APK file list for `lua`, which matches the CORE's Lua engine (melonDS-lua ships Lua for
+  its scripting). It would pass with zero accessibility scripts present. It should assert
+  on a specific script/asset name instead. Same class of bug as the earlier
+  "gate that cannot fail" JIT check.
+
+- [ ] **Android menus need TalkBack labels (in progress).** The ROM-list toolbar is already
+  labelled, but the PLAYER-FACING surfaces are not: `EmulatorActivity.showPauseMenu()` is a
+  bare `AlertDialog.Builder().setItems(...)` with no focus/announcement handling, and the
+  ROM rows in `ConfigurableRomItem` are `clickable` with no `semantics` block, so TalkBack
+  reads whatever text nodes happen to be there. Scope per Devin: label the MENUS; do not
+  label all 571 UI files (that would be fluff). The game itself is narrated by the Lua
+  script, not by the UI.
+
 ## Game readers
 
 - [x] **Dissidia title tap-to-read diagnosis + fix:** root cause was the
