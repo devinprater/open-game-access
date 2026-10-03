@@ -137,38 +137,55 @@ else
 import sys
 p = sys.argv[1]
 s = open(p, encoding="utf-8").read()
-old = '''        externalNativeBuild {
-            cmake {
-                cppFlags("-std=c++17 -Wno-write-strings")
+old = '''    externalNativeBuild {
+        cmake {
+            path = file("CMakeLists.txt")
+            version = "3.22.1"
+        }
+    }'''
+new = '''    externalNativeBuild {
+        cmake {
+            path = file("CMakeLists.txt")
+            version = "3.22.1"
+
+            // NOTE: this file has TWO externalNativeBuild blocks. THIS is the
+            // controlling one; an `arguments` list inside defaultConfig is
+            // overridden by it, and the override is SILENT -- CMake simply never
+            // receives the flags, no warning is printed. That is how a JIT build
+            // quietly became an interpreter build once already.
+            arguments.apply {
+                add("-DCMAKE_BUILD_TYPE=Release")
+
+                // JIT IS ON BY DEFAULT FOR arm64, BUT ONLY IF THE CORE KNOWS IT IS
+                // arm64. melonDS derives ARCHITECTURE from a compiler-macro probe
+                // (check_symbol_exists on __aarch64__), which is unreliable when
+                // cross-compiling; if it comes back empty, ENABLE_JIT silently falls
+                // to OFF. Pass it explicitly and require it. Measured on melonDS's
+                // own option: ARCHITECTURE=ARM64 -> ON with backend ARMJIT_A64,
+                // x86_64 -> ON with ARMJIT_x64, ARM -> OFF (correct: 32-bit ARM has
+                // no A64 backend and must stay on the interpreter).
+                add("-DENABLE_JIT=ON")
+                val abi = (findProperty("ogaJitArchitecture") as String?) ?: "ARM64"
+                add("-DARCHITECTURE=$abi")
+
+                // OUR CORE'S OPENGL RENDERER IS DESKTOP GL, NOT GLES. Its GL files
+                // differ from this shell core's by 2071 lines (GPU_OpenGL.cpp alone:
+                // 1017) and its shaders carry no "#version 320 es", so on Android it
+                // calls what GLES3 does not have (glClearDepth, glDepthRange,
+                // glDrawBuffer, glMapBuffer, glBindFragDataLocation,
+                // GL_UNSIGNED_SHORT_1_5_5_5_REV). Porting that GL is a project of its
+                // own. Switch the renderer off instead: GPU_Soft.cpp/GPU2D_Soft.cpp/
+                // GPU3D_Soft.cpp build unconditionally, so games still run.
+                add("-DENABLE_OGLRENDERER=OFF")
             }
-        }'''
-new = '''        externalNativeBuild {
-            cmake {
-                cppFlags("-std=c++17 -Wno-write-strings")
-                // JIT IS ON BY DEFAULT FOR arm64, BUT ONLY IF THE CORE KNOWS IT
-                // IS arm64. melonDS derives ARCHITECTURE from a compiler-macro
-                // probe (check_symbol_exists on __aarch64__), which is unreliable
-                // when cross-compiling; if it comes back empty, ENABLE_JIT
-                // silently falls to OFF and the emulator runs the interpreter.
-                // Pass it explicitly, and require the JIT. Measured on melonDS's
-                // own option: ARM64 -> ON/ARMJIT_A64, ARM -> OFF.
-                arguments.apply {
-                    add("-DCMAKE_BUILD_TYPE=Release")
-                    add("-DENABLE_JIT=ON")
-                    val abi = (findProperty("ogaJitArchitecture") as String?)
-                        ?: "ARM64"
-                    add("-DARCHITECTURE=$abi")
-                    // OUR CORE'S OPENGL RENDERER IS DESKTOP GL, NOT GLES. Its GL
-                    // files differ from the shell core's by 2071 lines and its
-                    // shaders carry no "#version 320 es", so on Android it calls
-                    // things GLES3 does not have (glClearDepth, glDrawBuffer,
-                    // glMapBuffer, ...). Porting that GL is a project of its own;
-                    // turn the renderer off instead. The software renderer is
-                    // built unconditionally, so games still run.
-                    add("-DENABLE_OGLRENDERER=OFF")
-                }
-            }
-        }'''
+        }
+    }'''
+# Keep the cppFlags-only copy in defaultConfig (harmless) but never let a second
+# `arguments` list live there: it would be silently ignored and mislead the next
+# person into thinking the flags are set.
+if 'defaultConfig' in s and s.count("arguments.apply") > 1:
+    print("   !! more than one arguments block; refusing to guess")
+    sys.exit(1)
 if old not in s:
     print("   !! could not find the cppFlags-only externalNativeBuild block")
     sys.exit(1)
