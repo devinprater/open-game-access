@@ -38,6 +38,21 @@ ppsspp-assets via poke_set_psp_asset_dir(), and the UI adapts per system
 shows A/B with the verified P/E/K/J/L reader keys, the screen picker is
 DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-09-26: iOS simulator CI is green with the real core (run 36242939387 — 640+ PPSSPP TUs under AppleClang, app links, boots on a simulated iPhone).
 
+- [ ] **PPSSPP on Android (DEFERRED 2026-10-03, don't start without a new decision):**
+  PSP is complete and proven on iOS (`Core/psp_core.cpp`, PPSSPP pinned at `f293b10`,
+  IR interpreter + software GPU, Dissidia ULUS10437 900/900 frames) but Android has
+  NOTHING for it — the Android shell is melonDS-only.
+  Three reasons it is parked rather than started:
+    1. LICENSE IS PERMANENT. Linking PPSSPP (GPL-2.0-or-later) makes the whole
+       distributed app a GPL combined work: anyone who gets the APK must be offered
+       all of its source. Irreversible — no future closed build. See
+       `docs/proposals/multi-core-mgba-ppsspp.md` §2.
+    2. SIZE. PPSSPP is roughly 10x the melonDS core by source (~386 audited TUs on
+       the iOS side already). Every APK build and every CI run gets slower.
+    3. THE READER IS A PORT, NOT A CARRY-OVER. PPSSPP has no Lua, so the Dissidia
+       reader would be rewritten natively against the `Native*` layer.
+  Prerequisite before this is even discussable: the DS APK must build and ship.
+
 ## Game readers
 
 - [x] **Dissidia title tap-to-read diagnosis + fix:** root cause was the

@@ -34,22 +34,34 @@ OVERLAY="$ROOT/scripts/android-apply-overlay.sh"
 
 echo "== the overlay must pin the JIT and the architecture"
 if [ -f "$OVERLAY" ]; then
-  # Anchor on the emitted Gradle argument, not the phrase anywhere in the file.
-  grep -qF 'add("-DENABLE_JIT=ON")' "$OVERLAY" \
-    && ok "ENABLE_JIT=ON is passed to CMake" \
+  # Anchor on the emitted CMake set() calls, not on prose. The flags live in
+  # app/CMakeLists.txt now: Gradle's Kotlin DSL refuses an `arguments` list in the
+  # top-level externalNativeBuild block, and CMAKE_ANDROID_ARCH_ABI is only known
+  # once CMake configures, so ARCHITECTURE cannot drift from the real compiler.
+  grep -qF 'set(ENABLE_JIT ON CACHE BOOL "" FORCE)' "$OVERLAY" \
+    && ok "ENABLE_JIT=ON is forced in CMake" \
     || bad "ENABLE_JIT=ON is missing: the JIT can silently fall back to the interpreter"
-  grep -qF 'add("-DARCHITECTURE=$abi")' "$OVERLAY" \
-    && ok "ARCHITECTURE is passed explicitly" \
-    || bad "ARCHITECTURE is not set: detect_architecture() decides, and it is unreliable when cross-compiling"
-  grep -qF 'add("-DCMAKE_BUILD_TYPE=Release")' "$OVERLAY" \
+  grep -qF 'CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a"' "$OVERLAY" \
+    && grep -qF 'set(ARCHITECTURE "ARM64" CACHE STRING "" FORCE)' "$OVERLAY" \
+    && ok "ARCHITECTURE=ARM64 is derived from the real ABI" \
+    || bad "ARCHITECTURE is not derived from the ABI: it can disagree with the compiler"
+  grep -qF 'CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64"' "$OVERLAY" \
+    && grep -qF 'set(ARCHITECTURE "x86_64" CACHE STRING "" FORCE)' "$OVERLAY" \
+    && ok "x86_64 gets its own architecture (ARMJIT_x64)" \
+    || bad "x86_64 is not handled: it would get the A64 backend"
+  grep -qF 'set(CMAKE_BUILD_TYPE Release CACHE STRING "" FORCE)' "$OVERLAY" \
     && ok "native code is built Release" \
     || bad "native code is not built Release: the native step defaults to Debug"
-  grep -qF 'val abi =' "$OVERLAY" && grep -qF 'ogaJitArchitecture' "$OVERLAY" \
-    && ok "the ABI can select its architecture (no hardcoded ARM64)" \
-    || bad "the architecture is not selectable per ABI"
-  grep -qF '?: "ARM64"' "$OVERLAY" \
-    && ok "the default is ARM64 (the A64 JIT backend)" \
-    || bad "no ARM64 default"
+  grep -qF 'set(ENABLE_OGLRENDERER OFF CACHE BOOL "" FORCE)' "$OVERLAY" \
+    && ok "the GL renderer is off (our core's GL is desktop GL, not GLES)" \
+    || bad "ENABLE_OGLRENDERER is not turned off: the desktop-GL renderer will not compile on Android"
+  # Ordering: cache variables set after add_subdirectory are too late -- the core
+  # configures first and never sees them. The script must therefore splice the block
+  # BEFORE the anchor. (Comparing string offsets in this file proves nothing:
+  # 'add_subdirectory(${CORE-LIB}' also occurs as the anchor variable, earlier.)
+  grep -qF 's.replace(anchor, block + anchor, 1)' "$OVERLAY" \
+    && ok "the settings are spliced in before the core configures" \
+    || bad "the settings are not placed before add_subdirectory: the core never sees them"
 else
   bad "scripts/android-apply-overlay.sh is missing"
 fi
@@ -117,8 +129,8 @@ echo "== negative control: removing a pin must FAIL this check"
 # recurse into this script (that re-runs the control and never terminates), and
 # do NOT execute the overlay (it would copy real files).
 TMP="$(mktemp -d)"; mkdir -p "$TMP/scripts"
-sed 's|add("-DENABLE_JIT=ON")||' "$OVERLAY" > "$TMP/scripts/android-apply-overlay.sh"
-if grep -qF 'add("-DENABLE_JIT=ON")' "$TMP/scripts/android-apply-overlay.sh"; then
+sed 's|set(ENABLE_JIT ON CACHE BOOL "" FORCE)||' "$OVERLAY" > "$TMP/scripts/android-apply-overlay.sh"
+if grep -qF 'set(ENABLE_JIT ON CACHE BOOL "" FORCE)' "$TMP/scripts/android-apply-overlay.sh"; then
   bad "the control mutation did not remove the pin"
 else
   ok "the pin assertion anchors on the emitted argument (mutation is detectable)"
