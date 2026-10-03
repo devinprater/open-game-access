@@ -237,4 +237,37 @@ else:
     print("   added:", ", ".join(need))
 PY
 
+# ---------------------------------------------------------------------------
+# 4. ScreenshotRenderer.cpp reads the SAME removed members. Fixing only the file
+#    that happened to fail first leaves the next one to fail later; sweep.
+# ---------------------------------------------------------------------------
+say "retargeting the screenshot renderer (same removed members)"
+python3 - "$CPP/renderer/ScreenshotRenderer.cpp" <<'PY'
+import sys, os
+p = sys.argv[1]
+if not os.path.exists(p):
+    print("   (no ScreenshotRenderer.cpp; nothing to do)"); sys.exit(0)
+s = open(p, encoding="utf-8").read()
+before = s
+old = """        int frontBuffer = gpu->FrontBuffer;
+        memcpy(screenshotBuffer, gpu->Framebuffer[frontBuffer][0].get(), 256 * 192 * 4);
+        memcpy(&screenshotBuffer[256 * 192], gpu->Framebuffer[frontBuffer][1].get(), 256 * 192 * 4);"""
+new = """        // Our core removed FrontBuffer and Framebuffer[]; GetFramebuffers()
+        // returns the CURRENT front buffers, so there is no index to choose.
+        void* top = nullptr;
+        void* bottom = nullptr;
+        if (gpu->GetFramebuffers(&top, &bottom) && top && bottom)
+        {
+            memcpy(screenshotBuffer, top, 256 * 192 * 4);
+            memcpy(&screenshotBuffer[256 * 192], bottom, 256 * 192 * 4);
+        }"""
+if old in s:
+    s = s.replace(old, new, 1)
+if s == before:
+    print("   (no changes: already ported)")
+else:
+    open(p, "w", encoding="utf-8").write(s)
+    print("   screenshot framebuffer read retargeted")
+PY
+
 say "shell retargeted to our core's API"
