@@ -367,16 +367,23 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
 
     // PPSSPP's loader/kernel log to stderr (host proofs and Xcode console).
     // Initialized once; the app never shows this to the player.
+    //
+    // ⛔ WARNING LEVEL BY DEFAULT. Debug level formats a line for nearly every
+    // HLE call and kernel context switch — thousands per game-second, on the
+    // same main-thread frame loop as the interpreter, for output nobody reads
+    // on a phone. PPSSPP_LOG_DEBUG=1 restores it for host investigations.
     static bool logInit = false;
     if (!logInit)
     {
+        const char *dbg = getenv("PPSSPP_LOG_DEBUG");
+        const LogLevel level = (dbg && *dbg && *dbg != '0') ? LogLevel::LDEBUG : LogLevel::LWARNING;
         g_Config.bEnableLogging = true;
         g_logManager.Init(&g_Config.bEnableLogging, false);
         for (int i = 0; i < (int)Log::NUMBER_OF_LOGS; i++)
         {
             Log type = (Log)i;
             g_logManager.SetEnabled(type, true);
-            g_logManager.SetLogLevel(type, LogLevel::LDEBUG);
+            g_logManager.SetLogLevel(type, level);
         }
         g_logManager.EnableOutput(LogOutput::Printf);
         logInit = true;
