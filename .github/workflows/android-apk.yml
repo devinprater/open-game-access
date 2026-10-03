@@ -96,7 +96,17 @@ jobs:
           echo "ok: Lua assets present"
 
       - name: Confirm no game data is present
-        run: ./scripts/check-no-roms.sh
+        run: |
+          # Repo guard: the game-data scan is strict and covers everything, but the
+          # build-output checks (artifacts, >10 MB files) must skip the build tree --
+          # this step runs AFTER the APK is built, so scanning that tree finds the
+          # APK we are about to upload and fails on it.
+          ./scripts/check-no-roms.sh . --skip-build-output
+          # Belt and braces: game data must be absent from the build tree too.
+          ! find frontend/app/build -type f \
+              \( -iname '*.nds' -o -iname '*.gba' -o -iname '*.gb' -o -iname '*.gbc' \
+              -o -iname '*.sav' -o -iname '*.srm' -o -iname 'bios*.bin' \
+              -o -iname 'firmware*.bin' \) | grep -q .
 
       - uses: actions/upload-artifact@v4
         with:

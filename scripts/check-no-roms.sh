@@ -10,7 +10,17 @@
 # Run by CI before upload. Commits are guarded by scripts/git-hooks/pre-commit.
 set -uo pipefail
 ROOT="${1:-.}"
+SKIP_BUILD_OUTPUT=0
+for arg in "$@"; do
+  [ "$arg" = "--skip-build-output" ] && SKIP_BUILD_OUTPUT=1
+done
 cd "$ROOT" || exit 2
+
+# --skip-build-output: skip the artifact/size checks, which are only meaningful on a
+# source tree. Used by the APK workflow, which runs this AFTER building. The game-data
+# scan below is NEVER skipped -- a ROM must fail this even inside build output.
+BUILD_PRUNE=()
+[ "$SKIP_BUILD_OUTPUT" -eq 1 ] && BUILD_PRUNE=(-not -path './frontend/app/build/*')
 
 fail=0
 
@@ -56,7 +66,7 @@ else
 fi
 
 # --- large files: a proxy for "something got in that shouldn't have" ---
-BIG=$(find . -type f -size +10M -not -path './.git/*' 2>/dev/null | head -10)
+BIG=$(find . -type f -size +10M -not -path './.git/*' "${BUILD_PRUNE[@]}" 2>/dev/null | head -10)
 if [ -n "$BIG" ]; then
   echo "!! FILES OVER 10 MB (verify each is meant to ship):"
   echo "$BIG"
