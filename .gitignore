@@ -127,6 +127,7 @@ xtool-sim/
 app/build/
 .gradle/
 build/
+build-assets/
 *.apk
 *.ipa
 *.dSYM/
