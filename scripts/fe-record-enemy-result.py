@@ -7,9 +7,9 @@ import pathlib
 import re
 import sys
 
-doc = pathlib.Path("/mnt/c/Users/Devin Prater/open-game-access/docs/fire-emblem-shadow-dragon-memory.md")
+doc = pathlib.Path("docs/fire-emblem-shadow-dragon-memory.md")
 if not doc.exists():
-    doc = pathlib.Path("C:/Users/Devin Prater/open-game-access/docs/fire-emblem-shadow-dragon-memory.md")
+    doc = pathlib.Path("docs/fire-emblem-shadow-dragon-memory.md")
 
 text = doc.read_text(encoding="utf-8")
 

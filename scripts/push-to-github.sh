@@ -5,8 +5,8 @@
 # pushed. A clean check earlier is not a clean check now: a file could have been
 # added in between, and this is the last moment it can be stopped.
 set -euo pipefail
-cd "$HOME/open-game-access" || exit 2
-WIN_SRC="/mnt/c/Users/Devin Prater/open-game-access"
+cd "$ROOT" || exit 2
+WIN_SRC="$ROOT"
 
 echo "== no-ROMs guard on the tree about to be pushed =="
 bash "$WIN_SRC/scripts/check-no-roms.sh" "$PWD"

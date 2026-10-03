@@ -1,7 +1,7 @@
 #!/bin/bash
 # Sync the Dissidia scripts + doc from the Windows tree into the WSL git tree.
 set -u
-SRC="/mnt/c/Users/Devin Prater/open-game-access"
+SRC="$ROOT"
 DST="/home/devin/oga-work"
 
 mkdir -p "$DST/scripts" "$DST/docs/reverse-engineering"

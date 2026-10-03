@@ -2,7 +2,7 @@
 """Update the FE11 memory doc with the verified terrain/movement findings."""
 import pathlib
 
-p = pathlib.Path("C:/Users/Devin Prater/open-game-access/docs/fire-emblem-shadow-dragon-memory.md")
+p = pathlib.Path("docs/fire-emblem-shadow-dragon-memory.md")
 s = p.read_text(encoding="utf-8")
 
 anchor = "### Still open on terrain"

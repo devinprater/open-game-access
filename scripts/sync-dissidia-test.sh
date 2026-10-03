@@ -2,7 +2,7 @@
 # sync dissidia adapter files into the canonical tree and build+run the host test.
 set -eu
 R=/home/devin/oga-work
-W="/mnt/c/Users/Devin Prater/open-game-access"
+W="$ROOT"
 cp -f "$W/Core/dissidia_adapter.cpp" "$R/Core/dissidia_adapter.cpp"
 cp -f "$W/Core/dissidia_adapter_test.cpp" "$R/Core/dissidia_adapter_test.cpp"
 cp -f "$W/Core/osk_echo.cpp" "$R/Core/osk_echo.cpp" 2>/dev/null || true

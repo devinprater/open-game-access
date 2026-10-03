@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # fe-save-census.sh — boot a save and print the faction census + cursor state.
 #
-# ⛔ Always run this via wsl.sh (or from ~/open-game-access) so PA_SHIM is set from a
+# ⛔ Always run this via wsl.sh (or from the repo root) so PA_SHIM is set from a
 # value that survives the Windows->WSL path boundary. Setting it inline as
 # `PA_SHIM=$PWD/Sources/...` breaks on the space in "Devin Prater" and the failure
 # reads as a script error: main.lua:3 attempt to index a nil value (global 'emu').

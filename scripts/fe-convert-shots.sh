@@ -6,7 +6,7 @@
 set -uo pipefail
 SRC="$HOME/fe/out"
 DST="/mnt/c/Users/Devin Prater/AppData/Local/Temp/fesave/shots"
-CONV="$HOME/open-game-access/scripts/ppm2png.py"
+CONV="$ROOT/scripts/ppm2png.py"
 mkdir -p "$DST"
 
 for p in "$SRC"/*.ppm; do
