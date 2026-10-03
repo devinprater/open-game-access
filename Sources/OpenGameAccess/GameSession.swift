@@ -95,8 +95,8 @@ final class GameSession: ObservableObject {
             status = .failed("Could not start the emulator core.")
             return
         }
-        poke_set_speech_callback(core, GameSession.speechCallback,
-                                 Unmanaged.passUnretained(speechPlaceholder).toOpaque())
+        poke_set_speech_id_callback(core, GameSession.speechCallback,
+                                    Unmanaged.passUnretained(speechPlaceholder).toOpaque())
 
         poke_set_log_callback(core, { text, userdata in
             guard let text, let userdata else { return }
@@ -153,8 +153,11 @@ final class GameSession: ObservableObject {
     /// sent for the script's R key and the Stop speech button. Swallowing it
     /// (as `guard let text` alone does) leaves a blind player with no way to
     /// silence the game, which is the one control they need most.
+    ///
+    /// `id` is the announcement-queue utterance id; the engine hands it back
+    /// through `poke_announce_done` when the platform voice finishes the line.
     private static let speechCallback: @convention(c)
-        (UnsafePointer<CChar>?, Bool, UnsafeMutableRawPointer?) -> Void = { text, interrupt, userdata in
+        (UnsafePointer<CChar>?, Bool, UInt32, UnsafeMutableRawPointer?) -> Void = { text, interrupt, id, userdata in
         guard let userdata else { return }
         let engine = Unmanaged<SpeechEngine>.fromOpaque(userdata).takeUnretainedValue()
         guard let text else {
@@ -164,15 +167,15 @@ final class GameSession: ObservableObject {
         let string = String(cString: text)
         // Hop to the main actor: AVSpeechSynthesizer must be driven there, and
         // the core calls this from the frame-loop thread.
-        Task { @MainActor in engine.speak(string, interrupt: interrupt) }
+        Task { @MainActor in engine.speak(string, interrupt: interrupt, id: id) }
     }
 
     func attach(to speech: SpeechEngine) {
         self.speech = speech
         // Re-point the native speech callback at the environment's engine.
         guard let core else { return }
-        poke_set_speech_callback(core, GameSession.speechCallback,
-                                 Unmanaged.passUnretained(speech).toOpaque())
+        poke_set_speech_id_callback(core, GameSession.speechCallback,
+                                    Unmanaged.passUnretained(speech).toOpaque())
         speech.queueCore = core
         speech.configureAudioSession()
     }
