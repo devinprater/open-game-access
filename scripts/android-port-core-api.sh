@@ -150,11 +150,14 @@ s = s.replace("bool isRendererAccelerated = nds->GPU.GetRenderer().Accelerated;"
               "// Our core has no `Accelerated` flag: the renderer class decides.\n"
               "    bool isRendererAccelerated = dynamic_cast<melonDS::GLRenderer*>(&nds->GPU.GetRenderer()) != nullptr;")
 
-# GetScaleFactor is on the GL renderer, which the dynamic_cast above now proves,
-# so read it from there rather than the base class.
+# GetScaleFactor is GONE from our core's renderer (the only such getter left is on
+# the 3D renderer, which is no longer what we hold). The fork's own frontend reads
+# the scale from configuration instead -- `.ScaleFactor = cfg.GetInt(...)` -- and
+# the shell already carries the same value in its OpenGlRenderSettings. Use that;
+# do not invent a getter on the unified Renderer.
 s = s.replace("int scale = static_cast<GLRenderer &>(nds->GPU.GetRenderer()).GetScaleFactor();",
-              "auto* glRend = dynamic_cast<melonDS::GLRenderer*>(&nds->GPU.GetRenderer());\n"
-              "        int scale = glRend ? glRend->GetScaleFactor() : 1;")
+              "auto glRenderSettings = static_cast<OpenGlRenderSettings&>(*currentConfiguration->renderSettings);\n"
+              "        int scale = glRenderSettings.scale;")
 
 # SetOutputTexture no longer exists: our core's GL renderer composites into its
 # OWN textures and exposes them through GetFramebuffers(). The shell handed the
