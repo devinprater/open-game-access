@@ -37,6 +37,10 @@ extern "C" {
 
 /* The accessibility script speaks through this. `interrupt` false = queue. */
 typedef void (*PokeSpeechCallback)(const char *utf8_text, bool interrupt, void *userdata);
+/* Same contract, plus the announcement-queue utterance id to hand back to
+ * poke_announce_done (0 = the line is not from the queue; report nothing). */
+typedef void (*PokeSpeechIdCallback)(const char *utf8_text, bool interrupt,
+                                     uint32_t utterance_id, void *userdata);
 typedef void (*PokeLogCallback)(const char *utf8_text, void *userdata);
 
 typedef struct PokeCore PokeCore;
@@ -45,6 +49,8 @@ PokeCore *poke_create(void);
 void poke_destroy(PokeCore *core);
 
 void poke_set_speech_callback(PokeCore *core, PokeSpeechCallback cb, void *userdata);
+/* When set, every line goes here instead of the plain speech callback. */
+void poke_set_speech_id_callback(PokeCore *core, PokeSpeechIdCallback cb, void *userdata);
 void poke_set_log_callback(PokeCore *core, PokeLogCallback cb, void *userdata);
 
 /* `script` is the compat shim and main.lua concatenated, in that order. */
@@ -144,14 +150,14 @@ int poke_command_button(PokeCore *core, int cmd);
 
 /* Announcement-queue completion hooks (additive: estimate pacing works without
  * them). The queue releases one line at a time; a platform that can report
- * "finished" calls poke_announce_done with the utterance id it got through
- * the speech callback path (see poke_announce_id_for_text), so the next line
- * releases immediately instead of waiting out its estimate. Thread-safe: may
- * be called from any thread; the frame thread applies it. */
+ * "finished" calls poke_announce_done with the utterance id it got from the
+ * id speech callback, so the next line releases immediately instead of
+ * waiting out its estimate. Thread-safe: may be called from any thread; the
+ * frame thread applies it. */
 void poke_announce_done(PokeCore *core, uint32_t utterance_id, int success);
-/* Newest utterance id whose text equals utf8_text, or 0. Lets a platform
- * completion hook (which sees only the finished string) report back the
- * right id. */
+/* Legacy, for hosts on the plain speech callback: newest utterance id whose
+ * text equals utf8_text exactly, or 0. Ambiguous for repeated lines; prefer
+ * poke_set_speech_id_callback. Frame thread only. */
 uint32_t poke_announce_id_for_text(PokeCore *core, const char *utf8_text);
 
 const char *poke_version(void);

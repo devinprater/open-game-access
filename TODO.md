@@ -15,7 +15,9 @@
   GBA/DBZ/DQ9 `Say`; null-queue fallback keeps the host-test stubs synchronous) plus
   Dissidia queue-mapping host tests (High interrupt, estimate pacing, group replacement);
   full suite green (dbz 17, dissidia 149, dq9 26, gba, osk); (3) iOS completion hooks: synth `didFinish`/`didCancel` +
-  `announcementDidFinishNotification` report done via id lookup, the Stop-speech button also
+  `announcementDidFinishNotification` report done via id lookup (2026-10-03: ids now arrive
+  with each line through `poke_set_speech_id_callback`; the text lookup missed lines over
+  63 bytes, trimmed lines and repeats), the Stop-speech button also
   sends `StopSpeech` (raw 37, never a player button); (4) Android: per-utterance ids +
   `UtteranceProgressListener` in `MainActivity` (observed/logged). REMAINING: the Android
   native port (the app embeds melonDS-android, not the shared core, so adapter commands

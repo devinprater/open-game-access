@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import UIKit
+import os
 import CPokeCore
 
 /// SpeechEngine is the app's single speech channel.
@@ -42,14 +43,26 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
     /// next line spoken a frame later makes the button look broken.
     private var isStopped = false
 
-    /// Queue for lines that arrive before the audio session/synthesizer is
-    /// usable; flushed in order so the loader line is never lost.
-    private var pendingSpeech: [String] = []
     /// The core whose announcement queue this engine drains. Set once by
     /// `GameSession.attach(to:)`; read from the nonisolated synthesizer
     /// delegate below, hence the unsafe opt-out (set-once before any speech).
     nonisolated(unsafe) var queueCore: OpaquePointer?
     private var voDoneObserver: NSObjectProtocol?
+
+    /// Queue utterance id per synthesizer utterance, so the delegate reports
+    /// the exact line that finished — never a lookup by text, which misses
+    /// trimmed or long lines and confuses repeated ones. Locked: the delegate
+    /// runs on the synthesizer's thread.
+    private nonisolated let utteranceIds =
+        OSAllocatedUnfairLock<[ObjectIdentifier: UInt32]>(initialState: [:])
+
+    /// Queue lines posted to VoiceOver and not yet reported finished, oldest
+    /// first. VoiceOver's completion notification carries only the string, so
+    /// it is matched to the oldest pending post with that exact string (the
+    /// text we posted, so trimming cannot break the match). Bounded in case
+    /// VoiceOver is switched off and never reports.
+    private var voicePending: [(text: String, id: UInt32)] = []
+    private static let voicePendingMax = 16
 
     /// Set while VoiceOver is running.
     ///
@@ -74,22 +87,25 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         // VoiceOver-side completion: when the platform voice finishes one of
         // OUR queued lines, report it so the next releases immediately instead
         // of waiting out its estimate. UI announce() lines bypass the queue
-        // and map to no id, so they are ignored here.
+        // and are not in voicePending, so they are ignored here.
         voDoneObserver = NotificationCenter.default.addObserver(
             forName: UIAccessibility.announcementDidFinishNotification,
             object: nil, queue: nil) { [weak self] note in
             guard let text = note.userInfo?[UIAccessibility.announcementStringValueUserInfoKey] as? String,
                   !text.isEmpty else { return }
             let ok = (note.userInfo?[UIAccessibility.announcementWasSuccessfulUserInfoKey] as? Bool) ?? true
-            Task { @MainActor [weak self] in self?.reportStringDone(text, success: ok) }
+            Task { @MainActor [weak self] in self?.voiceOverFinished(text, success: ok) }
         }
     }
 
     // MARK: - Script bridge (speech.say / speech.stop / hermes_tts)
 
-    func speak(_ text: String, interrupt: Bool) {
+    /// `id` is the core's announcement-queue utterance id (0 = not a queue
+    /// line). Every nonzero id is reported back through `poke_announce_done`
+    /// exactly once the platform is done with it — spoken, cancelled or dropped.
+    func speak(_ text: String, interrupt: Bool, id: UInt32 = 0) {
         let trimmed = text.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !trimmed.isEmpty else { return }
+        guard !trimmed.isEmpty else { reportDone(id, success: false); return }
 
         // While silenced, automatic narration stays silent — the script's readers
         // produce lines every frame and letting them through is what would make
@@ -97,7 +113,7 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         // with interrupt = true (the script's own contract for that: it uses
         // false for background text and true for "you asked for it, say it now"),
         // so it both resumes speech and is spoken immediately.
-        if isStopped && !interrupt { return }
+        if isStopped && !interrupt { reportDone(id, success: false); return }
         isStopped = false
 
         lastSpoken = trimmed
@@ -115,6 +131,10 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
             // supported way to say "speak this after whatever is already
             // playing", so background text queues and requested text still jumps
             // the queue.
+            if id != 0 {
+                voicePending.append((trimmed, id))
+                if voicePending.count > Self.voicePendingMax { voicePending.removeFirst() }
+            }
             announceThroughVoiceOver(trimmed, queue: !interrupt)
             return
         }
@@ -126,6 +146,10 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         // dialogue boxes that appear a few frames apart.
         utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.1
         utterance.postUtteranceDelay = 0
+        if id != 0 {
+            let key = ObjectIdentifier(utterance)
+            utteranceIds.withLock { $0[key] = id }
+        }
         synth.speak(utterance)
     }
 
@@ -137,7 +161,9 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
     /// spoken until new text arrives. Used for the script's "stop speech".
     func stopAll() {
         synth.stopSpeaking(at: .immediate)
-        pendingSpeech.removeAll()
+        // The core forgot its in-flight line on stop, so these reports would
+        // be ignored anyway; drop them rather than match them later.
+        voicePending.removeAll()
         isStopped = true
     }
 
@@ -202,28 +228,34 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
     //
     // nonisolated: the synthesizer calls these on its own thread, and Swift 6
     // forbids a @MainActor witness for the protocol. They touch only the
-    // thread-safe core entry points, so no isolation is needed.
+    // locked id map and the thread-safe core entry point.
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
                                        didFinish utterance: AVSpeechUtterance) {
-        reportUtteranceDone(utterance.speechString, success: true)
+        utteranceDone(utterance, success: true)
     }
 
     nonisolated func speechSynthesizer(_ synthesizer: AVSpeechSynthesizer,
                                        didCancel utterance: AVSpeechUtterance) {
-        reportUtteranceDone(utterance.speechString, success: false)
+        utteranceDone(utterance, success: false)
     }
 
-    nonisolated private func reportUtteranceDone(_ text: String, success: Bool) {
-        guard let core = queueCore else { return }
-        let id = text.withCString { poke_announce_id_for_text(core, $0) }
-        guard id != 0 else { return }
-        poke_announce_done(core, id, success ? 1 : 0)
+    nonisolated private func utteranceDone(_ utterance: AVSpeechUtterance, success: Bool) {
+        let key = ObjectIdentifier(utterance)
+        guard let id = utteranceIds.withLock({ $0.removeValue(forKey: key) }) else { return }
+        reportDone(id, success: success)
     }
 
-    private func reportStringDone(_ text: String, success: Bool) {
-        guard let core = queueCore else { return }
-        let id = text.withCString { poke_announce_id_for_text(core, $0) }
-        guard id != 0 else { return }  // not ours: UI announce() bypasses the queue
+    private func voiceOverFinished(_ text: String, success: Bool) {
+        // Oldest first: VoiceOver finishes queued announcements in order.
+        guard let i = voicePending.firstIndex(where: { $0.text == text }) else { return }
+        let id = voicePending.remove(at: i).id
+        reportDone(id, success: success)
+    }
+
+    /// A stale or repeated report is harmless: the core ignores any id that
+    /// is not the line currently in flight.
+    nonisolated private func reportDone(_ id: UInt32, success: Bool) {
+        guard id != 0, let core = queueCore else { return }
         poke_announce_done(core, id, success ? 1 : 0)
     }
 }

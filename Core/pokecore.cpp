@@ -118,15 +118,16 @@ struct PokeCore {
 
     // ---- announcement queue ----
     // One queue per core (docs/design/announcement-queue.md). The sink forwards
-    // to speechCb unchanged; done-reports arrive via poke_announce_done() from
+    // to the platform with its id (EmitSpeech); done-reports arrive via poke_announce_done() from
     // any thread. Until a platform reports done, pacing is by estimate
     // (host_reports_done=false), which is safe on both platforms.
     oga::AnnounceQueue* announceQ = nullptr;
-    // Recent (id, text-prefix) pairs, so a platform completion hook can map its
-    // finished utterance back to a queue id with no callback signature change.
+    // Recent (id, text) pairs for the legacy poke_announce_id_for_text() lookup.
+    // Hosts that set the id callback get the id directly and never need this.
+    // Full queue text length, so a long line still matches exactly.
     static constexpr int kAnnounceHist = 8;
     uint32_t annIds[kAnnounceHist] = {0};
-    char annTexts[kAnnounceHist][64] = {{0}};
+    char annTexts[kAnnounceHist][oga::kAnnounceTextMax] = {{0}};
     int annNext = 0;
 
     // ---- input ----
@@ -158,6 +159,10 @@ struct PokeCore {
     // ---- output ----
     PokeSpeechCallback speechCb = nullptr;
     void* speechUserdata = nullptr;
+    // Optional: same contract as speechCb plus the queue utterance id (0 for
+    // lines that bypass the queue). When set, it is used instead of speechCb.
+    PokeSpeechIdCallback speechIdCb = nullptr;
+    void* speechIdUserdata = nullptr;
     PokeLogCallback logCb = nullptr;
     void* logUserdata = nullptr;
     bool audioEnabled = true;
@@ -585,6 +590,17 @@ static int LuaPrint(lua_State* L)
     return 0;
 }
 
+// Every line the player hears leaves the core here. NULL text means "stop".
+// `id` is the announcement-queue utterance id, 0 for lines outside the queue.
+static void EmitSpeech(PokeCore* core, const char* utf8, bool interrupt, uint32_t id)
+{
+    if (!core) return;
+    if (core->speechIdCb)
+        core->speechIdCb(utf8, interrupt, id, core->speechIdUserdata);
+    else if (core->speechCb)
+        core->speechCb(utf8, interrupt, core->speechUserdata);
+}
+
 // speech.say / speech.stop — the one channel the player actually hears. The
 // compat shim prefers a global named `hermes_tts` (kept from the Android port
 // so the same shim text works on both platforms); this provides it.
@@ -598,7 +614,7 @@ static int LuaSpeak(lua_State* L)
         const char* mode = lua_tostring(L, 2);
         interrupt = !(mode && std::strcmp(mode, "queue") == 0);
     }
-    if (core && core->speechCb && text) core->speechCb(text, interrupt, core->speechUserdata);
+    if (text) EmitSpeech(core, text, interrupt, 0);
     return 0;
 }
 
@@ -610,7 +626,7 @@ static int LuaStopSpeech(lua_State* L)
 {
     PokeCore* core = CoreFromLua(L);
     if (core && core->announceQ) oga::announce_stop(core->announceQ, CoreNowMs());
-    if (core && core->speechCb) core->speechCb(nullptr, true, core->speechUserdata);
+    EmitSpeech(core, nullptr, true, 0);
     return 0;
 }
 
@@ -721,6 +737,13 @@ void poke_set_speech_callback(PokeCore* core, PokeSpeechCallback cb, void* userd
     core->speechUserdata = userdata;
 }
 
+void poke_set_speech_id_callback(PokeCore* core, PokeSpeechIdCallback cb, void* userdata)
+{
+    if (!core) return;
+    core->speechIdCb = cb;
+    core->speechIdUserdata = userdata;
+}
+
 void poke_set_log_callback(PokeCore* core, PokeLogCallback cb, void* userdata)
 {
     if (!core) return;
@@ -796,8 +819,8 @@ static uint64_t CoreNowMs(void)
         steady_clock::now().time_since_epoch()).count();
 }
 
-// AnnounceSink::speak for the per-core queue: the existing speechCb path, with
-// the (id, text) remembered for poke_announce_id_for_text().
+// AnnounceSink::speak for the per-core queue: hands the line and its id to the
+// platform, and remembers (id, text) for the legacy poke_announce_id_for_text().
 static void QueueSpeak(void* ctx, const char* utf8, bool interrupt, uint32_t id)
 {
     PokeCore* core = (PokeCore*) ctx;
@@ -806,13 +829,13 @@ static void QueueSpeak(void* ctx, const char* utf8, bool interrupt, uint32_t id)
     core->annNext++;
     core->annIds[slot] = id;
     snprintf(core->annTexts[slot], sizeof(core->annTexts[slot]), "%s", utf8);
-    if (core->speechCb) core->speechCb(utf8, interrupt, core->speechUserdata);
+    EmitSpeech(core, utf8, interrupt, id);
 }
 
 static void HostSpeak(void* ctx, const char* utf8, bool interrupt)
 {
     PokeCore* core = (PokeCore*) ctx;
-    if (core->speechCb && utf8) core->speechCb(utf8, interrupt, core->speechUserdata);
+    if (utf8) EmitSpeech(core, utf8, interrupt, 0);
 }
 
 static void HostLog(void* ctx, const char* utf8)
@@ -902,7 +925,7 @@ bool poke_command(PokeCore *core, int cmd)
         // Player stop key: clear queued lines and stop the platform voice.
         // Works without attaching: silence must not depend on game state.
         if (core->announceQ) oga::announce_stop(core->announceQ, CoreNowMs());
-        if (core->speechCb) core->speechCb(nullptr, true, core->speechUserdata);
+        EmitSpeech(core, nullptr, true, 0);
         return true;
     }
     if (!core->adapter->command) return false;
@@ -1068,7 +1091,7 @@ void poke_set_firmware(PokeCore* core, const char* bios9, const char* bios7, con
 static void GbaSayForward(const char* utf8, bool interrupt, void* ctx)
 {
     PokeCore* core = (PokeCore*) ctx;
-    if (core && core->speechCb && utf8) core->speechCb(utf8, interrupt, core->speechUserdata);
+    if (utf8) EmitSpeech(core, utf8, interrupt, 0);
 }
 static void GbaLogForward(const char* utf8, void* ctx)
 {
