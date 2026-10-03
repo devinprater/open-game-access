@@ -63,9 +63,10 @@ const Adapter* const* all_adapters(int* count)
 }
 
 /// `once` suppression (BT2 Speaker.say(once=True)): consecutive identical
-/// lines never speak twice. A repeated query re-press ("where is the foe?")
-/// re-announces only when the text CHANGED (foe moved, HP band crossed);
-/// otherwise the second press stays silent instead of parroting stale state.
+/// AUTOMATIC lines never speak twice. Player-requested (High) lines are only
+/// noted here, never suppressed: the adapters' Say() lets High through, per
+/// announcement-queue.md ("High items bypass dedup: the player asked"), so
+/// Where am I right after an identical automatic line still answers.
 /// Tests reset this alongside their NSPOKEN counters via AdapterSpeechReset.
 static char g_lastSpoken[256] = {0};
 static bool g_haveLast = false;
