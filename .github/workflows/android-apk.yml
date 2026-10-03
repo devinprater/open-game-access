@@ -32,6 +32,12 @@ jobs:
         with:
           packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
 
+      # The JIT is what makes the emulator fast enough to leave headroom for the
+      # accessibility adapters, and a missing ARCHITECTURE silently turns it OFF.
+      # Assert the pins before spending 20 minutes on the build.
+      - name: Assert the core is configured for the JIT
+        run: bash scripts/android-jit-check.sh "$GITHUB_WORKSPACE"
+
       - name: Fetch the Android frontend (a fork of melonDS-android)
         run: |
           cat <<'EOF'
@@ -49,9 +55,15 @@ jobs:
           # The Lua fork replaces the core submodule.
           rm -rf frontend/melonDS-android-lib
           cp -r "$MELONDS_LUA" frontend/melonDS-android-lib
-          # Our accessibility glue on top.
-          cp -r app/native-overlay/. frontend/ 2>/dev/null || true
-          cp -r app/src/main/. frontend/app/src/main/ 2>/dev/null || true
+
+      # ⛔ NOT a blind `cp -r app/src/main/.`. That OVERWROTE upstream's
+      # res/values/strings.xml (475 entries) and AndroidManifest.xml (every
+      # upstream activity) with ours, which is why the Kotlin step failed on
+      # ~50 unresolvable R.string.* in unmodified upstream files. The script
+      # merges resources and appends to the manifest instead, and injects the
+      # JIT/ARCHITECTURE arguments into the native config.
+      - name: Apply the Open Game Access overlay
+        run: bash scripts/android-apply-overlay.sh "$GITHUB_WORKSPACE/frontend" "$GITHUB_WORKSPACE"
 
       - name: Build debug APK
         working-directory: frontend
@@ -68,8 +80,13 @@ jobs:
           APK=$(find frontend/app/build/outputs/apk -name '*.apk' | head -1)
           test -n "$APK" || { echo "no APK produced"; exit 1; }
           echo "APK: $APK ($(stat -c%s "$APK") bytes)"
-          # The whole point: the Lua reader must be inside the APK.
-          unzip -l "$APK" | grep -i lua || { echo "!! no Lua assets in the APK"; exit 1; }
+          # The whole point: the Lua reader must be inside the APK. Take the file
+          # list to a file first -- `unzip -l | grep -q` dies of SIGPIPE under
+          # pipefail when the pattern DOES match, which reports a false failure.
+          unzip -l "$APK" > "$RUNNER_TEMP/apk-list.txt" || true
+          grep -qi lua "$RUNNER_TEMP/apk-list.txt" \
+            || { echo "!! no Lua assets in the APK"; exit 1; }
+          echo "ok: Lua assets present"
 
       - name: Confirm no game data is present
         run: ./scripts/check-no-roms.sh
