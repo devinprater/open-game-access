@@ -61,71 +61,75 @@ int main(int argc, char **argv) {
         return 1;
     }
 
-    // Scripted (not played): tap Start every 10 game-seconds until the title
-    // menu tracks, so WhereAmI answers about a REAL menu, not the boot gap.
-    static const int kStartEvery = 600;
-    int frames = 0, ready_frame = -1, title_frame = -1;
-    if (!poke_start(core)) {
-        fprintf(stderr, "LIVE-FAIL: start: %s\n", poke_last_error(core));
+    // Every failure shuts the core down first: PPSSPP's audio, IO and worker
+    // threads otherwise keep the process alive after main returns (a failed
+    // run used to hang until killed instead of exiting 1).
+    auto fail = [&](const char *msg) {
+        fprintf(stderr, "LIVE-FAIL: %s\n", msg);
+        poke_stop(core);
+        poke_destroy(core);
         return 1;
-    }
-    if (resume && !poke_load_state(core, resume)) {
-        fprintf(stderr, "LIVE-FAIL: resume %s: %s\n", resume, poke_last_error(core));
-        return 1;
-    }
+    };
+
+    if (!poke_start(core)) return fail(poke_last_error(core));
+    if (resume && !poke_load_state(core, resume)) return fail(poke_last_error(core));
     if (resume) printf("LIVE: resumed from %s\n", resume);
+
+    // ⛔ ASK, DO NOT WAIT. The adapter writes "MENU <screen>" only in answer
+    // to the MenuState command; nothing logs it spontaneously. The first
+    // version of this loop only scanned the log, so it could never see the
+    // title however the presses went. Poll MenuState every half second, and
+    // press (A, with Start every 4th tap) only while the title is NOT up, so
+    // a tap can no longer carry the game past it.
+    static const int kPollEvery = 30;
+    static const int kTapEvery = 120;
+    int frames = 0, ready_frame = -1, title_frame = -1;
+    std::string screen;
     while (frames < cap && poke_frame(core)) {
         frames++;
-        if (ready_frame < 0 && frames % 100 == 0 && poke_adapter_ready(core)) {
-            ready_frame = frames;
-            printf("LIVE: adapter ready at frame %d\n", frames);
+        if (ready_frame < 0) {
+            if (frames % 100 == 0 && poke_adapter_ready(core)) {
+                ready_frame = frames;
+                printf("LIVE: adapter ready at frame %d\n", frames);
+            }
+            continue;
         }
-        if (ready_frame >= 0 && title_frame < 0 && frames % 60 == 0) {
-            int btn = ((frames / 60) % 4 == 3) ? POKE_BTN_START : POKE_BTN_A;
+        if (frames % kPollEvery == 0) {
+            size_t before = g_log.size();
+            poke_command(core, (int)oga::Command::MenuState);
+            for (size_t i = before; i < g_log.size(); i++)
+                if (g_log[i].rfind("MENU ", 0) == 0) screen = g_log[i];
+            if (screen == "MENU title") {
+                title_frame = frames;
+                printf("LIVE: title menu tracked at frame %d\n", frames);
+                break;
+            }
+        }
+        if (frames % kTapEvery == 0) {
+            int btn = ((frames / kTapEvery) % 4 == 3) ? POKE_BTN_START : POKE_BTN_A;
             poke_set_button(core, btn, true);
             for (int k = 0; k < 10; k++) { poke_frame(core); frames++; }
             poke_set_button(core, btn, false);
         }
-        if (title_frame < 0) {
-            for (const auto &l : g_log)
-                if (l.find("MENU title") != std::string::npos) {
-                    title_frame = frames;
-                    printf("LIVE: title menu tracked at frame %d\n", frames);
-                    break;
-                }
-        }
-        if (title_frame >= 0) break;
     }
-    if (ready_frame < 0) {
-        fprintf(stderr, "LIVE-FAIL: adapter never ready in %d frames\n", cap);
-        return 1;
-    }
+    if (ready_frame < 0) return fail("adapter never ready");
 
-    printf("LIVE: frames=%d/%d ready_frame=%d title_frame=%d\n",
-           frames, cap, ready_frame, title_frame);
-    if (title_frame < 0) {
-        fprintf(stderr, "LIVE-FAIL: title menu never tracked in %d frames\n", cap);
-        return 1;
-    }
+    printf("LIVE: frames=%d/%d ready_frame=%d title_frame=%d last=%s\n",
+           frames, cap, ready_frame, title_frame, screen.empty() ? "(none)" : screen.c_str());
+    if (title_frame < 0) return fail("title menu never tracked");
     g_say.clear();
     bool wai = poke_command(core, (int)oga::Command::WhereAmI);
     bool dump = poke_command(core, (int)oga::Command::DumpState);
     printf("LIVE: whereami=%d dump=%d say_lines=%zu\n",
            (int)wai, (int)dump, g_say.size());
-    if (!wai || g_say.empty()) {
-        fprintf(stderr, "LIVE-FAIL: WhereAmI produced no speech\n");
-        return 1;
-    }
+    if (!wai || g_say.empty()) return fail("WhereAmI produced no speech");
     // The answer must name a real title row, not the boot-gap fallback.
     bool names_row = false;
     for (const auto &l : g_say)
         if (l.find("New Game") != std::string::npos ||
             l.find("Load Game") != std::string::npos ||
             l.find("Data Install") != std::string::npos) names_row = true;
-    if (!names_row) {
-        fprintf(stderr, "LIVE-FAIL: WhereAmI did not name a title row\n");
-        return 1;
-    }
+    if (!names_row) return fail("WhereAmI did not name a title row");
     printf("LIVE-PASS: live RAM attaches, readies, and answers\n");
     poke_stop(core);
     poke_destroy(core);

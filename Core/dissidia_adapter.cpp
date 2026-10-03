@@ -168,13 +168,17 @@ static uint16_t u16(uint32_t a) { return g_host ? g_host->read16(g_host->ctx, a)
 static uint32_t u32(uint32_t a) { return g_host ? g_host->read32(g_host->ctx, a) : 0; }
 
 // Speech routed through the announcement queue with a per-site group and
-// priority. AdapterNoteSpoken stays the first gate (exact-repeat
-// suppression); the queue adds replacement, pacing, and interruption. When
+// priority. AdapterNoteSpoken stays the first gate for automatic lines
+// (exact-repeat suppression; High passes); the queue adds replacement,
+// pacing, and interruption. When
 // the host predates the queue (announce_q null), fall back to the direct
 // wire, barging only for High.
 static void Say(const char* s, const char* group, oga::Priority pri)
 {
-    if (!oga::AdapterNoteSpoken(s)) return;
+    // High = the player asked, so it always speaks (announcement-queue.md:
+    // "High items bypass dedup"). It is still noted, so an automatic
+    // repeat of the same line right after stays quiet.
+    if (!oga::AdapterNoteSpoken(s) && pri != oga::Priority::High) return;
     if (g_host && g_host->announce_q)
         oga::announce(g_host->announce_q,
                       oga::Announcement{s, pri, group, nullptr, 0, 0, -1},

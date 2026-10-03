@@ -1024,6 +1024,15 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
           "watch speaks cursor move");
 
+    // 47b. Where am I right after the watch said the same line still speaks:
+    // the player asked (High bypasses the exact-repeat gate). The live
+    // proof caught this staying silent. The automatic watch stays quiet.
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 2 && strcmp(SPOKE(1), "Load Game. Row 2 of 3.") == 0,
+          "where am I repeats an identical auto line");
+    FRAME();
+    CHECK(NSPOKEN == 2, "watch still silent on steady row after the query");
+
     // 48. broken fingerprints silence the watch; restore re-announces
     put32(0x09A3F0C8u, 0u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
