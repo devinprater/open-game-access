@@ -13,9 +13,9 @@
  * script is per-core, and the frame/speech/log callbacks are per-core pointers. So
  * adapters can be selected at ROM-load time with no change to the Pokémon path.
  *
- * ⛔ DO NOT over-generalise this yet. It has exactly one native adapter
- * (Fire Emblem) and one script adapter (Pokémon). The shapes below are what those
- * two need; anything more is guesswork until a third game proves it.
+ * ⛔ DO NOT over-generalise this. Five native adapters (registered in
+ * adapters.cpp) plus the Lua script path use it; every member below exists
+ * because one of them needed it. Add a member only when a real game proves it.
  */
 #ifndef OGA_ADAPTER_H
 #define OGA_ADAPTER_H
