@@ -60,25 +60,39 @@ fetch "$MGBA_REPO" mgba "$MGBA_REV"
 # PINNED TO THE HOST-PROVEN REVISION (see scripts/psp-host-proof.sh): the
 # real Core/psp_core.cpp booted the Dissidia CSO against this exact commit.
 # Moving the pin means re-running the host proof AND the subset test.
-# ---- Mesen (NES). PLANNED, not yet integrated. ----
+# ---- Mesen. PLANNED, not yet integrated. ----
 #
-# ⛔ THE PIN IS MEASURED, NOT ASSUMED. Mesen2's NES core (Core/NES + Core/Shared)
-# was compiled for aarch64-linux-android26 with the NDK's own clang BEFORE this
-# pin was written: 84 of 84 TUs, zero failures. That is the same admission test
-# mGBA passed, and it is why the registry lists the NES as PLANNED with a chosen
-# core rather than as an aspiration.
+# ⛔ THE PIN IS MEASURED, NOT ASSUMED. The NES core (Core/NES + Core/Shared) was
+# compiled for aarch64-linux-android26 with the NDK's own clang BEFORE this pin was
+# written: 84 of 84 TUs, zero failures. That is the same admission test mGBA
+# passed, and it is why the registry lists the NES as PLANNED with a chosen core
+# rather than as an aspiration. All SEVEN console cores were measured the same way
+# (scripts/mesen-feasibility.sh).
 #
-# Mesen2 is chosen over FCEUmm/Nestopia because it is C++ with no Qt/SDL
+# ⛔ MESENCE, NOT MESEN2, AND THE DISTINCTION IS LOAD-BEARING. SourMesen/Mesen2
+# is ARCHIVED (last push 2026-06-04) and its own README points at the successor.
+# nesdev-org/MesenCE is the live tree: same seven console cores, actively pushed.
+# Pinning an archived repo means every "measured" claim is measured against code
+# nobody maintains.
+#
+# Mesen is chosen over FCEUmm/Nestopia because it is C++ with no Qt/SDL
 # dependency at the Core level (Core/NES links against Core/Shared, not the UI),
 # which is the property that made mGBA portable here and Dolphin not.
 #
-# ⛔ MOVING THIS PIN MEANS RE-RUNNING scripts/nes-feasibility.sh. Mesen's Console
-# base class is not a stable ABI, and the source list below is generated from the
-# tree, not hand-maintained.
-MESEN_REPO="${MESEN_REPO:-https://github.com/SourMesen/Mesen2.git}"
-# Measured: master at the time of writing; the NES core is complete and stable
-# upstream, and this is the revision that passed the 84/84 compile.
-MESEN_REV="${MESEN_REV:-b9fa69ddc6d0a331fb103fdb5eef6904305703c2}"
+# ⛔ MOVING THIS PIN MEANS RE-RUNNING scripts/mesen-feasibility.sh. Mesen's
+# Console base class is not a stable ABI, and the measured lists in
+# core-sources.sh are generated FROM THE TREE, not hand-maintained.
+#
+# ⛔ AND EXPECT THE LISTS TO MOVE BETWEEN REVISIONS. Measured on adoption:
+# against the archived Mesen2 pin, MesenCE master differs by 1 TU removed
+# (NES APU/BaseExpansionAudio.cpp), 6 added (2 SNES input controllers, 1 Shared
+# movie format, 1 Shared RTC, 3 WonderSwan cart types) and a per-console count
+# change in NES 45->44, SNES 66->68, WS 19->23, Shared 39->41. A pinned-but-stale
+# list would fail to link, not fail to compile.
+MESEN_REPO="${MESEN_REPO:-https://github.com/nesdev-org/MesenCE.git}"
+# Measured: MesenCE master at the time of adoption; all seven console cores
+# compiled for aarch64-linux-android26 at this revision.
+MESEN_REV="${MESEN_REV:-a60e79feb4d6dcced5922d636f9211837d01e381}"
 fetch "$MESEN_REPO" mesen "$MESEN_REV"
 
 PPSSPP_REPO="${PPSSPP_REPO:-https://github.com/hrydgard/ppsspp.git}

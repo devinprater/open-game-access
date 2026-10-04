@@ -1,6 +1,14 @@
 #!/usr/bin/env bash
 # nes-feasibility.sh — does the Mesen NES core build for this project's targets?
 #
+# ⛔ MOSTLY SUPERSEDED BY scripts/mesen-feasibility.sh, WHICH COVERS ALL SEVEN
+# MESEN CONSOLES AND PRINTS THE LISTS IN THEIR CURRENT SHAPE. This one is kept as
+# the original NES-only admission test (the one mGBA's admission was modelled on),
+# and it still answers its own question correctly. Do NOT paste its output into
+# core-sources.sh: it emits Core/NES + Core/Shared together, and Core/Shared is now
+# its own list (MESEN_SHARED) so pasting it would compile those TUs twice. Use
+# scripts/mesen-feasibility.sh for that.
+#
 # ⛔ THIS IS AN ADMISSION TEST, NOT A BUILD. It answers one question: can the NES
 # core be compiled for aarch64-linux-android at all? Nothing here links a ROM,
 # boots a game, or claims the backend exists. mGBA was admitted to this repo the
@@ -68,8 +76,12 @@ if [ -n "$FAILS" ]; then
 fi
 echo "(none)"
 echo
-echo "== the MEASURED source list (paste into core-sources.sh MESEN_NES) =="
+echo "== the MEASURED source list (NES + Shared TOGETHER; see the header) =="
+echo "   ⛔ This is NOT paste-ready: Core/Shared is its own list (MESEN_SHARED) now."
+echo "   Run scripts/mesen-feasibility.sh for the current, paste-ready lists."
+
 cat "$STAGE/tus.txt"
 echo
 echo "PASS: the Mesen NES core compiles for aarch64-linux-android26 ($COUNT/$COUNT TUs)."
+echo "⚠ For the whole console set and paste-ready lists: scripts/mesen-feasibility.sh"
 echo "⚠ This is an ADMISSION TEST. No ROM was booted and no host glue exists."

@@ -81,7 +81,7 @@ Mario Kart 64 (N64) or Double Dash (GameCube) would.
    a real ROM boots and speaks. **The speech is not yet meaningful** — see
    `docs/research/gba-host-proof.md`. That is the next real work.
 4. **NES** — smallest real win, and it proves steps 1–2 with a console neither
-   existing backend resembles. **The core is now CHOSEN AND ADMITTED**: Mesen2
+   existing backend resembles. **The core is now CHOSEN AND ADMITTED**: MesenCE (the maintained successor to the archived Mesen2)
    is pinned in `scripts/bootstrap-deps.sh`, `scripts/mesen-feasibility.sh`
    compiles all seven of its console cores for this target, and the measured
    lists are in `scripts/core-sources.sh`. What is missing is the host glue
