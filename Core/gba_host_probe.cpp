@@ -85,12 +85,41 @@ int main(int argc, char** argv)
             printf("frame returned false at %ld: %s\n", f, poke_last_error(core));
             break;
         }
-        /* Nudge past the title screen the way a player would, so the reader has
-         * something other than a boot screen to describe. */
-        if (f == 600) poke_set_button(core, POKE_BTN_START, true);
-        if (f == 615) poke_set_button(core, POKE_BTN_START, false);
-        if (f == 700) poke_set_button(core, POKE_BTN_A, true);
-        if (f == 715) poke_set_button(core, POKE_BTN_A, false);
+        /* ⛔ A REAL BUTTON SCRIPT, AND LONG ENOUGH TO LEAVE THE INTRO.
+         *
+         * FRLG's intro (copyright, title, "press start", Oak's speech, naming)
+         * runs for MINUTES of emulated time. An earlier version of this probe
+         * ran 900 frames — 15 seconds — and pressed A twice, so the reader was
+         * asked to describe a game that had not started. That is not a reader
+         * bug and it was not being distinguished from one.
+         *
+         * So: mash A on a steady cadence from the start, which walks the intro,
+         * Oak's speech and the naming prompts, and press Start early to clear
+         * the title. A player does exactly this. */
+        {
+            const long period = 45;            /* ~0.75 s: faster than any prompt */
+            if (f >= 120 && (f % period) == 0)
+                poke_set_button(core, POKE_BTN_A, true);
+            if (f >= 120 && (f % period) == 20)
+                poke_set_button(core, POKE_BTN_A, false);
+
+            /* ⛔ START AS WELL AS A, AND ON A SLOWER CADENCE.
+             *
+             * A alone walks the intro but STALLS ON THE NAMING SCREEN, where A
+             * types a letter and never confirms — the probe sat there for 14000
+             * frames reporting a working reader as a stalled one. START is the
+             * confirm button on that screen.
+             *
+             * Interleaving them at different rates (A every 45, START every 150)
+             * means the odd A press never blocks a confirm for long, so the
+             * script gets through the intro, Oak's speech, naming and into the
+             * world without needing to know which screen it is on. */
+            const long slow = 150;
+            if (f >= 300 && (f % slow) == 0)
+                poke_set_button(core, POKE_BTN_START, true);
+            if (f >= 300 && (f % slow) == 24)
+                poke_set_button(core, POKE_BTN_START, false);
+        }
     }
 
     int w = 0, h = 0;
