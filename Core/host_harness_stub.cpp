@@ -5,10 +5,12 @@
  *
  *   * psp_* — the real Core/psp_core.cpp needs the PPSSPP tree (ppspp lang
  *     in core-sources.sh); the NDS harnesses never boot a PSP game.
- *   * 7z archive symbols (SzArEx_Init and friends) — mGBA's vfs-lzma references
- *     ROM archives; the app links PPSSPP's identical SDK copy instead (see
- *     core-sources.sh: mGBA's third-party/lzma is deliberately absent). The
- *     harnesses only load plain .nds files, never archives.
+ *   * (the 7z archive symbols used to be stubbed here too, on the belief that
+ *     nothing called them. The belief was wrong: mGBA's vfs-lzma references them
+ *     directly and mCoreFind calls VDirOpenArchive on every ROM path, so the
+ *     stub aborted every harness that booted a GBA ROM. build-host.sh now
+ *     compiles mGBA's real third-party/lzma SDK -- see MGBA_LZMA in
+ *     core-sources.sh. Do not reintroduce a stub for a reachable path.)
  *
  * Every stub below ABORTS with a message when called. A silent no-op would
  * turn a real backend need into mysteriously dead behaviour; an abort says
@@ -62,26 +64,5 @@ unsigned long long psp_frames_completed(PspCore*) { harness_missing("psp_frames_
 const char* psp_last_error(PspCore*) { harness_missing("psp_last_error"); }
 unsigned psp_debug_read(PspCore*, unsigned, int) { harness_missing("psp_debug_read"); }
 void psp_debug_write(PspCore*, unsigned, unsigned, int) { harness_missing("psp_debug_write"); }
-
-} // extern "C"
-
-// ---- 7z archive symbols (real: PPSSPP ext/lzma-sdk in app builds) ------------
-//
-// Signatures are shape-compatible (pointer/int widths), not the SDK headers:
-// the bodies abort before touching arguments, so nothing reads through them.
-// If the harness ever needs real archive support, compile the SDK sources
-// instead of extending this list.
-extern "C" {
-
-void SzArEx_Init(void*) { harness_missing("SzArEx_Init"); }
-void SzArEx_Free(void*, void*) { harness_missing("SzArEx_Free"); }
-unsigned long SzArEx_GetFileNameUtf16(const void*, unsigned long, void*) { harness_missing("SzArEx_GetFileNameUtf16"); }
-int SzArEx_Extract(const void*, void*, unsigned*, unsigned*, void*, unsigned*, void*, void*, void*, void*) { harness_missing("SzArEx_Extract"); }
-int SzArEx_Open(void*, void*, void*, void*, void*) { harness_missing("SzArEx_Open"); }
-void LookToRead2_CreateVTable(void*, int) { harness_missing("LookToRead2_CreateVTable"); }
-void CrcGenerateTable(void) { harness_missing("CrcGenerateTable"); }
-int InFile_Open(void*, const char*) { harness_missing("InFile_Open"); }
-int File_Close(void*) { harness_missing("File_Close"); }
-void FileInStream_CreateVTable(void*) { harness_missing("FileInStream_CreateVTable"); }
 
 } // extern "C"

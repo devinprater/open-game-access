@@ -86,7 +86,21 @@ announce.cpp
 #   GB core (src/gb/* except audio) — M_CORE_GB is OFF until the GB core is
 #       host-proven the way the GBA core was. .gb/.gbc ROMs fail loudly at
 #       load, they do not silently run the wrong core.
-# NOTE: mGBA's third-party/lzma/* is deliberately absent. Nothing in the kept mGBA subset references it (verified by object scan); PPSSPP's identical 19.00 SDK copy (ext/lzma-sdk, in PPSPP_EXT_C) is the single LZMA in the archive. Two copies break the app link the way lua/xxhash did.
+# ⛔ mGBA's third-party/lzma/* is absent from MGBA because the APP gets those
+# symbols from PPSSPP's identical 19.00 SDK copy (ext/lzma-sdk, in PPSPP_EXT_C);
+# two copies break the app link the way lua/xxhash did.
+#
+# ⛔ BUT THE EARLIER JUSTIFICATION FOR THIS WAS WRONG, AND IT COST A REAL BUG.
+# It used to claim that nothing in the kept mGBA subset references it. That is
+# false: src/util/vfs/vfs-lzma.c IS in MGBA below, and it calls
+# SzArEx_Init/Open/Extract, InFile_Open, FileInStream_CreateVTable,
+# LookToRead2_CreateVTable and CrcGenerateTable directly -- that file IS the .7z
+# archive support VDirOpenArchive dispatches to, and mCoreFind calls
+# VDirOpenArchive on EVERY ROM path. On the app the PPSSPP copy satisfies them.
+# On the HOST there is no PPSSPP, so they fell through to abort-on-call stubs in
+# host_harness_stub.cpp -- and the first harness that booted a GBA ROM died
+# inside the stub. That is exactly why GBA had never been host-verified.
+# MGBA_LZMA below is the real SDK, compiled by build-host.sh only.
 MGBA="
 src/arm/arm.c src/arm/debugger/cli-debugger.c src/arm/debugger/debugger.c
 src/arm/debugger/memory-debugger.c src/arm/decoder-arm.c src/arm/decoder-thumb.c
@@ -137,6 +151,19 @@ src/util/vfs/vfs-fifo.c src/util/vfs/vfs-lzma.c src/util/vfs/vfs-mem.c
 # warns). The host proof forced HAVE_POPCOUNT32=OFF etc. via mgba-configure.sh;
 # these -D lines ARE that forcing, baked in. Do not "refresh" them from a
 # CMake run on this machine without re-auditing.
+# mGBA's bundled 7z SDK, needed by vfs-lzma.c. Compiled by build-host.sh ONLY:
+# the app supplies these symbols from PPSSPP's copy instead (see the note above).
+MGBA_LZMA="
+src/third-party/lzma/7zArcIn.c src/third-party/lzma/7zBuf.c
+src/third-party/lzma/7zCrc.c src/third-party/lzma/7zCrcOpt.c
+src/third-party/lzma/7zDec.c src/third-party/lzma/7zFile.c
+src/third-party/lzma/7zStream.c src/third-party/lzma/Bcj2.c
+src/third-party/lzma/Bra.c src/third-party/lzma/Bra86.c
+src/third-party/lzma/BraIA64.c src/third-party/lzma/CpuArch.c
+src/third-party/lzma/Delta.c src/third-party/lzma/Lzma2Dec.c
+src/third-party/lzma/LzmaDec.c
+"
+
 MGBA_DEFS="-DBUILD_STATIC -DENABLE_DEBUGGERS -DENABLE_DIRECTORIES -DENABLE_SCRIPTING -DENABLE_VFS -DENABLE_VFS_FD -DHAVE_FREELOCALE -DHAVE_LOCALE -DHAVE_LOCALTIME_R -DHAVE_NEWLOCALE -DHAVE_PTHREAD_CREATE -DHAVE_PTHREAD_SETNAME_NP -DHAVE_PTHREAD_SET_NAME_NP -DHAVE_REALPATH -DHAVE_SETLOCALE -DHAVE_STRDUP -DHAVE_STRLCPY -DHAVE_STRNDUP -DHAVE_USELOCALE -DHAVE_VASPRINTF -DHAVE_XLOCALE -DLUA_VERSION_ONLY='\"5.4\"' -DM_CORE_GBA -DUSE_LUA -DUSE_LZMA -DUSE_PTHREADS -D_DARWIN_C_SOURCE"
 
 # ppspp_inc <ppsspp-src-root> — the include path every PPSSPP translation unit

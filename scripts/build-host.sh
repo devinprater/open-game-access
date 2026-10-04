@@ -93,6 +93,10 @@ compile() {
   printf '%s|cxx|gba_core\n'     "$ROOT/Core/gba_core.cpp"
   printf '%s|cxx|mgba_version\n' "$ROOT/Core/mgba_version_stub.cpp"
   for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  # The real 7z SDK, host builds only (see the MGBA_LZMA note in core-sources.sh).
+  # Without it these symbols fall to abort-on-call stubs, and any harness that
+  # boots a GBA ROM dies the moment mCoreFind opens the ROM as an archive.
+  for f in $MGBA_LZMA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgbalzma_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
   printf '%s|cxx|dq9_adapter\n'  "$ROOT/Core/dq9_adapter.cpp"
