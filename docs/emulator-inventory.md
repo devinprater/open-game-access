@@ -82,7 +82,9 @@ Snes9x** — all three present and working. Both causes are worth recording:
 ⛔ **A presence check that guesses paths produces confident false negatives.** Resolve
 names with a glob and ask the side that owns the path.
 
-## Mesen2: SEVEN console cores that all build for this project's target
+## Mesen: SEVEN console cores that all build for this project's target
+
+⛔ **The pinned repository is `nesdev-org/MesenCE`, not `SourMesen/Mesen2`.** Mesen2 is ARCHIVED (last push 2026-06-04) and its own README points at the successor. The measurement below was RE-RUN against MesenCE at `a60e79fe` (2026-09-26) after the pin moved, and the source lists were regenerated from that tree — the counts moved, which is the point of the diff table.
 
 Measured 2026-10-04 with `scripts/mesen-feasibility.sh` — a re-runnable ADMISSION
 TEST in the same spirit as the mGBA one. It compiles every translation unit of
@@ -91,15 +93,32 @@ every Mesen console core with the Android NDK's own clang for
 
 ```
   CONSOLE   TUs   VERDICT
-  SHARED    39    PASS     <- compiled ONCE, shared by all seven
-  NES       45    PASS
-  SNES      66    PASS
+  SHARED    41    PASS     <- compiled ONCE, shared by all seven
+  NES       44    PASS
+  SNES      68    PASS
   Gameboy   19    PASS     <- a SECOND Game Boy core; mGBA already boots GB
   GBA       23    PASS     <- a SECOND GBA core; mGBA is already wired in
   PCE       27    PASS
   SMS       17    PASS
-  WS        19    PASS
+  WS        23    PASS
 ```
+
+508 TU-compiles, zero failures.
+
+### What moved when the pin changed (archived Mesen2 -> MesenCE)
+
+| List | Mesen2 | MesenCE | Change |
+|---|---|---|---|
+| Shared | 39 | 41 | +BizHawkMovie.cpp, +S3511ARtc.cpp |
+| NES | 45 | 44 | -APU/BaseExpansionAudio.cpp |
+| SNES | 66 | 68 | +SnesBlueRetroController.cpp, +SnesNttDataKeypad.cpp |
+| Gameboy | 19 | 19 | unchanged |
+| GBA | 23 | 23 | unchanged |
+| PCE | 27 | 27 | unchanged |
+| SMS | 17 | 17 | unchanged |
+| WS | 19 | 23 | +4 WonderSwan cart/RTC types |
+
+⛔ **This is why the lists are regenerated, not trusted.** A pinned-but-stale list does not fail to COMPILE — the missing TUs are simply absent — it fails at the LINK, later, with undefined symbols that read like a source bug.
 
 ⛔ **WHAT THIS PROVES AND WHAT IT DOES NOT.** It proves the C++ in those trees
 COMPILES for our target, which is the gate mGBA and PPSSPP both passed before
@@ -111,7 +130,7 @@ Everything in `Core/Shared` compiles here and would still fail to *link* if a
 console core referenced a frontend symbol, and the whole set has never run a
 ROM. Read the table as "the compiler accepts it", nothing more.
 
-**Why Mesen2 and not per-system cores.** One tree covers NES, SNES, GB/GBC, GBA,
+**Why Mesen and not per-system cores.** One tree covers NES, SNES, GB/GBC, GBA,
 PCE, SMS/Game Gear and WonderSwan(WSC), with `Core/NES` linking against
 `Core/Shared` and nothing else — no Qt, no SDL, no frontend. That is the exact
 property that made mGBA portable here and Dolphin not, and it means the second

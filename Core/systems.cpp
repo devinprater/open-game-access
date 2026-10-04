@@ -220,7 +220,9 @@ const OgaSystem kSystems[] = {
 
     /* --- the rest of Mesen's set, measured the same way ---
      *
-     * Mesen2 is ONE tree carrying seven console cores (Core/NES, SNES,
+     * Mesen (MesenCE; nesdev-org/MesenCE, the maintained successor to the
+     * archived SourMesen/Mesen2) is ONE tree carrying seven console cores
+     * (Core/NES, SNES,
      * Gameboy, GBA, PCE, SMS, WS), each self-contained and linking only
      * against Core/Shared. scripts/mesen-feasibility.sh compiles all seven
      * for aarch64-linux-android26 and all seven pass, so each row below

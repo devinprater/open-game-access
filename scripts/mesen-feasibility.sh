@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
-# mesen-feasibility.sh — WHICH Mesen2 consoles build for this project's targets.
+# mesen-feasibility.sh — WHICH Mesen consoles build for this project's targets.
+#
+# ⛔ MEASURES THE PINNED TREE, WHICH IS nesdev-org/MesenCE (the maintained
+# successor), NOT SourMesen/Mesen2 (ARCHIVED 2026-06-04). Point MESEN_SRC or the
+# first argument at whatever scripts/bootstrap-deps.sh fetched.
 #
 # ⛔ GENERALISES nes-feasibility.sh, AND FOR THE SAME REASON IT EXISTS: an
 # admission test measures a core BEFORE the registry calls it PLANNED, so a
-# console is never promised a core that cannot compile. Mesen2 ships seven
+# console is never promised a core that cannot compile. Mesen ships seven
 # console cores in one tree (Core/NES, SNES, Gameboy, GBA, PCE, SMS, WS), each
 # self-contained and linking only against Core/Shared — so "which Mesen systems
 # can Open Game Access host" is a measurable question, not a guess.
