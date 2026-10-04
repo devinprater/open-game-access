@@ -63,6 +63,12 @@ jobs:
       # merges resources and appends to the manifest instead, and injects the
       # JIT/ARCHITECTURE arguments into the native config.
       - name: Apply the Open Game Access overlay
+        env:
+          # The GBA/Game Boy core is built from the audited mGBA source list plus
+          # Lua 5.4. Without these the overlay skips that section silently -- which
+          # is how the omission survived the first time.
+          MGBA_SRC: ${{ runner.temp }}/src/mgba
+          LUA_SRC: ${{ runner.temp }}/src/lua-5.4.7
         run: bash scripts/android-apply-overlay.sh "$GITHUB_WORKSPACE/frontend" "$GITHUB_WORKSPACE"
 
       # The shell is melonDS 2025; our core is melonDS-lua 2026, which refactored
