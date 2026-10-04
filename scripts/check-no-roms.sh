@@ -76,6 +76,7 @@ VENDOR=$(find . -maxdepth 3 -type d \( \
     -o -name 'Vendor' \) \
     -not -path './.git' -not -path './.git/*' \
     -not -path './frontend' -not -path './frontend/*' \
+    -not -path './app/mgba' -not -path './app/mgba/*' \
     -not -path './Vendor' -not -path './Vendor/*' \
     -not -path './.build' -not -path './.build/*' \
     -not -path './xtool' -not -path './xtool/*' \
