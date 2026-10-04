@@ -11,12 +11,12 @@ and Mario Kart 8 / Deluxe.
 
 | Piece | State |
 |---|---|
-| `Core/systems.{h,cpp}` | **New.** The registry: 11 consoles, hardware facts, backend state. 40 tests + 6 mutations, in CI. |
+| `Core/systems.{h,cpp}` | The registry: 14 consoles, hardware facts, backend state. 58 tests + 6 mutations, in CI. **Now IN the build** (it was in no build list, so on device it did not exist) and exposed to the UI through the C ABI. |
 | `Sources/CPokeCore/include/pokecore.h` | A ~40-function C ABI that is **already system-neutral**. No DS in it. Supports DS, GB, GBA, PSP today. |
 | `Core/pokecore.cpp` | Dispatches by file extension across three backends (`nds`, `gba`, `psp`). Already multi-core; the extension checks are its own, not the registry's. |
-| `Core/gba_core.h`, `Core/psp_core.h` | Two backend interfaces sharing 17 of ~20 function shapes. The seam exists informally. |
-| `GameSystem.swift` (iOS) | Per-system UI, but mixes hardware facts with script facts and hardcodes four systems. |
-| Android `MelonInstance` | **DS-hardwired.** This is the real work. |
+| `Core/gba_core.h`, `Core/psp_core.h` | **Done (2026-10-04).** Formalised as one `OgaCore` ops table in `Core/oga_core.h`. The ~100 dispatch sites in pokecore.cpp are gone; `poke_frame` and `poke_framebuffer` are now one body each for every console. |
+| `GameSystem.swift` (iOS) | **Done (2026-10-04).** Hardware facts now READ FROM the registry over the C ABI; the script/hotkey tables stayed, because they belong to the loaded script, not the console — see the note in the file. |
+| Android `MelonInstance` | Still **DS-hardwired** for NDS. The Game Boy path is now REACHABLE (see below) but does not go through the shared `Core/` yet. |
 
 ## The three things that actually need doing
 
@@ -68,15 +68,35 @@ Mario Kart 64 (N64) or Double Dash (GameCube) would.
 
 ## Order of work
 
-1. **`OgaCore` vtable** — collapse `pokecore.cpp`'s dispatch. No new console yet.
-2. **iOS reads the registry** — delete `GameSystem`'s hardcoded switch.
-3. **NES** — smallest real win, and it proves steps 1–2 with a console neither
+1. ~~**`OgaCore` vtable**~~ — **DONE 2026-10-04.** See `Core/oga_core.h`.
+2. ~~**iOS reads the registry**~~ — **DONE 2026-10-04.** Hardware facts come from
+   the registry; script keys stay with the script, deliberately.
+3. ~~**Wire the Game Boy path end to end**~~ — **PARTLY DONE 2026-10-04.** The
+   Android launcher can now reach the reader (`GbBridge.kt`), and the host proves
+   a real ROM boots and speaks. **The speech is not yet meaningful** — see
+   `docs/research/gba-host-proof.md`. That is the next real work.
+4. **NES** — smallest real win, and it proves steps 1–2 with a console neither
    existing backend resembles. Mesen's core is clean C++.
-4. **Android reads the registry** — retire `MelonInstance`.
-5. **PS1**, then **N64** (measure first), then **SNES**.
-6. PS2 / GC / Wii: not planned; revisit when a core exists that runs on a phone.
+5. **Android reads the registry** — retire `MelonInstance` for NDS too.
+6. **PS1**, then **N64** (measure first), then **SNES**.
+7. PS2 / GC / Wii: not planned; revisit when a core exists that runs on a phone.
 
 Each step is shippable on its own and none of them require the others.
+
+## ⛔ What step 3 actually uncovered, because it changes the plan's shape
+
+Two things had been recorded as "done" that were not reachable in a shipped build:
+
+  * **The registry was in no build list.** 52 green tests, a CI workflow, and
+    nothing compiled it into the app. "Both UIs read the registry" could not have
+    worked: there was nothing to read.
+  * **Nothing called the Game Boy path on Android.** The JNI entry points linked
+    into the APK; no Kotlin or JS invoked them, and the launcher's status text
+    still told the player the core was "not compiled into this test build".
+
+The lesson for the rest of this plan: **"compiles", "links" and "has tests" are
+all weaker than "a player can reach it".** Every future console step should end
+with a reachability check, not a build check.
 
 ## What this does NOT change
 
