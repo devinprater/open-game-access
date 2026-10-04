@@ -11,7 +11,13 @@
 # nothing else. That is exactly the class of error that survives every other test here.
 # filename because $f was dropped by an unterminated-array artifact; this one is
 # explicit and reports a real verdict.)
-cd /home/devin/oga-work || exit 1
+#
+# ⛔ AND THE FIRST VERSION OF THIS SCRIPT HARDCODED /home/devin/oga-work, so it
+# died in CI with `cd: /home/devin/oga-work: No such file or directory` and failed
+# BOTH workflows -- the same class of bug it exists to catch. Derive the root from
+# the script's own location, exactly as every other script here does.
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT" || exit 1
 bad=0
 n=0
 while IFS= read -r f; do
@@ -21,6 +27,6 @@ while IFS= read -r f; do
     sed 's/^/      /' /tmp/serr.txt
     bad=$((bad + 1))
   fi
-done < <(git ls-files '*.sh' | grep -v '^third-party/' | grep -v '^Vendor/')
+done < <(git -C "$ROOT" ls-files '*.sh' | grep -v '^third-party/' | grep -v '^Vendor/')
 echo "  checked=$n broken=$bad"
 [ "$bad" -eq 0 ] && echo "PASS: every tracked shell script parses" || echo "FAIL"
