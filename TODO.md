@@ -60,6 +60,25 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   GL, not GLES -- 2071 differing lines), then setting the build flags in CMake rather
   than Gradle. NOT yet done: install it on a device and boot a ROM.
 
+- [~] **Wire the overlay's GBA/GB sources into the Android build.** IN PROGRESS
+  (2026-10-04). The four accessibility hosts (MGBACore/MGBARunner/MGBAScriptJNI/
+  PokeScript.cpp) and the mGBA core are now compiled into the frontend target; the
+  build went from 336 to ~498 translation units. Feasibility was measured with the
+  real NDK before writing anything: 126/126 mGBA sources, 23/23 Game Boy sources,
+  14/14 LZMA sources and 34/34 Lua sources compile for aarch64-linux-android26.
+  Four things had to be discovered from CI logs, each a platform difference the iOS
+  flag set does not cover:
+    * HAVE_PTHREAD_SET_NAME_NP must be REMOVED (BSD spelling; bionic has the other one)
+    * HAVE_STRTOF_L must be ADDED (bionic provides strtof_l; mGBA's fallback collides)
+    * LZMA: iOS borrows PPSSPP's SDK copy, so mGBA's own third-party/lzma is compiled
+    * version.c: mGBA generates it from git; Core/mgba_version_stub.cpp is reused
+  ⚠ SCOPE CALL FOR DEVIN: I added M_CORE_GB, i.e. real Game Boy / Game Boy Color
+  emulation, which iOS does NOT enable. The audited list is GBA-only, so this pulled
+  in 23 more source files. Justification: the app's own UI and the shipped
+  assets/lua/gb/ scripts cover .gb/.gbc as well as .gba. But it IS beyond "fix GBA",
+  so flagging rather than assuming. Say the word and it comes back out.
+  REMAINING: the link must succeed, then the app must load a .gba on the emulator.
+
 - [ ] **Wire the overlay's GBA/GB sources into the Android build -- THEY ARE NOT
   COMPILED.** `app/src/main/cpp/MGBACore.cpp` (1255 lines), `MGBARunner.cpp` (398 lines),
   `MGBAScriptJNI.cpp` and `MGBACore.h`/`MGBARunner.h` are copied into
