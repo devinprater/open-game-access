@@ -72,8 +72,17 @@ fi
 [ "$spoken_total" -gt 0 ] || { echo "!! nothing spoke: the reader never started" >&2; exit 1; }
 echo "PASS: a real GBA ROM booted through the app path and the reader spoke."
 echo
-echo "⚠ THIS IS A BOOT-LEVEL PROOF, NOT A READER-QUALITY PROOF. It shows the core"
-echo "  boots, identifies the cart and produces speech. It does NOT show the speech"
-echo "  is meaningful — read the [SPEAK] lines: raw numbers or 'nil' mean the shim"
-echo "  is handing the reader bad data, which is a real defect this harness exists"
-echo "  to make visible. See docs/research/gba-host-proof.md."
+echo "⚠ READ THE [SPEAK] LINES — BUT READ THEM CORRECTLY."
+echo
+echo "  Raw numbers and 'nil' are EXPECTED here and are NOT a shim defect. This"
+echo "  harness walks a game from a cold boot, and these ROMs have minutes of intro"
+echo "  (title, speech, naming) before there is any map to describe. A reader asked"
+echo "  to describe a map that does not exist yet reports map functions failing and"
+echo "  falls back to raw reads. Proven: run far enough past the title screen and"
+echo "  the reader speaks the NAMING SCREEN's own UI ('A', 'OK', 'a') — real content"
+echo "  decoded from live RAM."
+echo
+echo "  So: 'Ready' then numbers means THE GAME HAS NOT STARTED, not that the reader"
+echo "  is broken. Meaningful in-world speech needs the game standing in the world,"
+echo "  which this harness cannot currently arrange (it stalls on the naming screen)."
+echo "  See docs/research/gba-host-proof.md — 'the READER IS FINE' section."
