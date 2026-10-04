@@ -212,7 +212,9 @@ int main()
          * nothing. */
         const OgaSystemId planned[] = { OGA_SYS_NES, OGA_SYS_SNES, OGA_SYS_N64,
                                         OGA_SYS_PS1, OGA_SYS_GENESIS,
-                                        OGA_SYS_DREAMCAST, OGA_SYS_3DS };
+                                        OGA_SYS_DREAMCAST, OGA_SYS_3DS,
+                                        OGA_SYS_MASTER, OGA_SYS_PCE,
+                                        OGA_SYS_WONDERSWAN };
         bool anyRunnable = false;
         for (OgaSystemId id : planned)
         {
@@ -325,6 +327,41 @@ int main()
             ok("the DS resolves by id 1 with two screens, for the pre-load default");
         else
             bad("the DS resolves by id 1 with two screens, for the pre-load default", "wrong");
+    }
+
+    printf("\n== Mesen's 8-bit set: listed, and none of it claimed playable\n");
+    {
+        /* These rows exist because Mesen's core set is MEASURED to build for
+         * this project's target (scripts/mesen-feasibility.sh, seven cores, all
+         * passing) while no host glue exists yet. The extension mapping is what
+         * the ROM picker speaks from, so a wrong one is a blind player being
+         * told the wrong console name. */
+        ExpectSys("/roms/sonic.sms",       OGA_SYS_MASTER, "a .sms is the Master System");
+        ExpectSys("/roms/sonic.gg",        OGA_SYS_MASTER, "a .gg is the Game Gear, same core");
+        ExpectSys("/roms/sg1000.sg",       OGA_SYS_MASTER, "a .sg is the SG-1000, same core");
+        ExpectSys("/roms/rondo.pce",       OGA_SYS_PCE,    "a .pce is the PC Engine");
+        ExpectSys("/roms/aldynes.sgx",     OGA_SYS_PCE,    "a .sgx is the SuperGrafx, same core");
+        ExpectSys("/roms/gunpey.ws",       OGA_SYS_WONDERSWAN, "a .ws is the WonderSwan");
+        ExpectSys("/roms/ff1.wsc",         OGA_SYS_WONDERSWAN, "a .wsc is the WonderSwan Color");
+        ExpectSys("/roms/final-fight2.sfc", OGA_SYS_SNES,  "a .sfc is the Super Nintendo");
+
+        /* Hardware facts the UI reads for the pad it draws. A console with
+         * buttons it does not have is the rule this file already guards for the
+         * Game Boy; these three are the same claim. */
+        bool padsOk = true;
+        const OgaSystemId twoButton[] = { OGA_SYS_MASTER, OGA_SYS_PCE,
+                                          OGA_SYS_WONDERSWAN };
+        for (OgaSystemId id : twoButton)
+        {
+            const OgaSystem* s = oga_system_by_id(id);
+            if (!s || s->faceButtonCount != 2 || s->hasShoulders ||
+                s->screenCount != 1 || s->analogSticks != 0) padsOk = false;
+        }
+        if (padsOk)
+            ok("the Master System, PC Engine and WonderSwan are two-button, one-screen, no sticks");
+        else
+            bad("the Master System, PC Engine and WonderSwan are two-button, one-screen, no sticks",
+                "wrong");
     }
 
     printf("\n== the refusal explains itself\n");

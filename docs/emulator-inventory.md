@@ -82,6 +82,65 @@ Snes9x** — all three present and working. Both causes are worth recording:
 ⛔ **A presence check that guesses paths produces confident false negatives.** Resolve
 names with a glob and ask the side that owns the path.
 
+## Mesen2: SEVEN console cores that all build for this project's target
+
+Measured 2026-10-04 with `scripts/mesen-feasibility.sh` — a re-runnable ADMISSION
+TEST in the same spirit as the mGBA one. It compiles every translation unit of
+every Mesen console core with the Android NDK's own clang for
+`aarch64-linux-android26` and reports per console:
+
+```
+  CONSOLE   TUs   VERDICT
+  SHARED    39    PASS     <- compiled ONCE, shared by all seven
+  NES       45    PASS
+  SNES      66    PASS
+  Gameboy   19    PASS     <- a SECOND Game Boy core; mGBA already boots GB
+  GBA       23    PASS     <- a SECOND GBA core; mGBA is already wired in
+  PCE       27    PASS
+  SMS       17    PASS
+  WS        19    PASS
+```
+
+⛔ **WHAT THIS PROVES AND WHAT IT DOES NOT.** It proves the C++ in those trees
+COMPILES for our target, which is the gate mGBA and PPSSPP both passed before
+they were promised. It does NOT prove a frame runs, and there is no host glue:
+no `Core/mesen_core.cpp` exists. Nothing here may be called a backend.
+
+⛔ **`-fsyntax-only` IS WEAKER THAN A LINK, AND A LINK IS WEAKER THAN A BOOT.**
+Everything in `Core/Shared` compiles here and would still fail to *link* if a
+console core referenced a frontend symbol, and the whole set has never run a
+ROM. Read the table as "the compiler accepts it", nothing more.
+
+**Why Mesen2 and not per-system cores.** One tree covers NES, SNES, GB/GBC, GBA,
+PCE, SMS/Game Gear and WonderSwan(WSC), with `Core/NES` linking against
+`Core/Shared` and nothing else — no Qt, no SDL, no frontend. That is the exact
+property that made mGBA portable here and Dolphin not, and it means the second
+and third console cost a source list rather than a project.
+
+**What is already in the repo, and where.** The measured lists are landed in
+`scripts/core-sources.sh` as `MESEN_SHARED` + `MESEN_<CONSOLE>`, deliberately
+NOT in `OGA_GLUE` — putting them there would claim a backend that does not
+exist. `scripts/verify-core-lists.sh` checks every word of every list against
+the pinned tree, because a source list here is an unquoted shell string that the
+build scripts word-split into filenames: a stray `#` or a lost quote turns a
+path into a command, and both have silently broken this build before.
+
+**The sockets, stated plainly.** Adding a Mesen console is:
+
+1. `Core/mesen_core.cpp` — one host glue file (the work; the shape is
+   `Core/gba_core.cpp`'s, and `Core/nes_adapter.cpp` already exists as the
+   adapter seam for the NES, refusing to attach until a console can be read);
+2. a `mesen` lang case in `build-core.sh`/`build-sim.sh` with Mesen's include
+   roots, and the relevant `MESEN_*` lists added to the per-target source set;
+3. a `nes_hint`-style field and an `oga_resolve_backend` case so the ROM reaches
+   it (`Core/oga_core.cpp`);
+4. the registry row's `OGA_BACKEND_PLANNED` -> `READY` (`Core/systems.cpp`), in
+   the same commit as the boot.
+
+⛔ **The NES is first, and `docs/plans/emulator-agnostic-shell.md` says why**: it
+is the smallest real win and the one with a named reader to attach (the Zelda
+accessibility mod).
+
 ## ⛔ The distinction that matters: GUI vs. drivable
 
 Having an emulator installed does **not** mean a harness can drive it. The

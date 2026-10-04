@@ -56,6 +56,9 @@ typedef enum {
     OGA_SYS_GENESIS = 12,      /* Sega Genesis / Mega Drive */
     OGA_SYS_DREAMCAST = 13,    /* Sega Dreamcast */
     OGA_SYS_3DS = 14,          /* Nintendo 3DS */
+    OGA_SYS_MASTER = 15,       /* Sega Master System / Game Gear */
+    OGA_SYS_PCE = 16,          /* PC Engine / TurboGrafx-16 */
+    OGA_SYS_WONDERSWAN = 17,   /* WonderSwan / WonderSwan Color */
 } OgaSystemId;
 
 /* How far along a system is. The UI uses this to decide whether to allow a

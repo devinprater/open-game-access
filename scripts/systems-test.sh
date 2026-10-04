@@ -33,6 +33,7 @@ SABOTAGES=(
   SABOTAGE_DS_ONE_SCREEN       # the DS loses a screen
   SABOTAGE_DUPLICATE_IDS       # two rows share an id
   SABOTAGE_REASON_IS_GENERIC   # the refusal stops naming the console
+  SABOTAGE_MASTER_LOSES_GG     # a Game Gear ROM stops resolving to the Sega 8-bit row
 )
 
 echo

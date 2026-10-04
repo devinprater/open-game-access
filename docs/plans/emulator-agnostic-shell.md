@@ -53,8 +53,13 @@ over JNI.
 | System | Core | Feasible? | The catch |
 |---|---|---|---|
 | DS, GB, GBA, PSP | melonDS-lua, mGBA, PPSSPP | **In this build** | PSP is GPL: irreversible, see `multi-core-mgba-ppsspp.md` |
-| NES | Mesen, or FCEUmm | Yes | CPU is trivial; audio-accurate cores exist |
-| SNES | a SNES core | Yes | Fine on ARM64 |
+| NES | **Mesen (pinned, admitted)** | **Yes — measured** | 45 TUs + Shared compile for aarch64-linux-android26 (2026-10-04). Adapter seam already exists |
+| SNES | **Mesen Core/SNES** | **Yes — measured** | 66 TUs. Replaces the unnamed "a SNES core", and it is the same tree as the NES |
+| GB / GBC | mGBA (**or Mesen Core/Gameboy**) | Yes | mGBA path is already in the build; Mesen's 19 TUs are a second option |
+| GBA | mGBA (**or Mesen Core/GBA**) | Yes | mGBA is wired in; Mesen's 23 TUs are a second option |
+| SMS / Game Gear | **Mesen Core/SMS** | **Yes — measured** | 17 TUs — the cheapest console in the set |
+| PC Engine | **Mesen Core/PCE** | **Yes — measured** | 27 TUs. CD titles (.cue) are claimed by the PS1 row, so discs are out of reach |
+| WonderSwan | **Mesen Core/WS** | **Yes — measured** | 19 TUs |
 | N64 | needs a recompiler | Yes, with effort | **JIT.** ARM64 iOS gives no JIT entitlement, so this is interpreter-or-nothing on sideloads. Perf to be measured before promising |
 | PS1 | DuckStation-class | Yes | Software renderer is required (no GPU on this path); Metal/GLES port is the work |
 | PS2 | PCSX2-class | **Not soon** | Very heavy. On phone it is years out; I would not plan around it |
@@ -76,7 +81,16 @@ Mario Kart 64 (N64) or Double Dash (GameCube) would.
    a real ROM boots and speaks. **The speech is not yet meaningful** — see
    `docs/research/gba-host-proof.md`. That is the next real work.
 4. **NES** — smallest real win, and it proves steps 1–2 with a console neither
-   existing backend resembles. Mesen's core is clean C++.
+   existing backend resembles. **The core is now CHOSEN AND ADMITTED**: Mesen2
+   is pinned in `scripts/bootstrap-deps.sh`, `scripts/mesen-feasibility.sh`
+   compiles all seven of its console cores for this target, and the measured
+   lists are in `scripts/core-sources.sh`. What is missing is the host glue
+   (`Core/mesen_core.cpp`) — the core is no longer the unknown.
+   ⛔ The same measurement turned up the rest of Mesen's set, so SNES, SMS/Game
+   Gear, PC Engine and WonderSwan are now listed in the registry as PLANNED with
+   a measured core rather than as names. See `docs/emulator-inventory.md`.
+   **GB/GBC and GBA have a second, unused Mesen core** — mGBA already boots
+   both, so those two are a choice (swap, or keep mGBA) and not a gap.
 5. **Android reads the registry** — retire `MelonInstance` for NDS too.
 6. **PS1**, then **N64** (measure first), then **SNES**.
 7. PS2 / GC / Wii: not planned; revisit when a core exists that runs on a phone.
