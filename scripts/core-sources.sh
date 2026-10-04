@@ -56,11 +56,18 @@ teakra/src/timer.cpp teakra/src/test_generator.cpp
 # PSP backend: the real Core/psp_core.cpp (IR interpreter + software GPU)
 # satisfies the psp_* ABI pokecore.cpp calls. It rides PPSPP_GLUE with the
 # ppspp lang, not plain cxx, because it needs the PPSSPP tree headers.
+# ⛔ NO COMMENTS INSIDE THIS VARIABLE. OGA_GLUE is an unquoted shell string that
+# build scripts WORD-SPLIT into a source list, and word-splitting does not respect
+# '#' inside a variable: a comment here becomes filenames ("Core/branch",
+# "Core/in", "Core/table,", "Core/pokecore.cpp."). That silently broke the device
+# archive — 859 "of 908 TUs processed", exit 0, archive never rebuilt, and the app
+# link then failed on undefined oga_system_* symbols. Prose belongs OUT here.
+#
+# oga_core.cpp is the one backend interface every console is reached through
+# (Core/oga_core.h): the Game Boy and PSP ops tables plus the extension->backend
+# resolver. systems.cpp is the console registry, which was in NO build list at all
+# until it was added here.
 OGA_GLUE="
-# pokecore.cpp's registry, and the one backend interface every console is
-# reached through (Core/oga_core.h). oga_core.cpp holds the Game Boy and PSP ops
-# tables plus the extension->backend resolver, so adding a console is a case in
-# that resolver and an ops table, not another branch in pokecore.cpp.
 poke_platform.cpp pokecore.cpp oga_core.cpp systems.cpp
 fe_access.cpp fe_adapter.cpp
 gba_adapter.cpp
