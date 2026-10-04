@@ -61,7 +61,7 @@ OGA_GLUE="
 # reached through (Core/oga_core.h). oga_core.cpp holds the Game Boy and PSP ops
 # tables plus the extension->backend resolver, so adding a console is a case in
 # that resolver and an ops table, not another branch in pokecore.cpp.
-poke_platform.cpp pokecore.cpp oga_core.cpp
+poke_platform.cpp pokecore.cpp oga_core.cpp systems.cpp
 fe_access.cpp fe_adapter.cpp
 gba_adapter.cpp
 gba_core.cpp mgba_version_stub.cpp
