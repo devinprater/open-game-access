@@ -297,28 +297,22 @@ srcs = open(sys.argv[1], encoding="utf-8").read()
 m = re.search(r'MGBA="(.*?)"\n', srcs, re.S)
 files = [f for f in m.group(1).split() if f.endswith('.c')]
 
-# The audited list is GBA-only. These two sets complete it for this build.
-GB_EXTRA = [
-    "src/gb/cheats.c", "src/gb/core.c", "src/gb/gb.c", "src/gb/input.c",
-    "src/gb/io.c", "src/gb/mbc.c", "src/gb/mbc/huc-3.c", "src/gb/mbc/licensed.c",
-    "src/gb/mbc/mbc.c", "src/gb/mbc/pocket-cam.c", "src/gb/mbc/tama5.c",
-    "src/gb/mbc/unlicensed.c", "src/gb/memory.c", "src/gb/overrides.c",
-    "src/gb/serialize.c", "src/gb/renderers/cache-set.c",
-    "src/gb/renderers/software.c", "src/gb/sio.c", "src/gb/timer.c",
-    "src/gb/video.c", "src/gb/sio/lockstep.c", "src/gb/sio/printer.c",
-    "src/gb/extra/proxy.c",
-    # The GB debugger interface, pulled in by the core (ENABLE_DEBUGGERS). From
-    # mGBA's src/gb/debugger/.
-    "src/gb/debugger/cli.c", "src/gb/debugger/debugger.c",
-    "src/gb/debugger/symbols.c",
-]
-# The SM83 (Game Boy CPU) core. From mGBA's src/sm83/CMakeLists.txt; only needed
-# because M_CORE_GB is defined.
-SM83_EXTRA = [
-    "src/sm83/decoder.c", "src/sm83/isa-sm83.c", "src/sm83/sm83.c",
-    "src/sm83/debugger/debugger.c", "src/sm83/debugger/cli-debugger.c",
-    "src/sm83/debugger/memory-debugger.c",
-]
+# ⛔ THE GB AND SM83 SETS ARE READ FROM scripts/core-sources.sh, NOT WRITTEN HERE.
+# They used to be a hand-maintained copy, and it was WRONG in this very file: it
+# omitted src/gb/mbc/mbc.c, the dispatcher holding the &GBMBC*Create/&GBMBC*Load
+# pointers, so every mbc/ file compiled unreferenced and a GB cart with a memory
+# bank controller could not be built. It also carried src/gb/test/* (mGBA's own
+# tests, not the library). The iOS lists are generated from mGBA's CMake; Android
+# reads the same ones, so the two platforms cannot ship different emulators.
+def _oga_list(srcs, name):
+    m = re.search(r'^' + name + r'="(.*?)"\n', srcs, re.S | re.M)
+    assert m, "no " + name + " list in " + sys.argv[1]
+    return [f for f in m.group(1).split() if f.endswith('.c')]
+
+GB_EXTRA = _oga_list(srcs, "MGBA_GB")
+SM83_EXTRA = _oga_list(srcs, "MGBA_SM83")
+assert GB_EXTRA, "MGBA_GB came back empty -- refusing to generate a broken CMakeLists"
+assert "src/gb/mbc/mbc.c" in GB_EXTRA, "the MBC dispatcher is missing from MGBA_GB"
 LZMA_EXTRA = [
     "src/third-party/lzma/7zArcIn.c", "src/third-party/lzma/7zBuf.c",
     "src/third-party/lzma/7zCrc.c", "src/third-party/lzma/7zCrcOpt.c",
@@ -392,9 +386,10 @@ set(OGA_MGBA_DEFS
     # Extra source sets the audited GBA-only list does not carry.
     extra_head = NL.join([
         "",
-        "# --- Game Boy core (mGBA's own src/gb/CMakeLists.txt list). I added",
-        "#     M_CORE_GB, which registers the GB core; without these it is",
-        "#     referenced but never defined. ---",
+        "# --- Game Boy core. M_CORE_GB is set above, which REGISTERS the GB",
+        "#     core in mGBA's filter table; without the sources it would be",
+        "#     referenced but never defined. This set is MGBA_GB from",
+        "#     scripts/core-sources.sh, generated from mGBA's own CMakeLists. ---",
         "set(GB_SOURCES",
     ])
     fh.write(extra_head + NL)
