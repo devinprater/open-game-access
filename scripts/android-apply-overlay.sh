@@ -300,6 +300,12 @@ set(OGA_MGBA_DEFS
     HAVE_PTHREAD_CREATE HAVE_PTHREAD_SETNAME_NP
     HAVE_REALPATH HAVE_SETLOCALE HAVE_STRDUP HAVE_STRLCPY HAVE_STRNDUP
     HAVE_USELOCALE HAVE_VASPRINTF HAVE_XLOCALE
+    # ⛔ HAVE_STRTOF_L is REQUIRED on Android and is NOT in the iOS set. mGBA ships a
+    # strtof_l fallback under #ifndef HAVE_STRTOF_L, and bionic already provides one
+    # (bits/stdlib_inlines.h), so without this the build dies with
+    # 'redefinition of strtof_l'. mGBA's own CMakeLists sets it for
+    # ANDROID AND ANDROID_NDK_MAJOR GREATER 13 -- this is that branch.
+    HAVE_STRTOF_L
     M_CORE_GBA M_CORE_GB
     USE_LUA USE_LZMA USE_PTHREADS
 )
