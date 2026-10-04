@@ -95,7 +95,7 @@ MESEN_REPO="${MESEN_REPO:-https://github.com/nesdev-org/MesenCE.git}"
 MESEN_REV="${MESEN_REV:-a60e79feb4d6dcced5922d636f9211837d01e381}"
 fetch "$MESEN_REPO" mesen "$MESEN_REV"
 
-PPSSPP_REPO="${PPSSPP_REPO:-https://github.com/hrydgard/ppsspp.git}
+PPSSPP_REPO="${PPSSPP_REPO:-https://github.com/hrydgard/ppsspp.git}"
 PPSSPP_REV="${PPSSPP_REV:-f293b10fb2d9dc0c2bc10281444ee3d3e932e6ad}"
 fetch "$PPSSPP_REPO" ppsspp "$PPSSPP_REV"
 # Only the submodules the audited subset compiles (see core-sources.sh).
