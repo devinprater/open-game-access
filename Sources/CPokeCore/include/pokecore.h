@@ -162,6 +162,63 @@ uint32_t poke_announce_id_for_text(PokeCore *core, const char *utf8_text);
 
 const char *poke_version(void);
 
+/* ---------------------------------------------------------------- systems
+ *
+ * The console registry (Core/systems.h) re-exported here, because CPokeCore is
+ * the ONLY thing Swift is allowed to see of the core: a Swift file cannot
+ * include Core/systems.h without dragging the whole core into the module map.
+ *
+ * The point of exposing it is that the UI should not keep its own copy of "which
+ * consoles exist and what each is like". It had one (GameSystem.swift, a switch
+ * over four systems with its own extension table), and that copy is how a .gba
+ * came to be handled by a UI path that knew nothing about the Game Boy.
+ *
+ * ⛔ ABI NOTE: these three are the registry's read-only surface. The ids cross
+ * this boundary as plain ints (matching OgaSystemId), so the enum is APPEND-ONLY
+ * — see the warning in systems.h.
+ */
+
+/* Which console a ROM path belongs to, by extension; NULL when unknown.
+ * ⛔ NULL means "cannot run this", never "assume the DS". */
+const void* oga_system_for_path(const char* path);
+
+/* True when this build has a backend that can actually load that console. */
+bool oga_system_is_runnable(const void* sys);
+
+/* What the player should hear for a file this build cannot run: names the
+ * extension, or the console when the file was understood. Never NULL. */
+const char* oga_unsupported_reason(const char* path);
+
+/* Console id (OgaSystemId) for a resolved system, or 0 for unknown. */
+int oga_system_id(const void* sys);
+
+/* Display name ("Game Boy Advance"), or "" for NULL. Stable pointer. */
+const char* oga_system_name(const void* sys);
+
+/* One face button: writes up to `max` (title, sf_symbol, hint, raw pad index).
+ * Returns how many were written. The button list is what the pad renders, so a
+ * console with two buttons must not report four. */
+int oga_system_face_buttons(const void* sys,
+                            const char** titles, const char** symbols,
+                            const char** hints, int* raws, int max);
+
+/* Screens the console draws (2 only on the DS family). */
+int oga_system_screen_count(const void* sys);
+
+/* Shoulder buttons on the pad? */
+bool oga_system_has_shoulders(const void* sys);
+
+/* Analog stick count: 0 means d-pad only. */
+int oga_system_analog_sticks(const void* sys);
+
+/* Every known console, as opaque handles. Returns the count; the array is
+ * owned by the registry and must not be freed.
+ *
+ * ⛔ NOT named oga_all_systems: Core/systems.h already exports that name with a
+ * `const OgaSystem* const*` return type, and two signatures for one C symbol is
+ * an ODR violation. This is the opaque-handle mirror of it. */
+const void* const* oga_all_system_handles(int* out_count);
+
 #ifdef __cplusplus
 }
 #endif

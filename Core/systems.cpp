@@ -362,4 +362,76 @@ const char* oga_unsupported_reason(const char* path)
     return buf;
 }
 
+/* ------------------------------------------------------------------------
+ * The C-ABI accessors declared in Sources/CPokeCore/include/pokecore.h.
+ *
+ * They are thin readers of the table above, and they live HERE rather than in
+ * the app glue so that "what a console is" has exactly one definition. The app
+ * imports these through CPokeCore, the only header Swift sees of the core.
+ */
+
+int oga_system_id(const void* sys)
+{
+    const OgaSystem* s = (const OgaSystem*) sys;
+    return s ? (int) s->id : (int) OGA_SYS_UNKNOWN;
+}
+
+const char* oga_system_name(const void* sys)
+{
+    const OgaSystem* s = (const OgaSystem*) sys;
+    return (s && s->name) ? s->name : "";
+}
+
+int oga_system_face_buttons(const void* sys,
+                            const char** titles, const char** symbols,
+                            const char** hints, int* raws, int max)
+{
+    const OgaSystem* s = (const OgaSystem*) sys;
+    if (!s || !s->faceButtons || max <= 0) return 0;
+    int n = s->faceButtonCount < max ? s->faceButtonCount : max;
+    for (int i = 0; i < n; i++)
+    {
+        if (titles)  titles[i]  = s->faceButtons[i].title;
+        if (symbols) symbols[i] = s->faceButtons[i].symbol;
+        if (hints)   hints[i]   = s->faceButtons[i].hint;
+        if (raws)    raws[i]    = s->faceButtons[i].raw;
+    }
+    return n;
+}
+
+int oga_system_screen_count(const void* sys)
+{
+    const OgaSystem* s = (const OgaSystem*) sys;
+    return s ? s->screenCount : 0;
+}
+
+bool oga_system_has_shoulders(const void* sys)
+{
+    const OgaSystem* s = (const OgaSystem*) sys;
+    return s && s->hasShoulders;
+}
+
+int oga_system_analog_sticks(const void* sys)
+{
+    const OgaSystem* s = (const OgaSystem*) sys;
+    return s ? s->analogSticks : 0;
+}
+
+/* ⛔ Casting `const OgaSystem* const*` to `const void* const*` is the SAME class
+ * of bug that already cost this file once: the older oga_all_systems returned
+ * the struct array cast to a pointer array, so callers dereferenced address 0x1.
+ * Here the array really IS an array of pointers (see kPointers above), so the
+ * cast is sound — and the static_assert up there keeps the two from drifting. */
+const void* const* oga_all_system_handles(int* out_count)
+{
+    int count = 0;
+    const OgaSystem* const* all = oga_all_systems(&count);
+    static const void* ptrs[32];
+    static_assert(sizeof(kSystems) / sizeof(kSystems[0]) <= 32,
+                  "the registry outgrew the C-ABI pointer mirror");
+    for (int i = 0; i < count; i++) ptrs[i] = (const void*) all[i];
+    if (out_count) *out_count = count;
+    return ptrs;
+}
+
 } // extern "C"
