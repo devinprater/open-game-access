@@ -68,7 +68,19 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   even Lua was missing, so the NDS Lua host was unwired too. 336 -> 510 translation
   units.
 
-- [ ] **BUT NOTHING CALLS IT YET. The GBA path is not reachable by a player.**
+- [~] **THE GBA PATH IS NOW REACHABLE ON ANDROID (2026-10-04).** `GbBridge.kt`
+  is a @JavascriptInterface object the launcher page calls; `MainActivity` routes
+  the SAF picker result into it; `index.html` is a real launcher (select/start/
+  stop, the pad built from mGBA's key mask, the reader's hotkeys). The page ASKS
+  the native side whether the core is present instead of hardcoding the old
+  "not compiled into this test build" line, which had gone stale on screen.
+  Guarded by `scripts/android-gb-bridge-test.sh` (8 checks + 5 mutations in
+  adapter-tests), which crosses the two languages over: every `oga_gb.<method>`
+  the page calls must be exported, every `window.<fn>` Kotlin calls must be
+  defined, every `external fun` must have its exact JNI symbol, and the page's key
+  mask must match mGBA's. ⚠ NOT device-proven, and the speech is not meaningful
+  yet (see the Game Boy entry above).
+- [x] ~~BUT NOTHING CALLS IT YET~~ — superseded by the entry above.
   The native side is complete -- MGBAScriptJNI.cpp exports all 10
   Java_..._GbAccessibilityScript_* entry points and they link -- but no Kotlin or JS
   code invokes them. Concretely:
@@ -125,12 +137,30 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   label all 571 UI files (that would be fluff). The game itself is narrated by the Lua
   script, not by the UI.
 
-- [ ] **Make the shell emulator-agnostic (scoped 2026-10-04):** plan at
-  `docs/plans/emulator-agnostic-shell.md`. `Core/systems.{h,cpp}` has landed -- the
-  registry of 11 consoles with hardware facts and backend state, 40 tests + 6
-  mutations in CI. Next: one `OgaCore` vtable to collapse pokecore.cpp's 104 dispatch
-  branches, then both UIs reading the registry, then NES as the first console neither
+- [~] **Make the shell emulator-agnostic (started 2026-10-04):** plan at
+  `docs/plans/emulator-agnostic-shell.md`. Three of its steps are DONE:
+  * **Registry:** 14 consoles (Genesis/Dreamcast/3DS added -- each has an
+    installed core), 58 tests + 6 mutations in CI. ⛔ It was in NO BUILD LIST, so
+    on device it did not exist; now in OGA_GLUE and build-host.sh, and exposed to
+    the UI through the C ABI in pokecore.h.
+  * **`OgaCore` vtable** (`Core/oga_core.h`): the ~100 `isGba`/`isPsp` dispatch
+    sites are gone. `poke_frame` and `poke_framebuffer` are one body each for
+    every console. DS ops live in pokecore.cpp (they need its private type); the
+    Game Boy and PSP ops plus the extension->backend resolver live in
+    `Core/oga_core.cpp`. Verified: Pokemon Black .nds boots (900 frames, VRAM
+    live), FireRed .gba boots (240x160, 64 colours, speech).
+  * **iOS reads the registry:** hardware facts (screens, shoulders, sticks, the
+    face-button list) come from the core; the script/hotkey tables deliberately
+    stay in Swift, because they belong to the loaded script, not the console.
+  NEXT: **the Game Boy reader's speech is not yet meaningful** -- it says raw
+  numbers and `nil` and its effect hooks fail in `gba.lua`. That is the shim
+  handing the reader bad data, and it is the top of the Game Boy queue; see
+  `docs/research/gba-host-proof.md`. Then NES as the first console neither
   existing backend resembles.
+  ⚠ The step-3 work turned up two things recorded as done that were NOT
+  reachable in a shipped build: the registry was in no build list, and nothing on
+  Android called the Game Boy path at all. Every console step from here should
+  end with a REACHABILITY check, not a build check.
   ⚠ ONE EXPECTATION TO CORRECT: Mario Kart 8 / Deluxe is a SWITCH game. No Switch
   emulation is viable on iOS or Android for sideloaded apps -- it needs hardware
   support no phone has, quite apart from the legal position. That title will not run
