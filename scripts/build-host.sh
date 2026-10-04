@@ -81,6 +81,7 @@ compile() {
   done
   printf '%s|cxx|poke_platform\n' "$ROOT/Core/poke_platform.cpp"
   printf '%s|cxx|pokecore\n'      "$ROOT/Core/pokecore.cpp"
+  printf '%s|cxx|oga_core\n'      "$ROOT/Core/oga_core.cpp"
   # ⛔ THE ADAPTER SOURCES BELONG HERE TOO. They were omitted, so the host objects
   # had a pokecore.o that referenced oga::find_by_game_code while nothing defined
   # it — every harness then failed at the LINK with an undefined symbol, which

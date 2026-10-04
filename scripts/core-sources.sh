@@ -57,7 +57,11 @@ teakra/src/timer.cpp teakra/src/test_generator.cpp
 # satisfies the psp_* ABI pokecore.cpp calls. It rides PPSPP_GLUE with the
 # ppspp lang, not plain cxx, because it needs the PPSSPP tree headers.
 OGA_GLUE="
-poke_platform.cpp pokecore.cpp
+# pokecore.cpp's registry, and the one backend interface every console is
+# reached through (Core/oga_core.h). oga_core.cpp holds the Game Boy and PSP ops
+# tables plus the extension->backend resolver, so adding a console is a case in
+# that resolver and an ops table, not another branch in pokecore.cpp.
+poke_platform.cpp pokecore.cpp oga_core.cpp
 fe_access.cpp fe_adapter.cpp
 gba_adapter.cpp
 gba_core.cpp mgba_version_stub.cpp

@@ -58,6 +58,10 @@ using namespace melonDS;
 // Implemented in poke_platform.cpp.
 #include "poke_internal.h"
 
+// The one backend interface (Core/oga_core.h). Every console below is reached
+// through it, so adding a console does not mean editing every entry point.
+#include "oga_core.h"
+
 // Forward: defined beside HostSpeak below; used by the Lua bindings and
 // lifecycle functions above it.
 static uint64_t CoreNowMs(void);
@@ -68,26 +72,25 @@ struct PokeCore {
     char error[512] = {0};
     std::string savePath;
 
-    // ---- Game Boy backend ----
+    // ---- the live backend ----
     //
-    // A GBA ROM does not go through melonDS at all: it runs in the mGBA core
-    // (Core/gba_core.cpp) with the unmodified Pokémon Access Lua reader set.
-    // isGba is decided once at load from the file extension and never changes
-    // after; every poke_* entry point below branches on it first.
-    GbaCore* gba = nullptr;
-    bool isGba = false;
+    // WHICH emulator is running this ROM, as one vtable (Core/oga_core.h).
+    //
+    // This replaced two nullable pointers plus two booleans (isGba/isPsp) that
+    // ~100 dispatch sites had to agree about — the arrangement that let a .gba
+    // reach melonDS if one site forgot a check. Now there is one value, set
+    // once at load and never changed, and every entry point goes through it.
+    //
+    // `backend.state` is the live core object (GbaCore*/PspCore*/NDS*) and
+    // `backend.ops` is the static table for its console. Both are null when no
+    // ROM is loaded. The NDS ops live in this file, below, because they need
+    // PokeCore's private type.
+    OgaCore backend = { nullptr, nullptr };
 
-    // ---- PlayStation Portable backend ----
-    //
-    // A PSP game (.iso/.cso/.pbp/.elf) runs in the PPSSPP core
-    // (Core/psp_core.cpp, IR interpreter + software GPU). Same contract as
-    // the Game Boy backend: isPsp is decided once at load from the file
-    // extension, and every poke_* entry point branches on it. Unlike GBA,
-    // the adapter comes from the REGISTRY by game ID (ULUS10437 -> Dissidia),
-    // exactly like an NDS game — a PSP game with no adapter is the normal
-    // no-reader case, not an error.
+    // Live backend objects, owned here for lifetime. The ops tables do not own
+    // them: `backend.state` just points at one of these.
+    GbaCore* gba = nullptr;
     PspCore* psp = nullptr;
-    bool isPsp = false;
     // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
     // the app bundle; the app points the core at them before loading a PSP
     // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
@@ -187,6 +190,24 @@ struct PokeCore {
     bool running = false;
     int stopReason = 0;
 };
+
+// The DS ops table, DEFINED at the very end of this file: its functions call
+// ApplyInput, FlushSave, BuildHost and the savestate code, all of which are
+// defined below this point.
+//
+// ⛔ Reached through a function, not a bare forward declaration. In C a
+// namespace-scope `static const OgaCoreOps x;` is a tentative definition; in C++
+// it is an ERROR ("uninitialized const"), and it then collides with the real
+// definition as a redefinition. A function returning the table sidesteps both
+// and keeps the single definition at the end of the file.
+static const OgaCoreOps* NdsOpsTable(void);
+
+// Is the live backend melonDS? Derived from the ops pointer rather than a
+// boolean, so it cannot disagree with the table the calls actually go through.
+static bool IsPokeNds(const PokeCore* core)
+{
+    return core && core->backend.ops == NdsOpsTable();
+}
 
 // The Platform layer signals a console-driven stop (power off, bad exception
 // region); this is the single core the app owns, so it is reachable globally.
@@ -708,6 +729,16 @@ PokeCore* poke_create(void)
     cfg.host_reports_done = false;  // estimate pacing until completion hooks land
     cfg.diag_verbose = false;
     core->announceQ = oga::announce_create(sink, cfg);
+    // A core exists before any ROM does and is a DS core until a ROM says
+    // otherwise.
+    //
+    // ⛔ `state` IS the core for the DS: its ops are free functions that cast the
+    // state straight back to PokeCore*, because the melonDS NDS / Lua state /
+    // adapter registry all live there. Leaving it NULL (which compiles fine and
+    // looks safe) makes every entry point refuse, and the symptom is a console
+    // that "stops at frame 0" with an empty framebuffer — not a NULL crash.
+    core->backend.ops = NdsOpsTable();
+    core->backend.state = core;
     gCurrentCore = core;
     return core;
 }
@@ -726,6 +757,8 @@ void poke_destroy(PokeCore* core)
     if (core->L) lua_close(core->L);
     if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
+    core->backend.ops = nullptr;
+    core->backend.state = nullptr;
     if (gCurrentCore == core) gCurrentCore = nullptr;
     delete core;
 }
@@ -766,22 +799,14 @@ static bool AdapterReadScalar(PokeCore* core, uint32_t addr, int width, uint32_t
 {
     *out = 0;
     if (!core) return false;
-    if (core->isGba)
+    if (core->backend.ops && !IsPokeNds(core))
     {
-        // GBA addresses go straight to the mGBA bus: the same read path the
-        // Lua reader's memory.* bindings use, so an adapter and the script
-        // cannot disagree about what an address contains.
-        if (!core->gba || (width != 1 && width != 2 && width != 4)) return false;
-        *out = gba_debug_read(core->gba, addr, width);
-        return true;
-    }
-    if (core->isPsp)
-    {
-        // PSP addresses (user RAM 0x08800000..0x0A000000 and friends) go to
-        // PPSSPP's memory map; validity is checked inside.
-        if (!core->psp || (width != 1 && width != 2 && width != 4)) return false;
-        *out = psp_debug_read(core->psp, addr, width);
-        return true;
+        // Console addresses go straight to that console's bus — the same read
+        // path its reader uses, so an adapter and a script cannot disagree
+        // about what an address contains. `false` (not 0) is the answer for an
+        // address outside the map: an adapter must not narrate a zero it
+        // invented.
+        return core->backend.ops->read(core->backend.state, addr, width, out);
     }
     if (!core->nds) return false;
     uint8_t bytes[4] = {0};
@@ -1043,9 +1068,12 @@ void poke_set_psp_asset_dir(PokeCore* core, const char* asset_dir)
 
 void poke_set_script_dir(PokeCore* core, const char* dir)
 {
-    if (!core || !dir) return;
-    if (!core->isGba || !core->gba) return;
-    gba_set_script_dir(core->gba, dir);
+    if (!core || !dir || !core->backend.ops) return;
+    // Routed through the ops table: a backend without an external script set
+    // has no member here and the call is a documented no-op, instead of the
+    // `isGba` check that used to be the only thing keeping this safe.
+    if (core->backend.ops->set_script_dir)
+        core->backend.ops->set_script_dir(core->backend.state, dir);
 }
 
 // --------------------------------------------------------------------- loading
@@ -1099,39 +1127,6 @@ static void GbaLogForward(const char* utf8, void* ctx)
     if (core && core->logCb && utf8) core->logCb(utf8, core->logUserdata);
 }
 
-static bool HasGbaExtension(const char* path)
-{
-    if (!path) return false;
-    size_t n = strlen(path);
-    if (n < 4) return false;
-    const char* ext = path + n - 4;
-    char lower[5] = {0};
-    for (int i = 0; i < 4; i++) lower[i] = (char) tolower((unsigned char) ext[i]);
-    return strcmp(lower, ".gba") == 0 || strcmp(lower, ".gbc") == 0 || strcmp(lower, ".gb") == 0;
-}
-
-static bool HasPspExtension(const char* path)
-{
-    if (!path) return false;
-    size_t n = strlen(path);
-    if (n < 4) return false;
-    const char* ext4 = path + n - 4;
-    char lower4[5] = {0};
-    for (int i = 0; i < 4; i++) lower4[i] = (char) tolower((unsigned char) ext4[i]);
-    if (strcmp(lower4, ".iso") == 0 || strcmp(lower4, ".cso") == 0 ||
-        strcmp(lower4, ".pbp") == 0 || strcmp(lower4, ".elf") == 0 ||
-        strcmp(lower4, ".prx") == 0)
-        return true;
-    // .ppdmp (raw memory dumps, 6-char extension).
-    if (n >= 6 && path[n - 6] == '.')
-    {
-        char lower6[7] = {0};
-        for (int i = 0; i < 6; i++) lower6[i] = (char) tolower((unsigned char) path[n - 6 + i]);
-        if (strcmp(lower6, ".ppdmp") == 0) return true;
-    }
-    return false;
-}
-
 // Tear down whichever backend ran before, so a new ROM never inherits a live
 // core, a Lua state, or an attached adapter from the previous game.
 static void TeardownBackends(PokeCore* core)
@@ -1144,8 +1139,11 @@ static void TeardownBackends(PokeCore* core)
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
     core->adapter = nullptr;
     core->adapterAttached = false;
-    core->isGba = false;
-    core->isPsp = false;
+    // Clearing the ops is what makes "is a game loaded?" answerable from one
+    // field: anything still holding an ops pointer would be describing a
+    // console that is no longer running. The DS's load path re-claims it.
+    core->backend.ops = nullptr;
+    core->backend.state = nullptr;
 }
 
 static bool LoadGbaRom(PokeCore* core, const char* rom_path, const char* save_path)
@@ -1163,7 +1161,7 @@ static bool LoadGbaRom(PokeCore* core, const char* rom_path, const char* save_pa
         core->gba = nullptr;
         return false;
     }
-    core->isGba = true;
+    core->backend = oga_gba_core(core->gba);
     strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
     // The adapter matches by the code the host hands over (its registry entry
     // is empty by design); GB/GBC titles additionally match by platform.
@@ -1191,7 +1189,7 @@ static bool LoadPspRom(PokeCore* core, const char* rom_path, const char* save_pa
         core->psp = nullptr;
         return false;
     }
-    core->isPsp = true;
+    core->backend = oga_psp_core(core->psp);
     strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
     // The adapter comes from the registry by game ID (ULUS10437 -> Dissidia),
     // exactly like an NDS game. A PSP game with no adapter is the normal
@@ -1205,11 +1203,23 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
     if (!core || !rom_path) { SetError(core, "No ROM path given."); return false; }
     core->error[0] = 0;
 
-    // Game Boy ROMs go to the mGBA core, never to melonDS. The extension
-    // decides: a GBA header inside an .nds-named file (or vice versa) is a
-    // misnamed file, and failing loudly beats emulating the wrong console.
-    if (HasGbaExtension(rom_path)) return LoadGbaRom(core, rom_path, save_path);
-    if (HasPspExtension(rom_path)) return LoadPspRom(core, rom_path, save_path);
+    // Which backend runs this file, decided ONCE, here (see oga_core.h's
+    // oga_resolve_backend). It used to be two extension checks written inline
+    // plus a third copy of the same knowledge in the UI's switch, which is how
+    // a .gba came to be offered to melonDS.
+    //
+    // ⛔ An unrecognised extension is REFUSED, never defaulted to the DS: a
+    // misnamed file failing loudly beats emulating the wrong console.
+    {
+        const OgaResolvedBackend* backend = oga_resolve_backend(rom_path);
+        if (!backend)
+        {
+            SetError(core, "That file type is not something this app can run.");
+            return false;
+        }
+        if (backend->gba_hint) return LoadGbaRom(core, rom_path, save_path);
+        if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
+    }
 
     // A new NDS ROM on a core that previously ran another backend: tear it
     // down first, or every branch below would keep serving the old game.
@@ -1386,6 +1396,8 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
     // A match does NOT mean the game is ready — the game's own structures do not
     // exist yet. It only means an adapter is willing to try. attach() is deferred
     // until the console has booted far enough, and ready() gates what is spoken.
+    core->backend.ops = NdsOpsTable();
+    core->backend.state = core;   // the DS's state IS the core; see poke_create
     core->adapter = nullptr;
     core->adapterAttached = false;
     core->gameCode[0] = 0;
@@ -1456,21 +1468,16 @@ static bool StartScript(PokeCore* core)
 bool poke_start(PokeCore* core)
 {
     if (!core) { return false; }
-    if (core->isGba)
+    if (core->backend.ops && !IsPokeNds(core))
     {
-        if (!core->gba) { SetError(core, "Load a game first."); return false; }
-        // The reader boots inside gba_start (it prints Ready when it finds
-        // the game); there is no concatenated script to install first.
-        if (!gba_start(core->gba)) { SetError(core, "%s", gba_last_error(core->gba)); return false; }
-        core->running = true;
-        return true;
-    }
-    if (core->isPsp)
-    {
-        if (!core->psp) { SetError(core, "Load a game first."); return false; }
-        // PSP boot (kernel + game) happens inside psp_start; the native
-        // adapter attaches later via poke_adapter_ready and gates on ready().
-        if (!psp_start(core->psp)) { SetError(core, "%s", psp_last_error(core->psp)); return false; }
+        // The Game Boy reader boots inside gba_start (it says Ready when it
+        // recognises the cart) and PSP boot happens inside psp_start; neither
+        // has a concatenated script to install the way the DS does.
+        if (!core->backend.ops->start(core->backend.state))
+        {
+            SetError(core, "%s", core->backend.ops->last_error(core->backend.state));
+            return false;
+        }
         core->running = true;
         return true;
     }
@@ -1485,8 +1492,7 @@ void poke_stop(PokeCore* core)
 {
     if (!core) return;
     core->running = false;
-    if (core->isPsp && core->psp) { psp_stop(core->psp); return; }
-    if (core->isGba) { if (core->gba) gba_stop(core->gba); return; }
+    if (core->backend.ops && !IsPokeNds(core)) { core->backend.ops->stop(core->backend.state); return; }
     if (core->nds) core->nds->Stop();
 }
 
@@ -1569,61 +1575,25 @@ static void EndFrame(PokeCore* core)
 bool poke_frame(PokeCore* core)
 {
     if (!core || !core->running) return false;
-    if (core->isGba)
-    {
-        if (!core->gba) return false;
-        if (!gba_frame(core->gba)) return false;
-        core->frameCounter++;
-        // Drive the native adapter's per-frame hook. For GBA this is what
-        // notices the game reaching a readable state (ready) and tracks the
-        // player; the FE and DBZ hooks are documented no-ops, so driving it
-        // unconditionally changes nothing for NDS.
-        EndFrame(core);
-        return true;
-    }
-    if (core->isPsp)
-    {
-        if (!core->psp) return false;
-        if (!psp_frame(core->psp)) return false;
-        core->frameCounter++;
-        // Same per-frame handshake; Dissidia's on_frame runs its automatic
-        // menu-speech watch here (identity change = speak), so menus announce
-        // without a reader-control tap.
-        EndFrame(core);
-        return true;
-    }
-    if (!core->nds) return false;
+    if (!core->backend.ops || !core->backend.state) return false;
 
-    ApplyInput(core);
-    core->nds->RunFrame();
+    // ⛔ ONE FRAME, FOR EVERY CONSOLE. This used to be three near-identical
+    // blocks stacked behind isGba/isPsp, each carrying its own copy of the
+    // bookkeeping below — which is how the Game Boy path came to run a frame
+    // WITHOUT the per-frame adapter hook, leaving its adapter permanently
+    // un-ready while the DS path worked.
+    //
+    // The backend runs the frame. Everything after that is console-independent:
+    // advance the frame counter, let the backend do whatever per-frame work of
+    // its own it has (the DS flushes its save once a second), then stamp the
+    // adapter clock, drive its on_frame and tick the announcement queue. For
+    // GBA that hook is what notices the game becoming readable; for PSP it is
+    // Dissidia's automatic menu-speech watch.
+    if (!core->backend.ops->frame(core->backend.state)) return false;
     core->frameCounter++;
-
-    // The frame is finished; hand control to the accessibility script for this
-    // frame. This is melonDS-lua's _Update() hook, minus the Qt dependency.
-    if (core->scriptLoaded && core->coroutine)
-    {
-        int nresults = 0;   // same Lua 5.4 requirement as the initial resume
-        int rc = lua_resume(core->coroutine, nullptr, 0, &nresults);
-        if (rc != LUA_OK && rc != LUA_YIELD)
-        {
-            // A script error must not kill the loop silently: the player would
-            // lose every bit of speech with no explanation.
-            const char* err = lua_tostring(core->coroutine, -1);
-            if (core->logCb) core->logCb(err ? err : "script error", core->logUserdata);
-            core->scriptLoaded = false;
-        }
-    }
-
-    // Flush the save once a second.
-    if (core->frameCounter % 60 == 0 && !core->savePath.empty())
-        FlushSave(core);
-
-    // The adapter contract (adapter.h) gives every adapter a per-frame hook;
-    // until now nothing called it, so the GBA adapter could never become
-    // ready. The FE and DBZ hooks are documented no-ops, so this changes
-    // nothing for NDS games and fixes GBA readiness.
+    if (core->backend.ops->tick)
+        core->backend.ops->tick(core->backend.state, (uint64_t) core->frameCounter);
     EndFrame(core);
-
     return true;
 }
 
@@ -1631,55 +1601,29 @@ bool poke_frame(PokeCore* core)
 
 bool poke_framebuffer(PokeCore* core, int screen, int* width, int* height)
 {
-    // The app reads pixels through poke_framebuffer_ptr, which serves the
-    // NDS staging buffer — mirror the non-NDS pixels into it (all RGBA8888).
-    if (core && (core->isGba || core->isPsp))
+    // The app reads pixels through poke_framebuffer_ptr, which serves this
+    // staging buffer.
+    if (!core || !core->backend.ops || !core->backend.state) return false;
+
+    const uint8_t* src = nullptr;
+    if (!core->backend.ops->framebuffer(core->backend.state, screen, width, height, &src))
+        return false;
+    if (!src || *width <= 0 || *height <= 0) return false;
+
+    size_t n = (size_t)(*width) * (size_t)(*height) * 4;
+    // ⛔ ONE BACKEND CONVERTS IN PLACE. The DS's pixels are A8R8G8B8 and need a
+    // per-pixel reorder, so its op writes into THIS buffer and hands back a
+    // pointer to it; copying a buffer onto itself is a no-op at best. Every
+    // other backend hands back its own frame, which is copied because that
+    // pointer is only valid until its next frame.
+    if (src != core->frameRGBA.data())
     {
-        const uint8_t* src = nullptr;
-        if (core->isGba)
-        {
-            // The Game Boy screen is one 240x160 panel; the screen argument
-            // (top / bottom) is an NDS concept and is ignored.
-            if (!core->gba) return false;
-            if (!gba_framebuffer(core->gba, width, height)) return false;
-            src = gba_framebuffer_ptr(core->gba);
-        }
-        else
-        {
-            // The PSP screen is one 480x272 panel; same NDS-argument note.
-            if (!core->psp) return false;
-            if (!psp_framebuffer(core->psp, width, height)) return false;
-            src = psp_framebuffer_ptr(core->psp);
-        }
-        if (!src) return false;
-        size_t n = (size_t)(*width) * (size_t)(*height) * 4;
         if (core->frameRGBA.size() != n) core->frameRGBA.resize(n);
         memcpy(core->frameRGBA.data(), src, n);
-        core->frameScreen = screen;
-        return true;
     }
-    if (width) *width = 256;
-    if (height) *height = 192;
-    if (!core || !core->nds) return false;
-
-    void* top = nullptr;
-    void* bottom = nullptr;
-    if (!core->nds->GPU.GetFramebuffers(&top, &bottom)) return false;
-    void* src = (screen == POKE_SCREEN_TOP) ? top : bottom;
-    if (!src) return false;
-
-    if (core->frameRGBA.size() != 256 * 192 * 4) core->frameRGBA.resize(256 * 192 * 4);
-    const uint32_t* pixels = static_cast<const uint32_t*>(src);
-    uint8_t* dst = core->frameRGBA.data();
-    // The core's framebuffers are A8R8G8B8 (alpha in the high byte); the app
-    // wants non-premultiplied RGBA with a solid alpha.
-    for (int i = 0; i < 256 * 192; i++)
+    else if (core->frameRGBA.size() != n)
     {
-        uint32_t p = pixels[i];
-        dst[i * 4 + 0] = (uint8_t) ((p >> 16) & 0xFF);
-        dst[i * 4 + 1] = (uint8_t) ((p >> 8) & 0xFF);
-        dst[i * 4 + 2] = (uint8_t) (p & 0xFF);
-        dst[i * 4 + 3] = 0xFF;
+        core->frameRGBA.resize(n);
     }
     core->frameScreen = screen;
     return true;
@@ -1696,36 +1640,12 @@ const uint8_t* poke_framebuffer_ptr(PokeCore* core, int screen)
 void poke_set_button(PokeCore* core, int ds_button, bool down)
 {
     if (!core || ds_button < 0) return;
-    if (core->isGba)
+    if (core->backend.ops && !IsPokeNds(core))
     {
-        // GBA buttons are indices 0-9 in the same order (A/B/Select/Start/
-        // dpad/R/L); X/Y (10/11) have no GBA equivalent and are ignored.
-        // The mGBA core applies them on the next frame (setKeys each frame).
-        if (ds_button >= 10 || !core->gba) return;
-        gba_set_button(core->gba, ds_button, down);
-        return;
-    }
-    if (core->isPsp)
-    {
-        // The PSP has no touch screen and four face buttons where the DS has
-        // four: A->Cross (confirm), B->Circle (cancel), X->Triangle, Y->Square.
-        // Shoulders map straight across; Select/Start and the dpad are shared.
-        static const int kDsToPsp[POKE_BTN_COUNT] = {
-            PSP_BTN_CROSS,    // A
-            PSP_BTN_CIRCLE,   // B
-            PSP_BTN_SELECT,   // Select
-            PSP_BTN_START,    // Start
-            PSP_BTN_RIGHT,    // Right
-            PSP_BTN_LEFT,     // Left
-            PSP_BTN_UP,       // Up
-            PSP_BTN_DOWN,     // Down
-            PSP_BTN_R,        // R
-            PSP_BTN_L,        // L
-            PSP_BTN_TRIANGLE, // X
-            PSP_BTN_SQUARE,   // Y
-        };
-        if (ds_button >= POKE_BTN_COUNT || !core->psp) return;
-        psp_set_button(core->psp, kDsToPsp[ds_button], down);
+        // Pad indices are the app's shared numbering; the backend translates
+        // (Cross on PSP, dropped X/Y on Game Boy). The UI sends the same
+        // numbers for every console and only the labels change.
+        core->backend.ops->set_button(core->backend.state, ds_button, down);
         return;
     }
     if (ds_button >= POKE_BTN_COUNT) return;
@@ -1735,15 +1655,22 @@ void poke_set_button(PokeCore* core, int ds_button, bool down)
 
 void poke_set_analog(PokeCore *core, float x, float y)
 {
-    if (!core || !core->isPsp || !core->psp) return;
-    psp_set_analog(core->psp, x, y);
+    if (!core || !core->backend.ops || !core->backend.ops->set_analog) return;
+    core->backend.ops->set_analog(core->backend.state, x, y);
 }
 
 void poke_touch(PokeCore* core, int x, int y, bool down)
 {
     if (!core) return;
-    if (core->isGba) return;   // no touch screen on a Game Boy
-    if (core->isPsp) return;   // no touch screen on a PSP either
+    // A backend that has no touch screen has no member here, so the call is a
+    // documented no-op rather than a pair of console checks that had to be kept
+    // in sync with the console list.
+    if (core->backend.ops && !IsPokeNds(core))
+    {
+        if (core->backend.ops->set_touch)
+            core->backend.ops->set_touch(core->backend.state, x, y, down);
+        return;
+    }
     core->touchX = (uint16_t) x;
     core->touchY = (uint16_t) y;
     core->touchDown = down;
@@ -1752,14 +1679,15 @@ void poke_touch(PokeCore* core, int x, int y, bool down)
 void poke_set_hotkey(PokeCore* core, const char* key, bool down)
 {
     if (!core || !key || !*key) return;
-    if (core->isGba)
+    if (core->backend.ops && !IsPokeNds(core))
     {
-        // Hotkeys go straight to the reader (its command layer); there is no
-        // NDS hotkey table to maintain.
-        if (core->gba) gba_set_hotkey(core->gba, key, down);
+        // Hotkeys go straight to the reader's command layer where there is one.
+        // PSP has none (the native adapters are the only reader), and its ops
+        // table says so by leaving the member NULL.
+        if (core->backend.ops->set_hotkey)
+            core->backend.ops->set_hotkey(core->backend.state, key, down);
         return;
     }
-    if (core->isPsp) return;   // no hotkey layer on PSP (native adapters only)
     char k = key[0];
     auto it = std::find(core->hotkeysDown.begin(), core->hotkeysDown.end(), k);
     if (down && it == core->hotkeysDown.end()) core->hotkeysDown.push_back(k);
@@ -1771,10 +1699,12 @@ void poke_set_hotkey(PokeCore* core, const char* key, bool down)
 int poke_read_audio(PokeCore* core, int16_t* out, int max_frames)
 {
     if (!core || !out || max_frames <= 0) return 0;
-    if (core->isGba) return 0;   // no GBA audio path yet (reader cues are text)
-    if (core->isPsp) {
-        if (!core->psp || !core->audioEnabled) return 0;
-        return psp_read_audio(core->psp, out, max_frames);
+    if (core->backend.ops && !IsPokeNds(core))
+    {
+        // No member means no audio path from this console yet (the Game Boy
+        // reader's cues are text, so there is nothing to miss).
+        if (!core->backend.ops->read_audio || !core->audioEnabled) return 0;
+        return core->backend.ops->read_audio(core->backend.state, out, max_frames);
     }
     if (!core->nds || !core->audioEnabled) return 0;
     return core->nds->SPU.ReadOutput(out, max_frames);
@@ -1790,16 +1720,13 @@ void poke_set_audio_enabled(PokeCore* core, bool enabled)
 bool poke_save_state(PokeCore* core, const char* path)
 {
     if (!core || !path) return false;
-    if (core->isGba)
+    if (core->backend.ops && !IsPokeNds(core))
     {
-        if (!core->gba) return false;
-        if (!gba_save_state(core->gba, path)) { SetError(core, "Could not save the game state."); return false; }
-        return true;
-    }
-    if (core->isPsp)
-    {
-        if (!core->psp) return false;
-        if (!psp_save_state(core->psp, path)) { SetError(core, "Could not save the game state."); return false; }
+        if (!core->backend.ops->save_state(core->backend.state, path))
+        {
+            SetError(core, "Could not save the game state.");
+            return false;
+        }
         return true;
     }
     if (!core->nds) return false;
@@ -1817,16 +1744,13 @@ bool poke_save_state(PokeCore* core, const char* path)
 bool poke_load_state(PokeCore* core, const char* path)
 {
     if (!core || !path) return false;
-    if (core->isGba)
+    if (core->backend.ops && !IsPokeNds(core))
     {
-        if (!core->gba) return false;
-        if (!gba_load_state(core->gba, path)) { SetError(core, "The saved state could not be loaded."); return false; }
-        return true;
-    }
-    if (core->isPsp)
-    {
-        if (!core->psp) return false;
-        if (!psp_load_state(core->psp, path)) { SetError(core, "The saved state could not be loaded."); return false; }
+        if (!core->backend.ops->load_state(core->backend.state, path))
+        {
+            SetError(core, "The saved state could not be loaded.");
+            return false;
+        }
         return true;
     }
     if (!core->nds) return false;
@@ -1845,4 +1769,224 @@ bool poke_load_state(PokeCore* core, const char* path)
     core->nds->DoSavestate(&state);
     if (state.Error) { SetError(core, "The saved state could not be loaded."); return false; }
     return true;
+}
+
+// ==================================================================== NDS ops
+//
+// DEFINED last, on purpose: every function below calls something this file
+// defines earlier (ApplyInput, FlushSave, BuildHost, AdapterReadScalar), and
+// the table itself is forward-declared near the top.
+//
+// The DS is the one console whose ops live here rather than in Core/oga_core.cpp,
+// because they need PokeCore's private type. It is also the only backend with an
+// adapter layer and a Lua script, which is why `attach`, `on_frame` and `tick`
+// are populated HERE and NULL for the other two. That asymmetry is real, and
+// making a console pretend to have an adapter layer it lacks would be worse than
+// a null check.
+
+static bool NdsStart(void* state)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (!core->nds) return false;
+    core->nds->Start();
+    return true;
+}
+
+static void NdsStop(void* state)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (core->nds) core->nds->Stop();
+}
+
+static bool NdsFrame(void* state)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (!core->nds) return false;
+    ApplyInput(core);
+    core->nds->RunFrame();
+
+    // The frame is finished; hand control to the accessibility script for this
+    // frame. This is melonDS-lua's _Update() hook, minus the Qt dependency.
+    if (core->scriptLoaded && core->coroutine)
+    {
+        int nresults = 0;   // Lua 5.4 requires a real pointer here
+        int rc = lua_resume(core->coroutine, nullptr, 0, &nresults);
+        if (rc != LUA_OK && rc != LUA_YIELD)
+        {
+            // A script error must not kill the loop silently: the player would
+            // lose every bit of speech with no explanation.
+            const char* err = lua_tostring(core->coroutine, -1);
+            if (core->logCb) core->logCb(err ? err : "script error", core->logUserdata);
+            core->scriptLoaded = false;
+        }
+    }
+    return true;
+}
+
+// The DS's own per-frame bookkeeping: flush the save once a second. This used to
+// sit inline in poke_frame, which is why it only ever happened for the DS.
+static void NdsTick(void* state, uint64_t frame_index)
+{
+    PokeCore* core = (PokeCore*) state;
+    (void) frame_index;
+    if (core->frameCounter % 60 == 0 && !core->savePath.empty())
+        FlushSave(core);
+}
+
+// Adapter attach: wire the callbacks once, lazily. Attaching at ROM load would
+// hand the adapter a RAM image with none of the game's objects in it yet.
+static void NdsAttach(void* state)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (core->adapterAttached) return;
+    BuildHost(core);
+    if (core->adapter && core->adapter->attach && core->adapter->attach(&core->host))
+        core->adapterAttached = true;
+}
+
+static void NdsOnFrame(void* state)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (core->adapterAttached && core->adapter && core->adapter->on_frame)
+        core->adapter->on_frame();
+}
+
+static bool NdsRead(void* state, uint32_t addr, int width, uint32_t* out)
+{
+    return AdapterReadScalar((PokeCore*) state, addr, width, out);
+}
+
+// A8R8G8B8 (alpha in the high byte) -> non-premultiplied RGBA with solid alpha.
+// The DS is the only console here with two panels: `screen` picks top or bottom.
+static bool NdsFramebuffer(void* state, int screen, int* w, int* h, const uint8_t** pixels)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (!core->nds) return false;
+    void* top = nullptr;
+    void* bottom = nullptr;
+    if (!core->nds->GPU.GetFramebuffers(&top, &bottom)) return false;
+    void* src = (screen == POKE_SCREEN_TOP) ? top : bottom;
+    if (!src) return false;
+
+    const int W = 256, H = 192;
+    size_t n = (size_t) W * H * 4;
+    if (core->frameRGBA.size() != n) core->frameRGBA.resize(n);
+    const uint32_t* in = static_cast<const uint32_t*>(src);
+    uint8_t* dst = core->frameRGBA.data();
+    for (int i = 0; i < W * H; i++)
+    {
+        uint32_t px = in[i];
+        dst[i * 4 + 0] = (uint8_t) ((px >> 16) & 0xFF);
+        dst[i * 4 + 1] = (uint8_t) ((px >> 8) & 0xFF);
+        dst[i * 4 + 2] = (uint8_t) (px & 0xFF);
+        dst[i * 4 + 3] = 0xFF;
+    }
+    if (w) *w = W;
+    if (h) *h = H;
+    if (pixels) *pixels = core->frameRGBA.data();
+    return true;
+}
+
+static void NdsSetButton(void* state, int pad_button, bool down)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (pad_button < 0 || pad_button >= POKE_BTN_COUNT) return;
+    if (down) core->buttonsDown |= (1u << pad_button);
+    else      core->buttonsDown &= ~(1u << pad_button);
+}
+
+// DS keys are active-low; the mask is built in ApplyInput at frame time, because
+// the script's per-frame joypad.set overrides have to be folded in first.
+static void NdsSetTouch(void* state, int x, int y, bool down)
+{
+    PokeCore* core = (PokeCore*) state;
+    core->touchX = (uint16_t) x;
+    core->touchY = (uint16_t) y;
+    core->touchDown = down;
+}
+
+static void NdsSetHotkey(void* state, const char* key, bool down)
+{
+    PokeCore* core = (PokeCore*) state;
+    char k = key[0];
+    auto it = std::find(core->hotkeysDown.begin(), core->hotkeysDown.end(), k);
+    if (down && it == core->hotkeysDown.end()) core->hotkeysDown.push_back(k);
+    else if (!down && it != core->hotkeysDown.end()) core->hotkeysDown.erase(it);
+}
+
+static int NdsReadAudio(void* state, int16_t* out, int max_frames)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (!core->nds || !core->audioEnabled) return 0;
+    return core->nds->SPU.ReadOutput(out, max_frames);
+}
+
+static bool NdsSaveState(void* state, const char* path)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (!core->nds) return false;
+    Savestate st;
+    core->nds->DoSavestate(&st);
+    if (st.Error) return false;
+    FILE* f = fopen(path, "wb");
+    if (!f) return false;
+    fwrite(st.Buffer(), 1, st.Length(), f);
+    fclose(f);
+    return true;
+}
+
+static bool NdsLoadState(void* state, const char* path)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (!core->nds) return false;
+    FILE* f = fopen(path, "rb");
+    if (!f) return false;
+    fseek(f, 0, SEEK_END);
+    long len = ftell(f);
+    fseek(f, 0, SEEK_SET);
+    if (len <= 0) { fclose(f); return false; }
+    std::vector<uint8_t> buffer((size_t) len);
+    size_t got = fread(buffer.data(), 1, buffer.size(), f);
+    fclose(f);
+    if (got != buffer.size()) return false;
+    Savestate st(buffer.data(), (uint32_t) buffer.size(), false);
+    core->nds->DoSavestate(&st);
+    return !st.Error;
+}
+
+static unsigned long long NdsFrames(void* state)
+{
+    return (unsigned long long) ((PokeCore*) state)->frameCounter;
+}
+
+static const char* NdsLastError(void* state)
+{
+    PokeCore* core = (PokeCore*) state;
+    return core ? core->error : "no core";
+}
+
+// The DS's ops. `set_analog` is NULL: a DS has no stick. `set_script_dir` is
+// NULL because the DS reader arrives as one concatenated string via
+// poke_set_script, not as a directory of files.
+//
+// The table is a function-local static: built once, on the first call, and
+// reachable from above (see NdsOpsTable's declaration) without a bare forward
+// declaration, which C++ rejects for a const at namespace scope.
+static const OgaCoreOps* NdsOpsTable(void)
+{
+    static const OgaCoreOps kTable = {
+    "nds",
+    NdsStart, NdsStop, NdsFrame,
+    NdsTick,
+    NdsRead,
+    NdsAttach, NdsOnFrame,
+    NdsFramebuffer,
+    NdsSetButton, NULL, NdsSetTouch,
+    NdsSetHotkey,
+    NULL,
+        NdsReadAudio,
+        NdsSaveState, NdsLoadState,
+        NdsFrames, NdsLastError,
+    };
+    return &kTable;
 }
