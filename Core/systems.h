@@ -53,6 +53,9 @@ typedef enum {
     OGA_SYS_PS2 = 9,           /* PlayStation 2 */
     OGA_SYS_GAMECUBE = 10,     /* GameCube */
     OGA_SYS_WII = 11,          /* Wii */
+    OGA_SYS_GENESIS = 12,      /* Sega Genesis / Mega Drive */
+    OGA_SYS_DREAMCAST = 13,    /* Sega Dreamcast */
+    OGA_SYS_3DS = 14,          /* Nintendo 3DS */
 } OgaSystemId;
 
 /* How far along a system is. The UI uses this to decide whether to allow a

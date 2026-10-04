@@ -50,6 +50,19 @@ int main()
     ExpectSys("/roms/dissidia.iso",       OGA_SYS_PSP, "a .iso is a disc image");
     ExpectSys("/roms/mario64.z64",        OGA_SYS_N64, "a .z64 is the Nintendo 64");
     ExpectSys("/roms/smb.nes",            OGA_SYS_NES, "a .nes is the NES");
+    ExpectSys("/roms/sonic.md",           OGA_SYS_GENESIS, "a .md is a Genesis ROM");
+    ExpectSys("/roms/sonic.gen",          OGA_SYS_GENESIS, "a .gen is a Genesis ROM");
+    ExpectSys("/roms/sonic.smd",          OGA_SYS_GENESIS, "a .smd is a Genesis ROM");
+    ExpectSys("/roms/shenmue.cdi",        OGA_SYS_DREAMCAST, "a .cdi is a Dreamcast disc");
+    ExpectSys("/roms/shenmue.gdi",        OGA_SYS_DREAMCAST, "a .gdi is a Dreamcast disc");
+    ExpectSys("/roms/fe-awakening.3ds",   OGA_SYS_3DS, "a .3ds is a 3DS ROM");
+    ExpectSys("/roms/fe-fates.cia",       OGA_SYS_3DS, "a .cia is a 3DS title");
+    /* ⛔ A disc-image extension shared by two consoles must resolve to ONE of
+     * them, deterministically, and that one must be the console whose core
+     * actually reads it. .chd is listed for PS1 and NOT for Dreamcast for this
+     * reason: first match in the table wins, so listing it twice would promise
+     * Dreamcast support that can never be reached. */
+    ExpectSys("/roms/ff7.chd",            OGA_SYS_PS1, "a .chd resolves to the PlayStation, not the Dreamcast");
 
     printf("\n== case and path handling\n");
     ExpectSys("/roms/POKEMON.NDS",         OGA_SYS_DS,  "uppercase extensions match");
@@ -125,19 +138,31 @@ int main()
             bad("the PSP has four face buttons and no touchscreen", "wrong");
     }
 
-    printf("\n== only one console has two screens\n");
+    printf("\n== the two-screen consoles are exactly the DS family\n");
     {
         int count = 0;
         const OgaSystem* const* all = oga_all_systems(&count);
         if (count > 0 && all) ok("the registry is not empty");
         else bad("the registry is not empty", "empty");
 
-        bool twoScreenOnlyDs = true;
+        /* Two screens is a real hardware fact of a small set of consoles --
+         * the DS and the 3DS -- and it is what the screen picker keys on. A
+         * third console claiming two screens is a bug, and so is one of these
+         * two LOSING a screen. */
+        bool dsHas2 = false, threeDsHas2 = false;
+        bool extraTwoScreen = false;
         for (int i = 0; i < count; i++)
-            if (all[i]->screenCount == 2 && all[i]->id != OGA_SYS_DS)
-                twoScreenOnlyDs = false;
-        if (twoScreenOnlyDs) ok("the DS is the only two-screen console listed");
-        else bad("the DS is the only two-screen console listed", "another has 2");
+        {
+            if (all[i]->screenCount != 2) continue;
+            if (all[i]->id == OGA_SYS_DS) dsHas2 = true;
+            else if (all[i]->id == OGA_SYS_3DS) threeDsHas2 = true;
+            else extraTwoScreen = true;
+        }
+        if (dsHas2 && threeDsHas2 && !extraTwoScreen)
+            ok("the DS and the 3DS are the two-screen consoles, and only they are");
+        else
+            bad("the DS and the 3DS are the two-screen consoles, and only they are",
+                extraTwoScreen ? "a third console claims two screens" : "one of them lost a screen");
 
         /* Every system must have a usable row: a name, and extensions. */
         bool wellFormed = true;
@@ -161,6 +186,41 @@ int main()
                 if (all[i]->id == all[j]->id) { uniqueIds = false; break; }
         if (uniqueIds) ok("every system id is unique");
         else bad("every system id is unique", "a duplicate was found");
+    }
+
+    printf("\n== consoles with a core that is not linked in yet\n");
+    {
+        /* These rows exist so the picker can NAME the console. They must not
+         * claim to be playable, or a blind player gets a game that boots to
+         * nothing. */
+        const OgaSystemId planned[] = { OGA_SYS_NES, OGA_SYS_SNES, OGA_SYS_N64,
+                                        OGA_SYS_PS1, OGA_SYS_GENESIS,
+                                        OGA_SYS_DREAMCAST, OGA_SYS_3DS };
+        bool anyRunnable = false;
+        for (OgaSystemId id : planned)
+        {
+            const OgaSystem* s = oga_system_by_id(id);
+            if (!s) { anyRunnable = true; break; }   /* missing row = fail below */
+            if (oga_system_is_runnable(s)) anyRunnable = true;
+        }
+        if (!anyRunnable) ok("every console listed with a chosen core is not yet playable");
+        else bad("every console listed with a chosen core is not yet playable",
+                 "one claimed to be runnable");
+
+        const OgaSystem* gen = oga_system_by_id(OGA_SYS_GENESIS);
+        if (gen && gen->faceButtonCount == 3 && !gen->hasShoulders)
+            ok("the Genesis has three face buttons and no shoulders");
+        else bad("the Genesis has three face buttons and no shoulders", "wrong");
+
+        const OgaSystem* dc = oga_system_by_id(OGA_SYS_DREAMCAST);
+        if (dc && dc->analogSticks == 1 && dc->faceButtonCount == 4)
+            ok("the Dreamcast has four face buttons and one analog stick");
+        else bad("the Dreamcast has four face buttons and one analog stick", "wrong");
+
+        const OgaSystem* n3 = oga_system_by_id(OGA_SYS_3DS);
+        if (n3 && n3->screenCount == 2 && n3->hasTouch && n3->analogSticks == 1)
+            ok("the 3DS has two screens, a touch screen and a stick");
+        else bad("the 3DS has two screens, a touch screen and a stick", "wrong");
     }
 
     printf("\n== runnable means a core is actually in this build\n");

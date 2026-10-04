@@ -61,6 +61,14 @@ const OgaButton kPlayStation[] = {
     { "Square",   "square",        "Square button",          BTN_Y },
 };
 
+/* Sega Genesis 3-button pad: A/B/C, no shoulders, no X/Y equivalent. The
+ * 6-button pad's X/Y/Z map onto the shoulder/X/Y slots when a core needs them. */
+const OgaButton kGenesis[] = {
+    { "A", "a.circle", "A button", BTN_A },
+    { "B", "b.circle", "B button", BTN_B },
+    { "C", "circle",   "C button", BTN_X },
+};
+
 /* Nintendo 64: A/B plus four C buttons. The C buttons are reported through
  * X/Y and the two shoulders until a core that needs the real C pad lands. */
 const OgaButton kN64[] = {
@@ -86,6 +94,12 @@ const char* const kPs1Ext[]   = { ".iso", ".bin", ".cue", ".chd", ".pbp", NULL }
 const char* const kPs2Ext[]   = { ".iso", ".chd", NULL };
 const char* const kGcExt[]    = { ".iso", ".gcm", ".rvz", ".wia", NULL };
 const char* const kWiiExt[]   = { ".iso", ".wbfs", ".rvz", ".wia", NULL };
+const char* const kGenesisExt[] = { ".md", ".gen", ".smd", NULL };
+/* Dreamcast disc images. Deliberately WITHOUT .chd: that extension already
+ * resolves to the PlayStation row (first match wins in the table), so listing
+ * it here would read as support that cannot be reached. */
+const char* const kDreamcastExt[] = { ".cdi", ".gdi", NULL };
+const char* const k3dsExt[]   = { ".3ds", ".cia", ".cci", ".cxi", NULL };
 
 /* ---- the table --------------------------------------------------------
  *
@@ -156,6 +170,31 @@ const OgaSystem kSystems[] = {
 
     { OGA_SYS_WII, "Wii", kWiiExt, OGA_BACKEND_NONE,
       1, true, false, 2, true, kPlayStation, 4 },
+
+    /* --- listed because a core for them exists and is installed here ---
+     *
+     * These are not "planned" in the hand-wavy sense: each names a core that
+     * already runs on this machine (docs/emulator-inventory.md) and could be
+     * brought into the app. They are PLANNED rather than READY because the
+     * core is not linked into this build yet — the registry's job is to say
+     * which console a file is, so the picker can name it instead of ignoring
+     * it, and so adding the console later is a backend plus no UI work.
+     *
+     * A system with no available core is NOT added here at all, not even as a
+     * row: listing consoles nothing can ever boot would make the picker's
+     * "not playable yet" lie. PS2/GC/Wii stay above because they are on the
+     * wanted list with real cores, just not phone-viable yet.
+     */
+    { OGA_SYS_GENESIS, "Sega Genesis", kGenesisExt, OGA_BACKEND_PLANNED,
+      1, false, false, 0, true, kGenesis, 3 },
+
+    { OGA_SYS_DREAMCAST, "Dreamcast", kDreamcastExt, OGA_BACKEND_PLANNED,
+      1, true, false, 1, true, kDiamond, 4 },
+
+    /* The 3DS is the SECOND two-screen console: a top panel plus a touch
+     * panel, and one circle pad. Its pad is the DS diamond plus a stick. */
+    { OGA_SYS_3DS, "Nintendo 3DS", k3dsExt, OGA_BACKEND_PLANNED,
+      2, true, true, 1, true, kDiamond, 4 },
 };
 
 const int kSystemCount = (int)(sizeof(kSystems) / sizeof(kSystems[0]));
@@ -258,6 +297,7 @@ const OgaSystem* const* oga_all_systems(int* out_count)
         &kSystems[0], &kSystems[1], &kSystems[2], &kSystems[3],
         &kSystems[4], &kSystems[5], &kSystems[6], &kSystems[7],
         &kSystems[8], &kSystems[9], &kSystems[10],
+        &kSystems[11], &kSystems[12], &kSystems[13],
     };
     static_assert(sizeof(kPointers) / sizeof(kPointers[0]) ==
                       sizeof(kSystems) / sizeof(kSystems[0]),
