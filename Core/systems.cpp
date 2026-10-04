@@ -40,7 +40,9 @@ const OgaButton kDiamond[] = {
     { "Y", "y.circle", "Use item",             BTN_Y },
 };
 
-/* Two face buttons (Game Boy, NES). NES labels them A/B too. */
+/* Two face buttons (Game Boy, NES, and the whole Mesen 8-bit set: the
+ * Master System, PC Engine and WonderSwan pads are all two-button at heart;
+ * their extra buttons are Select/Start, which the shared numbering has. */
 const OgaButton kTwoFace[] = {
     { "A", "a.circle", "Confirm, talk, select", BTN_A },
     { "B", "b.circle", "Cancel, back",          BTN_B },
@@ -101,6 +103,24 @@ const char* const kGenesisExt[] = { ".md", ".gen", ".smd", NULL };
 const char* const kDreamcastExt[] = { ".cdi", ".gdi", NULL };
 const char* const k3dsExt[]   = { ".3ds", ".cia", ".cci", ".cxi", NULL };
 
+/* Mesen's 8-bit set. ⛔ NO `.cue` HERE. Mesen's PC Engine core accepts
+ * .cue (CD titles) too, but the PlayStation row above already claims .cue
+ * and FIRST MATCH WINS in this table - listing it again would advertise a
+ * PC Engine path no file could ever reach. Same rule that keeps .chd off
+ * Dreamcast. The Mesen SMS core also loads ColecoVision (.col); not listed
+ * either, because the row is named for the Sega consoles and a mislabeled
+ * row tells a blind player the wrong console name. */
+#ifdef SABOTAGE_MASTER_LOSES_GG
+/* The bug this switch models: a Game Gear ROM stops resolving because .gg
+ * was lost from the Sega 8-bit list. systems-test.sh requires the test to
+ * FAIL here, which is what proves the check is really checking. */
+const char* const kMasterExt[] = { ".sms", ".sg", NULL };
+#else
+const char* const kMasterExt[] = { ".sms", ".gg", ".sg", NULL };
+#endif
+const char* const kPceExt[]    = { ".pce", ".sgx", NULL };
+const char* const kWsExt[]     = { ".ws", ".wsc", NULL };
+
 /* ---- the table --------------------------------------------------------
  *
  * backend: READY means this build has a core that can load the system.
@@ -140,7 +160,9 @@ const OgaSystem kSystems[] = {
      * it is the answer to "what would it take", and it keeps the plan in one
      * place. Update to READY the moment a core loads a ROM.
      *
-     * NES/SNES  -> Mesen (NES) / a SNES core, or mGBA's GB core is unrelated
+     * NES/SNES  -> Mesen (measured 2026-10-04: Core/NES and Core/SNES both
+     *              compile for aarch64-linux-android26; see
+     *              scripts/mesen-feasibility.sh)
      * N64        -> an ARM64-recompiling core; needs JIT consideration
      * PS1        -> DuckStation-class core; software renderer for ARM
      * PS2        -> PCSX2-class; almost certainly not viable on phone yet
@@ -195,6 +217,28 @@ const OgaSystem kSystems[] = {
      * panel, and one circle pad. Its pad is the DS diamond plus a stick. */
     { OGA_SYS_3DS, "Nintendo 3DS", k3dsExt, OGA_BACKEND_PLANNED,
       2, true, true, 1, true, kDiamond, 4 },
+
+    /* --- the rest of Mesen's set, measured the same way ---
+     *
+     * Mesen2 is ONE tree carrying seven console cores (Core/NES, SNES,
+     * Gameboy, GBA, PCE, SMS, WS), each self-contained and linking only
+     * against Core/Shared. scripts/mesen-feasibility.sh compiles all seven
+     * for aarch64-linux-android26 and all seven pass, so each row below
+     * names a core whose BUILD is a measured fact. What is missing is the
+     * host glue (Core/mesen_core.cpp), not the core.
+     *
+     * They stay PLANNED until a ROM boots here, which is the registry's rule
+     * and the only honest answer: a console that claims to be playable and
+     * then does nothing is worse for a blind player than a named refusal.
+     */
+    { OGA_SYS_MASTER, "Sega Master System", kMasterExt, OGA_BACKEND_PLANNED,
+      1, false, false, 0, true, kTwoFace, 2 },
+
+    { OGA_SYS_PCE, "PC Engine", kPceExt, OGA_BACKEND_PLANNED,
+      1, false, false, 0, true, kTwoFace, 2 },
+
+    { OGA_SYS_WONDERSWAN, "WonderSwan", kWsExt, OGA_BACKEND_PLANNED,
+      1, false, false, 0, true, kTwoFace, 2 },
 };
 
 const int kSystemCount = (int)(sizeof(kSystems) / sizeof(kSystems[0]));
@@ -297,7 +341,8 @@ const OgaSystem* const* oga_all_systems(int* out_count)
         &kSystems[0], &kSystems[1], &kSystems[2], &kSystems[3],
         &kSystems[4], &kSystems[5], &kSystems[6], &kSystems[7],
         &kSystems[8], &kSystems[9], &kSystems[10],
-        &kSystems[11], &kSystems[12], &kSystems[13],
+        &kSystems[11], &kSystems[12], &kSystems[13], &kSystems[14],
+        &kSystems[15], &kSystems[16],
     };
     static_assert(sizeof(kPointers) / sizeof(kPointers[0]) ==
                       sizeof(kSystems) / sizeof(kSystems[0]),
