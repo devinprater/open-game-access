@@ -42,7 +42,7 @@ harness should ever boot a PSP game and an abort says so.
 
 | ROM | Code | Result |
 |---|---|---|
-| FireRed | `BPRE` | boots, identified, 240x160, 64 colours, speaks |
+| FireRed | `BPRE` | boots, identified, 240x160, 64 colours, speaks (incl. real naming-screen content) |
 | LeafGreen | `BPGE` | same |
 | Emerald | `BPEE` | same |
 | Ruby | `AXVE` | `game_not_supported` — **CORRECT** |
@@ -51,112 +51,66 @@ harness should ever boot a PSP game and an abort says so.
 Ruby/Sapphire are in v3.1.0's reject list on purpose. Refusing them is the shim
 being honest, not a failure.
 
-## ⛔ Measured: THE SPEECH IS NOT YET MEANINGFUL, AND THAT IS THE REAL DEFECT
+## ⛔ CORRECTION (2026-10-04): the READER IS FINE. The HARNESS is the blocker.
 
-The reader boots, identifies the cartridge and says `Ready`. Then it says things
-like:
+An earlier version of this file said "the speech is not yet meaningful" and blamed
+the shim for handing the reader bad data. **Both parts of that were wrong**, and
+they are corrected here rather than left standing, because the difference decides
+where the next hour goes.
 
-    136197397
-    50345284
-    nil
-    150995016:1107296326
+### The reader read real content
 
-and its effect hooks fail inside `gba.lua`:
+Run past the title screen and the reader speaks the NAMING SCREEN's own UI:
 
-    [oga-shim] effect hook errored: gba.lua:315: 'for' step is zero
-    [oga-shim] effect hook errored: gba.lua:1327: bad argument #1 to 'for iterator' (table expected, got nil)
-    [oga-shim] effect hook errored: gba.lua:2691: attempt to index a nil value (field '?')
+    [SPEAK] A
+    [SPEAK] OK
+    [SPEAK] a
 
-**This is the shim handing the reader bad data, not an emulation problem and not a
-regression.** The reader is running against live memory and getting values it
-cannot interpret, so it speaks raw numbers and `nil` where a place name should be.
+That is a real Game Boy Advance game's screen decoded from live RAM. It is the
+first meaningful speech this project has had from a `.gba`, and it proves the
+chain end to end: cart identified, per-game memory table loaded, screen read,
+text decoded, speech out.
 
-This was invisible before because no harness could boot the game. It is now the
-top of the Game Boy queue, and the harness exists to keep it visible: a reader
-that runs silently is worse than one that crashes, because nothing reports it.
+### The numbers and `nil` are the reader describing a game that has not started
 
-### Where to look — the chain, traced (2026-10-04)
+Every remaining error is in a MAP function, failing because there is no map yet:
 
-⛔ **`readbyterange` is NOT the culprit, and it was checked rather than assumed.**
-That was the first hypothesis: the reader indexes a 1-based table while mGBA's
-`emu:readRange()` returns a string, and numeric indexing of a string yields nil.
-The shim's own header calls it "the single most dangerous mapping", and
-`docs/plans/gb-gba-mgba-board.md` (card A3b) records it as resolved.
+    gba.lua:2691   play_footsteps():
+                     local blocks = get_map_blocks()
+                     play_tile_sound(get_block_type(blocks[player_y][player_x]), ...)
+                   -> "attempt to index a nil value" is `blocks[player_y]`:
+                      the block table has no row for the player.
+    gba.lua:315    a `for` whose STEP is `window.width` -> width is 0, because the
+                   window was built from an empty tilemap.
+    gba.lua:1327   get_window_screen().lines is nil -> no screen was built.
 
-It IS resolved, in this copy. `mgba_compat.lua:233` reads:
+All three are "the game is on a title or naming screen". They are NOT
+data-corruption symptoms, and they are not a shim fault.
 
-    memory.readbyterange = function(addr, length)
-      local raw = callReal("readRange", addr, length)
-      if type(raw) ~= "string" then ... end
-      local out = {}
-      for i = 1, length do      -- string.byte with an explicit index, 1-based
-        ...
+### ⛔ The actual blocker: no harness gets the game into the world
 
-So the string is converted to the 1-based table the readers want. The hypothesis
-is refuted. Recording a guess as "the likely culprit" is how a wrong lead gets
-re-chased months later, so it is corrected here rather than left standing.
+    A only          -> types a letter forever; never confirms the name.
+    A + START       -> still stalled after 12000 frames.
 
-**The actual chain**, from the reader's own error lines:
+START is the confirm button on the naming screen by hand, so a script has to walk
+a screen sequence (naming -> OK -> dialogue -> into the world) that this probe
+does not know. **So the reader is UNVERIFIED IN THE WORLD, because nothing has got
+it there.** That is a TEST-HARNESS LIMITATION and it must not be reported as a
+reader defect — they need completely different work.
 
-  * `gba.lua:315` — `for i = 0, (window.width * window.height) - 1, window.width`
-    and the error is **`'for' step is zero`**. The step IS `window.width`, so
-    **`window.width` is 0**.
-  * `gba.lua:299-302` — `get_window_tilelines` begins `if not window.data then
-    return {} end`. A window with no `data` therefore yields an EMPTY tile-line
-    table rather than a useful error.
-  * `gba.lua:1327` — `get_window_screen().lines`, and the error is `bad argument
-    #1 to 'for iterator' (table expected, got nil)`. `lines` is **nil**, i.e. the
-    screen the reader built has no lines at all.
-  * Raw numbers are then spoken because the reader falls back to whatever it can
-    read, and `nil` where a name should be.
+### What would settle it, in order of cost
 
-So the failure is **one step upstream of the window**: the window never got its
-tile data. It is built from
+  1. **A ready save.** A `.sav` standing in the world, loaded via the core's
+     existing save support, removes the intro entirely and is one run. There is no
+     `.sav` anywhere in the ROM tree today.
+  2. **A savestate.** `gba_save_state`/`gba_load_state` exist, so a state captured
+     once at the point of entering the world would make every later run cheap.
+     Bootstrapping it still needs one successful walk through the intro.
+  3. **A scripted intro.** Feasible but trial-and-error over ~15-minute runs; the
+     probe's button script is the thing to improve.
 
-    gba.lua:619
-    local tilemap = memory.readbyterange(get_bg_tilemap_address(id), get_bg_size(id))
-
-so the prime suspects are `get_bg_tilemap_address(id)` and `get_bg_size(id)` —
-a zero or nil from either produces a zero-length read, then `window.data` empty,
-then `window.width == 0`, then exactly these three errors in this order.
-
-**These are NOT hardware registers — they are the GAME's own RAM addresses.**
-
-The first reading of this was wrong and worth correcting: those functions do not
-touch GBA I/O at all. They read address constants the reader gets from its
-PER-GAME table:
-
-    gba.lua:532  return bit.band(memory.readbyte(RAM_BGS + 16), 0x7)
-    gba.lua:540  local address = memory.readdword(RAM_BG_TILEMAPS + 16 * id + 4)
-
-`RAM_BGS` and `RAM_BG_TILEMAPS` are defined per game under
-`game/<game>/<lang>/memory.lua` — FireRed/LeafGreen and Emerald each have their
-own, in each language. So the question is not "is the core reporting a register
-wrongly", it is **"did the reader load the right per-game address table?"**
-
-That is a much better fit for the symptoms, and it explains all of them at once:
-
-  * the reader says `Ready` — but readiness only means it RECOGNISED the cart, not
-    that it matched the right memory table;
-  * every address then reads 0 or garbage (no `RAM_BG_TILEMAPS` write is ever
-    seen at the expected place), so `get_bg_size` returns 0, the tilemap read is
-    empty, `window.data` is empty, `window.width` is 0 — and that is exactly the
-    `'for' step is zero` at `gba.lua:315`, the nil `lines` at `:1327` and the nil
-    field at `:2691`;
-  * and the raw numbers spoken instead of names are the reader falling back to
-    whatever it can decode out of memory that is not the structure it expects.
-
-**Next step: print what the reader resolved for the game** — which per-game
-`memory.lua` it loaded, and the first few values it reads for `RAM_BGS` and
-`RAM_BG_TILEMAPS` — for FireRed, whose address table is known-good. Compare those
-against a real FireRed save in a working emulator. That decides whether the bug is
-in game IDENTIFICATION (wrong table selected) or in the shim's read path (right
-table, wrong bytes).
-
-⛔ Keep the log's `GBA I/O: Read from write-only I/O register: 01x` lines in mind
-but do not chase them yet: they are mGBA's own chatter about the BIOS probing
-write-only registers during boot, which is normal, and they were what made the
-register theory look plausible in the first place.
+Until one of those lands, treat any run that starts at a title screen as expected
+to say `Ready` and then numbers.
 
 ## What is still NOT proven
 
