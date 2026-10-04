@@ -66,6 +66,18 @@ extern "C" {
 #define GB_FB_W 160
 #define GB_FB_H 144
 
+/* ⛔ SIZED FOR THE WIDEST GB/GBA FRAME THAT CAN BE RENDERED, WHICH IS NOT
+ * 240x160. A Game Boy in SGB MODEL mode renders 256x224 -- the border is drawn
+ * INTO the frame. The app switches SGB borders OFF (see gba_load_rom), so it
+ * gets 160x144, but the render target must not be a buffer overflow waiting for
+ * the day that setting changes. 256x224 covers every SGB, GB, GBC and GBA
+ * frame; the GBA's own 240x160 fits inside it.
+ * ⛔ THE STRIDE MATTERS EVEN WITH BORDERS OFF: a 240-wide GBA frame in a
+ * 256-wide target is not contiguous, so both setVideoBuffer and the RGBA copy
+ * must use this stride rather than frameW. */
+static const int kFbStride = 256;
+static const size_t kFbPixels = (size_t) kFbStride * 224;
+
 struct GbaCore {
     mCore* core = nullptr;
     int platform = GBA_PLATFORM_GBA;
@@ -88,7 +100,7 @@ struct GbaCore {
     bool hotkeysDirty = false;
 
     // ---- video ----
-    uint32_t rawFb[GBA_FB_W * GBA_FB_H];   // mGBA's XBGR8 render target
+    uint32_t rawFb[kFbPixels];                    // mGBA's XBGR8 render target
     std::vector<uint8_t> frameRGBA;
     int frameW = GBA_FB_W, frameH = GBA_FB_H;
     int frameScreen = -1;
@@ -537,11 +549,9 @@ bool gba_load_rom(GbaCore* core, const char* rom_path, const char* save_path,
     }
     memset(core->rawFb, 0, sizeof(core->rawFb));
     mcore->init(mcore);
-    // ⛔ THE BUFFER GOES BEFORE THE RESET. mGBA associates the renderer with
-    // the buffer at reset time only when it is already non-NULL; setting it
-    // after reset leaves the renderer writing nowhere (black screen while
-    // emulation, memory reads and speech all work).
-    mcore->setVideoBuffer(mcore, core->rawFb, GBA_FB_W);
+    // The video buffer is set further down, deliberately: mCoreLoadConfig
+    // rebuilds the renderer and NULLs the buffer, so anything set here is
+    // discarded. See the ordering note beside setVideoBuffer below.
     // Identify the cartridge from the file header (the same bytes mGBA
     // booted, so the code cannot disagree with the running game).
     enum mPlatform plat = mcore->platform(mcore);
@@ -590,11 +600,31 @@ bool gba_load_rom(GbaCore* core, const char* rom_path, const char* save_path,
         SetError(core, "The game file could not be loaded.");
         return false;
     }
+    // ⛔ THE ORDER OF THE NEXT FOUR CALLS IS LOAD-BEARING FOR GAME BOY ROMS.
+    // mCoreLoadConfig reaches gb/core.c's reloadConfigOption, which calls
+    // renderer->init() -- and the software renderer's init sets outputBuffer to
+    // NULL. So the buffer must be set AFTER the config is loaded, and reset must
+    // come after the buffer is set: a GB reset runs GBSkipBIOS -> GBIOWrite(LCDC)
+    // -> _regenerateSGBBorder, which DRAWS through outputBuffer. Setting the buffer
+    // before mCoreLoadConfig (as this did) left it NULL at reset, and an
+    // SGB-enhanced .gb segfaulted on load. Measured on Pokemon Blue (SGB).
     mCoreConfigInit(&mcore->config, "oga");
     struct mCoreOptions opts;
     memset(&opts, 0, sizeof(opts));
     mCoreConfigLoadDefaults(&mcore->config, &opts);
+    // ⛔ SGB BORDERS OFF. A Game Boy in SGB model mode renders 256x224 -- the
+    // border is drawn INTO the frame -- and this frontend has no border surface
+    // to put it in. mGBA's own Qt frontend forces this to 0 for the same reason
+    // (CoreController.cpp). With it off the core reports 160x144 and the border
+    // routine never runs. Without it, on top of the crash above, the frame would
+    // not fit a 240x160 target at all.
+    mCoreConfigSetIntValue(&mcore->config, "sgb.borders", 0);
     mCoreLoadConfig(mcore);
+
+    // ⛔ THE BUFFER GOES BEFORE THE RESET -- and this call has MOVED to after
+    // mCoreLoadConfig for that to be true. See the note above; the comment that
+    // used to sit here was correct and was being defeated by the order.
+    mcore->setVideoBuffer(mcore, core->rawFb, kFbStride);
     mcore->reset(mcore);
 
     if (save_path && save_path[0])
@@ -701,14 +731,22 @@ bool gba_framebuffer(GbaCore* core, int* width, int* height)
     size_t n = (size_t) core->frameW * (size_t) core->frameH;
     if (core->frameRGBA.size() != n * 4) core->frameRGBA.resize(n * 4);
     uint8_t* dst = core->frameRGBA.data();
+    // ⛔ ROW BY ROW, NOT ONE FLAT RUN. The render target is a fixed 256-wide
+    // array and a GBA row is 240, so the live frame is only contiguous for a
+    // 160-wide GB. A flat copy of frameW*frameH would read the correct first
+    // row and then walk diagonal garbage through the rest of the image.
+    const size_t stride = (size_t) kFbStride;
     // mGBA's pixels are XBGR8 (0x00BBGGRR); the app wants RGBA8888 solid.
-    for (size_t i = 0; i < n; i++)
+    for (size_t y = 0; y < (size_t) core->frameH; y++)
+    for (size_t x = 0; x < (size_t) core->frameW; x++)
     {
+        size_t i = y * stride + x;
         uint32_t p = core->rawFb[i];
-        dst[i * 4 + 0] = (uint8_t) (p & 0xFF);
-        dst[i * 4 + 1] = (uint8_t) ((p >> 8) & 0xFF);
-        dst[i * 4 + 2] = (uint8_t) ((p >> 16) & 0xFF);
-        dst[i * 4 + 3] = 0xFF;
+        size_t o = (y * (size_t) core->frameW + x) * 4;
+        dst[o + 0] = (uint8_t) (p & 0xFF);
+        dst[o + 1] = (uint8_t) ((p >> 8) & 0xFF);
+        dst[o + 2] = (uint8_t) ((p >> 16) & 0xFF);
+        dst[o + 3] = 0xFF;
     }
     core->frameScreen = 0;
     return true;

@@ -386,9 +386,11 @@ Core/WS/WsTimer.cpp
 #       provides the same symbols with the pinned revision baked in.
 #   src/script/storage.c and test/ — not in the proven set (storage needs a
 #       frontend storage backend; nothing in the subset references it).
-#   GB core (src/gb/* except audio) — M_CORE_GB is OFF until the GB core is
-#       host-proven the way the GBA core was. .gb/.gbc ROMs fail loudly at
-#       load, they do not silently run the wrong core.
+#   GB core (src/gb/*) — it has its OWN list, MGBA_GB, plus MGBA_SM83 for the
+#       SM83 CPU. M_CORE_GB is ON. The one file this list used to carry on its
+#       own (src/gb/audio.c, for GBA-era GB audio tables) is NOT here: it is in
+#       MGBA_GB with the rest of the GB core, and listing it twice is a
+#       duplicate-symbol link error, not a harmless repeat.
 # ⛔ mGBA's third-party/lzma/* is absent from MGBA because the APP gets those
 # symbols from PPSSPP's identical 19.00 SDK copy (ext/lzma-sdk, in PPSPP_EXT_C);
 # two copies break the app link the way lua/xxhash did.
@@ -418,7 +420,6 @@ src/debugger/cli-debugger.c src/debugger/debugger.c src/debugger/parser.c
 src/debugger/stack-trace.c src/debugger/symbols.c
 src/feature/commandline.c src/feature/proxy-backend.c src/feature/thread-proxy.c
 src/feature/updater.c src/feature/video-backend.c src/feature/video-logger.c
-src/gb/audio.c
 src/gba/audio.c src/gba/bios.c src/gba/cart/ereader.c src/gba/cart/gpio.c
 src/gba/cart/matrix.c src/gba/cart/unlicensed.c src/gba/cart/vfame.c
 src/gba/cheats.c src/gba/cheats/codebreaker.c src/gba/cheats/gameshark.c
@@ -454,6 +455,56 @@ src/util/vfs/vfs-fifo.c src/util/vfs/vfs-lzma.c src/util/vfs/vfs-mem.c
 # warns). The host proof forced HAVE_POPCOUNT32=OFF etc. via mgba-configure.sh;
 # these -D lines ARE that forcing, baked in. Do not "refresh" them from a
 # CMake run on this machine without re-auditing.
+# ---- Game Boy / Game Boy Color, from mGBA's OWN src/gb/CMakeLists.txt ----
+#
+# ⛔ DERIVED FROM mGBA, NOT HAND-PICKED, AND THAT IS THE FIX. The Android
+# overlay's GB list omitted src/gb/mbc/mbc.c -- the DISPATCHER whose table takes
+# the &GBMBC*Create/&GBMBC*Load pointers to the mbc/ functions -- so all of those
+# would have compiled and been unreferenced, and a GB cart with an MBC (most of
+# them) could not have loaded. It also carried src/gb/test/*, which is mGBA's own
+# unit tests and not part of the library. Both are fixed by generating the list.
+#
+# ⛔ M_CORE_GB IS WHAT MAKES THIS REACHABLE. mGBA's mCoreFind walks a filter table
+# whose GB entry is compiled ONLY under M_CORE_GB; without the define the file is
+# not just unhandled, it is UNRECOGNISED, so gba_load_rom's GB branch is dead code
+# and a .gb reports "not a Game Boy or GBA ROM".
+MGBA_GB="
+src/gb/audio.c
+src/gb/cheats.c
+src/gb/core.c
+src/gb/debugger/cli.c
+src/gb/debugger/debugger.c
+src/gb/debugger/symbols.c
+src/gb/extra/proxy.c
+src/gb/gb.c
+src/gb/input.c
+src/gb/io.c
+src/gb/mbc.c
+src/gb/mbc/huc-3.c
+src/gb/mbc/licensed.c
+src/gb/mbc/mbc.c
+src/gb/mbc/pocket-cam.c
+src/gb/mbc/tama5.c
+src/gb/mbc/unlicensed.c
+src/gb/memory.c
+src/gb/overrides.c
+src/gb/renderers/cache-set.c
+src/gb/renderers/software.c
+src/gb/serialize.c
+src/gb/sio.c
+src/gb/sio/lockstep.c
+src/gb/sio/printer.c
+src/gb/timer.c
+src/gb/video.c"
+# ---- SM83 (the Game Boy CPU), from mGBA's src/sm83/CMakeLists.txt ----
+# Needed only because M_CORE_GB is on; the GBA's ARM core is separate (src/arm).
+MGBA_SM83="
+src/sm83/debugger/cli-debugger.c
+src/sm83/debugger/debugger.c
+src/sm83/debugger/memory-debugger.c
+src/sm83/decoder.c
+src/sm83/isa-sm83.c
+src/sm83/sm83.c"
 # mGBA's bundled 7z SDK, needed by vfs-lzma.c. Compiled by build-host.sh ONLY:
 # the app supplies these symbols from PPSSPP's copy instead (see the note above).
 MGBA_LZMA="
@@ -467,7 +518,7 @@ src/third-party/lzma/Delta.c src/third-party/lzma/Lzma2Dec.c
 src/third-party/lzma/LzmaDec.c
 "
 
-MGBA_DEFS="-DBUILD_STATIC -DENABLE_DEBUGGERS -DENABLE_DIRECTORIES -DENABLE_SCRIPTING -DENABLE_VFS -DENABLE_VFS_FD -DHAVE_FREELOCALE -DHAVE_LOCALE -DHAVE_LOCALTIME_R -DHAVE_NEWLOCALE -DHAVE_PTHREAD_CREATE -DHAVE_PTHREAD_SETNAME_NP -DHAVE_PTHREAD_SET_NAME_NP -DHAVE_REALPATH -DHAVE_SETLOCALE -DHAVE_STRDUP -DHAVE_STRLCPY -DHAVE_STRNDUP -DHAVE_USELOCALE -DHAVE_VASPRINTF -DHAVE_XLOCALE -DLUA_VERSION_ONLY='\"5.4\"' -DM_CORE_GBA -DUSE_LUA -DUSE_LZMA -DUSE_PTHREADS -D_DARWIN_C_SOURCE"
+MGBA_DEFS="-DM_CORE_GB -DBUILD_STATIC -DENABLE_DEBUGGERS -DENABLE_DIRECTORIES -DENABLE_SCRIPTING -DENABLE_VFS -DENABLE_VFS_FD -DHAVE_FREELOCALE -DHAVE_LOCALE -DHAVE_LOCALTIME_R -DHAVE_NEWLOCALE -DHAVE_PTHREAD_CREATE -DHAVE_PTHREAD_SETNAME_NP -DHAVE_PTHREAD_SET_NAME_NP -DHAVE_REALPATH -DHAVE_SETLOCALE -DHAVE_STRDUP -DHAVE_STRLCPY -DHAVE_STRNDUP -DHAVE_USELOCALE -DHAVE_VASPRINTF -DHAVE_XLOCALE -DLUA_VERSION_ONLY='\"5.4\"' -DM_CORE_GBA -DUSE_LUA -DUSE_LZMA -DUSE_PTHREADS -D_DARWIN_C_SOURCE"
 
 # ppspp_inc <ppsspp-src-root> — the include path every PPSSPP translation unit
 # needs. ONE definition: build-core.sh, build-sim.sh and psp-host-proof.sh all
