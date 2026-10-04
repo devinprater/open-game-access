@@ -15,7 +15,7 @@ OUT="${OUT:-$HOME/oga-gba-test}"
 rm -f "$OUT"
 if ! g++ -O2 -ICore -std=c++17 -o "$OUT" \
     Core/gba_adapter_test.cpp Core/gba_adapter.cpp Core/dbz_adapter.cpp \
-    Core/dissidia_adapter.cpp Core/dq9_adapter.cpp Core/osk_echo.cpp Core/adapters.cpp Core/announce.cpp; then
+    Core/dissidia_adapter.cpp Core/dq9_adapter.cpp Core/osk_echo.cpp Core/nes_adapter.cpp Core/adapters.cpp Core/announce.cpp; then
   echo "!! build failed" >&2
   exit 1
 fi
