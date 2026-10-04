@@ -289,7 +289,11 @@ set(CMAKE_C_STANDARD_REQUIRED ON)
 # ⛔ HAVE_PTHREAD_SET_NAME_NP is the BSD spelling and must NOT be defined on Android:
 # defining it makes src/gba/core.c and src/gba/video.c fail with
 # 'call to undeclared function pthread_set_name_np'. Android has the other spelling.
-add_compile_definitions(
+# ⛔ These must be PUBLIC. add_compile_definitions() only applies to THIS
+# subdirectory, so the accessibility hosts -- which compile in the frontend target --
+# saw none of them and the mGBA headers hid detachDebugger (ENABLE_DEBUGGERS) and
+# VFileOpen (ENABLE_VFS) behind their guards. PUBLIC propagates through the link.
+set(OGA_MGBA_DEFS
     BUILD_STATIC
     ENABLE_DEBUGGERS ENABLE_DIRECTORIES ENABLE_SCRIPTING ENABLE_VFS ENABLE_VFS_FD
     HAVE_FREELOCALE HAVE_LOCALE HAVE_LOCALTIME_R HAVE_NEWLOCALE
@@ -332,6 +336,11 @@ target_include_directories(oga-mgba PUBLIC
 )
 
 target_compile_options(oga-mgba PRIVATE -w)
+target_compile_definitions(oga-mgba PRIVATE ${OGA_MGBA_DEFS})
+
+# Propagate to consumers: the accessibility hosts need the same view of mGBA's
+# headers, or the guards above hide the members they call.
+target_compile_definitions(oga-mgba INTERFACE ${OGA_MGBA_DEFS})
 """)
 print(f"     generated the mGBA build ({len(files)} audited sources + Lua)")
 PY
