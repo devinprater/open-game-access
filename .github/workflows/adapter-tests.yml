@@ -27,6 +27,11 @@ jobs:
         run: bash scripts/adapter-tests.sh
       - name: Announcement queue (tests + sabotage verification)
         run: bash scripts/announce-test.sh
+      # The system registry: which consoles this app knows, what each one's
+      # hardware is, and whether a core for it is in this build. Guards the
+      # rule that an unrecognised file must never resolve to a console.
+      - name: System registry tests
+        run: bash scripts/systems-test.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols
