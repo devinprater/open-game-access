@@ -156,6 +156,12 @@ compile() { # compile <lang> <src> <tag>
   for f in "$LUA_SRC"/src/*.c; do b="$(basename "$f" .c)"
     [ "$b" = "lua" ] || [ "$b" = "luac" ] || printf '%s|lua|%s\n' "$f" "lua_$b"
   done
+  # Game Boy / GBC: M_CORE_GB is defined in MGBA_DEFS, so these TUs are
+  # REACHABLE, not speculative. Derived from mGBA's own CMake (see MGBA_GB in
+  # core-sources.sh); the GB set must be in ALL THREE builds or a host harness
+  # would be testing a different emulator than the app ships.
+  for f in $MGBA_GB;   do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgbagb_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  for f in $MGBA_SM83; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgbasm83_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $PPSPP_CORE; do printf '%s|ppspp|%s\n' "$PPSPP_SRC/$f" "ppspp_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
   for f in $PPSPP_EXT_CPP; do printf '%s|ppspp|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done

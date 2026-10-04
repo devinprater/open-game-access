@@ -98,6 +98,12 @@ compile() {
   printf '%s|cxx|nes_adapter\n'  "$ROOT/Core/nes_adapter.cpp"
   printf '%s|cxx|gba_core\n'     "$ROOT/Core/gba_core.cpp"
   printf '%s|cxx|mgba_version\n' "$ROOT/Core/mgba_version_stub.cpp"
+  # Game Boy / GBC: M_CORE_GB is defined in MGBA_DEFS, so these TUs are
+  # REACHABLE, not speculative. Derived from mGBA's own CMake (see MGBA_GB in
+  # core-sources.sh); the GB set must be in ALL THREE builds or a host harness
+  # would be testing a different emulator than the app ships.
+  for f in $MGBA_GB;   do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgbagb_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  for f in $MGBA_SM83; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgbasm83_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   # The real 7z SDK, host builds only (see the MGBA_LZMA note in core-sources.sh).
   # Without it these symbols fall to abort-on-call stubs, and any harness that
