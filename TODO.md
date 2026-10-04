@@ -60,6 +60,29 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   GL, not GLES -- 2071 differing lines), then setting the build flags in CMake rather
   than Gradle. NOT yet done: install it on a device and boot a ROM.
 
+- [x] **The GBA/GB code is COMPILED AND LINKED into the Android APK.** DONE
+  2026-10-04, run 37189884773, every CI step green, 57 MB APK. Verified against the
+  shipped .so rather than assumed: GBCoreCreate, GBIsROM, SM83Init, luaL_newstate and
+  SzArEx_Open are all present. Before this, the library contained NDS/GPU/ARMJIT and
+  ZERO of them -- the Game Boy/GBA code was copied into the tree and never built, and
+  even Lua was missing, so the NDS Lua host was unwired too. 336 -> 510 translation
+  units.
+
+- [ ] **BUT NOTHING CALLS IT YET. The GBA path is not reachable by a player.**
+  The native side is complete -- MGBAScriptJNI.cpp exports all 10
+  Java_..._GbAccessibilityScript_* entry points and they link -- but no Kotlin or JS
+  code invokes them. Concretely:
+    * assets/index.html still says "emulator core integration is not compiled into
+      this test build", its Select ROM button is a `// TODO`, and nothing calls
+      hermes_tts beyond speech.
+    * Nothing constructs a GbAccessibilityScript/GbRomResolver; the only reference to
+      either is a doc comment.
+    * The ROM picker is upstream melonDS's, which is DS-only -- its loadRom() has a
+      GBA-slot parameter for DS games, not a standalone GBA loader.
+  So "GBA works" is still NOT true. What is true: the code that makes it possible is
+  now in the binary, which it never was. The remaining work is UI/plumbing, not
+  emulation.
+
 - [~] **Wire the overlay's GBA/GB sources into the Android build.** IN PROGRESS
   (2026-10-04). The four accessibility hosts (MGBACore/MGBARunner/MGBAScriptJNI/
   PokeScript.cpp) and the mGBA core are now compiled into the frontend target; the
