@@ -256,6 +256,24 @@ else
   rm -rf "$FRONTEND/app/mgba/src" "$FRONTEND/app/mgba/lua"
   cp -r "$MGBA_SRC" "$FRONTEND/app/mgba/src"
   cp -r "$LUA_SRC"  "$FRONTEND/app/mgba/lua"
+  # ⛔ Copy the SOURCE, not the whole checkout. mGBA ships cinema/ -- 243
+  # .gb/.gba/.sav test ROMs, 38 MB, its own MIT-licensed fixtures -- plus a 16 MB
+  # .git. Nothing in this build references cinema/ (zero mentions in the audited
+  # source list), and shipping game-ROM files, even test ones, is exactly what the
+  # ROM guard exists to stop. The guard was right; the copy was wrong.
+  rm -rf "$FRONTEND/app/mgba/src/cinema" "$FRONTEND/app/mgba/src/.git"
+  # Also drop stale build output. CI clones fresh and would not have these, but the
+  # copy must not depend on the source checkout being pristine: a leftover build dir
+  # carries .o files that bloat the tree and trip the repo guard.
+  rm -rf "$FRONTEND/app/mgba/src/build-ios" "$FRONTEND/app/mgba/src/build-host" \
+         "$FRONTEND/app/mgba/src/build"
+  if [ ! -d "$FRONTEND/app/mgba/src/src" ]; then
+    echo "   !! the copied mGBA tree is not usable (no src/)" >&2; exit 1
+  fi
+  if find "$FRONTEND/app/mgba/src" -type f \( -iname '*.gb' -o -iname '*.gba' -o -iname '*.sav' \) 2>/dev/null | grep -q .; then
+    echo "   !! game ROM files survived in the copied mGBA tree" >&2; exit 1
+  fi
+  echo "     mGBA source copied; cinema/ and .git/ removed, ROM check asserted"
 
   # mGBA's flags.h. CMake normally writes this from flags.h.in; here the
   # template's #cmakedefine lines are neutralised so every feature comes from the
