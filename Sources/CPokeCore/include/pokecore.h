@@ -192,6 +192,11 @@ const char* oga_unsupported_reason(const char* path);
 /* Console id (OgaSystemId) for a resolved system, or 0 for unknown. */
 int oga_system_id(const void* sys);
 
+/* A system by its id (OgaSystemId), or NULL for one this build does not list.
+ * This is how the UI names a console it has no file for — the pre-load default
+ * pad is the DS, and there is no extension to look it up by. */
+const void* oga_system_by_id(int id);
+
 /* Display name ("Game Boy Advance"), or "" for NULL. Stable pointer. */
 const char* oga_system_name(const void* sys);
 

@@ -21,8 +21,16 @@ import CPokeCore
 /// which is the coupling the registry exists to remove. Every key below was read
 /// out of the script that runs for that system.
 struct GameSystem: Equatable {
-    /// The registry row for this console. Opaque; never inspected directly.
+    /// The registry row for this console, kept as an OpaquePointer for identity
+    /// and Equatable. The C accessors take `const void*`, which Swift imports as
+    /// `UnsafeRawPointer` for a PARAMETER (a returned `const void*` imports as
+    /// OpaquePointer instead — the two are not interchangeable), so every call
+    /// goes through `raw` below rather than converting at each site.
     let handle: OpaquePointer
+
+    /// The handle as the C ABI expects it. One place, because the conversion
+    /// error otherwise appears at every individual call site.
+    private var raw: UnsafeRawPointer { UnsafeRawPointer(handle) }
     /// Console id (OgaSystemId), for the switch statements that must exist.
     let id: Int32
 
@@ -33,7 +41,20 @@ struct GameSystem: Equatable {
     /// no file. Every view that draws the pad reads `session.system ?? DSDefault`
     /// rather than inventing its own answer, so changing the pre-load default
     /// changes it everywhere.
-    static let DSDefault = GameSystem(handle: OpaquePointer(oga_system_by_id(1)), id: 1)
+    /// ⛔ @MainActor, NOT A WORKAROUND. GameSystem holds an OpaquePointer into the
+    /// core's registry, which is genuinely not Sendable, and every caller of this
+    /// is a SwiftUI view. Swift 6 therefore rejects a plain `static let` of a
+    /// non-Sendable type; the global-actor annotation is the accurate constraint.
+    @MainActor
+    static let DSDefault: GameSystem = {
+        // The DS is id 1 and is always in the registry, but this is the ONE place
+        // the app would trap if it were not — so fall back to an empty row rather
+        // than force-unwrapping a pointer at launch.
+        guard let h = oga_system_by_id(1) else {
+            return GameSystem(handle: OpaquePointer(bitPattern: 1)!, id: 0)
+        }
+        return GameSystem(handle: OpaquePointer(h), id: 1)
+    }()
 
     // MARK: - The registry, read once per console
 
@@ -61,7 +82,7 @@ struct GameSystem: Equatable {
 
     /// Whether this build has a core that can actually load this console.
     /// The picker uses it to decide between "play" and an explanation.
-    var isRunnable: Bool { oga_system_is_runnable(handle) }
+    var isRunnable: Bool { oga_system_is_runnable(raw) }
 
     /// What to say about a file this build cannot run. Names the extension, or
     /// the console when the file was understood. Never empty.
@@ -73,17 +94,17 @@ struct GameSystem: Equatable {
     // MARK: - Hardware facts (from the registry)
 
     var name: String {
-        guard let c = oga_system_name(handle) else { return "" }
+        guard let c = oga_system_name(raw) else { return "" }
         return String(cString: c)
     }
 
     /// Screens the console draws. Only the DS family has two; the Settings
     /// screen picker exists for those alone.
-    var screenCount: Int { Int(oga_system_screen_count(handle)) }
+    var screenCount: Int { Int(oga_system_screen_count(raw)) }
 
-    var hasShoulders: Bool { oga_system_has_shoulders(handle) }
+    var hasShoulders: Bool { oga_system_has_shoulders(raw) }
 
-    var analogSticks: Int { Int(oga_system_analog_sticks(handle)) }
+    var analogSticks: Int { Int(oga_system_analog_sticks(raw)) }
 
     /// One face-button descriptor per button the console ACTUALLY HAS, straight
     /// from the registry. A blind player cannot tell a greyed-out button from a
@@ -95,7 +116,7 @@ struct GameSystem: Equatable {
         var symbols = [UnsafePointer<CChar>?](repeating: nil, count: max)
         var hints = [UnsafePointer<CChar>?](repeating: nil, count: max)
         var raws = [Int32](repeating: 0, count: max)
-        let n = Int(oga_system_face_buttons(handle, &titles, &symbols, &hints, &raws, Int32(max)))
+        let n = Int(oga_system_face_buttons(raw, &titles, &symbols, &hints, &raws, Int32(max)))
         return (0..<n).map { i in
             (title: titles[i].map { String(cString: $0) } ?? "",
              symbol: symbols[i].map { String(cString: $0) } ?? "",

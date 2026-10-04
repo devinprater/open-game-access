@@ -273,7 +273,10 @@ final class ControllerInput: ObservableObject {
         let native = Set(session.availableAdapterCommands)
         let system = session.system ?? GameSystem.DSDefault
         let luaKeys: Set<String> = session.isPokemonROM
-            ? Set((system.pathKeys + system.readingKeys + system.speechKeys).map(\.key))
+            // ⛔ A CLOSURE, NOT `\.key`. These are arrays of a TUPLE type
+            // (title:, key:, hint:) and a key path into a tuple has no inferable
+            // root type, so the shorthand fails to compile.
+            ? Set((system.pathKeys + system.readingKeys + system.speechKeys).map { $0.key })
             : []
         func cmd(_ c: AdapterCommand) -> Action? { native.contains(c) ? .adapter(c) : nil }
         func key(_ k: String) -> Action? { luaKeys.contains(k) ? .hotkey(k) : nil }
