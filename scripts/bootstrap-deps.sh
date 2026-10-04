@@ -60,7 +60,28 @@ fetch "$MGBA_REPO" mgba "$MGBA_REV"
 # PINNED TO THE HOST-PROVEN REVISION (see scripts/psp-host-proof.sh): the
 # real Core/psp_core.cpp booted the Dissidia CSO against this exact commit.
 # Moving the pin means re-running the host proof AND the subset test.
-PPSSPP_REPO="${PPSSPP_REPO:-https://github.com/hrydgard/ppsspp.git}"
+# ---- Mesen (NES). PLANNED, not yet integrated. ----
+#
+# ⛔ THE PIN IS MEASURED, NOT ASSUMED. Mesen2's NES core (Core/NES + Core/Shared)
+# was compiled for aarch64-linux-android26 with the NDK's own clang BEFORE this
+# pin was written: 84 of 84 TUs, zero failures. That is the same admission test
+# mGBA passed, and it is why the registry lists the NES as PLANNED with a chosen
+# core rather than as an aspiration.
+#
+# Mesen2 is chosen over FCEUmm/Nestopia because it is C++ with no Qt/SDL
+# dependency at the Core level (Core/NES links against Core/Shared, not the UI),
+# which is the property that made mGBA portable here and Dolphin not.
+#
+# ⛔ MOVING THIS PIN MEANS RE-RUNNING scripts/nes-feasibility.sh. Mesen's Console
+# base class is not a stable ABI, and the source list below is generated from the
+# tree, not hand-maintained.
+MESEN_REPO="${MESEN_REPO:-https://github.com/SourMesen/Mesen2.git}"
+# Measured: master at the time of writing; the NES core is complete and stable
+# upstream, and this is the revision that passed the 84/84 compile.
+MESEN_REV="${MESEN_REV:-b9fa69ddc6d0a331fb103fdb5eef6904305703c2}"
+fetch "$MESEN_REPO" mesen "$MESEN_REV"
+
+PPSSPP_REPO="${PPSSPP_REPO:-https://github.com/hrydgard/ppsspp.git}
 PPSSPP_REV="${PPSSPP_REV:-f293b10fb2d9dc0c2bc10281444ee3d3e932e6ad}"
 fetch "$PPSSPP_REPO" ppsspp "$PPSSPP_REV"
 # Only the submodules the audited subset compiles (see core-sources.sh).

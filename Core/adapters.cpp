@@ -48,12 +48,24 @@ extern const Adapter kDissidiaFinalFantasy;
 // them through this front.
 extern const Adapter kDragonQuestIX;
 
+// ⛔ IMPLEMENTED? NO — AND THE REGISTRY SAYS SO. kNintendoEntertainmentSystem
+// exists so the NES has a home in the code BEFORE its backend does, which is the
+// order this repo has settled on (the system registry lists a console before its
+// core; the adapter registry can do the same). Its `attach` returns false, so the
+// core refuses cleanly and nothing speaks a guess.
+//
+// What must NOT happen is this becoming a silently dead entry that looks
+// integrated. When Core/nes_core.cpp lands, this adapter gets its real reads and
+// the registry row moves PLANNED -> READY in the same commit.
+extern const Adapter kNintendoEntertainmentSystem;
+
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
     &kGameBoyAdvance,
     &kDragonBallZSaiyans,
     &kDissidiaFinalFantasy,
     &kDragonQuestIX,
+    &kNintendoEntertainmentSystem,
 };
 
 const Adapter* const* all_adapters(int* count)

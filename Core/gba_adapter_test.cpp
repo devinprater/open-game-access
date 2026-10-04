@@ -132,6 +132,12 @@ static uint32_t stub_r32_patched(void* c, uint32_t a) {
     return (uint32_t)(s->mem[o] | (s->mem[o+1]<<8) | (s->mem[o+2]<<16) | ((uint32_t)s->mem[o+3]<<24));
 }
 
+// ⛔ THE NES ADAPTER IS DECLARED HERE, AT FILE SCOPE, AND THAT IS REQUIRED.
+// A block-scope `extern const oga::Adapter x;` would declare ::x — the qualifier
+// names the TYPE, it does not enter the namespace — and a namespace cannot be
+// re-opened inside a function body anyway. Both were compile/link errors first.
+namespace oga { extern const Adapter kNintendoEntertainmentSystem; }
+
 int main(void) {
     printf("GBA adapter host test (stub host: only the six declared callbacks)\n\n");
 
@@ -208,6 +214,42 @@ int main(void) {
 
     a->detach();
     check("detach clears readiness", a->ready(), false);
+
+    // ---------------------------------------------------------- the NES seam
+    //
+    // The NES has no backend yet, so its adapter is a SEAM: registered, and
+    // refusing. Both failures this pins are SILENT in a shipped build.
+    printf("\n-- the NES adapter is a seam, and refuses --\n");
+    {
+
+        // 1. It must REFUSE to attach. Returning true would make
+        //    poke_adapter_ready() report a reader for a console that cannot boot,
+        //    and a blind player would be offered controls that do nothing.
+        check("the NES adapter refuses to attach (no backend exists)",
+              oga::kNintendoEntertainmentSystem.attach(nullptr), false);
+
+        // 2. It must carry NO game code. The registry selects by the ROM header's
+        //    four-character code and a NES ROM has none, so a non-empty code here
+        //    would let it be selected for a game it cannot read.
+        check("the NES adapter carries no game code (NES ROMs have none)",
+              oga::kNintendoEntertainmentSystem.game_code &&
+              oga::kNintendoEntertainmentSystem.game_code[0] == '\0', true);
+
+        // 3. It must be REACHABLE. A seam nobody registers is dead code; adding it
+        //    to the list is what made four test links fail, which is the proof it
+        //    is genuinely in there rather than merely declared.
+        int count = 0;
+        const oga::Adapter* const* all = oga::all_adapters(&count);
+        bool found = false;
+        for (int i = 0; i < count; i++)
+            if (all[i] == &oga::kNintendoEntertainmentSystem) found = true;
+        check("the NES adapter is in the registry", found, true);
+
+        // 4. It must never claim readiness.
+        check("the NES adapter never reports ready",
+              oga::kNintendoEntertainmentSystem.ready &&
+              oga::kNintendoEntertainmentSystem.ready(), false);
+    }
 
     printf("\n");
     if (failures == 0) printf("ALL PASS\n");
