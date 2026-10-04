@@ -373,7 +373,7 @@ private struct PathFindingGroup: View {
     @EnvironmentObject private var session: GameSession
 
     var body: some View {
-        let keys = (session.system ?? .ds).pathKeys
+        let keys = (session.system ?? GameSystem.DSDefault).pathKeys
         if !keys.isEmpty {
             VStack(spacing: 6) {
                 ForEach(Array(keys.chunked(into: 3).enumerated()), id: \.offset) { _, row in
@@ -399,7 +399,7 @@ private struct ReadingGroup: View {
     @EnvironmentObject private var session: GameSession
 
     var body: some View {
-        let keys = (session.system ?? .ds).readingKeys
+        let keys = (session.system ?? GameSystem.DSDefault).readingKeys
         if !keys.isEmpty {
             VStack(spacing: 6) {
                 ForEach(Array(keys.chunked(into: 3).enumerated()), id: \.offset) { _, row in
@@ -425,7 +425,7 @@ private struct SystemButtons: View {
             HoldButton(title: "Select", symbol: "square.circle", hint: "Select button") { .select }
             // The original Game Boy has no shoulder buttons; showing L/R for
             // it would be controls that do nothing.
-            if (session.system ?? .ds).hasShoulders {
+            if (session.system ?? GameSystem.DSDefault).hasShoulders {
                 HoldButton(title: "L", symbol: "l.circle", hint: "Left shoulder button") { .l }
                 HoldButton(title: "R", symbol: "r.circle", hint: "Right shoulder button") { .r }
             }
@@ -441,7 +441,7 @@ private struct SpeechGroup: View {
     @EnvironmentObject private var session: GameSession
 
     var body: some View {
-        let system = session.system ?? .ds
+        let system = session.system ?? GameSystem.DSDefault
         if !system.speechKeys.isEmpty {
             // R/U are DS script keys: R tells the script itself to stop, so
             // its queue clears as well as the audio.
@@ -500,7 +500,7 @@ private struct ActionButtons: View {
             // The raw values are shared pad indices; the C core maps them per
             // backend, so only the labels change: A/B on Game Boy, Cross/
             // Circle/Triangle/Square on PSP.
-            ForEach(Array(((session.system ?? .ds).faceButtons).enumerated()), id: \.offset) { _, item in
+            ForEach(Array(((session.system ?? GameSystem.DSDefault).faceButtons).enumerated()), id: \.offset) { _, item in
                 HoldButton(title: item.title, symbol: item.symbol, hint: item.hint) {
                     GamePadButton(raw: item.raw)
                 }

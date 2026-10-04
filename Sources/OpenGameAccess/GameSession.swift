@@ -240,7 +240,7 @@ final class GameSession: ObservableObject {
         }
 
         system = GameSystem.forROMExtension(local.pathExtension)
-        if let system, system == .psp {
+        if let system, system.analogSticks > 0 || system.id == 4 {
             if let assets = BundleResources.ppssppAssetDir {
                 // The PSP core refuses to boot without its staged assets (compat
                 // tables, soft-GPU atlas, VFPU LUTs); the path is set here so a
