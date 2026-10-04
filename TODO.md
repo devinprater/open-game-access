@@ -125,6 +125,20 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   label all 571 UI files (that would be fluff). The game itself is narrated by the Lua
   script, not by the UI.
 
+- [ ] **Make the shell emulator-agnostic (scoped 2026-10-04):** plan at
+  `docs/plans/emulator-agnostic-shell.md`. `Core/systems.{h,cpp}` has landed -- the
+  registry of 11 consoles with hardware facts and backend state, 40 tests + 6
+  mutations in CI. Next: one `OgaCore` vtable to collapse pokecore.cpp's 104 dispatch
+  branches, then both UIs reading the registry, then NES as the first console neither
+  existing backend resembles.
+  ⚠ ONE EXPECTATION TO CORRECT: Mario Kart 8 / Deluxe is a SWITCH game. No Switch
+  emulation is viable on iOS or Android for sideloaded apps -- it needs hardware
+  support no phone has, quite apart from the legal position. That title will not run
+  here. Mario Kart 64 (N64) or Double Dash (GameCube) are the reachable ones.
+  ⚠ PS2 and GameCube/Wii are listed in the registry but are NOT near-term: both need
+  cores far heavier than anything currently in the app, and I would not plan around
+  them. They are in the table so the UI can name them honestly, not as a roadmap.
+
 ## Game readers
 
 - [x] **Dissidia title tap-to-read diagnosis + fix:** root cause was the
