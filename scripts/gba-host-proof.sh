@@ -1,0 +1,79 @@
+#!/usr/bin/env bash
+# gba-host-proof.sh — boot a REAL Game Boy / GBA ROM through the REAL app path
+# on the host and report what the reader actually says.
+#
+# ⛔ WHAT THIS PROVES THAT gba-adapter-test.sh CANNOT. That test builds a stub
+# host and checks selection, readiness and refusal paths. This one drives
+# Core/pokecore.cpp exactly as the app does — poke_load_rom -> poke_set_script_dir
+# -> poke_start -> poke_frame — with the real mGBA core and the real Pokémon
+# Access reader set, and prints every line the reader speaks plus the framebuffer.
+#
+# It is the difference between "the registry says GBA is READY" and "a .gba boots
+# and the reader talks". Run it after ANY change to the shim, gba_core.cpp or the
+# reader assets; the adapter test will not notice a regression in any of them.
+#
+# Usage:
+#   scripts/gba-host-proof.sh [rom-dir] [script-dir] [frames]
+# Prints a per-ROM summary and exits nonzero if no ROM spoke at all.
+set -uo pipefail
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT" || exit 1
+
+ROMDIR="${1:-/mnt/c/Users/Devin Prater/Dropbox/games/GBA}"
+SCRIPT="${2:-$ROOT/Sources/OpenGameAccess/Resources/gba-lua}"
+FRAMES="${3:-2500}"
+
+[ -d "$ROMDIR" ] || { echo "!! no ROM directory at $ROMDIR" >&2; exit 1; }
+[ -f "$SCRIPT/oga_bootstrap.lua" ] || { echo "!! no reader set at $SCRIPT" >&2; exit 1; }
+
+echo "== building host objects (needs the real 7z SDK: see MGBA_LZMA in core-sources.sh)"
+bash scripts/build-host.sh || exit 1
+
+echo "== linking the probe"
+# ⛔ host_harness_stub.cpp IS required and is deliberately NOT in hostobj: it
+# supplies the abort-on-call PSP stubs. (The 7z stubs it used to carry are gone
+# — mGBA's vfs-lzma really calls them, so build-host.sh compiles the real SDK.)
+g++ -O1 -g -DPOKE_HOST=1 -ICore -ISources/CPokeCore/include -o Vendor/gba-probe \
+    Core/gba_host_probe.cpp Core/host_harness_stub.cpp \
+    Vendor/hostobj/*.o -lpthread -lm -ldl || { echo "!! probe link failed" >&2; exit 1; }
+
+spoken_total=0
+roms_run=0
+
+# Newest-supported ROMs first. Ruby/Sapphire are in v3.1.0's REJECT list on
+# purpose and are expected to answer game_not_supported — that is a PASS for the
+# shim, and the last entry proves it still refuses.
+for rom in \
+    "Pokemon - FireRed Version (USA).gba" \
+    "Pokemon - LeafGreen Version (USA).gba" \
+    "Pokemon - Emerald Version (USA, Europe).gba" \
+    "Pokemon - Ruby Version (USA).gba"
+do
+  [ -f "$ROMDIR/$rom" ] || continue
+  roms_run=$((roms_run + 1))
+  echo
+  echo "############ $rom"
+  out="$(timeout 400 ./Vendor/gba-probe "$ROMDIR/$rom" "$SCRIPT" "$FRAMES" 2>&1)"
+  echo "$out" | grep -E '^loaded|^\[SPEAK\]|^frames=|^spoken|^RESULT' | head -25
+
+  n="$(echo "$out" | grep -c '^\[SPEAK\]')"
+  spoken_total=$((spoken_total + n))
+  if echo "$out" | grep -q 'RESULT: NO PICTURE'; then
+    echo "   !! no picture: the framebuffer never rendered"
+  fi
+done
+
+echo
+echo "== summary: $roms_run ROMs booted, $spoken_total spoken lines total"
+if [ "$roms_run" -eq 0 ]; then
+  echo "!! no ROMs found in $ROMDIR — nothing was proven" >&2
+  exit 1
+fi
+[ "$spoken_total" -gt 0 ] || { echo "!! nothing spoke: the reader never started" >&2; exit 1; }
+echo "PASS: a real GBA ROM booted through the app path and the reader spoke."
+echo
+echo "⚠ THIS IS A BOOT-LEVEL PROOF, NOT A READER-QUALITY PROOF. It shows the core"
+echo "  boots, identifies the cart and produces speech. It does NOT show the speech"
+echo "  is meaningful — read the [SPEAK] lines: raw numbers or 'nil' mean the shim"
+echo "  is handing the reader bad data, which is a real defect this harness exists"
+echo "  to make visible. See docs/research/gba-host-proof.md."
