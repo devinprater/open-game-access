@@ -744,7 +744,22 @@ void gba_set_hotkey(GbaCore* core, const char* key, bool down)
 bool gba_save_state(GbaCore* core, const char* path)
 {
     if (!core || !core->core || !path) return false;
-    struct VFile* vf = VFileOpen(path, O_WRONLY | O_CREAT | O_TRUNC);
+    // ⛔ O_RDWR, NOT O_WRONLY. THIS IS WHY SAVE STATES WERE SILENTLY EMPTY.
+    //
+    // mGBA writes a savestate by MAPPING the file: serialize.c does
+    //     vf->truncate(vf, stateSize);
+    //     void* state = vf->map(vf, stateSize, MAP_WRITE);
+    //     core->saveState(core, state);
+    // and its fd VFS implements map() as
+    //     mmap(0, size, PROT_READ|PROT_WRITE, MAP_SHARED, fd, 0)
+    // POSIX requires the descriptor to be open for READING as well as writing for
+    // a MAP_SHARED PROT_WRITE mapping. With O_WRONLY the mmap fails with EACCES,
+    // map() returns NULL, mCoreSaveStateNamed returns false — and the truncated
+    // file is left as a full-size block of ZEROS. Measured directly:
+    //     O_WRONLY|O_CREAT|O_TRUNC  -> mmap FAILED: Permission denied
+    //     O_RDWR  |O_CREAT|O_TRUNC  -> mmap ok
+    // O_RDWR satisfies both the write and the read half, and still truncates.
+    struct VFile* vf = VFileOpen(path, O_RDWR | O_CREAT | O_TRUNC);
     if (!vf) { SetError(core, "Could not write the saved state."); return false; }
     bool ok = mCoreSaveStateNamed(core->core, vf, 0);
     vf->close(vf);

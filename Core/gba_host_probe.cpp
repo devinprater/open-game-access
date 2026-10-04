@@ -8,10 +8,12 @@
  * poke_set_script_dir -> poke_start -> poke_frame — with the real mGBA core and
  * the real Pokémon Access reader set, and prints every line the reader speaks.
  *
- * That is the difference between "the registry says GBA is READY" and "a .gba
- * boots and the reader talks".
+ * ⛔ AND IT SAVES/LOADS STATE, because walking a Pokémon intro costs minutes of
+ * emulated time PER RUN and that makes trial-and-error impossible. One successful
+ * walk into the world is captured with --state-out; every later run resumes from
+ * it with --state-in and reaches the world in seconds.
  *
- * Usage: gba-probe <rom> <script-dir> [max-frames]
+ * Usage: gba-probe <rom> <script-dir> [max-frames] [--state-out P] [--state-in P]
  * ios-debug: host-only diagnostic, not part of the app.
  */
 #include "pokecore.h"
@@ -22,6 +24,7 @@
 #include <string>
 
 static int g_spoken = 0;
+static long g_first_world_line = -1;
 
 static void on_speech(const char* text, bool interrupt, void* userdata)
 {
@@ -40,16 +43,95 @@ static void on_log(const char* text, void* userdata)
     if (text) printf("[log]   %s\n", text);
 }
 
+/* One input step, for frame `f`.
+ *
+ * ⛔ A-ONLY MASHING CANNOT CLEAR A MENU. That was the bug in the first version:
+ * on FRLG's naming screen A types a letter forever and never confirms, because
+ * confirming needs the cursor MOVED to "OK" first. The probe sat there for 14000
+ * frames and reported a working reader as a stalled one.
+ *
+ * So this presses A, a CYCLING DIRECTION, and START on three different cadences.
+ * Whatever screen it is on — copyright, title, speech, naming, a dialogue box —
+ * some combination of those three advances it. It is deliberately not a script
+ * that knows the game, because the point is to reach the world without one. */
+static void DriveInput(PokeCore* core, long f, int profile)
+{
+    static const int kDir[4] = { POKE_BTN_RIGHT, POKE_BTN_DOWN, POKE_BTN_LEFT, POKE_BTN_UP };
+
+    if (f < 90) return;      /* let the boot settle before touching anything */
+
+    if (profile == 1)
+    {
+        /* ---- naming-screen walk to "OK" -------------------------------------
+         * A press is a tap: 1-frame down is enough and a long hold repeats.
+         * The grid's confirm key is at the bottom-right, so go there and press it.
+         * Order matters and there are no undos, which is the whole difference
+         * from the random walk. */
+        const long tap = 12;                 /* ~0.2 s per step: brisk but clean */
+        long n = f - 90;
+        long step = n / tap;                 /* which key of the sequence we are on */
+
+        int btn = -1;
+        if (step < 16)       btn = POKE_BTN_DOWN;   /* 1..16  -> bottom row */
+        else if (step < 34)  btn = POKE_BTN_RIGHT;  /* 17..34 -> rightmost = OK */
+        else                 btn = POKE_BTN_A;      /* 35..   -> confirm, then advance */
+
+        if (btn >= 0)
+        {
+            if ((n % tap) == 0) poke_set_button(core, btn, true);
+            if ((n % tap) == 3) poke_set_button(core, btn, false);
+        }
+
+        /* START every 2 s as a backstop: on this screen it confirms the current
+         * name outright, and on a dialogue box it is inert. */
+        if ((n % 120) == 0)  poke_set_button(core, POKE_BTN_START, true);
+        if ((n % 120) == 8)  poke_set_button(core, POKE_BTN_START, false);
+        return;
+    }
+
+    const long fast = 40;    /* A:            ~1.5 presses/second */
+    const long dirp = 40;    /* direction:    ~1.5 presses/second, 4-way cycle */
+    const long slow = 200;   /* START:        ~0.5 presses/second */
+
+    /* A — the confirm key on almost every screen. */
+    if ((f % fast) == 0)  poke_set_button(core, POKE_BTN_A, true);
+    if ((f % fast) == 18) poke_set_button(core, POKE_BTN_A, false);
+
+    /* A direction, cycling R/D/L/U. This is what actually gets the cursor to
+     * "OK" on a naming screen, and it also walks past any "press a direction"
+     * prompt and moves the player once in the world. */
+    const long slot = (f / dirp) % 4;
+    const int dir = kDir[slot];
+    if ((f % dirp) == 20) poke_set_button(core, dir, true);
+    if ((f % dirp) == 34) poke_set_button(core, dir, false);
+
+    /* START — the confirm button on the naming screen, and the menu key. */
+    if ((f % slow) == 0)  poke_set_button(core, POKE_BTN_START, true);
+    if ((f % slow) == 15) poke_set_button(core, POKE_BTN_START, false);
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 3)
     {
-        fprintf(stderr, "usage: %s <rom> <script-dir> [max-frames]\n", argv[0]);
+        fprintf(stderr, "usage: %s <rom> <script-dir> [max-frames] "
+                        "[--state-out PATH] [--state-in PATH] [--profile 0|1]\n", argv[0]);
         return 2;
     }
     const char* rom = argv[1];
     const char* scriptDir = argv[2];
-    long maxFrames = (argc > 3) ? atol(argv[3]) : 20000;
+    long maxFrames = 20000;
+    const char* stateOut = nullptr;
+    const char* stateIn = nullptr;
+    int profile = 0;   /* 0 = generic walk, 1 = naming-screen walk to OK */
+
+    for (int i = 3; i < argc; i++)
+    {
+        if (strcmp(argv[i], "--state-out") == 0 && i + 1 < argc) stateOut = argv[++i];
+        else if (strcmp(argv[i], "--state-in") == 0 && i + 1 < argc) stateIn = argv[++i];
+        else if (strcmp(argv[i], "--profile") == 0 && i + 1 < argc) profile = atoi(argv[++i]);
+        else if (argv[i][0] != '-') maxFrames = atol(argv[i]);
+    }
 
     PokeCore* core = poke_create();
     if (!core) { fprintf(stderr, "!! poke_create failed\n"); return 1; }
@@ -75,50 +157,26 @@ int main(int argc, char** argv)
         printf("START FAIL: %s\n", poke_last_error(core));
         return 1;
     }
-    printf("started; running up to %ld frames\n", maxFrames);
 
     long f = 0;
+    if (stateIn)
+    {
+        if (!poke_load_state(core, stateIn))
+        {
+            printf("STATE LOAD FAIL: %s\n", poke_last_error(core));
+            return 1;
+        }
+        printf("resumed from %s\n", stateIn);
+    }
+    printf("running up to %ld frames%s\n", maxFrames, stateIn ? " (from a savestate)" : "");
+
     for (; f < maxFrames; f++)
     {
+        DriveInput(core, f, profile);
         if (!poke_frame(core))
         {
             printf("frame returned false at %ld: %s\n", f, poke_last_error(core));
             break;
-        }
-        /* ⛔ A REAL BUTTON SCRIPT, AND LONG ENOUGH TO LEAVE THE INTRO.
-         *
-         * FRLG's intro (copyright, title, "press start", Oak's speech, naming)
-         * runs for MINUTES of emulated time. An earlier version of this probe
-         * ran 900 frames — 15 seconds — and pressed A twice, so the reader was
-         * asked to describe a game that had not started. That is not a reader
-         * bug and it was not being distinguished from one.
-         *
-         * So: mash A on a steady cadence from the start, which walks the intro,
-         * Oak's speech and the naming prompts, and press Start early to clear
-         * the title. A player does exactly this. */
-        {
-            const long period = 45;            /* ~0.75 s: faster than any prompt */
-            if (f >= 120 && (f % period) == 0)
-                poke_set_button(core, POKE_BTN_A, true);
-            if (f >= 120 && (f % period) == 20)
-                poke_set_button(core, POKE_BTN_A, false);
-
-            /* ⛔ START AS WELL AS A, AND ON A SLOWER CADENCE.
-             *
-             * A alone walks the intro but STALLS ON THE NAMING SCREEN, where A
-             * types a letter and never confirms — the probe sat there for 14000
-             * frames reporting a working reader as a stalled one. START is the
-             * confirm button on that screen.
-             *
-             * Interleaving them at different rates (A every 45, START every 150)
-             * means the odd A press never blocks a confirm for long, so the
-             * script gets through the intro, Oak's speech, naming and into the
-             * world without needing to know which screen it is on. */
-            const long slow = 150;
-            if (f >= 300 && (f % slow) == 0)
-                poke_set_button(core, POKE_BTN_START, true);
-            if (f >= 300 && (f % slow) == 24)
-                poke_set_button(core, POKE_BTN_START, false);
         }
     }
 
@@ -142,7 +200,15 @@ int main(int argc, char** argv)
            f, fb ? "yes" : "NO", w, h, distinct);
     printf("spoken lines=%d\n", g_spoken);
 
-    /* A reader that never spoke and a black screen is the honest failure. */
+    if (stateOut)
+    {
+        if (poke_save_state(core, stateOut)) printf("saved state -> %s\n", stateOut);
+        else                                printf("STATE SAVE FAIL: %s\n", poke_last_error(core));
+    }
+
+    /* A reader that never spoke and a black screen is the honest failure.
+     * Raw numbers are NOT a failure here: see the note in gba-host-proof.sh —
+     * a cold-boot run is expected to describe a game that has not started. */
     if (g_spoken == 0) { printf("RESULT: NO SPEECH\n"); return 1; }
     if (!fb || distinct < 2) { printf("RESULT: NO PICTURE\n"); return 1; }
     printf("RESULT: OK\n");
