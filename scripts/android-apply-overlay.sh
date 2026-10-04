@@ -289,6 +289,17 @@ GB_EXTRA = [
     "src/gb/renderers/software.c", "src/gb/sio.c", "src/gb/timer.c",
     "src/gb/video.c", "src/gb/sio/lockstep.c", "src/gb/sio/printer.c",
     "src/gb/extra/proxy.c",
+    # The GB debugger interface, pulled in by the core (ENABLE_DEBUGGERS). From
+    # mGBA's src/gb/debugger/.
+    "src/gb/debugger/cli.c", "src/gb/debugger/debugger.c",
+    "src/gb/debugger/symbols.c",
+]
+# The SM83 (Game Boy CPU) core. From mGBA's src/sm83/CMakeLists.txt; only needed
+# because M_CORE_GB is defined.
+SM83_EXTRA = [
+    "src/sm83/decoder.c", "src/sm83/isa-sm83.c", "src/sm83/sm83.c",
+    "src/sm83/debugger/debugger.c", "src/sm83/debugger/cli-debugger.c",
+    "src/sm83/debugger/memory-debugger.c",
 ]
 LZMA_EXTRA = [
     "src/third-party/lzma/7zArcIn.c", "src/third-party/lzma/7zBuf.c",
@@ -298,6 +309,9 @@ LZMA_EXTRA = [
     "src/third-party/lzma/Bra.c", "src/third-party/lzma/Bra86.c",
     "src/third-party/lzma/CpuArch.c", "src/third-party/lzma/Delta.c",
     "src/third-party/lzma/Lzma2Dec.c", "src/third-party/lzma/LzmaDec.c",
+    # 7zDec references IA64_Convert. PPSSPP's set omits this file, but leaving it out
+    # here left the symbol undefined.
+    "src/third-party/lzma/BraIA64.c",
 ]
 NL = chr(10)
 with open(sys.argv[2], "w", encoding="utf-8") as fh:
@@ -372,6 +386,16 @@ set(OGA_MGBA_DEFS
 
     fh.write(NL.join([
         "",
+        "# --- SM83 (Game Boy CPU), from mGBA's src/sm83/CMakeLists.txt. Needed only",
+        "#     because M_CORE_GB is on. ---",
+        "set(SM83_SOURCES",
+    ]) + NL)
+    for f in SM83_EXTRA:
+        fh.write(f"    ${{MGBA_SRC}}/{f}" + NL)
+    fh.write(")" + NL)
+
+    fh.write(NL.join([
+        "",
         "# --- LZMA (mGBA's bundled SDK). vfs-lzma.c needs the 7z archive reader.",
         "#     iOS borrows PPSSPP's copy of this SDK; Android builds no PPSSPP, so",
         "#     mGBA's own is compiled here instead. ---",
@@ -383,7 +407,9 @@ set(OGA_MGBA_DEFS
 
     fh.write("""\nfile(GLOB LUA_SOURCES ${LUA_SRC}/src/*.c)
 
-add_library(oga-mgba STATIC ${MGBA_SOURCES} ${GB_SOURCES} ${LZMA_SOURCES} ${LUA_SOURCES} version_stub.cpp)
+add_library(oga-mgba STATIC
+    ${MGBA_SOURCES} ${GB_SOURCES} ${SM83_SOURCES} ${LZMA_SOURCES} ${LUA_SOURCES}
+    version_stub.cpp)
 
 target_include_directories(oga-mgba PUBLIC
     ${MGBA_SRC}/include
