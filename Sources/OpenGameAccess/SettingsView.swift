@@ -7,9 +7,14 @@ struct SettingsView: View {
 
     var body: some View {
         Form {
-            // Only the DS draws two screens; for every other console this
-            // picker would offer a choice that changes nothing.
-            if (session.system ?? .ds) == .ds {
+            // Only the two-screen consoles show this picker; for every other
+            // console it would offer a choice that changes nothing.
+            //
+            // ⛔ KEYED ON SCREEN COUNT, NOT ON "is it a DS". The registry already
+            // knows how many panels each console has (the DS and the 3DS have
+            // two), so keying on the count means a second two-screen console
+            // gets this picker for free and a one-screen one never does.
+            if (session.system ?? GameSystem.DSDefault).screenCount > 1 {
             Section {
                 Picker("Screen shown", selection: $session.focusScreen) {
                     Text("Bottom screen").tag(Int32(POKE_SCREEN_BOTTOM))

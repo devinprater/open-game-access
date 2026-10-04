@@ -15,6 +15,23 @@
 #include <cstring>
 #include <string>
 
+/* The C-ABI accessors Swift reads through CPokeCore (Sources/CPokeCore/include/
+ * pokecore.h). Declared HERE rather than included, because this test compiles
+ * only Core/systems.{cpp,h}. The duplication is deliberate: if the Swift-facing
+ * signature drifts from these, this test stops linking, which is exactly when a
+ * silent UI mismatch would otherwise ship. */
+extern "C" {
+int         oga_system_id(const void* sys);
+const char* oga_system_name(const void* sys);
+int         oga_system_face_buttons(const void* sys,
+                                    const char** titles, const char** symbols,
+                                    const char** hints, int* raws, int max);
+int         oga_system_screen_count(const void* sys);
+bool        oga_system_has_shoulders(const void* sys);
+int         oga_system_analog_sticks(const void* sys);
+const void* const* oga_all_system_handles(int* out_count);
+}
+
 static int g_fail = 0;
 static int g_checks = 0;
 
@@ -246,6 +263,68 @@ int main()
             ok("a null system is not runnable");
         else
             bad("a null system is not runnable", "it claimed runnable");
+    }
+
+    printf("\n== the C ABI the UI reads through (CPokeCore)\n");
+    {
+        /* The iOS pad renders from this list, so a console that reports four
+         * buttons when it has two puts dead buttons in front of a blind player
+         * who cannot tell a dead button from a broken one. */
+        const OgaSystem* gb = oga_system_by_id(OGA_SYS_GB);
+        const char* titles[8]; const char* symbols[8]; const char* hints[8];
+        int raws[8];
+        int n = oga_system_face_buttons(gb, titles, symbols, hints, raws, 8);
+        if (n == 2 && titles[0] && strcmp(titles[0], "A") == 0)
+            ok("the Game Boy's C-ABI button list is A and B, and nothing else");
+        else
+            bad("the Game Boy's C-ABI button list is A and B, and nothing else",
+                std::to_string(n));
+
+        const OgaSystem* psp = oga_system_by_id(OGA_SYS_PSP);
+        n = oga_system_face_buttons(psp, titles, symbols, hints, raws, 8);
+        if (n == 4 && titles[0] && strcmp(titles[0], "Cross") == 0 && raws[0] == 0)
+            ok("the PSP's C-ABI buttons are the Sony names, mapped to the shared pads");
+        else
+            bad("the PSP's C-ABI buttons are the Sony names, mapped to the shared pads",
+                std::to_string(n));
+
+        /* A short buffer must TRUNCATE, not overflow: the UI passes its own
+         * array and a console could grow past it. */
+        n = oga_system_face_buttons(psp, titles, symbols, hints, raws, 2);
+        if (n == 2) ok("a short button buffer truncates instead of overflowing");
+        else bad("a short button buffer truncates instead of overflowing", std::to_string(n));
+
+        /* The accessors must survive a NULL handle: the UI holds one across a
+         * ROM change and Swift will happily send nil. */
+        if (oga_system_screen_count(nullptr) == 0 &&
+            oga_system_analog_sticks(nullptr) == 0 &&
+            !oga_system_has_shoulders(nullptr) &&
+            oga_system_id(nullptr) == OGA_SYS_UNKNOWN &&
+            oga_system_name(nullptr) && oga_system_name(nullptr)[0] == '\0')
+            ok("every C-ABI accessor is safe on a NULL handle");
+        else
+            bad("every C-ABI accessor is safe on a NULL handle", "one misbehaved");
+
+        /* The opaque mirror must agree with the table it mirrors, count and all.
+         * Casting a struct array to a pointer array is the bug that already cost
+         * this file once, so the two are cross-checked rather than assumed. */
+        int tableCount = 0;
+        const OgaSystem* const* table = oga_all_systems(&tableCount);
+        int abiCount = 0;
+        const void* const* abi = oga_all_system_handles(&abiCount);
+        bool same = (abiCount == tableCount) && abi && table;
+        for (int i = 0; same && i < abiCount; i++)
+            if (abi[i] != (const void*) table[i]) same = false;
+        if (same) ok("the C-ABI handle list matches the registry, entry for entry");
+        else bad("the C-ABI handle list matches the registry, entry for entry",
+                 std::to_string(abiCount) + " vs " + std::to_string(tableCount));
+
+        /* The iOS default pad before a ROM is loaded is the DS, by id. */
+        const OgaSystem* byId = oga_system_by_id(OGA_SYS_DS);
+        if (byId && oga_system_id(byId) == 1 && oga_system_screen_count(byId) == 2)
+            ok("the DS resolves by id 1 with two screens, for the pre-load default");
+        else
+            bad("the DS resolves by id 1 with two screens, for the pre-load default", "wrong");
     }
 
     printf("\n== the refusal explains itself\n");

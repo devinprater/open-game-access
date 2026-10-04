@@ -160,30 +160,35 @@ final class ControllerInput: ObservableObject {
         set(source, pressed ? gameButton(for: f) : nil, pressed: pressed)
     }
 
+    /// Maps a physical controller face button to the emulated pad position.
+    ///
+    /// ⛔ THE LAYOUT IS A PROPERTY OF THE PAD THE PLAYER IS HOLDING, and it now
+    /// comes from the registry's FACE-BUTTON LIST rather than a switch over
+    /// three console cases. The registry already says a Game Boy has two face
+    /// buttons and a PSP calls them Cross/Circle/Triangle/Square, so the
+    /// physical mapping is derived from that instead of restating it. A console
+    /// added to the registry is playable with a controller without touching
+    /// this file.
     private func gameButton(for position: Face) -> GamePadButton? {
-        switch session?.system ?? .ds {
-        case .psp:
-            // Cross/Circle/Triangle/Square = the core's A/B/X/Y slots.
+        let held = (session?.system ?? GameSystem.DSDefault).faceButtons.map(\.title)
+
+        // PSP names its four the Sony way, in the SAME physical positions the
+        // core maps to its A/B/X/Y slots.
+        if held.contains("Cross") {
             switch position {
             case .south: return .a
             case .east:  return .b
             case .north: return .x
             case .west:  return .y
             }
-        case .ds:
-            switch position {
-            case .east:  return .a
-            case .south: return .b
-            case .north: return .x
-            case .west:  return .y
-            }
-        case .gameBoy, .gameBoyAdvance:
-            // Two face buttons; the other two positions do nothing.
-            switch position {
-            case .east:  return .a
-            case .south: return .b
-            case .north, .west: return nil
-            }
+        }
+
+        // The DS/east-Asian order: A is the east button, B the south.
+        switch position {
+        case .east:  return .a
+        case .south: return .b
+        case .north: return held.count >= 4 ? .x : nil
+        case .west:  return held.count >= 4 ? .y : nil
         }
     }
 
@@ -266,7 +271,7 @@ final class ControllerInput: ObservableObject {
     private func resolve(_ slot: Slot) -> Action? {
         guard let session else { return nil }
         let native = Set(session.availableAdapterCommands)
-        let system = session.system ?? .ds
+        let system = session.system ?? GameSystem.DSDefault
         let luaKeys: Set<String> = session.isPokemonROM
             ? Set((system.pathKeys + system.readingKeys + system.speechKeys).map(\.key))
             : []
