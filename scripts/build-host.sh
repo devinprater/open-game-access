@@ -95,7 +95,13 @@ compile() {
   printf '%s|cxx|fe_access\n'    "$ROOT/Core/fe_access.cpp"
   printf '%s|cxx|fe_adapter\n'   "$ROOT/Core/fe_adapter.cpp"
   printf '%s|cxx|gba_adapter\n'  "$ROOT/Core/gba_adapter.cpp"
-  printf '%s|cxx|nes_adapter\n'  "$ROOT/Core/nes_adapter.cpp Core/n64_adapter.cpp"
+  # ⛔ ONE SOURCE PER ENTRY. These two were once a single printf with both paths in one
+  # quoted string, so the compiler was handed "Core/nes_adapter.cpp Core/n64_adapter.cpp" as
+  # a single filename and failed. A stale nes_adapter.o from an earlier build made the build
+  # look clean, while n64_adapter.o simply did not exist -- and every harness then died at
+  # the LINK with "undefined reference to oga::kNintendo64", which reads like a source bug.
+  printf '%s|cxx|nes_adapter\n'  "$ROOT/Core/nes_adapter.cpp"
+  printf '%s|cxx|n64_adapter\n'  "$ROOT/Core/n64_adapter.cpp"
   printf '%s|cxx|gba_core\n'     "$ROOT/Core/gba_core.cpp"
   printf '%s|cxx|mgba_version\n' "$ROOT/Core/mgba_version_stub.cpp"
   # Game Boy / GBC: M_CORE_GB is defined in MGBA_DEFS, so these TUs are
@@ -115,6 +121,13 @@ compile() {
   printf '%s|cxx|osk_echo\n'  "$ROOT/Core/osk_echo.cpp"
   printf '%s|cxx|adapters\n'     "$ROOT/Core/adapters.cpp"
   printf '%s|cxx|announce\n'     "$ROOT/Core/announce.cpp"
+  # ⛔ HOST-ONLY LINK SATISFACTION, NEVER IN core-sources.sh. pokecore.o calls psp_*
+  # unconditionally; the real Core/psp_core.cpp needs the PPSSPP tree (the `ppspp` lang), which
+  # this host build does not carry. host_harness_stub.cpp is the file written for exactly this,
+  # and it was in no list -- so the host set had undefined psp_* and no harness could link.
+  # Its own header forbids adding it to core-sources.sh: the app satisfies these with the real
+  # implementations and a second definition would break the app link.
+  printf '%s|cxx|host_harness_stub\n' "$ROOT/Core/host_harness_stub.cpp"
 } > "$OBJ/list.txt"
 
 rm -f "$OBJ/.failed"
