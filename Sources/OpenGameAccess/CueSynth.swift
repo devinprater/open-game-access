@@ -111,7 +111,10 @@ final class CueSynth {
             v.gain = 0
             return
         }
-        v.frequency = (state == 3) ? Self.coreHz : Self.enemyHz
+        // State 4 is the EX-gain PULSE: the core's own reachable signal (decomp proves the
+        // lock field can never hold a core, so the old `state == 3` branch was silent
+        // forever). Same high timbre, but it marks a pickup, which happens once.
+        v.frequency = (state == 4) ? Self.coreHz : Self.enemyHz
 
         // Clamp the distance into the usable band before mapping it.
         let d = max(Self.nearUnits, min(Self.farUnits, distance))
