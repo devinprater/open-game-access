@@ -31,6 +31,7 @@
 #include "Shared/BaseControlDevice.h"
 #include "Shared/MemoryType.h"
 #include "NES/NesConsole.h"
+#include "NES/BaseMapper.h"
 #include "NES/NesTypes.h"
 #include "Utilities/VirtualFile.h"
 #include "Utilities/FolderUtilities.h"
@@ -38,6 +39,11 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+extern "C" {
+#include "lua.h"
+#include "lauxlib.h"
+#include "lualib.h"
+}
 #include <atomic>
 #include <chrono>
 #include <memory>
@@ -79,6 +85,22 @@ struct NesCore {
     std::string error;
     std::string gameCode;
     uint8_t buttons[NES_BTN_COUNT] = {0};  /* 1 = pressed, in NES_BTN_* order */
+    /* ---- the reader host (mirrors gba_core.cpp) ---- */
+    lua_State* L = nullptr;
+    lua_State* coroutine = nullptr;
+    bool scriptLoaded = false;
+    std::string scriptDir;
+    /* Named memory domain, as BizHawk's memory.usememorydomain sets it. "System Bus" is the NES CPU
+     * address space; "CIRAM (nametables)" is PPU nametable RAM. Dragon Warrior asks for both. */
+    std::string memDomain = "System Bus";
+    /* ⛔ THE READERS SPEAK THROUGH A FILE, NOT AN API. Zelda 1 Access (and Dragon Warrior) write
+     * "<sequence>|<message>" into a .txt their NVDA bridge polls. A reader that loads and runs
+     * cleanly but says nothing is not broken -- it is talking to a listener that is not here. The
+     * core polls that file and forwards new sequences to the speech sink, so the mod's own
+     * protocol stays the single source of truth. */
+    std::string speechFile;
+    long lastSpeechSeq = -1;
+    unsigned speechPollTick = 0;
     std::vector<uint8_t> frameRGBA;        /* our own copy: Mesen's pointer dies with the frame */
     int fbW = 0, fbH = 0;
 };
@@ -118,6 +140,245 @@ void ResolveGameCode(NesCore* c, const char* romPath) {
     c->gameCode = token;   /* may legitimately be empty: an unknown game reads as unknown */
 }
 
+
+/* ======================================================================== Lua host
+ *
+ * Mirrors Core/gba_core.cpp's host so this repo has ONE reader-hosting pattern. See that file for
+ * the fuller commentary; the differences here are all NES-specific.
+ */
+
+NesCore* CoreFromLua(lua_State* L) {
+    lua_getfield(L, LUA_REGISTRYINDEX, "nes_core");
+    NesCore* c = (NesCore*) lua_touserdata(L, -1);
+    lua_pop(L, 1);
+    return c;
+}
+
+void RegisterCore(lua_State* L, NesCore* core) {
+    lua_pushlightuserdata(L, core);
+    lua_setfield(L, LUA_REGISTRYINDEX, "nes_core");
+}
+
+/* The one place a domain name becomes an address space. "System Bus" is what both readers mean by
+ * default; "CIRAM (nametables)" is Dragon Warrior's screen-text inspection. */
+int LuaMemRead(NesCore* c, uint32_t addr) {
+    if (!c) return 0;
+    if (c->memDomain == "CIRAM (nametables)") {
+        /* Nametable RAM is not in the CPU address space; nes_read would answer a different
+         * question. This is served from the PPU when the console exposes it. */
+        return (int) nes_read_nametable(c, addr);
+    }
+    uint32_t v = 0;
+    if (!nes_read(c, addr, 1, &v)) return 0;
+    return (int) v;
+}
+
+int LuaMemRead8(lua_State* L) {
+    NesCore* c = CoreFromLua(L);
+    uint32_t a = (uint32_t) luaL_checkinteger(L, 1);
+    lua_pushinteger(L, LuaMemRead(c, a));
+    return 1;
+}
+
+/* ⛔ WIDTH-AWARE, because binding the 16/32-bit names to the 8-bit function is SILENT: the reader
+ * would get one byte of a two-byte value and read a truncated address. little-endian, like BizHawk. */
+int LuaMemReadWide(lua_State* L, int width) {
+    NesCore* c = CoreFromLua(L);
+    uint32_t a = (uint32_t) luaL_checkinteger(L, 1);
+    uint32_t v = 0;
+    for (int i = 0; i < width; i++)
+        v |= (uint32_t) LuaMemRead(c, a + (uint32_t) i) << (8 * i);
+    lua_pushinteger(L, (lua_Integer) v);
+    return 1;
+}
+int LuaMemRead16(lua_State* L) { return LuaMemReadWide(L, 2); }
+int LuaMemRead32(lua_State* L) { return LuaMemReadWide(L, 4); }
+
+int LuaMemReadRange(lua_State* L) {
+    NesCore* c = CoreFromLua(L);
+    uint32_t a = (uint32_t) luaL_checkinteger(L, 1);
+    int n = (int) luaL_checkinteger(L, 2);
+    lua_newtable(L);
+    for (int i = 0; i < n; i++) {
+        lua_pushinteger(L, LuaMemRead(c, a + (uint32_t) i));
+        lua_rawseti(L, -2, i + 1);
+    }
+    return 1;
+}
+
+int LuaMemWrite8(lua_State* L) {
+    /* ⛔ WRITES ARE ACCEPTED BUT DO NOTHING TO GUEST MEMORY. A reader script occasionally writes to
+     * its own state; letting a script write RAM would break the read-only contract every adapter in
+     * this project holds to. Refusing silently is deliberate: the readers guard these calls in
+     * pcall and work fine without them, and a hard error would break a working reader instead. */
+    (void) L;
+    lua_pushnil(L);
+    return 1;
+}
+
+int LuaMemUseDomain(lua_State* L) {
+    NesCore* c = CoreFromLua(L);
+    if (!c) return 0;
+    const char* d = luaL_checkstring(L, 1);
+    /* Record it, and be honest about the ones this console cannot serve. Unknown domains keep the
+     * previous setting rather than silently reading the wrong space. */
+    if (strcmp(d, "System Bus") == 0 || strcmp(d, "CIRAM (nametables)") == 0)
+        c->memDomain = d;
+    return 0;
+}
+
+int LuaEmuFrameCount(lua_State* L) {
+    NesCore* c = CoreFromLua(L);
+    /* ⛔ THE REAL FRAME COUNT. The existing shim increments a Lua counter, which is a CALL count --
+     * Dragon Warrior uses frame numbers for timing (11 call sites), so a counter would drift. */
+    lua_pushinteger(L, (lua_Integer) nes_frames_completed(c));
+    return 1;
+}
+
+int LuaEmuFrameAdvance(lua_State* L) {
+    /* The reader's `while true do emu.frameadvance() end` yields here; nes_frame resumes it. */
+    return lua_yield(L, 0);
+}
+
+int LuaConsoleLog(lua_State* L) {
+    NesCore* c = CoreFromLua(L);
+    const char* s = luaL_tolstring(L, 1, nullptr);
+    if (c && c->log && s) c->log(s, c->logUser);
+    lua_pop(L, 1);
+    return 0;
+}
+
+int LuaGuiText(lua_State* L) {
+    /* gui.text draws an overlay; OGA has no overlay, so this is a no-op that must exist because the
+     * readers call it unconditionally. */
+    (void) L;
+    return 0;
+}
+
+int LuaJoypadSet(lua_State* L) {
+    NesCore* c = CoreFromLua(L);
+    if (!c || !lua_istable(L, 1)) return 0;
+    /* Press through the SAME path the app uses, so a script can never do more than a player. */
+    static const char* kNames[NES_BTN_COUNT] = { "A", "B", "Select", "Start", "Up", "Down", "Left", "Right" };
+    for (int i = 0; i < NES_BTN_COUNT; i++) {
+        lua_getfield(L, 1, kNames[i]);
+        bool down = lua_toboolean(L, -1) != 0;
+        lua_pop(L, 1);
+        nes_set_button(c, i, down);
+    }
+    return 0;
+}
+
+int LuaJoypadGet(lua_State* L) {
+    NesCore* c = CoreFromLua(L);
+    static const char* kNames[NES_BTN_COUNT] = { "A", "B", "Select", "Start", "Up", "Down", "Left", "Right" };
+    lua_newtable(L);
+    for (int i = 0; i < NES_BTN_COUNT; i++) {
+        lua_pushboolean(L, c && c->buttons[i]);
+        lua_setfield(L, -2, kNames[i]);
+    }
+    return 1;
+}
+
+const luaL_Reg kMemoryFuncs[] = {
+    { "read_u8",            LuaMemRead8 },
+    { "read_u16_le",        LuaMemRead16 },
+    { "read_u32_le",        LuaMemRead32 },
+    { "read_bytes_as_array", LuaMemReadRange },
+    { "write_u8",           LuaMemWrite8 },
+    { "usememorydomain",    LuaMemUseDomain },
+    { NULL, NULL }
+};
+
+const luaL_Reg kEmuFuncs[] = {
+    { "framecount",    LuaEmuFrameCount },
+    { "frameadvance",  LuaEmuFrameAdvance },
+    { NULL, NULL }
+};
+
+const luaL_Reg kJoypadFuncs[] = {
+    { "set", LuaJoypadSet },
+    { "get", LuaJoypadGet },
+    { NULL, NULL }
+};
+
+const luaL_Reg kConsoleFuncs[] = {
+    { "log", LuaConsoleLog },
+    { NULL, NULL }
+};
+
+int LuaOgaSetSpeechFile(lua_State* L) {
+    NesCore* c = CoreFromLua(L);
+    if (!c) return 0;
+    const char* p = luaL_checkstring(L, 1);
+    /* Set explicitly by our wrapper, from the reader's own SPEECH_FILE declaration. Never guessed:
+     * the sound-command file uses the same "<seq>|text" shape and a shape test picks the wrong one. */
+    c->speechFile = (p && *p) ? p : "";
+    c->lastSpeechSeq = -1;
+    if (c->log) c->log(("speech file set: " + c->speechFile).c_str(), c->logUser);
+    return 0;
+}
+
+const luaL_Reg kOgaFuncs[] = {
+    { "set_speech_file", LuaOgaSetSpeechFile },
+    { NULL, NULL }
+};
+
+const luaL_Reg kGuiFuncs[] = {
+    { "text", LuaGuiText },
+    { NULL, NULL }
+};
+
+void InstallLibraries(NesCore* core) {
+    lua_State* L = core->L;
+    RegisterCore(L, core);
+
+    lua_newtable(L); luaL_setfuncs(L, kMemoryFuncs, 0); lua_setglobal(L, "memory");
+    lua_newtable(L); luaL_setfuncs(L, kEmuFuncs, 0);    lua_setglobal(L, "emu");
+    lua_newtable(L); luaL_setfuncs(L, kJoypadFuncs, 0); lua_setglobal(L, "joypad");
+    lua_newtable(L); luaL_setfuncs(L, kConsoleFuncs, 0);lua_setglobal(L, "console");
+    lua_newtable(L); luaL_setfuncs(L, kGuiFuncs, 0);    lua_setglobal(L, "gui");
+    lua_newtable(L); luaL_setfuncs(L, kOgaFuncs, 0);    lua_setglobal(L, "oga");
+
+    /* `print` should reach the log, not stdout, so a reader's debug lines are visible in the app. */
+    lua_pushcfunction(L, LuaConsoleLog);
+    lua_setglobal(L, "print");
+}
+
+
+/* Read the reader's speech file and forward a NEW sequence to the speech sink.
+ *
+ * Format, from the reader's own write_speech():  "<sequence>|<message>"  (Lua: string.format("%d|%s", ...)).
+ * A leading byte-order mark may be present (the shipped file has one); it is stripped.
+ *
+ * ⛔ A REWRITE WITH THE SAME SEQUENCE IS NOT A NEW UTTERANCE. The reader rewrites the whole file
+ * every time, so only a CHANGED sequence number means new words. Without that check the reader's
+ * own "stale content for a frame" concern becomes a stutter here instead.
+ */
+void PollReaderSpeech(NesCore* c) {
+    if (!c || !c->speech || c->speechFile.empty()) return;
+    FILE* f = fopen(c->speechFile.c_str(), "rb");
+    if (!f) return;
+    char buf[1024] = {0};
+    size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+    fclose(f);
+    if (n == 0) return;
+
+    const char* s = buf;
+    if ((unsigned char) s[0] == 0xEF && (unsigned char) s[1] == 0xBB && (unsigned char) s[2] == 0xBF)
+        s += 3;                                   /* UTF-8 BOM */
+    char* bar = strchr(const_cast<char*>(s), '|');
+    if (!bar) return;
+    *bar = 0;
+    long seq = strtol(s, nullptr, 10);
+    const char* msg = bar + 1;
+
+    if (seq != c->lastSpeechSeq && *msg) {
+        c->lastSpeechSeq = seq;
+        c->speech(msg, false, c->speechUser);
+    }
+}
+
 } // namespace
 
 extern "C" {
@@ -149,6 +410,21 @@ void nes_set_log_callback(NesCore* c, NesLogCallback cb, void* userdata) {
     c->log = cb;
     c->logUser = userdata;
 }
+
+void nes_set_script_dir(NesCore* c, const char* dir) {
+    if (!c) return;
+    c->scriptDir = (dir && *dir) ? dir : "";
+    c->speechFile.clear();
+    c->lastSpeechSeq = -1;
+    /* ⛔ THE SPEECH FILE IS TOLD TO US, NEVER GUESSED. Both readers also ship a
+     * sound_bridge_command.txt whose contents look like "<seq>|text" -- the same shape as real
+     * speech -- so a content heuristic picks the sound file and reports hearing "reset" while the
+     * player hears nothing. The wrapper reads the reader's own SPEECH_FILE declaration and calls
+     * oga.set_speech_file(). See Resources/nes-lua/<game>/oga_nes_reader.lua, which parses the
+     * reader's own `SPEECH_FILE = DATA_DIR .. "/<name>.txt"` line. */
+}
+
+bool nes_script_loaded(NesCore* c) { return c && c->scriptLoaded; }
 
 bool nes_load_rom(NesCore* c, const char* rom_path, const char* save_path, char code_out[16]) {
     if (!c || !rom_path) return false;
@@ -230,6 +506,48 @@ bool nes_start(NesCore* c) {
     // Emulator::ProcessEndOfFrame (which dereferences it) at the end of EVERY frame. So there is no
     // supported way to step one frame synchronously; the library's model is Run() on its own thread
     // with the host reading state, which is exactly how Mesen's own front ends drive it.
+    /* ---- the reader script, if one was pointed at ---- */
+    if (!c->scriptDir.empty()) {
+        lua_State* L = luaL_newstate();
+        if (!L) { SetError(c, "Could not create the script engine."); return false; }
+        luaL_openlibs(L);
+        c->L = L;
+        InstallLibraries(c);
+
+        /* The entry file. Both NES readers are a single main script that the mod's own loader
+         * normally starts, so accept either name rather than demanding one. */
+        /* First match wins, in this order: a Game-Boy-style bootstrap, then a plain main.lua, then
+         * the NES wrapper (which installs the NES-shaped BizHawk surface and then runs the mod's own
+         * entry file -- see Resources/nes-lua/<game>/oga_nes_reader.lua). */
+        std::string boot;
+        for (const char* name : { "/oga_bootstrap.lua", "/main.lua", "/oga_nes_reader.lua" }) {
+            std::string cand = c->scriptDir + name;
+            if (FILE* f = fopen(cand.c_str(), "rb")) { fclose(f); boot = cand; break; }
+        }
+        if (boot.empty()) {
+            SetError(c, "No reader entry script (oga_bootstrap.lua or main.lua) in that directory.");
+            return false;
+        }
+
+        lua_State* co = lua_newthread(L);
+        c->coroutine = co;
+        if (luaL_loadfile(co, boot.c_str()) != LUA_OK) {
+            { char buf[512]; std::snprintf(buf, sizeof(buf), "Reader load error: %s",
+                                        lua_tostring(co, -1) ? lua_tostring(co, -1) : "(no message)");
+              SetError(c, buf); }
+            return false;
+        }
+        int nresults = 0;   /* Lua 5.4 resume writes through this; nullptr segfaults */
+        int rc = lua_resume(co, nullptr, 0, &nresults);
+        if (rc != LUA_OK && rc != LUA_YIELD) {
+            { char buf[512]; std::snprintf(buf, sizeof(buf), "Reader error: %s",
+                                        lua_tostring(co, -1) ? lua_tostring(co, -1) : "(no message)");
+              SetError(c, buf); }
+            return false;
+        }
+        c->scriptLoaded = true;
+    }
+
     c->stopRequested = false;
     c->runThread = std::thread([c]() {
         try {
@@ -244,7 +562,9 @@ bool nes_start(NesCore* c) {
 }
 
 void nes_stop(NesCore* c) {
-    if (!c || !c->emu) return;
+    if (!c) return;
+    if (c->L) { lua_close(c->L); c->L = nullptr; c->coroutine = nullptr; c->scriptLoaded = false; }
+    if (!c->emu) return;
     if (c->running) {
         c->emu->Stop(false, true, true);     /* sets _stopFlag, so Run() returns */
         if (c->runThread.joinable()) c->runThread.join();
@@ -288,6 +608,22 @@ bool nes_frame(NesCore* c) {
         std::this_thread::sleep_for(std::chrono::microseconds(200));
     }
     c->frames++;
+
+    /* ⛔ AFTER the frame, so the script observes the state that just completed rather than the
+     * previous frame's. A reader answering one frame stale reports the old room, the old HP. */
+    if (c->scriptLoaded && c->coroutine) {
+        int nresults = 0;
+        int rc = lua_resume(c->coroutine, nullptr, 0, &nresults);
+        if (rc != LUA_OK && rc != LUA_YIELD) {
+            const char* err = lua_tostring(c->coroutine, -1);
+            if (c->log) c->log(err ? err : "reader error", c->logUser);
+            c->scriptLoaded = false;
+        }
+    }
+
+    /* Forward the reader's file-based speech. Cheap (one small file per frame) and it is the ONLY
+     * way a reader using this protocol reaches the player. */
+    PollReaderSpeech(c);
 
     /* Copy the framebuffer out: Mesen's FrameBuffer pointer is only valid until the next frame, so
      * the core owns its copy -- the same contract psp_framebuffer_ptr documents. */
@@ -357,6 +693,22 @@ bool nes_read(NesCore* c, uint32_t addr, int width, uint32_t* out) {
     }
     *out = v;
     return true;
+}
+
+uint8_t nes_read_nametable(NesCore* c, uint32_t addr) {
+    if (!c || !c->console) return 0;
+    NesConsole* nes = dynamic_cast<NesConsole*>(c->console.get());
+    if (!nes) return 0;
+
+    /* ⛔ THE PUBLIC DEBUGGER PATH. BaseMapper::GetNametable is PROTECTED, so a library caller cannot
+     * use it -- and indexing a raw buffer would bypass the mapper's mirroring, which is the whole
+     * reason nametables are reachable at all. NesConsole::DebugReadVram is public and is what
+     * Mesen's own MemoryDumper uses for the NesPpuMemory type. Going through the console means the
+     * mapper's own mirroring decides where a logical nametable lands.
+     *
+     * The caller passes a CIRAM offset; the PPU's nametables live at 0x2000 in its 14-bit space. */
+    uint16_t vramAddr = (uint16_t) (0x2000u + (addr & 0x0FFFu));
+    return nes->DebugReadVram(vramAddr);
 }
 
 uint32_t nes_ram_base(NesCore* c) {
