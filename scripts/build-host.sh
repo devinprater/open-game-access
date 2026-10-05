@@ -29,6 +29,18 @@ if [ ! -f "$MGBA_GEN/mgba/flags.h" ] || [ "$MGBA_SRC/src/core/flags.h.in" -nt "$
       "$MGBA_SRC/src/core/flags.h.in" > "$MGBA_GEN/mgba/flags.h"
 fi
 MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$LUA_SRC/src"
+
+# ---- Mesen (NES) ----
+# The same shape mGBA gets, and for the same reason: Mesen's console cores include from the tree
+# root and need their precompiled header forced in. -include pch.h is how Mesen itself builds every
+# Core TU (see scripts/mesen-feasibility.sh, whose compile line is the measured one), so a host
+# build that omits it is compiling a DIFFERENT program than the admission test measured.
+MESEN_SRC="${MESEN_SRC:-$HOME/src/mesen}"
+# -I$MESEN_SRC lets "Shared/..." and "Utilities/..." resolve; -I$MESEN_SRC/Core is where pch.h and
+# the "NES/..." includes live. The force-include path is the feasibility script's own line.
+MESEN_INC="-I$MESEN_SRC -I$MESEN_SRC/Core -I$MESEN_SRC/Utilities"
+MESEN_DEFS=""
+MESEN_FORCE="-include $MESEN_SRC/Core/pch.h"
 # Host glibc has no <xlocale.h> (merged into <locale.h>); the audited DEFS
 # target the Mac toolchain where it exists. Everything else carries over.
 # -DHAVE_XLOCALE: glibc merged xlocale.h into locale.h (no such header).
@@ -60,6 +72,20 @@ compile() {
     cc)   flags="$CFLAGS"; cc=gcc ;;
     lua)  flags="$CFLAGS -DLUA_USE_POSIX"; cc=gcc ;;
     mgba) flags="$CFLAGS $HOST_MGBA_DEFS $MGBA_INC"; cc=gcc ;;
+    mesenc) flags="-O2 -g -fPIC -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -w -I$MESEN_SRC -I$MESEN_SRC/Core -I$MESEN_SRC/Utilities"; cc=gcc ;;
+    # Mesen's Lua-header shim: MUST see Mesen's Lua/ FIRST (its lua.h/lauxlib.h differ from the
+    # app's stock lua-5.4.7 -- same collision shape as CRC32.h). Nothing else is on this path.
+    mesenlua) flags="-O2 -g -fPIC -DPOKE_HOST=1 -w -I$MESEN_SRC/Lua"; cc=gcc ;;
+
+    mesenc) flags="-O2 -g -fPIC -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -w -I$MESEN_SRC -I$MESEN_SRC/Core -I$MESEN_SRC/Utilities"; cc=gcc ;;
+
+    # ⛔ SELF-CONTAINED, NOT $CXXFLAGS. Mesen and melonDS BOTH ship a `CRC32.h` declaring different
+    # classes; the shared flag set puts melonDS's src ahead of Mesen's Utilities, so Mesen's own
+    # `#include "CRC32.h"` silently resolved to melonDS's and the error read "CRC32 has not been
+    # declared" -- a shadowed header, not a missing one. Mesen TUs need none of the melonDS/Lua
+    # paths, so the fix is to leave them out here rather than reorder the shared list (which would
+    # aim Mesen's CRC32.h at melonDS's TUs and break those instead).
+    mesen) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include $MESEN_INC $MESEN_FORCE -std=c++17 -w"; cc=g++ ;;
   esac
   # Timestamp alone is not enough: flag changes (DEFS, includes) must rebuild.
   # The flags file records the exact command that produced $out.
@@ -115,6 +141,26 @@ compile() {
   # Without it these symbols fall to abort-on-call stubs, and any harness that
   # boots a GBA ROM dies the moment mCoreFind opens the ROM as an archive.
   for f in $MGBA_LZMA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgbalzma_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  # ---- Mesen (NES). The measured lists, NOT a hand-picked subset: these are the same entries
+  # scripts/mesen-feasibility.sh compiled for aarch64-linux-android26. A host harness that compiled
+  # a different subset would be proving something about a program the app does not ship.
+  # ⛔ THE WHOLE CORE, NOT A SUBSET -- see the MESEN_CORE_ALL note in core-sources.sh. A NES-only
+  # list compiles and cannot link, because Shared/Emulator.cpp's console factory and its Debugger
+  # are unconditional. The tag keeps the tree's shape, so a missing object names its own file.
+  for f in $MESEN_CORE_ALL; do printf '%s|mesen|%s\n' "$MESEN_SRC/$f" "mesen_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
+  # Utilities/ is a Core/ SIBLING and a separate list (its own project file), so it stays separate.
+  for f in $MESEN_UTILS;  do printf '%s|mesen|%s\n' "$MESEN_SRC/$f" "mesenu_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
+  # spng + the 7-Zip SDK: C, so the mesenc lang, and no pch force-include.
+  for f in $MESEN_C;           do printf '%s|mesenc|%s\n' "$MESEN_SRC/$f" "mesenc_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  for f in $MESEN_SEVENZIP_C;  do printf '%s|mesenc|%s\n' "$MESEN_SRC/$f" "mesen7z_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  for f in $MESEN_SEVENZIP_CPP; do printf '%s|mesen|%s\n' "$MESEN_SRC/$f" "mesen7zpp_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
+  # spng + the 7-Zip SDK: C, so the mesenc lang, and no pch force-include.
+  # The four symbols Mesen's Lua FORK adds over the app's Lua, satisfied without a second
+  # interpreter. See the long note in Core/mesen_lua_extras.c for why this is a shim and not a build
+  # of Mesen's 52-file Lua tree.
+  printf '%s|mesenlua|mesen_lua_extras\n' "$ROOT/Core/mesen_lua_extras.c"
+  # Our glue: the console the NES adapter reads from. This is the file that did not exist.
+  printf '%s|mesen|mesen_core\n' "$ROOT/Core/mesen_core.cpp"
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
   printf '%s|cxx|dq9_adapter\n'  "$ROOT/Core/dq9_adapter.cpp"
@@ -131,9 +177,19 @@ compile() {
 } > "$OBJ/list.txt"
 
 rm -f "$OBJ/.failed"
+
+# ⛔ THE 7-ZIP DEDUPE RUNS HERE, AFTER THE COMPILE LOOP, EVERY TIME. Mesen's 7zStream.o and mGBA's
+# copy define five of the same globals; localizing Mesen's copies is a per-object step that a fresh
+# compile undoes, so it belongs in the same place the objects are produced -- not in a one-off fixup
+# someone has to remember.
+if [ -f "$OBJ/mesen7z_SevenZip_7zStream.o" ]; then
+  bash "$ROOT/scripts/mesen-dedupe-7z.sh" "$OBJ/mesen7z_SevenZip_7zStream.o" || {
+    echo "!! 7-Zip symbol dedupe failed" >&2; touch "$OBJ/.failed"; }
+fi
 echo "== host objects: $(wc -l < "$OBJ/list.txt") TUs, $JOBS jobs"
 export CXXFLAGS CFLAGS OBJ MGBA_SRC
 export MGBA_DEFS MGBA_INC MGBA_GEN HOST_MGBA_DEFS
+export MESEN_SRC MESEN_INC MESEN_FORCE
 export -f compile
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED — see the same line in build-core.sh.
 # Without it xargs reads STDIN (empty under a non-interactive shell), compiles

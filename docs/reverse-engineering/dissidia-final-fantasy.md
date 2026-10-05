@@ -9381,3 +9381,91 @@ a source problem:
    purpose is to satisfy exactly those references. It is host-only by construction (`#error`
    without `POKE_HOST`) and must never enter `core-sources.sh`, where the app's real PSP backend
    would then collide with it.
+
+## 120. NES: the core is written and the whole link works; the ROM still will not load
+
+The NES adapter has been a deliberate REFUSAL since it was written, because the console was PLANNED
+with an admitted core and no core translation unit to read from. That TU now exists.
+
+### What is built
+
+`Core/mesen_core.cpp` + `Core/mesen_core.h` -- the missing backend, ~400 lines, mirroring the
+psp_core.h contract (create/destroy/load/start/stop/frame/framebuffer/buttons/read/error). It reads
+through `NesConsole::DebugRead`, the entry the debugger's own `MemoryDumper.cpp:383` uses, so mapper
+banking is respected; it presses the pad through the console's own `BaseControlDevice`
+(`SetBitValue` + `SetStateFromInput`), so the game sees real input; it refuses a 16-bit read that
+would wrap past `0xFFFF` rather than returning a silent wrong answer; and both audio and savestates
+REFUSE OUT LOUD instead of half-working.
+
+`Core/oga_core.cpp`: a `kNesOps` table beside GBA's, `oga_nes_core()`, and a resolver row so
+`.nes/.fds/.unf` reach the NES and nothing else does.
+
+**The full 666-object link succeeds.** That is the milestone: `nes_create/load_rom/start/frame/
+framebuffer/read` all resolve against the real Mesen core plus the real app core.
+
+### Four bugs the link exposed, all of the same shape
+
+1. **The measured subset could never link.** `scripts/mesen-feasibility.sh` ran `-fsyntax-only`: it
+   compiled 84 TUs and linked NOTHING, so a MISSING TRANSLATION UNIT was invisible by construction.
+   `Shared/Emulator.cpp` constructs every console Mesen supports and owns a `Debugger`
+   unconditionally (no `#ifdef` anywhere in the tree), so a NES-only list is not smaller -- it is
+   unlinkable. Now built from Mesen's own `Core.vcxproj` (303 TUs) + `Utilities.vcxproj` (57).
+2. **`Utilities/` was a whole missing set** -- and the first fix listed only its TOP LEVEL, so
+   Audio/, HQX/, KreedSaiEagle/, NTSC/, Patches/, Scale2x/, Video/ and xBRZ/ each announced itself as
+   a separate link error. Read the project file, not the directory listing.
+3. **A silent header collision.** Mesen and melonDS BOTH ship a `CRC32.h` declaring different
+   classes. The shared flag set put melonDS's src ahead of Mesen's Utilities, so Mesen's own
+   `#include "CRC32.h"` resolved to melonDS's and the error read "CRC32 has not been declared" -- a
+   shadowed header, not a missing one. Mesen TUs now get a self-contained flag set.
+4. **The 7-Zip SDK was in the link twice.** mGBA's vendored lzma is the same SDK as Mesen's
+   SevenZip/, and it is a SUBSET. Keeping all of Mesen's gave 18 duplicate definitions; keeping none
+   left `SzAlloc`/`SzFree`/`MemBufferInit` undefined. The resolution is per-symbol: mGBA keeps the
+   globals, and Mesen's `7zStream.o` is post-processed by `scripts/mesen-dedupe-7z.sh`
+   (`objcopy --localize-symbol`) so the LINKER sees one definition of each. The overlap is computed
+   from `nm`, not hardcoded -- the hardcoded first attempt was stale within one build.
+
+### And a fifth, in the tooling rather than the code
+
+**`build-host.sh` never deletes an object whose source left the list, and the harness archives
+`Vendor/hostobj/*.o` -- every object ON DISK.** So a shrunk list kept linking its own past, and a
+fixed build looked broken for two rounds. This is the exact mirror of the earlier bug in this
+session where a stale `.o` hid a TU that never built: a stale object makes a broken build look fine
+AND makes a fixed build look broken. `purge-orphans` logic is now part of the loop.
+
+### The blocker, and it is a good one
+
+`nes_load_rom` returns false. The ROM is not the problem: `fixture.nes` is verified by construction
+(24592 bytes = 16 + 1x16384 + 1x8192, PRG `e6 00 4c 00 c0` = `INC $00 ; JMP $C000`, vectors NMI/RESET/
+IRQ all `$C000`), the extension is in `NesConsole::GetSupportedExtensions()`, the header is
+`NES\x1a`, mapper 0 maps to `NROM`, and `GetPrgSize()`/`GetChrSize()` yield exactly the file size.
+
+**The mechanism, found by reading `Emulator::LoadRom`:**
+
+    bool Emulator::LoadRom(...) {
+        bool result = false;
+        try { result = InternalLoadRom(...); }
+        catch (std::exception& ex) {
+            _videoDecoder->StartThread(); _videoRenderer->StartThread();
+            MessageManager::DisplayMessage("Error", "UnexpectedError", ex.what());
+            Stop(false, true, false);
+        }
+        if (!result) { ...GameLoadFailed... }
+        return result;
+    }
+
+An exception inside `InternalLoadRom` -- a null `_soundMixer`, `_videoRenderer` or `_movieManager`
+being the obvious candidates, since this build never calls the `Emulator::Set*` device setters that
+Mesen's front ends call after `Initialize()` -- is therefore reported as a plain `false`, and my own
+try/catch around `LoadRom` never sees it. **A swallowed exception is indistinguishable from a
+rejected file through this API.**
+
+**Next step, concretely:** install a `MessageManager` log handler (Mesen routes these messages to an
+observable sink) to read the `UnexpectedError` text, and check which devices a headless
+`Initialize()` leaves null. That names the missing setup in one run instead of reading more source.
+
+### Also recorded: what "Mesen NG" is
+
+Checked rather than assumed, because the question was asked: there is no separate emulator called
+"Mesen NG". The project is **MesenCE** (`nesdev-org/MesenCE`), the community fork of Mesen2, actively
+pushed; `SourMesen/Mesen2` is an ARCHIVE (its README points at MesenCE). That is the tree already
+pinned here (`a60e79fe`) and the one this glue is written against -- so no switch is needed.
