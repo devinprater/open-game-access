@@ -80,3 +80,30 @@ proof that the whole path works: console -> Lua host -> wrapper -> mod -> file -
 2. Check whether DW's critical-health line is a real state or a mis-landed read (dump the address it
    reads, on a fresh boot, and compare against a known-good value).
 3. Wire the NES core into the app build (`build-core.sh`) so this runs on a phone.
+
+## Zelda 1 Access — the name-entry board, measured
+
+The overworld room narration could not be observed because the scripted drive did not get past name
+registration. That work did map the registration screen exactly, all from live reads:
+
+- **Board size: 44 cells, 11 wide, 4 rows.** `char_board_index` (0x041F) runs 0..0x2B. DOWN from
+  index 0 lands on 11 — the same column, next row — so the row stride is 11, not the 10 I first
+  assumed. Index 43 is the bottom-right cell.
+- **The cell map is the reader's own table.** `MODE_E_CHAR_MAP[43] = 0x24`, and `CHAR_MAP[0x24] = " "`.
+  The full walk speaks A-Z, then hyphen, question mark, comma, exclamation mark, apostrophe,
+  ampersand, period, then 0-9 — 44 cells, every one announced.
+- ⛔ **`0x24` is the name field's FILLER, not an END marker.** Walking to index 43 and pressing A
+  writes the filler into the name; it does not finish the screen. The earlier reading of that cell as
+  "END" was wrong.
+- **The name is 8 characters** at 0x0638..0x063F. A enters the character under the cursor and advances
+  `name_char_offset` (0x0421); at offset 8 the name held `AAAAAAAA` and registration had still not
+  ended.
+
+**Confirmed working:** the reader announces every board cell live, and A enters characters (name bytes
+observed stepping `2424..` -> `0A24..` -> `0A0A24..`).
+
+**Not found:** the confirm that leaves the registration screen. A, B, START and SELECT were each
+tried — including with a full 8-character name — and the mode byte stayed 0x0E. This is a HARNESS
+limitation, not a reader fault: the drive also cannot reliably navigate to the bottom-right cell,
+because repeated DOWN presses stop registering after the first (the index sits at 11 while RIGHT
+continues to work from a fresh row). The board is mapped; only the route through it is unproven.
