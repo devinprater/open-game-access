@@ -25,6 +25,7 @@
 #include "Platform.h"
 #include "gba_core.h"
 #include "psp_core.h"
+#include "mesen_core.h"
 
 // The GBA adapter's symbols (defined in gba_adapter.cpp). A GBA ROM selects
 // its native reader the same way an NDS ROM is matched from the registry —
@@ -33,6 +34,7 @@
 // so the GBA load path below names it directly.
 namespace oga {
 extern const Adapter kGameBoyAdvance;
+extern const Adapter kNintendoEntertainmentSystem;
 void gba_set_game_code(const char* code);
 }
 
@@ -91,6 +93,10 @@ struct PokeCore {
     // them: `backend.state` just points at one of these.
     GbaCore* gba = nullptr;
     PspCore* psp = nullptr;
+    // The NES (MesenCE). Same ownership rule as the others: created here, destroyed here, and
+    // pointed at by backend.state. It is the one backend whose console is reached through an
+    // adapter that reads live RAM rather than a Lua reader.
+    NesCore* nes = nullptr;
     // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
     // the app bundle; the app points the core at them before loading a PSP
     // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
@@ -757,6 +763,7 @@ void poke_destroy(PokeCore* core)
     if (core->L) lua_close(core->L);
     if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
+    if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     core->backend.ops = nullptr;
     core->backend.state = nullptr;
     if (gCurrentCore == core) gCurrentCore = nullptr;
@@ -1183,6 +1190,7 @@ static void TeardownBackends(PokeCore* core)
     if (core->L) { lua_close(core->L); core->L = nullptr; core->coroutine = nullptr; core->scriptLoaded = false; }
     if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
+    if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     core->adapter = nullptr;
     core->adapterAttached = false;
     // Clearing the ops is what makes "is a game loaded?" answerable from one
@@ -1216,6 +1224,34 @@ static bool LoadGbaRom(PokeCore* core, const char* rom_path, const char* save_pa
     gba_set_speech_callback(core->gba, GbaSayForward, core);
     gba_set_log_callback(core->gba, GbaLogForward, core);
     core->adapter = &oga::kGameBoyAdvance;
+    return true;
+}
+
+static bool LoadNesRom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    TeardownBackends(core);
+
+    core->nes = nes_create();
+    if (!core->nes) { SetError(core, "Could not create the NES core."); return false; }
+    char code[16] = {0};
+    // ⛔ THE SAVE PATH IS MESEN'S HOME FOLDER. nes_load_rom passes it to
+    // FolderUtilities::SetHomeFolder before the emulator is built, because Mesen THROWS
+    // "Home folder not specified" from inside LoadRom without it -- and that exception is caught
+    // and reported as a bare `false`, so the real cause is invisible from the caller.
+    if (!nes_load_rom(core->nes, rom_path, save_path ? save_path : "", code))
+    {
+        SetError(core, "%s", nes_last_error(core->nes));
+        nes_destroy(core->nes);
+        core->nes = nullptr;
+        return false;
+    }
+    core->backend = oga_nes_core(core->nes);
+    strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
+    // The NES adapter is a SEAM that refuses by design (Core/nes_adapter.cpp): it is the script
+    // adapter's job to narrate, and no reader script is bundled yet. Selecting it here means the UI
+    // correctly shows no reader controls, which is the truth, rather than showing controls that do
+    // nothing.
+    core->adapter = &oga::kNintendoEntertainmentSystem;
     return true;
 }
 
@@ -1264,6 +1300,10 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
             return false;
         }
         if (backend->gba_hint) return LoadGbaRom(core, rom_path, save_path);
+        /* ⛔ THE NES IS DISPATCHED BY ITS RESOLVED ID, so it cannot drift from the
+         * registry the way an extension check would. A .nes that reached melonDS would
+         * be the exact bug the resolver was written to end. */
+        if (strcmp(backend->id, "nes") == 0) return LoadNesRom(core, rom_path, save_path);
         if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
     }
 

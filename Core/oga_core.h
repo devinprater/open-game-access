@@ -149,6 +149,9 @@ typedef struct OgaCore {
  */
 
 OgaCore oga_gba_core(GbaCore* gba);
+/* NesCore is opaque here on purpose: oga_core.h must not pull in Mesen. */
+typedef struct NesCore NesCore;
+OgaCore oga_nes_core(NesCore* nes);
 OgaCore oga_psp_core(PspCore* psp);
 
 /* Which backend runs a file, by extension — or NULL when this build has none.

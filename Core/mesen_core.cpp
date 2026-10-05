@@ -33,11 +33,15 @@
 #include "NES/NesConsole.h"
 #include "NES/NesTypes.h"
 #include "Utilities/VirtualFile.h"
+#include "Utilities/FolderUtilities.h"
 
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <atomic>
+#include <chrono>
 #include <memory>
+#include <thread>
 #include <string>
 #include <vector>
 
@@ -69,6 +73,8 @@ struct NesCore {
 
     bool loaded = false;
     bool running = false;
+    std::thread runThread;             /* Mesen owns the frame loop; see nes_start */
+    std::atomic<bool> stopRequested{false};
     unsigned long long frames = 0;
     std::string error;
     std::string gameCode;
@@ -122,7 +128,11 @@ NesCore* nes_create(void) {
 
 void nes_destroy(NesCore* c) {
     if (!c) return;
-    if (c->emu && c->running) c->emu->Stop(false, true, true);
+    if (c->running) {
+        if (c->emu) c->emu->Stop(false, true, true);
+        if (c->runThread.joinable()) c->runThread.join();
+        c->running = false;
+    }
     c->console.reset();
     c->emu.reset();
     delete c;
@@ -143,6 +153,20 @@ void nes_set_log_callback(NesCore* c, NesLogCallback cb, void* userdata) {
 bool nes_load_rom(NesCore* c, const char* rom_path, const char* save_path, char code_out[16]) {
     if (!c || !rom_path) return false;
     c->error.clear();
+
+    // ⛔ MESEN REFUSES TO LOAD ANYTHING WITHOUT A HOME FOLDER, and it does so by THROWING from
+    // inside LoadRom, where Emulator's own catch turns it into a bare `false`. The first symptom was
+    // "nes_load_rom returned false" for a ROM that is verifiably valid; the actual message, once
+    // MessageManager's log was captured, was "Home folder not specified".
+    //
+    // FolderUtilities::SetHomeFolder is what Mesen's own front ends call at startup and a library
+    // user must too: save data, savestates, firmware and the game database all resolve under it. Set
+    // it from the save directory when the caller gives one, else the process's working directory --
+    // never leave it unset, because the failure is a swallowed exception rather than a clear error.
+    {
+        std::string home = (save_path && *save_path) ? std::string(save_path) : std::string(".");
+        FolderUtilities::SetHomeFolder(home);
+    }
 
     c->emu.reset(new (std::nothrow) Emulator());
     if (!c->emu) { SetError(c, "Could not create the emulator."); return false; }
@@ -199,13 +223,33 @@ int nes_read_audio(NesCore* c, int16_t* out, int max_frames) {
 
 bool nes_start(NesCore* c) {
     if (!c || !c->loaded || !c->emu) { SetError(c, "Load a game first."); return false; }
+    if (c->running) return true;
+
+    // ⛔ MESEN'S FRAME LOOP IS `Run()`, AND IT MUST OWN A THREAD. Run() is `while(!_stopFlag)` and
+    // it is also the only place `_frameLimiter` is created -- and the PPU calls
+    // Emulator::ProcessEndOfFrame (which dereferences it) at the end of EVERY frame. So there is no
+    // supported way to step one frame synchronously; the library's model is Run() on its own thread
+    // with the host reading state, which is exactly how Mesen's own front ends drive it.
+    c->stopRequested = false;
+    c->runThread = std::thread([c]() {
+        try {
+            c->emu->Run();
+        } catch (...) {
+            // An exception escaping the emulation thread would terminate the process. Record it.
+            c->stopRequested = true;
+        }
+    });
     c->running = true;
     return true;
 }
 
 void nes_stop(NesCore* c) {
     if (!c || !c->emu) return;
-    if (c->running) { c->emu->Stop(false, true, true); c->running = false; }
+    if (c->running) {
+        c->emu->Stop(false, true, true);     /* sets _stopFlag, so Run() returns */
+        if (c->runThread.joinable()) c->runThread.join();
+        c->running = false;
+    }
 }
 
 bool nes_running(NesCore* c) { return c && c->running; }
@@ -227,7 +271,22 @@ bool nes_frame(NesCore* c) {
         }
     }
 
-    c->emu->Run();      /* one full frame, to the next vblank */
+    // One nes_frame call == one emulated frame, with the APP owning its clock. The frame is
+    // produced by Mesen's own thread (see nes_start); this waits for the console's frame counter to
+    // advance. ⛔ BOUNDED ON PURPOSE -- a wait that never returns must surface as an error, not a
+    // hang, because a silent hang is indistinguishable from a load failure and cost real time here.
+    if (!c->console) return false;
+
+    uint32_t before = c->console->GetFrameCount();
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (c->console->GetFrameCount() == before) {
+        if (c->stopRequested) { SetError(c, "The NES core stopped unexpectedly."); return false; }
+        if (std::chrono::steady_clock::now() > deadline) {
+            SetError(c, "The NES core did not produce a frame within 5 seconds.");
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(200));
+    }
     c->frames++;
 
     /* Copy the framebuffer out: Mesen's FrameBuffer pointer is only valid until the next frame, so

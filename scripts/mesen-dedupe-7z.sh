@@ -39,16 +39,40 @@ if [ ! -f "$MG7Z" ]; then
 fi
 [ -f "$MG7Z" ] || { echo "!! cannot find mGBA's 7zStream.o to compute the overlap" >&2; exit 1; }
 
+# ⛔ IDEMPOTENT ON PURPOSE. Running this twice used to fail: after the first pass the shared names
+# are no longer extern in Mesen's object, so a second run either finds nothing to localize or has
+# objcopy refuse an already-local symbol -- and a build step that only works on a FRESH object breaks
+# on every incremental build. Decide the "already done" case explicitly instead.
+ALREADY_LOCAL="$(nm --defined-only "$OBJ" 2>/dev/null | awk '$2 ~ /^[a-z]$/ {print $NF}' | sort -u)"
+
 SHARED="$(comm -12 <(nm --defined-only --extern-only "$OBJ" | awk '{print $NF}' | sort -u) \
                    <(nm --defined-only --extern-only "$MG7Z" | awk '{print $NF}' | sort -u))"
-[ -n "$SHARED" ] || { echo "!! the two 7zStream.o files share no symbols -- nothing to localize; \n   this is NOT a pass: the dedupe step probably measured the wrong objects." >&2; exit 1; }
+
+if [ -z "$SHARED" ]; then
+  # Nothing left to do. That is only OK if the shared names are present as LOCAL symbols, i.e. the
+  # dedupe really did run before. If they are absent entirely, this object is not what we think it
+  # is and staying silent would hide it.
+  miss=0
+  for s in LookToRead_CreateVTable LookToRead_Init; do
+    nm --defined-only --extern-only "$OBJ" 2>/dev/null | grep -q " $s$" || miss=$((miss+1))
+  done
+  if [ "$miss" -gt 0 ]; then
+    echo "!! $OBJ exports neither LookToRead_* nor anything shared -- wrong object?" >&2; exit 1
+  fi
+  echo "  dedupe: already applied (no extern overlap remains)"
+  exit 0
+fi
 
 count=0
 for s in $SHARED; do
-  objcopy --localize-symbol="$s" "$OBJ" "$OBJ.localized" 2>/dev/null \
-    && mv "$OBJ.localized" "$OBJ" && count=$((count+1))
+  if objcopy --localize-symbol="$s" "$OBJ" "$OBJ.localized" 2>/dev/null; then
+    mv "$OBJ.localized" "$OBJ"; count=$((count+1))
+  else
+    rm -f "$OBJ.localized"
+    echo "  dedupe: could not localize $s (already local?) -- continuing" >&2
+  fi
 done
-echo "  dedupe: localized $count shared symbol(s): $(echo $SHARED | tr '\n' ' ')"
+echo "  dedupe: localized $count shared symbol(s)"
 
 # Verify: the object must still export the two symbols SZReader needs, and must no longer export
 # the five that mGBA provides. A silent no-op here is exactly the failure this script exists to
