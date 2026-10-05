@@ -111,10 +111,13 @@ watch, still no cue query), and CmdLock carries an
 - Levels persist across restarts. CFC2 used cfc2_audio.ini; the OGA mobile
   equivalent (NSUserDefaults, SharedPreferences, or an app settings file)
   is SPEC and undecided.
-- Mobile bindings are SPEC and undecided: CFC2 used F5-F8 plus shift as a
-  four-pack the user finds by feel mid-match. Touchscreens need an
-  equivalent (gesture, rotor action, or settings sliders). Needs owner
-  input before building.
+- Mobile bindings: RESOLVED CONSERVATIVELY (item 5). CFC2 used F5-F8 plus shift
+  as a four-pack the user finds by feel mid-match; a touchscreen has no such
+  keys, so the control lives in Settings as a labelled switch instead —
+  reachable, discoverable by exploration, and it speaks its own change. A
+  finer mid-fight control (a rotor action or a gesture, for a per-family
+  level) is worth adding once the cue is playable, and needs the owner's ear
+  first.
 - Cues duck under speech: cue gain drops while a speech utterance plays
   and restores after, so cues never mask pause speech. SPEC.
 

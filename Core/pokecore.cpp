@@ -941,6 +941,34 @@ uint32_t poke_announce_id_for_text(PokeCore* core, const char* utf8_text)
     return 0;
 }
 
+/* Per-frame battle snapshot for the host cue synth. See adapter.h CueSnapshot.
+ *
+ * Returns 0 when there is nothing to cue (no ROM, no adapter, a backend without cue data,
+ * the adapter not attached yet, or simply no battle). Otherwise:
+ *   1 = in battle, no lock          2 = locked on the enemy
+ *   3 = locked on the EX core
+ * and *dist is the distance to the locked target in world units (0 when not locked).
+ *
+ * ⛔ DELIBERATELY DOES NOT ATTACH. This is called every frame, long before the player has
+ * asked the reader anything; attaching here would build the adapter's host against a RAM
+ * image whose structures do not exist yet — the very failure the lazy attach in
+ * poke_command() exists to avoid. The cue therefore starts on the first command, which is
+ * when play actually begins.
+ *
+ * Speech-free and side-effect-free: safe to poll at frame rate.
+ */
+int poke_cue_snapshot(PokeCore* core, float* dist)
+{
+    if (dist) *dist = 0.0f;
+    if (!core || !core->adapter || !core->adapterAttached) return 0;
+    if (!core->adapter->cue_snapshot) return 0;   /* backend has no cue data */
+    oga::CueSnapshot s{};
+    if (!core->adapter->cue_snapshot(&s) || !s.battle) return 0;
+    if (dist) *dist = s.dist;
+    if (!s.locked) return 1;
+    return s.is_core ? 3 : 2;
+}
+
 bool poke_command(PokeCore *core, int cmd)
 {
     if (!core || !core->adapter) return false;

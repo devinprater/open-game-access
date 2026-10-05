@@ -153,6 +153,20 @@ bool poke_command(PokeCore *core, int cmd);
 same control the game itself uses. -1 when the command has no game button. */
 int poke_command_button(PokeCore *core, int cmd);
 
+/* Per-frame battle snapshot for the host cue synth (docs/design/cue-synth.md).
+ *
+ * 0 = nothing to cue (no adapter, no cue data, not attached yet, or no battle)
+ * 1 = in battle, no lock
+ * 2 = in battle, locked on the ENEMY
+ * 3 = in battle, locked on the EX CORE
+ *
+ * `*dist` receives the distance to the locked target, or 0 when not locked.
+ *
+ * ⛔ 0 IS THE FAIL-CLOSED VALUE: a host that gets it stays silent rather than beeping at
+ * nothing. This never attaches the adapter and never speaks — it is safe to call at frame
+ * rate, and the cue begins once the first command has attached the reader. */
+int poke_cue_snapshot(PokeCore *core, float *dist);
+
 /* Announcement-queue completion hooks (additive: estimate pacing works without
  * them). The queue releases one line at a time; a platform that can report
  * "finished" calls poke_announce_done with the utterance id it got from the

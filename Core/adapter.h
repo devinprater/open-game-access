@@ -119,6 +119,22 @@ enum class Command {
     RepeatOlder,  // Player repeat-prev key: step one line further back
 };
 
+/// Per-frame battle snapshot for host-side audio cues (item 5 spike).
+///
+/// PLAIN DATA, NO STRINGS, NO SPEECH. The adapter fills this from the same reads its
+/// on-demand commands use; the app's synth turns it into sound. The adapter never beeps
+/// itself, never writes RAM, never speaks here — feedback only, never aim/damage/movement.
+///
+/// WHY A STRUCT AND NOT A COMMAND: poke_command() speaks answers through the queue, which
+/// paces one line at a time. A 10 Hz beacon cannot go through speech at all — it needs a
+/// silent poll the synth reads every tick. NULL member = "this adapter has no cue data".
+struct CueSnapshot {
+    bool  battle;    // fighters resolve: we are in a battle
+    bool  locked;    // a live target (enemy or listed EX core)
+    bool  is_core;   // the locked target is the EX core rather than the enemy
+    float dist;      // world units, self to target; valid only when locked
+};
+
 struct Adapter {
     const char* id;              // "fe11"
     const char* display_name;    // "Fire Emblem: Shadow Dragon"
@@ -143,6 +159,14 @@ struct Adapter {
     bool (*ready)(void);
 
     void (*detach)(void);
+
+    /// Optional silent battle snapshot for the host-side cue synth (may be NULL;
+    /// trailing member so existing 8-field initializers keep compiling — the rest
+    /// value-initializes to nullptr). Return false when there is no snapshot to give
+    /// (no battle, or the state is not readable right now); the synth stays silent.
+    /// Must be read-only and speech-free: the same BattleFighters()/lock reads the
+    /// on-demand commands already use, repackaged without Say().
+    bool (*cue_snapshot)(CueSnapshot* out);
 };
 
 /// Look up an adapter by ROM game code. Returns nullptr when none matches, which

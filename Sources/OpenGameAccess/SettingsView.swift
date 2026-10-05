@@ -31,8 +31,16 @@ struct SettingsView: View {
             Section {
                 Toggle("Game sound", isOn: $session.audioEnabled)
                     .accessibilityHint("Plays the game's own audio. Speech is never turned off.")
+                // The lock-on cue. A separate switch from game sound on purpose: a player
+                // may want the cue with the music muted, or the music without a tone over
+                // it. The change is spoken by the setting itself, because with no screen
+                // an unspoken change is an invisible one.
+                Toggle("Lock cue", isOn: $session.cueBeaconEnabled)
+                    .accessibilityHint("A beep that quickens as the locked target gets closer. Different sounds for the enemy and the energy core. Silent when nothing is locked.")
             } header: {
                 Text("Sound")
+            } footer: {
+                Text("The lock cue plays only for games whose reader reports a locked target. It never changes what the game does.")
             }
 
             Section {

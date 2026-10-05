@@ -27,6 +27,22 @@ final class GameSession: ObservableObject {
         didSet { poke_set_audio_enabled(core, audioEnabled) }
     }
 
+    /// The lock-on beacon cue (item 5). A separate switch from game sound on purpose: a
+    /// player may want the beacon with the game muted, or the game's music without a tone
+    /// over it. Off while the feature is new — the skill's own rule is to default a new
+    /// feature off in development and verify the effective config at handoff.
+    ///
+    /// ⛔ PERSISTED. A cue the player switched off and which came back after a restart is
+    /// worse than one they never found.
+    @Published var cueBeaconEnabled: Bool =
+        UserDefaults.standard.object(forKey: "cueBeacon") as? Bool ?? false {
+        didSet {
+            UserDefaults.standard.set(cueBeaconEnabled, forKey: "cueBeacon")
+            if !cueBeaconEnabled { CueSynth.shared.silenceAll() }
+            speech?.announce(cueBeaconEnabled ? "Lock cue on." : "Lock cue off.")
+        }
+    }
+
     /// Which DS screen is rendered large. The accessibility script reads both,
     /// but the player is looking at whichever one matters right now.
     @Published var focusScreen: Int32 = POKE_SCREEN_BOTTOM
@@ -315,6 +331,20 @@ final class GameSession: ObservableObject {
         if let romName { status = .ready(name: romName) } else { status = .needROM }
     }
 
+    /// Poll the reader for a cue snapshot and drive the beacon. Called once per frame
+    /// from the frame loop, on the main thread.
+    ///
+    /// ⛔ CHEAP AND FAIL-CLOSED. poke_cue_snapshot returns 0 whenever there is no battle,
+    /// no adapter, or no cue data — and 0 silences the beacon, so a game without cues is
+    /// simply quiet rather than wrong. Nothing here allocates or speaks.
+    private func refreshCue() {
+        guard let core else { return }
+        var dist: Float = 0
+        let state = poke_cue_snapshot(core, &dist)
+        CueSynth.shared.updateBeacon(state: state, distance: dist,
+                                     enabled: audioEnabled && cueBeaconEnabled)
+    }
+
     /// Leave the running game, saving first.
     ///
     /// Saving is not a courtesy here, it is the difference between quitting and
@@ -364,6 +394,7 @@ final class GameSession: ObservableObject {
         }
         refreshFramebuffer()
         refreshAdapterState()
+        refreshCue()
     }
 
     // MARK: - Game adapters (native readers)
@@ -522,6 +553,9 @@ final class GameSession: ObservableObject {
     }
 
     private func stopAudio() {
+        // Silence the cue as well as the game: a tone left running after the emulator
+        // stops is a stuck note with nothing to explain it.
+        CueSynth.shared.silenceAll()
         audioEngine?.stop()
         audioEngine = nil
         audioSource = nil
@@ -580,6 +614,10 @@ private final class AudioSourceNode: AVAudioSourceNode {
             let ptr = raw.assumingMemoryBound(to: Int16.self)
             let frames = Int(frameCount)
             let got = Int(poke_read_audio(core, ptr, Int32(frames)))
+            // ⛔ MIX THE CUE IN HERE, AFTER THE CORE'S FRAMES, so there is one output path.
+            // Only over the frames the core actually produced: writing into the starved
+            // tail would put a tone where the fade below is trying to remove a click.
+            if got > 0 { CueSynth.shared.render(into: ptr, frames: got) }
             if got < frames {
                 // ⛔ DO NOT HARD-ZERO THE TAIL. A jump from full-scale audio
                 // straight to 0 in the middle of a waveform IS the click — the
