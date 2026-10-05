@@ -9288,3 +9288,36 @@ this session on the same pattern: an instrument answering a narrower question th
 (watch for the dump to differ, not for a screen to appear), or sidestepped entirely by loading a
 levelled save on the device and capturing a savestate -- RAM in a state is already decrypted,
 so that route avoids both the encrypted file and the input-timing problem.
+
+### FOLLOW-UP: the load now lands; the level is still unread
+
+Two things changed after the section above, and one of them is a success.
+
+**1. The load lands when driven on RAM, not on the screen.** A driver that presses confirm,
+re-hashes a RAM signature, and keeps trying different buttons and settle times (instead of
+trusting a screen to tell it the load happened) moved RAM on the FIRST press after the load
+screen opened. Verification, not vibes: a full-32 MB dump from that state differs from the
+**empty-memstick baseline by 41,178 bytes**, and the empty-vs-any-save difference is 41,128 --
+the same signature. So a save really is being read. The lesson is the section-118 one applied:
+the success criterion has to be the thing you care about (RAM), not a proxy that can lie (a
+screen that looks right).
+
+**2. The savedata image buffer was identified and RULED OUT as the roster.** The 16,384-byte
+region at `0x08BB3100` appears only when a save loads, which made it the obvious candidate.
+It is not the character roster: its first words are a rising-then-falling series of large u32s
+(4272360507, 4277406783, ... up to 81328166, then down again) -- the shape of image/icon data,
+and it matches the save's `ICON0.PNG` in size class. Recorded because "the big new region" is
+where a level hunt naturally starts, and it is the wrong place.
+
+**Still NOT read: any character level.** The differing spans are dominated by heap (the 19,832-
+byte span at `0x09D825C0`) and by that image buffer, and the stride hunt over 0x10..0x400 found
+only small repeating values in the `0x09C4xxxx` UI regions. None of that is a roster with a
+level field. So the two candidate saves (Epyon TIME 276 vs the near-empty tutorial) have not
+been distinguished in RAM, and the level question remains open.
+
+**Where it should go next, and why this route was abandoned:** the emulator path has cost a lot
+for a two-value question ("is this save levelled?"). Loading a save on the device and capturing
+a **savestate** removes both blockers at once -- savestate RAM is already decrypted, and the
+capture is done by a human who can see the load succeed, so there is no input-timing problem
+left to fight. See the skill note on preferring a fixture a human can produce over a
+screenshot-driven sequence.
