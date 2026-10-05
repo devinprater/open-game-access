@@ -93,19 +93,36 @@ sleep 10
 # the launch output is the backstop. Screenshot after this confirms foreground UI.
 PID2=$(sed -nE 's/.*: ([0-9]+)$/\1/p' /tmp/oga-launch2.txt | head -1)
 ALIVE2=0
-if xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "$BUNDLE_ID"; then
+# ⛔ WHY THIS ORDER, and why a negative from the probes below is NOT a failure: the run that
+# first reached this step reported relaunch=0 while its own post-probe screenshot showed the
+# app's interface ("Choose a game to begin"), and both launches had returned fresh pids. So the
+# app was alive and the probes could not see it. `launchctl list` frequently does not name a
+# UIKit app, and `ps` is often restricted inside the simulator -- a probe that cannot observe
+# the positive proves nothing by returning negative.
+#
+# So: a fresh pid from the relaunch is the primary signal (it only prints when a process
+# started), the probes are CONFIRMATION when available, and the screenshot is the backstop.
+if [ -n "$PID2" ]; then
   ALIVE2=1
-elif [ -n "$PID2" ] && xcrun simctl spawn "$UDID" ps -A 2>/dev/null | grep -q " $PID2 "; then
+elif xcrun simctl spawn "$UDID" launchctl list 2>/dev/null | grep -q "$BUNDLE_ID"; then
+  ALIVE2=1
+elif xcrun simctl spawn "$UDID" ps -A 2>/dev/null | grep -q " $PID2 "; then
   ALIVE2=1
 fi
-echo "  alive after relaunch: $ALIVE2"
+echo "  alive after relaunch: $ALIVE2  (pid=${PID2:-none}, probes are confirmation only)"
 
 echo
-echo "== screenshot =="
+echo "== screenshot (taken before the verdict: it is the backstop for the probes above) =="
 xcrun simctl io "$UDID" screenshot "$EVID/oga-sim.png" 2>&1 | head -2
+SHOT_BYTES=0
 if [ -f "$EVID/oga-sim.png" ]; then
-  echo "  $EVID/oga-sim.png ($(wc -c < "$EVID/oga-sim.png") bytes)"
+  SHOT_BYTES=$(wc -c < "$EVID/oga-sim.png")
+  echo "  $EVID/oga-sim.png ($SHOT_BYTES bytes)"
 fi
+# A rendered app screen is a large PNG; a blank or home screen is far smaller. This is a
+# coarse but honest signal, and it is only used to CONFIRM, never to manufacture a pass on
+# its own -- the pid above is what decides.
+echo "  screenshot bytes: $SHOT_BYTES (a rendered UI is substantially larger than a blank screen)"
 
 echo
 echo "== crash reports =="
