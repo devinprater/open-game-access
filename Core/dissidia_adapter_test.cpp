@@ -36,6 +36,7 @@ uint32_t WidgetRoot(void);
 const char* DissidiaStoryRunFor(const char* id);
 const char* DissidiaStoryTitleFor(const char* id);
 const char* DissidiaMatchStoryScene(void);
+bool CueSnapshotFill(CueSnapshot* out);
 }
 // Focused-test stubs: the registry TU references the sibling adapters, but this
 // binary tests ONLY the Dissidia adapter, so the siblings are null shells that
@@ -134,6 +135,90 @@ static void oskSetup(const char* seed)
     put32(OSK_F + 40u, OSK_B);
     putU16str(OSK_B, seed);
 }
+
+// ---- Cue snapshot (item 5): the host synth polls this every frame -------------------
+//
+// The rule: report a battle ONLY when the fighters resolve, and a lock ONLY when the
+// target pointer is a live target. A wrong cue is worse than a silent one.
+
+static void putF32(uint32_t a, float v) { memcpy(&RAM[OFF(a)], &v, 4); }
+
+// Build a minimal readable battle: manager -> P0 (self) and P0+OFF_PAIR (foe), with each
+// fighter pointing at a stats struct. Mirrors the layout the adapter's reads expect.
+static void makeFighters(uint32_t mgr, uint32_t p0, uint32_t p1,
+                         uint16_t hpMax, uint16_t dmg)
+{
+    put32(0x08B955A0u, mgr);
+    put32(mgr + 0x14u, p0);
+    put32(p0 + 0x2F0u, p1);
+    uint32_t s0 = 0x08904000u, s1 = 0x08904100u;
+    put32(p0 + 0x51Cu, s0);
+    put32(p1 + 0x51Cu, s1);
+    put16(s0 + 0x08u, hpMax); put16(s0 + 0x02u, dmg);
+    put16(s1 + 0x08u, hpMax); put16(s1 + 0x02u, dmg);
+    putF32(p0 + 0x80u, 0.0f); putF32(p0 + 0x84u, 0.0f); putF32(p0 + 0x88u, 0.0f);
+    putF32(p1 + 0x80u, 30.0f); putF32(p1 + 0x84u, 0.0f); putF32(p1 + 0x88u, 40.0f);
+}
+
+static void test_cue_snapshot(void)
+{
+    const oga::Adapter* a = &oga::kDissidiaFinalFantasy;
+    oga::CueSnapshot s{};
+
+    // 1. No battle -> false, and nothing is claimed.
+    reset();
+    CHECK(a->attach(&HOST), "cue attach");
+    s.battle = true; s.locked = true; s.is_core = true; s.dist = 99.0f;
+    CHECK(!oga::dissidia::CueSnapshotFill(&s), "no battle -> no snapshot");
+    CHECK(!s.battle && !s.locked && s.dist == 0.0f,
+          "a refused snapshot clears every field (never stale)");
+
+    // 2. Battle, lock off -> battle true, locked false.
+    makeFighters(0x08903000u, 0x08903100u, 0x08903200u, 1000u, 0u);
+    put32(0x08903100u + 0x2ECu, 0u);
+    CHECK(oga::dissidia::CueSnapshotFill(&s), "battle with lock off -> snapshot");
+    CHECK(s.battle && !s.locked, "lock off reports battle but not locked");
+
+    // 3. Locked on the enemy -> locked, not a core, real distance (3-4-5 triangle).
+    put32(0x08903100u + 0x2ECu, 0x08903200u);
+    CHECK(oga::dissidia::CueSnapshotFill(&s), "locked enemy -> snapshot");
+    CHECK(s.battle && s.locked && !s.is_core, "enemy lock reports as enemy");
+    CHECK(s.dist > 49.9f && s.dist < 50.1f, "distance is the 3-4-5 distance (50)");
+
+    // 4. Locked on a LIVE listed alternate (the EX core) -> is_core.
+    const uint32_t coreObj = 0x08905000u;
+    put32(0x08903100u + 0x2ECu, coreObj);
+    put32(0x08903000u + 0x0Cu, coreObj);          // manager's object list head
+    put32(coreObj + 0x490u, 0u);                   // end of list
+    putF32(coreObj + 0x80u, 10.0f); putF32(coreObj + 0x84u, 0.0f);
+    putF32(coreObj + 0x88u, 10.0f);
+    CHECK(oga::dissidia::CueSnapshotFill(&s), "listed alternate -> snapshot");
+    CHECK(s.locked && s.is_core, "a listed alternate reports as the EX core");
+    CHECK(s.dist > 14.0f && s.dist < 14.2f, "core distance is correct (~14.14)");
+
+    // 5. ⛔ AN UNLISTED ALTERNATE IS NOT A TARGET. This is the read that stops the synth
+    // being told "locked" about a freed pointer.
+    put32(0x08903100u + 0x2ECu, 0x08906000u);      // not in the list
+    CHECK(oga::dissidia::CueSnapshotFill(&s), "unlisted alternate still yields a snapshot");
+    CHECK(s.battle && !s.locked, "an unlisted pointer is NOT reported as locked");
+
+    // 6. Self is never a lock target.
+    put32(0x08903100u + 0x2ECu, 0x08903100u);      // self
+    put32(0x08903000u + 0x0Cu, 0x08903100u);      // and self IS in the list
+    put32(0x08903100u + 0x490u, 0u);
+    CHECK(oga::dissidia::CueSnapshotFill(&s), "self-as-target still yields a snapshot");
+    CHECK(!s.locked, "self is never reported as a lock target");
+
+    // 7. NULL out -> refused, not crashed.
+    CHECK(!oga::dissidia::CueSnapshotFill(nullptr), "null snapshot is refused");
+
+    // 8. Broken manager -> no battle, no cue (fail closed).
+    reset();
+    CHECK(a->attach(&HOST), "cue attach after reset");
+    CHECK(!oga::dissidia::CueSnapshotFill(&s), "broken chain -> no snapshot");
+    CHECK(!s.battle, "no battle is claimed from a broken chain");
+}
+
 
 int main(void)
 {
@@ -1298,6 +1383,8 @@ int main(void)
     CHECK(NSPOKEN == 2 && strcmp(SPOKE(0), "Up!") == 0 &&
           strcmp(SPOKE(1), "Left!") == 0, "middle qte replaced");
     CHECK(oga::announce_stats(Q).replaced == 1, "replacement counted");
+
+    test_cue_snapshot();
 
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);

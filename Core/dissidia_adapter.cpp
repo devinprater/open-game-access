@@ -1057,6 +1057,62 @@ static void CmdLock(void)
     // the current Adapter interface does not provide yet.
 }
 
+/// Silent per-frame battle snapshot for the host cue synth (adapter.h CueSnapshot).
+///
+/// READ-ONLY AND SPEECH-FREE, deliberately: this runs every frame, and anything that
+/// spoke here would flood the announcement queue that paces the player's answers. It
+/// reuses the exact reads CmdLock/CmdBattleFoe already perform, so the cue can never
+/// describe a battle the on-demand commands disagree about.
+///
+/// Reports the locked target's identity and distance only — the cue stays CENTERED
+/// (the player's own request) and identity rides on timbre, distance on rate.
+bool CueSnapshotFill(CueSnapshot* out)
+{
+    if (!out) return false;
+    out->battle = false;
+    out->locked = false;
+    out->is_core = false;
+    out->dist = 0.0f;
+
+    Battle b = BattleFighters();
+    if (!b.ok) return false;          // not a battle: no cue at all
+    out->battle = true;
+
+    uint32_t tgt = u32(b.self.p + 0x2ECu);
+    if (tgt == 0) return true;       // lock off: battle, but nothing to track
+
+    uint32_t enemy = u32(b.self.p + OFF_PAIR);
+    if (tgt == enemy) {
+        if (!b.foe.ok) return true;  // enemy target with no readable foe: silent
+        out->locked = true;
+        out->is_core = false;
+        out->dist = VecDist(b.self.x, b.self.y, b.self.z, b.foe.x, b.foe.y, b.foe.z);
+        return true;
+    }
+
+    // Alternate target: verify list membership before calling it a core (same rule as
+    // CmdLock — an unlisted pointer is not a target, and self is never one).
+    uint32_t m = u32(BATTLE_MGR_HOLDER);
+    bool listed = false;
+    if (InRam(m) && !(m & 3)) {
+        uint32_t o = u32(m + 0x0Cu);
+        for (int i = 0; i < 64 && InRam(o) && !(o & 3) && o != 0; i++) {
+            if (o == tgt) { listed = true; break; }
+            o = u32(o + 0x490u);
+        }
+    }
+    if (!listed || tgt == b.self.p) return true;   // not a live target: silent
+    if (!InRam(tgt + 0x88u)) return true;
+
+    float tx = f32(tgt + OFF_PX), ty = f32(tgt + OFF_PY), tz = f32(tgt + OFF_PZ);
+    if (tx != tx || ty != ty || tz != tz) return true;   // NaN guard
+
+    out->locked = true;
+    out->is_core = true;
+    out->dist = VecDist(b.self.x, b.self.y, b.self.z, tx, ty, tz);
+    return true;
+}
+
 static void CmdDump(void)
 {
     char line[160];
@@ -1778,6 +1834,7 @@ const Adapter kDissidiaFinalFantasy = {
     dissidia::Command,
     dissidia::Ready,
     dissidia::Detach,
+    dissidia::CueSnapshotFill,
 };
 
 } // namespace oga
