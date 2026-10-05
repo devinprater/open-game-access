@@ -141,7 +141,12 @@ bool poke_adapter_ready(PokeCore *core);
  *
  * `cmd` values match oga::Command in Core/adapter.h:
  *   0 WhereAmI, 1 NextAlly, 2 PrevAlly, 3 NextEnemy, 4 PrevEnemy,
- *   5 NextUnactedAlly, 6 DumpState */
+ *   5 NextUnactedAlly, 6 DumpState ...
+ *
+ * Two of them are CORE-INTERNAL and need no adapter: StopSpeech (37) and the spoken-
+ * history walk RepeatNewest (38) / RepeatOlder (39). They work on any game, including the
+ * Lua script and a game with no adapter, because the history lives in the announcement
+ * queue rather than in a game reader. */
 bool poke_command(PokeCore *core, int cmd);
 
 /* The DS button id for an adapter command, so the UI can label a button with the

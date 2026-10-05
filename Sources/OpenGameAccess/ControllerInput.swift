@@ -251,7 +251,7 @@ final class ControllerInput: ObservableObject {
             case .pad(.up):     return .prevGroup
             case .pad(.down):   return .nextGroup
             case .face(.south): return .readItem
-            case .face(.north): return .gameToggle1
+            case .face(.north): return .repeatOlder
             case .face(.west):  return .gameToggle2
             case .face(.east):  return .gameToggle3
             }
@@ -263,7 +263,10 @@ final class ControllerInput: ObservableObject {
         case adapter(AdapterCommand)
         case hotkey(String)
         case stopSpeech
-        case repeatLast
+        /// The spoken-history walk. Distinct from `adapter`: these are core-internal, so
+        /// they are available on EVERY game rather than only where an adapter exists.
+        case repeatNewest
+        case repeatOlder
     }
 
     /// Native reader first, then the Pokémon script key — the same buttons the
@@ -286,7 +289,11 @@ final class ControllerInput: ObservableObject {
         // The DS script's own stop key also clears its queue; elsewhere the
         // engine stop is what makes silence stick (see SpeechGroup).
         case .stopSpeech:  return key("R") ?? .stopSpeech
-        case .repeatLast:  return key("U") ?? .repeatLast
+        // ⛔ NOT gated on an adapter: the queue's spoken history exists for every game,
+        // including the Lua script and a game nobody wrote a reader for. The script's own
+        // U key takes precedence where it exists, because the script's history is richer
+        // than what it hands the platform.
+        case .repeatLast:  return key("U") ?? .repeatNewest
         case .findPath:    return key("P")
         case .tiles:       return key("E")
         case .prevItem:    return cmd(.prevAlly) ?? key("J")
@@ -311,10 +318,19 @@ final class ControllerInput: ObservableObject {
         case .adapter(let command): session?.sendAdapterCommand(command)
         case .hotkey(let key):      InputBridge.tapHotkey(key)
         case .stopSpeech:           session?.stopSpeech()
-        case .repeatLast:
-            guard let speech else { return }
-            let last = speech.lastSpoken
-            speech.announce(last.isEmpty ? "Nothing to repeat." : last)
+        case .repeatNewest:
+            // The queue owns the history, so it decides what is repeatable — including
+            // refusing at the oldest line and never surfacing a line the platform was
+            // never given. Swift's lastSpoken is the fallback for a core with no queue.
+            if session?.repeatSpoken(newest: true) != true {
+                guard let speech else { return }
+                let last = speech.lastSpoken
+                speech.announce(last.isEmpty ? "Nothing to repeat." : last)
+            }
+        case .repeatOlder:
+            if session?.repeatSpoken(newest: false) != true {
+                speech?.announce("Nothing older to repeat.")
+            }
         }
     }
 }

@@ -44,6 +44,13 @@ constexpr int kAnnounceMaxPending = 8;    // queued (not yet speaking) items, ac
 constexpr int kAnnounceMaxGroups  = 16;   // distinct group names ever seen by one queue
 constexpr int kAnnounceNameMax    = 32;   // group name bytes incl. NUL
 constexpr int kAnnounceKeyMax     = 64;   // dedup key bytes incl. NUL
+/// Spoken lines the player can walk back through. WHY A RING AND NOT ONE SLOT: "repeat"
+/// as a single last-line mirror answers "what did it just say", but a player who missed
+/// two lines ago has no path to it. Reviewed accessibility mods keep 50 (Kingdom Access)
+/// with repeat / previous / next; this is the same idea at the useful window. The QUEUE
+/// owns it because the queue is the only thing that knows what actually reached the
+/// platform -- a line suppressed as a duplicate never did, and must not be repeatable.
+constexpr int kAnnounceHistoryMax = 16;
 
 struct Announcement {
     const char* text;        // UTF-8, copied on enqueue. Empty is rejected.
@@ -120,6 +127,16 @@ void announce_speech_done(AnnounceQueue* q, uint32_t utterance_id, bool success)
 /// The player's stop key. Clears pending Low/Normal and forgets the line in flight (the host
 /// stops the platform voice itself). Low/Normal stay silenced until the next High item.
 void announce_stop(AnnounceQueue* q, uint64_t now_ms);
+
+/// Walk the spoken history. Repeating is a player action, so a repeated line is spoken as
+/// High: it cuts off whatever is speaking, lifts a stop, and bypasses dedup and rate
+/// limits. Neither adds to the history, so walking back does not slide toward itself.
+/// `newest` speaks the most recent line and resets the walk; `older` steps one line back
+/// and clamps. Both return false when there is nothing (more) to repeat.
+bool announce_repeat_newest(AnnounceQueue* q, uint64_t now_ms);
+bool announce_repeat_older(AnnounceQueue* q, uint64_t now_ms);
+/// Lines currently recorded, for the UI to say "nothing to repeat" honestly.
+int  announce_history_count(const AnnounceQueue* q);
 
 void          announce_set_diag_verbose(AnnounceQueue* q, bool on);
 AnnounceStats announce_stats(const AnnounceQueue* q);

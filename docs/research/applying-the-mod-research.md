@@ -149,18 +149,25 @@ distance, pitch = elevation, hysteresis at 1.1X). It is unbuilt — `oga_core.cp
 
 Cheap and real first; flagged where it needs a playtest or a core.
 
-1. **Add the last-N spoken ring to the queue** plus `RepeatPrev`/`RepeatNext` as append-only
-   `Command` values (Gap 2). Touches `Core/announce.{h,cpp}`, the Swift bridge's enum
-   mirror, and the controller map. ⛔ Remember `Command` is append-only and mirrored in
-   Swift — the repo has been bitten by an un-widened upper-bound check before, so widen any
-   `cmd > LastCommand` gate in the same commit.
+1. ~~**Add the last-N spoken ring to the queue** plus the repeat commands as append-only
+   `Command` values (Gap 2).~~ ✅ **DONE** — `kAnnounceHistoryMax` = 16 in `Core/announce.h`,
+   recorded in `emit()` (only what was SPOKEN), with `RepeatNewest`/`RepeatOlder` as
+   append-only `Command` values 38/39. The `cmd > StopSpeech` gate in pokecore.cpp was
+   widened in the same commit. Proven by `SABOTAGE_REPEAT_INCLUDES_SUPPRESSED`.
 2. **Adopt the wording sets** (Gap 1): distance bands, the clearance/obstacle vocabulary,
-   and a clock-position option. Format strings only, no architecture.
-3. **Run `scripts/audit-adapter-speech.py` across all adapters** and fix anything it shows
-   as misprioritised (Gap 3). Free correctness.
-4. **Settle the beacon encoding as "identity in timbre, distance in rate"** and update
-   `docs/proposals/dissidia-battle-audio.md` to remove the pulse-rate ambiguity — the
-   research answers its own open question (Gap 4).
+   and a clock-position option. Format strings only, no architecture. **NOT DONE** — held
+   back on purpose: it touches adapter wording, which is best changed alongside a live
+   playtest rather than blind.
+3. ~~**Run `scripts/audit-adapter-speech.py` across all adapters**~~ ✅ **DONE and extended**
+   into a real gate: `--check` exits non-zero on a mechanical violation, `--coverage`
+   reports which design rules each adapter follows, and `scripts/audit-speech-test.sh`
+   proves the gate catches each violation class and produces no false positives. The tree
+   currently passes with 0 violations.
+4. ~~**Settle the beacon encoding as "identity in timbre, distance in rate"**~~ ✅ **DONE** —
+   `docs/proposals/dissidia-battle-audio.md` now specifies distinct TIMBRES for the enemy
+   and the EX core with rate reserved for proximity, and `docs/design/announcement-queue.md`
+   records the same question as resolved. The spec also carries a new §1b of cue rules
+   inherited from the research.
 5. **Then** build the host-side cue synthesiser, which is the real ceiling on every spatial
    design here. Needs an iOS AudioUnit path and an Android equivalent, and it is a product
    decision, not a research one.

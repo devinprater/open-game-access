@@ -382,6 +382,119 @@ void test_utf8_truncation()
 
 } // namespace
 
+// ── Spoken history (repeat / previous) ────────────────────────────────────────────────
+
+void test_history_records_only_what_was_spoken()
+{
+    // ⛔ THE RULE THAT MATTERS MOST. A duplicate suppressed by dedup never reached the
+    // platform, so repeating must not surface it. Record at emit(), not at announce().
+    Fixture f;
+    f.say("Enemy: Soldier, 12 HP.", Priority::Normal, "enemy", "enemy:1");
+    f.finish();
+    f.say("Enemy: Soldier, 12 HP.", Priority::Normal, "enemy", "enemy:1");  // suppressed
+    f.finish();
+    CHECK(announce_history_count(f.q) == 1, "a deduped line never enters the history");
+    CHECK(announce_repeat_newest(f.q, f.now), "the one real line is repeatable");
+    CHECK(f.last() == "Enemy: Soldier, 12 HP.", "repeat speaks the line that was heard");
+}
+
+void test_history_walk_back_and_clamp()
+{
+    Fixture f;
+    f.say("One.", Priority::Normal, "a"); f.finish();
+    f.say("Two.", Priority::Normal, "a"); f.finish();
+    f.say("Three.", Priority::Normal, "a"); f.finish();
+    CHECK(announce_history_count(f.q) == 3, "three spoken lines recorded");
+
+    CHECK(announce_repeat_older(f.q, f.now), "step back");
+    CHECK(f.last() == "Two.", "older walks back one line");
+    CHECK(announce_repeat_older(f.q, f.now), "step back again");
+    CHECK(f.last() == "One.", "older walks to the oldest");
+    CHECK(!announce_repeat_older(f.q, f.now), "older refuses at the oldest (no wrap)");
+    CHECK(f.last() == "One.", "a refused step speaks nothing");
+
+    CHECK(announce_repeat_newest(f.q, f.now), "newest resets the walk");
+    CHECK(f.last() == "Three.", "newest returns to the most recent line");
+}
+
+void test_repeat_does_not_reenter_history()
+{
+    // Otherwise walking back would slide the ring toward itself and the same line would
+    // repeat forever instead of advancing.
+    Fixture f;
+    f.say("One.", Priority::Normal, "a"); f.finish();
+    f.say("Two.", Priority::Normal, "a"); f.finish();
+    int before = announce_history_count(f.q);
+    announce_repeat_newest(f.q, f.now);
+    announce_repeat_older(f.q, f.now);
+    announce_repeat_older(f.q, f.now);
+    CHECK(announce_history_count(f.q) == before, "repeats do not grow the history");
+    CHECK(f.last() == "One.", "and the walk still reached the oldest line");
+}
+
+void test_repeat_is_a_player_action()
+{
+    // Repeating is the player asking, so it must behave like every other High query:
+    // it cuts off what is speaking, and it lifts a stop.
+    Fixture f;
+    f.say("One.", Priority::Normal, "a"); f.finish();
+    f.say("Two.", Priority::Normal, "a"); f.finish();
+    f.say("Ambient chatter.", Priority::Low, "chatter");   // now speaking
+    CHECK(announce_repeat_older(f.q, f.now), "step back past the ambient line");
+    CHECK(f.last() == "Two." && f.rec.spoken.back().interrupt,
+          "walking back cuts off the ambient line and speaks interrupting");
+
+    Fixture g;
+    g.say("One.", Priority::Normal, "a"); g.finish();
+    announce_stop(g.q, g.now);
+    Decision silenced = g.say("Ignored while silenced.", Priority::Normal, "a");
+    CHECK(silenced == Decision::SuppressedSilenced, "silence holds automatic lines");
+    CHECK(announce_repeat_newest(g.q, g.now), "a repeat works while silenced");
+    CHECK(g.last() == "One.", "and it lifts the silence, like any player request");
+}
+
+void test_history_empty_is_honest()
+{
+    Fixture f;
+    CHECK(announce_history_count(f.q) == 0, "nothing recorded yet");
+    CHECK(!announce_repeat_newest(f.q, f.now), "newest refuses with an empty history");
+    CHECK(!announce_repeat_older(f.q, f.now), "older refuses with an empty history");
+    CHECK(f.rec.spoken.empty(), "and neither speaks a placeholder");
+}
+
+void test_history_ring_is_bounded()
+{
+    // The ring must not grow without bound, and past its capacity it keeps the NEWEST.
+    Fixture f;
+    char line[32];
+    for (int i = 0; i < kAnnounceHistoryMax + 4; i++) {
+        snprintf(line, sizeof(line), "Line %d.", i);
+        f.say(line, Priority::Normal, "a");
+        f.finish();
+    }
+    CHECK(announce_history_count(f.q) == kAnnounceHistoryMax, "the ring is capped");
+    CHECK(announce_repeat_newest(f.q, f.now), "newest is the last line spoken");
+    snprintf(line, sizeof(line), "Line %d.", kAnnounceHistoryMax + 3);
+    CHECK(f.last() == line, "the newest line survives the wrap");
+}
+
+void test_history_groups_are_reused()
+{
+    // A repeat re-speaks under the ORIGINAL group, so it cannot burn one of the 16
+    // group-table slots. (16 distinct groups is the documented hard cap.)
+    Fixture f;
+    for (int i = 0; i < kAnnounceMaxGroups; i++) {
+        char g[16];
+        snprintf(g, sizeof(g), "grp%d", i);
+        f.say("Line.", Priority::Normal, g);
+        f.finish();
+    }
+    Decision d = f.say("One more.", Priority::Normal, "grp0");
+    CHECK(d != Decision::RejectedGroupTable, "the group table is exactly full, not over");
+    announce_repeat_newest(f.q, f.now);
+    CHECK(f.last() == "One more.", "repeat still works with a full group table");
+}
+
 int main()
 {
     test_high_speaks_now_and_interrupts();
@@ -406,6 +519,13 @@ int main()
     test_estimate_when_host_cannot_report();
     test_watchdog();
     test_utf8_truncation();
+    test_history_records_only_what_was_spoken();
+    test_history_walk_back_and_clamp();
+    test_repeat_does_not_reenter_history();
+    test_repeat_is_a_player_action();
+    test_history_empty_is_honest();
+    test_history_ring_is_bounded();
+    test_history_groups_are_reused();
 
     printf("\n%d passed, %d failed\n", g_pass, g_fail);
     if (g_fail) return 1;

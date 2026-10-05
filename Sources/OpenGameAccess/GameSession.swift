@@ -171,6 +171,25 @@ final class GameSession: ObservableObject {
         if let core { _ = poke_command(core, AdapterCommand.stopSpeech.rawValue) }
     }
 
+    /// Walk the spoken history: speak the last line again, or step one line further back.
+    ///
+    /// Returns true when the core spoke something. The history lives in the core's
+    /// announcement queue, because the queue is the only thing that knows what actually
+    /// reached the platform — so a line suppressed as a duplicate is correctly NOT
+    /// repeatable, and the walk refuses honestly at the oldest recorded line.
+    ///
+    /// ⛔ A CORE WITH NO QUEUE RETURNS FALSE, and the caller falls back to its own
+    /// last-spoken mirror. That is not a duplicate history: it is the pre-queue path
+    /// still working, which is what keeps this from breaking an older host.
+    @discardableResult
+    func repeatSpoken(newest: Bool) -> Bool {
+        guard let core else { return false }
+        let cmd = newest ? AdapterCommand.repeatNewest : AdapterCommand.repeatOlder
+        // Silence on refusal is deliberate: the caller says "Nothing to repeat." itself,
+        // so a refusal must not also produce a line here or the player hears it twice.
+        return poke_command(core, cmd.rawValue)
+    }
+
     func setHotkey(_ key: String, down: Bool) {
         guard let core else { return }
         key.withCString { poke_set_hotkey(core, $0, down) }

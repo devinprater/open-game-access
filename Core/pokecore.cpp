@@ -944,7 +944,10 @@ uint32_t poke_announce_id_for_text(PokeCore* core, const char* utf8_text)
 bool poke_command(PokeCore *core, int cmd)
 {
     if (!core || !core->adapter) return false;
-    if (cmd < 0 || cmd > (int) oga::Command::StopSpeech) return false;
+    // ⛔ WIDENED IN THE SAME COMMIT THAT APPENDED THE COMMANDS. A stale upper bound
+    // silently rejects a new command with no speech and no error.
+    if (cmd < 0 ||
+        cmd > (int) oga::Command::RepeatOlder) return false;
     if (cmd == (int) oga::Command::StopSpeech)
     {
         // Player stop key: clear queued lines and stop the platform voice.
@@ -952,6 +955,18 @@ bool poke_command(PokeCore *core, int cmd)
         if (core->announceQ) oga::announce_stop(core->announceQ, CoreNowMs());
         EmitSpeech(core, nullptr, true, 0);
         return true;
+    }
+    if (cmd == (int) oga::Command::RepeatNewest ||
+        cmd == (int) oga::Command::RepeatOlder)
+    {
+        // The spoken-history walk. Core-internal like StopSpeech: it needs the queue,
+        // not an adapter, so it works on the Lua script and on a game with no adapter —
+        // both speak through this queue's sink. Refusal is silent: the UI says
+        // "Nothing to repeat." itself, the same way it does for the script path.
+        if (!core->announceQ) return false;
+        bool newest = cmd == (int) oga::Command::RepeatNewest;
+        return newest ? oga::announce_repeat_newest(core->announceQ, CoreNowMs())
+                      : oga::announce_repeat_older(core->announceQ, CoreNowMs());
     }
     if (!core->adapter->command) return false;
 
