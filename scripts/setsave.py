@@ -5,7 +5,15 @@
 # zero length, a game that inspects its save at boot would spin.
 import re, sys
 
-p = sys.argv[1] if len(sys.argv) > 1 else '/home/devin/src/melonds-lua/src/NDSCart/CartCommon.cpp'
+# ⛔ NO DEV-TREE DEFAULT. This used to fall back to a melonDS checkout at a developer's
+# home path, which exists on exactly one machine — elsewhere it reads the wrong file or
+# none, silently. The path is required, and the usage line says what it is for.
+if len(sys.argv) < 2:
+    print("usage: setsave.py <path to melonDS src/NDSCart/CartCommon.cpp>")
+    print("Inspects CartCommon::SetSaveMemory for the zero-length-save path (see the")
+    print("comment at the top of this file).")
+    sys.exit(2)
+p = sys.argv[1]
 src = open(p, encoding='utf-8', errors='replace').read()
 
 def grab(name):

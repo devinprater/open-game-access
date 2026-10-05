@@ -54,3 +54,10 @@ jobs:
         run: |
           python3 scripts/audit-adapter-speech.py --check Core
           bash scripts/audit-speech-test.sh
+      # A script CI invokes must derive its own paths. This bug bit twice — once in a script
+      # that already carried a comment about it, and again in the swift/ABI checks, which
+      # failed their first CI run outright with FileNotFoundError on a dev path.
+      - name: Hardcoded-path check (gate + self-test)
+        run: |
+          python3 scripts/path-check.py
+          bash scripts/path-check-test.sh

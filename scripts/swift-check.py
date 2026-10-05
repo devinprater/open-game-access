@@ -24,7 +24,8 @@ import re
 import subprocess
 import sys
 
-ROOT = pathlib.Path("/home/devin/oga-work")
+# ⛔ DERIVED, NEVER HARD-CODED: the CI checkout is not at any dev path.
+ROOT = pathlib.Path(__file__).resolve().parent.parent
 SWIFT_DIR = ROOT / "Sources" / "OpenGameAccess"
 HEADER = ROOT / "Sources" / "CPokeCore" / "include" / "pokecore.h"
 

@@ -1,7 +1,7 @@
 #!/bin/bash
 # Final verification: skill integrity, doc state, repo state.
 set -eu
-R=/home/devin/oga-work
+R="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
 echo "=== skill files ==="
 python3 - <<'PY'
