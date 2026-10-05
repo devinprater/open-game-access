@@ -125,11 +125,19 @@ else:
 # setAnnouncementView, AccessibilitySpeech cannot announce through the screen
 # reader's live region, falls through to its "no view yet" branch, and speaks via
 # TTS over the top of the screen reader.
-if "setAnnouncementView(" in activity:
-    ok("the Activity wires the announcement view (the screen-reader speech path)")
+# ⛔ THE ACTIVITY MAY GO THROUGH THE SESSION, so accept either route -- but require
+# the whole chain, or this stops checking anything. Since the launch crash, the
+# Activity calls GbGameSession.attachAnnouncementView (which stores the view and
+# forwards it) and the session re-forwards on start; a check for the literal method
+# name in the Activity would fail on the correct design.
+session_for_view = strip_kt(read(SESSION_KT))
+attaches = ("setAnnouncementView(" in activity
+            or ("attachAnnouncementView(" in activity and "setAnnouncementView(" in session_for_view))
+if attaches:
+    ok("the announcement view is wired (the screen-reader speech path)")
 else:
-    bad("the Activity wires the announcement view",
-        "setAnnouncementView is never called, so announcements fall back to TTS "
+    bad("the announcement view is wired",
+        "setAnnouncementView is never reached, so announcements fall back to TTS "
         "and the screen reader and TTS interrupt each other")
 
 # It must be wired from a side effect / attached view, not during composition:
@@ -166,6 +174,57 @@ if os.path.exists(LEGACY_HTML):
         "%s still exists; two launchers can drift apart" % LEGACY_HTML)
 else:
     ok("the WebView's index.html is gone")
+
+
+# ---- 6. NOTHING TOUCHES THE NATIVE SPEECH BRIDGE BEFORE A GAME RUNS ---------
+# ⛔ THIS RULE EXISTS BECAUSE THE APP CRASHED ON LAUNCH WITH EVERY OTHER CHECK
+# GREEN. `AccessibilityScript.initialize()` reaches the JNI method
+# `setSpeechBridge`, and the native library is not loaded until a ROM loads, so
+# calling it in onCreate dies with UnsatisfiedLinkError. It compiled, the key bits
+# were right, and the announcement view was wired -- the defect was ORDERING, which
+# only a rule about ordering can catch.
+#
+# The one legitimate pre-game use is the announcement VIEW: AccessibilitySpeech
+# stores it and forwards it to its bridge when the bridge is built. Every other call
+# into that class must be guarded by a running game.
+activity_src = strip_kt(read(ACTIVITY_KT))
+session_src = strip_kt(read(SESSION_KT))
+
+# initialize() must not appear in the Activity at all: the bridge is built on demand.
+if "initialize(" in activity_src:
+    bad("the launcher does not build the speech bridge before a game",
+        "AccessibilityScript.initialize() is called in the Activity, which reaches a "
+        "JNI method before the native library is loaded (UnsatisfiedLinkError at launch)")
+else:
+    ok("the launcher does not build the speech bridge before a game")
+
+# Any other call into AccessibilityScript from the Activity must be guarded by a
+# running game. The view attach is exempt (it forwards, and is re-forwarded on start).
+unguarded = []
+for line in activity_src.splitlines():
+    s = line.strip()
+    if "AccessibilityScript." not in s:
+        continue
+    if "setAnnouncementView" in s:
+        continue                     # the exempt, forwarding call
+    if "isRunning" in s:
+        continue                     # guarded on the same line
+    if s.startswith("import") or s.startswith("*") or s.startswith("//"):
+        continue
+    unguarded.append(s)
+if unguarded:
+    bad("every native speech call in the launcher is guarded by a running game",
+        "unguarded: %s" % unguarded)
+else:
+    ok("every native speech call in the launcher is guarded by a running game")
+
+# And the view really is re-forwarded once the bridge exists, or the screen-reader
+# path silently stays dead for the whole session (the bug this port fixes).
+if "storedAnnouncementView" in session_src and "setAnnouncementView" in session_src:
+    ok("the announcement view is re-forwarded when the bridge is built")
+else:
+    bad("the announcement view is re-forwarded when the bridge is built",
+        "no stored view to re-forward, so it stays null and speech falls back to TTS")
 
 print()
 if fails:

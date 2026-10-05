@@ -38,6 +38,16 @@ case_sideeffect() { # sabotage: wire during composition instead of after attach
   sed -i 's/^        SideEffect {/        run {/' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/MainActivity.kt"
 }
+case_bridgelate() {  # sabotage: build the speech bridge before a game (the launch crash)
+  python3 - "$TMP/t/app/src/main/java/com/devin/opengameaccess/MainActivity.kt" <<'PYEOF'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+s = s.replace("        setContent {",
+              "        me.magnum.melonds.accessibility.AccessibilityScript.initialize(applicationContext)\n        setContent {", 1)
+open(p, "w", encoding="utf-8").write(s)
+PYEOF
+}
 case_jni() {  # sabotage: rename a JNI symbol so it no longer resolves
   sed -i 's/Java_me_magnum_melonds_accessibility_GbAccessibilityScript_loadGbRom/Java_me_magnum_melonds_accessibility_GbAccessibilityScript_loadGbRomRenamed/' \
      "$TMP/t/app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp"
@@ -52,7 +62,7 @@ case_stale() {  # sabotage: the stale capability claim comes back into CODE
      >> "$TMP/t/app/src/main/java/com/devin/opengameaccess/ui/LauncherScreen.kt"
 }
 
-for s in key announce sideeffect jni webview stale; do
+for s in key announce sideeffect jni webview stale bridgelate; do
   stage
   "case_$s"
   if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then
