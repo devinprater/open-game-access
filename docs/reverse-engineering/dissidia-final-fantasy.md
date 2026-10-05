@@ -9469,3 +9469,62 @@ Checked rather than assumed, because the question was asked: there is no separat
 "Mesen NG". The project is **MesenCE** (`nesdev-org/MesenCE`), the community fork of Mesen2, actively
 pushed; `SourMesen/Mesen2` is an ARCHIVE (its README points at MesenCE). That is the tree already
 pinned here (`a60e79fe`) and the one this glue is written against -- so no switch is needed.
+
+## 121. NES: WORKING end to end (the seam is no longer a seam)
+
+`nes_link` boots a real ROM through the app's own `PokeCore` path and the console runs. Measured, not
+asserted:
+
+    === backend/adapter: id=nes name=Nintendo Entertainment System code=FIXTURE
+    === ran 120 frames (poke_frame returned true throughout)
+    adapter ready: 0  (correct: the NES seam refuses -- no bundled reader script)
+    registry handed back the NES backend: YES
+    the ROM loaded:                       yes
+    frames ran without the console stopping: yes
+    the NES adapter is selected and refuses:  YES
+
+**The core-level proof is stronger than "it ran", and it uses the fixture's OWN property.** The
+fixture does `INC $00 ; JMP $C000` forever, so `RAM[0x00]` must be non-zero AND ADVANCING:
+
+    ran 300 frames
+    framebuffer 256x240
+    RAM[0x00] advanced 81 -> 219 : THE CPU IS EXECUTING
+    read of a 2-byte at 0xFFFF (would wrap): refused (correct)
+
+A "RAM is not all zero" heuristic cannot make that check -- a dead core and a core stuck in a loop
+both pass it. Only an advancing counter distinguishes "executing the right code" from "loaded".
+
+### Three misreadings, in order, each of which looked like a different bug
+
+1. **"Mesen refused the ROM."** The ROM was verifiably valid (size arithmetic exact, mapper 0,
+   `NES\x1a`, extension supported). The real cause was `Home folder not specified`, THROWN from
+   inside `LoadRom` and swallowed by `Emulator::LoadRom`'s own `catch(std::exception)` into
+   `MessageManager::DisplayMessage`. Fix: `FolderUtilities::SetHomeFolder()` before the emulator is
+   built -- what Mesen's front ends do at startup and a library user must too.
+2. **"It hangs, silently."** Two causes stacked: `Emulator::Run()` is `while(!_stopFlag){RunFrame();}`
+   -- a RUN LOOP, not a step -- so calling it per frame never returned; and stdout was block-buffered
+   through a pipe, so the hang produced ZERO output and was indistinguishable from a load failure.
+   Probes now `setvbuf(stdout, NULL, _IONBF, 0)`.
+3. **Segfault in `Emulator::ProcessEndOfFrame`.** Not a bug in this code: `_frameLimiter` is created
+   ONLY inside `Emulator::Run()` (a private member), and the PPU calls `ProcessEndOfFrame` at the end
+   of EVERY frame via `SendFrame`. **Mesen has no synchronous "step one frame" entry point.**
+
+### The architectural conclusion, which is the real content of this section
+
+Mesen's supported model is **`Run()` owning the frame loop on its own thread**, with the host reading
+state -- exactly how its Windows/Linux front ends drive it. `nes_start` now spawns that thread;
+`nes_frame` waits for `IConsole::GetFrameCount()` to ADVANCE (bounded at 5 s, so a stall surfaces as
+an error rather than a hang, which is what cost the most time here); `nes_stop`/`nes_destroy` call
+`Stop()` and JOIN, so the process cannot linger. The app still owns its clock: one `nes_frame` call is
+one emulated frame.
+
+⛔ And the diagnostic lesson, since it recurred: **`LoadRom`'s swallowed exception made three
+different failures look identical.** The fix that unlocked everything was not more reading -- it was
+installing `MessageManager::SetOptions(false, true)` and printing `MessageManager::GetLog()`, which
+named the cause in one run. When an API returns a bare bool for a rich failure, go get the log.
+
+### Also recorded: the "Mesen NG" question
+
+There is no emulator called "Mesen NG". The project is **MesenCE** (`nesdev-org/MesenCE`), the
+community fork maintained after SourMesen/Mesen2 was archived -- which is the tree already pinned here
+(`a60e79fe`) and the one this backend is written against. No switch was needed.

@@ -13,6 +13,7 @@ static int g_logs = 0;
 static void OnLog(const char* t, void*) { if (t && *t && g_logs < 40) { printf("LOG: %s\n", t); g_logs++; } }
 
 int main(int argc, char** argv) {
+    setvbuf(stdout, NULL, _IONBF, 0);   // unbuffered: a hang must not swallow progress
     if (argc < 2) { fprintf(stderr, "usage: %s <rom.nes> [frames]\n", argv[0]); return 2; }
     const char* rom = argv[1];
     int cap = (argc > 2) ? atoi(argv[2]) : 120;
