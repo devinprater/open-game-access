@@ -1,7 +1,7 @@
 #!/bin/bash
 # sync dissidia adapter files into the canonical tree and build+run the host test.
 set -eu
-R=/home/devin/oga-work
+R="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 W="$ROOT"
 cp -f "$W/Core/dissidia_adapter.cpp" "$R/Core/dissidia_adapter.cpp"
 cp -f "$W/Core/dissidia_adapter_test.cpp" "$R/Core/dissidia_adapter_test.cpp"

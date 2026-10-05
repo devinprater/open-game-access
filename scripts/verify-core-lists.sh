@@ -8,7 +8,8 @@
 # is: every list sources, every word is a listed source path, and no list contains
 # a '#'.
 set -uo pipefail
-cd /home/devin/oga-work || exit 1
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT" || exit 1
 
 bash -n scripts/core-sources.sh || { echo "!! core-sources.sh has a syntax error" >&2; exit 1; }
 echo "syntax: ok"

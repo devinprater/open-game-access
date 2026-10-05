@@ -9,7 +9,10 @@ error), so it is worth a real check rather than a grep.
 import re
 import sys
 
-ROOT = "/home/devin/oga-work"
+# ⛔ DERIVED, NEVER HARD-CODED. A dev-machine path makes this script a different program
+# in CI, where the checkout lives somewhere else entirely.
+import os
+ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 
 # ---- the C++ side: strip comments, take the enumerators in order
 cpp = open(ROOT + "/Core/adapter.h", encoding="utf-8").read()
