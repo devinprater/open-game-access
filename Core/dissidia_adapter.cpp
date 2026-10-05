@@ -154,9 +154,18 @@ constexpr uint32_t MARK_SLOTS = 32u, MARK_STRIDE = 0x10u;
 static const Host* g_host = nullptr;
 // EX-gauge jump detector for the cue's core pulse. The gauge is the player's own EX value;
 // its only writer is battle event 0x3C (decomp, section 117), so a jump between frames is
-// an EX Force / EX Core being absorbed. -1 = no previous sample (first frame, or left
-// battle), which re-arms cleanly so a stale delta can never fire across a gap.
+// an absorption (an EX Force orb or an EX Core). -1 = no previous sample (first frame, or
+// left battle), which re-arms cleanly so a stale delta can never fire across a gap.
 static float g_prevEx = -1.0f;
+//
+// THRESHOLD IS MEASURED, NOT GUESSED. 5,079 frame-to-frame gauge deltas recorded from a
+// live battle gave: min -888.000 (the EX Mode spend/Burst, a DROP), p50/p90/p99 0.000,
+// p99.9 48.000, max +192.000; frames at >=250: zero, >=100: two, >=50: four. So 250 clears
+// every ordinary gain seen with margin, which is what keeps the pulse off EX Force noise.
+// ⚠ WHAT IS NOT MEASURED: the size of a real EX Core pickup. The game's own design says a
+// core fills a large part of the gauge where an orb is "a tiny amount", so a core should
+// exceed this -- but until a core collection is observed live, that is an inference, and if
+// the pulse turns out never to fire in play THIS is the number to lower first.
 static constexpr float EX_GAIN_THRESHOLD = 250.0f;
 // W = the CURRENT menu's list widget (index at W+0x3C, count at W+0x240).
 // 0 = not tracked yet. Heap addresses shift per boot, so this is re-discovered
