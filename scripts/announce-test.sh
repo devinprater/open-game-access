@@ -31,6 +31,7 @@ SABOTAGES=(
   SABOTAGE_EVICT_NEWEST         # a full queue drops the newest instead of the oldest ambient
   SABOTAGE_NO_IN_FLIGHT_GATE    # everything handed to the platform at once
   SABOTAGE_STALE_DONE           # a late done from an interrupted line releases the queue
+  SABOTAGE_REPEAT_INCLUDES_SUPPRESSED  # history records a deduped line the platform never heard
 )
 
 echo

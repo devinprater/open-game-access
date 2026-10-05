@@ -68,6 +68,13 @@ struct AnnounceQueue {
     uint64_t       next_seq;
     uint32_t       next_id;
     uint64_t       window_start;
+    // Spoken-line ring: the text, plus the group it was spoken in, so a repeat re-speaks
+    // under the SAME group and cannot burn one of the 16 group-table slots.
+    char           history_text[kAnnounceHistoryMax][kAnnounceTextMax];
+    int            history_group[kAnnounceHistoryMax];
+    int            history_count;    // valid entries, <= kAnnounceHistoryMax
+    int            history_next;     // slot the next line is written to
+    int            history_cursor;   // how many lines back the walk currently sits
     AnnounceStats  stats;
     // Written by any thread in announce_speech_done(); read by the frame thread.
     // Layout: bit 63 = valid, bit 32 = success, low 32 bits = utterance id.
@@ -180,7 +187,29 @@ uint64_t estimate_ms(const AnnounceQueue* q, const char* text)
     return base + per * strlen(text);
 }
 
-void emit(AnnounceQueue* q, const Item& it, bool interrupt, uint64_t now, int attempts)
+/// Slot holding the most recently recorded line.
+int newest_slot(const AnnounceQueue* q)
+{
+    return (q->history_next - 1 + kAnnounceHistoryMax) % kAnnounceHistoryMax;
+}
+
+/// Record a line the player ACTUALLY heard. Called from emit() rather than from
+/// announce(), because a line suppressed as a duplicate / lower / expired never reaches
+/// the platform. Consecutive identical lines collapse, so a High retry re-speaks without
+/// adding a second entry the player would have to walk past.
+void record_history(AnnounceQueue* q, const char* text, int group)
+{
+    if (q->history_count > 0 &&
+        strcmp(q->history_text[newest_slot(q)], text) == 0)
+        return;
+    copy_utf8(q->history_text[q->history_next], kAnnounceTextMax, text);
+    q->history_group[q->history_next] = group;
+    q->history_next = (q->history_next + 1) % kAnnounceHistoryMax;
+    if (q->history_count < kAnnounceHistoryMax) q->history_count++;
+}
+
+void emit(AnnounceQueue* q, const Item& it, bool interrupt, uint64_t now, int attempts,
+          bool to_history = true)
 {
     InFlight& f = q->flight;
     f.active   = true;
@@ -207,6 +236,37 @@ void emit(AnnounceQueue* q, const Item& it, bool interrupt, uint64_t now, int at
     if (!q->cfg.diag_verbose) return;
 #endif
     if (q->sink.speak) q->sink.speak(q->sink.ctx, it.text, interrupt, f.id);
+
+    if (to_history) {
+        record_history(q, it.text, it.group);
+        q->history_cursor = 0;   // a newly spoken line resets the walk to the newest
+    }
+}
+
+/// Speak the line `back` places before the newest. Shared by newest (back 0) and older.
+bool repeat_common(AnnounceQueue* q, int back, uint64_t now_ms)
+{
+    if (!q || back < 0 || back >= q->history_count) return false;
+    int idx = (q->history_next - 1 - back + 2 * kAnnounceHistoryMax) % kAnnounceHistoryMax;
+
+    Item it{};
+    it.used        = true;
+    copy_utf8(it.text, kAnnounceTextMax, q->history_text[idx]);
+    it.group       = q->history_group[idx] >= 0 ? q->history_group[idx] : 0;
+    // The player asked, so High: it must not be deduped or rate-limited away. This is the
+    // same rule every adapter query follows (announcement-queue.md: "High items bypass
+    // dedup"), and it sidesteps the documented "a Normal/Low line would be stale by then".
+    it.priority    = Priority::High;
+    it.player      = -1;
+    it.expiry_ms   = kAnnounceDefault;
+    it.interval_ms = kAnnounceDefault;
+    it.enqueued_at = now_ms;
+    it.seq         = ++q->next_seq;
+
+    q->history_cursor = back;
+    q->silenced = false;   // a player action lifts a stop, exactly as a High line does
+    emit(q, it, true, now_ms, 1, /*to_history=*/false);
+    return true;
 }
 
 /// May `cand` cut off the line in flight? Higher priority always may. A High may also cut off
@@ -327,6 +387,9 @@ AnnounceQueue* announce_create(const AnnounceSink& sink, const AnnounceConfig& c
     AnnounceQueue* q = new AnnounceQueue();
     q->sink = sink;
     q->cfg  = cfg;
+    q->history_count  = 0;
+    q->history_next   = 0;
+    q->history_cursor = 0;
     q->done_slot.store(0);
     q->published_id.store(0);
     return q;
@@ -362,6 +425,12 @@ Decision announce(AnnounceQueue* q, const Announcement& a, uint64_t now_ms)
     it.interval_ms = a.min_interval_ms;
     it.enqueued_at = now_ms;
     it.seq         = ++q->next_seq;
+
+#ifdef SABOTAGE_REPEAT_INCLUDES_SUPPRESSED
+    // Record at ENQUEUE instead of at speak: proves the test catches a history that
+    // includes lines the platform never actually heard.
+    record_history(q, it.text, it.group);
+#endif
 
     if (q->silenced) {
         if (a.priority != Priority::High) {
@@ -459,6 +528,21 @@ void announce_stop(AnnounceQueue* q, uint64_t now_ms)
     q->done_slot.store(0);
     if (q->cfg.diag_verbose) logf(q, "[announce] stop: pending cleared, silenced until next request");
 }
+
+bool announce_repeat_newest(AnnounceQueue* q, uint64_t now_ms)
+{
+    return repeat_common(q, 0, now_ms);
+}
+
+bool announce_repeat_older(AnnounceQueue* q, uint64_t now_ms)
+{
+    if (!q) return false;
+    int want = q->history_cursor + 1;
+    if (want >= q->history_count) return false;   // already at the oldest recorded line
+    return repeat_common(q, want, now_ms);
+}
+
+int announce_history_count(const AnnounceQueue* q) { return q ? q->history_count : 0; }
 
 void announce_set_diag_verbose(AnnounceQueue* q, bool on)
 {

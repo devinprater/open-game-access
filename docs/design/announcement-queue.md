@@ -117,6 +117,43 @@ Always available, High, per system:
 - The Dissidia/DBZ adapters expose these as commands 0–4 (`WhereAmI`, `NextAlly`,
   `PrevAlly`, `NextEnemy`, `PrevEnemy`); other adapters map the same commands onto their state.
 
+## Spoken history (repeat / previous)
+
+The queue keeps the last `kAnnounceHistoryMax` (16) lines it actually HANDED TO THE
+PLATFORM, and two player commands walk it: `RepeatNewest` and `RepeatOlder`.
+
+WHY THE QUEUE AND NOT THE UI. The app side already had a one-line mirror
+(`SpeechEngine.lastSpoken`), which answers "what did it just say" but gives a player who
+missed two lines ago no path to it — reviewed accessibility mods keep 50 messages with
+repeat / previous / next. More importantly a UI-side mirror records what the app was
+TOLD, not what was said: a line the queue suppressed as a duplicate was never spoken, and
+repeating it would be a lie. So the history is recorded in `emit()` — after a line wins
+its place in the queue — and never in `announce()`.
+
+- **Repeat is a player action, so it speaks High**: it cuts off whatever is speaking, lifts
+  a stop, and bypasses dedup and rate limits. This also sidesteps the staleness rule above
+  ("a Normal or Low line is not [retried] — it would be stale by then"), which does not
+  apply to something the player just asked to hear again.
+- **A repeat does not re-enter the history**, so walking back advances instead of sliding
+  the ring toward itself.
+- **A repeat re-speaks under the line's ORIGINAL group**, so it can never burn one of the
+  16 group-table slots — the table is a hard cap and a repeat should not be able to
+  exhaust it.
+- **Consecutive identical lines collapse**, so a High retry re-speaks without leaving a
+  second entry the player would have to walk past.
+- **`RepeatOlder` clamps** at the oldest recorded line and returns false rather than
+  wrapping; the UI says "Nothing older to repeat." itself, which is why the core stays
+  silent on refusal.
+
+⛔ BOUNDARY, STATED HONESTLY: the DS Pokémon LUA script speaks through `EmitSpeech`
+directly and does not route through this queue, so its lines are not in the ring. The
+script has its own repeat on its own key, which the controller layer still prefers where
+it exists.
+
+The rule is proven, not just exercised: `scripts/announce-test.sh` builds with
+`SABOTAGE_REPEAT_INCLUDES_SUPPRESSED` (which moves the recording into `announce()`, i.e.
+counts a deduped line) and REQUIRES the test to fail.
+
 ## Lock-on beacon (audio, not speech)
 
 The beacon never uses the speech queue. The per-game encoding lives with the game
@@ -125,9 +162,14 @@ The beacon never uses the speech queue. The per-game encoding lives with the gam
 - Stereo pan = left/right (a nudge, not a hard mix), repeat rate = distance.
 - Pitch = **elevation** in 3D arena games (Dissidia); forward/back in games without
   meaningful elevation (the BT2 encoding, `docs/research/bt2-accessibility-lessons.md`).
-- ⛔ Open: the Dissidia spec also uses pulse rate to tell the enemy from the EX core. Rate
-  cannot carry both identity and distance — a near core and a far enemy can pulse alike. Carry
-  identity in timbre or a two-note figure instead, and keep rate for distance.
+- ⛔ RESOLVED (2026-10-05): the Dissidia spec used pulse rate to tell the enemy from the EX
+  core, and rate cannot carry both identity and distance — a near core and a far enemy pulse
+  alike. Settled from the mod research rather than by playtest: **identity in timbre, distance
+  in rate.** Two reviewed mods agree independently (Zomboid Access gives each kind of
+  information its own sound and keeps rate for distance; FFXII keeps cadence for proximity and
+  gives its route and in-battle beacons different timbres). See
+  docs/research/how-mods-make-mechanics-accessible.md §3d and §6, and the updated lock-on
+  bullet in docs/proposals/dissidia-battle-audio.md.
 - Degraded timbre when the bearing is honest but the target is unconfirmed.
 - Silent with no lock, a dead target, or player-requested silence. Speech ducks it — but only
   our own speech: with VoiceOver on, the app cannot see VoiceOver's own reading, so cues may

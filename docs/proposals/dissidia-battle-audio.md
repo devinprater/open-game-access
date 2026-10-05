@@ -15,9 +15,21 @@ Formatting rule: no tables in this doc. Lists only.
 
 - Lock-on beacon (family: beacons).
   - Stereo pan follows the target's X position (CFC2 rule).
-  - Per-side identity: enemy and EX core use distinct pulse rates, so they
-    stay distinct even when both are near the centre (CFC2: two beacons told
-    apart by pluck rate).
+  - Per-side identity: enemy and EX core use distinct TIMBRES, so they stay
+    distinct even when both are near the centre.
+    ⛔ RESOLVED (was an open question). This used to say "distinct pulse rates",
+    which cannot work: rate also carries distance, so a near EX core and a far
+    enemy pulse alike. Two reviewed mods settle it independently —
+    docs/research/how-mods-make-mechanics-accessible.md §6 and §3d:
+      * Zomboid Access keeps rate for DISTANCE and gives each KIND of
+        information its own sound (threat = a low double thump, weapon range =
+        a wood-block tick, destination = a soft bell, escape route = two
+        rising whistles).
+      * FFXII keeps cadence for proximity and gives its route beacon and its
+        in-battle target beacon DIFFERENT timbres, switching by context.
+    So: IDENTITY IN TIMBRE, DISTANCE IN RATE. Rate stays a proximity channel
+    only; the two sides never share it. (CFC2's "pluck rate" note is the older
+    scheme this supersedes.)
   - Elevation into pitch (PD hostile-targeting rule): 900 Hz carrier. Each
     chirp plays the carrier for its first half, then the elevation result
     for its second half: toward ~600 Hz when the target is below aim,
@@ -45,6 +57,29 @@ Formatting rule: no tables in this doc. Lists only.
   - Periodic tick while the battle timer runs; rate or pitch steps up in
     the final seconds. BLOCKED on RAM research: no timer address is mapped
     yet (see section 3).
+
+## 1b. Cue rules inherited from the reviewed accessibility mods
+
+Recorded here because they are the reason the encodings above are shaped as they
+are. Source: docs/research/how-mods-make-mechanics-accessible.md.
+
+- **One sound family per KIND of information.** Each family gets its own timbre and its
+  own persistent on/off switch, and every change is spoken. Zomboid Access is the
+  reference: threat position, weapon range, destination, escape route, a control loop as
+  two pitches, a discrete event, speaker identity — seven families, seven sounds.
+- **Identity in timbre; distance in rate.** Never share rate between the two.
+- **Pan carries left/right through the full 360°; a SEPARATE channel carries front/back.**
+  FFXII: a sound behind is quieter, duller, and about a fifth lower in pitch, while left
+  and right keep working all the way round. The two channels are independent, which is
+  what makes behind-and-left expressible.
+- **Silence is a cue.** FFXII re-plans its route without narrating it, and Zomboid's
+  driving tone is silent when you are on line. Do not announce a cue's own change.
+- **Hysteresis on every threshold.** The exit-only 1.1X rule above is the same shape as
+  SF6's arrival handling: confirm from the game's own prompt rather than a distance that
+  can jitter across the line.
+- ⛔ **A distance that "looks clear" is not a path.** SF6 measured that a 1.6 m alley 6 m
+  away subtends about 5°, so three 90° beams miss it and even 24 rays do. Never let a
+  proximity reading stand in for a passage.
 
 ## 2. Host-side implementation notes
 

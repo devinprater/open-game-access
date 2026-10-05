@@ -76,6 +76,13 @@ enum AdapterCommand: Int32, CaseIterable {
     /// Append-only: raw values are the C ABI shared with the core.
     case stopSpeech = 37
 
+    /// Spoken-history walk. CORE-INTERNAL like stopSpeech: the core intercepts them
+    /// before adapter dispatch, so they work on any game — the Lua script, or a game
+    /// with no adapter — because the history lives in the announcement queue.
+    /// Append-only: raw values are the C ABI shared with the core.
+    case repeatNewest = 38
+    case repeatOlder = 39
+
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
     var title: String {
@@ -118,6 +125,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .oskShift: return "OSK shift"
         case .oskFinish: return "OSK finish"
         case .stopSpeech: return "Stop speech"
+        case .repeatNewest: return "Repeat"
+        case .repeatOlder:  return "Repeat older"
         }
     }
 
@@ -202,6 +211,10 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Sent when the player presses Start on the name-entry keyboard."
         case .stopSpeech:
             return "Sent by the Stop-speech button; clears queued announcements."
+        case .repeatNewest:
+            return "Speaks the last announcement again, whatever the game."
+        case .repeatOlder:
+            return "Steps one announcement further back and speaks it."
         }
     }
 
@@ -246,6 +259,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .oskShift: return "shift"
         case .oskFinish: return "checkmark"
         case .stopSpeech: return "stop.fill"
+        case .repeatNewest: return "arrow.counterclockwise"
+        case .repeatOlder:  return "arrow.uturn.backward"
         }
     }
 

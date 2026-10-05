@@ -110,6 +110,13 @@ enum class Command {
     OskFinish, // Start on the OSK: finish entry, speak the final name
     StopSpeech, // Player stop key: clear the announcement queue + stop the
                 // platform voice (append-only; raw values are the C ABI).
+    // Spoken-history walk. Like StopSpeech these are CORE-INTERNAL: pokecore.cpp
+    // intercepts them before dispatch, so no adapter implements them and none needs to
+    // know they exist. They are here rather than in a Swift-only path because the
+    // history lives in the announcement queue (the only thing that knows what actually
+    // reached the platform), so the ring is testable by announce-test.sh.
+    RepeatNewest, // Player repeat key: speak the most recent spoken line again
+    RepeatOlder,  // Player repeat-prev key: step one line further back
 };
 
 struct Adapter {
