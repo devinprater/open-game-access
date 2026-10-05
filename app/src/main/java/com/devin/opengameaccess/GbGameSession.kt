@@ -173,6 +173,44 @@ object GbGameSession {
         if (running) GbAccessibilityScript.setKeys(mask)
     }
 
+    /**
+     * A script hotkey as a single tap: press now, release shortly after.
+     *
+     * ⛔ EDGE-TRIGGERED ON PURPOSE. The script's own edge detector wants ONE
+     * transition, and the release has to follow rather than never -- the WebView page
+     * used an 80 ms timeout for the same reason.
+     */
+    fun tapHotkey(key: Char) {
+        if (!running) return
+        GbAccessibilityScript.onKeyEvent(key, true)
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+            { if (running) GbAccessibilityScript.onKeyEvent(key, false) },
+            80L,
+        )
+    }
+
+    /** Release a held key a moment later, for the screen-reader click path. */
+    fun releaseKeySoon(bit: Int) {
+        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
+            { releaseKey(bit) },
+            120L,
+        )
+    }
+
+    /**
+     * Stop the reader talking, and stay quiet until the player asks for something.
+     *
+     * ⛔ THIS IS NOT THE SCRIPT'S OWN STOP KEY. On Game Boy the script's R key moves
+     * the camera, so there is no reader key that stops speech -- iOS distinguishes
+     * exactly this case (`hasDirectSpeechStop`) and stops at the engine instead,
+     * because a screen reader's own "stop" gesture only ends the current utterance
+     * while the script keeps producing lines.
+     */
+    fun stopSpeech() {
+        AccessibilityScript.speak("", true)
+        GbAccessibilityScript.stop()
+    }
+
     /** True once a game is running, so the pad and commands can appear. */
     val isRunning: Boolean get() = running
 }

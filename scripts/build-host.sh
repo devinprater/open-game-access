@@ -95,7 +95,7 @@ compile() {
   printf '%s|cxx|fe_access\n'    "$ROOT/Core/fe_access.cpp"
   printf '%s|cxx|fe_adapter\n'   "$ROOT/Core/fe_adapter.cpp"
   printf '%s|cxx|gba_adapter\n'  "$ROOT/Core/gba_adapter.cpp"
-  printf '%s|cxx|nes_adapter\n'  "$ROOT/Core/nes_adapter.cpp"
+  printf '%s|cxx|nes_adapter\n'  "$ROOT/Core/nes_adapter.cpp Core/n64_adapter.cpp"
   printf '%s|cxx|gba_core\n'     "$ROOT/Core/gba_core.cpp"
   printf '%s|cxx|mgba_version\n' "$ROOT/Core/mgba_version_stub.cpp"
   # Game Boy / GBC: M_CORE_GB is defined in MGBA_DEFS, so these TUs are

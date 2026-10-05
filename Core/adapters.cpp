@@ -59,6 +59,17 @@ extern const Adapter kDragonQuestIX;
 // the registry row moves PLANNED -> READY in the same commit.
 extern const Adapter kNintendoEntertainmentSystem;
 
+// ⛔ SAME RULE AS THE NES ROW, AND FOR TWO REASONS RATHER THAN ONE.
+// kNintendo64 exists so the console has a home before its backend does. Two
+// independent blockers keep its `attach` refusing, and both are recorded in
+// Core/n64_adapter.cpp:
+//   1. no N64 core (systems.cpp reports it OGA_BACKEND_PLANNED), and
+//   2. the accessible StarFox 64 work is a DECOMPILATION PORT (blind-starship, a fork
+//      of HarbourMasters/Starship), not an emulator mod -- so there is no ROM image to
+//      read even with a core. See docs/research/accessibility-mods-survey.md.
+// A StarFox reader for this app would be a NEW N64 Lua reader, gated on blocker 1.
+extern const Adapter kNintendo64;
+
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
     &kGameBoyAdvance,
@@ -66,6 +77,7 @@ static const Adapter* const kAdapters[] = {
     &kDissidiaFinalFantasy,
     &kDragonQuestIX,
     &kNintendoEntertainmentSystem,
+    &kNintendo64,
 };
 
 const Adapter* const* all_adapters(int* count)

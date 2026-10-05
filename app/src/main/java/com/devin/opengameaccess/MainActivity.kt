@@ -7,9 +7,15 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
 import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import com.devin.opengameaccess.ui.LauncherScreen
+import com.devin.opengameaccess.ui.SettingsScreen
 import me.magnum.melonds.accessibility.AccessibilityScript
 
 /**
@@ -75,6 +81,7 @@ class MainActivity : ComponentActivity() {
     @Composable
     private fun Launcher() {
         val view = LocalView.current
+        val context = LocalContext.current
 
         SideEffect {
             // Kept so the view is handed over as soon as the bridge EXISTS; attaching
@@ -83,8 +90,19 @@ class MainActivity : ComponentActivity() {
             GbGameSession.attachAnnouncementView(view)
         }
 
+        var showSettings by remember { mutableStateOf(false) }
+
+        if (showSettings) {
+            SettingsScreen(
+                coreAvailable = GbGameSession.coreAvailable(context),
+                onBack = { showSettings = false },
+            )
+            return
+        }
+
         LauncherScreen(
             session = GbGameSession,
+            onOpenSettings = { showSettings = true },
             announce = { text, interrupt ->
                 // ⛔ THE STATUS LIVE REGION IS THE VOICE; THIS IS ONLY A FALLBACK.
                 // The status Text carries a liveRegion and its contentDescription is
