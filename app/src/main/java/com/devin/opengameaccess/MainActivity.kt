@@ -3,9 +3,9 @@ package com.devin.opengameaccess
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
-import androidx.compose.material3.darkColorScheme
+import androidx.compose.material.MaterialTheme
+import androidx.compose.material.Surface
+import androidx.compose.material.darkColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
@@ -44,7 +44,11 @@ class MainActivity : ComponentActivity() {
         AccessibilityScript.initialize(applicationContext)
 
         setContent {
-            MaterialTheme(colorScheme = darkColorScheme()) {
+            // ⛔ MATERIAL 2, to match the host app (see LauncherScreen's note):
+            // the frontend's `libs.compose.material3` is material3.adaptive, not
+            // the component library, so material3.MaterialTheme does not resolve.
+            // darkColors() keeps the #111-on-#eee look the WebView page had.
+            MaterialTheme(colors = darkColors()) {
                 Surface {
                     Launcher()
                 }

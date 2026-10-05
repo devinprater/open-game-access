@@ -106,6 +106,7 @@ object GbGameSession {
 
     fun stop() {
         running = false
+        heldMask = 0
         GbAccessibilityScript.stop()
     }
 
@@ -114,22 +115,44 @@ object GbGameSession {
         if (running) GbAccessibilityScript.runFrame()
     }
 
-    /**
-     * A script hotkey. Edge-triggered: the script's own edge detector wants ONE
-     * press, so the release is posted a frame later rather than never.
-     */
-    fun hotkey(key: Char, onRelease: () -> Unit) {
+    // ---- the emulated pad ---------------------------------------------------
+    //
+    // ⛔ HOLD, NOT TAP. Walking in these games means holding a direction, so the pad
+    // press and release are separate calls. The mask is OR'd by the CALLER (the
+    // screen tracks which buttons are down) and pushed whole, because setKeys takes
+    // the entire state -- there is no per-button call in the core.
+
+    fun pressKey(bit: Int) {
         if (!running) return
-        GbAccessibilityScript.onKeyEvent(key, true)
-        // ~80 ms, matching the page's setTimeout: long enough for the script's
-        // frame to see the press, short enough to feel like a tap.
-        android.os.Handler(android.os.Looper.getMainLooper()).postDelayed(
-            { GbAccessibilityScript.onKeyEvent(key, false); onRelease() },
-            80L,
-        )
+        heldMask = heldMask or bit
+        GbAccessibilityScript.setKeys(heldMask)
+    }
+
+    fun releaseKey(bit: Int) {
+        heldMask = heldMask and bit.inv()
+        if (running) GbAccessibilityScript.setKeys(heldMask)
+    }
+
+    /** Cleared on stop, so a button released after the game ends cannot stick. */
+    private var heldMask = 0
+
+    // ---- script hotkeys -----------------------------------------------------
+    //
+    // The reader's own keys (P pathfind, M map name, E tiles, K read item, ...).
+    // These go to the script, not the game, so they use onKeyEvent rather than the
+    // key mask. Edge-triggered: press now, release on the next frame, because the
+    // script's own edge detector wants a single transition to fire on.
+
+    fun pressHotkey(key: Char) {
+        if (running) GbAccessibilityScript.onKeyEvent(key, true)
+    }
+
+    fun releaseHotkey(key: Char) {
+        if (running) GbAccessibilityScript.onKeyEvent(key, false)
     }
 
     fun setKeys(mask: Int) {
+        heldMask = mask
         if (running) GbAccessibilityScript.setKeys(mask)
     }
 
