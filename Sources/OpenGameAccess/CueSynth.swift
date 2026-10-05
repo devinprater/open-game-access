@@ -52,7 +52,13 @@ final class CueVoice {
 /// the pool is sized for the families the spec names (beacon, health, meter, tick) so
 /// adding one costs no re-architecture.
 final class CueSynth {
-    static let shared = CueSynth()
+    /// ⛔ NOT Sendable, and deliberately so: the synth owns the audio buffer and is touched
+    /// only from the render callback plus the main-actor setters, which never overlap. Swift 6
+    /// rejects the plain static because it cannot see that ownership, so the sharing is marked
+    /// unsafe explicitly here rather than restructured -- the alternative (a lock or an actor
+    /// hop on the audio path) would put synchronisation INSIDE the render callback, which is
+    /// exactly what a realtime path must not do.
+    nonisolated(unsafe) static let shared = CueSynth()
 
     /// Family order is fixed and is the order of the voices array.
     enum Family: Int, CaseIterable {

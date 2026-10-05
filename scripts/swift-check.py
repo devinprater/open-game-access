@@ -57,6 +57,52 @@ def run(cmd):
     return p.returncode, (p.stdout + p.stderr)
 
 
+def slot_consistency():
+    """ControllerInput.swift cannot be compiled on Linux (GameController), so its Slot enum is
+    checked by parsing. The bug this exists for: chord(for:) returned `.repeatOlder`, which was
+    never declared as a Slot case -- a compile error on macOS, invisible here because the file
+    is skipped. Invariant: every slot named by chord()/resolve() is a declared case, and every
+    declared case has a resolve() arm (otherwise a chord hits the silent "no command" path)."""
+    print("-- Slot consistency in ControllerInput.swift (no compiler: Apple-only imports)")
+    path = SWIFT_DIR / "ControllerInput.swift"
+    if not path.exists():
+        print("   ?? ControllerInput.swift missing")
+        return False
+    src = path.read_text()
+
+    m = re.search(r"private enum Slot \{(.*?)\n    \}", src, re.S)
+    if not m:
+        print("   ?? could not find the Slot enum")
+        return False
+    declared = set()
+    for line in m.group(1).splitlines():
+        line = line.split("///")[0].strip()
+        if not line or line.startswith("//"):
+            continue
+        for name in re.findall(r"\b([a-zA-Z][A-Za-z0-9_]*)\b", line):
+            if name != "case":
+                declared.add(name)
+
+    cm = re.search(r"private func chord\(for input: Input\) -> Slot\? \{(.*?)\n    \}", src, re.S)
+    used = set(re.findall(r"return \.([A-Za-z0-9_]+)", cm.group(1))) if cm else set()
+
+    rm = re.search(r"private func resolve\(_ slot: Slot\) -> Action\? \{(.*?)\n    \}", src, re.S)
+    resolved = set(re.findall(r"case \.([A-Za-z0-9_]+):", rm.group(1))) if rm else set()
+
+    ok = True
+    missing = used - declared
+    if missing:
+        print("   x chord() returns slot(s) not declared in Slot: %s" % ", ".join(sorted(missing)))
+        ok = False
+    unresolved = declared - resolved
+    if unresolved:
+        print("   x Slot case(s) with no resolve() arm: %s" % ", ".join(sorted(unresolved)))
+        ok = False
+    if ok:
+        print("   ok: %d slot(s) declared, all used declared, all resolved" % len(declared))
+    return ok
+
+
 def typecheck():
     print("-- real swiftc type-check (Linux-reachable files only)")
     ok = True
@@ -66,7 +112,10 @@ def typecheck():
             print("   ?? %s missing" % name)
             ok = False
             continue
-        rc, out = run(["swiftc", "-typecheck", "-swift-version", "5", str(path)] + extra)
+        # ⛔ SWIFT 6, because that is what the app builds with. Checking at version 5 made
+        # this a different program: CueSynth.swift passed at 5 and failed the real build at 6
+        # on a concurrency error the gate could not see.
+        rc, out = run(["swiftc", "-typecheck", "-swift-version", "6", str(path)] + extra)
         if rc == 0:
             print("   ok: %s" % name)
         else:
@@ -104,6 +153,7 @@ def main():
 
     if which in ("all", "typecheck"):
         ok = typecheck() and ok
+    ok = slot_consistency() and ok
     if which in ("all", "poke-symbols"):
         ok = poke_symbols() and ok
 
