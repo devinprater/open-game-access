@@ -111,6 +111,23 @@ bool nes_read(NesCore *core, uint32_t addr, int width, uint32_t *out);
  * point RAM_BASE at the right place per console instead of hardcoding the DS's 0x02000000. */
 uint32_t nes_ram_base(NesCore *core);
 
+/* PPU nametable RAM read (CIRAM). NOT part of the CPU address space: it is a separate 2 KB region the
+ * PPU owns, reachable only through the PPU. Dragon Warrior's reader inspects it to identify the
+ * current screen, because the game's menus are recognised by their nametable text. Returns 0 when the
+ * console cannot serve it -- and callers must treat that as "no data", never as a valid zero byte.
+ *
+ * ⛔ A DIFFERENT WIDTH OF READ THAN nes_read. NesMemoryManager::DebugRead would answer about the CPU
+ * bus; this answers about the PPU's own memory. Conflating them makes a reader misidentify a screen.
+ */
+uint8_t nes_read_nametable(NesCore *core, uint32_t addr);
+
+/* Point the core at a reader script directory (holding oga_bootstrap.lua or the reader's entry
+ * file). Must outlive the core or until replaced. Pass NULL/"" to run without a reader. */
+void nes_set_script_dir(NesCore *core, const char *dir);
+
+/* True once a reader script has loaded and not yet errored. */
+bool nes_script_loaded(NesCore *core);
+
 #ifdef __cplusplus
 }
 #endif

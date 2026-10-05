@@ -85,7 +85,9 @@ compile() {
     # declared" -- a shadowed header, not a missing one. Mesen TUs need none of the melonDS/Lua
     # paths, so the fix is to leave them out here rather than reorder the shared list (which would
     # aim Mesen's CRC32.h at melonDS's TUs and break those instead).
-    mesen) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include $MESEN_INC $MESEN_FORCE -std=c++17 -w"; cc=g++ ;;
+    # $LUA_SRC/src, NOT $MESEN_SRC/Lua: the app hosts lua-5.4.7 and Mesen's Lua is a FORK whose
+    # headers differ -- the same gap mesen_lua_extras.c exists to bridge. One interpreter.
+    mesen) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src $MESEN_INC $MESEN_FORCE -std=c++17 -w"; cc=g++ ;;
   esac
   # Timestamp alone is not enough: flag changes (DEFS, includes) must rebuild.
   # The flags file records the exact command that produced $out.
@@ -189,7 +191,13 @@ fi
 echo "== host objects: $(wc -l < "$OBJ/list.txt") TUs, $JOBS jobs"
 export CXXFLAGS CFLAGS OBJ MGBA_SRC
 export MGBA_DEFS MGBA_INC MGBA_GEN HOST_MGBA_DEFS
-export MESEN_SRC MESEN_INC MESEN_FORCE
+# ⛔ EVERY VARIABLE A FLAG STRING CAN REFERENCE MUST BE EXPORTED. compile() runs inside
+# `xargs -I{} bash -c ...`, a CHILD shell: a variable set here but not exported is EMPTY
+# there, so `-I$ROOT/Core` silently becomes `-I/Core` -- a real path, wrong content, and the
+# error names a missing HEADER rather than a missing variable. Twice in this session a new
+# flag string failed exactly this way (MESEN_INC, then ROOT/LUA_SRC), so this line now
+# carries all of them rather than being extended one variable at a time.
+export MESEN_SRC MESEN_INC MESEN_FORCE ROOT LUA_SRC
 export -f compile
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED — see the same line in build-core.sh.
 # Without it xargs reads STDIN (empty under a non-interactive shell), compiles
