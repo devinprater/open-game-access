@@ -228,6 +228,10 @@ final class ControllerInput: ObservableObject {
         case whereAmI, stopSpeech, repeatLast, findPath, tiles
         case prevItem, nextItem, prevGroup, nextGroup, readItem
         case gameToggle1, gameToggle2, gameToggle3
+        /// Step one line further back through the spoken history. Separate from
+        /// `repeatLast` because the walk has two ends: newest (re-read) and older (walk
+        /// back). Both are core-internal, so both exist on every game.
+        case repeatOlder
     }
 
     /// Nil when no modifier is held (the press is game input), or for an
@@ -304,6 +308,9 @@ final class ControllerInput: ObservableObject {
         case .gameToggle1: return cmd(.custToggle)
         case .gameToggle2: return cmd(.charToggle)
         case .gameToggle3: return cmd(.oskToggle)
+        // The walk's other end. No script key exists for it, so it is the core command
+        // directly -- available on every game, like its newest-side twin.
+        case .repeatOlder: return .repeatOlder
         }
     }
 

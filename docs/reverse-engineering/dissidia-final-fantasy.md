@@ -9186,3 +9186,41 @@ coverage must be established BEFORE its output is used to overturn an observatio
 scope of the search, or do not state the conclusion. This is the same failure the repo already
 records for gates ("a gate that runs on a dev machine and a gate that runs in CI are different
 programs"): the artifact answered a narrower question than the one that was asked of it.
+
+### WHY NO CAPTURE EVER SHOWED A CORE LOCK: the ability is level-gated
+
+Every probe in this session -- ~200 frames of live battle, 7,200 frames across two savestates,
+and 32 dense states spanning a whole tutorial battle -- read the lock field as 0 or the enemy
+and never a core. That is now explained, and it is not a contradiction of section 114.
+
+**The game requires an equippable ability to lock an EX Core.** External documentation (the
+FAQ this project already cites) is explicit: the L button cycles the camera focus between Free,
+Lock On to Opponent, and Lock On to EX Core -- **and "Lock On to an EX Core can only be
+performed after a Character has obtained and equipped the ability 'EX Core Lock On'", learned at
+Level 2.** Air-dashing to the locked bell is the same gate: `R + Triangle` dashes to the locked
+target, *"note: skill must be equipped"*.
+
+The prologue/tutorial Warrior of Light is **Level 1** with a fresh save (this session's harness
+literally creates a new game through Data Setup). So in every capture the character **could not
+perform the action being tested**. The mechanic is real; the harness was playing a character who
+does not have it yet. Section 114's single observed alternate remains valid evidence, and the
+retraction in the previous section stands.
+
+**The confirmed control scheme** (checked against the game's manual and FAQ, not memory):
+
+- **L** -- cycle camera focus: Free / Lock On opponent / **Lock On EX Core** (ability-gated)
+- **R + Triangle** -- air dash toward the locked target (ability-gated for a core)
+- **R + Square** -- enter EX Mode, requires a FULL EX gauge
+- **Square** (on the prompt, after an HP attack lands, while in EX Mode) -- EX Burst; its
+  quick-time inputs decide whether the Burst is perfect or weakened
+- **Circle** -- bravery attack (steals the opponent's bravery); **Square** -- HP attack, damage
+  equal to your current bravery
+- Opponent defence during a Burst: mash Circle to boost the defence bar
+
+**What this changes for the adapter's testing, and it is the actionable part:** a core lock
+cannot be probed on a level-1 tutorial character. To observe it, the harness must either
+(a) reach a save where the character is Level 2+ with **EX Core Lock On equipped**, or (b) not
+depend on the lock at all -- which is what `core_gain` now does, reading the EX gauge jump that
+fires whether or not a lock is possible. That is the argument for keeping BOTH signals: the
+lock branch is the correct in-game behaviour, and the gauge pulse is the one that can be proven
+without an ability-gated character.
