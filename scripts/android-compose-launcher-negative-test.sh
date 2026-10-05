@@ -2,7 +2,8 @@
 # NEGATIVE TEST: every rule must FAIL when its defect is present.
 # A check that cannot fail proves nothing.
 set -uo pipefail
-cd /home/devin/oga-work || exit 1
+ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$ROOT" || exit 1
 TEST=scripts/android-compose-launcher-test.py
 TMP=$(mktemp -d)
 trap 'rm -rf "$TMP"' EXIT
