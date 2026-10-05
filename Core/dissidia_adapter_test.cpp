@@ -185,22 +185,24 @@ static void test_cue_snapshot(void)
     CHECK(s.battle && s.locked && !s.is_core, "enemy lock reports as enemy");
     CHECK(s.dist > 49.9f && s.dist < 50.1f, "distance is the 3-4-5 distance (50)");
 
-    // 4. ⛔ A NON-ENEMY LOCK TARGET IS UNREACHABLE, AND THE CUE MUST STAY SILENT ON IT.
-    // The decomp (section 117) found exactly three writers to +0x2EC: store the enemy, store
-    // 0, store 0 -- so a "core target" cannot occur, and the old is_core branch was dead code
-    // whose 1180 Hz tone could never sound. This test used to assert a listed alternate
-    // reports as the core; that asserted the falsified assumption. It now asserts the
-    // fail-closed behaviour: no lock, no core flag, no distance invented.
+    // 4. Locked on a LIVE listed alternate (the EX core) -> is_core. The lock ring does
+    // reach an EX Core in this game (the player locks it, then dashes), so this is real
+    // behaviour, not a speculative branch.
     const uint32_t coreObj = 0x08905000u;
     put32(0x08903100u + 0x2ECu, coreObj);
-    put32(0x08903000u + 0x0Cu, coreObj);          // present in the object list
-    put32(coreObj + 0x490u, 0u);
+    put32(0x08903000u + 0x0Cu, coreObj);          // manager's object list head
+    put32(coreObj + 0x490u, 0u);                   // end of list
     putF32(coreObj + 0x80u, 10.0f); putF32(coreObj + 0x84u, 0.0f);
     putF32(coreObj + 0x88u, 10.0f);
-    CHECK(oga::dissidia::CueSnapshotFill(&s), "non-enemy target -> snapshot");
-    CHECK(s.battle && !s.locked && !s.is_core,
-          "a non-enemy target is NOT reported as a lock or a core (unreachable in-game)");
-    CHECK(s.dist == 0.0f, "no distance is invented for an unreachable target");
+    CHECK(oga::dissidia::CueSnapshotFill(&s), "listed alternate -> snapshot");
+    CHECK(s.locked && s.is_core, "a listed alternate reports as the EX core");
+    CHECK(s.dist > 14.0f && s.dist < 14.2f, "core distance is correct (~14.14)");
+
+    // 4b. ⛔ AN UNLISTED ALTERNATE IS NOT A TARGET (fail-closed): the synth must never be
+    // told "locked" about a freed pointer.
+    put32(0x08903100u + 0x2ECu, 0x08906000u);      // not in the list
+    CHECK(oga::dissidia::CueSnapshotFill(&s), "unlisted alternate still yields a snapshot");
+    CHECK(s.battle && !s.locked, "an unlisted pointer is NOT reported as locked");
 
     // 5. THE REACHABLE CORE SIGNAL: an EX-gauge JUMP is the core's effect (battle event
     // 0x3C is the gauge's only writer), and it must pulse even with the lock off.
@@ -218,8 +220,10 @@ static void test_cue_snapshot(void)
     CHECK(oga::dissidia::CueSnapshotFill(&s), "gain after drift -> snapshot");
     CHECK(!s.core_gain, "small gauge drift is NOT a pickup (threshold holds)");
 
-    // 6. Self is never a lock target (it is neither 0 nor the enemy pointer).
+    // 6. Self is never a lock target.
     put32(0x08903100u + 0x2ECu, 0x08903100u);      // self
+    put32(0x08903000u + 0x0Cu, 0x08903100u);      // and self IS in the list
+    put32(0x08903100u + 0x490u, 0u);
     CHECK(oga::dissidia::CueSnapshotFill(&s), "self-as-target still yields a snapshot");
     CHECK(!s.locked && !s.is_core, "self is never reported as a lock target");
 

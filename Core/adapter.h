@@ -136,14 +136,19 @@ struct CueSnapshot {
     bool  core_gain; // one frame: the player's EX gauge JUMPED (absorbed EX Force/Core)
 };
 
-// WHY is_core IS RESERVED AND core_gain EXISTS (Dissidia, decomp-proven 2026-10-05):
-// the lock field fighter+0x2EC has exactly three writers in the executable -- store the
-// enemy pointer (+0x2F0), store 0, store 0. It can never hold a third object, so
-// "locked on the EX core" is unreachable by construction and the cue's high timbre never
-// sounded. An earlier note had assumed the alternate value WAS a core; the decomp refutes
-// that. The EX Core is a pickup: it posts battle event 0x3C, the ONLY writer of the gauge
-// [[fighter+0x51C]+0x14] (clamped to 10000.0), so a gauge jump between frames IS that
-// event. core_gain carries the reachable signal to the synth.
+// TWO CORE SIGNALS, because the evidence supports both (2026-10-05), with an honest
+// correction attached:
+//   is_core  -- the lock ring reaches an EX Core and the adapter labels it (list-verified).
+//               The project's own section-114 note recorded this being observed live, and the
+//               game's design is to lock a core and dash to it. An intermediate pass claimed
+//               this was unreachable; that pass searched only the decompiled reports and
+//               mis-reported a savestate sweep, so the claim was withdrawn. The branch is the
+//               ORIGINAL behaviour, restored.
+//   core_gain -- a jump in the EX gauge between frames. The gauge [[fighter+0x51C]+0x14]
+//               (full 10000.0) is written by battle event 0x3C, a pickup-gain event, so a
+//               jump is an absorption (EX Force or EX Core). Independent of targeting, so it
+//               fires even when the player never locks. Measured ordinary gains top out at
+//               +192 (see EX_GAIN_THRESHOLD), so the threshold keeps it off noise.
 
 struct Adapter {
     const char* id;              // "fe11"

@@ -9149,3 +9149,40 @@ higher LUK) and gives the shape of the correct cue.
 make (2) possible is the core's spawn storage; the evidence above rules out every list the
 adapter currently reads, so that is a fresh RE target rather than a re-read of a known one.
 
+### CORRECTION (same day): the claim above was WITHDRAWN
+
+⚠ **Section 117 claimed "the lock field can only hold 0 or the enemy, so a core lock is
+unreachable". That claim is RETRACTED, and the code branch was restored.** What went wrong,
+recorded here so the same reasoning is not repeated:
+
+1. **The search was partial and was presented as complete.** "Exactly three writers" came from
+   grepping the Ghidra *reports* -- only the functions the RE tasks happened to decompile. A
+   subset of a decompilation is not the program. A later whole-binary scan of `EBOOT.dec` did
+   find three non-stack stores to `+0x2EC`, but that scan was written AFTER the conclusion was
+   published, and even a clean scan only supports "no writer found", never "no writer exists"
+   -- a store reached through an index, a copied struct, or a segment not covered would be
+   invisible to it.
+2. **A sweep was mis-reported.** Section 117 said a sweep of "every savestate on the machine
+   (151)" found no core. The script globbed `$HOME`, but it was invoked with `~/enemy-out`, so
+   it walked the wrong set. The count and the claim were both wrong.
+3. **Live-observed evidence was overturned by inference.** Section 114 -- this log's own
+   record -- describes the alternate target being observed, with the EX-core ring
+   player-confirmed. That is an observation. Section 117 treated it as an assumption to be
+   refuted, using an incomplete search, and had no new observation to refute it with.
+4. **The game's own design contradicts the conclusion.** External documentation and the
+   player both describe locking an EX Core and dashing to it. A mechanic the player reports as
+   existing, documented in the game's guides, and previously observed live is not disproved by
+   a grep.
+
+**What section 117 got RIGHT and keeps:** the EX gauge `[[fighter+0x51C]+0x14]` (full 10000.0)
+is written by battle event `0x3C`, a pickup-gain event whose amount rides on the EVENT rather
+than on an object; its poster (`FUN_000ce824`) plays one of three pickup SFX by level. So a
+gauge jump between frames IS an absorption. That is a genuine second signal, and it is useful
+precisely because it fires when the player never locks. It is now implemented ALONGSIDE the
+core-lock branch, not instead of it.
+
+**The lesson worth keeping:** "no writer found" is not "no writer exists", and a tool's
+coverage must be established BEFORE its output is used to overturn an observation. State the
+scope of the search, or do not state the conclusion. This is the same failure the repo already
+records for gates ("a gate that runs on a dev machine and a gate that runs in CI are different
+programs"): the artifact answered a narrower question than the one that was asked of it.
