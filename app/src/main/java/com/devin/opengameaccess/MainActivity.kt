@@ -37,11 +37,18 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
-        // The shared voice. One app, one TextToSpeech: the Game Boy reader routes its
-        // speech through this same instance, so there is never a second engine alive
-        // to fight over audio focus. Initialised here (before any ROM loads) because
-        // the live-region branch below depends on the bridge existing.
-        AccessibilityScript.initialize(applicationContext)
+        // ⛔ DO NOT INITIALISE THE SPEECH BRIDGE HERE.
+        // `AccessibilityScript.initialize()` reaches a JNI method (`setSpeechBridge`),
+        // and the native library is NOT loaded until a ROM loads. Calling it in
+        // onCreate therefore kills the app with:
+        //
+        //     UnsatisfiedLinkError: No implementation found for void
+        //     me.magnum.melonds.accessibility.AccessibilityScript.setSpeechBridge(...)
+        //
+        // Measured on the device, not theorised. The bridge is built on demand when a
+        // game starts (`GbAccessibilityScript.start` -> `AccessibilityScript.speechBridge`),
+        // and the launcher's own lines are announced by the SCREEN READER through the
+        // status view's live region, which needs no native code at all.
 
         setContent {
             // ⛔ MATERIAL 2, to match the host app (see LauncherScreen's note):
@@ -70,15 +77,27 @@ class MainActivity : ComponentActivity() {
         val view = LocalView.current
 
         SideEffect {
-            AccessibilityScript.setAnnouncementView(view)
+            // Kept so the view is handed over as soon as the bridge EXISTS; attaching
+            // it before then forwards to a null bridge and does nothing (see
+            // GbGameSession.attachAnnouncementView, which also re-forwards on start).
+            GbGameSession.attachAnnouncementView(view)
         }
 
         LauncherScreen(
             session = GbGameSession,
             announce = { text, interrupt ->
-                // The screen's own line. Goes through the same bridge as the reader's
-                // speech, so it obeys the same screen-reader rule.
-                AccessibilityScript.speak(text, interrupt)
+                // ⛔ THE STATUS LIVE REGION IS THE VOICE; THIS IS ONLY A FALLBACK.
+                // The status Text carries a liveRegion and its contentDescription is
+                // this same string, so a running screen reader announces it -- that is
+                // how the WebView-era bug was fixed (the screen reader should be the
+                // only voice).
+                //
+                // The bridge only exists once a game has started, so calling it earlier
+                // is both a crash (no native library) and unnecessary. Guarded rather
+                // than removed: with a game running, this is the same bridge the reader
+                // uses, so a launcher line during play queues behind the reader's speech
+                // instead of opening a second TTS client.
+                if (GbGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
             },
         )
     }

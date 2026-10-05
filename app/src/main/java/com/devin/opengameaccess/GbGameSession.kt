@@ -73,8 +73,23 @@ object GbGameSession {
      * announces from, and an unattached one announces nothing.
      */
     fun attachAnnouncementView(view: View) {
+        storedAnnouncementView = view
         AccessibilityScript.setAnnouncementView(view)
     }
+
+    /**
+     * The view the screen reader announces from.
+     *
+     * ⛔ RE-FORWARDED ON START, AND THAT IS THE POINT. `AccessibilitySpeech` is built
+     * when a ROM loads, AFTER the Activity's first composition, so the attach that
+     * happens during composition forwards to a bridge that does not exist yet and is
+     * silently a no-op. Without this re-forward the view stays null for the whole
+     * session, the speech code falls through to its "no view yet" branch, and the app
+     * speaks through TextToSpeech on top of the screen reader -- the exact
+     * double-voice bug this port was meant to fix, merely moved.
+     */
+    @Volatile
+    private var storedAnnouncementView: View? = null
 
     /**
      * Load a Game Boy ROM and start the reader. Returns null on success, or a
@@ -100,6 +115,8 @@ object GbGameSession {
             return lastError
         }
         Log.i(TAG, "reader running: $romPath")
+        // The bridge exists now, so the view can actually be attached.
+        storedAnnouncementView?.let { AccessibilityScript.setAnnouncementView(it) }
         lastError = ""
         return null
     }
