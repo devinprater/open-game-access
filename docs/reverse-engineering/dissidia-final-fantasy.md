@@ -9321,3 +9321,63 @@ a **savestate** removes both blockers at once -- savestate RAM is already decryp
 capture is done by a human who can see the load succeed, so there is no input-timing problem
 left to fight. See the skill note on preferring a fixture a human can produce over a
 screenshot-driven sequence.
+
+## 119. DQ9 verified against LIVE RAM (the gap it was carrying is closed)
+
+DQ9's adapter was the one working adapter with an unclosed claim. Its addresses came from the
+mod author, and its tests fed a SYNTHETIC image of that layout -- so the suite proved the LOGIC
+and nothing about whether those addresses mean anything in a running game. Now they do.
+
+`scripts/dq9-live-proof.sh` boots the real ROM (268 MB, USA, game code YDQE) in the real melonDS
+core through the production PokeCore path, lets the registry hand back the DQ9 adapter, and asks
+it things. Result, in two halves -- and the refusal half is the one that makes the other half
+mean something:
+
+    adapter id .................. dq9 / "Dragon Quest IX: Sentinels of the Starry Skies" / YDQE
+    firmware bootable ........... 1 (real bios9+bios7+firmware; decided during the load)
+    AT THE TITLE, WhereAmI ...... 0 map-shaped lines spoken   <- the gate REFUSED, correctly
+    ready at frame .............. 3400
+    in game, WhereAmI ........... "On M01M1200, position -6, 13. Exploring."
+                                  "On M01M1200, position -6, 13. In battle."
+                                  "On M01M1200, position 5, -15. Exploring."
+                                  "On S14M0500, position 0, 0. In battle."
+    NextAlly .................... "1, 1 of 4."
+
+**The map reads are live, and the proof is that they CHANGE.** Two different map codes
+(`M01M1200`, `S14M0500`), position moving between reads, and the battle flag toggling
+Exploring/In battle. A single printable read could be coincidence; four different answers that
+track the game cannot. `M01M1200` is a real early-game map code, not title junk.
+
+At the title the same command produces NOTHING. That is the half that was never checked and is
+the adapter's whole safety argument: a gate that never refuses is not a gate, it is a
+random-text generator. Confirmed refusing.
+
+### The one field still doubtful, stated so it is not assumed verified
+
+**The party NAME reads a single printable byte: "1".** The record is at the mod's documented
+`PARTY0_NAME` + `slot * 0x964`, and `PartyName` requires every byte to be printable and stops at
+NUL -- so "1" passed the check honestly. But a one-character hero name is far more likely to be
+either the game's default for an unnamed hero (this run mashed through the title into a NEW
+game, so no name was ever entered) or an address sitting on the tail of the right record. The
+slot arithmetic is right -- it reported "1 of 4" -- so the cursor and stride are behaving.
+
+**Not claimed: that the party name is correctly read for a named save.** That needs a save with a
+deliberate multi-character name and a re-run. The three fields above are verified; this one is
+open, and the log says so rather than counting it as a pass.
+
+### Two real build bugs, found by trying to link rather than by reading
+
+Both were in the host object list, and both presented as "undefined reference", which reads like
+a source problem:
+
+1. **`nes_adapter.cpp Core/n64_adapter.cpp` was ONE printf.** Two paths in one quoted string
+   reached the compiler as one filename, so it failed outright; `n64_adapter.o` never existed and
+   every harness linking the host set died on `undefined reference to oga::kNintendo64`. A stale
+   `nes_adapter.o` from an older build hid it, because the freshness check only looks at the `.o`
+   it can see. One source per entry.
+
+2. **`Core/host_harness_stub.cpp` was in NO list**, so `pokecore.o`'s unconditional `psp_*`
+   references had no definition and nothing could link -- the file whose entire documented
+   purpose is to satisfy exactly those references. It is host-only by construction (`#error`
+   without `POKE_HOST`) and must never enter `core-sources.sh`, where the app's real PSP backend
+   would then collide with it.
