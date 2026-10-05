@@ -1819,6 +1819,10 @@ static bool Attach(const Host* host)
 
 static void Detach(void) { g_host = nullptr; g_widgetRoot = 0; g_widgetPinned = false; g_oskLive = false; }
 
+// Test/diagnostic accessor: lets a host probe read battle fields through the same
+// Host the adapter uses, since the C ABI exposes no raw memory read.
+const Host* HostForProbe(void) { return g_host; }
+
 } // namespace dissidia
 
 // NOTE: the instance lives at oga scope (like kDragonBallZSaiyans), NOT inside
