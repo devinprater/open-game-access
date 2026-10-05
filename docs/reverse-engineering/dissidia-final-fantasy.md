@@ -9061,3 +9061,91 @@ unidentified (voice-clip index? face opcode?).
   (scene -> speaker, line) tables from it; at runtime match the RAM script
   buffer (whole scene, UTF-16) to identify the scene, portrait byte for the
   speaker. No codec RE needed.
+
+## 117. EX Core: the lock-target assumption is FALSIFIED (decomp, 2026-10-05)
+
+**Why this was re-opened.** The player's report: "the enemy sonar is fine, but I never hear
+the EX-core sonar." Live measurement agreed with the report and disagreed with the design:
+across 7,200 frames of two real battles the lock target was lock-OFF or the enemy and never
+anything else, and a sweep of every savestate on the machine found no core. Section 114 had
+recorded "alternate = EX core" -- so either the core is unobservably rare, or that reading of
+the field was wrong. The decomp settles it.
+
+### 1. The lock field can only ever hold 0 or the enemy
+
+Every write to `fighter + 0x2EC` in the whole executable, from the Ghidra reports:
+
+| site | code | meaning |
+|---|---|---|
+| `FUN_000b64f8` | `*(p+0x2ec) = *(p+0x2f0)` | lock onto the **enemy** pointer |
+| `FUN_000b6550` | `*(p+0x2ec) = 0` | lock off |
+| `FUN_000a485c` | `*(p+0x2ec) = 0` | lock off |
+
+There is **no fourth writer**, and none that stores any other object. `+0x2EC` is therefore a
+two-valued field: *no target* or *the enemy*. **The "alternate target = EX core" branch in
+`CmdLock`/`CueSnapshotFill` is unreachable by construction.** The cue's 1180 Hz timbre was
+wired to a state the game cannot produce, which is exactly why it is never heard -- not
+because the core is rare, and not because of anything in the audio.
+
+### 2. The core is not in the generic object list either
+
+The list the adapter walks (`head = [M+0x0C]`, next `+0x490`) is maintained by
+`FUN_0009eb98`, which **inserts by a type byte at `obj+0x530`** (a sorted list). Live dump
+during a battle:
+
+* always **exactly 8 nodes** -- never grows, never shrinks;
+* type byte is only ever `0x00` (the two fighters) or `0x02` (six dormant effect slots);
+* the six `0x02` slots sit at `(0,0,0)`, and one at `(0,1.5,0)`.
+
+So `+0x530` is the object **type**, it exists (section 114 said no subtype exists), and no
+core-typed node ever appears in this list. The "lifecycle membership" rule in `CmdLock` is
+sound but has nothing to apply to.
+
+The second list section 116 cross-validated (`env count` at `0x08BAC864`, items at
+`0x08BAC868`) resolves to **the same six objects** -- same addresses, same dormant state.
+
+### 3. What the core actually is: a pickup that posts event `0x3C`
+
+`FUN_00097778` is the **battle event dispatcher** (a `switch` on the event type at
+`event+2`, ~70 cases). Two cases matter here:
+
+* **`case 0x3c` -- the only writer of the EX gauge.** It adds
+  `param3[6] * scale` to `[[fighter+0x51C]+0x14]` and clamps to **10000.0** (the `EX_FULL`
+  constant the adapter already uses, confirmed independently). The amount is carried by the
+  **event**, not by an object -- which is why no core object ever needs to be in a list.
+* `case 0x19` computes from the *lock target*, `case 0x0b` from the *enemy* pointer, and
+  `cases 0x10/0x11` clamp an `iVar14` to `0xb4` (180) -- the event table is the game's own
+  inventory of battle events.
+
+And the poster of the gauge-gain event, in `FUN_000ce824`:
+
+```c
+FUN_001accb4(*(undefined4 *)(*(int *)(*param_1 + 0x380) + 0x4c), 0x3c, 0, 0);
+...
+if (*(int *)(iVar1 + 0x10) == 3)      FUN_0009b930(0, iVar4 + 0x130, 0x2135, 0);
+else if (*(int *)(iVar1 + 0x10) == 2) FUN_0009b930(0, iVar4 + 0x130, 0x2136, 0);
+else                                  FUN_0009b930(0, iVar4 + 0x130, 0x2137, 0);
+```
+
+Three sound-effect IDs for three levels, posted together with the EX gain -- the code
+carries the strength of what was picked up. This matches the documented EX Core design
+(a bell whose strength is shown by how many wings it has, spawning near the fighter with the
+higher LUK) and gives the shape of the correct cue.
+
+### 4. What this means for the cue (the decision it forces)
+
+* The **enemy beacon is correct and should stay** (timbre = identity, rate = distance).
+* The **core cannot be cued from the lock ring**, because the lock ring never holds it. The
+  second timbre must be driven from the **pickup event**, not from the target, and the honest
+  forms of that cue are:
+  1. **collected**: a distinct sting whenever an EX-gain event lands on the player (rate-free,
+     one-shot) -- directly readable from the gauge, decomp-grounded, and provable on the
+     next frame after collection; or
+  2. **in play**: a periodic presence tick while a core exists on the field -- which needs
+     the core's own storage, and that storage is *not* the lock field, the generic list, or
+     the env list.
+
+**Not done, and deliberately:** no behaviour was changed from this analysis. What remains to
+make (2) possible is the core's spawn storage; the evidence above rules out every list the
+adapter currently reads, so that is a fresh RE target rather than a re-read of a known one.
+
