@@ -130,10 +130,20 @@ enum class Command {
 /// silent poll the synth reads every tick. NULL member = "this adapter has no cue data".
 struct CueSnapshot {
     bool  battle;    // fighters resolve: we are in a battle
-    bool  locked;    // a live target (enemy or listed EX core)
-    bool  is_core;   // the locked target is the EX core rather than the enemy
-    float dist;      // world units, self to target; valid only when locked
+    bool  locked;    // the enemy is locked
+    bool  is_core;   // reserved; a core lock is IMPOSSIBLE in Dissidia (see note below)
+    float dist;      // world units, self to enemy; valid only when locked
+    bool  core_gain; // one frame: the player's EX gauge JUMPED (absorbed EX Force/Core)
 };
+
+// WHY is_core IS RESERVED AND core_gain EXISTS (Dissidia, decomp-proven 2026-10-05):
+// the lock field fighter+0x2EC has exactly three writers in the executable -- store the
+// enemy pointer (+0x2F0), store 0, store 0. It can never hold a third object, so
+// "locked on the EX core" is unreachable by construction and the cue's high timbre never
+// sounded. An earlier note had assumed the alternate value WAS a core; the decomp refutes
+// that. The EX Core is a pickup: it posts battle event 0x3C, the ONLY writer of the gauge
+// [[fighter+0x51C]+0x14] (clamped to 10000.0), so a gauge jump between frames IS that
+// event. core_gain carries the reachable signal to the synth.
 
 struct Adapter {
     const char* id;              // "fe11"

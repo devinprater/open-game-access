@@ -965,6 +965,9 @@ int poke_cue_snapshot(PokeCore* core, float* dist)
     oga::CueSnapshot s{};
     if (!core->adapter->cue_snapshot(&s) || !s.battle) return 0;
     if (dist) *dist = s.dist;
+    // 4 = a one-frame EX-gain pulse (an absorbed EX Force / EX Core). It is reported even
+    // with the lock off, because the pickup is independent of what is targeted.
+    if (s.core_gain) return 4;
     if (!s.locked) return 1;
     return s.is_core ? 3 : 2;
 }

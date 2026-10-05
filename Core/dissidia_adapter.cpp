@@ -152,6 +152,12 @@ constexpr uint32_t OFF_G = 0x08u;
 constexpr uint32_t MARK_SLOTS = 32u, MARK_STRIDE = 0x10u;
 
 static const Host* g_host = nullptr;
+// EX-gauge jump detector for the cue's core pulse. The gauge is the player's own EX value;
+// its only writer is battle event 0x3C (decomp, section 117), so a jump between frames is
+// an EX Force / EX Core being absorbed. -1 = no previous sample (first frame, or left
+// battle), which re-arms cleanly so a stale delta can never fire across a gap.
+static float g_prevEx = -1.0f;
+static constexpr float EX_GAIN_THRESHOLD = 250.0f;
 // W = the CURRENT menu's list widget (index at W+0x3C, count at W+0x240).
 // 0 = not tracked yet. Heap addresses shift per boot, so this is re-discovered
 // from static holders on every use -- never a constant, never cached across menus.
@@ -1073,43 +1079,39 @@ bool CueSnapshotFill(CueSnapshot* out)
     out->locked = false;
     out->is_core = false;
     out->dist = 0.0f;
+    out->core_gain = false;
 
     Battle b = BattleFighters();
-    if (!b.ok) return false;          // not a battle: no cue at all
+    if (!b.ok) { g_prevEx = -1.0f; return false; }   // not a battle: no cue at all
     out->battle = true;
 
+    // The reachable "core" signal: a JUMP in the player's EX gauge. Its only writer is
+    // battle event 0x3C, so the jump is an absorption. The threshold sits well above
+    // frame-to-frame drift (EX Mode drain) and far below a pickup's contribution, so the
+    // pulse fires on a real pickup and never on noise. Fail-closed: no gauge, no pulse.
+    if (b.self.ok) {
+        float ex = b.self.ex;
+        if (g_prevEx >= 0.0f && ex - g_prevEx >= EX_GAIN_THRESHOLD) out->core_gain = true;
+        g_prevEx = ex;
+    } else {
+        g_prevEx = -1.0f;
+    }
+
     uint32_t tgt = u32(b.self.p + 0x2ECu);
-    if (tgt == 0) return true;       // lock off: battle, but nothing to track
+    if (tgt == 0) return true;       // lock off: a battle, but nothing to track
 
     uint32_t enemy = u32(b.self.p + OFF_PAIR);
     if (tgt == enemy) {
-        if (!b.foe.ok) return true;  // enemy target with no readable foe: silent
+        if (!b.foe.ok) return true;  // enemy target with no readable foe: stay silent
         out->locked = true;
         out->is_core = false;
         out->dist = VecDist(b.self.x, b.self.y, b.self.z, b.foe.x, b.foe.y, b.foe.z);
         return true;
     }
 
-    // Alternate target: verify list membership before calling it a core (same rule as
-    // CmdLock — an unlisted pointer is not a target, and self is never one).
-    uint32_t m = u32(BATTLE_MGR_HOLDER);
-    bool listed = false;
-    if (InRam(m) && !(m & 3)) {
-        uint32_t o = u32(m + 0x0Cu);
-        for (int i = 0; i < 64 && InRam(o) && !(o & 3) && o != 0; i++) {
-            if (o == tgt) { listed = true; break; }
-            o = u32(o + 0x490u);
-        }
-    }
-    if (!listed || tgt == b.self.p) return true;   // not a live target: silent
-    if (!InRam(tgt + 0x88u)) return true;
-
-    float tx = f32(tgt + OFF_PX), ty = f32(tgt + OFF_PY), tz = f32(tgt + OFF_PZ);
-    if (tx != tx || ty != ty || tz != tz) return true;   // NaN guard
-
-    out->locked = true;
-    out->is_core = true;
-    out->dist = VecDist(b.self.x, b.self.y, b.self.z, tx, ty, tz);
+    // Anything else is unreachable in this game (the field has only those three writers).
+    // If one ever appears, stay SILENT rather than invent a label: fail-closed, per the
+    // cue contract.
     return true;
 }
 
