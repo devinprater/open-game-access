@@ -9224,3 +9224,67 @@ depend on the lock at all -- which is what `core_gain` now does, reading the EX 
 fires whether or not a lock is possible. That is the argument for keeping BOTH signals: the
 lock branch is the correct in-game behaviour, and the gauge pulse is the one that can be proven
 without an ability-gated character.
+
+## 118. Save files: what is readable, and the load that will not land
+
+Goal: boot runs from a save with LEVELLED characters, so the EX-Core lock (ability-gated,
+learned at Level 2) can finally be exercised. Two things came out of it -- one useful, one a
+failure that must be recorded as a failure.
+
+### What IS readable: PARAM.SFO, in plaintext
+
+`DISSIDIA.BIN` is fully encrypted (entropy 7.999 bits/byte, all 256 byte values, no ASCII runs,
+no zero padding), so diffing saves is meaningless -- 285,249 of 286,344 bytes differ between any
+two. **`PARAM.SFO` is not encrypted**, and it identifies each save:
+
+| save | PLAYER | DATE | TIME |
+|---|---|---|---|
+| gfsave-19624 | TrunksSSJ23 | 08/20/2009 13:18:21 | 14 |
+| gfsave-19644 | TrunksSSJ23 | 08/20/2009 13:18:21 | 15 |
+| gfsave-20238, save20238, epXsave | **Epyon** | 09/25/2009 14:54:51 | **276** |
+| dissidia-ne | PPSSPP111111 | 2026/09/29 | 0 |
+| psp-save-0921 / -new | PPSSPP | 2026 | 0 |
+| host-save, enemy-save | PPSSPP111111 | 2026/09/26 | 1 |
+
+So the ten copies are **six distinct saves** (three share Epyon's md5), and **Epyon's (TIME 276)
+is the most-played and therefore the level-100 candidate**. That is evidence, not a level
+reading, and the distinction matters -- see below.
+
+### What is NOT readable from the load screen
+
+The game's Load screen shows **GAME DATA / <date> / 297 KB**, where the date is the save FILE's
+mtime and 297 KB is the three files summed (286,344 + 13,024 + 4,912). It shows **no character,
+no level, no playtime**, so it cannot be used to identify a levelled save.
+
+### The memstick path, which WAS a real bug
+
+`Core/psp_core.cpp:399` sets `g_Config.memStickDirectory = saveRoot / "ppsspp-memstick"`. Passing
+a directory that already contained the nesting put the save one level away from where the game
+reads, and the game reported **"There is no data"** -- so early runs silently booted a FRESH
+game. **Every "level 1 / no core lock" observation made before this was corrected is void**: it
+described a save that was never loaded. With the path right, the game does read the save (the
+297 KB entry appears, and a full-RAM diff against an empty memstick shows 41,128 bytes of
+difference).
+
+### The failure: the load does not land, so no level has been read
+
+A full-32 MB RAM dump taken after the load sequence is **byte-identical (1 byte of noise)** between
+Epyon's save (TIME 276) and the near-empty tutorial save (TIME 0). Both dumps also equal the dump
+from the empty memstick. So the confirm presses reach the Load screen but **never load a save**,
+and the "after load" state in every dump is the title screen.
+
+**Therefore no character level has been read from any save, and nothing about levelled
+characters has been verified.** Stated plainly because the opposite is tempting: the SFO table is
+seductive evidence that Epyon's save is the right one, and it is not proof.
+
+⚠ The method lesson, which is the repo's own rule and caught this: **a probe that cannot detect
+the known-present case proves nothing when it reports absent.** Here the known-present case -- a
+save watched loading, with the load screen showing its 297 KB -- produced a dump identical to the
+empty case, so the probe was falsified rather than the hypothesis confirmed. Had the identical
+dumps been read as "these saves have no levels", that would have been wrong for the third time
+this session on the same pattern: an instrument answering a narrower question than the one asked.
+
+**Next step if this is picked up:** the load has to be driven until the RAM actually changes
+(watch for the dump to differ, not for a screen to appear), or sidestepped entirely by loading a
+levelled save on the device and capturing a savestate -- RAM in a state is already decrypted,
+so that route avoids both the encrypted file and the input-timing problem.
