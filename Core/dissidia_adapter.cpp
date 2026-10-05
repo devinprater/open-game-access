@@ -1118,9 +1118,31 @@ bool CueSnapshotFill(CueSnapshot* out)
         return true;
     }
 
-    // Anything else is unreachable in this game (the field has only those three writers).
-    // If one ever appears, stay SILENT rather than invent a label: fail-closed, per the
-    // cue contract.
+    // ALTERNATE TARGET = THE EX CORE. Restored deliberately: an earlier pass claimed the
+    // lock field could only hold 0 or the enemy, so no core lock was possible. That claim
+    // rested on a partial search (the decompiled reports, not the binary) and on
+    // mis-reporting a savestate sweep, and it contradicted the project's own live-observed
+    // note that the ring reaches an EX core. The game's own design has you LOCK a core and
+    // dash to it, so the branch belongs here. Membership in the object list is still the
+    // verification, so a freed pointer cannot be labelled a core (fail-closed).
+    uint32_t m = u32(BATTLE_MGR_HOLDER);
+    bool listed = false;
+    if (InRam(m) && !(m & 3)) {
+        uint32_t o = u32(m + 0x0Cu);
+        for (int i = 0; i < 64 && InRam(o) && !(o & 3) && o != 0; i++) {
+            if (o == tgt) { listed = true; break; }
+            o = u32(o + 0x490u);
+        }
+    }
+    if (!listed || tgt == b.self.p) return true;   // not a live target: silent
+    if (!InRam(tgt + 0x88u)) return true;
+
+    float tx = f32(tgt + OFF_PX), ty = f32(tgt + OFF_PY), tz = f32(tgt + OFF_PZ);
+    if (tx != tx || ty != ty || tz != tz) return true;   // NaN guard
+
+    out->locked = true;
+    out->is_core = true;
+    out->dist = VecDist(b.self.x, b.self.y, b.self.z, tx, ty, tz);
     return true;
 }
 
