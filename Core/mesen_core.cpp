@@ -28,6 +28,7 @@
 #include "Shared/EmuSettings.h"
 #include "Shared/Interfaces/IConsole.h"
 #include "Shared/BaseControlManager.h"
+#include "Shared/Interfaces/IInputProvider.h"
 #include "Shared/BaseControlDevice.h"
 #include "Shared/MemoryType.h"
 #include "NES/NesConsole.h"
@@ -66,6 +67,10 @@ extern "C" {
 #define NES_BIT_B      6
 #define NES_BIT_A      7
 
+/* Declared before NesCore because the struct holds a pointer to it; DEFINED after
+ * NesCore, because its SetInput reads the core's button array. */
+class NesInputProvider;
+
 struct NesCore {
     /* PIMPL: Mesen's headers stay out of the app's include path entirely, the same reason
      * pokecore.cpp hides melonDS. */
@@ -81,6 +86,8 @@ struct NesCore {
     bool running = false;
     std::thread runThread;             /* Mesen owns the frame loop; see nes_start */
     std::atomic<bool> stopRequested{false};
+    /* The host's input provider. Owned here; registered with the console's control manager. */
+    NesInputProvider* inputProvider = nullptr;
     unsigned long long frames = 0;
     std::string error;
     std::string gameCode;
@@ -105,16 +112,36 @@ struct NesCore {
     int fbW = 0, fbH = 0;
 };
 
-namespace {
-
-void SetError(NesCore* c, const char* msg) { if (c) c->error = msg ? msg : "unknown error"; }
-
-/* Our header's NES_BTN_* order -> the controller's own bit order. One table, so the mapping is
- * visible rather than implied by arithmetic. */
+/* The mapping, at global scope so this class and the core's own code share ONE definition. */
 const uint8_t kBtnToBit[NES_BTN_COUNT] = {
     NES_BIT_A, NES_BIT_B, NES_BIT_SELECT, NES_BIT_START,
     NES_BIT_UP, NES_BIT_DOWN, NES_BIT_LEFT, NES_BIT_RIGHT,
 };
+
+class NesInputProvider : public IInputProvider {
+public:
+    explicit NesInputProvider(NesCore* core) : _core(core) {}
+
+    bool SetInput(BaseControlDevice* device) override {
+        if (!_core || !device) return false;
+        /* Same table the core uses everywhere else: our NES_BTN_* order -> the controller's bit
+         * order. Kept in one place so a change cannot desync the two. */
+        for (int i = 0; i < NES_BTN_COUNT; i++)
+            device->SetBitValue(kBtnToBit[i], _core->buttons[i] != 0);
+        return true;      /* handled: stop the provider chain, as Mesen's own providers do */
+    }
+
+private:
+    NesCore* _core;
+};
+
+namespace {
+
+/* Our header's NES_BTN_* order -> the controller's own bit order. One table, so the mapping is
+ * visible rather than implied by arithmetic. */
+
+void SetError(NesCore* c, const char* msg) { if (c) c->error = msg ? msg : "unknown error"; }
+
 
 /* The game's identity. Mesen's RomInfo carries the FILE, not a database name, so the honest source
  * is the filename. A code derived from a filename can be wrong for a file named carelessly, so it
@@ -161,11 +188,26 @@ void RegisterCore(lua_State* L, NesCore* core) {
 
 /* The one place a domain name becomes an address space. "System Bus" is what both readers mean by
  * default; "CIRAM (nametables)" is Dragon Warrior's screen-text inspection. */
-int LuaMemRead(NesCore* c, uint32_t addr) {
+/* ⛔ THE DOMAIN IS RESOLVED PER CALL, NOT FROM ONE STICKY FLAG.
+ *
+ * Measured failure this fixes: DW selects "CIRAM (nametables)" to read screen text and switches
+ * back; with a single sticky string, a read landing in between returned NAMETABLE bytes for the
+ * player's HP addresses (0x00C5/0x00CA), so max_hp read as 0xA9 instead of the real 0x00 and a
+ * "Critical health" warning fired on a game that had not started. The reader's own `max_hp <= 0`
+ * guard could not catch it, because the number was plausible garbage.
+ *
+ * BizHawk's contract: an EXPLICIT domain argument wins; the sticky default applies only when the
+ * domain is omitted. That is what both readers rely on -- they pass "System Bus" explicitly for RAM.
+ */
+int LuaMemReadDomain(NesCore* c, uint32_t addr, const char* domain) {
     if (!c) return 0;
-    if (c->memDomain == "CIRAM (nametables)") {
-        /* Nametable RAM is not in the CPU address space; nes_read would answer a different
-         * question. This is served from the PPU when the console exposes it. */
+    bool nametable = domain && strcmp(domain, "CIRAM (nametables)") == 0;
+    if (!nametable) nametable = (!domain && c->memDomain == "CIRAM (nametables)");
+
+    if (nametable) {
+        /* Nametables live at 0x2000+ in the PPU's space. An address below that is NOT a nametable,
+         * and answering it with tile bytes is how the false health reading happened. Refuse it. */
+        if (addr < 0x2000) return 0;
         return (int) nes_read_nametable(c, addr);
     }
     uint32_t v = 0;
@@ -173,10 +215,15 @@ int LuaMemRead(NesCore* c, uint32_t addr) {
     return (int) v;
 }
 
+int LuaMemRead(NesCore* c, uint32_t addr) { return LuaMemReadDomain(c, addr, nullptr); }
+
 int LuaMemRead8(lua_State* L) {
     NesCore* c = CoreFromLua(L);
     uint32_t a = (uint32_t) luaL_checkinteger(L, 1);
-    lua_pushinteger(L, LuaMemRead(c, a));
+    /* BizHawk's read_u8 takes an OPTIONAL domain as its second argument, and an explicit domain
+     * must win over the sticky default -- see LuaMemReadDomain for the bug that proved it. */
+    const char* dom = lua_isstring(L, 2) ? lua_tostring(L, 2) : nullptr;
+    lua_pushinteger(L, LuaMemReadDomain(c, a, dom));
     return 1;
 }
 
@@ -185,9 +232,10 @@ int LuaMemRead8(lua_State* L) {
 int LuaMemReadWide(lua_State* L, int width) {
     NesCore* c = CoreFromLua(L);
     uint32_t a = (uint32_t) luaL_checkinteger(L, 1);
+    const char* dom = lua_isstring(L, 2) ? lua_tostring(L, 2) : nullptr;
     uint32_t v = 0;
     for (int i = 0; i < width; i++)
-        v |= (uint32_t) LuaMemRead(c, a + (uint32_t) i) << (8 * i);
+        v |= (uint32_t) LuaMemReadDomain(c, a + (uint32_t) i, dom) << (8 * i);
     lua_pushinteger(L, (lua_Integer) v);
     return 1;
 }
@@ -548,6 +596,17 @@ bool nes_start(NesCore* c) {
         c->scriptLoaded = true;
     }
 
+    /* Register the host's input provider BEFORE the frame loop starts, so the very first frame
+     * already sees real input rather than a cleared pad. */
+    if (c->console) {
+        BaseControlManager* cm = c->console->GetControlManager();
+        if (cm) {
+            if (!c->inputProvider) c->inputProvider = new NesInputProvider(c);
+            cm->RegisterInputProvider(c->inputProvider);
+            if (c->log) c->log("nes: host input provider registered", c->logUser);
+        }
+    }
+
     c->stopRequested = false;
     c->runThread = std::thread([c]() {
         try {
@@ -564,6 +623,14 @@ bool nes_start(NesCore* c) {
 void nes_stop(NesCore* c) {
     if (!c) return;
     if (c->L) { lua_close(c->L); c->L = nullptr; c->coroutine = nullptr; c->scriptLoaded = false; }
+    if (c->inputProvider) {
+        if (c->console) {
+            BaseControlManager* cm = c->console->GetControlManager();
+            if (cm) cm->UnregisterInputProvider(c->inputProvider);
+        }
+        delete c->inputProvider;
+        c->inputProvider = nullptr;
+    }
     if (!c->emu) return;
     if (c->running) {
         c->emu->Stop(false, true, true);     /* sets _stopFlag, so Run() returns */
@@ -574,22 +641,23 @@ void nes_stop(NesCore* c) {
 
 bool nes_running(NesCore* c) { return c && c->running; }
 
+void nes_set_uncapped(NesCore *core, bool uncapped) {
+    if (!core || !core->emu) return;
+    /* EmulationFlags::MaximumSpeed -> GetEmulationSpeed() == 0 -> GetFrameDelay() == 0, so the
+     * frame limiter stops sleeping. Test/tooling only; the shipped app stays paced. */
+    EmuSettings *settings = core->emu->GetSettings();
+    if (!settings) return;
+    settings->SetFlagState(EmulationFlags::MaximumSpeed, uncapped);
+    if (core->log) core->log(uncapped ? "nes: uncapped (test mode)" : "nes: paced", core->logUser);
+}
+
 bool nes_frame(NesCore* c) {
     if (!c || !c->loaded || !c->emu) return false;
 
-    /* Press the pad through the console's OWN controller device, so Mesen sees real input from a
-     * real device rather than a state poke. The adapter contract is read-only plus real buttons. */
-    if (c->console) {
-        BaseControlManager* cm = c->console->GetControlManager();
-        if (cm) {
-            std::shared_ptr<BaseControlDevice> pad = cm->GetControlDevice(0);
-            if (pad) {
-                for (int i = 0; i < NES_BTN_COUNT; i++)
-                    pad->SetBitValue(kBtnToBit[i], c->buttons[i] != 0);
-                pad->SetStateFromInput();
-            }
-        }
-    }
+    /* ⛔ NO PER-FRAME BUTTON POKE HERE. Writing the pad from this function does not work: Mesen's
+     * UpdateInputState() calls ClearState() on every device at the start of each frame, so the bits
+     * are wiped before the frame runs. Input goes through the registered IInputProvider instead
+     * (see NesInputProvider) -- the path Mesen intends for a host. */
 
     // One nes_frame call == one emulated frame, with the APP owning its clock. The frame is
     // produced by Mesen's own thread (see nes_start); this waits for the console's frame counter to

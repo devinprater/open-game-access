@@ -78,6 +78,9 @@ bool nes_load_rom(NesCore *core, const char *rom_path, const char *save_path,
 int nes_read_audio(NesCore *core, int16_t *out, int max_frames);
 
 bool nes_start(NesCore *core);
+/* Test/tooling only: run the console uncapped (no real-time frame limiting) so a scripted drive
+ * through a game's menus does not cost real minutes. The app leaves this off. */
+void nes_set_uncapped(NesCore *core, bool uncapped);
 void nes_stop(NesCore *core);
 bool nes_running(NesCore *core);
 

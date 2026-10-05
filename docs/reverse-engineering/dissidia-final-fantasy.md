@@ -9579,3 +9579,78 @@ The frame geometry is correct (256x240, 17 coarse colours, no repeat period anyw
 px). The model's TRANSCRIPTION was right and useful -- `ZELDA`, `©1986 NINTENDO`, `PUSH START
 BUTTON`, i.e. the title screen -- and its structural claim was fiction. Use these tools for text and
 counts; settle geometry from the pixels.
+
+---
+
+## A7. The NES readers: two reported faults, two real bugs underneath
+
+Both issues raised against the Zelda and Dragon Warrior readers were traced to the **core**, not the
+readers. The readers are correct; my binding was lying to them.
+
+### A7.1 "Zelda's room announcements never fire"
+
+**Cause: the pad was dead.** Not a reader fault and not a wrong address -- no input reached the game
+at all.
+
+`nes_frame` used to poke the controller:
+
+    pad->SetBitValue(bit, c->buttons[i] != 0);
+    pad->SetStateFromInput();
+
+Measured, from Mesen's own source: `BaseControlManager::UpdateInputState()` runs this per frame, for
+every device:
+
+    device->ClearState();
+    device->SetStateFromInput();
+    for (provider : _inputProviders) { if (provider->SetInput(device)) break; }
+
+`ClearState()` therefore wipes the poke before the frame runs. Six START presses moved nothing,
+`game_mode` stayed `0x00` and `cur_level`/`room_id` stayed `0x00` -- and the reader was **right** to
+stay silent: it was reporting a game that had never started.
+
+**Fix:** supply input through `IInputProvider`, the path Mesen intends for a host and which is
+consulted *after* the clear. One provider reading our button array fixes every NES game at once,
+including the readers' own `joypad.set`.
+
+Proof after the fix (Zelda (USA), real ROM): boot mode `00` -> START `01` (file select) -> START
+`0E` (registration). The reader then spoke "File select", "Register your name", and the letter under
+the cursor ("L") -- live reads of a running game. Mode `0x0E` is in the reader's own
+`FILE_SCREEN_MODES`, which is why it stays silent there; that is correct behaviour, not a fault.
+
+### A7.2 "Dragon Warrior warns about critical health on a fresh boot"
+
+**Cause: a sticky memory domain returned nametable bytes for the player's HP.**
+
+The reader reads HP from `0x00C5` (`PLAYER_HP_ADDR`) and `0x00CA` (`MAX_HP_ADDR`), and switches to
+`CIRAM (nametables)` to inspect screen text. My binding kept the domain in **one sticky string**.
+Measured, in the same sample:
+
+    System Bus (the truth):  hp=FF  max_hp=00
+    CIRAM (nametables):      hp=AA  max_hp=A9
+
+With `max_hp` reading `0xA9` instead of `0x00`, the reader's own guard (`max_hp <= 0` -> do not warn)
+could not fire, and `hp <= max_hp/4 + 1` compared nametable garbage against nametable garbage.
+
+**Fix:** resolve the domain **per call**. An explicit domain argument wins; `usememorydomain` only
+sets the default for argument-less reads. That is BizHawk's real contract, and it is what the readers
+rely on -- Zelda passes `RAM.domain` explicitly. A CIRAM read below `0x2000` is refused rather than
+answered with tile bytes.
+
+### A7.3 What is NOT verified
+
+- **Zelda's overworld room narration has still not been observed.** It needs a completed name
+  registration, which the scripted drive did not achieve: the board cursor moves and speaks, but the
+  route to the board's END cell was not found. This is the open item.
+- **The original "Critical health" message was not re-witnessed before the fix**, so the fix is not
+  proven to be what silenced it. What IS proven: the HP read returned nametable bytes when it should
+  have returned RAM, and it no longer does. The mechanism explains the message exactly.
+- **Audio is still a refusal** (`nes_read_audio` returns 0): Mesen mixes into a device this host does
+  not drain.
+
+### A7.4 Performance, measured
+
+Driving to a game's overworld costs real minutes at 60 fps, so the core gained a test-only uncapped
+switch (`nes_set_uncapped`, `EmulationFlags::MaximumSpeed`). Throughput on this host: paced 60.1 fps,
+uncapped 785 fps without a reader and 815 fps with the Zelda reader. Per-frame cost inside
+registration is ~1.0 ms and FLAT over 600 frames -- no leak, no per-frame growth. The reader's cost is
+in the noise; the core is not the bottleneck on any drive.
