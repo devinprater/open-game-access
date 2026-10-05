@@ -9528,3 +9528,54 @@ named the cause in one run. When an API returns a bare bool for a rich failure, 
 There is no emulator called "Mesen NG". The project is **MesenCE** (`nesdev-org/MesenCE`), the
 community fork maintained after SourMesen/Mesen2 was archived -- which is the tree already pinned here
 (`a60e79fe`) and the one this backend is written against. No switch was needed.
+
+## 122. Real Zelda boots and runs (the backend meets a commercial game)
+
+The NES library arrived as 5,829 zip files (one `.nes` each) and was extracted in place:
+
+    zips found: 5829
+    extracted=5829  skipped=0  failed=0  deleted=5829
+    problems: 0
+    -> 5829 .nes files, 0 zips left, 2.7 GB
+
+⛔ THE DELETE WAS PER-FILE AND LAST. The irreversible step only ran after that file's `.nes` was
+confirmed on disk at the size the archive itself recorded. "Extract everything, then delete the
+zips" would have destroyed the source if the extract half failed, with no way to tell which zips
+were the casualties. The log is the evidence (`~/nes-extract.log`), not a summary.
+
+### The real-rom proof, and why it needed a different assertion
+
+The synthetic fixture proves execution by `INC $00` advancing. **A commercial game has no such
+property** -- Zelda writes whatever it likes to the zero page (the first run showed `RAM[0x00]`
+going 52 -> 2, which is a real game writing, not a counter). So the run check uses properties a
+LIVE game has and a stalled one does not:
+
+    loaded: code=ZELDA
+    round 0: fb=256x240 distinct_colors=80  ram_bytes_changed=0
+    round 1: fb=256x240 distinct_colors=92  ram_bytes_changed=52
+    ...
+    round 7: fb=256x240 distinct_colors=103 ram_bytes_changed=60
+    framebuffer produced: yes
+    multiple colours on screen: yes (103 distinct)
+    RAM changing across frames: yes
+
+~55 zero-page bytes changing per 30 frames and 80-103 distinct colours is a game running its loop.
+A stalled core shows a static buffer and a frozen zero page; neither is present.
+
+### ⛔ The vision-model artifact, recorded because it cost a false alarm
+
+A frame was rendered to PNG and described by a vision model as a **"2x2 grid of the title screen --
+the nametable has likely been corrupted."** That is exactly the failure this project has recorded
+before: a vision model misreads STRUCTURE while transcribing TEXT accurately.
+
+Measured instead of believed:
+
+    is the LEFT half identical to the RIGHT half?  23.5% of pixels differ  -> no x2 tiling
+    is the TOP half identical to the BOTTOM half?  61.8% of pixels differ  -> no y2 tiling
+    non-black pixels: 93.7%
+    CONCLUSION: NOT tiled. A normal single NES frame.
+
+The frame geometry is correct (256x240, 17 coarse colours, no repeat period anywhere from 32 to 512
+px). The model's TRANSCRIPTION was right and useful -- `ZELDA`, `©1986 NINTENDO`, `PUSH START
+BUTTON`, i.e. the title screen -- and its structural claim was fiction. Use these tools for text and
+counts; settle geometry from the pixels.
