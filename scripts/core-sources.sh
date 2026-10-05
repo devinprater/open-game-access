@@ -72,6 +72,7 @@ poke_platform.cpp pokecore.cpp oga_core.cpp systems.cpp
 fe_access.cpp fe_adapter.cpp
 gba_adapter.cpp
 nes_adapter.cpp
+n64_adapter.cpp
 gba_core.cpp mgba_version_stub.cpp
 dbz_adapter.cpp
 dissidia_adapter.cpp
