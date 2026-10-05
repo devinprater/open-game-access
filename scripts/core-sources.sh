@@ -106,6 +106,358 @@ announce.cpp
 # SevenZip/ — the frontends and the archive reader. Every console core below links
 # against Core/Shared and nothing else from Mesen: no Qt, no SDL, which is the
 # property that made mGBA portable here and Dolphin not.
+# ---- Mesen's remaining vendored deps (both already in the pinned tree) ----
+# ⛔ THESE ARE C, NOT C++, so they need the `cc` language and none of the Mesen pch/cxx flags.
+# spng is a single C file; the 7-Zip SDK is what SZReader calls into. Both were invisible until the
+# link got far enough to reference them -- four separate link errors, one subsystem at a time.
+MESEN_C="
+Utilities/spng.c
+"
+# ---- Mesen's 7-Zip SDK, MINUS the files mGBA's copy already provides ----
+# ⛔ THE SHARED-SDK PROBLEM, SOLVED BY DIFFERENCE RATHER THAN BY PREFERENCE. mgba/src/third-party/lzma
+# is in the link already (MGBA_LZMA) and is the SAME 7-Zip SDK as Mesen's SevenZip/, but a SUBSET:
+# 8 files against Mesen's 20. So:
+#
+#   * link ALL of Mesen's  -> 8 duplicate definitions (LookInStream_LookRead, ...)
+#   * link NONE of Mesen's -> SzAlloc/SzFree/MemBufferInit undefined (mGBA's copy has no 7zAlloc.c)
+#   * link the DIFFERENCE  -> one SDK, complete. That is this list.
+#
+# Computed from the two lists, not hardcoded, so it stays correct if mGBA's set changes. The files
+# below are exactly those with no basename counterpart in MGBA_LZMA:
+#   7zAlloc.c, 7zArcIn.c, 7zCrc.c, 7zDec.c, 7zMemBuffer.c, 7zStream.c, Bra.c, BraIA64.c, Delta.c, Ppmd7.c, Ppmd7Dec.c, Precomp.c
+# ⛔ MINIMAL AND EMPIRICAL, NOT A DIFF -- and the prose lives HERE, not inside the variable.
+# mGBA's vendored lzma (MGBA_LZMA) is the same 7-Zip SDK and is already in the link, so most of
+# Mesen's SevenZip/ would be duplicate definitions. Two attempts got this wrong in opposite
+# directions: all of Mesen's -> "multiple definition of LookInStream_LookRead"; none of Mesen's ->
+# SzAlloc/SzFree/SzTempFree/MemBufferInit undefined, because mGBA's copy is a subset without
+# 7zAlloc.c. So start from the files that DEFINE the symbols the linker named, and let the linker
+# ask for anything else.
+# ⛔ 7zStream.c IS THE ONLY SOURCE of LookToRead_CreateVTable / LookToRead_Init, which SZReader
+# needs, and they cannot be lifted out (LookToRead_CreateVTable points at file-static helpers in the
+# same file). It overlaps mGBA's copy in several symbols, and its object is post-processed by
+# scripts/mesen-dedupe-7z.sh to keep the shared ones local. Do NOT remove this entry to "fix" the
+# duplicates -- that deletes the two symbols SZReader actually needs.
+MESEN_SEVENZIP_C="
+SevenZip/7zAlloc.c
+SevenZip/7zMemBuffer.c
+SevenZip/7zStream.c
+"
+MESEN_SEVENZIP_CPP=""
+
+
+# ---- THE WHOLE Mesen Core, from Mesen's own Core.vcxproj ----
+# ⛔ NOT A SUBSET, AND THE SUBSET WAS THE BUG. Core/Shared/Emulator.cpp constructs EVERY console
+# Mesen supports (its factory has no per-console guard) and owns a Debugger unconditionally; there
+# is no #ifdef in the tree to trim either. So a NES-only list cannot LINK, however cleanly it
+# compiles -- and scripts/mesen-feasibility.sh ran -fsyntax-only, which is why "84/84 TUs" was true
+# and said nothing about linking. Mesen's own Core.vcxproj is the authority: this is that list.
+#
+# Keep the measured subsets above; they document what the admission test actually measured.
+MESEN_CORE_ALL="
+Core/Debugger/Base6502Assembler.cpp
+Core/Debugger/BaseEventManager.cpp
+Core/Debugger/Breakpoint.cpp
+Core/Debugger/BreakpointManager.cpp
+Core/Debugger/CallstackManager.cpp
+Core/Debugger/CdlManager.cpp
+Core/Debugger/CodeDataLogger.cpp
+Core/Debugger/Debugger.cpp
+Core/Debugger/Disassembler.cpp
+Core/Debugger/DisassemblyInfo.cpp
+Core/Debugger/DisassemblySearch.cpp
+Core/Debugger/ExpressionEvaluator.Cx4.cpp
+Core/Debugger/ExpressionEvaluator.Gameboy.cpp
+Core/Debugger/ExpressionEvaluator.Gba.cpp
+Core/Debugger/ExpressionEvaluator.Gsu.cpp
+Core/Debugger/ExpressionEvaluator.NecDsp.cpp
+Core/Debugger/ExpressionEvaluator.Nes.cpp
+Core/Debugger/ExpressionEvaluator.Pce.cpp
+Core/Debugger/ExpressionEvaluator.Sms.cpp
+Core/Debugger/ExpressionEvaluator.Snes.cpp
+Core/Debugger/ExpressionEvaluator.Spc.cpp
+Core/Debugger/ExpressionEvaluator.St018.cpp
+Core/Debugger/ExpressionEvaluator.Ws.cpp
+Core/Debugger/ExpressionEvaluator.cpp
+Core/Debugger/LabelManager.cpp
+Core/Debugger/LuaApi.cpp
+Core/Debugger/LuaCallHelper.cpp
+Core/Debugger/MemoryAccessCounter.cpp
+Core/Debugger/MemoryDumper.cpp
+Core/Debugger/PpuTools.cpp
+Core/Debugger/Profiler.cpp
+Core/Debugger/ScriptHost.cpp
+Core/Debugger/ScriptManager.cpp
+Core/Debugger/ScriptingContext.cpp
+Core/Debugger/StepBackManager.cpp
+Core/GBA/APU/GbaApu.cpp
+Core/GBA/APU/GbaNoiseChannel.cpp
+Core/GBA/APU/GbaSquareChannel.cpp
+Core/GBA/APU/GbaWaveChannel.cpp
+Core/GBA/Cart/GbaCart.cpp
+Core/GBA/Cart/GbaGpio.cpp
+Core/GBA/Cart/GbaRtc.cpp
+Core/GBA/Debugger/DummyGbaCpu.cpp
+Core/GBA/Debugger/GbaDebugger.cpp
+Core/GBA/Debugger/GbaDisUtils.cpp
+Core/GBA/Debugger/GbaEventManager.cpp
+Core/GBA/Debugger/GbaPpuTools.cpp
+Core/GBA/Debugger/GbaTraceLogger.cpp
+Core/GBA/GbaConsole.cpp
+Core/GBA/GbaControlManager.cpp
+Core/GBA/GbaCpu.Arm.cpp
+Core/GBA/GbaCpu.Thumb.cpp
+Core/GBA/GbaCpu.cpp
+Core/GBA/GbaDefaultVideoFilter.cpp
+Core/GBA/GbaDmaController.cpp
+Core/GBA/GbaMemoryManager.cpp
+Core/GBA/GbaPpu.cpp
+Core/GBA/GbaTimer.cpp
+Core/Gameboy/APU/GbApu.cpp
+Core/Gameboy/APU/GbNoiseChannel.cpp
+Core/Gameboy/APU/GbSquareChannel.cpp
+Core/Gameboy/APU/GbWaveChannel.cpp
+Core/Gameboy/Debugger/DummyGbCpu.cpp
+Core/Gameboy/Debugger/GameboyDisUtils.cpp
+Core/Gameboy/Debugger/GbAssembler.cpp
+Core/Gameboy/Debugger/GbDebugger.cpp
+Core/Gameboy/Debugger/GbEventManager.cpp
+Core/Gameboy/Debugger/GbPpuTools.cpp
+Core/Gameboy/Debugger/GbTraceLogger.cpp
+Core/Gameboy/Gameboy.cpp
+Core/Gameboy/GbControlManager.cpp
+Core/Gameboy/GbCpu.cpp
+Core/Gameboy/GbDefaultVideoFilter.cpp
+Core/Gameboy/GbDmaController.cpp
+Core/Gameboy/GbMemoryManager.cpp
+Core/Gameboy/GbPpu.cpp
+Core/Gameboy/GbTimer.cpp
+Core/NES/APU/DeltaModulationChannel.cpp
+Core/NES/APU/NesApu.cpp
+Core/NES/BaseMapper.cpp
+Core/NES/BaseNesPpu.cpp
+Core/NES/BisqwitNtscFilter.cpp
+Core/NES/Debugger/DummyNesCpu.cpp
+Core/NES/Debugger/NesAssembler.cpp
+Core/NES/Debugger/NesDebugger.cpp
+Core/NES/Debugger/NesDisUtils.cpp
+Core/NES/Debugger/NesEventManager.cpp
+Core/NES/Debugger/NesPpuTools.cpp
+Core/NES/Debugger/NesTraceLogger.cpp
+Core/NES/Epsm.cpp
+Core/NES/GameDatabase.cpp
+Core/NES/HdPacks/HdAudioDevice.cpp
+Core/NES/HdPacks/HdNesPack.cpp
+Core/NES/HdPacks/HdNesPpu.cpp
+Core/NES/HdPacks/HdPackBuilder.cpp
+Core/NES/HdPacks/HdPackLoader.cpp
+Core/NES/HdPacks/HdVideoFilter.cpp
+Core/NES/HdPacks/OggMixer.cpp
+Core/NES/HdPacks/OggReader.cpp
+Core/NES/Loaders/FdsLoader.cpp
+Core/NES/Loaders/NsfLoader.cpp
+Core/NES/Loaders/RomLoader.cpp
+Core/NES/Loaders/StudyBoxLoader.cpp
+Core/NES/Loaders/UnifLoader.cpp
+Core/NES/Loaders/iNesLoader.cpp
+Core/NES/MapperFactory.cpp
+Core/NES/Mappers/FDS/Fds.cpp
+Core/NES/Mappers/FDS/FdsAudio.cpp
+Core/NES/Mappers/FDS/FdsInputButtons.cpp
+Core/NES/Mappers/Homebrew/Rainbow.cpp
+Core/NES/Mappers/NSF/NsfMapper.cpp
+Core/NES/Mappers/VsSystem/VsControlManager.cpp
+Core/NES/NesConsole.cpp
+Core/NES/NesControlManager.cpp
+Core/NES/NesCpu.cpp
+Core/NES/NesDefaultVideoFilter.cpp
+Core/NES/NesHeader.cpp
+Core/NES/NesMemoryManager.cpp
+Core/NES/NesNtscFilter.cpp
+Core/NES/NesPpu.cpp
+Core/NES/NesSoundMixer.cpp
+Core/Netplay/GameClient.cpp
+Core/Netplay/GameClientConnection.cpp
+Core/Netplay/GameConnection.cpp
+Core/Netplay/GameServer.cpp
+Core/Netplay/GameServerConnection.cpp
+Core/PCE/CdRom/PceAdpcm.cpp
+Core/PCE/CdRom/PceArcadeCard.cpp
+Core/PCE/CdRom/PceAudioFader.cpp
+Core/PCE/CdRom/PceCdAudioPlayer.cpp
+Core/PCE/CdRom/PceCdRom.cpp
+Core/PCE/CdRom/PceScsiBus.cpp
+Core/PCE/Debugger/DummyPceCpu.cpp
+Core/PCE/Debugger/PceAssembler.cpp
+Core/PCE/Debugger/PceDebugger.cpp
+Core/PCE/Debugger/PceDisUtils.cpp
+Core/PCE/Debugger/PceEventManager.cpp
+Core/PCE/Debugger/PceTraceLogger.cpp
+Core/PCE/Debugger/PceVdcTools.cpp
+Core/PCE/Input/PceTurboTap.cpp
+Core/PCE/PceConsole.cpp
+Core/PCE/PceControlManager.cpp
+Core/PCE/PceCpu.Instructions.cpp
+Core/PCE/PceCpu.cpp
+Core/PCE/PceMemoryManager.cpp
+Core/PCE/PceNtscFilter.cpp
+Core/PCE/PcePsg.cpp
+Core/PCE/PcePsgChannel.cpp
+Core/PCE/PceSf2RomMapper.cpp
+Core/PCE/PceTimer.cpp
+Core/PCE/PceVce.cpp
+Core/PCE/PceVdc.cpp
+Core/PCE/PceVpc.cpp
+Core/SMS/Carts/SmsCart.cpp
+Core/SMS/Debugger/DummySmsCpu.cpp
+Core/SMS/Debugger/SmsAssembler.cpp
+Core/SMS/Debugger/SmsDebugger.cpp
+Core/SMS/Debugger/SmsDisUtils.cpp
+Core/SMS/Debugger/SmsEventManager.cpp
+Core/SMS/Debugger/SmsTraceLogger.cpp
+Core/SMS/Debugger/SmsVdpTools.cpp
+Core/SMS/SmsBiosMapper.cpp
+Core/SMS/SmsConsole.cpp
+Core/SMS/SmsControlManager.cpp
+Core/SMS/SmsCpu.cpp
+Core/SMS/SmsFmAudio.cpp
+Core/SMS/SmsMemoryManager.cpp
+Core/SMS/SmsNtscFilter.cpp
+Core/SMS/SmsPsg.cpp
+Core/SMS/SmsVdp.cpp
+Core/SNES/AluMulDiv.cpp
+Core/SNES/BaseCartridge.cpp
+Core/SNES/Coprocessors/BSX/BsxCart.cpp
+Core/SNES/Coprocessors/BSX/BsxMemoryPack.cpp
+Core/SNES/Coprocessors/BSX/BsxSatellaview.cpp
+Core/SNES/Coprocessors/BSX/BsxStream.cpp
+Core/SNES/Coprocessors/CX4/Cx4.Instructions.cpp
+Core/SNES/Coprocessors/CX4/Cx4.cpp
+Core/SNES/Coprocessors/DSP/NecDsp.cpp
+Core/SNES/Coprocessors/GSU/Gsu.Instructions.cpp
+Core/SNES/Coprocessors/GSU/Gsu.cpp
+Core/SNES/Coprocessors/MSU1/Msu1.cpp
+Core/SNES/Coprocessors/OBC1/Obc1.cpp
+Core/SNES/Coprocessors/SA1/Sa1.cpp
+Core/SNES/Coprocessors/SA1/Sa1Cpu.cpp
+Core/SNES/Coprocessors/SDD1/Sdd1.cpp
+Core/SNES/Coprocessors/SDD1/Sdd1Decomp.cpp
+Core/SNES/Coprocessors/SDD1/Sdd1Mmc.cpp
+Core/SNES/Coprocessors/SGB/SuperGameboy.cpp
+Core/SNES/Coprocessors/SPC7110/Rtc4513.cpp
+Core/SNES/Coprocessors/SPC7110/Spc7110.cpp
+Core/SNES/Coprocessors/SPC7110/Spc7110Decomp.cpp
+Core/SNES/Coprocessors/ST018/ArmV3Cpu.cpp
+Core/SNES/Coprocessors/ST018/St018.cpp
+Core/SNES/DSP/Dsp.cpp
+Core/SNES/DSP/DspVoice.cpp
+Core/SNES/Debugger/Cx4Debugger.cpp
+Core/SNES/Debugger/Cx4DisUtils.cpp
+Core/SNES/Debugger/DummyArmV3Cpu.cpp
+Core/SNES/Debugger/DummySnesCpu.cpp
+Core/SNES/Debugger/DummySpc.cpp
+Core/SNES/Debugger/GsuDebugger.cpp
+Core/SNES/Debugger/GsuDisUtils.cpp
+Core/SNES/Debugger/NecDspDebugger.cpp
+Core/SNES/Debugger/NecDspDisUtils.cpp
+Core/SNES/Debugger/SnesAssembler.cpp
+Core/SNES/Debugger/SnesDebugger.cpp
+Core/SNES/Debugger/SnesDisUtils.cpp
+Core/SNES/Debugger/SnesEventManager.cpp
+Core/SNES/Debugger/SnesPpuTools.cpp
+Core/SNES/Debugger/SpcDebugger.cpp
+Core/SNES/Debugger/SpcDisUtils.cpp
+Core/SNES/Debugger/St018Debugger.cpp
+Core/SNES/Debugger/St018DisUtils.cpp
+Core/SNES/Debugger/TraceLogger/Cx4TraceLogger.cpp
+Core/SNES/Debugger/TraceLogger/GsuTraceLogger.cpp
+Core/SNES/Debugger/TraceLogger/NecDspTraceLogger.cpp
+Core/SNES/Debugger/TraceLogger/SnesCpuTraceLogger.cpp
+Core/SNES/Debugger/TraceLogger/SpcTraceLogger.cpp
+Core/SNES/Debugger/TraceLogger/St018TraceLogger.cpp
+Core/SNES/Input/Multitap.cpp
+Core/SNES/Input/SnesBlueRetroController.cpp
+Core/SNES/Input/SnesController.cpp
+Core/SNES/Input/SnesNttDataKeypad.cpp
+Core/SNES/Input/SnesRumbleController.cpp
+Core/SNES/InternalRegisters.cpp
+Core/SNES/MemoryMappings.cpp
+Core/SNES/RegisterHandlerB.cpp
+Core/SNES/SnesConsole.cpp
+Core/SNES/SnesControlManager.cpp
+Core/SNES/SnesCpu.cpp
+Core/SNES/SnesDefaultVideoFilter.cpp
+Core/SNES/SnesDmaController.cpp
+Core/SNES/SnesMemoryManager.cpp
+Core/SNES/SnesNtscFilter.cpp
+Core/SNES/SnesPpu.cpp
+Core/SNES/Spc.Instructions.cpp
+Core/SNES/Spc.cpp
+Core/Shared/Audio/AudioPlayerHud.cpp
+Core/Shared/Audio/BaseSoundManager.cpp
+Core/Shared/Audio/PcmReader.cpp
+Core/Shared/Audio/SoundMixer.cpp
+Core/Shared/Audio/SoundResampler.cpp
+Core/Shared/Audio/WaveRecorder.cpp
+Core/Shared/BaseControlDevice.cpp
+Core/Shared/BaseControlManager.cpp
+Core/Shared/BatteryManager.cpp
+Core/Shared/CdReader.cpp
+Core/Shared/CheatManager.cpp
+Core/Shared/DebuggerRequest.cpp
+Core/Shared/EmuSettings.cpp
+Core/Shared/Emulator.cpp
+Core/Shared/EmulatorLock.cpp
+Core/Shared/HistoryViewer.cpp
+Core/Shared/InputHud.cpp
+Core/Shared/KeyManager.cpp
+Core/Shared/MessageManager.cpp
+Core/Shared/Movies/BizHawkMovie.cpp
+Core/Shared/Movies/MesenMovie.cpp
+Core/Shared/Movies/MovieManager.cpp
+Core/Shared/Movies/MovieRecorder.cpp
+Core/Shared/NotificationManager.cpp
+Core/Shared/RecordedRomTest.cpp
+Core/Shared/RewindData.cpp
+Core/Shared/RewindManager.cpp
+Core/Shared/SaveStateManager.cpp
+Core/Shared/ShortcutKeyHandler.cpp
+Core/Shared/Utilities/S3511ARtc.cpp
+Core/Shared/Utilities/emu2413.cpp
+Core/Shared/Video/BaseVideoFilter.cpp
+Core/Shared/Video/DebugHud.cpp
+Core/Shared/Video/DebugStats.cpp
+Core/Shared/Video/DrawStringCommand.cpp
+Core/Shared/Video/RotateFilter.cpp
+Core/Shared/Video/ScaleFilter.cpp
+Core/Shared/Video/SoftwareRenderer.cpp
+Core/Shared/Video/SystemHud.cpp
+Core/Shared/Video/VideoDecoder.cpp
+Core/Shared/Video/VideoRenderer.cpp
+Core/WS/APU/WsApu.cpp
+Core/WS/Carts/WsCart.cpp
+Core/WS/Carts/WsCartBandai2001.cpp
+Core/WS/Carts/WsCartBandai2003.cpp
+Core/WS/Carts/WsCartWonderWitch.cpp
+Core/WS/Carts/WsRtc.cpp
+Core/WS/Debugger/DummyWsCpu.cpp
+Core/WS/Debugger/WsDebugger.cpp
+Core/WS/Debugger/WsDisUtils.cpp
+Core/WS/Debugger/WsEventManager.cpp
+Core/WS/Debugger/WsPpuTools.cpp
+Core/WS/Debugger/WsTraceLogger.cpp
+Core/WS/WsConsole.cpp
+Core/WS/WsControlManager.cpp
+Core/WS/WsCpu.cpp
+Core/WS/WsCpuPrefetch.cpp
+Core/WS/WsDefaultVideoFilter.cpp
+Core/WS/WsDmaController.cpp
+Core/WS/WsEeprom.cpp
+Core/WS/WsMemoryManager.cpp
+Core/WS/WsPpu.cpp
+Core/WS/WsSerial.cpp
+Core/WS/WsTimer.cpp
+"
+
 MESEN_NES="
 Core/NES/APU/DeltaModulationChannel.cpp
 Core/NES/APU/NesApu.cpp
@@ -162,6 +514,80 @@ Core/NES/NesSoundMixer.cpp
 # ⛔ Core/Shared IS COMPILED ONCE AND SHARED BY EVERY CONSOLE BELOW. Mesen is
 # one tree with seven console cores; folding Shared into each console's list
 # would compile the same TUs seven times and make every count a lie.
+# ---- Mesen Utilities: the third set no list carried ----
+# ⛔ THESE ARE NOT OPTIONAL AND WERE NEVER IN A LIST. Core/Shared calls into Utilities/ for locks,
+# serialization, UTF8 and VirtualFile. scripts/mesen-feasibility.sh compiled every Core TU with
+# -fsyntax-only and linked nothing, so a MISSING TRANSLATION UNIT was invisible to the admission
+# test by construction -- the "84/84" number was true and said nothing about linking. The first NES
+# link failed on SimpleLock::SimpleLock(), which is what surfaced it.
+#
+# pch.cpp is deliberately absent: it IS the precompiled header Mesen force-includes, not a TU.
+# ⛔ EVERY SUBDIRECTORY, FROM Mesen's OWN Utilities.vcxproj. The first version of this list was
+# taken from the TOP LEVEL of Utilities/ only, so Audio/, HQX/, KreedSaiEagle/, NTSC/, Patches/,
+# Scale2x/, Video/ and xBRZ/ were all absent -- and each one announced itself as a separate link
+# error (ReverbFilter, hqxInit, IpsPatcher, AviRecorder, ...) rather than as "the list is wrong".
+# Read the project file, not the directory listing; the project file is what Mesen builds.
+MESEN_UTILS="
+Utilities/ArchiveReader.cpp
+Utilities/Audio/BiquadCascadeFilter.cpp
+Utilities/Audio/BiquadFilter.cpp
+Utilities/Audio/CrossFeedFilter.cpp
+Utilities/Audio/Equalizer.cpp
+Utilities/Audio/HermiteResampler.cpp
+Utilities/Audio/ReverbFilter.cpp
+Utilities/Audio/StereoCombFilter.cpp
+Utilities/Audio/StereoDelayFilter.cpp
+Utilities/Audio/StereoPanningFilter.cpp
+Utilities/Audio/WavReader.cpp
+Utilities/Audio/blip_buf.cpp
+Utilities/Audio/stb_vorbis.cpp
+Utilities/Audio/ymfm/ymfm_adpcm.cpp
+Utilities/Audio/ymfm/ymfm_misc.cpp
+Utilities/Audio/ymfm/ymfm_opn.cpp
+Utilities/Audio/ymfm/ymfm_ssg.cpp
+Utilities/AutoResetEvent.cpp
+Utilities/CRC32.cpp
+Utilities/FolderUtilities.cpp
+Utilities/HQX/hq2x.cpp
+Utilities/HQX/hq3x.cpp
+Utilities/HQX/hq4x.cpp
+Utilities/HQX/init.cpp
+Utilities/HexUtilities.cpp
+Utilities/KreedSaiEagle/2xSai.cpp
+Utilities/KreedSaiEagle/Super2xSai.cpp
+Utilities/KreedSaiEagle/SuperEagle.cpp
+Utilities/NTSC/nes_ntsc.cpp
+Utilities/NTSC/sms_ntsc.cpp
+Utilities/NTSC/snes_ntsc.cpp
+Utilities/PNGHelper.cpp
+Utilities/Patches/BpsPatcher.cpp
+Utilities/Patches/IpsPatcher.cpp
+Utilities/Patches/UpsPatcher.cpp
+Utilities/PlatformUtilities.cpp
+Utilities/SZReader.cpp
+Utilities/Scale2x/scale2x.cpp
+Utilities/Scale2x/scale3x.cpp
+Utilities/Scale2x/scalebit.cpp
+Utilities/Serializer.cpp
+Utilities/SimpleLock.cpp
+Utilities/Socket.cpp
+Utilities/Timer.cpp
+Utilities/UPnPPortMapper.cpp
+Utilities/UTF8Util.cpp
+Utilities/Video/AviRecorder.cpp
+Utilities/Video/AviWriter.cpp
+Utilities/Video/CamstudioCodec.cpp
+Utilities/Video/GifRecorder.cpp
+Utilities/Video/ZmbvCodec.cpp
+Utilities/VirtualFile.cpp
+Utilities/ZipReader.cpp
+Utilities/ZipWriter.cpp
+Utilities/miniz.cpp
+Utilities/sha1.cpp
+Utilities/xBRZ/xbrz.cpp
+"
+
+
 MESEN_SHARED="
 Core/Shared/Audio/AudioPlayerHud.cpp
 Core/Shared/Audio/BaseSoundManager.cpp
