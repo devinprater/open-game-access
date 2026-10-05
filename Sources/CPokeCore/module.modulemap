@@ -1,0 +1,7 @@
+// Hand-written so `import CPokeCore` resolves for swiftc on Linux, where the Xcode-
+// generated module map does not exist. Declares the C ABI header as a module; it adds no
+// declarations of its own.
+module CPokeCore {
+    header "include/pokecore.h"
+    export *
+}

@@ -5,11 +5,13 @@ on:
     branches: [main]
     paths:
       - 'Core/**'
+      - 'Sources/**'
       - 'scripts/**'
       - '.github/workflows/adapter-tests.yml'
   pull_request:
     paths:
       - 'Core/**'
+      - 'Sources/**'
       - 'scripts/**'
       - '.github/workflows/adapter-tests.yml'
   workflow_dispatch:
@@ -38,3 +40,17 @@ jobs:
         run: bash scripts/mgba-version-stub-test.sh
       - name: Verify device/sim build flag parity
         run: bash scripts/build-flag-parity-test.sh
+      # The Swift layer: a real swiftc type-check where Linux allows one, the C ABI
+      # mirror (Command vs AdapterCommand — a drift silently rejects a new command),
+      # and every poke_ symbol Swift calls. Skips are printed, never implied.
+      - name: Swift checks (type-check + ABI mirror + symbols)
+        run: bash scripts/swift-check.sh
+      # Prove each Swift check CAN fail — a gate that only ever passes is not a gate.
+      - name: Swift check self-test
+        run: bash scripts/swift-check-test.sh
+      # What every adapter actually SAYS, and at what priority. Catches an empty spoken
+      # string, a High line that reads automatic, and an unfilled format specifier.
+      - name: Adapter speech audit (gate + self-test)
+        run: |
+          python3 scripts/audit-adapter-speech.py --check Core
+          bash scripts/audit-speech-test.sh
