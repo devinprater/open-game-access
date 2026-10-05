@@ -14,17 +14,14 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-// ⛔ MATERIAL 2, NOT MATERIAL 3. The frontend's `libs.compose.material3` is
-// misleadingly named: it points at `androidx.compose.material3.adaptive:adaptive`
-// (adaptive layouts), NOT the Material3 component library. The app's actual UI
-// toolkit is Material 2 (`androidx.compose.material:material`, via
-// `libs.compose.material`). Importing `androidx.compose.material3.Button` and
-// friends therefore does not resolve and the whole module fails to compile --
-// measured in CI, not guessed. Match the host app.
+// ⛔ MATERIAL 2, NOT MATERIAL 3. The frontend's `libs.compose.material3` points at
+// `androidx.compose.material3.adaptive:adaptive` (adaptive layouts), NOT the
+// component library; the app's toolkit is `androidx.compose.material` (Material 2).
+// Importing material3.* does not resolve and the module fails to compile.
 import androidx.compose.material.Button
+import androidx.compose.material.ButtonDefaults
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
-import androidx.compose.material.Surface
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -32,12 +29,15 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -46,51 +46,38 @@ import com.devin.opengameaccess.GbGameSession
 import com.devin.opengameaccess.GbKeys
 
 /**
- * The launcher, as a Compose screen.
+ * The launcher, mirroring the iOS RootView.
  *
- * ⛔ WHY THIS REPLACED A WEBVIEW. The launcher used to be `assets/index.html`
- * driven through a WebView and a `@JavascriptInterface` bridge. Three problems
- * followed from that, and one of them was a bug the player could hear:
+ * ⛔ PARITY IS THE POINT, AND THE GROUPING IS THE USEFUL PART. iOS regroups the
+ * controls by WHAT THE PLAYER IS DOING rather than by which keys exist, because a
+ * flat grid of fifteen buttons makes every one equally far away when you navigate
+ * by swipe. Each group is a labelled container so a screen reader announces the
+ * group name on entry. That shape is reproduced here, with `heading()` on each
+ * group label so the groups are reachable by heading navigation as well.
  *
- *  1. The WebView was a SECOND TextToSpeech client: its status line went through
- *     the page's own `hermes_tts.speak(..., 'interrupt')`, i.e. QUEUE_FLUSH, so a
- *     launcher message could cut off the game reader mid-sentence.
- *  2. `AccessibilitySpeech` has a live-region path for exactly this situation (a
- *     screen reader is running, so the screen reader should speak and this app must
- *     not put a second voice on the same output) — and the old MainActivity never
- *     called `setAnnouncementView`, so that path was unreachable and the fallback
- *     spoke through TextToSpeech anyway. The status view below is that region.
- *  3. The bridge contract was a name-matching problem across two languages, with no
- *     compile-time check in either, which is why a whole sabotage test existed to
- *     police it. Compose deletes the seam.
- *
- * Everything the page did is preserved: capability is ASKED, never assumed; the
- * selected file is announced by name; the pad and the reading commands appear only
- * while a game runs; and the emulated clock is driven one frame at a time.
+ * ⛔ WHY THIS REPLACED A WEBVIEW. The launcher was `assets/index.html` in a WebView,
+ * which was a SECOND TextToSpeech client (its status line used QUEUE_FLUSH and cut
+ * the reader off mid-sentence), and whose `setAnnouncementView` hand-off the old
+ * Activity never made -- so the screen reader and TTS fought over one output.
  */
 @Composable
 fun LauncherScreen(
     session: GbGameSession,
     announce: (String, Boolean) -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
 
-    // ⛔ CAPABILITY IS ASKED, NEVER ASSUMED. The old page hardcoded "emulator core
-    // integration is not compiled into this test build", which was true once and then
-    // stayed on screen for weeks after the core landed — a stale claim made to the
-    // player. Asking the object that owns the answer means the text cannot go stale.
+    // ⛔ CAPABILITY IS ASKED, NEVER ASSUMED. The page once hardcoded "not compiled
+    // into this test build" and kept saying it for weeks after the core landed.
     val available = remember { GbGameSession.coreAvailable(context) }
 
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var pickedName by remember { mutableStateOf("") }
     var running by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
-    var showPad by remember { mutableStateOf(false) }
-
-    // The status line IS the live region accessibilitySpeech points at. Polite
-    // queues behind whatever the reader is saying; assert is used when a line must
-    // interrupt, which is how the page's 'interrupt' mode maps.
+    var problem by remember { mutableStateOf("") }
     var liveMode by remember { mutableStateOf(LiveRegionMode.Polite) }
 
     fun say(message: String, interrupt: Boolean = false) {
@@ -99,25 +86,26 @@ fun LauncherScreen(
         announce(message, interrupt)
     }
 
-    // The SAF picker, replacing oga_gb.pickRom() + onActivityResult. A cancel comes
-    // back as a null URI so the cancellation is SPOKEN rather than the app going
-    // silent — the same contract the page had.
     val pickRom = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
         if (uri == null) {
+            // A cancel is SPOKEN rather than left silent, the same contract the
+            // WebView page had.
             say("No game selected.")
             return@rememberLauncherForActivityResult
         }
         pickedUri = uri
         pickedName = uri.lastPathSegment ?: uri.toString()
+        problem = ""
         say("$pickedName selected. Press Start Game.")
     }
 
-    // The capability line, said once when the screen comes up.
+    // The status line, said once when the screen comes up. iOS's StatusBar is read
+    // first on focus and always reflects state.
     remember(available) {
         if (available) {
-            say("Pokémon Access ready. Press Select Game to choose a game.", interrupt = true)
+            say("Open Game Access ready. Press Select Game to choose a game.", interrupt = true)
         } else {
             say(
                 "This build has no Game Boy core compiled in, so games cannot be loaded.",
@@ -135,19 +123,57 @@ fun LauncherScreen(
         }
     }
 
-    Surface(
-        modifier = modifier.fillMaxSize(),
-        color = MaterialTheme.colors.background,
+    // What the status line says about the session, in iOS's shape: an honest
+    // one-liner rather than a restatement of the last announcement.
+    val statusLine = when {
+        running && pickedName.isNotEmpty() -> "Playing $pickedName"
+        pickedUri != null && pickedName.isNotEmpty() -> "Ready: $pickedName"
+        problem.isNotEmpty() -> "Problem: $problem"
+        else -> "No game loaded"
+    }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState()),
     ) {
-        Column(
+        // The game screen. ⛔ ONE LABELLED ELEMENT, NOT A STOP PER PIXEL -- iOS
+        // deliberately makes its screen a single element with a value describing
+        // state, because the picture is described by the reader, and making it
+        // focusable per-detail just adds stops to every swipe.
+        Text(
+            text = if (running) "Game screen" else "Choose a game to begin",
+            fontSize = 14.sp,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
             modifier = Modifier
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState())
-                .padding(24.dp),
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 12.dp)
+                .semantics {
+                    contentDescription = "Game screen. $statusLine"
+                },
+        )
+
+        // The status line: a live region, so the running screen reader announces it
+        // (see the note in MainActivity about who owns the voice).
+        Text(
+            text = statusLine,
+            fontSize = 14.sp,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 24.dp, vertical = 4.dp)
+                .semantics {
+                    liveRegion = liveMode
+                    contentDescription = statusLine
+                },
+        )
+
+        Column(
+            modifier = Modifier.padding(24.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             Text(
-                text = "Pokémon Access",
+                text = "Open Game Access",
                 fontSize = 28.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier.semantics { heading() },
@@ -155,193 +181,285 @@ fun LauncherScreen(
 
             Text(
                 text = "Load a $extensions game. The reader speaks the game's own content.",
-                fontSize = 18.sp,
+                fontSize = 16.sp,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
             )
 
             Button(
-                onClick = {
-                    say("Choose a game.")
-                    pickRom.launch(arrayOf("*/*"))
-                },
-                enabled = available,
+                onClick = { onOpenSettings() },
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Text("Select Game", fontSize = 18.sp)
+                Text("Settings", fontSize = 18.sp)
             }
 
-            Button(
-                onClick = {
-                    val uri = pickedUri
-                    if (uri == null) {
-                        say("Select a game first.")
-                        return@Button
-                    }
-                    val activity = context as? Activity
-                    if (activity == null) {
-                        say("That game could not be started.")
-                        return@Button
-                    }
-                    val error = session.start(activity, uri)
-                    if (error != null) {
-                        say("That game could not be started. $error", interrupt = true)
-                        return@Button
-                    }
-                    running = true
-                    showPad = true
-                    say(
-                        "Game started. The reader will speak one startup line, " +
-                        "then only game content."
-                    )
-                },
-                enabled = available && pickedUri != null && !running,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Start Game", fontSize = 18.sp)
-            }
-
-            Button(
-                onClick = {
-                    session.stop()
-                    running = false
-                    showPad = false
-                    say("Game stopped.")
-                },
-                enabled = running,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Text("Stop", fontSize = 18.sp)
-            }
-
-            // ⛔ THE LIVE REGION. accessibilitySpeech writes its announcements here
-            // when a screen reader is running, so the screen reader is the voice
-            // instead of a second TextToSpeech fighting it for audio focus.
-            Text(
-                text = status,
-                fontSize = 18.sp,
-                color = MaterialTheme.colors.primary,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 8.dp)
-                    .semantics {
-                        liveRegion = liveMode
-                        contentDescription = status
+            if (!running) {
+                // Idle: pick, then start -- in the order they are needed.
+                Button(
+                    onClick = {
+                        say("Choose a game.")
+                        pickRom.launch(arrayOf("*/*"))
                     },
-            )
+                    enabled = available,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Select Game", fontSize = 18.sp)
+                }
 
-            if (showPad) {
-                GamePad(session = session)
-                ReadingCommands(session = session)
+                Button(
+                    onClick = {
+                        val uri = pickedUri
+                        if (uri == null) {
+                            say("Select a game first.")
+                            return@Button
+                        }
+                        val activity = context as? Activity
+                        if (activity == null) {
+                            say("That game could not be started.")
+                            return@Button
+                        }
+                        val error = session.start(activity, uri)
+                        if (error != null) {
+                            problem = error
+                            say("That game could not be started. $error", interrupt = true)
+                            return@Button
+                        }
+                        running = true
+                        problem = ""
+                        say(
+                            "Game started. The reader will speak one startup line, " +
+                            "then only game content."
+                        )
+                    },
+                    enabled = available && pickedUri != null,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text("Start Game", fontSize = 18.sp)
+                }
+
+                if (problem.isNotEmpty()) {
+                    Text(
+                        text = problem,
+                        fontSize = 14.sp,
+                        color = Color(0xFFFF6B6B),
+                        modifier = Modifier.semantics { contentDescription = "Error: $problem" },
+                    )
+                }
+            } else {
+                // Running: the controls, grouped by what the player is doing.
+                DirectionalPad(session)
+                ActionButtons(session, pickedName)
+                SystemButtons(session, pickedName)
+                PathFindingGroup(session)
+                ReadingGroup(session)
+                SpeechGroup(session)
+                QuitGame(session) { running = false }
             }
         }
     }
 }
 
-/**
- * The emulated pad.
- *
- * ⛔ THE KEY BITS ARE mGBA's OWN ORDER (A=1, B=2, Select=4, Start=8, Right=16,
- * Left=32, Up=64, Down=128, R=256, L=512) and held keys are OR'd together, because
- * `setKeys` takes the whole mask. A wrong bit is a wrong button, silently — which is
- * why the contract test checks the mask against the core's order.
- *
- * ⛔ A HOLD, NOT A CLICK. Walking in these games means HOLDING a direction, so a
- * button that only fires on tap cannot move the player. The press sets the bit and
- * the release clears it. TalkBack's double-tap-and-hold drives the same path, so
- * this stays usable with the screen reader running.
- */
-@Composable
-private fun GamePad(session: GbGameSession) {
-    val keys = listOf(
-        "A" to GbKeys.A, "B" to GbKeys.B,
-        "Up" to GbKeys.UP, "Down" to GbKeys.DOWN,
-        "Left" to GbKeys.LEFT, "Right" to GbKeys.RIGHT,
-        "Start" to GbKeys.START, "Select" to GbKeys.SELECT,
-    )
+// ---- groups ------------------------------------------------------------------
 
-    Text(
-        text = "Game pad",
-        fontSize = 20.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.semantics { heading() },
-    )
-    keys.chunked(2).forEach { row ->
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            row.forEach { (label, bit) ->
-                var held by remember { mutableStateOf(false) }
-                OutlinedButton(
-                    onClick = { /* the hold gesture below does the work */ },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(64.dp)
-                        .pointerInput(bit) {
-                            detectTapGestures(
-                                onPress = {
-                                    held = true
-                                    session.pressKey(bit)
-                                    tryAwaitRelease()
-                                    held = false
-                                    session.releaseKey(bit)
-                                },
-                            )
-                        }
-                        .semantics { contentDescription = "$label button" },
-                ) {
-                    Text(if (held) "$label (held)" else label, fontSize = 16.sp)
-                }
-            }
-        }
+/** Move up / left / right / down. */
+@Composable
+private fun DirectionalPad(session: GbGameSession) {
+    GroupLabel("Directional pad")
+    HoldButton("Up", session, GbKeys.UP)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        HoldButton("Left", session, GbKeys.LEFT, Modifier.weight(1f))
+        HoldButton("Right", session, GbKeys.RIGHT, Modifier.weight(1f))
+    }
+    HoldButton("Down", session, GbKeys.DOWN)
+}
+
+/** The face buttons. Game Boy answers A/B; GBA adds nothing here (L/R are shoulders). */
+@Composable
+private fun ActionButtons(session: GbGameSession, romName: String) {
+    GroupLabel("Action buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        HoldButton("A", session, GbKeys.A, Modifier.weight(1f))
+        HoldButton("B", session, GbKeys.B, Modifier.weight(1f))
     }
 }
 
 /**
- * The reader's own keys: P pathfind, M map name, E tiles, K read item, J previous,
- * L next. These go to the script, not the game, and are edge-triggered — the script's
- * own edge detector wants a single transition, so the press and release are
- * separate events with the release following shortly after.
+ * Start, Select, and the shoulders.
+ *
+ * ⛔ THE SHOULDERS ARE HIDDEN WHEN THE CONSOLE HAS NONE. The original Game Boy and
+ * the Game Boy Color have no L/R, so showing them there would be controls that do
+ * nothing -- iOS keys the same decision on `system.hasShoulders`. The extension is
+ * the only signal the launcher has, so it is used and stated.
  */
 @Composable
-private fun ReadingCommands(session: GbGameSession) {
-    val commands = listOf(
-        "Find path" to 'P', "Where am I" to 'M', "Tiles" to 'E',
-        "Read item" to 'K', "Previous item" to 'J', "Next item" to 'L',
-    )
-    Text(
-        text = "Reading commands",
-        fontSize = 20.sp,
-        fontWeight = FontWeight.Bold,
-        modifier = Modifier.semantics { heading() },
-    )
-    commands.chunked(2).forEach { row ->
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            row.forEach { (label, key) ->
-                var pressed by remember { mutableStateOf(false) }
-                OutlinedButton(
-                    onClick = { /* the hold gesture below does the work */ },
-                    modifier = Modifier
-                        .weight(1f)
-                        .height(64.dp)
-                        .pointerInput(key) {
-                            detectTapGestures(
-                                onPress = {
-                                    pressed = true
-                                    session.pressHotkey(key)
-                                    tryAwaitRelease()
-                                    pressed = false
-                                    session.releaseHotkey(key)
-                                },
-                            )
-                        }
-                        .semantics { contentDescription = "$label. Key $key" },
-                ) {
-                    Text(if (pressed) "…" else label, fontSize = 16.sp)
-                }
-            }
+private fun SystemButtons(session: GbGameSession, romName: String) {
+    GroupLabel("System buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        HoldButton("Start", session, GbKeys.START, Modifier.weight(1f))
+        HoldButton("Select", session, GbKeys.SELECT, Modifier.weight(1f))
+        if (romName.lowercase().endsWith(".gba")) {
+            HoldButton("L", session, GbKeys.L, Modifier.weight(1f))
+            HoldButton("R", session, GbKeys.R, Modifier.weight(1f))
         }
+    }
+}
+
+/** Choosing a destination and being guided to it. Game Boy answers P and E. */
+@Composable
+private fun PathFindingGroup(session: GbGameSession) {
+    GroupLabel("Path finding and map")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        HotkeyButton("Find path", 'P', session, Modifier.weight(1f))
+        HotkeyButton("Where am I", 'E', session, Modifier.weight(1f))
+    }
+}
+
+/** Reading a list: items on the map, or options on a menu. Game Boy answers K/J/L. */
+@Composable
+private fun ReadingGroup(session: GbGameSession) {
+    GroupLabel("Reading items and lists")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        HotkeyButton("Read item", 'K', session, Modifier.weight(1f))
+        HotkeyButton("Previous", 'J', session, Modifier.weight(1f))
+        HotkeyButton("Next", 'L', session, Modifier.weight(1f))
+    }
+}
+
+/**
+ * The controls that act on speech itself.
+ *
+ * ⛔ ON GAME BOY THERE IS NO SCRIPT KEY THAT STOPS SPEECH -- R moves the camera --
+ * so this stops at the engine and drops background lines until the player asks for
+ * something. iOS makes exactly this distinction (`system.hasDirectSpeechStop`),
+ * because a two-finger tap only ends the current utterance while the script keeps
+ * producing lines.
+ */
+@Composable
+private fun SpeechGroup(session: GbGameSession) {
+    GroupLabel("Speech controls")
+    OutlinedButton(
+        onClick = { session.stopSpeech() },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics {
+                contentDescription = "Stop speech"
+            },
+    ) {
+        Text("Stop speech", fontSize = 16.sp)
+    }
+}
+
+@Composable
+private fun QuitGame(session: GbGameSession, onQuit: () -> Unit) {
+    OutlinedButton(
+        onClick = {
+            session.stop()
+            onQuit()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = "Quit game" },
+    ) {
+        Text("Quit game", fontSize = 16.sp)
+    }
+}
+
+// ---- primitives --------------------------------------------------------------
+
+/**
+ * A group's name, as a heading.
+ *
+ * ⛔ A HEADING, NOT DECORATION. iOS wraps each group in a labelled accessibility
+ * container so the name is announced on entry; on Android a `heading()` gives the
+ * same orientation plus heading navigation, so a player can jump group to group
+ * instead of swiping through every button in order.
+ */
+@Composable
+private fun GroupLabel(text: String) {
+    Text(
+        text = text,
+        fontSize = 18.sp,
+        fontWeight = FontWeight.Bold,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 8.dp)
+            .semantics {
+                heading()
+                isTraversalGroup = true
+            },
+    )
+}
+
+/**
+ * A game button: held while the finger is down, and ACTIVATABLE BY A SCREEN READER.
+ *
+ * ⛔ THE TWO PATHS ARE NOT REDUNDANT, AND THE SECOND WAS MISSING BEFORE.
+ *  - `pointerInput` + `detectTapGestures(onPress=...)` keeps the button down for as
+ *    long as the finger is, because these games read held directions every frame --
+ *    a tap-only button cannot walk.
+ *  - `semantics { onClick { ... } }` is the CLICK action, which is the ONLY thing a
+ *    screen reader can invoke. With an empty `onClick` and only the gesture, every
+ *    pad button did NOTHING under TalkBack. A screen reader cannot express "hold",
+ *    so the click path does a short press-then-release -- exactly what iOS's
+ *    `.accessibilityAction { tap() }` does with its 0.12 s release.
+ */
+@Composable
+private fun HoldButton(
+    label: String,
+    session: GbGameSession,
+    bit: Int,
+    modifier: Modifier = Modifier,
+) {
+    var held by remember { mutableStateOf(false) }
+
+    OutlinedButton(
+        onClick = { /* unused: the click action below is the screen-reader path */ },
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .pointerInput(bit) {
+                detectTapGestures(
+                    onPress = {
+                        held = true
+                        session.pressKey(bit)
+                        tryAwaitRelease()
+                        held = false
+                        session.releaseKey(bit)
+                    },
+                )
+            }
+            .semantics {
+                contentDescription = label
+                onClick(label = "press") {
+                    // Short press then release: the core sees the press on the next
+                    // frame, and a screen reader has no way to hold.
+                    session.pressKey(bit)
+                    session.releaseKeySoon(bit)
+                    true
+                }
+            },
+    ) {
+        Text(if (held) "$label (held)" else label, fontSize = 16.sp)
+    }
+}
+
+/** A script hotkey. Edge-triggered: the script wants the frame the key went down. */
+@Composable
+private fun HotkeyButton(
+    label: String,
+    key: Char,
+    session: GbGameSession,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = { session.tapHotkey(key) },
+        colors = ButtonDefaults.outlinedButtonColors(),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = label },
+    ) {
+        Text(label, fontSize = 14.sp)
     }
 }

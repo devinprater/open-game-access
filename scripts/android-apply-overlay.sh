@@ -51,7 +51,7 @@ if 'name="oga_app_name"' in t:
     print("   oga_app_name already present")
 else:
     t = t.replace("</resources>",
-                  '    <string name="oga_app_name">Pokemon Access</string>\n</resources>')
+                  '    <string name="oga_app_name">Open Game Access</string>\n</resources>')
     open(r, "w", encoding="utf-8").write(t)
     print("   added oga_app_name")
 PY
