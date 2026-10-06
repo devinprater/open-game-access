@@ -50,7 +50,15 @@ done
 [ -z "$LLVM_AR" ]     && LLVM_AR="$(command -v llvm-ar || command -v ar)"
 [ -z "$LLVM_RANLIB" ] && LLVM_RANLIB="$(command -v llvm-ranlib || command -v ranlib)"
 [ -z "$LLVM_NM" ]     && LLVM_NM="$(command -v llvm-nm || command -v nm)"
-LLVM_OBJCOPY="$(command -v llvm-objcopy || command -v objcopy || true)"
+# ⛔ SAME DIRECTORY SEARCH AS THE OTHER THREE. This was a bare `command -v`, so on
+# macOS -- where Homebrew's llvm-objcopy lives at /opt/homebrew/opt/llvm/bin and is
+# NOT on the default PATH -- llvm-ar/ranlib/nm were found and llvm-objcopy was not.
+# The overlap then could not be localised at all.
+LLVM_OBJCOPY=""
+for d in /usr/local/swift/bin "$(dirname "$(command -v xcrun 2>/dev/null || echo /usr/bin/xcrun)")/../bin" /usr/bin /opt/homebrew/opt/llvm/bin; do
+  [ -x "$d/llvm-objcopy" ] && [ -z "$LLVM_OBJCOPY" ] && LLVM_OBJCOPY="$d/llvm-objcopy"
+done
+[ -z "$LLVM_OBJCOPY" ] && LLVM_OBJCOPY="$(command -v llvm-objcopy || command -v objcopy || true)"
 
 # ---- parallelism, GNU or BSD --------------------------------------------
 JOBS="${JOBS:-}"
