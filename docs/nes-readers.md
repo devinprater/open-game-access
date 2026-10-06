@@ -273,7 +273,44 @@ The decisive measurement, printing both counters after each press:
 "did not produce a frame" timeout (waiting on a dead counter), reads answering from a dead console,
 `IsPaused()` false, fps/speed normal, a healthy gdb stack, and the halt reproducing on every game.
 
-**Open follow-up:** with the console stable, Link still does not move from the opening screen (position, mode 0x05 and room 0x77 all steady, reader healthy). Next step is to confirm the position addresses against the disassembly's object tables.
+## ✅ Overworld room crossing: WORKS
+
+Zelda 1 Access announces each new overworld screen as Link crosses one. Measured on real hardware
+emulation, from the opening screen (room 0x77):
+
+| direction | room change | the reader said |
+|---|---|---|
+| UP | 0x77 -> 0x67 | "Screen H, 7." |
+| LEFT | 0x77 -> 0x76 | "Screen G, 8." |
+| RIGHT | 0x77 -> 0x78 | "Screen I, 8." |
+| DOWN | no change | (no crossing from this screen) |
+
+The reader's own log contained **zero** `RUNTIME ERROR` lines across the whole sweep.
+
+### The two bugs that had to be fixed first
+
+Neither was in the reader.
+
+1. **My input provider was pressing POWER.** Mesen runs the input-provider chain for EVERY device,
+   and among them is the `SystemActionManager` whose buttons are `"RP"` — Reset at bit 0, PowerCycle at
+   bit 1. The NES pad's own order is `"UDLRSsBA"` (Up 0, Down 1), so writing pad bits to that device made
+   **UP a console reset and DOWN a power cycle**. Every direction press restarted the machine, which is
+   why Link never moved. Fixed by claiming only `ControllerType::NesController` /
+   `FamicomController`.
+
+2. **Reading the wrong object slot.** The reader reads Link at `ADDR.obj_x_base` = `0x0070` and
+   `obj_y_base` = `0x0084`, matching the disassembly's `ObjX := $70` / `ObjY := $84`. My probes read
+   `0x0071`/`0x0085` — **one byte off**, which is a *different* object slot and permanently idle. That
+   is why Link appeared frozen at `(48,135)` no matter what was pressed. Slot 0 is the one that moves:
+
+       idle      X slots: 120  48   0 ...      Y slots: 141 135   0 ...
+       holding   X slots: 120  48   0 ...      Y slots: 113 135   0 ...
+       holding   X slots: 120  48   0 ...      Y slots:  87 135   0 ...
+
+**Both were harness bugs, not product bugs**, and both had the same shape as the earlier stale-console
+hunt: a plausible, self-consistent reading from the wrong place. The lesson kept repeating in this
+work — when a value refuses to change, confirm the ADDRESS and the DEVICE before concluding anything
+about the game.
 **Still true and worth keeping:** the reader, the input mapping, the frame limiter, the frame delay and
 cross-thread reads were all correctly ruled out along the way -- none of them was the cause. The lesson
 is that a stale object answers plausibly: it produced a coherent, wrong diagnosis (a "halted CPU") that
