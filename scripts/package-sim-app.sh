@@ -181,7 +181,14 @@ done
 if [ -n "$RES" ]; then
   cp -R "$RES" "$APP/"
   echo "== resources: $(find "$APP/OpenGameAccess_OpenGameAccess.bundle" -type f | wc -l) files"
-  ls "$APP/OpenGameAccess_OpenGameAccess.bundle/Resources/" 2>/dev/null
+  # ⛔ DO NOT ASSUME Resources/ INSIDE THE BUNDLE. Package.swift uses .process for
+  # the two top-level Lua files so the bundle stays FLAT -- Xcode's codesign step
+  # rejects a macOS-style Resources/ subdir on iOS ("bundle format unrecognized").
+  # The directories (gba-lua, ppsspp-assets) are .copy and keep their names.
+  RESB="$APP/OpenGameAccess_OpenGameAccess.bundle"
+  if [ -d "$RESB/Resources" ]; then LUADIR="$RESB/Resources"; else LUADIR="$RESB"; fi
+  echo "== lua at: ${LUADIR#$APP/}"
+  ls "$LUADIR" 2>/dev/null
 else
   echo "!! no resource bundle — the Lua script would be missing from the app" >&2
   exit 1
@@ -258,8 +265,15 @@ echo "--- core linked in? (melonDS symbols) ---"
 echo "--- poke_ entry points ---"
 "$NM_BIN" "$APP/OpenGameAccess" 2>/dev/null | grep -c 'poke_' || true
 echo "--- script hashes (must equal the originals) ---"
-shasum -a 256 "$APP/OpenGameAccess_OpenGameAccess.bundle/Resources/"*.lua 2>/dev/null || \
-  sha256sum "$APP/OpenGameAccess_OpenGameAccess.bundle/Resources/"*.lua 2>/dev/null
+# ⛔ A GLOB THAT MATCHES NOTHING PRINTS NOTHING AND STILL SUCCEEDS, so this gate
+# used to be disarmable by moving the files. Assert they are present first.
+_LUAS=$(ls "$LUADIR"/*.lua 2>/dev/null | wc -l)
+if [ "$_LUAS" -eq 0 ]; then
+  echo "!! no .lua files in the resource bundle ($LUADIR) -- the script hash gate cannot run" >&2
+  exit 1
+fi
+shasum -a 256 "$LUADIR"/*.lua 2>/dev/null || \
+  sha256sum "$LUADIR"/*.lua 2>/dev/null
 
 echo "--- zip for a simulator service ---"
 cd "$ROOT/xtool-sim"
