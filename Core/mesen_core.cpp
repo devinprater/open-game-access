@@ -820,6 +820,12 @@ bool nes_load_state(NesCore* c, const char* path) {
 
 unsigned long long nes_frames_completed(NesCore* c) { return c ? c->frames : 0; }
 
+int nes_is_paused(NesCore* c) { return (c && c->emu) ? (c->emu->IsPaused() ? 1 : 0) : -1; }
+
+unsigned nes_console_frame_count(NesCore* c) {
+    return (c && c->console) ? c->console->GetFrameCount() : 0u;
+}
+
 const char* nes_last_error(NesCore* c) { return (c && !c->error.empty()) ? c->error.c_str() : ""; }
 
 bool nes_read(NesCore* c, uint32_t addr, int width, uint32_t* out) {

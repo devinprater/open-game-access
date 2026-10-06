@@ -98,6 +98,11 @@ bool nes_save_state(NesCore *core, const char *path);
 bool nes_load_state(NesCore *core, const char *path);
 
 unsigned long long nes_frames_completed(NesCore *core);
+/* Diagnostic read-onlys: the emulator's own paused flag, and the console's frame counter. Mesen
+ * gates its frame limiter on these and on an internal lock counter, so a harness that sees a
+ * stalled console needs to know which of them is holding it. */
+int nes_is_paused(NesCore *core);
+unsigned nes_console_frame_count(NesCore *core);
 const char *nes_last_error(NesCore *core);
 
 /* Raw NES memory read through the CONSOLE, so mapper banking and the RAM mirrors behave as the
