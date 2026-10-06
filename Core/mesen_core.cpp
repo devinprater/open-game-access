@@ -32,6 +32,8 @@
 #include "Shared/BaseControlDevice.h"
 #include "Shared/MemoryType.h"
 #include "NES/NesConsole.h"
+#include "NES/NesCpu.h"
+#include "NES/BaseNesPpu.h"
 #include "NES/BaseMapper.h"
 #include "NES/NesTypes.h"
 #include "Utilities/VirtualFile.h"
@@ -821,6 +823,37 @@ bool nes_load_state(NesCore* c, const char* path) {
 unsigned long long nes_frames_completed(NesCore* c) { return c ? c->frames : 0; }
 
 int nes_is_paused(NesCore* c) { return (c && c->emu) ? (c->emu->IsPaused() ? 1 : 0) : -1; }
+
+int nes_cpu_pc(NesCore* c) {
+    if (!c || !c->console) return -1;
+    NesConsole* nes = dynamic_cast<NesConsole*>(c->console.get());
+    if (!nes || !nes->GetCpu()) return -1;
+    return (int) nes->GetCpu()->GetPC();
+}
+
+long long nes_cpu_cycles(NesCore* c) {
+    if (!c || !c->console) return -1;
+    NesConsole* nes = dynamic_cast<NesConsole*>(c->console.get());
+    if (!nes || !nes->GetCpu()) return -1;
+    return (long long) nes->GetCpu()->GetCycleCount();
+}
+
+double nes_fps(NesCore* c) {
+    return (c && c->emu) ? c->emu->GetFps() : -1.0;
+}
+
+int nes_emulation_speed(NesCore* c) {
+    if (!c || !c->emu) return -1;
+    EmuSettings* st = c->emu->GetSettings();
+    return st ? (int) st->GetEmulationSpeed() : -1;
+}
+
+int nes_ppu_scanline(NesCore* c) {
+    if (!c || !c->console) return -1;
+    NesConsole* nes = dynamic_cast<NesConsole*>(c->console.get());
+    if (!nes || !nes->GetPpu()) return -1;
+    return (int) nes->GetPpu()->GetCurrentScanline();
+}
 
 unsigned nes_console_frame_count(NesCore* c) {
     return (c && c->console) ? c->console->GetFrameCount() : 0u;

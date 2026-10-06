@@ -190,10 +190,37 @@ The halt does not clear when the button is released.
 - A checksum over live RAM was byte-identical across 400 frames during an earlier hold, so the
   emulated CPU is not executing new code.
 
-**Honest status:** the halt is localized to Mesen's per-frame limiter loop with `paused == 0` and a
-frozen frame counter, but *why* that loop stops converging is not yet established. The likely
-territory is a game-specific edge (Zelda is MMC1) rather than the input path, but that is a
-hypothesis, not a finding.
+**The decisive measurement: the emulated CPU stops executing.**
+
+    before         frames=1693  CPUcycles=50394092  PC=B824  scanline=48
+    at the wedge   frames=1695  CPUcycles=50445675  PC=E45B  scanline=240
+    5 s later      frames=1695  CPUcycles=50445675  PC=E45B  scanline=240
+
+    CPU executed 0 cycles over ~4.5 s
+
+`PC` frozen, `CPUcycles` frozen, `scanline` frozen, `IsPaused()` false. So this is a halted MACHINE,
+not slow frame plumbing and not a paused one. Read through public Mesen APIs: `NesCpu::GetPC()`,
+`NesCpu::GetCycleCount()`, `BaseNesPpu::GetCurrentScanline()`.
+
+**More hypotheses falsified by measurement:**
+
+- **The frame limiter is not the cause.** Removing it *at* the wedge does not resume the console
+  (0/200 frames), and a run with `MaximumSpeed` set from the start wedges identically. With that flag
+  the limiter's delay is 0 and its spin branch cannot even be entered, yet the console still halts.
+  The gdb stack shows the emulation thread *sampled* inside `FrameLimiter::WaitForNextFrame`, but that
+  is where a healthy thread idles too, so it was a red herring.
+- **Not a frame-delay or frame-rate runaway.** Both inputs to Mesen's delay read normal at the wedge
+  and unchanged: `fps=60.0988`, `speed=100` (derived delay 16.6393 ms).
+- **Not cross-thread reads.** An arm taking no reads while frames advance still halts. It also halts
+  with the reader disabled, so `lua_resume` and the speech-file poll are not required.
+
+**Honest status:** the halt is now pinned to the emulated machine stopping (CPU 0 cycles, PC frozen,
+`IsPaused()` false, fps and speed untouched), with the reader, the input mapping, the frame limiter,
+the frame delay, and my cross-thread reads all ruled out by measurement. The remaining candidates are
+inside Mesen's own run loop or a lock/deadlock between the emulation thread and mine — and the fields
+that would name it (`_targetTime`, `_lockCounter`, `_stopFlag`) are all **private**, so the next step
+is to instrument inside the vendored tree temporarily, or to reproduce on a second commercial ROM to
+separate "MMC1-specific" from "any game". Neither has been done yet, so the cause remains unknown.
 
 ⛔ **And the failure text is misleading.** `The NES core did not produce a frame within 5 seconds.`
 reads like a load or configuration failure and sent me looking at the wrong layer twice. When this is
