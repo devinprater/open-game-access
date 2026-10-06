@@ -2,7 +2,7 @@
 # rebuild-platform.sh — recompile just poke_platform.cpp into the archive and relink.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
+export PATH=/usr/local/swift/bin:/usr/local/bin:$PATH
 unset POKECORE_LIB
 
 SRC="$HOME/src/melonds-lua/src"

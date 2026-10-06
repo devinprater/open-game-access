@@ -13,7 +13,7 @@
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
-export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
+export PATH=/usr/local/swift/bin:/usr/local/bin:$PATH
 TRIPLE="${TRIPLE:-arm64-apple-ios-simulator}"
 
 SIMLIB="$ROOT/Vendor/sim/libpokecore-sim.a"

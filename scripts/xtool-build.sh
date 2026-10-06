@@ -2,7 +2,7 @@
 # xtool-build.sh — build the iOS app with xtool (build only; no device needed).
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
+export PATH=/usr/local/swift/bin:/usr/local/bin:$PATH
 unset POKECORE_LIB
 
 cd "$ROOT" || exit 1
