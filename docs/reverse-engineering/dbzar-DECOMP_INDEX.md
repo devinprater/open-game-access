@@ -161,7 +161,9 @@ The HUD renderer reads: timer ticks at EBOOT vaddr `0x9F450` (mm:ss via `/0xE10`
 
 | what | address | notes |
 |---|---|---|
-| **main-menu cursor** | `0x08C36F98` | u32, **heap** — NOT the decompiled `0xC139C` struct (that module drives submenus) |
+| **menu cursor** | `0x08BA1D18` | u32, **heap** — the selected index. ⛔ **RE-DERIVED 2026-10-06**; the September address `0x08C36F98` is stale: on a fresh boot it read 0 and held texture bytes (the heap is reallocated every boot) |
+| **list length** | `0x08BA1D14` | u32 — **the screen discriminator.** 7 on the main menu, 6 in Options. Required, because index 0 is "Another Road" on one screen and "Assign Buttons" on the other |
+| main-menu cursor (STALE) | ~~`0x08C36F98`~~ | ⛔ **do not use** — a September-session heap address; reads 0 on a later boot |
 | same address | — | also drives the **Options submenu**, reset to 0 on entry, persists per screen |
 
 Main-menu mapping: `0`=Another Road · `1`=Arcade · `2`=Z Trial · `3`=Network Battle · `4`=Training ·
