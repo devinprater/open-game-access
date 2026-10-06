@@ -123,6 +123,9 @@ uint32_t nes_ram_base(NesCore *core);
  * bus; this answers about the PPU's own memory. Conflating them makes a reader misidentify a screen.
  */
 uint8_t nes_read_nametable(NesCore *core, uint32_t addr);
+/* Cartridge PRG ROM, for readers that decode game data straight out of the cartridge (they ask for
+ * it with an explicit "PRG ROM" domain). Returns 0 past the end of the ROM. */
+uint8_t nes_read_prg_rom(NesCore *core, uint32_t addr);
 
 /* Point the core at a reader script directory (holding oga_bootstrap.lua or the reader's entry
  * file). Must outlive the core or until replaced. Pass NULL/"" to run without a reader. */
