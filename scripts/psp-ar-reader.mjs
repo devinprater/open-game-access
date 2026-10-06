@@ -57,6 +57,21 @@ const MENUS = {
       "Edit various settings and Save/Load.",
     ],
   },
+  // ⛔ The item WORDS below come from the game's own resident text pool (verified), but the
+  // DISPLAY ORDER of the last entries is not yet confirmed live (pool order is data order).
+  6: {
+    name: "Options",
+    items: ["Assign Buttons", "Sound", "Save/Load", "Connection Style", "Voice Select", "Credits", "Screen Display"],
+    desc: [
+      "Change controls in a battle as desired.",
+      "Adjust the volume of music and sound.",
+      "Save/Load game data.",
+      "Select whether games can be interrupted by challengers.",
+      "Switch voices.",
+      "View credits.",
+      "Set the display for the Health and Ki Gauges.",
+    ],
+  },
 };
 
 class Debugger {
