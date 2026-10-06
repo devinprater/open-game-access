@@ -1,0 +1,876 @@
+0x89B3C96	-<KZ
+0x89B6D50	  @@``
+0x89BB176	-<KZ
+0x89BB180	xZK<2-
+0x89BB19A	dnsx
+0x8A24B00	Memory Stick Duo
+0x8A24B2C	inserted. Game data
+0x8A24B54	cannot be saved.
+0x8A24B76	Auto Save. Do not remove Memory Stick Duo
+0x8A24BCE	or press power button while Memory Stick Duo
+0x8A24C2C	access indicator is flashing.
+0x8A24C68	Saving game data. Please do not
+0x8A24CA8	remove Memory Stick Duo
+0x8A24CD8	 while
+0x8A24CE6	Memory Stick Duo
+0x8A24D08	 access indicator is flashing.
+0x8A24D46	Cancel,
+0x8A24D56	Return to Main Menu.
+0x8A24D80	Keep game data?
+0x8A24DA0	Turn off Auto-Save?
+0x8A24DC8	Unable to locate Memory
+0x8A24DF8	Stick Duo
+0x8A24E0C	. Save data
+0x8A24E24	requires at least %d KB.
+0x8A24E56	Not enough free space on
+0x8A24E88	Memory Stick Duo
+0x8A24EAA	. Save data
+0x8A24EC2	requires at least %d KB.
+0x8A24EF4	Enter a nickname for use
+0x8A24F26	with your profile card.
+0x8A24F64	Cancel name entry?
+0x8A24F8A	A network error occurred,
+0x8A24FBE	WLAN switch is OFF
+0x8A24FE4	A network error occurred,
+0x8A25018	WLAN switch is OFF
+0x8A2503E	Network connection
+0x8A25064	has been cut off
+0x8A25086	because of the Sleep mode.
+0x8A250BC	Could not connect
+0x8A250E0	to network.
+0x8A250F8	Matching Error
+0x8A25116	Lost connection to
+0x8A2513C	opponent.
+0x8A25150	Transmission Error
+0x8A25176	Connecting to Network
+0x8A251A2	Connected to Network
+0x8A251CC	Select Opponent
+0x8A251EC	Select Profile Card
+0x8A25214	Battle Rejected
+0x8A25234	Battle Canceled
+0x8A25254	Cancel battle, return
+0x8A25280	to lobby?
+0x8A25294	%s is requesting a battle.
+0x8A252CA	Current game data will
+0x8A252F8	not be saved. OK?
+0x8A2531C	%s wants a normal battle. 
+0x8A25352	Your current data will 
+0x8A25382	not be saved. OK? 
+0x8A253A8	%s wants a custom battle.
+0x8A253DC	Your current data will
+0x8A2540A	not be saved. OK?
+0x8A2542E	%s wants a CPU battle. 
+0x8A2545E	Your current data will 
+0x8A2548E	not be saved. OK? 
+0x8A254B4	Sending profile card
+0x8A254DE	to %s.
+0x8A254EC	Profile Card received.
+0x8A2551A	Profile Card transmission
+0x8A2554E	failed.
+0x8A2555E	Waiting for opponent.
+0x8A2558A	Goku 
+0x8A25598	Teen Gohan 
+0x8A255B2	Gohan 
+0x8A255C2	Vegeta 
+0x8A255D4	Trunks 
+0x8A255E6	Krillin 
+0x8A255FA	Piccolo
+0x8A2560C	Frieza 
+0x8A2561E	Android #18
+0x8A25638	Cell 
+0x8A25646	Kid Buu 
+0x8A2565A	Cooler 
+0x8A2566C	Broly 
+0x8A2567C	Gotenks
+0x8A2568E	Gogeta 
+0x8A256A0	Vegito 
+0x8A256B2	Pikkon
+0x8A256C2	Janemba
+0x8A256D4	Future Gohan
+0x8A256EE	Majin Buu 
+0x8A25704	Super Buu
+0x8A25718	Dabura
+0x8A25726	Bardock
+0x8A25736	Future Trunks
+0x8A25752	%s has become available!  
+0x8A25788	%s has reached a new 
+0x8A257B4	transformation stage! 
+0x8A257E2	A new scenario 
+0x8A25802	is now available in 
+0x8A2582C	Another Road. 
+0x8A2584A	New course is unlocked 
+0x8A2587A	in Time Attack 1.
+0x8A2589E	Time Attack 2 
+0x8A258BC	is now available. 
+0x8A258E2	New course is unlocked 
+0x8A25912	in Time Attack 2.
+0x8A25936	Challenge Mode 
+0x8A25956	is now available. 
+0x8A2597C	All Characters are now available 
+0x8A259C0	in Another Road. 
+0x8A259E4	Extra is added 
+0x8A25A04	%d new items are now 
+0x8A25A30	available in the shop! 
+0x8A25A60	%d new stamps are 
+0x8A25A86	available in the shop! 
+0x8A25AB6	%d new sheets are 
+0x8A25ADC	available in the shop! 
+0x8A25B0C	Something new is 
+0x8A25B30	now available in 
+0x8A25B54	the shop! 
+0x8A25B6A	%d new titles are 
+0x8A25B90	now available in 
+0x8A25BB4	the shop! 
+0x8A25BCA	Obtained 
+0x8A25BDE	%d S-size stamp!  
+0x8A25C04	Obtained 
+0x8A25C18	%d M-size stamp! 
+0x8A25C3C	Obtained 
+0x8A25C50	%d L-size stamp! 
+0x8A25C74	Obtained 
+0x8A25C88	Sheet No. %d! 
+0x8A25CA6	Got Title No. %d!
+0x8A25CCA	New Booster is added in the shop. 
+0x8A25D10	DRAGON BALL Z SHIN BUDOKAI ANOTHER ROAD
+0x8A25D60	Game Data
+0x8A25D74	Nickname: %s
+0x8A25D90	Power Level: %d
+0x8A25DB2	Zenie: %d
+0x8A25DC8	Success Rate: %s %%
+0x8A25DF0	New Data
+0x8A6CC36	Cancel
+0x8A6CC50	Done
+0x8A6F3BE	Select
+0x8A6F3CC	Confirm
+0x8A6F3DC	Cancel
+0x8A6F3F4	Done
+0x8A6F412	Skip
+0x8A6F41C	Scroll
+0x8A6F42A	Hide Display
+0x8A6F444	Modify
+0x8A6F452	Erase
+0x8A6F45E	Undo
+0x8A6F468	Redo
+0x8A6F47E	Move
+0x8A6F488	Rotate
+0x8A6F496	Zoom In/Out
+0x8A6F4AE	Zoom In
+0x8A6F4BE	Zoom Out
+0x8A6F4D0	Change Order
+0x8A6F4EA	Move To Front
+0x8A6F506	Move To Back
+0x8A6F520	Invert
+0x8A6F52E	Turn Left/Right
+0x8A6F54E	Turn Up/Down
+0x8A6F568	Confirm
+0x8A6F580	View Card
+0x8A6F594	Save Card
+0x8A6F5A8	Delete Card
+0x8A6F5C0	Flip Card
+0x8A6F5D4	Change Category
+0x8A6F5F4	Change Character
+0x8A6F616	Change Transformation
+0x8A6F642	Return to Main Menu
+0x8A6F66A	Return to Battle Lobby
+0x8A6F698	Customize
+0x8A6F6AC	Return to Title
+0x8A6F6CC	Character Select
+0x8A6F6EE	Status Display
+0x8A6F70C	Booster Album
+0x8A6F736	Recommendation
+0x8A6F754	Remove All
+0x8A6F76A	Booster Shop
+0x8A6F784	Change Display
+0x8A6F7A2	Change Type
+0x8A6F7BA	Direction
+0x8A6F7CE	Change Camera
+0x8A6F7EA	Dash
+0x8A6F7F4	Display ON/OFF
+0x8A6F812	Change Enemy Display
+0x8A6F83C	Change Ally Display
+0x8A6F864	Map Display
+0x8A6F87C	Pause Menu
+0x8A6F892	Rule Explanation
+0x8A6F8BC	Booster Set
+0x8A6F8D4	Return to Stage Select
+0x8A6F902	Change Status
+0x8A6F91E	Change Page
+0x8A6F936	Go back to Field Play
+0x8A6F96E	CLICK!!
+0x8A6F97E	Go back to Network Lobby
+0x8A81FF0	xph`XPH@80( 
+0x8BFD7CE	An original story that takes place after
+0x8BFD820	"Trunks Another Story."
+0x8BFD850	In this mode, you fight CPU opponents
+0x8BFD89C	one after the other at the World Tournament.
+0x8BFD8F6	Participate in battles with various
+0x8BFD93E	conditions and test your limits.
+0x8BFD980	Battle other players in ad hoc mode.
+0x8BFD9CA	(Maximum 2 players).
+0x8BFD9F4	Select an opponent and practice.
+0x8BFDA36	Manage profile cards or
+0x8BFDA66	view battle data.
+0x8BFDA8A	Edit various settings and Save/Load.
+0x8BFDAD4	Nickname
+0x8BFDAE6	Power Level
+0x8BFDAFE	Money
+0x8BFDB0A	Set Arcade Mode
+0x8BFDB2A	difficulty.
+0x8BFDB42	Set the time for
+0x8BFDB64	Arcade Mode.
+0x8BFDB7E	Set the rounds per match
+0x8BFDBB0	for Arcade Mode.
+0x8BFDBD2	Compete with CPU fighters
+0x8BFDC06	until your Health runs out.
+0x8BFDC3E	Complete a particular course
+0x8BFDC78	as quickly as possible.
+0x8BFDCA8	Once you've selected a course, finish it
+0x8BFDCFA	as quickly as possible in Time Attack Mode 2.
+0x8BFDD56	In this mode, you face challenges
+0x8BFDD9A	along a specific theme.
+0x8BFDDCA	Challenge Goku's eternal
+0x8BFDDFC	friends and rivals. 
+0x8BFDE26	Stop the rivals and enemies 
+0x8BFDE60	that stand in Goku's way. 
+0x8BFDE96	Burning soul behind
+0x8BFDEBE	a cool demeanor!
+0x8BFDEE0	Even if you get beaten, keep
+0x8BFDF1A	training and get stronger!
+0x8BFDF50	The warriors who've 
+0x8BFDF7A	exceeded their limits!
+0x8BFDFA8	Fight for future peace! 
+0x8BFDFDA	The legendary Super Saiyans 
+0x8BFE014	Fighting Spirits!
+0x8BFE038	Fight with the warriors of
+0x8BFE06E	the future!
+0x8BFE086	Fight against pure Saiyans!
+0x8BFE0BE	Do battle against tenacious
+0x8BFE0F6	warriors who can regenerate!
+0x8BFE130	Participate in the war in otherworld!
+0x8BFE17C	An exhausting battle against Majin Buu!
+0x8BFE1CC	Battle Goku's family!
+0x8BFE1F8	Fight to your limits
+0x8BFE222	against every character!
+0x8BFE254	# Wins
+0x8BFE262	Player Battle (Normal)
+0x8BFE290	Player Battle (Custom)
+0x8BFE2BE	COM Battle
+0x8BFE2D4	Card Sharing
+0x8BFE2EE	Buy materials for creating
+0x8BFE324	Profile Cards.
+0x8BFE342	Edit your profile card for
+0x8BFE378	network battles.
+0x8BFE39A	View your battle records.
+0x8BFE3CE	View the results of your
+0x8BFE400	network battles.
+0x8BFE422	View the profile cards of
+0x8BFE456	your friends and rivals.
+0x8BFE488	You can send and receive
+0x8BFE4BA	profile cards with others.
+0x8BFE4F0	Change controls in a 
+0x8BFE51C	battle as desired.
+0x8BFE542	Adjust the volume of
+0x8BFE56C	music and sound.
+0x8BFE58E	Save/Load game data.
+0x8BFE5B8	Select whether games can be
+0x8BFE5F0	interrupted by challengers.
+0x8BFE628	Switch voices.
+0x8BFE646	View credits.
+0x8BFE662	Set the display for 
+0x8BFE68C	the Health and Ki Gauges.
+0x8BFE6C0	Save game data.
+0x8BFE6E0	Load game data.
+0x8BFE700	Erase game data.
+0x8BFE722	Enable/disable Auto-Save.
+0x8BFE756	Change your nickname.
+0x8BFE782	You can change the camera view.
+0x8BFE7C2	Enable/disable the gauge
+0x8BFE7F4	display during battle.
+0x8BFE822	Set whether the gauge
+0x8BFE84E	is in front or behind
+0x8BFE87A	Play with bonuses.
+0x8BFE8A0	You can change settings while
+0x8BFE8DC	waiting for a battle.
+0x8BFE908	Have a player battle against the opponent 
+0x8BFE95E	of your choice while waiting for a battle.
+0x8BFE9B4	While waiting for a battle you can have 
+0x8BFEA06	a battle with a custom character.
+0x8BFEA4A	While waiting for a battle you can watch 
+0x8BFEA9E	CPU characters battle each other.
+0x8BFEAE2	While waiting for a battle you can do card sharing.
+0x8BFEB4A	Adjust BGM volume.
+0x8BFEB70	Adjust SE and voice volume.
+0x8BFEBA8	Return volume to default settings.
+0x8BFEBEE	You can select Dragon Click.
+0x8BFEC28	You can listen to the music 
+0x8BFEC62	used in the game.
+0x8BFEC86	Select Language
+0x8BFECA6	Voice Select
+0x8BFECC0	Japanese
+0x8BFECD2	English
+0x8BFECE2	Italian
+0x8BFECF2	German
+0x8BFED00	French
+0x8BFED0E	Spanish
+0x8BFED1E	Korean
+0x8BFED2C	Sound Test
+0x8BFED42	Music Test
+0x8BFED58	Switch languages.
+0x8BFF126	Unsaved game data will be lost.
+0x8BFF16E	Requesting a battle with %s.
+0x8BFF1A8	%s is requesting a battle.
+0x8BFF1DE	Battle request was rejected.
+0x8BFF218	Rejected battle request.
+0x8BFF24A	Requesting Normal Battle
+0x8BFF27C	with %s
+0x8BFF28C	%s is requesting 
+0x8BFF2B0	a Normal Battle.
+0x8BFF2D2	Requesting CPU Battle 
+0x8BFF300	with %s
+0x8BFF310	CPU Battle is requested 
+0x8BFF342	from %s
+0x8BFF352	Requesting
+0x8BFF368	Custom Battle
+0x8BFF384	with %s
+0x8BFF394	%s is requesting 
+0x8BFF3B8	a Custom Battle.
+0x8BFF3DA	Earning Profile Card 
+0x8BFF406	from %s
+0x8BFF416	%s is requesting to 
+0x8BFF440	share Profile Card.
+0x8BFF468	%s wants a battle.
+0x8BFF48E	Your current data will
+0x8BFF4BC	not be saved. OK?
+0x8BFF4E0	%s wants a CPU battle.
+0x8BFF50E	Your current data will
+0x8BFF53C	not be saved. OK?
+0x8BFF560	%s wants a custom battle.
+0x8BFF594	Your current data will
+0x8BFF5C2	not be saved. OK?
+0x8BFF5E6	%s wants a normal battle.
+0x8BFF61A	Your current data will
+0x8BFF648	not be saved. OK?
+0x8BFF66C	Save profile card?
+0x8BFF692	Profile card saved.
+0x8BFF6BA	Profile card could not be saved.
+0x8BFF6FC	This card is broken.
+0x8BFF726	Profile card could not be saved.
+0x8BFF768	Friend list is full.
+0x8BFF792	Erase profile card?
+0x8BFF7BA	Profile card erased.
+0x8BFF7E4	Delete Title. 
+0x8BFF80A	Tite has been deleted.
+0x8BFF838	Save %s's profile card?
+0x8BFF868	%s's profile card saved.
+0x8BFF89A	Not enough Zenie.
+0x8BFF8BE	Buy S-size stamp No. %d?
+0x8BFF8F0	Buy M-size stamp No. %d?
+0x8BFF922	Buy L-size stamp No. %d?
+0x8BFF954	Buy Sheet No. %d?
+0x8BFF978	Purchase Title
+0x8BFF996	No. %d?
+0x8BFF9A6	Purchase Booster
+0x8BFF9C8	No. %d?
+0x8BFFAD8	Play Time
+0x8BFFAEC	Success Ratio
+0x8BFFB08	Max Power Level
+0x8BFFB28	Current Title
+0x8BFFB44	# of Battles
+0x8BFFB5E	# of Victories
+0x8BFFB7C	Victory Ratio
+0x8BFFB98	Consecutive Wins
+0x8BFFBBA	Max Consecutive
+0x8BFFBDA	# Cleared
+0x8BFFBEE	Challenge
+0x8BFFCCC	Rush Attack
+0x8BFFCE4	Smash Attack
+0x8BFFCFE	Energy Attack
+0x8BFFD1A	Guard
+0x8BFFD26	Gather Ki
+0x8BFFD3A	Aura Burst
+0x8BFFD50	Default Settings
+0x8C0029C	Hit twice with Aura Burst Smash!
+0x8C002E0	5 Aura Burst Smash, and beat the enemy!
+0x8C00330	Hit 3x with Aura Burst Blast!
+0x8C0036C	Hit with a Special ATK!
+0x8C0039C	Defeat the opponent with a Special ATK!
+0x8C003EC	Use your Ultimate ATK!
+0x8C0041A	Defeat the opponent with an Ultimate ATK!
+0x8C0046E	Use Aura Burst Guard 5 times!
+0x8C004AA	Don't take damage within a given time! (Beginner)
+0x8C0050E	Don't take damage within a given time! (Middle)
+0x8C0056E	Don't take damage within a given time! (Upper)
+0x8C005CC	Don't take damage within a given time! (Z)
+0x8C00622	Use a Guard Crush!
+0x8C00648	Defeat the opponent using only Guarding!
+0x8C0069A	Use Pursuit Finish two times!
+0x8C006D6	Defeat the opponent with Pursuit Finishes!
+0x8C0072C	Use Discernment three times!
+0x8C00766	Defeat the opponent within 120 seconds!
+0x8C007B6	Defeat the opponent within 90 seconds!
+0x8C00804	Defeat the opponent within 60 seconds!
+0x8C00852	Win with a Perfect!
+0x8C0087A	Win with less than 50%% Health!
+0x8C008BA	Win with less than 30%% Health!
+0x8C008FA	Win with less than 10%% Health!
+0x8C0093A	Win without using any energy attacks!
+0x8C00986	Win without using any Special ATK!
+0x8C009CC	Use Charge Cancel five times!
+0x8C00A08	Use Charge Attacks three times!
+0x8C00A48	Use Charge Attacks seven times!
+0x8C00A88	Dodge 4 times!
+0x8C00AA6	Dodge 7 times!
+0x8C00AC4	Avoid throws 3 times!
+0x8C00AF0	Breakfall 4 times!
+0x8C00B16	Deflect energy blasts 6 times!
+0x8C00B54	Win without using the Guard Button!
+0x8C00B9C	Win without using the Rush Button!
+0x8C00BE2	Win without using the Smash Button!
+0x8C00C2A	Win without using the Energy Button!
+0x8C00C74	Win without using the Aura Burst Button!
+0x8C00CC6	Win without using the Ki Charge Button!
+0x8C00D16	Do a 5-Hit Combo!
+0x8C00D3A	Do a 10-Hit Combo!
+0x8C00D60	Do a 15-Hit Combo!
+0x8C00D86	Do a 20-Hit Combo!
+0x8C00DAC	Hit the opponent 3x from behind!
+0x8C00DEE	Do 1200 damage with one combo!
+0x8C00E2C	Do 2000 damage with one combo!
+0x8C00E6A	Survive as long as you can!
+0x8C00EA2	Get as many hits as you can!
+0x8C00EDC	Cause massive damage!
+0x8C01D68	Title
+0x8C01D74	Elite Warrior
+0x8C01D90	Low-Class Warrior
+0x8C01DB4	King of Darkness
+0x8C01DD6	Prince of Destruction
+0x8C01E02	Prince
+0x8C01E10	Majin
+0x8C01E1C	Demon
+0x8C01E28	Cooler's Armored Squad
+0x8C01E56	Hanger-On
+0x8C01E6A	Warrior of Rage
+0x8C01E8A	Warrior Race
+0x8C01EA4	Battle Type
+0x8C01EBC	Elder
+0x8C01EC8	Great Elder
+0x8C01EE0	Guardian
+0x8C01EF2	Supreme Kai
+0x8C01F0A	King Kai
+0x8C01F1C	Great Kai
+0x8C01F30	Ogre
+0x8C01F3A	King
+0x8C01F44	Strongest on Earth
+0x8C01F6A	Android
+0x8C01F7A	Bio Warrior
+0x8C01F92	Legendary Super Saiyan
+0x8C01FC0	Legendary Warrior
+0x8C01FE4	Perfect Form
+0x8C01FFE	Aloof Warrior
+0x8C0201A	Future Warrior
+0x8C02038	Z Fighter
+0x8C0204C	Super-Genius
+0x8C02066	Messenger of HFIL
+0x8C0208A	Champion
+0x8C0209C	Crybaby
+0x8C020AC	Great Ape
+0x8C020C0	First Form
+0x8C020D6	Second Form
+0x8C020EE	Third Form
+0x8C02104	Final Form
+0x8C0211A	Draconian
+0x8C0212E	God of Dreams
+0x8C0214A	Saibaman Class
+0x8C02168	Yamcha Class
+0x8C02182	Worthless Maggot
+0x8C021A4	Tourist
+0x8C021B4	Golden Warrior
+0x8C021D2	Warrior of Justice
+0x8C021F8	In Training
+0x8C02210	Hooligan
+0x8C02222	Vulgar Army Corps
+0x8C02246	Great Warrior
+0x8C02262	Coward
+0x8C02270	Proud Warrior
+0x8C0228C	Serves Frieza
+0x8C022A8	Strongest in the Universe
+0x8C022DC	Special Squad
+0x8C022F8	Squad Leader
+0x8C02312	Earthling
+0x8C02326	Namek
+0x8C02332	Saiyan
+0x8C02340	Yardrat
+0x8C02350	Hero
+0x8C0235A	Super Namek
+0x8C02372	Ultimate Weapon
+0x8C02392	Final Weapon
+0x8C023AC	Full proficiency 
+0x8C023D0	Genma
+0x8C023DC	Saiyan King
+0x8C023F4	Saiyan Prince
+0x8C02410	Galactic Warrior
+0x8C02432	Worldly Sage
+0x8C0244C	Cat Hermit
+0x8C02462	Strongest Warrior
+0x8C02486	Lone Wolf
+0x8C0249A	Hercule's Child
+0x8C024BA	Hercule's Bodyguards
+0x8C024E4	Hercule Fanclub
+0x8C02504	Super Warrior
+0x8C02520	Future Warrior
+0x8C0253E	Child Warrior
+0x8C0255A	Apprentice Warrior
+0x8C02580	Independent
+0x8C02598	Undefeated Warrior
+0x8C025BE	Brutal Warrior
+0x8C025DC	Incomplete
+0x8C025F2	Ultimate Warrior
+0x8C02614	Challenger
+0x8C0262A	Invincible and Undefeated
+0x8C0265E	Godlike
+0x8C0266E	Rampaging Warrior
+0x8C02692	Peerless
+0x8C026A4	Kamikaze
+0x8C026B6	Eternal Replacement
+0x8C026DE	Minor Role
+0x8C026F4	Easy-Going
+0x8C0270A	Gambler
+0x8C0271A	Thief
+0x8C02726	Loser
+0x8C02732	Turtle School
+0x8C0274E	Young Heretic
+0x8C0276A	Genius
+0x8C02778	Superstar
+0x8C0278C	Savior
+0x8C0279A	Dictator
+0x8C027AC	Sage
+0x8C027B6	Traitor
+0x8C027C6	North Galaxy Hero
+0x8C027EA	South Galaxy Hero
+0x8C0280E	West Galaxy Hero
+0x8C02830	East Galaxy Hero
+0x8C02852	Future Messenger 
+0x8C02876	Best on Earth
+0x8C02892	Best in the Universe
+0x8C028BC	Best in Otherworld
+0x8C028E2	Best in HFIL
+0x8C028FC	Attendant
+0x8C02910	Hard Worker
+0x8C02928	Devoted Husband
+0x8C02948	Hen-Pecked Husband
+0x8C0296E	Gourmet
+0x8C0297E	Bad Luck
+0x8C02990	Ambitious
+0x8C029A4	Scientist
+0x8C029B8	Red Ribbon Army
+0x8C029D8	Pure Evil
+0x8C029EC	Innocent
+0x8C029FE	My Pace
+0x8C02A0E	Selfish
+0x8C02A1E	King
+0x8C02A28	Barbarian
+0x8C02A3C	Average Joe
+0x8C02A54	Persistent
+0x8C02A6A	Schemer
+0x8C02A7A	Named Minor Role
+0x8C02A9C	Invader
+0x8C02AAC	Expert
+0x8C02ABA	Master
+0x8C02AC8	Instructor
+0x8C02ADE	Novice
+0x8C02AEC	Assistant Instructor
+0x8C02B16	Half a Man
+0x8C02B2C	Man of Leisure
+0x8C02B4A	Popular
+0x8C02B5A	Evangelist
+0x8C02B70	Lucky Adventurer
+0x8C02B92	Problem Child
+0x8C02BAE	Carouser
+0x8C02BC0	Student
+0x8C02BD0	Little Millionaire
+0x8C02BF6	Millionaire
+0x8C02C0E	Big Millionaire
+0x8C02C2E	New Rich
+0x9AA519A	V2gFxd
+0x9ABC3C0	Switch languages.
+0x9ABC580	Music Test
+0x9ABC740	Sound Test
+0x9ABC900	Korean
+0x9ABCAC0	Spanish
+0x9ABCC80	French
+0x9ABCE40	German
+0x9ABD000	Italian
+0x9ABD1C0	English
+0x9ABD380	Japanese
+0x9ABD540	Voice Select
+0x9ABD700	Select Language
+0x9ABD8C0	used in the game.
+0x9ABD940	You can listen to the music 
+0x9ABDB00	You can select Dragon Click.
+0x9ABDCC0	Return volume to default settings.
+0x9ABDEC0	Adjust SE and voice volume.
+0x9ABE080	Adjust BGM volume.
+0x9ABE240	While waiting for a battle you can do card sharing.
+0x9ABE440	CPU characters battle each other.
+0x9ABE500	While waiting for a battle you can watch 
+0x9ABE700	a battle with a custom character.
+0x9ABE7C0	While waiting for a battle you can have 
+0x9ABE9C0	of your choice while waiting for a battle.
+0x9ABEA80	Have a player battle against the opponent 
+0x9ABEC80	waiting for a battle.
+0x9ABED00	You can change settings while
+0x9ABEEC0	Play with bonuses.
+0x9ABF080	is in front or behind
+0x9ABF100	Set whether the gauge
+0x9ABF2C0	display during battle.
+0x9ABF340	Enable/disable the gauge
+0x9ABF500	You can change the camera view.
+0x9ABF6C0	Change your nickname.
+0x9ABF880	Enable/disable Auto-Save.
+0x9ABFA40	Erase game data.
+0x9ABFC00	Load game data.
+0x9ABFDC0	Save game data.
+0x9ABFF80	the Health and Ki Gauges.
+0x9AC0000	Set the display for 
+0x9AC01C0	View credits.
+0x9AC0380	Switch voices.
+0x9AC0540	interrupted by challengers.
+0x9AC05C0	Select whether games can be
+0x9AC0780	Save/Load game data.
+0x9AC0940	music and sound.
+0x9AC09C0	Adjust the volume of
+0x9AC0B80	battle as desired.
+0x9AC0C00	Change controls in a 
+0x9AC0DC0	profile cards with others.
+0x9AC0E40	You can send and receive
+0x9AC1000	your friends and rivals.
+0x9AC1080	View the profile cards of
+0x9AC1240	network battles.
+0x9AC12C0	View the results of your
+0x9AC1480	View your battle records.
+0x9AC1640	network battles.
+0x9AC16C0	Edit your profile card for
+0x9AC1880	Profile Cards.
+0x9AC1900	Buy materials for creating
+0x9AC1AC0	Card Sharing
+0x9AC1C80	COM Battle
+0x9AC1E40	Player Battle (Custom)
+0x9AC2000	Player Battle (Normal)
+0x9AC21C0	# Wins
+0x9AC2380	against every character!
+0x9AC2400	Fight to your limits
+0x9AC25C0	Battle Goku's family!
+0x9AC2780	An exhausting battle against Majin Buu!
+0x9AC2980	Participate in the war in otherworld!
+0x9AC2B80	warriors who can regenerate!
+0x9AC2C00	Do battle against tenacious
+0x9AC2DC0	Fight against pure Saiyans!
+0x9AC2F80	the future!
+0x9AC3000	Fight with the warriors of
+0x9AC31C0	Fighting Spirits!
+0x9AC3240	The legendary Super Saiyans 
+0x9AC3400	Fight for future peace! 
+0x9AC35C0	exceeded their limits!
+0x9AC3640	The warriors who've 
+0x9AC3800	training and get stronger!
+0x9AC3880	Even if you get beaten, keep
+0x9AC3A40	a cool demeanor!
+0x9AC3AC0	Burning soul behind
+0x9AC3C80	that stand in Goku's way. 
+0x9AC3D00	Stop the rivals and enemies 
+0x9AC3EC0	friends and rivals. 
+0x9AC3F40	Challenge Goku's eternal
+0x9AC4100	along a specific theme.
+0x9AC4180	In this mode, you face challenges
+0x9AC4380	as quickly as possible in Time Attack Mode 2.
+0x9AC4440	Once you've selected a course, finish it
+0x9AC4640	as quickly as possible.
+0x9AC46C0	Complete a particular course
+0x9AC4880	until your Health runs out.
+0x9AC4900	Compete with CPU fighters
+0x9AC4AC0	for Arcade Mode.
+0x9AC4B40	Set the rounds per match
+0x9AC4D00	Arcade Mode.
+0x9AC4D80	Set the time for
+0x9AC4F40	difficulty.
+0x9AC4FC0	Set Arcade Mode
+0x9AC5180	Money
+0x9AC5340	Power Level
+0x9AC5500	Nickname
+0x9AC56C0	Edit various settings and Save/Load.
+0x9AC58C0	view battle data.
+0x9AC5940	Manage profile cards or
+0x9AC5B00	Select an opponent and practice.
+0x9AC5D00	(Maximum 2 players).
+0x9AC5D80	Battle other players in ad hoc mode.
+0x9AC5F80	conditions and test your limits.
+0x9AC6040	Participate in battles with various
+0x9AC648C	r Shop
+0x9AC650C	 All
+0x9AC658C	endation
+0x9AC668C	r Album
+0x9AC678C	ter Select
+0x9AC680C	 to Title
+0x9AC690C	 to Battle
+0x9AC698C	 to Main M
+0x9AC6A0C	 Transform@
+0x9AC6A8C	 Character
+0x9AEB740	one after the other at the World Tournament.
+0x9AEB800	In this mode, you fight CPU opponents
+0x9AEBA00	"Trunks Another Story."
+0x9AEBA80	An original story that takes place after
+0x9AFCC9A	AAAAAAAA AAAAAAAAAAAAAAAA   AA    A AA  A  A AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA!AAA
+0x9AFCE04	!!!AAAAAAA!!!A!!A!!!!
+0x9AFCE34	!A!A!!A!
+0x9AFCFF2	 e$$
+0x9AFD062	$$lll
+0x9AFD06E	$$lVV
+0x9AFD080	$$l:$HH
+0x9AFD0B6	))z$HH
+0x9AFD0C4	?"  
+0x9AFD0D4	  ]+VsQQ
+0x9AFD0E6	OQQzC"
+0x9AFD0F8	HHHH2
+0x9AFD944	#"08)
+0x9AFD980	$ &!
+0x9AFE1D8	%''(*
+0x9AFE7E4	MF'(9''"$ouq
+0x9AFE80A	C[++
+0x9AFE84A	0J)) $
+0x9AFE858	 ==J|
+0x9AFE864	--9H
+0x9AFEBBE	"&&&
+0x9AFEBC8	 (#%$(&#%2&#$$
+0x9B353FC	N!M#H$A%8&/$'"!
+0x9B3543C	F!L"M!F
+0x9B354CC	& (")$)&(''($*!, -".(.0.8-<-<,6,-+#*
+0x9B3552E	- -"-&,,*3)8(:(8)4)/)(' %
+0x9B359E2	)#++,2+7):':%6$-$#$
+0x9B35A1E	$%#+"0!4
+0x9B3622A	G!F#D%C$A"@!? ?!?"?#?!>
+0x9B3626A	;";';*;+;,;-;0;4<7=9>8?6A2B,B'C#D#E(G2I?LJORQSSOTGU=T5T0U/U3W9X?YCZBY=Y6X0X/W2W8V>VCVFUFTEQCO@L<I7H0G*F$E
+0x9B3634E	<$<+<0<3;0:)8
+0x9B3703A	 $#+%1'5)7+7-5/21-3'5 7
+0x9B37076	<)=5>B?N@WA]B]BXCNCCD8D0E-F.G3G:GBFIEODRDRDQDOCMBJAG?B><=6<1;091857:6>5B3F2I0M.O-O,J+C*8),("&
+0x9B37214	. , ( " 
+0x9B3766E	A)B3D8E9H4J-L%M
+0x9B376A6	M!M)L/J3I4G2E.C*A&?"=
+0x9B376EA	+&(*&+#) %
+0x9B37788	;">&=*;.:185898=9A<E@JFNKROUQXS[U^Ya]dahak^mWpPrKtIuMwUw`xkxsyyyzxxxrwjvbtZrSpMmIjGgFdF`H]JYLVNROONJIFAA6<)7
+0x9B37DF2	0"1$1%1$0#/!.
+0x9B37E26	)!(%&)%,$-"-!+ *
+0x9B39070	("+&+(&)
+0x9B390A8	$"$& *
+0x9B52224	%&*(( 
+0x9B5225E	 &,-302-*&
+0x9B522E2	0+A5P=YB\CW@I86- !
+0x9B5231E	9*M3^;hAlEhF]DN@;9(0
+0x9B52362	3 :$=&=&:%5$/#("!!
+0x9B523AA	*"0'4*2)+%
+0x9B52912	8)E1Q9\?cBdB]@P:@30+#"
+0x9B52956	,$7.B6L=SAUBQ?E82-
+0x9B529A0	%"'$% 
+0x9B52BF8	?'B'@ ;
+0x9B52C30	(,097B=G@G@D>@;;77431/.,,()%&$$%$*'3-@7NBZJbNcL\EN:>/.&# 
+0x9B52CA6	  '&1.=6H<N>O>I9?21*"!
+0x9B52CEC	'/2>=JERHRFL??30& 
+0x9B52D42	/#3%4$0 )
+0x9B52D7E	C"N)S,Q+I&<
+0x9B52DB6	E"M'S+Y-].`-`+])X&Q%J#C!=
+0x9B52E0E	T$])a*](Q#@
+0x9B5332A	D"X.g7n;l;e6Z/N'D <
+0x9B5335E	:#;&;):*:+;.?3F;MCSJVMUKPFI?@89444283=8D?KGQNWU[Y_[`Z_U[NUEN;G3B/A0D7JBSQ^`hmruwvworbhQ^CT9O7M;OCQKTRVVVXWZX\Y^Za\d^f_f_e]aY\SUKNCI<F8G7K8R<Z?bCjEpEsDq@k<a5U.H'=!5
+0x9B534B2	D&S0c9pByH{JxHpCf=[6P0F*=%4 -
+0x9B53768	-$4,;/>+>!;
+0x9B5379C	1&6,6+3$,
+0x9B537D8	# #%"+!2#:&A*E.G/G/G-H-J.L/L0J/F,C)B&G%P']*i.r2v3t1n,d%Z
+0x9B5385E	b!l(r.r1m2b/T)F 9
+0x9B5389A	N'T.U1Q0G*8 '
+0x9B53A84	'"4,</@*>
+0x9B53ED4	C F$I&N)R+T0T4S9Q=NALDMHOKRNTNTKPGKBEACFGQP`\ph~r
+0x9B53F44	m}jzjzl
+0x9B53F82	x}ruposlxl
+0x9B53FAC	gubh`]aUeRkSoTqSpMjCb6Z)T Q
+0x9B53FE8	P$Q*P0N3K3H.D%?
+0x9B542B6	K"S%V%W#U"T!U#X'\-`5e>hEkKmOoOpKoEm=i7g3f3i9pB{M
+0x9B54358	hxeobi_e^c]d]f]j_mapdpgnijjek_kYkVjTiTgWd[b``e_h_gabb[bR`K]GXHULTSTYU_WaXaX_W\XYZX^Yd]jcnjqqpvlxev[qQjIcC]AYCXH[OaVi\r`zc
+0x9B54450	b}]wVnMfD`;\6[5[8\<Z?W?Q<K5F.B(@$?"@!A
+0x9B548FC	(!'!"
+0x9B54920	&$-*2/62738271502///,.*.*-,-1.9/B1K2Q3U2U1S0Q1P2P6O:M?JCGFDGEFHDNAT?X?Z@ZDYKZS\[_bchfkflemblamamcogpkrntpvqxqzo|l~h
+0x9B54A90	O~Q{TxXv\t^r^q\pWpQqJrDsAtAtBrFoJkLgMcL`I`EaBcAd@e?d?b?_@[@YAWAW@V=V:T7Q4N3I2D3?4;6775634314.6+7*8,80755839/5+.'&"
+0x9B54EDA	$%%(%'$!"
+0x9B54F1A	8!6&5)4(3#2
+0x9B54F4A	3)3.3-3'2
+0x9B54F92	&")-+4,3,,+"+
+0x9B54FD2	3 2#2&1'1'1$2
+0x9B5500A	9 7 4
+0x9FEB270	Switch languages.
+0x9FEB294	the music 
+0x9FEB2AA	ings.
+0x9FEB2B6	do card sharing.
+0x9FEB4F0	used in the game.
+0x9FEB514	tle each other.
+0x9FEB534	 battle.
+0x9FEB5C0	Select
+0x9FEB840	Confirm
+0x9FEBAC0	Cancel
+0x9FEBFC0	Done
+0x9FEC740	Skip
+0x9FEC9C0	Scroll
+0x9FECC40	Hide Display
+0x9FECEC0	Modify
+0x9FED140	Erase
+0x9FED3C0	Undo
+0x9FED640	Redo
+0x9FEDB40	Move
+0x9FEDDC0	Rotate
+0x9FEE040	Zoom In/Out
+0x9FEE2C0	Zoom In
+0x9FEE540	Zoom Out
+0x9FEE7C0	Change Order
+0x9FEEA40	Move To Front
+0x9FEECC0	Move To Back
+0x9FEEF40	Invert
+0x9FEF1C0	Turn Left/Right
+0x9FEF440	Turn Up/Down
+0x9FEF6C0	Confirm
+0x9FEFBC0	View Card
+0x9FEFE40	Save Card
+0x9FF00C0	Delete Card
+0x9FF0340	Flip Card
+0x9FF05C0	Change Category
+0x9FF0840	Change Character
+0x9FF0AC0	Change Transformation
+0x9FF0D40	Return to Main Menu
+0x9FF0FC0	Return to Battle Lobby
+0x9FF1240	Customize
+0x9FF14C0	Return to Title
+0x9FF1740	Character Select
+0x9FF19C0	Status Display
+0x9FF1C40	Booster Album
+0x9FF2140	Recommendation
+0x9FF23C0	Remove All
+0x9FF2640	Booster Shop
+0x9FF28C0	Change Display
+0x9FF2B40	Change Type
+0x9FF2DC0	Direction
+0x9FF3040	Change Camera
+0x9FF32C0	Dash
+0x9FF3540	Display ON/OFF
+0x9FF37C0	Change Enemy Display
+0x9FF3A40	Change Ally Display
+0x9FF3CC0	Map Display
+0x9FF3F40	Pause Menu
+0x9FF41C0	Rule Explanation
+0x9FF46C0	Booster Set
+0x9FF4940	Return to Stage Select
+0x9FF4BC0	Change Status
+0x9FF4E40	Change Page
+0x9FF50C0	Go back to Field Play
+0x9FF55C0	CLICK!!
+0x9FF5840	Go back to Network Lobby
+0x9FFF294	Switch languages.
+0x9FFF2B8	the music 
+0x9FFF2CE	used in the game.
+0x9FFF2FC	ters battle each other.
+0x9FFF32C	a battle.
