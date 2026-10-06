@@ -12,6 +12,7 @@ done
 [ -z "$LLVM_AR" ]     && LLVM_AR="$(command -v llvm-ar || command -v ar)"
 [ -z "$LLVM_RANLIB" ] && LLVM_RANLIB="$(command -v llvm-ranlib || command -v ranlib)"
 [ -z "$LLVM_NM" ]     && LLVM_NM="$(command -v llvm-nm || command -v nm)"
+LLVM_OBJCOPY="$(command -v llvm-objcopy || command -v objcopy || true)"
 # ---- parallelism, GNU or BSD ----
 JOBS="${JOBS:-}"
 if [ -z "$JOBS" ]; then
@@ -85,6 +86,16 @@ FFMPEG_LIB="$FFMPEG_OUT/lib"
 PPSPP_INC="-DUSE_FFMPEG -I$FFMPEG_INC"
 MGBA_INC="-I$MGBA_SRC/include -I$MGBA_GEN -I$MGBA_SRC/src -I$MGBA_SRC/src/third-party/lzma -I$LUA_SRC/src"
 
+# ---- Mesen (NES/SNS/... cores) ----
+# The same shape mGBA gets, and for the same reason: Mesen's console cores include from the tree
+# root and need their precompiled header forced in. -include pch.h is how Mesen itself builds every
+# Core TU, so a build that omits it is compiling a DIFFERENT program than the one Mesen ships.
+MESEN_SRC="${MESEN_SRC:-$HOME/src/mesen}"
+MESEN_INC="-I$MESEN_SRC -I$MESEN_SRC/Core -I$MESEN_SRC/Utilities"
+MESEN_FORCE="-include $MESEN_SRC/Core/pch.h"
+[ -d "$MESEN_SRC/Core" ] || { echo "!! no Mesen source at $MESEN_SRC" >&2; exit 1; }
+
+
 # -fwrapv matters: melonDS's ARM interpreter relies on wrapping arithmetic.
 # No JIT_ENABLED: see scripts/README.md — the ARM64 JIT needs MAP_JIT and
 # pthread_jit_write_protect_np, which iOS only exposes to apps signed with the
@@ -119,12 +130,33 @@ compile() { # compile <lang> <src> <tag>
       if [ "$(basename "$src")" = "gba_core.cpp" ]; then
         flags="$CXXFLAGS $MGBA_DEFS $MGBA_INC"
       fi
+      # mesen_core.cpp is OGA glue that needs Mesen's headers and forced pch, the same way
+      # gba_core.cpp needs mGBA's. Same isolation rule as the mesen case: NO $INC, because
+      # melonDS's src/CRC32.h shadows Mesen's own.
+      if [ "$(basename "$src")" = "mesen_core.cpp" ]; then
+        flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $MESEN_INC $MESEN_FORCE"
+      fi
       # Our own Core/ code only (not melonDS): a self-calling EndFrame once
       # crashed every game on its first frame (v0.4.0) behind a mere warning.
       case "$src" in "$ROOT"/Core/*) flags="$flags -Werror=infinite-recursion" ;; esac ;;
     cc)  flags="$CFLAGS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     lua) flags="$CFLAGS -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     mgba) flags="$CFLAGS $MGBA_DEFS $MGBA_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    # Mesen C++: the tree root on the include path and pch.h forced in, exactly as Mesen builds it.
+    # -fwrapv/-fno-strict-aliasing match the mGBA/PSP sets; Mesen is not strict-aliasing clean.
+    # ⛔ ISOLATED FROM $INC ON PURPOSE. $CXXFLAGS carries $INC, which puts melonDS's src/
+    # FIRST -- and melonDS ships its own CRC32.h, so Mesen's `#include "CRC32.h"` resolved
+    # to melonDS's different class and Bps/UpsPatcher.cpp failed with "use of undeclared
+    # identifier 'CRC32'". A shadowed header, not a missing one. Build from $COMMON plus
+    # our own roots and Mesen's, exactly as the working host case does -- never reorder $INC.
+    mesen) flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $MESEN_INC $MESEN_FORCE" ;;
+    # Mesen C: spng and the 7-Zip SDK -- no pch force-include (those are plain C).
+    mesenc) flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -std=gnu11 $MESEN_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    # The four symbols Mesen's Lua FORK adds over the app's Lua, satisfied without a second
+    # interpreter (see the long note in Core/mesen_lua_extras.c). Needs Mesen's Lua include root.
+    # Mesen's OWN Lua headers must win here (lua_WatchDogHook and the sandbox global live
+    # in Mesen's fork). Mesen's Lua root goes FIRST and $INC is absent entirely.
+    mesenlua) flags="$COMMON -I$MESEN_SRC/Lua -I$MESEN_SRC/Core -I$LUA_SRC/src -I$ROOT/Core -std=gnu11 -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     ppspp) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE" ;;
     ppsppmm) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE -fobjc-arc" ;;
     ppsppc) flags="$CFLAGS $PPSPP_INC -DMOBILE_DEVICE -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
@@ -163,6 +195,19 @@ compile() { # compile <lang> <src> <tag>
   for f in $MGBA_GB;   do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgbagb_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $MGBA_SM83; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgbasm83_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $MGBA; do printf '%s|mgba|%s\n' "$MGBA_SRC/$f" "mgba_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  # ---- Mesen (NES). The measured lists, NOT a hand-picked subset: Shared/Emulator.cpp constructs
+  # EVERY console Mesen supports and owns a Debugger unconditionally, so a NES-only list cannot LINK
+  # however cleanly it compiles. Tagged by the tree's own shape so a missing object names its file.
+  for f in $MESEN_CORE_ALL; do printf '%s|mesen|%s\n' "$MESEN_SRC/$f" "mesen_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
+  for f in $MESEN_UTILS;  do printf '%s|mesen|%s\n' "$MESEN_SRC/$f" "mesenu_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
+  for f in $MESEN_C;           do printf '%s|mesenc|%s\n' "$MESEN_SRC/$f" "mesenc_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  for f in $MESEN_SEVENZIP_C;  do printf '%s|mesenc|%s\n' "$MESEN_SRC/$f" "mesen7z_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  for f in $MESEN_SEVENZIP_CPP; do printf '%s|mesen|%s\n' "$MESEN_SRC/$f" "mesen7zpp_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
+  # The Lua-fork symbol shim, and our NES glue -- the console the NES adapter reads from.
+  printf '%s|mesenlua|mesen_lua_extras\n' "$ROOT/Core/mesen_lua_extras.c"
+  # mesen_core.cpp is NOT emitted here: it is in OGA_GLUE and the cxx case below
+  # gives it Mesen's flags. Emitting it twice wrote the same object from two different
+  # flag sets, and the failing one won.
   for f in $PPSPP_CORE; do printf '%s|ppspp|%s\n' "$PPSPP_SRC/$f" "ppspp_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
   for f in $PPSPP_EXT_CPP; do printf '%s|ppspp|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
   for f in $PPSPP_EXT_C; do printf '%s|ppsppc|%s\n' "$PPSPP_SRC/$f" "ppsspext_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
@@ -194,6 +239,14 @@ export ROOT CXX CC CXXFLAGS CFLAGS OBJ SDK CXX_CACHE_ID CC_CACHE_ID SDK_CACHE_ID
 # command fingerprint and generated header dependencies.
 PPSPP_INC="$(ppspp_inc "$PPSPP_SRC") -I$PPSPP_GEN $PPSPP_INC"
 export MGBA_DEFS MGBA_INC PPSPP_INC
+# ⛔ COMMON TOO: the mesen/mesenc/mesenlua cases build their flags from $COMMON (they must
+# NOT carry $INC -- melonDS's src/CRC32.h shadows Mesen's), and an unexported COMMON
+# reaches the xargs children EMPTY, so there is no --target and no --isysroot at all.
+# The symptom is "'memory' file not found", which reads like a missing C++ library.
+export COMMON LUA_SRC ROOT
+# ⛔ EXPORTED: compile() runs in xargs-spawned children, where an unexported include path
+# expands to EMPTY and every Mesen TU fails with "header not found".
+export MESEN_SRC MESEN_INC MESEN_FORCE
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED. Without it xargs reads STDIN, which is
 # empty under a non-interactive shell, so it compiles ZERO files, the archive is
@@ -221,6 +274,32 @@ if [ "$_have" -ne "$_want" ]; then
 fi
 
 if [ -f "$OBJ/.failed" ]; then echo "!! compile errors above" >&2; exit 1; fi
+
+# ---- Localise the 7-Zip symbols Mesen shares with PPSSPP's vendored copy ----
+# ⛔ TWO VENDORED COPIES OF THE SAME SDK. Mesen's SevenZip/ and PPSSPP's ext/lzma-sdk/ are the same
+# 7-Zip SDK, and both export the seven stream/vtable globals, so ld64.lld dies with
+# "duplicate symbol: LookInStream_Read" and friends. The project's rule is to resolve this PER
+# SYMBOL -- never by keeping or dropping a whole copy -- and to compute the overlap from `nm`,
+# because a hand-written symbol list goes stale within one build.
+#
+# This must run AFTER the compile loop: a fresh compile rewrites those objects and undoes it.
+if [ -n "$LLVM_OBJCOPY" ]; then
+  _other="$OBJ"
+  _shared=$( { for o in "$_other"/ppsspext_ext_lzma-sdk_*.o; do
+                 [ -f "$o" ] || continue
+                 "$LLVM_NM" --defined-only --extern-only "$o" 2>/dev/null | awk '{print $3}'
+               done; } | sort -u )
+  for o in "$_other"/mesen7z_SevenZip_*.o; do
+    [ -f "$o" ] || continue
+    _mine=$("$LLVM_NM" --defined-only --extern-only "$o" 2>/dev/null | awk '{print $3}')
+    for s in $_mine; do
+      if echo "$_shared" | grep -qx "$s"; then
+        "$LLVM_OBJCOPY" --localize-symbol "$s" "$o" 2>/dev/null || true
+      fi
+    done
+  done
+  echo "== localised Mesen's shared 7-Zip symbols for the link =="
+fi
 
 echo "== archiving =="
 # Merge the ffmpeg static slices into the core archive via $OBJ.

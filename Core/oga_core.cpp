@@ -137,6 +137,12 @@ static void NesSetButton(void* s, int pad_button, bool down)
     nes_set_button((NesCore*) s, pad_button, down);
 }
 
+/* ⛔ THE READER NEEDS A SCRIPT DIRECTORY. nes_set_script_dir exists and loads the mod; a NULL slot
+ * here is the difference between "the console runs" and "the reader talks". */
+static void NesSetScriptDir(void* s, const char* dir) {
+    if (dir && *dir) nes_set_script_dir((NesCore*) s, dir);
+}
+
 static bool NesSaveState(void* s, const char* path) { return nes_save_state((NesCore*) s, path); }
 static bool NesLoadState(void* s, const char* path) { return nes_load_state((NesCore*) s, path); }
 static unsigned long long NesFrames(void* s) { return nes_frames_completed((NesCore*) s); }
@@ -153,8 +159,7 @@ static const OgaCoreOps kNesOps = {
     NULL,                       /* set_analog: a NES pad has no stick */
     NULL,                       /* set_touch:  no touchscreen */
     NULL,                       /* set_hotkey: none defined for this console yet */
-    NULL,                       /* set_script_dir: no bundled Lua reader yet -- see nes_adapter.cpp,
-                                 * which is a script adapter's job and has no script to hand it */
+    NesSetScriptDir,            /* set_script_dir: loads the NES reader mod */
     NULL,                       /* read_audio: nes_read_audio exists but returns 0 by design; a NULL
                                  * slot says the same thing, so wire it when there is real audio */
     NesSaveState, NesLoadState, /* both refuse out loud today -- see mesen_core.cpp */
@@ -281,7 +286,7 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     static const OgaResolvedBackend kNds = { "nds", false, false };
     static const OgaResolvedBackend kGba = { "gba", true,  false };
     static const OgaResolvedBackend kPsp = { "psp", false, true  };
-    static const OgaResolvedBackend kNes = { "nes", false, false };
+    static const OgaResolvedBackend kNes = { "nes", false, false, true };
 
     static const char* const kGb[]  = { ".gba", ".gb", ".gbc", NULL };
     static const char* const kPspE[] = { ".iso", ".cso", ".pbp", ".elf", ".prx", ".ppdmp", NULL };
