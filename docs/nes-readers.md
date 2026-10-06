@@ -170,8 +170,13 @@ The halt does not clear when the button is released.
 
 **What IS measured:**
 
-- Direction-specific and reproducible: RIGHT ran 150/150 frames, and the very next DOWN press
-  wedged after 1-2 frames. Idling with no button advanced 300/300.
+- Reproducible, and usually on DOWN: RIGHT ran 150/150 frames and the very next DOWN press wedged
+  after 1-2 frames; in another run RIGHT ran 150/150 and then DOWN wedged; in a third DOWN wedged
+  after 2 frames. Idling with no button advanced 300/300.
+- ⛔ **But NOT strictly direction-specific** -- do not chase this as "the DOWN button". In one run the
+  very first UP press wedged it (room 77 -> 00, mode 00, then frozen for the rest of the run). So the
+  trigger is the first movement that provokes a screen transition, not one particular input; DOWN is
+  simply the direction that crosses a boundary most readily from the opening screen.
 - `Emulator::IsPaused()` reads 0 throughout, and the console's frame counter stays frozen at 1695
   for 4+ seconds — a genuine halt, not a slow console and not a paused one.
 - gdb backtrace of the emulation thread at the wedge shows the NORMAL per-frame path, sitting in the
