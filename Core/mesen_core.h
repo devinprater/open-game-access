@@ -103,6 +103,15 @@ unsigned long long nes_frames_completed(NesCore *core);
  * stalled console needs to know which of them is holding it. */
 int nes_is_paused(NesCore *core);
 unsigned nes_console_frame_count(NesCore *core);
+/* The emulated CPU's own position, and the PPU's scanline. Together they answer "is the machine
+ * executing?" directly, which RAM sampling only infers. -1 means unavailable. */
+int nes_cpu_pc(NesCore *core);
+long long nes_cpu_cycles(NesCore *core);
+int nes_ppu_scanline(NesCore *core);
+/* The two numbers Mesen's frame delay is built from: 1000 / fps / (speed / 100). A frame delay that
+ * jumps by seconds explains a console that stops executing while nothing reports as paused. */
+double nes_fps(NesCore *core);
+int nes_emulation_speed(NesCore *core);
 const char *nes_last_error(NesCore *core);
 
 /* Raw NES memory read through the CONSOLE, so mapper banking and the RAM mirrors behave as the
