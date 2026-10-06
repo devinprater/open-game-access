@@ -90,6 +90,9 @@ struct NesCore {
     std::atomic<bool> stopRequested{false};
     /* The host's input provider. Owned here; registered with the console's control manager. */
     NesInputProvider* inputProvider = nullptr;
+    /* The frame count last seen on the console object currently held. A different object (or a count
+     * that went backwards) means Mesen replaced the console. */
+    uint32_t framesSeenOnConsole = 0;
     unsigned long long frames = 0;
     std::string error;
     std::string gameCode;
@@ -141,6 +144,15 @@ namespace {
 
 /* Our header's NES_BTN_* order -> the controller's own bit order. One table, so the mapping is
  * visible rather than implied by arithmetic. */
+
+/* ⛔ NEVER CACHE THE CONSOLE. Mesen's `_console` is a safe_ptr (weak_ptr) and GetConsole() is
+ * `_console.lock()`, and the emulator REPLACES the console object on a power cycle or reset. Holding
+ * the shared_ptr captured at load keeps the OLD console alive and keeps answering from it, so every
+ * read and the frame wait watch a dead object while the emulator runs normally. Call this at each use
+ * and a replacement is picked up for free. */
+std::shared_ptr<IConsole> LiveConsole(NesCore* c) {
+    return (c && c->emu) ? c->emu->GetConsole() : std::shared_ptr<IConsole>();
+}
 
 void SetError(NesCore* c, const char* msg) { if (c) c->error = msg ? msg : "unknown error"; }
 
@@ -735,8 +747,13 @@ void nes_set_uncapped(NesCore *core, bool uncapped) {
     if (core->log) core->log(uncapped ? "nes: uncapped (test mode)" : "nes: paced", core->logUser);
 }
 
+/* Set at every exit of nes_frame, so a false return names its own cause. */
+static const char* g_frameResult = "ok";
+
+const char* nes_frame_result(NesCore* c) { (void) c; return g_frameResult; }
+
 bool nes_frame(NesCore* c) {
-    if (!c || !c->loaded || !c->emu) return false;
+    if (!c || !c->loaded || !c->emu) { g_frameResult = "core not loaded"; return false; }
 
     /* ⛔ NO PER-FRAME BUTTON POKE HERE. Writing the pad from this function does not work: Mesen's
      * UpdateInputState() calls ClearState() on every device at the start of each frame, so the bits
@@ -747,18 +764,77 @@ bool nes_frame(NesCore* c) {
     // produced by Mesen's own thread (see nes_start); this waits for the console's frame counter to
     // advance. ⛔ BOUNDED ON PURPOSE -- a wait that never returns must surface as an error, not a
     // hang, because a silent hang is indistinguishable from a load failure and cost real time here.
-    if (!c->console) return false;
+    /* Take the console from the emulator EVERY frame. A cached pointer goes stale when Mesen
+     * replaces the console, and then the frame wait and every read watch a DEAD object. */
+    std::shared_ptr<IConsole> console = LiveConsole(c);
+    if (!console) {
+        /* ⛔ A CONSOLE SWAP HAS A WINDOW WITH NO CONSOLE AT ALL. `_console` is a weak_ptr, so between
+         * the old console being destroyed and the new one being installed lock() yields null. Failing
+         * there reports a halt for a healthy emulator (measured: the count went 663 -> 301 across a
+         * replacement, and the console was readable again on the very next line). Wait for it, bounded
+         * so a genuine absence still becomes an error rather than a hang. */
+        const auto swapDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (!console && std::chrono::steady_clock::now() < swapDeadline) {
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+            console = LiveConsole(c);
+        }
+        if (!console) { SetError(c, "The NES console went away and did not come back."); return false; }
+        c->console = console;
+        c->framesSeenOnConsole = 0;
+        c->frames++;
+        return true;
+    }
+
+    /* A new console object, or a counter that went BACKWARDS, both mean the console was replaced or
+     * reset. The old value will never come back, so waiting on it stalls forever: count the boundary
+     * as the frame and re-baseline. */
+    bool replaced = (console.get() != c->console.get());
+    c->console = console;
 
     uint32_t before = c->console->GetFrameCount();
+    /* A new console object, or a counter that went BACKWARDS, both mean the console was replaced or
+     * reset. The old value will never come back, so waiting on it stalls forever: treat it as the
+     * frame boundary and re-baseline. Measured: a power cycle took the count 662 -> 301, after which
+     * the console was perfectly healthy (301 -> 311 with PC advancing). */
+    bool counterReset = (c->framesSeenOnConsole > 0 && before < c->framesSeenOnConsole);
+    /* ⛔ NO `framesSeenOnConsole > 0` GUARD HERE. That guard let a detected replacement fall through to
+     * the 5-second wait whenever the baseline had been zeroed by an earlier swap, which reported a
+     * false halt for a healthy emulator. A replacement is a replacement: handle it unconditionally. */
+    if (replaced || counterReset) {
+        g_frameResult = replaced ? "ok (console replaced)" : "ok (counter reset)";
+        c->framesSeenOnConsole = before;
+        c->frames++;
+        return true;
+    }
+    c->framesSeenOnConsole = before;
+
     const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
     while (c->console->GetFrameCount() == before) {
-        if (c->stopRequested) { SetError(c, "The NES core stopped unexpectedly."); return false; }
+        if (c->stopRequested) { g_frameResult = "stop requested"; SetError(c, "The NES core stopped unexpectedly."); return false; }
+
+        /* ⛔ AND RE-CHECK FOR A SWAP *INSIDE* THE WAIT. Computing `replaced` only before the loop
+         * misses the case that actually happens: the console is replaced while we are waiting, so the
+         * OLD object's counter never reaches `before + 1` and the wait times out -- one false return,
+         * which stops every caller's `while (nes_frame(c))` loop and reads as a permanent halt even
+         * though the emulator is running perfectly. Measured: 663 -> the new console starts at 301. */
+        std::shared_ptr<IConsole> now = LiveConsole(c);
+        if (now && now.get() != c->console.get()) {
+            g_frameResult = "ok (console replaced mid-wait)";
+            c->console = now;
+            c->framesSeenOnConsole = now->GetFrameCount();
+            c->frames++;
+            return true;
+        }
+        if (now && now->GetFrameCount() != before) break;   /* the same console advanced after all */
+
         if (std::chrono::steady_clock::now() > deadline) {
+            g_frameResult = "frame counter never advanced";
             SetError(c, "The NES core did not produce a frame within 5 seconds.");
             return false;
         }
         std::this_thread::sleep_for(std::chrono::microseconds(200));
     }
+    g_frameResult = "ok";
     c->frames++;
 
     /* ⛔ AFTER the frame, so the script observes the state that just completed rather than the
@@ -779,6 +855,7 @@ bool nes_frame(NesCore* c) {
 
     /* Copy the framebuffer out: Mesen's FrameBuffer pointer is only valid until the next frame, so
      * the core owns its copy -- the same contract psp_framebuffer_ptr documents. */
+    c->console = LiveConsole(c);
     if (c->console) {
         PpuFrameInfo frame = c->console->GetPpuFrame();
         if (frame.FrameBuffer && frame.Width && frame.Height) {
@@ -825,6 +902,7 @@ unsigned long long nes_frames_completed(NesCore* c) { return c ? c->frames : 0; 
 int nes_is_paused(NesCore* c) { return (c && c->emu) ? (c->emu->IsPaused() ? 1 : 0) : -1; }
 
 int nes_cpu_pc(NesCore* c) {
+    c->console = LiveConsole(c);   /* follow a console swap */
     if (!c || !c->console) return -1;
     NesConsole* nes = dynamic_cast<NesConsole*>(c->console.get());
     if (!nes || !nes->GetCpu()) return -1;
@@ -832,6 +910,7 @@ int nes_cpu_pc(NesCore* c) {
 }
 
 long long nes_cpu_cycles(NesCore* c) {
+    c->console = LiveConsole(c);   /* follow a console swap */
     if (!c || !c->console) return -1;
     NesConsole* nes = dynamic_cast<NesConsole*>(c->console.get());
     if (!nes || !nes->GetCpu()) return -1;
@@ -842,6 +921,20 @@ double nes_fps(NesCore* c) {
     return (c && c->emu) ? c->emu->GetFps() : -1.0;
 }
 
+unsigned nes_emu_frame_count(NesCore* c) {
+    return (c && c->emu) ? c->emu->GetFrameCount() : 0u;
+}
+
+int nes_console_is_current(NesCore* c) {
+    if (!c || !c->emu || !c->console) return -1;
+    /* IConsole is the emulator's own console type; compare the two shared_ptrs' raw pointers
+     * against what the emulator exposes through its own frame count path. */
+    IConsole* fromEmu = c->emu->GetConsole().get();
+    return (fromEmu == c->console.get()) ? 1 : 0;
+}
+
+void *nes_emulator_ptr(NesCore* c) { return (c && c->emu) ? (void*) c->emu.get() : nullptr; }
+
 int nes_emulation_speed(NesCore* c) {
     if (!c || !c->emu) return -1;
     EmuSettings* st = c->emu->GetSettings();
@@ -849,6 +942,7 @@ int nes_emulation_speed(NesCore* c) {
 }
 
 int nes_ppu_scanline(NesCore* c) {
+    c->console = LiveConsole(c);   /* follow a console swap */
     if (!c || !c->console) return -1;
     NesConsole* nes = dynamic_cast<NesConsole*>(c->console.get());
     if (!nes || !nes->GetPpu()) return -1;
@@ -856,12 +950,14 @@ int nes_ppu_scanline(NesCore* c) {
 }
 
 unsigned nes_console_frame_count(NesCore* c) {
+    c->console = LiveConsole(c);   /* follow a console swap */
     return (c && c->console) ? c->console->GetFrameCount() : 0u;
 }
 
 const char* nes_last_error(NesCore* c) { return (c && !c->error.empty()) ? c->error.c_str() : ""; }
 
 bool nes_read(NesCore* c, uint32_t addr, int width, uint32_t* out) {
+    c->console = LiveConsole(c);   /* follow a console swap */
     if (!c || !c->console || !out) return false;
     if (width != 1 && width != 2) return false;
 
@@ -885,6 +981,7 @@ bool nes_read(NesCore* c, uint32_t addr, int width, uint32_t* out) {
 }
 
 uint8_t nes_read_prg_rom(NesCore* c, uint32_t addr) {
+    c->console = LiveConsole(c);   /* follow a console swap */
     if (!c || !c->emu) return 0;
     /* MemoryType::NesPrgRom is the cartridge's PRG ROM as Mesen's own MemoryDumper exposes it, and
      * ConsoleMemoryInfo is simply a buffer plus a length, so a byte is an array index.
@@ -895,6 +992,7 @@ uint8_t nes_read_prg_rom(NesCore* c, uint32_t addr) {
 }
 
 uint8_t nes_read_nametable(NesCore* c, uint32_t addr) {
+    c->console = LiveConsole(c);   /* follow a console swap */
     if (!c || !c->console) return 0;
     NesConsole* nes = dynamic_cast<NesConsole*>(c->console.get());
     if (!nes) return 0;

@@ -150,10 +150,10 @@ above and no manifest line. Both are the reader's own words.
 - The board is 11 wide: RIGHT/LEFT step `CharBoardIndex` by 1 (wrapping at $2B), DOWN/UP step it by
   $0B with a row wrap, and the reader's own tables map index 43 to the name field's `0x24` filler.
 
-## ⛔ OPEN BUG: moving Link in the overworld halts the console
+## ✅ FIXED: the "halt" was a cached console pointer (ours)
 
-Found while chasing the walk narration. **Not yet fixed, and not yet root-caused.** Recorded with the
-evidence, because a wrong guess here would be worse than the defect.
+Found while chasing the walk narration. **Fixed**; the section below is kept in full because the
+wrong hypotheses are the useful part.
 
 **Symptom.** On the opening overworld screen (room 0x77), the first movement press halts the console
 permanently. `nes_frame` then fails with `The NES core did not produce a frame within 5 seconds.`
@@ -214,13 +214,51 @@ not slow frame plumbing and not a paused one. Read through public Mesen APIs: `N
 - **Not cross-thread reads.** An arm taking no reads while frames advance still halts. It also halts
   with the reader disabled, so `lua_resume` and the speech-file poll are not required.
 
-**Honest status:** the halt is now pinned to the emulated machine stopping (CPU 0 cycles, PC frozen,
-`IsPaused()` false, fps and speed untouched), with the reader, the input mapping, the frame limiter,
-the frame delay, and my cross-thread reads all ruled out by measurement. The remaining candidates are
-inside Mesen's own run loop or a lock/deadlock between the emulation thread and mine — and the fields
-that would name it (`_targetTime`, `_lockCounter`, `_stopFlag`) are all **private**, so the next step
-is to instrument inside the vendored tree temporarily, or to reproduce on a second commercial ROM to
-separate "MMC1-specific" from "any game". Neither has been done yet, so the cause remains unknown.
+**RESOLVED: the console was never halted -- our cached pointer went stale.**
+
+`Emulator::_console` is a `safe_ptr` (a weak_ptr) and `GetConsole()` is `_console.lock()`. This core
+captured that `shared_ptr` ONCE at ROM load and held it. Mesen replaces the console object
+(`_console.reset()` in `Emulator.cpp:344`, `_console.reset(newConsole)` at 598); holding a strong
+reference keeps the OLD console alive and keeps answering from it.
+
+The decisive measurement, printing both counters after each press:
+
+    after DOWN   cachedConsoleFrames=392   emuFrames=301   sameConsole=0
+    sample       cachedConsoleFrames=392   emuFrames=319   sameConsole=0
+    sample       cachedConsoleFrames=392   emuFrames=337   sameConsole=0
+
+`emuFrames` (the emulator's own `GetFrameCount()`) advanced while our cached console stayed frozen, and
+`sameConsole` read 0 -- a different object. That one fact explains every symptom: the 5-second
+"did not produce a frame" timeout (waiting on a dead counter), reads answering from a dead console,
+`IsPaused()` false, fps/speed normal, a healthy gdb stack, and the halt reproducing on every game.
+
+**Two more pieces were needed, and one was a trap of my own making:**
+
+1. A replacement RESETS the counter (measured 663 -> 301 -> 1), so waiting for the old value stalls.
+   A different object or a backwards count is the frame boundary; re-baseline.
+2. A swap has a window with NO console at all (`lock()` yields null between destroy and install), and
+   the replacement happens *DURING* the wait -- so re-checking the console only before the loop misses
+   the case that actually occurs. The wait now re-checks inside the loop. That was the final bug:
+   measuring `replaced` before the wait meant one false return, which stopped every caller's
+   `while (nes_frame(c))` and read as a permanent halt.
+3. ⛔ My own guard `&& c->framesSeenOnConsole > 0` silently defeated the fix once it was written: a
+   detected replacement fell through to the 5-second wait whenever the baseline had been zeroed by an
+   earlier swap. Instrumenting `nes_frame` to report WHY it failed (`nes_frame_result`) is what exposed
+   it -- guessing at the return path had already failed twice.
+
+**Proof.** Before: the first movement press stopped the run. After:
+
+| check | before | after |
+|---|---|---|
+| SMB, DOWN press | 2/200 frames, "frame counter never advanced" | every sample advances (frames 1..15, cycles climbing, PC moving) |
+| Zelda, SMB, Dragon Warrior, Metroid | all four "HALTS" | all four "no halt", 200/200 on every direction |
+| Zelda overworld walk | died after one burst | runs all 32 bursts |
+
+**Still true and worth keeping:** the reader, the input mapping, the frame limiter, the frame delay and
+cross-thread reads were all correctly ruled out along the way -- none of them was the cause. The lesson
+is that a stale object answers plausibly: it produced a coherent, wrong diagnosis (a "halted CPU") that
+three separate investigations confirmed, because every single measurement came from the same dead
+pointer.
 
 ⛔ **And the failure text is misleading.** `The NES core did not produce a frame within 5 seconds.`
 reads like a load or configuration failure and sent me looking at the wrong layer twice. When this is
