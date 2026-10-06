@@ -231,11 +231,27 @@ at file offset `0x1B124C`, vaddr `0x1B11D8`.
 
 ## 6. Open targets
 
-1. **Resolve the MSG-ID→text path** (MGB loader) to turn IDs into speakable labels.
+See **`dbzar-story-status.md`** for the one-page state of the Another Road work.
+
+1. ✅ **RESOLVED — the MSG-ID→text path.** `FUN_000da040` is the loader: `'#'`/`'!'` load flag,
+   `"MSG"` magic, COUNT at `+0x12`, and two RELATIVE pointer arrays — `+0x14` = NAMES, `+0x18` =
+   TEXT (UTF-16LE). 7,485 messages resolved (160 in the ELF, 7,425 in `data_sys_us.afs`).
+   ⛔ The text is UTF-16LE; a NUL scan truncates it to one character. Scripts:
+   `scripts/dbzar/msg_resolve_elf.py`, `msg_resolve_afs.py`.
 2. **Find the battle overlay's own globals** — not EBOOT's (the overlay-swap trap, §2).
 3. Live-poll the message queue at `[base+0xC139C+100]` and the screen vtable at `[base+0x34660]`
    across menu transitions (still unprobed).
-4. **Derive the load base per build** (§1 conflict) before trusting any address.
+4. ✅ **RESOLVED — load base `0x08804000`** (§1), derived 5 ways. Derive again per build; do not
+   inherit it.
+5. ⭐ **STORY: auto-track the current line.** Not solved. The reader
+   (`scripts/psp-ar-story-reader.mjs`) reports the active container and every line's full text,
+   but not "line 4 of 7". All RAM-scan approaches are negative (§`dbzar-story-status.md`).
+   ⛔ Do NOT hook `FUN_000d9bdc` (it is the FONT preload lookup) and do NOT chase `0x8AB7C10`.
+   Next instrument: a **READ data breakpoint on the container's text-pointer array**
+   (`container + 0x18`) — data breakpoints work, and fire on the fetch that matters — then the
+   `ev_*.spx` script VM.
+6. **Chapter Select has no list cursor** — it is a **map** (`FUN_00008590` draws 32 linked nodes of
+   10 bytes, positions in nibbles, camera at `DAT_001ac2a1`/`DAT_001ac2a2`). Not needed by a reader.
 
 ---
 
