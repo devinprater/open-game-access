@@ -73,6 +73,23 @@ jobs:
           PPSPP_SRC: ${{ runner.temp }}/src/ppsspp
         run: bash scripts/ppsspp-subset-test.sh
 
+      # ⛔ llvm-objcopy IS REQUIRED AND XCODE DOES NOT SHIP IT. The Mesen backend
+      # vendors 7-Zip, xBRZ and blip_buf -- the same libraries melonDS and PPSSPP
+      # carry -- and the link dies on the strong twins unless build-sim.sh
+      # localises Mesen's copies with llvm-objcopy. Xcode's toolchain has
+      # llvm-nm/llvm-objdump/llvm-size but no llvm-objcopy, so install it.
+      # Guarded: a runner image that already provides it skips the install.
+      - name: Install llvm-objcopy (not shipped with Xcode)
+        run: |
+          if command -v llvm-objcopy >/dev/null 2>&1; then
+            echo "llvm-objcopy already present: $(command -v llvm-objcopy)"
+          else
+            export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
+            brew install llvm
+          fi
+          ls -la /opt/homebrew/opt/llvm/bin/llvm-objcopy 2>/dev/null || true
+          /opt/homebrew/opt/llvm/bin/llvm-objcopy --version 2>&1 | head -2 || true
+
       - name: Build the core for the simulator platform
         env:
           MELONDS_SRC: ${{ runner.temp }}/src/melonds-lua
