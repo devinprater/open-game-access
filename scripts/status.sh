@@ -2,7 +2,7 @@
 # status.sh — report the true state of the iOS project + xtool stack.
 set -uo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
+export PATH=/usr/local/swift/bin:/usr/local/bin:$PATH
 unset POKECORE_LIB
 
 cd "$ROOT" || exit 1

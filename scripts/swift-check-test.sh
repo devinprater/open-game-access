@@ -5,7 +5,7 @@
 # gate because it looked like coverage. Any replacement must prove it can catch a real
 # break, or it repeats the same mistake.
 set -uo pipefail
-export PATH=/usr/local/swift/bin:/usr/local/bin:/usr/bin:/bin
+export PATH=/usr/local/swift/bin:/usr/local/bin:$PATH
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$ROOT" || exit 1
 TMP="$(mktemp -d)"
