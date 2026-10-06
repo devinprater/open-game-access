@@ -164,6 +164,7 @@ typedef struct OgaResolvedBackend {
     const char* id;              /* "nds", "gba", "psp" */
     bool gba_hint;               /* the file should reach the Game Boy backend */
     bool psp_hint;
+    bool nes_hint;               /* the file should reach the Mesen NES backend */
 } OgaResolvedBackend;
 
 /* Resolves a ROM path to a backend id, or NULL when unsupported.

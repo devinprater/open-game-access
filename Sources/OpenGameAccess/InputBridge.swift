@@ -109,6 +109,11 @@ enum ROMStore {
         if let gba = UTType(filenameExtension: "gba") { types.append(gba) }
         if let gbc = UTType(filenameExtension: "gbc") { types.append(gbc) }
         if let gb = UTType(filenameExtension: "gb") { types.append(gb) }
+        // NES-family ROMs run in the Mesen NES core (see Core/mesen_core.cpp).
+        // .fds (Famicom Disk System) and .unf (UNIF) are the same console's other formats.
+        for ext in ["nes", "fds", "unf"] {
+            if let t = UTType(filenameExtension: ext) { types.append(t) }
+        }
         // PSP images run in the PPSSPP core (see Core/psp_core.cpp).
         if let iso = UTType(filenameExtension: "iso") { types.append(iso) }
         if let cso = UTType(filenameExtension: "cso") { types.append(cso) }

@@ -1303,7 +1303,7 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
         /* ⛔ THE NES IS DISPATCHED BY ITS RESOLVED ID, so it cannot drift from the
          * registry the way an extension check would. A .nes that reached melonDS would
          * be the exact bug the resolver was written to end. */
-        if (strcmp(backend->id, "nes") == 0) return LoadNesRom(core, rom_path, save_path);
+        if (backend->nes_hint) return LoadNesRom(core, rom_path, save_path);
         if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
     }
 
