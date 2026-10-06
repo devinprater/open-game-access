@@ -72,7 +72,19 @@ let package = Package(
             name: "OpenGameAccess",
             dependencies: ["CPokeCore"],
             path: "Sources/OpenGameAccess",
-            resources: [.copy("Resources")]
+            // ⛔ NOT .copy("Resources"). That copies the directory verbatim, so the
+            // built bundle keeps a macOS-style `Resources/` subdirectory, and Xcode's
+            // codesign step then fails with "bundle format unrecognized, invalid, or
+            // unsuitable" -- an iOS bundle must be FLAT (payload at the root).
+            // .process on the two Lua files puts them at the root (Bundle.main, the
+            // first place ResourceLoader looks); .copy on the directories keeps their
+            // names, which the loader looks up by name. Measured on macOS 27 / Xcode 27.
+            resources: [
+                .process("Resources/main.lua"),
+                .process("Resources/bizhawk_compat.lua"),
+                .copy("Resources/gba-lua"),
+                .copy("Resources/ppsspp-assets"),
+            ]
         ),
     ]
 )

@@ -81,24 +81,46 @@ echo "SDKROOT = $SDKROOT"
 # SYMBOL -- never by keeping or dropping a whole copy -- and to compute the overlap from `nm`,
 # because a hand-written symbol list goes stale within one build.
 #
-# This must run AFTER the compile loop: a fresh compile rewrites those objects and undoes it.
-if [ -n "$LLVM_OBJCOPY" ]; then
-  _other="$OBJ"
-  _shared=$( { for o in "$_other"/ppsspext_ext_lzma-sdk_*.o; do
-                 [ -f "$o" ] || continue
-                 "$LLVM_NM" --defined-only --extern-only "$o" 2>/dev/null | awk '{print $3}'
+# ⛔ THIS IS A FUNCTION, NOT A TOP-LEVEL BLOCK, AND THAT IS THE BUG THAT WAS FIXED.
+# It used to sit right HERE -- before the compile loop -- while its own comment said
+# it must run AFTER: a fresh compile rewrites those objects and undoes it. So the
+# object cache was populated with UNLOCALISED Mesen 7-Zip objects and the LINK died
+# with "duplicate symbol: _LookInStream_Read". It is now CALLED from after the
+# compile loop (see the call site just before "== archiving").
+#
+# It also fails loudly now. `llvm-objcopy --localize-symbol` is a silent no-op for a
+# symbol it cannot find, so the old `|| true` could hide a whole unfixed overlap.
+localise_7z_symbols() {
+  [ -n "$LLVM_OBJCOPY" ] || { echo "!! no llvm-objcopy: the 7-Zip overlap cannot be resolved" >&2; return 1; }
+  local _shared _mine _o _s _left
+  _shared=$( { for _o in "$OBJ"/ppsspext_ext_lzma-sdk_*.o; do
+                 [ -f "$_o" ] || continue
+                 "$LLVM_NM" --defined-only --extern-only "$_o" 2>/dev/null | awk '{print $3}'
                done; } | sort -u )
-  for o in "$_other"/mesen7z_SevenZip_*.o; do
-    [ -f "$o" ] || continue
-    _mine=$("$LLVM_NM" --defined-only --extern-only "$o" 2>/dev/null | awk '{print $3}')
-    for s in $_mine; do
-      if echo "$_shared" | grep -qx "$s"; then
-        "$LLVM_OBJCOPY" --localize-symbol "$s" "$o" 2>/dev/null || true
+  for _o in "$OBJ"/mesen7z_SevenZip_*.o; do
+    [ -f "$_o" ] || continue
+    _mine=$("$LLVM_NM" --defined-only --extern-only "$_o" 2>/dev/null | awk '{print $3}')
+    for _s in $_mine; do
+      if echo "$_shared" | grep -qx "$_s"; then
+        "$LLVM_OBJCOPY" --localize-symbol "$_s" "$_o" 2>/dev/null || true
       fi
     done
   done
-  echo "== localised Mesen's shared 7-Zip symbols for the link =="
-fi
+  echo "== localised Mesen's shared 7-Zip symbols for the link"
+  # PROVE IT: no Mesen 7-Zip object may still export a PPSSPP 7-Zip global.
+  _left=0
+  for _o in "$OBJ"/mesen7z_SevenZip_*.o; do
+    [ -f "$_o" ] || continue
+    for _s in $("$LLVM_NM" --defined-only --extern-only "$_o" 2>/dev/null | awk '{print $3}'); do
+      if echo "$_shared" | grep -qx "$_s"; then
+        echo "!! still duplicated: $_s in $(basename "$_o")" >&2
+        _left=$((_left + 1))
+      fi
+    done
+  done
+  [ "$_left" -eq 0 ] || { echo "!! $_left 7-Zip symbol(s) still duplicated; the link would fail" >&2; return 1; }
+  return 0
+}
 
 echo "llvm-ar = $LLVM_AR"
 
@@ -316,6 +338,10 @@ if [ "$count" -lt 100 ]; then
   echo "!! only $count object files — the compile step did not really run" >&2
   exit 1
 fi
+
+# ⛔ AFTER the compile loop, BEFORE archiving. See localise_7z_symbols above for why
+# the position is load-bearing: a fresh compile rewrites these objects.
+localise_7z_symbols || exit 1
 
 echo "== archiving"
 # Merge the ffmpeg static slices into the core archive via $OBJ.
