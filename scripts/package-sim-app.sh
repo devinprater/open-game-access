@@ -167,17 +167,33 @@ case "$PLAT" in
   *)            echo "!! could not confirm the platform (detection tools:$(macho_platform_tools))" ;;
 esac
 
+# ⛔ BIN CAN LIVE INSIDE $APP. pick_sim_binary() falls back to the binary in
+# xtool-sim/OpenGameAccess.app or xtool/OpenGameAccess.app, and on macOS xtool
+# really does write that bundle -- so `rm -rf "$APP"` deleted the very file the
+# next line copies, and cp died with "cannot stat". Stash it first. (On Linux
+# xtool packages only the device bundle, which is why this never bit there.)
+if [ "$BIN" = "$APP/OpenGameAccess" ]; then
+  _stash="$(mktemp -d)/OpenGameAccess"
+  cp "$BIN" "$_stash" || { echo "!! could not stash $BIN" >&2; exit 1; }
+  BIN="$_stash"
+fi
 rm -rf "$APP"
 mkdir -p "$APP"
 cp "$BIN" "$APP/OpenGameAccess"
 
 # The SwiftPM resource bundle travels with the app: it holds the Lua script, so an
 # app assembled without it installs and then finds no script.
+# ⛔ SEARCH THE WHOLE .build TREE. On macOS Xcode writes the bundle to
+# .build/out/Products/Debug-iphonesimulator/, which is deeper than the two paths
+# this loop used to try -- so it reported "no resource bundle" with the bundle
+# present. Prefer a simulator slice, fall back to any.
 RES=""
 for cand in "$ROOT/.build/arm64-apple-ios-simulator/debug/OpenGameAccess_OpenGameAccess.bundle" \
-            "$ROOT/.build"/*/debug/OpenGameAccess_OpenGameAccess.bundle; do
+            "$ROOT/.build"/*/debug/OpenGameAccess_OpenGameAccess.bundle \
+            "$ROOT/.build/out/Products/Debug-iphonesimulator/OpenGameAccess_OpenGameAccess.bundle"; do
   [ -d "$cand" ] && { RES="$cand"; break; }
 done
+[ -n "$RES" ] || RES="$(find "$ROOT/.build" -type d -name 'OpenGameAccess_OpenGameAccess.bundle' 2>/dev/null | head -1)"
 if [ -n "$RES" ]; then
   cp -R "$RES" "$APP/"
   echo "== resources: $(find "$APP/OpenGameAccess_OpenGameAccess.bundle" -type f | wc -l) files"
