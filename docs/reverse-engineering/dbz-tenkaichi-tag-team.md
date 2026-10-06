@@ -33,8 +33,20 @@ pre-linked to absolute addresses and NO base offset applies**:
 RAM = ELF_vaddr          (this game)
 ```
 
-Compare: Steins;Gate needed `RAM = 0x08804000 + vaddr`; Another Road needed a derived base
-(`0x0898036A`). **Three games, three mappings — never carry one across.**
+Compare: Steins;Gate needed `RAM = 0x08804000 + vaddr`; Another Road also measures
+`0x08804000 + vaddr`.
+
+> ⛔ **CORRECTION (2026-10-06): this line previously read "Another Road needed a DERIVED
+> base (`0x0898036A`)". That was WRONG.** Re-derived live: five strings of known ELF vaddr
+> (`%05ddmg`, `%02dHIT`, `[SYS] AUTO SAVE`, `data_sys_us`, `[TITLE]`) all placed the base at
+> **`0x08804000`**. `0x0898036A` has no recorded derivation and is **not 4-byte aligned**
+> (`% 4 == 2`), so it cannot be a module load base at all.
+>
+> The general lesson stands in a sharper form: **the two games are NOT interchangeable.**
+> Tag Team's ELF is pre-linked (`vaddr=0x08804040` in the file; `RAM = vaddr`, no base added),
+> while Another Road's is not (`vaddr=0x00000000`; `RAM = 0x08804000 + vaddr`) — so the same
+> arithmetic must not be reused across them even though the numeric base coincides.
+> **Derive the mapping per build; never carry one across.**
 
 Consequence: an instruction literal in the 0x08800000–0x0A000000 range **is** a RAM address
 here, so globals are directly findable. (A quick scan for such literals in instruction
