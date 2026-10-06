@@ -129,6 +129,18 @@ public:
 
     bool SetInput(BaseControlDevice* device) override {
         if (!_core || !device) return false;
+
+        /* ⛔ CLAIM ONLY A REAL NES CONTROLLER. Mesen runs this provider for EVERY device, and among
+         * them is the SystemActionManager whose buttons are "RP" -- Reset at bit 0 and POWER CYCLE at
+         * bit 1. The NES pad's own order is "UDLRSsBA", i.e. Up 0 and Down 1, so writing pad bits to
+         * that device turned pressing UP into a console RESET and pressing DOWN into a POWER CYCLE,
+         * from inside Mesen. That was the "halt": the game never moved because every direction press
+         * restarted the machine. Return false for anything that is not a NES pad and let Mesen's own
+         * handling continue. */
+        ControllerType type = device->GetControllerType();
+        if (type != ControllerType::NesController && type != ControllerType::FamicomController)
+            return false;
+
         /* Same table the core uses everywhere else: our NES_BTN_* order -> the controller's bit
          * order. Kept in one place so a change cannot desync the two. */
         for (int i = 0; i < NES_BTN_COUNT; i++)

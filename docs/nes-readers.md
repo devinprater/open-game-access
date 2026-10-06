@@ -150,7 +150,7 @@ above and no manifest line. Both are the reader's own words.
 - The board is 11 wide: RIGHT/LEFT step `CharBoardIndex` by 1 (wrapping at $2B), DOWN/UP step it by
   $0B with a row wrap, and the reader's own tables map index 43 to the name field's `0x24` filler.
 
-## ✅ FIXED: the "halt" was a cached console pointer (ours)
+## ✅ FIXED: the "halt" was our own input provider pressing POWER
 
 Found while chasing the walk narration. **Fixed**; the section below is kept in full because the
 wrong hypotheses are the useful part.
@@ -214,7 +214,48 @@ not slow frame plumbing and not a paused one. Read through public Mesen APIs: `N
 - **Not cross-thread reads.** An arm taking no reads while frames advance still halts. It also halts
   with the reader disabled, so `lua_resume` and the speech-file poll are not required.
 
-**RESOLVED: the console was never halted -- our cached pointer went stale.**
+**RESOLVED — and the cause was worse and simpler than the stale-pointer theory.**
+
+Mesen's control manager runs the input-provider chain for EVERY device, not only controllers
+(`BaseControlManager::UpdateInputState` loops `_controlDevices`). One of those devices is the
+`SystemActionManager`, and its buttons are:
+
+    GetKeyNames() == "RP"      ResetButton = 0,  PowerButton = 1
+
+My provider wrote the NES pad bits to whatever device it was handed. The pad's own order is
+`"UDLRSsBA"` — Up 0, Down 1, Left 2, Right 3 — so against the system device:
+
+| press | bit | what it actually did |
+|---|---|---|
+| **UP** | 0 | **RESET** the console |
+| **DOWN** | 1 | **POWER CYCLE** the console |
+
+My own harness was ordering a console reset from inside Mesen on every direction press. That single
+bug explains the whole investigation, including the symptoms I had already "explained" another way:
+
+- the console being replaced — which I chased as a stale-pointer bug — was a REAL power cycle my DOWN
+  press had ordered;
+- the game never moved, because each direction press restarted the machine;
+- it reproduced on every game, because every game has the same system device;
+- it reproduced with the reader disabled, because the reader was never involved;
+- the CPU genuinely did stop executing, because a reset tears the console down and rebuilds it;
+- and **DOWN specifically was the most reliable trigger because DOWN IS THE POWER BUTTON.**
+
+**Fix:** claim only a real NES controller (`ControllerType::NesController` or `FamicomController`) and
+return false for anything else, so Mesen's own handling continues. Evidence, holding UP with the reader
+loaded — CPU cycles, frames and RAM all advance together:
+
+    idle        CPUcycles=50395734  frames=1693  ram=329B2641
+    holding UP  CPUcycles=50687276  frames=1703  ram=3A915B66
+    holding UP  CPUcycles=50988921  frames=1713  ram=713B96C3
+    holding UP  CPUcycles=51283470  frames=1723  ram=05710336
+
+Before the fix the same samples read `CPUcycles=4901 frames=1` — a freshly power-cycled console.
+
+**Two earlier "fixes" were built on the wrong diagnosis and are still correct to keep**, because each
+was a real defect found while looking for this one: never caching the console (Mesen does replace it,
+and a cached pointer does go stale), and resolving the memory domain per call. They are not the cause
+of the halt, and the record above this line should be read with that in mind.
 
 `Emulator::_console` is a `safe_ptr` (a weak_ptr) and `GetConsole()` is `_console.lock()`. This core
 captured that `shared_ptr` ONCE at ROM load and held it. Mesen replaces the console object
@@ -232,28 +273,7 @@ The decisive measurement, printing both counters after each press:
 "did not produce a frame" timeout (waiting on a dead counter), reads answering from a dead console,
 `IsPaused()` false, fps/speed normal, a healthy gdb stack, and the halt reproducing on every game.
 
-**Two more pieces were needed, and one was a trap of my own making:**
-
-1. A replacement RESETS the counter (measured 663 -> 301 -> 1), so waiting for the old value stalls.
-   A different object or a backwards count is the frame boundary; re-baseline.
-2. A swap has a window with NO console at all (`lock()` yields null between destroy and install), and
-   the replacement happens *DURING* the wait -- so re-checking the console only before the loop misses
-   the case that actually occurs. The wait now re-checks inside the loop. That was the final bug:
-   measuring `replaced` before the wait meant one false return, which stopped every caller's
-   `while (nes_frame(c))` and read as a permanent halt.
-3. ⛔ My own guard `&& c->framesSeenOnConsole > 0` silently defeated the fix once it was written: a
-   detected replacement fell through to the 5-second wait whenever the baseline had been zeroed by an
-   earlier swap. Instrumenting `nes_frame` to report WHY it failed (`nes_frame_result`) is what exposed
-   it -- guessing at the return path had already failed twice.
-
-**Proof.** Before: the first movement press stopped the run. After:
-
-| check | before | after |
-|---|---|---|
-| SMB, DOWN press | 2/200 frames, "frame counter never advanced" | every sample advances (frames 1..15, cycles climbing, PC moving) |
-| Zelda, SMB, Dragon Warrior, Metroid | all four "HALTS" | all four "no halt", 200/200 on every direction |
-| Zelda overworld walk | died after one burst | runs all 32 bursts |
-
+**Open follow-up:** with the console stable, Link still does not move from the opening screen (position, mode 0x05 and room 0x77 all steady, reader healthy). Next step is to confirm the position addresses against the disassembly's object tables.
 **Still true and worth keeping:** the reader, the input mapping, the frame limiter, the frame delay and
 cross-thread reads were all correctly ruled out along the way -- none of them was the cause. The lesson
 is that a stale object answers plausibly: it produced a coherent, wrong diagnosis (a "halted CPU") that
