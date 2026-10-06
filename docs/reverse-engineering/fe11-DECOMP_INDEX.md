@@ -75,11 +75,24 @@ cannot hold them. Each is imported as **its own program** at its own base, from
 | `ov004`/`ov005`/`ov008`/`ov009`/`ov010`/`ov011` | `0x02204C20` | 81,312 / 76,096 / 16,416 / 13,824 / 22,176 / 186,016 | | |
 | `ov006` / `ov007` | `0x022176E0` | 74,304 / 22,272 | | |
 
-Import with `run-import-ov000.bat` (ov000) and `run-import-overlays.bat` (ov001–ov011);
-index with `run-index-ov000.bat` → `function-index-ov000.txt` (**564 functions** in ov000).
+Import with `run-import-ov000.bat` (ov000) and `run-import-overlays.bat` (ov001–ov011).
+All twelve are imported (project programs `arm9.bin` + `ov000.bin`…`ov011.bin`).
+
+**Function counts, measured** (`run-index-overlays.bat` → `function-index-ovNNN.txt`):
+
+| overlay | fns | overlay | fns | overlay | fns |
+|---|---|---|---|---|---|
+| `ov000` | **564** | `ov004` | 181 | `ov008` | 42 |
+| `ov001` | 972 | `ov005` | 150 | `ov009` | 22 |
+| `ov002` | 354 | `ov006` | 185 | `ov010` | 108 |
+| `ov003` | 245 | `ov007` | 53 | `ov011` | 697 |
+
+Overlay total **3,573** functions, on top of `arm9.bin`'s **4,056** — so a query that only ever
+looked at `arm9.bin` sees less than half the code.
 
 ⛔ **Querying `arm9.bin` for an overlay-resident global answers nothing** — which is why
-`gMapStateManager` reads `0` outside a map. Query the **overlay program**, not `arm9.bin`.
+`gMapStateManager` reads `0` outside a map. Query the **overlay program** (`-process ov000.bin`),
+not `arm9.bin`.
 
 ⛔ **Arguments for these wrappers MUST live inside the `.bat`.** The project path contains a
 space (`Devin Prater`); passing it through `bash -> cmd.exe` splits at the space and Ghidra
