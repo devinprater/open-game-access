@@ -37,8 +37,8 @@ import process from "node:process";
 const URL = process.env.PSP_DEBUGGER || "ws://127.0.0.1:12345/debugger";
 
 // ---- the addresses, re-derived live (2026-10-06) -----------------------------
-const G_LIST_LEN = 0x08BA1D14;
-const G_CURSOR = 0x08BA1D18;
+const G_LIST_LEN = 0x08BFCF54;
+const G_CURSOR = 0x08BFCF58;
 const POLL_MS = 120;
 
 // ---- item tables (verified against the game's own display) -------------------
