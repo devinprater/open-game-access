@@ -112,6 +112,17 @@ int nes_ppu_scanline(NesCore *core);
  * jumps by seconds explains a console that stops executing while nothing reports as paused. */
 double nes_fps(NesCore *core);
 int nes_emulation_speed(NesCore *core);
+/* The Mesen Emulator instance, so a debugger can inspect the frame-loop fields that are private:
+ * _stopFlag, _paused, _pauseOnNextFrame, _lockCounter, _frameDelay, _frameRunning. */
+void *nes_emulator_ptr(NesCore *core);
+/* Emulator::GetFrameCount() -- the frame count of the console the EMULATOR currently holds, as
+ * opposed to the one this core cached. Comparing the two detects a stale cached console. */
+unsigned nes_emu_frame_count(NesCore *core);
+/* Why the last nes_frame call returned what it did. 0 = succeeded; see mesen_core.cpp for the codes.
+ * Added because "it returned false" was not enough to find the path responsible. */
+const char *nes_frame_result(NesCore *core);
+/* Does the cached console still belong to the emulator? 1 = yes, 0 = no, -1 = unknown. */
+int nes_console_is_current(NesCore *core);
 const char *nes_last_error(NesCore *core);
 
 /* Raw NES memory read through the CONSOLE, so mapper banking and the RAM mirrors behave as the
