@@ -39,9 +39,24 @@ const TABLE = 0x089EBBA0, STRIDE = 0x14, ROWS = 24;
 const POLL_MS = 150;
 
 // Menu ids seen so far, with the items the earlier session verified against the display.
+// `desc` is the game's OWN on-screen description for each item, read from the decoded
+// UTF-16LE pool the engine builds in the page below the menu struct (0x08BF0000). The order
+// matches the item order, so item 0's description is desc[0].
 // Entries are additive: an unknown id reports honestly rather than guessing.
 const MENUS = {
-  1: { name: "Main menu", items: ["Another Road", "Arcade", "Z Trial", "Network Battle", "Training", "Profile Card", "Options"] },
+  1: {
+    name: "Main menu",
+    items: ["Another Road", "Arcade", "Z Trial", "Network Battle", "Training", "Profile Card", "Options"],
+    desc: [
+      "An original story that takes place after \"Trunks Another Story.\"",
+      "In this mode, you fight CPU opponents one after the other at the World Tournament.",
+      "Participate in battles with various conditions and test your limits.",
+      "Battle other players in ad hoc mode. (Maximum 2 players).",
+      "Select an opponent and practice.",
+      "Manage profile cards or view battle data.",
+      "Edit various settings and Save/Load.",
+    ],
+  },
 };
 
 class Debugger {
@@ -109,7 +124,8 @@ function describe(menuId, sel) {
   if (!m) return { screen: `menu ${menuId}`, item: sel < 0 ? "(nothing selected)" : `item ${sel}`, known: false };
   if (sel < 0) return { screen: m.name, item: "(nothing selected)", known: true };
   const it = m.items[sel];
-  return { screen: m.name, item: it ?? `item ${sel} (unmapped)`, known: it != null };
+  const d = m.desc ? m.desc[sel] : undefined;
+  return { screen: m.name, item: it ?? `item ${sel} (unmapped)`, known: it != null, desc: d };
 }
 
 if (process.argv.includes("--probe")) {

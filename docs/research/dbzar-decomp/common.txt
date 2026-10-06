@@ -1,0 +1,230 @@
+################################################################
+### FUN_000e1d70 @ 000e1d70  size=116  callers=27
+### callers: [FUN_000eac1c, FUN_000dff18, FUN_000eba30, FUN_000eb5e4, FUN_000e61d0, FUN_000ece64, FUN_000ed0b4, FUN_000eb054, FUN_000da7b8, FUN_000de77c, FUN_000ed368, FUN_000de9b0, FUN_000dd5c0, FUN_000da298, FUN_000de5e0, FUN_000dd76c, FUN_000ea4e4, FUN_000ed2e4, FUN_000e14cc, FUN_000dcfdc, FUN_000ed6fc, FUN_000dc27c, FUN_000e6440, FUN_000eb68c, FUN_000e76d4, FUN_000eb778, FUN_000eb2fc]
+################################################################
+
+void FUN_000e1d70(undefined4 param_1,undefined4 param_2)
+
+{
+  undefined4 *puVar1;
+  
+  puVar1 = (undefined4 *)FUN_000e22d4();
+  *puVar1 = 0;
+  if (*(int *)(iRam000c139c + 0x68) == 0) {
+    puVar1[1] = 0;
+    *(undefined4 **)(iRam000c139c + 100) = puVar1;
+  }
+  else {
+    puVar1[1] = *(int *)(iRam000c139c + 0x68);
+    **(undefined4 **)(iRam000c139c + 0x68) = puVar1;
+  }
+  *(undefined4 **)(iRam000c139c + 0x68) = puVar1;
+  puVar1[2] = param_1;
+  puVar1[3] = param_2;
+  return;
+}
+
+
+
+################################################################
+### FUN_000e1de4 @ 000e1de4  size=16  callers=124
+### callers: [FUN_000e012c, FUN_000e70b0, FUN_000dd894, FUN_000ed2c0, FUN_000e98dc, FUN_000eabd0, FUN_000ed6b0, FUN_000dff18, FUN_000e61d0, FUN_000eb2b0, FUN_000e62a8, FUN_000dcf4c, FUN_000dd3dc, FUN_000e72a0, FUN_000eb210, FUN_000eadb0, FUN_000dc760, FUN_000da734, FUN_000ec798, FUN_000dd5c0, FUN_000ed20c, FUN_000e6ae4, FUN_000eb480, FUN_000dc450, FUN_000dd4ec, FUN_000dfe7c, FUN_000dea98, FUN_000ecc6c, FUN_000eb5e4, FUN_000e6b60, FUN_000e6a94, FUN_000ebb34, FUN_000eb5c0, FUN_000e6ce4, FUN_000da3b8, FUN_000ed6d0, FUN_000e6df4, FUN_000dd61c, FUN_000dd0a4, FUN_000ea320, FUN_000de35c, FUN_000ed6fc, FUN_000dd76c, FUN_000e0a98, FUN_000ea1d4, FUN_000de864, FUN_000ed0b4, FUN_000eafa0, FUN_000dcfdc, FUN_000eb054, FUN_000dc888, FUN_000de890, FUN_000ed1d8, FUN_000e76d4, FUN_000dc370, FUN_000ea4e4, FUN_000dd550, FUN_000e84ec, FUN_000e75b8, FUN_000dd0c4, FUN_000eba30, FUN_000e65b0, FUN_000dc850, FUN_000da850, FUN_000ed2a0, FUN_000e699c, FUN_000da3d8, FUN_000e01ec, FUN_000e7868, FUN_000eabf0, FUN_000dd8b4, FUN_000eb968, FUN_000de400, FUN_000ecd98, FUN_000da298, FUN_000e6824, FUN_000e0a4c, FUN_000e0010, FUN_000de33c, FUN_000e748c, FUN_000e099c, FUN_000ed368, FUN_000dc27c, FUN_000e62c8, FUN_000de718, FUN_000eb2d0, FUN_000ecfb8, FUN_000e76a8, FUN_000deac4, FUN_000eb5a0, FUN_000ea300, FUN_000ebb6c, FUN_000ed2e4, FUN_000e05d8, FUN_000eb68c, FUN_000dd580, FUN_000eb2fc, FUN_000ed590, FUN_000e6548, FUN_000eac1c, FUN_000eafc0, FUN_000da7b8, FUN_000de93c, FUN_000de77c, FUN_000e0a6c, FUN_000de9b0, FUN_000e6a24, FUN_000de5e0, FUN_000e6568, FUN_000eb778, FUN_000dc1e0, FUN_000e62fc, FUN_000e92e8, FUN_000ece64, FUN_000e14cc, FUN_000eaa98, FUN_000da4d4, FUN_000e6440, FUN_000ec098, FUN_000ed1b8, FUN_000da8a8, FUN_000e0224, FUN_000e6150, FUN_000ecd78]
+################################################################
+
+void FUN_000e1de4(undefined4 param_1)
+
+{
+  *(undefined4 *)(iRam00034660 + 0x10) = param_1;
+  return;
+}
+
+
+
+################################################################
+### FUN_000e1df4 @ 000e1df4  size=16  callers=30
+### callers: [FUN_000ebb6c, FUN_000e65b0, FUN_000dcf4c, FUN_000da850, FUN_000dd3dc, FUN_000dd61c, FUN_000eb210, FUN_000eadb0, FUN_000ed590, FUN_000da734, FUN_000de93c, FUN_000eb968, FUN_000de400, FUN_000e0a6c, FUN_000ed20c, FUN_000dc1e0, FUN_000ea1d4, FUN_000eb480, FUN_000de864, FUN_000e62fc, FUN_000dfe7c, FUN_000dea98, FUN_000eaa98, FUN_000ecc6c, FUN_000e099c, FUN_000da4d4, FUN_000de718, FUN_000ecfb8, FUN_000da8a8, FUN_000e6150]
+################################################################
+
+void FUN_000e1df4(undefined4 param_1)
+
+{
+  *(undefined4 *)(iRam00034660 + 0x14) = param_1;
+  return;
+}
+
+
+
+################################################################
+### FUN_000e316c @ 000e316c  size=116  callers=23
+### callers: [FUN_000ed20c, FUN_000dc1e0, FUN_000ea1d4, FUN_000eb480, FUN_000e62fc, FUN_000dfe7c, FUN_000eaa98, FUN_000ecc6c, FUN_000e099c, FUN_000dcf4c, FUN_000dd3dc, FUN_000da4d4, FUN_000dd61c, FUN_000de718, FUN_000eb210, FUN_000eadb0, FUN_000ecfb8, FUN_000ed590, FUN_000da734, FUN_000de93c, FUN_000eb968, FUN_000de400, FUN_000e6150]
+################################################################
+
+void FUN_000e316c(undefined4 param_1,undefined4 param_2,undefined4 param_3)
+
+{
+  int iVar1;
+  int iVar2;
+  int iVar3;
+  int iVar4;
+  
+  *(undefined4 *)(iRam000c139c + 0x99c) = 0;
+  *(undefined4 *)(iRam000c139c + 0x994) = param_2;
+  iVar1 = 0;
+  *(undefined4 *)(iRam000c139c + 0x998) = param_3;
+  iVar2 = iRam000c139c + 0x214;
+  do {
+    *(undefined4 *)(iVar2 + 0x24) = 0;
+    *(undefined2 *)(iVar2 + 0x2e) = 0xffff;
+    *(undefined4 *)(iVar2 + 0x38) = 0;
+    *(undefined4 *)(iVar2 + 0x3c) = 0;
+    *(undefined2 *)(iVar2 + 0x72) = 0;
+    iVar4 = 0;
+    iVar3 = iVar2;
+    do {
+      *(undefined4 *)(iVar3 + 0x40) = 0xffffffff;
+      iVar4 = iVar4 + 1;
+      iVar3 = iVar3 + 4;
+    } while (iVar4 < 8);
+    iVar1 = iVar1 + 1;
+    iVar2 = iVar2 + 0x78;
+  } while (iVar1 < 0x10);
+  return;
+}
+
+
+
+################################################################
+### FUN_000e314c @ 000e314c  size=32  callers=28
+### callers: [FUN_000dd368, FUN_000da404, FUN_000ea33c, FUN_000ea470, FUN_000e2ea8, FUN_000eafec, FUN_000dcf4c, FUN_000ea660, FUN_000eb210, FUN_000eadb0, FUN_000ed590, FUN_000de400, FUN_000e1230, FUN_000ed20c, FUN_000e343c, FUN_000ea1d4, FUN_000eb480, FUN_000dd0e8, FUN_000eb70c, FUN_000eaa98, FUN_000ecc6c, FUN_000e099c, FUN_000da4d4, FUN_000de380, FUN_000ecfb8, FUN_000e5280, FUN_000ecdc4, FUN_000e6150]
+################################################################
+
+int FUN_000e314c(int param_1)
+
+{
+  return iRam000c139c + param_1 * 0x78 + 0x214;
+}
+
+
+
+################################################################
+### FUN_000e312c @ 000e312c  size=16  callers=14
+### callers: [FUN_000de5e0, FUN_000ed6fc, FUN_000eb778, FUN_000dd0e8, FUN_000ed0b4, FUN_000ece64, FUN_000e14cc, FUN_000e12bc, FUN_000e2ea8, FUN_000eb054, FUN_000eb5e4, FUN_000ed368, FUN_000eb2fc, FUN_000eac1c]
+################################################################
+
+undefined4 FUN_000e312c(void)
+
+{
+  return *(undefined4 *)(iRam000c139c + 0x998);
+}
+
+
+
+################################################################
+### FUN_000da4d4 @ 000da4d4  size=596  callers=0
+### callers: []
+################################################################
+
+void FUN_000da4d4(int param_1)
+
+{
+  int iVar1;
+  int iVar2;
+  int iVar3;
+  int iVar4;
+  
+  *(undefined4 *)(param_1 + 0x18) = DAT_001cd270;
+  *(undefined4 *)(param_1 + 0x1c) = DAT_001cd274;
+  *(undefined4 *)(param_1 + 0x20) = DAT_001cd278;
+  *(undefined4 *)(param_1 + 0x24) = DAT_001cd27c;
+  *(undefined4 *)(param_1 + 0x34) = DAT_001cd26c;
+  FUN_000e1de4(0);
+  FUN_000e1df4(&LAB_000da3fc);
+  FUN_000e316c(param_1,3,0);
+  iVar4 = 0;
+  do {
+    iVar1 = FUN_000e314c(iVar4);
+    *(undefined4 *)(iVar1 + 0x24) = 1;
+    *(undefined2 *)(iVar1 + 0x72) = 1;
+    *(short *)(iVar1 + 0x2e) = (short)iVar4 + 10;
+    if (iVar4 < 1) {
+      if (-1 < iVar4) {
+        *(undefined2 *)(iVar1 + 0x2a) = 0;
+        *(undefined2 *)(iVar1 + 0x2c) = 1;
+        *(undefined4 *)(iVar1 + 0x3c) = 6;
+        iVar2 = 0;
+        iVar3 = iVar1;
+        do {
+          *(int *)(iVar3 + 0x40) = *(short *)(iVar1 + 0x2a) + iVar2;
+          iVar2 = iVar2 + 1;
+          iVar3 = iVar3 + 4;
+        } while (iVar2 < *(int *)(iVar1 + 0x3c));
+        *(undefined4 *)(iVar1 + 8) = 0x439c0000;
+        *(undefined4 *)(iVar1 + 0x74) = 0x43c40000;
+        *(undefined4 *)(iVar1 + 0xc) = 0x424c0000;
+      }
+    }
+    else if (iVar4 < 2) {
+      *(undefined2 *)(iVar1 + 0x2a) = 0;
+      *(undefined2 *)(iVar1 + 0x2c) = 2;
+      *(undefined4 *)(iVar1 + 0x3c) = 5;
+      iVar2 = 0;
+      iVar3 = iVar1;
+      do {
+        *(int *)(iVar3 + 0x40) = *(short *)(iVar1 + 0x2a) + iVar2;
+        iVar2 = iVar2 + 1;
+        iVar3 = iVar3 + 4;
+      } while (iVar2 < *(int *)(iVar1 + 0x3c));
+      *(undefined4 *)(iVar1 + 8) = 0x43910000;
+      *(undefined4 *)(iVar1 + 0xc) = 0x429a0000;
+      *(undefined4 *)(iVar1 + 0x74) = 0x43b30000;
+    }
+    else if (iVar4 < 3) {
+      *(undefined2 *)(iVar1 + 0x2a) = 0;
+      *(undefined2 *)(iVar1 + 0x2c) = 3;
+      *(undefined4 *)(iVar1 + 0x3c) = 5;
+      iVar2 = 0;
+      iVar3 = iVar1;
+      do {
+        *(int *)(iVar3 + 0x40) = *(short *)(iVar1 + 0x2a) + iVar2;
+        iVar2 = iVar2 + 1;
+        iVar3 = iVar3 + 4;
+      } while (iVar2 < *(int *)(iVar1 + 0x3c));
+      *(undefined4 *)(iVar1 + 8) = 0x437b0000;
+      *(undefined4 *)(iVar1 + 0xc) = 0x42ce0000;
+      *(undefined4 *)(iVar1 + 0x74) = 0x439f0000;
+    }
+    iVar4 = iVar4 + 1;
+  } while (iVar4 < 3);
+  FUN_000da404(1);
+  return;
+}
+
+
+
+################################################################
+### FUN_000e62fc @ 000e62fc  size=208  callers=0
+### callers: []
+################################################################
+
+void FUN_000e62fc(int param_1)
+
+{
+  *(undefined4 *)(param_1 + 0x18) = DAT_001e7e88;
+  *(undefined4 *)(param_1 + 0x1c) = DAT_001e7e8c;
+  *(undefined4 *)(param_1 + 0x20) = DAT_001e7e90;
+  *(undefined4 *)(param_1 + 0x24) = DAT_001e7e94;
+  *(undefined4 *)(param_1 + 0x34) = DAT_001e7e84;
+  FUN_000e316c(param_1,0,0);
+  FUN_000e1de4(0);
+  FUN_000e1df4(0);
+  FUN_0010c2b8();
+  uRam0009f46c = 0;
+  DAT_001e84b4 = FUN_0013a468(4000,0);
+  FUN_00191b04(DAT_001e84b4,0,4000);
+  FUN_000f67c0(DAT_001e84b4 + 0xf88,0,0,*(undefined4 *)(*(int *)(iRam0009f52c + 0x18) + 0x30));
+  FUN_000e6608(1);
+  return;
+}
+
+
+

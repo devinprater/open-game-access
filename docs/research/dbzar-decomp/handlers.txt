@@ -1,0 +1,295 @@
+handlers found: 79
+
+=== callees across all screen handlers (count desc) ===
+  FUN_000e1d70             called by 97 handlers
+  FUN_000e1de4             called by 68 handlers
+  FUN_000e1df4             called by 22 handlers
+  FUN_000e316c             called by 22 handlers
+  FUN_000e314c             called by 15 handlers
+  FUN_000e312c             called by 12 handlers
+  FUN_00123868             called by 5 handlers
+  FUN_000cda94             called by 4 handlers
+  FUN_000eb70c             called by 4 handlers
+  FUN_0011fd84             called by 4 handlers
+  FUN_00191b04             called by 4 handlers
+  FUN_000e1230             called by 3 handlers
+  FUN_000ea470             called by 3 handlers
+  FUN_000eafec             called by 3 handlers
+  FUN_000ecdc4             called by 3 handlers
+  FUN_0011db74             called by 3 handlers
+  FUN_00120010             called by 3 handlers
+  FUN_00120254             called by 3 handlers
+
+=== per handler: immediates in 0x1000-0x20000 (plausible message ids) ===
+  handler 000ED20C : (none)
+  handler 000ED368 : [16736, 15658, 43691, 5004]
+  handler 000DA4D4 : [17297, 17050, 17331, 17275, 17102, 17311, 17308, 17348, 16972]
+  handler 000DA298 : (none)
+  handler 000ED590 : (none)
+  handler 000ED6FC : (none)
+  handler 000E62FC : [32256]
+  handler 000E63CC : (none)
+  handler 000E6440 : [25928, 5004, 25960, 5004]
+  handler 000EB210 : (none)
+  handler 000EB2FC : (none)
+  handler 000EADB0 : [17228, 17307, 17184]
+  handler 000EB054 : [16648]
+  handler 000ECFB8 : (none)
+  handler 000ED0B4 : (none)
+  handler 000EB968 : (none)
+  handler 000EBA04 : (none)
+  handler 000EBA30 : [5004, 5004]
+  handler 000DD3DC : (none)
+  handler 000DD438 : [15658, 43691, 15658, 43691, 5004]
+  handler 000DA734 : [16792, 16796]
+  handler 000DA7B8 : (none)
+  handler 000DC1E0 : (none)
+  handler 000DC260 : (none)
+  handler 000DC27C : (none)
+  handler 000DFE7C : (none)
+  handler 000DFEFC : (none)
+  handler 000DFF18 : (none)
+  handler 000E099C : [17624, 17688]
+  handler 000E14CC : [15840, 17688, 17688]
+  handler 000ECC6C : [16968]
+  handler 000ECE64 : (none)
+  handler 000EB480 : [17296, 17104, 17336]
+  handler 000EB778 : [22240, 22240, 22240, 22240]
+  handler 000DD61C : [16896, 22216, 16896]
+  handler 000DD750 : (none)
+  handler 000DD76C : [16896]
+  handler 000DE400 : [17312, 17358, 17052, 17294, 17339, 17106]
+  handler 000DE5E0 : (none)
+  handler 000DCF4C : (none)
+  handler 000DCFDC : (none)
+  handler 000EA1D4 : [18062, 18063]
+  handler 000EA4E4 : [18063, 18061, 18062, 18062]
+  handler 000EAA98 : (none)
+  handler 000EAC1C : (none)
+  handler 000DE718 : (none)
+  handler 000DE77C : (none)
+  handler 000DE93C : (none)
+  handler 000DE9B0 : (none)
+
+=== full decompile: the first 6 handlers ===
+---------------------------------------------------------------
+### FUN_000ed20c @ 000ed20c  size=148
+
+void FUN_000ed20c(int param_1)
+
+{
+  int iVar1;
+  int iVar2;
+  
+  *(undefined4 *)(param_1 + 0x18) = DAT_001e9fa4;
+  *(undefined4 *)(param_1 + 0x1c) = DAT_001e9fa8;
+  *(undefined4 *)(param_1 + 0x20) = DAT_001e9fac;
+  *(undefined4 *)(param_1 + 0x34) = DAT_001e9fa0;
+  FUN_000e1de4(0);
+  FUN_000e1df4(&LAB_000ed360);
+  FUN_000e316c(param_1,7,*(undefined4 *)(param_1 + 0xc));
+  iVar2 = 0;
+  do {
+    iVar1 = FUN_000e314c(iVar2);
+    *(short *)(iVar1 + 0x2e) = (short)iVar2;
+    *(short *)(iVar1 + 0x2a) = (short)iVar2;
+    iVar2 = iVar2 + 1;
+    *(undefined2 *)(iVar1 + 0x2c) = 0;
+  } while (iVar2 < 7);
+  return;
+}
+
+
+---------------------------------------------------------------
+### FUN_000ed368 @ 000ed368  size=544
+
+undefined4 FUN_000ed368(int param_1,int param_2,int param_3)
+
+{
+  undefined4 uVar1;
+  undefined4 local_20;
+  undefined4 local_1c;
+  undefined4 local_18;
+  undefined4 local_14;
+  
+  if (param_2 < 1) {
+    if (-1 < param_2) {
+      uVar1 = FUN_000e312c();
+      switch(uVar1) {
+      case 0:
+        FUN_0011db74(0x3d2aaaab);
+        FUN_0011d9ec(1,0);
+        FUN_000e1d70(0xe,0xffffffff);
+        FUN_000e1d70(0xf,0x16);
+        FUN_000e1d70(0xc,0);
+        break;
+      case 1:
+        FUN_000e1d70(0xe,2);
+        break;
+      case 2:
+        FUN_000e1d70(0xe,3);
+        break;
+      case 3:
+        FUN_000e1d70(0xe,4);
+        break;
+      case 4:
+        FUN_000e1d70(0xe,0xffffffff);
+        FUN_000e1d70(0xf,8);
+        FUN_000e1d70(0xc,0);
+        uRam0009f468 = 3;
+        break;
+      case 5:
+        FUN_000e1d70(0xe,5);
+        break;
+      case 6:
+        FUN_000e1d70(0xe,6);
+      }
+      FUN_000e1d70(0xc,0);
+      *(undefined4 *)(param_1 + 0xc) = 0;
+      return 1;
+    }
+  }
+  else {
+    if (param_2 < 2) {
+      local_20 = 0;
+      local_1c = 1;
+      local_18 = 0;
+      local_14 = **(undefined4 **)(*(int *)(iRam000c138c + 0x98) + 0x18);
+      FUN_001242b8(&local_20,0);
+      FUN_000e1de4(FUN_000ed2e4);
+      return 2;
+    }
+    if (param_2 < 3) {
+      if (param_3 < 1) {
+        if (-1 < param_3) {
+          FUN_000e2b4c();
+          FUN_000e1de4(FUN_000ed2a0);
+        }
+      }
+      else if (param_3 < 2) {
+        FUN_000e2b6c();
+        FUN_000e1de4(FUN_000ed2c0);
+      }
+    }
+  }
+  return 0;
+}
+
+
+---------------------------------------------------------------
+### FUN_000da4d4 @ 000da4d4  size=596
+
+void FUN_000da4d4(int param_1)
+
+{
+  int iVar1;
+  int iVar2;
+  int iVar3;
+  int iVar4;
+  
+  *(undefined4 *)(param_1 + 0x18) = DAT_001cd270;
+  *(undefined4 *)(param_1 + 0x1c) = DAT_001cd274;
+  *(undefined4 *)(param_1 + 0x20) = DAT_001cd278;
+  *(undefined4 *)(param_1 + 0x24) = DAT_001cd27c;
+  *(undefined4 *)(param_1 + 0x34) = DAT_001cd26c;
+  FUN_000e1de4(0);
+  FUN_000e1df4(&LAB_000da3fc);
+  FUN_000e316c(param_1,3,0);
+  iVar4 = 0;
+  do {
+    iVar1 = FUN_000e314c(iVar4);
+    *(undefined4 *)(iVar1 + 0x24) = 1;
+    *(undefined2 *)(iVar1 + 0x72) = 1;
+    *(short *)(iVar1 + 0x2e) = (short)iVar4 + 10;
+    if (iVar4 < 1) {
+      if (-1 < iVar4) {
+        *(undefined2 *)(iVar1 + 0x2a) = 0;
+        *(undefined2 *)(iVar1 + 0x2c) = 1;
+        *(undefined4 *)(iVar1 + 0x3c) = 6;
+        iVar2 = 0;
+        iVar3 = iVar1;
+        do {
+          *(int *)(iVar3 + 0x40) = *(short *)(iVar1 + 0x2a) + iVar2;
+          iVar2 = iVar2 + 1;
+          iVar3 = iVar3 + 4;
+        } while (iVar2 < *(int *)(iVar1 + 0x3c));
+        *(undefined4 *)(iVar1 + 8) = 0x439c0000;
+        *(undefined4 *)(iVar1 + 0x74) = 0x43c40000;
+        *(undefined4 *)(iVar1 + 0xc) = 0x424c0000;
+      }
+    }
+    else if (iVar4 < 2) {
+      *(undefined2 *)(iVar1 + 0x2a) = 0;
+      *(undefined2 *)(iVar1 + 0x2c) = 2;
+      *(undefined4 *)(iVar1 + 0x3c) = 5;
+      iVar2 = 0;
+      iVar3 = iVar1;
+      do {
+        *(int *)(iVar3 + 0x40) = *(short *)(iVar1 + 0x2a) + iVar2;
+        iVar2 = iVar2 + 1;
+        iVar3 = iVar3 + 4;
+      } while (iVar2 < *(int *)(iVar1 + 0x3c));
+      *(undefined4 *)(iVar1 + 8) = 0x43910000;
+      *(undefined4 *)(iVar1 + 0xc) = 0x429a0000;
+      *(undefined4 *)(iVar1 + 0x74) = 0x43b30000;
+    }
+    else if (iVar4 < 3) {
+      *(undefined2 *)(iVar1 + 0x2a) = 0;
+      *(undefined2 *)(iVar1 + 0x2c) = 3;
+      *(undefined4 *)(iVar1 + 0x3c) = 5;
+      iVar2 = 0;
+      iVar3 = iVar1;
+      do {
+        *(int *)(iVar3 + 0x40) = *(short *)(iVar1 + 0x2a) + iVar2;
+        iVar2 = iVar2 + 1;
+        iVar3 = iVar3 + 4;
+      } while (iVar2 < *(int *)(iVar1 + 0x3c));
+      *(undefined4 *)(iVar1 + 8) = 0x437b0000;
+      *(undefined4 *)(iVar1 + 0xc) = 0x42ce0000;
+      *(undefined4 *)(iVar1 + 0x74) = 0x439f0000;
+    }
+    iVar4 = iVar4 + 1;
+  } while (iVar4 < 3);
+  FUN_000da404(1);
+  return;
+}
+
+
+---------------------------------------------------------------
+### FUN_000da298 @ 000da298  size=288
+
+undefined4 FUN_000da298(int param_1,int param_2,int param_3)
+
+{
+  if (param_2 < 2) {
+    if (-1 < param_2) {
+      if (0 < param_2) {
+        FUN_000e1d70(0xe,1);
+        FUN_000e1d70(0xc,0);
+        *(undefined4 *)(param_1 + 0xc) = 1;
+        return 1;
+      }
+      FUN_000e1d70(0xe,0xffffffff);
+      FUN_000e1d70(0xf,8);
+      FUN_000e1d70(0xc,0);
+      uRam0009f468 = 1;
+      return 1;
+    }
+  }
+  else if (param_2 < 3) {
+    if (param_3 < 1) {
+      if (-1 < param_3) {
+        FUN_000e1de4(FUN_000da3b8);
+      }
+    }
+    else if (param_3 < 2) {
+      FUN_000e1de4(FUN_000da3d8);
+    }
+  }
+  else if (param_2 < 4) {
+    FUN_000da404(0);
+  }
+  return 0;
+}
+
+
