@@ -48,9 +48,25 @@ echo "sample poke_ entries:"
 
 echo
 echo "== the Lua script inside the bundle =="
-RES="$APP/OpenGameAccess_OpenGameAccess.bundle/Resources"
-if [ -d "$RES" ]; then
+# ⛔ RESOLVE THE LUA, DO NOT HARDCODE Resources/. Package.swift uses .process for
+# the two top-level Lua files so the bundle stays FLAT (Xcode's codesign rejects a
+# macOS-style Resources/ dir on iOS), so they sit at the bundle ROOT. The old path
+# reported "no resource bundle" and exited 1 for a perfectly good app.
+BUNDLE=""
+for cand in "$APP/OpenGameAccess_OpenGameAccess.bundle" \
+            "$APP/.build"/*/debug/OpenGameAccess_OpenGameAccess.bundle; do
+  [ -d "$cand" ] && { BUNDLE="$cand"; break; }
+done
+[ -n "$BUNDLE" ] || BUNDLE="$(find "$APP" -type d -name 'OpenGameAccess_OpenGameAccess.bundle' 2>/dev/null | head -1)"
+if [ -n "$BUNDLE" ]; then
+  if [ -d "$BUNDLE/Resources" ]; then RES="$BUNDLE/Resources"; else RES="$BUNDLE"; fi
+  echo "  bundle: ${BUNDLE#$APP/}"
+  echo "  lua at: ${RES#$APP/}"
   ls -la "$RES"
+  # ⛔ ASSERT THE SCRIPTS ARE THERE. A glob that matches nothing prints nothing and
+  # still succeeds, which is how a gate stops checking without looking different.
+  _LUAS=$(ls "$RES"/*.lua 2>/dev/null | wc -l)
+  [ "$_LUAS" -gt 0 ] || { echo "!! no .lua files under $RES — the app would install and find no script" >&2; exit 1; }
   echo "--- hashes (must match the originals) ---"
   ( cd "$RES" && (sha256sum ./*.lua 2>/dev/null || shasum -a 256 ./*.lua) )
 else

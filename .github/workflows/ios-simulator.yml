@@ -79,6 +79,11 @@ jobs:
           LUA_SRC: ${{ runner.temp }}/src/lua-5.4.7
           MGBA_SRC: ${{ runner.temp }}/src/mgba
           PPSPP_SRC: ${{ runner.temp }}/src/ppsspp
+          # ⛔ MESEN_SRC IS REQUIRED. bootstrap-deps.sh fetches it, and build-sim.sh
+          # refuses to run without it ("!! no Mesen source at .../$HOME/src/mesen")
+          # because the NES backend is part of the app now. Omitting it here made
+          # the job die at the core-build step.
+          MESEN_SRC: ${{ runner.temp }}/src/mesen
         run: |
           # Xcode's own simulator SDK, at whatever version this runner has. The
           # script defaults to xtool's fetched SDK path, which does not exist here.
