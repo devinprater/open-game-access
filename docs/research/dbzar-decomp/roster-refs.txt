@@ -1,0 +1,8 @@
+=== instructions with an immediate near 0x1E03F0 (the roster table) ===
+  (0 sites)
+
+=== functions touching the roster table ===
+
+=== who references the unlock messages ===
+
+=== decompile the roster readers (first 8) ===
