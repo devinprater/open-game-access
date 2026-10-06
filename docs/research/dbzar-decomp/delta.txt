@@ -1,0 +1,115 @@
+=== string locations in Ghidra ===
+  [MENU] MESSAGE   @ ghidra 001a3ef0
+  [MENU] UPDATE    @ ghidra 001a3f00
+  [TITLE] UPDATE   @ ghidra 001a4f40
+  %05ddmg          @ ghidra 001a3d30
+
+=== disassembly of FUN_00e1afc (first 34 instructions) ===
+  000e1afc  addiu sp,sp,-0x20                      0xFFFFFFE0
+  000e1b00  sw s1,0x14(sp)                         0x14
+  000e1b04  or s1,a0,zero                          
+  000e1b08  lui a0,0x1a                            0x1A
+  000e1b0c  ori a1,zero,0x21                       0x21
+  000e1b10  ori a2,zero,0x4                        0x4
+  000e1b14  or a3,zero,zero                        
+  000e1b18  sw s0,0x10(sp)                         0x10
+  000e1b1c  sw s2,0x18(sp)                         0x18
+  000e1b20  sw ra,0x1c(sp)                         0x1C
+  000e1b24  jal 0x001408a8                         001408a8
+  000e1b28  _addiu a0,a0,0x3ef0                    0x3EF0
+  000e1b2c  or s2,v0,zero                          
+  000e1b30  lui a1,0xe                             0xE
+  000e1b34  or a0,s2,zero                          
+  000e1b38  jal 0x00140a30                         00140a30
+  000e1b3c  _addiu a1,a1,0x2374                    0x2374
+  000e1b40  lui s0,0xc                             0xC
+  000e1b44  lw a0,0x139c(s0)                       0x139C
+  000e1b48  sw s2,0x0(a0)                          0x0
+  000e1b4c  ori a1,zero,0x22                       0x22
+  000e1b50  lui a0,0x1a                            0x1A
+  000e1b54  ori a2,zero,0x4                        0x4
+  000e1b58  or a3,zero,zero                        
+  000e1b5c  jal 0x001408a8                         001408a8
+  000e1b60  _addiu a0,a0,0x3f00                    0x3F00
+  000e1b64  or s2,v0,zero                          
+  000e1b68  lui a1,0xe                             0xE
+  000e1b6c  or a0,s2,zero                          
+  000e1b70  jal 0x00140a30                         00140a30
+  000e1b74  _addiu a1,a1,0x2468                    0x2468
+  000e1b78  lw a0,0x139c(s0)                       0x139C
+  000e1b7c  sw s2,0x4(a0)                          0x4
+  000e1b80  ori a1,zero,0x23                       0x23
+
+=== disassembly of FUN_00e2604 (first 34 instructions) ===
+  000e2604  addiu sp,sp,-0x20                      0xFFFFFFE0
+  000e2608  sw s1,0x14(sp)                         0x14
+  000e260c  lui s1,0xc                             0xC
+  000e2610  lw a1,0x139c(s1)                       0x139C
+  000e2614  lw a1,0x74(a1)                         0x74
+  000e2618  sll a3,a1,0x4                          0x4
+  000e261c  lui a2,0x1e                            0x1E
+  000e2620  sll a1,a1,0x2                          0x2
+  000e2624  addiu a2,a2,0x7ba0                     0x7BA0
+  000e2628  addu a1,a3,a1                          
+  000e262c  addu a1,a1,a2                          
+  000e2630  lw a1,0x10(a1)                         0x10
+  000e2634  sw s0,0x10(sp)                         0x10
+  000e2638  or s0,a0,zero                          
+  000e263c  andi a0,a1,0x4                         0x4
+  000e2640  sw ra,0x18(sp)                         0x18
+  000e2644  beq a0,zero,0x000e2654                 000e2654
+  000e2648  _nop                                   
+  000e264c  jal 0x000e2db4                         000e2db4
+  000e2650  _nop                                   
+  000e2654  jal 0x000e3318                         000e3318
+  000e2658  _nop                                   
+  000e265c  jal 0x000e2bbc                         000e2bbc
+  000e2660  _nop                                   
+  000e2664  lw a0,0x139c(s1)                       0x139C
+  000e2668  li a1,-0x1                             0xFFFFFFFF
+  000e266c  lw a0,0x74(a0)                         0x74
+  000e2670  bne a0,a1,0x000e2690                   000e2690
+  000e2674  _lui a0,0x3d2a                         0x3D2A
+  000e2678  ori a0,a0,0xaaab                       0xAAAB
+  000e267c  jal 0x0011db74                         0011db74
+  000e2680  _mtc1 a0,f12                           
+  000e2684  ori a0,zero,0x1                        0x1
+  000e2688  jal 0x0011d9ec                         0011d9ec
+
+=== disassembly of FUN_00e2374 (first 34 instructions) ===
+  000e2374  addiu sp,sp,-0x30                      0xFFFFFFD0
+  000e2378  sw s3,0x1c(sp)                         0x1C
+  000e237c  lui s3,0xc                             0xC
+  000e2380  lw a0,0x139c(s3)                       0x139C
+  000e2384  sw s2,0x18(sp)                         0x18
+  000e2388  lw s2,0x64(a0)                         0x64
+  000e238c  sw s0,0x10(sp)                         0x10
+  000e2390  sw s1,0x14(sp)                         0x14
+  000e2394  sw ra,0x20(sp)                         0x20
+  000e2398  beq s2,zero,0x000e244c                 000e244c
+  000e239c  _lui s0,0xe                            0xE
+  000e23a0  addiu s0,s0,0x2604                     0x2604
+  000e23a4  or s1,s2,zero                          
+  000e23a8  lw a0,0x8(s1)                          0x8
+  000e23ac  addiu a0,a0,-0xc                       0xFFFFFFF4
+  000e23b0  sltiu a1,a0,0x5                        0x5
+  000e23b4  beq a1,zero,0x000e243c                 000e243c
+  000e23b8  _lw s2,0x0(s1)                         0x0
+  000e23bc  li at,0x1                              0x1
+  000e23c0  beq a0,at,0x000e2400                   000e2400
+  000e23c4  _li at,0x2                             0x2
+  000e23c8  beq a0,at,0x000e2410                   000e2410
+  000e23cc  _li at,0x3                             0x3
+  000e23d0  beq a0,at,0x000e2420                   000e2420
+  000e23d4  _li at,0x4                             0x4
+  000e23d8  beq a0,at,0x000e2430                   000e2430
+  000e23dc  _nop                                   
+  000e23e0  jal 0x000e1e04                         000e1e04
+  000e23e4  _or a0,zero,zero                       
+  000e23e8  lw a0,0x139c(s3)                       0x139C
+  000e23ec  or a1,s0,zero                          
+  000e23f0  jal 0x00140a30                         00140a30
+  000e23f4  _lw a0,0x4(a0)                         0x4
+  000e23f8  b 0x000e243c                           000e243c
+
+=== immediates in 0xC0000-0xD0000 with the functions using them ===

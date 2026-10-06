@@ -1,0 +1,212 @@
+=== memory blocks ===
+  .text                  00000000 - 0019f16f  size=0x19F170  R=true W=false X=true  init=true
+  .sceStub.text.sceMpeg  0019f170 - 0019f23f  size=0xD0  R=true W=false X=true  init=true
+  .sceStub.text.sceSasCore 0019f240 - 0019f2e7  size=0xA8  R=true W=false X=true  init=true
+  .sceStub.text.Kernel_Library 0019f2e8 - 0019f2f7  size=0x10  R=true W=false X=true  init=true
+  .sceStub.text.InterruptManager 0019f2f8 - 0019f30f  size=0x18  R=true W=false X=true  init=true
+  .sceStub.text.sceAtrac3plus 0019f310 - 0019f367  size=0x58  R=true W=false X=true  init=true
+  .sceStub.text.sceAudio 0019f368 - 0019f3c7  size=0x60  R=true W=false X=true  init=true
+  .sceStub.text.sceLibFont 0019f3c8 - 0019f407  size=0x40  R=true W=false X=true  init=true
+  .sceStub.text.sceUmdUser 0019f408 - 0019f42f  size=0x28  R=true W=false X=true  init=true
+  .sceStub.text.sceDmac  0019f430 - 0019f437  size=0x8  R=true W=false X=true  init=true
+  .sceStub.text.sceGe_user 0019f438 - 0019f487  size=0x50  R=true W=false X=true  init=true
+  .sceStub.text.sceDisplay 0019f488 - 0019f4af  size=0x28  R=true W=false X=true  init=true
+  .sceStub.text.sceCtrl  0019f4b0 - 0019f4bf  size=0x10  R=true W=false X=true  init=true
+  .sceStub.text.sceSuspendForUser 0019f4c0 - 0019f4c7  size=0x8  R=true W=false X=true  init=true
+  .sceStub.text.UtilsForUser 0019f4c8 - 0019f4e7  size=0x20  R=true W=false X=true  init=true
+  .sceStub.text.ThreadManForUser 0019f4e8 - 0019f617  size=0x130  R=true W=false X=true  init=true
+  .sceStub.text.SysMemUserForUser 0019f618 - 0019f647  size=0x30  R=true W=false X=true  init=true
+  .sceStub.text.StdioForUser 0019f648 - 0019f65f  size=0x18  R=true W=false X=true  init=true
+  .sceStub.text.ModuleMgrForUser 0019f660 - 0019f697  size=0x38  R=true W=false X=true  init=true
+  .sceStub.text.LoadExecForUser 0019f698 - 0019f6a7  size=0x10  R=true W=false X=true  init=true
+  .sceStub.text.IoFileMgrForUser 0019f6a8 - 0019f6ff  size=0x58  R=true W=false X=true  init=true
+  .sceStub.text.sceNetAdhocMatching 0019f700 - 0019f73f  size=0x40  R=true W=false X=true  init=true
+  .sceStub.text.sceNetAdhocctl 0019f740 - 0019f7af  size=0x70  R=true W=false X=true  init=true
+  .sceStub.text.sceNetAdhoc 0019f7b0 - 0019f81f  size=0x70  R=true W=false X=true  init=true
+  .sceStub.text.sceNet   0019f820 - 0019f827  size=0x8  R=true W=false X=true  init=true
+  .sceStub.text.sceWlanDrv 0019f828 - 0019f837  size=0x10  R=true W=false X=true  init=true
+  .sceStub.text.sceUtility 0019f838 - 0019f8bf  size=0x88  R=true W=false X=true  init=true
+  .sceStub.text.sceRtc   0019f8c0 - 0019f8cf  size=0x10  R=true W=false X=true  init=true
+  .lib.ent.top           0019f8d0 - 0019f8d3  size=0x4  R=true W=true X=false  init=true
+  .lib.ent               0019f8d4 - 0019f8e3  size=0x10  R=true W=false X=false  init=true
+  .lib.ent.btm           0019f8e4 - 0019f8e7  size=0x4  R=true W=true X=false  init=true
+  .lib.stub.top          0019f8e8 - 0019f8eb  size=0x4  R=true W=true X=false  init=true
+  .lib.stub              0019f8ec - 0019fb07  size=0x21C  R=true W=false X=false  init=true
+  .lib.stub.btm          0019fb08 - 0019fb0b  size=0x4  R=true W=true X=false  init=true
+  .rodata.sceModuleInfo  0019fb0c - 0019fb3f  size=0x34  R=true W=true X=false  init=true
+  .rodata.sceResident    0019fb40 - 0019fd53  size=0x214  R=true W=false X=false  init=true
+  .rodata.sceNid         0019fd54 - 001a0103  size=0x3B0  R=true W=false X=false  init=true
+  .rodata                001a0110 - 001ac0df  size=0xBFD0  R=true W=false X=false  init=true
+  .data                  001ac100 - 0027fac8  size=0xD39C9  R=true W=true X=false  init=true
+  .eh_frame              0027facc - 0027fb3f  size=0x74  R=true W=true X=false  init=true
+  .ctors                 0027fb40 - 0027fb47  size=0x8  R=true W=false X=false  init=true
+  .dtors                 0027fb48 - 0027fb4f  size=0x8  R=true W=false X=false  init=true
+  .cplinit               0027fb50 - 0027fb5f  size=0x10  R=true W=true X=false  init=true
+  .psp_lib_markimport_   0027fb60 - 0027fb73  size=0x14  R=true W=true X=false  init=true
+  .psp_lib_mark_         0027fb74 - 0027fbc3  size=0x50  R=true W=true X=false  init=true
+  .bss                   0027fc00 - 0035bd67  size=0xDC168  R=true W=true X=false  init=false
+  .rel.cplinit           .rel.cplinit::00000000 - .rel.cplinit::00000007  size=0x8  R=false W=false X=false  init=true
+  .rel.data              .rel.data::00000000 - .rel.data::0000432f  size=0x4330  R=false W=false X=false  init=true
+  .rel.eh_frame          .rel.eh_frame::00000000 - .rel.eh_frame::0000000f  size=0x10  R=false W=false X=false  init=true
+  .rel.lib.ent           .rel.lib.ent::00000000 - .rel.lib.ent::00000007  size=0x8  R=false W=false X=false  init=true
+  .rel.lib.stub          .rel.lib.stub::00000000 - .rel.lib.stub::00000287  size=0x288  R=false W=false X=false  init=true
+  .rel.psp_lib_markimport_ .rel.psp_lib_markimport_::00000000 - .rel.psp_lib_markimport_::00000027  size=0x28  R=false W=false X=false  init=true
+  .rel.rodata            .rel.rodata::00000000 - .rel.rodata::00007cff  size=0x7D00  R=false W=false X=false  init=true
+  .rel.rodata.sceModuleInfo .rel.rodata.sceModuleInfo::00000000 - .rel.rodata.sceModuleInfo::0000001f  size=0x20  R=false W=false X=false  init=true
+  .rel.rodata.sceResident .rel.rodata.sceResident::00000000 - .rel.rodata.sceResident::00000027  size=0x28  R=false W=false X=false  init=true
+  .rel.text              .rel.text::00000000 - .rel.text::00070487  size=0x70488  R=false W=false X=false  init=true
+  .shstrtab              .shstrtab::00000000 - .shstrtab::0000046f  size=0x470  R=false W=false X=false  init=true
+  .strtab                .strtab::00000000 - .strtab::00000000  size=0x1  R=false W=false X=false  init=true
+  .symtab                .symtab::00000000 - .symtab::0000000f  size=0x10  R=false W=false X=false  init=true
+  _elfHeader             _elfHeader::00000000 - _elfHeader::00000033  size=0x34  R=false W=false X=false  init=true
+  _elfProgramHeaders     _elfProgramHeaders::00000000 - _elfProgramHeaders::0000003f  size=0x40  R=false W=false X=false  init=true
+  _elfSectionHeaders     _elfSectionHeaders::00000000 - _elfSectionHeaders::0000095f  size=0x960  R=false W=false X=false  init=true
+
+=== probe addresses: block + raw bytes ===
+  000C139C  block=.text                 bytes=15 00 00 10 F0 04 84 8C 21 D4 00 0C 25 20 80 02 
+  000C140C  block=.text                 bytes=25 30 00 00 14 00 62 AE 00 60 80 44 A4 00 B6 E7 
+  000C1410  block=.text                 bytes=14 00 62 AE 00 60 80 44 A4 00 B6 E7 A0 00 AC E7 
+  00034660  block=.text                 bytes=60 00 AE C7 30 00 AC E7 34 00 AD E7 38 00 AE E7 
+  000E7BA0  block=.text                 bytes=1D 01 AA 83 9A 0B C9 24 1E 01 AB 83 00 00 27 A1 
+  001E7BA0  block=.data                 bytes=00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 
+
+=== references to 0xC139C and where they come from ===
+  from 000dfc20  type=READ  in FUN_000dfb50@000dfb50
+  from 000e3b70  type=READ  in FUN_000e3b68@000e3b68
+  from 000e3140  type=READ  in FUN_000e313c@000e313c
+  from 000e3130  type=READ  in FUN_000e312c@000e312c
+  from 000e315c  type=READ  in FUN_000e314c@000e314c
+  from 000e3170  type=READ  in FUN_000e316c@000e316c
+  from 000e3178  type=READ  in FUN_000e316c@000e316c
+  from 000e3180  type=READ  in FUN_000e316c@000e316c
+  from 000e318c  type=READ  in FUN_000e316c@000e316c
+  from 000e31e8  type=READ  in FUN_000e31e0@000e31e0
+  from 000e31f4  type=READ  in FUN_000e31e0@000e31e0
+  from 000e3254  type=READ  in FUN_000e31e0@000e31e0
+  from 000e32e8  type=READ  in FUN_000e31e0@000e31e0
+  from 000e3320  type=READ  in FUN_000e3318@000e3318
+  from 000e332c  type=READ  in FUN_000e3318@000e3318
+  from 000e3380  type=READ  in FUN_000e3318@000e3318
+  from 000e340c  type=READ  in FUN_000e3318@000e3318
+  from 000db5a8  type=READ  in FUN_000db368@000db368
+  from 000e3448  type=READ  in FUN_000e343c@000e343c
+  from 000e3458  type=READ  in FUN_000e343c@000e343c
+  from 000e3488  type=READ  in FUN_000e343c@000e343c
+  from 000e34fc  type=READ  in FUN_000e34ec@000e34ec
+  from 000e35e8  type=READ  in FUN_000e34ec@000e34ec
+  from 000e35d8  type=READ  in FUN_000e34ec@000e34ec
+  from 000e3630  type=READ  in FUN_000e3628@000e3628
+  from 000e28c4  type=READ  in FUN_000e28b8@000e28b8
+  from 000e28e0  type=READ  in FUN_000e28b8@000e28b8
+  from 000e2978  type=READ  in FUN_000e2970@000e2970
+  from 000e2a5c  type=READ  in FUN_000e2a10@000e2a10
+  from 000e2cb4  type=READ  in FUN_000e2cac@000e2cac
+  from 000e2ff4  type=READ  in FUN_000e2ea8@000e2ea8
+  from 000e20e4  type=READ  in FUN_000e20d8@000e20d8
+  from 000e21d0  type=READ  in FUN_000e20d8@000e20d8
+  from 000e2200  type=READ  in FUN_000e20d8@000e20d8
+  from 000e2220  type=READ  in FUN_000e20d8@000e20d8
+  from 000e22a0  type=READ  in FUN_000e20d8@000e20d8
+  from 000e2120  type=READ  in FUN_000e20d8@000e20d8
+  from 000e22d8  type=READ  in FUN_000e22d4@000e22d4
+  from 000e22ec  type=READ  in FUN_000e22d4@000e22d4
+  from 000e2334  type=READ  in FUN_000e2300@000e2300
+  from 000e2350  type=READ  in FUN_000e2300@000e2300
+  from 000e2360  type=READ  in FUN_000e2300@000e2300
+  from 000e233c  type=READ  in FUN_000e2300@000e2300
+  from 000e2320  type=READ  in FUN_000e2300@000e2300
+  from 000e2380  type=READ  in FUN_000e2374@000e2374
+  from 000e23e8  type=READ  in FUN_000e2374@000e2374
+  from 000e2434  type=READ  in FUN_000e2374@000e2374
+  from 000e2424  type=READ  in FUN_000e2374@000e2374
+  from 000e2414  type=READ  in FUN_000e2374@000e2374
+  from 000e24b8  type=READ  in FUN_000e2468@000e2468
+  from 000e24c8  type=READ  in FUN_000e2468@000e2468
+  from 000e24d8  type=READ  in FUN_000e2468@000e2468
+  from 000e2530  type=READ  in FUN_000e2524@000e2524
+  from 000e2540  type=READ  in FUN_000e2524@000e2524
+  from 000e257c  type=READ  in FUN_000e2524@000e2524
+  from 000e25b4  type=READ  in FUN_000e2524@000e2524
+  from 000e2610  type=READ  in FUN_000e2604@000e2604
+  from 000e2664  type=READ  in FUN_000e2604@000e2604
+  from 000e2690  type=READ  in FUN_000e2604@000e2604
+  from 000e269c  type=READ  in FUN_000e2604@000e2604
+  from 000e26a8  type=READ  in FUN_000e2604@000e2604
+  from 000e2710  type=READ  in FUN_000e2704@000e2704
+  from 000e2720  type=READ  in FUN_000e2704@000e2704
+  from 000e2758  type=READ  in FUN_000e2704@000e2704
+  from 000e2784  type=READ  in FUN_000e2704@000e2704
+  from 000e2798  type=READ  in FUN_000e2704@000e2704
+  from 000e27a4  type=READ  in FUN_000e2704@000e2704
+  from 000e27ac  type=READ  in FUN_000e2704@000e2704
+  from 000e27b4  type=READ  in FUN_000e2704@000e2704
+  from 000e27bc  type=READ  in FUN_000e2704@000e2704
+  from 000e1b44  type=READ  in FUN_000e1afc@000e1afc
+  from 000e1b78  type=READ  in FUN_000e1afc@000e1afc
+  from 000e1bac  type=READ  in FUN_000e1afc@000e1afc
+  from 000e1be8  type=READ  in FUN_000e1afc@000e1afc
+  from 000e1bf0  type=READ  in FUN_000e1afc@000e1afc
+  from 000e1bf8  type=READ  in FUN_000e1afc@000e1afc
+  from 000e1c00  type=READ  in FUN_000e1afc@000e1afc
+  from 000ea0e0  type=READ  in FUN_000e9c14@000e9c14
+  from 000ea008  type=READ  in FUN_000e9c14@000e9c14
+  from 000e1d2c  type=READ  in FUN_000e1cfc@000e1cfc
+  from 000e1d90  type=READ  in FUN_000e1d70@000e1d70
+  from 000e1da8  type=READ  in FUN_000e1d70@000e1d70
+  from 000e1db8  type=READ  in FUN_000e1d70@000e1d70
+  from 000e1dc0  type=READ  in FUN_000e1d70@000e1d70
+  from 000e1dc8  type=READ  in FUN_000e1d70@000e1d70
+  from 000e1e18  type=READ  in FUN_000e1e14@000e1e14
+  from 000e1e08  type=READ  in FUN_000e1e04@000e1e04
+  from 000e1e38  type=READ  in FUN_000e1e34@000e1e34
+  from 000e1ec0  type=READ  in FUN_000e1ebc@000e1ebc
+  from 000e1f04  type=READ  in FUN_000e1ed0@000e1ed0
+  from 000e1f1c  type=READ  in FUN_000e1f18@000e1f18
+  from 000e1f3c  type=READ  in FUN_000e1f38@000e1f38
+  from 000e1f58  type=READ  in FUN_000e1f4c@000e1f4c
+  from 000e1f8c  type=READ  in FUN_000e1f4c@000e1f4c
+  from 000e1fac  type=READ  in FUN_000e1f4c@000e1f4c
+  from 000e1fa0  type=READ  in FUN_000e1f4c@000e1f4c
+  from 000e1fd0  type=READ  in FUN_000e1fc4@000e1fc4
+  from 000e2034  type=READ  in FUN_000e1fc4@000e1fc4
+  from 000e2078  type=READ  in FUN_000e1fc4@000e1fc4
+  from 000e208c  type=READ  in FUN_000e1fc4@000e1fc4
+  from 000e528c  type=READ  in FUN_000e5280@000e5280
+  from 000e54c0  type=READ  in FUN_000e5280@000e5280
+  from 000e5470  type=READ  in FUN_000e5280@000e5280
+  from 000e5498  type=READ  in FUN_000e5280@000e5280
+  from 000e54b0  type=READ  in FUN_000e5280@000e5280
+  from 000e5424  type=READ  in FUN_000e5280@000e5280
+  from 000e543c  type=READ  in FUN_000e5280@000e5280
+  from 000e5454  type=READ  in FUN_000e5280@000e5280
+  from 000e538c  type=READ  in FUN_000e5280@000e5280
+  from 000e53c0  type=READ  in FUN_000e5280@000e5280
+  from 000e5304  type=READ  in FUN_000e5280@000e5280
+  from 000e5328  type=READ  in FUN_000e5280@000e5280
+  from 000e1750  type=WRITE  in FUN_000e1738@000e1738
+  from 000e1774  type=READ  in FUN_000e1738@000e1738
+  from 000e179c  type=READ  in FUN_000e1738@000e1738
+  from 000e17a8  type=READ  in FUN_000e1738@000e1738
+  from 000e17b4  type=READ  in FUN_000e1738@000e1738
+  from 000e1808  type=READ  in FUN_000e17fc@000e17fc
+  from 000e1878  type=READ  in FUN_000e17fc@000e17fc
+  from 000e187c  type=WRITE  in FUN_000e17fc@000e17fc
+  from 000e4b30  type=READ  in FUN_000e4b14@000e4b14
+  from 000e4d2c  type=READ  in FUN_000e4b14@000e4b14
+  from 000e4fb0  type=READ  in FUN_000e4dd8@000e4dd8
+  from 000e5090  type=READ  in FUN_000e4dd8@000e4dd8
+  from 000e5174  type=READ  in FUN_000e4dd8@000e4dd8
+  from 000e105c  type=READ  in FUN_000e0fe8@000e0fe8
+  from 000e1070  type=READ  in FUN_000e0fe8@000e0fe8
+  from 000e10b0  type=READ  in FUN_000e0fe8@000e0fe8
+  from 000e10d0  type=READ  in FUN_000e0fe8@000e0fe8
+  from 000e10ec  type=READ  in FUN_000e0fe8@000e0fe8
+  from 000e11b4  type=READ  in FUN_000e0fe8@000e0fe8
+  from 000e04a8  type=READ  in FUN_000e0318@000e0318
+
+=== menu module functions (for live cross-check) ===
+  000E1AFC  FUN_000e1afc
+  000E2374  FUN_000e2374
+  000E2468  FUN_000e2468
+  000E2604  FUN_000e2604
+  000E28B8  FUN_000e28b8

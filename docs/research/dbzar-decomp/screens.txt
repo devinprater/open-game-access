@@ -1,0 +1,151 @@
+=== menu descriptor table @0x1E7BA0 (row stride 0x14) ===
+
+--- row  1 : 000ED204 000ED20C 00000000 000ED368  count=1 ---
+    000ED204  (no function)
+    FUN_000ed20c size=148    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000ed368 size=544    callers=0    strings=(none)
+
+--- row  2 : 000DA290 000DA4D4 00000000 000DA298  count=0 ---
+    000DA290  (no function)
+    FUN_000da4d4 size=596    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000da298 size=288    callers=0    strings=(none)
+
+--- row  3 : 000ED588 000ED590 00000000 000ED6FC  count=0 ---
+    000ED588  (no function)
+    FUN_000ed590 size=288    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000ed6fc size=456    callers=0    strings=(none)
+
+--- row  4 : 000E62F4 000E62FC 000E63CC 000E6440  count=4 ---
+    000E62F4  (no function)
+    FUN_000e62fc size=208    callers=0    strings=(none)
+    FUN_000e63cc size=116    callers=0    strings=(none)
+    FUN_000e6440 size=252    callers=0    strings=(none)
+
+--- row  5 : 000EB208 000EB210 00000000 000EB2FC  count=1 ---
+    000EB208  (no function)
+    FUN_000eb210 size=160    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000eb2fc size=380    callers=0    strings=(none)
+
+--- row  6 : 000EADA8 000EADB0 00000000 000EB054  count=1 ---
+    000EADA8  (no function)
+    FUN_000eadb0 size=496    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000eb054 size=436    callers=0    strings=(none)
+
+--- row  7 : 000ECFB0 000ECFB8 00000000 000ED0B4  count=0 ---
+    000ECFB0  (no function)
+    FUN_000ecfb8 size=252    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000ed0b4 size=260    callers=0    strings=(none)
+
+--- row  8 : 000ECFB0 000ECFB8 00000000 000ED0B4  count=0 ---
+    000ECFB0  (no function)
+    FUN_000ecfb8 size=252    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000ed0b4 size=260    callers=0    strings=(none)
+
+--- row  9 : 000EB95C 000EB968 000EBA04 000EBA30  count=4 ---
+    000EB95C  (no function)
+    FUN_000eb968 size=156    callers=0    strings=(none)
+    FUN_000eba04 size=44     callers=0    strings=(none)
+    FUN_000eba30 size=228    callers=0    strings=(none)
+
+--- row 10 : 000DD3D4 000DD3DC 00000000 000DD438  count=6 ---
+    000DD3D4  (no function)
+    FUN_000dd3dc size=92     callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000dd438 size=180    callers=0    strings=(none)
+
+--- row 11 : 000DA72C 000DA734 00000000 000DA7B8  count=4 ---
+    000DA72C  (no function)
+    FUN_000da734 size=132    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000da7b8 size=152    callers=0    strings=(none)
+
+--- row 12 : 000DC1D8 000DC1E0 000DC260 000DC27C  count=4 ---
+    000DC1D8  (no function)
+    FUN_000dc1e0 size=128    callers=0    strings=(none)
+    FUN_000dc260 size=28     callers=0    strings=(none)
+    FUN_000dc27c size=212    callers=0    strings=(none)
+
+--- row 13 : 000DFE74 000DFE7C 000DFEFC 000DFF18  count=4 ---
+    000DFE74  (no function)
+    FUN_000dfe7c size=128    callers=0    strings=(none)
+    FUN_000dfefc size=28     callers=0    strings=(none)
+    FUN_000dff18 size=216    callers=0    strings=(none)
+
+--- row 14 : 000E0994 000E099C 00000000 000E14CC  count=5 ---
+    000E0994  (no function)
+    FUN_000e099c size=176    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000e14cc size=408    callers=0    strings=(none)
+
+--- row 15 : 000ECC64 000ECC6C 00000000 000ECE64  count=1 ---
+    000ECC64  (no function)
+    FUN_000ecc6c size=268    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000ece64 size=332    callers=0    strings=(none)
+
+--- row 16 : 000EB478 000EB480 00000000 000EB778  count=1 ---
+    000EB478  (no function)
+    FUN_000eb480 size=288    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000eb778 size=484    callers=0    strings=(none)
+
+--- row 17 : 000DD614 000DD61C 000DD750 000DD76C  count=4 ---
+    000DD614  (no function)
+    FUN_000dd61c size=308    callers=0    strings=(none)
+    FUN_000dd750 size=28     callers=0    strings=(none)
+    FUN_000dd76c size=296    callers=0    strings=(none)
+
+--- row 18 : 000DE334 000DE400 00000000 000DE5E0  count=0 ---
+    000DE334  (no function)
+    FUN_000de400 size=480    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000de5e0 size=300    callers=0    strings=(none)
+
+--- row 19 : 000DCF44 000DCF4C 00000000 000DCFDC  count=1 ---
+    000DCF44  (no function)
+    FUN_000dcf4c size=144    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000dcfdc size=200    callers=0    strings=(none)
+
+--- row 20 : 000EA1CC 000EA1D4 00000000 000EA4E4  count=1 ---
+    000EA1CC  (no function)
+    FUN_000ea1d4 size=300    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000ea4e4 size=380    callers=0    strings=(none)
+
+--- row 21 : 000EAA90 000EAA98 00000000 000EAC1C  count=0 ---
+    000EAA90  (no function)
+    FUN_000eaa98 size=312    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000eac1c size=396    callers=0    strings=(none)
+
+--- row 22 : 000DE710 000DE718 00000000 000DE77C  count=0 ---
+    000DE710  (no function)
+    FUN_000de718 size=100    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000de77c size=232    callers=0    strings=(none)
+
+--- row 23 : 000DE934 000DE93C 00000000 000DE9B0  count=0 ---
+    000DE934  (no function)
+    FUN_000de93c size=116    callers=0    strings=(none)
+    FUN_00000000 size=424    callers=2    strings=(none)
+    FUN_000de9b0 size=232    callers=0    strings=(none)
+
+--- row 24 : 00000104 000000DC 000000CD 000000A6  count=151 ---
+    00000104  (no function)
+    000000DC  (no function)
+    000000CD  (no function)
+    000000A6  (no function)
+
+--- row 25 : 00000072 00000061 0000003E 00000011  count=45 ---
+    00000072  (no function)
+    00000061  (no function)
+    0000003E  (no function)
+    00000011  (no function)
