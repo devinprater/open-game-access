@@ -199,6 +199,80 @@ void RegisterCore(lua_State* L, NesCore* core) {
  * BizHawk's contract: an EXPLICIT domain argument wins; the sticky default applies only when the
  * domain is omitted. That is what both readers rely on -- they pass "System Bus" explicitly for RAM.
  */
+/* ⛔ THE LUA `bit` LIBRARY. BizHawk's LuaJIT exposes a global `bit` table; stock Lua 5.4 does not, so
+ * a reader that uses it dies with "attempt to index a nil value (global 'bit')". Zelda uses
+ * bit.band / bit.rshift / bit.lshift while decoding its overworld tables and Dragon Warrior uses
+ * bit.band -- and the reader's own guard turns the failure into a spoken "Navigation error".
+ *
+ * 32-bit semantics, matching LuaJIT's. Lua 5.4 has native integers, so this is mostly masking; the
+ * one trap is the shift count, which LuaJIT masks to 5 bits and which C leaves undefined at 32. */
+static uint32_t BitNorm(lua_Integer v) { return (uint32_t) (v & 0xFFFFFFFFLL); }
+
+static int LuaBitBand(lua_State* L) {
+    int n = lua_gettop(L);
+    uint32_t r = 0xFFFFFFFFu;
+    for (int i = 1; i <= n; i++) r &= BitNorm(luaL_checkinteger(L, i));
+    lua_pushinteger(L, (lua_Integer) r);
+    return 1;
+}
+static int LuaBitBor(lua_State* L) {
+    int n = lua_gettop(L);
+    uint32_t r = 0;
+    for (int i = 1; i <= n; i++) r |= BitNorm(luaL_checkinteger(L, i));
+    lua_pushinteger(L, (lua_Integer) r);
+    return 1;
+}
+static int LuaBitBxor(lua_State* L) {
+    int n = lua_gettop(L);
+    uint32_t r = 0;
+    for (int i = 1; i <= n; i++) r ^= BitNorm(luaL_checkinteger(L, i));
+    lua_pushinteger(L, (lua_Integer) r);
+    return 1;
+}
+static int LuaBitBnot(lua_State* L) {
+    lua_pushinteger(L, (lua_Integer) ~BitNorm(luaL_checkinteger(L, 1)));
+    return 1;
+}
+static int LuaBitRshift(lua_State* L) {
+    uint32_t v = BitNorm(luaL_checkinteger(L, 1));
+    int s = (int) (luaL_checkinteger(L, 2) & 31);
+    lua_pushinteger(L, (lua_Integer) (s ? (v >> s) : v));
+    return 1;
+}
+static int LuaBitLshift(lua_State* L) {
+    uint32_t v = BitNorm(luaL_checkinteger(L, 1));
+    int s = (int) (luaL_checkinteger(L, 2) & 31);
+    lua_pushinteger(L, (lua_Integer) (s ? (v << s) : v));
+    return 1;
+}
+static int LuaBitArshift(lua_State* L) {
+    int32_t v = (int32_t) BitNorm(luaL_checkinteger(L, 1));
+    int s = (int) (luaL_checkinteger(L, 2) & 31);
+    lua_pushinteger(L, (lua_Integer) (s ? (v >> s) : v));
+    return 1;
+}
+static int LuaBitTohex(lua_State* L) {
+    uint32_t v = BitNorm(luaL_checkinteger(L, 1));
+    int digits = (lua_gettop(L) > 1) ? (int) luaL_checkinteger(L, 2) : 8;
+    char buf[48];
+    snprintf(buf, sizeof(buf), "%0*X", digits, v);
+    lua_pushstring(L, buf);
+    return 1;
+}
+
+static const luaL_Reg kBitLib[] = {
+    { "band",    LuaBitBand    }, { "bor",     LuaBitBor     },
+    { "bxor",    LuaBitBxor    }, { "bnot",    LuaBitBnot    },
+    { "rshift",  LuaBitRshift  }, { "lshift",  LuaBitLshift  },
+    { "arshift", LuaBitArshift }, { "tohex",   LuaBitTohex   },
+    { NULL, NULL }
+};
+
+static void InstallBitLibrary(lua_State* L) {
+    luaL_newlib(L, kBitLib);
+    lua_setglobal(L, "bit");
+}
+
 int LuaMemReadDomain(NesCore* c, uint32_t addr, const char* domain) {
     if (!c) return 0;
     bool nametable = domain && strcmp(domain, "CIRAM (nametables)") == 0;
@@ -210,6 +284,12 @@ int LuaMemReadDomain(NesCore* c, uint32_t addr, const char* domain) {
         if (addr < 0x2000) return 0;
         return (int) nes_read_nametable(c, addr);
     }
+    /* ⛔ CART ROM IS ITS OWN DOMAIN. Zelda's rom_read() asks for "PRG ROM" explicitly, the same way
+     * it asks for "System Bus" for RAM. Treating an unknown domain as system RAM returned LIVE RAM
+     * BYTES for cart-ROM addresses -- silently wrong data, not an obvious zero. */
+    if (domain && (strcmp(domain, "PRG ROM") == 0 || strcmp(domain, "PRG ROM (Mapper)") == 0))
+        return (int) nes_read_prg_rom(c, addr);
+
     uint32_t v = 0;
     if (!nes_read(c, addr, 1, &v)) return 0;
     return (int) v;
@@ -270,7 +350,8 @@ int LuaMemUseDomain(lua_State* L) {
     const char* d = luaL_checkstring(L, 1);
     /* Record it, and be honest about the ones this console cannot serve. Unknown domains keep the
      * previous setting rather than silently reading the wrong space. */
-    if (strcmp(d, "System Bus") == 0 || strcmp(d, "CIRAM (nametables)") == 0)
+    if (strcmp(d, "System Bus") == 0 || strcmp(d, "CIRAM (nametables)") == 0 ||
+        strcmp(d, "PRG ROM") == 0 || strcmp(d, "PRG ROM (Mapper)") == 0)
         c->memDomain = d;
     return 0;
 }
@@ -559,6 +640,7 @@ bool nes_start(NesCore* c) {
         lua_State* L = luaL_newstate();
         if (!L) { SetError(c, "Could not create the script engine."); return false; }
         luaL_openlibs(L);
+        InstallBitLibrary(L);   /* BizHawk/LuaJIT global the readers expect */
         c->L = L;
         InstallLibraries(c);
 
@@ -761,6 +843,16 @@ bool nes_read(NesCore* c, uint32_t addr, int width, uint32_t* out) {
     }
     *out = v;
     return true;
+}
+
+uint8_t nes_read_prg_rom(NesCore* c, uint32_t addr) {
+    if (!c || !c->emu) return 0;
+    /* MemoryType::NesPrgRom is the cartridge's PRG ROM as Mesen's own MemoryDumper exposes it, and
+     * ConsoleMemoryInfo is simply a buffer plus a length, so a byte is an array index.
+     * This is the address space the readers' rom_read() indexes (0x18500, 0x19324, ...). */
+    ConsoleMemoryInfo m = c->emu->GetMemory(MemoryType::NesPrgRom);
+    if (!m.Memory || addr >= m.Size) return 0;
+    return ((const uint8_t*) m.Memory)[addr];
 }
 
 uint8_t nes_read_nametable(NesCore* c, uint32_t addr) {

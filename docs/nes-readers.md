@@ -107,3 +107,45 @@ tried — including with a full 8-character name — and the mode byte stayed 0x
 limitation, not a reader fault: the drive also cannot reliably navigate to the bottom-right cell,
 because repeated DOWN presses stop registering after the first (the index sits at 11 while RIGHT
 continues to work from a fresh row). The board is mapped; only the route through it is unproven.
+
+## Two host gaps that killed Zelda's overworld feature set
+
+Driving the reader into the overworld exposed two things the host was not providing. Both are now
+fixed, and the evidence is the reader's OWN log, not my reading of it.
+
+**1. The Lua `bit` library was missing.** BizHawk's LuaJIT exposes a global `bit` table; stock Lua 5.4
+does not. The reader uses `bit.band` (18 calls), `bit.rshift` (3) and `bit.lshift` (2) while decoding
+its overworld tables, and Dragon Warrior uses `bit.band` (6). Without it the load raised
+
+    RUNTIME ERROR: .../oR2tJ9xN5qLcE.lua:862: attempt to index a nil value (global 'bit')
+
+which the reader's guard turned into a spoken "Navigation error, check log." — the overworld enemy
+table and screen manifest were simply never built. Implemented with LuaJIT's 32-bit semantics,
+including its 5-bit shift-count masking (a shift by 32 is C undefined behaviour and LuaJIT treats it
+as a shift by 0).
+
+**2. The `"PRG ROM"` domain was not implemented.** The reader reads its own static tables straight out
+of the cartridge — `rom_read(0x18500 + room_id)`, `rom_read(0x19324 + i)` — passing `"PRG ROM"` as an
+explicit domain, exactly as it passes `"System Bus"` for RAM. The resolver treated every unknown
+domain as system RAM, so cart-ROM reads returned **live RAM bytes**: silently wrong data rather than
+an obvious zero. Now routed to `MemoryType::NesPrgRom` via `Emulator::GetMemory`.
+
+**Proof.** The reader's log after a scripted run now ends with:
+
+    WorldMap: overworld_enemies + screen_manifest loaded
+
+and contains no `RUNTIME ERROR` line at all. Before the fix the same run ended with the `bit` error
+above and no manifest line. Both are the reader's own words.
+
+**Also learned, from the disassembly rather than from guessing at the UI** (`aldonunez/zelda1-disassembly`,
+`src/Z_02.asm`):
+
+- The file-select menu is navigated with **SELECT** (`UpdateMode1Menu_Sub0`, which cycles
+  `CurSaveSlot` and skips inactive entries) and confirmed with **START**. My earlier drives selected
+  the menu option with START, which only confirms; the reader's `current_selection` (0x0016) was
+  therefore never 3.
+- Registration begins with `CurSaveSlot` reset to 0 (`InitModeEandF_Full`), so START alone can never
+  leave the screen: `UpdateModeERegister` requires `(ButtonsPressed & $10) && CurSaveSlot == 3`.
+  The "End" option is reached there with SELECT, which is what the reader labels "End".
+- The board is 11 wide: RIGHT/LEFT step `CharBoardIndex` by 1 (wrapping at $2B), DOWN/UP step it by
+  $0B with a row wrap, and the reader's own tables map index 43 to the name field's `0x24` filler.
