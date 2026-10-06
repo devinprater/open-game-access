@@ -196,6 +196,39 @@ seconds of a verified `N dmg` popup) or it drowns in regen. Transformations also
 
 ---
 
+## 5b. ANOTHER ROAD story mode (decompiled; see `dbzar-story-mode.md`)
+
+| function | size | meaning |
+|---|---|---|
+| `FUN_000323bc` | 408 | **AR MAIN** — story-mode entry; registers `"AR MAIN"`/`"AR MAIN DRAW"` |
+| `FUN_000328c4` | 328 | chapter handler A (when already in AR) |
+| `FUN_000325e8` | 460 | chapter handler B — **advances/decrements the chapter index** on pad flags 0x40 / 0x10 |
+| `FUN_000213c4` | 12 | returns `0x6b90` = the **AR state struct base** (33 callers) |
+| `FUN_000219e4` | 212 | `AR UPDATE GAMECLEAR` — reads AR struct `+0x6e4` (vs -1) and `+0x6f0` |
+| `FUN_00021ecc`/`00024888`/`000243f0` | 232/220/180 | `[AR] FIELD EVENT` |
+| `FUN_0002213c` `FUN_00023000` | 84/92 | `[AR] BATTLE MODE` / `[AR] BTL START` |
+| `FUN_00021ab8` `FUN_00024d0c` | 152/108 | `AR UPDATE GAMEOVER` |
+| `FUN_00021940` | 136 | `AR UPDATE BACK TO MENU` |
+| `FUN_000287f8` | 140 | `[AR] FIELD RESULT` |
+| `FUN_00018420` | 140 | `[AR] CITY UPDATE` / `[AR] CITY DRAW` |
+| `FUN_0001fec0` | 251 | `[AR] PAUSE` |
+
+**State (`.data`, live-verified):** `DAT_001b11d4` (RAM **`0x89B51D4`**) = **Another Road mode
+flag** (measured 0 → 1 on entry); `DAT_001b11d5` = **chapter index**; `DAT_001b11d8` (RAM
+`0x89B51D8`) = **chapter table**, 7 entries `0x601C5, 0x601C5, 0x601C3, 0x601C4, 0x601C8,
+0x601C6, 0x601C7` then 0. Chapter id = `table[DAT_001b11d5]`.
+
+**Content:** 24 chapters (`MSG_AR_CLEAR_*` = 24), 268 `MSG_AR_FIELDPLAY_*` dialogue ids, 24
+`MSG_AR_CITY_*`, 5 `MSG_AR_MISSION_*`. A **Chapter Select** screen exists (TOTAL complete %,
+City DF. %) — reached: main menu → Another Road → cross.
+
+⛔ Open: the Chapter Select **browse cursor** is not found (it is not the menu struct, and an
+ordinal hunt gives 0). ⛔ `cRam00099dac` (the chapter count) is an untrustworthy `cRam` address —
+at runtime it lands in `.text`. ⛔ The `0x74` file-offset/vaddr skew recurs: the chapter table is
+at file offset `0x1B124C`, vaddr `0x1B11D8`.
+
+---
+
 ## 6. Open targets
 
 1. **Resolve the MSG-ID→text path** (MGB loader) to turn IDs into speakable labels.
