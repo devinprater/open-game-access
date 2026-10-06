@@ -149,3 +149,51 @@ above and no manifest line. Both are the reader's own words.
   The "End" option is reached there with SELECT, which is what the reader labels "End".
 - The board is 11 wide: RIGHT/LEFT step `CharBoardIndex` by 1 (wrapping at $2B), DOWN/UP step it by
   $0B with a row wrap, and the reader's own tables map index 43 to the name field's `0x24` filler.
+
+## ⛔ OPEN BUG: moving Link in the overworld halts the console
+
+Found while chasing the walk narration. **Not yet fixed, and not yet root-caused.** Recorded with the
+evidence, because a wrong guess here would be worse than the defect.
+
+**Symptom.** On the opening overworld screen (room 0x77), the first movement press halts the console
+permanently. `nes_frame` then fails with `The NES core did not produce a frame within 5 seconds.`
+The halt does not clear when the button is released.
+
+**What is ruled OUT (each measured, not assumed):**
+
+- **Not the reader.** The identical sequence with the script disabled halts the same way.
+- **Not a cross-thread read race.** An arm that takes *no* reads while frames advance halts the same way.
+- **Not my button mapping.** `nes_read`'s order is correct: Mesen's `NesController::GetKeyNames()` is
+  `"UDLRSsBA"`, i.e. Up 0, Down 1, Left 2, Right 3, Start 4, Select 5, B 6, A 7 — which is exactly the
+  `kBtnToBit` table. `SetBit` grows the state buffer, so a high bit cannot overflow it either.
+- **Not uncapped test mode.** It reproduces at the normal 60 fps pacing.
+
+**What IS measured:**
+
+- Direction-specific and reproducible: RIGHT ran 150/150 frames, and the very next DOWN press
+  wedged after 1-2 frames. Idling with no button advanced 300/300.
+- `Emulator::IsPaused()` reads 0 throughout, and the console's frame counter stays frozen at 1695
+  for 4+ seconds — a genuine halt, not a slow console and not a paused one.
+- gdb backtrace of the emulation thread at the wedge shows the NORMAL per-frame path, sitting in the
+  frame limiter's long-sleep branch:
+
+      Emulator::Run -> NesConsole::RunFrame -> NesPpu::SendFrame -> Emulator::ProcessEndOfFrame
+        -> FrameLimiter::WaitForNextFrame -> std::this_thread::sleep_for<milliseconds>
+
+  i.e. `Emulator.cpp:292`'s `while(_frameLimiter->WaitForNextFrame(...))` loop is spinning, and one
+  thread spins at roughly 1% CPU.
+- A checksum over live RAM was byte-identical across 400 frames during an earlier hold, so the
+  emulated CPU is not executing new code.
+
+**Honest status:** the halt is localized to Mesen's per-frame limiter loop with `paused == 0` and a
+frozen frame counter, but *why* that loop stops converging is not yet established. The likely
+territory is a game-specific edge (Zelda is MMC1) rather than the input path, but that is a
+hypothesis, not a finding.
+
+⛔ **And the failure text is misleading.** `The NES core did not produce a frame within 5 seconds.`
+reads like a load or configuration failure and sent me looking at the wrong layer twice. When this is
+fixed, the message should name the halt.
+
+**Diagnostic accessors added for this hunt** (public and read-only, so a harness can ask instead of
+guessing): `nes_is_paused()` and `nes_console_frame_count()`. `Emulator::GetFrameDelay()` is private
+and could not be used.
