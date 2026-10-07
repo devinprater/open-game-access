@@ -25,9 +25,10 @@
 --
 --     script->setSoundCallback([](const char* path, int pan, int volume, void*) { ... });
 --
--- So the correct fix is a host sound callback, not a Lua emulation of BASS. Until that is
--- wired, this stub records every cue so the calls can be verified and replayed later, and
--- returns without error so the reader keeps running.
+-- So the correct fix is a host sound callback, not a Lua emulation of BASS. THAT IS NOW
+-- WIRED: the host installs _G.oga_play_sound (Core/gba_core.cpp -> LuaPlaySound ->
+-- poke_set_sound_callback), and this module forwards every cue to it while still
+-- recording them. On a host with no callback the cues are recorded and dropped.
 --
 -- The WAV files exist: `sounds/common/` and `sounds/gb/` are in the reader tree.
 
@@ -39,12 +40,31 @@ local audio_stub = {}
 local cues = {}
 local MAX_CUES = 500
 
+-- The host sink, installed once at load time from _G.oga_play_sound (the C binding
+-- in Core/gba_core.cpp). Nil on a host with no sound path, in which case cues are
+-- recorded and dropped -- the previous behaviour, and not an error.
+local host_play = _G.oga_play_sound
+
 local function record(evt, path, pan, volume)
   if #cues < MAX_CUES then
     cues[#cues + 1] = { evt = evt, path = path, pan = pan, volume = volume }
   end
   log_fn(string.format("[sound] %s %s pan=%s vol=%s",
         evt, tostring(path), tostring(pan), tostring(volume)))
+end
+
+-- Deliver a PLAY cue to the host. Only `play` has a host counterpart: the reader's
+-- audio.pitch is a global playback-rate control with no per-cue meaning here, and the
+-- single audio.stop is a stop-everything the host treats as its own concern.
+local function deliver(path, pan, volume)
+  if host_play and path then
+    local ok, err = pcall(host_play, path, pan, volume)
+    if not ok then
+      -- A cue must never abort the reader. This is the same rule as the pan/volume
+      -- clamping below: cosmetic failure is not worth a dead frame loop.
+      log_fn("[sound] host sink failed: " .. tostring(err))
+    end
+  end
 end
 
 -- audio.play(path, flags, pan, volume)
@@ -59,7 +79,9 @@ function audio_stub.play(path, flags, pan, volume)
     pan = 0
   end
   if type(volume) ~= "number" then volume = 100 end
+  if volume < 0 then volume = 0 elseif volume > 100 then volume = 100 end
   record("play", path, pan, volume)
+  deliver(path, pan, volume)
   return true
 end
 
@@ -77,7 +99,13 @@ end
 -- ── handoff API ───────────────────────────────────────────────────────────────
 -- The host (OGA) can install a real sink and take over delivery. Kept here rather than in
 -- the bootstrap so the audio concern stays in one file.
-function audio_stub.set_sink(fn) log_fn = fn or function() end end
+function audio_stub.set_sink(fn)
+  if fn == nil then return end
+  -- Tests and alternate hosts can install their own sink here; the real host
+  -- binding arrives via _G.oga_play_sound above.
+  host_play = fn
+  log_fn = fn
+end
 
 -- Expose what was played, for tests and for a host that wants to replay cues.
 function audio_stub.cues() return cues end

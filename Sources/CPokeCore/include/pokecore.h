@@ -42,6 +42,18 @@ typedef void (*PokeSpeechCallback)(const char *utf8_text, bool interrupt, void *
 typedef void (*PokeSpeechIdCallback)(const char *utf8_text, bool interrupt,
                                      uint32_t utterance_id, void *userdata);
 typedef void (*PokeLogCallback)(const char *utf8_text, void *userdata);
+/* Positional sound cue from the reader's own sounds/ tree.
+ *
+ * The reader calls audio.play(path, flags, pan, volume) 42 times to convey
+ * DIRECTION with sound (pan -100..100, negative = left; volume 0..100). A host
+ * that cannot play these is losing real information, not decoration.
+ *
+ * `path` is the reader's own relative path -- it joins `scriptpath` itself, so it
+ * arrives as e.g. "sounds\gba\s_grass.wav" with the reader's separators intact.
+ * The host resolves it against the reader directory it already knows, and is free
+ * to ignore cues entirely by leaving this callback unset.
+ */
+typedef void (*PokeSoundCallback)(const char *path, int pan, int volume, void *userdata);
 
 typedef struct PokeCore PokeCore;
 
@@ -52,6 +64,9 @@ void poke_set_speech_callback(PokeCore *core, PokeSpeechCallback cb, void *userd
 /* When set, every line goes here instead of the plain speech callback. */
 void poke_set_speech_id_callback(PokeCore *core, PokeSpeechIdCallback cb, void *userdata);
 void poke_set_log_callback(PokeCore *core, PokeLogCallback cb, void *userdata);
+/* Sound cues from the reader's audio.play. Optional: with no callback the cues are
+ * recorded by the Lua stub and never heard -- the previous behaviour, not an error. */
+void poke_set_sound_callback(PokeCore *core, PokeSoundCallback cb, void *userdata);
 
 /* `script` is the compat shim and main.lua concatenated, in that order. */
 bool poke_load_rom(PokeCore *core, const char *rom_path, const char *save_path);

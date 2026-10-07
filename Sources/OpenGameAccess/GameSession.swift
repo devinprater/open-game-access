@@ -95,6 +95,13 @@ final class GameSession: ObservableObject {
     /// observes it, so a new frame redraws the picture and nothing else.
     let frames = FrameStore()
     private var audioEngine: AVAudioEngine?
+    /// Plays the reader's own WAV cues with pan applied. Separate from the
+
+    /// engine because the reader's files are 8/16-bit at 44100 Hz, not the
+
+    /// engine's 32768 Hz int16, so they cannot share a render graph.
+
+    private let cuePlayer = CuePlayer()
     private var audioSource: AudioSourceNode?
     private var thermalObserver: NSObjectProtocol?
 
@@ -128,6 +135,18 @@ final class GameSession: ObservableObject {
             let session = Unmanaged<GameSession>.fromOpaque(userdata).takeUnretainedValue()
             let line = String(cString: text)
             Task { @MainActor in session.appendDebug(line) }
+        }, Unmanaged.passUnretained(self).toOpaque())
+
+        // The reader's positional cues (audio.play): 42 sites that pan a WAV to an
+        // obstacle's side. oga_audio.lua forwards them here through _G.oga_play_sound.
+        // Same contract as the Android bridge's sound callback.
+        poke_set_sound_callback(core, { path, pan, volume, userdata in
+            guard let path, let userdata else { return }
+            let session = Unmanaged<GameSession>.fromOpaque(userdata).takeUnretainedValue()
+            let p = String(cString: path)
+            // The callback arrives on whatever thread runs the emulator's frame; the
+            // player is main-thread state.
+            Task { @MainActor in session.cuePlayer.play(path: p, pan: Int(pan), volume: Int(volume)) }
         }, Unmanaged.passUnretained(self).toOpaque())
 
         if let script = Self.bundledScript {
@@ -302,6 +321,11 @@ final class GameSession: ObservableObject {
             if ["gba", "gbc", "gb"].contains(local.pathExtension.lowercased()),
                let dir = BundleResources.gbaScriptDir {
                 dir.withCString { poke_set_script_dir(core, $0) }
+                // The cue player resolves the reader's relative cue paths against
+                // this same directory: the reader joins `scriptpath` itself, so the
+                // cues arrive as paths under it.
+                cuePlayer.setScriptDir(dir)
+                cuePlayerCuesEnabled()
             }
             // NES readers are a per-GAME choice, so the CORE names the set (by the
             // ROM's CRC32, never by filename) and this stages a writable copy of it.
@@ -313,6 +337,9 @@ final class GameSession: ObservableObject {
                 readerSetName = set.isEmpty ? nil : set
                 if let dir = ReaderStore.stage(set) {
                     dir.path.withCString { poke_set_script_dir(core, $0) }
+                    // Same directory the cues resolve against (see the GB path above).
+                    cuePlayer.setScriptDir(dir.path)
+                    cuePlayerCuesEnabled()
                 }
             }
             romName = name
@@ -516,6 +543,15 @@ final class GameSession: ObservableObject {
     }
 
     // MARK: - Audio
+
+    /// Apply the user's "Game sound" setting to the reader's cues.
+    ///
+    /// A positional cue IS game sound, so it rides the setting that already exists for
+    /// that rather than adding a second toggle to discover. Called wherever the reader
+    /// directory is set, so a muted session never plays a cue at all.
+    private func cuePlayerCuesEnabled() {
+        cuePlayer.level = audioEnabled ? 0.8 : 0
+    }
 
     private func startAudio() {
         guard let core else { return }

@@ -39,6 +39,8 @@ extern "C" {
 #define GBA_PLATFORM_GB  1
 
 typedef void (*GbaSpeechCallback)(const char *utf8_text, bool interrupt, void *userdata);
+// See PokeSoundCallback: the reader's positional cue, with pan -100..100.
+typedef void (*GbaSoundCallback)(const char* path, int pan, int volume, void* userdata);
 typedef void (*GbaLogCallback)(const char *utf8_text, void *userdata);
 
 typedef struct GbaCore GbaCore;
@@ -48,6 +50,7 @@ void gba_destroy(GbaCore *core);
 
 void gba_set_speech_callback(GbaCore *core, GbaSpeechCallback cb, void *userdata);
 void gba_set_log_callback(GbaCore *core, GbaLogCallback cb, void *userdata);
+void gba_set_sound_callback(GbaCore* core, GbaSoundCallback cb, void* userdata);
 
 /* Directory holding the reader Lua set (oga_bootstrap.lua, mgba_compat.lua,
  * oga_bit/audio/pure.lua, pokemon.lua, gb/gba.lua, game/, message/). The
