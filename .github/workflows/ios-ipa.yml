@@ -22,9 +22,15 @@ on:
       - 'Core/**'
       - 'Sources/**'
       - 'Package.swift'
-      - 'scripts/build-core.sh'
+      # ⛔ MATCH THE CLASSES THIS WORKFLOW DEPENDS ON, NOT ONE FILENAME PER SCRIPT.
+      # The earlier list named build-core.sh and friends but NOT verify-ipa.sh, which
+      # this workflow runs — so the commit fixing a bug in that gate could not trigger
+      # the gate. Scripts are added to this workflow over time; a glob keeps up.
+      - 'scripts/check-shell-syntax.sh'
       - 'scripts/bootstrap-deps.sh'
+      - 'scripts/build-*.sh'          # build-core.sh, build-sim.sh, build-cache.sh, build-ffmpeg.sh
       - 'scripts/core-sources.sh'
+      - 'scripts/verify-ipa*.sh'      # the artifact gate and its self-test
       - 'scripts/package-ipa.sh'
       - '.github/workflows/ios-ipa.yml'
 
