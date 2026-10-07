@@ -118,7 +118,10 @@ This is the reason to compare before deleting rather than after:
    unable to engage, so a direction held while the modifier trigger is released
    leaks through to the game. Kept the canonical copy for the staged set; the
    top-level Android variant is a **genuine platform difference needing its own
-   decision**, not a sync, and is left alone.
+   decision**, not a sync, and is left alone — and investigating it found a REAL
+   DEFECT rather than a tidy split: Android's `joypad.set` is inert because
+   `input.JoySet` is registered only in `Core/pokecore.cpp`, which Android does not
+   link. See `docs/android-joypad-set.md`.
 
 ### The three gates, all proven by sabotage
 
