@@ -164,14 +164,23 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   `oga_bootstrap.lua` + `mgba_compat.lua`, Android loads only `pokemon.lua` and
   installs the surface in C. See `docs/android-joypad-set.md` (retracted).
 
-- [ ] **Android menus need TalkBack labels (in progress).** The ROM-list toolbar is already
-  labelled, but the PLAYER-FACING surfaces are not: `EmulatorActivity.showPauseMenu()` is a
-  bare `AlertDialog.Builder().setItems(...)` with no focus/announcement handling, and the
-  ROM rows in `ConfigurableRomItem` are `clickable` with no `semantics` block, so TalkBack
-  reads whatever text nodes happen to be there. Scope per Devin: label the MENUS; do not
-  label all 571 UI files (that would be fluff). The game itself is narrated by the Lua
-  script, not by the UI.
-
+- [~] **Android menus need TalkBack labels.** ⛔ **THE TWO DEFECTS THIS ENTRY NAMED
+  WERE ALREADY FIXED** — measured against the shipped v0.6.3 APK, not the source:
+  `mergeDescendants`/`contentDescription` are present in its dex and the pause dialog
+  carries its title, so TalkBack announces the menu and reads each ROM row as one
+  labelled item. What this entry described as outstanding had shipped. Scope per Devin:
+  label the MENUS; do not label all 571 UI files (that would be fluff). The game itself
+  is narrated by the Lua script, not by the UI.
+  **The real gap found by sweeping for the CLASS rather than the named instances:**
+  `ConfigurableRomItem` was labelled but its sibling `RomItem` was not, and RomItem is
+  what the DSiWare ROM picker (`DSiWareRomListDialog.kt`) and the shortcut ROM picker
+  (`ShortcutSetupActivity.kt`) use — so those two lists still read as text fragments,
+  the exact failure the sibling's fix was written to prevent. Fixed in the overlay as
+  step 7c, same label-from-the-ROM's-own-fields approach, no new words. Overlay verified
+  idempotent and applied to a fresh upstream clone; APK build pending.
+  Also unlabelled, deliberately NOT changed (reachable only with RetroAchievements
+  configured, and it is a RetroAchievements feature surface rather than a game-playing
+  control): `AchievementList.kt`'s Compose rows.
 - [~] **Make the shell emulator-agnostic (started 2026-10-04):** plan at
   `docs/plans/emulator-agnostic-shell.md`. Three of its steps are DONE:
   * **Registry:** 14 consoles (Genesis/Dreamcast/3DS added -- each has an

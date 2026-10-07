@@ -620,4 +620,53 @@ else
   echo "     pause menu: already annotated, or not found"
 fi
 
+# --- 7c. The PLAIN RomItem: the same label as its sibling, for the two lists that
+# use it. ConfigurableRomItem is the main ROM list; RomItem is the DSiWare picker and
+# the shortcut ROM picker, and neither had any semantics at all. One accessibility
+# stop, labelled from the ROM's own fields, exactly as 7a does it.
+PLAINROMITEM="$FRONTEND/app/src/main/java/me/magnum/melonds/ui/common/component/romlist/RomItem.kt"
+if [ -f "$PLAINROMITEM" ] && ! grep -q 'mergeDescendants' "$PLAINROMITEM"; then
+  python3 - "$PLAINROMITEM" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+
+old_imports = "import androidx.compose.ui.res.painterResource"
+new_imports = """import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics"""
+assert old_imports in s, "RomItem import anchor not found"
+s = s.replace(old_imports, new_imports, 1)
+
+# `item` is this component's parameter name (the sibling calls it `rom`).
+old_col = """    Column(
+        modifier
+            .let { if (enabled) it.clickable { onClick() } else it }
+            .alpha(if (enabled) 1f else DisabledAlpha)
+    ) {"""
+new_col = """    Column(
+        modifier
+            .let { if (enabled) it.clickable { onClick() } else it }
+            .alpha(if (enabled) 1f else DisabledAlpha)
+            // ogaRomItemLabel: one accessibility stop for the whole row, labelled from
+            // the ROM's own fields. Identical treatment to ConfigurableRomItem (step 7a)
+            // -- this component is what the DSiWare picker and the shortcut ROM picker
+            // use, and without it TalkBack reads each row as separate text fragments.
+            // No extra words: a blank developer is simply left out, not "unknown".
+            .semantics(mergeDescendants = true) {
+                contentDescription = listOf(item.name, item.developerName)
+                    .filter { it.isNotBlank() }
+                    .joinToString(", ")
+            }
+    ) {"""
+assert old_col in s, "RomItem Column anchor not found"
+s = s.replace(old_col, new_col, 1)
+
+open(p, "w", encoding="utf-8").write(s)
+print("     plain RomItem now reads as one labelled item")
+PY
+else
+  echo "     plain RomItem: already labelled, or not found"
+fi
+
 say "overlay applied"
