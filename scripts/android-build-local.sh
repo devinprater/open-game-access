@@ -116,8 +116,22 @@ echo "== APK: $APK ($(stat -c%s "$APK") bytes)"
 # ---- step 8: the same verifications CI does --------------------------------
 echo "== step 8: verifying the APK"
 unzip -l "$APK" > /tmp/apk-list.txt 2>/dev/null || true
-grep -qi lua /tmp/apk-list.txt || fail "no Lua assets in the APK"
-echo "   ok: Lua assets present"
+# ⛔ `grep -qi lua` WAS NOT A GATE. It matches main.lua (the DS reader), any
+# vintage of the reader tree, and the core's own Lua engine -- so it passed while
+# the APK was shipping a reader set with no bootstrap and no mGBA shim. Assert
+# the files that exist ONLY when the feature works. Keep this list identical to
+# .github/workflows/android-apk.yml; both are checked against the same set.
+missing=0
+for f in oga_bootstrap.lua mgba_compat.lua gb.lua gba.lua pokemon.lua; do
+  if grep -q "assets/lua/gb/$f" /tmp/apk-list.txt; then
+    echo "   ok: assets/lua/gb/$f"
+  else
+    echo "   !! MISSING from the APK: assets/lua/gb/$f" >&2
+    missing=1
+  fi
+done
+[ "$missing" -eq 0 ] || fail "the APK's Game Boy / GBA reader set is incomplete"
+echo "   ok: the Game Boy / GBA reader set is present and current"
 
 cd "$ROOT" || exit 1
 bash scripts/check-no-roms.sh . --skip-build-output || fail "ROM guard failed"

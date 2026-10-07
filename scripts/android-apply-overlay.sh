@@ -36,6 +36,42 @@ cp -r "$MAIN/assets/." "$FRONTEND/app/src/main/assets/" 2>/dev/null || true
 cp -r "$MAIN/cpp/." "$FRONTEND/app/src/main/cpp/" 2>/dev/null || true
 
 # ---------------------------------------------------------------------------
+# 1b. STAGE the Game Boy / GBA reader set from its SINGLE source of truth.
+#
+# ⛔ THIS USED TO BE A TRACKED DUPLICATE, AND IT DRIFTED. app/src/main/assets/
+# lua/gb/ was a hand-copied second tree (197 files); by the time anyone looked it
+# was five days stale and missing oga_bootstrap.lua and mgba_compat.lua — the
+# loader and the mGBA API shim — so the GBA path shipped to Android without the
+# two files that make it work, while its Kotlin side pointed straight at it. iOS
+# was unaffected only because Package.swift .copy()s the whole canonical
+# directory.
+#
+# Generating it here means a reader fix is applied ONCE. If you are tempted to
+# add a file under app/src/main/assets/lua/gb/, put it in
+# Sources/OpenGameAccess/Resources/gba-lua/ instead — the gate fails on a
+# missing reader file, and this step overwrites that directory anyway.
+# ---------------------------------------------------------------------------
+say "staging the Game Boy / GBA reader set from its canonical tree"
+READERS="$ROOT/Sources/OpenGameAccess/Resources/gba-lua"
+[ -d "$READERS" ] || { echo "!! no reader set at $READERS" >&2; exit 1; }
+[ -f "$READERS/oga_bootstrap.lua" ] || {
+  echo "!! the canonical reader set has no oga_bootstrap.lua -- refusing to stage a broken set" >&2
+  exit 1; }
+[ -f "$READERS/mgba_compat.lua" ] || {
+  echo "!! the canonical reader set has no mgba_compat.lua -- refusing to stage a broken set" >&2
+  exit 1; }
+
+GB_DST="$FRONTEND/app/src/main/assets/lua/gb"
+rm -rf "$GB_DST"
+mkdir -p "$GB_DST"
+cp -r "$READERS/." "$GB_DST/"
+# ⛔ HOST DEV TOOLS MUST NOT SHIP. host-sim-rom.lua asserts its own loadfile
+# paths, and oga_capture.lua dofile()s a path under a developer's Dropbox and
+# writes to hardcoded Windows Temp paths. Neither is reader runtime.
+rm -f "$GB_DST/host-sim-rom.lua" "$GB_DST/oga_capture.lua"
+echo "     staged $(find "$GB_DST" -type f | wc -l) files (sounds: $(find "$GB_DST/sounds" -type f 2>/dev/null | wc -l))"
+
+# ---------------------------------------------------------------------------
 # 2. Resources: our app label gets its OWN key. Upstream already defines
 #    `app_name` for its own product, and overwriting it would break upstream
 #    code -- which is exactly the class of bug being fixed here.
