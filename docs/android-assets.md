@@ -174,3 +174,29 @@ reader set, the overlay, and the Android sources) so the APK is built — or at
 least the gate is checked — on every relevant change, rather than only when a
 release is cut. A gate that only runs at release time is a gate that tells you
 last.
+
+
+---
+
+## Verification by the ARTIFACT, not by a convenient command
+
+Two of my own checks reported nonsense here, both because the command answered a
+narrower question than the one asked. Recorded because this class of error is what
+this whole document is about.
+
+1. **`gh api .../contents/<dir>` `--jq length` returned 3 for the sounds.** The
+   contents API lists the entries at a DIRECTORY path, so at `sounds/` it counted
+   the three SUBDIRECTORIES (`common`, `gb`, `gba`), not the WAVs. The count of 33
+   is only visible in a recursive tree:
+   `gh api "repos/…/git/trees/main?recursive=1" --jq '[.tree[] | select(.path | test("gba-lua/sounds/.+\\.wav$"))] | length'`
+   → **33**, matching the working tree and the iOS canon.
+2. **`git show --name-status | awk '$1~/^A/'` reported 0 files added.** Git
+   detected the moves as **renames** (`R100`), so the status column is `R`, not
+   `A`. The files ARE in the canonical tree on the remote — `R100` means the
+   content is identical and only the path changed, which is exactly what a move is.
+   Filter on the PATH (`grep sounds/`), not on a status letter you assumed.
+
+Neither changed the work; both would have been reported as facts. The habit that
+catches them: after a mechanical check, confirm the SAME fact a second way that
+cannot share the first one's blind spot — here, the recursive tree listing and the
+working-tree file count.
