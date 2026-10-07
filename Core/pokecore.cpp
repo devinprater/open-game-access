@@ -910,6 +910,17 @@ const char *poke_game_code(PokeCore *core)
     return (core && core->gameCode[0]) ? core->gameCode : "";
 }
 
+const char *poke_reader_set(PokeCore *core)
+{
+    /* Routed through the ops table like every other backend capability, so a console that has no
+     * bundled reader (the DS builds its script in) simply answers "" without a per-console check
+     * here. Read AFTER a ROM is loaded -- the answer is a property of the cartridge, and before
+     * load there is no cartridge. */
+    if (!core || !core->backend.ops || !core->backend.ops->reader_set) return "";
+    const char* s = core->backend.ops->reader_set(core->backend.state);
+    return s ? s : "";
+}
+
 bool poke_adapter_ready(PokeCore *core)
 {
     if (!core || !core->adapter) return false;
@@ -2069,7 +2080,8 @@ static const OgaCoreOps* NdsOpsTable(void)
     NdsFramebuffer,
     NdsSetButton, NULL, NdsSetTouch,
     NdsSetHotkey,
-    NULL,
+    NULL,                       /* set_script_dir: the DS reader is a script string, not a directory */
+        NULL,                   /* reader_set: no bundled reader set for the DS */
         NdsReadAudio,
         NdsSaveState, NdsLoadState,
         NdsFrames, NdsLastError,

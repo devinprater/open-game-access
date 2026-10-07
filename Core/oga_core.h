@@ -114,11 +114,22 @@ typedef struct OgaCoreOps {
      * the only reader there, so a dead key would be worse than none). */
     void (*set_hotkey)(void* state, const char* key, bool down);
 
-    /* Point the backend at the Lua reader set that loads its own files. Only
-     * the Game Boy backend has one: its reader is ~174 files loaded with
-     * loadfile, while the DS reader is a single concatenated script string.
-     * NULL = this backend takes its script some other way. */
+    /* Point the backend at the Lua reader set that loads its own files. The
+     * Game Boy backend has one (its reader is ~174 files loaded with loadfile)
+     * and so does the NES; the DS reader is a single concatenated script
+     * string, so it takes its script some other way.
+     * NULL = this backend has no external reader set. */
     void (*set_script_dir)(void* state, const char* dir);
+
+    /* WHICH bundled reader set the LOADED ROM needs, as a name the caller
+     * resolves to a directory ("Zelda1Access"), or "" when this build has none
+     * for this game. NULL = this backend has no bundled sets at all.
+     *
+     * ⛔ "" IS THE ANSWER FOR AN UNKNOWN GAME, AND IT MUST STAY THAT WAY. A
+     * reader attached to the wrong cartridge narrates confident nonsense to a
+     * blind player, which this project treats as worse than silence. The
+     * backend decides by the ROM's own content, not by its filename. */
+    const char* (*reader_set)(void* state);
 
     /* ---- audio ----
      *

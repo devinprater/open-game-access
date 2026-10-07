@@ -67,6 +67,12 @@ final class GameSession: ObservableObject {
     /// reader group the moment a game with a native reader finishes loading.
     @Published private(set) var adapterName: String?
     @Published private(set) var adapterID: String?
+
+    /// Name of the bundled reader set staged for this ROM ("Zelda1Access"), or nil when
+    /// no bundled reader covers this game. Set from the core's own answer (the ROM's
+    /// CRC32, never its filename), so the UI reports what was actually attached. Nil is
+    /// the normal case for an unknown dump or a translation patch.
+    @Published private(set) var readerSetName: String?
     /// The loaded ROM's four-letter game code (header 0x0C), e.g. "IRBO" for
     /// Pokémon Black or "YFEE" for Fire Emblem USA. Read once per ROM like the
     /// adapter id. The UI uses it to show the Lua script's buttons only for the
@@ -265,6 +271,7 @@ final class GameSession: ObservableObject {
         // reader controls until the app restarted.
         adapterID = nil
         adapterName = nil
+        readerSetName = nil
         adapterReady = false
         romGameCode = nil
 
@@ -295,6 +302,18 @@ final class GameSession: ObservableObject {
             if ["gba", "gbc", "gb"].contains(local.pathExtension.lowercased()),
                let dir = BundleResources.gbaScriptDir {
                 dir.withCString { poke_set_script_dir(core, $0) }
+            }
+            // NES readers are a per-GAME choice, so the CORE names the set (by the
+            // ROM's CRC32, never by filename) and this stages a writable copy of it.
+            // ⛔ "" IS THE NORMAL ANSWER for a game no reader covers: the console then
+            // boots with no reader rather than someone else's, which is the honest
+            // outcome for an unknown dump or a translation patch.
+            if system?.id == 5 {   // OGA_SYS_NES
+                let set = String(cString: poke_reader_set(core))
+                readerSetName = set.isEmpty ? nil : set
+                if let dir = ReaderStore.stage(set) {
+                    dir.path.withCString { poke_set_script_dir(core, $0) }
+                }
             }
             romName = name
             status = .ready(name: name)

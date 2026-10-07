@@ -169,6 +169,22 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   cores far heavier than anything currently in the app, and I would not plan around
   them. They are in the table so the UI can name them honestly, not as a roadmap.
 
+- [x] **NES readers are IN the app (2026-10-07), and the previous release over-claimed
+  them.** v0.6.0-nes shipped "Zelda 1 Access hosts and speaks" with no reader assets in
+  the IPA at all: `Resources/nes-lua/` was gitignored, `Package.swift` never copied it,
+  and `poke_set_script_dir` was called only for `gba`/`gbc`/`gb`. Fixed: the sets are
+  bundled resources now; the core identifies the reader by the ROM's CRC32 (never a
+  filename) via `kReaderSets` in `Core/mesen_core.cpp`; `poke_reader_set` exposes it
+  through the ops table; the app stages a writable copy and points the backend at it.
+  Two device-breaking wrapper bugs fixed on the way (a hard-coded
+  `/home/devin/...` reader path, and `io.popen("ls")` to enumerate Data files, which
+  iOS cannot run — DW would have been mute). Verified with real ROMs on the host
+  (`scripts/nes-reader-set-test.sh`, speech required, CRC identity mutation-proved) and
+  in the built IPA (17 reader files, byte-identical to source, `platform ios`,
+  re-signable). ⚠ Still host-side only: no phone has run it. Zelda's map/room narration
+  remains unobserved, DW's "Critical health" on a fresh boot is uninvestigated, and the
+  mods' PowerShell SoundBridge (spatial cues) is not ported.
+
 ## Game readers
 
 - [x] **Dissidia title tap-to-read diagnosis + fix:** root cause was the

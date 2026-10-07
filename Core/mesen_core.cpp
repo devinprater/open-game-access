@@ -42,6 +42,8 @@
 #include <cctype>
 #include <cstdio>
 #include <cstring>
+#include <dirent.h>
+#include <sys/stat.h>
 extern "C" {
 #include "lua.h"
 #include "lauxlib.h"
@@ -474,8 +476,44 @@ int LuaOgaSetSpeechFile(lua_State* L) {
     return 0;
 }
 
+
+/* oga.listfiles(dir) -> array of full paths, or nil.
+ *
+ * ⛔ WHY THE CORE LISTS THE DIRECTORY INSTEAD OF LETTING LUA SHELL OUT. The NES wrappers used
+ * io.popen("ls ...") to find every .lua in the reader's Data/ tree, because the speech-file
+ * declaration is not always in the entry file (Zelda declares it at file scope; Dragon Warrior
+ * declares it inside a Data module). iOS sandboxes an app away from fork/exec, so popen returns
+ * nil there and the candidate list silently collapses to the entry file alone -- which is exactly
+ * the Dragon Warrior case, i.e. that reader would have shipped completely silent while looking
+ * healthy. Walking the directory here is the same information without a subprocess.
+ *
+ * Returns absolute paths (dir joined with the entry name), so the caller can io.open them
+ * directly. Not sorted beyond readdir order: the wrapper only needs "every .lua in this tree",
+ * and the order of the search does not change the answer it resolves to.
+ */
+int LuaOgaListFiles(lua_State* L) {
+    const char* dir = luaL_checkstring(L, 1);
+    DIR* d = opendir(dir);
+    if (!d) { lua_pushnil(L); return 1; }
+
+    lua_newtable(L);
+    int n = 0;
+    while (struct dirent* ent = readdir(d)) {
+        const char* name = ent->d_name;
+        if (!name || name[0] == '.') continue;            /* skip "." / ".." / dotfiles */
+        std::string full = std::string(dir) + "/" + name;
+        struct stat st;
+        if (stat(full.c_str(), &st) != 0 || !S_ISREG(st.st_mode)) continue;  /* files only */
+        lua_pushstring(L, full.c_str());
+        lua_rawseti(L, -2, ++n);
+    }
+    closedir(d);
+    return 1;
+}
+
 const luaL_Reg kOgaFuncs[] = {
     { "set_speech_file", LuaOgaSetSpeechFile },
+    { "listfiles",       LuaOgaListFiles },
     { NULL, NULL }
 };
 
@@ -1024,5 +1062,63 @@ uint32_t nes_ram_base(NesCore* c) {
     (void) c;
     return NES_RAM_BASE;
 }
+
+/* ======================================================================== reader sets
+ *
+ * WHICH GAME A BUNDLED READER BELONGS TO, keyed by the ROM's own CRC32.
+ *
+ * ⛔ NOT BY FILE NAME. The readers' host glue (ResolveGameCode) derives an id from the FILENAME,
+ * which any rip, rename or translation patch changes -- so a name match would attach Zelda 1
+ * Access to "Zelda Hack 2.nes" and narrate confident nonsense. The CRC is the cartridge's content,
+ * and it is what Mesen already computes.
+ *
+ * ⛔ NOT A DEFAULT. A CRC that is not in this table yields "", which means the console runs with no
+ * reader at all. That is the honest outcome for an unknown dump; see the project rule that a
+ * reader must never guess addresses (Core/nes_adapter.cpp says the same thing at length).
+ *
+ * ⛔ EVERY VALUE HERE WAS MEASURED, NOT RECALLED. `nes_rom_crc32` is printed by
+ * scripts/nes-reader-test.cpp; each row below was read off that harness for the ROM named in the
+ * comment, and the same ROM's CRC was independently computed with zlib.crc32 to confirm the two
+ * agree (Mesen's CRC32 is the standard polynomial, but that is a claim until measured).
+ *
+ * ADDING A DUMP IS ONE ROW. Region and revision variants are separate CRCs because they are
+ * separate files; a reader that works on the USA dump is not thereby proven on a translation.
+ */
+struct NesReaderSet { uint32_t crc; const char* set; };
+
+const NesReaderSet kReaderSets[] = {
+    /* Zelda 1 Access -- GADeuvall2000/Zelda1Access. The Legend of Zelda (NES). */
+    { 829226857u,   "Zelda1Access" },   /* Legend of Zelda, The (USA)                  */
+    { 3833159904u,  "Zelda1Access" },   /* Legend of Zelda, The (USA) (Rev 1)          */
+    { 2742212504u,  "Zelda1Access" },   /* Legend of Zelda, The (Europe)               */
+    { 2588328931u,  "Zelda1Access" },   /* Legend of Zelda, The (Europe) (Rev 1)       */
+    { 1215192815u,  "Zelda1Access" },   /* Legend of Zelda, The (USA) (Rev 1) (GC Ed.) */
+
+    /* Dragon Warrior Access -- GADeuvall2000/DragonWarriorAccess. Dragon Warrior 1 (NES). */
+    { 3045679397u,  "DragonWarriorAccess" },  /* Dragon Warrior (USA)                  */
+    { 2884880537u,  "DragonWarriorAccess" },  /* Dragon Warrior (USA) (Rev 1)          */
+};
+
+uint32_t nes_rom_crc32(NesCore* c) {
+    if (!c || !c->emu) return 0;
+    return c->emu->GetCrc32();
+}
+
+const char* nes_reader_set(NesCore* c) {
+    uint32_t crc = nes_rom_crc32(c);
+    if (!crc) return "";
+    for (const NesReaderSet& s : kReaderSets)
+        if (s.crc == crc) return s.set;
+    /* NOT a silent miss: an unknown dump is the single most likely reason a player hears nothing,
+     * and the number is the thing needed to add it. */
+    if (c->log) {
+        char buf[128];
+        std::snprintf(buf, sizeof(buf),
+                      "nes: no bundled reader for this ROM (crc32 %u) -- running without one", crc);
+        c->log(buf, c->logUser);
+    }
+    return "";
+}
+
 
 } // extern "C"

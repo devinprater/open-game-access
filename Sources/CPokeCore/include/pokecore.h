@@ -71,6 +71,19 @@ void poke_set_script(PokeCore *core, const char *script);
  * Game Boy ROMs only: call after poke_load_rom, before poke_start. NDS ROMs
  * use poke_set_script instead. */
 void poke_set_script_dir(PokeCore *core, const char *dir);
+
+/* WHICH BUNDLED READER SET the loaded ROM needs, as a name the caller resolves to a
+ * directory under the app's staged readers (e.g. "Zelda1Access"), or "" when no
+ * bundled reader covers this game.
+ *
+ * ⛔ "" IS A REAL ANSWER, NOT A FAILURE. An unknown dump, a translation patch or a
+ * game nobody has written a reader for all give "". The caller must then start the
+ * console with NO reader rather than attaching someone else's: a reader narrating
+ * the wrong cartridge is the one outcome this project treats as worse than silence.
+ *
+ * Call AFTER poke_load_rom (the identity is a property of the cartridge) and BEFORE
+ * poke_start, which is what loads the reader. */
+const char *poke_reader_set(PokeCore *core);
 // PSP runtime assets inside the app bundle; set before loading a PSP ROM.
 void poke_set_psp_asset_dir(PokeCore *core, const char *asset_dir);
 bool poke_start(PokeCore *core);

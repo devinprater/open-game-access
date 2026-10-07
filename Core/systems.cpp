@@ -154,22 +154,32 @@ const OgaSystem kSystems[] = {
     { OGA_SYS_PSP, "PlayStation Portable", kPspExt, OGA_BACKEND_READY,
       1, true, false, 1, true, kPlayStation, 4 },
 
+    /* --- READY ---
+     *
+     * The MesenCE NES core is linked into the app (Core/mesen_core.cpp), a real .nes
+     * boots (`scripts/nes-live-proof.sh`), and the reader path is wired end to end:
+     * the core names a bundled reader set by the ROM's CRC32, the app stages a
+     * writable copy of it, and `nes_set_script_dir` loads it. See §Nintendo below.
+     */
+    { OGA_SYS_NES, "Nintendo Entertainment System", kNesExt, OGA_BACKEND_READY,
+      1, false, false, 0, true, kTwoFace, 2 },
+
     /* --- listed, core not yet integrated ---
      *
      * These are honest placeholders. Naming the intended core here is useful:
      * it is the answer to "what would it take", and it keeps the plan in one
      * place. Update to READY the moment a core loads a ROM.
      *
-     * NES/SNES  -> Mesen (measured 2026-10-04: Core/NES and Core/SNES both
-     *              compile for aarch64-linux-android26; see
-     *              scripts/mesen-feasibility.sh)
+     * SNES       -> Mesen (measured 2026-10-04: Core/SNES compiles for
+     *              aarch64-linux-android26; see scripts/mesen-feasibility.sh)
+     *              ONE TREE, SEVEN CORES: adding another Mesen console is a
+     *              host file (Core/mesen_core.cpp's shape) plus a build list,
+     *              not a new dependency. See docs/plans/emulator-agnostic-shell.md.
      * N64        -> an ARM64-recompiling core; needs JIT consideration
      * PS1        -> DuckStation-class core; software renderer for ARM
      * PS2        -> PCSX2-class; almost certainly not viable on phone yet
      * GC/Wii     -> Dolphin-class; same caveat, and 32-bit ARM is a wall
      */
-    { OGA_SYS_NES, "Nintendo Entertainment System", kNesExt, OGA_BACKEND_PLANNED,
-      1, false, false, 0, true, kTwoFace, 2 },
 
     { OGA_SYS_SNES, "Super Nintendo", kSnesExt, OGA_BACKEND_PLANNED,
       1, true, false, 0, true, kDiamond, 4 },

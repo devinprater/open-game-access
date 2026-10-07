@@ -84,6 +84,12 @@ let package = Package(
                 .process("Resources/bizhawk_compat.lua"),
                 .copy("Resources/gba-lua"),
                 .copy("Resources/ppsspp-assets"),
+                // The NES reader sets (Zelda 1 Access, Dragon Warrior Access). ONE
+                // directory, one subdirectory per game, chosen at runtime from the
+                // ROM's CRC. ⛔ THIS ENTRY IS THE WHOLE REASON v0.6.0-nes SHIPPED NO
+                // NES READER: the assets were gitignored AND absent from this list,
+                // so the Mesen core linked fine and every .nes booted silently.
+                .copy("Resources/nes-lua"),
             ]
         ),
     ]
