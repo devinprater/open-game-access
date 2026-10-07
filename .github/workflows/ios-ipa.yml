@@ -1,0 +1,116 @@
+name: iOS device IPA
+
+# Builds the DEVICE .ipa on a macOS runner -- the artifact Devin sideloads.
+#
+# ⛔ WHY THIS DID NOT EXIST. The simulator workflow has always been green, so "iOS CI
+# works" was true and still left the only artifact Devin actually installs built by
+# hand on one Linux box. A release whose IPA is hand-built is unreproducible from its
+# own tag, and a change that breaks the DEVICE build (a different triple, a different
+# SDK, a different arch) cannot be caught by a workflow that builds the SIMULATOR.
+#
+# ⛔ UNSIGNED, DELIBERATELY. `xtool dev build --ipa` does not sign unless asked, and
+# unsigned is what lets SideStore re-sign it on his phone. Do NOT add --sign: it needs
+# Apple credentials that must not live in CI for a build anyone can re-sign.
+#
+# ⛔ NO ROMS. The app ships accessibility scripts only; a game is the player's.
+on:
+  workflow_dispatch:
+  push:
+    tags: ['v*']
+    branches: [main]
+    paths:
+      - 'Core/**'
+      - 'Sources/**'
+      - 'Package.swift'
+      - 'scripts/build-core.sh'
+      - 'scripts/bootstrap-deps.sh'
+      - 'scripts/core-sources.sh'
+      - 'scripts/package-ipa.sh'
+      - '.github/workflows/ios-ipa.yml'
+
+jobs:
+  device-ipa:
+    # macOS 15 ships Xcode 16 / Swift 6, and Package.swift declares tools 6.0 --
+    # a 5.10 runner dies before compiling anything.
+    runs-on: macos-15
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # The cheapest gate, and it belongs first: a syntax error in any tracked shell
+      # script otherwise breaks the run minutes later, pointing at the wrong place.
+      - name: Shell scripts must parse
+        run: bash scripts/check-shell-syntax.sh
+
+      - name: Report the toolchain
+        run: |
+          xcode-select -p
+          xcodebuild -version
+          swift --version
+
+      # xtool so CI and the local machine build the app the SAME way rather than by
+      # two different paths.
+      - name: Install xtool
+        run: |
+          brew install xtool-org/tap/xtool || {
+            echo "brew tap failed; falling back to the release bundle"
+            curl -L -o /tmp/xtool.app.zip \
+              https://github.com/xtool-org/xtool/releases/latest/download/xtool.app.zip
+            unzip -q -o /tmp/xtool.app.zip -d /Applications
+            sudo ln -sf /Applications/xtool.app/Contents/MacOS/xtool-cli /usr/local/bin/xtool
+          }
+          xtool --version || xtool help | head -5
+
+      # llvm-objcopy is REQUIRED (Mesen vendors 7-Zip/xBRZ/blip_buf, whose strong twins
+      # only ld64.lld accepts after localising Mesen's copies) and Xcode does NOT ship it.
+      - name: Install llvm-objcopy (not shipped with Xcode)
+        run: |
+          if command -v llvm-objcopy >/dev/null 2>&1; then
+            echo "llvm-objcopy already present: $(command -v llvm-objcopy)"
+          else
+            export HOMEBREW_NO_AUTO_UPDATE=1 HOMEBREW_NO_INSTALL_CLEANUP=1
+            brew install llvm
+          fi
+          /opt/homebrew/opt/llvm/bin/llvm-objcopy --version 2>&1 | head -2 || true
+
+      - name: Fetch the emulator core and Lua (not vendored here)
+        run: ./scripts/bootstrap-deps.sh "$RUNNER_TEMP/src"
+
+      # ⛔ THE DEVICE CORE, NOT THE SIMULATOR ONE. SDKROOT points build-core.sh at
+      # Xcode's iPhoneOS SDK (the script's default is xtool's artifactbundle, which
+      # only exists on the machine that built it).
+      - name: Build the core for the DEVICE platform
+        env:
+          MELONDS_SRC: ${{ runner.temp }}/src/melonds-lua
+          LUA_SRC: ${{ runner.temp }}/src/lua-5.4.7
+          MGBA_SRC: ${{ runner.temp }}/src/mgba
+          PPSPP_SRC: ${{ runner.temp }}/src/ppsspp
+          MESEN_SRC: ${{ runner.temp }}/src/mesen
+        run: |
+          SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)" bash scripts/build-core.sh
+
+      - name: Build the IPA (unsigned, for SideStore to re-sign)
+        run: |
+          export POKECORE_LIB="$PWD/Vendor/libpokecore.a"
+          echo "POKECORE_LIB=$POKECORE_LIB"
+          xtool dev build --ipa
+          ls -la xtool/OpenGameAccess.ipa
+
+      # Verify the ARTIFACT, not the build's exit code: platform must be `ios` (not
+      # `iossimulator`), it must be unsigned, and the reader sets must be inside it.
+      - name: Verify the packaged device app
+        run: bash scripts/verify-ipa.sh
+
+      # Prove the gate CAN fail, on the artifact just built. A gate that only ever
+      # passes is decoration; this reconstructs each known-bad shape from the real
+      # IPA and requires rejection.
+      - name: Prove the IPA gate can fail
+        run: bash scripts/verify-ipa-test.sh
+
+      - name: Upload the IPA
+        uses: actions/upload-artifact@v4
+        with:
+          name: open-game-access-ios-ipa
+          path: xtool/OpenGameAccess.ipa
+          if-no-files-found: error
