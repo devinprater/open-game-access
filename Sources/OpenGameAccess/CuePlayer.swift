@@ -42,6 +42,10 @@ final class CuePlayer {
     /// so a per-file level could make two sides of the same obstacle disagree.
     var level: Float = 0.8
 
+    /// Paths whose play() was refused, so the warning is said once each rather than on
+    /// every step of a walk.
+    private var warned: Set<String> = []
+
     func setScriptDir(_ dir: String?) {
         guard dir != scriptDir else { return }
         scriptDir = dir
@@ -64,6 +68,15 @@ final class CuePlayer {
                 NSLog("[cue] could not decode \(fileURL.lastPathComponent)")
                 return
             }
+            // ⛔ ACTIVATE THE SESSION, DO NOT ASSUME IT. AVAudioPlayer.play() returns
+            // false and plays NOTHING when the audio session is inactive. The speech
+            // engine activates the shared session at attach time, so in the app this is
+            // normally already true — but that ordering is invisible from here, and a
+            // cue that silently does nothing is the exact bug this file exists to fix.
+            // Cheap to check, and it makes this file work on its own.
+            if !AVAudioSession.sharedInstance().isOtherAudioPlaying {
+                try? AVAudioSession.sharedInstance().setActive(true)
+            }
             made.prepareToPlay()
             players[path] = made
             player = made
@@ -75,7 +88,14 @@ final class CuePlayer {
         // normal case (walking repeats a footstep cue); letting it play through would
         // drop every cue after the first, and `pan` is only read when playback starts.
         player.currentTime = 0
-        player.play()
+        // ⛔ CHECK THE RESULT. play() returns false instead of throwing, so a cue that
+        // could not start would be indistinguishable from one that played. Say so once
+        // per file rather than failing in silence, which is what took the original gap
+        // so long to notice.
+        if !player.play(), !warned.contains(path) {
+            warned.insert(path)
+            NSLog("[cue] play() refused \\(fileURL.lastPathComponent) — session inactive?")
+        }
     }
 
     func stopAll() {
