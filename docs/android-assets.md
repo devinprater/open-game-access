@@ -139,3 +139,38 @@ CI and local gates now assert files that exist ONLY when the feature works. The
 broken shipped APK is the ideal fixture for proving such a gate: replay both
 against its real file list and require the old one to pass and the new one to
 fail.
+
+
+---
+
+## ⛔ The Android APK workflow does not run on `main` — so none of this was ever exercised
+
+Measured while verifying the restructure: `android-apk.yml` triggers on
+
+    on:
+      push:
+        tags: ['v*']
+      workflow_dispatch:
+
+**Neither is a `main` push.** Every commit to `main` — including the two that fix
+the reader set and rewrite its gate — passes with the Android workflow never
+having run. Its last green run (`37609804922`) was a *tag* push, `v0.6.1`, and
+that is exactly the build whose readers were broken.
+
+Two consequences:
+
+1. **A gate on this workflow cannot protect `main`.** A change to the reader set,
+   the overlay, the CMakeLists or the Kotlin can break the APK and nothing on a
+   normal push will notice. The gate added here is real and proven, but it only
+   fires when someone remembers to tag or dispatch.
+2. **The shipped APK is still the broken build.** v0.6.1's APK has no
+   `oga_bootstrap.lua` and no `mgba_compat.lua`. Fixing the source does not fix
+   the artifact; the APK must be rebuilt and the release asset replaced.
+
+To exercise the gate now: `gh workflow run android-apk.yml --ref main`.
+
+**Worth deciding:** add `push: branches: [main]` (with a path filter for the
+reader set, the overlay, and the Android sources) so the APK is built — or at
+least the gate is checked — on every relevant change, rather than only when a
+release is cut. A gate that only runs at release time is a gate that tells you
+last.
