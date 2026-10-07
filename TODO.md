@@ -358,6 +358,35 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   content-scan anchoring the map reader uses, add menu states to the ready gate
   and menu commands to the adapter.)
 
+- [x] **CI builds the DEVICE IPA (2026-10-07).** The simulator workflow was always
+  green, so "iOS CI works" was true while the only artifact Devin installs was
+  hand-built on one box and attached by hand — a release whose IPA is unreproducible
+  from its own tag, and a device build nothing verified. New
+  `.github/workflows/ios-ipa.yml` builds the device core, packages an UNSIGNED ipa, and
+  on a `v*` tag attaches it as `OpenGameAccess-<tag>.ipa` (the name the hand-upload
+  path used, so no link breaks).
+  ⛔ `scripts/build-core.sh` hardcoded xtool's artifactbundle SDK — that is WHY the
+  device build had no CI. It now resolves `SDK=` -> `SDKROOT=` -> `xcrun --sdk
+  iphoneos` -> xtool's bundle, last, so local behaviour is unchanged (verified: a real
+  local build still archives the same size).
+  `scripts/verify-ipa.sh` asserts on the UNPACKED artifact (platform `ios`, unsigned,
+  reader sets by name, >=33 cue WAVs, the cue binding, no game data);
+  `scripts/verify-ipa-test.sh` mutates the real IPA into each known-bad shape and
+  requires rejection.
+  **Three bugs in the plumbing surfaced, each invisible until it ran somewhere new:**
+  1. `find -iregex` is GNU-only — on the macOS runner it errored, returned empty, and
+     read as "no game data", passing a deliberately-ROMmed IPA. Portable `-iname` plus
+     a probe that proves the search works before an empty result is trusted.
+  2. The workflow's path filter listed scripts by name but NOT `verify-ipa.sh`, so the
+     commit fixing a bug in that gate could not trigger the gate. Now matches classes
+     (`build-*.sh`, `verify-ipa*.sh`).
+  3. No `permissions:` — the token was read-only and `action-gh-release` failed with
+     "Resource not accessible by integration". Only reachable on a TAG, which is the
+     one run a release gets; found by exercising the tag path on a disposable tag.
+  Verified: a full tag run went green and the released IPA was downloaded back and
+  passed the gate independently. (Two CI builds of identical source differ by 46 bytes
+  — `LC_UUID` is random per link. Content is identical.)
+
 ## Verification
 
 - [x] Add `MGBA_DEFS` and `MGBA_INC` specifically to the `gba_core.cpp` C++ compile; validate cached objects against compiler/toolchain, effective flags, target, SDK metadata, and compiler-emitted header dependencies (including generated `flags.h`). `scripts/build-cache-test.sh` passes, and both archive builds pass locally with verified cache hits on the next run; the remote simulator core-build step passed in [run 36212903265](https://github.com/devinprater/open-game-access/actions/runs/36212903265).
