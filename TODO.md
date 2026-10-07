@@ -178,9 +178,16 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   the exact failure the sibling's fix was written to prevent. Fixed in the overlay as
   step 7c, same label-from-the-ROM's-own-fields approach, no new words. Overlay verified
   idempotent and applied to a fresh upstream clone; APK build pending.
-  Also unlabelled, deliberately NOT changed (reachable only with RetroAchievements
-  configured, and it is a RetroAchievements feature surface rather than a game-playing
-  control): `AchievementList.kt`'s Compose rows.
+  **Achievement rows (step 7d) — Devin asked for these.** The shared
+  `RomAchievementUi` row had NO semantics, so TalkBack read each one as loose
+  fragments (title, description, "13/47", "250", "PTS") with nothing saying what the
+  row was or whether it was unlocked. Now one merged stop labelled from the row's own
+  data and its existing strings (Unlocked/Locked, Points, Missable, the progress pair)
+  — no new words. ⛔ The merge is on the inner content Row, NOT the outer Column: the
+  Column owns the expand/collapse click and contains the "View achievement" button,
+  and merging there would swallow that button as a focusable action. Verified on a
+  fresh upstream clone that the merge attaches to the inner Row and the button
+  survives.
 - [~] **Make the shell emulator-agnostic (started 2026-10-04):** plan at
   `docs/plans/emulator-agnostic-shell.md`. Three of its steps are DONE:
   * **Registry:** 14 consoles (Genesis/Dreamcast/3DS added -- each has an

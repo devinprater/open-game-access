@@ -669,4 +669,79 @@ else
   echo "     plain RomItem: already labelled, or not found"
 fi
 
+# --- 7d. The achievement list rows (reachable from the pause menu when
+# RetroAchievements is configured). Devin asked for these specifically. The shared
+# RomAchievementUi row has no semantics at all, so TalkBack read it as loose fragments
+# (title, description, "13/47", "250", "PTS") with nothing saying what the row is or
+# whether it is unlocked. Same treatment as 7a/7c, no new words.
+ACHROW="$FRONTEND/app/src/main/java/me/magnum/melonds/ui/romdetails/ui/RomAchievementUi.kt"
+if [ -f "$ACHROW" ] && ! grep -q 'ogaAchievementRowLabel' "$ACHROW"; then
+  python3 - "$ACHROW" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+
+old_imports = "import androidx.compose.ui.res.stringResource"
+new_imports = """import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics"""
+assert old_imports in s, "RomAchievementUi import anchor not found"
+s = s.replace(old_imports, new_imports, 1)
+
+# The label is built from strings the row ALREADY uses, resolved in composable scope
+# (stringResource cannot be called inside the non-composable semantics lambda).
+old_col = """    Column(
+        modifier = modifier
+            .focusRequester(bodyFocusRequester)"""
+new_col = """    // ogaAchievementRowLabel: resolved OUTSIDE the semantics lambda, because
+    // stringResource is @Composable and the semantics block is not.
+    val ogaStateLabel = stringResource(
+        if (isUnlocked) R.string.retro_achievements_unlocked else R.string.retro_achievements_locked
+    )
+    val ogaPointsLabel = stringResource(R.string.points)
+    val ogaMissableLabel = if (achievement.isMissable()) stringResource(R.string.achievement_missable) else null
+
+    Column(
+        modifier = modifier
+            .focusRequester(bodyFocusRequester)"""
+assert old_col in s, "RomAchievementUi Column anchor not found"
+s = s.replace(old_col, new_col, 1)
+
+# ⛔ The inner content Row, NOT the outer Column: the Column owns the expand click and
+# contains the "View achievement" button, and merging there would eat that button.
+old_row = "        Row(Modifier.fillMaxWidth()) {"
+cnt = s.count(old_row)
+assert cnt == 1, f"content Row matched {cnt} times (expected 1)"
+new_row = """        // ogaAchievementRowLabel: one stop for the row's information. The outer
+        // Column keeps the expand click and, when expanded, the View-achievement
+        // button as its own focusable action -- merging there would swallow it.
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics(mergeDescendants = true) {
+                    contentDescription = listOfNotNull(
+                        achievement.getCleanTitle(),
+                        achievement.description.takeIf { it.isNotBlank() },
+                        ogaStateLabel,
+                        "${achievement.points} $ogaPointsLabel",
+                        if (achievementModel is AchievementUiModel.RuntimeAchievementUiModel &&
+                            achievementModel.hasProgress()
+                        ) {
+                            "${achievementModel.runtimeAchievement.progress}/${achievementModel.runtimeAchievement.target}"
+                        } else {
+                            null
+                        },
+                        ogaMissableLabel,
+                    ).joinToString(", ")
+                }
+        ) {"""
+s = s.replace(old_row, new_row, 1)
+
+open(p, "w", encoding="utf-8").write(s)
+print("     achievement rows now read as one labelled item")
+PY
+else
+  echo "     achievement rows: already labelled, or not found"
+fi
+
 say "overlay applied"
