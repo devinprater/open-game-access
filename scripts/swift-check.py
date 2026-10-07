@@ -48,6 +48,7 @@ UNCHECKABLE = {
     "OpenGameAccessApp.swift": "imports SwiftUI",
     "RootView.swift": "imports SwiftUI/UIKit",
     "SettingsView.swift": "imports SwiftUI",
+    "CuePlayer.swift": "imports AVFoundation (Apple-only)",
     "SpeechEngine.swift": "imports UIKit/AVFoundation",
 }
 
@@ -103,6 +104,26 @@ def slot_consistency():
     return ok
 
 
+def unlisted_swift_files():
+    """⛔ THE HOLE THIS CLOSES. typecheck() walks CHECKABLE and UNCHECKABLE explicitly, so a
+    new .swift file in NEITHER table is silently unguarded -- it is never type-checked and
+    never reported as skipped. CuePlayer.swift landed exactly there. A gate that quietly
+    ignores an unlisted file is the same failure as the reader-asset check that matched 197
+    entries with `grep -qi lua`: it reports success for work it never examined."""
+    print("-- every .swift file is accounted for (checked or explicitly skipped)")
+    listed = set(CHECKABLE) | set(UNCHECKABLE)
+    on_disk = sorted(p.name for p in SWIFT_DIR.glob("*.swift"))
+    ghosts = [f for f in on_disk if f not in listed]
+    if ghosts:
+        for g in ghosts:
+            print("   !! %s is in neither CHECKABLE nor UNCHECKABLE" % g)
+        print("   Add it to whichever table fits: it is either checkable here or must")
+        print("   say WHY it is not. Silence is not a reason.")
+        return False
+    print("   ok: %d file(s), all accounted for" % len(on_disk))
+    return True
+
+
 def typecheck():
     print("-- real swiftc type-check (Linux-reachable files only)")
     ok = True
@@ -154,6 +175,7 @@ def main():
     if which in ("all", "typecheck"):
         ok = typecheck() and ok
     ok = slot_consistency() and ok
+    ok = unlisted_swift_files() and ok
     if which in ("all", "poke-symbols"):
         ok = poke_symbols() and ok
 
