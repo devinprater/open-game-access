@@ -143,6 +143,20 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   Decide: add `push: branches: [main]` with a path filter over the reader set,
   `app/native-overlay/`, and `scripts/android-*`, so the gate runs on every relevant
   change instead of only at release time. See `docs/android-assets.md`.
+- [ ] **Android's `bizhawk_compat.lua` has an inert `joypad.set` — the modifier
+  layer's release latch cannot engage.** Android loads its OWN top-level copy
+  (`AccessibilityScript.kt` names `lua/bizhawk_compat.lua`) whose `joypad.set` is an
+  empty function; the canonical copy calls `input.JoySet()`. `joypad.set({})` is NOT
+  a no-op — main.lua calls it (16 sites, incl. the pad_dirty idle-clear and the
+  re-latch at :301/:305) to CLEAR its overrides, so leaving it empty means a
+  direction held while the modifier trigger is released leaks through to the game as
+  an unasked-for step. The fix is two-part: `input.JoySet` is registered only in
+  `Core/pokecore.cpp`, which Android does NOT link (it embeds melonDS-lite +
+  MGBACore/PokeScript), and grepping the Android tree finds no Lua `JoySet` binding
+  at all — so expose that binding in the Android Lua host, THEN make the copy
+  identical or delete it so this reader file is single-sourced too. Full writeup:
+  `docs/android-joypad-set.md`.
+
 - [ ] **Android menus need TalkBack labels (in progress).** The ROM-list toolbar is already
   labelled, but the PLAYER-FACING surfaces are not: `EmulatorActivity.showPauseMenu()` is a
   bare `AlertDialog.Builder().setItems(...)` with no focus/announcement handling, and the
