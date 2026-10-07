@@ -13,6 +13,13 @@ name: iOS device IPA
 # Apple credentials that must not live in CI for a build anyone can re-sign.
 #
 # ⛔ NO ROMS. The app ships accessibility scripts only; a game is the player's.
+# ⛔ REQUIRED FOR THE RELEASE STEP. Without `contents: write` the job's GITHUB_TOKEN
+# is read-only, and softprops/action-gh-release fails with "Resource not accessible by
+# integration" — measured on a tag run, where it is the only chance you get. The
+# android-apk workflow has carried this all along.
+permissions:
+  contents: write
+
 on:
   workflow_dispatch:
   push:
