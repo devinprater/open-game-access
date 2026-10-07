@@ -100,13 +100,52 @@ jobs:
           APK=$(find frontend/app/build/outputs/apk -name '*.apk' | head -1)
           test -n "$APK" || { echo "no APK produced"; exit 1; }
           echo "APK: $APK ($(stat -c%s "$APK") bytes)"
-          # The whole point: the Lua reader must be inside the APK. Take the file
-          # list to a file first -- `unzip -l | grep -q` dies of SIGPIPE under
-          # pipefail when the pattern DOES match, which reports a false failure.
+          # The whole point: the reader set must be inside the APK and must be the
+          # CURRENT one. Take the file list to a file first -- `unzip -l | grep -q`
+          # dies of SIGPIPE under pipefail when the pattern DOES match, which
+          # reports a false failure.
+          #
+          # ⛔ `grep -qi lua` WAS NOT A GATE. It matched 197 entries in v0.6.1 and
+          # would have passed with the entire GBA path absent: main.lua (the DS
+          # reader), any vintage of assets/lua/gb/, and the core's own Lua engine
+          # all satisfy it. Assert the files that exist ONLY when the feature
+          # works, so the check cannot be satisfied by an unrelated .lua.
           unzip -l "$APK" > "$RUNNER_TEMP/apk-list.txt" || true
-          grep -qi lua "$RUNNER_TEMP/apk-list.txt" \
-            || { echo "!! no Lua assets in the APK"; exit 1; }
-          echo "ok: Lua assets present"
+
+          # oga_bootstrap.lua is "the ONE file to load" (its own header) and
+          # mgba_compat.lua is the mGBA<-BizHawk API shim the readers require.
+          # Both were ADDED to the reader set on 2026-09-20; the APK's copy of
+          # assets/lua/gb/ is a 2026-09-15 snapshot, so both were missing while
+          # this step reported success.
+          missing=0
+          for f in oga_bootstrap.lua mgba_compat.lua gb.lua gba.lua pokemon.lua; do
+            if grep -q "assets/lua/gb/$f" "$RUNNER_TEMP/apk-list.txt"; then
+              echo "  ok: assets/lua/gb/$f"
+            else
+              echo "!! MISSING from the APK: assets/lua/gb/$f" >&2
+              missing=1
+            fi
+          done
+          [ "$missing" -eq 0 ] || {
+            echo "!! the APK's Game Boy / GBA reader set is incomplete or stale." >&2
+            echo "   assets/lua/gb/ must carry the CURRENT set from" >&2
+            echo "   Sources/OpenGameAccess/Resources/gba-lua/ (see docs/android-assets.md)." >&2
+            exit 1
+          }
+          echo "ok: the Game Boy / GBA reader set is present and current"
+
+          # The NES readers are iOS-only today: nes-lua/ exists under Sources/
+          # only and the Android asset tree has no NES path at all. Do not assert
+          # them here -- that would fail until Android has NES staging to test.
+          # Assert instead that the claim is not being made falsely: if an
+          # assets/nes path ever appears, it must carry a real reader.
+          if grep -q "assets/.*nes" "$RUNNER_TEMP/apk-list.txt"; then
+            grep -q "DragonWarriorAccess" "$RUNNER_TEMP/apk-list.txt" \
+              || { echo "!! an NES asset path exists but carries no reader set" >&2; exit 1; }
+            echo "ok: NES reader set present"
+          else
+            echo "note: no NES reader set in this APK (iOS-only today) -- not asserted"
+          fi
 
       - name: Confirm no game data is present
         run: |
