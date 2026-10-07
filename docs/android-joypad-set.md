@@ -1,4 +1,32 @@
-# Android's `bizhawk_compat.lua` has an inert `joypad.set` — the modifier layer's release latch cannot engage
+# ⛔ RETRACTED — this described a defect that does not exist
+
+**Do not act on anything below.** It claimed Android's `bizhawk_compat.lua` had an
+inert `joypad.set` that leaks a held direction into the game, and that fixing it
+required exposing `input.JoySet` in the Android Lua host.
+
+Measurement disproved it. Android's NDS host (`PokeScript.cpp`) registers only
+`HeldKeys, GetJoy, NDSTapDown, NDSTapUp, Keys` and has **no button-override path at
+all** — `setJoypadState` is defined but never called, and there is no `setKeys` JNI on
+the NDS side (the GBA side has one). `main.lua` calls `joypad.set({})` to CLEAR
+overrides; with no override mechanism to clear, an empty function is **consistent**,
+not broken. Implementing `input.JoySet` would store overrides nothing ever consumes.
+
+**The error was inferring Android's reader environment from iOS's.** iOS loads
+`oga_bootstrap.lua` (which installs `mgba_compat.lua`); Android loads only
+`pokemon.lua` and installs the equivalent surface in C inside `MGBACore.cpp`. The
+files I called "missing" from the Android APK were correctly absent because Android
+replaces them — and the shipped v0.6.1 APK already carried every file the Android path
+loads (verified: 195 files, identical to the canonical tree).
+
+**The generalisable lesson:** a host-side source list is not the app's link list. Read
+the platform's OWN loader before concluding anything about what that platform needs.
+I had this exact warning in the project's own skill notes and reproduced the error
+anyway.
+
+---
+
+## The retracted text, kept for the record
+
 
 Measured 2026-10-07 while restructuring the reader set. This is a **real defect**,
 not a cosmetic platform difference, and it is the reason the top-level Android

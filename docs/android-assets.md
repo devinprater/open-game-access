@@ -121,7 +121,7 @@ This is the reason to compare before deleting rather than after:
    decision**, not a sync, and is left alone — and investigating it found a REAL
    DEFECT rather than a tidy split: Android's `joypad.set` is inert because
    `input.JoySet` is registered only in `Core/pokecore.cpp`, which Android does not
-   link. See `docs/android-joypad-set.md`.
+   link. See `docs/android-joypad-set.md` — **RETRACTED**: that defect does not exist, because Android installs the reader environment in C and never loads the file in question.
 
 ### The three gates, all proven by sabotage
 
