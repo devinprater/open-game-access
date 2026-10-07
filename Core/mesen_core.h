@@ -159,6 +159,16 @@ void nes_set_script_dir(NesCore *core, const char *dir);
 /* True once a reader script has loaded and not yet errored. */
 bool nes_script_loaded(NesCore *core);
 
+/* The name of the bundled reader set for the loaded ROM, or "" when this build has none for it
+ * (unknown dump, or a game no reader covers). The caller turns the name into the directory it
+ * stages the set into; see Resources/nes-lua/<name>/. ⛔ An unknown ROM MUST give "", never a
+ * best guess: a reader narrating the wrong game is worse for a blind player than silence. */
+const char *nes_reader_set(NesCore *core);
+
+/* The loaded ROM's CRC32 -- the identity nes_reader_set matches on. Exposed so a harness can
+ * print it and so a new dump is added by MEASURING its value rather than by guessing. */
+uint32_t nes_rom_crc32(NesCore *core);
+
 #ifdef __cplusplus
 }
 #endif

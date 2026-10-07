@@ -34,6 +34,17 @@ jobs:
       # rule that an unrecognised file must never resolve to a console.
       - name: System registry tests
         run: bash scripts/systems-test.sh
+      # The backend ops tables are POSITIONAL initializers. Adding a field to
+      # OgaCoreOps and forgetting one table rotates it -- read_audio lands in
+      # reader_set and the app calls the wrong function, with a clean build.
+      - name: Backend ops-table parity
+        run: python3 scripts/oga-ops-check.py
+      # The NES reader sets are bundled resources and were absent from the shipped
+      # IPA for a whole release while every build reported success. This asserts
+      # the files the core's table names exist AND that each wrapper derives its
+      # own path (one hard-coded the developer's home directory).
+      - name: Bundled NES reader sets
+        run: bash scripts/nes-reader-assets-test.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols

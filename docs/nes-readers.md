@@ -71,7 +71,42 @@ proof that the whole path works: console -> Lua host -> wrapper -> mod -> file -
   OGA has no equivalent path yet. The readers `pcall` around it, so speech works and cues stay
   silent. This is the same conclusion the earlier survey reached from two other codebases: the
   strongest spatial readers put their audio OUTSIDE the emulator.
-- The app build does not compile Mesen yet — this is host-only.
+- ⛔ **CORRECTED — the readers ARE now in the app, and the release that said so was
+  wrong when it said it.** v0.6.0-nes claimed "Zelda 1 Access hosts and speaks … the
+  overworld screen on arrival and on every screen crossing" while the shipped IPA
+  contained **zero** reader files: `Resources/nes-lua/` was in `.gitignore` and absent
+  from `Package.swift`, and `poke_set_script_dir` had exactly one call site, gated to
+  `gba`/`gbc`/`gb`. The Mesen core was genuinely linked (281 `mesen_Core_*.o` objects
+  in the binary) and every `.nes` booted silently. Same shape as the Android Game Boy
+  path: linked is not reachable.
+- **What the fix does.** The sets now live at
+  `Sources/OpenGameAccess/Resources/nes-lua/` and `Package.swift` copies them. The
+  core names the set a ROM needs by the ROM's **CRC32**
+  (`Core/mesen_core.cpp`'s `kReaderSets`), never by filename — an unknown dump or a
+  translation patch gets `""`, i.e. no reader, which is the honest answer. The Swift
+  side stages a **writable copy** of the named set (the readers WRITE into their own
+  `Data/`, and an app bundle cannot be written to) and points `poke_set_script_dir` at
+  it.
+- **Two device-breaking bugs in the wrappers, found by reading them.** Each
+  `oga_nes_reader.lua` hard-coded `/home/devin/oga-work/.../Zelda1Access.lua`, a path
+  that does not exist on a device; and each used `io.popen("ls ...")` to find its
+  Data files, which iOS cannot run — the candidate list would silently collapse to the
+  entry file, which is exactly Dragon Warrior's case, so that reader would have shipped
+  mute. Both wrappers now derive their own directory from `debug.getinfo(1,"S")` and
+  call a new `oga.listfiles` binding instead of a shell.
+- **Measured on the host, real ROMs, the same sources the app compiles:** Zelda (USA),
+  Zelda (USA Rev 1), Dragon Warrior (USA) and DW (USA Rev 1) each resolve to their set
+  and SPEAK ("Inventory Menu." / "Dragon Warrior access loaded successfully."); Super
+  Mario Bros. resolves to none and logs why. `scripts/nes-reader-set-test.sh` — speech
+  is the pass condition, and the CRC identity is proved by mutation.
+- **Verified in the built IPA** (not just the build log): 17 reader files inside the
+  bundle, byte-identical to the sources, `platform ios`, no `_CodeSignature`, no
+  provisioning profile.
+- Not verified on hardware: the first run on the phone is still yours.
+- Still open from before: Zelda's map/room narration has not been observed (only its
+  menu-state lines), DW's "Critical health" on a fresh boot is uninvestigated, and
+  neither mod's PowerShell SoundBridge is ported — iOS has no out-of-process audio
+  path, so spatial cues stay silent.
 
 ## Next steps
 

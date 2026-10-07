@@ -149,4 +149,8 @@ secrets*
 
 __pycache__/
 third-party/
-Resources/nes-lua/
+
+# ⛔ NOT IGNORED ANY MORE. The NES reader sets ARE source now, and they live with the
+# other bundled resources (Sources/OpenGameAccess/Resources/nes-lua). They were ignored
+# while they sat at the tree root, which is how they came to be absent from the shipped
+# IPA while every build reported success.

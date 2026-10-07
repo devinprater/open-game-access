@@ -163,7 +163,11 @@ enum ROMStore {
             options: [.skipsHiddenFiles]
         )) ?? []
         return contents
-            .filter { ["nds", "gba", "gbc", "gb", "iso", "cso", "pbp"].contains($0.pathExtension.lowercased()) }
+            // ⛔ KEEP THIS IN STEP WITH allowedTypes ABOVE. It was missing the NES
+            // family, so a .nes the picker happily accepted never appeared in the
+            // recent-games list afterwards -- reachable to import, invisible after.
+            .filter { ["nds", "gba", "gbc", "gb", "nes", "fds", "unf",
+                       "iso", "cso", "pbp"].contains($0.pathExtension.lowercased()) }
             .sorted { a, b in
                 let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
                 let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
@@ -225,5 +229,86 @@ enum BundleResources {
         let url = base?.appendingPathComponent("gba-lua", isDirectory: true)
         guard let url, FileManager.default.fileExists(atPath: url.path) else { return nil }
         return url.path
+    }
+
+    /// Filesystem path of the bundled NES reader sets (`nes-lua/`), each holding one
+    /// game's reader (`Zelda1Access/`, `DragonWarriorAccess/`). Nil when the resource
+    /// is missing — the core then runs the console with no reader, it does not boot a
+    /// game with no narration.
+    ///
+    /// ⛔ THIS DIRECTORY IS READ-ONLY AND MUST NOT BE HANDED TO THE CORE. The NES
+    /// readers WRITE into their own tree (speech text, saved settings, waypoint and
+    /// visited-room progress), and an app bundle cannot be written to. `ReaderStore`
+    /// copies the set into the container first; this only says where the source is.
+    static var nesReaderRoot: String? {
+        let base = Bundle.module.resourceURL ?? Bundle.main.resourceURL
+        let url = base?.appendingPathComponent("nes-lua", isDirectory: true)
+        guard let url, FileManager.default.fileExists(atPath: url.path) else { return nil }
+        return url.path
+    }
+}
+
+/// A writable copy of a bundled reader set, under the app's Documents.
+///
+/// ⛔ WHY A COPY AND NOT THE BUNDLE PATH. The NES readers are ordinary Lua mods
+/// written for a desktop emulator: they open files for WRITING in their own `Data/`
+/// directory — the speech text they emit, their saved settings, waypoint and
+/// visited-room progress. An app bundle is read-only, so pointing the core at the
+/// bundled path would compile, boot, and then hit `io.open(..., "w") == nil` for
+/// every one of those. The readers guard those writes (they log and continue), so
+/// the failure is quiet: narration works and nothing is ever saved.
+///
+/// The copy overwrites the SHIPPED files only. Runtime output is deliberately not
+/// shipped (see the staging rules in Core/mesen_core.cpp's neighbours), so a copy
+/// that replaces reader code on every app update still cannot clobber a player's
+/// saved settings or progress — those files are not in the source list.
+enum ReaderStore {
+    static var root: URL {
+        let base = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let dir = base.appendingPathComponent("Readers", isDirectory: true)
+        try? FileManager.default.createDirectory(at: dir, withIntermediateDirectories: true)
+        return dir
+    }
+
+    /// Stage the named bundled reader set and return the writable directory to hand to
+    /// `poke_set_script_dir`, or nil when the set is not in this build.
+    ///
+    /// `set` comes from the core (`poke_reader_set`), which knows it from the ROM's
+    /// own CRC32 — never from a filename.
+    static func stage(_ set: String) -> URL? {
+        guard !set.isEmpty else { return nil }
+        // One path component, from the core's own table. Reject anything else rather
+        // than trusting a name that a future caller might build from a ROM's filename.
+        guard !set.contains("/"), !set.contains("..") else { return nil }
+        guard let srcRoot = BundleResources.nesReaderRoot else { return nil }
+
+        let src = URL(fileURLWithPath: srcRoot).appendingPathComponent(set, isDirectory: true)
+        let dst = root.appendingPathComponent(set, isDirectory: true)
+        let fm = FileManager.default
+        guard fm.fileExists(atPath: src.path) else { return nil }
+        try? fm.createDirectory(at: dst, withIntermediateDirectories: true)
+
+        // Walk the bundled set and copy every file. Subdirectories keep their names
+        // (`Data/` is where the readers look), which is why this is a recursive walk
+        // rather than a single copyItem -- copyItem on the directory as a whole would
+        // refuse when the destination already exists, which is every launch after the
+        // first.
+        let keys: [URLResourceKey] = [.isDirectoryKey]
+        guard let walker = fm.enumerator(at: src, includingPropertiesForKeys: keys) else { return nil }
+        for case let item as URL in walker {
+            let rel = item.path.dropFirst(src.path.count).drop(while: { $0 == "/" })
+            guard !rel.isEmpty else { continue }
+            let target = dst.appendingPathComponent(String(rel))
+            let isDir = (try? item.resourceValues(forKeys: Set(keys)).isDirectory) ?? false
+            if isDir {
+                try? fm.createDirectory(at: target, withIntermediateDirectories: true)
+            } else {
+                try? fm.createDirectory(at: target.deletingLastPathComponent(),
+                                        withIntermediateDirectories: true)
+                if fm.fileExists(atPath: target.path) { try? fm.removeItem(at: target) }
+                try? fm.copyItem(at: item, to: target)
+            }
+        }
+        return dst
     }
 }

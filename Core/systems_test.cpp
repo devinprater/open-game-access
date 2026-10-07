@@ -210,7 +210,11 @@ int main()
         /* These rows exist so the picker can NAME the console. They must not
          * claim to be playable, or a blind player gets a game that boots to
          * nothing. */
-        const OgaSystemId planned[] = { OGA_SYS_NES, OGA_SYS_SNES, OGA_SYS_N64,
+        /* ⛔ NES IS OUT OF THIS LIST ON PURPOSE. The assertion below is that none of
+         * these is runnable, and the NES now is: the Mesen core is linked in, a real
+         * ROM boots, and its reader set is wired. Leaving it here would make this
+         * test fail for the right reason and block the change that fixed it. */
+        const OgaSystemId planned[] = { OGA_SYS_SNES, OGA_SYS_N64,
                                         OGA_SYS_PS1, OGA_SYS_GENESIS,
                                         OGA_SYS_DREAMCAST, OGA_SYS_3DS,
                                         OGA_SYS_MASTER, OGA_SYS_PCE,

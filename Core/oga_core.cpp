@@ -86,6 +86,8 @@ static const OgaCoreOps kGbaOps = {
     GbaSetButton, NULL, NULL,   /* no analog, no touch, hotkeys yes */
     GbaSetHotkey,
     GbaSetScriptDir,
+    NULL,                       /* reader_set: the Game Boy reader set is chosen in Swift, not by
+                                 * ROM identity, so this backend names no bundled set */
     NULL,                       /* no audio path yet (reader cues are text) */
     GbaSaveState, GbaLoadState,
     GbaFrames, GbaLastError,
@@ -143,6 +145,12 @@ static void NesSetScriptDir(void* s, const char* dir) {
     if (dir && *dir) nes_set_script_dir((NesCore*) s, dir);
 }
 
+/* The reader set for the loaded ROM, by CRC. See Core/mesen_core.cpp's kReaderSets. */
+static const char* NesReaderSet(void* s) {
+    NesCore* nes = (NesCore*) s;
+    return nes ? nes_reader_set(nes) : "";
+}
+
 static bool NesSaveState(void* s, const char* path) { return nes_save_state((NesCore*) s, path); }
 static bool NesLoadState(void* s, const char* path) { return nes_load_state((NesCore*) s, path); }
 static unsigned long long NesFrames(void* s) { return nes_frames_completed((NesCore*) s); }
@@ -160,6 +168,7 @@ static const OgaCoreOps kNesOps = {
     NULL,                       /* set_touch:  no touchscreen */
     NULL,                       /* set_hotkey: none defined for this console yet */
     NesSetScriptDir,            /* set_script_dir: loads the NES reader mod */
+    NesReaderSet,               /* reader_set: which bundled reader this ROM needs */
     NULL,                       /* read_audio: nes_read_audio exists but returns 0 by design; a NULL
                                  * slot says the same thing, so wire it when there is real audio */
     NesSaveState, NesLoadState, /* both refuse out loud today -- see mesen_core.cpp */
@@ -246,6 +255,7 @@ static const OgaCoreOps kPspOps = {
     PspSetButton, PspSetAnalog, NULL,   /* no touch screen */
     NULL,                               /* no hotkey layer on PSP */
     NULL,                               /* no external script set on PSP */
+    NULL,                               /* reader_set: no bundled PSP reader set */
     PspReadAudio,
     PspSaveState, PspLoadState,
     PspFrames, PspLastError,
