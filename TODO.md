@@ -19,6 +19,9 @@
   bundled copy was then driven the same way. `scripts/cue-sink-test.sh` guards it
   with 4 sabotage mutations and runs in adapter-tests CI.
   ⚠ Host-side only so far: no phone has heard a cue yet.
+  **RELEASED as v0.6.3** (IPA verified from its own published bytes: `platform ios`,
+  unsigned, 33 WAVs and the `oga_play_sound` binding in the shipped binary). Still
+  unconfirmed by ear on a device — that is the open part, not the code.
 - [x] **Announcement queue design:** `docs/design/announcement-queue.md` defines the four priority levels, the interruption matrix, same-key coalescing with rate caps, on-demand opponent/location queries, and the lock-on audio beacon. Passive speech stays off until a playtest passes the criteria in that doc.
 - [x] **Announcement queue core:** `Core/announce.*` implements `docs/design/announcement-queue.md` (one line in flight, 3 levels, groups, dedup, expiry, time rate limit, bounds, stop, retry). `scripts/announce-test.sh`: 49 checks plus 7 sabotage builds that must fail; runs in the adapter-tests CI workflow.
 - [x] **Wire the queue into hosts** (2026-10-01; sequenced in `docs/design/announcement-queue.md`
@@ -148,16 +151,12 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   STILL OPEN: the NES readers are iOS-only — `nes-lua/` has no Android staging path at
   all.
 
-- [ ] **The Android APK workflow never runs on `main`, so the reader-set gate is
-  unexercised.** `android-apk.yml` triggers only on `push: tags: ['v*']` and
-  `workflow_dispatch` — a normal commit to `main` never builds the APK, so a broken
-  reader set, overlay, CMakeLists or Kotlin can land unnoticed. Proven: every commit
-  that fixed the GBA reader set passed with the Android workflow not having run since
-  the `v0.6.1` tag. And because the fix is source-only, **the shipped v0.6.1 APK is
-  still the broken build** — it needs a rebuild and a replaced release asset.
-  Decide: add `push: branches: [main]` with a path filter over the reader set,
-  `app/native-overlay/`, and `scripts/android-*`, so the gate runs on every relevant
-  change instead of only at release time. See `docs/android-assets.md`.
+- [x] **Android APK builds on `main` (2026-10-07).** `android-apk.yml` now runs on
+  `push: branches: [main]` with a path filter over the reader sets, the overlay,
+  `app/src/main`, `Core` and the Android scripts, plus the tag trigger and
+  `workflow_dispatch`. Measured: a `main` push built green, so the reader-set gate
+  is exercised on every relevant change instead of only at release time. (Was:
+  tag-only, so every commit that fixed the reader set landed with the APK unbuilt.)
 - [x] **WITHDRAWN: "Android's `joypad.set` is inert" was wrong** (2026-10-07).
   Android's NDS host has no button-override path at all (`setJoypadState` is
   defined and never called), so an empty `joypad.set` is consistent, not broken.
