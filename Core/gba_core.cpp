@@ -91,6 +91,10 @@ struct GbaCore {
     // ---- host callbacks ----
     GbaSpeechCallback speechCb = nullptr;
     void* speechUserdata = nullptr;
+    // Positional sound cues from the reader's audio.play (see PokeSoundCallback).
+    // Null means the cues are dropped, which is what happened before this existed.
+    GbaSoundCallback soundCb = nullptr;
+    void* soundUserdata = nullptr;
     GbaLogCallback logCb = nullptr;
     void* logUserdata = nullptr;
 
@@ -395,6 +399,23 @@ static const luaL_Reg kMemoryFuncs[] = {
     {nullptr, nullptr},
 };
 
+// oga_play_sound(path, pan, volume) -- the reader's positional cue, delivered to
+// the host. oga_audio.lua installs this as its sink when present (see its
+// set_sink), so a host with no sound callback simply never receives anything.
+static int LuaPlaySound(lua_State* L)
+{
+    GbaCore* core = CoreFromLua(L);
+    const char* path = lua_tostring(L, 1);
+    int pan = (int) luaL_optinteger(L, 2, 0);
+    int volume = (int) luaL_optinteger(L, 3, 100);
+    // Clamp here as well as in Lua: this is the boundary, and a host that pans by
+    // an out-of-range value can produce a loud artefact rather than a wrong cue.
+    if (pan < -100) pan = -100; else if (pan > 100) pan = 100;
+    if (volume < 0) volume = 0; else if (volume > 100) volume = 100;
+    if (core && core->soundCb && path) core->soundCb(path, pan, volume, core->soundUserdata);
+    return 0;
+}
+
 static void InstallLibraries(GbaCore* core)
 {
     lua_State* L = core->L;
@@ -407,6 +428,11 @@ static void InstallLibraries(GbaCore* core)
     // load, and tolk.output routes through it.
     lua_pushcfunction(L, LuaSay);
     lua_setglobal(L, "oga_say");
+
+    // The host sound sink, beside the speech sink. oga_audio.lua reads this at load
+    // time and forwards every audio.play cue to it (see CuePlayer on the app side).
+    lua_pushcfunction(L, LuaPlaySound);
+    lua_setglobal(L, "oga_play_sound");
 
     luaL_newlib(L, kEmuFuncs);
     lua_setglobal(L, "emu");
@@ -510,6 +536,13 @@ void gba_set_log_callback(GbaCore* core, GbaLogCallback cb, void* userdata)
     if (!core) return;
     core->logCb = cb;
     core->logUserdata = userdata;
+}
+
+void gba_set_sound_callback(GbaCore* core, GbaSoundCallback cb, void* userdata)
+{
+    if (!core) return;
+    core->soundCb = cb;
+    core->soundUserdata = userdata;
 }
 
 void gba_set_script_dir(GbaCore* core, const char* dir)

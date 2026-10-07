@@ -173,6 +173,11 @@ struct PokeCore {
     PokeSpeechIdCallback speechIdCb = nullptr;
     void* speechIdUserdata = nullptr;
     PokeLogCallback logCb = nullptr;
+    // Positional sound cues from the reader (see PokeSoundCallback).
+
+    PokeSoundCallback soundCb = nullptr;
+
+    void* soundUserdata = nullptr;
     void* logUserdata = nullptr;
     bool audioEnabled = true;
 
@@ -791,6 +796,13 @@ void poke_set_log_callback(PokeCore* core, PokeLogCallback cb, void* userdata)
     core->logUserdata = userdata;
 }
 
+void poke_set_sound_callback(PokeCore* core, PokeSoundCallback cb, void* userdata)
+{
+    if (!core) return;
+    core->soundCb = cb;
+    core->soundUserdata = userdata;
+}
+
 const char* poke_last_error(PokeCore* core) { return core ? core->error : "no core"; }
 
 // ------------------------------------------------------------------- adapters
@@ -1191,6 +1203,14 @@ static void GbaLogForward(const char* utf8, void* ctx)
     if (core && core->logCb && utf8) core->logCb(utf8, core->logUserdata);
 }
 
+// The reader's positional cue, forwarded to the app. `path` arrives with the
+// reader's own separators (it joins scriptpath itself) and a pan in -100..100.
+static void GbaSoundForward(const char* path, int pan, int volume, void* ctx)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (core && core->soundCb && path) core->soundCb(path, pan, volume, core->soundUserdata);
+}
+
 // Tear down whichever backend ran before, so a new ROM never inherits a live
 // core, a Lua state, or an attached adapter from the previous game.
 static void TeardownBackends(PokeCore* core)
@@ -1234,6 +1254,7 @@ static bool LoadGbaRom(PokeCore* core, const char* rom_path, const char* save_pa
     oga::gba_set_game_code(code);
     gba_set_speech_callback(core->gba, GbaSayForward, core);
     gba_set_log_callback(core->gba, GbaLogForward, core);
+    gba_set_sound_callback(core->gba, GbaSoundForward, core);
     core->adapter = &oga::kGameBoyAdvance;
     return true;
 }

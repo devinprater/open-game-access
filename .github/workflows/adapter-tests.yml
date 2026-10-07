@@ -45,6 +45,13 @@ jobs:
       # own path (one hard-coded the developer's home directory).
       - name: Bundled NES reader sets
         run: bash scripts/nes-reader-assets-test.sh
+      # The readers' positional cues (42 audio.play sites) were silently dropped for
+      # the whole life of the project: oga_audio.lua had a set_sink() handoff that
+      # nothing ever called, so the pan -- which IS the information -- never left Lua.
+      # This drives the shipped file with a stand-in host sink and proves each cue
+      # arrives with its pan intact, then mutates the Lua to prove it can fail.
+      - name: Reader positional cues reach the host
+        run: bash scripts/cue-sink-test.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols
