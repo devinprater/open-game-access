@@ -236,6 +236,45 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   remains unobserved, DW's "Critical health" on a fresh boot is uninvestigated, and the
   mods' PowerShell SoundBridge (spatial cues) is not ported.
 
+- [x] **Navigation/guidance prior art read (2026-10-07).** Studied buu420's *Foresight*
+  (Chrono Trigger, Windows/Steam) and his Digimon World 2 work in `beetle-psx-libretro` for
+  technique — **ideas only, credited; no code copied** (his GPL-3.0 / GPL-2.0-or-later, ours
+  GPL-3.0, so reuse would be legal but attribution is the honest form). Written up at
+  `docs/design/navigation-prior-art.md`.
+  The transferable findings, in the order they would change our work:
+  1. **Heading belongs in the search state.** Their nodes are `(point, xDir, yDir)` so equal
+     paths can prefer fewer turns; the position budget is charged once per position, not per
+     heading. Goals <=64, neighbours <=16, visited <=131072, and exceeding a bound is SPOKEN,
+     never a silent hang.
+  2. **Counted legs, not continuous bearings** — "left 3, then down 2", up to three legs
+     announced, then only the new leg at each turn. Whole cardinal legs only: counting to a
+     waypoint inside a leg restarts the instruction.
+  3. ⛔ **Navigation and footstep counting must share ONE unit constant per map type.** Their
+     mismatch (384 vs 256/128) gave four beats walking and three running on the same six steps.
+     The tracker now THROWS when guidance and movement disagree.
+  4. **Arrival is three states, not two** — ready / unreachable / **`ConfirmPending`**: in
+     geometric reach but the game would not give Confirm right now. "Neither ready nor
+     unreachable: wait there." Our readers have no middle state.
+  5. **Destinations have APPROACH POINTS (plural)**, and rejecting one must be forgotten when
+     the actor moves.
+  6. **Visibility is the game's own test** (their `IsDrawn` = the native draw flag AND the
+     camera window), and exits/chests need rectangle overlap, not a point test — a point sat
+     exactly on the window's exclusive edge and hid the only exit.
+  7. **Footstep fractions survive a pause**; only discontinuities, identity changes and scripted
+     movement discard them; held-into-a-wall is silent; one bounded world step after key release.
+  8. **Generated scene catalogs** (their 2.5 MB `game-navigation.json` comes from walking the
+     game's own scripts, with `ExtractionWarnings`/`MissingScripts` recorded).
+  9. **Coverage as a test**: every interactive actor in every scene is either offered or
+     accounted for by a named owner — 1,523 offered, 450 accounted for, nothing missing. The
+     same "enumerate the class" discipline we use for code, applied to game coverage.
+
+  **For Chrono Trigger SNES this is the missing layer.** We already have the addresses
+  (`reverse-engineering/ctds/prior-art.md`, verified live): location `0x0100`, tile
+  `0x0102`/`0x0103`, context `0x0D13`, busy `0x0D76`, object position `0x1800`/`0x1880`,
+  facing `0x1600`, and move flag/length `0x1A00`/`0x1A01` — the footstep source. What we lack
+  is the passability graph, the heading-aware search, counted legs, and a generated target
+  catalog. ⛔ His addresses are the STEAM PORT, not the SNES — do not assume they transfer.
+
 ## Game readers
 
 - [x] **Dissidia title tap-to-read diagnosis + fix:** root cause was the
