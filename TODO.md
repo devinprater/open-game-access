@@ -114,20 +114,19 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   so flagging rather than assuming. Say the word and it comes back out.
   REMAINING: the link must succeed, then the app must load a .gba on the emulator.
 
-- [ ] **Wire the overlay's GBA/GB sources into the Android build -- THEY ARE NOT
-  COMPILED.** `app/src/main/cpp/MGBACore.cpp` (1255 lines), `MGBARunner.cpp` (398 lines),
-  `MGBAScriptJNI.cpp` and `MGBACore.h`/`MGBARunner.h` are copied into
-  `frontend/app/src/main/cpp/` by the overlay, and `GbAccessibilityScript.kt` /
-  `GbRomResolver.kt` are copied into the Java tree -- but **none of the C++ files appear
-  in `app/CMakeLists.txt`'s source list**, so `libmgba` is never linked and the GBA path
-  is dead code in the APK. This is the whole "GBA on Android" claim; it needs the four
-  .cpp files added to the build plus libmgba cross-compiled for Android.
-
-- [ ] **The CI 'Lua assets present' check is NOT proof of GBA support.** It greps the
-  APK file list for `lua`, which matches the CORE's Lua engine (melonDS-lua ships Lua for
-  its scripting). It would pass with zero accessibility scripts present. It should assert
-  on a specific script/asset name instead. Same class of bug as the earlier
-  "gate that cannot fail" JIT check.
+- [x] **Android GBA/GB reader set was STALE, and the CI gate could not catch it**
+  (2026-10-07, `bc9de43`). Measured against the shipped v0.6.1 APK: `assets/lua/gb/`
+  was a 2026-09-15 snapshot missing `oga_bootstrap.lua`, `mgba_compat.lua`, `crc32.lua`,
+  `encoding.lua` and all five `oga_*` helpers — the shim layer added 2026-09-20. So the
+  GBA path shipped without its bootstrap or its mGBA API shim. iOS was fine
+  (`Package.swift .copy()`s the whole dir). Synced the 15 runtime files and replaced the
+  gate: it was `grep -qi lua`, which matched 197 entries and passed with the GBA path
+  absent; it now asserts the files that exist ONLY when the feature works. Both gates
+  replayed against the real APK file list to prove the difference. Full writeup:
+  `docs/android-assets.md`.
+  STILL OPEN: (a) stage `assets/lua/gb/` from `Sources/.../gba-lua/` at build time so
+  there is ONE tree; (b) the NES readers are iOS-only — `nes-lua/` has no Android
+  staging path at all.
 
 - [ ] **Android menus need TalkBack labels (in progress).** The ROM-list toolbar is already
   labelled, but the PLAYER-FACING surfaces are not: `EmulatorActivity.showPauseMenu()` is a
