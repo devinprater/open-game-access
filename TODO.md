@@ -4,6 +4,21 @@
 
 - [x] **Dissidia first-battle vertical slice:** host-verified with synthetic RAM built from the validated layout (same rule as the other adapter tests: no PSP boot on this host). `dissidia-adapter-test.sh` now covers the YES/NO dialog confirm branch (YES speaks) and cancel branch (NO speaks) on both dialog systems, dialog nav re-reading RAM, the title -> Play Plan -> Bonus Day path, and the first accessible battle screen (self + foe speech). 56 checks pass locally; live-RAM re-proof is now unblocked (real PSP core landed — see below) but not yet run.
 - [x] **Reconcile pending Windows-only work:** 0 untracked scripts and 0 untracked docs (2026-09-27). Update 2026-10-03: the Windows tree and the WSL mirror are retired — `~/oga-work` is the only tree (see `docs/where-things-run.md`); the sync/stage scripts were removed and `scripts/git-hooks/pre-commit` is the ROM guard. The 85 Windows-only files were all obsolete one-shot commit/sync helpers whose payloads the repo had superseded (verified by content diff); deleted. The adapter-contribution guide and announcement-queue proposals are tracked under `docs/proposals/` (the latter sketches the C queue API behind the policy in `docs/design/announcement-queue.md`). The Chrono Trigger DS notes were removed (SNES version instead; git history keeps them). The Dissidia battle-audio spec is tracked at `docs/proposals/dissidia-battle-audio.md` (in-battle cues, speech for menus/queries only). The `reverse-engineering/ctds/` dir holds SNES ChronoAccess research (live WRAM verification) and is tracked. (Chrono Trigger DS research dropped — SNES version instead.)
+- [x] **The readers' positional sound cues reach the host (2026-10-07).** All 42
+  `audio.play` sites in the reader set were silently dropped: `oga_audio.lua` was a
+  recording stub with a `set_sink()` handoff that nothing ever called, so the pan —
+  which IS the information (gb.lua pans a boulder's sound to the boulder's side) —
+  never left Lua. Android had a working path already
+  (`MGBAScript::setSoundCallback` → JNI → Kotlin), so the shared core was given the
+  same seam rather than a second mechanism: `LuaPlaySound` → `_G.oga_play_sound`,
+  `poke_set_sound_callback`, and `GbaSoundForward` to bridge them. `CuePlayer.swift`
+  plays the reader's own WAVs with pan applied, OFF the emulator's render graph
+  (the files are mono/stereo 8- and 16-bit at 44100 Hz, not the engine's 32768 Hz
+  int16, so they cannot share it) and under the existing "Game sound" setting.
+  Proven by driving the real `oga_audio.lua` with a stand-in host sink; the IPA's own
+  bundled copy was then driven the same way. `scripts/cue-sink-test.sh` guards it
+  with 4 sabotage mutations and runs in adapter-tests CI.
+  ⚠ Host-side only so far: no phone has heard a cue yet.
 - [x] **Announcement queue design:** `docs/design/announcement-queue.md` defines the four priority levels, the interruption matrix, same-key coalescing with rate caps, on-demand opponent/location queries, and the lock-on audio beacon. Passive speech stays off until a playtest passes the criteria in that doc.
 - [x] **Announcement queue core:** `Core/announce.*` implements `docs/design/announcement-queue.md` (one line in flight, 3 levels, groups, dedup, expiry, time rate limit, bounds, stop, retry). `scripts/announce-test.sh`: 49 checks plus 7 sabotage builds that must fail; runs in the adapter-tests CI workflow.
 - [x] **Wire the queue into hosts** (2026-10-01; sequenced in `docs/design/announcement-queue.md`
