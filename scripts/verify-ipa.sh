@@ -92,7 +92,26 @@ else
 fi
 
 echo "== no game data (the hard-stop rule)"
-bad="$(find "$APP" -iregex '.*\.\(gba\|gbc\|gb\|nes\|nds\|sfc\|smc\|iso\|cso\|sav\|srm\)$' | head -5)"
+# ⛔ `-iregex` IS GNU-ONLY. BSD find (macOS, where CI verifies this artifact) rejects
+# it, the substitution yields an EMPTY string, and an empty "bad" list reads as "no game
+# data" — so this gate passed on a deliberately-ROMmed IPA on macOS while failing on
+# Linux. `-iname` with -o is portable to both.
+bad="$(find "$APP" -type f \
+  \( -iname '*.gba' -o -iname '*.gbc' -o -iname '*.gb' -o -iname '*.nes' \
+     -o -iname '*.nds' -o -iname '*.sfc' -o -iname '*.smc' -o -iname '*.iso' \
+     -o -iname '*.cso' -o -iname '*.sav' -o -iname '*.srm' \) 2>/dev/null | head -5)"
+
+# ⛔ AN EMPTY RESULT MUST MEAN "NOTHING THERE", NEVER "THE SEARCH FAILED". Without this
+# probe the portability bug above is completely invisible: the failing command prints no
+# error to a captured substitution and the gate reports a clean artifact.
+probe="$APP/oga-find-probe.tmp"
+: > "$probe"
+if find "$APP" -type f -name 'oga-find-probe.tmp' 2>/dev/null | grep -q .; then
+  note ok "the file search used here works"
+else
+  note FAIL "the file search finds nothing at all — an empty result is not evidence"; fail=1
+fi
+rm -f "$probe"
 if [ -n "$bad" ]; then
   note FAIL "game data found:"; echo "$bad" | sed 's/^/          /'; fail=1
 else
