@@ -124,9 +124,14 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   absent; it now asserts the files that exist ONLY when the feature works. Both gates
   replayed against the real APK file list to prove the difference. Full writeup:
   `docs/android-assets.md`.
-  STILL OPEN: (a) stage `assets/lua/gb/` from `Sources/.../gba-lua/` at build time so
-  there is ONE tree; (b) the NES readers are iOS-only — `nes-lua/` has no Android
-  staging path at all.
+  DONE (`4870f45`): `assets/lua/gb/` is now STAGED at build time from
+  `Sources/.../gba-lua/` — one tree — with `scripts/check-reader-assets.sh` failing if a
+  duplicate reappears. Two further divergences surfaced while restructuring: `sounds/`
+  (33 WAVs the readers name) existed only on the Android side and is now canonical, and
+  `bizhawk_compat.lua` genuinely differs between the platforms (its Android copy has an
+  inert `joypad.set`) and still needs its own decision.
+  STILL OPEN: the NES readers are iOS-only — `nes-lua/` has no Android staging path at
+  all.
 
 - [ ] **Android menus need TalkBack labels (in progress).** The ROM-list toolbar is already
   labelled, but the PLAYER-FACING surfaces are not: `EmulatorActivity.showPauseMenu()` is a

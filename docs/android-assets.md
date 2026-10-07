@@ -60,9 +60,12 @@ check's own ancestor.
 - **Fixed:** the CI gate now asserts the specific files (verified by replaying
   both gates against the real v0.6.1 file list — the old one passed, the new one
   fails with the two files that commit adds).
-- **Still open:** the duplicate trees. `assets/lua/gb/` remains a hand-copied
-  second tree that nothing regenerates, so reader fixes must still be applied
-  twice. Stage it at build time instead (see the last section).
+- **Fixed:** the duplicate tree is GONE (`4870f45`). `scripts/android-apply-overlay.sh`
+  step 1b stages `assets/lua/gb/` from the canonical tree at build time, excluding
+  the two host dev tools, and refuses to stage a set missing the bootstrap or the
+  shim. `scripts/check-reader-assets.sh` fails if a second tree reappears and is
+  wired into the Android workflow BEFORE the build, so drift fails in seconds
+  instead of after a 20-minute APK run.
 - **Still open:** the NES readers are iOS-only. `nes-lua/` has no Android
   staging path; `app/src/main/assets/` has no NES entry at all.
 
@@ -83,3 +86,56 @@ them drift. The fix is to stage ONE canonical set at build time — the way
 `scripts/android-apply-overlay.sh` already stages the Java/C++ overlay — rather
 than maintaining a second hand-copied tree. Until that lands, any future reader
 fix must be applied **twice**, and nothing enforces that it was.
+
+
+---
+
+## The restructure (2026-10-07, `4870f45`)
+
+Syncing the files (the earlier commit) only reset the clock; this removed the
+duplicate that caused the drift.
+
+**One canonical tree:**
+`Sources/OpenGameAccess/Resources/gba-lua/` — staged by the iOS build
+(`Package.swift .copy()`) and now by Android
+(`scripts/android-apply-overlay.sh` step 1b).
+
+### Diffing the two trees before deleting one found TWO more divergences
+
+This is the reason to compare before deleting rather than after:
+
+1. **`sounds/` — 33 positional-audio WAVs — existed ONLY in the Android copy.**
+   The readers name these paths directly
+   (`scriptpath .. "sounds\\gba\\s_grass.wav"`, ~42 `audio.play` sites) and
+   `oga_audio.lua` documents them as being in the reader tree, so the iOS bundle
+   has never carried the sounds the reader asks for. There was no tree it could
+   have taken them from. Moved into the canonical tree.
+2. **`bizhawk_compat.lua` differs** (6745 vs 7509 bytes) and git records both
+   copies as last touched by the SAME commit (`683e43b`) — the Android one has an
+   inert `joypad.set()` with a comment describing it as the first mobile port's
+   approach, while the canonical one implements it via `input.JoySet`. Its own
+   comment states the consequence: an empty `joypad.set` leaves the release latch
+   unable to engage, so a direction held while the modifier trigger is released
+   leaks through to the game. Kept the canonical copy for the staged set; the
+   top-level Android variant is a **genuine platform difference needing its own
+   decision**, not a sync, and is left alone.
+
+### The three gates, all proven by sabotage
+
+| where | what it catches |
+|---|---|
+| `scripts/check-reader-assets.sh` | missing required files, missing sounds, a duplicate tree reappearing |
+| `android-apk.yml` (post-build) | the same five files inside the built APK |
+| `android-build-local.sh` | the same five files, for local builds (it had the same weak `grep -qi lua`) |
+
+`check-reader-assets.sh` fails on each of three sabotages: duplicate tree
+recreated, shim removed, sounds removed — and passes on the clean tree.
+
+### A NOTE ON THE GATE'S OWN HISTORY
+
+The original gate was `grep -qi lua`, which matched **197** entries in the shipped
+v0.6.1 APK and would have passed with the reader path entirely absent. Both the
+CI and local gates now assert files that exist ONLY when the feature works. The
+broken shipped APK is the ideal fixture for proving such a gate: replay both
+against its real file list and require the old one to pass and the new one to
+fail.
