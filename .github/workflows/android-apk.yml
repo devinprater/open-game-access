@@ -45,6 +45,12 @@ jobs:
       - name: Assert the core is configured for the JIT
         run: bash scripts/android-jit-check.sh "$GITHUB_WORKSPACE"
 
+      # The reader set is staged at build time from one canonical tree. This
+      # fails in seconds if the staging source is incomplete or if a second,
+      # hand-copied tree has reappeared -- both of which shipped broken before.
+      - name: Reader assets are single-sourced and complete
+        run: bash scripts/check-reader-assets.sh
+
       - name: Fetch the Android frontend (a fork of melonDS-android)
         run: |
           cat <<'EOF'
