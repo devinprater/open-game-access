@@ -36,13 +36,30 @@ MGBA_SRC="${MGBA_SRC:-$HOME/src/mgba}"
 PPSPP_SRC="${PPSPP_SRC:-$HOME/src/ppsspp}"
 OUT="$ROOT/Vendor"
 OBJ="$OUT/obj"
-SDK="$HOME/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
+# ⛔ THE SDK IS NOT ALWAYS XTOOL'S ARTIFACTBUNDLE. That path exists on this machine;
+# on a macOS runner the SDK ships with Xcode. Resolve in this order so the local
+# build is unchanged and CI can point at its own SDK:
+#   1. SDK=       explicit override
+#   2. SDKROOT=   what a runner sets from `xcrun --sdk iphoneos --show-sdk-path`
+#   3. xcrun      a macOS box with Xcode
+#   4. xtool's    this machine's default, last so local behaviour does not move
+XTOOL_SDK="$HOME/.swiftpm/swift-sdks/darwin.artifactbundle/Developer/Platforms/iPhoneOS.platform/Developer/SDKs/iPhoneOS.sdk"
+if [ -z "${SDK:-}" ]; then
+  if [ -n "${SDKROOT:-}" ]; then
+    SDK="$SDKROOT"
+  elif command -v xcrun >/dev/null 2>&1 && SDK="$(xcrun --sdk iphoneos --show-sdk-path 2>/dev/null)" && [ -n "$SDK" ]; then
+    : # xcrun answered
+  else
+    SDK="$XTOOL_SDK"
+  fi
+fi
+echo "SDK       = $SDK"
 CXX="${CXX:-/usr/local/swift/bin/clang++}"
 [ -x "$CXX" ] || CXX="$(command -v clang++ || echo clang++)"
 CC="${CC:-/usr/local/swift/bin/clang}"
 [ -x "$CC" ] || CC="$(command -v clang || echo clang)"
 
-[ -d "$SDK" ] || { echo "!! no iPhoneOS SDK at $SDK" >&2; exit 1; }
+[ -d "$SDK" ] || { echo "!! no iPhoneOS SDK at $SDK" >&2; echo "   set SDKROOT (macOS: SDKROOT=\$(xcrun --sdk iphoneos --show-sdk-path))" >&2; exit 1; }
 [ -d "$SRC/src" ] || { echo "!! no melonDS source at $SRC" >&2; exit 1; }
 [ -d "$LUA_SRC/src" ] || { echo "!! no Lua source at $LUA_SRC" >&2; exit 1; }
 [ -d "$MGBA_SRC/src" ] || { echo "!! no mGBA source at $MGBA_SRC (run scripts/bootstrap-deps.sh)" >&2; exit 1; }
