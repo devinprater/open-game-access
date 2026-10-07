@@ -8,6 +8,22 @@ name: Android APK
 on:
   push:
     tags: ['v*']
+    # ⛔ THIS WORKFLOW USED TO RUN ONLY ON A TAG. Every commit to main therefore
+    # landed with the APK unbuilt, and the reader-set gate below unexercised --
+    # which is how a reader tree shipped five days stale, missing its bootstrap
+    # and its mGBA shim, on a build nobody rebuilt. Restrict to the paths that can
+    # actually break the app so a docs commit does not cost a 20-minute NDK build.
+    branches: [main]
+    paths:
+      - 'Sources/OpenGameAccess/Resources/**'   # the reader sets (staged into assets/)
+      - 'app/native-overlay/**'                 # C++ hosts + Kotlin accessibility
+      - 'app/src/main/**'                       # main.lua, bizhawk_compat.lua, CMake glue
+      - 'Core/**'                               # the shared core
+      - 'scripts/android-*.sh'                  # the overlay, port, JIT check
+      - 'scripts/check-reader-assets.sh'
+      - 'scripts/core-sources.sh'               # the audited source lists
+      - 'scripts/bootstrap-deps.sh'
+      - '.github/workflows/android-apk.yml'
   workflow_dispatch:
 
 permissions:
