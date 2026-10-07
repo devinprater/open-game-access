@@ -50,6 +50,11 @@ jobs:
       # nothing ever called, so the pan -- which IS the information -- never left Lua.
       # This drives the shipped file with a stand-in host sink and proves each cue
       # arrives with its pan intact, then mutates the Lua to prove it can fail.
+      # The runner ships no Lua, and the check would otherwise print SKIP -- a green
+      # step that verified nothing. Lua 5.4 is what the script hunts for and what the
+      # app's mGBA embeds, so install it and let the check actually drive the file.
+      - name: Install Lua (for the cue-sink check)
+        run: sudo apt-get update -qq && sudo apt-get install -y -qq lua5.4
       - name: Reader positional cues reach the host
         run: bash scripts/cue-sink-test.sh
       - name: Verify compile-cache invalidation
