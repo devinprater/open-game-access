@@ -1,0 +1,35 @@
+# FE11 + save: focus Continue with UP (button), then CONFIRM with a touch tap on it.
+#
+# \u26d4 HYPOTHESIS, from two measurements:
+#   * A single tap on NEW GAME advanced the screen (to the difficulty screen). The cursor ALREADY
+#     sat on New Game, so that tap was "confirm the focused panel", not "move focus".
+#   * A tap on CONTINUE changed only the description strip (x16..131, y174..183) -- i.e. it MOVED
+#     THE FOCUS to Continue, and did not confirm.
+# So a tap both focuses and, when the panel is already focused, confirms. Combining the two proven
+# halves -- UP to focus Continue, then tap it -- should confirm.
+#
+# Button boxes measured on the bottom screen (button-box3.py): rows at y 62 / 102 / 142,
+# left column x centre 67. Left column top-to-bottom = Continue / Suspend Point / New Game.
+
+KEY 1600 START 1
+KEY 1618 START 0
+KEY 2400 A 1
+KEY 2418 A 0
+SHOT 3000 /home/devin/fe/out/y0-menu.ppm 1
+
+# focus Continue with the D-pad
+KEY 3300 UP 1
+KEY 3318 UP 0
+SHOT 3600 /home/devin/fe/out/y1-focused.ppm 1
+
+# confirm with a tap on Continue
+TOUCH 4000 67 62 1
+TOUCH 4006 67 62 0
+SHOT 4600 /home/devin/fe/out/y2.ppm 1
+SHOT 5200 /home/devin/fe/out/y3.ppm 1
+
+# a second, held tap in case the transition needs it
+TOUCH 5800 67 62 1
+TOUCH 5820 67 62 0
+SHOT 6400 /home/devin/fe/out/y4.ppm 1
+SHOT 7000 /home/devin/fe/out/y5.ppm 1
