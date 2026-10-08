@@ -164,6 +164,48 @@ Three consequences, each measured:
 ⛔ **AND THE TIMING WAS WRONG.** The menu is not up early: shots at f1100-f2200 read
 `TOUCH TO START` (the title). `START` at f1600 then `A` at f2400 is the measured arrival.
 
+### ⛔ THE SAVE ITSELF DECIDES WHETHER CONTINUE WORKS (measured 2026-10-08)
+
+**Continue was never broken.** Two things hid the answer.
+
+1. **`fe11-usa-ch10.sav` is not loadable by this build.** Continue with it returns to the main menu
+   and its Suspend Point row does nothing; a dense 200-frame capture after the A press shows the
+   menu re-rendering, never a slot screen. The other save works. So every earlier "Continue does
+   not advance" run was blaming the button for a save the game itself refuses.
+2. **"A does nothing on Continue" was a misread.** A control run -- A on New Game, the cursor's
+   *starting* row -- advanced to the difficulty screen and changed 44.91% of pixels. A confirms on
+   this menu. Continue needs the UP first only because the cursor starts on New Game.
+
+What the save path actually is, measured with `fe11-usa-finalboss.sav`:
+
+    Continue -> Chapter Saves  (slot list: Endgame / Epilogue / NO DATA, PLAY TIME footer)
+             -> a slot with map savepoints leads to a Map Savepoints list
+             -> the chapter loads: gMapStateManager valid, 15 units, Marth under the cursor
+
+### The file-select screen is now READ (stage byte 02)
+
+`Core/fe_access.cpp` gains `FeFileSelectActive()`, gated on `A_FE_STAGE` = `0x020E3CA8`, measured
+over **two boots** with a save loaded:
+
+    00 = title / main menu       01 = maps and the difficulty screen
+    02 = Chapter Saves (save file-select)
+
+The main menu with the **same** save loaded still reads 00, so stage 02 is *the screen*, not "a save
+exists". The screen's own strings (`Chapter Saves`, the slot labels) are static rodata resident on
+every screen and are **not** usable as anchors; the reader says that rather than pretending. The
+highlighted slot has **no located cursor** -- the candidate table at `0x0224F540` is byte-identical
+on the main menu, and the `0x020E604A` byte that flips with an UP animates on its own (0x50/0x52/0x32
+with no input between two snaps), so `MenuNav` names the screen and states the limit instead of
+predicting a row.
+
+Negative controls, both passing: the same save on the main menu reads `Main menu`; the loaded
+chapter reads the map cursor (`Cursor 14, 24 ... Marth, 26 HP, unacted ... 33 squares reachable`).
+`scripts/adapter-tests.sh`: 252 checks, 0 failures.
+
+⛔ **HARNESS HAZARD: the run overwrites the save it was given.** `Core/pokecore.cpp` `NdsTick`
+flushes the emulated SRAM back to `SAVE=` once a second. Copy a save to `~/fe/work/` before a run;
+`~/fe/saves-backup/` holds the originals.
+
 ### How this was measured, and one method that failed
 
 - **The BOTTOM description bar names the live row.** `scripts/fe-ocr.sh` on the bottom screen is the
@@ -177,14 +219,14 @@ Three consequences, each measured:
 
 ### Still open on this screen
 
-- **Confirm has not been observed to enter the chapter.** On Continue, held A presses (18 and 40
-  frame holds) left the top screen byte-identical, so the confirm is not landing. `fedump` was
-  button-only until now -- it never called `poke_touch`, so the whole touchscreen was untestable by
-  construction. `TOUCH <frame> <x> <y> <0|1>` was added to the plan grammar to fix that; the button
-  coordinates still need to be measured, and this sentence is the state of that work.
-- The reader still models this screen as a list, so its `MenuNext/Prev` speech ("Main menu. Start a
-  new game.") is right about the anchor row and wrong about the row order. Until the grid order is
-  wired, the reader should say which row is live and not predict where a direction went.
+- **Confirm IS observed to enter the chapter -- with the right save.** With
+  `fe11-usa-finalboss.sav`: Continue (UP then A) -> Chapter Saves -> slot -> a map with 15 units.
+  With `fe11-usa-ch10.sav` it never leaves the menu; that save is the variable, not the input.
+  Touch works and is measured (`TOUCH <frame> <x> <y> <0|1>`); a tap both focuses and confirms when
+  the panel is already focused.
+- ✅ The reader now reads the grid as a grid. `FeFileSelectActive()` covers the Chapter Saves screen
+  (stage 02); the main menu still speaks its anchor row ("Start a new game.") because the anchor row
+  IS the live row on a fresh boot. Where a direction went is never predicted.
 
 ## 6. Battle Preparation / unit list — BLOCKED (unreachable without save)
 

@@ -416,7 +416,12 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   (heap, no pointer found); (d) portrait table growth per scene walked.
 - [ ] **Trunks unknowns via Scan** (0x31/0x7F/0x80/0x32 tooltips blank +
   Opponent Info blank, likely Scan-gated), ~2-4 h uncertain.
-- [ ] **FE11 past-prologue save,** open-ended hours+.
+- [ ] **FE11 past-prologue save,** open-ended hours+. **UNBLOCKED + PARTLY DONE 2026-10-08:**
+  two USA saves exist (`~/fe/saves/`). Continue works with `fe11-usa-finalboss.sav` (reaches
+  Chapter Saves -> Endgame; 15 units, map cursor valid) but NOT with `fe11-usa-ch10.sav` (returns
+  to the main menu). The Chapter Saves screen is now read (`FeFileSelectActive`, stage byte
+  0x020E3CA8 = 02, two boots). Still open: the highlighted-slot cursor (no ordinal found;
+  0x0224F540 is static), the Map Savepoints list, and battle-preparation/unit-list screens.
 - [ ] **Device build:** v0.4.0 predates all Oct-2 Dissidia work; cut a new
   release so the board hints, portrait names, and scene titles reach hardware.
 - [ ] **Dissidia Tutorial-mode prompts:** tutorial fights already get the
