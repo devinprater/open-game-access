@@ -1,97 +1,49 @@
-# Fire Emblem: Shadow Dragon (USA) — load the save and press through into the chapter.
+# FE11 (USA) with a SAVE: main menu -> Continue -> into the saved chapter.
 #
-# ⛔ WHY. Loading a save lands on the TITLE screen, and choosing CONTINUE lands on the
-# Battle Preparation screen — where every unit is already in its force (so the enemy
-# faction is populated and readable) but the map is NOT loaded, so gMapStateManager is
-# still NULL and the cursor commands correctly answer "Not on a map yet". Entering the
-# map itself requires pressing FIGHT on the preparation screen.
+# ⛔ THIS PLAN USED TO BE WRONG, and the way it was wrong is the point of this file.
 #
-# Spacing is wide because menu transitions and dialogue animate; presses too close
-# together get swallowed.
+# It pressed A five times from f1200 with NO DIRECTION. Screenshots of that run show the game
+# playing the PROLOGUE narration ("A young man hailing from the Altea region...") -- i.e. it had
+# chosen NEW GAME, not Continue, so the save was never used and the chapter was never reached.
+#
+# Why: the main menu is a 2-COLUMN GRID, not a vertical list, and the cursor STARTS on New Game:
+#
+#       left column   : Continue / Suspend Point / New Game     <- cursor starts HERE
+#       right column  : Copy Data / Erase Data / Extras
+#
+# So Continue is the row ABOVE New Game, reached with UP -- not DOWN, and not by pressing A.
+# Measured: after one UP the bottom description bar OCRs as "[.]Continue from save data".
+#
+# ⛔ AND THE TIMING WAS WRONG TOO. The menu is not up at f1200; shots there read "TOUCH TO START".
+# START at f1600 + A at f2400 is the measured arrival, which is what this plan now uses.
+#
+# ⛔ THE BOTTOM DESCRIPTION BAR NAMES THE LIVE ROW -- OCR it (scripts/fe-ocr.sh). Reading a
+# downscaled capture produced contradictory descriptions of the same image during this work.
 
-# --- title screen -> CONTINUE ---
-KEY 300 A 1
-KEY 320 A 0
-KEY 500 A 1
-KEY 520 A 0
-KEY 700 A 1
-KEY 720 A 0
-KEY 900 A 1
-KEY 920 A 0
-
-# --- save-slot / data screens ---
-KEY 1200 A 1
-KEY 1220 A 0
-KEY 1400 A 1
-KEY 1420 A 0
-KEY 1600 A 1
-KEY 1620 A 0
-KEY 1800 A 1
-KEY 1820 A 0
-
-# --- Battle Preparation: navigate to FIGHT and confirm ---
-KEY 2200 A 1
-KEY 2220 A 0
+# --- title -> main menu (measured timing) ---
+KEY 1600 START 1
+KEY 1618 START 0
 KEY 2400 A 1
-KEY 2420 A 0
-KEY 2600 A 1
-KEY 2620 A 0
-KEY 2800 A 1
-KEY 2820 A 0
-KEY 3000 A 1
-KEY 3020 A 0
-KEY 3200 A 1
-KEY 3220 A 0
-KEY 3400 A 1
-KEY 3420 A 0
+KEY 2418 A 0
+SHOT 2800 /home/devin/fe/out/sc-0-menu.ppm 1
 
-# --- into the map: clear any intro dialogue ---
-KEY 3800 A 1
-KEY 3820 A 0
-KEY 4000 A 1
-KEY 4020 A 0
-KEY 4200 A 1
-KEY 4220 A 0
-KEY 4400 A 1
-KEY 4420 A 0
-KEY 4600 A 1
-KEY 4620 A 0
-KEY 4800 A 1
-KEY 4820 A 0
-KEY 5000 A 1
-KEY 5020 A 0
-KEY 5200 A 1
-KEY 5220 A 0
+# --- UP once to Continue ---
+KEY 3000 UP 1
+KEY 3018 UP 0
+SHOT 3300 /home/devin/fe/out/sc-1-continue.ppm 1
+
+# --- confirm, then work through whatever screens follow (slot / data pages) ---
+KEY 3700 A 1
+KEY 3740 A 0
+SHOT 4200 /home/devin/fe/out/sc-2.ppm 1
+SHOT 4800 /home/devin/fe/out/sc-3.ppm 1
+
 KEY 5400 A 1
-KEY 5420 A 0
-KEY 5600 A 1
-KEY 5620 A 0
-KEY 5800 A 1
-KEY 5820 A 0
-KEY 6000 A 1
-KEY 6020 A 0
-KEY 6200 A 1
-KEY 6220 A 0
-KEY 6400 A 1
-KEY 6420 A 0
-KEY 6600 A 1
-KEY 6620 A 0
-KEY 6800 A 1
-KEY 6820 A 0
-KEY 7000 A 1
-KEY 7020 A 0
-KEY 7200 A 1
-KEY 7220 A 0
-KEY 7400 A 1
-KEY 7420 A 0
-KEY 7600 A 1
-KEY 7620 A 0
-KEY 7800 A 1
-KEY 7820 A 0
-KEY 8000 A 1
-KEY 8020 A 0
+KEY 5440 A 0
+SHOT 6000 /home/devin/fe/out/sc-4.ppm 1
+SHOT 6600 /home/devin/fe/out/sc-5.ppm 1
 
-SHOT 3000 /home/devin/fe/out/sv-3000.ppm
-SHOT 4600 /home/devin/fe/out/sv-4600.ppm
-SHOT 6600 /home/devin/fe/out/sv-6600.ppm
-SHOT 8200 /home/devin/fe/out/sv-8200.ppm
+KEY 7200 A 1
+KEY 7240 A 0
+SHOT 7800 /home/devin/fe/out/sc-6.ppm 1
+SHOT 8400 /home/devin/fe/out/sc-7.ppm 1

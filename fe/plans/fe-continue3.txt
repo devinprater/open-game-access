@@ -1,0 +1,31 @@
+# FE11 + save: UP to Continue (a 2-column grid, so UP not DOWN), then held A presses.
+# Every step screenshotted; OCR reads the description bar, which names the live row.
+KEY 1600 START 1
+KEY 1618 START 0
+KEY 2400 A 1
+KEY 2418 A 0
+
+KEY 3000 UP 1
+KEY 3018 UP 0
+SHOT 3300 /home/devin/fe/out/e0-continue.ppm 1
+
+# held A (this game ignores very short presses)
+KEY 3600 A 1
+KEY 3660 A 0
+SHOT 4000 /home/devin/fe/out/e1.ppm 1
+SHOT 4400 /home/devin/fe/out/e2.ppm 1
+
+KEY 5000 A 1
+KEY 5060 A 0
+SHOT 5400 /home/devin/fe/out/e3.ppm 1
+SHOT 5800 /home/devin/fe/out/e4.ppm 1
+
+KEY 6400 A 1
+KEY 6460 A 0
+SHOT 6800 /home/devin/fe/out/e5.ppm 1
+SHOT 7200 /home/devin/fe/out/e6.ppm 1
+
+KEY 7800 A 1
+KEY 7860 A 0
+SHOT 8200 /home/devin/fe/out/e7.ppm 1
+SHOT 8600 /home/devin/fe/out/e8.ppm 1

@@ -137,14 +137,54 @@ fog-of-war, `023D26EA` unit list) — suspected multiplayer/setup home,
 NOT new-game difficulty. Recorded as open; do not map star rows until a
 screen showing them is captured.
 
-## 5. File select — BLOCKED (no save media)
+## 5. Main menu with a SAVE — the grid is a 2-COLUMN GRID, and the old plan chose New Game
 
-- `~/roms` holds no YFEE save (only `black.sav`); fedump `SAVE=` path has
-  nothing to load, so the Continue/file-op flow cannot be exercised.
-- Fresh-boot menu contains the file-op descriptors (Copy/Delete/Resume
-  rows in the table) but no screenshot-gated walk has ever activated one.
-Unblock condition: a YFEE `.sav` + `SAVE=<path>` run, then re-run the
-§2 protocol (table scan → row walk → flip-flop).
+**Unblocked 2026-10-08: two FE11 USA saves exist** (`~/fe/saves/fe11-usa-ch10.sav`,
+`fe11-usa-finalboss.sav`, both `YFEE` at +0x0, 262144 bytes, ~49-67% non-0xFF so neither is wiped).
+`fedump` and `fe_access` both take one via `SAVE=<path>`; the iOS app already passes a save
+automatically (`ROMStore.savePath` -> `poke_load_rom`), so this is a real user path, not just a
+harness trick.
+
+⛔ **THE MAIN MENU IS A 2-COLUMN GRID, NOT THE VERTICAL LIST THE READER MODELS.** Measured from a
+4x-upscaled capture of the TOP screen (`grid0.png`) with the save loaded:
+
+    left column   : Continue / Suspend Point / New Game     <- cursor STARTS on New Game
+    right column  : Copy Data / Erase Data / Extras
+
+Three consequences, each measured:
+
+1. **DOWN is inert.** After a DOWN the bottom description bar still read `Start a new game.`
+2. **UP reaches Continue.** After one UP the description bar OCRs as `[.]Continue from save data`
+   (`scripts/fe-ocr.sh` on the bottom screen).
+3. **`save-continue.txt` was selecting New Game.** It pressed A five times from f1200 with no
+   direction, so screenshots of that run show the **Prologue** narration ("A young man hailing
+   from the Altea region appeared with a divine blade in hand.") -- the save was never used. The
+   plan now presses UP first.
+
+⛔ **AND THE TIMING WAS WRONG.** The menu is not up early: shots at f1100-f2200 read
+`TOUCH TO START` (the title). `START` at f1600 then `A` at f2400 is the measured arrival.
+
+### How this was measured, and one method that failed
+
+- **The BOTTOM description bar names the live row.** `scripts/fe-ocr.sh` on the bottom screen is the
+  ground truth; the button labels themselves are low-contrast and OCR poorly.
+- **Frame hashing beats reading.** `ds-diff.py` showed the TOP screen changing in a 2.72% region
+  (x 76..178, y 89..102) per UP press while the BOTTOM stayed byte-identical -- that is the cursor
+  moving, proved without reading a pixel.
+- ⛔ **A DOWNSCALED VISION PASS ON A 256x192 SCREEN PRODUCES CONTRADICTORY ANSWERS.** The same image
+  was read as "six-button grid, New Game highlighted" in one pass and "title screen TOUCH TO START"
+  in the next. Use a 4x nearest-neighbour crop (`ds-crop.py`) or OCR; do not read the raw capture.
+
+### Still open on this screen
+
+- **Confirm has not been observed to enter the chapter.** On Continue, held A presses (18 and 40
+  frame holds) left the top screen byte-identical, so the confirm is not landing. `fedump` was
+  button-only until now -- it never called `poke_touch`, so the whole touchscreen was untestable by
+  construction. `TOUCH <frame> <x> <y> <0|1>` was added to the plan grammar to fix that; the button
+  coordinates still need to be measured, and this sentence is the state of that work.
+- The reader still models this screen as a list, so its `MenuNext/Prev` speech ("Main menu. Start a
+  new game.") is right about the anchor row and wrong about the row order. Until the grid order is
+  wired, the reader should say which row is live and not predict where a direction went.
 
 ## 6. Battle Preparation / unit list — BLOCKED (unreachable without save)
 
