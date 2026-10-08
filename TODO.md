@@ -315,6 +315,22 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   same prove-the-primitive-then-measure-cost spike the GBA work used
   (`tools/gba-debug-hook-spike.c`).
 
+- [x] **GBA exec hooks are REAL breakpoints now (2026-10-08, v0.6.4).** The reader's text/menu
+  hooks read CPU registers and the movement poll read them a frame late, so in-world speech was
+  garbage ("49154:58718", "4", spaces). mGBA HAS real breakpoints and the debugger was already
+  compiled in; our frame driver called runFrame(), which does not check them. Now
+  memory.registerexec installs a real breakpoint via the new oga_set_exec_hook binding, and
+  gba_frame drives mDebuggerRunFrame only when hooks exist. Measured before/after on the same
+  Emerald savestate and input: garbage -> "BAG", "CLOSE BAG", "Return to the field.". Cost ~2.2x
+  baseline, still ~50x faster than real time. Gate: scripts/gba-exec-hook-test.sh (3 mutations).
+  ⚠ Host-proven only; no device has run it.
+- [x] **The Game Boy "numbers and nil" report was WRONG, and the real bug is fixed (v0.6.4).**
+  Measured on Red: the GB path reads Oak's speech line by line with zero nil, zero raw numbers and
+  zero hook errors -- that symptom is GBA-title-screen only. The real defect was a RESET handler
+  (init_script at the entry vector) firing from the movement poll, re-speaking "Ready" 729 times in
+  one run and rebuilding the reader every step. Now 729 -> 1, dialogue preserved. Gate:
+  scripts/registerexec-kind-test.sh (3 mutations).
+
 ## Game readers
 
 - [x] **Dissidia title tap-to-read diagnosis + fix:** root cause was the
