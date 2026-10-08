@@ -87,6 +87,34 @@ number the game itself does not act on.
 - **A field-mode audio beacon.** In battle the project has a lock-on cue contract; field mode
   has no equivalent agreed, so the adapter ships no cue rather than inventing one.
 
+## ⛔ WHAT IS VERIFIED AND WHAT IS NOT — read this before trusting the reader
+
+Grades of evidence, stated separately because they are not the same claim:
+
+| claim | grade |
+|---|---|
+| the mode flag goes 0 -> 1 on entering Another Road | **observed live** |
+| the two accessors compute `0x08A852D0` / `0x08A876B0` | **read from LIVE `.text`** (disassembled in place) |
+| the field layout (strides, offsets, team values) | **decompiled**, and consistent with those live accessors |
+| the city module walks exactly 5 cities and 37 entities | **decompiled**, with the loop bounds in the live code |
+| the damage bands are 0.8 / 0.5 / 0.3 | **decompiled**, from the three ratio comparisons |
+| ⛔ **`[+0x20]/[+0x24]` equals the city percentage ON SCREEN** | **NOT OBSERVED** |
+
+That last row is the open link. A populated city record (an id present with a non-zero max)
+was never reached with the field on screen, so the percentage arithmetic is *read from the
+game's own code* but not yet *seen matching its own HUD*. Every other row above rests on a
+read that was actually taken.
+
+**What would close it:** enter a stage past the cutscene, dump `0x08A876B0 + i*0x70` for each
+populated city, and read the on-screen "City DF." percentages at the same instant. Then the
+pair is matched like the message-text work was matched, and the reader stops being a
+decompile-derived claim.
+
+⛔ And a driving note for whoever continues: the Chapter 1 cutscene chain is long
+(`MSG_AR_000_02_*` -> `001_00_*` -> `001_01_*`, confirmed by the resident message ids in RAM),
+and this session did not get past it to the field. The dump-and-match is the reliable way to
+know WHERE the game is; a vision read of the screen was wrong six times in a row here.
+
 ## Why the field-mode arrays read all-zero outside a stage
 
 At the title/menu the two arrays are still allocated and still hold their **static** contents
