@@ -72,6 +72,13 @@ jobs:
       # hangs), then mutates the Lua 3 ways and requires each mutant to fail.
       - name: GBA exec hooks are real breakpoints
         run: bash scripts/gba-exec-hook-test.sh
+      # The Game Boy audio/adapter gate boots REAL cartridges, so CI has no ROM library to run
+      # it against -- it exits 0 with a loud SKIP. The MUTATION side of it does not need a ROM to
+      # be worth running: it proves the gate's own checks are wired to the code they claim to
+      # protect. This step SKIPs cleanly too when the gate skips, and says so, rather than
+      # reporting a pass it did not earn.
+      - name: GB gate can actually fail (mutation proof)
+        run: bash scripts/gb-gate-mutations.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols
