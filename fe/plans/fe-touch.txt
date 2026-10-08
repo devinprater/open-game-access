@@ -1,0 +1,40 @@
+# FE11 + save: use the TOUCHSCREEN to press Continue, then move on.
+#
+# ⛔ WHY TOUCH. Held A presses on the main menu left the top screen BYTE-IDENTICAL, so the confirm
+# was not landing. fedump was button-only until now -- poke_touch was never called -- so the whole
+# touchscreen was untestable by construction.
+#
+# \u26d4 BUTTON BOXES ARE MEASURED, not guessed (button-box3.py on the captured top screen):
+#     row y 49.. 75  -> mid y  62   left panel x 14..121 (centre 67)   right x 134..241 (centre 187)
+#     row y 89..115  -> mid y 102   same columns
+#     row y 126..159 -> mid y 142   same columns
+# Grid reading (4x upscale): left column = Continue / Suspend Point / New Game (top to bottom),
+# right column = Copy Data / Erase Data / Extras.
+#   => Continue  = (67, 62)     <- top-left
+#      New Game  = (67, 142)    <- bottom-left, where the cursor starts
+#
+# The core samples input once per frame, so each tap is a press then a release 6 frames later.
+
+# --- title -> main menu ---
+KEY 1600 START 1
+KEY 1618 START 0
+KEY 2400 A 1
+KEY 2418 A 0
+SHOT 3000 /home/devin/fe/out/t0-menu.ppm 1
+
+# --- TAP Continue (top-left) ---
+TOUCH 3400 67 62 1
+TOUCH 3406 67 62 0
+SHOT 3900 /home/devin/fe/out/t1-aftercontinue.ppm 1
+SHOT 4400 /home/devin/fe/out/t2.ppm 1
+
+# --- if that opened something, tap the middle of the screen to advance ---
+TOUCH 5000 128 100 1
+TOUCH 5006 128 100 0
+SHOT 5600 /home/devin/fe/out/t3.ppm 1
+SHOT 6200 /home/devin/fe/out/t4.ppm 1
+
+TOUCH 6800 128 100 1
+TOUCH 6806 128 100 0
+SHOT 7400 /home/devin/fe/out/t5.ppm 1
+SHOT 8000 /home/devin/fe/out/t6.ppm 1

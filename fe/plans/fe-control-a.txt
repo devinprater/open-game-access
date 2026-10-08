@@ -1,0 +1,21 @@
+# CONTROL: does the A button confirm a main-menu row at all?
+#
+# \u26d4 WHY. A held-A on Continue changed nothing, which could mean (a) A never confirms on this menu,
+# or (b) Continue specifically is refused. The cursor STARTS on New Game, and choosing New Game has
+# an unmistakable consequence (the difficulty screen, OCR "Recommended for beginners..."). So press
+# A on New Game. If that advances, A works and Continue is the problem. If nothing happens, A itself
+# is the problem.
+#
+# Measured: at f3000 the menu is up and the cursor is on New Game (touch control run).
+
+KEY 1600 START 1
+KEY 1618 START 0
+KEY 2400 A 1
+KEY 2418 A 0
+SHOT 3000 /home/devin/fe/out/a0-menu.ppm 1
+
+# A on New Game (the cursor's starting row), held 60 frames.
+KEY 3300 A 1
+KEY 3360 A 0
+SHOT 4000 /home/devin/fe/out/a1.ppm 1
+SHOT 4600 /home/devin/fe/out/a2.ppm 1

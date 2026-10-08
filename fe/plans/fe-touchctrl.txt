@@ -1,0 +1,28 @@
+# FE11 TOUCH CONTROL TEST. Tap NEW GAME (bottom-left of the left column) and see whether the
+# Prologue starts -- which we KNOW happens when New Game is chosen by button.
+#
+# \u26d4 WHY THIS IS THE CONTROL. A held-A on Continue changed nothing, and a touch on Continue changed
+# only a small strip at the bottom of the screen. Before concluding anything about Continue, prove
+# the touchscreen path works at all: New Game is the row the cursor already sits on, and choosing it
+# has a known, unmistakable consequence (the Prologue narration, which OCRs as "Prologue").
+#
+# Measured button boxes on the TOUCHSCREEN (screen 1, the bottom LCD):
+#     row y 49.. 75  centre y  62    left x 14..121 (centre 67)   right x 134..241 (centre 187)
+#     row y 89..115  centre y 102
+#     row y 126..159 centre y 142
+# Left column top-to-bottom = Continue / Suspend Point / New Game; right = Copy Data / Erase Data /
+# Extras. So New Game = (67, 142).
+
+KEY 1600 START 1
+KEY 1618 START 0
+KEY 2400 A 1
+KEY 2418 A 0
+SHOT 3000 /home/devin/fe/out/n0-menu.ppm 1
+
+# --- TAP New Game (bottom-left) ---
+TOUCH 3400 67 142 1
+TOUCH 3408 67 142 0
+SHOT 4000 /home/devin/fe/out/n1.ppm 1
+SHOT 4600 /home/devin/fe/out/n2.ppm 1
+SHOT 5400 /home/devin/fe/out/n3.ppm 1
+SHOT 6400 /home/devin/fe/out/n4.ppm 1

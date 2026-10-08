@@ -1,0 +1,39 @@
+# FE11 + save: TAP Continue (top-left of the grid), then press A to advance, hunting for the map.
+#
+# \u26d4 MEASURED: the button grid is on the BOTTOM screen (screen 1), so touch coordinates are in
+# bottom-screen space. Verified by control: tapping the bottom-left panel (67,142) = New Game and it
+# advanced to the difficulty screen ("Recommended for beginners...", the Normal description). So the
+# grid mapping is right and poke_touch works. Continue is the TOP-LEFT panel: (67, 62).
+
+KEY 1600 START 1
+KEY 1618 START 0
+KEY 2400 A 1
+KEY 2418 A 0
+SHOT 3000 /home/devin/fe/out/x0-menu.ppm 1
+
+# --- TAP Continue (top-left) ---
+TOUCH 3400 67 62 1
+TOUCH 3408 67 62 0
+SHOT 4000 /home/devin/fe/out/x1.ppm 1
+
+# --- TAP it again in case the first was a focus-then-confirm pair ---
+TOUCH 4600 67 62 1
+TOUCH 4608 67 62 0
+SHOT 5200 /home/devin/fe/out/x2.ppm 1
+
+# --- press A (button) as well, held ---
+KEY 5800 A 1
+KEY 5860 A 0
+SHOT 6200 /home/devin/fe/out/x3.ppm 1
+
+KEY 6800 A 1
+KEY 6860 A 0
+SHOT 7200 /home/devin/fe/out/x4.ppm 1
+
+KEY 7800 A 1
+KEY 7860 A 0
+SHOT 8200 /home/devin/fe/out/x5.ppm 1
+
+KEY 8800 A 1
+KEY 8860 A 0
+SHOT 9200 /home/devin/fe/out/x6.ppm 1

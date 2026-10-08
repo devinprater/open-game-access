@@ -1,0 +1,35 @@
+# FE11 + save: after A works on New Game, try A on Continue now that the cursor is on it.
+#
+# \u26d4 MEASURED CONTROL: A on New Game (the cursor's starting row) advanced to the difficulty screen
+# (screen changed 44.91%, OCR "Recommended for beginners..."). So A DOES confirm on this menu. The
+# earlier "held A on Continue did nothing" runs had the cursor on Continue but used a different
+# frame schedule; this plan walks UP first, then presses A with the same timing that worked.
+#
+# Every screen is captured, both LCDs, after every input.
+
+KEY 1600 START 1
+KEY 1618 START 0
+KEY 2400 A 1
+KEY 2418 A 0
+SHOT 3000 /home/devin/fe/out/z0-menu.ppm 0
+SHOT 3000 /home/devin/fe/out/z0-menu-b.ppm 1
+
+# UP: New Game -> Continue
+KEY 3300 UP 1
+KEY 3318 UP 0
+SHOT 3700 /home/devin/fe/out/z1.ppm 0
+SHOT 3700 /home/devin/fe/out/z1-b.ppm 1
+
+# A on Continue, same 60-frame hold that worked on New Game
+KEY 4000 A 1
+KEY 4060 A 0
+SHOT 4700 /home/devin/fe/out/z2.ppm 0
+SHOT 4700 /home/devin/fe/out/z2-b.ppm 1
+SHOT 5400 /home/devin/fe/out/z3.ppm 0
+SHOT 5400 /home/devin/fe/out/z3-b.ppm 1
+
+# push on through anything that follows
+KEY 6200 A 1
+KEY 6260 A 0
+SHOT 7000 /home/devin/fe/out/z4.ppm 0
+SHOT 7000 /home/devin/fe/out/z4-b.ppm 1

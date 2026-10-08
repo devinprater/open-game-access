@@ -457,14 +457,18 @@ static const uint32_t A_FE_DIFFCURSOR = 0x020E6049; // 01 Normal, 00 Hard (gated
 static bool FeBankUp() { return bankNewGame.get() != 0; }
 static bool FeDescsUp() { return descNormal.get() != 0 || descHard.get() != 0; }
 
-// Stage read with the CA9 sanity neighbour: title=00, menu/difficulty=02.
-// Anything else means the fixed addresses drifted -> discard, stay silent.
+// Stage read with the CA9 sanity neighbour. MEASURED values (2 boots each, 2026-10-08):
+//   00 = title / main menu        01 = maps (and the difficulty screen)
+//   02 = Chapter Saves (save file-select)
+// The neighbour byte is 00 through the menu flow and 02 on maps; anything outside that means
+// the fixed addresses drifted -> discard, stay silent. Stage 02 is a screen, NOT "a save
+// exists": the main menu with the very same save loaded still reads 00.
 static int FeStage()
 {
     if (!InRam(A_FE_STAGE, 2)) return -1;
     uint8_t s = R8(A_FE_STAGE), sanity = R8(A_FE_STAGE + 1);
     if (sanity != 0 && sanity != 2) return -1;
-    if (s != 0 && s != 1) return -1;
+    if (s > 2) return -1;
     return s;
 }
 
@@ -487,12 +491,35 @@ static bool FeDifficultyActive()
     return cur == 0 || cur == 1;   // the flip-flop; anything else = drift
 }
 
+// Chapter Saves / Map Savepoints: the save file-select family. Stage byte 02 is the whole
+// signature -- MEASURED to hold on two boots with a save loaded, and the main menu with the
+// same save reads 00, so this is the screen rather than the save's presence. The strings on
+// it ("Chapter Saves", the slot labels) are static rodata present on every screen, so they
+// are NOT usable as anchors and the reader does not pretend otherwise. The highlighted slot
+// has no located cursor yet (the table at 0x0224F540 is byte-identical on the main menu), so
+// this predicate reports the screen and stops; it never predicts which row is live.
+static bool FeFileSelectActive()
+{
+    if (FeOnMap()) return false;
+    if (R32(A_gMapStateManager) != 0) return false;
+    return FeStage() == 2;
+}
+
 static bool FeMenuActive()
 {
     if (FeOnMap()) return false;
     if (!FeBankUp()) return false;
     if (FeDifficultyActive()) return false;
     return FeStage() == 0;   // bank says menu flow, stage excludes difficulty
+}
+
+// What the save file-select screen offers. Both facts are measured from screenshots, not
+// guessed: Continue with a save reaches this list, and a slot whose label is "NO DATA" is
+// empty. The list is the one the game calls Chapter Saves; picking a chapter that has map
+// savepoints leads on to a Map Savepoints list before the chapter loads.
+static const char* FeSaveListHint()
+{
+    return "Choose a save slot, then its savepoint. Slot labels read NO DATA when empty.";
 }
 
 // 0 = Hard, 1 = Normal, -1 = unreadable (caller falls back, never guesses).
@@ -613,6 +640,7 @@ static void cmdWhereAmI()
             FeSay("Difficulty. %s.\n", sel < 0 ? "Selection unclear" : sel ? "Normal" : "Hard");
             return;
         }
+        if (FeFileSelectActive()) { FeSay("Save file screen. %s\n", FeSaveListHint()); return; }
         if (FeMenuActive()) { FeSay("Main menu. Start a new game.\n"); return; }
         if (FeTitleActive()) { FeSay("Waiting to start.\n"); return; }
         FeSay("Not on a map yet.\n");
@@ -736,6 +764,7 @@ static void cmdMenuState()
         FeSay("Difficulty. %s. %s\n", sel ? "Normal" : "Hard", desc.c_str());
         return;
     }
+    if (FeFileSelectActive()) { FeSay("Save file screen. %s\n", FeSaveListHint()); return; }
     if (FeMenuActive()) { FeSay("Main menu. Start a new game.\n"); return; }
     if (FeTitleActive()) { FeSay("Waiting to start.\n"); return; }
     // Adapters not on a tracked menu ignore MenuState: stay silent.
@@ -744,6 +773,12 @@ static void cmdMenuState()
 static void cmdMenuNav()
 {
     if (FeOnMap() || FeTitleActive()) return;   // no tracked cursor here
+    if (FeFileSelectActive()) {
+        // Up/down DO move a highlight on this screen, but no ordinal that tracks it has been
+        // found, so predicting a row would be a guess. Name the screen and say the limit.
+        FeSay("Save file screen. %s The highlighted slot is not read yet.\n", FeSaveListHint());
+        return;
+    }
     if (FeDifficultyActive()) {
         int sel = FeDifficultySel();
         FeSay("Difficulty. %s.\n", sel < 0 ? "Selection unclear" : sel ? "Normal" : "Hard");
@@ -780,7 +815,8 @@ static void cmdDump()
         if (InRam(A_FE_DIFFCURSOR, 1))
             FeLog("diff cursor   : 0x%02X\n", R8(A_FE_DIFFCURSOR));
         FeLog("menu state    : %s\n", FeDifficultyActive() ? "Difficulty" :
-              FeMenuActive() ? "MainMenu" : FeTitleActive() ? "Title" : "untracked");
+              FeFileSelectActive() ? "FileSelect" : FeMenuActive() ? "MainMenu" :
+              FeTitleActive() ? "Title" : "untracked");
     }
     uint32_t base = R32(A_gUnitList);
     FeLog("gUnitList     : 0x%08X  stride=0x%02X  slots=%d\n", base, UNIT_STRIDE, UNIT_SLOTS);
@@ -850,7 +886,8 @@ void fe_cmd_dump(void) { cmdDump(); }
 // still read not-ready: silence beats a guess.
 bool fe_ready(void)
 {
-    return ReadCursor().ok || FeTitleActive() || FeMenuActive() || FeDifficultyActive();
+    return ReadCursor().ok || FeTitleActive() || FeMenuActive() ||
+           FeDifficultyActive() || FeFileSelectActive();
 }
 
 } // extern "C"
