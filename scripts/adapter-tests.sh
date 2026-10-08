@@ -3,7 +3,7 @@
 set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 
-for test_script in dbz-adapter-test.sh gba-adapter-test.sh dissidia-adapter-test.sh dq9-adapter-test.sh osk-echo-test.sh android-compose-launcher-test.sh; do
+for test_script in dbz-adapter-test.sh dbzar-adapter-test.sh gba-adapter-test.sh dissidia-adapter-test.sh dq9-adapter-test.sh osk-echo-test.sh android-compose-launcher-test.sh; do
   printf '\n== %s ==\n' "$test_script"
   bash "$ROOT/scripts/$test_script"
 done

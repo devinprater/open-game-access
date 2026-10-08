@@ -3,7 +3,7 @@
 set -eu
 R="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 W="$ROOT"
-cp -f "$W/Core/dissidia_adapter.cpp" "$R/Core/dissidia_adapter.cpp"
+cp -f "$W/Core/dissidia_adapter.cpp Core/dbzar_adapter.cpp" "$R/Core/dissidia_adapter.cpp Core/dbzar_adapter.cpp"
 cp -f "$W/Core/dissidia_adapter_test.cpp" "$R/Core/dissidia_adapter_test.cpp"
 cp -f "$W/Core/osk_echo.cpp" "$R/Core/osk_echo.cpp" 2>/dev/null || true
 cp -f "$W/Core/osk_echo.h" "$R/Core/osk_echo.h" 2>/dev/null || true
@@ -22,7 +22,7 @@ echo "=== build ==="
 g++ -O1 -g -fwrapv -fno-strict-aliasing -I"$R/Core" -I"$R/Sources/CPokeCore/include" -std=c++17 \
   -o /home/devin/oga-test/dissidia-test \
   "$R/Core/dissidia_adapter_test.cpp" \
-  "$R/Core/dissidia_adapter.cpp" \
+  "$R/Core/dissidia_adapter.cpp Core/dbzar_adapter.cpp" \
   "$R/Core/osk_echo.cpp" \
   "$R/Core/adapters.cpp"
 echo "build rc=$?"

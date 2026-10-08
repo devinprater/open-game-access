@@ -77,6 +77,7 @@ gba_core.cpp mgba_version_stub.cpp
 mesen_core.cpp
 dbz_adapter.cpp
 dissidia_adapter.cpp
+dbzar_adapter.cpp
 dq9_adapter.cpp
 osk_echo.cpp
 adapters.cpp
