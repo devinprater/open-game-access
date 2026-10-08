@@ -543,11 +543,19 @@ private struct HoldButton: View {
     }
 
     private func tap() {
-        press()
-        // A game button tapped from VoiceOver should register as a press the
-        // core sees on the next frame, then release — a double tap-and-hold is
-        // not something VoiceOver can express.
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { release() }
+        // ⛔ THE RELEASE IS COUNTED IN EMULATED FRAMES, NOT SECONDS. This used to be
+        // `asyncAfter(deadline: .now() + 0.12)`, and frames come from a CADisplayLink that iOS
+        // throttles when the phone is warm or in Low Power Mode. On a slow frame the press AND the
+        // release both landed between two frames and the console never saw the button at all --
+        // "START does nothing" in Pokemon Crystal, which no host run could reproduce.
+        //
+        // The core holds the button for this many frames and releases it inside its own frame
+        // loop. 4 frames is comfortably more than the 2 the console needs to sample it, and short
+        // enough that a tap still feels like a tap.
+        isDown = true
+        InputBridge.tapButton(button(), frames: 4)
+        // Visual feedback only: the button lights while the core is holding it.
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.12) { isDown = false }
     }
 
     private func press() {

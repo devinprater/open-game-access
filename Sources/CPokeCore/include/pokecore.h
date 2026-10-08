@@ -115,6 +115,21 @@ const uint8_t *poke_framebuffer_ptr(PokeCore *core, int screen);
 
 /* Input. Buttons/touch are read by the core at the start of each frame. */
 void poke_set_button(PokeCore *core, int ds_button, bool down);
+
+/* Press a button for a number of EMULATED FRAMES, then release it.
+ *
+ * ⛔ A PRESS MUST SPAN EMULATED FRAMES, NOT WALL-CLOCK TIME. The VoiceOver tap path used to
+ * schedule its release 0.12 s later, and frames come from a CADisplayLink that iOS throttles when
+ * the phone is warm or in Low Power Mode. On a slow frame the press AND the release both landed
+ * between two frames, the console sampled the pad with the button already up, and the press never
+ * existed -- reported as "START does nothing" in Pokemon Crystal, and not reproducible on a host
+ * that runs frames back to back.
+ *
+ * `frames` must be at least 2: the console samples input once per emulated frame, so a hold that
+ * spans fewer than two frames can be missed. The release happens inside poke_frame, so it is
+ * counted in frames whatever the frame rate is doing. Re-tapping the same button extends the hold
+ * rather than latching a second release. */
+void poke_tap_button(PokeCore *core, int ds_button, int frames);
 /* PSP analog stick, -1..1. No-op on other cores. */
 void poke_set_analog(PokeCore *core, float x, float y);
 void poke_touch(PokeCore *core, int x, int y, bool down);

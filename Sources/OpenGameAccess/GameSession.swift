@@ -196,6 +196,19 @@ final class GameSession: ObservableObject {
         poke_set_button(core, raw, down)
     }
 
+    /// Press a button for a few EMULATED FRAMES, then release it.
+    ///
+    /// ⛔ THIS IS NOT A WALL-CLOCK DELAY. The core releases the button inside its own frame
+    /// loop, counted in frames, so a throttled display link cannot swallow the press. The old
+    /// VoiceOver path scheduled the release 0.12 s later; on a warm phone a single frame can take
+    /// longer than that, the press and release both fell between two frames, and the console never
+    /// saw the button. That was "START does nothing" in Pokemon Crystal, unreproducible on a host
+    /// that runs frames back to back.
+    func tapButton(_ raw: Int32, frames: Int32) {
+        guard let core else { return }
+        poke_tap_button(core, raw, frames)
+    }
+
     /// Silence that sticks, without any script key.
     ///
     /// A VoiceOver two-finger tap (or the synth stopping) only ends the
