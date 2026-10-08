@@ -324,6 +324,24 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   Emerald savestate and input: garbage -> "BAG", "CLOSE BAG", "Return to the field.". Cost ~2.2x
   baseline, still ~50x faster than real time. Gate: scripts/gba-exec-hook-test.sh (3 mutations).
   ⚠ Host-proven only; no device has run it.
+- [x] **Game Boy sound and the "numbers" are FIXED (v0.6.6).** Two real bugs, both measured on
+  host with real cartridges:
+  (1) **Every GB/GBC/GBA title was SILENT on iOS.** `memset(&opts, 0, sizeof(opts))` left
+  `opts.volume` at 0, and mGBA multiplies every sample by `audio->masterVolume`
+  (`sampleLeft = (sampleLeft * audio->masterVolume * 6) >> 7`), so the game played and the host
+  threw all of it away. Instrumenting mGBA's own sample site printed `nr52=81 vL=7 vR=7
+  masterVol=0` — the console's registers proved the game was fine. Fix: `opts.volume = 0x100`
+  (`GB_AUDIO_VOLUME_MAX`, mGBA's own default). Measured: Crystal 0 -> 2,570,978 nonzero samples,
+  peak 22652; FireRed 3,145,244 nonzero, peak 24528.
+  (2) **The "bunch of numbers" was the native GBA reader attaching to a GBC cartridge** and
+  reading GBA addresses at it. Fix: a console gate in `gba_attach` (`g_platform == 1`). Measured:
+  Crystal refuses and logs why; FireRed still attaches.
+  ⚠ Host-proven only — no phone has heard either fix. Android is unaffected by both (no native
+  GBA reader there; it reads the console correctly via Lua) and still has NO emulated-audio path,
+  so Android Game Boy games remain silent — a missing feature there, unchanged by v0.6.6.
+  ⛔ The first attempt fixed a real bug (the NULL `read_audio` slot) and proved it with "2048
+  frames returned" — which a ring full of ZEROS also satisfies. The gate now measures peak
+  amplitude and the nonzero fraction, and both bugs were re-introduced to confirm it fails.
 - [x] **The Game Boy "numbers and nil" report was WRONG, and the real bug is fixed (v0.6.4).**
   Measured on Red: the GB path reads Oak's speech line by line with zero nil, zero raw numbers and
   zero hook errors -- that symptom is GBA-title-screen only. The real defect was a RESET handler
