@@ -44,6 +44,9 @@
 #include <mgba/gba/core.h>
 #include <mgba/gb/core.h>
 #include <mgba-util/vfs.h>
+// The emulated-audio ring mGBA's GB and GBA cores fill. Public API:
+// mAudioBufferAvailable/Read/Capacity. Draining it is the whole fix for "no sound".
+#include <mgba-util/audio-buffer.h>
 
 extern "C" {
 #include "lua.h"
@@ -111,6 +114,20 @@ struct GbaCore {
     std::vector<uint8_t> frameRGBA;
     int frameW = GBA_FB_W, frameH = GBA_FB_H;
     int frameScreen = -1;
+
+    // ---- emulated audio ----
+    // ⛔ THE CORE PRODUCES AUDIO WHETHER OR NOT ANYONE DRAINS IT, and nothing drained it: the
+    // ops table had no read_audio for this backend, so every Game Boy / GBC / GBA game was silent
+    // while its own music and effects were generated and thrown away. mGBA's GB and GBA cores fill
+    // `core->getAudioBuffer()` and answer `core->audioSampleRate`; this pulls from that ring.
+    //
+    // The ring's rate is the console's own (GBA ~32768 Hz, GB 131072 Hz) and differs from the app's
+    // 32768 Hz output, so reads are resampled. `audioFrac` carries the phase across reads, exactly
+    // as psp_read_audio does -- restarting the phase each call produces a periodic click.
+    std::vector<int16_t> audio;        // staged interleaved stereo at kGbaMixRate
+    size_t audioRead = 0;              // consumed frames (compacts when fully drained)
+    double audioFrac = 0.0;
+    bool audioPrimed = false;
 
     // ---- save ----
     std::string savePath;
@@ -761,6 +778,11 @@ bool gba_start(GbaCore* core)
 void gba_stop(GbaCore* core)
 {
     if (!core) return;
+    // Silence the game as well as stopping it: samples staged but never consumed would play as a
+    // burst of stale audio the moment a new game starts.
+    core->audio.clear();
+    core->audioRead = 0;
+    core->audioFrac = 0.0;
     core->running = false;
     core->scriptLoaded = false;
     core->coroutine = nullptr;
@@ -901,6 +923,73 @@ bool gba_clear_exec_hook(GbaCore* core, uint32_t address)
 bool gba_hooks_active(GbaCore* core)
 {
     return core && !core->execHooks.empty();
+}
+
+// The ring rate the app outputs at: the same 32768 Hz the PSP path uses, so the Swift side's
+// AVAudioEngine format needs no per-console change.
+static const unsigned kGbaAppRate = 32768;
+
+// Pull whatever the console has produced into `core->audio`, resampled to kGbaAppRate.
+// Cheap and silent when the console produced nothing or the ring is unavailable.
+static void GbaDrainAudio(GbaCore* core)
+{
+    if (!core || !core->core) return;
+    if (!core->core->getAudioBuffer || !core->core->audioSampleRate) return;
+
+    struct mAudioBuffer* ring = core->core->getAudioBuffer(core->core);
+    if (!ring) return;
+    size_t avail = mAudioBufferAvailable(ring);
+    if (avail == 0) return;
+
+    // The console's own rate. Guard against a zero before dividing by it.
+    unsigned srcRate = core->core->audioSampleRate(core->core);
+    if (srcRate == 0) return;
+
+    // Bounded by the ring: never let a long pause balloon one read.
+    if (avail > 8192) avail = 8192;
+    static thread_local std::vector<int16_t> tmp;
+    tmp.resize(avail * 2);
+    size_t got = mAudioBufferRead(ring, tmp.data(), avail);
+    if (got == 0) return;
+
+    // Linear resample srcRate -> kGbaAppRate, carrying the phase across calls.
+    const double step = (double) srcRate / (double) kGbaAppRate;
+    double pos = core->audioFrac;
+    while (pos < (double) (got - 1)) {
+        size_t i = (size_t) pos;
+        double frac = pos - (double) i;
+        int16_t l0 = tmp[i * 2],     r0 = tmp[i * 2 + 1];
+        int16_t l1 = tmp[(i + 1) * 2], r1 = tmp[(i + 1) * 2 + 1];
+        core->audio.push_back((int16_t) ((double) l0 + ((double) l1 - (double) l0) * frac));
+        core->audio.push_back((int16_t) ((double) r0 + ((double) r1 - (double) r0) * frac));
+        pos += step;
+    }
+    core->audioFrac = pos - (double) got;   // carry the surplus into the next read
+    if (core->audioFrac < 0.0) core->audioFrac = 0.0;
+    core->audioPrimed = true;
+}
+
+// Drain the console's audio ring and hand back interleaved stereo s16 at kGbaAppRate.
+// Returns the number of FRAMES written, 0 when there is nothing to give.
+int gba_read_audio(GbaCore* core, int16_t* out, int max_frames)
+{
+    if (!core || !out || max_frames <= 0) return 0;
+    GbaDrainAudio(core);
+
+    size_t have = core->audio.size() / 2 - core->audioRead;
+    if (have == 0) return 0;
+    if (have > (size_t) max_frames) have = (size_t) max_frames;
+
+    memcpy(out, core->audio.data() + core->audioRead * 2, have * 2 * sizeof(int16_t));
+    core->audioRead += have;
+
+    // Compact only when fully drained: memmove-ing every call would be the cost, and a partial
+    // drain cannot be compacted without moving data the reader has not taken yet.
+    if (core->audioRead * 2 >= core->audio.size()) {
+        core->audio.clear();
+        core->audioRead = 0;
+    }
+    return (int) have;
 }
 
 bool gba_frame(GbaCore* core)

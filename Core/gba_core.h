@@ -95,6 +95,12 @@ bool gba_load_state(GbaCore *core, const char *path);
 unsigned long long gba_frames_completed(GbaCore *core);
 const char *gba_last_error(GbaCore *core);
 
+/* Drain the console's own audio, resampled to the app's 32768 Hz interleaved stereo s16.
+ * Returns the number of FRAMES written, 0 when there is nothing to give.
+ * ⛔ Without this the Game Boy / GBC / GBA path is SILENT: the core fills its ring and nothing
+ * ever reads it. */
+int gba_read_audio(GbaCore *core, int16_t *out, int max_frames);
+
 /* Host-only diagnostic: raw bus read for binding verification (compare
  * against the ROM file). ios-debug: not used by the app. */
 uint32_t gba_debug_read(GbaCore *core, uint32_t addr, int width);
