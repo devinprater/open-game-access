@@ -203,11 +203,22 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   * **iOS reads the registry:** hardware facts (screens, shoulders, sticks, the
     face-button list) come from the core; the script/hotkey tables deliberately
     stay in Swift, because they belong to the loaded script, not the console.
-  NEXT: **the Game Boy reader's speech is not yet meaningful** -- it says raw
-  numbers and `nil` and its effect hooks fail in `gba.lua`. That is the shim
-  handing the reader bad data, and it is the top of the Game Boy queue; see
-  `docs/research/gba-host-proof.md`. Then NES as the first console neither
-  existing backend resembles.
+  NEXT: **the Game Boy reader's speech is MEANINGFUL, and the "numbers and nil"
+  report was misdiagnosed** (2026-10-07). Measured on Pokemon Red (40000 frames,
+  traceback-instrumented sink): the Game Boy path reads Oak's speech line by line,
+  then the naming screen and the typed name -- ZERO `nil`, zero raw numbers, zero
+  hook errors. The `nil`/numbers symptom belongs to the GBA TITLE-SCREEN path only
+  and is expected there.
+  ⛔ The real bug that run found: `registerexec` folded a RESET handler into the
+  MOVEMENT poll. `pokemon.lua:1057-1058` registers `init_script` at the CPU entry
+  vector (0x100 GB / 0x8000000 GBA) to survive a soft reset; the shim fired every
+  registration on player movement, so `init_script` ran on EVERY STEP -- reloading
+  the reader and re-speaking "Ready" 729 times in one run (caller proven by
+  traceback: pokemon.lua:893 via mgba_compat.lua:342). Fixed: entry vectors live in
+  their own table, never movement-polled, still reachable from the PC sample.
+  Re-measured: "Ready" 729 -> 1, dialogue preserved. Gate:
+  `scripts/registerexec-kind-test.sh` (3 mutations, CI).
+  Then NES as the first console neither existing backend resembles.
   ⚠ The step-3 work turned up two things recorded as done that were NOT
   reachable in a shipped build: the registry was in no build list, and nothing on
   Android called the Game Boy path at all. Every console step from here should

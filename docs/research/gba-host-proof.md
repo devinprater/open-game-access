@@ -112,6 +112,57 @@ reader defect — they need completely different work.
 Until one of those lands, treat any run that starts at a title screen as expected
 to say `Ready` and then numbers.
 
+## ⛔ MEASURED ON A REAL GAME BOY ROM: the reader is MEANINGFUL, and the shim had a bug
+
+The section above was written from the GBA path and is correct for it. It undersold the Game
+Boy path, which was then actually run (Pokémon Red, 40000 frames) with a traceback-instrumented
+speech sink instead of inference.
+
+### The Game Boy reader speaks real game content, end to end
+
+    [SPEAK] ->NEW GAME
+    [SPEAK] Hello there! Welcome to the
+    [SPEAK] world of POKéMON!
+    [SPEAK] People call me the POKéMON PROF!
+    ...
+    [SPEAK] First, what is your name?
+    [SPEAK] ->NEW NAME
+    [SPEAK] Right! So your name is AJR!
+    ...
+    [SPEAK] That's right! I remember now! His name is BKJ!
+    [SPEAK] AJR is playing the SNES! ...Okay!
+
+That is Oak's opening speech, read line by line out of live RAM, plus the naming screen's own
+UI and the name the walk typed. **Zero `nil` and zero raw-number emissions, and zero hook
+errors** — the two symptoms the GBA title-screen path shows do not appear here at all. So the
+"numbers and nil" report is a GBA-title-screen artefact, not a Game Boy reader defect.
+
+### ⛔ The real bug this found: a RESET hook was firing as a MOVEMENT hook
+
+The same run said `Ready` **729 times** in 40000 frames. Instrumenting the speech sink with
+`debug.traceback` gave the caller directly, not a guess:
+
+    pokemon.lua:893   (inside init_script)
+      <- mgba_compat.lua:342  (pollExecEffects)
+      <- mgba_compat.lua:183  (frameadvance)
+
+`pokemon.lua:1057-1058` registers `init_script` at the CPU's **entry vector** (0x100 on Game
+Boy, 0x8000000 on GBA) so the reader survives a **soft reset**. That is a RESET handler. The
+shim's `registerexec` folds every registration into one table, and its movement poll fires that
+table whenever the player's position changes — so `init_script` ran on **every step**. It calls
+`get_game()` -> `load_game()` and ends by `tolk.output("Ready")`, which is why the whole reader
+was being rebuilt and re-announced while the player walked.
+
+Fixed in `mgba_compat.lua`: entry vectors (0x100, 0x8000000) are held in their own table and are
+never fired by the movement poll; they stay reachable from the PC sample, the only mechanism
+that can legitimately observe a reset. Re-measured on the same ROM: `Ready` 729 -> **1**, with
+the dialogue above preserved. Guarded by `scripts/registerexec-kind-test.sh` (3 sabotage
+mutations, CI).
+
+⛔ The GBA path is UNCHANGED by this: its pre-world `nil`/numbers come from
+`register_common_callbacks` genuinely registering ~38 map predicates, and the harness still
+cannot walk FRLG's intro into the world. That remains a harness limitation, as documented above.
+
 ## What is still NOT proven
 
   * that the speech is meaningful for any game;

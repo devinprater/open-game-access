@@ -98,59 +98,13 @@ echo "SDKROOT = $SDKROOT"
 #
 # It also fails loudly now. `llvm-objcopy --localize-symbol` is a silent no-op for a
 # symbol it cannot find, so the old `|| true` could hide a whole unfixed overlap.
+# ⛔ ONE DEFINITION, SHARED WITH build-host.sh. This function used to live here and only here,
+# while build-host.sh called a 7-Zip-ONLY dedupe -- so Mesen's blip_buf vs melonDS's blip_buf
+# sat un-localized in Vendor/hostobj and EVERY host harness died at the LINK with "multiple
+# definition of blip_end_frame". Keeping the logic in one script is what makes the two builds
+# unable to drift again. Pass the LLVM pair: GNU nm cannot read Mach-O.
 localise_mesen_twins() {
-  [ -n "$LLVM_OBJCOPY" ] || { echo "!! no llvm-objcopy: the Mesen twin symbols cannot be resolved" >&2; return 1; }
-  local _shared _mine _o _s _left=0 _count=0
-  # ⛔ IT IS NOT ONLY 7-ZIP. Mesen vendors SEVERAL of the same third-party libraries
-  # as melonDS and PPSSPP, and every one of them is a twin in the archive:
-  #     SevenZip -- Mesen's SevenZip/        vs PPSSPP's ext/lzma-sdk/
-  #     xBRZ     -- Mesen's Utilities/xBRZ/  vs PPSSPP's ext/xbrz/
-  #     blip_buf -- Mesen's Utilities/Audio/ vs melonDS's src/blip-buf/
-  # Naming one of them and not the others is how the "duplicate global text symbols"
-  # gate in verify-sim-app.sh came to fail on _blip_new and xbrz::scale.
-  #
-  # ⛔ THE TWINS ARE NOT IDENTICAL SOURCES. Measured: Mesen's Utilities/xBRZ/xbrz.cpp
-  # differs from PPSSPP's ext/xbrz/xbrz.cpp by ~1800 diff lines, and the 7-Zip pair
-  # differs too (218). The comment above used to claim the overlap was "only safe
-  # while the twins are identical (same LZMA SDK 19.00)" -- that was never true.
-  # So the fix is not to pick a winner: LOCALISE THE MESEN SIDE, which leaves every
-  # Mesen object bound to its own copy and melonDS/PPSSPP bound to theirs.
-  #
-  # The overlap is computed from nm, never hand-listed, so a new vendored twin is
-  # covered the moment it lands.
-  # ⛔ PERFORMANCE. The first version of this spawned a `grep -qx` PER SYMBOL PER
-  # OBJECT -- ~700 Mesen objects x dozens of symbols -- and was still grinding after
-  # 15 minutes on 24 cores. Build the shared set once, intersect with `comm -12`
-  # (one process per object), and hand objcopy the WHOLE collide list at once with
-  # `--localize-symbols=<file>` instead of one flag per symbol.
-  local _shared="$OBJ/.twin-shared" _mine="$OBJ/.twin-mine"
-  find "$OBJ" -maxdepth 1 -name '*.o' ! -name 'mesen*' -print0 2>/dev/null \
-    | xargs -0 -r "$LLVM_NM" --defined-only --extern-only -A 2>/dev/null \
-    | awk 'NF {print $NF}' | sort -u > "$_shared"
-  echo "== symbols defined by non-Mesen objects: $(wc -l < "$_shared")"
-  for _o in "$OBJ"/mesen*.o; do
-    [ -f "$_o" ] || continue
-    "$LLVM_NM" --defined-only --extern-only "$_o" 2>/dev/null | awk 'NF {print $3}' \
-      | sort -u | comm -12 - "$_shared" > "$_mine"
-    if [ -s "$_mine" ]; then
-      "$LLVM_OBJCOPY" --localize-symbols="$_mine" "$_o" 2>/dev/null || true
-      _count=$((_count + $(wc -l < "$_mine")))
-    fi
-  done
-  echo "== localised $_count Mesen twin symbol(s) shared with melonDS/PPSSPP"
-  # PROVE IT: no Mesen object may still export a global that another object defines.
-  for _o in "$OBJ"/mesen*.o; do
-    [ -f "$_o" ] || continue
-    "$LLVM_NM" --defined-only --extern-only "$_o" 2>/dev/null | awk 'NF {print $3}' \
-      | sort -u | comm -12 - "$_shared" > "$_mine"
-    if [ -s "$_mine" ]; then
-      while read -r _s; do echo "!! still duplicated: $_s in $(basename "$_o")" >&2; done < "$_mine"
-      _left=$((_left + $(wc -l < "$_mine")))
-    fi
-  done
-  rm -f "$_shared" "$_mine"
-  [ "$_left" -eq 0 ] || { echo "!! $_left twin symbol(s) still duplicated; the link would fail" >&2; return 1; }
-  return 0
+  bash "$ROOT/scripts/mesen-localize-twins.sh" "$OBJ" "$LLVM_NM" "$LLVM_OBJCOPY"
 }
 
 echo "llvm-ar = $LLVM_AR"

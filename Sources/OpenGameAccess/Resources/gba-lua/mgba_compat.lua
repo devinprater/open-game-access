@@ -29,6 +29,19 @@
 --      primary accessibility feature), and registerwrite is used once for GBA DMA-into-
 --      VRAM detection. Both are emulated by a per-frame poll.
 --
+--      ⛔ AND THE READERS REGISTER TWO DIFFERENT KINDS OF HOOK, WHICH MUST NOT SHARE ONE
+--      MECHANISM. pokemon.lua:1057-1058 registers init_script at the CPU's ENTRY VECTOR
+--      (0x100 on Game Boy, 0x8000000 on GBA) so the reader survives a SOFT RESET — a RESET
+--      handler. Every other registration (gba.lua's register_common_callbacks, ~38 of them
+--      plus ROM_FOOTSTEP_FUNCTION) is an EFFECT predicate meant to run when the player moves.
+--      Feeding the reset handler through the movement poll re-ran it on EVERY STEP: it calls
+--      get_game() -> load_game() and re-speaks 'Ready', so a 40000-frame Game Boy run said
+--      'Ready' 729 times and reloaded the whole reader each time. Measured caller, by
+--      traceback: pokemon.lua:893 (inside init_script) via mgba_compat.lua:342
+--      (pollExecEffects). Entry vectors are therefore held in their OWN table and are never
+--      fired by the movement poll; they stay reachable from the PC sample, the only thing
+--      that can legitimately observe a reset. See scripts/registerexec-kind-test.sh.
+--
 --   3. getregister needs a name mapping. BizHawk uses uppercase and may ask for combined
 --      pairs (BC/DE/HL/AF); mGBA's docs list lowercase names plus those pairs.
 --
@@ -292,9 +305,17 @@ end
 -- Do not add that fallback pre-emptively: establish whether it is needed first.
 ----------------------------------------------------------------------
 
-local exec_hooks  = {}   -- address -> callback
+local exec_hooks  = {}   -- address -> callback  (EFFECT hooks: fired when the player moves)
+local reset_hooks = {}   -- address -> callback  (ENTRY-VECTOR hooks: fired only on a reset)
 local last_player_x, last_player_y   -- for the observable-effect poll
 local write_hooks = {}   -- address -> { cb = fn, last = value }
+
+-- ⛔ THE CPU ENTRY VECTORS. Registering a callback here is how a reader says "re-initialise
+-- me after a reset", NOT "call me when the player moves". Both vectors are listed because
+-- the shim does not know which console it is driving at registration time, and an address
+-- in this set is unambiguous on either (0x100 is GB's entry point; 0x8000000 is GBA's ROM
+-- start).
+local ENTRY_VECTORS = { [0x100] = true, [0x8000000] = true }
 
 -- ⛔⛔ registerexec: REIMPLEMENTED AS AN OBSERVABLE-EFFECT POLL, NOT A PC HOOK. ⛔⛔
 --
@@ -328,6 +349,11 @@ local write_hooks = {}   -- address -> { cb = fn, last = value }
 -- this file), so the poll watches the reader's exported globals once they exist and falls back
 -- to a no-op rather than guessing at addresses.
 local function pollExecEffects()
+  -- ⛔ reset_hooks IS DELIBERATELY NOT COUNTED HERE. If this consulted both tables, a reader
+  -- whose only registration is the entry vector (which is exactly the Game Boy case --
+  -- register_common_callbacks runs for GBA only) would enter the movement poll with nothing
+  -- to fire, and a later edit could re-add the reset handler to the loop below without
+  -- noticing. Counting only EFFECT hooks makes `exec_hooks` mean what the name says.
   if next(exec_hooks) == nil then return end
   -- The reader publishes get_player_xy() on the global table; use it when present.
   local getxy = _G.get_player_xy
@@ -347,8 +373,17 @@ local function pollExecEffects()
 end
 
 memory.registerexec = function(address, fn)
+  -- ⛔ AN ENTRY-VECTOR HOOK IS A RESET HANDLER, NOT AN EFFECT PREDICATE, and it must NOT be
+  -- fired by the movement poll. Measured: init_script registered at 0x100 fired on every step
+  -- and re-spoke 'Ready' 729 times in one Game Boy run, each time reloading the reader. Keep
+  -- the two kinds in separate tables so no future caller can conflate them again.
   if fn == nil then
-    exec_hooks[address] = nil
+    exec_hooks[address]  = nil
+    reset_hooks[address] = nil
+    return
+  end
+  if ENTRY_VECTORS[address] then
+    reset_hooks[address] = fn
     return
   end
   exec_hooks[address] = fn
@@ -502,12 +537,17 @@ function poll_hooks()
   run_pad_script()
   pollExecEffects()
 
-  if next(exec_hooks) ~= nil then
+  if next(exec_hooks) ~= nil or next(reset_hooks) ~= nil then
     local pc_ok, pc = pcall(function()
       return decodeRegister(callReal("readRegister", "pc"))
     end)
     if pc_ok and pc then
-      local cb = exec_hooks[pc]
+      -- ⛔ BOTH KINDS ARE SAMPLED HERE, AND THAT IS THE POINT. The PC sample is the only
+      -- mechanism that can observe a RESET (the CPU briefly sits on the entry vector), so
+      -- reset_hooks keeps its one legitimate trigger even though the movement poll never
+      -- touches it. In practice this is rare -- end-of-frame PC sampling lands in a narrow
+      -- window -- and "rare" is correct for a reset and wrong for a footstep.
+      local cb = exec_hooks[pc] or reset_hooks[pc]
       if cb then
         -- A reader callback that errors must not kill the emulator session.
         local ok, err = pcall(cb)

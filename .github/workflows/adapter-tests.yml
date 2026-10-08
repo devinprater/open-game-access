@@ -57,6 +57,14 @@ jobs:
         run: sudo apt-get update -qq && sudo apt-get install -y -qq lua5.4
       - name: Reader positional cues reach the host
         run: bash scripts/cue-sink-test.sh
+      # A RESET hook and a MOVEMENT hook are different kinds and must not share one poll.
+      # pokemon.lua registers init_script at the CPU entry vector (0x100 GB / 0x8000000 GBA)
+      # to survive a soft reset; the shim treated every registration as a footstep hook, so
+      # init_script ran on every step, reloaded the reader and re-spoke "Ready" -- 729 times
+      # in one measured Game Boy run. Drives the shipped shim in a real Lua 5.4 with a
+      # stand-in mGBA host, then mutates it 3 ways and requires each mutant to fail.
+      - name: Reset vs movement hooks stay separate
+        run: bash scripts/registerexec-kind-test.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols
