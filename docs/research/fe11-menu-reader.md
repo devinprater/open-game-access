@@ -252,10 +252,14 @@ this route. No new predicate is needed for prep, because prep is not a distinct 
 
 - A prep screen may exist on a path this save/route does not produce (e.g. mid-game Continue with a
   chapter save, where `prep_main_menu` lives in overlay 5 per the decompilation).
-- The highlighted-slot cursor on the save screens is still not located. `0x0219788F` looked
-  promising -- 6-way consistent across three Epilogue dumps and three Endgame dumps, reading 02 and
-  03 -- but it is **frame-correlated, not label-correlated**: it reads 04 after more frames and does
-  not track the highlight. Do NOT wire it.
+- The highlighted-slot cursor on the save screens is still **not located**, and one candidate is
+  now definitively refuted. `0x0219788F` looked strong -- 6-way consistent across three Epilogue
+  dumps and three Endgame dumps, reading 02 and 03 -- but a NO-INPUT sweep on the slot screen shows
+  it walking **03 -> 04 -> 05 -> 06 -> 07** with nothing pressed (`sc2-a-*` / `sc2-b-*`). It is a
+  frame/state counter. ⛔ Its "consistency" was a false positive: the six dumps were taken at
+  similar frame counts, so a counter looks constant when sampled twice at the same tick. **A cursor
+  byte must be sampled across a frame range much wider than the states being compared, with no
+  input, and must be FLAT the whole time.** Do not wire this byte.
 
 ### How this was measured, and one method that failed
 
