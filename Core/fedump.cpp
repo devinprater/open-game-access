@@ -69,6 +69,25 @@ static std::string PrintableAt(uint32_t a, int maxLen = 40)
 
 // ---- symbol addresses (fe11-us, YFEE01) ----
 static const uint32_t A_gMapStateManager = 0x021E3328;
+
+// FE11 screen id. MEASURED over two boots (2026-10-08): 0 = title / main menu,
+// 1 = maps and the difficulty screen, 2 = Chapter Saves (save file-select). Same
+// address and semantics as A_FE_STAGE in fe_access.cpp; duplicated here because
+// fedump is a standalone harness with no shared header.
+static const uint32_t A_FE_STAGE = 0x020E3CA8;
+
+// Content scan over main RAM, returning the first absolute address holding `needle`
+// (0 when absent). fe_access.cpp has the same helper under the name RamFind; this
+// copy keeps fedump self-contained.
+static uint32_t RamFind(const char* needle)
+{
+    size_t n = strlen(needle);
+    if (!gRam || n == 0 || n > RAM_SIZE) return 0;
+    for (size_t i = 0; i + n <= RAM_SIZE; i++)
+        if (memcmp(gRam + i, needle, n) == 0)
+            return (uint32_t)(RAM_BASE + i);
+    return 0;
+}
 static const uint32_t A_gUnitList        = 0x021974D8;
 static const uint32_t A_gForces          = 0x021974DC;
 // gFE11Database (fe11-us config/YFEE01/arm9/symbols.txt, kind:bss 0x02197254).
@@ -210,6 +229,8 @@ int main(int argc, char** argv)
         // TOUCH <frame> <x> <y> <0|1>: the core samples input once per frame, so a plan presses on
         // one frame and releases on a later one (a zero-length tap is silently missed).
         bool isTouch = false; int tx = 0, ty = 0;
+        // WAITSTATE: hold until a RAM predicate holds, or until the deadline frame passes.
+        bool isWait = false; std::string pred; int predArg = -1;
     };
     std::vector<K> keys;
     if (planPath) {
@@ -229,6 +250,15 @@ int main(int argc, char** argv)
                     K k; k.f = fr; k.shot = btn; keys.push_back(k);
                 } else if (sscanf(line, "%15s %ld %511s %d", cmd, &fr, btn, &d) == 4 && !strcasecmp(cmd, "SHOT")) {
                     K k; k.f = fr; k.shot = btn; k.shotScreen = (d != 0) ? 1 : 0; keys.push_back(k);
+                } else if (strcasecmp(cmd, "WAITSTATE") == 0) {
+                    // WAITSTATE <deadline> <predicate> [arg]
+                    // Hold until a RAM predicate holds. Frame timing on this ROM drifts boot to
+                    // boot, so a plan that waits on STATE is correct where a fixed frame is luck.
+                    char pred[64] = {0}; long arg = -1;
+                    if (sscanf(line, "%15s %ld %63s %ld", cmd, &fr, pred, &arg) >= 3) {
+                        K k; k.f = fr; k.isWait = true; k.pred = pred; k.predArg = (int) arg;
+                        keys.push_back(k);
+                    }
                 } else if (strcasecmp(cmd, "TOUCH") == 0) {
                     // TOUCH <frame> <x> <y> <0|1>
                     long tx, ty; int down;
@@ -432,10 +462,69 @@ int main(int argc, char** argv)
         }
     };
 
+    // WAITSTATE predicate. Evaluated every frame while a wait is armed. Returns true when the
+    // named RAM condition holds. `menu` is the useful one: this ROM's main menu appears anywhere
+    // from f2500 to f4600 depending on boot work, so pressing A on a fixed frame is a coin flip.
+    auto predHolds = [&](const std::string& p, int arg) -> bool {
+        uint32_t msm = R32(A_gMapStateManager);
+        if (p == "map") return InRam(msm, 0x30);
+        // FE stage byte: 0 menu, 1 map/difficulty, 2 save file-select (measured, 2 boots).
+        if (p == "stage") {
+            if (!InRam(A_FE_STAGE, 2)) return false;
+            return R8(A_FE_STAGE) == (uint8_t) arg;
+        }
+        if (p == "menu") {
+            if (msm != 0) return false;                 // on a map
+            if (!InRam(A_FE_STAGE, 2)) return false;
+            if (R8(A_FE_STAGE) != 0) return false;      // not the menu flow
+            return RamFind("Start a new game.") != 0;   // the menu bank is resident
+        }
+        if (p == "notitle") {
+            // The title/opening movie has no menu bank; treat "bank present" as left-the-title.
+            return RamFind("Start a new game.") != 0;
+        }
+        return false;
+    };
+
+    // WHILE TRUE the plan is held: no event fires and only one frame advances per loop step.
+    bool waitArmed = false;
+    long waitDeadline = 0;
+    std::string waitPred; int waitArg = -1;
+
     size_t ki = 0;
     for (long f = 0; f < frames; f++) {
+        // ---- WAITSTATE gate: the plan is HELD until the predicate holds.
+        // `continue` skips the loop's own single frame advance at the bottom, so the gate must
+        // advance exactly one frame itself or the emulated frame count and `f` drift apart.
+        if (waitArmed) {
+            bool ok = predHolds(waitPred, waitArg);
+            if (ok || f > waitDeadline) {
+                printf("[wait] '%s' %s at f=%ld\n", waitPred.c_str(),
+                       ok ? "satisfied" : "TIMED OUT (deadline)", f);
+                fflush(stdout);
+                waitArmed = false;
+                // Resuming: drop every event already behind us so a held plan does not replay
+                // stale presses after the wait.
+                while (ki < keys.size() && keys[ki].f <= f) ki++;
+            } else {
+                if (!poke_frame(core)) { printf("stopped at %ld\n", f); break; }
+                continue;
+            }
+        }
         while (ki < keys.size() && keys[ki].f == f) {
             K& k = keys[ki];
+            if (k.isWait) {
+                waitPred = k.pred; waitArg = k.predArg;
+                waitArmed = true;
+                waitDeadline = f + 3000;      // safety budget; a bad predicate cannot hang the run
+                printf("[wait] arming '%s' at f=%ld (deadline f=%ld)\n",
+                       k.pred.c_str(), f, waitDeadline);
+                fflush(stdout);
+                ki++;
+                // Fall into the gate on the NEXT loop step (do not advance here: the loop's own
+                // bottom advance handles this frame).
+                continue;
+            }
             if (k.isSnap) {
                 FILE* o = fopen(k.snap.c_str(), "wb");
                 if (o) { fwrite(nds->MainRAM, 1, RAM_SIZE, o); fclose(o); }
