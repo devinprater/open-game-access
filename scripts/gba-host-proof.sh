@@ -30,11 +30,14 @@ echo "== building host objects (needs the real 7z SDK: see MGBA_LZMA in core-sou
 bash scripts/build-host.sh || exit 1
 
 echo "== linking the probe"
-# ⛔ host_harness_stub.cpp IS required and is deliberately NOT in hostobj: it
-# supplies the abort-on-call PSP stubs. (The 7z stubs it used to carry are gone
-# — mGBA's vfs-lzma really calls them, so build-host.sh compiles the real SDK.)
+# ⛔ host_harness_stub.cpp IS REQUIRED and now arrives THROUGH hostobj (build-host.sh
+# compiles it, supplying the abort-on-call PSP stubs). It used to be named here as well,
+# which was a stale duplicate: the file was in neither list when this line was written,
+# then it was added to build-host.sh's list, and the explicit copy here made the link die
+# with "multiple definition of psp_save_state" -- a LINK error that reads like a source bug.
+# Link the object set alone; build-host.sh is the one place that decides what is in it.
 g++ -O1 -g -DPOKE_HOST=1 -ICore -ISources/CPokeCore/include -o Vendor/gba-probe \
-    Core/gba_host_probe.cpp Core/host_harness_stub.cpp \
+    Core/gba_host_probe.cpp \
     Vendor/hostobj/*.o -lpthread -lm -ldl || { echo "!! probe link failed" >&2; exit 1; }
 
 spoken_total=0
@@ -43,7 +46,14 @@ roms_run=0
 # Newest-supported ROMs first. Ruby/Sapphire are in v3.1.0's REJECT list on
 # purpose and are expected to answer game_not_supported — that is a PASS for the
 # shim, and the last entry proves it still refuses.
+# ⛔ THE GAME BOY ROM IS FIRST AND IS THE POINT. The GBA entries cold-boot into minutes of
+# intro (title, speech, naming) that this probe cannot walk, so they are EXPECTED to report
+# numbers and `nil` -- see the closing note. A .gb title screen, by contrast, reaches real
+# dialogue within a few hundred frames, so it is the entry that actually demonstrates the
+# reader decoding live RAM. Measured on Red: Oak's speech line by line, then the naming
+# screen and the typed name, with zero `nil` and zero raw numbers.
 for rom in \
+    "Pokemon - Red Version (USA, Europe) (SGB Enhanced).gb" \
     "Pokemon - FireRed Version (USA).gba" \
     "Pokemon - LeafGreen Version (USA).gba" \
     "Pokemon - Emerald Version (USA, Europe).gba" \
@@ -86,3 +96,10 @@ echo "  So: 'Ready' then numbers means THE GAME HAS NOT STARTED, not that the re
 echo "  is broken. Meaningful in-world speech needs the game standing in the world,"
 echo "  which this harness cannot currently arrange (it stalls on the naming screen)."
 echo "  See docs/research/gba-host-proof.md — 'the READER IS FINE' section."
+echo
+echo "  ⛔ AND CHECK THE GAME BOY LINE, NOT ONLY THE GBA ONES. A .gb reaches real dialogue"
+echo "  on a cold boot: measured on Red, Oak's speech + the naming screen + the typed name,"
+echo "  with zero 'nil' and zero raw numbers. If that line shows numbers instead, the Game"
+echo "  Boy path regressed — most likely 'Ready' repeating, which means a RESET hook is"
+echo "  firing as a movement hook again (scripts/registerexec-kind-test.sh guards it; the"
+echo "  measured bug was 729 'Ready' in one 40000-frame run)."

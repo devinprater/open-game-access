@@ -180,14 +180,6 @@ compile() {
 
 rm -f "$OBJ/.failed"
 
-# ⛔ THE 7-ZIP DEDUPE RUNS HERE, AFTER THE COMPILE LOOP, EVERY TIME. Mesen's 7zStream.o and mGBA's
-# copy define five of the same globals; localizing Mesen's copies is a per-object step that a fresh
-# compile undoes, so it belongs in the same place the objects are produced -- not in a one-off fixup
-# someone has to remember.
-if [ -f "$OBJ/mesen7z_SevenZip_7zStream.o" ]; then
-  bash "$ROOT/scripts/mesen-dedupe-7z.sh" "$OBJ/mesen7z_SevenZip_7zStream.o" || {
-    echo "!! 7-Zip symbol dedupe failed" >&2; touch "$OBJ/.failed"; }
-fi
 echo "== host objects: $(wc -l < "$OBJ/list.txt") TUs, $JOBS jobs"
 export CXXFLAGS CFLAGS OBJ MGBA_SRC
 export MGBA_DEFS MGBA_INC MGBA_GEN HOST_MGBA_DEFS
@@ -219,3 +211,31 @@ if [ "$_have" -eq 0 ]; then
   exit 1
 fi
 echo "== host objects: $_have objects"
+
+# ⛔ THE VENDORED-TWIN LOCALIZATION RUNS HERE, AFTER THE COMPILE LOOP, EVERY TIME.
+# A fresh compile rewrites these objects and UNDOES the localization, so it belongs where the
+# objects are produced -- a copy of this block placed before the loop is the bug that was fixed.
+#
+# ⛔ IT IS NOT ONLY 7-ZIP, AND NAMING 7-ZIP ALONE IS WHY NO HOST HARNESS COULD LINK. The 7-Zip
+# dedupe handled Mesen's SevenZip object; Mesen ALSO vendors blip_buf (Utilities/Audio/blip_buf.cpp)
+# identically to melonDS's src/blip-buf/blip_buf.c, so Vendor/hostobj carried ten un-localized strong
+# twins and the LINK died with "multiple definition of blip_end_frame" before any harness could run.
+# build-sim.sh had grown the generalised form and this script never did. mesen-localize-twins.sh
+# computes the WHOLE overlap from nm -- SevenZip, xBRZ and blip_buf -- so a new vendored twin is
+# covered the moment it lands, and one definition serves both builds.
+#
+# Order: the 7-Zip-specific pass first (it re-proves Mesen's SevenZip object still exports the
+# LookToRead_* symbols SZReader needs), then the computed all-twins pass.
+if [ -f "$OBJ/mesen7z_SevenZip_7zStream.o" ]; then
+  bash "$ROOT/scripts/mesen-dedupe-7z.sh" "$OBJ/mesen7z_SevenZip_7zStream.o" || {
+    echo "!! 7-Zip symbol dedupe failed" >&2; touch "$OBJ/.failed"; }
+fi
+bash "$ROOT/scripts/mesen-localize-twins.sh" "$OBJ" || {
+  echo "!! Mesen twin symbol localization failed" >&2; touch "$OBJ/.failed"; }
+# ⛔ AN `A && B` AS THE LAST STATEMENT IS A TRAP: when A is false the whole script exits 1,
+# so a CLEAN build reported failure and every `build-host.sh || exit 1` caller aborted before
+# linking its probe. Use an explicit if, so the exit status reflects the dedupe and nothing else.
+if [ -f "$OBJ/.failed" ]; then
+  echo "!! host symbol dedupe errors" >&2
+  exit 1
+fi
