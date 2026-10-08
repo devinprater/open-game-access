@@ -1,0 +1,102 @@
+# DBZ: Shin Budokai — Another Road — the STORY MODE reader (field mode)
+
+The story mode in this game is **not a menu**. It is a real-time field: the player flies a
+wide landscape and has to stop villains from destroying the **cities** on it. This document
+is the map of that mode, measured, and it is where the adapter's addresses come from.
+
+Read `dbzar-story-status.md` first for the message/cutscene work — this file is about the
+part the player actually plays.
+
+## ⛔ Read this before trusting ANY address in the decompile
+
+**`EBOOT.dec` is RELOCATABLE.** The file carries `.rel.text` (57,072 bytes of entries) and
+the loader patches `lui`/`addiu` pairs in place on load. So:
+
+- `addiu r18, r18, 0x1780` in the static file does **not** mean the array is at `0x08805780`.
+- The real field-mode arrays sit **~2 MiB higher**: `0x08A852D0`, not `0x08805780`.
+- Read the LIVE instruction (`scripts/dbzar-live-addresses.mjs`) — do not do the arithmetic
+  from the file. The static value is the relocation's *addend*, not the address.
+
+This is the same family of trap as the `iRam`/`cRam` one recorded for this title, with the
+opposite cause: those were Ghidra artefacts, and this one is real loader behaviour.
+
+## The verified layout
+
+    ENTITY(i) = 0x08A852D0 + i * 0xF0          i = 0..0x24  (37 slots)
+        +0x00 float x   +0x04 float y   +0x08 float z
+        +0x30 i32 team     0/1 = player side, 2/3 = enemy side, -1 = slot unused
+        +0xD1 byte visible-this-frame (the city module sets it from a 50.0 check)
+
+    CITY(i)   = 0x08A876B0 + i * 0x70          i = 0..4   (5 cities; the module walks 5)
+        +0x00 u16  city id        0 = empty slot
+        +0x10 float x      +0x18 float z      (the proximity test reads 0x10 and 0x18)
+        +0x20 i32  current health
+        +0x24 i32  max health      percent = +0x20 / +0x24
+        +0x28 float radius         its square is the proximity bound
+        +0x34 i32  render/task handle array (3 entries), -1 when none
+
+    AR MODE FLAG  = 0x089B51D4   (EBOOT .data — NOT relocated; verified live: 0 = no, 1 = yes)
+    CHAPTER INDEX = 0x089B51D5
+    CHAPTER TABLE = 0x089B51D8   u32 per chapter (7 entries, then 0)
+
+Both accessors were disassembled **live** to confirm them:
+
+    FUN_000172fc(i) { return i * 0xF0 + <0x08A852D0>; }     entity
+    FUN_000184c8(i) { return i * 0x70 + <0x08A876B0>; }     city
+
+## ⭐ The damage bands are the game's OWN, not invented
+
+`FUN_0001a90c` computes
+
+    ratio = [city + 0x20] / [city + 0x24]
+
+and swaps up to **three task handles** as that ratio crosses thresholds. The values in the
+comparisons are 0.8, 0.5 and 0.3. So the game's own damage vocabulary is:
+
+| ratio | band |
+|---|---|
+| ≥ 0.8 | healthy |
+| < 0.8 | damaged |
+| < 0.5 | hurt |
+| < 0.3 | critical |
+
+The reader announces a crossing of exactly those edges, which is why a player never hears a
+number the game itself does not act on.
+
+## Where the other numbers come from
+
+| quantity | source | note |
+|---|---|---|
+| city health % | `[+0x20] / [+0x24]` | the game's own arithmetic |
+| cities alive | count of `id != 0` over the 5 slots | a fresh save had all five at 0 |
+| enemies | count of `team >= 2` over 37 slots | `team == -1` is an unused slot |
+| player position | first entity whose `team` is 0 or 1 | ⛔ which of 0/1 is 1P is NOT pinned |
+| chapter | byte at `0x089B51D5` | a live value only while in Another Road |
+
+## ⛔ Not solved, and here is exactly what that means
+
+- **Which enemy is attacking which city.** `FUN_0001964c(city, side)` returns a boolean from a
+  proximity test over entities 0..2 (player side) or 3..0x24 (enemy side), and writes a
+  repair/damage amount. It never stores *which* entity was in range. Naming the attacker
+  needs a new instrument, not a different address.
+- **The mission text and its completion state.** The mission table at `0x089B3BD3` is a run of
+  one-byte ids into a second table, and the mission *strings* are in the message archives
+  (`MSG_AR_MISSION_*`, 5 of them). Neither the active mission nor its pass/fail is pinned.
+- **Senzu Beans** (how many times an enemy can still be beaten). The message ids exist
+  (`MSG_AR_FRIEND_SENZU`); the counters are not located.
+- **A field-mode audio beacon.** In battle the project has a lock-on cue contract; field mode
+  has no equivalent agreed, so the adapter ships no cue rather than inventing one.
+
+## Why the field-mode arrays read all-zero outside a stage
+
+At the title/menu the two arrays are still allocated and still hold their **static** contents
+(a jump/access table, and one city id `0x0035`), so `team` reads -1 across the board and the
+city ids read 0. That is the honest "not in a stage" picture, and the adapter's mode gate
+(`AR MODE FLAG == 1`) is what keeps it from speaking any of it.
+
+## Tooling (in `scripts/`, host-side, read-only)
+
+| script | purpose |
+|---|---|
+| `dbzar-live-addresses.mjs` | scan LIVE `.text` for `lui`/`addiu` pairs → the RUNTIME address map |
+| `dbzar-adapter-test.sh` | the adapter's host test (synthetic RAM, 28 checks) |

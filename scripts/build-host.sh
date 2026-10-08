@@ -165,6 +165,7 @@ compile() {
   printf '%s|mesen|mesen_core\n' "$ROOT/Core/mesen_core.cpp"
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
+  printf '%s|cxx|dbzar_adapter\n'     "$ROOT/Core/dbzar_adapter.cpp"
   printf '%s|cxx|dq9_adapter\n'  "$ROOT/Core/dq9_adapter.cpp"
   printf '%s|cxx|osk_echo\n'  "$ROOT/Core/osk_echo.cpp"
   printf '%s|cxx|adapters\n'     "$ROOT/Core/adapters.cpp"

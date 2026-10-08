@@ -57,6 +57,14 @@ extern const Adapter kDragonQuestIX;
 // What must NOT happen is this becoming a silently dead entry that looks
 // integrated. When Core/nes_core.cpp lands, this adapter gets its real reads and
 // the registry row moves PLANNED -> READY in the same commit.
+// Implemented in dbzar_adapter.cpp -- Dragon Ball Z: Shin Budokai - Another Road (PSP,
+// ULUS10234). Its STORY MODE is a FIELD MODE: the player flies a wide map and must keep
+// the cities on it alive, so the reader speaks city health (the game's own +0x20/+0x24
+// figure), worst city first, and the nearest city in distance bands. Its addresses were
+// read from LIVE memory, not from the file: EBOOT.dec is relocatable, so the static
+// lui/addiu immediates in the decompile are not the runtime bases.
+extern const Adapter kDragonBallZAnotherRoad;
+
 extern const Adapter kNintendoEntertainmentSystem;
 
 // ⛔ SAME RULE AS THE NES ROW, AND FOR TWO REASONS RATHER THAN ONE.
@@ -75,6 +83,7 @@ static const Adapter* const kAdapters[] = {
     &kGameBoyAdvance,
     &kDragonBallZSaiyans,
     &kDissidiaFinalFantasy,
+    &kDragonBallZAnotherRoad,
     &kDragonQuestIX,
     &kNintendoEntertainmentSystem,
     &kNintendo64,
