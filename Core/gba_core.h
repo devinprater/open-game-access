@@ -65,6 +65,13 @@ void gba_set_script_dir(GbaCore *core, const char *dir);
 bool gba_load_rom(GbaCore *core, const char *rom_path, const char *save_path,
                   char code_out[16], int *platform_out);
 
+/* ⛔ REAL EXEC HOOKS. Installs (or replaces) an mGBA breakpoint at `address` and stores the Lua
+ * registry ref of the reader's callback, so the reader's register-reading hooks get the CPU AT THE
+ * INSTRUCTION rather than a frame later. Returns true when the breakpoint was installed. */
+bool gba_set_exec_hook(GbaCore *core, uint32_t address, int lua_ref);
+bool gba_clear_exec_hook(GbaCore *core, uint32_t address);
+bool gba_hooks_active(GbaCore *core);
+
 bool gba_start(GbaCore *core);
 void gba_stop(GbaCore *core);
 bool gba_running(GbaCore *core);

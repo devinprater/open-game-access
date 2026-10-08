@@ -215,6 +215,63 @@ and named the fallback: poll the observable EFFECT rather than the PC. Doing tha
 knowing, for each of those 24 functions, what observable state proves it ran — which is real
 per-hook design work and is NOT attempted here.
 
+## ✅ MEASURED: mGBA HAS REAL EXEC HOOKS, AND OUR HOST CAN USE THEM
+
+The in-world section above concludes that the register-reading hooks "need each of those hooks
+rebuilt around an OBSERVABLE EFFECT", because "mGBA exposes no exec hook". **That premise is
+half wrong, and the correction is the whole fix.** The shim's header said it because mGBA's *Lua*
+API has no exec hook. mGBA the emulator has one:
+
+    src/arm/debugger/debugger.c — ARMDebuggerCheckBreakpoints() checks every installed
+    breakpoint against the PC, and the debugger's run loop calls core->step() +
+    checkBreakpoints() per instruction.
+
+The reason it never fired is OUR HOST, not the emulator: `gba_frame()` calls
+`core->runFrame()`, and `runFrame -> ARMRunLoop` never checks breakpoints. Only
+`mDebuggerRunFrame()` does. So the capability was always compiled in (`ENABLE_DEBUGGERS` is in
+`MGBA_DEFS`, and the debugger TUs are in the audited source list) and simply never driven.
+
+### The spike, and what it measured
+
+`tools/psp/…`-style throwaway: a small C program that attaches an `mDebugger`, sets a
+`BREAKPOINT_HARDWARE`, and runs frames through `mDebuggerRunFrame`. Measured on Emerald:
+
+    baseline  runFrame              : 0.146 ms/frame
+    debugger + breakpoint installed : 0.328 ms/frame    (~2.2x, still ~50x faster than real time)
+    breakpoint at 0x08000000        : HITS=1, firstPC=0x08000000, r1 readable at that instant
+    breakpoint at 0x08010000        : HITS=0
+    breakpoint at 0x08020000        : HITS=0
+
+So: **the hook fires at the exact instruction, the CPU registers are correct at that moment, the
+hook is address-specific, and it costs about 2.2x baseline.** That is precisely what the reader's
+24 register-dependent hooks need, and it fixes them ALL AT ONCE rather than one design at a time.
+
+### ⛔ THE ONE TRAP, AND IT COSTS AN AFTERNOON: CLEAR `isPaused` OR THE EMULATOR HANGS
+
+`mDebuggerEnter()` sets `module->isPaused = true` BEFORE calling the callback, and
+`mDebuggerUpdatePaused()` then moves the debugger to `DEBUGGER_PAUSED`. `mDebuggerRunTimeout()`
+in that state waits on a condition with a timeout instead of executing, so the run stops dead at
+the first breakpoint with no output and no error. mGBA's own scripting layer does this at the end
+of `_scriptDebuggerEntered`:
+
+    debugger->isPaused = false;
+
+A callback that forgets that one line hangs the emulator. It reads as "the probe crashed or hung
+for no reason", which is why it is written down here rather than left in the spike.
+
+### What this changes about the plan
+
+The GBA in-world work is no longer "design an observable-effect substitute for 24 hooks". It is:
+
+  1. drive frames through a debugger so breakpoints are checked;
+  2. translate the reader's `memory.registerexec(address, fn)` calls into real breakpoints;
+  3. make the callback clear `isPaused` and then invoke the reader's function with the registers
+     live (the shim's `getregister` already reads them through the core API).
+
+The 18 gba.lua + 6 rse.lua register hooks then work as written, unmodified — which is the
+project's standing rule for the readers. ⚠ Not yet wired: the above is a measured capability, and
+the shim integration is the next step, not a finished feature.
+
 ## What is still NOT proven
 
   * that the speech is meaningful for any game;

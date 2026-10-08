@@ -306,6 +306,10 @@ end
 ----------------------------------------------------------------------
 
 local exec_hooks  = {}   -- address -> callback  (EFFECT hooks: fired when the player moves)
+-- ⛔ Hooks the host installed as REAL mGBA breakpoints. They must NOT also be fired by the
+-- movement poll, or each runs twice per frame: once with correct registers (the real hook) and
+-- once with stale ones (the poll). See memory.registerexec.
+local real_exec_hooks = {}
 local reset_hooks = {}   -- address -> callback  (ENTRY-VECTOR hooks: fired only on a reset)
 local last_player_x, last_player_y   -- for the observable-effect poll
 local write_hooks = {}   -- address -> { cb = fn, last = value }
@@ -364,6 +368,8 @@ local function pollExecEffects()
     local moved = (last_player_x ~= nil)
     last_player_x, last_player_y = x, y
     if moved then
+      -- ⛔ exec_hooks ALREADY EXCLUDES the real hooks (registerexec does not store them
+      -- there), so this loop is the fallback path only.
       for _, cb in pairs(exec_hooks) do
         local okc, err = pcall(cb)
         if not okc then log("effect hook errored: " .. tostring(err)) end
@@ -373,18 +379,34 @@ local function pollExecEffects()
 end
 
 memory.registerexec = function(address, fn)
-  -- ⛔ AN ENTRY-VECTOR HOOK IS A RESET HANDLER, NOT AN EFFECT PREDICATE, and it must NOT be
-  -- fired by the movement poll. Measured: init_script registered at 0x100 fired on every step
-  -- and re-spoke 'Ready' 729 times in one Game Boy run, each time reloading the reader. Keep
-  -- the two kinds in separate tables so no future caller can conflate them again.
+  -- ⛔ AN ENTRY-VECTOR HOOK IS A RESET HANDLER, NOT AN EFFECT PREDICATE. pokemon.lua
+  -- registers init_script at the CPU entry vector (0x100 GB / 0x8000000 GBA) to survive a soft
+  -- reset. Measured: feeding it through the movement poll re-ran it on EVERY STEP and re-spoke
+  -- 'Ready' 729 times in one Game Boy run. It stays on the PC sample, the only thing that can
+  -- legitimately observe a reset.
   if fn == nil then
     exec_hooks[address]  = nil
     reset_hooks[address] = nil
+    real_exec_hooks[address] = nil
+    if _G.oga_clear_exec_hook then pcall(_G.oga_clear_exec_hook, address) end
     return
   end
   if ENTRY_VECTORS[address] then
     reset_hooks[address] = fn
     return
+  end
+
+  -- ⛔ REAL HOOKS FIRST. mGBA has genuine breakpoints and the host now exposes them, so a
+  -- register-reading hook can run AT THE INSTRUCTION with correct registers. The movement poll
+  -- is the FALLBACK for a host without the debugger, not the primary mechanism.
+  if _G.oga_set_exec_hook then
+    local ok, installed = pcall(_G.oga_set_exec_hook, address, fn)
+    if ok and installed then
+      real_exec_hooks[address] = true
+      exec_hooks[address] = nil      -- real hook only; the poll must not double-fire it
+      return
+    end
+    log("exec hook 0x" .. string.format("%X", address) .. ": no real hook, using the movement poll")
   end
   exec_hooks[address] = fn
 end

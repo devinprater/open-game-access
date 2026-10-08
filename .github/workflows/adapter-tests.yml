@@ -65,6 +65,13 @@ jobs:
       # stand-in mGBA host, then mutates it 3 ways and requires each mutant to fail.
       - name: Reset vs movement hooks stay separate
         run: bash scripts/registerexec-kind-test.sh
+      # The GBA reader's register-reading hooks are installed as REAL mGBA breakpoints now, not
+      # fired by the movement poll. This drives the shipped shim against a stand-in host that
+      # records what registerexec asks the C side to do, proves the core still exposes the binding
+      # and still uses the debugger frame driver (and still clears isPaused, or the emulator
+      # hangs), then mutates the Lua 3 ways and requires each mutant to fail.
+      - name: GBA exec hooks are real breakpoints
+        run: bash scripts/gba-exec-hook-test.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols
