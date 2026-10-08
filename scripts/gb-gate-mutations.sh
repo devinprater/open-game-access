@@ -17,7 +17,12 @@
 # ⛔ IT RUNS FROM A CLEAN TREE AND RESTORES VIA `git checkout` AS WELL AS THE BACKUPS, so a
 # failed restore cannot silently become the next run's starting point.
 set -u
-R="${OGA_ROOT:-$HOME/oga-work}"
+
+# DERIVE THE ROOT FROM THIS SCRIPT'S OWN LOCATION, never from $HOME. A hard-coded
+# `$HOME/oga-work` is correct on the dev box and fails on a CI runner, where the checkout lives
+# somewhere else entirely -- it aborted with `cd: /home/runner/oga-work: No such file or directory`.
+# The repo already has a gate for this class (scripts/path-check.py); this is the same bug.
+R="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$R" || exit 1
 
 if [ -n "$(git status --porcelain)" ]; then
