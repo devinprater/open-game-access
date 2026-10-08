@@ -2,6 +2,29 @@
 
 ## Product work
 
+- [x] **DBZ: Shin Budokai - Another Road (PSP) STORY MODE reader — the FIELD MODE (2026-10-08).**
+  Another Road's story mode is not a menu: the player flies a map and must keep the cities
+  on it alive. That mode now has an adapter, `Core/dbzar_adapter.cpp` (game id `ULUS10234`),
+  answering the questions a blind player actually has — the lowest-health city first, how
+  many are critical or hurt, the live enemy count, the full city list worst-first, and the
+  nearest city in distance bands — plus one frame event: a city crossing a damage band.
+  The bands are the GAME'S OWN (80 / 50 / 30 percent), read out of `FUN_0001a90c`'s three
+  ratio comparisons, so no spoken number is invented.
+  ⭐ **The addresses came from LIVE memory, and that is the finding worth keeping.**
+  `EBOOT.dec` is RELOCATABLE (`.rel.text` patches `lui`/`addiu` pairs on load), so the
+  static `addiu r18, r18, 0x1780` is an ADDEND, not the address: the field arrays really sit
+  at `0x08A852D0` (entities, 37 x 0xF0) and `0x08A876B0` (cities, 5 x 0x70), about 2 MiB above
+  their static values. Both accessors were disassembled live to confirm them, and
+  `scripts/dbzar-live-addresses.mjs` is committed so the next person does not re-derive it.
+  Full map: `docs/research/dbzar-field-mode.md`.
+  Tests: 28 checks in `Core/dbzar_adapter_test.cpp` via `scripts/dbzar-adapter-test.sh`,
+  wired into `adapter-tests.sh`; mutation-proved (wrong bands, shifted base, removed mode
+  gate, wrong stride, unordered list, empty slots as present must each fail). The new TU is
+  in the SHARED list (`scripts/core-sources.sh`) and in every hand-written per-adapter list.
+  ⛔ OPEN, and not pretended otherwise: WHICH enemy is attacking a city (the proximity test
+  returns a boolean and never stores the entity), the mission text and its pass/fail, the
+  Senzu Bean counters, and any field-mode audio beacon. The adapter refuses to guess.
+
 - [x] **Dissidia first-battle vertical slice:** host-verified with synthetic RAM built from the validated layout (same rule as the other adapter tests: no PSP boot on this host). `dissidia-adapter-test.sh` now covers the YES/NO dialog confirm branch (YES speaks) and cancel branch (NO speaks) on both dialog systems, dialog nav re-reading RAM, the title -> Play Plan -> Bonus Day path, and the first accessible battle screen (self + foe speech). 56 checks pass locally; live-RAM re-proof is now unblocked (real PSP core landed — see below) but not yet run.
 - [x] **Reconcile pending Windows-only work:** 0 untracked scripts and 0 untracked docs (2026-09-27). Update 2026-10-03: the Windows tree and the WSL mirror are retired — `~/oga-work` is the only tree (see `docs/where-things-run.md`); the sync/stage scripts were removed and `scripts/git-hooks/pre-commit` is the ROM guard. The 85 Windows-only files were all obsolete one-shot commit/sync helpers whose payloads the repo had superseded (verified by content diff); deleted. The adapter-contribution guide and announcement-queue proposals are tracked under `docs/proposals/` (the latter sketches the C queue API behind the policy in `docs/design/announcement-queue.md`). The Chrono Trigger DS notes were removed (SNES version instead; git history keeps them). The Dissidia battle-audio spec is tracked at `docs/proposals/dissidia-battle-audio.md` (in-battle cues, speech for menus/queries only). The `reverse-engineering/ctds/` dir holds SNES ChronoAccess research (live WRAM verification) and is tracked. (Chrono Trigger DS research dropped — SNES version instead.)
 - [x] **The readers' positional sound cues reach the host (2026-10-07).** All 42

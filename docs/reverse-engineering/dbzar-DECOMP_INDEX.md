@@ -229,6 +229,44 @@ at file offset `0x1B124C`, vaddr `0x1B11D8`.
 
 ---
 
+## 5c. ANOTHER ROAD **FIELD MODE** — the player's own mode (live-verified)
+
+The story mode is a free-flight field where the player defends cities. Full write-up:
+`docs/research/dbzar-field-mode.md`. The adapter is `Core/dbzar_adapter.cpp`.
+
+⛔ **`EBOOT.dec` IS RELOCATABLE.** `.rel.text` patches `lui`/`addiu` pairs on load, so a
+static `addiu r, r, 0x1780` is the relocation ADDEND, not the address. The two field arrays
+sit ~2 MiB ABOVE their static values. Read the LIVE instruction
+(`scripts/dbzar-live-addresses.mjs`) — never do the arithmetic from the file.
+
+| what | address | note |
+|---|---|---|
+| ENTITY array | **`0x08A852D0`** | 37 (`0x25`) slots x `0xF0`; `FUN_000172fc(i) = i*0xF0 + base` |
+| entity `+0x00/+0x04/+0x08` | float x / y / z | |
+| entity `+0x30` | i32 team | `0/1` player side, `2/3` enemy side, `-1` unused |
+| entity `+0xD1` | byte | visible-this-frame (the city module sets it from a 50.0 check) |
+| CITY array | **`0x08A876B0`** | 5 slots x `0x70`; `FUN_000184c8(i) = i*0x70 + base` |
+| city `+0x00` | u16 id | `0` = empty slot |
+| city `+0x10` / `+0x18` | float x / z | the proximity test reads these two |
+| city `+0x20` / `+0x24` | i32 current / max health | **percent = `+0x20 / +0x24`** |
+| city `+0x28` | float radius | its square is the proximity bound |
+| AR mode flag | **`0x089B51D4`** | EBOOT `.data`, NOT relocated; `1` = in Another Road (live-verified) |
+| chapter index | `0x089B51D5` | live value only inside Another Road |
+| chapter table | `0x089B51D8` | u32 per chapter, 7 entries then 0 |
+
+**The damage bands are the game's own.** `FUN_0001a90c` computes `ratio = [+0x20]/[+0x24]`
+and swaps up to three task handles as it crosses **0.8 / 0.5 / 0.3**. Announce those edges.
+
+**City module:** `FUN_00018420` registers `[AR] CITY UPDATE` → `FUN_0001adf4` and
+`[AR] CITY DRAW` → `FUN_000198ac`. The update walks the 5 cities, runs `FUN_0001946c` and
+`FUN_0001964c` (proximity: entities 0..2 for the player side, 3..0x24 for the enemy side),
+repairs a city the player is over, and calls `FUN_0001a90c` for the band swap.
+`FUN_00019100` walks the 37 entities and sets the `+0xD1` visibility byte.
+`FUN_00019a48` sorts the entities by depth; `FUN_00019bec` sorts the 5 cities the same way.
+
+⛔ **`FUN_0001964c` DOES NOT STORE WHICH ENTITY IT FOUND**, so "which enemy is attacking
+this city" cannot be read from it. That is an open item, not a missed address.
+
 ## 6. Open targets
 
 See **`dbzar-story-status.md`** for the one-page state of the Another Road work.
