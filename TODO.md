@@ -297,6 +297,24 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   is the passability graph, the heading-aware search, counted legs, and a generated target
   catalog. ⛔ His addresses are the STEAM PORT, not the SNES — do not assume they transfer.
 
+## PSP (parked, with a measured capability note)
+
+- [ ] **PPSSPP exec hooks — SURVEYED, NOT STARTED.** Read from the pinned source while looking for
+  the PSP analogue of the GBA exec-hook work; written up in `docs/research/ppsspp-exec-hooks.md`.
+  Headline: the IR interpreter (what this app runs) has a COMPLETE real exec-hook path
+  (`IROp::Breakpoint` emitted by `IRFrontend::CheckBreakpoint`, fired in `IRRunBreakpoint`), with
+  block-cache invalidation already handled. ⛔ The project's existing note that “the IR
+  interpreter's memory ops bypass MemChecks, so use the classic interpreter” is about MEMORY
+  breakpoints; EXEC breakpoints work on the fast IR path.
+  It would make three reads more precise: a routine that runs and returns inside one frame, what
+  called what (live confirmation of the board-tooltip decomp call path), and the ordering of
+  several writes to one address in a frame. ⛔ All three are OBSERVABILITY, not speech — a
+  firing hook says nothing to the player by itself, and anything turned into speech must pass the
+  announcement queue's rate limits. PARKED because the native Dissidia reader works without it and
+  no player-visible bug needs it today; start it when one of those three blocks a feature, with the
+  same prove-the-primitive-then-measure-cost spike the GBA work used
+  (`tools/gba-debug-hook-spike.c`).
+
 ## Game readers
 
 - [x] **Dissidia title tap-to-read diagnosis + fix:** root cause was the
