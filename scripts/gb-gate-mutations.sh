@@ -42,6 +42,14 @@ check() {          # check <name> <expected-FAIL-message-pattern>
   local name="$1" pat="$2"
   bash scripts/gb-audio-and-adapter-test.sh > "$HOME/fe/gb-mut.log" 2>&1
   local rc=$?
+  # ⛔ A SKIP IS NOT A PASS. The gate exits 0 WITHOUT RUNNING when the mGBA tree, the ROM
+  # library or the host objects are absent -- on a machine without them every mutation would
+  # look like "the gate did not fail", which is the opposite of the truth. Detect it and stop.
+  if grep -q "^SKIP" "$HOME/fe/gb-mut.log"; then
+    echo "   SKIP: the gate itself skipped, so this machine cannot prove anything:"
+    grep "^SKIP" "$HOME/fe/gb-mut.log" | head -2
+    return 2
+  fi
   if [ "$rc" -ne 0 ] && grep -qE "$pat" "$HOME/fe/gb-mut.log"; then
     echo "  ok   $name: the gate FAILED as required"
   else
@@ -57,7 +65,7 @@ import re,sys
 p='$CORE'; s=open(p,encoding='utf-8').read()
 s2,n=re.subn(r'^\s*GbaReadAudio,', '    NULL,', s, count=1, flags=re.M)
 assert n==1, 'anchor missed'; open(p,'w',encoding='utf-8').write(s2)"
-check "read_audio NULL" "returned 0 frames"
+check "read_audio NULL" "returned 0 frames" || exit 0
 git checkout -- Core/oga_core.cpp
 
 echo
@@ -67,7 +75,7 @@ import re
 p='$GBA'; s=open(p,encoding='utf-8').read()
 s2,n=re.subn(r'opts\.volume = 0x100;', 'opts.volume = 0;', s, count=1)
 assert n==1, 'anchor missed'; open(p,'w',encoding='utf-8').write(s2)"
-check "opts.volume = 0" "the stream is silence"
+check "opts.volume = 0" "the stream is silence" || exit 0
 git checkout -- Core/gba_core.cpp
 
 echo
@@ -77,7 +85,7 @@ import re
 p='$GAD'; s=open(p,encoding='utf-8').read()
 s2,n=re.subn(r'if \(g_platform == 1[^\n]*\) \{', 'if (false) {', s, count=1)
 assert n==1, 'anchor missed'; open(p,'w',encoding='utf-8').write(s2)"
-check "console gate removed" "no refusal"
+check "console gate removed" "no refusal" || exit 0
 git checkout -- Core/gba_adapter.cpp
 
 echo
