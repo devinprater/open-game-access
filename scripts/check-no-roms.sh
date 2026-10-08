@@ -53,7 +53,14 @@ fail=0
 echo "== scanning for game data and build output under $ROOT"
 
 # --- game data: the hard stop (never pruned) ---
-GAME=$(find . -type f \( \
+# ⛔ -size +0c IS LOAD-BEARING. The build-output scan below is never pruned, on purpose, so
+# real game data cannot hide inside a build directory. But build directories also hold
+# ZERO-BYTE markers, and an incremental-build marker is named after the flattened source
+# path -- so Mesen's `Core/Debugger/ExpressionEvaluator.Gba` produces
+# `.done.mesen_Core_Debugger_ExpressionEvaluator.Gba`, which matches `*.Gba` while being
+# nothing at all. No ROM, BIOS or save file is zero bytes, so requiring size excludes the
+# false positive without weakening the check.
+GAME=$(find . -type f -size +0c \( \
     -iname '*.nds' -o -iname '*.dsi' -o -iname '*.gba' -o -iname '*.gbc' -o -iname '*.gb' \
     -o -iname '*.sav' -o -iname '*.srm' -o -iname '*.dsv' -o -iname '*.st[0-9]' \
     -o -iname '*.state' -o -iname '*.SaveRAM' \
