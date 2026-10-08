@@ -36,6 +36,7 @@ namespace oga {
 extern const Adapter kGameBoyAdvance;
 extern const Adapter kNintendoEntertainmentSystem;
 void gba_set_game_code(const char* code);
+void gba_set_platform(int platform);
 }
 
 #include <algorithm>
@@ -1252,6 +1253,10 @@ static bool LoadGbaRom(PokeCore* core, const char* rom_path, const char* save_pa
     // is empty by design); GB/GBC titles additionally match by platform.
     // Selected here, attached later by poke_adapter_ready like every adapter.
     oga::gba_set_game_code(code);
+    // ⛔ TELL THE ADAPTER WHICH CONSOLE LOADED. Without this it accepted a Game Boy Color
+    // cartridge (empty game code) and read its GBA addresses, which is the "bunch of numbers"
+    // a player hears before anything else.
+    oga::gba_set_platform(plat);
     gba_set_speech_callback(core->gba, GbaSayForward, core);
     gba_set_log_callback(core->gba, GbaLogForward, core);
     gba_set_sound_callback(core->gba, GbaSoundForward, core);

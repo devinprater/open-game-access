@@ -75,6 +75,10 @@ namespace {
     bool        g_attached = false;
     bool        g_ready = false;
     char        g_code[8] = {0};
+    // The console this cartridge is: 0 = GBA (GBA_PLATFORM_GBA), 1 = GB/GBC (GBA_PLATFORM_GB),
+    // from gba_load_rom. Needed because a Game Boy Color cartridge has an EMPTY game code and
+    // this adapter's reads are GBA addresses, so attaching to one narrates arbitrary GBC data.
+    int         g_platform = 0;
 
     // Last position we spoke, so WhereAmI can report a DELTA when the player has moved.
     // A blind player pressing Y twice wants to know whether they moved, not just where
@@ -124,6 +128,25 @@ static bool gba_attach(const Host* host) {
     g_attached = true;
     g_ready = false;
     g_have_last = false;
+
+    // ⛔ THIS ADAPTER READS GBA ADDRESSES, SO IT MUST NOT ATTACH TO A GAME BOY COLOR CARTRIDGE.
+    // It used to accept an empty game code ("let the reader identify itself") -- but this adapter
+    // is not the reader: it is a C++ reader whose reads are GBA addresses (RAM_SAVEBLOCK1_POINTER
+    // and friends). On a GBC cartridge those hold arbitrary data, which is reported by the player
+    // as "it says a bunch of numbers first". Measured: the host probe logs
+    // `game_code=""  adapter=gba` for Pokemon Crystal (a .gbc).
+    //
+    // The backend already knows the console -- gba_load_rom hands back GBA_PLATFORM_GBA or
+    // GBA_PLATFORM_GB -- so gate on that rather than on the absence of a code. The GB/GBC
+    // reader is the Lua set, which loads itself from the script dir and needs no adapter.
+    if (g_platform == 1 /* GBA_PLATFORM_GB, from gba_core.h */) {
+        if (host->log) {
+            host->log(host->ctx,
+                      "[gba] Game Boy / Game Boy Color cartridge: the native GBA reader does not "
+                      "apply; the Lua reader set handles this console");
+        }
+        return false;
+    }
 
     // The reader supports GB/GBC as well as GBA; a GBA adapter is the right home for both
     // because the reader set is one program. Claim the codes we know, and let the reader
@@ -245,6 +268,8 @@ static void gba_command(Command cmd) {
 /// Set the ROM code this adapter should expect. Called by the host at ROM-load time,
 /// before attach(), because `Host` carries no ROM header access of its own — the host
 /// already read the header to look the adapter up, so it has the code in hand.
+void gba_set_platform(int platform) { g_platform = platform; }
+
 void gba_set_game_code(const char* code) {
     if (!code) { g_code[0] = '\0'; return; }
     strncpy(g_code, code, sizeof g_code - 1);

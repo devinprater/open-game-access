@@ -51,6 +51,14 @@ static bool GbaFramebuffer(void* s, int screen, int* w, int* h, const uint8_t** 
     return *pixels != NULL;
 }
 
+static int GbaReadAudio(void* s, int16_t* out, int max_frames)
+{
+    /* ⛔ THIS SLOT WAS NULL, SO EVERY GAME BOY / GBC / GBA GAME WAS SILENT. mGBA's GB and GBA
+     * cores fill their own audio ring whether or not anyone drains it; with no member here
+     * poke_read_audio returned 0 forever and the game's music and effects were discarded. */
+    return gba_read_audio((GbaCore*) s, out, max_frames);
+}
+
 static void GbaSetButton(void* s, int pad_button, bool down)
 {
     /* Pad indices 0-9 match mGBA's own key order (A,B,Select,Start,Right,Left,
@@ -88,7 +96,7 @@ static const OgaCoreOps kGbaOps = {
     GbaSetScriptDir,
     NULL,                       /* reader_set: the Game Boy reader set is chosen in Swift, not by
                                  * ROM identity, so this backend names no bundled set */
-    NULL,                       /* no audio path yet (reader cues are text) */
+    GbaReadAudio,               /* the console's own audio (see gba_read_audio) */
     GbaSaveState, GbaLoadState,
     GbaFrames, GbaLastError,
 };
