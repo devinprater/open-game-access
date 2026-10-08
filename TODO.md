@@ -218,6 +218,17 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   their own table, never movement-polled, still reachable from the PC sample.
   Re-measured: "Ready" 729 -> 1, dialogue preserved. Gate:
   `scripts/registerexec-kind-test.sh` (3 mutations, CI).
+  ✅ THE WORLD IS REACHABLE NOW (2026-10-07): `scripts/gba-reach-world.sh` walks the
+  intro with a no-op script (120000 frames in ~20 s, measured) and captures a
+  savestate; resuming it with the REAL reader boots straight into the world. No
+  save file was needed and none exists in the ROM library or on archive.org.
+  ⛔ AND IT MEASURED THE REAL GBA GAP: in-world, the reader emits a mix. Hooks whose
+  body reads a CPU register (18 of gba.lua's 68, 6 of rse.lua's 19 -- the text and
+  menu readers) fire from the movement poll a frame late and speak unrelated data
+  ("49154:58718", "4", spaces). The screen-buffer path (Game Boy; GBA naming/title)
+  is meaningful. So GBA in-world text/menu reading needs each of those hooks rebuilt
+  around an OBSERVABLE EFFECT rather than the PC -- per-hook design work the shim's
+  own header predicted, deliberately not attempted yet.
   Then NES as the first console neither existing backend resembles.
   ⚠ The step-3 work turned up two things recorded as done that were NOT
   reachable in a shipped build: the registry was in no build list, and nothing on

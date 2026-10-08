@@ -163,6 +163,58 @@ mutations, CI).
 `register_common_callbacks` genuinely registering ~38 map predicates, and the harness still
 cannot walk FRLG's intro into the world. That remains a harness limitation, as documented above.
 
+## ✅ THE WORLD IS REACHABLE NOW — and what in-world speech actually shows
+
+The section above says the harness "cannot currently arrange" the game standing in the world.
+That was true of the harness, not of the emulator, and it is now fixed.
+
+### The trick: walk the intro with a no-op script, then replay the world with the real reader
+
+The real reader reads the whole 360-byte screen and runs ~38 predicates EVERY FRAME. Measured:
+~1000 frames in ~5 minutes. Emerald's intro is minutes of emulated time, so walking it with the
+reader loaded costs HOURS per attempt — which is why every earlier run gave up at the title.
+
+But the emulation speed is the same either way. So `scripts/gba-reach-world.sh`:
+
+1. points `OGA_READER_DIR` at a directory holding the REAL `mgba_compat.lua` (so `emu`, `memory`
+   and `frameadvance` all work) plus a three-line `pokemon.lua` that only advances frames. The
+   core is byte-identical to the app's; only the script is a stand-in;
+2. drives the intro with the probe's button profile and captures a savestate.
+   **Measured: 120000 frames in ~20 seconds** (vs hours), reaching the player's HOUSE;
+3. resumes that state with the REAL reader (`--state-in`, no `OGA_READER_DIR`), which boots
+   straight into the world with meaningful state.
+
+⛔ Verified by LOOKING, not by inferring: the probe's `--shot-every` writes PPMs and
+`scripts/ppm2png.py` converts them. The frame at the walk's end shows the player's bedroom with
+the player standing in it, and a dialogue box reading "It's a POKéMON brand moving and
+delivery" — the genuine in-game message for the moving box. The savestate is 397 KB (not the
+all-zeros shape that the save-state bug produced).
+
+### ⛔ What in-world speech shows: text is fine, the register-dependent hooks are not
+
+Resumed in the world, the reader produces a MIX, and the split is diagnostic:
+
+    [SPEAK] 49154:58718      <- set_wall_clock, string.format("%d:%02d", hours, minutes)
+    [SPEAK] 4                <- read_how_many, tostring(memory.getregister("r1"))
+    [SPEAK] <spaces>         <- read_mainmenu_item, lines[position + 17]
+
+Every one of those comes from a hook whose body reads a CPU REGISTER
+(`memory.getregister(...)`) — the traceback shows them firing from the movement poll. On the
+GBA the reader obtains TEXT by intercepting ROM_RENDER_TEXT and reading the register that
+points at the glyph run, and it obtains MENU STATE the same way. In BizHawk those hooks fire at
+the exact instruction; mGBA has no exec hook, so the shim approximates them by firing on player
+movement (see the long note in `mgba_compat.lua`), and a register sampled a frame later holds
+unrelated data. Measured across the reader: **18 of gba.lua's 68 hook functions and 6 of
+rse.lua's 19 read `getregister`** — that is the set that cannot work this way.
+
+⛔ SO THE GBA PATH IS NOT "BROKEN BY THE SHIM" AND NOT "FIXED EITHER". The screen-buffer path
+(Game Boy, and the GBA naming/title screens that read a window) works and is meaningful. The
+GBA in-world text/menu path depends on exec hooks mGBA does not expose, and that is a DESIGN
+gap for the GBA reader, not a defect in the file. The shim's own header predicted exactly this
+and named the fallback: poll the observable EFFECT rather than the PC. Doing that per-hook means
+knowing, for each of those 24 functions, what observable state proves it ran — which is real
+per-hook design work and is NOT attempted here.
+
 ## What is still NOT proven
 
   * that the speech is meaningful for any game;

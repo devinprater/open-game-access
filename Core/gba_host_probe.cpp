@@ -24,6 +24,22 @@
 #include <string>
 
 static int g_spoken = 0;
+
+// ⛔ WHY THE PROBE CAN WRITE A PICTURE. Every attempt to explain why the GBA intro stalls has
+// been inference over a line of speech. Memory and speech say what the reader was told; only a
+// frame says what the GAME was DOING (the project has been misled this way more than once --
+// a run "parked" on a tutorial popup read as "this map has no enemies"). A PPM is trivial to
+// write with no image library, and the agent can look at the PNG.
+static void WritePPM(const char* path, const unsigned char* px, int w, int h)
+{
+    FILE* f = fopen(path, "wb");
+    if (!f) { printf("!! cannot write shot %s\n", path); return; }
+    fprintf(f, "P6\n%d %d\n255\n", w, h);
+    for (int i = 0; i < w * h; i++) fwrite(px + i * 4, 1, 3, f);
+    fclose(f);
+    printf("shot -> %s\n", path);
+    fflush(stdout);
+}
 static long g_first_world_line = -1;
 
 static void on_speech(const char* text, bool interrupt, void* userdata)
@@ -124,12 +140,15 @@ int main(int argc, char** argv)
     const char* stateOut = nullptr;
     const char* stateIn = nullptr;
     int profile = 0;   /* 0 = generic walk, 1 = naming-screen walk to OK */
-
+    long shotEvery = 0;              /* 0 = never; otherwise one PPM every N frames */
+    const char* shotOut = nullptr;   /* prefix; files are <prefix><frame>.ppm */
     for (int i = 3; i < argc; i++)
     {
         if (strcmp(argv[i], "--state-out") == 0 && i + 1 < argc) stateOut = argv[++i];
         else if (strcmp(argv[i], "--state-in") == 0 && i + 1 < argc) stateIn = argv[++i];
         else if (strcmp(argv[i], "--profile") == 0 && i + 1 < argc) profile = atoi(argv[++i]);
+        else if (strcmp(argv[i], "--shot-every") == 0 && i + 1 < argc) shotEvery = atol(argv[++i]);
+        else if (strcmp(argv[i], "--shot-out") == 0 && i + 1 < argc) shotOut = argv[++i];
         else if (argv[i][0] != '-') maxFrames = atol(argv[i]);
     }
 
@@ -177,6 +196,18 @@ int main(int argc, char** argv)
         {
             printf("frame returned false at %ld: %s\n", f, poke_last_error(core));
             break;
+        }
+        if (shotEvery > 0 && shotOut && (f % shotEvery) == 0)
+        {
+            int sw = 0, sh = 0;
+            const uint8_t* sp = poke_framebuffer(core, POKE_SCREEN_TOP, &sw, &sh)
+                              ? poke_framebuffer_ptr(core, POKE_SCREEN_TOP) : nullptr;
+            if (sp)
+            {
+                char path[512];
+                snprintf(path, sizeof(path), "%s%06ld.ppm", shotOut, f);
+                WritePPM(path, sp, sw, sh);
+            }
         }
     }
 
