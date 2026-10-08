@@ -210,6 +210,28 @@ int poke_command_button(PokeCore *core, int cmd);
  * rate, and the cue begins once the first command has attached the reader. */
 int poke_cue_snapshot(PokeCore *core, float *dist);
 
+/* The FIELD-MODE cue: the same snapshot, plus the two things a free-flight mode needs and a
+ * lock-on mode does not -- what the cue points AT, and WHICH WAY to turn to reach it.
+ *
+ * WHY A SECOND ENTRY POINT RATHER THAN MORE OUT-PARAMS ON THE FIRST: poke_cue_snapshot's
+ * signature is the shared ABI for every adapter and every host. Adding out-params to it
+ * changes the contract for callers that have nothing to do with field mode; a new call
+ * leaves the existing one exactly as it was, and a host that never asks for a bearing never
+ * pays for one.
+ *
+ * Returns 0 = nothing to cue (stay silent), the same fail-closed value as poke_cue_snapshot.
+ * Otherwise:
+ *   *kind         what the cue points at: 1 = enemy, 2 = city, 3 = ally
+ *   *bearing_deg  0..360, CLOCKWISE FROM THE DIRECTION THE PLAYER IS MOVING.
+ *                 0 = straight ahead, 90 = to the right, 180 = behind.
+ *   *heading_live false when that direction came from the last time the player moved and
+ *                 may no longer be where they are facing. The host must not steer by a
+ *                 stale heading; it should soften the cue or say so.
+ *   *dist         distance to the target, world units.
+ */
+int poke_cue_snapshot_field(PokeCore *core, int *kind, float *bearing_deg, float *dist,
+                            int *heading_live);
+
 /* Announcement-queue completion hooks (additive: estimate pacing works without
  * them). The queue releases one line at a time; a platform that can report
  * "finished" calls poke_announce_done with the utterance id it got from the

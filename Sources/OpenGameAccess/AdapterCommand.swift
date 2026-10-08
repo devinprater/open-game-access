@@ -152,9 +152,9 @@ enum AdapterCommand: Int32, CaseIterable {
         case .menuState:
             return "Reports which menu is live, for the host's menu tracker."
         case .menuNext:
-            return "Moves down one menu row and reads it."
+            return "Next row on a menu, or the next target on a field map. Reads it."
         case .menuPrev:
-            return "Moves up one menu row and reads it."
+            return "Previous row on a menu, or the previous target on a field map. Reads it."
         case .menuLeft:
             return "Previous value on this options row."
         case .menuRight:

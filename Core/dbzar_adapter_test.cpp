@@ -47,6 +47,8 @@ inline bool RD(void)                          { return kDragonBallZAnotherRoad.r
 inline void CM(Command c)                     { kDragonBallZAnotherRoad.command(c); }
 inline void FR(void)                          { kDragonBallZAnotherRoad.on_frame(); }
 inline void DT(void)                          { kDragonBallZAnotherRoad.detach(); }
+inline bool CUE(oga::CueSnapshot* s)         { return kDragonBallZAnotherRoad.cue_snapshot
+                                                  ? kDragonBallZAnotherRoad.cue_snapshot(s) : false; }
 }
 // Focused-test stubs: the registry TU references sibling adapters, but this binary tests
 // ONLY the Another Road adapter, so the siblings are null shells never attached/commanded.
@@ -101,6 +103,21 @@ static void EntitySet(int slot, int team, float x, float z)
     wf(b + 0x04, 0.0f);
     wf(b + 0x08, z);
     w32(b + 0x30, (uint32_t) team);
+}
+
+/// Did the most recently spoken line contain this text?
+static bool SPOKEN_LAST_HAS(const char* n) {
+    return NSPOKEN > 0 && strstr(SPOKEN[NSPOKEN - 1], n) != nullptr;
+}
+
+/// Walk the target ring onto the CITY kind, so a read is about a city rather than an enemy.
+static void g_select_city(void)
+{
+    oga::CM(oga::Command::MenuNext);
+    for (int i = 0; i < 6; i++) {
+        if (SPOKEN_LAST_HAS("City")) return;
+        oga::CM(oga::Command::MenuNext);
+    }
 }
 
 static int NCHECK = 0, NFAIL = 0;
@@ -176,9 +193,10 @@ int main(void)
        said("1 critical"));
     ok("WhereAmI counts live enemies from the entity array", said("2 enemies"));
 
-    // The city list walks every city, worst first, one line each.
+    // The city list walks every city, worst first, one line each. It lives on NextEnemy;
+    // MenuNext/MenuPrev are the target ring, which is a different question.
     clear();
-    oga::CM(oga::Command::MenuNext);
+    oga::CM(oga::Command::NextEnemy);
     ok("city list announces the count", said("3 cities"));
     {
         int crit = saidAt("City 3, 25 percent");
@@ -280,7 +298,7 @@ int main(void)
     // every slot is team -1 from setup(): a full array of unused slots
     for (int i = 0; i < 0x25; i++) EntitySet(i, -1, 0.f, 0.f);
     clear();
-    oga::CM(oga::Command::NextEnemy);
+    oga::CM(oga::Command::PrevEnemy);          // status; NextEnemy is now the city list
     ok("37 unused entity slots report 0 enemies, not 37", said("0 enemies"));
 
     // 6. readiness follows the mode flag, not the array alone
@@ -291,29 +309,245 @@ int main(void)
     ok("and commands refuse again rather than reading a stale field",
        NSPOKEN == 1 && said("Not in story mode"));
 
-    // 7. the nearest-city answer refuses honestly when the player row is not readable
+    // 7. the distance bands, through the ring's read. Same maths, same bands.
     setup();
     oga::AT(&H);
     w8(AR_MODE, 1);
-    CitySet(0, 0x0001, 1000, 1000, 500.f, 500.f);
-    clear();
-    oga::CM(oga::Command::NextUnactedAlly);   // no player-side entity exists
-    ok("with no player row, the nearest-city answer refuses instead of guessing",
-       NSPOKEN == 1 && said("not tracked yet"));
-
     EntitySet(0, 0, 0.f, 0.f);
+    // Walk the ring to a CITY so the reading is about a city.
+    CitySet(0, 0x0001, 1000, 1000, 500.f, 500.f);
+    g_select_city();
     clear();
-    oga::CM(oga::Command::NextUnactedAlly);
     // (500,500) is 707 units away: the 600..1500 band, which is "far".
-    ok("with a player row, a 707-unit city reads as 'far'",
-       NSPOKEN == 1 && said("City 1 is far") && said("100 percent"));
+    oga::CM(oga::Command::NextUnactedAlly);
+    ok("a 707-unit city reads as 'far'", said("City 1") && said("far"));
 
-    // And the band boundary itself: 300 units is the 150..600 "close" band.
     CitySet(0, 0x0001, 400, 1000, 300.f, 0.f);
     clear();
     oga::CM(oga::Command::NextUnactedAlly);
     ok("a 300-unit city reads as 'close', so the bands are distinct",
-       NSPOKEN == 1 && said("City 1 is close") && said("40 percent"));
+       said("City 1") && said("close") && said("40 percent"));
+
+    // ---------------------------------------------------------------- 8. the target ring
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);
+    // two enemies, two cities, one ally
+    EntitySet(0, 0, 0.f, 0.f);          // the player
+    EntitySet(1, 2, 400.f, 0.f);        // enemy A, east
+    EntitySet(2, 2, 0.f, 400.f);        // enemy B, south
+    CitySet(0, 0x0001, 900, 1000, 100.f, 0.f);
+    CitySet(1, 0x0002, 500, 1000, 200.f, 0.f);
+
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);        // read the ring's starting target
+    ok("the ring starts on an enemy (killing them ends the stage)",
+       NSPOKEN >= 1 && said("Enemy"));
+
+    clear();
+    oga::CM(oga::Command::MenuNext);
+    ok("next steps to the second enemy", said("Enemy 2"));
+
+    clear();
+    oga::CM(oga::Command::MenuNext);
+    ok("stepping past the last enemy enters the CITY kind, worst health first",
+       said("City 2, 50 percent"));
+
+    clear();
+    oga::CM(oga::Command::MenuNext);
+    ok("the next step is the healthier city", said("City 1, 90 percent"));
+
+    clear();
+    oga::CM(oga::Command::MenuNext);
+    ok("then the ally kind", said("Ally"));
+
+    clear();
+    oga::CM(oga::Command::MenuNext);
+    ok("and the ring WRAPS back to the first enemy rather than stopping", said("Enemy 1"));
+
+    clear();
+    oga::CM(oga::Command::MenuPrev);
+    ok("stepping back from the first enemy wraps to the ally", said("Ally"));
+
+    clear();
+    oga::CM(oga::Command::MenuPrev);
+    ok("stepping back again lands on the last city", said("City 1, 90 percent"));
+
+    // ---------------------------------------------------------------- 9. bearing + heading
+    // Standing still with a fresh attach: there is no heading yet, so the answer must say
+    // WHERE it is but refuse to name a clock direction.
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);
+    EntitySet(0, 0, 0.f, 0.f);
+    EntitySet(1, 2, 400.f, 0.f);
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);
+    ok("with no heading yet, the target is named but NO clock direction is given",
+       said("Enemy 1") && !said("o'clock") && said("Move to get a direction"));
+
+    // The map's axes: x is EAST, and z DECREASES to the north. The player flies from (0,0) to
+    // (0,-200), which is due north, so the heading is 0 degrees.
+    EntitySet(0, 0, 0.f, 0.f);
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);        // poll 1 seeds the previous position
+    EntitySet(0, 0, 0.f, -200.f);                  // poll 2 sees 200 units of northward travel
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);
+
+    // ⛔ THE TARGET IS PLACED RELATIVE TO WHERE THE PLAYER NOW IS (0,-200), NOT THE ORIGIN.
+    // A target left at (400,0) would be SOUTH-EAST of them, and a test asserting "due east"
+    // would then be testing the wrong thing while passing for the wrong reason.
+    EntitySet(1, 2, 0.f, -600.f);                  // due NORTH of the player
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);
+    ok("after flying north, a target due north reads straight ahead",
+       said("straight ahead") && said("Enemy 1"));
+
+    EntitySet(1, 2, 400.f, -200.f);                // due EAST of the player
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);
+    ok("a target due east while flying north reads 3 o'clock", said("3 o'clock"));
+
+    EntitySet(1, 2, -400.f, -200.f);               // due WEST of the player
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);
+    ok("a target due west reads 9 o'clock", said("9 o'clock"));
+
+    // ---------------------------------------------------------------- 10. the cue snapshot
+    oga::CueSnapshot cs{};
+    ok("the cue reports a field with a bearing while the field is live",
+       oga::CUE(&cs) && cs.field && cs.kind == 1 && cs.heading_live);
+
+    // ⛔ THE STALE-HEADING RULE NEEDS A CLOCK. heading_live only means anything ACROSS TIME: it
+    // goes false when the player stops moving and enough time passes. A check that never moves
+    // the fake clock cannot see that difference, which is exactly how a mutation pinning
+    // heading_live to true survived the first mutation pass.
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);
+    EntitySet(0, 0, 0.f, 0.f);
+    EntitySet(1, 2, 400.f, 0.f);
+    H.now_ms = 10000;
+    oga::CM(oga::Command::NextUnactedAlly);           // seed the previous position
+    EntitySet(0, 0, 0.f, -200.f);                     // move north: a heading now exists
+    H.now_ms = 10500;
+    oga::CueSnapshot csFresh{};
+    ok("a heading just after moving is live", oga::CUE(&csFresh) && csFresh.heading_live);
+    H.now_ms = 10500 + 3000;                         // past kHeadingStaleMs (2500)
+    oga::CueSnapshot csStale{};
+    ok("after standing still past the window the heading is NOT live",
+       oga::CUE(&csStale) && !csStale.heading_live);
+
+    // ⛔ With no player row the cue must REFUSE rather than invent a direction.
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);
+    EntitySet(1, 2, 400.f, 0.f);                   // an enemy, but no player-side entity
+    oga::CueSnapshot cs2{};
+    ok("with no player row the cue refuses instead of pointing", !oga::CUE(&cs2));
+
+    // Outside Another Road it must also refuse.
+    w8(AR_MODE, 0);
+    ok("outside story mode the cue refuses", !oga::CUE(&cs2));
+
+    // With no target selected, the cue falls back to the NEAREST ENEMY (the player's call).
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);
+    EntitySet(0, 0, 0.f, 0.f);
+    EntitySet(3, 2, 2000.f, 0.f);                  // far enemy
+    EntitySet(4, 2, 300.f, 0.f);                   // near enemy
+    oga::CueSnapshot cs3{};
+    ok("with nothing selected the cue falls back to the nearest enemy",
+       oga::CUE(&cs3) && cs3.kind == 1 && cs3.dist > 299.f && cs3.dist < 301.f);
+
+    // ⛔ AND THE FALLBACK NEEDS TWO ENEMIES AT DIFFERENT DISTANCES. With one target, "nearest"
+    // and "farthest" are the same answer, so a mutation reversing the comparison survived.
+    // The ring's first entry must also be that same enemy, or the default reading and the
+    // fallback would point at two different fighters.
+    {
+        // A fresh attach leaves the ring on enemy index 0, and the kinds are ordered NEAREST
+        // FIRST -- so the ring's default read and the no-selection fallback must agree. The
+        // check reads the ring WITHOUT stepping it; stepping first would test the step, not
+        // the default.
+        clear();
+        oga::CM(oga::Command::NextUnactedAlly);
+        oga::CueSnapshot cs4{};
+        bool have = oga::CUE(&cs4);
+        ok("the ring's first enemy is the one the fallback points at",
+           have && cs4.dist > 299.f && cs4.dist < 301.f);
+    }
+
+    // ⛔ THE FALLBACK'S REAL CASE: the ring is sitting on the CITY kind when every city is
+    // destroyed and enemies are still on the map. CurrentTarget() then has nothing, and the
+    // cue must fall back to the NEAREST ENEMY rather than going silent -- silence would read
+    // as "nothing left to do" at exactly the moment the stage is still live.
+    // This is the only path that reaches the fallback, and without it a mutation reversing the
+    // fallback's distance comparison survived the whole suite.
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);
+    EntitySet(0, 0, 0.f, 0.f);
+    EntitySet(3, 2, 2000.f, 0.f);                    // far enemy
+    EntitySet(4, 2, 300.f, 0.f);                     // near enemy
+    CitySet(0, 0x0001, 900, 1000, 100.f, 0.f);
+    CitySet(1, 0x0002, 400, 1000, 200.f, 0.f);
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);          // start on the nearest enemy
+    // Step until the ring actually reaches the city kind. TWO enemies sit ahead of it, so a
+    // single step lands on enemy 2 -- the walk has to be driven, not assumed.
+    bool onCity = false;
+    for (int step = 0; step < 5 && !onCity; step++) {
+        clear();
+        oga::CM(oga::Command::MenuNext);
+        onCity = said("City");
+    }
+    ok("the ring reaches the city kind within the two enemies that precede it", onCity);
+
+    // Every city is destroyed: the ids go to 0.
+    CitySet(0, 0x0000, 0, 0, 0.f, 0.f);
+    CitySet(1, 0x0000, 0, 0, 0.f, 0.f);
+    {
+        oga::CueSnapshot cs6{};
+        bool have = oga::CUE(&cs6);
+        ok("with the selected kind EMPTY but enemies alive, the cue falls back to the NEAREST enemy",
+           have && cs6.kind == 1 && cs6.dist > 299.f && cs6.dist < 301.f);
+    }
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);
+    ok("and the spoken answer refuses the empty kind instead of guessing a city",
+       said("No cities"));
+
+    // An EMPTY KIND must be skipped, not stopped on: with one enemy, one ally and NO cities,
+    // six ring steps must never land on the city kind, and every step must name a target.
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);
+    EntitySet(0, 0, 0.f, 0.f);                       // the player, who is also the only ally
+    EntitySet(1, 2, 500.f, 0.f);                     // one enemy
+    {
+        bool sawEmptyCity = false, everyStepNamed = true;
+        for (int step = 0; step < 6; step++) {
+            clear();
+            oga::CM(oga::Command::MenuNext);
+            if (said("No cities")) sawEmptyCity = true;
+            if (!(said("Enemy") || said("Ally") || said("City"))) everyStepNamed = false;
+        }
+        ok("an empty kind is SKIPPED: six ring steps never land on the empty city kind",
+           !sawEmptyCity);
+        ok("and every one of those steps names a real target", everyStepNamed);
+    }
+
+    // A kind with no members must say so rather than going silent in a way that reads as
+    // "nothing here at all".
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);
+    EntitySet(0, 0, 0.f, 0.f);
+    clear();
+    oga::CM(oga::Command::NextUnactedAlly);
+    ok("with no enemies at all, the ring says so", said("No enemies"));
 
     oga::DT();
 

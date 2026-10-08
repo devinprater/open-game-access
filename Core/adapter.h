@@ -134,6 +134,24 @@ struct CueSnapshot {
     bool  is_core;   // reserved; a core lock is IMPOSSIBLE in Dissidia (see note below)
     float dist;      // world units, self to enemy; valid only when locked
     bool  core_gain; // one frame: the player's EX gauge JUMPED (absorbed EX Force/Core)
+    // ---- TRAILING ADDITIONS (value-initialize to false/0, so existing 5-field
+    // initializers keep compiling; see the trailing-member rule below). ----
+    /// A FREE-FLIGHT field with no lock mechanic (Another Road's story mode). The game
+    /// does not aim the player, so unlike `locked` this cue must carry DIRECTION.
+    bool  field;
+    /// Bearing to the target in DEGREES, clockwise from the direction the player is
+    /// ALREADY MOVING. 0 = straight ahead, 90 = to the right. This is a measured quantity:
+    /// the adapter derives the player's heading from its own recent positions, because the
+    /// game stores no facing anywhere (see dbzar-field-mode.md). Valid only when `field`
+    /// and `kind != 0`. STALE-BUT-LAST: when the player is stationary the last known
+    /// heading is kept, and the cue says so by leaving `heading_live` false.
+    float bearing_deg;
+    /// What the bearing points at. 0 = nothing, 1 = enemy, 2 = city, 3 = ally.
+    /// IDENTITY IS A SEPARATE FIELD BECAUSE IT MUST NOT BE CARRIED BY THE BEARING.
+    int   kind;
+    /// False when bearing_deg was computed from a stale heading (the player has not moved
+    /// recently), so the host can soften or omit the cue rather than point confidently.
+    bool  heading_live;
 };
 
 // TWO CORE SIGNALS, because the evidence supports both (2026-10-05), with an honest
