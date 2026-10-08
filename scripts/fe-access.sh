@@ -23,8 +23,12 @@ BUILD_LOG="$(mktemp)"
 # and the reader twice. Link everything EXCEPT it; the fresh object below is
 # what carries the current reader + main().
 FE_OBJS="$(ls Vendor/hostobj/*.o | grep -v '/fe_access\.o$')"
+# ⛔ FE_OBJS IS THE HOST OBJECT SET, WHICH ALREADY CONTAINS host_harness_stub.o (build-host.sh
+# compiles it). Naming Core/host_harness_stub.cpp on the link line as well defined every psp_*
+# stub twice and the link died with "multiple definition of psp_create" -- a stale-plumbing error
+# that reads like a source bug. One definition, from hostobj.
 g++ -O2 -g -DPOKE_HOST=1 -ICore -ISources/CPokeCore/include -I"$HOME/src/melonds-lua/src" -std=c++17 \
-  -o Vendor/fe_access Core/fe_access.cpp Core/host_harness_stub.cpp $FE_OBJS -lpthread -lm -ldl 2>"$BUILD_LOG"
+  -o Vendor/fe_access Core/fe_access.cpp $FE_OBJS -lpthread -lm -ldl 2>"$BUILD_LOG"
 if [ -s "$BUILD_LOG" ] && grep -qE '\berror\b' "$BUILD_LOG"; then
   echo "!! compile failed — refusing to run a stale binary:" >&2
   grep -E '\berror\b' "$BUILD_LOG" | head -20 >&2

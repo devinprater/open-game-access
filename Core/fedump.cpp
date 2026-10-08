@@ -207,6 +207,9 @@ int main(int argc, char** argv)
         long f; int b; int d;
         std::string snap; bool isSnap = false;
         std::string shot; int shotScreen = 0;
+        // TOUCH <frame> <x> <y> <0|1>: the core samples input once per frame, so a plan presses on
+        // one frame and releases on a later one (a zero-length tap is silently missed).
+        bool isTouch = false; int tx = 0, ty = 0;
     };
     std::vector<K> keys;
     if (planPath) {
@@ -226,6 +229,13 @@ int main(int argc, char** argv)
                     K k; k.f = fr; k.shot = btn; keys.push_back(k);
                 } else if (sscanf(line, "%15s %ld %511s %d", cmd, &fr, btn, &d) == 4 && !strcasecmp(cmd, "SHOT")) {
                     K k; k.f = fr; k.shot = btn; k.shotScreen = (d != 0) ? 1 : 0; keys.push_back(k);
+                } else if (strcasecmp(cmd, "TOUCH") == 0) {
+                    // TOUCH <frame> <x> <y> <0|1>
+                    long tx, ty; int down;
+                    if (sscanf(line, "%15s %ld %ld %ld %d", cmd, &fr, &tx, &ty, &down) == 5) {
+                        K k; k.f = fr; k.isTouch = true; k.tx = (int) tx; k.ty = (int) ty;
+                        k.d = down ? 1 : 0; keys.push_back(k);
+                    }
                 }
             }
             fclose(f);
@@ -437,6 +447,10 @@ int main(int argc, char** argv)
                 if (InRam(cur, 0x20)) { xt = R8(cur + CUR_XTILE); yt = R8(cur + CUR_YTILE); vis = R8(cur + CUR_VIS); }
                 printf("[snap] f=%-5ld cursor=(%3d,%3d) vis=%d  %s\n", f, xt, yt, vis, k.snap.c_str());
                 fflush(stdout);
+            } else if (k.isTouch) {
+                // poke_touch is the core's touchscreen path; without this the harness is
+                // button-only and a touch-driven screen is untestable by construction.
+                poke_touch(core, k.tx, k.ty, k.d != 0);
             } else if (k.shot[0]) {
                 // ⛔ SHOT was parsed by fe/plans/*.txt but never honoured, so
                 // `fe-dump.sh` and `fe-run.sh` printed state for a map nobody ever

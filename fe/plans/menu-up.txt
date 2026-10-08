@@ -1,0 +1,35 @@
+# FE11 main-menu navigation probe, with a SAVE present. Screenshot after every step.
+#
+# ⛔ MEASURED STRUCTURE OF THIS SCREEN (this is the finding; it was wrong before).
+# The main menu is a 2-COLUMN GRID, not a vertical list:
+#
+#       left column   : Continue / Suspend Point / New Game     <- cursor STARTS on New Game
+#       right column  : Copy Data / Erase Data / Extras
+#
+# So the row order the reader assumed is wrong here, and DOWN is inert -- measured: after a DOWN the
+# description bar still read "Start a new game.". The row ABOVE New Game (Continue) is reached with
+# UP, and the description bar then OCRs as "[.]Continue from save data".
+#
+# ⛔ THE DESCRIPTION BAR (bottom screen) NAMES THE LIVE ROW. OCR it; do not guess, and do not read a
+# downscaled capture, which produced contradictory answers during this investigation.
+#
+# ⛔ AND THE MENU IS NOT UP EARLY. With a save loaded, START at f1600 then A at f2400 lands on it;
+# shots before that read "TOUCH TO START" (the title). The old save-continue plan pressed A from
+# f1200 with no direction, chose New Game, and played the Prologue.
+
+KEY 1600 START 1
+KEY 1618 START 0
+KEY 2400 A 1
+KEY 2418 A 0
+
+SHOT 2800 /home/devin/fe/out/nav-0-menu.ppm 1
+
+# UP once: New Game -> Continue
+KEY 3000 UP 1
+KEY 3018 UP 0
+SHOT 3300 /home/devin/fe/out/nav-1-continue.ppm 1
+
+# UP again: Continue -> Suspend Point (documents the column order)
+KEY 3600 UP 1
+KEY 3618 UP 0
+SHOT 3900 /home/devin/fe/out/nav-2.ppm 1
