@@ -57,8 +57,11 @@ extern "C" {
 #include <fcntl.h>
 #include <cctype>
 #include <cstdlib>
+#include <mgba/debugger/debugger.h>
+#include <cstddef>
 #include <string>
 #include <vector>
+#include <unordered_map>
 #include <algorithm>
 
 #define GBA_FB_W 240
@@ -115,6 +118,16 @@ struct GbaCore {
     unsigned long long frameCounter = 0;
     bool running = false;
     char error[512] = {0};
+
+    // ---- real exec hooks (see gba_set_exec_hook) ----
+    // mGBA's debugger can stop at an exact instruction, which is the only way the reader's
+    // register-reading hooks can see correct CPU state. Set up lazily so a game with no hooks
+    // pays nothing.
+    mDebugger debugger;
+    mDebuggerModule dbgModule;
+    bool dbgAttached = false;
+    std::unordered_map<uint32_t, int> execHooks;      // address -> Lua registry ref
+    std::unordered_map<uint32_t, ssize_t> hookIds;    // address -> breakpoint id
 };
 
 static void SetError(GbaCore* core, const char* fmt, ...)
@@ -416,6 +429,39 @@ static int LuaPlaySound(lua_State* L)
     return 0;
 }
 
+// oga_set_exec_hook(address, fn) -> true when the host installed a REAL breakpoint.
+// The shim calls this from memory.registerexec; a false return means the caller must fall back to
+// the movement poll. See the long note above GbaDebuggerEntered for why a real hook matters.
+static int LuaSetExecHook(lua_State* L)
+{
+    GbaCore* core = CoreFromLua(L);
+    uint32_t address = (uint32_t) luaL_checkinteger(L, 1);
+    luaL_checktype(L, 2, LUA_TFUNCTION);
+    if (!core) { lua_pushboolean(L, 0); return 1; }
+
+    // One registry ref per callback: the debugger resolves it back to a function when the
+    // breakpoint fires.
+    lua_pushvalue(L, 2);
+    int ref = luaL_ref(L, LUA_REGISTRYINDEX);
+
+    if (!gba_set_exec_hook(core, address, ref))
+    {
+        luaL_unref(L, LUA_REGISTRYINDEX, ref);
+        lua_pushboolean(L, 0);
+        return 1;
+    }
+    lua_pushboolean(L, 1);
+    return 1;
+}
+
+static int LuaClearExecHook(lua_State* L)
+{
+    GbaCore* core = CoreFromLua(L);
+    uint32_t address = (uint32_t) luaL_checkinteger(L, 1);
+    lua_pushboolean(L, core && gba_clear_exec_hook(core, address) ? 1 : 0);
+    return 1;
+}
+
 static void InstallLibraries(GbaCore* core)
 {
     lua_State* L = core->L;
@@ -433,6 +479,13 @@ static void InstallLibraries(GbaCore* core)
     // time and forwards every audio.play cue to it (see CuePlayer on the app side).
     lua_pushcfunction(L, LuaPlaySound);
     lua_setglobal(L, "oga_play_sound");
+
+    // The real exec-hook API. Registered here so the shim can turn
+    // memory.registerexec into an actual mGBA breakpoint.
+    lua_pushcfunction(L, LuaSetExecHook);
+    lua_setglobal(L, "oga_set_exec_hook");
+    lua_pushcfunction(L, LuaClearExecHook);
+    lua_setglobal(L, "oga_clear_exec_hook");
 
     luaL_newlib(L, kEmuFuncs);
     lua_setglobal(L, "emu");
@@ -717,12 +770,151 @@ void gba_stop(GbaCore* core)
 
 bool gba_running(GbaCore* core) { return core && core->running; }
 
+
+// ------------------------------------------------------------- real exec hooks
+//
+// ⛔ WHY THIS EXISTS. pokemon.lua registers callbacks with
+// memory.registerexec(address, fn), and the reader's TEXT and MENU hooks read CPU REGISTERS inside
+// those callbacks (memory.getregister("r1") and friends) to find what the game was doing at that
+// instruction. mGBA has no exec hook in its LUA API, so the shim approximated them by firing on
+// player movement -- and a register read a frame late returns unrelated data, which the reader
+// then speaks ("49154:58718", "4", spaces). Measured: 18 of gba.lua's 68 hook functions and 6 of
+// rse.lua's 19 read a register; that is the set this fixes.
+//
+// mGBA the EMULATOR does have real breakpoints, and the debugger TUs are already in our build
+// (ENABLE_DEBUGGERS is in MGBA_DEFS). They never fired because gba_frame() called
+// core->runFrame(), and runFrame -> ARMRunLoop does not check breakpoints; only
+// mDebuggerRunFrame() does. Measured with tools/gba-debug-hook-spike.c: the breakpoint fires at
+// the exact PC, registers are correct at that instant, and the cost is ~2.2x baseline
+// (0.33 ms/frame vs 0.15) -- still ~50x faster than real time.
+//
+// ⛔ THE CALLBACK MUST CLEAR isPaused. mDebuggerEnter sets module->isPaused = true BEFORE calling
+// this, then mDebuggerUpdatePaused moves the debugger to DEBUGGER_PAUSED, where
+// mDebuggerRunTimeout waits on a timeout instead of executing -- the run stops dead at the first
+// breakpoint with no output and no error. mGBA's own scripting layer clears it at the end of
+// _scriptDebuggerEntered for exactly this reason.
+
+// The module is embedded in GbaCore, so recover the owner without a side table.
+static GbaCore* CoreFromModule(struct mDebuggerModule* m)
+{
+    return reinterpret_cast<GbaCore*>(reinterpret_cast<char*>(m) - offsetof(GbaCore, dbgModule));
+}
+
+static void GbaDebuggerEntered(struct mDebuggerModule* module, enum mDebuggerEntryReason reason,
+                               struct mDebuggerEntryInfo* info)
+{
+    GbaCore* core = CoreFromModule(module);
+    // ⛔ CLEAR isPaused FIRST, before any Lua runs: a callback that errors must not leave the
+    // debugger paused, or the next frame blocks forever.
+    module->isPaused = false;
+    if (reason != DEBUGGER_ENTER_BREAKPOINT || !core || !core->L || !info) return;
+
+    auto it = core->execHooks.find((uint32_t) info->address);
+    if (it == core->execHooks.end()) return;
+
+    // Call on the MAIN state, not the reader coroutine: the coroutine is suspended (yielded at
+    // frameadvance) and its stack is mid-call, while L is idle. The registry is shared, so the
+    // stored ref resolves either way.
+    lua_State* L = core->L;
+    lua_rawgeti(L, LUA_REGISTRYINDEX, it->second);
+    if (lua_pcall(L, 0, 0, 0) != LUA_OK)
+    {
+        const char* err = lua_tostring(L, -1);
+        if (core->logCb) core->logCb(err ? err : "exec hook error", core->logUserdata);
+        lua_pop(L, 1);
+    }
+}
+
+// Attach the debugger on first use. Returns false if this build has no debugger platform.
+static bool EnsureDebugger(GbaCore* core)
+{
+    if (core->dbgAttached) return true;
+    if (!core->core || !core->core->debuggerPlatform) return false;
+
+    mDebuggerInit(&core->debugger);
+    mDebuggerAttach(&core->debugger, core->core);   // sets debugger.platform itself
+    memset(&core->dbgModule, 0, sizeof(core->dbgModule));
+    core->dbgModule.type = DEBUGGER_CUSTOM;
+    core->dbgModule.entered = GbaDebuggerEntered;
+    core->dbgModule.isPaused = false;
+    mDebuggerAttachModule(&core->debugger, &core->dbgModule);
+    core->dbgAttached = true;
+    return true;
+}
+
+// Install (or replace) a real breakpoint at `address`. Returns false if unsupported.
+static bool InstallExecHook(GbaCore* core, uint32_t address, int luaRef)
+{
+    if (!EnsureDebugger(core)) return false;
+    struct mDebuggerPlatform* plat = core->debugger.platform;
+    if (!plat || !plat->setBreakpoint) return false;
+
+    // Replace an existing one at this address.
+    auto old = core->hookIds.find(address);
+    if (old != core->hookIds.end())
+    {
+        if (plat->clearBreakpoint) plat->clearBreakpoint(plat, old->second);
+        core->hookIds.erase(old);
+        auto oldRef = core->execHooks.find(address);
+        if (oldRef != core->execHooks.end())
+        {
+            if (core->L) luaL_unref(core->L, LUA_REGISTRYINDEX, oldRef->second);
+            core->execHooks.erase(oldRef);
+        }
+    }
+
+    struct mBreakpoint bp;
+    memset(&bp, 0, sizeof(bp));
+    bp.address = address;
+    bp.segment = -1;
+    bp.type = BREAKPOINT_HARDWARE;
+    ssize_t id = plat->setBreakpoint(plat, &core->dbgModule, &bp);
+
+    core->execHooks[address] = luaRef;
+    core->hookIds[address] = id;
+    return true;
+}
+
+bool gba_set_exec_hook(GbaCore* core, uint32_t address, int lua_ref)
+{
+    if (!core) return false;
+    return InstallExecHook(core, address, lua_ref);
+}
+
+bool gba_clear_exec_hook(GbaCore* core, uint32_t address)
+{
+    if (!core) return false;
+    auto it = core->execHooks.find(address);
+    if (it == core->execHooks.end()) return false;
+    if (core->L) luaL_unref(core->L, LUA_REGISTRYINDEX, it->second);
+    core->execHooks.erase(it);
+    auto id = core->hookIds.find(address);
+    if (id != core->hookIds.end())
+    {
+        struct mDebuggerPlatform* plat = core->debugger.platform;
+        if (core->dbgAttached && plat && plat->clearBreakpoint) plat->clearBreakpoint(plat, id->second);
+        core->hookIds.erase(id);
+    }
+    return true;
+}
+
+bool gba_hooks_active(GbaCore* core)
+{
+    return core && !core->execHooks.empty();
+}
+
 bool gba_frame(GbaCore* core)
 {
     if (!core || !core->core || !core->running) return false;
 
     if (core->core->setKeys) core->core->setKeys(core->core, core->buttonsDown);
-    core->core->runFrame(core->core);
+    // ⛔ THE FRAME DRIVER DEPENDS ON WHETHER HOOKS EXIST. Breakpoints are only checked by
+    // mDebuggerRunFrame; a game with no exec hooks keeps the cheaper plain runFrame, so this
+    // change costs nothing for the vast majority of titles.
+    if (!core->execHooks.empty() && core->dbgAttached)
+        mDebuggerRunFrame(&core->debugger);
+    else
+        core->core->runFrame(core->core);
     core->frameCounter++;
 
     if (core->scriptLoaded && core->coroutine)
