@@ -398,10 +398,28 @@ final class GameSession: ObservableObject {
     /// simply quiet rather than wrong. Nothing here allocates or speaks.
     private func refreshCue() {
         guard let core else { return }
+        let on = audioEnabled && cueBeaconEnabled
+
+        // ⛔ ASK THE FIELD QUESTION FIRST, AND LET IT WIN. A free-flight mode and a lock-on
+        // battle are different cue contracts: the lock cue is centred and distance-only, the
+        // field cue must carry a BEARING. Both adapters return their own snapshot, so the only
+        // adapter that can answer the field call is the one whose mode is actually running --
+        // Dissidia's reports field=false and falls through to the lock path below.
+        var kind: Int32 = 0
+        var bearing: Float = 0
+        var fdist: Float = 0
+        var live: Int32 = 0
+        if poke_cue_snapshot_field(core, &kind, &bearing, &fdist, &live) != 0 {
+            CueSynth.shared.silenceLockBeacon()
+            CueSynth.shared.updateFieldBeacon(kind: kind, bearingDegrees: bearing, distance: fdist,
+                                               headingLive: live != 0, enabled: on)
+            return
+        }
+
         var dist: Float = 0
         let state = poke_cue_snapshot(core, &dist)
-        CueSynth.shared.updateBeacon(state: state, distance: dist,
-                                     enabled: audioEnabled && cueBeaconEnabled)
+        CueSynth.shared.silenceFieldBeacon()
+        CueSynth.shared.updateBeacon(state: state, distance: dist, enabled: on)
     }
 
     /// Leave the running game, saving first.

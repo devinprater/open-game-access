@@ -87,6 +87,83 @@ number the game itself does not act on.
 - **A field-mode audio beacon.** In battle the project has a lock-on cue contract; field mode
   has no equivalent agreed, so the adapter ships no cue rather than inventing one.
 
+## The radar: controls and the cue
+
+### The target ring (player's decisions, 2026-10-08)
+
+One ring over all three things on the map, in the order the stage makes you care about them:
+
+    1. ENEMIES  -- nearest first
+    2. CITIES   -- worst health first
+    3. ALLIES   -- nearest first
+
+Stepping past the end of one kind walks into the next, so it is ONE ring rather than three
+lists. A kind with no members is SKIPPED, not stopped on: an empty kind must not be a dead end.
+
+| control | command | what it does here |
+|---|---|---|
+| next / previous item | `MenuNext` / `MenuPrev` | step the ring, then read the new target |
+| read item | `NextUnactedAlly` | re-read the current target |
+| next enemy | `NextEnemy` | the whole city list, worst first |
+| previous enemy | `PrevEnemy` | the chapter / city / enemy summary |
+
+**Nothing new was appended to the command enum.** The existing next/previous/read commands
+already mean "walk a list and read what you land on" on every other adapter, so the field ring
+rides them and the C ABI is untouched. That is deliberate: an append costs a bound widening and
+a Swift enum case in the same commit, and it buys nothing here.
+
+### The cue: BECAUSE NOTHING AIMS YOU, IT MUST CARRY A BEARING
+
+This is the one place the project's "a lock-on cue is CENTRED, not panned" rule is suspended,
+and the reason is mechanical rather than a matter of taste. That rule exists because in
+Dissidia the game turns the player toward the lock, so panning the cue would ask them to steer
+something already being steered. **Field mode steers nothing.** The player flies, so the cue's
+whole job is to say which way.
+
+| carried in | what it encodes |
+|---|---|
+| **pan** | the bearing, full 360 degrees: +90 degrees (right) is hard right |
+| **pulse rate** | distance, with a floor and a ceiling |
+| **rate again, coarser** | front/back — the pulse slows to about a third when the target is behind |
+| **timbre** | identity: enemy 520 Hz, city 780 Hz, ally 1120 Hz |
+
+Enemy / city / ally get three different tones so the thing you must kill never sounds like the
+thing you must protect at the same pulse rate.
+
+⛔ **THE PAN NEEDED A RENDERER FIX.** The cue renderer wrote the same sample to both channels —
+it was mono — so a voice's `pan` did nothing at all. It now applies equal-power panning
+(`cos`/`sin` on the pan angle) rather than a linear crossfade, because a linear pan dips about
+3 dB in the middle and a target dead ahead would then sound *quieter* than one to the side and
+read as farther away.
+
+### The bearing problem, and how it is solved without the game's help
+
+**The game stores no facing.** Nothing in the field layout says which way the character points,
+and the camera is not trustworthy. So the adapter measures a heading from its own recent
+positions: `heading = atan2(dx, -dz)`, i.e. the direction of TRAVEL, in the same convention as
+the map's own axes (x east, z south).
+
+Three consequences, all deliberate:
+
+- The clock direction is relative to the **direction the player is moving**, so it stays true
+  no matter where the map's camera happens to be. "The city is at 2 o'clock" means "turn until
+  your nose points 2 o'clock".
+- At rest the position jitters by fractions of a unit, and a heading taken from jitter is a
+  random direction delivered with confidence. So a heading needs **1.5 world units of movement**
+  before it counts.
+- A heading older than **2.5 seconds** is reported as NOT live (`heading_live = false`). The
+  spoken answer says "Move to refresh direction", and the cue drops its pan to centre: it keeps
+  telling you the distance but refuses to tell you a direction you have already left. Silence
+  about direction beats a confident lie about it.
+
+### What the cue does with no selection
+
+It falls back to the **nearest enemy** (the player's instruction: the radar should keep pointing
+at the thing that ends the stage). With the ring's kinds ordered nearest-first, that fallback and
+the ring's own default selection are the SAME answer rather than two behaviours that can
+disagree. The fallback's real reachable case is the ring sitting on a kind that goes empty --
+all cities destroyed while enemies fly on -- and it is tested by exactly that.
+
 ## ⛔ WHAT IS VERIFIED AND WHAT IS NOT — read this before trusting the reader
 
 Grades of evidence, stated separately because they are not the same claim:

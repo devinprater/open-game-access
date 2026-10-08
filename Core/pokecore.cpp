@@ -1015,6 +1015,26 @@ int poke_cue_snapshot(PokeCore* core, float* dist)
     return s.is_core ? 3 : 2;
 }
 
+int poke_cue_snapshot_field(PokeCore* core, int* kind, float* bearing_deg, float* dist,
+                             int* heading_live)
+{
+    if (kind) *kind = 0;
+    if (bearing_deg) *bearing_deg = 0.0f;
+    if (dist) *dist = 0.0f;
+    if (heading_live) *heading_live = 0;
+    /* Same rule as poke_cue_snapshot: never attach here. This is polled every frame. */
+    if (!core || !core->adapter || !core->adapterAttached) return 0;
+    if (!core->adapter->cue_snapshot) return 0;
+    oga::CueSnapshot s{};
+    if (!core->adapter->cue_snapshot(&s)) return 0;
+    if (!s.field) return 0;                     /* not a free-flight mode: the old call covers it */
+    if (kind) *kind = s.kind;
+    if (bearing_deg) *bearing_deg = s.bearing_deg;
+    if (dist) *dist = s.dist;
+    if (heading_live) *heading_live = s.heading_live ? 1 : 0;
+    return 1;
+}
+
 bool poke_command(PokeCore *core, int cmd)
 {
     if (!core || !core->adapter) return false;

@@ -91,9 +91,37 @@ constexpr float kBandHealthy  = 0.80f;
 constexpr float kBandHurt     = 0.50f;
 constexpr float kBandCritical = 0.30f;
 
+static bool CueSnapshotFill(CueSnapshot* out);   // defined below; registered at the bottom
+
 static const Host* g_host = nullptr;
 static float g_lastRatio[CITY_COUNT] = {0};
 static bool  g_haveRatio[CITY_COUNT] = {false};
+
+// ---- THE TARGET RING ------------------------------------------------------------------
+// The player's own decision (2026-10-08): ONE ring over all three target kinds --
+// enemies first (what you kill), then cities (what you save), then allies (who you can
+// hand a Senzu to). Which kind is selected is remembered ACROSS frame polls, because the
+// cue reads this state every frame while the player's prev/next presses change it.
+enum TargetKind { KindNone = 0, KindEnemy = 1, KindCity = 2, KindAlly = 3 };
+static int g_ringKind = KindEnemy;    // the ring starts on enemies: killing them is the win
+static int g_ringIndex = 0;           // index WITHIN the selected kind
+
+// The bearing is measured, not read: the game stores no facing (see the doc). We remember
+// the last two positions and treat the direction of travel as "forward".
+static bool  g_havePrevPos = false;
+static float g_prevX = 0, g_prevZ = 0;
+static float g_headingDeg = 0;        // degrees clockwise from map north
+static bool  g_headingLive = false;   // true only while the player is actually moving
+static uint64_t g_headingStampMs = 0; // when the heading was last measured
+
+/// How far the player must move between polls before the movement counts as a heading.
+/// WHY NOT ZERO: at rest the position jitters by fractions of a unit, and a heading taken
+/// from jitter is a random direction presented with confidence. 1.5 world units is above
+/// the jitter and below any real steering input.
+constexpr float kHeadingMinMove = 1.5f;
+/// A heading older than this reads as stale, and the cue says so (heading_live = false)
+/// rather than pointing the player confidently down a direction they have since left.
+constexpr uint32_t kHeadingStaleMs = 2500;
 
 // ---------------------------------------------------------------------------
 // reads
@@ -226,6 +254,167 @@ static int CollectCities(CityInfo* out)
 }
 
 // ---------------------------------------------------------------------------
+// the target ring
+// ---------------------------------------------------------------------------
+
+/// One selectable target: what it is, where it is, and the one line that names it.
+struct Target {
+    int   kind;
+    int   slot;
+    float x, z;
+    char  label[64];
+};
+
+/// THE RING'S ORDER, per kind. This is not cosmetic -- it decides what the player hears
+/// first, so each kind is ordered by the reason you would walk it:
+///   * enemies -- NEAREST FIRST. The radar's whole job is to point at the closest threat,
+///     and the player asked for exactly that ("it keeps beeping toward the nearest enemy").
+///     Nearest-first also makes the ring's default selection and the cue's no-selection
+///     fallback the SAME answer, instead of two behaviours that can disagree.
+///   * cities  -- WORST HEALTH FIRST. You walk the city list to find what is about to fall.
+///   * allies  -- NEAREST FIRST. You walk allies to hand one a Senzu, so the closest is the
+///     one you can actually reach.
+/// `out` may be null with cap 0, which asks only for the count -- that is how the ring finds
+/// its own boundaries, and it must therefore still count.
+static int CollectTargets(int kind, Target* out, int cap)
+{
+    if (!InAnotherRoad()) return 0;
+    float px = 0, pz = 0;
+    bool havePlayer = PlayerPos(&px, &pz);
+
+    // Gather slot, distance, and the two label halves, then order.
+    struct Raw { int slot; float x, z, d; int pct; };
+    Raw raw[ENT_COUNT];
+    int n = 0;
+
+    if (kind == KindEnemy || kind == KindAlly) {
+        for (int i = 0; i < ENT_COUNT; i++) {
+            int t = 0;
+            float x, y, z;
+            if (!EntityAt(i, &x, &y, &z, &t)) continue;
+            bool enemy = (t >= 2);
+            if (kind == KindEnemy && !enemy) continue;
+            if (kind == KindAlly && enemy) continue;
+            raw[n].slot = i; raw[n].x = x; raw[n].z = z; raw[n].pct = -1;
+            raw[n].d = havePlayer ? sqrtf((x - px) * (x - px) + (z - pz) * (z - pz)) : (float) n;
+            n++;
+        }
+    } else if (kind == KindCity) {
+        CityInfo cities[CITY_COUNT];
+        int nc = CollectCities(cities);
+        for (int i = 0; i < nc; i++) {
+            if (!cities[i].present) continue;
+            raw[n].slot = cities[i].slot; raw[n].x = cities[i].x; raw[n].z = cities[i].z;
+            raw[n].pct = cities[i].pct;
+            raw[n].d = havePlayer
+                     ? sqrtf((cities[i].x - px) * (cities[i].x - px) + (cities[i].z - pz) * (cities[i].z - pz))
+                     : (float) n;
+            n++;
+        }
+    } else {
+        return 0;
+    }
+
+    // Insertion sort. Cities by health ascending; enemies and allies by distance ascending.
+    for (int i = 1; i < n; i++) {
+        Raw v = raw[i]; int j = i - 1;
+        if (kind == KindCity) {
+            while (j >= 0 && raw[j].pct > v.pct) { raw[j + 1] = raw[j]; j--; }
+        } else {
+            while (j >= 0 && raw[j].d > v.d) { raw[j + 1] = raw[j]; j--; }
+        }
+        raw[j + 1] = v;
+    }
+
+    for (int i = 0; i < n && i < cap; i++) {
+        out[i].kind = kind; out[i].slot = raw[i].slot; out[i].x = raw[i].x; out[i].z = raw[i].z;
+        if (kind == KindCity)
+            snprintf(out[i].label, sizeof out[i].label, "City %d, %d percent", raw[i].slot + 1, BucketPct(raw[i].pct));
+        else if (kind == KindEnemy)
+            snprintf(out[i].label, sizeof out[i].label, "Enemy %d", i + 1);
+        else
+            snprintf(out[i].label, sizeof out[i].label, "Ally %d", i + 1);
+    }
+    return n;
+}
+
+/// The currently selected target, or false when the ring has nothing (which is a real
+/// state: an empty map, or a kind with no members right now).
+static bool CurrentTarget(Target* out)
+{
+    Target list[ENT_COUNT];
+    int n = CollectTargets(g_ringKind, list, ENT_COUNT);
+    if (n == 0) return false;
+    if (g_ringIndex >= n) g_ringIndex = n - 1;
+    if (g_ringIndex < 0) g_ringIndex = 0;
+    *out = list[g_ringIndex];
+    return true;
+}
+
+/// Step the ring by `dir` (+1 / -1). Moving past the end of one KIND walks into the next
+/// kind, which is what makes this ONE ring rather than three lists: enemies -> cities ->
+/// allies -> enemies. A kind with no members is skipped rather than stopping the walk.
+static void RingStep(int dir)
+{
+    for (int hops = 0; hops < 8; hops++) {
+        if (dir > 0) g_ringIndex++;
+        else         g_ringIndex--;
+        int count = CollectTargets(g_ringKind, nullptr, 0);
+        if (count > 0 && g_ringIndex >= 0 && g_ringIndex < count) return;   // still inside this kind
+        // Walked off this kind: move to the next one that HAS members, skipping empty kinds
+        // rather than stopping the walk (an empty kind must not be a dead end).
+        if (dir > 0) {
+            g_ringKind = (g_ringKind % 3) + 1;
+            g_ringIndex = 0;
+        } else {
+            g_ringKind = (g_ringKind == KindEnemy) ? KindAlly : (g_ringKind - 1);
+            g_ringIndex = CollectTargets(g_ringKind, nullptr, 0) - 1;
+        }
+        int c2 = CollectTargets(g_ringKind, nullptr, 0);
+        if (c2 > 0) {
+            if (g_ringIndex < 0) g_ringIndex = 0;
+            if (g_ringIndex >= c2) g_ringIndex = c2 - 1;
+            return;
+        }
+    }
+}
+
+/// Compass bearing from the player to a point, in degrees clockwise from map NORTH.
+static float BearingTo(float px, float pz, float tx, float tz)
+{
+    // The map's own axes: x east, z south (a right-handed pair with y up). atan2 is taken
+    // as (east, north) so 0 = north and the angle grows clockwise, matching a compass.
+    float east = tx - px, north = pz - tz;
+    float deg = atan2f(east, north) * 57.29578f;
+    if (deg < 0) deg += 360.0f;
+    return deg;
+}
+
+/// The angle the player is MOVING, in the same convention. Returns false when there is no
+/// usable heading (no previous position, or the player has not moved).
+static bool UpdateHeading(float px, float pz, uint64_t nowMs)
+{
+    if (!g_havePrevPos) {
+        g_prevX = px; g_prevZ = pz; g_havePrevPos = true;
+        return g_headingLive = false;
+    }
+    float dx = px - g_prevX, dz = pz - g_prevZ;
+    float moved = sqrtf(dx * dx + dz * dz);
+    g_prevX = px; g_prevZ = pz;
+    if (moved >= kHeadingMinMove) {
+        // same convention as BearingTo: east = dx, north = -dz
+        float deg = atan2f(dx, -dz) * 57.29578f;
+        if (deg < 0) deg += 360.0f;
+        g_headingDeg = deg;
+        g_headingStampMs = nowMs;
+        g_headingLive = true;
+        return true;
+    }
+    g_headingLive = (nowMs - g_headingStampMs) < kHeadingStaleMs;
+    return g_headingLive;
+}
+
+// ---------------------------------------------------------------------------
 // commands
 // ---------------------------------------------------------------------------
 static void CmdWhereAmI(void)
@@ -302,32 +491,6 @@ static void CmdCityList(void)
     }
 }
 
-/// The nearest city. Distance is reported in bands, never as a raw world unit: a number
-/// like 1723.4 carries no meaning, and the game's own map is roughly 1500 units across.
-static void CmdNearestCity(void)
-{
-    if (!InAnotherRoad()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
-    float px = 0, pz = 0;
-    if (!PlayerPos(&px, &pz)) { SayRaw("Field not tracked yet.", Priority::High, "dbzar", nullptr); return; }
-
-    CityInfo cities[CITY_COUNT];
-    int n = CollectCities(cities);
-    int bestSlot = -1; float best = 0;
-    for (int i = 0; i < n; i++) {
-        if (!cities[i].present) continue;
-        float dx = cities[i].x - px, dz = cities[i].z - pz;
-        float d = sqrtf(dx * dx + dz * dz);
-        if (bestSlot < 0 || d < best) { best = d; bestSlot = cities[i].slot; }
-    }
-    if (bestSlot < 0) { SayRaw("No cities yet.", Priority::High, "dbzar", nullptr); return; }
-
-    const char* band = best < 150.f ? "right here" : best < 600.f ? "close"
-                     : best < 1500.f ? "far" : "across the map";
-    char line[224];
-    snprintf(line, sizeof line, "City %d is %s, %d percent.", bestSlot + 1, band, BucketPct(cities[bestSlot].pct));
-    SayRaw(line, Priority::High, "dbzar", nullptr);
-}
-
 static void CmdStatus(void)
 {
     if (!InAnotherRoad()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
@@ -344,6 +507,56 @@ static void CmdStatus(void)
     else
         snprintf(line, sizeof line, "Chapter %d. No cities yet. %d enemies.", ChapterIndex() + 1, enemies);
     SayRaw(line, Priority::High, "dbzar", nullptr);
+}
+
+/// Announce the ring's current target: what it is, then WHERE IT IS as a clock direction.
+///
+/// ⛔ CLOCK, NOT LEFT/RIGHT. The player chose the clock form, and it is the only honest
+/// option here: turn-left/turn-right would need the game to know which way the character
+/// faces, and it does not store that anywhere (see dbzar-field-mode.md). A clock direction
+/// is relative to the direction of TRAVEL, so it stays true under the map's own camera.
+static void CmdRingHere(void)
+{
+    Target t;
+    if (!InAnotherRoad()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
+    if (!CurrentTarget(&t)) {
+        const char* what = g_ringKind == KindEnemy ? "No enemies on the field."
+                         : g_ringKind == KindCity  ? "No cities yet."
+                                                   : "No allies on the field.";
+        SayRaw(what, Priority::High, "dbzar", nullptr);
+        return;
+    }
+    char line[192];
+    float px = 0, pz = 0;
+    if (!PlayerPos(&px, &pz)) {
+        // We can name the target but not where it is from us. Say the half we know.
+        snprintf(line, sizeof line, "%s.", t.label);
+        SayRaw(line, Priority::High, "dbzar", nullptr);
+        return;
+    }
+    float dist = sqrtf((t.x - px) * (t.x - px) + (t.z - pz) * (t.z - pz));
+    const char* band = dist < 150.f ? "right here" : dist < 600.f ? "close"
+                     : dist < 1500.f ? "far" : "across the map";
+    bool haveHeading = UpdateHeading(px, pz, g_host->now_ms);
+    if (haveHeading) {
+        float rel = BearingTo(px, pz, t.x, t.z) - g_headingDeg;
+        while (rel < 0) rel += 360.0f;
+        while (rel >= 360.0f) rel -= 360.0f;
+        int clock = (int) floorf(rel / 30.0f + 0.5f);      // 12 x 30 degrees
+        if (clock == 0) clock = 12;
+        if (clock == 12) snprintf(line, sizeof line, "%s. %s, straight ahead.", t.label, band);
+        else             snprintf(line, sizeof line, "%s. %s, %d o'clock.", t.label, band, clock);
+        SayRaw(line, Priority::High, "dbzar", nullptr);
+        if (!g_headingLive) {
+            // The clock figure came from the last direction of travel, which the player may
+            // have left. Say so rather than letting them steer by a stale heading.
+            SayRaw("Move to refresh direction.", Priority::Normal, "dbzar", nullptr);
+        }
+    } else {
+        snprintf(line, sizeof line, "%s. %s.", t.label, band);
+        SayRaw(line, Priority::High, "dbzar", nullptr);
+        SayRaw("Move to get a direction.", Priority::Normal, "dbzar", nullptr);
+    }
 }
 
 static void CmdDump(void)
@@ -409,12 +622,81 @@ static void OnFrame(void)
 }
 
 // ---------------------------------------------------------------------------
+// the field-mode cue snapshot
+// ---------------------------------------------------------------------------
+/// Silent per-frame snapshot for the host's cue synth, the same contract Dissidia uses: no
+/// strings, no speech, read-only. Returns false when there is nothing to point at, and the
+/// host then stays SILENT (silence is the fail-closed value).
+///
+/// WHAT THIS SOLVES. In Dissidia the game aims you at your lock, so a centred pulse is
+/// enough. Field mode aims nothing: the player must steer. The game stores no facing
+/// (see dbzar-field-mode.md), so the adapter MEASURES a heading from its own recent
+/// positions and reports the target's bearing RELATIVE TO THAT HEADING. `heading_live`
+/// goes false when the player has not moved recently, and the host must not steer by a
+/// stale heading.
+///
+/// The player's decisions (2026-10-08): one ring over enemies then cities then allies; the
+/// last selection is kept; with no selection the cue falls back to the nearest ENEMY, so
+/// it keeps pointing at the thing that wins the stage.
+static bool CueSnapshotFill(CueSnapshot* out)
+{
+    if (!out) return false;
+    *out = CueSnapshot{};
+    if (!g_host || !InAnotherRoad()) return false;
+
+    float px = 0, pz = 0;
+    if (!PlayerPos(&px, &pz)) return false;          // no player row: nothing honest to cue
+
+    // The tracked position is also what keeps the heading fresh, so the cue and the spoken
+    // answers share one derivation instead of drifting apart.
+    UpdateHeading(px, pz, g_host->now_ms);
+
+    Target t;
+    if (!CurrentTarget(&t)) {
+        // The ring's kinds are ordered NEAREST FIRST, so "the ring is empty" here means the
+        // selected kind has no members -- and the fallback below is the same nearest-enemy
+        // answer the ring would have given. Kept as an explicit second path so a kind with no
+        // members can never silence the radar.
+        // No selection: fall back to the NEAREST ENEMY. That is the player's instruction --
+        // the radar should keep pointing at the thing that ends the stage when they have
+        // not picked anything themselves.
+        float best = 0; int bestSlot = -1; float bx = 0, bz = 0;
+        for (int i = 0; i < ENT_COUNT; i++) {
+            int team = 0;
+            float x, y, z;
+            if (!EntityAt(i, &x, &y, &z, &team)) continue;
+            if (team < 2) continue;
+            float d2 = (x - px) * (x - px) + (z - pz) * (z - pz);
+            if (bestSlot < 0 || d2 < best) { best = d2; bestSlot = i; bx = x; bz = z; }
+        }
+        if (bestSlot < 0) return false;              // nothing to point at: stay silent
+        t.kind = KindEnemy; t.slot = bestSlot; t.x = bx; t.z = bz;
+    }
+
+    float dist = sqrtf((t.x - px) * (t.x - px) + (t.z - pz) * (t.z - pz));
+    out->battle = true;                              // reuse the existing "there is state to cue"
+    out->locked = true;                              // the ring always has a target when we get here
+    out->field  = true;
+    out->dist   = dist;
+    out->kind   = t.kind;
+    out->heading_live = g_headingLive;
+
+    float rel = BearingTo(px, pz, t.x, t.z) - g_headingDeg;
+    while (rel < 0) rel += 360.0f;
+    while (rel >= 360.0f) rel -= 360.0f;
+    out->bearing_deg = rel;                         // 0 = straight ahead, +90 = right
+    return true;
+}
+
+// ---------------------------------------------------------------------------
 // adapter plumbing
 // ---------------------------------------------------------------------------
 static bool Attach(const Host* host)
 {
     g_host = host;
     for (int i = 0; i < CITY_COUNT; i++) g_haveRatio[i] = false;
+    g_ringKind = KindEnemy; g_ringIndex = 0;
+    g_havePrevPos = false; g_headingLive = false;
     return true;   // the game-id check already happened in the registry
 }
 
@@ -422,6 +704,7 @@ static void Detach(void)
 {
     g_host = nullptr;
     for (int i = 0; i < CITY_COUNT; i++) g_haveRatio[i] = false;
+    g_havePrevPos = false; g_headingLive = false;
 }
 
 /// "Ready" means story mode is up AND the city array is readable. Nothing here speaks a
@@ -440,14 +723,15 @@ static void Command(Command cmd)
         case Command::DumpState:       CmdDump();        break;
         // The project's command set is menu/battle shaped; field mode needs its own
         // questions, and this adapter answers them through the same dispatcher rather than
-        // inventing new commands for one game:
-        //   MenuNext / MenuPrev  -> the city list, worst first (a list the player walks)
-        //   NextUnactedAlly      -> the nearest city (the "where do I fly" answer)
-        //   NextEnemy            -> the chapter/city/enemy summary
-        case Command::MenuNext:        CmdCityList();    break;
-        case Command::MenuPrev:        CmdCityList();    break;
-        case Command::NextUnactedAlly: CmdNearestCity(); break;
-        case Command::NextEnemy:       CmdStatus();      break;
+        // inventing commands for one game:
+        //   MenuNext / MenuPrev  -> step the TARGET RING and read the new target
+        //   NextUnactedAlly      -> read the current target again (the re-read key)
+        //   NextEnemy / PrevEnemy-> the city list, worst first (a standing summary)
+        case Command::MenuNext:        RingStep(+1); CmdRingHere(); break;
+        case Command::MenuPrev:        RingStep(-1); CmdRingHere(); break;
+        case Command::NextUnactedAlly: CmdRingHere();            break;
+        case Command::NextEnemy:       CmdCityList();            break;
+        case Command::PrevEnemy:       CmdStatus();              break;
         default: break;   // every other command is silently not ours
     }
 }
@@ -467,7 +751,7 @@ const Adapter kDragonBallZAnotherRoad = {
     dbzar::Command,
     dbzar::Ready,
     dbzar::Detach,
-    nullptr,                // no cue snapshot: field mode has no agreed beacon contract yet
+    dbzar::CueSnapshotFill,   // the field-mode radar: bearing + distance + what it points at
 };
 
 } // namespace oga
