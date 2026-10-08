@@ -1,0 +1,29 @@
+KEY 1600 START 1
+KEY 1618 START 0
+KEY 2400 A 1
+KEY 2418 A 0
+WAITSTATE 2500 menu
+SHOT 3000 /home/devin/fe/out/h4-menu.ppm 0
+KEY 3200 A 1
+KEY 3260 A 0
+WAITSTATE 3800 stage 1
+SHOT 4600 /home/devin/fe/out/h4-diffN.ppm 0
+SNAP 4600 /home/devin/fe/h4-diffN.ram
+KEY 5000 RIGHT 1
+KEY 5018 RIGHT 0
+SNAP 5600 /home/devin/fe/h4-diffH.ram
+SHOT 5600 /home/devin/fe/out/h4-diffH.ppm 0
+KEY 6200 A 1
+KEY 6260 A 0
+SHOT 7800 /home/devin/fe/out/h4-a.ppm 0
+SHOT 7800 /home/devin/fe/out/h4-ab.ppm 1
+SHOT 9800 /home/devin/fe/out/h4-b.ppm 0
+SHOT 9800 /home/devin/fe/out/h4-bb.ppm 1
+KEY 10800 A 1
+KEY 10860 A 0
+SHOT 12800 /home/devin/fe/out/h4-c.ppm 0
+SHOT 12800 /home/devin/fe/out/h4-cb.ppm 1
+KEY 13800 A 1
+KEY 13860 A 0
+SHOT 15800 /home/devin/fe/out/h4-d.ppm 0
+SHOT 15800 /home/devin/fe/out/h4-db.ppm 1

@@ -206,6 +206,57 @@ chapter reads the map cursor (`Cursor 14, 24 ... Marth, 26 HP, unacted ... 33 sq
 flushes the emulated SRAM back to `SAVE=` once a second. Copy a save to `~/fe/work/` before a run;
 `~/fe/saves-backup/` holds the originals.
 
+## 9. Battle preparations -- reached, and it is NOT a separate screen (measured 2026-10-08)
+
+**Battle prep is no longer BLOCKED.** The route in is New Game -> **Hard**: the game's own Hard
+description says "No prologue is included.", and the scripted run confirms it. Two things were
+wrong before:
+
+1. ⛔ **The old plans mis-timed the menu.** This ROM's main menu appears at a frame that DRIFTS
+   boot to boot (measured between f2500 and f4600 on consecutive boots of the same build), so every
+   static frame plan for the main menu was a coin flip. A `RIGHT` meant for the difficulty screen
+   landed on the still-fading main menu and moved the menu cursor instead.
+2. **The Prologue is skippable by pressing A.** A held-A walk advances it.
+
+### `WAITSTATE` -- a plan command that waits on RAM instead of on a frame
+
+Added to `Core/fedump.cpp`. Syntax:
+
+    WAITSTATE <arm-frame> <predicate> [arg]
+
+At `<arm-frame>` the plan is HELD (no other event fires) until the predicate holds, with a
+3000-frame safety deadline so a bad predicate prints `TIMED OUT` rather than hanging the run.
+Predicates: `menu` (menu bank resident + stage 0 + manager NULL), `stage N` (stage byte == N),
+`map` (manager valid), `notitle`.
+
+⛔ **THE ARM FRAME MUST COME BEFORE THE EVENT IT GUARDS.** `WAITSTATE 2400 menu` followed by a
+press at f2400 deadlocked: the gate fired on the same frame as the press that CAUSES the menu, so
+it held that press while waiting for a menu that only exists after it. Measured menu arrival is
+~f2600 given the A at f2400.
+
+### What the prep screen actually is
+
+**There is no separate prep screen on this path.** The Prologue ends and the game goes straight to
+the Chapter 1 map with the cursor live (`gMapStateManager` valid, cursor (25,6)); `pr-*` snapshots
+show `stage = 1` throughout the whole descent, so battle prep does NOT get its own stage id.
+
+A visual check of the window (f17000-f19600 at 200-frame steps, both LCDs) shows Chapter 1 intro
+narration then the map. The `Select units to deploy.` / `Begin the battle.` strings are resident on
+**every** dump including the title, so they are static rodata and are NOT usable as an anchor --
+the same trap as the save-screen strings in section 5.
+
+**Consequence for the reader:** the existing map reader already covers everything reachable on
+this route. No new predicate is needed for prep, because prep is not a distinct state here.
+
+### Still open
+
+- A prep screen may exist on a path this save/route does not produce (e.g. mid-game Continue with a
+  chapter save, where `prep_main_menu` lives in overlay 5 per the decompilation).
+- The highlighted-slot cursor on the save screens is still not located. `0x0219788F` looked
+  promising -- 6-way consistent across three Epilogue dumps and three Endgame dumps, reading 02 and
+  03 -- but it is **frame-correlated, not label-correlated**: it reads 04 after more frames and does
+  not track the highlight. Do NOT wire it.
+
 ### How this was measured, and one method that failed
 
 - **The BOTTOM description bar names the live row.** `scripts/fe-ocr.sh` on the bottom screen is the
