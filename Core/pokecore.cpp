@@ -144,6 +144,18 @@ struct PokeCore {
     // DS keys are active-low in hardware: a set bit means "not pressed", and
     // NDS::SetKeyMask takes that same inverted mask.
     uint32_t buttonsDown = 0;
+    // A TAP LATCHED IN EMULATED FRAMES (poke_tap_button). ⛔ A press must span emulated frames,
+    // not wall-clock time: the UI's release used to be scheduled 0.12 s later, and on a throttled
+    // phone a single frame can take longer than that, so the press and the release both landed
+    // between two frames and the console never saw the button at all. These are released inside
+    // poke_frame, counted in frames, so the hold is guaranteed whatever the frame rate does.
+    //
+    // The raw ids (POKE_BTN_*, before the backend translates them) and the number of frames left.
+    std::vector<int> tapButtons;
+    int tapFramesLeft = 0;
+    // The backend's own ids for the currently latched taps, so a release reaches the same
+    // translation the press did (the Game Boy drops X/Y, PSP remaps Cross, ...).
+    std::vector<int> tapBackendIds;
     bool touchDown = false;
     uint16_t touchX = 0;
     uint16_t touchY = 0;
@@ -1716,6 +1728,28 @@ bool poke_frame(PokeCore* core)
     core->frameCounter++;
     if (core->backend.ops->tick)
         core->backend.ops->tick(core->backend.state, (uint64_t) core->frameCounter);
+
+    // Release a latched tap AFTER this frame has run, so the console has now sampled the pad
+    // with the button held for at least one frame. Counting frames rather than milliseconds is
+    // the whole point: it cannot be defeated by a slow or throttled display link.
+    if (core->tapFramesLeft > 0)
+    {
+        core->tapFramesLeft--;
+        if (core->tapFramesLeft == 0)
+        {
+            for (size_t i = 0; i < core->tapBackendIds.size(); i++)
+            {
+                int id = core->tapBackendIds[i];
+                if (core->backend.ops && !IsPokeNds(core))
+                    core->backend.ops->set_button(core->backend.state, id, false);
+                else if (id < POKE_BTN_COUNT)
+                    core->buttonsDown &= ~(1u << id);
+            }
+            core->tapButtons.clear();
+            core->tapBackendIds.clear();
+        }
+    }
+
     EndFrame(core);
     return true;
 }
@@ -1774,6 +1808,27 @@ void poke_set_button(PokeCore* core, int ds_button, bool down)
     if (ds_button >= POKE_BTN_COUNT) return;
     if (down) core->buttonsDown |= (1u << ds_button);
     else core->buttonsDown &= ~(1u << ds_button);
+}
+
+void poke_tap_button(PokeCore* core, int ds_button, int frames)
+{
+    // Latch a press for a number of EMULATED FRAMES, not for a duration of real time. See
+    // PokeCore::tapFramesLeft for why this has to be the core's job.
+    if (!core || ds_button < 0 || frames <= 0) return;
+
+    // Re-tapping the same button extends the hold rather than making a second latch, so a
+    // doubled VoiceOver activation cannot leave two pending releases behind.
+    for (size_t i = 0; i < core->tapButtons.size(); i++)
+        if (core->tapButtons[i] == ds_button) { core->tapFramesLeft = frames; return; }
+
+    if (core->backend.ops && !IsPokeNds(core))
+        core->backend.ops->set_button(core->backend.state, ds_button, true);
+    else if (ds_button < POKE_BTN_COUNT)
+        core->buttonsDown |= (1u << ds_button);
+
+    core->tapButtons.push_back(ds_button);
+    core->tapBackendIds.push_back(ds_button);
+    core->tapFramesLeft = frames;
 }
 
 void poke_set_analog(PokeCore *core, float x, float y)

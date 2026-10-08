@@ -47,6 +47,19 @@ enum InputBridge {
         self.session = session
     }
 
+    /// Press a button for a few EMULATED FRAMES, then release it.
+    ///
+    /// ⛔ NOT A WALL-CLOCK DELAY. The release is scheduled inside the core, counted in frames, so
+    /// a throttled or slow frame cannot swallow the press. On a warm phone the old 0.12 s timer
+    /// could expire between two frames and the console never saw the button -- which is why
+    /// "START does nothing" appeared on the device and never on the host.
+    ///
+    /// The hold must be at least 2 frames because the console samples input once per frame.
+    static func tapButton(_ button: GamePadButton, frames: Int32 = 4) {
+        session?.tapButton(button.rawValue, frames: frames)
+        echoPadCommand(button)
+    }
+
     static func setButton(_ button: GamePadButton, down: Bool) {
         let raw = button.rawValue
         if down { held.insert(raw) } else { held.remove(raw) }
@@ -55,8 +68,13 @@ enum InputBridge {
         // to the reader on the down-edge. Pad ids are console-mapped by the
         // core (A confirms everywhere — Cross on PSP), so one mapping serves
         // every system; adapters without a live OSK ignore these silently.
-        if down {
-            switch button {
+        if down { echoPadCommand(button) }
+    }
+
+    /// The down-edge echo to the reader: the game received this button, so the reader's own
+    /// cursor follows it. Shared by setButton and tapButton so the two paths cannot drift.
+    private static func echoPadCommand(_ button: GamePadButton) {
+        switch button {
             case .a: session?.forwardPadCommand(.oskType)
             case .b: session?.forwardPadCommand(.oskDelete)
             case .x: session?.forwardPadCommand(.oskSpace)
@@ -71,7 +89,6 @@ enum InputBridge {
             case .left: session?.forwardPadCommand(.menuLeft)
             case .right: session?.forwardPadCommand(.menuRight)
             default: break
-            }
         }
     }
 
