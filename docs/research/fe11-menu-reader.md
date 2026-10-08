@@ -252,14 +252,34 @@ this route. No new predicate is needed for prep, because prep is not a distinct 
 
 - A prep screen may exist on a path this save/route does not produce (e.g. mid-game Continue with a
   chapter save, where `prep_main_menu` lives in overlay 5 per the decompilation).
-- The highlighted-slot cursor on the save screens is still **not located**, and one candidate is
-  now definitively refuted. `0x0219788F` looked strong -- 6-way consistent across three Epilogue
-  dumps and three Endgame dumps, reading 02 and 03 -- but a NO-INPUT sweep on the slot screen shows
-  it walking **03 -> 04 -> 05 -> 06 -> 07** with nothing pressed (`sc2-a-*` / `sc2-b-*`). It is a
-  frame/state counter. ⛔ Its "consistency" was a false positive: the six dumps were taken at
-  similar frame counts, so a counter looks constant when sampled twice at the same tick. **A cursor
-  byte must be sampled across a frame range much wider than the states being compared, with no
-  input, and must be FLAT the whole time.** Do not wire this byte.
+- ✅ **The highlighted-slot cursor IS located (2026-10-08), and the decompilation is what found it.**
+
+  The save screen is a live `MainSaveMenu` C++ object (overlay 6). `config/YFEE01/arm9/overlays/ov006/symbols.txt`
+  names the class and its vtable (`0x0222671C`), and `include/menu.hpp` gives the field layout, so
+  the highlight is a NAMED FIELD rather than an anonymous byte:
+
+      Menu::unk_38 = highlighted row        Menu::unk_3a = row count
+
+      0 = Endgame (top row)   1 = Epilogue (middle, the DEFAULT)   2 = NO DATA (bottom)
+
+  Proof, with the test that killed the earlier candidate: FLAT across a 5000-frame **no-input**
+  window; steps 1 -> 0 on UP and 0 -> 2 on DOWN; clamps at both ends; and OCR of those exact frames
+  reads Epilogue / Endgame / No Data. The object is found by SCAN (vtable word plus a plausible
+  index and count) because it is heap memory -- never hardcode `0x02248060`.
+
+  ⛔ The refuted candidate `0x0219788F` walked 03 -> 07 with **nothing pressed**, so it was a frame
+  counter. Its "6-way consistency" was a false positive from comparing dumps at similar frame
+  counts. Keep that test.
+
+- ⛔ **STAGE BYTE 2 COVERS TWO DIFFERENT SCREENS.** The Chapter Saves slot list and the Map
+  Savepoints list that follows it BOTH read stage 2. The discriminator is the live `MainSaveMenu`
+  object: present on the slot list, **gone** once a slot is confirmed (measured with screenshots at
+  the same frames). Hence the split:
+
+      FeFileSelectActive() = stage 2 AND the object is live
+      FeSavePointActive()  = stage 2 AND the object is gone
+
+  Without it the reader claimed "slot 2 of 3" on a screen with no slot list on it.
 
 ### How this was measured, and one method that failed
 
