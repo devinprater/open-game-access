@@ -279,3 +279,59 @@ the shim integration is the next step, not a finished feature.
   * performance under a long session;
   * **a device boot.** All of the above is host-side. No iOS or Android device
     has run a `.gba` end to end.
+
+## Game Boy Color on the DEVICE: three separate findings (reported 2026-10-08)
+
+Devin tried Pokemon Crystal on the installed app: the game runs, it says numbers first, says
+"Ready", there is no sound, and START does nothing.
+
+**The host says the Game Boy path works.** Driving the REAL core with the REAL reader set on
+Crystal reads the whole intro and the options menu line by line:
+
+    Ready
+    TEXT SPEED :FAST / :SLOW
+    Are you a boy? Or are you a girl?
+    Zzz... Hm? Wha...? You woke me up!
+    Welcome to the world of POKeMON!
+
+and a pad press REACHES the console: a START press held 30 frames opened `NEW GAME`. So none of the
+three symptoms is a reader or an emulator defect. They are separated below.
+
+### 1. NO SOUND is a real, device-independent gap -- and it is not Crystal
+
+`poke_read_audio` returns 0 for a non-NDS backend with no `read_audio` member, and `kGbaOps` holds
+`NULL` there on purpose ("no audio path yet (reader cues are text)"). Measured on the host: asking
+the core for emulated samples while Crystal plays returned **0 frames at every sample point**.
+
+**The emulated console's own sound is never read, for any Game Boy or GBA game, on either platform.**
+The reader's positional CUES do play (a different path: `oga_play_sound` -> `CuePlayer`). So this is
+a feature gap to state plainly, not a Crystal bug and not a regression.
+
+### 2. "A bunch of numbers" is the GBA adapter attaching to a Game Boy Color cartridge
+
+`Core/gba_adapter.cpp` registers id `gba` and, at `gba_attach`, accepts a ROM whose game code is
+EMPTY with the comment "No code (a GB/GBC title): accept, and let the reader identify itself". The
+adapter's reads are GBA addresses (`RAM_SAVEBLOCK1_POINTER` etc.), which on a GBC cartridge hold
+arbitrary data -- so it speaks raw numbers.
+
+The host probe prints it directly: `loaded ...  game code=""  adapter=gba` for Crystal.
+
+⛔ **The two paths must be told apart.** The GBA adapter is for the GBA Pokemon games; the GB/GBC
+reader is the Lua set. Attaching the GBA adapter to a GBC title gives the UI GBA reader controls
+that read the wrong address space. The fix is a console check in `gba_attach` (the backend knows
+which core actually loaded), not a reader change.
+
+### 3. START doing nothing on the DEVICE is not reproduced on the host
+
+A held START reached the console here. The remaining device-only candidates, in order:
+
+- The on-screen pad sends a press on touch-down and a release on touch-up (`HoldButton`), and the
+  VoiceOver path (`accessibilityAction`) holds for 0.12 s. At 60 Hz that is ~7 frames, which the
+  host test shows is enough -- but the app drives frames from a CADisplayLink that iOS throttles
+  when the device is warm or in Low Power Mode, so a short tap can span fewer emulated frames than
+  the game needs. **A press that is not held across an emulated frame is invisible to the console**
+  (the same rule the shim documents for `joypad`).
+- Nothing else in the tree calls `emu.setKeys` (grepped), so the pad state is not being clobbered.
+
+Recorded as OPEN: needs an on-device run to separate "the press never reached the console" from
+"the press was too short".
