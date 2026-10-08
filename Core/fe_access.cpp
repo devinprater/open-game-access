@@ -498,11 +498,86 @@ static bool FeDifficultyActive()
 // are NOT usable as anchors and the reader does not pretend otherwise. The highlighted slot
 // has no located cursor yet (the table at 0x0224F540 is byte-identical on the main menu), so
 // this predicate reports the screen and stops; it never predicts which row is live.
+// ------------------------------------------------ save-slot list (Chapter Saves)
+//
+// The screen is a live `MainSaveMenu` object (overlay 6). It is a C++ object, so its first word is
+// the vtable pointer, and the decompilation's own symbols.txt names that vtable: 0x0222671C.
+// include/menu.hpp gives the field layout; the highlighted row is `Menu::unk_38` and the row count
+// is `Menu::unk_3a`.
+//
+// MEASURED 2026-10-08, with the no-input test that refuted an earlier false candidate:
+//     0 = Endgame (top row)   1 = Epilogue (middle, the default)   2 = NO DATA (bottom)
+//   * FLAT across a 5000-frame no-input window;
+//   * 1 -> 0 on UP, 0 -> 2 on DOWN, and it clamps at both ends (three UPs from Endgame stay 0);
+//   * OCR of those same frames reads Epilogue / Endgame / No Data.
+//
+// ⛔ SCAN, NEVER HARDCODE. 0x02248060 is where the object lands here, but it is heap memory and the
+// project's standing rule is that heap addresses shift between runs. The scan below looks for the
+// vtable word followed by a plausible index and count, which is what an earlier session's
+// candidate (a bare byte, 0x0219788F) failed to be -- it was a frame counter.
+static const uint32_t A_FE_SAVEMENU_VT = 0x0222671C;
+
+struct SaveSlot { bool ok = false; uint32_t obj = 0; int row = -1; int count = 0; };
+
+// The scan alone, with no stage gate, so the screen predicate below can call it.
+static SaveSlot ScanSaveSlot()
+{
+    SaveSlot r;
+    if (!InRam(RAM_BASE, RAM_SIZE)) return r;
+    // Walk RAM in 4-byte steps for the vtable pointer.
+    for (uint32_t a = RAM_BASE; a + 0x40 <= RAM_BASE + RAM_SIZE; a += 4) {
+        if (R32(a) != A_FE_SAVEMENU_VT) continue;
+        int idx = (int) R8S(a + 0x38);
+        int cnt = R8(a + 0x3a);
+        if (idx >= 0 && idx < cnt && cnt >= 1 && cnt <= 8) {
+            r.ok = true; r.obj = a; r.row = idx; r.count = cnt;
+            return r;
+        }
+    }
+    return r;
+}
+
+// Only meaningful on the Chapter Saves screen; kept so callers cannot forget the stage gate.
+static SaveSlot ReadSaveSlot()
+{
+    if (FeStage() != 2) return SaveSlot{};
+    return ScanSaveSlot();
+}
+
+// The row's own label is drawn on the top LCD, so the reader speaks the row by NAME from the same
+// table the screen uses. The names are fixed by the game (three chapter-save slots).
+static const char* SaveSlotName(int row, uint32_t obj)
+{
+    (void) obj;
+    switch (row) {
+        case 0: return "the first slot";
+        case 1: return "the second slot";
+        case 2: return "the third slot";
+        default: return "a slot";
+    }
+}
+
+// Chapter Saves (the save slot list) ONLY. MEASURED 2026-10-08: stage byte 2 covers TWO different
+// screens -- the slot list and the Map Savepoints list that follows it -- and the discriminator is
+// the live MainSaveMenu object: it exists on the slot list (its row reads fine there) and is GONE
+// once a slot is confirmed, even though the stage byte still reads 2. Without this split the reader
+// would claim "slot 2 of 3" on a screen that has no slot list.
 static bool FeFileSelectActive()
 {
     if (FeOnMap()) return false;
     if (R32(A_gMapStateManager) != 0) return false;
-    return FeStage() == 2;
+    if (FeStage() != 2) return false;
+    return ScanSaveSlot().ok;
+}
+
+// Map Savepoints: stage 2 with the slot list already gone. Named so the reader says what it is
+// rather than falling through to "Not on a map yet" while the game is clearly on a save screen.
+static bool FeSavePointActive()
+{
+    if (FeOnMap()) return false;
+    if (R32(A_gMapStateManager) != 0) return false;
+    if (FeStage() != 2) return false;
+    return !ScanSaveSlot().ok;
 }
 
 static bool FeMenuActive()
@@ -519,7 +594,7 @@ static bool FeMenuActive()
 // savepoints leads on to a Map Savepoints list before the chapter loads.
 static const char* FeSaveListHint()
 {
-    return "Choose a save slot, then its savepoint. Slot labels read NO DATA when empty.";
+    return "Choose a save slot, then its savepoint.";
 }
 
 // 0 = Hard, 1 = Normal, -1 = unreadable (caller falls back, never guesses).
@@ -640,7 +715,19 @@ static void cmdWhereAmI()
             FeSay("Difficulty. %s.\n", sel < 0 ? "Selection unclear" : sel ? "Normal" : "Hard");
             return;
         }
-        if (FeFileSelectActive()) { FeSay("Save file screen. %s\n", FeSaveListHint()); return; }
+        if (FeFileSelectActive()) {
+            SaveSlot sl = ReadSaveSlot();
+            if (sl.ok)
+                FeSay("Save file screen. Slot %d of %d is highlighted. %s\n",
+                      sl.row + 1, sl.count, FeSaveListHint());
+            else
+                FeSay("Save file screen. %s\n", FeSaveListHint());
+            return;
+        }
+        if (FeSavePointActive()) {
+            FeSay("Save point screen. Choose a save point to load.\n");
+            return;
+        }
         if (FeMenuActive()) { FeSay("Main menu. Start a new game.\n"); return; }
         if (FeTitleActive()) { FeSay("Waiting to start.\n"); return; }
         FeSay("Not on a map yet.\n");
@@ -764,7 +851,15 @@ static void cmdMenuState()
         FeSay("Difficulty. %s. %s\n", sel ? "Normal" : "Hard", desc.c_str());
         return;
     }
-    if (FeFileSelectActive()) { FeSay("Save file screen. %s\n", FeSaveListHint()); return; }
+    if (FeFileSelectActive()) {
+        SaveSlot sl = ReadSaveSlot();
+        if (sl.ok)
+            FeSay("Save file screen. Slot %d of %d highlighted.\n", sl.row + 1, sl.count);
+        else
+            FeSay("Save file screen. %s\n", FeSaveListHint());
+        return;
+    }
+    if (FeSavePointActive()) { FeSay("Save point screen.\n"); return; }
     if (FeMenuActive()) { FeSay("Main menu. Start a new game.\n"); return; }
     if (FeTitleActive()) { FeSay("Waiting to start.\n"); return; }
     // Adapters not on a tracked menu ignore MenuState: stay silent.
@@ -774,9 +869,13 @@ static void cmdMenuNav()
 {
     if (FeOnMap() || FeTitleActive()) return;   // no tracked cursor here
     if (FeFileSelectActive()) {
-        // Up/down DO move a highlight on this screen, but no ordinal that tracks it has been
-        // found, so predicting a row would be a guess. Name the screen and say the limit.
-        FeSay("Save file screen. %s The highlighted slot is not read yet.\n", FeSaveListHint());
+        // The row IS now tracked (ReadSaveSlot), but the movement that just happened is not
+        // observable as a delta, so echo where the cursor IS rather than predicting where it went.
+        SaveSlot sl = ReadSaveSlot();
+        if (sl.ok)
+            FeSay("Slot %d of %d.\n", sl.row + 1, sl.count);
+        else
+            FeSay("Save file screen. %s\n", FeSaveListHint());
         return;
     }
     if (FeDifficultyActive()) {
@@ -784,6 +883,7 @@ static void cmdMenuNav()
         FeSay("Difficulty. %s.\n", sel < 0 ? "Selection unclear" : sel ? "Normal" : "Hard");
         return;
     }
+    if (FeSavePointActive()) { FeSay("Save point screen.\n"); return; }
     if (FeMenuActive()) {
         // Fresh boot locks the cursor on New Game (five DOWNs, no movement,
         // menurows.txt) so re-speaking the anchor is truthful. With a SAVE
@@ -814,8 +914,14 @@ static void cmdDump()
               InRam(A_FE_STAGE, 2) ? "readable" : "unreadable");
         if (InRam(A_FE_DIFFCURSOR, 1))
             FeLog("diff cursor   : 0x%02X\n", R8(A_FE_DIFFCURSOR));
+        if (FeFileSelectActive()) {
+            SaveSlot sl = ReadSaveSlot();
+            FeLog("save menu     : %s  row=%d count=%d obj=0x%08X\n",
+                  sl.ok ? "readable" : "NOT FOUND", sl.row, sl.count, sl.obj);
+        }
         FeLog("menu state    : %s\n", FeDifficultyActive() ? "Difficulty" :
-              FeFileSelectActive() ? "FileSelect" : FeMenuActive() ? "MainMenu" :
+              FeFileSelectActive() ? "FileSelect" :
+              FeSavePointActive() ? "SavePoint" : FeMenuActive() ? "MainMenu" :
               FeTitleActive() ? "Title" : "untracked");
     }
     uint32_t base = R32(A_gUnitList);
@@ -887,7 +993,7 @@ void fe_cmd_dump(void) { cmdDump(); }
 bool fe_ready(void)
 {
     return ReadCursor().ok || FeTitleActive() || FeMenuActive() ||
-           FeDifficultyActive() || FeFileSelectActive();
+           FeDifficultyActive() || FeFileSelectActive() || FeSavePointActive();
 }
 
 } // extern "C"
