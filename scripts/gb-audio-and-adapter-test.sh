@@ -69,13 +69,25 @@ int main(int argc, char** argv)
     for (int f = 0; f < 900; f++) poke_frame(core);
 
     // Q1: does the console's own audio reach the host at all?
+    // \u26d4 "FRAMES > 0" IS NOT "THERE IS SOUND". The ring drained 223000 frames of pure ZEROS
+    // while opts.volume was 0, and a frames-only check passed on it. Measure the SIGNAL: peak
+    // amplitude and the nonzero fraction. Silence is a full ring of zeros, so this is the only
+    // honest proof, and it is what caught the master-volume bug.
     static int16_t buf[2048 * 2];
     int best = 0;
-    for (int f = 0; f < 600; f++) {
+    long total = 0, nonzero = 0; int peak = 0;
+    for (int f = 0; f < 900; f++) {
         poke_frame(core);
-        if (f % 100 == 0) { int n = poke_read_audio(core, buf, 2048); if (n > best) best = n; }
+        int n = poke_read_audio(core, buf, 2048);
+        if (n > best) best = n;
+        for (int i = 0; i < n * 2; i++) {
+            int v = buf[i]; total++;
+            if (v) nonzero++;
+            if (v < 0 ? -v > peak : v > peak) peak = v < 0 ? -v : v;
+        }
     }
     printf("AUDIO_FRAMES %d\n", best);
+    printf("AUDIO_SIGNAL %ld %ld %d\n", total, nonzero, peak);
 
     // Q2: does the native GBA adapter CLAIM this cartridge?
     //
@@ -109,6 +121,17 @@ if [ -n "${frames:-}" ] && [ "$frames" -gt 0 ] 2>/dev/null; then
   ok "poke_read_audio returned $frames frames (was 0 with the NULL slot)"
 else
   bad "poke_read_audio returned ${frames:-nothing} frames -- the GB/GBC/GBA path is silent"
+fi
+
+echo "== 1b. and those frames carry SOUND, not silence"
+sig=$(printf '%s\n' "$out" | sed -n 's/^AUDIO_SIGNAL //p' | head -1)
+tot=$(printf '%s' "$sig" | awk '{print $1}')
+nz=$(printf '%s' "$sig" | awk '{print $2}')
+pk=$(printf '%s' "$sig" | awk '{print $3}')
+if [ -n "${pk:-}" ] && [ "$pk" -gt 500 ] 2>/dev/null; then
+  ok "peak amplitude $pk, $nz of $tot samples nonzero -- real audio"
+else
+  bad "the stream is silence (peak ${pk:-0}, $nz of ${tot:-0} nonzero): a zero MASTER VOLUME or a muted core gives exactly this, and a frames-only check passes on it"
 fi
 
 echo "== 2. the GBA adapter refuses a Game Boy Color cartridge"

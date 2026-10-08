@@ -714,6 +714,21 @@ bool gba_load_rom(GbaCore* core, const char* rom_path, const char* save_path,
     mCoreConfigInit(&mcore->config, "oga");
     struct mCoreOptions opts;
     memset(&opts, 0, sizeof(opts));
+    // ⛔ opts.volume IS THE MASTER VOLUME, AND ZERO MEANS SILENCE. memset leaves it 0, and
+    // mGBA's _GBCoreLoadConfig / _GBACoreLoadConfig copy it straight into audio.masterVolume:
+    //
+    //     if (core->opts.mute) gb->audio.masterVolume = 0;
+    //     else                 gb->audio.masterVolume = core->opts.volume;
+    //
+    // and every sample is multiplied by it on the way out:
+    //
+    //     sampleLeft = (sampleLeft * audio->masterVolume * 6) >> 7;
+    //
+    // So the emulator produced sound correctly and this host threw all of it away -- the ring
+    // drained clean and held nothing but zeros. 0x100 = GB_AUDIO_VOLUME_MAX, the same default
+    // GBAudioInit uses.
+    opts.volume = 0x100;
+    opts.mute = false;
     mCoreConfigLoadDefaults(&mcore->config, &opts);
     // ⛔ SGB BORDERS OFF. A Game Boy in SGB model mode renders 256x224 -- the
     // border is drawn INTO the frame -- and this frontend has no border surface
