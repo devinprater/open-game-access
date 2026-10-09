@@ -80,6 +80,10 @@ const Adapter kNintendo64 = { "n64", "stub", "", NoAttach, NoFrame, NoCommand, N
 static const uint32_t ENT_BASE = 0x08A852D0u, ENT_STRIDE = 0xF0u;
 static const uint32_t CITY_BASE = 0x08A876B0u, CITY_STRIDE = 0x70u;
 static const uint32_t AR_MODE = 0x089B51D4u, AR_CHAPTER = 0x089B51D5u;
+/// The field module's live pointer. Measured on the real game: 0x09AF1760 while the field
+/// is resident, 0 after a battle tears it down. The reader gates on it, because AR_MODE
+/// alone stays 1 through battles and menus.
+static const uint32_t FIELD_LIVE = 0x089B03E4u;
 
 static void w8 (uint32_t a, uint8_t v)  { RAM[OFF(a)] = v; }
 static void w16(uint32_t a, uint16_t v) { memcpy(&RAM[OFF(a)], &v, 2); }
@@ -168,7 +172,7 @@ int main(void)
     // ---------------------------------------------------------------- 2. in story mode
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1); w8(AR_CHAPTER, 0);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u); w8(AR_CHAPTER, 0);
     ok("Ready() is true once the mode flag is set and the city array is mapped", oga::RD());
 
     // No cities yet must be said, not silently skipped.
@@ -213,7 +217,7 @@ int main(void)
     // ---------------------------------------------------------------- 3. the band cue
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     CitySet(0, 0x0001, 900, 1000, 0.f, 0.f);
     oga::FR();                       // seeds the ratio at 90%
     clear();
@@ -241,7 +245,7 @@ int main(void)
     // "below 80 percent", it just fired at 90. So probe each band's edge from BOTH sides.
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     CitySet(0, 0x0001, 850, 1000, 0.f, 0.f);
     oga::FR();                                   // seed at 85%
     clear();
@@ -256,7 +260,7 @@ int main(void)
 
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     CitySet(0, 0x0001, 550, 1000, 0.f, 0.f);
     oga::FR();                                   // seed at 55%
     clear();
@@ -271,7 +275,7 @@ int main(void)
 
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     CitySet(0, 0x0001, 350, 1000, 0.f, 0.f);
     oga::FR();                                   // seed at 35%
     clear();
@@ -293,7 +297,7 @@ int main(void)
     // 5. unused entities are not counted as enemies
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     CitySet(0, 0x0001, 1000, 1000, 0.f, 0.f);
     // every slot is team -1 from setup(): a full array of unused slots
     for (int i = 0; i < 0x25; i++) EntitySet(i, -1, 0.f, 0.f);
@@ -301,9 +305,16 @@ int main(void)
     oga::CM(oga::Command::PrevEnemy);          // status; NextEnemy is now the city list
     ok("37 unused entity slots report 0 enemies, not 37", said("0 enemies"));
 
-    // 6. readiness follows the mode flag, not the array alone
+    // 6. readiness follows the LIVE gate, not the mode flag and not the array alone
+    // ⛔ TWO CASES, because one of them cannot distinguish the gate forms. Clearing AR_MODE is
+    // answered identically by the mode byte and by the full gate, so on its own it let a
+    // mutation that dropped the FIELD_LIVE condition pass. The second case -- mode STILL set,
+    // field pointer cleared -- is the one that pins the gate.
     w8(AR_MODE, 0);
     ok("Ready() goes false when story mode is left", !oga::RD());
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0);
+    ok("Ready() ALSO goes false with story mode still set but the field torn down (the real "
+       "mid-battle case: AR_MODE stays 1)", !oga::RD());
     clear();
     oga::CM(oga::Command::WhereAmI);
     ok("and commands refuse again rather than reading a stale field",
@@ -312,7 +323,7 @@ int main(void)
     // 7. the distance bands, through the ring's read. Same maths, same bands.
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     EntitySet(0, 0, 0.f, 0.f);
     // Walk the ring to a CITY so the reading is about a city.
     CitySet(0, 0x0001, 1000, 1000, 500.f, 500.f);
@@ -328,6 +339,24 @@ int main(void)
     ok("a 300-unit city reads as 'close', so the bands are distinct",
        said("City 1") && said("close") && said("40 percent"));
 
+    // ------------------------------------------- 7a. the LIVENESS gate, as measured on the real game
+    // ⛔ MEASURED DEFECT THIS PINS: AR_MODE stays 1 for the whole of Another Road. With cities
+    // left in RAM after a mission ends, the reader kept reporting 52%/100%/100% straight through
+    // a boss battle, a pause menu, a "CONTINUE?" prompt and a Time Up screen. Gating on the mode
+    // byte alone therefore speaks a DEAD mission's health during a battle, which is worse than
+    // refusing. The field's live pointer is the second condition.
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);                                  // still "in Another Road"...
+    w32(FIELD_LIVE, 0);                              // ...but the field module is gone
+    w32(CITY_BASE + 0 * CITY_STRIDE + 0x20, 780);    // a stale damaged city, as the game really leaves it
+    w32(CITY_BASE + 0 * CITY_STRIDE + 0x24, 1500);
+    wf (CITY_BASE + 0 * CITY_STRIDE + 0x28, 500.0f);
+    clear();
+    oga::CM(oga::Command::NextEnemy);
+    ok("mode set but the field torn down REFUSES, so a dead mission cannot be read mid-battle",
+       said("Not in story mode") && !said("52 percent") && !said("City 1"));
+
     // ------------------------------------------------- 7b. the city SHAPE, as measured live
     // ⛔ THE ID IS NOT A TRUTHINESS TEST. Measured in a real stage: every city in play carried
     // id 0x0000, and the two empty slots carried 0xFFFF with cur 0, max 0, radius 0. An adapter
@@ -336,7 +365,7 @@ int main(void)
     // cities while three are being destroyed.
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     w16(CITY_BASE + 0 * CITY_STRIDE + 0x00, 0x0000);     // a real city, id 0
     w32(CITY_BASE + 0 * CITY_STRIDE + 0x20, 1500);
     w32(CITY_BASE + 0 * CITY_STRIDE + 0x24, 1500);
@@ -354,7 +383,7 @@ int main(void)
     // ---------------------------------------------------------------- 8. the target ring
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     // two enemies, two cities, one ally
     EntitySet(0, 0, 0.f, 0.f);          // the player
     EntitySet(1, 2, 400.f, 0.f);        // enemy A, east
@@ -401,7 +430,7 @@ int main(void)
     // WHERE it is but refuse to name a clock direction.
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     EntitySet(0, 0, 0.f, 0.f);
     EntitySet(1, 2, 400.f, 0.f);
     clear();
@@ -448,7 +477,7 @@ int main(void)
     // heading_live to true survived the first mutation pass.
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     EntitySet(0, 0, 0.f, 0.f);
     EntitySet(1, 2, 400.f, 0.f);
     H.now_ms = 10000;
@@ -465,7 +494,7 @@ int main(void)
     // ⛔ With no player row the cue must REFUSE rather than invent a direction.
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     EntitySet(1, 2, 400.f, 0.f);                   // an enemy, but no player-side entity
     oga::CueSnapshot cs2{};
     ok("with no player row the cue refuses instead of pointing", !oga::CUE(&cs2));
@@ -477,7 +506,7 @@ int main(void)
     // With no target selected, the cue falls back to the NEAREST ENEMY (the player's call).
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     EntitySet(0, 0, 0.f, 0.f);
     EntitySet(3, 2, 2000.f, 0.f);                  // far enemy
     EntitySet(4, 2, 300.f, 0.f);                   // near enemy
@@ -510,7 +539,7 @@ int main(void)
     // fallback's distance comparison survived the whole suite.
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     EntitySet(0, 0, 0.f, 0.f);
     EntitySet(3, 2, 2000.f, 0.f);                    // far enemy
     EntitySet(4, 2, 300.f, 0.f);                     // near enemy
@@ -546,7 +575,7 @@ int main(void)
     // six ring steps must never land on the city kind, and every step must name a target.
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     EntitySet(0, 0, 0.f, 0.f);                       // the player, who is also the only ally
     EntitySet(1, 2, 500.f, 0.f);                     // one enemy
     {
@@ -566,7 +595,7 @@ int main(void)
     // "nothing here at all".
     setup();
     oga::AT(&H);
-    w8(AR_MODE, 1);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
     EntitySet(0, 0, 0.f, 0.f);
     clear();
     oga::CM(oga::Command::NextUnactedAlly);

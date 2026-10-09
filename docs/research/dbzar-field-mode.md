@@ -135,6 +135,40 @@ the game's own arithmetic (`+0x20 / +0x24`) and is now read from a real stage, b
 it nothing to be compared against. Where a percentage IS printed — the Chapter Select screen's
 "City DF." — is the place to close that.
 
+## ⛔ THE READER TALKED OVER A BATTLE — the liveness gate, and its limit
+
+Driving the game for this comparison found a defect that no decompile would have shown and that
+the host tests could not: **`AR_MODE` stays 1 for the whole of Another Road.**
+
+Measured in one session, with the field's city array left behind by a finished mission:
+
+    cities read 52% / 100% / 100%   -- continuously, unchanged, through ALL of:
+      a boss battle (Dabura), a battle pause menu, a "CONTINUE? Yes/No" prompt, a "Time Up"
+      screen, and a fresh main-menu boot, with AR_MODE = 1 the whole time
+
+So the reader would have SPOKEN a dead mission's city health during a battle, with no refusal.
+That is worse than silence: a plausible lie the player has no way to catch.
+
+**The fix is a second, stronger condition.** `0x089B03E4` is a POINTER (measured `0x09AF1760`)
+while the field's own task objects are resident, and reads 0 once a battle has torn the field
+down. Measured: `0x09AF1760` in the live field AND on the mission's own Time Up frame; `0` on
+every battle, pause menu, main menu and fresh boot. Every spoken field answer, the per-frame
+damage watcher, the cue snapshot and `Ready()` now require BOTH conditions.
+
+⛔ **SCOPE OF THAT EVIDENCE, stated because the gate is narrower than it looks:** it answers "is
+the field module alive", NOT "is the mission still running". It does not refuse on the Time Up
+frame, because the module is still resident there. It refuses the battle and menu screens, which
+is the failure that was measured. A stronger gate would need a mission-state word; that is
+recorded as open rather than claimed.
+
+**Why the tests did not catch it:** every existing case set `AR_MODE = 1` and expected speech --
+which is exactly the mid-battle situation the reader must now refuse. Fixing the gate made 39
+checks fail, and that is the suite working. The fixture now establishes both conditions, a new
+case pins the refusal (mode set, field pointer clear), and a mutation that drops `FIELD_LIVE`
+from `Ready()` is detected. The first pass of that mutation SURVIVED at 55/55, because the
+existing "story mode left" case only cleared `AR_MODE`, which both gate forms answer -- a second
+case was added specifically because one case could not distinguish them.
+
 ## ⭐ THE PRINTED-VS-READ COMPARISON — matched, and what it does and does not prove
 
 The field's own HUD **does print percentages**, in a panel down the LEFT side, under an
