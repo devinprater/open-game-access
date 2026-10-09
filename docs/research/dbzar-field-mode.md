@@ -87,6 +87,54 @@ number the game itself does not act on.
 - **A field-mode audio beacon.** In battle the project has a lock-on cue contract; field mode
   has no equivalent agreed, so the adapter ships no cue rather than inventing one.
 
+## ⭐ THE FIELD IS REACHABLE — the route, and what it cost to find
+
+Chapter 1's route, measured by pressing with a RAM dump after each step:
+
+    cutscenes  ->  CHARACTER SELECT  ->  TEAM EDIT (the booster screen)  ->  the field
+
+⛔ **THE ENTITY ARRAY IS A USELESS ORACLE ON THE WAY IN.** It reads `team != -1` on all 37
+slots from the moment Another Road starts, at every screen, so "placed entities" stays 0 until
+a stage is actually loaded and tells you nothing about progress. What works is the **resident
+message ids**: the field's own families (`MSG_AR_FIELDPLAY_*`, 268 of them, and `MSG_AR_CITY_*`,
+24) are loaded when the field loads, so counting them tells you the field is up. A scene
+cutscene shows only `MSG_AR_<chap>_<scene>_<line>` ids.
+
+The screen after Team Edit is the field: a city-name banner ("South Village") with its gauge,
+a small flying character, and a portrait down the left side.
+
+## ⭐ WHAT THE FIELD LOOKS LIKE IN RAM — measured, not decompiled
+
+A full 24 MiB dump taken with the field live, Chapter 1:
+
+    3 cities in play, ALL with id 0x0000:
+        city[0] id=0x0000  cur=1500 max=1500  pos=(-663, -809)    r=500.0
+        city[1] id=0x0000  cur=1500 max=1500  pos=(-512, -2840)   r=500.0
+        city[2] id=0x0000  cur=1500 max=1500  pos=(1700, -600)    r=500.0
+    2 empty slots, id 0xFFFF, cur 0, max 0, r 0:
+        city[3] id=0xffff  cur=0    max=0     pos=(0, 0)          r=0.0
+        city[4] id=0xffff  cur=0    max=0     pos=(0, 0)          r=0.0
+
+    2 live entities:
+        ent[0] team=0  pos=(2383, 497, 141)   (+0xD1 = 1)
+        ent[3] team=1  pos=( 804, 497, 623)   (+0xD1 = 1)
+
+⛔ **A POPULATED CITY HAS id 0, AND AN EMPTY SLOT HAS id 0xFFFF.** This is the opposite of the
+guess the adapter shipped with (`id != 0` = present), which read every real city as absent and
+every empty slot as present. It was found only by reaching the field and reading it: no amount
+of decompiling shows it, because the id is *data*, and the code that writes it is in the field
+loader. Presence is now **capacity** (`max > 0`), which is also what the percentage is computed
+from — one read, used for both.
+
+Also confirmed live: a city's health and max are EQUAL at full (1500/1500), and the health scale
+is per-stage (1500 here), so the percentage must always be the ratio, never a divisor baked in.
+
+**Still not matched:** the field HUD's own gauge shows a BAR, not a percentage, so the ratio
+cannot be checked against a printed number on this screen. The percentage the reader speaks is
+the game's own arithmetic (`+0x20 / +0x24`) and is now read from a real stage, but the HUD gives
+it nothing to be compared against. Where a percentage IS printed — the Chapter Select screen's
+"City DF." — is the place to close that.
+
 ## The radar: controls and the cue
 
 ### The target ring (player's decisions, 2026-10-08)
@@ -175,7 +223,10 @@ Grades of evidence, stated separately because they are not the same claim:
 | the field layout (strides, offsets, team values) | **decompiled**, and consistent with those live accessors |
 | the city module walks exactly 5 cities and 37 entities | **decompiled**, with the loop bounds in the live code |
 | the damage bands are 0.8 / 0.5 / 0.3 | **decompiled**, from the three ratio comparisons |
-| ⛔ **`[+0x20]/[+0x24]` equals the city percentage ON SCREEN** | **NOT OBSERVED** |
+| the three cities in play read 1500/1500 with radius 500, ids 0x0000 | **OBSERVED LIVE** (full dump, field loaded) |
+| 2 empty slots read id 0xFFFF, max 0 | **OBSERVED LIVE** |
+| entities carry real world positions in a loaded stage | **OBSERVED LIVE** (team 0 and 1, y=497 both) |
+| ⛔ **`[+0x20]/[+0x24]` equals a number the HUD PRINTS** | **NOT OBSERVED** — the field gauge is a BAR with no digits, so this screen cannot settle it; Chapter Select's "City DF." is where to check |
 
 That last row is the open link. A populated city record (an id present with a non-zero max)
 was never reached with the field on screen, so the percentage arithmetic is *read from the

@@ -328,6 +328,29 @@ int main(void)
     ok("a 300-unit city reads as 'close', so the bands are distinct",
        said("City 1") && said("close") && said("40 percent"));
 
+    // ------------------------------------------------- 7b. the city SHAPE, as measured live
+    // ⛔ THE ID IS NOT A TRUTHINESS TEST. Measured in a real stage: every city in play carried
+    // id 0x0000, and the two empty slots carried 0xFFFF with cur 0, max 0, radius 0. An adapter
+    // testing `id != 0` therefore reads every real city as ABSENT and every empty slot as
+    // present -- inverted, silently, for the first city on every map, and it reports zero
+    // cities while three are being destroyed.
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1);
+    w16(CITY_BASE + 0 * CITY_STRIDE + 0x00, 0x0000);     // a real city, id 0
+    w32(CITY_BASE + 0 * CITY_STRIDE + 0x20, 1500);
+    w32(CITY_BASE + 0 * CITY_STRIDE + 0x24, 1500);
+    wf (CITY_BASE + 0 * CITY_STRIDE + 0x28, 500.0f);
+    w16(CITY_BASE + 1 * CITY_STRIDE + 0x00, 0xFFFF);     // an empty slot
+    w32(CITY_BASE + 1 * CITY_STRIDE + 0x20, 0);
+    w32(CITY_BASE + 1 * CITY_STRIDE + 0x24, 0);
+    wf (CITY_BASE + 1 * CITY_STRIDE + 0x28, 0.0f);
+    clear();
+    oga::CM(oga::Command::NextEnemy);                    // the city list
+    ok("a city whose id is 0 counts as PRESENT (it is what the game actually writes)",
+       said("1 cities") && said("City 1") && said("100 percent"));
+    ok("and the 0xFFFF empty slot is NOT listed", !said("City 2"));
+
     // ---------------------------------------------------------------- 8. the target ring
     setup();
     oga::AT(&H);
