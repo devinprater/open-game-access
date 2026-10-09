@@ -81,6 +81,15 @@ constexpr uint32_t CITY_MAX    = 0x24u;       // i32 max health
 constexpr uint32_t CITY_RADIUS = 0x28u;       // float
 
 constexpr uint32_t AR_MODE    = 0x089B51D4u;  // EBOOT .data, static
+/// ⛔ A SECOND, STRONGER GATE. AR_MODE stays 1 for the whole of Another Road -- through battles,
+/// pause menus and mission-result screens -- so it is not a liveness test. This word is a POINTER
+/// (measured 0x09AF1760) while the field's own task objects are resident, and it reads 0 once a
+/// battle has torn the field down. Measured across one session: 0x09AF1760 in the live field AND
+/// on the mission's own Time Up frame, and 0 everywhere else (battles, pause menu, main menu,
+/// fresh boot). So it refuses those, which is the failure that was actually measured.
+/// LIMIT, stated because it matters: it answers "is the field module alive", NOT "is the mission
+/// still running" -- it does not refuse on the Time Up screen.
+constexpr uint32_t FIELD_LIVE  = 0x089B03E4u;  // a pointer while the field tasks are resident
 constexpr uint32_t AR_CHAPTER = 0x089B51D5u;
 
 constexpr uint32_t RAM_LO = 0x08800000u;      // PSP user RAM
@@ -141,6 +150,11 @@ static bool InRam(uint32_t a, uint32_t n) { return a >= RAM_LO && (a + n) <= RAM
 /// The mode flag is what tells us Another Road is up at all. Everything else here is
 /// meaningless outside it, so this is the gate every command and the frame hook use.
 static bool InAnotherRoad(void) { return R8(AR_MODE) == 1; }
+
+/// Is a FIELD actually running? Both the mode flag and the field module's own live pointer must
+/// agree. Every spoken field answer goes through this, because AR_MODE alone stays true on the
+/// battle and menu screens and would let a dead mission's city health be read out mid-battle.
+static bool FieldIsLive(void) { return InAnotherRoad() && R32(FIELD_LIVE) != 0; }
 
 /// The chapter the game is in. NOT a browse cursor: the decompile and a live test both
 /// showed this value does not move while the Chapter Select map is browsed.
@@ -284,7 +298,7 @@ struct Target {
 /// its own boundaries, and it must therefore still count.
 static int CollectTargets(int kind, Target* out, int cap)
 {
-    if (!InAnotherRoad()) return 0;
+    if (!FieldIsLive()) return 0;
     float px = 0, pz = 0;
     bool havePlayer = PlayerPos(&px, &pz);
 
@@ -425,7 +439,7 @@ static bool UpdateHeading(float px, float pz, uint64_t nowMs)
 // ---------------------------------------------------------------------------
 static void CmdWhereAmI(void)
 {
-    if (!InAnotherRoad()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
+    if (!FieldIsLive()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
 
     CityInfo cities[CITY_COUNT];
     int n = CollectCities(cities);
@@ -472,7 +486,7 @@ static void CmdWhereAmI(void)
 /// in-play one-liner.
 static void CmdCityList(void)
 {
-    if (!InAnotherRoad()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
+    if (!FieldIsLive()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
     CityInfo cities[CITY_COUNT];
     int n = CollectCities(cities);
     int m = 0;
@@ -499,7 +513,7 @@ static void CmdCityList(void)
 
 static void CmdStatus(void)
 {
-    if (!InAnotherRoad()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
+    if (!FieldIsLive()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
     CityInfo cities[CITY_COUNT];
     int n = CollectCities(cities);
     int present = 0, total = 0;
@@ -524,7 +538,7 @@ static void CmdStatus(void)
 static void CmdRingHere(void)
 {
     Target t;
-    if (!InAnotherRoad()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
+    if (!FieldIsLive()) { SayRaw("Not in story mode.", Priority::High, "dbzar", nullptr); return; }
     if (!CurrentTarget(&t)) {
         const char* what = g_ringKind == KindEnemy ? "No enemies on the field."
                          : g_ringKind == KindCity  ? "No cities yet."
@@ -571,7 +585,9 @@ static void CmdDump(void)
     // blind player should not have to hear it.
     if (!g_host || !g_host->log) return;
     char line[256];
-    snprintf(line, sizeof line, "DBZAR mode=%d chapter=%d", (int) R8(AR_MODE), ChapterIndex());
+    snprintf(line, sizeof line, "DBZAR mode=%d fieldlive=0x%08X live=%d chapter=%d",
+                 (int) R8(AR_MODE), (unsigned) R32(FIELD_LIVE), FieldIsLive() ? 1 : 0,
+                 ChapterIndex());
     g_host->log(g_host->ctx, line);
     for (int i = 0; i < CITY_COUNT; i++) {
         CityInfo c;
@@ -598,8 +614,8 @@ static void CmdDump(void)
 static void OnFrame(void)
 {
     if (!g_host) return;
-    if (!InAnotherRoad()) {
-        // Leaving story mode clears the per-city memory so the next entry announces from
+    if (!FieldIsLive()) {
+        // Leaving a live field clears the per-city memory so the next entry announces from
         // the real state instead of comparing against a stale one.
         for (int i = 0; i < CITY_COUNT; i++) g_haveRatio[i] = false;
         return;
@@ -649,7 +665,7 @@ static bool CueSnapshotFill(CueSnapshot* out)
 {
     if (!out) return false;
     *out = CueSnapshot{};
-    if (!g_host || !InAnotherRoad()) return false;
+    if (!g_host || !FieldIsLive()) return false;
 
     float px = 0, pz = 0;
     if (!PlayerPos(&px, &pz)) return false;          // no player row: nothing honest to cue
@@ -718,7 +734,7 @@ static void Detach(void)
 /// guess, so when this is false the UI shows no reader rather than a stream of zeroes.
 static bool Ready(void)
 {
-    if (!g_host || !InAnotherRoad()) return false;
+    if (!g_host || !FieldIsLive()) return false;
     CityInfo c;
     return ReadCity(0, &c);
 }
