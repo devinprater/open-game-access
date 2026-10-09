@@ -135,6 +135,34 @@ the game's own arithmetic (`+0x20 / +0x24`) and is now read from a real stage, b
 it nothing to be compared against. Where a percentage IS printed — the Chapter Select screen's
 "City DF." — is the place to close that.
 
+### The printed panel and a DAMAGED city have not been observed together
+
+Hunted across every capture in one session -- 40 frames from a passive recorder, 31 from a drive,
+26 from a watcher, plus the point captures. The result is consistent and worth stating plainly:
+
+    EVERY frame that draws the printed city panel shows 100% / 100% / 100%
+      (2 frames: the field's opening ALERT presentation)
+    EVERY frame that shows a city below full health draws the BOSS-FIGHT layout instead
+      (Dabura's name, a countdown timer, his own health bar -- no city list at all)
+
+So the two states may not CO-OCCUR. The panel is the mission's early ALERT presentation; once the
+enemy's damage lands, the presentation is a boss fight. If that holds, the printed percentage
+cannot be compared at mid-scale on this mission, and the honest statement is:
+
+    the reader's ratio is CONFIRMED against the game's own printed number at FULL health only
+
+The percentage the reader speaks is still the game's own arithmetic (`+0x20 / +0x24`, the same
+ratio the game's own band ladder compares in `FUN_0001a90c`), and both sides now read from a real
+stage. The missing piece is only a printed mid-scale value to match against.
+
+**Two instruments were fixed along the way and both are recorded because they produced false
+readings:** a first movement probe held every control and reported that NONE moved the player,
+while a full dump comparison showed `up` moves `ent[0]` -- the probe was wrong, not the game; and
+the flying watcher steered by pressing left/right only, when `up` is the control that actually
+advances the player, so nine minutes of "flying" never moved it and the distance stayed at 1651.
+A watcher that does not move the player cannot damage a city, and its flat result says nothing
+about the game.
+
 ## ⛔ THE READER TALKED OVER A BATTLE — the liveness gate, and its limit
 
 Driving the game for this comparison found a defect that no decompile would have shown and that
