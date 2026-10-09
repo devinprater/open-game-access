@@ -135,6 +135,35 @@ the game's own arithmetic (`+0x20 / +0x24`) and is now read from a real stage, b
 it nothing to be compared against. Where a percentage IS printed — the Chapter Select screen's
 "City DF." — is the place to close that.
 
+### ⭐ THE PANEL AND A DAMAGED CITY DID CO-OCCUR — and the mid-scale comparison is a MATCH
+
+The earlier conclusion that the two never appear together was WRONG, and the reason is useful: the
+panel is drawn when a CITY IS IN VIEW. Chasing the enemy produces frames with the camera on empty
+sky, which draw no panel; a frame captured while the enemy's attack landed showed both.
+
+Measured, one frame, RAM and screen read in the same process:
+
+    city 0:  cur=1350  max=1500  ->  90.0%          (the reader's ratio)
+    its gauge bar on screen:  287 px of a 317 px full bar  ->  90.5%   (measured in code)
+
+Two points now exist on the scale, both measured in pixels rather than described:
+
+    FULL      bar 317/317 px  = 100.0%      RAM 1500/1500 = 100.0%
+    DAMAGED   bar 287/317 px  =  90.5%      RAM 1350/1500 =  90.0%
+
+⛔ **WHAT IS STILL NOT SETTLED: the printed DIGITS.** A vision read of the same row returned "92%",
+while the bar measures 90.5% and the reader's ratio is 90.0%. The digits are about 8 px tall, and
+the vision model has already been wrong on this HUD twice in this session, so neither the "92" nor
+a claim that it says "90" should be published. The BAR is the reliable printed quantity here and it
+agrees with the reader to within half a percentage point. Settling the digits needs the glyph
+compared programmatically against a known digit from the same frame -- the tool is written
+(`dbz-glyph.py`) and the boxes are located (row 2's "100%" supplies a known 1 and 0), but the
+comparison has not been completed.
+
+⛔ **The panel is view-dependent, and that is why the hunt kept failing.** Four separate watchers
+recorded zero panel frames while cities were visibly damaged, because the player was parked on the
+city looking at empty sky. Any future capture of this panel must first get a city on screen.
+
 ### The printed panel and a DAMAGED city have not been observed together
 
 Hunted across every capture in one session -- 40 frames from a passive recorder, 31 from a drive,
@@ -325,7 +354,8 @@ Grades of evidence, stated separately because they are not the same claim:
 | 2 empty slots read id 0xFFFF, max 0 | **OBSERVED LIVE** |
 | entities carry real world positions in a loaded stage | **OBSERVED LIVE** (team 0 and 1, y=497 both) |
 | ⭐ **`[+0x20]/[+0x24]` equals the percentage the HUD PRINTS** | **MATCHED at full health, first time (2026-10-08)** — see below |
-| ⛔ the ratio tracks a city that is DAMAGED | **NOT OBSERVED** — every city read 1500/1500, so only the top of the scale is confirmed |
+| ⭐ the ratio tracks a city that is DAMAGED | **OBSERVED (2026-10-09)** — bar 287/317 px = 90.5% against a RAM ratio of 90.0% |
+| ⛔ a printed DIGIT read at mid-scale | **NOT SETTLED** — the digits are 8-px glyphs; a vision read said "92%" while the bar measures 90.5% and RAM 90.0% |
 
 That last row is the open link. A populated city record (an id present with a non-zero max)
 was never reached with the field on screen, so the percentage arithmetic is *read from the
