@@ -190,7 +190,13 @@ static bool ReadCity(int i, CityInfo* out)
     uint32_t b = CITY_BASE + (uint32_t) i * CITY_STRIDE;
     if (!InRam(b, CITY_STRIDE)) return false;
     out->slot = i;
-    out->present = (R16(b + CITY_ID) != 0);
+    // ⛔ "PRESENT" IS NOT `id != 0`. MEASURED LIVE in a real stage: cities in play carry id
+    // 0x0000, 0x0000, 0x0000 (all of them), and the EMPTY slots carry 0xFFFF with cur 0,
+    // max 0 and radius 0. So the id is a validity PAIR, not a truthiness test: 0xFFFF means
+    // empty. The capacity is what proves a city exists, and that is also what the percentage
+    // is computed from -- so read it once and use it for both.
+    uint16_t id = R16(b + CITY_ID);
+    out->present = (id != 0xFFFF) && (RI32(b + CITY_MAX) > 0);
     out->x = RF32(b + CITY_X);
     out->z = RF32(b + CITY_Z);
     out->cur = RI32(b + CITY_CUR);
@@ -570,8 +576,9 @@ static void CmdDump(void)
     for (int i = 0; i < CITY_COUNT; i++) {
         CityInfo c;
         if (!ReadCity(i, &c)) continue;
-        snprintf(line, sizeof line, "DBZAR city[%d] id=%d cur=%d max=%d pct=%d present=%d",
-                 i, (int) R16(CITY_BASE + i * CITY_STRIDE), c.cur, c.max, c.pct, c.present ? 1 : 0);
+        snprintf(line, sizeof line, "DBZAR city[%d] id=0x%04X cur=%d max=%d pct=%d present=%d",
+                 i, (unsigned) R16(CITY_BASE + i * CITY_STRIDE), c.cur, c.max, c.pct,
+                 c.present ? 1 : 0);
         g_host->log(g_host->ctx, line);
     }
     for (int i = 0; i < ENT_COUNT; i++) {
