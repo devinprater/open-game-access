@@ -135,6 +135,42 @@ the game's own arithmetic (`+0x20 / +0x24`) and is now read from a real stage, b
 it nothing to be compared against. Where a percentage IS printed — the Chapter Select screen's
 "City DF." — is the place to close that.
 
+## ⭐ THE PRINTED-VS-READ COMPARISON — matched, and what it does and does not prove
+
+The field's own HUD **does print percentages**, in a panel down the LEFT side, under an
+"ALERT!!" banner. A `dbzar-pair.mjs` capture (RAM and window in ONE process, so both describe
+the same frame) shows, at Chapter 1:
+
+    HUD PRINTS (magnified crop of the top-left panel)      ADAPTER READS (same frame)
+      South Village   100%                                   city[0] 1500/1500  -> 100%
+      City A          100%                                   city[1] 1500/1500  -> 100%
+      City B          100%                                   city[2] 1500/1500  -> 100%
+      (two more rows exist where cities are absent)          city[3] id=0xffff  -> not listed
+                                                             city[4] id=0xffff  -> not listed
+
+Three printed entries, three cities read, three percentages agreeing, and the two empty slots
+correctly excluded from both. **The reader's number is the game's own number.**
+
+⛔ **WHAT THIS DOES NOT PROVE, and it matters: only the TOP of the scale is confirmed.** Every
+city read 1500/1500, so "100% = 100%" is consistent both with the ratio being correct AND with a
+reader that reports a constant 100 whatever happens. The falsifying case is a city that is
+DAMAGED — a bar that falls with the ratio. Until that is seen, the scale is matched at one point
+and nowhere else. `dbzar-waitdrop.mjs` is the instrument for it (wait for `cur < max`, capture
+both); it needs an enemy to actually attack a city, which did not happen in the window watched.
+
+⛔ **AND THE VISION MODEL GOT THIS QUESTION WRONG TWICE, IN THE SAME SESSION.** Asked to look
+at the top-left corner for percentages it answered "no numbers in the image" — twice — while
+three printed percentages sat there, and it named unrelated games for the same frames. It only
+transcribed them when handed a **magnified crop**. The rule already in the skill is the one that
+applies: trust its transcribed strings and its counts, settle geometry by measuring pixels in
+code, and magnify a region before believing a negative about what is in it.
+
+### Where the gauge actually is on this screen (measured by colour, not by eye)
+
+    city-name banner (red-outlined box):  x 1088..1482, rows 308..382
+    the city GAUGE below it:              x 1088..1448, rows ~389..418
+    the left-side list of city + percent: the panel under the "ALERT!!" banner
+
 ## The radar: controls and the cue
 
 ### The target ring (player's decisions, 2026-10-08)
@@ -226,7 +262,8 @@ Grades of evidence, stated separately because they are not the same claim:
 | the three cities in play read 1500/1500 with radius 500, ids 0x0000 | **OBSERVED LIVE** (full dump, field loaded) |
 | 2 empty slots read id 0xFFFF, max 0 | **OBSERVED LIVE** |
 | entities carry real world positions in a loaded stage | **OBSERVED LIVE** (team 0 and 1, y=497 both) |
-| ⛔ **`[+0x20]/[+0x24]` equals a number the HUD PRINTS** | **NOT OBSERVED** — the field gauge is a BAR with no digits, so this screen cannot settle it; Chapter Select's "City DF." is where to check |
+| ⭐ **`[+0x20]/[+0x24]` equals the percentage the HUD PRINTS** | **MATCHED at full health, first time (2026-10-08)** — see below |
+| ⛔ the ratio tracks a city that is DAMAGED | **NOT OBSERVED** — every city read 1500/1500, so only the top of the scale is confirmed |
 
 That last row is the open link. A populated city record (an id present with a non-zero max)
 was never reached with the field on screen, so the percentage arithmetic is *read from the
