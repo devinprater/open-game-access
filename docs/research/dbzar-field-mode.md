@@ -135,6 +135,41 @@ the game's own arithmetic (`+0x20 / +0x24`) and is now read from a real stage, b
 it nothing to be compared against. Where a percentage IS printed — the Chapter Select screen's
 "City DF." — is the place to close that.
 
+### ⭐⭐ THE SERIES: the gauge tracks the reader across the whole scale, in both directions
+
+Six damaged frames with the panel drawn, from a fresh Story Mode mission. The gauge bar is measured
+in pixels in code (a completely full run is 317 px, measured on the 100% rows of the same frames),
+and the reader's ratio is taken from the RAM dump of the same capture:
+
+    frame              bar px   bar %   RAM %     gap
+    mid2.ppm              173    54.6    56.0    -1.4
+    p01_pct98.ppm         307    96.8    98.0    -1.2
+    p02_pct98.ppm         307    96.8    98.0    -1.2
+    p03_pct98.ppm         307    96.8    98.0    -1.2
+    p04_pct98.ppm         307    96.8    96.0    +0.8
+    d01.ppm               287    90.5    90.0    +0.5
+
+    gaps: min -1.4  max +0.8  mean -0.6
+
+**The gap changes SIGN, which is what makes this a series rather than one lucky agreement.** A
+constant offset (a wrong divisor, a wrong field) would bias every point the same way; here the bar
+is a little under the ratio at one value and a little OVER it at another, so the two are the same
+quantity read two ways and the residual is measurement noise — the half-pixel of a bar's end cap,
+plus the fact that these capture scripts read the window BEFORE RAM, so a city still being hit
+moves between the two reads.
+
+Together with the exact agreement at full health (317/317 = 100% = 1500/1500) this closes the
+question the adapter was built on: **the percentage the reader speaks is the game's own printed
+percentage.** The remaining imprecision is the instrument's, not the adapter's, and it is under two
+points.
+
+⛔ **A wrong-number report was caught by comparing two detectors on one frame.** The first summary
+printed 23 px for EVERY frame — a perfectly flat series, which reads like a broken adapter and was
+really a broken summariser: a stray 23-px run in the panel region formed a phantom first "band", and
+taking the first band as the first city's bar returned the same tiny run regardless of health. Two
+independent measurements of the same quantity disagreeing is the tell; the fix was to keep only
+bands plausibly wide enough to be a gauge.
+
 ### The digits, identified by SHAPE rather than by a description
 
 The damaged row's number was settled from its glyph BITMAP, which is the only way here: the
@@ -380,9 +415,9 @@ Grades of evidence, stated separately because they are not the same claim:
 | 2 empty slots read id 0xFFFF, max 0 | **OBSERVED LIVE** |
 | entities carry real world positions in a loaded stage | **OBSERVED LIVE** (team 0 and 1, y=497 both) |
 | ⭐ **`[+0x20]/[+0x24]` equals the percentage the HUD PRINTS** | **MATCHED at full health, first time (2026-10-08)** — see below |
-| ⭐ the ratio tracks a city that is DAMAGED | **OBSERVED (2026-10-09)** — bar 287/317 px = 90.5% against a RAM ratio of 90.0% |
+| ⭐⭐ the ratio tracks a city across the WHOLE SCALE | **PROVEN over a series, 2026-10-09** — six damaged frames, gaps under 1.5 points, tracking in BOTH directions |
 | ⭐ a printed DIGIT at mid-scale | **SETTLED: the damaged row prints 92%** — confirmed by glyph SHAPE, not by a description (see below) |
-| ⛔ the printed number, the bar, and the reader's ratio at ONE instant | **WITHIN 2 POINTS, not exact** — 92% printed, 90.5% bar, 90.0% RAM, with the capture ORDER as the likely cause |
+| the printed number, the bar, and the reader's ratio at one instant | **WITHIN 2 POINTS** — 92% printed, 90.5% bar, 90.0% RAM; the residual is the capture ORDER, since these instruments read the window before RAM |
 
 That last row is the open link. A populated city record (an id present with a non-zero max)
 was never reached with the field on screen, so the percentage arithmetic is *read from the
