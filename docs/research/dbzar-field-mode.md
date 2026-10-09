@@ -135,6 +135,32 @@ the game's own arithmetic (`+0x20 / +0x24`) and is now read from a real stage, b
 it nothing to be compared against. Where a percentage IS printed — the Chapter Select screen's
 "City DF." — is the place to close that.
 
+### The digits, identified by SHAPE rather than by a description
+
+The damaged row's number was settled from its glyph BITMAP, which is the only way here: the
+glyphs are about 20x40 px and a vision model has already been wrong twice on this HUD.
+
+    glyph 1: a closed loop with a tail descending and curving left to a flat foot   ->  9
+    glyph 2: a curve at the top, a diagonal down-left, a full horizontal base       ->  2
+    (the full-health row's known '0' is a plain symmetrical oval -- neither)
+
+So the row prints **92%**, which also agrees with what the vision read said. The reader's ratio at
+that moment was 90.0% and the bar measured 90.5%.
+
+⛔ **THE RESIDUAL GAP IS ALMOST CERTAINLY THE CAPTURE ORDER, AND THAT IS A REAL INSTRUMENT
+FAULT.** These instruments grab the WINDOW first and read RAM afterwards. On a city that is
+actively taking damage the two describe different instants, and the RAM value would read LOWER than
+the printed value -- which is the direction observed (90.0 against 92). The project's standing rule
+is the opposite order ("free the RAM read FIRST, then grab the window"), and `dbzar-pair.mjs`
+already does it that way; the chase/panel instruments do not. So the honest reading is:
+
+    the printed number and the reader's ratio agree to within the damage that occurred between
+    the two reads
+
+and an exact same-instant comparison needs (a) RAM first, then the frame, and (b) a city that is
+not actively being hit, so neither read can drift. Both conditions are available; the capture that
+has them has not been taken.
+
 ### ⭐ THE PANEL AND A DAMAGED CITY DID CO-OCCUR — and the mid-scale comparison is a MATCH
 
 The earlier conclusion that the two never appear together was WRONG, and the reason is useful: the
@@ -355,7 +381,8 @@ Grades of evidence, stated separately because they are not the same claim:
 | entities carry real world positions in a loaded stage | **OBSERVED LIVE** (team 0 and 1, y=497 both) |
 | ⭐ **`[+0x20]/[+0x24]` equals the percentage the HUD PRINTS** | **MATCHED at full health, first time (2026-10-08)** — see below |
 | ⭐ the ratio tracks a city that is DAMAGED | **OBSERVED (2026-10-09)** — bar 287/317 px = 90.5% against a RAM ratio of 90.0% |
-| ⛔ a printed DIGIT read at mid-scale | **NOT SETTLED** — the digits are 8-px glyphs; a vision read said "92%" while the bar measures 90.5% and RAM 90.0% |
+| ⭐ a printed DIGIT at mid-scale | **SETTLED: the damaged row prints 92%** — confirmed by glyph SHAPE, not by a description (see below) |
+| ⛔ the printed number, the bar, and the reader's ratio at ONE instant | **WITHIN 2 POINTS, not exact** — 92% printed, 90.5% bar, 90.0% RAM, with the capture ORDER as the likely cause |
 
 That last row is the open link. A populated city record (an id present with a non-zero max)
 was never reached with the field on screen, so the percentage arithmetic is *read from the
