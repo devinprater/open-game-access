@@ -2,6 +2,41 @@
 
 ## Product work
 
+- [x] **Budokai 3 Access (native PC port) studied and written up (2026-10-10).**
+  `docs/research/budokai3access-lessons.md`. Source reading of
+  `BlindChallengerX/Budokai3Access` v1.0 (C, MIT, released 2026-10-10), a screen reader mod for
+  Budokai 3 HD running under NovaPowers' ReXGlue static recompilation of the Xbox 360 game.
+  ⭐ **It is a third family, and the survey has no row for it:** native C inside a recompiled
+  console binary, hooks placed at GUEST PowerPC addresses resolved through the runtime's host
+  pointer table, big-endian guest reads behind a validated page cache. Neither Family A
+  (in-process .NET calling NVDA) nor Family B (emulator-driven). Mechanism does not transfer;
+  the guest/host discipline does.
+  ⭐ **Findings worth keeping:** text-as-textures solved by the same offline catalog rule we use
+  (BT2 and this mod converged on it independently); the first shipping dwell/expiry numbers for
+  "speak only what stays on screen" (120 ms drawn before speaking, 400 ms gone before
+  forgetting); a screen-ownership rule (control-hint lines never auto-read, whole texture packs
+  muted where a menu reader owns the screen); a tone can time an input, not just locate a thing;
+  timbre repeating the pan channel.
+  ⛔ **Open, not folded:** the 120/400 pair and the ownership rule belong in
+  `docs/design/announcement-queue.md`; the audio findings wait for an input-timing screen.
+  Nothing was playtested — no game data on this host.
+  ⛔ **The PC install itself is parked and cannot finish:** `C:\Users\Devin Prater\Games\DBZ3\game`
+  holds port v1.4.2.3 (the version the mod names; 1.4.3.1 is newer and unmatched) plus Budokai 3
+  Access 1.0 installed and repaired — loader in place, keyboard controls on, sound delay reduced,
+  each confirmed in the mod's own `launch.log`. What it waits on is Xbox 360 game data
+  (`default.xex` plus the `us\` archives). The 360 store closed in 2024, so the only legal source
+  is a disc Devin dumps himself. Checker written for that day:
+  `C:\Users\Devin Prater\Games\DBZ3\check-game-files.py` (verifies against the port's
+  `baserom.md` hashes, one line per problem).
+
+- [ ] **Give OGA a file-driven RE workbench, the way Budokai 3 Access has one.** Its `cmd.txt`
+  channel is read while the game runs and offers call counters on every function, per-function
+  traces with the argument registers, hardware watchpoints that name the WRITER of an address,
+  poke, and `pad BUTTONS MS` controller injection so a menu can be walked with no hands on the
+  pad. Our equivalents are split across the PPSSPP WebSocket debugger, BizHawk Lua and one-off
+  `scripts/*-live-addresses.mjs`; the piece we lack is one channel the blind player can drive
+  WHILE playing. See `docs/research/budokai3access-lessons.md` §6.
+
 - [x] **DBZ: Shin Budokai - Another Road (PSP) STORY MODE reader — the FIELD MODE (2026-10-08).**
   Another Road's story mode is not a menu: the player flies a map and must keep the cities
   on it alive. That mode now has an adapter, `Core/dbzar_adapter.cpp` (game id `ULUS10234`),
