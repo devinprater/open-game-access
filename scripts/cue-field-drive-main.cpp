@@ -44,8 +44,18 @@ static int citiesLive(PspCore *c) {
   return n;
 }
 
+// ⛔ THE ADAPTER'S GATES, EXACTLY -- NOT A SECOND OPINION ABOUT THE SAME PROPERTY.
+// Core/dbzar_adapter.cpp's FieldIsLive() is AR_MODE == 1 AND this pointer nonzero:
+const static uint32_t FIELD_LIVE = 0x089B03E4u;   // a pointer only while the field tasks are resident
+// MEASURED: the drive's earlier test (the pointer at 0x089B02A4 reading 0x089B02A8, plus a city with
+// capacity) was satisfied at a moment when 0x089B03E4 read 0x00000000 -- cities populated, field
+// tasks not. The state written there is one the adapter refuses, and the capture harness then
+// reported "adapter not ready" about a state the PSP level reads as field data. One oracle for one
+// property, and it must be the one the thing being fed actually uses.
 static bool fieldLive(PspCore *c) {
-  return psp_debug_read(c, LIVE_PTR, 4) == LIVE_PTR + 4u && citiesLive(c) > 0;
+  return psp_debug_read(c, AR_MODE, 1) == 1 &&
+         psp_debug_read(c, FIELD_LIVE, 4) != 0 &&
+         citiesLive(c) > 0;
 }
 
 // Emulated frames, not seconds. The core paces itself, so wall clock says nothing about how far
@@ -175,12 +185,49 @@ int main(int argc, char **argv) {
     fprintf(stderr, "psp_load_rom failed: %s\n", psp_last_error(core));
     return 1;
   }
-  printf("game id: %s\n", code);
+  setvbuf(stdout, nullptr, _IOLBF, 0);   // ⛔ line buffered: a run that HANGS at exit must still
+  printf("game id: %s\n", code);         // leave its log behind, and the one that did not ran 44 h.
   if (!psp_start(core)) {
     fprintf(stderr, "psp_start failed: %s\n", psp_last_error(core));
     return 1;
   }
   report(core, "after boot");
+
+  // ---- DBZ_LOAD=<state>: skip the drive, load a savestate, and read the field's own addresses.
+  {
+    const char *load = getenv("DBZ_LOAD");
+    if (load && *load) {
+      printf("loading state %s\n", load);
+      fflush(stdout);
+      if (!psp_load_state(core, load)) {
+        fprintf(stderr, "psp_load_state FAILED: %s\n", psp_last_error(core));
+        psp_stop(core);
+        psp_destroy(core);
+        return 1;
+      }
+      for (int i = 0; i < 10; i++) idle(core, 1);   // a frame must run: Ready() is read DURING one
+      const bool live = fieldLive(core);
+      printf("after load: arMode=%u cities=%d livePtr=%u fieldLiveWord=0x%08X\n",
+             psp_debug_read(core, AR_MODE, 1), citiesLive(core),
+             psp_debug_read(core, LIVE_PTR, 4),
+             psp_debug_read(core, FIELD_LIVE, 4));
+      for (int i = 0; i < CITY_COUNT; i++) {
+        const uint32_t b = CITY_BASE + (uint32_t) i * CITY_STRIDE;
+        printf("  city[%d] id=0x%04x cur=%u max=%u\n", i,
+               psp_debug_read(core, b, 2), psp_debug_read(core, b + 0x20u, 4),
+               psp_debug_read(core, b + CITY_MAX, 4));
+      }
+      // The ADAPTER's own gates, not this tool's: FIELD_LIVE = 0x089B03E4 (a pointer while the
+      // field tasks are resident; 0 everywhere else) and the mode byte 0x089B51D4.
+      printf("adapter's own gates: AR_MODE=%u FIELD_LIVE=0x%08X\n",
+             psp_debug_read(core, 0x089B51D4u, 1), psp_debug_read(core, 0x089B03E4u, 4));
+      printf("fieldLive=%d\n", live ? 1 : 0);
+      fflush(stdout);
+      psp_stop(core);
+      psp_destroy(core);
+      return live ? 0 : 1;
+    }
+  }
 
   if (getenv("DBZ_PROBE")) {
     idle(core, 9000);                 // let the game reach whatever it does on its own
@@ -229,12 +276,20 @@ int main(int argc, char **argv) {
   // screen of the mode, and the menu words read fill-pattern garbage outside a menu (0x09090909).
   // So the arrival test is the ADAPTER'S OWN GATE, and the log records a screen hash per press so a
   // failed run says WHERE it stopped rather than only that it did not arrive.
-  static const int kScript[] = {
+  // ⛔ TWO PHASES, CHOSEN BY THE RAM THE ADAPTER ITSELF READS. MEASURED: with CIRCLE in one
+  // rotation, the drive clears the "Save completed" dialog and reaches Another Road inside 60k
+  // frames (arMode=1, live pointer correct) -- and then stops, cities=0, because CIRCLE is also
+  // BACK, and pressing it every sixteen presses bounces the drive out of the very menus it needs
+  // to walk. So: CIRCLE while the mode flag is clear, and never once it is set.
+  static const int kEnterMode[] = {
+      PSP_BTN_CIRCLE, PSP_BTN_CROSS, PSP_BTN_CROSS, PSP_BTN_START, PSP_BTN_CROSS};
+  static const int kInMode[] = {
       PSP_BTN_CROSS, PSP_BTN_CROSS, PSP_BTN_DOWN,     PSP_BTN_CROSS,
-      PSP_BTN_START, PSP_BTN_CROSS, PSP_BTN_UP,       PSP_BTN_CROSS,
-      PSP_BTN_CROSS, PSP_BTN_TRIANGLE, PSP_BTN_RIGHT, PSP_BTN_CROSS,
-      PSP_BTN_START, PSP_BTN_CROSS, PSP_BTN_LEFT,     PSP_BTN_CROSS};
-  const int kScriptLen = (int)(sizeof(kScript) / sizeof(kScript[0]));
+      PSP_BTN_RIGHT, PSP_BTN_CROSS, PSP_BTN_UP,       PSP_BTN_CROSS,
+      PSP_BTN_LEFT,  PSP_BTN_CROSS, PSP_BTN_START,    PSP_BTN_CROSS,
+      PSP_BTN_TRIANGLE, PSP_BTN_CROSS};
+  const int kEnterLen = (int)(sizeof(kEnterMode) / sizeof(kEnterMode[0]));
+  const int kInLen    = (int)(sizeof(kInMode) / sizeof(kInMode[0]));
   const bool fuzz = getenv("DBZ_FUZZ") != nullptr;
   const long maxFrames = getenv("DBZ_MAXFRAMES") ? atol(getenv("DBZ_MAXFRAMES")) : 60000;
   unsigned long lcg = 20261011UL;          // deterministic on purpose: a rerun repeats the search
@@ -248,15 +303,18 @@ int main(int argc, char **argv) {
     if (fuzz) {
       lcg = lcg * 6364136223846793005UL + 1442695040888963407UL;
       const unsigned r = (unsigned)((lcg >> 33) % 100u);
-      if      (r < 45) btn = PSP_BTN_CROSS;      // the cutscene chain is the long part, so CROSS
-      else if (r < 60) btn = PSP_BTN_START;      // heavy; the rest explores the cursor screens
+      if      (r < 40) btn = PSP_BTN_CROSS;      // the cutscene chain is the long part, so CROSS
+      else if (r < 55) btn = PSP_BTN_START;      // heavy; the rest explores the cursor screens
+      else if (r < 62) btn = PSP_BTN_CIRCLE;     // ⛔ MEASURED: this is the one that mattered
       else if (r < 70) btn = PSP_BTN_DOWN;
-      else if (r < 80) btn = PSP_BTN_UP;
-      else if (r < 88) btn = PSP_BTN_RIGHT;
-      else if (r < 94) btn = PSP_BTN_LEFT;
+      else if (r < 78) btn = PSP_BTN_UP;
+      else if (r < 86) btn = PSP_BTN_RIGHT;
+      else if (r < 92) btn = PSP_BTN_LEFT;
       else             btn = PSP_BTN_TRIANGLE;
+    } else if (psp_debug_read(core, AR_MODE, 1) == 0) {
+      btn = kEnterMode[presses % kEnterLen];          // dialogs and the way into the mode
     } else {
-      btn = kScript[presses % kScriptLen];
+      btn = kInMode[presses % kInLen];                // the story chain, without CIRCLE
     }
     const unsigned long h0 = frameHash(core);
     tap(core, btn, 6);
@@ -268,8 +326,18 @@ int main(int argc, char **argv) {
       // on a frozen frame with no picture of it: dump it once, on the first declaration of stuck,
       // so a failed run leaves evidence a person can look at instead of another forty-minute rerun.
       if (stuck == 7) {
+        // ⛔ A SCREEN THAT IGNORES EVERY PRESS IS USUALLY A DIALOG WAITING FOR ITS OWN BUTTON.
+        // MEASURED: both earlier attempts died on the game's "Save completed" dialog, whose only
+        // control is "○ Back" -- a button neither run ever pressed. So: dump the frame for the
+        // record, then press CIRCLE (PSP's back/cancel) and START, and give the game room to move.
         const char *dir = getenv("DBZ_FRAMES");
         if (dir && *dir) dumpFrame(core, dir, g_frames);
+        printf("  [frame %ld] stuck -- trying CIRCLE then START to dismiss a dialog\n", g_frames);
+        fflush(stdout);
+        tap(core, PSP_BTN_CIRCLE, 8); idle(core, 90);
+        tap(core, PSP_BTN_START, 8);  idle(core, 90);
+        tap(core, PSP_BTN_CIRCLE, 8); idle(core, 90);
+        stuck = 0;
       }
     } else {
       stuck = 0;

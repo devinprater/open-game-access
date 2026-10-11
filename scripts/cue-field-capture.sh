@@ -321,7 +321,54 @@ int main(int argc, char** argv) {
         }
         printf("FIELD REACHED\n");
     }
-    if (!poke_adapter_ready(core)) { fprintf(stderr, "adapter not ready\n"); return 1; }
+    // ⛔ A LOADED STATE IS NOT AN EVALUATED ONE. The adapter answers Ready() from RAM it reads
+    // while frames run, so asking straight after poke_load_state reports "adapter not ready" on a
+    // state that was written at FIELD LIVE -- measured on the first state this build ever wrote
+    // (arMode set, 3 cities). Give it frames before believing the answer.
+    if (!poke_adapter_ready(core)) {
+        for (int i = 0; i < 10 && !poke_adapter_ready(core); i++) poke_frame(core);
+    }
+    if (!poke_adapter_ready(core)) {
+        // ⛔ ASK THE ADAPTER, DO NOT GUESS. The state is proven good at the PSP level, so print what
+        // the ADAPTER reads on this very core: its own dump command, and the field snapshot's code.
+        int k0 = -1, live0 = -1; float b0 = -1, d0 = -1;
+        int rc = poke_cue_snapshot_field(core, &k0, &b0, &d0, &live0);
+        printf("diagnostic: cue_snapshot rc=%d kind=%d bearing=%.1f dist=%.1f live=%d\n",
+               rc, k0, b0, d0, live0);
+        printf("diagnostic: DumpState command returned %d\n",
+               (int) poke_command(core, (int) oga::Command::DumpState));
+        fflush(stdout);
+        fprintf(stderr, "adapter not ready\n");
+        return 1;
+    }
+    printf("adapter ready: %s\n", poke_adapter_id(core) ? poke_adapter_id(core) : "?");
+
+    // Optional: one PPM of the field this render is taken from. Same rule as everywhere else here --
+    // the FILL call first, the pointer second, and a picture is what settles a claim about a screen.
+    {
+        const char *shot = getenv("DBZ_SHOT");
+        if (shot && *shot) {
+            int sw = 0, sh = 0;
+            if (poke_framebuffer(core, POKE_SCREEN_TOP, &sw, &sh) && sw > 0) {
+                const uint8_t *px = poke_framebuffer_ptr(core, POKE_SCREEN_TOP);
+                FILE *sf = px ? fopen(shot, "wb") : nullptr;
+                if (sf) {
+                    fprintf(sf, "P6\n%d %d\n255\n", sw, sh);
+                    for (int y = 0; y < sh; y++) {
+                        const uint8_t *row = px + (size_t) y * sw * 4;
+                        for (int x = 0; x < sw; x++) {
+                            uint8_t rgb[3] = {row[x * 4 + 0], row[x * 4 + 1], row[x * 4 + 2]};
+                            fwrite(rgb, 1, 3, sf);
+                        }
+                    }
+                    fclose(sf);
+                    printf("wrote frame %s (%dx%d)\n", shot, sw, sh);
+                } else {
+                    printf("no frame to dump (%s)\n", shot);
+                }
+            }
+        }
+    }
     if (saveTo && *saveTo) {
         printf("saved state: %s\n", poke_save_state(core, saveTo) ? "yes" : "no");
     }
@@ -329,8 +376,29 @@ int main(int argc, char** argv) {
     // ---- what does the reader say about this state? ask it, then let the press settle ----
     (void) poke_command(core, (int)oga::Command::WhereAmI);
     for (int i = 0; i < 30; i++) poke_frame(core);
-    (void) poke_command(core, (int)oga::Command::NextEnemy);   // the city list / target ring
+    (void) poke_command(core, (int)oga::Command::NextEnemy);   // the city list
     for (int i = 0; i < 30; i++) poke_frame(core);
+
+    // ⛔ THE RING MUST BE POINTED AT SOMETHING, OR THE CUE IS SILENT BY DESIGN. CueSnapshotFill
+    // returns false when the selected kind has no members AND no enemy can be found -- measured on
+    // the field moment this harness renders: three cities, no enemy (team >= 2), so the first render
+    // came out with 0 cued frames and proved nothing about the cue. Stepping the ring is what the
+    // player's own prev/next presses do in the app, so do that here and say which step engaged.
+    {
+        int engagedAt = -1;
+        for (int step = 0; step <= 4 && engagedAt < 0; step++) {
+            int k = 0, lv = 0; float b = 0, d = 0;
+            int rc = poke_cue_snapshot_field(core, &k, &b, &d, &lv);
+            printf("ring step %d: snapshot rc=%d kind=%d bearing=%.1f dist=%.1f live=%d\n",
+                   step, rc, k, b, d, lv);
+            if (rc != 0 && k != 0) { engagedAt = step; break; }
+            (void) poke_command(core, (int) oga::Command::MenuNext);
+            for (int i = 0; i < 10; i++) poke_frame(core);
+        }
+        printf("ring engaged at step %d%s\n", engagedAt,
+               engagedAt < 0 ? "  (NOTHING TO CUE -- the render below is silence, by design)" : "");
+        fflush(stdout);
+    }
     printf("spoken so far: %d lines\n", (int) g_spoken.size());
 
     std::vector<int16_t> pcm;
@@ -339,6 +407,8 @@ int main(int argc, char** argv) {
     std::vector<int16_t> buf(kFrameSamples * 2);
     int lastKind = -999;
     long peaks = 0;                 // envelope rises, for the rate check
+    double g_env = 0.0;             // one-pole envelope, see the counter below
+    const double kEnvAlpha25Hz = 1.0 - exp(-2.0 * M_PI * 25.0 / kRate);
     int lastLoud = 0;
     double sumPan = 0; int nPan = 0;
     double firstFreq = 0, lastFreq = 0;
@@ -402,9 +472,13 @@ int main(int argc, char** argv) {
             if (r > 32767) r = 32767; if (r < -32768) r = -32768;
             buf[i * 2] = (int16_t)l; buf[i * 2 + 1] = (int16_t)r;
 
-            // envelope-rise counting for the rate check: a rise from quiet to loud is a pulse
+            // ⛔ SMOOTH BEFORE COUNTING, OR YOU COUNT THE CARRIER. A threshold on the raw signal
+            // is crossed twice per cycle: the first render reported 143.6 "pulses" per second for a
+            // cue whose rate is 1.2-9 Hz, which is the 780 Hz city timbre being counted. One-pole
+            // envelope at ~25 Hz leaves only the pulse shape, and the count is then the pulse rate.
             double amp = fabs(mixL) + fabs(mixR);
-            int loud = amp > 0.002 ? 1 : 0;
+            g_env += (amp - g_env) * kEnvAlpha25Hz;
+            int loud = g_env > 0.05 ? 1 : 0;
             if (loud && !lastLoud) peaks++;
             lastLoud = loud;
         }
