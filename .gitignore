@@ -6,6 +6,20 @@
 # image, a save file, or a patch derived from one.
 # ============================================================
 
+# --- decompiler output: NEVER in this repo -------------------------------
+# Ghidra/IDA output IS the game's own code, translated. It is not covered by the
+# ROM rules above because it is text, and it is exactly what gets a repository
+# DMCA'd. Keep it in a local store (~/oga-private/ghidra-output/) and keep the
+# DERIVED FACTS here instead -- an address, a size, a caller count and a sentence
+# in our own words, which is what *-DECOMP_INDEX.md already is.
+# Why: docs/research/agent-harness-lessons.md.
+*-decomp.txt
+*-decomp/
+*-disasm.txt
+api-base-report.txt
+ghidra-out/
+# -------------------------------------------------------------------------
+
 # --- game data: ROMs, BIOS, firmware, saves, savestates ---
 *.nds
 *.dsi

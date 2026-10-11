@@ -56,3 +56,7 @@ Write `ANSWER3.md` in THIS directory (`C:\Users\Devin Prater\oga-trace-codex\`):
 answers with vaddr citations, plus ONE ranked recommendation for where a live-memory scan should
 look for the selection state on the pause menu and on the mode-select menu. No ROMs needed, no
 emulator needed — static analysis only.
+
+> **Note 2026-10-11.** `consumer-chain-report.txt` and the other small
+> decompiler dumps named here now live at `~/oga-private/ghidra-output/`, outside
+> the public repo. See `docs/research/agent-harness-lessons.md`.

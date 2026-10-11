@@ -67,3 +67,9 @@ from `trunks10/final.ppst`, hover RRR -> cursor (3,2) = False Hero (338 HP).
   `PSP_CLASSIC=1` (classic interp) or a full `-DMASKED_PSP_MEMORY`
   rebuild (needs ALL TUs rebuilt together — ODR).
 - `scripts/psp-enemy-probe` honors `PSP_CLASSIC=1`.
+
+
+> **Note 2026-10-11.** `api-base-report.txt` (the Ghidra dump this section
+> quotes) has been moved out of the public repository. It is at
+> `~/oga-private/ghidra-output/api-base-report.txt`. The facts stay here; the
+> decompiler output does not. See `docs/research/agent-harness-lessons.md`.
