@@ -161,3 +161,77 @@ Devin asked for the move, and it is done:
   (`dbzar-decomp/` on 2026-10-06, `api-base-report.txt` on 2026-09-18). Removing them
   from history is a `git filter-repo` plus force-push, which rewrites history for
   anyone who has cloned. Not done, and not doing it silently.
+---
+
+## The audit it prompted: can our gates notice their own weakening? (2026-10-11)
+
+Devin asked for this directly — "check adapters for weakenings". Method: run all
+thirteen CI gate commands on the dev box, read the harnesses themselves, count the
+assertion sites in every host test, and map each registered adapter to whatever holds
+it up.
+
+### What holds up, measured
+
+- Thirteen CI steps, twelve pass here. The one that "failed" is `gb-gate-mutations.sh`
+  exiting 2 with "the tree is not clean; refusing to mutate it" — three untracked
+  `scripts/cue-field-*.sh` from an earlier session. That refusal is correct behaviour,
+  not a broken gate.
+- Every host test binary returns non-zero on failure and every wrapper propagates the
+  status. No silent-pass path was found: `announce`, `dbzar`, `dissidia`, `dq9`, `gba`,
+  `osk_echo` and `systems` all `return failures ? 1 : 0`.
+- The sabotage suites did what they claim. `announce-test.sh` reported
+  `ok SABOTAGE_UNKNOWN_IS_DS / SABOTAGE_GB_GETS_XY / SABOTAGE_ALL_CLAIM_RUNNABLE — test
+  fails as required`; `systems-test.sh` ends `67 checks, 0 failed` after the same trick.
+  ⭐ **Per rule, this is a stronger oracle than the decompilation project's byte
+  compare**: it proves the rule is load-bearing, not only that the bytes match.
+
+### ⛔ What nothing held up
+
+**A test could lose checks and stay green.** Nothing in CI read the check counts the
+suites print — not one step, not one wrapper. Twenty deleted `CHECK`s in
+`dissidia_adapter_test.cpp` would have read exactly like twenty kept ones. That is the
+same hole the decompilation project fell into from the other side: their agents edited
+the comparison script until their own functions passed, and the fix was to stop
+trusting a file that lives in the same tree as the thing it judges.
+
+Fix, committed: `scripts/test-strength-check.py` plus a baseline
+(`scripts/test-strength-baseline.txt`, one assertion floor per host test) and a CI step.
+Lowering a floor takes an edit to the baseline in the same commit, which is visible in
+review. The gate was proven the house way — three real `ok(...)` checks were deleted
+from `Core/dbzar_adapter_test.cpp` and it failed (`54 assertion sites, baseline says
+57`), then the tree was restored. Its own `--self-test` fails on a raised floor, so a
+green step is not a step that cannot fail.
+
+⭐ One measured surprise worth keeping: the first version of that mutation proof
+**passed**, because my "deleted" comment still contained the call it deleted
+(`/* deleted: ok("...") */`) and the gate counts text. Deleted code that is quoted in
+the explanation of its own deletion still counts. Say it as `/* check deleted */`.
+
+**Still not done, and named as such: the oracle is not hash-pinned.** The strength gate
+catches deleted checks; it does not catch rewritten ones, and nothing stops one commit
+from loosening `Core/` and its test together. The decompilation project's actual fix was
+CI hashing the verifier against a value kept **outside the tree** (a GitHub Actions
+secret). Ours is cheap to add and needs Devin's hands on the repo settings —
+`gh secret set ORACLE_HASHES` with the sha256 of `scripts/adapter-tests.sh`,
+`announce-test.sh`, `cue-sink-test.sh`, `registerexec-kind-test.sh`,
+`gba-exec-hook-test.sh`, `audit-speech-test.sh`, `path-check-test.sh` and the
+`Core/*_test.cpp` set, then a workflow step that recomputes and compares, and fails when
+the secret is absent rather than printing a green SKIP. Not done because a CI change
+that goes red until a human sets a secret is a decision, not a chore.
+
+### Coverage holes, stated plainly
+
+- **`nes_adapter.cpp` and `n64_adapter.cpp` have no host test.** Both are deliberate
+  seams that refuse (119 and 61 lines: no core, so no reader; the N64 one also records
+  that blind-starship is a decompilation *port*, not a mod, so it cannot transfer).
+  Their behaviour is one boolean, and that boolean is asserted at registry level by
+  `Core/systems_test.cpp` (67 checks) rather than at the adapter. Risk is low, the gap is
+  real: an adapter that started returning `true` would be caught by the registry test,
+  not by anything named after the adapter.
+- `kFireEmblemShadowDragon` has no `Core/*_test.cpp` either; its evidence lives in
+  `scripts/fe-access.sh` and the frame sweeps, which need the ROM library and therefore
+  never run in CI. That is the documented trade for a ROM-driven gate.
+- `gb-gate-mutations.sh` exits **0** when the gate it mutates SKIPs on machines without
+  mGBA and the ROM library — it prints the SKIP loudly, and CI's step comment says this
+  is deliberate ("rather than reporting a pass it did not earn"). Worth knowing that on
+  a runner, a green here means the mutation proof did not run.

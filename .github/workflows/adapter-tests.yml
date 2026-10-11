@@ -25,6 +25,18 @@ jobs:
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@v4
+      # ⛔ A TEST THAT LOSES ITS CHECKS STILL PASSES. Every other step here proves the
+      # adapters behave; nothing proved the tests still check anything, so twenty deleted
+      # CHECKs read exactly like twenty kept ones: green. This one counts the assertion
+      # call sites in scripts/test-strength-baseline.txt and fails when a file drops below
+      # its recorded floor. Lowering a floor takes an edit to that file in the same commit,
+      # which is visible in review -- the deliberate second step, which is the point.
+      # The self-test proves the gate can fail, and the reasoning is in
+      # docs/research/agent-harness-lessons.md.
+      - name: Host tests still carry their checks (gate + self-test)
+        run: |
+          python3 scripts/test-strength-check.py
+          python3 scripts/test-strength-check.py --self-test
       - name: Run standalone adapter tests
         run: bash scripts/adapter-tests.sh
       - name: Announcement queue (tests + sabotage verification)

@@ -1,0 +1,17 @@
+# test-strength-baseline.txt -- the assertion floor for every adapter host test.
+#
+# <path>  <minimum assertion call sites>
+#
+# scripts/test-strength-check.py fails when a file drops below its number. Lowering a
+# number is how you delete a check on purpose; it belongs in the same commit, so the
+# reviewer sees it. Do not lower one to make a red build green.
+#
+# Rewrite with:  python3 scripts/test-strength-check.py --update
+Core/announce_test.cpp          78
+Core/dbz_adapter_test.cpp       18
+Core/dbzar_adapter_test.cpp     57
+Core/dissidia_adapter_test.cpp  204
+Core/dq9_adapter_test.cpp       27
+Core/gba_adapter_test.cpp       19
+Core/osk_echo_test.cpp          49
+Core/systems_test.cpp           34
