@@ -165,17 +165,27 @@ Devin asked for the move, and it is done:
 
 ## The audit it prompted: can our gates notice their own weakening? (2026-10-11)
 
-Devin asked for this directly — "check adapters for weakenings". Method: run all
-thirteen CI gate commands on the dev box, read the harnesses themselves, count the
-assertion sites in every host test, and map each registered adapter to whatever holds
-it up.
+Devin asked for this directly — "check adapters for weakenings". Method: run every
+gate command that can run on this box, read the harnesses themselves, count the
+themselves, count the assertion sites in every host test, and map each registered
+adapter to whatever holds it up. Then let the push that carried the audit run the
+whole workflow and read every step's own conclusion back.
 
 ### What holds up, measured
 
-- Thirteen CI steps, twelve pass here. The one that "failed" is `gb-gate-mutations.sh`
-  exiting 2 with "the tree is not clean; refusing to mutate it" — three untracked
-  `scripts/cue-field-*.sh` from an earlier session. That refusal is correct behaviour,
-  not a broken gate.
+- Eight gate commands run here, and seven pass. The two that did not are the
+  interesting pair:
+  - `cue-sink-test.sh` **SKIPPED** — "no Lua interpreter found". A green step that
+    verified nothing: the exact trap this document warns about two sections down, found
+    in my own audit. CI installs Lua 5.4, so the step really runs there.
+  - `gb-gate-mutations.sh` exited 2 with "the tree is not clean; refusing to mutate it"
+    — three untracked `scripts/cue-field-*.sh` from an earlier session. That refusal is
+    correct behaviour, not a broken gate; re-run with those parked, it caught all three
+    bugs and the clean tree passed.
+- ⭐ **The push that carried this audit ran the whole workflow: all 18 gate steps
+  success**, read back one at a time from `gh run view --json jobs`, not from the
+  banner. Thirteen was a wrong number in the first draft of this section, and so was
+  "twelve pass here" — say what you ran.
 - Every host test binary returns non-zero on failure and every wrapper propagates the
   status. No silent-pass path was found: `announce`, `dbzar`, `dissidia`, `dq9`, `gba`,
   `osk_echo` and `systems` all `return failures ? 1 : 0`.
