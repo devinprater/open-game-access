@@ -156,11 +156,20 @@ Devin asked for the move, and it is done:
   back. A policy note was added to the `.gitignore` header, next to the ROM rules.
 - The facts stayed: `*-DECOMP_INDEX.md` and the research documents are untouched, and
   the two docs that pointed at a moved file now say where it went.
-- ⛔ **Still in the git history.** These files are deleted from the tip of `main`, not
-  from history; a public clone can still fetch the commits that added them
-  (`dbzar-decomp/` on 2026-10-06, `api-base-report.txt` on 2026-09-18). Removing them
-  from history is a `git filter-repo` plus force-push, which rewrites history for
-  anyone who has cloned. Not done, and not doing it silently.
+- ✅ **Gone from history as well (2026-10-11).** Devin's call, and he took it: nobody else uses
+  the repo (0 forks). `git filter-repo --invert-paths` over the six paths, then a force-push of every
+  branch and every tag. Verified three ways, and none of them by reading the local clone: no ref can
+  reach any of the six paths (`git log --all -- <path>` empty for each), no object in
+  `git rev-list --all --objects` names them, and the GitHub API answers `absent` for each of them on
+  `main`. The rewrite moved `main` from `a5ad3b1` to `218f80b` and rewrote the tags from v0.6.5 on, so
+  those tags now name different commits; releases still resolve by tag name, and the removed files
+  were never in a build path, so the artifacts are unaffected.
+  ⛔ **A rewrite removes REACHABILITY, NOT OBJECTS.** Asked for the old blob by SHA, GitHub still
+  serves it: `api-base-report.txt` (`ae7fca8…`) came back as 4,270,026 bytes from `git/blobs`, and the
+  old commits answer too. GitHub prunes unreachable objects on its own schedule; for material like
+  this the reliable route is a purge request to GitHub Support naming the repo and the blob/commit
+  SHAs. Pre-rewrite copies are kept at `~/oga-backup-20261011-130208.bundle` and
+  `~/oga-mirror-backup-20261011-130208.git` — private, and never to be pushed anywhere.
 ---
 
 ## The audit it prompted: can our gates notice their own weakening? (2026-10-11)
