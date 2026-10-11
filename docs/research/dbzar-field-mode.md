@@ -87,6 +87,12 @@ number the game itself does not act on.
 - **A field-mode audio beacon.** In battle the project has a lock-on cue contract; field mode
   has no equivalent agreed, so the adapter ships no cue rather than inventing one.
 
+  ✅ **DONE AND RENDERED (2026-10-11).** The adapter reports a field snapshot
+  (`poke_cue_snapshot_field`, kind/bearing/distance), `CueSynth.updateFieldBeacon`
+  encodes it, and `scripts/cue-field-capture.sh` renders it over real gameplay
+  audio — numbers, the five harness bugs it took, and what is still open are in
+  `dbzar-field-cue.md`.
+
 ## ⭐ THE FIELD IS REACHABLE — the route, and what it cost to find
 
 Chapter 1's route, measured by pressing with a RAM dump after each step:

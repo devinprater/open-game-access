@@ -2,6 +2,20 @@
 
 ## Product work
 
+- [x] **The field-mode CUE RENDERS — the first audio proof of the radar (2026-10-11).**
+  `scripts/cue-field-drive.sh` drives the game into the story field through the real PSP ABI and
+  writes a savestate THIS build wrote (7,414 frames); `scripts/cue-field-capture.sh` loads it, flies
+  a circle, mixes the beacon into the game's own audio. Measured: 458,640 frames / 14.0 s, kind=2
+  (CITY), 780 Hz timbre, mean pan +0.497 over 840 cued frames, 20 pulse rises in 14 s = 1.43/s,
+  which is the encoder's own arithmetic for a target 4268 units away clamped at FIELD_FAR (1.2 Hz).
+  Checked against the bytes: Goertzel 246.9 at 780 Hz, 16.8 at 520 Hz, 2.2 at 1000 Hz.
+  ⭐ **Five bugs, four of them in the harnesses** — the game's "Save completed" dialog wants CIRCLE
+  and no run pressed it; two liveness oracles disagreed and the drive's was the wrong one; a
+  readiness check ran before a single frame; the pulse counter counted the carrier; and a 44-hour
+  orphan process was found still running. Full write-up: `docs/research/dbzar-field-cue.md`.
+  ⛔ **OPEN, not pretended otherwise:** only the FAR end of the distance scale is exercised, the
+  damage bands still need an enemy to attack a city, and no device has ever played the cue.
+
 - [x] **Budokai 3 Access (native PC port) studied and written up (2026-10-10).**
   `docs/research/budokai3access-lessons.md`. Source reading of
   `BlindChallengerX/Budokai3Access` v1.0 (C, MIT, released 2026-10-10), a screen reader mod for
