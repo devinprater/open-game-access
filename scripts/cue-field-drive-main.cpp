@@ -87,6 +87,35 @@ static unsigned long frameHash(PspCore *c) {
   return hsh;
 }
 
+// Dump the visible frame as a PPM. Cheap, and it is the only instrument that works when the
+// reader has nothing to say: outside the field the DBZ reader answers nothing at all, so speech
+// cannot tell a menu from a hang. scripts/ppm2png.py turns these into images that can be looked at.
+// ⛔ The FILL call must come first: psp_framebuffer stages the pixels and the pointer accessor
+// returns them, so calling the pointer first returns null and this writes nothing.
+static void dumpFrame(PspCore *c, const char *dir, long idx) {
+  int w = 0, h = 0;
+  if (!psp_framebuffer(c, &w, &h) || w <= 0 || h <= 0) return;
+  const unsigned char *px = psp_framebuffer_ptr(c);
+  if (!px) { printf("  dump %ld: fill ok but no pixels\n", idx); return; }
+  char path[512];
+  snprintf(path, sizeof path, "%s/f%06ld.ppm", dir, idx);
+  FILE *f = fopen(path, "wb");
+  if (!f) { printf("  dump %ld: cannot write %s\n", idx, path); return; }
+  fprintf(f, "P6\n%d %d\n255\n", w, h);
+  long lit = 0;
+  for (int y = 0; y < h; y++) {
+    const unsigned char *s = px + (size_t) y * w * 4;
+    for (int x = 0; x < w; x++) {
+      unsigned char rgb[3] = {s[x * 4 + 0], s[x * 4 + 1], s[x * 4 + 2]};
+      fwrite(rgb, 1, 3, f);
+      if (rgb[0] > 24 || rgb[1] > 24 || rgb[2] > 24) lit++;
+    }
+  }
+  fclose(f);
+  printf("  dumped %s (%dx%d, %ld lit px)\n", path, w, h, lit);
+  fflush(stdout);
+}
+
 // Which button does ANYTHING? Count distinct screens over a long window, one button per window.
 // A running intro/demo keeps changing; a screen that accepts input settles, or moves the game on.
 static int probeButtons(PspCore *c) {
@@ -233,7 +262,18 @@ int main(int argc, char **argv) {
     tap(core, btn, 6);
     idle(core, 40);
     presses++;
-    if (frameHash(core) == h0) stuck++; else stuck = 0;
+    if (frameHash(core) == h0) {
+      stuck++;
+      // ⛔ THE SCREEN IS THE ONE THING THE RAM CANNOT DESCRIBE HERE. Both previous attempts ended
+      // on a frozen frame with no picture of it: dump it once, on the first declaration of stuck,
+      // so a failed run leaves evidence a person can look at instead of another forty-minute rerun.
+      if (stuck == 7) {
+        const char *dir = getenv("DBZ_FRAMES");
+        if (dir && *dir) dumpFrame(core, dir, g_frames);
+      }
+    } else {
+      stuck = 0;
+    }
     if (presses % 20 == 0 || fieldLive(core)) {
       printf("  press %4ld  frame %6ld  %sscreen %lu  arMode=%u live=%u cities=%d\n",
              presses, g_frames, stuck > 6 ? "STUCK " : "", frameHash(core),
