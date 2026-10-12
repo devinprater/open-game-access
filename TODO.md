@@ -2,6 +2,28 @@
 
 ## Product work
 
+- [x] **The static recompilation landscape surveyed (2026-10-12).**
+  `docs/research/static-recompilation-landscape.md`. Trigger: Devin pointed at
+  `snuri00/psp-web-recomp` and `snuri00/ps2-web-recomp`. Findings that change our reasoning:
+  every major console now has a translator (N64Recomp, XenonRecomp, DolRecomp, PSXRecomp,
+  PS2Recomp, PSPRecomp, xboxrecomp, 3dsrecomp, SwitchRecomp) and most have shipped
+  player-facing ports; the third family from `budokai3access-lessons.md` is now the busiest
+  area of new work. ⭐ **The mechanism difference is the point:** every framework has an
+  intended door for outside code and the door is a *named symbol*, not a RAM address —
+  XenonRecomp's override-with-weak-linking plus mid-asm hooks, N64Recomp's single-file
+  output mode (its `patches.func`/`patches.hook` are documented as still unimplemented),
+  Zelda64Recomp's `RecompModTool` mod framework, PS2Recomp's game-override hooks, and
+  BlueWake's option-sites and hook sites. ⭐ **And the JIT wall is not a wall on this route:**
+  `chrissotraidis/bluewake` runs Wind Waker natively on iPhone (arm64, iOS 17+, no JIT,
+  Dolphin-derived runtime, player builds their own IPA from their own disc) — the same wall
+  our PSP, DS and N64 cores hit under interpreters. Price: one game at a time.
+  ⛔ **No screen-reader mod exists for any recompiled port except Budokai 3 Access**; the
+  other accessibility mods in this space (blind-starship, Diablo Access, Silence) attach to
+  source ports. ⛔ **Nothing was run** — repo notes are read, not measured. One sweep
+  returned 114 matching repositories, many machine-generated and single-author: judge by
+  running, never by stars. Watch trigger: a second BlueWake Builder profile would prove the
+  pipeline reusable for other games.
+
 - [x] **The field-mode CUE RENDERS — the first audio proof of the radar (2026-10-11).**
   `scripts/cue-field-drive.sh` drives the game into the story field through the real PSP ABI and
   writes a savestate THIS build wrote (7,414 frames); `scripts/cue-field-capture.sh` loads it, flies

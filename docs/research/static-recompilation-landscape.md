@@ -1,0 +1,239 @@
+# The static recompilation landscape — what it is now, and what it is worth to us
+
+Surveyed 2026-10-12, after `docs/research/psp-web-recomp.md`. **Nothing here was run.**
+Sources are the GitHub API (repo metadata, trees, commit logs) and each project's own
+README and docs. Everything unverified is marked. Where a claim rests only on a
+project's marketing text, it says so.
+
+Trigger: Devin pointed at `snuri00/psp-web-recomp`, then `snuri00/ps2-web-recomp`, and
+asked what else is like them.
+
+---
+
+## 1. The family count changed again
+
+`accessibility-mods-survey.md` found two families (in-process .NET mods; emulator-driven
+readers) and `budokai3access-lessons.md` added a third (native code inside a statically
+recompiled console binary). Since that write-up, static recompilation stopped being a
+curiosity: **every major console now has a translator, most have a runtime, and several
+have shipped player-facing ports.** The third family is now the largest body of new work
+in this space, and its defining property is the one we lack — a game's own functions
+exist by name in the compiled program.
+
+Recompilation in one sentence, for the record: the console's executable is translated
+into C or C++ ahead of time, then compiled for the host. No interpreter loop, no JIT, no
+memory image to scan. The translator is generic per console; **the runtime is per game.**
+
+## 2. The translators and runtimes
+
+Console, project, license, size, and what it actually is:
+
+**N64**
+- `N64Recomp/N64Recomp` — MIT, ~8.2k stars. MIPS → C. The project that started this wave;
+  explicitly inspired by the IDO static recompiler and jamulator (NES).
+- `N64Recomp/N64ModernRuntime` — GPL-3.0, ~180 stars. The runtime for recompiled or
+  traditionally ported N64 games.
+- `Mr-Wiseguy/Zelda64Recomp` — GPL-3.0, ~7.4k stars. Majora's Mask shipped, Ocarina of
+  Time "soon", "extensive mod support", mod template and modding documentation, RT64 renderer.
+- ~15 more N64 game ports (Banjo, Star Fox 64, Mario Kart 64, Quest 64, Goemon, DKC,
+  Mega Man 64, Pokémon Snap, Dinosaur Planet …) confirmed by name in the sweep.
+
+**Xbox 360**
+- `hedge-dev/XenonRecomp` — MIT, ~6.5k stars. PowerPC → C++, with `XenosRecomp` for shaders.
+- `hedge-dev/UnleashedRecomp` — GPL-3.0, ~5.2k stars. Sonic Unleashed, Windows and Linux,
+  March 2025, mod loader, installer, options menu.
+- `rexglue/rexglue-sdk` — ~1.0k stars. "Xbox 360 Recompilation Runtime and Toolkit", built
+  on Xenia's foundations. **This is the runtime Budokai 3 Access hooks.**
+- `rexdex`'s older recompiler is credited as the first of its kind.
+
+**GameCube / Wii / Wii U**
+- `ExpansionPak/DolRecomp` — GPL-3.0, ~190 stars. The GameCube/Wii PowerPC → C translator,
+  used by BlueWake with an added `--option-sites` mode.
+- `chrissotraidis/bluewake` — GPL-3.0, ~330 stars, created 2026-09-28. **Wind Waker running
+  natively on iPhone, iPad, Mac and Windows.** Dolphin-derived runtime for graphics, audio,
+  memory cards and timing; translated code needs no JIT (rare instructions fall back to an
+  interpreter); iOS 17+, A13 or newer; the player builds their own IPA on their own Mac from
+  their own disc. Has a Builder with per-game profiles, and hook sites.
+- `elliotttate/Wind-Waker-Recomp` — the earlier fork it merged from (GPL-3.0, ~525 stars).
+- `ZeldaWWHDRecomp/ZeldaWWHDRecomp` — Wii U Wind Waker HD, releases to v0.2.7 (2026-10-08),
+  Windows/macOS/Linux. Requires the player's own Wii U dump plus the console's own keys.
+- `BlackLineInteractive/NWiiRecomp` — GameCube/Wii toolkit, ~29 stars, unverified.
+
+**PlayStation 1**
+- `RetroPortingToolKit/psxrecomp` — the busiest of the cluster (~296 stars, 72 forks);
+  "Part of the R.A.I.D. community". `TombaRecomp` is its applied example (boots to gameplay
+  with menus, FMV, audio, movement, combat — the project's claim).
+- `Creesic/psxrecomp` and `seedlord/psxrecomp` — same design, different lineages (one
+  recompiles the real SCPH1001 BIOS and runs it as the kernel, no HLE layer). License
+  PolyForm Noncommercial. Its README states Claude Code was used as a pair programmer.
+- `Mr-Wiseguy/PS1Recomp` is credited as an influence.
+
+**PlayStation 2**
+- `ran-j/PS2Recomp` — GPL-3.0, ~3.4k stars. Experimental, R5900 → C++ with
+  `ps2xAnalyzer` / `ps2xRecomp` / `ps2xRuntime` / `ps2xIOP` and a TOML config.
+- `snuri00/ps2-web-recomp` — MIT, ~210 stars, created 2026-10-07 (sibling of the PSP one).
+  Gran Turismo 4 then God of War II, per the README; EE HLE kernel, the game's own IRX
+  modules run on an R3000 interpreter, vector-unit microprograms compiled ahead of time,
+  Graphics Synthesizer as WebGPU compute shaders, memory card in browser storage, native
+  SDL runner as well as the page. Claims GoW II went ISO → page in 3.5 minutes.
+
+**PSP**
+- `jessicanataliagta/PSPRecomp` — MIT, ~220 stars. The framework `psp-web-recomp` patches.
+- `snuri00/psp-web-recomp` — MIT, ~250 stars (see the earlier note).
+
+**Original Xbox, 3DS, Switch**
+- `sp00nznet/xboxrecomp` — MIT, ~183 stars, x86 XBE → Windows executables.
+- `fearkov/3dsrecomp` — ~33 stars, ARM → C, created 2026-09-25, unverified.
+- `bgyss/SwitchRecomp` — ~66 stars, Rust, "preservation-focused research", last pushed March 2026.
+- `snuri00/ps3recomp` — 1 star, "static recompilation runtime libraries for PS3 titles",
+  unverified and probably a placeholder.
+
+## 3. Where our code can attach — the part that matters
+
+Every framework in §2 has an intended place for outside code, and the place is a named
+symbol rather than a RAM address. This is the mechanism difference from our emulator route.
+
+- **XenonRecomp** documents the richest set, in its README: a translated function can be
+  aliased to an "implementation function" and the original marked weakly linked, so a port
+  can override a whole function while still calling the original, **and** "mid-asm hooks"
+  can be inserted at specific instruction addresses, with chosen guest registers passed as
+  arguments and optional return/jump control (`return`, `return_on_true`,
+  `jump_address`, `after_instruction`). Declared in the port's TOML.
+- **N64Recomp** offers "single file output mode", which emits every function into one file
+  so a linker can substitute patched versions of named functions. Its `[[patches.func]]`
+  and `[[patches.hook]]` TOML sections are documented as **planned but unimplemented** —
+  do not plan around them. In practice the N64 mod API is the one Zelda64Recomp ships:
+  mods are built with `RecompModTool` into `.nrm` files and the template's own README says
+  the framework covers "how to write function patches and perform interop between mods".
+- **ReXGlue** is the runtime under Budokai 3 Access, whose mechanism we already wrote up:
+  hooks placed at guest PowerPC addresses resolved through the runtime's host pointer table.
+- **BlueWake / DolRecomp** has two mechanisms worth naming. `--option-sites` translates each
+  changed instruction both ways and picks a variant at run time from an option flag, so one
+  translation serves every combination of settings. Its own mods are native C functions
+  (`runtime/host/src/game_options.c`) "called from hook sites" in the translated code — for
+  example turning the wind through the game's own `dKyw_tact_wind_set`. Code mods are
+  compiled into the app, not loaded beside it.
+- **PS2Recomp** has "Game Override Hooks": runtime-side, build-scoped patch modules, for
+  per-game behaviour without polluting the global runtime.
+- **snuri00's two web ports** have no hook story at all — but the host side is small,
+  readable C++ (HLE kernel, GE renderer, devices), which is what we would be editing.
+
+⛔ What is missing everywhere except Budokai 3 Access: **nothing reads state for a player.**
+The hooks exist so ports can add features. Nobody has pointed them at speech.
+
+## 4. The accessibility state of this scene
+
+Searched, not exhaustively: GitHub repo and code search, AudioGames forum, and the
+projects' own docs.
+
+- **Budokai 3 Access** (`BlindChallengerX/Budokai3Access`, C, MIT, 2026-10-10) — on a
+  ReXGlue port. Already written up.
+- **blind-starship** (`ohylli/blind-starship`) — a fork of the StarFox 64 *decompilation*
+  port, speech through Prism, spatial cues through Steam Audio, gameplay limited to
+  training mode. Already written up.
+- **Diablo Access** (`mojsior/diablo-access`) — new to us. A mod for **DevilutionX**, the
+  Diablo source port: NVDA/JAWS through Tolk on Windows and speech-dispatcher on Linux,
+  proximity cues for items, monsters, doors and chests, a tracker that speaks the target
+  and directions, autowalk to tracked characters in town, an HP warning that speeds up as
+  health falls, automatic monster-name announcement in attack range. The author states he
+  is not a programmer and built it with Codex.
+- **Silence — Accessibility mod** (`Lirin111/Silence---Accessibility-mod`) — a mod for a
+  commercial 2D game, controller-first, hotspot cycling, and the author reports completing
+  the game blind.
+
+⛔ **No screen-reader mod exists for any statically recompiled port other than Budokai 3
+Access.** Three of the four accessibility mods above attach to *source ports* or to native
+PC games, which is the older, softer route: the code is there to read, but the port itself
+is a project somebody else already finished.
+
+## 5. What this does to our own plan
+
+`docs/plans/emulator-agnostic-shell.md` records N64 as "needs a recompiler … ARM64 iOS
+gives no JIT entitlement, so this is interpreter-or-nothing on sideloads", and PS2, GameCube
+and Wii as "not soon". Recompilation changes the reason those rows are red:
+
+- **The JIT wall is not a wall on this route.** BlueWake runs a GameCube game natively on
+  an iPhone with no JIT, because the game is translated ahead of time and compiled for
+  arm64. That is the same wall our PSP, DS and N64 cores hit. It applies to every console
+  we run under an interpreter today.
+- **But the price is one game at a time.** The translator is generic; the runtime, the HLE
+  kernel and the per-title fixes are not. Two PSP titles, two PS2 titles, one GameCube
+  title, one Xbox 360 title. Our PPSSPP core runs any PSP game and our adapters already
+  read Dissidia through it.
+- **Rule this implies:** take the recompiled route only when a port already exists for a
+  game Devin wants, or when the console cannot be made to run acceptably on the target at
+  all. Otherwise the emulator plus a reader stays cheaper, because the reader is the only
+  part we would have had to write either way.
+
+Per console, one line each:
+
+- **N64** — the plan's blocker is real, and this route removes it; Zelda64Recomp is the
+  worked example of a mod API we could build a reader on. Per game, and only for games that
+  have a port.
+- **GameCube / Wii** — BlueWake proves the target (iOS arm64, own disc, own IPA). One game.
+- **Wii U** — ZeldaWWHDRecomp exists; requires console keys. Not our route.
+- **PS1 / PS2** — translators exist and are young; PS2Recomp is explicitly experimental.
+  Not near term for us, but this is the first time the row is not a hard no.
+- **PSP** — PPSSPP stays the general core; a recompiled core would be a per-game port.
+- **Original Xbox / 3DS / Switch** — no change; research-grade.
+
+## 6. What is worth taking now, without a new project
+
+1. **The hook designs, as a design vocabulary.** XenonRecomp's mid-asm hook and
+   override-with-weak-linking model, ReXGlue's guest-address/host-table discipline, and
+   BlueWake's option-sites are three worked answers to "how does our code meet the game's
+   own code". Our adapter seam has a query shape and no push shape
+   (`accessibility-mods-survey.md` §2a already flags this); these are reference designs for
+   the push shape.
+2. **The headless harness shape** from `psp-web-recomp` / `ps2-web-recomp`: scripted input
+   by exact frame number, frame dumps, per-frame primitive dumps, `--wav` capture of the
+   audio mix, syscall tracing, guest-thread listing, a spin watchdog. Our PSP harnesses
+   drive through savestates; this is a cleaner loop and it needs no save.
+3. **Diablo Access's cue set** as design material: proximity cue per category, a tracker
+   that speaks the target and the direction to it, autowalk to a tracked thing, and a
+   health warning that changes pace rather than repeating a word.
+4. **The standalone ATRAC3+ decoder** vendored in `psp-web-recomp` (PPSSPP's, pinned commit).
+5. **Nothing else.** No code of theirs is worth vendoring into a phone app.
+
+## 7. Watch list, each with the trigger that makes it matter
+
+- **BlueWake's Builder profiles** — if a *second* game profile appears, the pipeline is
+  proven reusable rather than a Wind Waker-shaped one-off. That is the moment a GameCube
+  reader becomes a real option instead of a fantasy.
+- **ReXGlue + new "Access" mods** — Budokai 3 Access is the only precedent; a second one
+  would make hooking recompiled ports a pattern we can plan around.
+- **N64Recomp's `patches.func` / `patches.hook`** — currently unimplemented; when they land,
+  a reader mod for any N64 port gets a supported door instead of a linker trick.
+- **PS2Recomp / PSXRecomp reaching a playable title we want** — then the PS1/PS2 rows move.
+- **`snuri00/ps3recomp`** — runtime libraries only, unverified.
+
+## 8. Two honest warnings
+
+- **This scene is now saturated with machine-generated single-author repositories.** One
+  sweep returned 114 unique matches, many created within days, several with no license, and
+  a large number that are one person's experiment with a confident README. Star counts in
+  this space track novelty and hype rather than proof — the PSXRecomp README markets itself
+  with how fast it was built and with what tooling. **Judge these projects by running them,
+  never by their stars or their prose.** Our own two notes on `snuri00`'s pair rest on
+  READMEs, and are marked as such.
+- **The output is a translation of somebody's game code.** The projects say so themselves:
+  BlueWake refuses to write an IPA inside its own repository, and both web-recomp projects
+  say the generated C++ and WASM belong to the game's owners and must stay on the machine
+  that built them. That is exactly our ROM rule, one step further along: we may build these
+  things locally from Devin's own discs and must never publish them.
+
+## 9. Bounded experiments, cheapest first
+
+1. **Read, cost zero.** XenonRecomp's hook documentation plus one ReXGlue-based port's
+   patch files, and BlueWake's `docs/MODS.md` and `docs/BUILDER.md`, as reference material
+   for a hook-based reader design note. No game data needed.
+2. **The PSP runner on a game we already read.** Build `psp-web-recomp`'s headless native
+   runner for Dissidia Final Fantasy (`ULUS10437`, Devin's own disc) and find out whether a
+   recompiled build boots far enough to be worth hooking. It answers "is this route real
+   for us" with a measurement, and it needs no accessibility work to answer.
+3. **BlueWake on Devin's own Wind Waker disc.** The build needs an Apple Silicon Mac,
+   Xcode, and **25 GB free** — which the Mac build host does not currently have. Parked for
+   that reason alone, and worth asking about later rather than now.
+
+⛔ **Unverified:** none of the above was run on this host. The PSP and PS2 web-recomp
+projects' performance and compatibility claims come from their READMEs.
