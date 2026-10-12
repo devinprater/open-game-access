@@ -249,3 +249,72 @@ Per console, one line each:
 
 ⛔ **Unverified:** none of the above was run on this host. The PSP and PS2 web-recomp
 projects' performance and compatibility claims come from their READMEs.
+
+## 10. The Hacker News thread around the PS2 port (read 2026-10-12)
+
+`news.ycombinator.com/item?id=50052251` — Show HN for `snuri00/ps2-web-recomp`, 202 points,
+108 comments, the author posting as `deadxwarrior`. Devin asked for the links in it. New to us:
+
+- `cretz/vitaslop` (MIT, Rust, published 2026-07-11, ~10 stars) — **a PlayStation Vita
+  emulator in a browser tab** at `cretz.github.io/vitaslop`, with the ARM-to-WASM transpiler
+  itself compiled to WebAssembly. WebGPU, JSPI, shared memory and OPFS required, which means
+  desktop and Android Chrome/Edge; **mobile Safari and mobile Firefox are explicitly not
+  there yet**. The player adds their own games and they stay in the browser. Early: homebrew
+  works, "some commercial games boot and play".
+- `arcanite24/pinyon-shift` (BSD-3-Clause, ~390 stars) — Forza Horizon (Xbox 360) recompiled
+  natively for Windows, Linux, Steam Deck and Apple silicon, with an Android alpha, built by
+  the player from their own disc.
+- `fangamesdb.com/consoles/xbox-360.html` — a catalogue of Xbox 360 recomp ports;
+  `thegamingemporium.com` tracks the scene.
+- `item?id=49991243` — the same treatment for the PSP project, when God of War was the news.
+- A commenter is recompiling PS2 into Go rather than C++ to get SIMD support, aiming at a
+  standalone player.
+
+Author's own figures, worth keeping: the recompiler is ordinary C++ and builds for
+WebAssembly easily, but **compiling its output is the heavy part — God of War II comes out
+around 670k lines of C++** — and the cleaner design would be emitting WebAssembly directly
+instead of going through a C++ compiler. He wrote it to play his own dumps over a VPN from
+his own machine, and says plainly that hosting such a build publicly is not legal.
+
+⛔ **A public URL cannot carry the game.** Any page holding translated game code is
+distributing a game. Both web-recomp projects and BlueWake say the generated code belongs to
+the game's owners and must stay on the machine that produced it. A public web address is only
+legitimate when the player supplies their own disc and the translation happens on their own
+machine — which is exactly the shape `vitaslop` took, with the transpiler itself running in
+the browser.
+
+## 11. Effort: recompile plus a reader, against an adapter
+
+Devin's question: would recompiling a game and adding an accessibility mod be harder than
+writing an adapter the way we do now? **Yes, decisively — because recompiling means doing the
+emulator's job ourselves, per game, and then still writing the reader.** Three layers:
+
+- **Make the game run at all.** The PSP web profile's host is **424 KB of C++ across 19 files**
+  (`ge.cpp` 79 KB, `ge_gl.cpp` 75 KB, `kernel.cpp` 53 KB, `savedata.cpp`, `io.cpp`,
+  `devices.cpp`, `atrac.cpp`, `sas.cpp`, `pgd.cpp`, `mpeg.cpp`, `webfs.cpp` …) for **one
+  console**, before any per-title fix. And the per-title fixes are real: the first God of War
+  needed DRM decryption for one file, several syscalls and a lighting fix; the second needed a
+  hardware timer, two recompiler bugs, a culling fix, a boot path and a scratchpad DMA mode.
+  Then there is the compile itself — 670k lines of generated C++ for God of War II.
+- **Read the game.** Our adapters: Dissidia 1,877 lines, Another Road 780, DQ9 509, GBA 291,
+  DBZ 280, FE 179, NES 119 — about 4,100 lines in total, on top of a Ghidra map (6,551
+  functions for one PSP title) and live RAM verification. This work does not disappear on the
+  recompiled route; only the addresses become names.
+- **The app.** Speech, the announcement queue, braille, input bridging, the readers' UI. We
+  already have it. A browser build has no equivalent to any of it.
+
+So the comparison is not "adapter versus mod". It is "adapter on a core somebody else
+maintains" against "our own per-game core, plus the adapter, plus the front end". PPSSPP,
+mGBA, melonDS and Mesen are the part we never pay for today.
+
+**Where recompilation wins anyway:** a console with no viable core on the target. N64 on iOS
+is the case our own plan names, because there is no JIT entitlement; GameCube and PS2 on a
+phone are the others. There the adapter route is not more expensive, it is unavailable.
+
+**On web distribution specifically:** a URL is easier to hand out than a sideload, no
+re-signing and no Mac, and the scene is moving that way (`vitaslop`, Forza Horizon's Android
+alpha). But for Devin it costs exactly the things he uses: **the web has no braille API**, so
+three braille displays are unserved; speech becomes `speechSynthesis` rather than VoiceOver or
+NVDA; the announcement queue and every reader would need a second front end; and mobile Safari
+lacks the WebGPU/JSPI/shared-memory support these pages need, so the phone, which is his main
+target, is the weakest browser. And it cannot be hosted with the game in it (§10).
