@@ -298,8 +298,13 @@ emulator's job ourselves, per game, and then still writing the reader.** Three l
   Then there is the compile itself — 670k lines of generated C++ for God of War II.
 - **Read the game.** Our adapters: Dissidia 1,877 lines, Another Road 780, DQ9 509, GBA 291,
   DBZ 280, FE 179, NES 119 — about 4,100 lines in total, on top of a Ghidra map (6,551
-  functions for one PSP title) and live RAM verification. This work does not disappear on the
-  recompiled route; only the addresses become names.
+  functions for one PSP title) and live RAM verification. **Do not read that small code size
+  as a small job:** the Dissidia adapter's 1,877 lines sit on a **9,656-line reverse-engineering
+  write-up in 124 sections**, 11 of whose claims are still marked unverified, and the repo's
+  reverse-engineering and research docs together are 28,102 lines. The code is small; the
+  knowledge under it is the work. **This work does not disappear on the recompiled route —
+  only the addresses become names.** A symbol tells you where a function is, never what its
+  fields mean, which is the same information we dig out of live RAM today.
 - **The app.** Speech, the announcement queue, braille, input bridging, the readers' UI. We
   already have it. A browser build has no equivalent to any of it.
 
