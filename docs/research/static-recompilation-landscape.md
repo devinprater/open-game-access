@@ -160,6 +160,17 @@ and Wii as "not soon". Recompilation changes the reason those rows are red:
   kernel and the per-title fixes are not. Two PSP titles, two PS2 titles, one GameCube
   title, one Xbox 360 title. Our PPSSPP core runs any PSP game and our adapters already
   read Dissidia through it.
+- **And on the recompiled route the game is CODE, so it is one app per game.** BlueWake's
+  own architecture doc states it: every target produces two components, a platform
+  application and a translated game module, and the application loads the module into its
+  own process from its own bundle. On iOS that module is compiled in at build time (the
+  0.2.0 build record measures Wind Waker's at **502 MB**, 822 objects, and the project's
+  publish gate refuses to release an IPA containing it as personal-only), which is why the
+  player builds their own. An emulator inverts this — its core is generic and the game is
+  only data, so one app holds any number of games. Ten games recompiled is ten apps, each
+  built from its own disc, each hundreds of megabytes, each separately signed. Nothing in
+  the technique forbids one app carrying several modules and picking between them; no
+  project has done it, and it would not change the per-game port work.
 - **Rule this implies:** take the recompiled route only when a port already exists for a
   game Devin wants, or when the console cannot be made to run acceptably on the target at
   all. Otherwise the emulator plus a reader stays cheaper, because the reader is the only
@@ -170,7 +181,8 @@ Per console, one line each:
 - **N64** — the plan's blocker is real, and this route removes it; Zelda64Recomp is the
   worked example of a mod API we could build a reader on. Per game, and only for games that
   have a port.
-- **GameCube / Wii** — BlueWake proves the target (iOS arm64, own disc, own IPA). One game.
+- **GameCube / Wii** — BlueWake proves the target (iOS arm64, own disc, own IPA). One game,
+  and one app for it; a second game means a second build and a second IPA.
 - **Wii U** — ZeldaWWHDRecomp exists; requires console keys. Not our route.
 - **PS1 / PS2** — translators exist and are young; PS2Recomp is explicitly experimental.
   Not near term for us, but this is the first time the row is not a hard no.
