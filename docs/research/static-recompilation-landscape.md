@@ -312,6 +312,34 @@ So the comparison is not "adapter versus mod". It is "adapter on a core somebody
 maintains" against "our own per-game core, plus the adapter, plus the front end". PPSSPP,
 mGBA, melonDS and Mesen are the part we never pay for today.
 
+### But the reader cost cuts the other way, and our own note proves it
+
+Of the Dissidia write-up's **124 sections, 31 have a correction, a falsification, a negative
+result or an instrument fault in their own title.** There are **five separate instrument
+faults**, an *intermittent* debugger input injection that invalidated a whole batch of
+"D-pad inert" conclusions, two frozen-emulator false negatives, a delivery check that passed
+trivially on an animating scene, and retractions of sections 17, 70 and 106. "Instrument
+fault" appears 7 times in the file, "artefact" 12, "frozen" 31. **A large share of those 9,656
+lines is spent fighting our own measuring instrument rather than on the game.**
+
+That is precisely the class of work a recompiled build deletes. The game's own code is
+readable, the hook target is a named function, and there is no debugger connection to lie to
+us: no input-injection gate to validate, no watchpoint that freezes the emulator, no question
+of whether the press arrived.
+
+**So the honest answer to "would recompiling be easier" is conditional, and the condition is
+not the technique:**
+
+- **A port already exists for the game** (BlueWake, a shipped recompiled title): hooking it
+  is *easier* than writing an adapter. The translation and the runtime are already paid for,
+  discovery collapses to reading the generated code, and what remains is the reader and the
+  app.
+- **No port exists**: the port is the price of admission, and it dwarfs the reader.
+
+The question to ask about a game is therefore **"does a port exist for it"**, not "which
+technique is better" — and that is what turns the watch list in §7 from curiosity into a
+trigger.
+
 **Where recompilation wins anyway:** a console with no viable core on the target. N64 on iOS
 is the case our own plan names, because there is no JIT entitlement; GameCube and PS2 on a
 phone are the others. There the adapter route is not more expensive, it is unavailable.
