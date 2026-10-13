@@ -133,14 +133,25 @@ shape. Two asymmetries worth recording — an *empty* content path was rejected
 ⛔ **`structuredContent` is absent from this build**, which confirms the request is
 not merged. Do not write a client against it yet.
 
-## A defect on the second transport
+## The stdio transport is fine; the client that first reported it was not
 
-The `--mcp-stdio` transport answers `initialize`, `ping` and `tools/call`
-normally, but **`tools/list` answers nothing and leaves the connection wedged** —
-every later `tools/call` on that session also goes unanswered, though the process
-stays alive. Over HTTP the same call returns 200 with 23,277 bytes and 80 tools.
-Since asking for the tool list first is what every MCP client does, stdio is not
-usable as it stands. **Use HTTP.**
+An earlier version of this note reported `--mcp-stdio` as broken: `tools/list`
+answering nothing and the session wedging afterwards. **That was wrong.** The
+fault was in the client, not in RetroArch: it read the child's replies with
+`Popen(bufsize=0)` and `readline()`. Same build, same requests, three readers:
+
+| reader | bytes returned | `tools/list` answered | next call answered |
+|---|---|---|---|
+| `bufsize=0` + `readline()` | 217 | no | no |
+| `bufsize=0` + `os.read()` | 23,639 | yes | yes |
+| default (buffered) + `readline()` | 23,639 | yes | yes |
+
+⭐ The transport carries a 23 KB reply over stdio perfectly well. The failing
+combination is a **raw, unbuffered** pipe read with `readline()`, which stalls on
+a line larger than the reads it is issuing — so the 217 bytes that did arrive
+were the small replies, and everything after the big one looked like a dead
+session. **If you write a stdio client, use a buffered reader or read raw bytes;
+never `bufsize=0` plus `readline()`.** There is nothing here to report upstream.
 
 Also measured: the server gives a deferred command **ten seconds** to finish, so
 `RUN_FRAMES 300` succeeds and `RUN_FRAMES 900` answers `The command did not answer

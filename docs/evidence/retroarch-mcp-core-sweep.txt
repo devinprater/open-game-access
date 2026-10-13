@@ -97,10 +97,9 @@ Notes on the raw output above
   "The command did not answer in time." The server gives a deferred command ten
   seconds.
 
-- The stdio transport (--mcp-stdio) answered initialize, ping and tools/call, but
-  tools/list answered nothing and wedged the session; every later tools/call on
-  it also went unanswered. HTTP returned 200 with 23,277 bytes and 80 tools for
-  the same call.
+- The stdio transport (--mcp-stdio) was WRONGLY reported in an earlier revision of
+  this file as broken. It is not. The client that found it "broken" read the child
+  with Popen(bufsize=0) + readline(); see the correction section at the end.
 
 - The config that produced the successful runs (minimal, hand-written):
 
@@ -125,3 +124,28 @@ RetroArch started directly on melonDS + Advance Wars - Dual Strike; no BIOS pres
 {"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"GET_MEMORY_MAP ERROR the running core has no memory map"}],"isError":true}}
 ### READ_CORE_MEMORY 02000000 x16
 {"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"READ_CORE_MEMORY 2000000 -1 no memory map defined\n"}],"isError":true}}
+
+==============================================================================
+CORRECTION (added after this file was first committed)
+==============================================================================
+
+The note above claiming the stdio transport answers nothing for tools/list was
+wrong, and so was the same claim in docs/retroarch-mcp-harness.md. The defect was
+in the test client. Raw output of the test that settled it, same build, same
+requests, three readers:
+
+A) bufsize=0 + readline:
+bufsize=0 readline     bytes=217     id1=True  id2=True  id3=False id4=False  (bytes before GET_STATUS: 217)
+B) bufsize=0 + os.read:
+bufsize=0 os.read      bytes=23639   id1=True  id2=True  id3=True  id4=True   (bytes before GET_STATUS: 23495)
+C) default + readline:
+default readline       bytes=23639   id1=True  id2=True  id3=True  id4=True   (bytes before GET_STATUS: 23495)
+
+id3 is the tools/list reply; id4 is a GET_STATUS sent after it. With a raw
+unbuffered readline the big reply never completes and the session looks dead;
+with os.read, or with any buffered reader, the whole 23,639 bytes arrive and both
+replies are answered. The transport was never at fault.
+
+Scripts left on Devin's machine: stdio_ab_test.py (this A/B/C),
+mcp_pipe_bytes_test.py (byte-level read), stdio_transport_test.py (stdout to a
+file, which also answered everything).
