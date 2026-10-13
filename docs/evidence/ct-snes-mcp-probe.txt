@@ -134,3 +134,64 @@ idle 300 frames:   0 bytes changed  []
 DOWN press 1:       3 bytes changed  ['0x2', '0x54', '0x81']
 DOWN press 2:       5 bytes changed  ['0x0', '0x1', '0x2', '0xc0', '0xc1']
 DOWN press 3:       8 bytes changed  ['0x0', '0x1', '0x2', '0x54', '0x55', '0x81', '0xc0', '0xc1']
+
+==============================================================================
+Probe 6 - control-lock confirmation (2026-10-13). Output of ct_probe7.py
+(the gate readout through the drive), then ct_wait.py (the wait-out and the
+live gate/position read in Crono house).
+==============================================================================
+
+--- ct7.out (drive with gates)
+LOAD: LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/SNES/Chrono Trigger (USA).sfc
+drive 00  ctx=0x0 loc=0xb1 011F=01 0162=00 0138=00
+drive 01  ctx=0x0 loc=0xb1 011F=01 0162=00 0138=00
+drive 02  ctx=0x0 loc=0xb1 011F=01 0162=00 0138=00
+drive 03  ctx=0x0 loc=0x0 011F=01 0162=00 0138=00
+drive 04  ctx=0x5 loc=0x0 011F=01 0162=00 0138=00
+drive 05  ctx=0x7f loc=0x0 011F=01 0162=00 0138=00
+drive 06  ctx=0x1d loc=0x0 011F=01 0162=00 0138=00
+drive 07  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 08  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 09  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 10  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 11  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 12  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 13  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 14  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 15  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 16  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 17  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 18  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 19  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 20  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+drive 21  ctx=0x0 loc=0xf0 011F=01 0162=00 0138=00
+-- did not reach loc 02; stopping
+
+--- ct8.out + ct9.out (wait-out, then live gates and trials)
+start: ctx=0x0 loc=0xf 011F=00 0162=00 0138=00 0120=01 0215=0B 0D76=07
+wait 02 (  31s)  ctx=0x0 loc=0xf 011F=00 0162=00 0138=00 0215=0B
+wait 05 (  74s)  ctx=0x0 loc=0xf 011F=00 0162=00 0138=00 0215=0B
+wait 08 ( 118s)  ctx=0x0 loc=0xf 011F=00 0162=00 0138=00 0215=00
+wait 11 ( 162s)  ctx=0x0 loc=0xf 011F=00 0162=00 0138=00 0215=00
+wait 14 ( 194s)  ctx=0x0 loc=0x2 011F=01 0162=00 0138=00 0215=00
+-- reached Crono's house: loc=0x2 ctx=0x0
+-- not in loc 02 live; stopping before the control test
+start: ctx=0x1 loc=0x2 011F=00 0162=00 0138=00 0120=01 0215=00 0D76=07
+wait 02 (  32s)  ctx=0x1 loc=0x2 011F=00 0162=00 0138=00 0215=00
+-- reached Crono's house: loc=0x2 ctx=0x1
+ctx now 0x1
+
+SAVE_STATE_SLOT 1: SAVE_STATE_SLOT 1
+
+=== in Crono's house ===
+on arrival           ctx=0x1 loc=0x2 | 011F=00 0162=00 0138=00 0120=01 0215=00 0217=07 0F03=03 0D76=07 | idx=02 pos=1A80,08FF | old 0102/0103=08/08
+idle 480         low 32 changed ['0x153', '0x158', '0x1c1', '0x1cd', '0x1ce', '0x1d6', '0x1d7', '0x400'] | obj  0 changed []
+  after idle 480     ctx=0x1 loc=0x2 | 011F=00 0162=00 0138=00 0120=01 0215=00 0217=07 0F03=03 0D76=07 | idx=02 pos=1A80,08FF | old 0102/0103=08/08
+DOWN 480         low 21 changed ['0x158', '0x1c1', '0x1cd', '0x1ce', '0x1d6', '0x1d7', '0x400', '0x401'] | obj  0 changed []
+  after DOWN 480     ctx=0x1 loc=0x2 | 011F=00 0162=00 0138=00 0120=01 0215=00 0217=07 0F03=03 0D76=07 | idx=02 pos=1A80,08FF | old 0102/0103=08/08
+RIGHT 480        low 36 changed ['0x153', '0x158', '0x159', '0x1c1', '0x1c2', '0x1cd', '0x1ce', '0x1d6'] | obj  0 changed []
+  after RIGHT 480    ctx=0x1 loc=0x2 | 011F=00 0162=00 0138=00 0120=01 0215=00 0217=07 0F03=03 0D76=07 | idx=02 pos=1A80,08FF | old 0102/0103=08/08
+
+=== A presses, in case a dialogue holds control ===
+A press 1            ctx=0x1 loc=0x2 | 011F=00 0162=00 0138=00 0120=01 0215=00 0217=07 0F03=03 0D76=07 | idx=02 pos=1A80,08FF | old 0102/0103=08/08
+   *** 011F == 0: CONTROL LOCKED. This is the answer.

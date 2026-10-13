@@ -413,6 +413,19 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   still does not move in loc 02 and the `0x1800` object window changes by zero, so the
   blocker is the game's state, not the tooling. ⛔ `0x0102`/`0x0103` have never been
   moved by anything; stop calling them the player's tile position.
+  ⭐ **Probe 6 (2026-10-13) finds the actual cause: the game has CONTROL LOCKED, and
+  the addresses we were watching were the wrong pair.** `reverse-engineering/ctds/snes-verify.md`
+  (Probe 6). The disassembly (now cloned at `third-party/belthasar`, and written up in
+  `docs/research/chrono-trigger-decomp-and-recomp.md`) decodes the player controller `C0/881E`:
+  it clears the d-pad intent, then dispatches the d-pad only `if ($0162 == 0 && $011F != 0 &&
+  $0138 == 0)`. Read live in Crono's house (loc `02`, ctx `01`): **`$011F == 0`** — control
+  locked — and a direction hold moves nothing, because nothing reaches the dispatch.
+  ⭐ The real position is `$1800,X`/`$1880,X` with `X = $0197` (Crono: `$1802`/`$1882`, read
+  as `1A80,08FF`). ⛔ `$0102`/`$0103` is not the player position and never was — retire it.
+  ⭐ `$011F` is a usable control oracle for the adapter: it read `01` at the title and `00`
+  through loc `0F` and the house, so a reader can say "the game has taken control away"
+  instead of narrating a player who is not being listened to. ⛔ Still open, and open in the
+  decomp project too: **what clears `$011F`**. Not A presses, not waiting, not direction holds.
 
 ## PSP (parked, with a measured capability note)
 

@@ -153,3 +153,16 @@ of information per hour:
 4. ⛔ **Only then** return to the stuck-Crono question. If the passability data says
    tile `(8,8)` in loc `02` is walled on every side, the four earlier probes were
    never a bug at all.
+
+## Resolved by Probe 6 (2026-10-13)
+
+Item 4 of the next-steps list is answered, and not by the passability data. The
+controller disassembly in `third-party/belthasar/disasm/notes/collision.md` decodes the
+d-pad gate at `C0/8833`, and the live read in Crono's house shows `$011F == 0`: **control is
+locked**, so the d-pad is discarded before any intent is formed. `$011F` is in fact a usable
+control oracle. The player's real position is `$1800,X`/`$1880,X` (`X = $0197`), not the
+`$0102`/`$0103` pair the older notes called the tile. Detail:
+`reverse-engineering/ctds/snes-verify.md`, Probe 6.
+
+⛔ What clears `$011F` is still unknown — and the BelthasarProject notes record the same
+gap, so this is a shared edge of the reverse engineering, not an oversight of ours.

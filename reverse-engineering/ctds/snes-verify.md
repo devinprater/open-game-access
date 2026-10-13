@@ -179,3 +179,83 @@ holding the player" from "the room is walkable and something else is wrong". The
 much longer hold — 1800 frames rather than 300 — under the same control, so slow or
 blocked-in-place movement cannot hide. Only after that is it worth hunting for the
 player's real position source.
+
+## Probe 6: the freeze is a CONTROL LOCK, and the "tile" addresses were the wrong pair (2026-10-13)
+
+Tooling: RetroArch nightly + the `snes9x2010` core over MCP, plus the
+`BelthasarProject` disassembly notes, cloned to `third-party/belthasar`. Raw output:
+`docs/evidence/ct-snes-mcp-probe.txt`.
+
+### What the disassembly says
+
+`disasm/notes/collision.md` decodes the per-frame player controller at `C0/881E`,
+which runs with Direct Page `= $1D00`:
+
+```
+882C  JSR $88E5        ; seed: $1D2E = $1D2A, $1D30 = $1D2B  (carried momentum)
+882F  STZ $1D2C; STZ $1D2D   ; clear the d-pad INTENT
+8833  if ($0162 == 0 && $011F != 0 && $0138 == 0): JSR $88EE   ; <-- d-pad dispatch
+8840  if ($0120 != 0): JSR $8A6D                              ; tile collision + position
+884C  JSR $9175        ; edge clamp -> applied velocity $1D32/$1D33
+884F  JSR $99DE        ; finer map-rect clamp
+```
+
+⭐ **With `$011F == 0` the d-pad is discarded at `8833`, before any intent is formed.**
+Nothing further down the chain can matter, because nothing reaches it.
+
+### What was measured live
+
+Reached Crono's house (loc `0x02`, ctx `0x01`, the live-gameplay context) and read the
+gates and the object table:
+
+```
+on arrival   ctx=0x1 loc=0x2 | 011F=00 0162=00 0138=00 0120=01
+             0215=00 0217=07 0F03=03 0D76=07 | idx=02 pos=1A80,08FF
+             old 0102/0103 = 08/08
+idle 480     obj window 0x1800-0x19FF changed 0 bytes
+DOWN 480     obj window changed 0 bytes       011F still 00
+RIGHT 480    obj window changed 0 bytes       011F still 00
+A presses    011F still 00
+```
+
+⛔ **`$011F == 0`. Control is locked.** That is the whole cause. It is not geometry,
+not the emulator, not the script, not the input path, and not a wrong button name —
+all four of which the earlier probes ruled out one at a time, correctly, while
+looking in the wrong place.
+
+⭐ **Where the player's position actually is.** `$1800,X` and `$1880,X`, with
+`X = $0197` the player index — for Crono, `$1802`/`$1882`, read here as
+`1A80,08FF`. **Not `$0102`/`$0103`.** That pair read `08/08` again and never moved
+in any trial, in this room or at the title menu; it has never been the player's
+position. The earlier note's "tile `0x0102`/`0x0103`" is retired.
+
+⭐ **Someone else measured the same thing.** `disasm/notes/movement_pinned_open.md`
+records, independently and against the cartridge: `locked frames ($011F == 0): 169`,
+`of those, $1902/$1982 != $1D32/$1D33: 169/169`, `e.g. f0..f168: ... pos = 18A4,08FF
+(frozen)`. Same flag, same freeze, same address family — `18A4` there, `1A80` here.
+
+### What this is worth to the adapter
+
+**`$011F` is a control oracle.** It read `01` at the title screen, `00` throughout
+loc `0F` and in the house. So a reader can tell "the game has taken control away"
+from "the player is standing still", which is exactly the distinction four blind
+probes could not make. A Chrono Trigger reader should ask `$011F` first and say so,
+rather than narrating a player who is not being listened to.
+
+### Still open
+
+⛔ **What clears `$011F`.** Not A presses, not waiting, not direction holds. The
+`BelthasarProject` notes mark the identical gap: *"Why `C0/3040` is not executed while
+`$011F == 0` ... I did not disassemble the object-VM dispatch table entry that selects
+`3040`, nor watch the VM's IP for the player object across the lock boundary."*
+Next: log `$011F` across the whole opening scene, and watch the object-VM IP for the
+player object to find the moment control is handed back.
+
+### Tooling lesson, for whoever drives this next
+
+The opening runs `loc F0` for thousands of frames and needs **no input**; mashing
+Start inside the cutscene appears to delay it, while Start is required at the title.
+`RUN_FRAMES` is capped near 10 s by its deferred-reply timeout, so waiting out the
+intro costs many calls — roughly 7,000 frames from boot to the house. One read of
+4,096 bytes at `0x7E0000` covers every byte this probe needs in a single call, which
+is what makes the driving affordable.
