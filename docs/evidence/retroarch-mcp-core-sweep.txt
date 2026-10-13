@@ -113,3 +113,15 @@ Notes on the raw output above
   Default port 55357 fails on this machine: Windows reserves 55357-55456
   (Hyper-V/WSL), so the server logs "[MCP] Could not listen on
   127.0.0.1:55357" and never listens.
+
+==============================================================================
+Third pass: the DS core, re-run so the evidence covers every row of the table.
+RetroArch started directly on melonDS + Advance Wars - Dual Strike; no BIOS present.
+==============================================================================
+
+### GET_STATUS
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_STATUS PLAYING melonDS,Advance Wars - Dual Strike (USA, Australia)\n"}],"isError":false}}
+### GET_MEMORY_MAP
+{"jsonrpc":"2.0","id":2,"result":{"content":[{"type":"text","text":"GET_MEMORY_MAP ERROR the running core has no memory map"}],"isError":true}}
+### READ_CORE_MEMORY 02000000 x16
+{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"READ_CORE_MEMORY 2000000 -1 no memory map defined\n"}],"isError":true}}
