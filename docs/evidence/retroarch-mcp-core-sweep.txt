@@ -1,0 +1,115 @@
+################ GBA / mgba
+-- LOAD_CONTENT
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/GBA/Advance Guardian Heroes (USA).gba"}],"isError":false}}
+-- GET_STATUS
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_STATUS PLAYING mGBA,Advance Guardian Heroes (USA)\n"}],"isError":false}}
+-- GET_MEMORY_MAP
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"3000000\t8000\tff000000\tff8000\tsystem\trw\tlittle\t\n2000000\t40000\tff000000\tfc0000\tsystem\trw\tlittle\t\ne000000\t20000\tfffe0000\t0\tother\trw\tlittle\t\n8000000\t800000\tff800000\t0\tother\tro\tlittle\t\na000000\t800000\tff800000\t0\tother\tro\tlittle\t\nc000000\t800000\tff800000\t0\tother\tro\tlittle\t\n0\t4000\tffffc000\t0\tother\tro\tlittle\t\n6000000\t18000\tff000000\tfe0000\tother\trw\tlittle\t\n5000000\t400\tff000000\tfffc00\tother\trw\tlittle\t\n7000000\t400\tff000000\tfffc00\tother\trw\tlittle\t\n4000000\t400\tfffffc00\t0\tother\trw\tlittle\t\n"}],"isError":false}}
+
+################ NES / mesen
+-- LOAD_CONTENT
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/NES/10-Yard Fight (USA, Europe).nes"}],"isError":false}}
+-- GET_STATUS
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_STATUS PLAYING Mesen,10-Yard Fight (USA, Europe)\n"}],"isError":false}}
+-- GET_MEMORY_MAP
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"0\t100\t1f00\t0\tother\trw\tlittle\t\n100\t100\t1f00\t0\tother\trw\tlittle\t\n200\t100\t1f00\t0\tother\trw\tlittle\t\n300\t100\t1f00\t0\tother\trw\tlittle\t\n400\t100\t1f00\t0\tother\trw\tlittle\t\n500\t100\t1f00\t0\tother\trw\tlittle\t\n600\t100\t1f00\t0\tother\trw\tlittle\t\n700\t100\t1f00\t0\tother\trw\tlittle\t\n800\t100\t1f00\t0\tother\trw\tlittle\t\n900\t100\t1f00\t0\tother\trw\tlittle\t\na00\t100\t1f00\t0\tother\trw\tlittle\t\nb00\t100\t1f00\t0\tother\trw\tlittle\t\nc00\t100\t1f00\t0\tother\trw\tlittle\t\nd00\t100\t1f00\t0\tother\trw\tlittle\t\ne00\t100\t1f00\t0\tother\trw\tlittle\t\nf00\t100\t1f00\t0\tother\trw\tlittle\t\n1000\t100\t1f00\t0\tother\trw\tlittle\t\n1100\t100\t1f00\t0\tother\trw\tlittle\t\n1200\t100\t1f00\t0\tother\trw\tlittle\t\n1300\t100\t1f00\t0\tother\trw\tlittle\t\n1400\t100\t1f00\t0\tother\trw\tlittle\t\n1500\t100\t1f00\t0\tother\trw\tlittle\t\n1600\t100\t1f00\t0\tother\trw\tlittle\t\n1700\t100\t1f00\t0\tother\trw\tlittle\t\n1800\t100\t1f00\t0\tother\trw\tlittle\t\n1900\t100\t1f00\t0\tother\trw\tlittle\t\n1a00\t100\t1f00\t0\tother\trw\tlittle\t\n1b00\t100\t1f00\t0\tother\trw\tlittle\t\n1c00\t100\t1f00\t0\tother\trw\tlittle\t\n1d00\t100\t1f00\t0\tother\trw\tlittle\t\n1e00\t100\t1f00\t0\tother\trw\tlittle\t\n1f00\t100\t1f00\t0\tother\trw\tlittle\t\n"}],"isError":false}}
+
+################ Genesis / genesis_plus_gx
+-- LOAD_CONTENT
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/Genesis/Ultimate Mortal Kombat Trilogy (hack v23).bin"}],"isError":false}}
+-- GET_STATUS
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_STATUS PLAYING Genesis Plus GX,Ultimate Mortal Kombat Trilogy (hack v23)\n"}],"isError":false}}
+-- GET_MEMORY_MAP
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_MEMORY_MAP ERROR the running core has no memory map"}],"isError":true}}
+
+################ N64 / mupen64plus_next
+-- LOAD_CONTENT
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/N64/Mario Kart 64 (USA) (LodgeNet).z64"}],"isError":false}}
+-- GET_STATUS
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_STATUS PLAYING Mupen64Plus-Next,Mario Kart 64 (USA) (LodgeNet)\n"}],"isError":false}}
+-- GET_MEMORY_MAP
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"80000000\t800000\t20000000\tc0000000\tsystem\trw\tlittle\t\na0000000\t800000\t0\t0\tsystem\trw\tlittle\t\na3f00000\tfffff\t0\t0\tother\trw\tlittle\t\na4000000\tffff\t0\t0\tother\trw\tlittle\t\na4040000\tffff\t0\t0\tother\trw\tlittle\t\na4080000\tffff\t0\t0\tother\trw\tlittle\t\na4100000\tffff\t0\t0\tother\trw\tlittle\t\na4200000\tffff\t0\t0\tother\trw\tlittle\t\na4300000\tffff\t0\t0\tother\trw\tlittle\t\na4400000\tffff\t0\t0\tother\trw\tlittle\t\na4500000\tffff\t0\t0\tother\trw\tlittle\t\na4600000\tffff\t0\t0\tother\trw\tlittle\t\na4700000\tffff\t0\t0\tother\trw\tlittle\t\na4800000\tffff\t0\t0\tother\trw\tlittle\t\na8000000\t1ffff\t0\t0\tother\trw\tlittle\t\nb0000000\tbfffff\t0\t0\tother\tro\tlittle\t\nbfc00000\t7c0\t0\t0\tother\tro\tlittle\t\nbfc007c0\t40\t0\t0\tother\trw\tlittle\t\n"}],"isError":false}}
+
+################ PS1 / mednafen_psx_hw
+-- LOAD_CONTENT
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/PS1/Dead or Alive (USA).chd"}],"isError":false}}
+-- GET_STATUS
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_STATUS PLAYING Beetle PSX HW,Dead or Alive (USA)\n"}],"isError":false}}
+-- GET_MEMORY_MAP
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"0\t200000\t1fe00000\t0\tsystem\trw\tlittle\t\n1f800000\t400\t1ffffc00\t0\tsystem\trw\tlittle\t\n"}],"isError":false}}
+
+################ PSP / ppsspp
+-- LOAD_CONTENT
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/PSP/1982 - Dissidia - Final Fantasy (USA).cso"}],"isError":false}}
+-- GET_STATUS
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_STATUS PLAYING PPSSPP,1982 - Dissidia - Final Fantasy (USA)\n"}],"isError":false}}
+-- GET_MEMORY_MAP
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_MEMORY_MAP ERROR the running core has no memory map"}],"isError":true}}
+
+################ Dreamcast / flycast
+-- LOAD_CONTENT
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/Dreamcast/Power Stone v1.001 (1999)(Capcom)(US)[!][T-1201N]/Power Stone v1.001 (1999)(Capcom)(US)[!][T-1201N].gdi"}],"isError":false}}
+-- GET_STATUS
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_STATUS PLAYING Flycast,Power Stone v1.001 (1999)(Capcom)(US)[!][T-1201N]\n"}],"isError":false}}
+-- GET_MEMORY_MAP
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_MEMORY_MAP ERROR the running core has no memory map"}],"isError":true}}
+
+################ SNES / snes9x
+-- LOAD_CONTENT
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/SNES/Chrono Trigger (USA).sfc"}],"isError":false}}
+-- GET_STATUS
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_STATUS PLAYING Snes9x,Chrono Trigger (USA)\n"}],"isError":false}}
+-- GET_MEMORY_MAP
+{"jsonrpc":"2.0","id":1,"result":{"content":[{"type":"text","text":"GET_MEMORY_MAP ERROR the running core has no memory map"}],"isError":true}}
+
+################ done
+
+==============================================================================
+Second pass: confirm the four readable cores actually return bytes.
+Same session, LOAD_CONTENT then READ_CORE_MEMORY <address> 16.
+==============================================================================
+
+### NES/Mesen @0000
+LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/NES/10-Yard Fight (USA, Europe).nes
+READ_CORE_MEMORY 0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+### N64/Mupen @80000000
+LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/N64/Mario Kart 64 (USA) (LodgeNet).z64
+READ_CORE_MEMORY 80000000 0C 80 1A 3C 10 DF 5A 27 08 00 40 03 00 00 00 00
+
+### PS1/Beetle @000000
+LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/PS1/Dead or Alive (USA).chd
+READ_CORE_MEMORY 0 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+### GBA/mgba @03000000 (earlier session, same build)
+READ_CORE_MEMORY 3000000 43 79 00 2B 2C D0 01 A1 08 47 00 00 02 00 54 E3
+
+==============================================================================
+Notes on the raw output above
+==============================================================================
+
+- The GET_MEMORY_MAP replies for the four readable cores begin directly with a
+  region, not with the command name; the five failures begin with the command
+  name followed by ERROR. That is why the failures are one-liners and the
+  successes are long tab-separated lines.
+
+- RUN_FRAMES 300 answered "RUN_FRAMES 300"; RUN_FRAMES 900 answered
+  "The command did not answer in time." The server gives a deferred command ten
+  seconds.
+
+- The stdio transport (--mcp-stdio) answered initialize, ping and tools/call, but
+  tools/list answered nothing and wedged the session; every later tools/call on
+  it also went unanswered. HTTP returned 200 with 23,277 bytes and 80 tools for
+  the same call.
+
+- The config that produced the successful runs (minimal, hand-written):
+
+    mcp_server_enable = "true"
+    mcp_server_port = "54123"
+    mcp_server_bind_address = "127.0.0.1"
+    mcp_server_token = "..."
+    pause_nonactive = "false"
+
+  Default port 55357 fails on this machine: Windows reserves 55357-55456
+  (Hyper-V/WSL), so the server logs "[MCP] Could not listen on
+  127.0.0.1:55357" and never listens.

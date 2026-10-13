@@ -72,6 +72,17 @@
   pad. Our equivalents are split across the PPSSPP WebSocket debugger, BizHawk Lua and one-off
   `scripts/*-live-addresses.mjs`; the piece we lack is one channel the blind player can drive
   WHILE playing. See `docs/research/budokai3access-lessons.md` §6.
+  ⭐ **Half of it is now measured — with someone else's code, not ours.** RetroArch's new
+  MCP server (`docs/retroarch-mcp-harness.md`, evidence in
+  `docs/evidence/retroarch-mcp-core-sweep.txt`) gives controller injection with no hands on
+  the pad (`SET_INPUT`), exact frame stepping (`RUN_FRAMES`), liveness (`GET_STATUS`,
+  `GET_LOG`) and real address reads on four cores: Mesen (NES), Mupen64Plus-Next (N64),
+  Beetle PSX HW (PS1) and mGBA (GBA), each confirmed by pulling bytes out of a real address.
+  ⛔ It reads nothing on melonDS, ppsspp, snes9x, genesis_plus_gx or flycast — those
+  cores never declare a memory map — so **no existing adapter can move onto this route**;
+  the DS and PSP adapters keep their own vendored cores. The driving half is
+  frontend-level and works on every core, including those two. Next experiment if it is
+  worth one: ask Mesen the same NES addresses `nes_adapter` reads, and compare.
 
 - [x] **DBZ: Shin Budokai - Another Road (PSP) STORY MODE reader — the FIELD MODE (2026-10-08).**
   Another Road's story mode is not a menu: the player flies a map and must keep the cities
