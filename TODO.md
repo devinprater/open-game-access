@@ -447,6 +447,19 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   (`field_door_list.md`), and the map-exit test only runs on an ACCEPTED step (`C0/9CA1`,
   guarded by `$0117` bit 7). ⭐ Next: scan `$7E:3000` for the door metatiles, convert with
   `(row << 8) | col`, and walk INTO them.
+  ⚠️ **Probe 9 (2026-10-13) CORRECTS THAT: doors are not the room exit.** ⭐ The tile
+  geometry is now confirmed by the game itself: `tile = pos >> 8`, `index = (row << 8) | col`.
+  Driving Crono into tile row 7 col 0x13 made the ROM latch `$015B = 0713` and raise
+  `$0117 = 10`, the exact index I predicted. ⭐ Location 002 is a **64 x 64 tile map**
+  (wrap masks `$1D1E`/`$1D1F` = 3F/3F) with a 16 x 14 window at cols 0x10-0x1F, rows 0x01-0x0E.
+  ⭐ **Two different mechanisms, two different latch bits**: a door bump sets `$0117` bit 4
+  and only moves the door GRAPHIC (`C0/0D3E` dispatch on metatiles E6/EC/EE/FA/FC), while the
+  room transition is the map-exit scan at `C0/9CA1` under `$0117` bit 7. ⛔ No exit is
+  reachable from the bedroom pocket (cols 0x13-0x19, rows 0x06-0x0D): bit 4 fired once and was
+  consumed with no effect, bit 7 never fired in 80 polls. ⭐ Real doors, cross-validated in
+  both planes: `0829` (FA), `0C3A` (EC), `0C3B` (EE) - all outside the pocket, `0829` one
+  screen to the right on his own tile row. ⭐ `$0117` is the oracle to keep: bit 4 = door
+  bump consumed, bit 7 = transfer pending.
   📘 **Chrono Compendium surveyed — very useful** (`docs/research/chrono-compendium-findings.md`):
   it calls our control flag `ExploreModeOff` / `ExploreModeOn` (Temporal Flux command names),
   keys a room-name table by the `$7E0100` byte we already read, and supplies a live RAM map

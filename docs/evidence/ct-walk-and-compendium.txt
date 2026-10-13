@@ -129,3 +129,120 @@ state: 011F=01 loc=0002 pos=1904,099F
 === location map $7E3000 (tile indices, row 0) ===
   row0: 8B 8B 8B CD 9B 9B 9B 9B CA 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B
   row1: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+
+==============================================================================
+Probe 9 (2026-10-13) - door tiles, the latch, and the exit hunt.
+==============================================================================
+
+NOTE ON PROVENANCE. ct_doors.py, ct_door_push.py and ct_exit_hunt.py all printed to
+the terminal rather than to a file, so their output is reproduced below verbatim from
+the runs. Nothing is paraphrased. Elisions, where a run repeated itself, are marked
+"[... same line repeated ...]" and the repeat counts are given.
+
+------------------------------------------------------------------------------
+ct_doors.py - the property plane, the metatile plane, and what a direction changes
+------------------------------------------------------------------------------
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+state: 011F=01 loc=0002 0117=00 015B=0000 pos=18A4,08FF
+map wrap masks $1D1E/$1D1F = 3F / 3F
+
+=== $7E7000 property plane, bytes with bit 4 set: 26 ===
+  idx 0713  row 07 col 13   prop=50
+  idx 0829  row 08 col 29   prop=10
+  idx 0C3A  row 0C col 3A   prop=10
+  idx 0C3B  row 0C col 3B   prop=10
+  idx 0F7C  row 0F col 7C   prop=50
+  idx 0F7D  row 0F col 7D   prop=53
+  idx 107B  row 10 col 7B   prop=10
+  idx 107C  row 10 col 7C   prop=12
+  idx 107D  row 10 col 7D   prop=13
+  idx 117A  row 11 col 7A   prop=90
+  idx 117B  row 11 col 7B   prop=92
+  idx 117D  row 11 col 7D   prop=98
+  idx 1279  row 12 col 79   prop=90
+  idx 127A  row 12 col 7A   prop=92
+  idx 1379  row 13 col 79   prop=90
+  idx 1479  row 14 col 79   prop=90
+  idx 170B  row 17 col 0B   prop=10
+  idx 1713  row 17 col 13   prop=50
+  idx 1A50  row 1A col 50   prop=50
+  idx 1B4F  row 1B col 4F   prop=50
+  idx 1B50  row 1B col 50   prop=12
+  idx 1C4E  row 1C col 4E   prop=10
+  idx 1C4F  row 1C col 4F   prop=12
+  idx 1D4D  row 1D col 4D   prop=13
+  idx 1D4E  row 1D col 4E   prop=12
+  idx 1E4D  row 1E col 4D   prop=13
+
+=== $7E3000 L1 metatiles matching E6/EC/EE/FA/FC: 10 ===
+  idx 0777  row 07 col 77   id=E6
+  idx 077A  row 07 col 7A   id=E6
+  idx 083E  row 08 col 3E   id=FA
+  idx 0A7B  row 0A col 7B   id=E6
+  idx 0B0D  row 0B col 0D   id=FA
+  idx 0C3A  row 0C col 3A   id=EC
+  idx 0C3B  row 0C col 3B   id=EE
+  idx 1C3E  row 1C col 3E   id=FA
+  idx 1D17  row 1D col 17   id=EE
+  idx 1D34  row 1D col 34   id=EE
+
+=== $1D60-$1D7F (looking for the tile index the code computes) ===
+  00 00 20 00 1F 00 80 00 FF 00 02 00 02 00 3E 00 00 00 00 00 00 00 00 00 00 00 00 00 00 60 00 68
+
+(the words printed here are the player's own X and the "tentative" Y the code builds:
+ $1D70/$1D71 = X in position units, $1D72/$1D73 = the tile ahead, per the decomp's
+ "$72 = tentY +/- 0x100 by the sign of the Y velocity". The label formatting in the
+ script appended the offset to a "$1D" prefix and so printed "$1D1D60" etc; the
+ addresses are 0x1D60-0x1D7F.)
+
+=== what each direction changes ===
+  right pos 18A4,08FF -> 1904,08FF   changed $1D60:00->16 $1D66:80->84 $1D67:00->19 $1D68:FF->8F $1D69:00->08 $1D70:00->04 $1D71:00->19 $1D72:00->FF $1D73:00->09
+  down  pos 1904,08FF -> 1904,09FF   changed $1D60:16->00 $1D66:84->74 $1D68:8F->0F $1D69:08->0A $1D73:09->0A
+  left  pos 1904,09FF -> 1724,09FF   changed $1D66:74->24 $1D67:19->17 $1D68:0F->FF $1D69:0A->09 $1D70:04->24 $1D71:19->17
+  up    pos 1724,09FF -> 1724,081F   changed $1D68:FF->1F $1D69:09->08 $1D72:FF->1F $1D73:0A->07
+
+$1D70/$1D71 is the player's X position, little-endian: after the right move it reads
+1904, which is exactly pos x. $1D73 steps +1 per tile row on "down" (09->0A) and 3 rows
+on the long "up" (0A->07), matching the decomp's tentY.
+
+------------------------------------------------------------------------------
+ct_door_push.py - drive to tile (row 7, col 0x13) and press
+------------------------------------------------------------------------------
+start loc=002 tile=(row 08, col 17) pos=1724,081F 0117=00 window=10-1F/01-0E
+
+--- steering toward tile (row 07, col 13) ---
+  00 tile=(row 08, col 17) pos=1724,081F 0117=00 015B=0000 loc=002
+  01 tile=(row 08, col 13) pos=1374,087F 0117=00 015B=0000 loc=002
+  02 tile=(row 06, col 13) pos=1384,06DF 0117=00 015B=0713 loc=002
+  03 tile=(row 0D, col 13) pos=1384,0DFF 0117=00 015B=0713 loc=002
+  04 tile=(row 06, col 13) pos=1384,06DF 0117=00 015B=0713 loc=002
+  [... the 06 / 0D oscillation repeats through step 23 ...]
+
+NOTE: from step 02 onward the held direction alternates because the steering logic
+re-targets each step, and the player is confined to the col-0x13 corridor between
+rows 06 and 0D: every "down" reaches row 0D and every "up" reaches row 06. $015B
+stays 0713 for the rest of the run.
+
+--- pressing all four directions from here, watching the latch ---
+  press left  tile=(row 06, col 13) pos=1374,06EF 0117=00 015B=0713 loc=002
+  press up    tile=(row 06, col 13) pos=1384,06DF 0117=00 015B=0713 loc=002
+  press right tile=(row 06, col 13) pos=1384,06DF 0117=00 015B=0713 loc=002
+  press down  tile=(row 0D, col 13) pos=1384,0DFF 0117=00 015B=0713 loc=002
+
+end: loc=002 tile=(row 0D, col 13) pos=1384,0DFF 0117=00 015B=0713
+
+------------------------------------------------------------------------------
+ct_exit_hunt.py - press everywhere, poll the pending latch
+------------------------------------------------------------------------------
+start loc=002 tile=(row 0D, col 13) pos=1384,0DFF 0117=00
+  up rep0 tick0: 0117=10 015B=0713 loc=002 tile=(row 08, col 13)
+
+$0117 values seen while pressing: {'00': 79, '10': 1}
+end loc=002 tile=(row 06, col 13) pos=1384,06EF 0117=00 015B=0713
+
+READ THIS CAREFULLY. 0117=10 is $0117 bit 4 - the DOOR bump latch, raised by C0/9D4A
+(ORA #10) with the tile stashed at $015B. It fired exactly once in 80 polls, on the
+step that walked into tile 0x0713, and was consumed without effect: the consumer
+C0/0D3E dispatches only on metatiles E6/EC/EE/FA/FC and the metatile at
+$7E3000+0x0713 is not one of them. $0117 bit 7 (0x80) - the MAP EXIT pending bit,
+raised at C0/9D24 and tested at C0/9CA1 - never appeared at all.

@@ -446,3 +446,82 @@ them.** A bump needs an accepted step plus the bump itself, so the drive has to 
 
 ⛔ **Retired for good:** map exits in this room are not reachable by walking, and a
 direction sweep cannot find them. Read the map's door tiles; do not raster the room.
+## Probe 9 (2026-10-13) — the tile geometry is cracked, and Probe 8's door idea was WRONG
+
+**Result: the tile addressing is confirmed by the ROM's own latch, and doors are NOT
+the room transition. Correcting Probe 8 before anything is built on it.**
+
+### 1. The geometry, confirmed by the game rather than by reasoning
+
+```
+tile  = pos >> 8          (1 tile = 16 px = 0x100 position units)
+index = (row << 8) | col  (the ROM's own X)
+```
+
+Reading `$7E7000` (the tile-property plane) for bytes with **bit 4** set — the door
+flag per `C0/9D43 BIT #10` — gave 26 tiles. Driving Crono to tile row 7, col 0x13 and
+walking him into it, the ROM **latched `$015B = 0713` and raised `$0117 = 10`**:
+
+```
+start loc=002 tile=(row 0D, col 13) pos=1384,0DFF 0117=00
+  up rep0 tick0: 0117=10 015B=0713 loc=002 tile=(row 08, col 13)
+$0117 values seen while pressing: {'00': 79, '10': 1}
+```
+
+`0x0713` is exactly `(row 7 << 8) | col 0x13`. **The game computed the same index I
+predicted**, so `tile = pos >> 8` and `index = (row<<8)|col` are both right — no more
+guessing at the addressing.
+
+This map's own bounds come from the wrap masks the decomp names
+(`$1D1E`/`$1D1F = 0x3F / 0x3F`), so **location 002 is 64 x 64 tiles**, and the visible
+room window is **cols 0x10–0x1F, rows 0x01–0x0E** (16 x 14 tiles, one screen) from
+`$1D1A`–`$1D1D`. Crono at pos 1904,08FF is tile row 8, col 0x19 — inside that window.
+
+### 2. Doors and room transitions are DIFFERENT mechanisms
+
+This is the correction. Probe 8 said the way out is a door you bump. It is not.
+
+| | latch | what it does |
+|---|---|---|
+| **door bump** | `$0117` **bit 4** (`C0/9D4A ORA #10`), tile stashed at `$015B` | consumer `C0/0D3E` reads the L1 metatile at the latched tile and, on `E6`/`EC`/`EE`/`FA`/`FC`, **opens the door GRAPHIC** — `INC A / STA $7E3000,X` over a small block. Nothing more. |
+| **map exit** | `$0117` **bit 7** (`C0/9D24 ORA #80`), tested at `C0/9CA1` on an ACCEPTED step | the actual room transition. |
+
+So a door bump only moves map tiles around. The room transition has its own scan and
+its own latch bit, and neither was exercised by the door test.
+
+### 3. There is no working exit in the reachable pocket
+
+Pressing in every direction from every reachable spot, polling `$0117`:
+
+* **bit 4 fired exactly once** (tile 0x0713) and was consumed with no effect. The
+  consumer's dispatch matches only `E6 EC EE FA FC`, and the metatile at `$7E3000 +
+  0x0713` is **not one of them** — so the ROM treats it as a door-flagged tile it does
+  not know, opens nothing, and clears the bit.
+* **bit 7 never fired at all** across roughly twenty minutes of pressing in all four
+  directions from rows 6–0x0D at col 0x13 and cols 0x15–0x19 at rows 7–0x0A. No map
+  exit is reachable from the bedroom pocket.
+
+The reachable pocket is small: **cols 0x13–0x19, rows 0x06–0x0D**, an L shape with a
+vertical corridor at col 0x13. The room window is 16 columns wide and the map is 64
+tiles across, so the hall and stairs are elsewhere on the same map — outside this
+pocket. Getting out is a navigation question on a 64 x 64 map, not a bump.
+
+### 4. The real doors, cross-validated in BOTH planes
+
+Tiles where the property plane's bit 4 **and** the L1 metatile agree, which is what a
+working door looks like:
+
+| tile | row | col | metatile |
+|---|---|---|---|
+| `0829` | 8 | 0x29 | `FA` (6-tile block) |
+| `0C3A` | 12 | 0x3A | `EC` (4-tile block) |
+| `0C3B` | 12 | 0x3B | `EE` (4-tile block) |
+
+None of these is inside the bedroom pocket. `0829` sits on the same tile row Crono
+starts on but sixteen columns to the right — exactly one screen away, which is
+consistent with the pocket being the bedroom and the door belonging to the hall.
+
+⛔ **Retired:** "the way out is a door you bump". Doors move graphics. The transition is
+the map-exit scan under `$0117` bit 7.
+⭐ **The instrument to keep:** read `$0117`. Bit 4 means a door bump was consumed, bit 7
+means a transfer is pending. It is a direct, cheap oracle for both.
