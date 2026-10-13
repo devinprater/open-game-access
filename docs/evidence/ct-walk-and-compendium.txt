@@ -326,3 +326,10 @@ LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
     bump down                  tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
   right 04                     tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
     bump down                  tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
+
+NOTE ON THE BLOCK ABOVE. That run did not finish: it was stopped after "right 03"
+(the local file carries two further lines, "right 04" and its bump). It was
+terminated by the operator, not by an error -- exit status 1 is the kill, and the
+file holds no traceback. The result it was testing held at every step it did run:
+from (row 0D, col 13) the player moves right only to col 14 and is then refused, so
+row 0D does not run through to the doorway at col 17.
