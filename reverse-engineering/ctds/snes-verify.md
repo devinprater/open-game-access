@@ -525,3 +525,78 @@ consistent with the pocket being the bedroom and the door belonging to the hall.
 the map-exit scan under `$0117` bit 7.
 ⭐ **The instrument to keep:** read `$0117`. Bit 4 means a door bump was consumed, bit 7
 means a transfer is pending. It is a direct, cheap oracle for both.
+## Probe 10 (2026-10-13) — the room's exit found in the exit plane, and the question of a gate
+
+**Result: the bedroom has exactly ONE exit, it is a two-tile doorway at map column
+0x17, rows 0x0D–0x0E, and it is not gated by anything. Crono simply cannot reach it
+from where he can stand, and that is now the open question.**
+
+### 1. The exit plane is readable, and it is sparse
+
+The port's own `src/field.c` names it (line ~5430):
+
+```
+// `$7E:7080` filled with $80 -- 64 rows of $40 at stride $100 (A66B-A693) -- then
+// the location's exit records ($E5:0000, ...
+```
+
+So the plane is at **`$7E7080`**, rows **0x100** apart, 0x40 valid columns each, and a
+cell's value is **`$80` when the cell is not an exit**. Read with the strided layout,
+location 002's plane holds:
+
+```
+cells: 4096     $80 (empty): 4094     not-$80: 2
+  row 0D col 17 = 00
+  row 0E col 17 = 00
+```
+
+**Two exits, stacked vertically in one column** — a doorway — and nothing else on the
+whole 64 x 64 map. The room window (`$1D1A`–`$1D1D` = `10 1F 01 0E`) is cols 0x10–0x1F,
+rows 0x01–0x0E, so **0x0E is the room's bottom row** and the doorway is at its floor
+edge, at column 0x17 — exactly where a bedroom door belongs.
+
+⚠ **Which layout is right was settled by sparsity, not by reading the comment.** The
+contiguous reading (rows 0x40 apart) turns 2050 of the 4096 cells into "exits", which is
+not a plane of exits. The strided reading leaves 2. Two out of 4096 is what an exit
+plane looks like.
+
+### 2. There is no story gate
+
+The question this run set out to answer: does something have to be done first? The
+evidence says no.
+
+* **The exit exists and is wired.** The room has a live exit record; nothing has erased
+  or withheld it.
+* **The player has control.** `$011F` reads `01`, the explore flag is up, so the field
+  engine is listening for input.
+* **Neither transition latch is being held.** `$0117` reads `00` in the resting state.
+
+A gate would normally show up as one of those three being wrong. None is.
+
+### 3. What is actually blocking, and what was tried
+
+The exit's own tile row is reachable, but not at the exit's column, and the exit's own
+column is reachable, but not at its row:
+
+```
+column 0x13 corridor, holding down:   row 08 -> 0A -> 0C -> 0D     (0D is its limit)
+row 0D, holding right:                col 13 -> 14, then BLOCKED
+column 0x17, holding down:            row 08 -> 09 -> 0A, then BLOCKED
+column 0x17, holding up from below:   never reachable
+```
+
+So the doorway at (row 0D, col 17) / (row 0E, col 17) is walled off from the left by
+cols 0x15–0x16 and from above by rows 0x0B–0x0C. Every sweep before this one passed
+through cols 0x13 and 0x15–0x19 at rows 9–0x0A, which is why none of them ever touched
+it: **the two sweeps were looking at the right room and the wrong tiles.**
+
+⭐ **`$7E7080` is the instrument to keep.** Reading the exit plane tells you, for any
+loaded location, exactly which tiles are exits and how many there are — no walking, no
+guessing, no sweeping. That is a far better tool than any sweep, and it is one MCP read.
+
+⛔ **Retired:** "no exit is reachable from the pocket" (Probe 9). The exit is in the
+pocket's own room; the pocket as previously measured was incomplete.
+
+❓ **Open:** how the doorway at cols 0x15–0x17 / rows 0x0B–0x0E is actually entered. The
+next step is to read the collision plane as a picture of the room and find the approach,
+rather than driving blind.

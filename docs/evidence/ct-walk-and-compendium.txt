@@ -246,3 +246,83 @@ step that walked into tile 0x0713, and was consumed without effect: the consumer
 C0/0D3E dispatches only on metatiles E6/EC/EE/FA/FC and the metatile at
 $7E3000+0x0713 is not one of them. $0117 bit 7 (0x80) - the MAP EXIT pending bit,
 raised at C0/9D24 and tested at C0/9CA1 - never appeared at all.
+
+==============================================================================
+Probe 10 (2026-10-13) - the exit plane.
+==============================================================================
+
+--- ct_exit_plane.py (reading $7E7080; found the two exits)
+  (printed to terminal; the two hits are:)
+    cells: 4096  0x80 (empty): 4094  not-0x80: 2
+    row 0D col 17 = 00
+    row 0E col 17 = 00
+
+--- ct_step_out.py (lining up on column 0x17 and holding down)
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+start loc=002 tile=(row 08, col 18) pos=18A4,08FF 0117=00 011F=01
+
+--- lining up on column 0x17 ---
+  00 tile=(row 08, col 18) pos=18A4,08FF loc=002
+  01 tile=(row 08, col 16) pos=16C4,08FF loc=002
+  02 tile=(row 08, col 18) pos=1884,08FF loc=002
+  03 tile=(row 08, col 16) pos=1684,08FF loc=002
+  04 tile=(row 08, col 18) pos=1864,08FF loc=002
+  05 tile=(row 08, col 16) pos=1684,08FF loc=002
+  06 tile=(row 08, col 18) pos=1864,08FF loc=002
+  07 tile=(row 08, col 16) pos=1664,08FF loc=002
+  08 tile=(row 08, col 18) pos=1824,08FF loc=002
+  09 tile=(row 08, col 16) pos=1644,08FF loc=002
+  10 tile=(row 08, col 17) pos=17F4,08FF loc=002
+  on column 0x17
+
+--- holding DOWN into the doorway ---
+  00 tile=(row 09, col 17) pos=17B4,09FF 0117=00 015B=0000 loc=002
+  01 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  02 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  03 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  04 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  05 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  06 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  07 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  08 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  09 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  10 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  11 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  12 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  13 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  14 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  15 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  16 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  17 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  18 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+  19 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 015B=0000 loc=002
+
+end loc=002 tile=(row 0A, col 17) pos=1784,0A7F 0117=00 011F=01
+still in 002; trying the other approaches
+  push down  tile=(row 0A, col 17) loc=002
+  push left  tile=(row 0A, col 15) loc=002
+  push right tile=(row 0A, col 17) loc=002
+
+--- ct_row_travel.py (down the column-13 corridor, then right along row 0D)
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+  start                        tile=(row 08, col 18) pos=18A4,08FF 0117=00 loc=002
+
+--- to column 0x13 ---
+  after lining up              tile=(row 08, col 13) pos=1374,08FF 0117=00 loc=002
+
+--- down to the bottom of the column-13 corridor ---
+  down 00                      tile=(row 0A, col 13) pos=1374,0AAF 0117=00 loc=002
+  down 01                      tile=(row 0C, col 13) pos=1374,0CAF 0117=00 loc=002
+  down 02                      tile=(row 0D, col 13) pos=1374,0DFF 0117=00 loc=002
+  down 03                      tile=(row 0D, col 13) pos=1374,0DFF 0117=00 loc=002
+
+--- right along row 0D ---
+  right 00                     tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
+  right 01                     tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
+    bump down                  tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
+  right 02                     tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
+    bump down                  tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
+  right 03                     tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
+    bump down                  tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
+  right 04                     tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
+    bump down                  tile=(row 0D, col 14) pos=1484,0DFF 0117=00 loc=002
