@@ -438,6 +438,22 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   attempt watched a few hundred frames against a scene needing ~2,900, which is why five probes
   concluded the player could not move. ⭐ `$011F` is a control oracle: read it first, and say
   the game has control rather than narrating a frozen player.
+  ⭐ **Probe 8 (2026-10-13) — he walks, and the room is mapped.** Replayed the opening to
+  the handover (about 2,400 frames), saved it as state slot 2, then drove with `SET_INPUT`:
+  all four directions move him, and a vertical raster covers the whole bedroom without
+  changing the room. ⭐ Location 002 is **Crono's House, Upstars** per the Chrono Compendium's
+  location list, so the way out is `002 → 001` and then out to the fair (005). ⛔ No map exit
+  is reachable by walking: the decomp has doors being **bumped**, not walked onto
+  (`field_door_list.md`), and the map-exit test only runs on an ACCEPTED step (`C0/9CA1`,
+  guarded by `$0117` bit 7). ⭐ Next: scan `$7E:3000` for the door metatiles, convert with
+  `(row << 8) | col`, and walk INTO them.
+  📘 **Chrono Compendium surveyed — very useful** (`docs/research/chrono-compendium-findings.md`):
+  it calls our control flag `ExploreModeOff` / `ExploreModeOn` (Temporal Flux command names),
+  keys a room-name table by the `$7E0100` byte we already read, and supplies a live RAM map
+  that I checked entry by entry — Crono's whole stat block at `7E2603` (0x50 stride per
+  character), party at `7E2980`, gold at `7E2C53`, brightness at `7E0119`, scroll masks at
+  `7E1D1A`–`1D1D`. ⚠️ It has no per-location door table and no field-VM opcode encodings,
+  so our own `OPLEN` table stays necessary.
 
 ## PSP (parked, with a measured capability note)
 

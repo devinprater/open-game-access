@@ -1,0 +1,131 @@
+==============================================================================
+Probe 8 (2026-10-13) - walking out, and the Chrono Compendium survey.
+==============================================================================
+
+--- ct_walk.out (drive + raster, the walk)
+LOAD_STATE_SLOT 1: LOAD_STATE_SLOT 1
+restored: 011F=00 loc=0002 ctx=0x1 pos=1A80,08FF
+
+--- advancing the wake-up scene until control is handed back ---
+  03  011F=00 0215=00 pos=1A80,08FF
+  07  011F=00 0215=0C pos=1A80,08FF
+  11  011F=00 0215=00 pos=1A80,08FF
+  15  011F=00 0215=00 pos=18B2,08FF
+  19  011F=01 0215=00 pos=18A4,08FF
+  *** control at watch 19, about 2400 frames in
+SAVE_STATE_SLOT 2: SAVE_STATE_SLOT 2
+
+--- walking ---
+00 HOLD down   011F=01 loc=002->002  pos 18A4,08FF -> 18A4,09FF  d=(+0,+256)
+01 HOLD down   011F=01 loc=002->002  pos 18A4,09FF -> 18A4,09FF  d=(+0,+0)
+02 HOLD right  011F=01 loc=002->002  pos 18A4,09FF -> 1904,09FF  d=(+96,+0)
+03 HOLD down   011F=01 loc=002->002  pos 1904,09FF -> 1904,09FF  d=(+0,+0)
+04 HOLD left   011F=01 loc=002->002  pos 1904,09FF -> 1704,09FF  d=(-512,+0)
+05 HOLD down   011F=01 loc=002->002  pos 1704,09FF -> 1704,0A7F  d=(+0,+128)
+06 HOLD down   011F=01 loc=002->002  pos 1704,0A7F -> 1704,0A7F  d=(+0,+0)
+07 HOLD right  011F=01 loc=002->002  pos 1704,0A7F -> 1784,0A7F  d=(+128,+0)
+08 HOLD down   011F=01 loc=002->002  pos 1784,0A7F -> 1784,0A7F  d=(+0,+0)
+09 HOLD left   011F=01 loc=002->002  pos 1784,0A7F -> 15A4,0A7F  d=(-480,+0)
+10 HOLD down   011F=01 loc=002->002  pos 15A4,0A7F -> 15A4,0A7F  d=(+0,+0)
+11 HOLD up     011F=01 loc=002->002  pos 15A4,0A7F -> 15A4,08CF  d=(+0,-432)
+12 HOLD right  011F=01 loc=002->002  pos 15A4,08CF -> 1774,08CF  d=(+464,+0)
+13 HOLD down   011F=01 loc=002->002  pos 1774,08CF -> 1774,0A7F  d=(+0,+432)
+14 HOLD right  011F=01 loc=002->002  pos 1774,0A7F -> 1784,0A7F  d=(+16,+0)
+15 HOLD down   011F=01 loc=002->002  pos 1784,0A7F -> 1784,0A7F  d=(+0,+0)
+
+no location change; furthest pos 1784,0A7F in loc 002
+
+--- ct_raster.out (vertical raster across the bedroom)
+start loc=002 pos=1784,0A7F 011F=01
+after left wall: loc=002 pos=15A4,0A7F
+  col 00 up   -> loc=002 pos=15A4,089F 011F=01
+  col 00 down -> loc=002 pos=15A4,0A7F 011F=01
+  col 01 up   -> loc=002 pos=1764,08BF 011F=01
+  col 01 down -> loc=002 pos=1764,0A7F 011F=01
+  col 02 up   -> loc=002 pos=1784,08AF 011F=01
+  col 02 down -> loc=002 pos=1784,0A7F 011F=01
+  col 03 up   -> loc=002 pos=1784,08AF 011F=01
+  col 03 down -> loc=002 pos=1784,0A7F 011F=01
+  col 04 up   -> loc=002 pos=1784,08BF 011F=01
+  col 04 down -> loc=002 pos=1784,0A7F 011F=01
+  col 05 up   -> loc=002 pos=1784,08AF 011F=01
+  col 05 down -> loc=002 pos=1784,0A7F 011F=01
+  col 06 up   -> loc=002 pos=1784,087F 011F=01
+  col 06 down -> loc=002 pos=1784,0A1F 011F=01
+  col 07 up   -> loc=002 pos=1904,081F 011F=01
+  col 07 down -> loc=002 pos=1904,09DF 011F=01
+  col 08 up   -> loc=002 pos=1904,080F 011F=01
+  col 08 down -> loc=002 pos=1904,09BF 011F=01
+  col 09 up   -> loc=002 pos=1904,07EF 011F=01
+  col 09 down -> loc=002 pos=1904,099F 011F=01
+  col 10 up   -> loc=002 pos=1904,07CF 011F=01
+  col 10 down -> loc=002 pos=1904,09BF 011F=01
+  col 11 up   -> loc=002 pos=1904,07DF 011F=01
+  col 11 down -> loc=002 pos=1904,09BF 011F=01
+  col 12 up   -> loc=002 pos=1904,07DF 011F=01
+  col 12 down -> loc=002 pos=1904,09AF 011F=01
+  col 13 up   -> loc=002 pos=1904,07BF 011F=01
+  col 13 down -> loc=002 pos=1904,09BF 011F=01
+  col 14 up   -> loc=002 pos=1904,07DF 011F=01
+  col 14 down -> loc=002 pos=1904,09AF 011F=01
+  col 15 up   -> loc=002 pos=1904,07AF 011F=01
+  col 15 down -> loc=002 pos=1904,099F 011F=01
+
+no location change after the raster; ended loc=002 pos=1904,099F
+
+--- ct_verify_compendium.out (Compendium RAM map vs the live game)
+=== Compendium claims vs the live game ===
+
+7E0100  Current Location (2 bytes, index is >= 9 bits)
+        = 02 00  -> loc 002   (Compendium: 02 = Crono's House Upstairs)
+
+7E0119  Location Screen Brightness (07 = pause value, 0F = normal)
+        = 0F
+
+7E00F2  JoyPress (event commands 38/39)      = 00
+7E0150  JoyPress1                            = 80
+7E0151  JoyPress2                            = 80
+7E0155  Z-plane                              = 01
+7E011F  (ours: explore / control flag)       = 01
+
+7E2603  Crono current HP        = 70
+7E2605  Crono max HP            = 70
+7E2607  Crono current MP        = 8
+7E2609  Crono max MP            = 8
+7E260B  Crono power             = 5
+7E260C  Crono stamina           = 8
+7E260D  Crono speed             = 12
+7E260E  Crono magic             = 5
+7E260F  Crono hit               = 8
+7E2610  Crono evade             = 8
+7E2611  Crono magic defence     = 2
+7E2612  Crono Level             = 1
+7E2613  Crono XP (3 bytes)      = 0
+
+7E2980  Party PC1 PC2 PC3       = 00 80 80
+7E2C53  Gold                    = 400
+
+7E1D1A  Scroll Left / Right / Top / Bottom masks = 10 1F 01 0E
+
+7F0000  Storyline Counter
+        = 03 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00
+7F01CF  Saving available        = -1
+
+--- ct_door_plane.out (the door plane at 7E7080, and the map at 7E3000)
+state: 011F=01 loc=0002 pos=1904,099F
+
+=== door plane $7E7080 (byte view) ===
+  nonzero of 256 bytes: 192
+  +00=80, +01=80, +02=80, +03=80, +04=80, +05=80, +06=80, +07=80, +08=80, +09=80, +0A=80, +0B=80, +0C=80, +0D=80, +0E=80, +0F=80, +10=80, +11=80, +12=80, +13=80, +14=80, +15=80, +16=80, +17=80, +18=80, +19=80, +1A=80, +1B=80, +1C=80, +1D=80, +1E=80, +1F=80, +20=80, +21=80, +22=80, +23=80, +24=80, +25=80, +26=80, +27=80
+
+=== $7E7000 tile properties 2 ===
+  nonzero of 256 bytes: 192
+  +40=81, +41=81, +42=81, +43=81, +44=81, +45=81, +46=81, +47=81, +48=81, +49=81, +4A=81, +4B=81, +4C=81, +4D=81, +4E=81, +4F=81, +50=81, +51=81, +52=81, +53=81, +54=81, +55=81, +56=81, +57=81, +58=81, +59=81, +5A=81, +5B=81, +5C=81, +5D=81, +5E=81, +5F=81, +60=01, +61=01, +62=01, +63=01, +64=01, +65=01, +66=01, +67=01
+
+=== door plane read as 16-bit words ===
+  nonzero words: 96
+  +00=8080, +02=8080, +04=8080, +06=8080, +08=8080, +0A=8080, +0C=8080, +0E=8080, +10=8080, +12=8080, +14=8080, +16=8080, +18=8080, +1A=8080, +1C=8080, +1E=8080, +20=8080, +22=8080, +24=8080, +26=8080, +28=8080, +2A=8080, +2C=8080, +2E=8080, +30=8080, +32=8080, +34=8080, +36=8080, +38=8080, +3A=8080
+
+=== location map $7E3000 (tile indices, row 0) ===
+  row0: 8B 8B 8B CD 9B 9B 9B 9B CA 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B 8B
+  row1: 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00 00

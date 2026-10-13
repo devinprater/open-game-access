@@ -356,3 +356,93 @@ Now that movement works, the original goal is reachable: drive Crono out of the 
 with `SET_INPUT` and read `$011F` before every narration, then find the exit/door
 handling and the shop and battle contexts (`0x0100` loc changes, ctx `0x2F`/`0x29`)
 that the four BizHawk probes never reached.
+## Probe 8 (2026-10-13) — Crono walks, and the bedroom has no map exit
+
+**Result: movement is fully working and the room is mapped; the way out is a DOOR, not
+a map exit you can walk onto.**
+
+### 1. The walk
+
+Restored the house savestate (`LOAD_STATE_SLOT 1`), replayed the opening to the
+handover at **watch 19, about 2,400 frames**, saved that as slot 2, then drove with
+`SET_INPUT`. Every leg below is 240 held frames.
+
+```
+00 HOLD down   pos 18A4,08FF -> 18A4,09FF  d=+0,+256
+01 HOLD down   pos 18A4,09FF -> 18A4,09FF  blocked
+02 HOLD right  pos 18A4,09FF -> 1904,09FF  d=+96,+0
+03 HOLD down   blocked
+04 HOLD left   pos 1904,09FF -> 1704,09FF  d=-512,+0
+05 HOLD down   pos 1704,09FF -> 1704,0A7F  d=+0,+128
+06 HOLD down   blocked
+07 HOLD right  pos 1704,0A7F -> 1784,0A7F  d=+128,+0
+08 HOLD down   blocked
+09 HOLD left   pos 1784,0A7F -> 15A4,0A7F  d=-480,+0
+10 HOLD down   blocked
+11 HOLD up     pos 15A4,0A7F -> 15A4,08CF  d=+0,-432
+12 HOLD right  pos 15A4,08CF -> 1774,08CF  d=+464,+0
+13 HOLD down   pos 1774,08CF -> 1774,0A7F  d=+0,+432
+14 HOLD right  blocked (d=+16)
+15 HOLD down   blocked
+```
+
+The location never changes: `loc = 002` throughout. Then a **vertical raster** across
+the room (left to the wall, then up/down at every column, stepping right) covered the
+whole walkable area and still never changed it:
+
+```
+after left wall: loc=002 pos=15A4,0A7F
+col 00 up   -> loc=002 pos=15A4,089F    col 15 up   -> loc=002 pos=1904,07AF
+col 00 down -> loc=002 pos=15A4,0A7F    col 15 down -> loc=002 pos=1904,099F
+...
+(16 columns, no LOCATION CHANGED)
+```
+
+**The walkable box for location 002 is x 15A4–1904, y 07AF–0A7F.** Crono moves
+everywhere inside it and nothing in it is an exit.
+
+### 2. What the room actually is
+
+The Chrono Compendium's **Location Offsets** list (§4 below) keys rooms by the
+`$7E0100` value, and reads:
+
+```
+01  Crono's House, Downstairs
+02  Crono's House, Upstars     <- where Crono starts
+05  Millennial Fair, First Area
+06  Millennial Fair, Gato
+```
+
+So the target is one room away: **002 -> 001**, then out to the fair (005). The live
+read confirms the value: `$7E0100 = 02 00` -> `002`, so the index is at least nine
+bits, exactly as the Compendium says (`7E0101` bit 0 is the ninth bit).
+
+### 3. Why walking cannot get him out — the exit mechanism
+
+From the decomp (`field_exit_scan_guard.md`, `field_door_list.md`, `field_doors_*`):
+
+* The map-exit test happens **inside the movement commit** at `C0/9CA1`, and only on
+  an **ACCEPTED step** (`C0/9C96 BCC ->9CA1`; a blocked step zeroes velocity and
+  returns with no door test).
+* One guard precedes it: `LDA $0117 / BIT #80 / BEQ` — bit 7 of `$0117` is the
+  pending-transfer latch, raised at `C0/9D24`.
+* **Doors are BUMPED, not walked onto.** `field_door_list.md`: "A door opens by
+  bumping its metatiles in the `$7E:3000` map (C0/0D4C's five handlers)". The door
+  request is `$015B = (row << 8) | col` — a **tile** index, so the map at `$7E:3000`
+  is addressed one byte per tile with **rows 0x100 apart**.
+* Every door is CLOSED again whenever the map is decompressed afresh — returning from
+  the X menu, a shop, the naming screen or a battle — and is re-opened from a
+  sixteen-entry list at `$7F:1CC8` (words; `$8080` = empty; the walk stops at the
+  first negative word).
+
+I read the door plane the decomp names (`$7E7080`) across a 0x100-byte window: it is
+`0x8080` ("empty") throughout, so **that window holds no door record for this room**,
+and the plane's indexing (base + destination cell -> record at `$E5:0000`) still needs
+decoding. Two live reads of `$7E3000` do show unusual tile ids in row 0
+(`8B 8B 8B CD 9B 9B 9B 9B CA 8B …`), which is where the next probe should start:
+**scan `$7E:3000` for the door metatiles, convert to `(row<<8)|col`, and walk onto
+them.** A bump needs an accepted step plus the bump itself, so the drive has to be
+"walk into the tile", not "walk to the tile".
+
+⛔ **Retired for good:** map exits in this room are not reachable by walking, and a
+direction sweep cannot find them. Read the map's door tiles; do not raster the room.
