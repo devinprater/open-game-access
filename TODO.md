@@ -401,6 +401,18 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   facing `0x1600`, and move flag/length `0x1A00`/`0x1A01` — the footstep source. What we lack
   is the passability graph, the heading-aware search, counted legs, and a generated target
   catalog. ⛔ His addresses are the STEAM PORT, not the SNES — do not assume they transfer.
+  ⭐ **Probe 5 (2026-10-13) narrows the blocker and changes the tooling.**
+  `reverse-engineering/ctds/snes-verify.md` (Probe 5), evidence in
+  `docs/evidence/ct-snes-mcp-probe.txt`. SNES state is now readable AND drivable with
+  no BizHawk at all: RetroArch nightly plus the `snes9x2010` core over its MCP server
+  (`SET_INPUT`, `RUN_FRAMES`, `READ_CORE_MEMORY` at `0x7E0000 + offset`). ⛔ `snes9x`,
+  `bsnes` and `mednafen_supafaust` declare no memory map and cannot be read, so
+  `snes9x2010` is the one to use. The verified addresses hold, and a new idle control
+  proves a held direction reaches the GAME, not just the frontend (title menu: idle
+  300 frames changes 0 bytes, one DOWN press changes 8). ⛔ Under that control Crono
+  still does not move in loc 02 and the `0x1800` object window changes by zero, so the
+  blocker is the game's state, not the tooling. ⛔ `0x0102`/`0x0103` have never been
+  moved by anything; stop calling them the player's tile position.
 
 ## PSP (parked, with a measured capability note)
 

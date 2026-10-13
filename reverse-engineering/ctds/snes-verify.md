@@ -99,3 +99,83 @@
 - Outdoor d13 caveat: on loc F0 0x0D13 cycles 00-20+ uniformly (~300f/step) and is NOT the context byte there (area/sub-code?); loc 0C/0D seen briefly at the house door; world map reached Medina Island and 600 A.D. Leene Square label on later wanders.
 - Shop 0x2F and battle 0x29 still unreached after ~90 min of scripted play across 13 probes.
 - Next step used: probe18 = full journey + live steering via C:/temp/ct-cmd.txt (UDLRASBNTX/. polled every 15f) + auto TRAP lines dumping shop RAM (0x1000/0x2400) and live HP (0x5E30/0x5EB0/0x5F30) on any 2F/29 sample, so no reboot is needed to react to screenshots.
+
+## Probe 5: RetroArch MCP — the freeze reproduced, and input proven to reach the game (2026-10-13)
+
+Method, no BizHawk: RetroArch nightly 1.22.2 with the `snes9x2010` core, driven over
+its MCP server. `SET_INPUT` holds a RetroPad direction, `RUN_FRAMES` steps an exact
+number of frames, `READ_CORE_MEMORY` reads WRAM at `0x7E0000 + offset` — the same
+domain the addresses below live in. Raw output: `docs/evidence/ct-snes-mcp-probe.txt`.
+
+⭐ **Why `snes9x2010` and not the usual `snes9x`.** A read only works on a core that
+declares a memory map, and the cores checked here mostly do not:
+
+| core | memory map |
+|---|---|
+| `snes9x2010` | ✅ WRAM `7e0000`, 20000 |
+| `snes9x` | ⛔ none |
+| `bsnes` | ⛔ none |
+| `mednafen_supafaust` | ⛔ none |
+| `mesen` | ⛔ would not load the SNES ROM at all |
+
+So SNES state reads need `snes9x2010` specifically. Everything below was read through it.
+
+**The verified addresses hold up independently.** `0x2603` party HP slot 1 read 70
+from boot onward, the value `snes-verify.md` records. The context/location walk came
+out in the same order as the BizHawk runs — `ctx 0x0D13` 00 → 05 → 7F → 1D → back to
+00, and `loc 0x0100` 00 → B1 (title) → 00 → F0 (intro) → 0F → 02 (Crono's house).
+Different emulator, different reading mechanism, same addresses and same order.
+
+**The frozen tile pair reproduced.** `0x0102`/`0x0103` read `08/08` in loc `0F` and
+again in loc `02`, through both a 300-frame DOWN hold and a 300-frame RIGHT hold.
+That is what all four earlier probes saw. It is not a BizHawk artifact and not a
+script artifact.
+
+⭐ **New: an idle control, and it is the missing piece of method.** At the title menu
+(`ctx 05`) the window `0x0000`–`0x01FF` was diffed across equal-length runs:
+
+```
+idle 300 frames    0 bytes changed
+DOWN press 1       3 bytes changed   0x0002 0x0054 0x0081
+DOWN press 2       5 bytes changed   0x0000 0x0001 0x0002 0x00C0 0x00C1
+DOWN press 3       8 bytes changed   0x0000 0x0001 0x0002 0x0054 0x0055 0x0081 0x00C0 0x00C1
+```
+
+Idle changes nothing; a direction changes bytes. **A direction reaches the GAME, not
+just the frontend.** That is a stronger statement than the earlier probes' `seen=`
+echo, which only proved the frontend was holding the button.
+
+⛔ **And under that same control, in loc 02 (Crono's house, `ctx 01`), Crono still
+does not move.** DOWN for 300 frames and RIGHT for 300 frames changed the `0x1800`
+object window by **zero bytes**, and outside it changed only the bytes that also
+change while idle. The blocker is the game's own state, not the tooling, and it now
+stands under a second emulator, a second instrumentation path and a control the
+earlier probes lacked.
+
+⛔ **Method lesson, and my own error.** My first diff in loc 02, taken without an idle
+control, showed 32 bytes changing under a DOWN hold, including object-table bytes at
+`0x181A`/`0x181B` and `0x189A`/`0x189B` that differed between DOWN and RIGHT. That
+looked like movement and was not: it was the scene still initialising after the
+cutscene. With an equal-length idle control the object window changes by zero.
+**Never diff game memory without an idle control of the same length over the same
+window.** Two of the four earlier probes could have been misled the same way.
+
+⭐ **New, uninterpreted: title-menu cursor candidates.** The bytes a DOWN press moves
+at the title menu are `0x0000`/`0x0001`/`0x0002`, `0x0054`/`0x0055`, `0x0081` and
+`0x00C0`/`0x00C1`. The earlier note called the title menu "menu-cursor-like but
+uninterpreted"; this is the first set of addresses shown to change with a direction
+there, with an idle control proving they do not drift.
+
+⛔ **`0x0102`/`0x0103` should stop being described as the player's tile position.**
+Nothing in this probe ever moved them: not DOWN or RIGHT in loc 02, not DOWN at the
+title menu, where direction input is proven to work. They are inside the diffed
+window in every case.
+
+### Single next step
+
+In loc 02, read the dialog/event bytes (`0x0215` text status, `0x0F03` choice-active)
+alongside `0x0D76`, with the idle control running, to tell "an event is pending and
+holding the player" from "the room is walkable and something else is wrong". Then one
+much longer hold — 1800 frames rather than 300 — under the same control, so slow or
+blocked-in-place movement cannot hide. Only after that is it worth hunting for the
+player's real position source.

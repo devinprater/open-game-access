@@ -1,0 +1,136 @@
+==============================================================================
+Chrono Trigger SNES over RetroArch MCP - raw run output (2026-10-13)
+Core: snes9x2010 (the only SNES core here that declares a memory map).
+Scripts: ct_drive.py, ct_drive2.py, ct_drive3.py, ct_probe.py, ct_ctrl.py
+==============================================================================
+
+---------------------------------------------- ct_drive.out
+LOAD: LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/SNES/Chrono Trigger (USA).sfc
+after load         ctx=0x0  loc=0x0  tile=(0,0) hp1=70
+mash 00            ctx=0x0  loc=0xb1 tile=(0,0) hp1=70
+mash 01            ctx=0x0  loc=0xb1 tile=(0,0) hp1=70
+mash 02            ctx=0x0  loc=0xb1 tile=(0,0) hp1=70
+mash 03            ctx=0x0  loc=0xb1 tile=(0,0) hp1=70
+mash 04            ctx=0x0  loc=0xb1 tile=(0,0) hp1=70
+mash 05            ctx=0x0  loc=0x0  tile=(0,0) hp1=70
+mash 06            ctx=0x0  loc=0x0  tile=(255,0) hp1=70
+mash 07            ctx=0x5  loc=0x0  tile=(255,0) hp1=70
+mash 08            ctx=0x7f loc=0x0  tile=(255,0) hp1=70
+mash 09            ctx=0x1d loc=0x0  tile=(255,0) hp1=70
+mash 10            ctx=0x0  loc=0x0  tile=(255,0) hp1=70
+mash 11            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 12            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 13            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 14            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 15            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 16            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 17            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 18            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 19            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 20            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 21            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 22            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 23            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 24            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 25            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 26            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 27            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 28            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 29            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 30            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 31            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+mash 32            ctx=0x0  loc=0xf0 tile=(63,56) hp1=70
+
+---------------------------------------------- ct2.out
+stretch 00       ctx=0x0    loc=0xf0   tile=(63,56)
+stretch 01       ctx=0x0    loc=0xf0   tile=(63,56)
+stretch 02       ctx=0x0    loc=0xf0   tile=(63,56)
+stretch 03       ctx=0x0    loc=0xf0   tile=(63,56)
+stretch 04       ctx=0x0    loc=0xf0   tile=(63,56)
+stretch 05       ctx=0x0    loc=0xf0   tile=(63,56)
+stretch 06       ctx=0x0    loc=0xf0   tile=(63,56)
+stretch 07       ctx=0x0    loc=0xf0   tile=(63,56)
+stretch 08       ctx=0x0    loc=0xf    tile=(8,8)
+-- never reached loc 02; furthest loc = 0xf. Movement test would be meaningless.
+
+---------------------------------------------- ct3.out
+advance 00   ctx=0x0    loc=0xf    tile=(8, 8)
+advance 01   ctx=0x0    loc=0xf    tile=(8, 8)
+advance 02   ctx=0x1    loc=0x2    tile=(8, 8)
+gameplay wait 00  ctx=0x1 loc=0x2 tile=(8, 8)
+HOLD down for 300 frames:
+   WRAM 0x0000 window: 32 bytes differ
+      0x0102: 08 -> 08
+      0x0103: 08 -> 08
+      0x0126: 00 -> 02
+      0x0127: 00 -> 28
+      0x0129: 00 -> 07
+      0x012A: 05 -> 06
+      0x012E: 14 -> 10
+      0x0131: 00 -> 01
+      0x0134: 00 -> FF
+      0x0135: 00 -> FF
+      0x0148: E0 -> 00
+      0x0149: 57 -> 5A
+      0x014B: 60 -> 00
+      0x014C: 92 -> F0
+   WRAM 0x1800 window: 5 bytes differ
+      0x181A: FA -> EA
+      0x189A: 43 -> 2C
+      0x189B: 07 -> 08
+      0x199A: 00 -> FB
+      0x1A1B: 00 -> 02
+HOLD right for 300 frames:
+   WRAM 0x0000 window: 13 bytes differ
+      0x0102: 08 -> 08
+      0x0103: 08 -> 08
+      0x0158: 8B -> DF
+      0x01C7: 36 -> 08
+      0x01C8: 08 -> 04
+      0x01D3: 20 -> 50
+      0x01D4: EE -> 28
+      0x01D5: DD -> DE
+      0x01EE: F7 -> 00
+      0x01F0: 14 -> 18
+      0x01F1: 08 -> 07
+      0x01F4: 01 -> 02
+      0x01F6: 01 -> 02
+      0x01F7: 05 -> 00
+   WRAM 0x1800 window: 6 bytes differ
+      0x181A: EA -> 47
+      0x181B: 14 -> 18
+      0x189A: 2C -> E1
+      0x189B: 08 -> 07
+      0x199A: FB -> 00
+      0x1A1B: 02 -> 00
+
+---------------------------------------------- ct_probe.out
+Console output of ct_probe.py, transcribed from the run (idle control in loc 02).
+This is the run that showed the object window does not change under a held direction.
+
+context now: ctx=1 loc=2
+idle      changed: 0x0000-window  7 bytes ['0x158', '0x159', '0x1c1', '0x1c2', '0x1cd', '0x1ce', '0x1cf']
+          changed: 0x1800-window  0 bytes []
+down      changed: 0x0000-window  6 bytes ['0x158', '0x1c1', '0x1c2', '0x1cd', '0x1ce', '0x1cf']
+          changed: 0x1800-window  0 bytes []
+right     changed: 0x0000-window  7 bytes ['0x158', '0x1c1', '0x1c2', '0x1cd', '0x1ce', '0x1d6', '0x1d7']
+          changed: 0x1800-window  0 bytes []
+
+bytes that changed ONLY when a direction was held (not while idle):
+   ['0x1d6', '0x1d7']
+in the 0x1800 object window only:
+   (none)
+
+---------------------------------------------- ctrl2.out
+LOAD: LOAD_CONTENT C:/Users/Devin Prater/Dropbox/games/SNES/Chrono Trigger (USA).sfc
+boot 0                   ctx=0x0    loc=0x0   
+boot 1                   ctx=0x0    loc=0xb1  
+start+a 0                ctx=0x0    loc=0xb1  
+start+a 1                ctx=0x0    loc=0xb1  
+start+a 2                ctx=0x0    loc=0x0   
+start+a 3                ctx=0x0    loc=0x0   
+start+a 4                ctx=0x5    loc=0x0   
+idle 300 frames:   0 bytes changed  []
+DOWN press 1:       3 bytes changed  ['0x2', '0x54', '0x81']
+DOWN press 2:       5 bytes changed  ['0x0', '0x1', '0x2', '0xc0', '0xc1']
+DOWN press 3:       8 bytes changed  ['0x0', '0x1', '0x2', '0x54', '0x55', '0x81', '0xc0', '0xc1']
