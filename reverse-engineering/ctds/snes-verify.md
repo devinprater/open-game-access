@@ -259,3 +259,100 @@ Start inside the cutscene appears to delay it, while Start is required at the ti
 intro costs many calls — roughly 7,000 frames from boot to the house. One read of
 4,096 bytes at `0x7E0000` covers every byte this probe needs in a single call, which
 is what makes the driving affordable.
+
+## Probe 7: WHAT CLEARS THE LOCK — the scene does, and then Crono moves (2026-10-13)
+
+The answer to Probe 6's open question, and the end of the movement question.
+
+### The flag and its writer
+
+`$011F` is the field engine's **explore** (player-control) flag. It is written by the
+field-VM opcode **`0xE3`** — dispatch entry `0xE3 → C0/3C05`, the store itself at
+`C0/3C0D` (`STA $1F`, running with `D = $1D00`, so `$1F` is `$7E:011F`):
+
+```
+E3 00   control LOCK   ($011F := 0)
+E3 01   control UNLOCK ($011F := 1)
+```
+
+Confirmed in `third-party/belthasar`: `disasm/notes/field_touch_preempt.md`
+("`0AC3: E3 00` the control lock (`$011F = 0`, writer `C0:3C0D`)"),
+`frame_wiring.md` ("`$011F` the PREVIOUS body's VM wrote (op `0xE3`, `C0/3C05`)"),
+`anim_family_delegation.md` ("`0134 E3 01  $011F := 1  <- UNLOCK, deliberately`") and
+`bell_marle_regroup.md` ("`$011F=01` from the `$16FF` routine's own `E3 01`
+(`C0:3C0D`)"). The port calls it `CtSceneExplore`.
+
+⛔ **So no input can ever clear it.** Not A, not a direction, not waiting. Only the
+script's own `E3 01` does it — and every earlier attempt failed for a second reason
+on top of that: they watched for a few hundred frames, and the scene needs about
+**2,900**.
+
+### The live timeline, minute by minute
+
+Restored from the savestate taken in Crono's house (loc `02`, ctx `01`, `$011F = 0`)
+and advanced with an A tap every 120 frames. Each line is one read of everything.
+
+```
+watch  011F  0215 0217 0F03 | lead obj1 IP   lead pos     obj8 IP   obj10 IP
+ 00    00    00   07   03   | 0408           1A80,08FF    058C      0761
+ 05    00    00   07   03   | 0408           1A80,08FF    05C3      079C
+ 06    00    10   14   97   | 041A           1A80,08FF    0607      0761   <- the wake-up dialogue starts
+ 12    00    00   24   03   | 0421           1A80,08FF    0623      0761
+ 18    00    00   1B   0B   | 042F           1A5D,08FF    065E      0761   <- CRONO MOVES, by the script
+ 19    00    00   1B   0E   | 042F           18AB,08FF    065E      0761
+ 20    00    00   1B   00   | 0436           18A4,08FF    065E      0761
+ 21    00    00   1B   79   | 043E           18A4,08FF    0669      0761
+ 22    00    00   1B   6D   | 0445           18A4,08FF    0669      0761
+ 23    01    00   1B   6C   | 0408           18A4,08FF    0669      0761   <- UNLOCKED
+```
+
+⭐ **The scene moves the player itself.** Watches 18-20 walk the lead's position
+`1A80 → 1A5D → 18AB → 18A4` with `$011F` still 0 — the get-out-of-bed sequence. The
+position is script-driven, so "nothing moves while locked" was true only of *input*.
+
+⭐ **`18A4` is the decomp project's own recorded value.** Its notes have
+`pos = 18A4,08FF (frozen)` for the same room. Same figure, reached independently.
+
+⭐ **The room's own script can lock but cannot unlock.** In this scene's script image
+there are five `E3 00` sites and three `E3 01` sites: the four earliest locks sit
+*before the first object's script* — the room's shared code — and **none of the three
+unlocks is among them**. The unlocks are two in the lead's own script (`$242A`,
+`$244C`) and one in object 8's (`$272B`, tightly paired with an `E3 00` at `$2725`).
+So control comes back from the lead's script or object 8's, never from the room's.
+
+### The payoff: Crono moves
+
+With `$011F = 1`, the same tool that had "proved" a frozen player now moves him:
+
+```
+HOLD right   011F 01->01   pos 18A4,08FF -> 1904,08FF   dX=+96    MOVED
+HOLD right   011F 01->01   pos 1904,08FF -> 1904,08FF   dX=+0     no change (a wall)
+HOLD down    011F 01->01   pos 1904,08FF -> 1904,09FF   dY=+256   MOVED
+HOLD left    011F 01->01   pos 1754,09FF -> 1754,09FF   dX=-432   MOVED
+HOLD up      011F 01->01   pos 1754,09FF -> 1754,07FF   dY=-512   MOVED
+```
+
+**Four directions, three of them moving, one blocked by geometry.** Movement works,
+the address is right, and the input path is right.
+
+### What to carry forward
+
+- **`$011F` is a control oracle, and the first thing a Chrono Trigger reader must
+  read.** While it is 0 the game is running a scripted scene and the player is not
+  being listened to. Saying "control is with the game" is correct and useful;
+  narrating a frozen player is not.
+- **Position is `$1800,X` / `$1880,X`** with `X = obj*2`; the lead in this room is
+  object **1**, so `$1802`/`$1882`. `$0102`/`$0103` was never the player's tile.
+- **The opening is long.** Roughly 2,900 frames from the house's arrival to control,
+  and the pre-house intro is several thousand more. Any script that gives up after a
+  few hundred frames will conclude, wrongly, that the player cannot move.
+- ⛔ **Do not A-mash blindly through it.** The A taps advanced the dialogue, but the
+  scene's own clock is what unlocks: the flag came up on a watch where nothing
+  special was pressed.
+
+### Single next step
+
+Now that movement works, the original goal is reachable: drive Crono out of the house
+with `SET_INPUT` and read `$011F` before every narration, then find the exit/door
+handling and the shop and battle contexts (`0x0100` loc changes, ctx `0x2F`/`0x29`)
+that the four BizHawk probes never reached.

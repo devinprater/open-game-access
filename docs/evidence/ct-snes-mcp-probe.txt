@@ -195,3 +195,157 @@ RIGHT 480        low 36 changed ['0x153', '0x158', '0x159', '0x1c1', '0x1c2', '0
 === A presses, in case a dialogue holds control ===
 A press 1            ctx=0x1 loc=0x2 | 011F=00 0162=00 0138=00 0120=01 0215=00 0217=07 0F03=03 0D76=07 | idx=02 pos=1A80,08FF | old 0102/0103=08/08
    *** 011F == 0: CONTROL LOCKED. This is the answer.
+
+==============================================================================
+Probe 7 (2026-10-13) - what clears the control lock, and movement afterwards.
+==============================================================================
+
+--- ct_unlock.out (the real capture: the scene running to the unlock)
+LOAD_STATE_SLOT 1: LOAD_STATE_SLOT 1
+restored: ctx=0x1 loc=0x2 011F=00 0162=00 0138=00 0215=00 0217=07 0F03=03
+lead obj1 IP=0408  obj8 IP=058A  obj10 IP=0761
+
+00  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=07 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=058C | obj10 IP=0761
+01  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=07 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=058C | obj10 IP=0761
+02  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=07 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=058C | obj10 IP=0761
+03  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=07 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=058C | obj10 IP=0761
+04  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=07 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=058C | obj10 IP=0761
+05  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=07 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=05C3 | obj10 IP=079C
+06  ctx=0x1 loc=0x2 | 011F=00 0215=10 0217=14 0F03=97 0120=01 | obj1 IP=041A pos=1A80,08FF | obj8 IP=0607 | obj10 IP=0761
+07  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=10 0F03=03 0120=01 | obj1 IP=041A pos=1A80,08FF | obj8 IP=0607 | obj10 IP=0761
+08  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=10 0F03=97 0120=01 | obj1 IP=0418 pos=1A80,08FF | obj8 IP=060C | obj10 IP=0761
+09  ctx=0x1 loc=0x2 | 011F=00 0215=10 0217=0A 0F03=98 0120=01 | obj1 IP=041A pos=1A80,08FF | obj8 IP=0623 | obj10 IP=0761
+10  ctx=0x1 loc=0x2 | 011F=00 0215=10 0217=03 0F03=97 0120=01 | obj1 IP=041A pos=1A80,08FF | obj8 IP=0623 | obj10 IP=0761
+11  ctx=0x1 loc=0x2 | 011F=00 0215=0C 0217=0F 0F03=03 0120=01 | obj1 IP=041A pos=1A80,08FF | obj8 IP=0623 | obj10 IP=0761
+12  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=24 0F03=03 0120=01 | obj1 IP=0421 pos=1A80,08FF | obj8 IP=0623 | obj10 IP=0761
+13  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=24 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=0628 | obj10 IP=0761
+14  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=24 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=0628 | obj10 IP=0761
+15  ctx=0x1 loc=0x2 | 011F=00 0215=04 0217=00 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=064B | obj10 IP=0761
+16  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=1B 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=064B | obj10 IP=0761
+17  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=1B 0F03=03 0120=01 | obj1 IP=0408 pos=1A80,08FF | obj8 IP=064D | obj10 IP=0761
+18  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=1B 0F03=0B 0120=01 | obj1 IP=042F pos=1A5D,08FF | obj8 IP=065E | obj10 IP=0761
+19  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=1B 0F03=0E 0120=01 | obj1 IP=042F pos=18AB,08FF | obj8 IP=065E | obj10 IP=0761
+20  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=1B 0F03=00 0120=01 | obj1 IP=0436 pos=18A4,08FF | obj8 IP=065E | obj10 IP=0761
+21  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=1B 0F03=79 0120=01 | obj1 IP=043E pos=18A4,08FF | obj8 IP=0669 | obj10 IP=0761
+22  ctx=0x1 loc=0x2 | 011F=00 0215=00 0217=1B 0F03=6D 0120=01 | obj1 IP=0445 pos=18A4,08FF | obj8 IP=0669 | obj10 IP=0761
+23  ctx=0x1 loc=0x2 | 011F=01 0215=00 0217=1B 0F03=6C 0120=01 | obj1 IP=0408 pos=18A4,08FF | obj8 IP=0669 | obj10 IP=0761
+
+*** UNLOCKED at watch 23: $011F = 01
+    lead IP now 0408, next bytes: 00 B0 00 12 0A 00 02 12 16 5C 01 80 05 AA 01 10 03 AA 17 AD 04 73 0A 11
+
+--- decode_lead_script.py (re-run here; needs no emulator)
+live script at $7F:2408 (lead object 1, IP=$0408), $011F == 0
+
+  +00  00                len=1  ?
+  +01  B0                len=1  ?
+  +02  00                len=1  ?
+  +03  12 0a 00 02 12    len=5  
+  +08  16 5c 01 80 05    len=5  
+  +0D  AA 01             len=2  ANIM?
+  +0F  10 03             len=2  ?
+  +11  AA 17             len=2  ANIM?
+  +13  AD 04             len=2  ?
+  +15  73 0a             len=2  
+  +17  11 15             len=2  JUMPBACK
+  +19  B3                len=1  ?
+  +1A  00                len=1  ?
+  +1B  A6 00             len=2  
+  +1D  AA 20             len=2  ANIM?
+  +1F  AD 18             len=2  ?
+  +21  B3                len=1  ?
+  +22  E3 01             len=2  $011F EXPLORE FLAG   <<< UNLOCK ($011F := 1)
+  +24  00                len=1  ?
+  +25  87 10             len=2  SPRITE/anim
+  +27  AE                len=1  
+  +28  96 18 08          len=3  
+  +2B  A6 01             len=2  
+  +2D  AB 21             len=2  ANIM?
+  ?? AD at +2F runs past the dump
+
+total decoded: 47 of 48 bytes
+
+--- the other three runs (transcribed; see the note in the file)
+TRANScribed console output. These three runs printed to the terminal rather than to a
+file, so they are reproduced here verbatim from the run above. The fourth file in this
+set (ct_unlock.out) is the real captured file, and decode_lead_script.py needs no
+emulator and is re-run into this same file.
+
+------------------------------------------------------------------------------
+ct_lock.py -- gates, the object block, and the lead's script bytes
+------------------------------------------------------------------------------
+LOAD_STATE_SLOT 1: LOAD_STATE_SLOT 1
+status: GET_STATUS PLAYING Snes9x 2010,Chrono Trigger (USA)
+window: 8192 bytes
+
+=== the gates and the lead ===
+  $011F explore   = 00
+  $0162           = 00
+  $0138           = 00
+  $0120           = 01
+  $0197 lead idx  = 02
+  $006D cur obj   = 40
+  $0D13 ctx       = 01
+  $0100 loc       = 02
+
+=== object block, every candidate offset ===
+  X=2: IP($1180+2)=0408  pos($1800+2)=1A80,08FF  mover($1A00+2)=0010  facing=00
+  X=4: IP($1180+4)=0483  pos($1800+4)=FF00,FF00  mover($1A00+4)=0010  facing=00
+
+=== the script bytes at each candidate IP ===
+  X=2 IP=0408  script @ 7F2408:
+     00 B0 00 12 0A 00 02 12 16 5C 01 80 05 AA 01 10 03 AA 17 AD 04 73 0A 11 15 B3 00 A6 00 AA 20 AD 18 B3 E3 01 00 87 10 AE 96 18 08 A6 01 AB 21 AD
+     preceding 16: 87 10 89 10 8E 26 16 5C 01 80 06 83 3D 03 87 02
+
+=== the whole object IP table ($1180 + 0..$3F) ===
+  00:038D 01:0408 02:0483 03:04A5 04:04BD 05:04CA 06:04E2 07:04F6 08:058A 09:073F 0A:0761 0B:07F0 0C:0822 0D:0836 0E:0846 0F:0856 10:086A 11:089E 12:090F 13:0921 19:2A00 1B:BE00 1C:7F07 1D:8100 1E:C3E6 1F:B201
+
+------------------------------------------------------------------------------
+ct_find_e3.py -- every E3 00 / E3 01 in the scene, mapped to its owner
+------------------------------------------------------------------------------
+objects with a live IP:
+   obj  0  IP 038D   pos FF00,FF00
+   obj  1  IP 0408   pos 1A80,08FF
+   obj  2  IP 0483   pos FF00,FF00
+   obj  3  IP 04A5   pos FF00,FF00
+   obj  4  IP 04BD   pos FF00,FF00
+   obj  5  IP 04CA   pos FF00,FF00
+   obj  6  IP 04E2   pos FF00,FF00
+   obj  7  IP 04F6   pos FF00,FF00
+   obj  8  IP 058A   pos 1891,08FF
+   obj  9  IP 073F   pos 1780,07FF
+   obj 10  IP 0761   pos 1880,04FF
+   obj 11  IP 07F0   pos 1A80,08FF
+   obj 12  IP 0822   pos 1953,078F
+   obj 13  IP 0836   pos 184C,07ED
+   obj 14  IP 0846   pos 13DC,0BF7
+   obj 15  IP 0856   pos 17DC,08F7
+   obj 16  IP 086A   pos 1A80,08FF
+   obj 17  IP 089E   pos 1780,06FF
+   obj 18  IP 090F   pos FF00,FF00
+   obj 19  IP 0921   pos FF00,FF00
+
+script image read: 3072 bytes from $7F:2000
+
+=== every E3 00 (lock) / E3 01 (unlock) in the scene ===
+  $229D  E3 00  LOCK     <- before any object's IP
+  $22AD  E3 00  LOCK     <- before any object's IP
+  $22CD  E3 00  LOCK     <- before any object's IP
+  $2302  E3 00  LOCK     <- before any object's IP
+  $26B3  E3 00  LOCK     <- obj  8 (IP 058A, +129 into its region)
+  $26BD  E3 00  LOCK     <- obj  8 (IP 058A, +133 into its region)
+  $2725  E3 00  LOCK     <- obj  8 (IP 058A, +19B into its region)
+  $276F  E3 00  LOCK     <- obj 10 (IP 0761, +E into its region)
+  $242A  E3 01  UNLOCK   <- obj  1 (IP 0408, +22 into its region)
+  $244C  E3 01  UNLOCK   <- obj  1 (IP 0408, +44 into its region)
+  $272B  E3 01  UNLOCK   <- obj  8 (IP 058A, +1A1 into its region)
+
+------------------------------------------------------------------------------
+ct_move_test.py -- the payoff, with $011F = 1
+------------------------------------------------------------------------------
+start: 011F=01 pos=18A4,08FF ctx=0x1 loc=0x2
+HOLD right   011F 01->01  pos 18A4,08FF -> 1904,08FF   dX=+96 dY=+0   MOVED
+HOLD right   011F 01->01  pos 1904,08FF -> 1904,08FF   dX=+0 dY=+0   no change
+HOLD down    011F 01->01  pos 1904,08FF -> 1904,09FF   dX=+0 dY=+256   MOVED
+HOLD left    011F 01->01  pos 1754,09FF -> 1754,09FF   dX=-432 dY=+0   MOVED
+HOLD up      011F 01->01  pos 1754,09FF -> 1754,07FF   dX=+0 dY=-512   MOVED
+A tap:        011F 01->01  pos 1754,07FF -> 1754,07FF  ctx=0x1 0215=00

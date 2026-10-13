@@ -426,6 +426,18 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   through loc `0F` and the house, so a reader can say "the game has taken control away"
   instead of narrating a player who is not being listened to. ⛔ Still open, and open in the
   decomp project too: **what clears `$011F`**. Not A presses, not waiting, not direction holds.
+  ⭐ **Probe 7 (2026-10-13) answers it, and Crono MOVES.** `$011F` is the field engine's
+  explore flag, written by field-VM opcode `0xE3` (dispatch `0xE3→C0/3C05`, store at
+  `C0/3C0D`): `E3 00` locks, `E3 01` unlocks. ⛔ Nothing the player does can clear it. Restored
+  the house savestate and watched: the scene runs its dialogue, **moves Crono itself**
+  (`1A80 → 1A5D → 18AB → 18A4`, and `18A4` is the decomp project's own recorded value),
+  and at watch 23 — about **2,900 frames** in — sets `$011F = 1`. Then a held direction moves
+  him: right dX=+96, down dY=+256, left dX=-432, up dY=-512, with one direction blocked by a
+  wall. ⭐ The room's own script can lock but cannot unlock: this scene has five `E3 00` sites
+  and three `E3 01`, and none of the unlocks is in the room's shared code. ⛔ Every earlier
+  attempt watched a few hundred frames against a scene needing ~2,900, which is why five probes
+  concluded the player could not move. ⭐ `$011F` is a control oracle: read it first, and say
+  the game has control rather than narrating a frozen player.
 
 ## PSP (parked, with a measured capability note)
 
