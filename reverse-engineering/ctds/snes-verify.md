@@ -912,3 +912,68 @@ variable, not from a press edge.
 
 **States:** slot 15 = the Millennial Fair (loc `005`). Slot 13 = the overworld outside the house.
 Slot 2 = the bedroom handover.
+
+## Probes 43-55, 2026-10-14: the fair chapter, as far as Marle's join
+
+⭐ **MARLE JOINED. Party `$7E2980 = 00 01 80 80`, storyline `$7F0000 = 08`** - the exact result the
+decomp's `marle_joins` recipe asserts. That is the fair's biggest story beat, and it came from
+talking to her: Crono walks up, presses A, her join script runs (op 0x95 makes HER walk to him -
+her animation byte read 19 on the way), the naming screen takes Start, and she is in the party.
+
+⭐ **The pendant first: `$7E2400 = D6 / $7E2500 = 01`.** `disasm/notes/field_item_gold_family.md`
+says of the pickup: *"Scene 439 obj15 slot1 is the fair pendant pickup, CA D6 at body 0486;
+activating it must leave `$7E:2400=D6 / $7E:2500=01`"*. Walking Crono to tile (29,8) - object 15's
+own tile - and pressing A produced exactly that pair. The pad script in the recipe did not (it is
+position-sensitive), so the object was reached by walking to it instead.
+
+📘 **Marle is object 3 in scene 439.** `tools/regress_checks.json` names her join script
+(`0D 00 / 0E 02 / 95 00 / D3 01 / 5C` at ip `$05F1..$05F9`) and records the moment the ROM enters
+the adjacency arm: *"Marle's tile byte `$1807 = 0x19` (25) against the lead's `$1803 = 0x1A` (26)"*.
+`$1806/$1807` is object 3's X, so object 3 is Marle - she stood at tile (24,15) in this save, which
+is exactly where the decomp's own `marle_joins` pads walk ("down 20, left 46, down 50, left 27").
+
+📘 **The field's tile math, corrected: `tile = x >> 8, y >> 8`** (8.8 fixed point), and the window
+bytes `$1D1A-$1D1D` are (col_min, col_max, row_min, row_max): loc 005 reads `00 2F 13 2F` and loc
+1B7 reads `00 2F 00 16`, so the fair's map is 48 wide, its lower square is rows 19..47 and the
+upper plaza is rows 0..22 of it. Every earlier "local tile" computed with `>> 4` was nonsense; with
+`>> 8` the objects land inside that window exactly (Crono (7784,2879) → (30,11), object 15
+(7808,2303) → (30,8)).
+
+📘 **The plaza's exits, from its trigger plane** (`$7E7080 + row*0x100 + col`, `$80` = nothing):
+
+| tiles | index | way |
+|---|---|---|
+| (22,22)..(26,22) | 00 | south, down into the fair proper (loc 005) |
+| (23,1)..(25,1) | 01 | north, up to the Telepod Exhibit (loc 008) |
+| (0,5)..(0,9) | 02 | the west edge |
+| (47,2)..(47,5) | 03 | the east edge |
+
+⚠ **The telepod show is gated, and the gate is now known.** `$7F0055` bit 7 is the "Lucca's show
+is ready" flag; in this save it reads `1A` (bit 7 clear) and the twins still stand on the north
+stairs, which is why walking north stops at row 8. The decomp's next step, `fair_candy` (from
+`marle_joins`), is what sets it - `$10055 → B2`, *"the girl by the fountain says Lucca's show is
+ready (the twins on the north stairs of loc 1B7 go away); back up to 1B7 and toward the north
+stairs, Marle's candy stop ... and she follows again"*. So the next leg is: south into the fair,
+the fountain girl's news, back up, the candy stand - and then `telepod_show` (loc 008) and
+`gate_to_600` (loc 071, storyline 0C, 600 A.D.), which ends the chapter.
+
+⚠ **Two harness lessons, both measured today.**
+
+1. **A frame-exact pad script from another engine only holds while the two engines agree.** The
+   `fx_a_*` chain (attract demo → new game → bedroom → ...) replayed through this harness matched
+   its oracle byte for byte through the demo - `$2990 = 84` and `$29C4 = B3`, the demo's own battle
+   records, both OK after 11,486 exact frames - and then diverged in the opening: a screenshot at
+   the next step showed the *naming screen with "AAAAA"* where the recipe expects the bedroom, so
+   everything after it ran a scene out of step. Pad-exact replays need a screenshot at each step
+   before their results are believed.
+2. **Mark blocked EDGES, not blocked tiles.** The first NPC sweep marked a tile solid whenever a
+   move into it failed; after a few of those the plaza had no route anywhere and the sweep stalled
+   in one corner. Remembering `(from, to)` edge failures instead let the same walker take a
+   different way round and reach Marle.
+
+⚠ **The shape plane is not a complete wall map for the plaza.** `(prop0 >> 2) & 0x1F` at
+`$7E30C0 + row*0x100 + col` (shape 1 = solid) called several tiles walkable that are solid in fact
+((30,9), (31,9), (30,10), (32,10), (29,9) all refused). Verify every move; do not trust the map.
+
+**States:** slot 21 = the fair's upper plaza with the pendant in the bag; **slot 22 = Marle joined**;
+slot 24 = the plaza at (25,8), north of that the twins block the stairs.

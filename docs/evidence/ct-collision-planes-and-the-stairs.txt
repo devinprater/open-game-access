@@ -604,3 +604,213 @@ baseline screenshot hash: 9617b0bc6d81241a
 === what the object tables say now ===
   slot 00: X=FF00 Y=FF00
   slot 02: X=1780 Y=1CFF
+
+==============================================================================
+PROBES 43-55 (2026-10-14) -- THE FAIR CHAPTER: MARLE JOINED (party 00 01,
+storyline 08). The pendant came first ($7E2400=D6 / $7E2500=01, the pair the decomp's
+field_item_gold_family note states). Her join came from object 3 (scene 439), talked to
+with a bare A press. The telepod show is gated on $7F0055 bit 7, which is what the
+decomp's fair_candy step sets.
+==============================================================================
+
+--- probe 43: replaying the decomp's pad recipes (fair_pendant -> gate_to_600) ---
+LOAD_STATE_SLOT 15: LOAD_STATE_SLOT 15
+start: loc=005 (Millennial Fair) storyline=03 gold=000190
+
+=== fair_pendant (from fair_entrance) ===
+    Crono walks north through the fair to the upper plaza by Leene's Bell (loc 1B7), walks into Marle (the bump, storyline 3 -> 6), and picks up her pendant (item D6, $2400) from the ground by the stall t
+      after a pad block: loc=005 (Millennial Fair) storyline=03
+      after a pad block: loc=005 (Millennial Fair) storyline=03
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=03
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+    EXPECT FAIL: loc 1B7 vs 1B7 OK; $02400 00 vs D6 WRONG; $10000 06 vs 06 OK
+    SAVE_STATE_SLOT 16: SAVE_STATE_SLOT 16
+
+=== marle_joins (from fair_pendant) ===
+    Crono walks back to Marle and gives her the pendant; she asks to walk around with him (Sure.), the naming screen (the default name Marle, Start), and she joins the party ($2980 = 00 01, storyline 8). 
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+    EXPECT FAIL: loc 1B7 vs 1B7 OK; $02980 00 vs 00 OK; $02981 80 vs 01 WRONG; $10000 06 vs 08 WRONG
+    SAVE_STATE_SLOT 17: SAVE_STATE_SLOT 17
+
+=== fair_candy (from marle_joins) ===
+    With Marle: down to the fair (loc 005), the girl by the fountain says Lucca's show is ready ($7F0055 bit7: the twins on the north stairs of loc 1B7 go away); back up to 1B7 and toward the north stairs
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+    EXPECT FAIL: loc 1B7 vs 1B7 OK; $02981 80 vs 01 WRONG; $10055 04 vs B2 WRONG
+    SAVE_STATE_SLOT 18: SAVE_STATE_SLOT 18
+
+=== telepod_show (from fair_candy) ===
+    Crono and Marle climb the north stairs of loc 1B7 to Lucca's Telepod show (loc 008); Taban's opening line is on screen.
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+    EXPECT FAIL: loc 1B7 vs 008 WRONG; $02981 80 vs 01 WRONG
+    SAVE_STATE_SLOT 19: SAVE_STATE_SLOT 19
+
+=== gate_to_600 (from telepod_show) ===
+    The Telepod: Crono talks to Lucca, steps on the left pod and is teleported; Marle tries it, her pendant opens the Gate and she vanishes (storyline 0A -> 0C); Crono steps on the left pod again, Lucca s
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+      after a pad block: loc=1B7 (the fair's upper plaza) storyline=06
+    EXPECT FAIL: loc 1B7 vs 071 WRONG; $10000 06 vs 0C WRONG
+    SAVE_STATE_SLOT 20: SAVE_STATE_SLOT 20
+
+=== how far the fair chapter got ===
+  fair_pendant   FAIL
+  marle_joins    FAIL
+  fair_candy     FAIL
+  telepod_show   FAIL
+  gate_to_600    FAIL
+
+final: loc=1B7 (the fair's upper plaza) storyline=06 party=00 80 80 80
+
+--- probe 49: walking to the pendant object with the corrected tile math (x >> 8) ---
+LOAD_STATE_SLOT 16:
+  load attempt 1: loc=1B7 pos=(7784,2879) tile=(30, 11) item=00 ctrl=01
+
+=== object slots as tiles (x >> 8) ===
+  obj  1: ( 7784, 2879) tile=(30,11) shape=00 type=00 <- lead
+  obj  3: ( 6345, 3882) tile=(24,15) shape=00 type=02 
+  obj  9: ( 7040, 1791) tile=(27, 6) shape=19 type=01 
+  obj 10: ( 1664, 2047) tile=( 6, 7) shape=00 type=01 
+  obj 11: ( 2432, 4235) tile=( 9,16) shape=00 type=00 
+  obj 12: ( 9856, 3583) tile=(38,13) shape=00 type=01 
+  obj 13: ( 2944, 3071) tile=(11,11) shape=00 type=01 
+  obj 14: ( 7902, 2223) tile=(30, 8) shape=00 type=03 
+  obj 15: ( 7808, 2303) tile=(30, 8) shape=00 type=01 
+  obj 16: ( 6272, 1152) tile=(24, 4) shape=00 type=01 
+  obj 17: ( 6528, 1152) tile=(25, 4) shape=00 type=01 
+  obj 18: ( 6272, 2559) tile=(24, 9) shape=00 type=01 
+  obj 19: (11136, 3583) tile=(43,13) shape=19 type=01 
+  obj 20: (11136, 3839) tile=(43,14) shape=01 type=01 
+  obj 21: (11136, 4095) tile=(43,15) shape=01 type=01 
+  obj 22: (11136, 4351) tile=(43,16) shape=01 type=01 
+  obj 23: (11392, 3583) tile=(44,13) shape=19 type=01 
+  obj 24: (11392, 3839) tile=(44,14) shape=01 type=01 
+  obj 25: (11392, 4095) tile=(44,15) shape=01 type=01 
+  obj 26: (11392, 4351) tile=(44,16) shape=01 type=01 
+  obj 27: (10880, 3839) tile=(42,14) shape=00 type=03 
+  obj 28: ( 1920, 4351) tile=( 7,16) shape=01 type=01 
+  obj 30: ( 5120, 2368) tile=(20, 9) shape=08 type=01 
+  obj 31: ( 6784, 1535) tile=(26, 5) shape=00 type=01 
+
+=== loc 1B7, 48x23, from prop0's shape field (# solid, . walkable, ~ slope) ===
+      000000000011111111112222222222333333333344444444
+      012345678901234567890123456789012345678901234567
+   0  #######################...######################
+   1  #######################...######################
+   2  ########################..~###################~~
+   3  ########################...##################...
+   4  ######################~.01##################~...
+   5  ~##~~#########~~#####.....F#######~#######~#....
+   6  .....#~#######~#~####~.....9~##.##~####~~~....~#
+   7  ......A.######~##~~##~.......~~.~~~###~......~##
+   8  ........######~##.####........F...~###~~~....###
+   9  .~#~....~~####~~~.~~E~..2.........~######~~..###
+  10  ####......~~.#~.......~~.~~.......~~~~~~~##..###
+  11  #####~.....D..~.......##.##...C...~......~~..###
+  12  ######.##...#.~...................~#.........~##
+  13  ######.##..###~...................~###C....37#~#
+  14  ######.##..##.~...................~.##....B48..#
+  15  #####~.##..#####..##....3....##..##.##.....59.~#
+  16  ####...C#B.##.##..####~...~####..##.##.....6A~##
+  17  ####...~~..##.##..####~...~####..#####.....#####
+  18  ###~.......~~..~..~~##~...~##~~..~..~~.......###
+  19  ##~................~##~...~##~...............###
+  20  ##.................~##~...~##~...............###
+  21  ######################~...~#####################
+  22  ######################~...~#####################
+
+=== obj 15 at tile (30,8): walking to a neighbour and pressing A ===
+    from tile (30, 11), goals [(29, 8), (30, 7), (30, 9), (31, 8)]
+    route: [(30, 11), (30, 10), (30, 9)]
+    blocked: up -> (30,9) is solid in fact. Re-planning.
+    route: [(30, 10), (31, 10), (31, 9), (31, 8)]
+    blocked: up -> (31,9) is solid in fact. Re-planning.
+    route: [(31, 10), (32, 10), (32, 9), (32, 8), (31, 8)]
+    blocked: right -> (32,10) is solid in fact. Re-planning.
+    route: [(31, 10), (30, 10), (29, 10), (29, 9), (29, 8)]
+    blocked: left -> (30,10) is solid in fact. Re-planning.
+    route: [(31, 10), (31, 11), (30, 11), (29, 11), (29, 10), (29, 9), (29, 8)]
+    blocked: up -> (29,9) is solid in fact. Re-planning.
+    route: [(29, 10), (28, 10), (28, 9), (28, 8), (29, 8)]
+    at tile (29, 8) item=00 $2500=00
+
+*** PENDANT PICKED UP: $7E2400=D6 $7E2500=01 ***
+SAVE_STATE_SLOT 21: SAVE_STATE_SLOT 21
+
+final: loc=1B7 pos=(7464,2159) tile=(29, 8) item=D6 $2500=01
+
+--- probe 52: the frame-exact fx_a_* chain from power-on (demo matches, opening diverges) ---
+=== fx_a_newgame ===
+    ran 11486 frames -> loc=1B1 (?) pos=(0,0) tile=(0,0) gold=0 party=00 01 05 02 story=00 ctrl=01 item=00 mode=84
+    EXPECT FAIL: loc 1B1 vs 000 WRONG; $02990 84 vs 84 OK; $029C4 B3 vs B3 OK
+=== fx_a_bedroom ===
+    ran 5126 frames -> loc=000 (the title / Battle Mode prompt) pos=(2,4) tile=(0,0) gold=400 party=00 80 80 80 story=00 ctrl=01 item=00 mode=C4
+    EXPECT FAIL: loc 000 vs 002 WRONG
+=== fx_a_home_downstairs ===
+    ran 1493 frames -> loc=1F0 (the 1000 A.D. overworld) pos=(65280,0) tile=(255,0) gold=400 party=00 80 80 80 story=00 ctrl=01 item=00 mode=C4
+    EXPECT FAIL: loc 1F0 vs 001 WRONG; $02C53 90 vs 90 OK; $02C54 01 vs 01 OK; $0011F 01 vs 01 OK
+=== fx_a_fair_entrance ===
+    ran 576 frames -> loc=1F0 (the 1000 A.D. overworld) pos=(65280,0) tile=(255,0) gold=400 party=00 80 80 80 story=00 ctrl=01 item=00 mode=C4
+    EXPECT FAIL: loc 1F0 vs 005 WRONG; $02C53 90 vs 90 OK; $02C54 01 vs 01 OK
+=== fx_a_fair_pendant ===
+    ran 1734 frames -> loc=002 (Crono's Room) pos=(6784,2303) tile=(26,8) gold=400 party=00 80 80 80 story=00 ctrl=00 item=00 mode=C4
+    EXPECT FAIL: loc 002 vs 1B7 WRONG; $02400 00 vs D6 WRONG; $10000 00 vs 06 WRONG
+=== fx_a_marle_joins ===
+    ran 1409 frames -> loc=002 (Crono's Room) pos=(6308,2303) tile=(24,8) gold=400 party=00 80 80 80 story=03 ctrl=01 item=00 mode=C4
+    EXPECT FAIL: loc 002 vs 1B7 WRONG; $02980 00 vs 00 OK; $02981 80 vs 01 WRONG; $10000 03 vs 08 WRONG
+
+--- probe 54: Marle's join, byte by byte ---
+load slot 21 attempt 1:  me=(29, 8) Marle=(25, 15) anim=01 item=D6 party=00 80 80 80 story=06 ctrl=01 ctx=01 busy=04
+
+=== round 1: route [(29, 8), (28, 8), (27, 8), (27, 9), (27, 10), (27, 11), (27, 12), (26, 12), (25, 12), (25, 13), (25, 14)] -> Marle at (25, 15) ===
+    edge (27, 9) -> (27,10) is shut; re-routing
+
+=== round 2: route [(27, 9), (26, 9), (25, 9), (24, 9), (24, 10), (24, 11), (24, 12), (24, 13), (24, 14)] -> Marle at (24, 15) ===
+    edge (26, 9) -> (25,9) is shut; re-routing
+
+=== round 3: route [(26, 9), (26, 10), (27, 10), (27, 11), (27, 12), (26, 12), (25, 12), (25, 13)] -> Marle at (25, 14) ===
+    edge (27, 11) -> (27,12) is shut; re-routing
+
+=== round 4: route [(27, 11), (28, 11), (28, 12)] -> Marle at (28, 13) ===
+    arrived next to Marle at (28, 12)
+
+=== talking: A alone, with the state watched after each press ===
+  A #1   me=(28, 12) Marle=(28, 13) anim=00 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=01 busy=04
+  A #2   me=(28, 12) Marle=(28, 13) anim=00 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=01 busy=04
+  A #3   me=(28, 12) Marle=(28, 13) anim=00 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=01 busy=04
+  A #4   me=(28, 12) Marle=(28, 13) anim=00 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=01 busy=04
+  A #5   me=(28, 12) Marle=(28, 13) anim=00 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=01 busy=04
+  A #6   me=(28, 12) Marle=(28, 13) anim=00 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=01 busy=04
+  (Start, in case the naming screen is up)
+  after Start:  me=(28, 12) Marle=(28, 13) anim=00 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=01 busy=04
+  A #19  me=(0, 0) Marle=(0, 0) anim=00 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=00 busy=00
+  A #20  me=(0, 1) Marle=(176, 112) anim=00 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=1D busy=00
+  (Start, in case the naming screen is up)
+  after Start:  me=(28, 12) Marle=(28, 13) anim=19 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=01 busy=04
+  A #21  me=(28, 12) Marle=(28, 13) anim=19 item=D6 party=00 80 80 80 story=06 ctrl=00 ctx=01 busy=04
+  A #27  me=(28, 12) Marle=(28, 13) anim=01 item=D6 party=00 80 80 80 story=08 ctrl=00 ctx=01 busy=04
+  A #29  me=(28, 12) Marle=(28, 12) anim=00 item=D6 party=00 01 80 80 story=08 ctrl=01 ctx=01 busy=04
+
+*** MARLE JOINED: party=00 01 80 80 storyline=08 ***
+SAVE_STATE_SLOT 22: SAVE_STATE_SLOT 22
+
+--- probe 55: the plaza's trigger-plane exits, and the north stairs blocked by the twins ---
+load slot 22 attempt 1:  loc=1B7 (the fair's upper plaza) me=(28, 12) party=00 01 80 80 story=08 ctrl=01 ctx=01 busy=04 $7F0055=1A
+
+trigger tiles in loc 1B7 (17): [(23, 1, '01'), (24, 1, '01'), (25, 1, '01'), (47, 2, '03'), (47, 3, '03'), (47, 4, '03'), (0, 5, '02'), (47, 5, '03'), (0, 6, '02'), (0, 7, '02'), (0, 8, '02'), (0, 9, '02'), (22, 22, '00'), (23, 22, '00'), (24, 22, '00'), (25, 22, '00'), (26, 22, '00')]
+
+walking to the northern exits: [(23, 1), (24, 1), (25, 1)]
+  reached: (25, 8) (not there yet)
+
+now:  loc=1B7 (the fair's upper plaza) me=(25, 8) party=00 01 80 80 story=08 ctrl=01 ctx=01 busy=04 $7F0055=1A
+
+final:  loc=1B7 (the fair's upper plaza) me=(25, 8) party=00 01 80 80 story=08 ctrl=01 ctx=01 busy=04 $7F0055=1A
+SAVE_STATE_SLOT 24: SAVE_STATE_SLOT 24
