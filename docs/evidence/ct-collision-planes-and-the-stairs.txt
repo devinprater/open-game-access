@@ -387,3 +387,167 @@ after a step: loc=001 ctrl=00 latch=00 bright=0F ctx=01 busy=07 tile=(row 07, co
 
 control never came back in 4080 frames: the scene stands there, and the harness should
 say 'the game has control' rather than pressing anything into it.
+
+==============================================================================
+PROBES 26-37 -- HE IS OUTSIDE. The front door takes loc 001 -> 1F0, the world map in
+1000 A.D. The 'freeze' was a text box, and the 'broken state' was the naming screen.
+==============================================================================
+
+--- probe 27: what changes with no input, and what a press changes
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+downstairs and settled: loc=001 ctrl=01 latch=00 bright=0F ctx=01 busy=07 tile=(row 06, col 0D)
+
+=== walking into the person: down until control goes off ===
+  step 1: loc=001 ctrl=00 latch=00 bright=0F ctx=01 busy=07 tile=(row 07, col 0D)
+
+=== what changes with NO input? (the idle control) ===
+  103 bytes changed on their own over 240 frames
+  $00F3  $00F9  $00FD  $00FF  $0126  $0127  $0129  $012A  $012E  $0131  $0134  $0135  $0148  $0149  $014B  $014C  $014D  $014E  $014F  $0158  $01D1  $01D3  $01D4  $01D6
+
+=== pressing A ===
+  bytes changed that the idle run does not: 23
+    $0150: 00 -> 80
+    $0151: 00 -> 80
+    $0159: 00 -> 01
+    $01C1: 18 -> 00
+    $01C2: BC -> A8
+    $01CD: 00 -> C0
+    $01CE: 80 -> 72
+    $01CF: 7F -> D2
+    $01D7: 67 -> 31
+    $0238: FB -> FC
+    $0400: 17 -> 27
+    $0524: 05 -> 01
+    $0530: 05 -> 01
+    $053C: 05 -> 01
+    $0554: 05 -> 01
+    $06E5: 00 -> FE
+    $06E6: 01 -> FF
+    $06F9: 00 -> 01
+    $101F: 03 -> 02
+    $1605: 04 -> 03
+  state: loc=001 ctrl=00 latch=00 bright=0F ctx=01 busy=07 tile=(row 07, col 0D)
+
+=== pressing B ===
+  bytes changed that the idle run does not: 13
+    $0150: 80 -> 8A
+    $0151: 80 -> 88
+    $0400: 27 -> 37
+    $0524: 01 -> 0D
+    $0530: 01 -> 05
+    $053C: 01 -> 05
+    $0554: 01 -> 0D
+    $06FB: 74 -> 71
+    $101F: 02 -> 01
+    $1605: 03 -> 02
+    $1613: 07 -> 03
+    $161F: 02 -> 01
+    $1693: 02 -> 00
+  state: loc=001 ctrl=00 latch=00 bright=0F ctx=01 busy=07 tile=(row 07, col 0D)
+
+=== pressing START ===
+  bytes changed that the idle run does not: 18
+    $0151: 88 -> 89
+    $01C1: 00 -> E8
+    $01C2: A8 -> B6
+    $01CE: 72 -> 83
+    $01CF: D2 -> 7F
+    $01D7: 31 -> 52
+    $0400: 37 -> 0B
+    $0524: 0D -> 09
+    $0530: 05 -> 01
+    $053C: 05 -> 01
+    $0554: 0D -> 09
+    $06E5: FE -> 00
+    $06E6: FF -> 01
+    $101F: 01 -> 05
+    $1605: 02 -> 01
+    $1613: 03 -> 0B
+    $161F: 01 -> 05
+    $1693: 00 -> 03
+  state: loc=001 ctrl=00 latch=00 bright=0F ctx=01 busy=07 tile=(row 07, col 0D)
+
+--- probe 28/32: the freeze reproduces with no writes to the game at all
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+handover, nothing written: loc=002 ctrl=01 latch=00 bright=0F tile=(row 08, col 18)
+
+=== west along row 08 to column 14 ===
+  tap 1 -> (row 08, col 18) ctrl=01
+  tap 2 -> (row 08, col 17) ctrl=01
+  tap 3 -> (row 08, col 16) ctrl=01
+  tap 4 -> (row 08, col 16) ctrl=01
+  tap 5 -> (row 08, col 15) ctrl=01
+  tap 6 -> (row 08, col 14) ctrl=01
+
+=== down col 14 to row 0B (the corridor mouth) ===
+  tap 1 -> (row 09, col 14) ctrl=01
+  tap 2 -> (row 0A, col 14) ctrl=01
+  tap 3 -> (row 0A, col 14) ctrl=01
+  tap 4 -> (row 0B, col 14) ctrl=01
+
+=== right, off the corridor, down the stairs ===
+  after the hold: loc=001 ctrl=01 latch=00 bright=0F tile=(row 06, col 0C)
+
+=== downstairs: tap down once, and watch ===
+  tap 1 -> (row 07, col 0C) ctrl=00 bright=0F
+  control went off here.
+
+=== and then just run it, no input, 1200 frames ===
+  + 120  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+  + 240  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+  + 360  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+  + 480  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+  + 600  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+  + 720  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+  + 840  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+  + 960  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+  +1080  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+  +1200  loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+
+--- probe 34/36: pressing A through the dialogue, then the walk to the front door
+current state: loc=001 ctrl=00 latch=00 bright=0F ctx=01 busy=07 tile=(row 07, col 0C)
+
+=== pressing A, one line at a time ===
+  press  1: loc=001 ctrl=00 latch=00 bright=0F ctx=01 busy=07 tile=(row 07, col 0C)
+  press  2: loc=001 ctrl=00 latch=40 bright=00 ctx=00 busy=00 tile=(row 00, col 00)
+  press  3: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press  4: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press  5: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press  6: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press  7: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press  8: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press  9: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press 10: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press 11: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press 12: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press 13: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press 14: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press 15: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+  press 16: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+
+final: loc=001 ctrl=00 latch=40 bright=00 ctx=1D busy=00 tile=(row 6B, col 72)
+SAVE_STATE_SLOT 9: SAVE_STATE_SLOT 9
+
+start: loc=001 ctrl=00 latch=00 bright=0F tile=(row 07, col 0C)
+
+=== A until control comes back ===
+  press  1: loc=001 ctrl=01 latch=00 bright=0F tile=(row 07, col 0C)
+
+=== walking to the front door ===
+  down to row 0B   down  -> (row 07, col 0C) loc=001 ctrl=01 latch=00 bright=0F
+  down to row 0B   down  -> (row 08, col 0C) loc=001 ctrl=01 latch=00 bright=0F
+  down to row 0B   down  -> (row 09, col 0C) loc=001 ctrl=01 latch=00 bright=0F
+  down to row 0B   down  -> (row 0A, col 0C) loc=001 ctrl=01 latch=00 bright=0F
+  down to row 0B   down  -> (row 0B, col 0C) loc=001 ctrl=01 latch=00 bright=0F
+  left to col 0A   left  -> (row 0B, col 0B) loc=001 ctrl=01 latch=00 bright=0F
+  left to col 0A   left  -> (row 0B, col 0A) loc=001 ctrl=01 latch=00 bright=0F
+  down onto the door down  -> (row 0C, col 0A) loc=001 ctrl=01 latch=00 bright=0F
+  down onto the door down  -> (row 0D, col 0A) loc=1F0 ctrl=01 latch=80 bright=00
+  *** THE ROOM CHANGED -> loc=1F0 ***
+
+final: loc=1F0 ctrl=01 latch=80 bright=00 tile=(row 0D, col 0A)
+settled: loc=1F0 ctrl=01 latch=80 bright=00 tile=(row 0D, col 0A)
+SAVE_STATE_SLOT 11: SAVE_STATE_SLOT 11
+
+--- probe 37: the world map, outside the house
+(not saved)

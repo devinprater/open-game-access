@@ -815,3 +815,51 @@ poking it destroys the field engine. **Read, do not mash.**
 
 The state is re-derivable from slot 2 in about thirty seconds with the route above, and the
 lesson from slot 3 stands: never save during a transfer.
+
+## Probes 26-37, 2026-10-14: HE IS OUTSIDE, and what the "freeze" really was
+
+⭐ **Location 001 -> the world map.** Stepping onto the front door tile takes the location byte to
+`1F0`, and the screenshot is the overworld in **1000 A.D.**: Guardia Castle, the sea, the bridge,
+the "1000 A.D." label. That is outside. The whole route, input only:
+
+```
+slot 2 (the handover: 002, row 08 col 18)
+  west along row 08 to col 14
+  down col 14 to row 0B
+  right off the corridor -> the stairs carry him down to 001, arriving at row 06, col 0C/0D
+  one step down to row 07: MOM starts talking (control off, a text box is up)
+  A  x3 through her lines
+  START  finishes the character-naming screen that comes up
+  A  once more for her last line: "Run along now, and be back before dinner"
+  down to row 0B, left to col 0A, down  -> (row 0D, col 0A) is the front door trigger
+  -> loc=1F0, the world map
+```
+
+⛔ **Retired, and it was my mistake: "pressing A breaks the state".** It never did. What I called
+a broken state was the game's **character-naming screen** - a portrait window and a keyboard,
+which by bytes alone looks like a dead load: `$0119` `00`, `$0D13` `1D`, `$0117` bit 6, and a
+position reading `row 6B, col 72`. The name box read `AAAAA`: the A presses had been *typing into
+it*. Three probes of byte-reading concluded the wrong thing and **one screenshot settled it**.
+When a state looks dead, look at the screen before writing a rule about it.
+
+⭐ **What the "freeze" was.** Stepping into row 07, in front of Crono's mother, starts her
+conversation: `$011F` drops to 0 and stays there until every line is advanced. Watching 4,080
+frames changed nothing because a text box waits for input forever by design - the state was
+working perfectly and I was reading it as broken. For the adapter this is the whole argument for
+a control oracle: "the game has control; something is being said" is the truth, and "you cannot
+move" is a lie.
+
+⭐ **The naming screen is a real adapter problem.** It appears out of the middle of field play,
+holds control, and needs a name typed and confirmed. **START finishes it** (confirmed: `$0117`
+cleared, `$0119` back to `0F`, `$0D13` back to `01`, busy `07`). It has to be narrated and
+operated like a menu, not driven through.
+
+⚠ **`$0119` is not a black-screen test.** On the world map it reads `00` while the screen is
+fully visible; it also reads `00` through a real fade. Use it as "the field is fading" only
+alongside a look at the screen.
+
+⚠ **Location 001 keeps people.** Eight object slots there hold real positions, and walking into
+the tile in front of one of them starts its script. The player's own slot is `$0197` = `04`.
+
+**States:** slot 12 holds the world map, outside the house. Slot 2 still holds the handover.
+Slot 9 is the naming screen, for anyone who wants to see it again.
