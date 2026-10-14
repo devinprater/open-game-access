@@ -1,0 +1,178 @@
+Chrono Trigger SNES over RetroArch's MCP server: the collision planes, and the room
+exit walked for real. 2026-10-14. snes9x2010 core, save state slot 2 (the handover
+state probe 8 left), scripts ct_probe11.py / ct_probe13.py / ct_probe14.py /
+ct_probe15.py beside this file's source in C:/Users/Devin Prater/Downloads/ra-mcp-test/.
+
+==============================================================================
+PROBE 11 -- the three property planes and the trigger plane, drawn as a room.
+The decomp (third-party/belthasar src/collision.h + src/field.c) gives the layout:
+a 64-tile row is 0x100 bytes and carries four 0x40-byte sub-planes --
+  7E3000 mapL1 | 7E3040 mapL2 | 7E3080 mapL3 | 7E30C0 prop0 (shape)
+  7E7000 prop1 (bit4 = door) | 7E7040 prop2 (bit7 = mover-solid) | 7E7080 the trigger plane
+==============================================================================
+
+STATUS: GET_STATUS PAUSED Snes9x 2010,Chrono Trigger (USA)
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+STATUS: GET_STATUS PAUSED Snes9x 2010,Chrono Trigger (USA)
+loc=002  ctrl($011F)=01  latch($0117)=00  player px=18A4 py=08FF  tile=(row 08, col 18)
+window masks L/R/T/B = 10 1F 01 0E   wraps = 3F 3F
+
+=== solid blocks from prop0 (shape 1 = solid, ~ = slope, . = walkable) ===
+
+    101112131415161718191A1B1C1D1E1F
+01  ################
+02  ################
+03  ################
+04  ################
+05  ################
+06  ###~####..######
+07  ###..~~..~#~####
+08  ###......~#~####   <- player
+09  ###......~#~####
+0A  ###..~~~########
+0B  ###..~##########
+0C  ###..~~#########
+0D  ###..~~~########
+0E  ######~~########
+
+=== prop2 bit7, the mover-solid plane ===
+
+    101112131415161718191A1B1C1D1E1F
+01  %%%%%%%%%%%%%%%%
+02  %%%%%%%%%%%%%%%%
+03  %%%%%%%%%%%%%%%%
+04  %%%%%%%%%%%%%%%%
+05  %%%%%%%%%%%%%%%%
+06  %%%.%%%%..%%%%%%
+07  %%%..%%.....%%%%
+08  %%%.........%%%%   <- player
+09  %%%.....%...%%%%
+0A  %%%..%%%%%%%%%%%
+0B  %%%..%%%%%%%%%%%
+0C  %%%..%%%%%%%%%%%
+0D  %%%%%%%%%%%%%%%%
+0E  %%%%%%%%%%%%%%%%
+
+=== prop1 bit4, the door flag ===
+
+    101112131415161718191A1B1C1D1E1F
+01  ................
+02  ................
+03  ................
+04  ................
+05  ................
+06  ................
+07  ...D............
+08  ................   <- player
+09  ................
+0A  ................
+0B  ................
+0C  ................
+0D  ................
+0E  ................
+
+=== the 7E7080 plane, not $80 ===
+
+    101112131415161718191A1B1C1D1E1F
+01  ................
+02  ................
+03  ................
+04  ................
+05  ................
+06  ................
+07  ................
+08  ................   <- player
+09  ................
+0A  ................
+0B  ................
+0C  ................
+0D  .......x........
+0E  .......x........
+
+=== the tiles the walking probes measured ===
+ row col  mapL1 prop0 prop1 prop2  7E7080 shape mover door  measured
+  0D  13   7B    00    00    81     80    00   1    no   walkable (down the corridor)
+  0D  14   7B    00    00    81     80    00   1    no   walkable
+  0D  15   7B    5C    00    81     80    17   1    no   BLOCKED going right
+  0D  16   7B    5C    00    89     80    17   1    no   blocked
+  0D  17   7B    5C    00    88     00    17   1    no   the doorway tile
+  0E  17   8B    5C    00    89     00    17   1    no   the doorway tile
+  08  17   00    00    40    01     80    00   0    no   walkable
+  0A  17   0A    65    00    88     80    19   1    no   walkable
+  0B  17   00    04    00    81     80    01   1    no   BLOCKED holding down
+
+==============================================================================
+PROBE 13 -- teleporting the lead object with WRITE_CORE_MEMORY, then testing the
+stair mouth tile by tile. From (0D,15) and (0E,17) a held DOWN took him out of the room.
+==============================================================================
+
+(no saved copy; the run's output is in the session log)
+
+==============================================================================
+PROBE 14 -- the same thing with NO writes to the game: input only. He walks to
+(row 09, col 15), steps onto (row 0A, col 15) and stops: row 0A is a band of one-way
+tiles (shape >= 0x18), which accept one step and refuse the next.
+==============================================================================
+
+STATUS: GET_STATUS PAUSED Snes9x 2010,Chrono Trigger (USA)
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+start: loc=002 ctrl=01 tile=(row 08, col 18) sub=(A4,FF) window L/R/T/B=10 1F 01 0E
+
+=== walking, input only ===
+  left to col 15         tile=(row 08, col 15) sub=(84,FF) loc=002 ctrl=01 latch=00 bright=0F
+  down to row 09         tile=(row 09, col 15) sub=(84,9F) loc=002 ctrl=01 latch=00 bright=0F
+  standing above the stairs at (row 09, col 15)
+
+=== holding DOWN at the top of the staircase ===
+  down 1                 tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+  down 2                 tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+  down 3                 tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+  down 4                 tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+  down 5                 tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+  down 6                 tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+  down 7                 tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+  down 8                 tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+  down 9                 tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+  down 10                tile=(row 0A, col 15) sub=(84,7F) loc=002 ctrl=01 latch=00 bright=0F
+
+=== where we came out ===
+loc=002  (001 = Crono's House, Downstairs per the Chrono Compendium's location table)
+tile=(row 0A, col 15) sub=(84,7F) ctrl=01 bright=0F window=10 1F 01 0E wraps=3F 3F
+the room did NOT change; the walk needs a different approach
+
+==============================================================================
+PROBE 15 -- the answer. The stair run is entered from the CORRIDOR at (row 0B or 0C,
+col 14) by stepping RIGHT, not from the open floor above at row 09. Both take him
+down the staircase and out: loc 002 -> 001 with the transfer latch $0117 bit 7 set.
+==============================================================================
+
+STATUS: GET_STATUS PAUSED Snes9x 2010,Chrono Trigger (USA)
+
+=== the row 0A one-way band, entered from above (probe 14 stopped here) ===
+  from (09,15) holding down         -> (0A,15) sub=(80,70) loc=002 latch=00 plain down
+  from (09,15) holding down+right   -> (0A,17) sub=(80,70) loc=002 latch=00 down+right
+  from (09,15) holding down+left    -> (0D,13) sub=(70,40) loc=002 latch=00 down+left
+  from (09,16) holding down         -> (0A,16) sub=(80,70) loc=002 latch=00 plain down
+  from (09,16) holding down+right   -> (0A,17) sub=(80,70) loc=002 latch=00 down+right
+  from (09,16) holding down+left    -> (0C,13) sub=(70,40) loc=002 latch=00 down+left
+  from (09,17) holding down         -> (0A,17) sub=(80,70) loc=002 latch=00 plain down
+  from (09,17) holding down+right   -> (09,17) sub=(F0,F0) loc=002 latch=00 down+right
+  from (09,17) holding down+left    -> (0B,13) sub=(C0,40) loc=002 latch=00 down+left
+
+=== the corridor side: step right off col 14 and keep going down ===
+  from (0A,14) holding right        -> (0A,17) sub=(80,70) loc=002 latch=00 plain right
+  from (0A,14) holding right+down   -> (0A,14) sub=(80,80) loc=002 latch=00 right+down
+  from (0B,14) holding right        -> (0E,17) sub=(80,70) loc=001 latch=80 plain right   <<< THE ROOM CHANGED
+  from (0B,14) holding right+down   -> (0E,17) sub=(80,F0) loc=001 latch=80 right+down   <<< THE ROOM CHANGED
+  from (0C,14) holding right        -> (0E,17) sub=(80,70) loc=001 latch=80 plain right   <<< THE ROOM CHANGED
+  from (0C,14) holding right+down   -> (0F,17) sub=(80,00) loc=001 latch=80 right+down   <<< THE ROOM CHANGED
+  from (0D,14) holding right        -> (0D,14) sub=(80,80) loc=002 latch=00 plain right
+  from (0D,14) holding right+down   -> (0D,14) sub=(80,F0) loc=002 latch=00 right+down
+
+=== the tiles probe 13 proved descend, re-checked with one direction ===
+  from (0C,16) holding down         -> (0F,17) sub=(80,00) loc=001 latch=80 plain down   <<< THE ROOM CHANGED
+  from (0D,15) holding down         -> (0F,17) sub=(80,00) loc=001 latch=80 plain down   <<< THE ROOM CHANGED
+  from (0D,16) holding down         -> (0F,17) sub=(80,00) loc=001 latch=80 plain down   <<< THE ROOM CHANGED
+  from (0E,16) holding down         -> (FF,FF) sub=(00,00) loc=001 latch=80 plain down   <<< THE ROOM CHANGED
+
+state left at the handover (slot 2)

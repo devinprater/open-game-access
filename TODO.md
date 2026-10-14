@@ -467,6 +467,24 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   character), party at `7E2980`, gold at `7E2C53`, brightness at `7E0119`, scroll masks at
   `7E1D1A`–`1D1D`. ⚠️ It has no per-location door table and no field-VM opcode encodings,
   so our own `OPLEN` table stays necessary.
+  ⭐ **Probes 11-15 (2026-10-14) — the collision planes are the room, and the exit is WALKED.**
+  `reverse-engineering/ctds/snes-verify.md`, evidence in
+  `docs/evidence/ct-collision-planes-and-the-stairs.txt`. The decomp (`third-party/belthasar`
+  `src/collision.h`, `src/field.c`, `disasm/notes/collision.md`) gives the WRAM layout: a
+  64-tile row is `0x100` bytes carrying four `0x40`-byte sub-planes — `7E3000` mapL1,
+  `7E3040`/`7E3080` mapL2/L3, **`7E30C0` prop0 (shape: 0 walkable, 1 solid, 2..0x17 slope,
+  >=0x18 one-way)**, `7E7000` prop1 (bit4 = door flag), **`7E7040` prop2 (bit7 = mover-solid)**
+  and **`7E7080` the trigger plane** (an index into the location's `$E5:0000` exit records,
+  `$80` = none). Drawing those planes reproduces EVERY walk measurement this project has made:
+  the room is one MCP read, and this is the passability graph the navigation layer was missing —
+  it replaces the raster. ⭐ `WRITE_CORE_MEMORY` places the lead object (`$7E1802`/`$7E1882`, low
+  byte sub-pixel, high byte tile), so geometry is now tested tile by tile instead of swept.
+  ⭐ **The exit: 002 -> 001 (Crono's House Upstairs -> Downstairs), walked with input only.**
+  The stair run is entered from the CORRIDOR at row `0B`/`0C` col 14 by stepping RIGHT — not from
+  the open floor above it, where row `0A` is a one-way band that takes one step and refuses the
+  next. `$0117` bit 7 fires as probe 9 predicted. ⛔ Retired: probe 10's "the doorway is walled
+  off" (it is refused sideways at row 0D only) and every raster sweep. ❓ Open: the arrival tile
+  after the fade, then 001 -> out to the fair (005).
 
 ## PSP (parked, with a measured capability note)
 

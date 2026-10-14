@@ -600,3 +600,91 @@ pocket's own room; the pocket as previously measured was incomplete.
 ❓ **Open:** how the doorway at cols 0x15–0x17 / rows 0x0B–0x0E is actually entered. The
 next step is to read the collision plane as a picture of the room and find the approach,
 rather than driving blind.
+
+## Probes 11-15, 2026-10-14: the collision planes ARE the room, and the exit is walked
+
+⭐ **The decomp hands us the layout, and it draws the room.** `third-party/belthasar`
+(`src/collision.h`, `src/field.c`, `disasm/notes/collision.md`) documents where the
+location's collision lives in WRAM. A 64-tile row is **`0x100` bytes and carries four
+`0x40`-byte sub-planes**:
+
+| address | plane | what it holds |
+|---|---|---|
+| `7E3000` | map layer 1 | the tile number the graphics are drawn from |
+| `7E3040` / `7E3080` | map layers 2 / 3 | |
+| `7E30C0` | **prop0** | `shape = (b0 >> 2) & 0x1F`: 0 walkable tail, **1 solid block**, 2..0x17 slope, >= 0x18 one-way / conveyor |
+| `7E7000` | **prop1** | byte1 bit 4 = the **door flag** (`C0/9D43`) |
+| `7E7040` | **prop2** | byte2 bit 7 = **mover-solid** (`C0/ACFD`: `LDA $7E7040,X / BMI`) |
+| `7E7080` | **the trigger plane** | an 8-bit index into the location's `$E5:0000` exit records; `$80` = no trigger |
+
+Location 002, the bedroom, as `prop0` draws it (`.` walkable, `~` slope, `#` solid,
+`P` the player; window cols `0x10`-`0x1F`, rows `0x01`-`0x0E`):
+
+```
+    101112131415161718191A1B1C1D1E1F
+01  ################
+02  ################
+03  ################
+04  ################
+05  ################
+06  ###~####..######
+07  ###..~~..~#~####
+08  ###......~#~####   <- P
+09  ###......~#~####
+0A  ###..~~~########
+0B  ###..~##########
+0C  ###..~~#########
+0D  ###..~~~########
+0E  ######~~########
+```
+
+⭐ **Every tile this project has measured by walking matches the plane.** `(0D,13)` and
+`(0D,14)` read shape 0 and are walkable; `(0D,15)` reads shape `0x17`, a slope, and is
+refused when entered *sideways* from the corridor; `(0B,17)` reads shape 1, a solid block,
+and refuses a held DOWN; `(08,17)` reads shape 0 and is walkable. Reading the plane is one
+MCP read, and it is the passability graph the navigation layer was missing. This is the
+instrument to keep, in place of every raster.
+
+⭐ **The exit trigger plane is not a doorway you bump.** Exactly two cells in the whole
+room, `(0D,17)` and `(0E,17)`, hold index 0 (`$80` everywhere else): the stair mouth.
+`disasm/notes/collision.md`'s `trigger_lookup_and_door (9CA1)` reads that plane and looks
+the index up in the location's `$E5:0000` records, and `field.c`'s load fills the plane with
+`$80` before stamping those records in.
+
+⭐ **New harness capability: `WRITE_CORE_MEMORY` places the player.** Writing `$7E1802`
+(X) and `$7E1882` (Y) — low byte sub-pixel, high byte tile — teleports the lead object and
+the write sticks. Geometry can now be tested tile by tile instead of swept: probe 13 put
+Crono on twelve tiles and held four directions on each. ⚠ A state saved over a teleported
+position keeps it, so put him back and let the game settle before saving.
+
+⭐ **Probe 15 answers probe 10's open question.** The staircase is entered from the
+**corridor**, at **row `0B` or `0C`, col 14, by stepping RIGHT** — not from the open floor
+above it. Both take Crono down the stair run and out of the room:
+
+```
+from (0B,14) holding right  -> (0E,17)  loc=001  latch=80   <<< THE ROOM CHANGED
+from (0C,14) holding right  -> (0E,17)  loc=001  latch=80   <<< THE ROOM CHANGED
+from (0C,14) right+down     -> (0F,17)  loc=001  latch=80   <<< THE ROOM CHANGED
+from (0D,14) holding right  -> (0D,14)  loc=002  latch=00   refused
+```
+
+`$0117` bit 7 set is the transfer pending, exactly as probe 9 predicted. Probe 14 did the
+walk with **input only, no writes to the game**, from the handover state to the corridor.
+**Location 002 → 001, Crono's House Upstairs to Downstairs, driven by the harness.**
+
+⛔ **Retired: "the doorway is walled off" (probe 10).** It is walled off from the *left at
+row 0D* only, and only sideways. One row higher it opens.
+
+⛔ **Retired: climbing in from the open floor above the stairs.** Row `0A` is a band of
+one-way tiles (shape `0x19`): a held DOWN steps onto it and then refuses the next step,
+which reads exactly like a stuck player. No amount of holding opens it.
+
+❓ **Open:** where he arrives. The transfer sets the latch and reads the player's tile as
+`$FFFF` while the new room loads; one poll after the fade records the arrival tile, and
+that is the first leg of the walk 001 → out to the fair (005).
+
+⚠ **Harness traps met on the way** (all now in the skill): `RUN_FRAMES` takes `count`, not
+`frames`; `SET_INPUT` takes `control` and `value`, and **two `SET_INPUT` calls hold two
+directions at once**, which is how a diagonal staircase is descended at all; and a loop
+that holds a direction until a condition holds **must be bounded**, or it spins forever
+against a wall — one did, and a 40-frame "walk" ran for six minutes before it was killed.
