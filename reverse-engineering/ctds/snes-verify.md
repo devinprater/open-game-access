@@ -863,3 +863,52 @@ the tile in front of one of them starts its script. The player's own slot is `$0
 
 **States:** slot 12 holds the world map, outside the house. Slot 2 still holds the handover.
 Slot 9 is the naming screen, for anyone who wants to see it again.
+
+## Probes 38-42, 2026-10-14: the Millennial Fair, and the overworld is not the field
+
+⭐ **HE IS AT THE MILLENNIAL FAIR.** loc `005` - "Millennial Fair" in the game's own scene list -
+with 400 G in hand and the window at `00 2F 13 2F`. The screenshot is Leene Square: stone paving,
+market stalls with striped awnings, produce baskets, fences.
+
+⭐ **The house door leads to the OVERWORLD, not to the fair.** Stepping out takes the location to
+`1F0` - the 1000 A.D. world map, the space *between* places, labelled with its era. The fair is a
+place you walk to on that map and step into: north from the house to Leene Square, then **A** at
+the south entrance. So "1000 A.D." on screen was the era of the map, and the fair was one walk
+away, not missing.
+
+⭐ **The decomp project had already recorded that walk.**
+`third-party/belthasar/tools/recipes/fair_entrance.json`:
+*"Crono leaves his house without the allowance (400 G, as the GATO references have), walks north
+on the 1000 A.D. overworld to Leene Square and enters the Millennial Fair (loc 005, its south
+entrance)"*, with pad scripts and the expectation
+`{"loc": "0x005", "wram": {"0x2C53": "0x90", "0x2C54": "0x01"}}`. Their pad syntax is LakeSnes
+serial bits - `R=80 L=40 D=20 U=10 Start=08 Select=04 Y=02 B=01, A=100 X=200` - and `B` is the run
+button, so `41:16` is left+run for sixteen frames. **Replayed through MCP, pad for pad, it landed
+on loc `005` with gold `0x190`: their oracle and this harness agree on the value, not just on the
+location.** The recipe's last step is `100:2,0:150` - two frames of A and 150 frames for the fade -
+which is what entering a location looks like from outside.
+
+📘 **The game's own location names** are in `third-party/ctviewer/data/snes_na_scenes.txt`, keyed by
+the `$7E0100` byte: `001` Crono's Kitchen, `002` Crono's Room, `003` Lucca's Kitchen, `004` Lucca's
+Workshop, **`005` Millennial Fair**, `006` Gato's Exhibit, `007` Prehistoric Exhibit, `008` Telepod
+Exhibit, `00C` Truce Inn (Present), `00D` Truce Mayor's Manor 1F, `00E` Truce Mayor's Manor 2F,
+`011` Truce Market (Present), `013` Guardia Forest (Present). This is the narration table the
+adapter wants, and it is the ROM's own rather than the community's.
+
+⚠ **The overworld is its own module, and the field's addresses do not follow it.** On loc `1F0`:
+`$0119` reads `00` and `$0117` bit 7 stays set while the map is plainly on screen and answering
+the d-pad - the screen changes with every held direction - and the position at `$1800 + $0197`
+does not move at all. `disasm/notes/menu2_overworld_entry.md` says why: the overworld is a
+separate main loop (`C2/23CF`) with all of its per-frame logic in its own NMI
+(`$7E:0500 = JML C2/015E`), its own player-object handler at `C2/3567`, and its live state stashed
+to `$7F:2800-89FF` whenever the menu opens. ⛔ So on the overworld, read the screen or find the
+overworld's own player object: do not trust the field's `$0119`, `$0117` or `$1800`. This also
+corrects probe 37's "the transfer never completed" - it had completed; the overworld simply never
+clears those bytes.
+
+⚠ The overworld's menu is polled on the **held** X button (`$00F8` bit 6, then `$027C = 5`), which
+is why a held X re-opens it one frame after it closes - the ROM's one-shot comes from a state
+variable, not from a press edge.
+
+**States:** slot 15 = the Millennial Fair (loc `005`). Slot 13 = the overworld outside the house.
+Slot 2 = the bedroom handover.

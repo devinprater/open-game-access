@@ -551,3 +551,56 @@ SAVE_STATE_SLOT 11: SAVE_STATE_SLOT 11
 
 --- probe 37: the world map, outside the house
 (not saved)
+
+==============================================================================
+PROBES 38-42 -- HE IS AT THE MILLENNIAL FAIR (loc 005, 400 G). The house door leads to
+the OVERWORLD (loc 1F0), not to the fair; the fair is a walk north and an A press.
+The decomp's own fair_entrance.json recipe replayed exactly through MCP: loc 005,
+gold 0x190, matching its expect block.
+==============================================================================
+
+LOAD_STATE_SLOT 13: LOAD_STATE_SLOT 13
+outside the house: loc=1F0 ctrl=01 latch=80 bright=00 gold=000190 window=00 0F 00 0D
+
+=== the recipe's walk north: up, left, up, left, up, right, up ===
+    up    for  16 frames -> loc=1F0 (the 1000 A.D. overworld) ctrl=01
+    left  for  16 frames -> loc=1F0 (the 1000 A.D. overworld) ctrl=01
+    up    for  16 frames -> loc=1F0 (the 1000 A.D. overworld) ctrl=01
+    left  for  16 frames -> loc=1F0 (the 1000 A.D. overworld) ctrl=01
+    up    for  32 frames -> loc=1F0 (the 1000 A.D. overworld) ctrl=01
+    right for  16 frames -> loc=1F0 (the 1000 A.D. overworld) ctrl=01
+    up    for  16 frames -> loc=1F0 (the 1000 A.D. overworld) ctrl=01
+after the walk: loc=1F0 ctrl=01 latch=80 bright=00 gold=000190 window=00 0F 00 0D
+
+=== the recipe's last step: A, then the fade ===
+    a     for   2 frames -> loc=1F0 (the 1000 A.D. overworld) ctrl=01
+    wait  for 150 frames -> loc=005 (Millennial Fair) ctrl=01
+after A: loc=005 ctrl=01 latch=00 bright=0F gold=000190 window=00 2F 13 2F
+
+*** THE MILLENNIAL FAIR. loc=005 ***
+
+final: loc=005 ctrl=01 latch=00 bright=0F gold=000190 window=00 2F 13 2F
+SAVE_STATE_SLOT 15: SAVE_STATE_SLOT 15
+
+--- probe 40: on the overworld, the screen answers the d-pad while the field's position
+    at $1800+$0197 does not move, and $0119/$0117 stay at 00/80.
+LOAD_STATE_SLOT 13: LOAD_STATE_SLOT 13
+state: loc=1F0 ctrl=01 latch=80 bright=00
+baseline screenshot hash: 9617b0bc6d81241a
+
+  hold right 240 frames -> hash b94167eef41ef825  THE SCREEN CHANGED
+  hold left  240 frames -> hash 5e037057c6d9ea64  THE SCREEN CHANGED
+  hold up    240 frames -> hash 6b65548ec60086d6  THE SCREEN CHANGED
+  hold down  240 frames -> hash 03f90c7482075d0a  THE SCREEN CHANGED
+
+=== buttons, one at a time, each on a fresh press ===
+  press a      -> hash d8d82c8addf307e1  THE SCREEN CHANGED   loc=00D ctrl=01 latch=00 bright=00
+  press b      -> hash c6d5070ecc05020b  THE SCREEN CHANGED   loc=00D ctrl=01 latch=00 bright=0F
+  press start  -> hash fb57eca74ba37f55  THE SCREEN CHANGED   loc=00D ctrl=01 latch=00 bright=07
+  press select -> hash fb57eca74ba37f55  THE SCREEN CHANGED   loc=00D ctrl=01 latch=00 bright=07
+  press x      -> hash fb57eca74ba37f55  THE SCREEN CHANGED   loc=00D ctrl=01 latch=00 bright=07
+  press y      -> hash fb57eca74ba37f55  THE SCREEN CHANGED   loc=00D ctrl=01 latch=00 bright=07
+
+=== what the object tables say now ===
+  slot 00: X=FF00 Y=FF00
+  slot 02: X=1780 Y=1CFF
