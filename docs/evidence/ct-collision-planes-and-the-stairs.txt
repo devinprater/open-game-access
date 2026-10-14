@@ -176,3 +176,86 @@ STATUS: GET_STATUS PAUSED Snes9x 2010,Chrono Trigger (USA)
   from (0E,16) holding down         -> (FF,FF) sub=(00,00) loc=001 latch=80 plain down   <<< THE ROOM CHANGED
 
 state left at the handover (slot 2)
+
+==============================================================================
+PROBE 16 -- the transfer watched through: the latch fires on the stair mouth, the
+screen dims, loc 002 -> 001, and the new room's window is cols 00-0F rows 00-0D.
+==============================================================================
+
+STATUS: GET_STATUS PAUSED Snes9x 2010,Chrono Trigger (USA)
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+placed: {"loc": 2, "row": 11, "col": 20, "ctrl": 1}
+
+=== holding RIGHT off the corridor ===
+  + 15 frames  loc=002 tile=(row 0C, col 15) sub=(70,60) ctrl=01 latch=00 bright=0F window=10 1F 01 0E
+  + 30 frames  loc=002 tile=(row 0D, col 16) sub=(60,50) ctrl=01 latch=00 bright=0F window=10 1F 01 0E
+  + 45 frames  loc=002 tile=(row 0E, col 17) sub=(50,40) ctrl=01 latch=80 bright=0A window=10 1F 01 0E
+  + 60 frames  loc=001 tile=(row 0E, col 17) sub=(80,70) ctrl=01 latch=00 bright=00 window=10 1F 01 0E
+  + 75 frames  loc=001 tile=(row 0E, col 17) sub=(80,70) ctrl=01 latch=00 bright=00 window=00 0F 00 0D
+  + 90 frames  loc=001 tile=(row FF, col FF) sub=(00,00) ctrl=01 latch=00 bright=00 window=00 0F 00 0D
+  +105 frames  loc=001 tile=(row FF, col FF) sub=(00,00) ctrl=01 latch=00 bright=0B window=00 0F 00 0D
+  +120 frames  loc=001 tile=(row FF, col FF) sub=(00,00) ctrl=01 latch=00 bright=0F window=00 0F 00 0D
+
+=== arrived: loc=001 (001 = Crono's House, Downstairs), tile=(row FF, col FF), wraps=3F 3F
+
+=== is he controllable in the new room? ===
+  left  -> tile=(row FF, col FF) loc=001 ctrl=01 no move
+  right -> tile=(row FF, col FF) loc=001 ctrl=01 no move
+  up    -> tile=(row FF, col FF) loc=001 ctrl=01 no move
+  down  -> tile=(row FF, col FF) loc=001 ctrl=00 no move
+
+=== the new room's collision picture (prop0: . walkable, ~ slope, # solid) ===
+    0123456789ABCDEF
+00  ################
+01  ################
+02  #########~######
+03  #########~~#####
+04  #########~~~####
+05  ##.....###~~..##
+06  ##..#...###~..##
+07  ##..==..###...##
+08  ###.##..###...##
+09  ##..##..###...##
+0A  ##..##........##
+0B  ##............##
+0C  ##~..........~##
+0D  ##########..####
+
+SAVE_STATE_SLOT 3: SAVE_STATE_SLOT 3
+
+==============================================================================
+PROBE 17/18 -- the object slot MOVES: $0197 is the lead object's byte offset in the
+tables (02 upstairs, 04 downstairs), so the position is u16 at $1800+$0197 / $1880+$0197.
+Reading the old slot gives $FF00 and the false conclusion that he cannot move.
+==============================================================================
+
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+upstairs: loc=002 lead($0197)=02 idx99=80 idx9B=80 pos($1802/$1882)=18A4,08FF
+after the transfer: loc=001 lead($0197)=04 idx99=80 idx9B=80 pos($1802/$1882)=FF00,FF00 bright=0F
+new window L/R/T/B=00 0F 00 0D
+
+=== the object tables, in case the position moved slot ===
+  X at $1800: FF00 FF00 0D30 FF00 FF00 FF00 FF00 FF00 FF00 08FE FF00 0780 0880 0780 0880 0C80 1A80 1780 FF00 FF00 0000 0000 0000 0000
+  Y at $1880: FF00 FF00 067F FF00 FF00 FF00 FF00 FF00 FF00 0B4B FF00 0AFF 0AFF 09FF 09FF 08FF 08FF 06FF FF00 FF00 0000 0000 0000 0000
+  lead index $0197 = 04  -> the position should be at $1800+2*4 = $1808
+
+=== can he walk now? each direction, 40 frames ===
+  left   (FF00,FF00) -> (FF00,FF00)   tile (row FF, col FF) no move
+  right  (FF00,FF00) -> (FF00,FF00)   tile (row FF, col FF) no move
+  up     (FF00,FF00) -> (FF00,FF00)   tile (row FF, col FF) no move
+  down   (FF00,FF00) -> (FF00,FF00)   tile (row FF, col FF) no move
+
+SAVE_STATE_SLOT 3 (downstairs, controllable): SAVE_STATE_SLOT 3
+
+LOAD_STATE_SLOT 2: LOAD_STATE_SLOT 2
+upstairs: loc=002 ctrl=01 latch=00 bright=0F lead=02 window=10 1F 01 0E
+after the transfer: loc=001 ctrl=01 latch=00 bright=0F lead=04 window=00 0F 00 0D
+settled: loc=001 ctrl=01 latch=00 bright=0F lead=04 window=00 0F 00 0D
+
+=== which object slot answers the d-pad downstairs? ===
+  hold left  -> obj 2 ($1804/$1884): (0D30,067F) -> (0AB0,054F) = tile (row 05, col 0A)
+  hold right -> obj 2 ($1804/$1884): (0AB0,054F) -> (0D30,057F) = tile (row 05, col 0D)
+  hold up    -> obj 9 ($1812/$1892): (0B17,0A01) -> (0BF5,095C) = tile (row 09, col 0B)
+  hold down  -> obj 2 ($1804/$1884): (0D30,057F) -> (0D30,07AF) = tile (row 07, col 0D)
+
+state: loc=001 ctrl=00 latch=00 bright=0F lead=04 window=00 0F 00 0D

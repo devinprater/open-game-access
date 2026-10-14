@@ -688,3 +688,66 @@ that is the first leg of the walk 001 → out to the fair (005).
 directions at once**, which is how a diagonal staircase is descended at all; and a loop
 that holds a direction until a condition holds **must be bounded**, or it spins forever
 against a wall — one did, and a 40-frame "walk" ran for six minutes before it was killed.
+
+## Probes 16-18, 2026-10-14: the transfer watched through, and the object slot moves
+
+⭐ **The whole transfer, frame by frame.** Standing at the corridor mouth (row `0B`, col
+`0x14`) and holding RIGHT:
+
+```
++ 15 frames  loc=002 tile=(0C,15) sub=(70,60) latch=00 bright=0F
++ 30 frames  loc=002 tile=(0D,16) sub=(60,50) latch=00 bright=0F
++ 45 frames  loc=002 tile=(0E,17) sub=(50,40) latch=80 bright=0A   <- trigger fires, screen dims
++ 60 frames  loc=001 tile=(0E,17) sub=(80,70) latch=00 bright=00   <- the new room, black
++ 75 frames  loc=001                                     window=00 0F 00 0D
++120 frames                                             bright=0F   <- settled
+```
+
+`$0119` (brightness) is the "is the screen mid-transition" signal the Compendium promised:
+`0F` normal, `0A` as it dims, `00` through the load.
+
+⛔ **Retired: the object position is at `$1802`/`$1882`.** That was true upstairs because
+`$0197` — the lead object's **byte offset** in the object tables — was `02` there. **The room
+load changes it to `04`**, and `$1802`/`$1882` then read `$FF00` (a vacant slot). The rule is:
+
+```
+X = u16 at $7E1800 + $0197      Y = u16 at $7E1880 + $0197
+```
+
+which reconciles probe 6's note: it read `X = $0197` and Crono happened to be `$1802` that
+day. **Read `$0197`; never hardcode the offset.** (Probe 17 read the stale slot and concluded,
+wrongly, that he could not move downstairs.)
+
+⭐ **He walks downstairs.** Diffing the object tables before and after a held direction, the
+only entry that answers the d-pad is object 2 at `$1804`/`$1884`: left took him from tile
+(row 06, col 0D) to (row 05, col 0A), right put him back on col 0D, down took him to row 07.
+Diffing the tables is also the honest way to find a slot: it needs no assumption about which
+object the player is.
+
+⭐ **Location 001, the ground floor, from its own collision plane** (window now cols
+`0x00`-`0x0F`, rows `0x00`-`0x0D`; `.` walkable, `~` slope, `=` one-way, `#` solid):
+
+```
+    0123456789ABCDEF
+00  ################
+01  ################
+02  #########~######
+03  #########~~#####
+04  #########~~~####
+05  ##.....###~~..##
+06  ##..#...###~..##
+07  ##..==..###...##
+08  ###.##..###...##
+09  ##..##..###...##
+0A  ##..##........##
+0B  ##............##
+0C  ##~..........~##
+0D  ##########..####
+```
+
+The staircase is unmistakable: a `~` diagonal descending at cols 9-13, rows 02-06, i.e. the
+mirror of the upstairs run — and one-way (`=`) tiles at the top of the run, which is why the
+descent works and the climb back does not.
+
+❓ **Open:** walk 001 to the door out to the fair (005), and see whether the same corridor rule
+holds. The savestate for that is slot 3.
