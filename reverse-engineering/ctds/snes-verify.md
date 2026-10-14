@@ -751,3 +751,11 @@ descent works and the climb back does not.
 
 ❓ **Open:** walk 001 to the door out to the fair (005), and see whether the same corridor rule
 holds. The savestate for that is slot 3.
+
+⛔ **Correction: save state slot 3 is NOT usable, and the claim that it held "the downstairs
+state" was wrong.** It was saved while the new room was still loading - the player's tile read
+`$FFFF` at that moment - and the field engine never resumed: 6,000 idle frames later `$011F` is
+still 0 and no direction moves him, and eight presses of A took the screen to black
+(`$0119` = 00) where it stayed for another 3,000 frames with the context byte stuck at `1D`.
+**Never save a state during a transfer.** The state to keep is slot 2 (the handover) plus the
+route above, which re-derives the ground floor from there in about thirty seconds.
