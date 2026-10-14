@@ -759,3 +759,59 @@ still 0 and no direction moves him, and eight presses of A took the screen to bl
 (`$0119` = 00) where it stayed for another 3,000 frames with the context byte stuck at `1D`.
 **Never save a state during a transfer.** The state to keep is slot 2 (the handover) plus the
 route above, which re-derives the ground floor from there in about thirty seconds.
+
+## Probes 23-25, 2026-10-14: the ground floor's triggers, and a scene that will not let go
+
+⭐ **Location 001 read out of its own planes.** Four trigger tiles in the whole 64x64 map, all
+inside the window (`.` floor, `~` slope, `=` one-way, `#` wall, `X` a trigger):
+
+```
+    0123456789ABCDEF
+00  ################
+01  ################
+02  #########~######
+03  #########X~#####   X (row 03, col 09) = index 01
+04  #########X~~####   X (row 04, col 09) = index 01
+05  ##.....###~~..##
+06  ##..#...###~..##   <- the arrival tile
+07  ##..==..###...##
+08  ###.##..###...##
+09  ##..##..###...##
+0A  ##..##........##
+0B  ##............##
+0C  ##~..........~##
+0D  ##########XX####   X (row 0D, col 0A) and (row 0D, col 0B) = index 00
+```
+
+The two index-`01` tiles sit on the staircase, which is the way back up to `002`. The two
+index-`00` tiles are at the far end of the room from the stairs, which is where a house's front
+door is - and index `00` is the same index the upstairs stair mouth held. Reading the triggers
+tells you where a room's ways out are without walking it.
+
+⭐ **The descent repeats.** From slot 2, input only, twice in a row: 002 -> 001, arriving at
+(row `06`, col `0D`) with the new window at cols `00`-`0F`, rows `00`-`0D`.
+
+⛔ **Stepping down from the arrival tile takes control away, and it does not give it back.**
+At (row `07`, col `0D`) `$011F` reads 0, and **4,080 frames - sixty-eight seconds - later it
+still reads 0**: the tile has not moved, `$0117` is clear, `$0119` is `0F` (nothing fading), and
+the context byte `$0D13` and busy byte `$0D76` sit at `01` and `07`, unchanged. Nothing is
+animating and nothing is waiting on a timer. This is not the ~2,900-frame handover of the
+opening, which always ends.
+
+⛔ **Pressing A into it made it worse, twice.** Both attempts ended the same way: screen black
+(`$0119` = `00`), the trigger latch at `$40`, the window masks zeroed and the player's position
+reading garbage (`row 6B, col 72`). Whatever that state wants, a held button is not it, and
+poking it destroys the field engine. **Read, do not mash.**
+
+❓ **Open, with two candidates**, both for the next session:
+
+- **`SET_INPUT` holds, and never edges.** A held button is not a press, so any edge-triggered
+  text advance - the usual way a scripted scene advances - cannot see it. Testing that means a
+  release-then-press pair with a frame of nothing between, and one candidate button at a time,
+  watching `$0D13` after each.
+- **Which byte says "a text box is up".** `$0D13` (context) and `$0D76` (busy) are the DS
+  research's own pair and they are the right things to watch, but they read `01`/`07` before
+  and after the scene begins, so on their own they do not distinguish it here.
+
+The state is re-derivable from slot 2 in about thirty seconds with the route above, and the
+lesson from slot 3 stands: never save during a transfer.
