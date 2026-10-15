@@ -701,3 +701,41 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 - [x] Re-ran the full simulator workflow after the link fixes: `.app` packages and boots on a simulated iPhone (run 36235169070, all steps green; screenshot shows the idle UI).
 
 2026-10-02: task1 banked 2/7 Terra species (0x177/0x178 wired, tests 160/160); 0x179-0x17D fight-gated. Task2 DONE: board hints (engage + DP-zero, verbatim pool).
+
+
+## NEXT UP — marked 2026-10-14 by the user
+
+### 1. GBA: get Mesen past the BIOS wall
+
+Mesen's GBA core loads a ROM, parses the cartridge header (Buu's Fury reads `DBZBUUSFURY`, game
+code `BG3E`, EEPROM save) and runs 3,000 frames with `ok = true` and exit 0 — **while the screen
+stays a flat colour and EWRAM stays empty: 0 to 26 nonzero bytes out of 262,144 across three
+different games.** That is a GBA that never runs its boot code, and the JSONL looks like success.
+The core wants a GBA BIOS, and this machine has none (only DS and PlayStation firmware under
+`Dropbox/games/Bios`).
+
+- **Needed from Devin: a 16 KB GBA BIOS dump from his own hardware.** Until it exists, GBA work
+  stays on mGBA, which needs no BIOS. (Game Boy needs nothing: Pokemon Red reached its title
+  screen first try, so NES, SNES and GB are already real here.)
+- Then: put the BIOS where the tool looks for firmware under `--home`, re-run the GBA titles, and
+  accept the result only when EWRAM has content and a title screen renders — never on exit 0 alone.
+- **No adapter exists for the DBZ GBA titles** (Buu's Fury, Legacy of Goku II, Supersonic Warriors,
+  Advanced Adventure, GT Transformation). A candidate once the console boots here.
+
+### 2. DBZ: Attack of the Saiyans (DS) — drive the adapter against the live game
+
+The adapter is written and registered (`Core/dbz_adapter.cpp`, `dbz-saiyans`, game code `BRPE`;
+commands WhereAmI / NextAlly / PrevAlly / NextEnemy / PrevEnemy / DumpState; synthetic-memory host
+tests in `scripts/dbz-adapter-test.sh`), and its map was confirmed against the game's own Status
+screen: party pointer array `0x020CC774`, count word `0x020CC794`, records at `0x020CD660` with
+stride `0x24C`, HP `+0x0A0`, KI `+0x0B0`, NEXT `+0x240`. What has never happened is driving it
+against the running ROM.
+
+- **Next: run it live and check the spoken names and stats against the Status screen.** A spoken
+  name that matches the screen is the acceptance test; a plausible-but-wrong neighbour record is
+  the failure this map was built to avoid.
+- Still open in `docs/reverse-engineering/dbz-attack-of-the-saiyans.md`: what the two halves of the
+  `0x020CC794` count word mean, and what `0x020CC770` (four bytes before the array, referenced 70
+  times) holds. ⛔ Never narrate from the 8-record character-definition array: it includes two
+  entities the player cannot field.
+
