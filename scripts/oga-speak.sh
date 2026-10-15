@@ -23,6 +23,12 @@
 # 2 needs nothing. Stage 1 honours the rule where the pieces exist; stage 2
 # keeps the reader testable end to end where they do not.
 #
+# ⛔ WSLENV, NOT JUST export: WSL does not hand the environment to Windows
+# programs unless a variable is named in WSLENV. Without it the helper runs
+# blind to OGA_TTS_RATE, OGA_SPEAK_BACKEND and OGA_SPEAK_DEBUG — measured, not
+# assumed: `OGA_SPEAK_DEBUG=1 cmd.exe /c 'echo %OGA_SPEAK_DEBUG%'` prints
+# `%OGA_SPEAK_DEBUG%`, and prints `1` once WSLENV names it.
+#
 # Rate: -10..10, the SAPI scale. Unset by default, which leaves the engine's
 # own rate alone. Override with OGA_TTS_RATE.
 #
@@ -42,6 +48,10 @@ LINE="$(cat)"
 [ -z "${LINE// /}" ] && exit 0
 
 # --- stage 1: Prism -----------------------------------------------------------
+# The helper is a Windows program, so the settings have to be named in WSLENV
+# to cross the boundary. Anything already in WSLENV is kept.
+SHARE="${WSLENV:+$WSLENV:}OGA_TTS_RATE:OGA_SPEAK_BACKEND:OGA_SPEAK_DEBUG"
+
 find_python() {
   local win_home candidate
   if [ -n "${OGA_SPEAK_PYTHON:-}" ] && [ -x "${OGA_SPEAK_PYTHON}" ]; then
@@ -63,7 +73,7 @@ find_python() {
 if [ -f "$HELPER" ] && PYTHON="$(find_python)"; then
   HELPER_WIN="$(wslpath -w "$HELPER" 2>/dev/null || true)"
   if [ -n "$HELPER_WIN" ]; then
-    if printf '%s\n' "$LINE" | "$PYTHON" "$HELPER_WIN"; then
+    if printf '%s\n' "$LINE" | WSLENV="$SHARE" "$PYTHON" "$HELPER_WIN"; then
       exit 0
     fi
     [ -n "${OGA_SPEAK_DEBUG:-}" ] && echo "oga-speak.sh: Prism stage failed, using SAPI" >&2
