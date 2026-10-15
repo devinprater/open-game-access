@@ -1,31 +1,83 @@
 #!/usr/bin/env bash
-# oga-speak.sh — speak one line on Windows using the OS speech engine (SAPI).
+# oga-speak.sh — speak one line on Windows, through the player's own reader.
 #
 # This is the default TTS sink for the PSP Steins;Gate reader:
 #     node scripts/psp-sg-live.mjs --auto circle --tts "scripts/oga-speak.sh"
 #
-# ⭐ WHY A SEPARATE SCRIPT: the reader pipes the line on stdin and the project rule is to
-# speak through the USER'S OWN engine with their voice/rate settings — never to override
-# them. Swapping this one file swaps the voice, without touching the reader.
+# ⭐ THE PROJECT RULE: speak through the USER'S OWN engine with their voice and
+# rate settings — never override them — and keep the sink swappable.
 #
-# ⚠ On a screen-reader setup you may want to route through the screen reader instead
-# (NVDA's controller client, or `say` on macOS). This uses SAPI because it needs no
-# install, which makes the reader testable end to end.
+# Two stages, in this order:
 #
-# Rate: -10..10. Default 0. Override with OGA_TTS_RATE.
+#   1. Prism (scripts/oga-speak-prism.py). Prism speaks through the screen
+#      reader the player is already running: NVDA or JAWS when either is up,
+#      OneCore or SAPI when neither is. The line comes out in their own voice,
+#      at their own rate, and also lands on their braille display when the
+#      engine drives one. Rate and voice are touched only if OGA_TTS_RATE is
+#      set and non-zero.
+#
+#   2. SAPI via PowerShell, unchanged. Nothing to install, so the reader still
+#      speaks on a machine with no python and no screen reader.
+#
+# WHY THE FALLBACK STAYS: stage 1 needs python plus the prismatoid wheel, stage
+# 2 needs nothing. Stage 1 honours the rule where the pieces exist; stage 2
+# keeps the reader testable end to end where they do not.
+#
+# Rate: -10..10, the SAPI scale. Unset by default, which leaves the engine's
+# own rate alone. Override with OGA_TTS_RATE.
+#
+# Python for stage 1: OGA_SPEAK_PYTHON, else %USERPROFILE%\.venvs\prism\
+# Scripts\python.exe on the Windows side. Set OGA_SPEAK_DEBUG=1 to see which
+# stage and backend was used on stderr.
 set -uo pipefail
 
+HERE="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+HELPER="$HERE/oga-speak-prism.py"
+[ -n "${OGA_TTS_RATE:-}" ] && export OGA_TTS_RATE
+
+# Read the whole line from stdin (UTF-8). Kept exactly as the reader wrote it:
+# stage 1 passes it straight to the engine, so quotes and backticks in game
+# text survive. Only the PowerShell fallback below needs them stripped.
+LINE="$(cat)"
+[ -z "${LINE// /}" ] && exit 0
+
+# --- stage 1: Prism -----------------------------------------------------------
+find_python() {
+  local win_home candidate
+  if [ -n "${OGA_SPEAK_PYTHON:-}" ] && [ -x "${OGA_SPEAK_PYTHON}" ]; then
+    printf '%s' "$OGA_SPEAK_PYTHON"
+    return 0
+  fi
+  win_home="$(wslpath -u "$(cmd.exe /c 'echo %USERPROFILE%' 2>/dev/null | tr -d '\r')" 2>/dev/null)"
+  if [ -n "$win_home" ]; then
+    candidate="$win_home/.venvs/prism/Scripts/python.exe"
+    if [ -x "$candidate" ]; then
+      printf '%s' "$candidate"
+      return 0
+    fi
+  fi
+  command -v python.exe 2>/dev/null && return 0
+  return 1
+}
+
+if [ -f "$HELPER" ] && PYTHON="$(find_python)"; then
+  HELPER_WIN="$(wslpath -w "$HELPER" 2>/dev/null || true)"
+  if [ -n "$HELPER_WIN" ]; then
+    if printf '%s\n' "$LINE" | "$PYTHON" "$HELPER_WIN"; then
+      exit 0
+    fi
+    [ -n "${OGA_SPEAK_DEBUG:-}" ] && echo "oga-speak.sh: Prism stage failed, using SAPI" >&2
+  fi
+fi
+
+# --- stage 2: SAPI, no install required ---------------------------------------
 RATE="${OGA_TTS_RATE:-0}"
 
-# Read the whole line from stdin (UTF-8), then strip anything that would break the
-# PowerShell string literal — a quote or a backtick from game text would otherwise
-# terminate the command and silently speak nothing.
-LINE="$(cat)"
+# Strip anything that would break the PowerShell string literal — a quote or a
+# backtick from game text would otherwise terminate the command and silently
+# speak nothing.
 LINE="${LINE//\"/\'}"
 LINE="${LINE//\`/\'}"
 
-[ -z "${LINE// /}" ] && exit 0
-
-# SAPI.SpVoice via PowerShell. -NoProfile keeps it fast; STA is required by SAPI.
 exec powershell.exe -NoProfile -STA -Command \
   "Add-Type -AssemblyName System.Speech; \$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; \$s.Rate = ${RATE}; \$s.Speak([Console]::In.ReadToEnd())" <<< "$LINE"

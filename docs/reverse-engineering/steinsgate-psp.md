@@ -1134,10 +1134,18 @@ $ node scripts/psp-sg-live.mjs --backlog 8 --tts "bash scripts/oga-speak-capture
 **stdout and TTS receive byte-identical text, in the same order** — verified with a capture
 sink that appends what it is asked to speak, then diffing the two streams.
 
-`scripts/oga-speak.sh` is the default sink: Windows SAPI via PowerShell, no install needed.
-It was verified by rendering to a WAV (22 kHz mono, 3.54 s, 197,612 bytes = real audio, not
-an exit code). Speech is pluggable because the project rule is to use the user's engine and
-never override their voice/rate/pitch — swapping the script swaps the voice.
+`scripts/oga-speak.sh` is the default sink, in two stages. `scripts/oga-speak-prism.py` speaks
+through the screen reader the player is already running — NVDA or JAWS when either is up,
+OneCore or SAPI when neither is — and also puts the same line on their braille display when
+the engine drives one. If python or the `prismatoid` wheel is missing, or no backend answers,
+the script falls back to the original Windows SAPI path, which needs no install at all.
+
+Both stages were verified by running them, not by reasoning. Stage 1: with a line on stdin it
+chose NVDA and exited 0; forcing a backend that is not installed exited 3, which is the signal
+the script uses to fall through to SAPI. Stage 2: rendering to a WAV (22 kHz mono, 3.54 s,
+197,612 bytes = real audio, not an exit code). Speech is pluggable because the project rule is
+to use the user's engine and never override their voice/rate/pitch — swapping the script swaps
+the voice.
 
 ### ⛔ FOUR parsing bugs fixed by reading the DATA, not by reasoning
 
