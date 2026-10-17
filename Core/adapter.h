@@ -13,7 +13,7 @@
  * script is per-core, and the frame/speech/log callbacks are per-core pointers. So
  * adapters can be selected at ROM-load time with no change to the Pokémon path.
  *
- * ⛔ DO NOT over-generalise this. Five native adapters (registered in
+ * ⛔ DO NOT over-generalise this. Six native adapters (registered in
  * adapters.cpp) plus the Lua script path use it; every member below exists
  * because one of them needed it. Add a member only when a real game proves it.
  */

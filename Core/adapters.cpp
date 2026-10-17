@@ -7,7 +7,7 @@
  *     an asset; the core needs nothing from it beyond the Lua memory/input/speech
  *     surface it already provides. It is not registered here because it needs no
  *     native code at all.
- *   * NATIVE — the five registered below. Fire Emblem set the pattern: its
+ *   * NATIVE — the six registered below. Fire Emblem set the pattern: its
  *     tactical state is a pointer graph (gMapStateManager -> cursor, gUnitList
  *     array of records) that is far cheaper to read in C++ than to walk from Lua
  *     every frame.
@@ -48,6 +48,13 @@ extern const Adapter kDissidiaFinalFantasy;
 // them through this front.
 extern const Adapter kDragonQuestIX;
 
+// Implemented in mku_adapter.cpp — Mortal Kombat: Unchained (PSP,
+// ULUS10102). Main menu, Kombat submenu, character select, fight state,
+// pause menu and Konquest dialogue are mapped, spoken and live-verified;
+// Konquest free-roam is the active frontier. Status and method:
+// docs/reverse-engineering/mortal-kombat-unchained.md.
+extern const Adapter kMortalKombatUnchained;
+
 // ⛔ IMPLEMENTED? NO — AND THE REGISTRY SAYS SO. kNintendoEntertainmentSystem
 // exists so the NES has a home in the code BEFORE its backend does, which is the
 // order this repo has settled on (the system registry lists a console before its
@@ -85,6 +92,7 @@ static const Adapter* const kAdapters[] = {
     &kDissidiaFinalFantasy,
     &kDragonBallZAnotherRoad,
     &kDragonQuestIX,
+    &kMortalKombatUnchained,
     &kNintendoEntertainmentSystem,
     &kNintendo64,
 };

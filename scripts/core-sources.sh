@@ -79,6 +79,7 @@ dbz_adapter.cpp
 dissidia_adapter.cpp
 dbzar_adapter.cpp
 dq9_adapter.cpp
+mku_adapter.cpp
 osk_echo.cpp
 adapters.cpp
 announce.cpp
