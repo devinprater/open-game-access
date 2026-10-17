@@ -8,6 +8,7 @@ cp -f "$W/Core/dissidia_adapter_test.cpp" "$R/Core/dissidia_adapter_test.cpp"
 cp -f "$W/Core/osk_echo.cpp" "$R/Core/osk_echo.cpp" 2>/dev/null || true
 cp -f "$W/Core/osk_echo.h" "$R/Core/osk_echo.h" 2>/dev/null || true
 cp -f "$W/Core/adapters.cpp" "$R/Core/adapters.cpp"
+cp -f "$W/Core/mku_adapter.cpp" "$R/Core/mku_adapter.cpp" 2>/dev/null || true
 cp -f "$W/scripts/build-host.sh" "$R/scripts/build-host.sh"
 cp -f "$W/scripts/core-sources.sh" "$R/scripts/core-sources.sh"
 cp -f "$W/scripts/psp-find-widget.py" "$R/scripts/psp-find-widget.py" 2>/dev/null || true
@@ -24,7 +25,7 @@ g++ -O1 -g -fwrapv -fno-strict-aliasing -I"$R/Core" -I"$R/Sources/CPokeCore/incl
   "$R/Core/dissidia_adapter_test.cpp" \
   "$R/Core/dissidia_adapter.cpp Core/dbzar_adapter.cpp" \
   "$R/Core/osk_echo.cpp" \
-  "$R/Core/adapters.cpp"
+  "$R/Core/adapters.cpp" "$R/Core/mku_adapter.cpp"
 echo "build rc=$?"
 echo "=== run ==="
 /home/devin/oga-test/dissidia-test

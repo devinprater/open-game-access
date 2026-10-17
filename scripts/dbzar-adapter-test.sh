@@ -18,6 +18,7 @@ CXX="${CXX:-g++}"
   "$ROOT/Core/dbzar_adapter_test.cpp" \
   "$ROOT/Core/dbzar_adapter.cpp" \
   "$ROOT/Core/adapters.cpp" \
+  "$ROOT/Core/mku_adapter.cpp" \
   "$ROOT/Core/announce.cpp"
 
 "$OUT/dbzar-test"
