@@ -273,6 +273,13 @@ int KombatSubIndex(void)
 bool OnKombatSub(void)
 {
     if (InKonquest()) return false;   // the holder goes stale there
+    // The holder also survives into the attract demo and into a fight: the
+    // pointer keeps naming its object and the OBJ magic still checks out, so
+    // the submenu alone would report "Arcade, 1 of 3" over a demo fight
+    // (measured). The main-menu index reads 1..9 only while the front end owns
+    // the screen, and reads 0 in the attract demo, so use it for liveness.
+    uint32_t c = u32(kMainMenuCursorAddr);
+    if (c < 1 || c > (uint32_t) kMainMenuCount) return false;
     return KombatSubIndex() >= 0;
 }
 

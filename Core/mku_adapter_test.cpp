@@ -199,6 +199,9 @@ int main()
     put_u32(0x08C1B3B0, 0); put_u32(0x09F9C1A8, 0);
 
     // ---- the Kombat submenu (verified structure, synthetic plant) ---------------
+    // The front end keeps the parent index while the child screen is up: measured
+    // on the game, the cursor reads 1 with the Kombat submenu open.
+    put_u32(0x09E61750, 1);
     put_u32(0x09118348, 0x09117500);                 // holder -> Endurance's object
     put_u32(0x09117500 + 4, 0x4F424A20);             // object magic
     CHECK(a->ready(), "ready on the Kombat submenu (holder names a live object)");
@@ -225,6 +228,15 @@ int main()
     put_u32(0x09117500 + 4, 0);
     CHECK(!a->ready(), "a holder pointing at a dead object is not usable state");
     put_u32(0x09118348, 0);
+
+    // The attract demo plays a fight with the holder still naming a live object
+    // (measured), so a dead front end must shut the submenu gate even though the
+    // holder and its magic still check out.
+    put_u32(0x09118348, 0x091181E0);
+    put_u32(0x091181E0 + 4, 0x4F424A20);
+    put_u32(0x09E61750, 0);                          // attract demo: index reads 0
+    CHECK(!a->ready(), "a stale submenu holder in the attract demo is not usable state");
+    put_u32(0x09E61750, 1);                          // front end live again
 
     // The submenu holder goes STALE in Konquest: it keeps a visited
     // object (magic intact) while the mode runs, so the plant below
