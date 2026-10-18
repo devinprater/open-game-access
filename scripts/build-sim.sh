@@ -175,7 +175,7 @@ compile() {
       # mesen_core.cpp is OGA glue that needs Mesen's headers and forced pch, the same way
       # gba_core.cpp needs mGBA's. Same isolation rule as the mesen case: NO $INC, because
       # melonDS's src/CRC32.h shadows Mesen's own.
-      if [ "$(basename "$src")" = "mesen_core.cpp" ]; then
+      if [ "$(basename "$src")" = "mesen_core.cpp" ] || [ "$(basename "$src")" = "snes_core.cpp" ]; then
         flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $MESEN_INC $MESEN_FORCE"
       fi
       # Our own Core/ code only (not melonDS): a self-calling EndFrame once

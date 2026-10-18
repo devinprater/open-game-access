@@ -214,7 +214,11 @@ int main()
          * these is runnable, and the NES now is: the Mesen core is linked in, a real
          * ROM boots, and its reader set is wired. Leaving it here would make this
          * test fail for the right reason and block the change that fixed it. */
-        const OgaSystemId planned[] = { OGA_SYS_SNES, OGA_SYS_N64,
+        /* ⛔ SNES IS OUT OF THIS LIST FOR THE SAME REASON THE NES IS: the Mesen
+         * core is linked in (Core/snes_core.cpp), a real ROM boots, and the row
+         * now says READY. Leaving it here would make this test fail for the
+         * right reason and block the change that fixed it. */
+        const OgaSystemId planned[] = { OGA_SYS_N64,
                                         OGA_SYS_PS1, OGA_SYS_GENESIS,
                                         OGA_SYS_DREAMCAST, OGA_SYS_3DS,
                                         OGA_SYS_MASTER, OGA_SYS_PCE,
@@ -253,11 +257,20 @@ int main()
         const OgaSystem* psp = oga_system_by_id(OGA_SYS_PSP);
         const OgaSystem* n64 = oga_system_by_id(OGA_SYS_N64);
 
+        const OgaSystem* snes = oga_system_by_id(OGA_SYS_SNES);
+
         if (oga_system_is_runnable(ds) && oga_system_is_runnable(gba) &&
             oga_system_is_runnable(psp))
             ok("DS, GBA and PSP report their cores present");
         else
             bad("DS, GBA and PSP report their cores present", "one reported not ready");
+
+        /* The SNES row is READY only because Core/snes_core.cpp exists and the
+         * host proof boots the USA dump. No other console may borrow that. */
+        if (snes && oga_system_is_runnable(snes))
+            ok("the SNES reports its core present");
+        else
+            bad("the SNES reports its core present", "the row still says PLANNED");
 
         /* N64 must NOT claim to be runnable: no core for it exists here. */
         if (n64 && !oga_system_is_runnable(n64))

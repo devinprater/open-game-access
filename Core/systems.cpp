@@ -170,8 +170,9 @@ const OgaSystem kSystems[] = {
      * it is the answer to "what would it take", and it keeps the plan in one
      * place. Update to READY the moment a core loads a ROM.
      *
-     * SNES       -> Mesen (measured 2026-10-04: Core/SNES compiles for
-     *              aarch64-linux-android26; see scripts/mesen-feasibility.sh)
+     * SNES       -> Mesen, INTEGRATED: Core/snes_core.cpp boots a ROM, runs
+     *              frames, reads work RAM and is proved by
+     *              scripts/snes-alttp-proof.sh (READY row below).
      *              ONE TREE, SEVEN CORES: adding another Mesen console is a
      *              host file (Core/mesen_core.cpp's shape) plus a build list,
      *              not a new dependency. See docs/plans/emulator-agnostic-shell.md.
@@ -181,7 +182,7 @@ const OgaSystem kSystems[] = {
      * GC/Wii     -> Dolphin-class; same caveat, and 32-bit ARM is a wall
      */
 
-    { OGA_SYS_SNES, "Super Nintendo", kSnesExt, OGA_BACKEND_PLANNED,
+    { OGA_SYS_SNES, "Super Nintendo", kSnesExt, OGA_BACKEND_READY,
       1, true, false, 0, true, kDiamond, 4 },
 
 #ifdef SABOTAGE_DUPLICATE_IDS

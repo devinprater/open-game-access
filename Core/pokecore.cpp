@@ -930,6 +930,11 @@ const char *poke_adapter_id(PokeCore *core)
     return (core && core->adapter) ? core->adapter->id : nullptr;
 }
 
+const char *poke_backend_id(PokeCore *core)
+{
+    return (core && core->backend.ops) ? core->backend.ops->id : "";
+}
+
 const char *poke_adapter_name(PokeCore *core)
 {
     return (core && core->adapter) ? core->adapter->display_name : nullptr;

@@ -161,6 +161,11 @@ const char *poke_last_error(PokeCore *core);
  * "fe11". Stable for the lifetime of the loaded ROM. */
 const char *poke_adapter_id(PokeCore *core);
 
+/* WHICH BACKEND IS RUNNING THE ROM ("nds", "gba", "psp", "nes", "snes"), or ""
+ * before a load. This is the console, not the reader: poke_adapter_id answers
+ * the reader and is null when a game has none, which is the normal case. */
+const char *poke_backend_id(PokeCore *core);
+
 /* Human-readable name of the selected adapter, for the UI to speak. NULL when
  * there is none. */
 const char *poke_adapter_name(PokeCore *core);

@@ -163,10 +163,15 @@ compile() {
   printf '%s|mesenlua|mesen_lua_extras\n' "$ROOT/Core/mesen_lua_extras.c"
   # Our glue: the console the NES adapter reads from. This is the file that did not exist.
   printf '%s|mesen|mesen_core\n' "$ROOT/Core/mesen_core.cpp"
+  # The SNES console: same Mesen include roots and forced pch as mesen_core.cpp.
+  printf '%s|mesen|snes_core\n' "$ROOT/Core/snes_core.cpp"
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
   printf '%s|cxx|dbzar_adapter\n'     "$ROOT/Core/dbzar_adapter.cpp"
   printf '%s|cxx|dq9_adapter\n'  "$ROOT/Core/dq9_adapter.cpp"
+  printf '%s|cxx|mku_adapter\n'  "$ROOT/Core/mku_adapter.cpp"
+  # Mortal Kombat: Unchained. Its adapter was in OGA_GLUE but in NO host list,
+  # so adapters.o referenced oga::kMortalKombatUnchained with nothing to resolve it.
   printf '%s|cxx|osk_echo\n'  "$ROOT/Core/osk_echo.cpp"
   printf '%s|cxx|adapters\n'     "$ROOT/Core/adapters.cpp"
   printf '%s|cxx|announce\n'     "$ROOT/Core/announce.cpp"
