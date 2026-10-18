@@ -121,6 +121,27 @@ int main()
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Dungeon room 12.") == 0,
           "indoors: dungeon room");
 
+    // Status: hearts, magic and rupees, in the player's units.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(INDOORS, 0);
+    put8(CAP, 0x18); put8(CUR, 0x14); put8(MAGIC, 0x40); put16(RUPEES, 242);
+    oga::kZeldaLinkToThePast.command(oga::Command::Status);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Two and a half hearts. Magic half. Two hundred forty-two rupees.") == 0,
+          "status: hearts, magic and rupees");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(CUR, 0);
+    oga::kZeldaLinkToThePast.command(oga::Command::Status);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Zero hearts.") == 0,
+          "status: zero hearts is a real answer, not silence");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(CUR, 0x18); put8(MAGIC, 0); put16(RUPEES, 1);
+    oga::kZeldaLinkToThePast.command(oga::Command::Status);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Three hearts. One rupee.") == 0,
+          "status: no magic meter yet, one rupee");
+
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();
     CHECK(!oga::kZeldaLinkToThePast.ready(), "not ready after detach");

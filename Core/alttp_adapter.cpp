@@ -18,6 +18,7 @@
  */
 #include "adapter.h"
 
+#include <ctype.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -145,6 +146,72 @@ bool AlttpReady()
  * The coordinates are deliberately not spoken: a raw X/Y means nothing to a
  * player, and the useful version of that answer is guidance, which is a later
  * plan. */
+/* 0..999 in words, for rupees. Small and boring on purpose: a generic
+ * number-to-words library is a dependency this adapter does not need. */
+void NumberWords(unsigned n, char* out, size_t cap)
+{
+    static const char* const kSmall[] = {
+        "zero", "one", "two", "three", "four", "five", "six", "seven", "eight",
+        "nine", "ten", "eleven", "twelve", "thirteen", "fourteen", "fifteen",
+        "sixteen", "seventeen", "eighteen", "nineteen"
+    };
+    static const char* const kTens[] = {
+        "", "", "twenty", "thirty", "forty", "fifty", "sixty", "seventy", "eighty", "ninety"
+    };
+
+    if (n < 20) { snprintf(out, cap, "%s", kSmall[n]); return; }
+    if (n < 100) {
+        if (n % 10 == 0) snprintf(out, cap, "%s", kTens[n / 10]);
+        else snprintf(out, cap, "%s-%s", kTens[n / 10], kSmall[n % 10]);
+        return;
+    }
+    unsigned hundreds = n / 100, rest = n % 100;
+    if (rest == 0) { snprintf(out, cap, "%s hundred", kSmall[hundreds]); return; }
+    char rest_words[48];
+    NumberWords(rest, rest_words, sizeof(rest_words));
+    snprintf(out, cap, "%s hundred %s", kSmall[hundreds], rest_words);
+}
+
+void SpeakStatus()
+{
+    unsigned eighths = u8(HEALTH_CURRENT);
+    char line[192];
+
+    /* ⛔ ZERO HEARTS IS AN ANSWER, not a failed read. Going quiet at the moment
+     * the player is dying is the worst possible time to be silent. */
+    if (eighths == 0) { Say("Zero hearts.", "status", Priority::High); return; }
+
+    unsigned whole = eighths / 8;
+    unsigned rem = eighths % 8;
+    char hearts[64];
+    if (whole == 1 && rem == 0) {
+        snprintf(hearts, sizeof(hearts), "One heart.");
+    } else {
+        char nw[48];
+        NumberWords(whole, nw, sizeof(nw));
+        if (nw[0]) nw[0] = (char) toupper((unsigned char) nw[0]);
+        if (rem == 4) snprintf(hearts, sizeof(hearts), "%s and a half hearts.", nw);
+        else snprintf(hearts, sizeof(hearts), "%s hearts.", nw);
+    }
+
+    unsigned magic = u8(MAGIC);
+    char magic_part[48] = {0};
+    if (magic > 0) {
+        if (magic >= 0x80) snprintf(magic_part, sizeof(magic_part), " Magic full.");
+        else if (magic >= 0x60) snprintf(magic_part, sizeof(magic_part), " Magic three quarters.");
+        else if (magic >= 0x40) snprintf(magic_part, sizeof(magic_part), " Magic half.");
+        else snprintf(magic_part, sizeof(magic_part), " Magic a quarter.");
+    }
+
+    unsigned rupees = u16(RUPEES);
+    char rupee_words[64];
+    NumberWords(rupees, rupee_words, sizeof(rupee_words));
+    if (rupee_words[0]) rupee_words[0] = (char) toupper((unsigned char) rupee_words[0]);
+    snprintf(line, sizeof(line), "%s%s %s %s", hearts, magic_part, rupee_words,
+             rupees == 1 ? "rupee." : "rupees.");
+    Say(line, "status", Priority::High);
+}
+
 void SpeakWhereAmI()
 {
     char line[96];
@@ -168,6 +235,7 @@ void AlttpCommand(Command cmd)
 
     switch (cmd) {
         case Command::WhereAmI: SpeakWhereAmI(); break;
+        case Command::Status:   SpeakStatus(); break;
         default: break;
     }
 }

@@ -82,6 +82,8 @@ enum AdapterCommand: Int32, CaseIterable {
     /// Append-only: raw values are the C ABI shared with the core.
     case repeatNewest = 38
     case repeatOlder = 39
+    /// Health, magic and money. Appended at 40; the raw value is the C ABI.
+    case status = 40
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -127,6 +129,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .stopSpeech: return "Stop speech"
         case .repeatNewest: return "Repeat"
         case .repeatOlder:  return "Repeat older"
+        case .status:          return "heart.text.square"
+        case .status:       return "Status"
         }
     }
 
@@ -215,6 +219,8 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Speaks the last announcement again, whatever the game."
         case .repeatOlder:
             return "Steps one announcement further back and speaks it."
+        case .status:
+            return "Reads your hearts, magic and rupees from the game itself."
         }
     }
 
@@ -261,6 +267,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .stopSpeech: return "stop.fill"
         case .repeatNewest: return "arrow.counterclockwise"
         case .repeatOlder:  return "arrow.uturn.backward"
+        case .status:       return "heart.text.square"
         }
     }
 
@@ -297,6 +304,11 @@ enum AdapterCommand: Int32, CaseIterable {
             // script's own hotkeys, which are already on screen. Exposing a second,
             // parallel set of controls would be confusing rather than helpful.
             return []
+
+        case "alttp":
+            // A Link to the Past: location, status and the debug dump are
+            // real. Menu and dialogue commands arrive with their own tasks.
+            return [.whereAmI, .status, .dumpState]
 
         case "dissidia":
             // Dissidia PSP: location, menu-row navigation, Customize tracking,

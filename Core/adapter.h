@@ -117,6 +117,9 @@ enum class Command {
     // reached the platform), so the ring is testable by announce-test.sh.
     RepeatNewest, // Player repeat key: speak the most recent spoken line again
     RepeatOlder,  // Player repeat-prev key: step one line further back
+    // Player status query: health, magic, money. Appended after RepeatOlder;
+    // raw values are the C ABI shared with Swift and must never be reordered.
+    Status,
 };
 
 /// Per-frame battle snapshot for host-side audio cues (item 5 spike).
