@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SNES console for Open Game Access: implementation plan</title>
+<style>body{font-family:system-ui,sans-serif;max-width:52em;margin:2em auto;line-height:1.55;padding:0 1em;color:#111}h1{font-size:1.7em}h2{font-size:1.3em;margin-top:1.8em;border-bottom:1px solid #ddd;padding-bottom:.2em}h3{font-size:1.08em;margin-top:1.4em}code{background:#eee;padding:0 .15em;font-size:.95em;border-radius:3px}table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.95em}th,td{border:1px solid #ccc;padding:.35em .5em;text-align:left;vertical-align:top}th{background:#f4f4f4}li{margin:.3em 0}blockquote{border-left:3px solid #ccc;margin-left:0;padding-left:1em;color:#444}hr{border:0;border-top:1px solid #ddd;margin:2em 0}pre{background:#f7f7f7;padding:.8em;overflow:auto;font-size:.9em}</style></head><body>
+<h1>SNES Console for Open Game Access — Implementation Plan</h1>
+<blockquote><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</blockquote>
+<p><strong>Goal:</strong> A Super Nintendo console in OGA that loads a ROM, runs it, shows it, takes input, saves battery RAM and state, and lets an adapter read its 128 KiB of work RAM.</p>
+<p><strong>Architecture:</strong> One new core file (<code>Core/snes_core.cpp</code>) wrapping MesenCE's <code>SnesConsole</code> exactly the way <code>Core/mesen_core.cpp</code> wraps its NES console: Mesen <code>Run()</code> on its own thread, the host stepping via frame-count waits, reads through <code>MemoryType::SnesWorkRam</code>. Backend wiring follows the existing <code>OgaCoreOps</code> seam, and the ROM is identified by CRC32, never by filename.</p>
+<p><strong>Tech Stack:</strong> C++17, MesenCE (<code>nesdev-org/MesenCE</code>), the repo's existing host harness scripts, Swift 6 front end for the app build.</p>
+<p><strong>Spec:</strong> <code>docs/design/alttp-adapter.md</code></p>
+<h2>Global Constraints</h2>
+<ul>
+<li>Never commit a ROM, a ROM-derived asset, or a byte of game data. <code>scripts/check-no-roms.sh</code> guards this.</li>
+<li>Every memory address used by code is measured before it is used. A name from a decompilation is a hypothesis until a live read confirms it.</li>
+<li>Refusal over guessing: a console or adapter that cannot read returns <code>false</code> or <code>""</code>, never a plausible value.</li>
+<li>The C ABI is append-only. Do not reorder <code>Command</code>, <code>OgaSystemId</code>, or <code>POKE_BTN_*</code>.</li>
+<li>Mesen source is <code>nesdev-org/MesenCE</code> at <code>$HOME/src/mesen</code>. Never <code>SourMesen/Mesen2</code>.</li>
+<li>No audio in this plan. The SNES core returns 0 from audio, like the NES core.</li>
+<li>Commits go on <code>main</code>, no PRs. One commit per task.</li>
+<li><code>scripts/adapter-tests.sh</code> and <code>scripts/systems-test.sh</code> stay green at every commit.</li>
+<li>Test ROM: <code>${ALTP_ROM:-/mnt/c/Users/Devin Prater/Dropbox/games/snes/Legend of Zelda, The - A Link to the Past (USA).sfc}</code> (CRC32 <code>777AAC2F</code>).</li>
+</ul>
+<h2>Review Focus</h2>
+<ul>
+<li><strong>A copier-headered <code>.smc</code>.</strong> Many dumps carry a 512-byte header. The core must boot it and report the same CRC as the headerless file, or refuse loudly. Quietly booting at the wrong offset would read garbage RAM and speak nonsense.</li>
+<li><strong>A renamed or hacked ROM.</strong> It must load, report <code>crc:…</code>, and attach no reader. No speech, no reader controls.</li>
+<li><strong>A <code>.gb</code> or <code>.gbc</code> file.</strong> Mesen's SNES class lists <code>.gb</code> among its extensions. The resolver must still send Game Boy files to the mGBA backend, never to this core.</li>
+<li><strong>Loading a second game after a first.</strong> Teardown must leave no stale adapter, no leaked console, and the new ROM's id must be what is reported.</li>
+<li><strong>A console replaced or reset mid-run.</strong> Mesen swaps the console object on reset. The frame wait must not hang or false-fail, and reads must follow the live console.</li>
+</ul>
+<hr>
+<h3>Task 1: Core skeleton, ROM load, identity</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>Core/snes_core.h</code></li>
+<li>Create: <code>Core/snes_core.cpp</code></li>
+<li>Create: <code>Core/snes_probe.cpp</code></li>
+<li>Create: <code>scripts/snes-alttp-proof.sh</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>SnesCore <em>snes_create(void)</code>, <code>void snes_destroy(SnesCore </em>)</code></li>
+<li>Produces: <code>bool snes_load_rom(SnesCore <em>, const char </em>rom_path, const char *save_path, char code_out[16])</code></li>
+<li>Produces: <code>uint32_t snes_rom_crc32(SnesCore <em>)</code>, <code>const char </em>snes_last_error(SnesCore *)</code></li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing probe</strong></li>
+</ul>
+<p><code>Core/snes_probe.cpp</code> takes <code>--identity &lt;rom&gt; &lt;savedir&gt;</code>, creates a core, loads the ROM, and prints:</p>
+<pre><code>crc=777aac2f
+code=crc:777aac2f</code></pre>
+<p>It exits 1 when the CRC differs from <code>0x777AAC2F</code> or the code string is not <code>crc:777aac2f</code>.</p>
+<ul>
+<li>[ ] <strong>Step 2: Run it and confirm it cannot build</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --identity</code> Expected: compile error naming <code>snes_core.h</code> — the header does not exist yet.</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement the header and the load path</strong></li>
+</ul>
+<p><code>snes_core.h</code> mirrors <code>mesen_core.h</code>'s shape. <code>snes_load_rom</code> does exactly what <code>nes_load_rom</code> does, in this order: <code>FolderUtilities::SetHomeFolder</code> from <code>save_path</code>; <code>Emulator</code> construction and <code>Initialize()</code>; <code>VirtualFile</code> open; <code>LoadRom</code> inside <code>try/catch</code> with the exception text written to the core's error; <code>GetConsole()</code>; CRC from <code>emu-&gt;GetCrc32()</code>; write <code>snprintf(code_out, 16, "crc:%08x", crc)</code>.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run the probe</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --identity</code> Expected: both lines above, exit 0.</p>
+<ul>
+<li>[ ] <strong>Step 5: Prove the copier-header case</strong></li>
+</ul>
+<p>Prepend 512 zero bytes to a copy of the ROM at <code>$HOME/z3work/alttp-headered.smc</code> and run the same probe on it. Expected: the same CRC and exit 0. If Mesen does not strip the header, the probe must refuse with a message naming the header; record the outcome in the script's comment.</p>
+<ul>
+<li>[ ] <strong>Step 6: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/snes_core.h Core/snes_core.cpp Core/snes_probe.cpp scripts/snes-alttp-proof.sh
+git commit -m &quot;snes: core skeleton, ROM load and CRC identity&quot;</code></pre>
+<hr>
+<h3>Task 2: Frames, video, input, stop</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/snes_core.h</code></li>
+<li>Modify: <code>Core/snes_core.cpp</code></li>
+<li>Modify: <code>Core/snes_probe.cpp</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>bool snes_start(SnesCore <em>)</code>, <code>void snes_stop(SnesCore </em>)</code>, <code>bool snes_running(SnesCore *)</code></li>
+<li>Produces: <code>bool snes_frame(SnesCore <em>)</code>, <code>const char </em>snes_frame_result(SnesCore <em>)</code>, <code>void snes_reset(SnesCore </em>)</code></li>
+<li>Produces: <code>bool snes_framebuffer(SnesCore <em>, int </em>w, int <em>h)</code>, <code>const uint8_t </em>snes_framebuffer_ptr(SnesCore *)</code></li>
+<li>Produces: <code>void snes_set_button(SnesCore <em>, int index, bool down)</code>, <code>void snes_set_uncapped(SnesCore </em>, bool)</code></li>
+<li>Produces: <code>unsigned long long snes_frames_completed(SnesCore <em>)</code>, <code>unsigned snes_console_frame_count(SnesCore </em>)</code>, <code>double snes_fps(SnesCore *)</code></li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Add the run mode and make it fail</strong></li>
+</ul>
+<p><code>--run &lt;rom&gt; &lt;savedir&gt; &lt;frames&gt;</code> prints <code>frames=&lt;n&gt; console=&lt;n&gt; fb=&lt;w&gt;x&lt;h&gt; hash=&lt;8 hex&gt;</code>, where the hash is FNV-1a over the framebuffer copy. It fails when <code>frames</code> reaches the requested count but <code>console</code> did not advance, when <code>w</code> or <code>h</code> is zero, or when the hash is the all-black constant.</p>
+<ul>
+<li>[ ] <strong>Step 2: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --run 600</code> Expected: FAIL — <code>snes_start</code> is undefined.</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement start, frame, video, input, stop</strong></li>
+</ul>
+<p>Copy the NES core's threading and frame-wait logic, including <code>LiveConsole()</code>, the replaced-console and counter-reset branches, the 5-second bounded wait, and the framebuffer copy. Register a <code>SnesInputProvider</code> before the loop starts. Its <code>SetInput</code> claims only SNES controller types and writes the 12 pad bits through <code>device-&gt;SetBitValue</code>. <code>snes_stop</code> unregisters the provider, calls <code>Emulator::Stop(false, true, true)</code>, joins the thread, and calls <code>console-&gt;SaveBattery()</code> before releasing the console. <code>snes_reset</code> calls <code>Emulator::Reset()</code>, and <code>snes_set_uncapped</code> sets <code>EmulationFlags::MaximumSpeed</code> like the NES core does.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --run 600</code> Expected: 600 frames, console count advanced by at least 600, nonzero dimensions, a non-black hash.</p>
+<ul>
+<li>[ ] <strong>Step 5: Prove input reaches the game</strong></li>
+</ul>
+<p><code>--input &lt;rom&gt; &lt;savedir&gt;</code> runs 600 frames with no input and records the hash, then reruns from a fresh core holding Start from frame 120 to 150. The title screen changes, so the two hashes must differ.</p>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --input</code> Expected: <code>input-changes-video=YES</code>.</p>
+<ul>
+<li>[ ] <strong>Step 6: Prove a reset does not hang the frame wait</strong></li>
+</ul>
+<p><code>--reset</code> runs 120 frames, calls the emulator's reset through <code>snes_reset</code>, then runs 120 more and requires both calls to return true inside the script's timeout.</p>
+<ul>
+<li>[ ] <strong>Step 7: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/snes_core.h Core/snes_core.cpp Core/snes_probe.cpp scripts/snes-alttp-proof.sh
+git commit -m &quot;snes: frame loop, video, input and clean stop&quot;</code></pre>
+<hr>
+<h3>Task 3: Work-RAM reads and diagnostics</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/snes_core.h</code></li>
+<li>Modify: <code>Core/snes_core.cpp</code></li>
+<li>Modify: <code>Core/snes_probe.cpp</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>bool snes_read(SnesCore <em>, uint32_t addr, int width, uint32_t </em>out)</code></li>
+<li>Produces: <code>uint32_t snes_ram_base(void)</code> = <code>0x7E0000</code>, <code>uint32_t snes_ram_size(void)</code> = <code>0x20000</code></li>
+<li>Produces: <code>int snes_cpu_pc(SnesCore *)</code> via <code>SnesCpu::GetState().PC</code></li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Write the read assertions</strong></li>
+</ul>
+<p><code>--reads &lt;rom&gt; &lt;savedir&gt;</code> asserts, printing one line each:</p>
+<pre><code>in-range-byte        ok
+in-range-word        ok
+frame-counter-moves  ok   (value at 0x7E001A differs after 60 frames)
+far-bank-word        ok   (0x7F0000 reads)
+mmio-refused         ok   (0x002100 returns false)
+wrap-refused         ok   (0x7FFFFF, width 2 returns false)
+bad-width-refused    ok   (width 0 and 3 return false)</code></pre>
+<ul>
+<li>[ ] <strong>Step 2: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --reads</code> Expected: FAIL at the first assertion, because <code>snes_read</code> is undefined.</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement the reads</strong></li>
+</ul>
+<p>Take the buffer from <code>emu-&gt;GetMemory(MemoryType::SnesWorkRam)</code> and bounds-check against its <code>Size</code>. Translate <code>0x7E0000..0x7FFFFF</code> to an offset. Refuse anything else. Do not read through the CPU bus: an address like <code>$2100</code> has side effects when read.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --reads</code> Expected: all seven lines <code>ok</code>.</p>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/snes_core.h Core/snes_core.cpp Core/snes_probe.cpp scripts/snes-alttp-proof.sh
+git commit -m &quot;snes: work-RAM reads with bounds and no MMIO&quot;</code></pre>
+<hr>
+<h3>Task 4: Backend wiring — resolver, ops table, load path</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/oga_core.h</code> (the <code>OgaResolvedBackend</code> struct)</li>
+<li>Modify: <code>Core/oga_core.cpp</code> (ops table after the NES table, resolver at the bottom)</li>
+<li>Modify: <code>Core/pokecore.cpp</code> (<code>TeardownBackends</code>, a new <code>LoadSnesRom</code>, the dispatch in <code>poke_load_rom</code>)</li>
+<li>Modify: <code>Core/snes_core.h</code></li>
+<li>Modify: <code>scripts/core-sources.sh</code> (<code>OGA_GLUE</code>)</li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Consumes: Task 1–3's <code>snes_*</code> functions.</li>
+<li>Produces: <code>OgaCore oga_snes_core(SnesCore *)</code>, <code>bool snes_hint</code> in <code>OgaResolvedBackend</code>.</li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Add the resolver assertions</strong></li>
+</ul>
+<p><code>--resolve</code> prints one line per path:</p>
+<pre><code>x.sfc  -&gt; snes
+x.smc  -&gt; snes
+x.fig  -&gt; snes
+x.swc  -&gt; snes
+x.gb   -&gt; gba
+x.nes  -&gt; nes
+x.nds  -&gt; nds
+x.xyz  -&gt; (none)</code></pre>
+<ul>
+<li>[ ] <strong>Step 2: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --resolve</code> Expected: FAIL, because <code>.sfc</code> returns <code>(none)</code>.</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<p>Add <code>snes_hint</code> as a trailing field of <code>OgaResolvedBackend</code> so the three existing initializers keep compiling. Add the four SNES extensions to the resolver. Add the <code>kSnesOps</code> table: start, stop, frame, read, framebuffer, set_button, no analog, no touch, no hotkey, no script dir, no reader set, no audio, save/load state, frames, last error. Add <code>snes_core.cpp</code> to <code>OGA_GLUE</code>. In <code>pokecore.cpp</code>, add the <code>SnesCore *snes</code> member, destroy it in <code>TeardownBackends</code>, add <code>LoadSnesRom</code> (create, load, set backend, copy <code>gameCode</code>, select <code>find_by_game_code(core-&gt;gameCode)</code>), and dispatch on <code>snes_hint</code>.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --resolve</code> Expected: every line matches the table, including <code>x.gb -&gt; gba</code>.</p>
+<ul>
+<li>[ ] <strong>Step 5: Build the host object set</strong></li>
+</ul>
+<p>Run: <code>bash scripts/build-host.sh</code> Expected: no <code>.failed</code> file under <code>Vendor/hostobj</code>, and <code>snes_core.o</code> present.</p>
+<ul>
+<li>[ ] <strong>Step 6: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/oga_core.h Core/oga_core.cpp Core/pokecore.cpp Core/snes_core.h scripts/core-sources.sh
+git commit -m &quot;snes: backend ops table, resolver case and load path&quot;</code></pre>
+<hr>
+<h3>Task 5: Registry READY and the app-path proof</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/systems.cpp</code> (the SNES row)</li>
+<li>Modify: <code>Core/systems_test.cpp</code> (the <code>planned[]</code> array)</li>
+<li>Create: <code>scripts/snes-live-proof.cpp</code></li>
+<li>Modify: <code>scripts/snes-alttp-proof.sh</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Consumes: <code>poke_load_rom</code>, <code>poke_start</code>, <code>poke_frame</code>, <code>poke_game_code</code>, <code>poke_adapter_id</code>, <code>poke_last_error</code>.</li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Make the registry test demand READY</strong></li>
+</ul>
+<p>Remove <code>OGA_SYS_SNES</code> from the <code>planned[]</code> array in <code>systems_test.cpp</code>, and add a positive assertion beside the NES's: the SNES row is runnable and reports the Mesen backend id.</p>
+<ul>
+<li>[ ] <strong>Step 2: Run it and watch it fail</strong></li>
+</ul>
+<p>Run: <code>bash scripts/systems-test.sh</code> Expected: FAIL — "one claimed to be runnable" style failure, because the row still says <code>OGA_BACKEND_PLANNED</code>.</p>
+<ul>
+<li>[ ] <strong>Step 3: Flip the row</strong></li>
+</ul>
+<p>In <code>Core/systems.cpp</code>, change the SNES row's backend to <code>OGA_BACKEND_READY</code> and leave every hardware fact as it is: 1 screen, shoulders, no touch, no analog, d-pad, <code>kDiamond</code>, 4 face buttons.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/systems-test.sh</code> Expected: PASS.</p>
+<ul>
+<li>[ ] <strong>Step 5: Write the app-path proof</strong></li>
+</ul>
+<p><code>scripts/snes-live-proof.cpp</code> mirrors <code>scripts/nes-live-proof-main.cpp</code>: load through <code>poke_load_rom</code>, assert the adapter-less id <code>snes</code>, assert <code>poke_game_code</code> is <code>crc:777aac2f</code>, run 300 frames, assert <code>poke_adapter_ready</code> is 0 and nothing was spoken.</p>
+<ul>
+<li>[ ] <strong>Step 6: Prove the renamed copy, the second load and an unknown dump</strong></li>
+</ul>
+<p>The script copies the ROM to <code>$HOME/z3work/alttp-renamed.sfc</code> and runs the proof again: same id, same refusal. Then it loads the NES fixture first and the SNES ROM second in one process, and requires the reported backend and code to change with no crash. Finally it loads a different SNES game (<code>Chrono Trigger (USA).sfc</code> in the same folder) and requires: the backend is <code>snes</code>, the code is that file's own <code>crc:…</code>, the adapter is none, and nothing is spoken.</p>
+<ul>
+<li>[ ] <strong>Step 7: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/systems.cpp Core/systems_test.cpp scripts/snes-live-proof.cpp scripts/snes-alttp-proof.sh
+git commit -m &quot;snes: registry READY, app-path proof, renamed and reload cases&quot;</code></pre>
+<hr>
+<h3>Task 6: Savestates</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/snes_core.cpp</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>bool snes_save_state(SnesCore <em>, const char </em>path)</code>, <code>bool snes_load_state(SnesCore <em>, const char </em>path)</code></li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Add the state assertions</strong></li>
+</ul>
+<p><code>--states &lt;rom&gt; &lt;savedir&gt;</code> runs 120 frames, reads <code>0x7E001A</code>, saves to <code>&lt;savedir&gt;/alttp.state</code>, runs 60 frames, reads again (must differ), loads the state, reads again and requires exact equality with the saved value.</p>
+<ul>
+<li>[ ] <strong>Step 2: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --states</code> Expected: FAIL — save states are not implemented.</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<p>Call <code>emu-&gt;GetSaveStateManager()-&gt;SaveState(path)</code> and <code>LoadState(path)</code>. Mesen's manager takes its own locks; do not call these from the emulation thread. Record in a comment whether the emulator had to be paused and how that was confirmed.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/snes-alttp-proof.sh --states</code> Expected: <code>state-restores=YES</code>.</p>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/snes_core.cpp
+git commit -m &quot;snes: savestates through Mesen&#x27;s state manager&quot;</code></pre>
+<hr>
+<h3>Task 7: Swift picker and app build</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Sources/OpenGameAccess/InputBridge.swift:131</code> and <code>:186</code></li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Add the extensions</strong></li>
+</ul>
+<p>Add <code>sfc</code>, <code>smc</code>, <code>fig</code>, <code>swc</code> to the per-system list at line 131 and to the picker filter at line 186. Leave <code>.gb</code>, <code>.gbc</code>, <code>.nes</code> untouched.</p>
+<ul>
+<li>[ ] <strong>Step 2: Build the app</strong></li>
+</ul>
+<p>Run: <code>bash scripts/xtool-build.sh</code> Expected: build succeeds; the SNES extensions appear in the built binary's string table.</p>
+<ul>
+<li>[ ] <strong>Step 3: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Sources/OpenGameAccess/InputBridge.swift
+git commit -m &quot;snes: offer .sfc/.smc/.fig/.swc in the ROM picker&quot;</code></pre>
+<hr>
+<h3>Task 8: Android build and phone measurement (gated)</h3>
+<p>Do not start until Tasks 1–6 are committed. This task needs Devin's phone.</p>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>docs/evidence/alttp-android-fps.txt</code></li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Build and install</strong></li>
+</ul>
+<p>Run: <code>bash scripts/android-build-local.sh</code> Install the APK on Devin's phone with <code>adb install -r</code>.</p>
+<ul>
+<li>[ ] <strong>Step 2: Measure</strong></li>
+</ul>
+<p>Load the ROM, let the title screen run, and record in <code>docs/evidence/alttp-android-fps.txt</code>: device model, build hash, frames per second reported by the app's log, and whether the first ten seconds of gameplay is smooth or audible to Devin as stutter.</p>
+<ul>
+<li>[ ] <strong>Step 3: Decide</strong></li>
+</ul>
+<p>If the measured speed is below 60 fps with dropped frames on the phone, stop and write the finding in the evidence file before proposing any reader work. The reader is worthless if the game does not run.</p>
+<ul>
+<li>[ ] <strong>Step 4: Commit the evidence</strong></li>
+</ul>
+<pre><code class="language-bash">git add docs/evidence/alttp-android-fps.txt
+git commit -m &quot;snes: Android speed measurement for A Link to the Past&quot;</code></pre>
+<hr>
+<h2>Follow-on plan</h2>
+<p>The reader (identity, <code>WhereAmI</code>, <code>Status</code>, names, menus, dialogue) is a second plan, <code>docs/plans/alttp-reader.md</code>, written after this one lands because its menu and dialogue work depends on measurements this plan makes possible.</p>
+</body></html>
