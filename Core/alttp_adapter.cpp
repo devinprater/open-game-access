@@ -183,7 +183,7 @@ void SpeakStatus()
 
     unsigned whole = eighths / 8;
     unsigned rem = eighths % 8;
-    char hearts[64];
+    char hearts[80];
     if (whole == 1 && rem == 0) {
         snprintf(hearts, sizeof(hearts), "One heart.");
     } else {

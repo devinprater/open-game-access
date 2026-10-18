@@ -153,6 +153,14 @@ git commit -m "alttp: status command with hearts, magic and rupees"
 
 ### Task 4: Names for areas, dungeons and rooms
 
+**⛔ MEASURED 2026-10-17 — BLOCKED ON A SAVE.** The scripted drive reached
+gameplay (module 7, indoors=1, room=260, hp 24/24) and confirmed the indoor room
+and health addresses, but could not leave Link's house, so the overworld area and
+screen ids, the dungeon identifier, menu cursors and dialogue bytes are unmeasured.
+Names for unmeasured ids would be invented. Needs a `.srm` from a real playthrough;
+`scripts/snes-alttp-proof.sh --gameplay` writes one when the game saves. See
+`docs/design/alttp-memory.md`.
+
 **Files:**
 - Create: `Core/alttp_names.h`
 - Create: `Core/alttp_names.cpp`
