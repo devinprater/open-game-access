@@ -166,3 +166,32 @@ range (`0x7A`, `0x7F`, …) terminate or decorate.
 Still unknown: why that particular save refuses to move Link (module 14 sub 1
 with `message=388`, `incap=0`, coordinates frozen). It is a save made mid-event,
 not a reader problem.
+
+## Outdoors, measured (2026-10-17)
+
+The earlier "frozen save" was not frozen: the game was sitting in the interface
+module. **One START press closes it** — measured: `module 14 sub 1` → `7 sub 0`.
+Without that press, direction input does nothing.
+
+With the interface closed and Down held from that save:
+
+```
+module 16 sub 1   real=9   indoors=0   x=2232 y=2792   area=44 screen=44
+```
+
+Module 16 is `SpotlightOpen` (the transition), then module 9 is `Overworld`
+(`mod=9 sub=0`), and Left moved the coordinates — **overworld movement works**.
+Area 44 / screen 44 is the first OUTDOOR reading. The save's own description
+text ("Start From Link's House") says where that is.
+
+So the reader's outdoor branch, "Outside, area 44, screen 44.", now rests on a
+real observation. What it does not yet have is a name for area 44: the
+decompilation has no area-name table (the game never shows one), so names come
+from a curated table in `Core/alttp_names.cpp`, with numbers as the fallback.
+
+## Dialogue measured and spoken
+
+`alttp_text.cpp` decodes the message buffer with the measured font order and the
+decomp's command-length table (`kTextCommandStart_US = 0x67`). Message 388
+decodes exactly to "Start From Link's House, Start From Sanctuary." and the
+adapter speaks a new message index once, not once per frame.

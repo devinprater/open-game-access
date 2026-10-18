@@ -17,6 +17,7 @@
  * Task 1 of docs/plans/alttp-reader.md: identity, validation, and the debug dump.
  */
 #include "adapter.h"
+#include "alttp_text.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -27,6 +28,7 @@ namespace {
 
 const Host* g_host = nullptr;
 bool g_attached = false;
+unsigned g_lastMessage = 0xFFFFu;
 
 /* ---- the work-RAM map (zelda3 src/variables.h, g_ram is banks 7E/7F) ---- */
 constexpr uint32_t RAM_BASE          = 0x7E0000u;
@@ -42,6 +44,17 @@ constexpr uint32_t RUPEES            = 0x7EF362u;  /* link_rupees_actual */
 constexpr uint32_t HEALTH_CAPACITY   = 0x7EF36Cu;  /* link_health_capacity */
 constexpr uint32_t HEALTH_CURRENT    = 0x7EF36Du;  /* link_health_current */
 constexpr uint32_t MAGIC             = 0x7EF36Eu;  /* link_magic_power */
+constexpr uint32_t MAIN_MODULE        = 0x7E0010u;  /* main_module_index */
+constexpr uint32_t SAVED_MODULE       = 0x7E010Cu;  /* saved_module_for_menu */
+constexpr uint32_t DIALOGUE_INDEX     = 0x7E1CF0u;  /* dialogue_message_index */
+constexpr uint32_t TEXT_BUFFER        = 0x7F1200u;  /* messaging_text_buffer */
+
+/* Module numbers from the decomp's kMainRouting (src/misc.c). */
+enum : uint8_t {
+    MOD_TITLE = 0, MOD_FILE_SELECT = 1, MOD_NAME_ENTRY = 4, MOD_LOAD_FILE = 5,
+    MOD_DUNGEON = 7, MOD_OVERWORLD_LOAD = 8, MOD_OVERWORLD = 9,
+    MOD_INTERFACE = 14, MOD_GAME_OVER = 18, MOD_SAVE_MENU = 23,
+};
 
 uint8_t u8(uint32_t a)
 {
@@ -130,11 +143,42 @@ void AlttpDetach()
 {
     g_host = nullptr;
     g_attached = false;
+    g_lastMessage = 0xFFFFu;
 }
+
+/* Module 14 is the interface/HUD layer; the real screen is in
+ * saved_module_for_menu. Naming a screen from the wrong one is how a menu read
+ * as "indoors". See docs/design/alttp-memory.md. */
+uint8_t RealModule()
+{
+    uint8_t mod = u8(MAIN_MODULE);
+    return mod == MOD_INTERFACE ? u8(SAVED_MODULE) : mod;
+}
+
+bool AlttpReady();
 
 void AlttpFrame()
 {
-    /* Task 1 has no per-frame work. Dialogue arrives in Task 7. */
+    if (!g_attached || !AlttpReady()) return;
+
+    /* ⛔ THE GAME HAS ALREADY DECODED ITS TEXT. messaging_text_buffer holds font
+     * tile indices for the current message; a new index means new words. */
+    uint16_t msg = u16(DIALOGUE_INDEX);
+    if (msg == g_lastMessage) return;
+    g_lastMessage = msg;
+    if (msg == 0) return;
+
+    uint8_t buf[128];
+    for (int i = 0; i < (int) sizeof(buf); i++) {
+        uint32_t v = 0;
+        if (!g_host->read8) return;
+        v = g_host->read8(g_host->ctx, TEXT_BUFFER + (uint32_t) i);
+        buf[i] = (uint8_t) v;
+    }
+
+    char text[192];
+    int n = AlttpDecodeText(buf, (int) sizeof(buf), text, (int) sizeof(text));
+    if (n > 0) Say(text, "dialogue", Priority::Normal);
 }
 
 bool AlttpReady()
@@ -215,13 +259,24 @@ void SpeakStatus()
 void SpeakWhereAmI()
 {
     char line[96];
+    uint8_t mod = RealModule();
+
+    /* The screen comes from the module table first; the room only when the game
+     * says it is an interior. */
+    if (mod == MOD_FILE_SELECT)      { Say("File select.", "whereami", Priority::High); return; }
+    if (mod == MOD_NAME_ENTRY)       { Say("Name entry.", "whereami", Priority::High); return; }
+    if (mod == MOD_SAVE_MENU)        { Say("Save menu.", "whereami", Priority::High); return; }
+    if (mod == MOD_GAME_OVER)        { Say("Game over.", "whereami", Priority::High); return; }
+    if (mod == MOD_TITLE)            { Say("Title screen.", "whereami", Priority::High); return; }
+    if (mod == MOD_LOAD_FILE)        { Say("Loading a file.", "whereami", Priority::High); return; }
+
     if (u8(PLAYER_INDOORS) != 0) {
         /* ⛔ MEASURED: a house uses the same room index as a dungeon room (the
          * probe read room 260 indoors at Link's house). "Dungeon room" would be
          * wrong there, and the index alone does not say which dungeon. */
         snprintf(line, sizeof(line), "Indoors, room %u.", (unsigned) u16(DUNGEON_ROOM));
     } else {
-        snprintf(line, sizeof(line), "Area %u, screen %u.",
+        snprintf(line, sizeof(line), "Outside, area %u, screen %u.",
                  (unsigned) u16(OVERWORLD_AREA), (unsigned) u16(OVERWORLD_SCREEN));
     }
     Say(line, "whereami", Priority::High);

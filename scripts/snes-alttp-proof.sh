@@ -83,7 +83,7 @@ case "$MODE" in
 esac
 
 case "$MODE" in
-  --identity|--run|--input|--reset|--reads|--resolve|--states|--after-stop|--memory|--drive|--gameplay|--explore|--leave|--wander|--resume|--measure|--text)
+  --identity|--run|--input|--reset|--reads|--resolve|--states|--after-stop|--memory|--drive|--gameplay|--explore|--leave|--wander|--resume|--measure|--text|--keytest)
     exec "$OUT/snes-probe" "$MODE" "$ROM" "$SAVE" "${@:2}" ;;
   --headered)
     HEADERED="$HOME/z3work/alttp-headered.smc"

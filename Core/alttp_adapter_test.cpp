@@ -10,6 +10,7 @@
  * it is a test bug.
  */
 #include "adapter.h"
+#include "alttp_text.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -110,13 +111,13 @@ int main()
 
     // Where am I: outdoors speaks area and screen, indoors speaks the room.
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    put16(AREA, 3); put16(SCREEN, 4); put8(INDOORS, 0);
+    put16(AREA, 3); put16(SCREEN, 4); put8(INDOORS, 0); put8(0x7E0010u, 9);
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Area 3, screen 4.") == 0,
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, area 3, screen 4.") == 0,
           "outdoors: area and screen");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    put8(INDOORS, 1); put16(ROOM, 12);
+    put8(INDOORS, 1); put16(ROOM, 12); put8(0x7E0010u, 7);
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Indoors, room 12.") == 0,
           "indoors: dungeon room");
@@ -141,6 +142,50 @@ int main()
     oga::kZeldaLinkToThePast.command(oga::Command::Status);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Three hearts. One rupee.") == 0,
           "status: no magic meter yet, one rupee");
+
+    // ---- module-aware where am I (the decomp's module table) ----
+    // module 14 is the interface layer; saved_module_for_menu holds the real one.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0010u, 14);          // main_module_index = Interface
+    put8(0x7E010Cu, 7);           // saved_module_for_menu = Dungeon (indoors)
+    put8(INDOORS, 1); put16(ROOM, 12);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Indoors, room 12.") == 0,
+          "interface layer resolves to the indoor module");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E010Cu, 9);           // Overworld
+    put8(INDOORS, 0); put16(AREA, 3); put16(SCREEN, 4);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, area 3, screen 4.") == 0,
+          "interface layer resolves to the overworld module");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E010Cu, 1);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "File select.") == 0,
+          "the file select is named");
+
+    // ---- dialogue: the measured message 388 ----
+    static const unsigned char kMsg[] = {
+        0x7a,0x00,0x44,0x12,0x2d,0x1a,0x2b,0x2d,0x59,0x05,0x2b,0x28,0x26,0x59,
+        0x0b,0x22,0x27,0x24,0x51,0x2c,0x59,0x07,0x28,0x2e,0x2c,0x1e,0x75,0x59,
+        0x59,0x12,0x2d,0x1a,0x2b,0x2d,0x59,0x05,0x2b,0x28,0x26,0x59,0x12,0x1a,
+        0x27,0x1c,0x2d,0x2e,0x1a,0x2b,0x32,0x72,0x7f
+    };
+    char decoded[192];
+    int dn = oga::AlttpDecodeText(kMsg, (int) sizeof(kMsg), decoded, (int) sizeof(decoded));
+    CHECK(dn > 0 && strcmp(decoded, "Start From Link's House, Start From Sanctuary.") == 0,
+          "the measured message decodes");
+
+    // The adapter speaks a new message once, not once per frame.
+    memcpy(&RAM[OFF(0x7F1200u)], kMsg, sizeof(kMsg));
+    put16(0x7E1CF0u, 388);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], decoded) == 0,
+          "a new message speaks once and is not repeated per frame");
 
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();

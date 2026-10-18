@@ -691,6 +691,15 @@ static int Measure(const char* rom, const char* savedir)
     std::printf("-- after the drive --\n");
     DumpReaderAddresses(c, f);
 
+    /* ⛔ THE DRIVE LEAVES THE GAME IN THE INTERFACE MODULE (14). A START press
+     * closes it and hands control back (measured: module 14 sub 1 -> 7 sub 0).
+     * Without this the directions below move nothing. */
+    for (int i = 0; i < 4; i++) { snes_set_button(c, SNES_BTN_START, true); snes_frame(c); }
+    snes_set_button(c, SNES_BTN_START, false);
+    for (int i = 0; i < 30; i++) snes_frame(c);
+    std::printf("-- after closing the interface --\n");
+    DumpReaderAddresses(c, f);
+
     static const int dirs[] = { SNES_BTN_DOWN, SNES_BTN_LEFT, SNES_BTN_UP, SNES_BTN_RIGHT };
     static const char* names[] = { "down", "left", "up", "right" };
     for (int d = 0; d < 4; d++) {
@@ -753,6 +762,42 @@ static int TextDump(const char* rom, const char* savedir)
     return 0;
 }
 
+// Does a button change the game state in the loaded save? Presses Start, then A,
+// and prints the module after each, so a frozen game can be told from dead input.
+static int KeyTest(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    for (int f = 0; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    std::printf("-- at rest --\n"); DumpReaderAddresses(c, 0);
+
+    for (int i = 0; i < 4; i++) { snes_set_button(c, SNES_BTN_START, true); snes_frame(c); }
+    snes_set_button(c, SNES_BTN_START, false);
+    for (int i = 0; i < 30; i++) snes_frame(c);
+    std::printf("-- after START --\n"); DumpReaderAddresses(c, 1);
+
+    for (int i = 0; i < 4; i++) { snes_set_button(c, SNES_BTN_A, true); snes_frame(c); }
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 30; i++) snes_frame(c);
+    std::printf("-- after A --\n"); DumpReaderAddresses(c, 2);
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -781,6 +826,10 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--headered") == 0) {
         if (argc < 5) { Usage(argv[0]); return 2; }
         return Headered(argv[2], argv[3], argv[4]);
+    }
+    if (std::strcmp(argv[1], "--keytest") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return KeyTest(argv[2], argv[3]);
     }
     if (std::strcmp(argv[1], "--text") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
