@@ -26,6 +26,7 @@
 #include "gba_core.h"
 #include "psp_core.h"
 #include "mesen_core.h"
+#include "snes_core.h"
 
 // The GBA adapter's symbols (defined in gba_adapter.cpp). A GBA ROM selects
 // its native reader the same way an NDS ROM is matched from the registry —
@@ -98,6 +99,9 @@ struct PokeCore {
     // pointed at by backend.state. It is the one backend whose console is reached through an
     // adapter that reads live RAM rather than a Lua reader.
     NesCore* nes = nullptr;
+    // The SNES (MesenCE). Same ownership rule: created here, destroyed here, and
+    // pointed at by backend.state.
+    SnesCore* snes = nullptr;
     // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
     // the app bundle; the app points the core at them before loading a PSP
     // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
@@ -782,6 +786,7 @@ void poke_destroy(PokeCore* core)
     if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
+    if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
     core->backend.ops = nullptr;
     core->backend.state = nullptr;
     if (gCurrentCore == core) gCurrentCore = nullptr;
@@ -1324,6 +1329,32 @@ static bool LoadNesRom(PokeCore* core, const char* rom_path, const char* save_pa
     return true;
 }
 
+static bool LoadSnesRom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    TeardownBackends(core);
+
+    core->snes = snes_create();
+    if (!core->snes) { SetError(core, "Could not create the Super Nintendo core."); return false; }
+    char code[16] = {0};
+    // ⛔ The save path is Mesen's home folder, exactly as on the NES: without it
+    // Mesen throws "Home folder not specified" from inside LoadRom and the
+    // caller sees only `false`.
+    if (!snes_load_rom(core->snes, rom_path, save_path ? save_path : "", code))
+    {
+        SetError(core, "%s", snes_last_error(core->snes));
+        snes_destroy(core->snes);
+        core->snes = nullptr;
+        return false;
+    }
+    core->backend = oga_snes_core(core->snes);
+    strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
+    // The id is "crc:<hex>" because the SNES has no reliable four-letter code;
+    // the registry matches it as a string, and a game with no adapter is the
+    // normal no-reader case.
+    core->adapter = oga::find_by_game_code(core->gameCode);
+    return true;
+}
+
 static bool LoadPspRom(PokeCore* core, const char* rom_path, const char* save_path)
 {
     TeardownBackends(core);
@@ -1373,6 +1404,7 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
          * registry the way an extension check would. A .nes that reached melonDS would
          * be the exact bug the resolver was written to end. */
         if (backend->nes_hint) return LoadNesRom(core, rom_path, save_path);
+        if (backend->snes_hint) return LoadSnesRom(core, rom_path, save_path);
         if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
     }
 

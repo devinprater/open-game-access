@@ -14,6 +14,7 @@
 #include "gba_core.h"
 #include "psp_core.h"
 #include "mesen_core.h"
+#include "snes_core.h"
 
 // For POKE_BTN_* — the app's shared pad numbering, which the PSP's button
 // translation table below is indexed by. This header is stdlib-only and is on
@@ -275,6 +276,85 @@ OgaCore oga_psp_core(PspCore* psp)
     return c;
 }
 
+/* ------------------------------------------------------------------------ SNES
+ *
+ * MesenCE's SNES console. The table is the NES table's shape with the SNES facts:
+ * twelve pad buttons (ABXY + L/R + Select/Start + d-pad), no analog, no touch,
+ * no script directory, no bundled reader set yet, and no audio (the core returns
+ * 0 by design until Mesen's audio device is wired).
+ */
+
+static bool SnesStart(void* s) { return snes_start((SnesCore*) s); }
+static void SnesStop(void* s)  { snes_stop((SnesCore*) s); }
+static bool SnesFrame(void* s) { return snes_frame((SnesCore*) s); }
+
+static bool SnesRead(void* s, uint32_t addr, int width, uint32_t* out)
+{
+    return snes_read((SnesCore*) s, addr, width, out);
+}
+
+static bool SnesFramebuffer(void* s, int screen, int* w, int* h, const uint8_t** pixels)
+{
+    (void) screen;   /* one panel; top/bottom is an NDS idea */
+    SnesCore* snes = (SnesCore*) s;
+    if (!snes || !snes_framebuffer(snes, w, h)) return false;
+    *pixels = snes_framebuffer_ptr(snes);
+    return *pixels != NULL;
+}
+
+static void SnesSetButton(void* s, int pad_button, bool down)
+{
+    /* The app's shared pad indices, in POKE_BTN_* order, translated to this core's
+     * own order. Kept as a table because the two orders genuinely differ
+     * (POKE puts Select before Start and Right before Left) and a wrong index is
+     * a wrong button. */
+    static const int kPadToSnes[POKE_BTN_COUNT] = {
+        SNES_BTN_A,      /* A */
+        SNES_BTN_B,      /* B */
+        SNES_BTN_SELECT, /* Select */
+        SNES_BTN_START,  /* Start */
+        SNES_BTN_RIGHT,  /* Right */
+        SNES_BTN_LEFT,   /* Left */
+        SNES_BTN_UP,     /* Up */
+        SNES_BTN_DOWN,   /* Down */
+        SNES_BTN_R,      /* R */
+        SNES_BTN_L,      /* L */
+        SNES_BTN_X,      /* X */
+        SNES_BTN_Y,      /* Y */
+    };
+    if (pad_button < 0 || pad_button >= POKE_BTN_COUNT) return;
+    snes_set_button((SnesCore*) s, kPadToSnes[pad_button], down);
+}
+
+static bool SnesSaveState(void* s, const char* path) { (void) s; (void) path; return false; }
+static bool SnesLoadState(void* s, const char* path) { (void) s; (void) path; return false; }
+static unsigned long long SnesFrames(void* s) { return snes_frames_completed((SnesCore*) s); }
+static const char* SnesLastError(void* s)     { return snes_last_error((SnesCore*) s); }
+
+static const OgaCoreOps kSnesOps = {
+    "snes",
+    SnesStart, SnesStop, SnesFrame,
+    NULL,                       /* tick */
+    SnesRead,
+    NULL, NULL,                 /* attach, on_frame: the adapter layer is the app's */
+    SnesFramebuffer,
+    SnesSetButton,              /* set_button */
+    NULL,                       /* set_analog: a SNES pad has no stick */
+    NULL,                       /* set_touch: no touchscreen */
+    NULL,                       /* set_hotkey: no hotkey layer on SNES */
+    NULL,                       /* set_script_dir: no external reader set */
+    NULL,                       /* reader_set: no bundled SNES reader set yet */
+    NULL,                       /* read_audio: snes_read_audio returns 0 by design */
+    SnesSaveState, SnesLoadState,
+    SnesFrames, SnesLastError,
+};
+
+OgaCore oga_snes_core(SnesCore* snes)
+{
+    OgaCore c = { &kSnesOps, snes };
+    return c;
+}
+
 /* ------------------------------------------------------------------ resolver */
 
 /* Lower-cased extension INCLUDING the dot, or empty. Mirrors systems.cpp's
@@ -304,7 +384,8 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     static const OgaResolvedBackend kNds = { "nds", false, false };
     static const OgaResolvedBackend kGba = { "gba", true,  false };
     static const OgaResolvedBackend kPsp = { "psp", false, true  };
-    static const OgaResolvedBackend kNes = { "nes", false, false, true };
+    static const OgaResolvedBackend kNes = { "nes", false, false, true, false };
+    static const OgaResolvedBackend kSnes = { "snes", false, false, false, true };
 
     static const char* const kGb[]  = { ".gba", ".gb", ".gbc", NULL };
     static const char* const kPspE[] = { ".iso", ".cso", ".pbp", ".elf", ".prx", ".ppdmp", NULL };
@@ -315,6 +396,11 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     /* Mesen's NES core. ⛔ .unf (UNIF) and .fds (Famicom Disk System) are NES-family formats the
      * core handles; they belong to this row and to no other. */
     static const char* const kNesE[] = { ".nes", ".fds", ".unf", NULL };
+    /* Mesen's SNES core reads all four of these. ⛔ .gb/.gbc are ALSO in
+     * SnesConsole::GetSupportedExtensions (the SGB/SGB2 cartridges), and they
+     * belong to the Game Boy backend here: the kGb check runs first, which is
+     * the ordering that keeps a .gb from being handed to the SNES. */
+    static const char* const kSnesE[] = { ".sfc", ".smc", ".fig", ".swc", NULL };
 
     char ext[8];
     ExtOf(rom_path, ext, (int) sizeof(ext));
@@ -324,5 +410,6 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     if (ExtIs(ext, kPspE)) return &kPsp;
     if (ExtIs(ext, kNdsE)) return &kNds;
     if (ExtIs(ext, kNesE)) return &kNes;
+    if (ExtIs(ext, kSnesE)) return &kSnes;
     return NULL;
 }

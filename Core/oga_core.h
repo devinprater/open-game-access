@@ -163,6 +163,9 @@ OgaCore oga_gba_core(GbaCore* gba);
 /* NesCore is opaque here on purpose: oga_core.h must not pull in Mesen. */
 typedef struct NesCore NesCore;
 OgaCore oga_nes_core(NesCore* nes);
+/* The SNES is the same story: opaque here, Mesen inside snes_core.cpp. */
+typedef struct SnesCore SnesCore;
+OgaCore oga_snes_core(SnesCore* snes);
 OgaCore oga_psp_core(PspCore* psp);
 
 /* Which backend runs a file, by extension — or NULL when this build has none.
@@ -176,6 +179,9 @@ typedef struct OgaResolvedBackend {
     bool gba_hint;               /* the file should reach the Game Boy backend */
     bool psp_hint;
     bool nes_hint;               /* the file should reach the Mesen NES backend */
+    /* Trailing on purpose: the three initializers above keep compiling, and the
+     * resolver stays the one place that decides "which emulator runs this ROM". */
+    bool snes_hint;              /* the file should reach the Mesen SNES backend */
 } OgaResolvedBackend;
 
 /* Resolves a ROM path to a backend id, or NULL when unsupported.

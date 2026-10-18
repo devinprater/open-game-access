@@ -75,6 +75,7 @@ nes_adapter.cpp
 n64_adapter.cpp
 gba_core.cpp mgba_version_stub.cpp
 mesen_core.cpp
+snes_core.cpp
 dbz_adapter.cpp
 dissidia_adapter.cpp
 dbzar_adapter.cpp
