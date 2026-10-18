@@ -195,3 +195,24 @@ from a curated table in `Core/alttp_names.cpp`, with numbers as the fallback.
 decomp's command-length table (`kTextCommandStart_US = 0x67`). Message 388
 decodes exactly to "Start From Link's House, Start From Sanctuary." and the
 adapter speaks a new message index once, not once per frame.
+
+## Area names: curated, never guessed
+
+The game never displays an area name and the decompilation has no name table, so
+`Core/alttp_names.cpp` is a curated table keyed by `overworld_area_index`
+(`0x00`-`0x3F` light world, `0x40`-`0x7F` dark world; the game itself computes
+the area as `screen & 0x3F | darkworld` in `src/overworld.c`).
+
+Named today:
+
+- `0x2C` **Link's House** — MEASURED: the public save whose description text is
+  "Start From Link's House" loads at area `0x2C` and reports it after walking out.
+- `0x13` Sanctuary, `0x14` Graveyard, `0x1B` Hyrule Castle, `0x21` Kakariko
+  Village, `0x39` Desert of Mystery, `0x3A` Desert Passage — map squares named in
+  The Cutting Room Floor's overworld development tables.
+- `0x40/0x41/0x48/0x49` Skull Woods, `0x42-0x44/0x4B/0x4C` Death Mountain,
+  `0x45/0x46/0x4D/0x4E` Death Mountain East, `0x47` Turtle Rock — same tables,
+  dark world.
+
+Everything else speaks "Outside, area N, screen S." A wrong name sends a blind
+player the wrong way; a number does not.

@@ -18,6 +18,7 @@
  */
 #include "adapter.h"
 #include "alttp_text.h"
+#include "alttp_names.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -276,8 +277,19 @@ void SpeakWhereAmI()
          * wrong there, and the index alone does not say which dungeon. */
         snprintf(line, sizeof(line), "Indoors, room %u.", (unsigned) u16(DUNGEON_ROOM));
     } else {
-        snprintf(line, sizeof(line), "Outside, area %u, screen %u.",
-                 (unsigned) u16(OVERWORLD_AREA), (unsigned) u16(OVERWORLD_SCREEN));
+        unsigned area = u16(OVERWORLD_AREA);
+        const char* name = AlttpAreaName((uint8_t) area);
+        if (name) {
+            if (area >= 0x40)
+                snprintf(line, sizeof(line), "Outside in the dark world, %s.", name);
+            else
+                snprintf(line, sizeof(line), "Outside, %s.", name);
+        } else if (area >= 0x40) {
+            snprintf(line, sizeof(line), "Outside in the dark world, area %u.", area);
+        } else {
+            snprintf(line, sizeof(line), "Outside, area %u, screen %u.",
+                     area, (unsigned) u16(OVERWORLD_SCREEN));
+        }
     }
     Say(line, "whereami", Priority::High);
 }

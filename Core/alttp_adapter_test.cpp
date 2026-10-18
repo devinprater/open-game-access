@@ -166,6 +166,31 @@ int main()
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "File select.") == 0,
           "the file select is named");
 
+    // ---- names: measured and sourced, numbers for the rest ----
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0010u, 9); put8(INDOORS, 0); put16(AREA, 0x2C); put16(SCREEN, 0x2C);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, Link's House.") == 0,
+          "the measured save's own area is named");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(AREA, 0x1B); put16(SCREEN, 0x1B);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, Hyrule Castle.") == 0,
+          "a sourced area is named");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(AREA, 0x05); put16(SCREEN, 0x05);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, area 5, screen 5.") == 0,
+          "an unknown area speaks its number, never a guessed name");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(AREA, 0x42); put16(SCREEN, 0x02);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside in the dark world, Death Mountain.") == 0,
+          "the dark world is said out loud");
+
     // ---- dialogue: the measured message 388 ----
     static const unsigned char kMsg[] = {
         0x7a,0x00,0x44,0x12,0x2d,0x1a,0x2b,0x2d,0x59,0x05,0x2b,0x28,0x26,0x59,
