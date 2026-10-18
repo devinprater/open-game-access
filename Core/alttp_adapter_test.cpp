@@ -87,6 +87,15 @@ int main()
     CHECK(!oga::kZeldaLinkToThePast.ready(), "health above capacity is refused");
     put8(CUR, 0x18);
 
+    // ⛔ THE MEASURED BOOT GARBAGE (frame 0): capacity 0x7F, health 0x56, non-zero
+    // coordinates. A naive range check accepts it; the game's heart-container
+    // step (8) does not.
+    put8(CAP, 0x7F);
+    put8(CUR, 0x56);
+    CHECK(!oga::kZeldaLinkToThePast.ready(), "boot garbage (capacity 0x7F) is refused");
+    put8(CAP, 0x18);
+    put8(CUR, 0x18);
+
     // Coordinates at the origin mean no game is running (title, file select).
     put16(X, 0);
     put16(Y, 0);
@@ -98,6 +107,19 @@ int main()
     put8(CAP, 0x08);
     CHECK(!oga::kZeldaLinkToThePast.ready(), "impossible capacity is refused");
     put8(CAP, 0x18);
+
+    // Where am I: outdoors speaks area and screen, indoors speaks the room.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(AREA, 3); put16(SCREEN, 4); put8(INDOORS, 0);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Area 3, screen 4.") == 0,
+          "outdoors: area and screen");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(INDOORS, 1); put16(ROOM, 12);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Dungeon room 12.") == 0,
+          "indoors: dungeon room");
 
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();

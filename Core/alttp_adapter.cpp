@@ -71,9 +71,15 @@ bool StateSane()
     uint16_t x = u16(LINK_X);
     uint16_t y = u16(LINK_Y);
 
-    /* 0x18 = three hearts, the smallest real maximum; 0xA0 = twenty hearts,
-     * the largest the game can hold. Outside that, the read is not ALttP. */
+    /* ⛔ THE MEASURED BOOT GARBAGE IS INSIDE A NAIVE RANGE. At frame 0, before
+     * the game initialises its RAM, the probe read capacity 0x7F and health 0x56
+     * with non-zero coordinates — every "sane range" check passed on bytes that
+     * are not a game. The game's own maximums are 0x18 (three hearts) through
+     * 0xA0 (twenty), in steps of EIGHT (a heart container is 8 eighths), so the
+     * step is the discriminator: 0x7F is not in that set.
+     * See docs/design/alttp-memory.md, measured 2026-10-17. */
     if (capacity < 0x18 || capacity > 0xA0) return false;
+    if (((capacity - 0x18) % 8) != 0) return false;
     if (current > capacity) return false;
     if (x == 0 && y == 0) return false;
     return true;
@@ -135,6 +141,22 @@ bool AlttpReady()
     return g_attached && StateSane();
 }
 
+/* Where am I, in the game's own numbers until Task 4 gives them names.
+ * The coordinates are deliberately not spoken: a raw X/Y means nothing to a
+ * player, and the useful version of that answer is guidance, which is a later
+ * plan. */
+void SpeakWhereAmI()
+{
+    char line[96];
+    if (u8(PLAYER_INDOORS) != 0) {
+        snprintf(line, sizeof(line), "Dungeon room %u.", (unsigned) u16(DUNGEON_ROOM));
+    } else {
+        snprintf(line, sizeof(line), "Area %u, screen %u.",
+                 (unsigned) u16(OVERWORLD_AREA), (unsigned) u16(OVERWORLD_SCREEN));
+    }
+    Say(line, "whereami", Priority::High);
+}
+
 void AlttpCommand(Command cmd)
 {
     if (cmd == Command::DumpState) { DumpState(); return; }
@@ -143,6 +165,11 @@ void AlttpCommand(Command cmd)
      * booting console is the "bunch of numbers" failure the design forbids; the
      * UI does not offer the controls while ready() is false. */
     if (!AlttpReady()) return;
+
+    switch (cmd) {
+        case Command::WhereAmI: SpeakWhereAmI(); break;
+        default: break;
+    }
 }
 
 } // namespace

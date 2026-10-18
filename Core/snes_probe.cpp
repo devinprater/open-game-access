@@ -374,6 +374,53 @@ static int AfterStop(const char* rom, const char* savedir)
     return ok ? 0 : 1;
 }
 
+// Task 2 of the reader plan: observe the candidate reader addresses while the
+// game boots. This prints, it does not assert: the point is a record of what the
+// bytes actually do, not a pass.
+static void DumpReaderAddresses(SnesCore* c, int frame)
+{
+    uint32_t mod = 0, sub = 0, indoors = 0, x = 0, y = 0, screen = 0, room = 0, area = 0;
+    uint32_t cap = 0, cur = 0, magic = 0, rupees = 0;
+    snes_read(c, 0x7E0010u, 1, &mod);
+    snes_read(c, 0x7E0011u, 1, &sub);
+    snes_read(c, 0x7E001Bu, 1, &indoors);
+    snes_read(c, 0x7E0022u, 2, &x);
+    snes_read(c, 0x7E0020u, 2, &y);
+    snes_read(c, 0x7E008Au, 2, &screen);
+    snes_read(c, 0x7E00A0u, 2, &room);
+    snes_read(c, 0x7E040Au, 2, &area);
+    snes_read(c, 0x7EF36Cu, 1, &cap);
+    snes_read(c, 0x7EF36Du, 1, &cur);
+    snes_read(c, 0x7EF36Eu, 1, &magic);
+    snes_read(c, 0x7EF362u, 2, &rupees);
+    std::printf("f=%3d mod=%u sub=%u in=%u x=%u y=%u scr=%u room=%u area=%u hp=%u/%u mag=%u rup=%u\n",
+                frame, mod, sub, indoors, x, y, screen, room, area, cur, cap, magic, rupees);
+}
+
+static int Memory(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    for (int f = 0; f <= 600; f++) {
+        if (f == 120) snes_set_button(c, SNES_BTN_START, true);
+        if (f == 160) snes_set_button(c, SNES_BTN_START, false);
+        if (f % 60 == 0) DumpReaderAddresses(c, f);
+        snes_frame(c);
+    }
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -402,6 +449,10 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--headered") == 0) {
         if (argc < 5) { Usage(argv[0]); return 2; }
         return Headered(argv[2], argv[3], argv[4]);
+    }
+    if (std::strcmp(argv[1], "--memory") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Memory(argv[2], argv[3]);
     }
     if (std::strcmp(argv[1], "--after-stop") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
