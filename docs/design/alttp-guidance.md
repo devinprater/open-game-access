@@ -41,28 +41,34 @@ problem.
 
 ## Recommended first task: the beacon
 
-- Append `Command::Guide` (and whatever target cycling it needs) to the C ABI;
-  never reorder existing values. Add the Swift `AdapterCommand` rows and
-  `supported(adapterID:)` entry.
-- Targets: start with the named landmarks a player actually walks to — Link's
-  House, Sanctuary, Hyrule Castle, Kakariko Village, Eastern Palace, Desert of
-  Mystery, Lake Hylia, Death Mountain East, Ganon's Tower. Cycle with the
-  player's command; the UI decides how.
-- Answer format: "North-east, about three screens." / "Here." when the target
-  screen is the current one. Compass names from the sign of dx, dy.
-- Refuse indoors, in menus, while not ready, and for an unknown target. Silence
-  is better than a direction from a house.
+**DONE 2026-10-18.** `Command::Guide` is number 41, appended after Status, and the
+Swift `AdapterCommand` carries the same value with the button title "Guide".
 
-## Measurement plan before speaking
+- It cycles eight landmarks: Link's House, Sanctuary, Hyrule Castle, Kakariko,
+  Eastern Palace, Desert of Mystery, Lake Hylia, Death Mountain East. Each press
+  reads the selected one, so a player presses until they hear the place they want.
+- It speaks "Guide: Hyrule Castle, north-west, about two screens away." and
+  "Guide: Link's House. You are here." when the area id matches.
+- It refuses indoors ("Guidance works outside."), in a menu ("Close the menu
+  first."), and in the dark world ("Guidance covers the light world only.").
+- Distance is octile in 512-unit screens, rounded; direction is eight-way with a
+  3:1 ratio so a small offset does not wobble between north and north-east.
+- ⛔ Found on the way: `poke_command` still rejected any command above
+  RepeatOlder, so Status (40) and Guide (41) were dead on the live path while
+  their unit tests passed. The bound now ends at Guide.
 
-1. Confirm world coordinates per screen by walking one screen and diffing x/y.
-2. Confirm the centre of one large area and one small area against
-   `kOverworld_OffsetBaseX/Y`.
-3. Prove one direction against the save: Link's House (0x2C) to Hyrule Castle
-   (0x1B) must come out north, and the distance must match the map.
+## What was measured before speaking
 
-## Not in this design
+1. The screen grid is the game's own: 512 world units per screen, and the area's
+   low six bits are row times eight plus column. No new table was invented.
+2. The public save's Link stands at x=2232, y=2792 in area 0x2C, which is row 5,
+   column 4 — the anchor both the tests and the live proof use.
+3. Two bearings were worked out by hand and matched the running game: Sanctuary
+   north and three screens away, Hyrule Castle north-west and two screens away.
+
+## What this still cannot do
 
 Walking route, ledge and river crossings, dungeon routes, and anything that
 needs the screen graph. Those get their own measurement pass after the beacon
-is honest.
+is honest. A large area also aims at its base cell, so the last screen of the
+approach may read one cell off; arrival is detected by area id, not by cell.

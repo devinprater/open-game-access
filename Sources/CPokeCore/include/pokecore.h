@@ -191,6 +191,10 @@ bool poke_adapter_ready(PokeCore *core);
  *   0 WhereAmI, 1 NextAlly, 2 PrevAlly, 3 NextEnemy, 4 PrevEnemy,
  *   5 NextUnactedAlly, 6 DumpState ...
  *
+ * ⛔ APPEND-ONLY: Status (40) and Guide (41) were added after the spoken-history
+ * commands. Guide cycles the adapter's named landmarks and speaks a compass
+ * bearing and rough screen distance; it is not a walking route.
+ *
  * Two of them are CORE-INTERNAL and need no adapter: StopSpeech (37) and the spoken-
  * history walk RepeatNewest (38) / RepeatOlder (39). They work on any game, including the
  * Lua script and a game with no adapter, because the history lives in the announcement

@@ -327,6 +327,47 @@ git commit -m "alttp: dialogue decoded from the game's own text buffer"
 
 ---
 
+### Task 8: Guidance, the beacon
+
+**DONE 2026-10-18.**
+
+**Files:**
+- Modify: `Core/adapter.h` (`Command::Guide` = 41, appended)
+- Modify: `Core/alttp_adapter.cpp` (`SpeakGuide`, the landmark table, the
+  compass and distance maths, the detach reset, the dump field)
+- Modify: `Core/alttp_adapter_test.cpp` (seven tests)
+- Modify: `Core/pokecore.cpp` (the command bound; see below)
+- Modify: `Sources/OpenGameAccess/AdapterCommand.swift` (case 41, title, hint,
+  symbol, and the `alttp` supported list)
+- Modify: `scripts/snes-live-proof.cpp` (`--walk` now proves Status and two
+  bearings)
+- Modify: `docs/design/alttp-guidance.md`
+
+**What it says.** Eight landmarks cycle on each press: Link's House, Sanctuary,
+Hyrule Castle, Kakariko Village, Eastern Palace, Desert of Mystery, Lake Hylia,
+Death Mountain East. The answer is "Guide: Hyrule Castle, north-west, about two
+screens away." or "Guide: Link's House. You are here." It refuses indoors, in a
+menu, and in the dark world.
+
+**Proof.** `scripts/alttp-adapter-test.sh` prints 58 passed; the live walk prints
+`SAY: Guide: Link's House. You are here.` and `SAY: Guide: Sanctuary, north,
+about four screens away.` then `guide-proof=YES`.
+
+**⛔ The two live-path bugs this found.**
+1. `poke_command` still had its upper bound at `RepeatOlder` (39), so Status (40)
+   and Guide (41) were rejected silently on the app path while every unit test
+   passed. The bound now ends at Guide; the live proof checks both.
+2. The proof must drain the announcement queue between presses. The queue speaks
+   one line at a time and estimates a duration from the text, so a second High in
+   the same group before the first is heard replaces it. The live proof pumps
+   400 frames per press; a player pressing twice quickly hears the newest answer,
+   which is the intended behaviour.
+
+**Not done:** walking routes, dark-world landmarks, and the last screen of a
+large area (it aims at the base cell; arrival is detected by area id).
+
+---
+
 ## Follow-on plan
 
-Guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The first design, with the measured coordinate-to-area formula and the recommended beacon slice, is `docs/design/alttp-guidance.md`.
+Route guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The beacon slice is now done and documented in `docs/design/alttp-guidance.md`; what remains there is the screen graph, dark-world landmarks, and a better aim for large areas.

@@ -391,5 +391,27 @@ moves, so watching only the item cursor leaves this menu silent.
   from the decompilation and covered by unit tests only. A save with a bottle in
   it would let the live proof cover it.
 
+## Guidance
+
+- **Command:** `Command::Guide` = 41 (append-only C ABI). Swift's
+  `AdapterCommand.guide` carries the same number.
+- **Coordinates:** `link_x_coord` `0x7E0022`, `link_y_coord` `0x7E0020`, 16-bit.
+- **Screen grid:** the game's own conversion, `overworld.c`:
+  `packed = ((y & 0x1E00) >> 5) | ((x & 0x1E00) >> 8)`, and the area id is
+  `packed >> 1`. That makes the area's low six bits `row * 8 + column` and each
+  screen 0x200 world units wide and tall.
+- **Measured anchor:** Link's House is area `0x2C` = row 5, column 4; the public
+  save's Link stands at x=2232, y=2792 inside that cell.
+- **Direction:** eight-way from the sign of dx and dy (screen y grows downward,
+  so positive dy is south), with a 3:1 ratio so small offsets stay cardinal.
+- **Distance:** octile, `max(ax, ay) + min(ax, ay) / 2`, then rounded to screens
+  by `(span + 256) / 512`.
+- **Arrival:** the current area id equals the target's, so the four cells of a
+  large area all say "You are here".
+- ⛔ **Live-path trap found here:** `poke_command` had its upper bound frozen at
+  `RepeatOlder` (39), so Status (40) and Guide (41) returned false with no speech
+  while every unit test passed. Any command appended after this must widen that
+  bound and be checked by a live proof, not only by a unit test.
+
 
 

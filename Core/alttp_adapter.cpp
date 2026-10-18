@@ -89,6 +89,11 @@ uint16_t g_lastArea = 0xFFFFu;   /* last outdoors area SPOKEN, for area entry */
 bool g_bottleMenu = false;       /* the item menu's bottle submenu is up */
 uint16_t g_lastBottle = 0xFFFFu;
 
+/* Guidance: the index into kGuideTargets the player last heard. The player
+ * cycles with Command::Guide; it is not saved, so it restarts at the first
+ * landmark whenever the adapter attaches. */
+unsigned g_guideIndex = 0;
+
 /* Module numbers from the decomp's kMainRouting (src/misc.c). */
 enum : uint8_t {
     MOD_TITLE = 0, MOD_FILE_SELECT = 1, MOD_NAME_ENTRY = 4, MOD_LOAD_FILE = 5,
@@ -161,14 +166,15 @@ void DumpState()
 {
     char line[256];
     snprintf(line, sizeof(line),
-             "crc:777aac2f health=%u/%u area=%u screen=%u room=%u indoors=%u magic=%u rupees=%u x=%u y=%u frame=%u hud=%u choice=%u",
+             "crc:777aac2f health=%u/%u area=%u screen=%u room=%u indoors=%u magic=%u rupees=%u x=%u y=%u frame=%u hud=%u choice=%u guide=%u",
              (unsigned) u8(HEALTH_CURRENT), (unsigned) u8(HEALTH_CAPACITY),
              (unsigned) u16(OVERWORLD_AREA), (unsigned) u16(OVERWORLD_SCREEN),
              (unsigned) u16(DUNGEON_ROOM), (unsigned) u8(PLAYER_INDOORS),
              (unsigned) u8(MAGIC), (unsigned) u16(RUPEES),
              (unsigned) u16(LINK_X), (unsigned) u16(LINK_Y),
              (unsigned) u8(FRAME_COUNTER),
-             (unsigned) u8(HUD_CUR_ITEM), (unsigned) u8(CHOICE_BOX));
+             (unsigned) u8(HUD_CUR_ITEM), (unsigned) u8(CHOICE_BOX),
+             (unsigned) g_guideIndex);
     Log(line);
 }
 
@@ -192,6 +198,7 @@ void AlttpDetach()
     g_lastArea = 0xFFFFu;
     g_bottleMenu = false;
     g_lastBottle = 0xFFFFu;
+    g_guideIndex = 0;
 }
 
 /* Module 14 is the interface/HUD layer; the real screen is in
@@ -703,6 +710,118 @@ void SpeakWhereAmI()
     Say(line, "whereami", Priority::High);
 }
 
+/* ---- guidance -------------------------------------------------------------
+ * ⛔ THIS IS A BEARING, NOT A ROUTE. The game exposes no walkable graph, so the
+ * reader says only which way a landmark lies and roughly how many screens away
+ * it is. Walls, rivers and ledges stay the player's problem; claiming a path
+ * would send a blind player into one.
+ *
+ * The screen grid comes from the game's own conversion in overworld.c:
+ *   area = ((y & 0x1E00) >> 5) | ((x & 0x1E00) >> 8)
+ * which halves to row * 8 + column, and each screen is 0x200 world units.
+ * MEASURED anchor: Link's House is area 0x2C = row 5, column 4, and the public
+ * save's Link stands at x=2232, y=2792, inside that cell.
+ */
+constexpr int SCREEN_UNITS = 0x200;
+
+struct GuideTarget { uint8_t area; const char* name; };
+
+/* The landmarks a player actually walks to. The names are repeated here only as
+ * a fallback; the spoken name is the same table WhereAmI uses. */
+const GuideTarget kGuideTargets[] = {
+    { 0x2C, "Link's House" },
+    { 0x13, "Sanctuary" },
+    { 0x1B, "Hyrule Castle" },
+    { 0x18, "Kakariko Village" },
+    { 0x1E, "Eastern Palace" },
+    { 0x30, "Desert of Mystery" },
+    { 0x35, "Lake Hylia" },
+    { 0x05, "Death Mountain East" },
+};
+const unsigned kGuideTargetCount = sizeof(kGuideTargets) / sizeof(kGuideTargets[0]);
+
+/* Screen y grows downward, so a positive dy is south. A ratio test keeps the
+ * cardinal directions from wobbling on small offsets. */
+const char* CompassWords(int dx, int dy)
+{
+    int ax = dx < 0 ? -dx : dx;
+    int ay = dy < 0 ? -dy : dy;
+    bool north = dy < 0;
+    bool east = dx > 0;
+
+    if (ax * 3 < ay) return north ? "north" : "south";
+    if (ay * 3 < ax) return east ? "east" : "west";
+    if (north) return east ? "north-east" : "north-west";
+    return east ? "south-east" : "south-west";
+}
+
+void SpeakGuide()
+{
+    if (CurrentMenu() != Menu::None) {
+        Say("Close the menu first.", "guide", Priority::High);
+        return;
+    }
+    if (u8(PLAYER_INDOORS) != 0) {
+        Say("Guidance works outside.", "guide", Priority::High);
+        return;
+    }
+
+    unsigned area = u16(OVERWORLD_AREA);
+    /* ⛔ THE DARK WORLD MIRRORS THE LIGHT WORLD GRID, but the landmark names for
+     * those ids have not been measured against a save, so the reader refuses
+     * rather than point at a guessed place. */
+    if (area >= 0x40) {
+        Say("Guidance covers the light world only.", "guide", Priority::High);
+        return;
+    }
+
+    const GuideTarget& target = kGuideTargets[g_guideIndex % kGuideTargetCount];
+    const char* name = AlttpAreaName(target.area);
+    if (!name) name = target.name;
+
+    char line[160];
+    if (area == target.area) {
+        snprintf(line, sizeof(line), "Guide: %s. You are here.", name);
+        Say(line, "guide", Priority::High);
+        g_guideIndex = (g_guideIndex + 1) % kGuideTargetCount;
+        return;
+    }
+
+    /* The area id's low six bits are row * 8 + column. A big area covers four
+     * cells, so its base cell is the top-left one; aiming at that cell's centre
+     * still gives the right side of the map, and arrival is detected by the id
+     * rather than by the cell, so entering any of the four quadrants says "You
+     * are here". */
+    int column = (int) (target.area & 7);
+    int row = (int) ((target.area >> 3) & 7);
+    int tx = column * SCREEN_UNITS + SCREEN_UNITS / 2;
+    int ty = row * SCREEN_UNITS + SCREEN_UNITS / 2;
+    int dx = tx - (int) u16(LINK_X);
+    int dy = ty - (int) u16(LINK_Y);
+    int ax = dx < 0 ? -dx : dx;
+    int ay = dy < 0 ? -dy : dy;
+
+    /* Octile distance: exact enough for "about N screens", and no sqrt. */
+    int span = (ax > ay ? ax : ay) + (ax < ay ? ax : ay) / 2;
+    unsigned screens = (unsigned) ((span + SCREEN_UNITS / 2) / SCREEN_UNITS);
+
+    char count[40];
+    if (screens == 0) {
+        snprintf(count, sizeof(count), "less than a screen");
+    } else if (screens == 1) {
+        snprintf(count, sizeof(count), "one screen");
+    } else {
+        NumberWords(screens, count, sizeof(count));
+        size_t used = strlen(count);
+        snprintf(count + used, sizeof(count) - used, " screens");
+    }
+
+    snprintf(line, sizeof(line), "Guide: %s, %s, about %s away.", name,
+             CompassWords(dx, dy), count);
+    Say(line, "guide", Priority::High);
+    g_guideIndex = (g_guideIndex + 1) % kGuideTargetCount;
+}
+
 void AlttpCommand(Command cmd)
 {
     if (cmd == Command::DumpState) { DumpState(); return; }
@@ -723,6 +842,7 @@ void AlttpCommand(Command cmd)
     switch (cmd) {
         case Command::WhereAmI: SpeakWhereAmI(); break;
         case Command::Status:   SpeakStatus(); break;
+        case Command::Guide:    SpeakGuide(); break;
         default: break;
     }
 }

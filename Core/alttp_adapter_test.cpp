@@ -451,6 +451,54 @@ int main()
           "File one, Link. Four hearts. Master Sword, Fighter's Shield.") == 0,
           "status on the file select speaks the slot");
 
+    // Guidance: a bearing to the next named landmark, never a walkable route.
+    // Coordinates are the public save's own, standing at Link's House (0x2C).
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0010u, 9); put8(0x7E0011u, 0);
+    put8(INDOORS, 0); put16(AREA, 0x2C); put16(SCREEN, 0x2C);
+    put16(X, 2232); put16(Y, 2792);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guide: Link's House. You are here.") == 0,
+          "guide: the first landmark is the place you are standing in");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Sanctuary, north, about three screens away.") == 0,
+          "guide: the Sanctuary is north and three screens away");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Hyrule Castle, north-west, about two screens away.") == 0,
+          "guide: the castle is north-west and two screens away");
+
+    // The list wraps: five more presses bring it back to the first landmark.
+    for (int i = 0; i < 5; i++) oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guide: Link's House. You are here.") == 0,
+          "guide: the landmark list wraps");
+
+    // Indoors, in a menu, and in the dark world the answer is a refusal.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(INDOORS, 1); put8(0x7E0010u, 7); put8(0x7E0011u, 0);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guidance works outside.") == 0,
+          "guide refuses indoors");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(INDOORS, 0); put8(0x7E0010u, 14); put8(0x7E0011u, 1);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Close the menu first.") == 0,
+          "guide refuses while a menu owns the frame");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0010u, 9); put8(0x7E0011u, 0); put16(AREA, 0x43);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guidance covers the light world only.") == 0,
+          "guide refuses in the dark world rather than guess a name");
+
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();
     CHECK(!oga::kZeldaLinkToThePast.ready(), "not ready after detach");

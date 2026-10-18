@@ -353,10 +353,39 @@ static int Walk(const char* rom, const char* savedir)
     for (const std::string& s : g_say)
         if (s.rfind("Outside,", 0) == 0) spoke_outside = true;
     std::printf("outside-spoken=%d lines=%d\n", (int) spoke_outside, (int) g_say.size());
+
+    /* Guidance on the live game: each press must produce one bearing, and the
+     * second must be a different landmark (the list cycles). 41 is
+     * oga::Command::Guide in Core/adapter.h, the same number Swift sends.
+     * 40 is Status, which the same stale bound had also silenced.
+     * ⛔ The queue speaks one line at a time and estimates a duration from the
+     * text, so drain it between presses or the newest High replaces the one
+     * still waiting and the proof undercounts. */
+    g_say.clear();
+    poke_command(core, 40);
+    for (int f = 0; f < 400; f++) poke_frame(core);
+    bool status_spoke = false;
+    for (const std::string& s : g_say)
+        if (s.find("heart") != std::string::npos) status_spoke = true;
+    std::printf("status-proof=%s\n", status_spoke ? "YES" : "NO");
+
+    g_say.clear();
+    int bearings = 0;
+    for (int i = 0; i < 2; i++) {
+        poke_command(core, 41);
+        for (int f = 0; f < 400; f++) poke_frame(core);
+    }
+    for (int f = 0; f < 400; f++) poke_frame(core);
+    for (const std::string& s : g_say) {
+        std::printf("SAY: %s\n", s.c_str());
+        if (s.rfind("Guide: ", 0) == 0) bearings++;
+    }
+    std::printf("guide-lines=%d\n", bearings);
+    std::printf("guide-proof=%s\n", bearings >= 2 ? "YES" : "NO");
     std::printf("walk-proof=%s\n", spoke_outside ? "YES" : "NO");
     poke_stop(core);
     poke_destroy(core);
-    return spoke_outside ? 0 : 1;
+    return (spoke_outside && bearings >= 2) ? 0 : 1;
 }
 
 int main(int argc, char** argv)

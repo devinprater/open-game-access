@@ -84,6 +84,10 @@ enum AdapterCommand: Int32, CaseIterable {
     case repeatOlder = 39
     /// Health, magic and money. Appended at 40; the raw value is the C ABI.
     case status = 40
+    /// Guidance: cycles the named landmarks and reads the compass direction and
+    /// rough screen distance to the one selected. A bearing, never a walkable
+    /// route. Appended at 41; the raw value is the C ABI.
+    case guide = 41
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -129,8 +133,8 @@ enum AdapterCommand: Int32, CaseIterable {
         case .stopSpeech: return "Stop speech"
         case .repeatNewest: return "Repeat"
         case .repeatOlder:  return "Repeat older"
-        case .status:          return "heart.text.square"
         case .status:       return "Status"
+        case .guide:        return "Guide"
         }
     }
 
@@ -221,6 +225,8 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Steps one announcement further back and speaks it."
         case .status:
             return "Reads your hearts, magic and rupees from the game itself."
+        case .guide:
+            return "Cycles nearby landmarks and reads the direction and rough distance to each. A bearing, not a walking route."
         }
     }
 
@@ -268,6 +274,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .repeatNewest: return "arrow.counterclockwise"
         case .repeatOlder:  return "arrow.uturn.backward"
         case .status:       return "heart.text.square"
+        case .guide:        return "location.north.line"
         }
     }
 
@@ -306,9 +313,10 @@ enum AdapterCommand: Int32, CaseIterable {
             return []
 
         case "alttp":
-            // A Link to the Past: location, status and the debug dump are
-            // real. Menu and dialogue commands arrive with their own tasks.
-            return [.whereAmI, .status, .dumpState]
+            // A Link to the Past: location, status, guidance and the debug
+            // dump are real. Menu and dialogue commands arrive with their own
+            // tasks.
+            return [.whereAmI, .status, .guide, .dumpState]
 
         case "dissidia":
             // Dissidia PSP: location, menu-row navigation, Customize tracking,

@@ -271,6 +271,27 @@ git commit -m &quot;alttp: item and equipment menus&quot;</code></pre>
 <pre><code class="language-bash">git add Core/alttp_text.h Core/alttp_text.cpp Core/alttp_adapter.cpp Core/alttp_adapter_test.cpp docs/design/alttp-memory.md
 git commit -m &quot;alttp: dialogue decoded from the game&#x27;s own text buffer&quot;</code></pre>
 <hr>
+<h3>Task 8: Guidance, the beacon</h3>
+<p><strong>DONE 2026-10-18.</strong></p>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/adapter.h</code> (<code>Command::Guide</code> = 41, appended)</li>
+<li>Modify: <code>Core/alttp_adapter.cpp</code> (<code>SpeakGuide</code>, the landmark table, the compass and distance maths, the detach reset, the dump field)</li>
+<li>Modify: <code>Core/alttp_adapter_test.cpp</code> (seven tests)</li>
+<li>Modify: <code>Core/pokecore.cpp</code> (the command bound; see below)</li>
+<li>Modify: <code>Sources/OpenGameAccess/AdapterCommand.swift</code> (case 41, title, hint, symbol, and the <code>alttp</code> supported list)</li>
+<li>Modify: <code>scripts/snes-live-proof.cpp</code> (<code>--walk</code> now proves Status and two bearings)</li>
+<li>Modify: <code>docs/design/alttp-guidance.md</code></li>
+</ul>
+<p><strong>What it says.</strong> Eight landmarks cycle on each press: Link's House, Sanctuary, Hyrule Castle, Kakariko Village, Eastern Palace, Desert of Mystery, Lake Hylia, Death Mountain East. The answer is "Guide: Hyrule Castle, north-west, about two screens away." or "Guide: Link's House. You are here." It refuses indoors, in a menu, and in the dark world.</p>
+<p><strong>Proof.</strong> <code>scripts/alttp-adapter-test.sh</code> prints 58 passed; the live walk prints <code>SAY: Guide: Link's House. You are here.</code> and <code>SAY: Guide: Sanctuary, north, about four screens away.</code> then <code>guide-proof=YES</code>.</p>
+<p><strong>⛔ The two live-path bugs this found.</strong></p>
+<ol>
+<li><code>poke_command</code> still had its upper bound at <code>RepeatOlder</code> (39), so Status (40) and Guide (41) were rejected silently on the app path while every unit test passed. The bound now ends at Guide; the live proof checks both.</li>
+<li>The proof must drain the announcement queue between presses. The queue speaks one line at a time and estimates a duration from the text, so a second High in the same group before the first is heard replaces it. The live proof pumps 400 frames per press; a player pressing twice quickly hears the newest answer, which is the intended behaviour.</li>
+</ol>
+<p><strong>Not done:</strong> walking routes, dark-world landmarks, and the last screen of a large area (it aims at the base cell; arrival is detected by area id).</p>
+<hr>
 <h2>Follow-on plan</h2>
-<p>Guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The first design, with the measured coordinate-to-area formula and the recommended beacon slice, is <code>docs/design/alttp-guidance.md</code>.</p>
+<p>Route guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The beacon slice is now done and documented in <code>docs/design/alttp-guidance.md</code>; what remains there is the screen graph, dark-world landmarks, and a better aim for large areas.</p>
 </body></html>

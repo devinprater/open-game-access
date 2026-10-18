@@ -120,6 +120,11 @@ enum class Command {
     // Player status query: health, magic, money. Appended after RepeatOlder;
     // raw values are the C ABI shared with Swift and must never be reordered.
     Status,
+    // Player guidance query: cycles the named landmarks and speaks the compass
+    // direction and rough screen distance to the one selected. Appended after
+    // Status; raw values are the C ABI shared with Swift and must never be
+    // reordered. It never claims a walkable route, only a bearing.
+    Guide,
 };
 
 /// Per-frame battle snapshot for host-side audio cues (item 5 spike).
