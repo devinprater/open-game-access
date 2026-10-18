@@ -160,6 +160,28 @@ int main()
           "Two and a half hearts. Magic half. Two hundred forty-two rupees.") == 0,
           "status: hearts, magic and rupees");
 
+    // Inside a dungeon the pouch joins the answer, keyed on the dungeon id.
+    // 0x04 is Eastern Palace (id 2); the three flags are one bit per dungeon.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(INDOORS, 1); put8(0x7E040Cu, 0x04);
+    put8(0x7EF36Fu, 3);
+    put16(0x7EF366u, 1u << 2);
+    put16(0x7EF368u, 1u << 2);
+    put16(0x7EF364u, 0);
+    oga::kZeldaLinkToThePast.command(oga::Command::Status);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Two and a half hearts. Magic half. Two hundred forty-two rupees. Three keys, big key, map, no compass.") == 0,
+          "status in a dungeon adds keys, big key, map and compass");
+
+    // A house is not a dungeon: 0xFF must add nothing.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E040Cu, 0xFF);
+    oga::kZeldaLinkToThePast.command(oga::Command::Status);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Two and a half hearts. Magic half. Two hundred forty-two rupees.") == 0,
+          "status in a house says nothing about keys");
+    put8(INDOORS, 0);
+
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(CUR, 0);
     oga::kZeldaLinkToThePast.command(oga::Command::Status);

@@ -457,5 +457,20 @@ moves, so watching only the item cursor leaves this menu silent.
   not world coordinates); in the dark world it refuses, because none of those
   stages have been measured.
 
+## The dungeon pouch
+
+Status adds the dungeon's keys and gear only when `player_is_indoors` is set and
+`cur_palace_index_x2` is not `0xFF` (Link's house reads `0xFF`; `0` is the sewer
+passage and a real dungeon).
+
+- `link_num_keys` `0x7EF36F`, one byte.
+- `link_bigkey` `0x7EF366`, `link_dungeon_map` `0x7EF368`, `link_compass`
+  `0x7EF364`: 16-bit bitfields with **one bit per dungeon id**.
+- The id is `cur_palace_index_x2 / 2`, and the bit is `(field >> id) & 1`.
+- Spoken: "Three keys, big key, map, no compass." Outdoors or in a house the
+  pouch is not mentioned at all.
+- ⚠ Measured only in unit tests. The harness cannot reach a dungeon without
+  steering, so no live proof exists yet.
+
 
 

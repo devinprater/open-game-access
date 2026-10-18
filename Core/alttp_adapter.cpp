@@ -72,6 +72,10 @@ constexpr uint32_t BOTTLE_INFO        = 0x7EF35Cu;  /* link_bottle_info[4] */
 constexpr uint32_t PROGRESS_FLAGS     = 0x7EF3C6u;  /* sram_progress_flags */
 constexpr uint32_t PROGRESS_INDICATOR = 0x7EF3C5u;  /* sram_progress_indicator */
 constexpr uint32_t PENDANTS           = 0x7EF374u;  /* link_which_pendants */
+constexpr uint32_t KEYS               = 0x7EF36Fu;  /* link_num_keys */
+constexpr uint32_t BIG_KEY            = 0x7EF366u;  /* link_bigkey, one bit per dungeon */
+constexpr uint32_t COMPASS            = 0x7EF364u;  /* link_compass, one bit per dungeon */
+constexpr uint32_t DUNGEON_MAP        = 0x7EF368u;  /* link_dungeon_map, one bit per dungeon */
 
 /* The file select (module 1). Its slots are NOT in work RAM: select_file.c draws
  * them straight out of the cartridge's save RAM, which the core exposes at the
@@ -663,7 +667,7 @@ void SpeakStatus()
     }
 
     unsigned eighths = u8(HEALTH_CURRENT);
-    char line[192];
+    char line[256];
 
     /* ⛔ ZERO HEARTS IS AN ANSWER, not a failed read. Going quiet at the moment
      * the player is dying is the worst possible time to be silent. */
@@ -695,8 +699,43 @@ void SpeakStatus()
     char rupee_words[64];
     NumberWords(rupees, rupee_words, sizeof(rupee_words));
     if (rupee_words[0]) rupee_words[0] = (char) toupper((unsigned char) rupee_words[0]);
-    snprintf(line, sizeof(line), "%s%s %s %s", hearts, magic_part, rupee_words,
-             rupees == 1 ? "rupee." : "rupees.");
+
+    /* ---- the dungeon pouch -------------------------------------------------
+     * ⛔ ONLY INSIDE A REAL DUNGEON. 0xFF is "no dungeon"; 0 is the sewer
+     * passage and a real dungeon. The three flags are bitfields with one bit per
+     * dungeon id, and the id is cur_palace_index_x2 / 2. Nothing here is spoken
+     * outdoors or in a house, where those bits belong to no dungeon. */
+    char dungeon_part[112] = {0};
+    if (u8(PLAYER_INDOORS) != 0) {
+        uint8_t raw = u8(DUNGEON_INDEX);
+        if (raw != 0xFF) {
+            unsigned id = (unsigned) raw / 2u;
+            if (id < 16u) {
+                unsigned keys = u8(KEYS);
+                char key_words[48];
+                if (keys == 0) {
+                    snprintf(key_words, sizeof(key_words), "no keys");
+                } else {
+                    NumberWords(keys, key_words, sizeof(key_words));
+                    size_t used = strlen(key_words);
+                    snprintf(key_words + used, sizeof(key_words) - used, "%s",
+                             keys == 1 ? " key" : " keys");
+                }
+                if (key_words[0]) key_words[0] = (char) toupper((unsigned char) key_words[0]);
+                bool big = ((u16(BIG_KEY) >> id) & 1u) != 0;
+                bool map = ((u16(DUNGEON_MAP) >> id) & 1u) != 0;
+                bool compass = ((u16(COMPASS) >> id) & 1u) != 0;
+                snprintf(dungeon_part, sizeof(dungeon_part), " %s, %s, %s, %s.",
+                         key_words,
+                         big ? "big key" : "no big key",
+                         map ? "map" : "no map",
+                         compass ? "compass" : "no compass");
+            }
+        }
+    }
+
+    snprintf(line, sizeof(line), "%s%s %s %s%s", hearts, magic_part, rupee_words,
+             rupees == 1 ? "rupee." : "rupees.", dungeon_part);
     Say(line, "status", Priority::High);
 }
 
