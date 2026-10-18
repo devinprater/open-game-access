@@ -43,11 +43,11 @@ Both ROMs are the ones in `Dropbox/games/N64`:
   non-zero RDRAM. Screenshots of both are on disk.
 - Stadium 1's state pair was found and confirmed live: pressing Start at the title
   moved the game to the **Game Pak Check** screen, and the word pair at
-  `0x80075768`/`0x8007576C` changed from `2`/`1` to `4`/`2`. Those are
+  `0x800757A8`/`0x800757AC` changed from `2`/`1` to `4`/`2`. Those are
   `STATE_TITLE_SCREEN` and `STATE_MENU_SELECT` from the decompilation's own `GameState`
   enum, and `gCurrentGameState`/`gLastGameState` are adjacent in the same order.
 - ⛔ The decompilation's address for that pair is `0x80075668` — the live Rev 2 address
-  is **`0x80075768`, a +0x100 shift**. Reading the decompilation's address on Rev 2
+  is **`0x800757A8`, a +0x140 shift**. Reading the decompilation's address on Rev 2
   returns unrelated data, so the symbol table is a design reference here, not an
   address list. Every address still needs a live check on the ROM that will ship.
 - Stadium 2's ROM md5 matches `pret/pokestadiumgs` exactly; Stadium 1's does not match
@@ -120,3 +120,45 @@ status handling from the battle model.
 - **Text encoding is unmapped.** Stadium's message text is not plain ASCII in the
   decompilation's evidence so far; the reader needs either the decoded message buffer or
   a table extracted from the ROM. This was not solved in this pass.
+
+## What the desktop prototype proved
+
+Built 2026-10-18 in `tools/ps1-reader/` (Windows): a Python client for RetroArch's MCP
+server plus a reader that speaks through NVDA. The emulator is RetroArch with
+`mupen64plus_next`; RDRAM is readable at `0x80000000`.
+
+Measured on Pokémon Stadium (USA) Rev 2:
+
+| Value | Address | Notes |
+|---|---|---|
+| `gCurrentGameState` | `0x800757A8` | 2 title, 4 menu select, 0x10 area select, 0x20 Stadium flow |
+| Area-select cursor (s16) | `0x80117EFA` | 0 Stadium, 1 Free Battle, 2 Gym Leader Castle, 3 VS Mewtwo, 4 Kids Club, 5 Victory Palace, 6 Pokémon Lab, 7 GB Tower, 8 back to main menu |
+| Area-select previous cursor | `0x80117EF8` | Written immediately before the cursor |
+| Cup-select cursor (u32) | `0x8008157C` | 5 Poké Cup, 2 Pika Cup, 1 Prime Cup, 3 Petit Cup; 6 cancels; 0 and 4 unobserved |
+
+- The area-select cursor lives inside fragment37's overlay, which is heap-allocated.
+  The fragment base was found by scanning RDRAM for the ten-pointer table at fragment
+  offset `0x2FBC`; the base was `0x80114D20` on two fresh boots. Do not hardcode it:
+  locate the table, then read base + `0x31DA`.
+- ⛔ **The cup cursor address is not durable.** On the screens that follow cup select
+  the heap block is reused and `0x8008157C` holds a pointer. The reader guards its cup
+  announcement on the word after it being a pointer into RDRAM; that stopped a stale
+  word being spoken as "Poké Cup" on the Battle/Rules/Registration screen.
+- ⛔ **Hold a d-pad press for 4–6 frames, not 20.** A 20-frame hold is long enough for
+  the game's key repeat to fire, and a single scripted "right" moved two cells in the
+  rental grid. The reader's own input scripts must use short holds and long settles.
+- State `0x20` covers several different screens: cup select, round select
+  (Poké/Great/Ultra/Master Ball), the Battle/Rules/Registration menu, the
+  Registered/Rental choice, and the rental grid. `gCurrentGameState` does not
+  distinguish them, so a reader needs a sub-screen signal before it can name them.
+- The rental grid is reached and navigable (3 columns x 4 rows, 12 per page, 151
+  rentals). **Its cursor has not been located yet.** The decompilation's rental struct
+  is `unk_D_842168A0` in `fragment61_2DFB60.c`, with `unk_00005` as the selected tab,
+  `unk_0000C` as the column (0–2), and the row index in a field the code reaches
+  through the heap-allocated struct — which is why no fixed address turned up in a
+  whole-RAM diff.
+
+The prototype reader announces the screen name and, on area select and cup select, the
+highlighted entry. It debounces every value over four consecutive polls so a transient
+during a screen load cannot become speech. It is a proof of the reads, not a shippable
+adapter: the rental and battle screens are still silent.
