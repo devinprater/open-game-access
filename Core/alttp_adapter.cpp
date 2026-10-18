@@ -30,6 +30,11 @@ namespace {
 const Host* g_host = nullptr;
 bool g_attached = false;
 unsigned g_lastMessage = 0xFFFFu;
+/* Message text is identified by its CONTENT, not only by its index: one message
+ * can have several pages, and a page advance keeps the index while rewriting the
+ * buffer. The two-frame settle keeps a half-written page from being spoken. */
+uint32_t g_lastTextHash = 0;
+uint32_t g_spokenTextHash = 0;
 
 /* ---- the work-RAM map (zelda3 src/variables.h, g_ram is banks 7E/7F) ---- */
 constexpr uint32_t RAM_BASE          = 0x7E0000u;
@@ -119,6 +124,19 @@ bool InRam(uint32_t a, int n)
     return a >= RAM_BASE && (uint64_t) a + (uint64_t) n <= (uint64_t) RAM_BASE + RAM_SIZE;
 }
 
+/* FNV-1a over the first 96 bytes of the message buffer. 96 covers the longest
+ * page the box shows; the tail belongs to the next page or the next message. */
+uint32_t TextHash()
+{
+    if (!g_host || !g_host->read8) return 0;
+    uint32_t hash = 2166136261u;
+    for (int i = 0; i < 96; i++) {
+        hash ^= (uint32_t) g_host->read8(g_host->ctx, TEXT_BUFFER + (uint32_t) i);
+        hash *= 16777619u;
+    }
+    return hash;
+}
+
 /* ⛔ THE REFUSAL RULE. A capacity of 0 is a console that has not loaded a save
  * yet; health above capacity, or coordinates at the origin, are the same class
  * of "not a playable state". Speaking from any of them is the failure this
@@ -204,6 +222,8 @@ void AlttpDetach()
     g_bottleMenu = false;
     g_lastBottle = 0xFFFFu;
     g_guideIndex = 0;
+    g_lastTextHash = 0;
+    g_spokenTextHash = 0;
 }
 
 /* Module 14 is the interface/HUD layer; the real screen is in
@@ -253,6 +273,7 @@ void AlttpFrame()
      * the work-RAM health that ready() validates belongs to no game yet. */
     if (menu == Menu::FileSelect) {
         g_lastMessage = u16(DIALOGUE_INDEX);
+        g_lastTextHash = TextHash();
         if (menu != g_menu) {
             g_menu = menu;
             g_lastFileCursor = u8(FILE_CURSOR);
@@ -292,6 +313,7 @@ void AlttpFrame()
      * closing the menu cannot replay that decoration as a new line. */
     if (menu != Menu::None) {
         g_lastMessage = u16(DIALOGUE_INDEX);
+        g_lastTextHash = TextHash();
         if (menu == Menu::Item) {
             uint8_t hud = u8(HUD_CUR_ITEM);
 
@@ -350,12 +372,18 @@ void AlttpFrame()
         }
     }
 
-    /* ⛔ THE GAME HAS ALREADY DECODED ITS TEXT. messaging_text_buffer holds font
-     * tile indices for the current message; a new index means new words. */
+    /* ⛔ THE GAME HAS ALREADY DECODED ITS TEXT, AND ONE MESSAGE CAN HAVE MANY
+     * PAGES. The index names the message, not the page, so a page advance keeps
+     * it while rewriting the buffer; watching only the index drops every page
+     * after the first. The content hash is the real signal, with one frame of
+     * settle so a half-written page is never spoken. */
+    uint32_t hash = TextHash();
+    /* ⛔ A ZERO INDEX IS NO MESSAGE. An empty buffer decodes to a run of "A"
+     * glyphs, so content alone would speak nonsense between messages. */
     uint16_t msg = u16(DIALOGUE_INDEX);
-    if (msg == g_lastMessage) return;
-    g_lastMessage = msg;
-    if (msg == 0) return;
+    if (msg == 0) { g_lastTextHash = hash; g_spokenTextHash = hash; return; }
+    if (hash != g_lastTextHash) { g_lastTextHash = hash; return; }
+    if (hash == g_spokenTextHash) return;
 
     uint8_t buf[128];
     for (int i = 0; i < (int) sizeof(buf); i++) {
@@ -370,10 +398,13 @@ void AlttpFrame()
 
     /* ⛔ MENU DECORATION IS NOT SPEECH. Message 9 and 10 are cursor glyphs, and
      * they decode to punctuation alone; a line with no letter or digit is never
-     * worth saying. */
+     * worth saying. Mark it seen so the frame loop does not retry it. */
     bool words = false;
     for (int i = 0; i < n; i++)
         if (isalnum((unsigned char) text[i])) { words = true; break; }
+
+    g_spokenTextHash = hash;
+    g_lastMessage = u16(DIALOGUE_INDEX);
     if (words) Say(text, "dialogue", Priority::Normal);
 }
 

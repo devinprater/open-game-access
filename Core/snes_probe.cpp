@@ -9,6 +9,7 @@
 // measured table, and they print what they read.
 #include "snes_core.h"
 #include "oga_core.h"
+#include "alttp_text.h"
 
 #include <cstdio>
 #include <cstdlib>
@@ -409,6 +410,113 @@ static void DumpReaderAddresses(SnesCore* c, int frame)
     std::printf("f=%3d mod=%u sub=%u real=%u in=%u x=%u y=%u scr=%u room=%u area=%u pal=%04x hp=%u/%u mag=%u rup=%u msg=%u incap=%u prog=%u flags=%02x pend=%u sword=%u\n",
                 frame, mod, sub, saved_mod, indoors, x, y, screen, room, area, palace, cur, cap, magic, rupees, msg, incap,
                 prog, flags, pend, sword);
+
+    /* ⛔ DECODE THE MESSAGE WHILE IT IS UP. The adapter only speaks a message
+     * when its index changes, so a dump that shows the index but not the words
+     * cannot tell a real line from cursor decoration. */
+    if (msg) {
+        uint8_t buf[128];
+        for (int i = 0; i < (int) sizeof(buf); i++) {
+            uint32_t v = 0;
+            snes_read(c, 0x7F1200u + (uint32_t) i, 1, &v);
+            buf[i] = (uint8_t) v;
+        }
+        char text[192];
+        int n = oga::AlttpDecodeText(buf, (int) sizeof(buf), text, (int) sizeof(text));
+        if (n > 0) std::printf("    msg-text: %s\n", text);
+    }
+}
+
+/* ---- talk: find a real message and decode it -------------------------------
+ * The adapter speaks a message when its index changes, so a live proof needs a
+ * message the GAME shows, not one a dump happens to leave in the buffer. This
+ * mode walks out of the house, then pokes and prods in four directions,
+ * printing every message the game raises.
+ */
+static void TalkDump(SnesCore* c, const char* tag, int frame)
+{
+    uint32_t msg = 0, area = 0, indoors = 0;
+    snes_read(c, 0x7E1CF0u, 2, &msg);
+    snes_read(c, 0x7E040Au, 2, &area);
+    snes_read(c, 0x7E001Bu, 1, &indoors);
+    if (!msg) {
+        std::printf("f=%d %s msg=0 area=%u in=%u\n", frame, tag, area, indoors);
+        return;
+    }
+    uint8_t buf[128];
+    for (int i = 0; i < (int) sizeof(buf); i++) {
+        uint32_t v = 0;
+        snes_read(c, 0x7F1200u + (uint32_t) i, 1, &v);
+        buf[i] = (uint8_t) v;
+    }
+    char text[192];
+    int n = oga::AlttpDecodeText(buf, (int) sizeof(buf), text, (int) sizeof(text));
+    std::printf("f=%d %s msg=%u area=%u in=%u text=\"%s\"\n", frame, tag, msg, area, indoors,
+                n > 0 ? text : "");
+    if (frame <= 1534) {
+        std::printf("    hex:");
+        for (int i = 0; i < 128; i++) std::printf(" %02x", buf[i]);
+        std::printf("\n");
+    }
+}
+
+static int Talk(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    for (; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+
+    /* Close the interface overlay the boot taps opened. */
+    for (int i = 0; i < 4; i++) { snes_set_button(c, SNES_BTN_START, true); snes_frame(c); f++; }
+    for (int i = 0; i < 30; i++) { snes_set_button(c, SNES_BTN_START, false); snes_frame(c); f++; }
+
+    TalkDump(c, "loaded", f);
+
+    /* Walk out of the house the way the walk proof does. */
+    for (int i = 0; i < 300; i++) {
+        snes_set_button(c, SNES_BTN_DOWN, true);
+        snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        snes_frame(c);
+        f++;
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 30; i++) { snes_frame(c); f++; }
+    TalkDump(c, "outside", f);
+
+    const struct { int btn; const char* name; } dirs[] = {
+        { SNES_BTN_UP, "up" }, { SNES_BTN_DOWN, "down" },
+        { SNES_BTN_LEFT, "left" }, { SNES_BTN_RIGHT, "right" },
+    };
+    for (int d = 0; d < 4; d++) {
+        for (int i = 0; i < 40; i++) { snes_set_button(c, dirs[d].btn, true); snes_frame(c); f++; }
+        snes_set_button(c, dirs[d].btn, false);
+        for (int i = 0; i < 10; i++) { snes_frame(c); f++; }
+        for (int a = 0; a < 4; a++) {
+            for (int i = 0; i < 3; i++) { snes_set_button(c, SNES_BTN_A, true); snes_frame(c); f++; }
+            for (int i = 0; i < 17; i++) { snes_set_button(c, SNES_BTN_A, false); snes_frame(c); f++; }
+            TalkDump(c, dirs[d].name, f);
+        }
+    }
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
 }
 
 static int Memory(const char* rom, const char* savedir)
@@ -1082,6 +1190,10 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--drive") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return Drive(argv[2], argv[3], argc > 4 ? std::atoi(argv[4]) : 1800);
+    }
+    if (std::strcmp(argv[1], "--talk") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Talk(argv[2], argv[3]);
     }
     if (std::strcmp(argv[1], "--memory") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }

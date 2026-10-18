@@ -294,6 +294,30 @@ int main()
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], decoded) == 0,
           "a new message speaks once and is not repeated per frame");
 
+    // Word breaks the table does not name still separate words. MEASURED on the
+    // intro message: unknown tiles between "Help me" and "Please" decoded the
+    // two words together before this rule.
+    static const unsigned char kBreaks[] = {
+        0x07,0x1e,0x25,0x29,0x59,0x26,0x1e, 0x43, 0x0f,0x25,0x1e,0x1a,0x2c,0x1e, 0x7f
+    };
+    char joined[64];
+    oga::AlttpDecodeText(kBreaks, (int) sizeof(kBreaks), joined, (int) sizeof(joined));
+    CHECK(strcmp(joined, "Help me Please") == 0,
+          "an unnamed separator tile becomes a word break");
+
+    // A page advance keeps the message index. The content hash is what speaks,
+    // so the second page is not swallowed by the index check.
+    static const unsigned char kPage2[] = {
+        0x19,0x1e,0x25,0x1d,0x1a,0x59,0x30,0x1a,0x22,0x2d,0x2c,0x72,0x7f
+    };
+    memcpy(&RAM[OFF(0x7F1200u)], kPage2, sizeof(kPage2));
+    put16(0x7E1CF0u, 388);          // same message, new page
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Zelda waits.") == 0,
+          "the next page of the same message is spoken");
+
     // ---- item menu: the measured cursor and the equipment box ----
     // MEASURED 2026-10-17 with the public save: START gives module 14 submodule 1,
     // overworld_map_state 4, and hud_cur_item moves 2 -> 11 on RIGHT and back on

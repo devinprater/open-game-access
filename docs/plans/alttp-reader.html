@@ -237,6 +237,7 @@ git commit -m &quot;alttp: file-select screen&quot;</code></pre>
 git commit -m &quot;alttp: item and equipment menus&quot;</code></pre>
 <hr>
 <h3>Task 7: Dialogue</h3>
+<p><strong>DONE 2026-10-18.</strong> Message 388 (the save description) and message 31 (the intro's telepathy on a new file) both decode live. Three defects only the real message showed: unnamed separator tiles ran words together, a page advance keeps the message index (so the reader must hash the buffer, not just watch the index), and an empty buffer decodes to "A" glyphs (so a zero index must stay silent). <code>scripts/snes-alttp-proof.sh --dialogue</code> prints the intro line and <code>dialogue-proof=YES</code>; 67 adapter tests pass.</p>
 <p><strong>Files:</strong></p>
 <ul>
 <li>Create: <code>Core/alttp_text.h</code></li>

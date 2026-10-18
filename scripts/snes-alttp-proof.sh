@@ -78,7 +78,7 @@ build_live() {
 
 echo "== $MODE"
 case "$MODE" in
-  --live|--live-cases|--teardown|--menus|--files|--walk) build_live ;;
+  --live|--live-cases|--teardown|--menus|--files|--walk|--dialogue) build_live ;;
   *)                   build_probe ;;
 esac
 
@@ -98,6 +98,13 @@ case "$MODE" in
     exec "$OUT/snes-live-proof" --files "$ROM" "$SAVE" ;;
   --walk)
     exec "$OUT/snes-live-proof" --walk "$ROM" "$SAVE" ;;
+  --dialogue)
+    # ⛔ A NEW FILE, NOT THE PUBLIC SAVE. The intro's telepathy box is the one
+    # story message this harness can raise without steering; the save has long
+    # passed it. The temp dir keeps the real Saves/ untouched.
+    NOSAVE="$OUT/nosave-dialogue"
+    rm -rf "$NOSAVE" && mkdir -p "$NOSAVE"
+    exec "$OUT/snes-live-proof" --dialogue "$ROM" "$NOSAVE" ;;
   --teardown)
     [ -f "$OTHER_ROM" ] || { echo "!! no second SNES ROM at $OTHER_ROM" >&2; exit 1; }
     exec "$OUT/snes-live-proof" --teardown "$ROM" "$OTHER_ROM" "$SAVE" ;;

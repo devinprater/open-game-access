@@ -292,6 +292,14 @@ git commit -m "alttp: item and equipment menus"
 
 ### Task 7: Dialogue
 
+**DONE 2026-10-18.** Message 388 (the save description) and message 31 (the
+intro's telepathy on a new file) both decode live. Three defects only the real
+message showed: unnamed separator tiles ran words together, a page advance keeps
+the message index (so the reader must hash the buffer, not just watch the index),
+and an empty buffer decodes to "A" glyphs (so a zero index must stay silent).
+`scripts/snes-alttp-proof.sh --dialogue` prints the intro line and
+`dialogue-proof=YES`; 67 adapter tests pass.
+
 **Files:**
 - Create: `Core/alttp_text.h`
 - Create: `Core/alttp_text.cpp`

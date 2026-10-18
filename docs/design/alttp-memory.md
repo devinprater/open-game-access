@@ -193,8 +193,32 @@ from a curated table in `Core/alttp_names.cpp`, with numbers as the fallback.
 
 `alttp_text.cpp` decodes the message buffer with the measured font order and the
 decomp's command-length table (`kTextCommandStart_US = 0x67`). Message 388
-decodes exactly to "Start From Link's House, Start From Sanctuary." and the
-adapter speaks a new message index once, not once per frame.
+decodes exactly to "Start From Link's House, Start From Sanctuary."
+
+⛔ **THREE THINGS THAT ONLY SHOWED UP ON THE REAL INTRO MESSAGE** (message 31 on
+a new file, the dream telepathy):
+
+1. **Unknown tiles between words are word breaks.** The measured bytes put
+   unnamed values (`0x43`, `0x73`) between words, and skipping them ran the text
+   together: "dungeonof the castle", "Help mePlease help me". They now become a
+   space, and a space is never doubled or placed before punctuation.
+2. **One message has many pages.** `dialogue_message_index` names the message,
+   not the page; a page advance rewrites the buffer and keeps the index. The
+   reader now hashes the first 96 bytes and speaks when the content changes,
+   with one frame of settle so a half-written page is never spoken.
+3. **A zero index is no message.** An empty buffer decodes to a run of "A"
+   glyphs, so content alone speaks nonsense between messages; the index must be
+   non-zero as well.
+
+Measured live with `scripts/snes-alttp-proof.sh --dialogue` on a new file:
+
+```
+SAY: Help me Please help me I am a prisoner in the dungeon of the castle My name
+     is Zelda The wizard Agahnim has done so
+dialogue-proof=YES
+```
+
+The box is paged, so that is the first page; the rest follows as the pages turn.
 
 ## Area names: curated, never guessed
 

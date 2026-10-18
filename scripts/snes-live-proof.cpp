@@ -400,10 +400,51 @@ static int Walk(const char* rom, const char* savedir)
     return (spoke_outside && bearings >= 2 && objective_spoke) ? 0 : 1;
 }
 
+// --dialogue: the intro's telepathy box on a NEW file. This is the only
+// deterministic story message the harness can raise without steering, and it
+// proves the automatic dialogue path (decode + speak) on the real ROM.
+static int Dialogue(const char* rom, const char* savedir)
+{
+    PokeCore* core = poke_create();
+    if (!core) { std::printf("FAIL: no core\n"); return 1; }
+    poke_set_speech_callback(core, OnSpeak, nullptr);
+    g_say.clear();
+
+    if (!poke_load_rom(core, rom, savedir) || !poke_start(core)) {
+        std::printf("FAIL: %s\n", poke_last_error(core));
+        poke_destroy(core);
+        return 1;
+    }
+    (void) poke_adapter_ready(core);
+
+    for (int f = 0; f < 1500; f++) {
+        poke_set_button(core, POKE_BTN_START, (f % 90) < 4);
+        poke_set_button(core, POKE_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        poke_frame(core);
+    }
+    poke_set_button(core, POKE_BTN_START, false);
+    poke_set_button(core, POKE_BTN_A, false);
+    for (int f = 0; f < 600; f++) poke_frame(core);
+
+    bool spoke = false;
+    for (const std::string& s : g_say) {
+        std::printf("SAY: %s\n", s.c_str());
+        if (s.find("Help me") != std::string::npos ||
+            s.find("prisoner") != std::string::npos) spoke = true;
+    }
+    std::printf("dialogue-lines=%d\n", (int) g_say.size());
+    std::printf("dialogue-proof=%s\n", spoke ? "YES" : "NO");
+    poke_stop(core);
+    poke_destroy(core);
+    return spoke ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
     if (argc >= 4 && std::strcmp(argv[1], "--walk") == 0)
         return Walk(argv[2], argv[3]);
+    if (argc >= 4 && std::strcmp(argv[1], "--dialogue") == 0)
+        return Dialogue(argv[2], argv[3]);
     if (argc >= 4 && std::strcmp(argv[1], "--files") == 0)
         return Files(argv[2], argv[3]);
     if (argc >= 4 && std::strcmp(argv[1], "--menus") == 0)

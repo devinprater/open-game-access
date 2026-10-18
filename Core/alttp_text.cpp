@@ -29,7 +29,7 @@ int AlttpDecodeText(const uint8_t* buf, int len, char* out, int cap)
     };
 
     int n = 0;
-    bool last_space = false;
+    bool pending_space = false;
     for (int i = 0; i < len; i++) {
         uint8_t b = buf[i];
         char c = 0;
@@ -45,15 +45,31 @@ int AlttpDecodeText(const uint8_t* buf, int len, char* out, int cap)
         else if (b >= 0x67) {
             int idx = (int) b - 0x67;
             i += (idx < 25) ? kCmdLen[idx] : 0;
+            pending_space = true;
             continue;
         } else {
-            continue;   /* an unknown glyph or decoration: say nothing */
+            /* ⛔ AN UNKNOWN TILE BETWEEN TWO WORDS IS A WORD BREAK, and skipping
+             * it silently runs the words together: the measured intro message
+             * decoded to "dungeonof the castle" and "Help mePlease help me". The
+             * game encodes those breaks with bytes this table does not name, so
+             * the safe reading is a space. */
+            pending_space = true;
+            continue;
         }
 
-        if (c == ' ' && (last_space || n == 0)) continue;
+        if (c == ' ') { pending_space = true; continue; }
+
+        /* Never open with a space, never double one, and never put one before
+         * punctuation that belongs to the previous word. */
+        if (pending_space && n > 0 && out[n - 1] != ' ' &&
+            c != ',' && c != '.' && c != '\'' && c != '!' && c != '?' && c != ':') {
+            if (n >= cap - 1) break;
+            out[n++] = ' ';
+        }
+        pending_space = false;
+
         if (n >= cap - 1) break;
         out[n++] = c;
-        last_space = (c == ' ');
     }
 
     while (n > 0 && out[n - 1] == ' ') n--;
