@@ -20,6 +20,9 @@
 #include "Shared/SettingTypes.h"
 #include "Shared/Video/BaseVideoFilter.h"
 #include "Shared/RenderedFrame.h"
+#include "Shared/MemoryType.h"
+#include "SNES/SnesConsole.h"
+#include "SNES/SnesCpu.h"
 #include "Utilities/VirtualFile.h"
 #include "Utilities/FolderUtilities.h"
 
@@ -428,6 +431,43 @@ void snes_set_button(SnesCore *c, int snes_button, bool down)
 {
     if (!c || snes_button < 0 || snes_button >= SNES_BTN_COUNT) return;
     c->buttons[snes_button] = down ? 1 : 0;
+}
+
+bool snes_read(SnesCore *c, uint32_t addr, int width, uint32_t *out)
+{
+    if (!c || !c->emu || !out) return false;
+    if (width != 1 && width != 2 && width != 4) return false;
+
+    /* The work-RAM block itself, not the CPU bus: no side effects, and the
+     * bounds are the block's own size rather than an assumption. */
+    ConsoleMemoryInfo mem = c->emu->GetMemory(MemoryType::SnesWorkRam);
+    if (!mem.Memory || mem.Size == 0) return false;
+    if (addr < SNES_RAM_BASE) return false;
+
+    uint32_t off = addr - SNES_RAM_BASE;
+    if (off >= mem.Size) return false;
+    /* A read that would cross the end is REFUSED, never wrapped: a wrapped
+     * 16-bit read is a silently wrong answer the adapter cannot detect. */
+    if ((uint64_t) off + (uint64_t) width > (uint64_t) mem.Size) return false;
+
+    const uint8_t *p = (const uint8_t *) mem.Memory;
+    uint32_t v = 0;
+    for (int i = 0; i < width; i++)
+        v |= (uint32_t) p[off + (uint32_t) i] << (8 * i);
+    *out = v;
+    return true;
+}
+
+uint32_t snes_ram_base(void) { return SNES_RAM_BASE; }
+uint32_t snes_ram_size(void) { return SNES_RAM_SIZE; }
+
+int snes_cpu_pc(SnesCore *c)
+{
+    std::shared_ptr<IConsole> console = LiveConsole(c);
+    if (!console) return -1;
+    SnesConsole *snes = dynamic_cast<SnesConsole *>(console.get());
+    if (!snes || !snes->GetCpu()) return -1;
+    return (int) snes->GetCpu()->GetState().PC;
 }
 
 void snes_set_uncapped(SnesCore *c, bool uncapped)

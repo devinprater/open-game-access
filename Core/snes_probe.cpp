@@ -19,8 +19,9 @@ static void Usage(const char* argv0)
                  "usage: %s --identity <rom> <savedir>\n"
                  "       %s --run <rom> <savedir> <frames>\n"
                  "       %s --input <rom> <savedir>\n"
-                 "       %s --reset <rom> <savedir>\n",
-                 argv0, argv0, argv0, argv0);
+                 "       %s --reset <rom> <savedir>\n"
+                 "       %s --reads <rom> <savedir>\n",
+                 argv0, argv0, argv0, argv0, argv0);
 }
 
 static uint32_t Fnv1a(const uint8_t* p, size_t n)
@@ -179,6 +180,55 @@ static int Reset(const char* rom, const char* savedir)
     return ok ? 0 : 1;
 }
 
+// Task 3: work-RAM reads. Every assertion is printed with its answer, and the
+// exit code is the AND of them, so the shell output IS the test record.
+static int Reads(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: could not create the core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    for (int i = 0; i < 60; i++) snes_frame(c);
+    uint32_t a = 0, b = 0;
+    bool got_a = snes_read(c, 0x7E001Au, 1, &a);
+    for (int i = 0; i < 60; i++) snes_frame(c);
+    bool got_b = snes_read(c, 0x7E001Au, 1, &b);
+
+    uint32_t v = 0;
+    bool in_range_byte = snes_read(c, 0x7E0000u, 1, &v);
+    bool in_range_word = snes_read(c, 0x7E0020u, 2, &v);
+    bool far_bank_word = snes_read(c, 0x7F0000u, 2, &v);
+    bool counter_moves = got_a && got_b && a != b;
+
+    // Refusals: an MMIO address, a read that would cross the end of RAM, and
+    // widths this console does not have.
+    bool mmio_refused = !snes_read(c, 0x002100u, 1, &v);
+    bool wrap_refused = !snes_read(c, 0x7FFFFFu, 2, &v);
+    bool width_refused = !snes_read(c, 0x7E0000u, 0, &v) &&
+                         !snes_read(c, 0x7E0000u, 3, &v);
+
+    std::printf("in-range-byte       %s\n", in_range_byte ? "ok" : "FAILED");
+    std::printf("in-range-word       %s\n", in_range_word ? "ok" : "FAILED");
+    std::printf("frame-counter-moves %s (0x%02x -> 0x%02x)\n", counter_moves ? "ok" : "FAILED", a, b);
+    std::printf("far-bank-word       %s\n", far_bank_word ? "ok" : "FAILED");
+    std::printf("mmio-refused        %s\n", mmio_refused ? "ok" : "FAILED");
+    std::printf("wrap-refused        %s\n", wrap_refused ? "ok" : "FAILED");
+    std::printf("bad-width-refused   %s\n", width_refused ? "ok" : "FAILED");
+
+    bool ok = in_range_byte && in_range_word && counter_moves && far_bank_word &&
+              mmio_refused && wrap_refused && width_refused;
+    std::printf("reads=%s\n", ok ? "YES" : "NO");
+    snes_stop(c);
+    snes_destroy(c);
+    return ok ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -198,6 +248,10 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--reset") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return Reset(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--reads") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Reads(argv[2], argv[3]);
     }
 
     Usage(argv[0]);

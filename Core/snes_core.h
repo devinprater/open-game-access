@@ -74,6 +74,24 @@ const char *snes_video_result(SnesCore *core);
 
 void snes_set_button(SnesCore *core, int snes_button, bool down);
 
+/* ---- memory reads (the adapter Host path) ----
+ *
+ * The SNES work RAM is 128 KiB at 0x7E0000-0x7FFFFF (banks 7E and 7F). Reads
+ * outside that window are REFUSED rather than routed through the CPU bus: a
+ * read of an MMIO address such as $2100 has side effects, and an adapter must
+ * be able to tell "0" from "not this console's RAM".
+ */
+#define SNES_RAM_BASE 0x7E0000u
+#define SNES_RAM_SIZE 0x20000u
+
+bool snes_read(SnesCore *core, uint32_t addr, int width, uint32_t *out);
+uint32_t snes_ram_base(void);
+uint32_t snes_ram_size(void);
+
+/* The emulated CPU's own program counter, for liveness diagnostics. -1 when
+ * unavailable. */
+int snes_cpu_pc(SnesCore *core);
+
 /* Test/tooling only: run uncapped so a scripted drive does not cost real
  * minutes. The app leaves this off. */
 void snes_set_uncapped(SnesCore *core, bool uncapped);
