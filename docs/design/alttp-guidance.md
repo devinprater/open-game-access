@@ -44,9 +44,11 @@ problem.
 **DONE 2026-10-18.** `Command::Guide` is number 41, appended after Status, and the
 Swift `AdapterCommand` carries the same value with the button title "Guide".
 
-- It cycles eight landmarks: Link's House, Sanctuary, Hyrule Castle, Kakariko,
-  Eastern Palace, Desert of Mystery, Lake Hylia, Death Mountain East. Each press
-  reads the selected one, so a player presses until they hear the place they want.
+- It cycles nine landmarks: Link's House, Sanctuary, Hyrule Castle, Kakariko,
+  Eastern Palace, Desert of Mystery, Lake Hylia, Death Mountain East, Lost Woods.
+  **The first press aims at the current objective**, and the cycle re-aims when
+  the story stage changes, so the first answer is where to go next; later presses
+  walk the whole list.
 - It speaks "Guide: Hyrule Castle, north-west, about two screens away." and
   "Guide: Link's House. You are here." when the area id matches.
 - It refuses indoors ("Guidance works outside."), in a menu ("Close the menu

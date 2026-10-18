@@ -418,7 +418,9 @@ moves, so watching only the item cursor leaves this menu silent.
 ## Guidance
 
 - **Command:** `Command::Guide` = 41 (append-only C ABI). Swift's
-  `AdapterCommand.guide` carries the same number.
+  `AdapterCommand.guide` carries the same number. **The first press aims at the
+  current objective** and the cycle re-aims only when the objective's area
+  changes (state `g_objectiveArea`), so a player can still walk the list.
 - **Coordinates:** `link_x_coord` `0x7E0022`, `link_y_coord` `0x7E0020`, 16-bit.
 - **Screen grid:** the game's own conversion, `overworld.c`:
   `packed = ((y & 0x1E00) >> 5) | ((x & 0x1E00) >> 8)`, and the area id is

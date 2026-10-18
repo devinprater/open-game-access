@@ -477,32 +477,41 @@ int main()
 
     // Guidance: a bearing to the next named landmark, never a walkable route.
     // Coordinates are the public save's own, standing at Link's House (0x2C).
+    // The save's progress flags are 0x15 and it has no pendants, so the first
+    // press must aim at Kakariko, the objective, not at Link's House.
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(0x7E0010u, 9); put8(0x7E0011u, 0);
     put8(INDOORS, 0); put16(AREA, 0x2C); put16(SCREEN, 0x2C);
     put16(X, 2232); put16(Y, 2792);
+    put8(0x7EF3C6u, 0x15); put8(0x7EF374u, 0); put8(0x7EF359u, 1);
     oga::kZeldaLinkToThePast.command(oga::Command::Guide);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guide: Link's House. You are here.") == 0,
-          "guide: the first landmark is the place you are standing in");
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Kakariko Village, north-west, about five screens away.") == 0,
+          "guide: the first press aims at the current objective");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
     oga::kZeldaLinkToThePast.command(oga::Command::Guide);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
-          "Guide: Sanctuary, north, about three screens away.") == 0,
-          "guide: the Sanctuary is north and three screens away");
+          "Guide: Eastern Palace, north-east, about three screens away.") == 0,
+          "guide: the next press walks the landmark list");
 
+    // A new story stage re-aims the cycle at the new objective.
     NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7EF3C6u, 0x11);
     oga::kZeldaLinkToThePast.command(oga::Command::Guide);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
           "Guide: Hyrule Castle, north-west, about two screens away.") == 0,
-          "guide: the castle is north-west and two screens away");
+          "guide: a new objective re-aims the cycle");
 
-    // The list wraps: five more presses bring it back to the first landmark.
-    for (int i = 0; i < 5; i++) oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    // Standing in the objective's own area is said plainly. A new stage re-aims
+    // the cycle, so set the Master Sword stage (Lost Woods) and stand there.
     NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7EF3C6u, 0x15); put8(0x7EF374u, 7); put8(0x7EF359u, 1);
+    put16(AREA, 0x00); put16(SCREEN, 0x00);
     oga::kZeldaLinkToThePast.command(oga::Command::Guide);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guide: Link's House. You are here.") == 0,
-          "guide: the landmark list wraps");
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guide: Lost Woods. You are here.") == 0,
+          "guide: standing at the objective says you are there");
+    put16(AREA, 0x2C); put16(SCREEN, 0x2C); put8(0x7EF374u, 0);
 
     // Indoors, in a menu, and in the dark world the answer is a refusal.
     NSPOKEN = 0; oga::AdapterSpeechReset();

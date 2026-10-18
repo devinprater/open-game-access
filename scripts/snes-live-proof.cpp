@@ -376,11 +376,16 @@ static int Walk(const char* rom, const char* savedir)
         for (int f = 0; f < 400; f++) poke_frame(core);
     }
     for (int f = 0; f < 400; f++) poke_frame(core);
+    bool guide_objective = false;
     for (const std::string& s : g_say) {
         std::printf("SAY: %s\n", s.c_str());
-        if (s.rfind("Guide: ", 0) == 0) bearings++;
+        if (s.rfind("Guide: ", 0) == 0) {
+            bearings++;
+            if (s.find("Kakariko Village") != std::string::npos) guide_objective = true;
+        }
     }
     std::printf("guide-lines=%d\n", bearings);
+    std::printf("guide-objective=%s\n", guide_objective ? "YES" : "NO");
     std::printf("guide-proof=%s\n", bearings >= 2 ? "YES" : "NO");
 
     /* The objective on the live save: progress flags 0x15 and no pendants, so
@@ -397,7 +402,7 @@ static int Walk(const char* rom, const char* savedir)
     std::printf("walk-proof=%s\n", spoke_outside ? "YES" : "NO");
     poke_stop(core);
     poke_destroy(core);
-    return (spoke_outside && bearings >= 2 && objective_spoke) ? 0 : 1;
+    return (spoke_outside && bearings >= 2 && objective_spoke && guide_objective) ? 0 : 1;
 }
 
 // --dialogue: the intro's telepathy box on a NEW file. This is the only

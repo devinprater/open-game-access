@@ -35,6 +35,9 @@ unsigned g_lastMessage = 0xFFFFu;
  * buffer. The two-frame settle keeps a half-written page from being spoken. */
 uint32_t g_lastTextHash = 0;
 uint32_t g_spokenTextHash = 0;
+/* The story stage the guide cycle was last aimed at. 0xFE is "never aimed", so
+ * the first press after attach points at the current objective. */
+uint8_t g_objectiveArea = 0xFE;
 
 /* ---- the work-RAM map (zelda3 src/variables.h, g_ram is banks 7E/7F) ---- */
 constexpr uint32_t RAM_BASE          = 0x7E0000u;
@@ -224,6 +227,7 @@ void AlttpDetach()
     g_guideIndex = 0;
     g_lastTextHash = 0;
     g_spokenTextHash = 0;
+    g_objectiveArea = 0xFE;
 }
 
 /* Module 14 is the interface/HUD layer; the real screen is in
@@ -773,6 +777,7 @@ const GuideTarget kGuideTargets[] = {
     { 0x30, "Desert of Mystery" },
     { 0x35, "Lake Hylia" },
     { 0x05, "Death Mountain East" },
+    { 0x00, "Lost Woods" },
 };
 const unsigned kGuideTargetCount = sizeof(kGuideTargets) / sizeof(kGuideTargets[0]);
 
@@ -821,6 +826,11 @@ const char* BearingText(uint8_t targetArea, char* out, size_t cap)
     return out;
 }
 
+/* Declared here because the guide aims at the objective before the objective
+ * section below defines it. */
+struct Objective { const char* text; uint8_t area; };
+Objective CurrentObjective();
+
 void SpeakGuide()
 {
     if (CurrentMenu() != Menu::None) {
@@ -839,6 +849,18 @@ void SpeakGuide()
     if (area >= 0x40) {
         Say("Guidance covers the light world only.", "guide", Priority::High);
         return;
+    }
+
+    /* ⛔ THE FIRST PRESS ANSWERS THE QUESTION THE PLAYER ACTUALLY HAS: where is
+     * the next objective? The cycle re-aims only when the story stage changes,
+     * not on every press, so the whole landmark list stays walkable. */
+    Objective goal = CurrentObjective();
+    if (goal.area != g_objectiveArea) {
+        g_objectiveArea = goal.area;
+        g_guideIndex = 0;
+        for (unsigned i = 0; i < kGuideTargetCount; i++) {
+            if (kGuideTargets[i].area == goal.area) { g_guideIndex = i; break; }
+        }
     }
 
     const GuideTarget& target = kGuideTargets[g_guideIndex % kGuideTargetCount];
@@ -872,8 +894,6 @@ void SpeakGuide()
  * bits: 0x01 uncle gave the sword, 0x04 Zelda reached the Sanctuary,
  * 0x10 the uncle left the house.
  */
-struct Objective { const char* text; uint8_t area; };
-
 Objective CurrentObjective()
 {
     uint8_t flags = u8(PROGRESS_FLAGS);
