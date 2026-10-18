@@ -65,4 +65,4 @@ if ! g++ "$OUT/snes_probe.o" "$OUT/snes_core.o" "$OUT/libmesen.a" -o "$OUT/snes-
 fi
 
 echo "== $MODE"
-exec "$OUT/snes-probe" "$MODE" "$ROM" "$SAVE"
+exec "$OUT/snes-probe" "$MODE" "$ROM" "$SAVE" "${@:2}"

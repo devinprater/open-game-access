@@ -18,6 +18,23 @@
 extern "C" {
 #endif
 
+/* SNES pad ids: indices into this core's own table, in Mesen's SnesController
+ * order ("ABXYLRSTUDLR"). pokecore.cpp's SNES branch translates the app's shared
+ * POKE_BTN_* indices to these, exactly as the PSP branch does. */
+#define SNES_BTN_A      0
+#define SNES_BTN_B      1
+#define SNES_BTN_X      2
+#define SNES_BTN_Y      3
+#define SNES_BTN_L      4
+#define SNES_BTN_R      5
+#define SNES_BTN_SELECT 6
+#define SNES_BTN_START  7
+#define SNES_BTN_UP     8
+#define SNES_BTN_DOWN   9
+#define SNES_BTN_LEFT   10
+#define SNES_BTN_RIGHT  11
+#define SNES_BTN_COUNT  12
+
 typedef struct SnesCore SnesCore;
 
 SnesCore *snes_create(void);
@@ -30,8 +47,40 @@ void snes_destroy(SnesCore *core);
 bool snes_load_rom(SnesCore *core, const char *rom_path, const char *save_path,
                    char code_out[16]);
 
-/* The dump's CRC32, as Mesen computed it. 0 before a successful load. */
+/* The dump's CRC32 over the ROM PAYLOAD (a 512-byte copier header is skipped),
+ * as measured in Core/snes_core.cpp. 0 before a successful load. */
 uint32_t snes_rom_crc32(SnesCore *core);
+
+bool snes_start(SnesCore *core);
+void snes_stop(SnesCore *core);
+bool snes_running(SnesCore *core);
+
+/* One emulated frame: waits for the console's own frame counter to advance.
+ * Returns false when the console stopped producing frames. */
+bool snes_frame(SnesCore *core);
+/* Why the last snes_frame returned what it did. Never NULL. */
+const char *snes_frame_result(SnesCore *core);
+
+/* Power-cycle through Mesen's own reset. The console object is replaced, which
+ * snes_frame is built to follow. */
+void snes_reset(SnesCore *core);
+
+/* Video, RGBA8888. The SNES PPU produces palette indices, so the core runs the
+ * console's own video filter and converts its ABGR words to RGBA bytes. */
+bool snes_framebuffer(SnesCore *core, int *width, int *height);
+const uint8_t *snes_framebuffer_ptr(SnesCore *core);
+/* Why the last frame produced no video pixels. Diagnostic only, never NULL. */
+const char *snes_video_result(SnesCore *core);
+
+void snes_set_button(SnesCore *core, int snes_button, bool down);
+
+/* Test/tooling only: run uncapped so a scripted drive does not cost real
+ * minutes. The app leaves this off. */
+void snes_set_uncapped(SnesCore *core, bool uncapped);
+
+unsigned long long snes_frames_completed(SnesCore *core);
+unsigned snes_console_frame_count(SnesCore *core);
+double snes_fps(SnesCore *core);
 
 /* The last failure, in words. Empty string when nothing failed. */
 const char *snes_last_error(SnesCore *core);

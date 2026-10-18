@@ -1,7 +1,7 @@
 /* snes_core.cpp — the Super Nintendo console, MesenCE underneath.
  *
- * Task 1 of docs/plans/alttp-snes-console.md: create, load, identify, and say
- * why a load failed. Frames, video, input and reads arrive in Tasks 2 and 3.
+ * Tasks 1-2 of docs/plans/alttp-snes-console.md: load and identify, then
+ * frames, video, input and a clean stop.
  *
  * ⛔ EVERY FAILURE PATH SETS A SENTENCE. Mesen catches its own exceptions and
  * turns them into a bare `false`, so the caller must be told something real;
@@ -12,28 +12,92 @@
 #include "pch.h"
 
 #include "Shared/Emulator.h"
+#include "Shared/EmuSettings.h"
 #include "Shared/Interfaces/IConsole.h"
+#include "Shared/BaseControlManager.h"
+#include "Shared/Interfaces/IInputProvider.h"
+#include "Shared/BaseControlDevice.h"
+#include "Shared/SettingTypes.h"
+#include "Shared/Video/BaseVideoFilter.h"
+#include "Shared/RenderedFrame.h"
 #include "Utilities/VirtualFile.h"
 #include "Utilities/FolderUtilities.h"
 
 #include <array>
+#include <atomic>
+#include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <cstring>
 #include <memory>
 #include <new>
 #include <string>
+#include <thread>
 #include <vector>
+
+class SnesInputProvider;
 
 struct SnesCore {
     std::unique_ptr<Emulator> emu;
     std::shared_ptr<IConsole> console;
-    std::string error;
-    uint32_t crc = 0;          /* CRC32 of the ROM PAYLOAD, copier header skipped */
-    long header_bytes = 0;     /* 512 for a headered .smc, 0 otherwise */
+
     bool loaded = false;
+    bool running = false;
+    std::thread runThread;
+    std::atomic<bool> stopRequested{false};
+
+    SnesInputProvider *inputProvider = nullptr;
+    uint32_t framesSeenOnConsole = 0;
+    unsigned long long frames = 0;
+
+    std::string error;
+    uint32_t crc = 0;       /* CRC32 of the ROM PAYLOAD, copier header skipped */
+    long header_bytes = 0;  /* 512 for a headered .smc, 0 otherwise */
+
+    uint8_t buttons[SNES_BTN_COUNT] = {0};  /* 1 = pressed, in SNES_BTN_* order */
+    std::vector<uint8_t> frameRGBA;         /* our own copy: Mesen's buffer dies with the frame */
+    int fbW = 0, fbH = 0;
+    /* ⛔ ONE FILTER, REUSED. SnesConsole::GetVideoFilter RETURNS A NEW OBJECT on
+     * every call, so asking per frame leaks one filter per frame and the output
+     * buffer changes identity underneath us. */
+    BaseVideoFilter *videoFilter = nullptr;
+};
+
+/* Mesen runs this provider for EVERY device, including the SystemActionManager
+ * whose buttons are Reset/Power. Claiming only a real SNES controller is what
+ * stops a direction press from power-cycling the machine — the failure the NES
+ * provider records at length. */
+class SnesInputProvider : public IInputProvider {
+public:
+    explicit SnesInputProvider(SnesCore *core) : _core(core) {}
+
+    bool SetInput(BaseControlDevice *device) override
+    {
+        if (!_core || !device) return false;
+        if (device->GetControllerType() != ControllerType::SnesController) return false;
+        for (int i = 0; i < SNES_BTN_COUNT; i++)
+            device->SetBitValue((uint8_t) i, _core->buttons[i] != 0);
+        return true;
+    }
+
+private:
+    SnesCore *_core;
 };
 
 namespace {
+
+/* ⛔ NEVER CACHE THE CONSOLE. Mesen's `_console` is a weak pointer and the
+ * emulator replaces the console object on a power cycle or reset. Call this at
+ * each use so a replacement is picked up for free. */
+std::shared_ptr<IConsole> LiveConsole(SnesCore *c)
+{
+    return (c && c->emu) ? c->emu->GetConsole() : std::shared_ptr<IConsole>();
+}
+
+void SetError(SnesCore *c, const char *msg) { if (c) c->error = msg ? msg : "unknown error"; }
+
+/* Why CaptureFrame produced no frame; printed by the probe when video is empty. */
+static const char *g_captureResult = "ok";
 
 /* ---- identity is the PAYLOAD, not the file ---------------------------------
  * Mesen's Emulator::GetCrc32 hashes the FILE. A .smc carrying the 512-byte
@@ -90,6 +154,51 @@ bool PayloadCrc(const char *path, uint32_t *out_crc, long *out_skip)
     return true;
 }
 
+/* ⛔ THE SNES PPU DOES NOT HAND OUT RGBA. Its frame buffer is 16-bit palette
+ * indices; the console's own video filter turns those into 0xAARRGGBB words.
+ * So the filter must run, and the words must be byte-swapped into the RGBA
+ * order every other OGA backend delivers. */
+void CaptureFrame(SnesCore *c)
+{
+    std::shared_ptr<IConsole> console = LiveConsole(c);
+    if (!console) { g_captureResult = "no console"; return; }
+
+    if (!c->videoFilter) c->videoFilter = console->GetVideoFilter(true);
+    BaseVideoFilter *filter = c->videoFilter;
+    if (!filter) { g_captureResult = "no video filter"; return; }
+
+    PpuFrameInfo ppu = console->GetPpuFrame();
+    if (!ppu.FrameBuffer || !ppu.Width || !ppu.Height) { g_captureResult = "empty ppu frame"; return; }
+
+    /* ⛔ THE FILTER DOES NOT KNOW THE FRAME SIZE. It is told by whoever owns the
+     * render loop (VideoDecoder / LuaApi both call these two before SendFrame).
+     * Without them _baseFrameInfo stays 0x0, the output buffer is allocated at
+     * size zero, and every frame is silently empty. */
+    FrameInfo base;
+    base.Width = ppu.Width;
+    base.Height = ppu.Height;
+    filter->SetBaseFrameInfo(base);
+    filter->SetOverscan(OverscanDimensions{});
+
+    FrameInfo info = filter->SendFrame((uint16_t *) ppu.FrameBuffer, ppu.FrameCount, 0,
+                                       nullptr, false /* no overscan: the player sees the full frame */);
+    uint32_t *src = filter->GetOutputBuffer();
+    if (!src) { g_captureResult = "no output buffer"; return; }
+    if (!info.Width || !info.Height) { g_captureResult = "filter returned no size"; return; }
+
+    c->fbW = (int) info.Width;
+    c->fbH = (int) info.Height;
+    size_t n = (size_t) info.Width * (size_t) info.Height;
+    c->frameRGBA.resize(n * 4);
+    for (size_t i = 0; i < n; i++) {
+        uint32_t v = src[i];
+        c->frameRGBA[i * 4 + 0] = (uint8_t) ((v >> 16) & 0xFF);  /* R */
+        c->frameRGBA[i * 4 + 1] = (uint8_t) ((v >> 8) & 0xFF);   /* G */
+        c->frameRGBA[i * 4 + 2] = (uint8_t) (v & 0xFF);          /* B */
+        c->frameRGBA[i * 4 + 3] = (uint8_t) ((v >> 24) & 0xFF);  /* A */
+    }
+}
+
 } // namespace
 
 extern "C" {
@@ -102,6 +211,8 @@ SnesCore *snes_create(void)
 void snes_destroy(SnesCore *c)
 {
     if (!c) return;
+    if (c->running) snes_stop(c);
+    if (c->videoFilter) { delete c->videoFilter; c->videoFilter = nullptr; }
     c->console.reset();
     c->emu.reset();
     delete c;
@@ -168,6 +279,174 @@ uint32_t snes_rom_crc32(SnesCore *c)
 {
     return c ? c->crc : 0;
 }
+
+bool snes_start(SnesCore *c)
+{
+    if (!c || !c->loaded || !c->emu) { SetError(c, "Load a game first."); return false; }
+    if (c->running) return true;
+
+    /* Register the input provider BEFORE the loop starts, so the very first
+     * frame already sees real input rather than a cleared pad. */
+    if (c->console) {
+        BaseControlManager *cm = c->console->GetControlManager();
+        if (cm) {
+            if (!c->inputProvider) c->inputProvider = new SnesInputProvider(c);
+            cm->RegisterInputProvider(c->inputProvider);
+        }
+    }
+
+    c->stopRequested = false;
+    c->runThread = std::thread([c]() {
+        try {
+            c->emu->Run();
+        } catch (...) {
+            /* An exception escaping the emulation thread would terminate the process. */
+            c->stopRequested = true;
+        }
+    });
+    c->running = true;
+    return true;
+}
+
+void snes_stop(SnesCore *c)
+{
+    if (!c) return;
+    if (c->inputProvider) {
+        if (c->console) {
+            BaseControlManager *cm = c->console->GetControlManager();
+            if (cm) cm->UnregisterInputProvider(c->inputProvider);
+        }
+        delete c->inputProvider;
+        c->inputProvider = nullptr;
+    }
+    if (!c->emu) return;
+    if (c->running) {
+        c->emu->Stop(false, true, true);   /* sets the stop flag, so Run() returns */
+        if (c->runThread.joinable()) c->runThread.join();
+        c->running = false;
+    }
+    /* Battery RAM belongs to the cartridge that just stopped. */
+    std::shared_ptr<IConsole> console = LiveConsole(c);
+    if (console) console->SaveBattery();
+
+    if (c->videoFilter) { delete c->videoFilter; c->videoFilter = nullptr; }
+}
+
+bool snes_running(SnesCore *c) { return c && c->running; }
+
+void snes_reset(SnesCore *c)
+{
+    if (!c || !c->emu) return;
+    c->emu->Reset();
+}
+
+/* Set at every exit of snes_frame, so a false return names its own cause. */
+static const char *g_frameResult = "ok";
+
+const char *snes_frame_result(SnesCore *c) { (void) c; return g_frameResult; }
+
+bool snes_frame(SnesCore *c)
+{
+    if (!c || !c->loaded || !c->emu) { g_frameResult = "core not loaded"; return false; }
+
+    std::shared_ptr<IConsole> console = LiveConsole(c);
+    if (!console) {
+        /* A console swap has a window with no console at all (weak pointer).
+         * Wait, bounded, so a genuine absence still becomes an error. */
+        const auto swapDeadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+        while (!console && std::chrono::steady_clock::now() < swapDeadline) {
+            std::this_thread::sleep_for(std::chrono::microseconds(200));
+            console = LiveConsole(c);
+        }
+        if (!console) { SetError(c, "The SNES console went away and did not come back."); return false; }
+    }
+
+    /* First call after a load, or a replaced console: re-baseline on THIS
+     * object's counter and then wait for it to move. Counting the baseline
+     * itself as a frame would hand the caller a frame that never ran. */
+    if (console.get() != c->console.get()) {
+        c->console = console;
+        c->framesSeenOnConsole = console->GetFrameCount();
+    }
+
+    uint32_t before = console->GetFrameCount();
+    if (c->framesSeenOnConsole > 0 && before < c->framesSeenOnConsole)
+        c->framesSeenOnConsole = before;   /* a reset took the counter backwards */
+
+    const auto deadline = std::chrono::steady_clock::now() + std::chrono::seconds(5);
+    while (console->GetFrameCount() == before) {
+        if (c->stopRequested) {
+            g_frameResult = "stop requested";
+            SetError(c, "The SNES core stopped unexpectedly.");
+            return false;
+        }
+        /* Re-check for a swap INSIDE the wait: the old object's counter never
+         * advances once Mesen has replaced it. */
+        std::shared_ptr<IConsole> now = LiveConsole(c);
+        if (now && now.get() != console.get()) {
+            g_frameResult = "ok (console replaced mid-wait)";
+            c->console = now;
+            c->framesSeenOnConsole = now->GetFrameCount();
+            c->frames++;
+            CaptureFrame(c);
+            return true;
+        }
+        if (now && now->GetFrameCount() != before) break;
+
+        if (std::chrono::steady_clock::now() > deadline) {
+            g_frameResult = "frame counter never advanced";
+            SetError(c, "The SNES core did not produce a frame within 5 seconds.");
+            return false;
+        }
+        std::this_thread::sleep_for(std::chrono::microseconds(200));
+    }
+
+    g_frameResult = "ok";
+    c->console = LiveConsole(c);
+    c->framesSeenOnConsole = c->console ? c->console->GetFrameCount() : 0;
+    c->frames++;
+    CaptureFrame(c);
+    return true;
+}
+
+bool snes_framebuffer(SnesCore *c, int *width, int *height)
+{
+    if (!c || c->fbW <= 0 || c->fbH <= 0) return false;
+    if (width) *width = c->fbW;
+    if (height) *height = c->fbH;
+    return true;
+}
+
+const uint8_t *snes_framebuffer_ptr(SnesCore *c)
+{
+    return (c && !c->frameRGBA.empty()) ? c->frameRGBA.data() : nullptr;
+}
+
+const char *snes_video_result(SnesCore *c) { (void) c; return g_captureResult; }
+
+void snes_set_button(SnesCore *c, int snes_button, bool down)
+{
+    if (!c || snes_button < 0 || snes_button >= SNES_BTN_COUNT) return;
+    c->buttons[snes_button] = down ? 1 : 0;
+}
+
+void snes_set_uncapped(SnesCore *c, bool uncapped)
+{
+    if (!c || !c->emu) return;
+    EmuSettings *settings = c->emu->GetSettings();
+    if (!settings) return;
+    settings->SetFlagState(EmulationFlags::MaximumSpeed, uncapped);
+}
+
+unsigned long long snes_frames_completed(SnesCore *c) { return c ? c->frames : 0; }
+
+unsigned snes_console_frame_count(SnesCore *c)
+{
+    std::shared_ptr<IConsole> console = LiveConsole(c);
+    return console ? console->GetFrameCount() : 0u;
+}
+
+double snes_fps(SnesCore *c) { return (c && c->emu) ? c->emu->GetFps() : -1.0; }
 
 const char *snes_last_error(SnesCore *c)
 {
