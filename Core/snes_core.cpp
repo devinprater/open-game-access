@@ -21,6 +21,7 @@
 #include "Shared/Video/BaseVideoFilter.h"
 #include "Shared/RenderedFrame.h"
 #include "Shared/MemoryType.h"
+#include "Shared/SaveStateManager.h"
 #include "SNES/SnesConsole.h"
 #include "SNES/SnesCpu.h"
 #include "Utilities/VirtualFile.h"
@@ -487,6 +488,35 @@ unsigned snes_console_frame_count(SnesCore *c)
 }
 
 double snes_fps(SnesCore *c) { return (c && c->emu) ? c->emu->GetFps() : -1.0; }
+
+bool snes_save_state(SnesCore *c, const char *path)
+{
+    if (!c || !c->emu || !path || !*path) { SetError(c, "No save-state path given."); return false; }
+    SaveStateManager *mgr = c->emu->GetSaveStateManager();
+    if (!mgr) { SetError(c, "The emulator has no save-state manager."); return false; }
+    /* Mesen's manager takes its own emulator lock, so this is safe while Run()
+     * owns the emulation thread; it pauses, serialises and resumes. */
+    if (!mgr->SaveState(std::string(path))) {
+        SetError(c, "Mesen refused to write the save state.");
+        return false;
+    }
+    return true;
+}
+
+bool snes_load_state(SnesCore *c, const char *path)
+{
+    if (!c || !c->emu || !path || !*path) { SetError(c, "No save-state path given."); return false; }
+    SaveStateManager *mgr = c->emu->GetSaveStateManager();
+    if (!mgr) { SetError(c, "The emulator has no save-state manager."); return false; }
+    if (!mgr->LoadState(std::string(path))) {
+        SetError(c, "Mesen refused to load the save state.");
+        return false;
+    }
+    /* The console object may have been replaced by the load; follow it. */
+    c->console = LiveConsole(c);
+    c->framesSeenOnConsole = c->console ? c->console->GetFrameCount() : 0;
+    return true;
+}
 
 const char *snes_last_error(SnesCore *c)
 {

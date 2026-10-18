@@ -8,10 +8,12 @@
 // game address; the modes that check addresses get them from the plan's
 // measured table, and they print what they read.
 #include "snes_core.h"
+#include "oga_core.h"
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <string>
 
 static void Usage(const char* argv0)
 {
@@ -20,8 +22,9 @@ static void Usage(const char* argv0)
                  "       %s --run <rom> <savedir> <frames>\n"
                  "       %s --input <rom> <savedir>\n"
                  "       %s --reset <rom> <savedir>\n"
-                 "       %s --reads <rom> <savedir>\n",
-                 argv0, argv0, argv0, argv0, argv0);
+                 "       %s --reads <rom> <savedir>\n"
+                 "       %s --states <rom> <savedir>\n",
+                 argv0, argv0, argv0, argv0, argv0, argv0);
 }
 
 static uint32_t Fnv1a(const uint8_t* p, size_t n)
@@ -229,6 +232,74 @@ static int Reads(const char* rom, const char* savedir)
     return ok ? 0 : 1;
 }
 
+// Task 4: the resolver. Which backend a file reaches is the decision that must
+// not drift; every line is a path and the id it must produce.
+static int Resolve()
+{
+    struct Case { const char* path; const char* want; };
+    static const Case cases[] = {
+        { "/roms/alttp.sfc",   "snes" },
+        { "/roms/alttp.smc",   "snes" },
+        { "/roms/alttp.fig",   "snes" },
+        { "/roms/alttp.swc",   "snes" },
+        { "/roms/pokemon.gb",  "gba"  },   // the Game Boy backend, never SNES
+        { "/roms/zelda1.nes",  "nes"  },
+        { "/roms/game.nds",    "nds"  },
+        { "/roms/thing.xyz",   "(none)" },
+    };
+
+    int fails = 0;
+    for (const Case& c : cases) {
+        const OgaResolvedBackend* b = oga_resolve_backend(c.path);
+        const char* got = b ? b->id : "(none)";
+        bool ok = std::strcmp(got, c.want) == 0;
+        std::printf("%-16s -> %-6s %s\n", c.path, got, ok ? "ok" : "FAILED");
+        if (!ok) fails++;
+    }
+    std::printf("resolve=%s\n", fails == 0 ? "YES" : "NO");
+    return fails == 0 ? 0 : 1;
+}
+
+// Task 6: states. Save, let the game move, load, and the counter must come back
+// to the saved value exactly.
+static int States(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: could not create the core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    for (int i = 0; i < 120; i++) snes_frame(c);
+    uint32_t saved_val = 0, later_val = 0, restored_val = 0;
+    bool saved_ok = snes_read(c, 0x7E001Au, 1, &saved_val);
+
+    std::string path = std::string(savedir) + "/alttp.state";
+    bool wrote = snes_save_state(c, path.c_str());
+
+    for (int i = 0; i < 60; i++) snes_frame(c);
+    bool later_ok = snes_read(c, 0x7E001Au, 1, &later_val);
+
+    bool loaded = snes_load_state(c, path.c_str());
+    bool restored_ok = snes_read(c, 0x7E001Au, 1, &restored_val);
+
+    std::printf("saved=%u\n", saved_val);
+    std::printf("later=%u\n", later_val);
+    std::printf("restored=%u\n", restored_val);
+
+    bool ok = saved_ok && wrote && later_ok && loaded && restored_ok &&
+              later_val != saved_val && restored_val == saved_val;
+    if (!ok) std::printf("error=%s\n", snes_last_error(c));
+    std::printf("state-restores=%s\n", ok ? "YES" : "NO");
+    snes_stop(c);
+    snes_destroy(c);
+    return ok ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -252,6 +323,11 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--reads") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return Reads(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--resolve") == 0) return Resolve();
+    if (std::strcmp(argv[1], "--states") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return States(argv[2], argv[3]);
     }
 
     Usage(argv[0]);

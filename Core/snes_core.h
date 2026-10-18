@@ -100,6 +100,10 @@ unsigned long long snes_frames_completed(SnesCore *core);
 unsigned snes_console_frame_count(SnesCore *core);
 double snes_fps(SnesCore *core);
 
+/* Whole-console states, through Mesen's SaveStateManager. */
+bool snes_save_state(SnesCore *core, const char *path);
+bool snes_load_state(SnesCore *core, const char *path);
+
 /* The last failure, in words. Empty string when nothing failed. */
 const char *snes_last_error(SnesCore *core);
 

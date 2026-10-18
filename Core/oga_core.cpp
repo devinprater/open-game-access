@@ -326,8 +326,8 @@ static void SnesSetButton(void* s, int pad_button, bool down)
     snes_set_button((SnesCore*) s, kPadToSnes[pad_button], down);
 }
 
-static bool SnesSaveState(void* s, const char* path) { (void) s; (void) path; return false; }
-static bool SnesLoadState(void* s, const char* path) { (void) s; (void) path; return false; }
+static bool SnesSaveState(void* s, const char* path) { return snes_save_state((SnesCore*) s, path); }
+static bool SnesLoadState(void* s, const char* path) { return snes_load_state((SnesCore*) s, path); }
 static unsigned long long SnesFrames(void* s) { return snes_frames_completed((SnesCore*) s); }
 static const char* SnesLastError(void* s)     { return snes_last_error((SnesCore*) s); }
 
