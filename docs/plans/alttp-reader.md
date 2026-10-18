@@ -198,6 +198,10 @@ git commit -m "alttp: area, dungeon and room names with numeric fallback"
 
 ### Task 5: The file-select screen
 
+**PARTIAL 2026-10-17.** `Status` no longer speaks the previous file's hearts on
+the file select, the title or name entry: those screens say "No game in
+progress." Reading the slots, their contents and the cursor is still open.
+
 **Files:**
 - Modify: `Core/alttp_adapter.cpp`
 - Modify: `Core/alttp_adapter_test.cpp`

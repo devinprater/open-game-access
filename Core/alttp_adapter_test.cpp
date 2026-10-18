@@ -143,6 +143,15 @@ int main()
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Three hearts. One rupee.") == 0,
           "status: no magic meter yet, one rupee");
 
+    // Status on the file select must not read the last file's leftovers.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0010u, 1);            // file select
+    put8(CAP, 0x20); put8(CUR, 0x20); put16(X, 0x0800); put16(Y, 0x0800);
+    oga::kZeldaLinkToThePast.command(oga::Command::Status);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "No game in progress.") == 0,
+          "status: no hearts on the file select, only that no game is running");
+    put8(0x7E0010u, 7);
+
     // ---- module-aware where am I (the decomp's module table) ----
     // module 14 is the interface layer; saved_module_for_menu holds the real one.
     NSPOKEN = 0; oga::AdapterSpeechReset();

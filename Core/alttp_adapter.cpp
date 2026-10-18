@@ -397,6 +397,16 @@ void SpeakSaveMenu(bool opening)
 
 void SpeakStatus()
 {
+    /* ⛔ NO GAME, NO HEARTS. The file select, the title and name entry leave the
+     * last file's health in work RAM, and every one of those values is inside a
+     * naive range check. Speaking yesterday's hearts on the file select is the
+     * "bunch of numbers" failure with a friendly voice. */
+    uint8_t mod = RealModule();
+    if (mod == MOD_FILE_SELECT || mod == MOD_TITLE || mod == MOD_NAME_ENTRY) {
+        Say("No game in progress.", "status", Priority::High);
+        return;
+    }
+
     unsigned eighths = u8(HEALTH_CURRENT);
     char line[192];
 
