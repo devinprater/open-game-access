@@ -305,4 +305,11 @@ file plus tests", not hours.
 
 ## 11. Status log
 
+- 2026-10-17: console implemented and proved on the host: load + payload CRC identity,
+  frame loop, video, input, work-RAM reads, backend wiring, registry READY, savestates;
+  `scripts/snes-alttp-proof.sh` is the proof. The iOS app builds and its picker offers
+  `.sfc/.smc/.fig/.swc`.
+- 2026-10-17: ⛔ THE ANDROID APP HAS NO BACKEND SEAM AT ALL (`app/src/main/cpp` is
+  melonDS only; no Mesen, no `oga_core`). The phone measurement therefore moved to iOS,
+  or waits for a separate Android plan. Measured: `docs/evidence/alttp-android-fps.txt`.
 - 2026-10-17: design written. Nothing implemented.

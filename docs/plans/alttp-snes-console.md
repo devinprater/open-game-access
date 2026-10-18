@@ -349,6 +349,11 @@ git commit -m "snes: offer .sfc/.smc/.fig/.swc in the ROM picker"
 
 Do not start until Tasks 1–6 are committed. This task needs Devin's phone.
 
+**⛔ MEASURED 2026-10-17 — THIS TASK CANNOT RUN AS WRITTEN.** The Android app links
+only `melonds_bridge.cpp`: no Mesen, no `snes_core`, no `oga_core`, and no device was
+attached. The iOS build is the phone path this plan delivers. The finding and the
+evidence are in `docs/evidence/alttp-android-fps.txt`; an Android port is a separate plan.
+
 **Files:**
 - Create: `docs/evidence/alttp-android-fps.txt`
 

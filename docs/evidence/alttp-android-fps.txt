@@ -1,0 +1,32 @@
+# A Link to the Past on Android — measurement status
+
+**Status: NOT MEASURED. There is no SNES backend in the Android build to measure.**
+
+Measured 2026-10-17, at the end of the SNES console plan
+(`docs/plans/alttp-snes-console.md`, Task 8):
+
+- `app/src/main/cpp/` contains `melonds_bridge.cpp` and `lua/` and nothing else.
+  There is no Mesen, no `snes_core.cpp`, and no reference to `oga_core` anywhere
+  under `app/`.
+- The Android app's own classes are `MelonCore`, `GbGameSession` and
+  `LuaScriptRunner`: the DS and the Game Boy / GBA. `LauncherScreen.kt` branches
+  on `.gba` alone. There is no NES, PSP or SNES session.
+- `adb` at `C:\asdk\platform-tools\adb.exe` reports no attached devices, so no
+  on-device number could be taken even for a build that could run the ROM.
+
+## What this means
+
+The `OgaCore` backend seam and the Mesen cores are iOS-only today. The iOS app
+built with this work (`scripts/xtool-build.sh`, 2026-10-17) contains the SNES
+extensions and the new console; the Android APK does not, and building one would
+not change that, because the Android front end never links `oga_core` at all.
+
+So the phone measurement in the design's P6 is **not** an Android measurement.
+It is either:
+
+1. an iOS measurement, after Devin sideloads the build (his normal route), or
+2. a separate Android project: a Mesen bridge for the Android native layer, plus
+   a Kotlin session for the console, which is the same shape as the existing
+   `melonds_bridge.cpp` work and is not part of this plan.
+
+No frames-per-second figure is claimed, and none should be read into this file.
