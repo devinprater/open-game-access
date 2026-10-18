@@ -118,7 +118,7 @@ int main()
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(INDOORS, 1); put16(ROOM, 12);
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Dungeon room 12.") == 0,
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Indoors, room 12.") == 0,
           "indoors: dungeon room");
 
     // Status: hearts, magic and rupees, in the player's units.

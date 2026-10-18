@@ -60,3 +60,33 @@ the reader map has a meaningful gameplay value yet.
   claimed for an unmeasured id.
 - The dungeon identifier (which dungeon the room number belongs to).
 - Menu cursors and the dialogue message bytes (Tasks 5–7).
+
+## Measured 2026-10-17 — in gameplay (Link's house)
+
+Method: `bash scripts/snes-alttp-proof.sh --gameplay` — the probe drives Start at
+the title, A on the file slot and Start at name entry, then walks for 1800
+frames. This reached a real game for the first time.
+
+```
+module 7 sub 15, then module 7 sub 0     (gameplay; module 14 sub 2 during text)
+indoors=1  room=260  area=0  screen=0
+x=2368 y=8538 (later 2344/8640)          hp=24/24  magic=0  rupees=0
+```
+
+What this confirms:
+
+- **Health**: capacity 24 (`0x18`) exactly three hearts, current 24. The
+  validation's step-of-eight rule accepts it, as designed.
+- **`player_is_indoors`** is 1 in Link's house.
+- ⛔ **`dungeon_room_index` is used by INDOOR ROOMS GENERALLY, not only
+  dungeons** — a house reads as room 260. The speech therefore says
+  "Indoors, room 260", not "Dungeon room", and the index alone does not say
+  which dungeon the player is in.
+- `overworld_area_index` and `overworld_screen_index` are 0 while indoors.
+
+Still not measured: outdoors area and screen, the dungeon identifier, the
+file-select and item-menu cursors, and the dialogue message bytes. The scripted
+walk could not leave the house in 1800 frames — the opening sequence still gates
+movement. Those need a real save file from a playthrough (`--gameplay` writes the
+`.srm` when the game itself saves), after which the same probe can be pointed at
+that save.

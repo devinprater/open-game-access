@@ -216,7 +216,10 @@ void SpeakWhereAmI()
 {
     char line[96];
     if (u8(PLAYER_INDOORS) != 0) {
-        snprintf(line, sizeof(line), "Dungeon room %u.", (unsigned) u16(DUNGEON_ROOM));
+        /* ⛔ MEASURED: a house uses the same room index as a dungeon room (the
+         * probe read room 260 indoors at Link's house). "Dungeon room" would be
+         * wrong there, and the index alone does not say which dungeon. */
+        snprintf(line, sizeof(line), "Indoors, room %u.", (unsigned) u16(DUNGEON_ROOM));
     } else {
         snprintf(line, sizeof(line), "Area %u, screen %u.",
                  (unsigned) u16(OVERWORLD_AREA), (unsigned) u16(OVERWORLD_SCREEN));

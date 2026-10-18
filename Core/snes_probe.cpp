@@ -421,6 +421,84 @@ static int Memory(const char* rom, const char* savedir)
     return 0;
 }
 
+// Drives the boot with periodic Start presses and prints the module state, so
+// the screen flow is observed rather than assumed.
+static int Drive(const char* rom, const char* savedir, int frames)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int last_mod = -1, last_sub = -1;
+    for (int f = 0; f < frames; f++) {
+        /* Start for 4 frames every 90, then A for 4 frames 30 later: enough for a
+         * title screen, a file slot and a name entry to each accept a press. */
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+
+        uint32_t mod = 0, sub = 0;
+        snes_read(c, 0x7E0010u, 1, &mod);
+        snes_read(c, 0x7E0011u, 1, &sub);
+        if ((int) mod != last_mod || (int) sub != last_sub) {
+            std::printf("f=%4d module=%u submodule=%u\n", f, mod, sub);
+            last_mod = (int) mod;
+            last_sub = (int) sub;
+        }
+    }
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
+// Drives into gameplay (Start at the title, A at the file slot, Start at name
+// entry), then walks Link with Down so the reader's coordinates and area are
+// observed while the game is actually running.
+static int Gameplay(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    for (; f < 4200; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+
+    std::printf("-- after the drive --\n");
+    DumpReaderAddresses(c, f);
+
+    for (int i = 0; i < 1800; i++, f++) {
+        bool walk = (i % 180) < 120;
+        snes_set_button(c, SNES_BTN_DOWN, walk && ((i / 180) % 2 == 0));
+        snes_set_button(c, SNES_BTN_LEFT, walk && ((i / 180) % 2 == 1));
+        snes_set_button(c, SNES_BTN_A, (i % 120) >= 100 && (i % 120) < 104);
+        snes_frame(c);
+        if (i % 60 == 0) DumpReaderAddresses(c, f);
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_LEFT, false);
+    snes_set_button(c, SNES_BTN_DOWN, false);
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -449,6 +527,14 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--headered") == 0) {
         if (argc < 5) { Usage(argv[0]); return 2; }
         return Headered(argv[2], argv[3], argv[4]);
+    }
+    if (std::strcmp(argv[1], "--gameplay") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Gameplay(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--drive") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Drive(argv[2], argv[3], argc > 4 ? std::atoi(argv[4]) : 1800);
     }
     if (std::strcmp(argv[1], "--memory") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
