@@ -17,7 +17,7 @@ CXX="${CXX:-g++}"
   -o "$OUT/dbzar-test" \
   "$ROOT/Core/dbzar_adapter_test.cpp" \
   "$ROOT/Core/dbzar_adapter.cpp" \
-  "$ROOT/Core/adapters.cpp" \
+  "$ROOT/Core/alttp_adapter.cpp" "$ROOT/Core/adapters.cpp" \
   "$ROOT/Core/mku_adapter.cpp" \
   "$ROOT/Core/announce.cpp"
 

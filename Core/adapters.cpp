@@ -72,6 +72,12 @@ extern const Adapter kMortalKombatUnchained;
 // lui/addiu immediates in the decompile are not the runtime bases.
 extern const Adapter kDragonBallZAnotherRoad;
 
+// Implemented in alttp_adapter.cpp — The Legend of Zelda: A Link to the Past
+// (SNES, USA 1.0). Keyed on "crc:777aac2f" because a 1991 cartridge has no
+// usable four-letter game code; the SNES core writes that id from the ROM
+// image it actually runs. Status: docs/plans/alttp-reader.md.
+extern const Adapter kZeldaLinkToThePast;
+
 extern const Adapter kNintendoEntertainmentSystem;
 
 // ⛔ SAME RULE AS THE NES ROW, AND FOR TWO REASONS RATHER THAN ONE.
@@ -93,6 +99,7 @@ static const Adapter* const kAdapters[] = {
     &kDragonBallZAnotherRoad,
     &kDragonQuestIX,
     &kMortalKombatUnchained,
+    &kZeldaLinkToThePast,
     &kNintendoEntertainmentSystem,
     &kNintendo64,
 };
