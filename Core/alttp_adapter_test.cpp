@@ -132,10 +132,24 @@ int main()
           "outdoors: area and screen");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    put8(INDOORS, 1); put16(ROOM, 12); put8(0x7E0010u, 7);
+    put8(INDOORS, 1); put16(ROOM, 12); put8(0x7E0010u, 7); put8(0x7E040Cu, 0xFF);
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Indoors, room 12.") == 0,
           "indoors: dungeon room");
+
+    // A dungeon id names the palace. 0 is the sewers, not "no dungeon".
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E040Cu, 0x04);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Inside Eastern Palace, room 12.") == 0,
+          "a dungeon id names the palace");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E040Cu, 0x00);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Inside Sewer Passage, room 12.") == 0,
+          "dungeon id 0 is the sewers, not an empty room");
+    put8(0x7E040Cu, 0xFF);
 
     // Status: hearts, magic and rupees, in the player's units.
     NSPOKEN = 0; oga::AdapterSpeechReset();
@@ -173,7 +187,7 @@ int main()
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(0x7E0010u, 14);          // main_module_index = Interface
     put8(0x7E010Cu, 7);           // saved_module_for_menu = Dungeon (indoors)
-    put8(INDOORS, 1); put16(ROOM, 12);
+    put8(INDOORS, 1); put16(ROOM, 12); put8(0x7E040Cu, 0xFF);
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Indoors, room 12.") == 0,
           "interface layer resolves to the indoor module");
@@ -229,6 +243,35 @@ int main()
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside in the dark world, Skull Woods.") == 0,
           "the dark world is said out loud");
+
+    // ---- area entry: walking into a new area says where you are ----
+    put8(0x7E0010u, 9); put8(INDOORS, 0); put16(AREA, 0x40); put16(SCREEN, 0x00);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside in the dark world, Skull Woods.") == 0,
+          "area entry: the first outdoor look says where you are");
+
+    put16(AREA, 0x2C); put16(SCREEN, 0x2C);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, Link's House.") == 0,
+          "area entry: a new area is spoken as you arrive");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 0, "area entry: standing still does not repeat it");
+
+    // Stepping outside after any indoor time announces the area again.
+    put8(INDOORS, 1); put8(0x7E040Cu, 0xFF); put16(ROOM, 260);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 0, "area entry: indoors says nothing");
+
+    put8(INDOORS, 0); put16(AREA, 0x2C); put16(SCREEN, 0x2C);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, Link's House.") == 0,
+          "area entry: stepping outside announces the area");
 
     // ---- dialogue: the measured message 388 ----
     static const unsigned char kMsg[] = {

@@ -158,8 +158,9 @@ numbering; the live `overworld_area_index` differs (Kakariko is 0x18, the Desert
 is 0x30, and the dark-world Death Mountain ids were wrong). `Core/alttp_names.cpp`
 now follows the community `ow_names` table from the yba.lua auto-tracker, keyed by
 the live index, with abbreviations expanded and unknown ids still speaking their
-number. `0x2C` Link's House stays the measured value. Still open: dungeon names
-and room notes.
+number. `0x2C` Link's House stays the measured value. Dungeon **names** are now
+spoken too, from `cur_palace_index_x2` (`0x7E040C`, 0xFF = no dungeon). Still
+open: room notes and dungeon route details.
 
 **UPDATED 2026-10-17 — UNBLOCKED.** A public save loaded, one START press closed the
 interface module, and walking out gave the first outdoor reading: module 9 (Overworld),

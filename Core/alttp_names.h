@@ -16,6 +16,10 @@ namespace oga {
 /* area is overworld_area_index: 0x00-0x3F light world, 0x40-0x7F dark world. */
 const char* AlttpAreaName(uint8_t area);
 
+/* The current dungeon, from cur_palace_index_x2 (0x7E040C, an even id per the
+ * decomp's map table; 0xFF means no dungeon). nullptr for 0xFF and unknown ids. */
+const char* AlttpDungeonName(uint8_t index);
+
 /* The item menu's slots. hud is hud_cur_item (1-20 the equipment grid, 21-24
  * bottles in the newer inventory); value is the byte at that slot. Returns
  * nullptr for a slot this table does not name, and the adapter then speaks the

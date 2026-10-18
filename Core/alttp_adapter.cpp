@@ -40,6 +40,7 @@ constexpr uint32_t LINK_Y            = 0x7E0020u;  /* link_y_coord */
 constexpr uint32_t LINK_X            = 0x7E0022u;  /* link_x_coord */
 constexpr uint32_t OVERWORLD_SCREEN  = 0x7E008Au;  /* overworld_screen_index */
 constexpr uint32_t DUNGEON_ROOM      = 0x7E00A0u;  /* dungeon_room_index */
+constexpr uint32_t DUNGEON_INDEX     = 0x7E040Cu;  /* cur_palace_index_x2, low byte */
 constexpr uint32_t OVERWORLD_AREA    = 0x7E040Au;  /* overworld_area_index */
 constexpr uint32_t RUPEES            = 0x7EF362u;  /* link_rupees_actual */
 constexpr uint32_t HEALTH_CAPACITY   = 0x7EF36Cu;  /* link_health_capacity */
@@ -82,6 +83,7 @@ Menu g_menu = Menu::None;
 uint16_t g_lastHudItem = 0xFFFFu;
 uint16_t g_lastChoice = 0xFFFFu;
 uint16_t g_lastFileCursor = 0xFFFFu;
+uint16_t g_lastArea = 0xFFFFu;   /* last outdoors area SPOKEN, for area entry */
 
 /* Module numbers from the decomp's kMainRouting (src/misc.c). */
 enum : uint8_t {
@@ -183,6 +185,7 @@ void AlttpDetach()
     g_lastHudItem = 0xFFFFu;
     g_lastChoice = 0xFFFFu;
     g_lastFileCursor = 0xFFFFu;
+    g_lastArea = 0xFFFFu;
 }
 
 /* Module 14 is the interface/HUD layer; the real screen is in
@@ -282,6 +285,31 @@ void AlttpFrame()
             }
         }
         return;
+    }
+
+    /* ⛔ INDOORS CLEARS THE MEMORY, so the first outdoor frame after a house or a
+     * dungeon announces the area the player is entering. The first outdoor area
+     * after a load also speaks: landing somewhere and hearing it beats silence. */
+    if (u8(PLAYER_INDOORS) != 0) {
+        g_lastArea = 0xFFFFu;
+    } else if (RealModule() == MOD_OVERWORLD) {
+        uint16_t area = u16(OVERWORLD_AREA);
+        if (area != g_lastArea) {
+            g_lastArea = area;
+            const char* name = AlttpAreaName((uint8_t) area);
+            char line[96];
+            if (name) {
+                if (area >= 0x40)
+                    snprintf(line, sizeof(line), "Outside in the dark world, %s.", name);
+                else
+                    snprintf(line, sizeof(line), "Outside, %s.", name);
+            } else if (area >= 0x40) {
+                snprintf(line, sizeof(line), "Outside in the dark world, area %u.", area);
+            } else {
+                snprintf(line, sizeof(line), "Outside, area %u.", area);
+            }
+            Say(line, "area", Priority::Normal);
+        }
     }
 
     /* ⛔ THE GAME HAS ALREADY DECODED ITS TEXT. messaging_text_buffer holds font
@@ -598,9 +626,14 @@ void SpeakWhereAmI()
 
     if (u8(PLAYER_INDOORS) != 0) {
         /* ⛔ MEASURED: a house uses the same room index as a dungeon room (the
-         * probe read room 260 indoors at Link's house). "Dungeon room" would be
-         * wrong there, and the index alone does not say which dungeon. */
-        snprintf(line, sizeof(line), "Indoors, room %u.", (unsigned) u16(DUNGEON_ROOM));
+         * probe read room 260 indoors at Link's house). The dungeon id is what
+         * separates them: 0xFF means none, and only then does the room number
+         * stand alone. 0 is the sewers, a real dungeon. */
+        const char* dungeon = AlttpDungeonName(u8(DUNGEON_INDEX));
+        if (dungeon)
+            snprintf(line, sizeof(line), "Inside %s, room %u.", dungeon, (unsigned) u16(DUNGEON_ROOM));
+        else
+            snprintf(line, sizeof(line), "Indoors, room %u.", (unsigned) u16(DUNGEON_ROOM));
     } else {
         unsigned area = u16(OVERWORLD_AREA);
         const char* name = AlttpAreaName((uint8_t) area);

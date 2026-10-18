@@ -78,7 +78,7 @@ build_live() {
 
 echo "== $MODE"
 case "$MODE" in
-  --live|--live-cases|--teardown|--menus|--files) build_live ;;
+  --live|--live-cases|--teardown|--menus|--files|--walk) build_live ;;
   *)                   build_probe ;;
 esac
 
@@ -96,6 +96,8 @@ case "$MODE" in
     exec "$OUT/snes-live-proof" --menus "$ROM" "$SAVE" ;;
   --files)
     exec "$OUT/snes-live-proof" --files "$ROM" "$SAVE" ;;
+  --walk)
+    exec "$OUT/snes-live-proof" --walk "$ROM" "$SAVE" ;;
   --teardown)
     [ -f "$OTHER_ROM" ] || { echo "!! no second SNES ROM at $OTHER_ROM" >&2; exit 1; }
     exec "$OUT/snes-live-proof" --teardown "$ROM" "$OTHER_ROM" "$SAVE" ;;

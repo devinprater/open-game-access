@@ -339,3 +339,38 @@ table now follows the community `ow_names` table from the yba.lua auto-tracker
 (`milde.no/public/alttp/yba.lua`), keyed by the same live index, with
 abbreviations expanded. `0x2C` Link's House stays the measured value.
 
+## Dungeon names
+
+`cur_palace_index_x2` at `0x7E040C` is a 16-bit value whose low byte is the
+dungeon id times two. The decomp's map table names them: 0x00 Sewer Passage,
+0x02 Hyrule Castle, 0x04 Eastern Palace, 0x06 Desert Palace, 0x08 Hyrule Castle,
+0x0A Swamp Palace, 0x0C Palace of Darkness, 0x0E Misery Mire, 0x10 Skull Woods,
+0x12 Ice Palace, 0x14 Tower of Hera, 0x16 Thieves' Town, 0x18 Turtle Rock,
+0x1A Ganon's Tower.
+
+- **MEASURED:** `0xFF` at Link's house, the "no dungeon" sentinel the decomp
+  tests for. The dungeon values themselves are sourced from that table and have
+  not yet been observed by walking into a dungeon.
+- ⛔ **0 is the sewers, a real dungeon**, not "no dungeon". Only `0xFF` means
+  none.
+- `WhereAmI` now says "Inside Eastern Palace, room 12." when the id is known,
+  and keeps "Indoors, room 12." when it is not. Room *notes* (landmarks inside a
+  room) are still not curated.
+
+## Area entry announcements
+
+Outdoors, in module 9, a change of `overworld_area_index` speaks
+"Outside, <name>." at Normal in group `area`. Indoors clears the remembered
+area, so stepping out of a house or dungeon announces where the player has
+arrived, and the first outdoor area after a load speaks too. Standing still says
+nothing.
+
+App-path proof (`scripts/snes-alttp-proof.sh --walk`), measured:
+
+```
+-- walking out --
+SAY: Outside, Link's House.
+walk-proof=YES
+```
+
+

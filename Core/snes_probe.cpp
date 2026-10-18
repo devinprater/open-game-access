@@ -393,12 +393,13 @@ static void DumpReaderAddresses(SnesCore* c, int frame)
     snes_read(c, 0x7EF36Du, 1, &cur);
     snes_read(c, 0x7EF36Eu, 1, &magic);
     snes_read(c, 0x7EF362u, 2, &rupees);
-    uint32_t saved_mod = 0, msg = 0, incap = 0;
+    uint32_t saved_mod = 0, msg = 0, incap = 0, palace = 0;
     snes_read(c, 0x7E010Cu, 1, &saved_mod);
     snes_read(c, 0x7E1CF0u, 2, &msg);
     snes_read(c, 0x7E0046u, 1, &incap);
-    std::printf("f=%3d mod=%u sub=%u real=%u in=%u x=%u y=%u scr=%u room=%u area=%u hp=%u/%u mag=%u rup=%u msg=%u incap=%u\n",
-                frame, mod, sub, saved_mod, indoors, x, y, screen, room, area, cur, cap, magic, rupees, msg, incap);
+    snes_read(c, 0x7E040Cu, 2, &palace);
+    std::printf("f=%3d mod=%u sub=%u real=%u in=%u x=%u y=%u scr=%u room=%u area=%u pal=%04x hp=%u/%u mag=%u rup=%u msg=%u incap=%u\n",
+                frame, mod, sub, saved_mod, indoors, x, y, screen, room, area, palace, cur, cap, magic, rupees, msg, incap);
 }
 
 static int Memory(const char* rom, const char* savedir)

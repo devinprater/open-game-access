@@ -305,8 +305,64 @@ static int Files(const char* rom, const char* savedir)
     return ok ? 0 : 1;
 }
 
+// --walk: the adapter's AREA ENTRY line on the real game. Boots into Link's
+// house, closes the menu, walks out, and checks that the first outdoor area is
+// announced as the player steps into it.
+static int Walk(const char* rom, const char* savedir)
+{
+    PokeCore* core = poke_create();
+    if (!core) { std::printf("FAIL: no core\n"); return 1; }
+    poke_set_speech_callback(core, OnSpeak, nullptr);
+    g_say.clear();
+
+    if (!poke_load_rom(core, rom, savedir) || !poke_start(core)) {
+        std::printf("FAIL: %s\n", poke_last_error(core));
+        poke_destroy(core);
+        return 1;
+    }
+    (void) poke_adapter_ready(core);
+
+    for (int f = 0; f < 1500; f++) {
+        poke_set_button(core, POKE_BTN_START, (f % 90) < 4);
+        poke_set_button(core, POKE_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        poke_frame(core);
+    }
+    poke_set_button(core, POKE_BTN_START, false);
+    poke_set_button(core, POKE_BTN_A, false);
+
+    /* One START closes the interface overlay if it is up, or opens the item
+     * menu if it is not; the second press closes it in that case. */
+    size_t before = g_say.size();
+    TapApp(core, POKE_BTN_START, 4, 60);
+    bool opened = false;
+    for (size_t i = before; i < g_say.size(); i++)
+        if (g_say[i].rfind("Item menu.", 0) == 0) opened = true;
+    if (opened) TapApp(core, POKE_BTN_START, 4, 60);
+
+    std::printf("-- walking out --\n");
+    for (int i = 0; i < 300; i++) {
+        poke_set_button(core, POKE_BTN_DOWN, true);
+        poke_set_button(core, POKE_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        poke_frame(core);
+    }
+    poke_set_button(core, POKE_BTN_DOWN, false);
+    poke_set_button(core, POKE_BTN_A, false);
+    for (int i = 0; i < 60; i++) poke_frame(core);
+
+    bool spoke_outside = false;
+    for (const std::string& s : g_say)
+        if (s.rfind("Outside,", 0) == 0) spoke_outside = true;
+    std::printf("outside-spoken=%d lines=%d\n", (int) spoke_outside, (int) g_say.size());
+    std::printf("walk-proof=%s\n", spoke_outside ? "YES" : "NO");
+    poke_stop(core);
+    poke_destroy(core);
+    return spoke_outside ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
+    if (argc >= 4 && std::strcmp(argv[1], "--walk") == 0)
+        return Walk(argv[2], argv[3]);
     if (argc >= 4 && std::strcmp(argv[1], "--files") == 0)
         return Files(argv[2], argv[3]);
     if (argc >= 4 && std::strcmp(argv[1], "--menus") == 0)

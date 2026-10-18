@@ -121,6 +121,40 @@ const char* AlttpAreaName(uint8_t area)
     return nullptr;
 }
 
+/* The dungeon ids the game puts in cur_palace_index_x2, from the decompilation's
+ * own map table (dungeon index x 2):
+ *   0x00 Sewer Passage, 0x02 Hyrule Castle, 0x04 Eastern Palace,
+ *   0x06 Desert Palace, 0x08 Hyrule Castle (second map), 0x0A Swamp Palace,
+ *   0x0C Palace of Darkness, 0x0E Misery Mire, 0x10 Skull Woods,
+ *   0x12 Ice Palace, 0x14 Tower of Hera, 0x16 Thieves' Town (Gargoyle's Domain),
+ *   0x18 Turtle Rock, 0x1A Ganon's Tower.
+ *
+ * MEASURED 2026-10-17: 0xFF at Link's house, which is the "no dungeon" sentinel
+ * the decomp tests for. The dungeon values themselves are sourced from that
+ * table, not yet observed by walking into one.
+ *
+ * ⛔ 0 is a REAL dungeon (the sewers), not "no dungeon". Only 0xFF means none. */
+const char* AlttpDungeonName(uint8_t index)
+{
+    switch (index) {
+        case 0x00: return "Sewer Passage";
+        case 0x02: return "Hyrule Castle";
+        case 0x04: return "Eastern Palace";
+        case 0x06: return "Desert Palace";
+        case 0x08: return "Hyrule Castle";
+        case 0x0A: return "Swamp Palace";
+        case 0x0C: return "Palace of Darkness";
+        case 0x0E: return "Misery Mire";
+        case 0x10: return "Skull Woods";
+        case 0x12: return "Ice Palace";
+        case 0x14: return "Tower of Hera";
+        case 0x16: return "Thieves' Town";
+        case 0x18: return "Turtle Rock";
+        case 0x1A: return "Ganon's Tower";
+        default: return nullptr;
+    }
+}
+
 /* The item menu's 20 equipment slots, in the game's own order (the order of
  * link_item_bow..link_item_mirror, hud.c's inventory pointers, and the 4-wide
  * grid the menu draws). Names are the game's item names; the levels are the
