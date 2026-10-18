@@ -59,6 +59,8 @@ constexpr uint32_t ITEM_BASE          = 0x7EF340u;  /* link_item_bow ... */
 constexpr uint32_t SWORD_TYPE         = 0x7EF359u;  /* link_sword_type */
 constexpr uint32_t SHIELD_TYPE        = 0x7EF35Au;  /* link_shield_type */
 constexpr uint32_t ARMOR_TYPE         = 0x7EF35Bu;  /* link_armor */
+constexpr uint32_t BOTTLE_INDEX       = 0x7EF34Fu;  /* link_item_bottle_index, 1-4 */
+constexpr uint32_t BOTTLE_INFO        = 0x7EF35Cu;  /* link_bottle_info[4] */
 
 /* The file select (module 1). Its slots are NOT in work RAM: select_file.c draws
  * them straight out of the cartridge's save RAM, which the core exposes at the
@@ -84,6 +86,8 @@ uint16_t g_lastHudItem = 0xFFFFu;
 uint16_t g_lastChoice = 0xFFFFu;
 uint16_t g_lastFileCursor = 0xFFFFu;
 uint16_t g_lastArea = 0xFFFFu;   /* last outdoors area SPOKEN, for area entry */
+bool g_bottleMenu = false;       /* the item menu's bottle submenu is up */
+uint16_t g_lastBottle = 0xFFFFu;
 
 /* Module numbers from the decomp's kMainRouting (src/misc.c). */
 enum : uint8_t {
@@ -186,6 +190,8 @@ void AlttpDetach()
     g_lastChoice = 0xFFFFu;
     g_lastFileCursor = 0xFFFFu;
     g_lastArea = 0xFFFFu;
+    g_bottleMenu = false;
+    g_lastBottle = 0xFFFFu;
 }
 
 /* Module 14 is the interface/HUD layer; the real screen is in
@@ -202,6 +208,7 @@ bool AlttpReady();
 void SpeakItemMenu(bool withPrefix, bool withEquipment);
 void SpeakSaveMenu(bool opening);
 void SpeakFileSelect(bool withPrefix);
+void SpeakBottle(bool opening);
 
 /* Module 14 with submodule 1 is the item menu, and module 14 with submodule 11
  * is SELECT's continue/save box. Both were measured on the public save; neither
@@ -254,6 +261,8 @@ void AlttpFrame()
         g_menu = menu;
         g_lastHudItem = 0xFFFFu;
         g_lastChoice = 0xFFFFu;
+        g_bottleMenu = false;
+        g_lastBottle = 0xFFFFu;
         if (menu == Menu::Item) {
             g_lastHudItem = u8(HUD_CUR_ITEM);
             SpeakItemMenu(true, true);
@@ -273,6 +282,23 @@ void AlttpFrame()
         g_lastMessage = u16(DIALOGUE_INDEX);
         if (menu == Menu::Item) {
             uint8_t hud = u8(HUD_CUR_ITEM);
+
+            /* ⛔ THE BOTTLE SLOT OPENS A SECOND MENU. hud 16 is the original
+             * inventory's bottle slot; once its submenu is up (map state 7+),
+             * hud_cur_item stays 16 while link_item_bottle_index moves 1-4.
+             * Watching only the item cursor would leave this menu silent. */
+            if (hud == 16 && u8(HUD_MAP_STATE) >= 7) {
+                uint8_t index = u8(BOTTLE_INDEX);
+                if (!g_bottleMenu || index != g_lastBottle) {
+                    bool opening = !g_bottleMenu;
+                    g_bottleMenu = true;
+                    g_lastBottle = index;
+                    SpeakBottle(opening);
+                }
+                return;
+            }
+            g_bottleMenu = false;
+
             if (hud != g_lastHudItem) {
                 g_lastHudItem = hud;
                 SpeakItemMenu(false, false);
@@ -432,6 +458,31 @@ void SpeakItemMenu(bool withPrefix, bool withEquipment)
         }
     }
 
+    Say(line, "itemmenu", Priority::High);
+}
+
+void SpeakBottle(bool opening)
+{
+    uint8_t index = u8(BOTTLE_INDEX);
+    char line[128];
+    const char* prefix = opening ? "Bottle menu. " : "";
+
+    if (index < 1 || index > 4) {
+        snprintf(line, sizeof(line), "%sNo bottle selected.", prefix);
+        Say(line, "itemmenu", Priority::High);
+        return;
+    }
+
+    char ordinal[16];
+    NumberWords(index, ordinal, sizeof(ordinal));
+
+    uint8_t info = u8(BOTTLE_INFO + (uint32_t) (index - 1));
+    const char* name = AlttpBottleName(info);
+    if (name)
+        snprintf(line, sizeof(line), "%sBottle %s, %s.", prefix, ordinal, name);
+    else
+        snprintf(line, sizeof(line), "%sBottle %s, contents %u.", prefix, ordinal,
+                 (unsigned) info);
     Say(line, "itemmenu", Priority::High);
 }
 

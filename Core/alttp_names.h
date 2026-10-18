@@ -20,6 +20,13 @@ const char* AlttpAreaName(uint8_t area);
  * decomp's map table; 0xFF means no dungeon). nullptr for 0xFF and unknown ids. */
 const char* AlttpDungeonName(uint8_t index);
 
+/* The bottle submenu's contents, indexed by link_bottle_info (1-8). These are
+ * the game's own names, decoded from kHudBottlesItemText in hud.c with the same
+ * L(x) = 0x2550 + x - 'A' the game uses: MUSHROOM, BOTTLE (the empty bottle),
+ * LIFE, MEDICINE, MAGIC, CURE,ALL, FAERIE, BEE / GOOD BEE. nullptr for 0 or an
+ * unknown value, and the adapter then speaks the number. */
+const char* AlttpBottleName(uint8_t info);
+
 /* The item menu's slots. hud is hud_cur_item (1-20 the equipment grid, 21-24
  * bottles in the newer inventory); value is the byte at that slot. Returns
  * nullptr for a slot this table does not name, and the adapter then speaks the

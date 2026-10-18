@@ -335,6 +335,29 @@ int main()
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Item menu. Magical boomerang, row one, column two.") == 0,
           "where am I on the item menu names the menu, not the room");
 
+    // ---- the bottle slot's submenu ----
+    // MEASURED model: hud_cur_item stays 16 while link_item_bottle_index (1-4)
+    // moves and link_bottle_info holds the contents. Names are the game's own,
+    // from kHudBottlesItemText.
+    put8(0x7E0202u, 16); put8(0x7E0200u, 7);
+    put8(0x7EF34Fu, 1); put8(0x7EF35Cu, 3);       // bottle 1 = life
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Bottle menu. Bottle one, life.") == 0,
+          "bottle submenu: opening names the selected bottle and its contents");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7EF34Fu, 2); put8(0x7EF35Du, 5);       // bottle 2 = magic
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Bottle two, magic.") == 0,
+          "bottle submenu: moving the bottle speaks the new contents");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0200u, 4); put8(0x7E0202u, 11);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Lamp, row three, column three.") == 0,
+          "bottle submenu: leaving it returns to the item cursor");
+
     // ---- save menu: module 14 submodule 11, a two-choice text box ----
     // MEASURED: SELECT gives submodule 11 and message 390, whose decoded text is
     // "Continue Game, Save and Quit."; choice 0 is continue, 1 is save and quit

@@ -155,6 +155,21 @@ const char* AlttpDungeonName(uint8_t index)
     }
 }
 
+const char* AlttpBottleName(uint8_t info)
+{
+    switch (info) {
+        case 1: return "mushroom";
+        case 2: return "empty";     /* the game draws the empty bottle as "BOTTLE" */
+        case 3: return "life";
+        case 4: return "medicine";
+        case 5: return "magic";
+        case 6: return "cure-all";
+        case 7: return "fairy";
+        case 8: return "good bee";
+        default: return nullptr;
+    }
+}
+
 /* The item menu's 20 equipment slots, in the game's own order (the order of
  * link_item_bow..link_item_mirror, hud.c's inventory pointers, and the 4-wide
  * grid the menu draws). Names are the game's item names; the levels are the

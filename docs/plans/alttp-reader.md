@@ -254,9 +254,11 @@ public save: the item menu is module 14 submodule 1 and the cursor is
 the item bytes stayed still. SELECT's box is module 14 submodule 11 and its
 cursor is `choice_in_multiselect_box` (`0x7E1CE8`), 0 = continue, 1 = save and
 quit. The adapter speaks the item, its row and column, and the equipment box on
-opening, speaks each cursor move, and reads the save box's options. The app path
-was proved on the real ROM and save (`menu-proof=YES`). Details are in
-`docs/design/alttp-memory.md`; the item names and levels are in
+opening, speaks each cursor move, and reads the save box's options. The bottle
+slot's submenu is read too (`0x7EF34F` selection, `0x7EF35C` contents, the game's
+own names); that part is decomp-sourced because the public save has no bottles.
+The app path was proved on the real ROM and save (`menu-proof=YES`). Details are
+in `docs/design/alttp-memory.md`; the item names and levels are in
 `Core/alttp_names.cpp`.
 
 **Files:**
@@ -327,4 +329,4 @@ git commit -m "alttp: dialogue decoded from the game's own text buffer"
 
 ## Follow-on plan
 
-Guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project and its own spec section (`docs/design/navigation-prior-art.md`). It gets a plan after Task 7, when speech, names and dialogue are stable.
+Guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The first design, with the measured coordinate-to-area formula and the recommended beacon slice, is `docs/design/alttp-guidance.md`.

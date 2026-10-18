@@ -207,7 +207,7 @@ git commit -m &quot;alttp: area, dungeon and room names with numeric fallback&qu
 git commit -m &quot;alttp: file-select screen&quot;</code></pre>
 <hr>
 <h3>Task 6: Item and equipment menus</h3>
-<p><strong>DONE 2026-10-17.</strong> Measured with <code>scripts/snes-alttp-proof.sh --menus</code> on the public save: the item menu is module 14 submodule 1 and the cursor is <code>hud_cur_item</code> (<code>0x7E0202</code>), which moved 2 -&gt; 11 on RIGHT and back on LEFT while the item bytes stayed still. SELECT's box is module 14 submodule 11 and its cursor is <code>choice_in_multiselect_box</code> (<code>0x7E1CE8</code>), 0 = continue, 1 = save and quit. The adapter speaks the item, its row and column, and the equipment box on opening, speaks each cursor move, and reads the save box's options. The app path was proved on the real ROM and save (<code>menu-proof=YES</code>). Details are in <code>docs/design/alttp-memory.md</code>; the item names and levels are in <code>Core/alttp_names.cpp</code>.</p>
+<p><strong>DONE 2026-10-17.</strong> Measured with <code>scripts/snes-alttp-proof.sh --menus</code> on the public save: the item menu is module 14 submodule 1 and the cursor is <code>hud_cur_item</code> (<code>0x7E0202</code>), which moved 2 -&gt; 11 on RIGHT and back on LEFT while the item bytes stayed still. SELECT's box is module 14 submodule 11 and its cursor is <code>choice_in_multiselect_box</code> (<code>0x7E1CE8</code>), 0 = continue, 1 = save and quit. The adapter speaks the item, its row and column, and the equipment box on opening, speaks each cursor move, and reads the save box's options. The bottle slot's submenu is read too (<code>0x7EF34F</code> selection, <code>0x7EF35C</code> contents, the game's own names); that part is decomp-sourced because the public save has no bottles. The app path was proved on the real ROM and save (<code>menu-proof=YES</code>). Details are in <code>docs/design/alttp-memory.md</code>; the item names and levels are in <code>Core/alttp_names.cpp</code>.</p>
 <p><strong>Files:</strong></p>
 <ul>
 <li>Modify: <code>Core/alttp_adapter.cpp</code></li>
@@ -272,5 +272,5 @@ git commit -m &quot;alttp: item and equipment menus&quot;</code></pre>
 git commit -m &quot;alttp: dialogue decoded from the game&#x27;s own text buffer&quot;</code></pre>
 <hr>
 <h2>Follow-on plan</h2>
-<p>Guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project and its own spec section (<code>docs/design/navigation-prior-art.md</code>). It gets a plan after Task 7, when speech, names and dialogue are stable.</p>
+<p>Guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The first design, with the measured coordinate-to-area formula and the recommended beacon slice, is <code>docs/design/alttp-guidance.md</code>.</p>
 </body></html>

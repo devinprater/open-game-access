@@ -373,4 +373,23 @@ SAY: Outside, Link's House.
 walk-proof=YES
 ```
 
+## The bottle submenu
+
+The item menu's bottle slot (hud 16 in the original inventory) opens a second
+menu. `hud_cur_item` stays 16 while `link_item_bottle_index` (`0x7EF34F`, 1-4)
+moves, so watching only the item cursor leaves this menu silent.
+
+- **Gate:** item menu (module 14 sub 1), `hud_cur_item == 16`,
+  `overworld_map_state >= 7`.
+- **Contents:** `link_bottle_info` at `0x7EF35C`, one byte per bottle.
+- **Names:** the game's own, decoded from `kHudBottlesItemText` in `hud.c` with
+  the same `L(x) = 0x2550 + x - 'A'` the game uses: 1 mushroom, 2 bottle (the
+  empty bottle), 3 life, 4 medicine, 5 magic, 6 cure-all, 7 fairy, 8 good bee.
+- **Spoken:** "Bottle menu. Bottle one, life." on opening, "Bottle two, magic."
+  on a change.
+- ⛔ **NOT MEASURED LIVE.** The public save has no bottles, so this is sourced
+  from the decompilation and covered by unit tests only. A save with a bottle in
+  it would let the live proof cover it.
+
+
 
