@@ -131,6 +131,11 @@ enum ROMStore {
         for ext in ["nes", "fds", "unf"] {
             if let t = UTType(filenameExtension: ext) { types.append(t) }
         }
+        // Super Nintendo ROMs run in the Mesen SNES core (see Core/snes_core.cpp).
+        // .smc/.fig/.swc are the same console under different dumper names.
+        for ext in ["sfc", "smc", "fig", "swc"] {
+            if let t = UTType(filenameExtension: ext) { types.append(t) }
+        }
         // PSP images run in the PPSSPP core (see Core/psp_core.cpp).
         if let iso = UTType(filenameExtension: "iso") { types.append(iso) }
         if let cso = UTType(filenameExtension: "cso") { types.append(cso) }
@@ -184,7 +189,8 @@ enum ROMStore {
             // family, so a .nes the picker happily accepted never appeared in the
             // recent-games list afterwards -- reachable to import, invisible after.
             .filter { ["nds", "gba", "gbc", "gb", "nes", "fds", "unf",
-                       "iso", "cso", "pbp"].contains($0.pathExtension.lowercased()) }
+                       "iso", "cso", "pbp",
+                       "sfc", "smc", "fig", "swc"].contains($0.pathExtension.lowercased()) }
             .sorted { a, b in
                 let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
                 let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
