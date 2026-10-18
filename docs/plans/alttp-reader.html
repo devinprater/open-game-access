@@ -310,6 +310,21 @@ git commit -m &quot;alttp: dialogue decoded from the game&#x27;s own text buffer
 <p><strong>What it reads.</strong> One stage per press: find the uncle, rescue Zelda, collect the pendants, claim the Master Sword, confront Agahnim. Each comes from a measured progress bit, never from a guess. Indoors the goal is named without a bearing; the dark world refuses because its stages are not measured.</p>
 <p><strong>Proof.</strong> <code>scripts/alttp-adapter-test.sh</code> prints 65 passed; the live walk prints <code>SAY: Objective: Collect the three pendants...</code> and <code>objective-proof=YES</code>.</p>
 <hr>
+<h3>Task 10: Room notes</h3>
+<p><strong>DONE 2026-10-18.</strong></p>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>scripts/gen-alttp-rooms.py</code> (reads the decomp's room database)</li>
+<li>Create: <code>Core/alttp_rooms.h</code>, <code>Core/alttp_rooms.cpp</code> (generated; 320 rows)</li>
+<li>Modify: <code>Core/alttp_adapter.cpp</code> (append the note to <code>WhereAmI</code> indoors)</li>
+<li>Modify: <code>Core/alttp_adapter_test.cpp</code> (three tests)</li>
+<li>Modify: <code>scripts/build-host.sh</code>, <code>scripts/core-sources.sh</code>, the focused test link lines (a new Core source must be in every list)</li>
+<li>Modify: <code>docs/design/alttp-memory.md</code></li>
+</ul>
+<p><strong>Why it was blocked, and how it opened.</strong> Room contents are in the cartridge, not work RAM. Rather than add ROM reads and a runtime decoder, the room database the decompilation already extracted is turned into a small table of derived facts at build time: chest count, big chest, and the editor's one-line puzzle note. 181 of 320 rooms carry something. No layout, sprite list or ROM bytes ship.</p>
+<p><strong>What it says.</strong> "Inside Eastern Palace, room 36. One big chest. Kill enemy to open." A house shares the room index space but has no dungeon id, so it never borrows a dungeon room's chest.</p>
+<p><strong>Proof.</strong> 73 adapter tests pass; ⚠ unit-tested only, because the harness cannot reach a dungeon without steering.</p>
+<hr>
 <h2>Follow-on plan</h2>
 <p>Route guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The beacon slice is now done and documented in <code>docs/design/alttp-guidance.md</code>; what remains there is the screen graph, dark-world landmarks, and a better aim for large areas.</p>
 </body></html>

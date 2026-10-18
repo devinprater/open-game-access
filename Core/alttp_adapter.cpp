@@ -19,6 +19,7 @@
 #include "adapter.h"
 #include "alttp_text.h"
 #include "alttp_names.h"
+#include "alttp_rooms.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -749,7 +750,7 @@ void SpeakWhereAmI()
     if (menu == Menu::Item) { SpeakItemMenu(true, false); return; }
     if (menu == Menu::Save) { SpeakSaveMenu(true); return; }
 
-    char line[96];
+    char line[256];
     uint8_t mod = RealModule();
 
     /* The screen comes from the module table first; the room only when the game
@@ -771,6 +772,30 @@ void SpeakWhereAmI()
             snprintf(line, sizeof(line), "Inside %s, room %u.", dungeon, (unsigned) u16(DUNGEON_ROOM));
         else
             snprintf(line, sizeof(line), "Indoors, room %u.", (unsigned) u16(DUNGEON_ROOM));
+
+        /* ⛔ ONLY A REAL DUNGEON GETS A ROOM NOTE. Houses share the same room
+         * index space, and the table would otherwise lend a house a dungeon
+         * room's chest. The contents are derived facts from the decompilation's
+         * room database, not read from the cartridge. */
+        if (dungeon) {
+            const RoomNote* note = AlttpRoomNote((uint16_t) u16(DUNGEON_ROOM));
+            if (note) {
+                size_t used = strlen(line);
+                if (note->chests == 1) {
+                    snprintf(line + used, sizeof(line) - used, " One %schest.",
+                             note->big ? "big " : "");
+                } else if (note->chests > 1) {
+                    char nw[32];
+                    NumberWords(note->chests, nw, sizeof(nw));
+                    if (nw[0]) nw[0] = (char) toupper((unsigned char) nw[0]);
+                    snprintf(line + used, sizeof(line) - used, " %s chests.", nw);
+                }
+                if (note->note) {
+                    used = strlen(line);
+                    snprintf(line + used, sizeof(line) - used, " %s.", note->note);
+                }
+            }
+        }
     } else {
         unsigned area = u16(OVERWORLD_AREA);
         const char* name = AlttpAreaName((uint8_t) area);

@@ -407,6 +407,34 @@ the dark world refuses because its stages are not measured.
 
 ---
 
+### Task 10: Room notes
+
+**DONE 2026-10-18.**
+
+**Files:**
+- Create: `scripts/gen-alttp-rooms.py` (reads the decomp's room database)
+- Create: `Core/alttp_rooms.h`, `Core/alttp_rooms.cpp` (generated; 320 rows)
+- Modify: `Core/alttp_adapter.cpp` (append the note to `WhereAmI` indoors)
+- Modify: `Core/alttp_adapter_test.cpp` (three tests)
+- Modify: `scripts/build-host.sh`, `scripts/core-sources.sh`, the focused test
+  link lines (a new Core source must be in every list)
+- Modify: `docs/design/alttp-memory.md`
+
+**Why it was blocked, and how it opened.** Room contents are in the cartridge,
+not work RAM. Rather than add ROM reads and a runtime decoder, the room database
+the decompilation already extracted is turned into a small table of derived
+facts at build time: chest count, big chest, and the editor's one-line puzzle
+note. 181 of 320 rooms carry something. No layout, sprite list or ROM bytes ship.
+
+**What it says.** "Inside Eastern Palace, room 36. One big chest. Kill enemy to
+open." A house shares the room index space but has no dungeon id, so it never
+borrows a dungeon room's chest.
+
+**Proof.** 73 adapter tests pass; ⚠ unit-tested only, because the harness cannot
+reach a dungeon without steering.
+
+---
+
 ## Follow-on plan
 
 Route guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The beacon slice is now done and documented in `docs/design/alttp-guidance.md`; what remains there is the screen graph, dark-world landmarks, and a better aim for large areas.

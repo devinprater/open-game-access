@@ -151,6 +151,36 @@ int main()
           "dungeon id 0 is the sewers, not an empty room");
     put8(0x7E040Cu, 0xFF);
 
+    // Room notes: derived facts from the room database, only inside a dungeon.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(ROOM, 0); put8(0x7E040Cu, 0x00);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Inside Sewer Passage, room 0. Kill to open Ganon's door.") == 0,
+          "room note: a puzzle note is spoken with the room");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(ROOM, 170); put8(0x7E040Cu, 0x04);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Inside Eastern Palace, room 170. One chest. Switch opens door(Toggle).") == 0,
+          "room note: a chest and its puzzle");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(ROOM, 36);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Inside Eastern Palace, room 36. One big chest. Kill enemy to open.") == 0,
+          "room note: a big chest is named as one");
+
+    // A house shares the room index space but belongs to no dungeon.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(ROOM, 260); put8(0x7E040Cu, 0xFF);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Indoors, room 260.") == 0,
+          "room note: a house does not borrow a dungeon room's chest");
+    put16(ROOM, 12);
+
     // Status: hearts, magic and rupees, in the player's units.
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(INDOORS, 0);

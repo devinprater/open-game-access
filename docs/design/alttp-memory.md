@@ -457,6 +457,23 @@ moves, so watching only the item cursor leaves this menu silent.
   not world coordinates); in the dark world it refuses, because none of those
   stages have been measured.
 
+## Room notes
+
+- **Data source:** the decompilation's per-room database
+  (`~/z3work/zelda3/assets/dungeon/dungeon-<room>.yaml`, itself extracted from
+  the cartridge). `scripts/gen-alttp-rooms.py` turns it into
+  `Core/alttp_rooms.cpp`; the YAML stays outside the repo.
+- **Only derived facts ship:** how many chests, whether one is a big chest, and
+  the editor's one-line puzzle note. No layout, sprite list or ROM bytes.
+- **Lookup:** `AlttpRoomNote(dungeon_room_index)` returns
+  `{chests, big, note}` or nullptr. 181 of the 320 rooms carry something.
+- **Spoken only inside a real dungeon** (`cur_palace_index_x2 != 0xFF`), because
+  houses share the same room index space: "Inside Eastern Palace, room 36. One
+  big chest. Kill enemy to open."
+- **Quadrant prefixes are stripped** (`NW Kill enemy to open` reads as `Kill
+  enemy to open`), and numeric placeholder effects are dropped.
+- ⚠ Unit-tested only. The harness cannot reach a dungeon without steering.
+
 ## The dungeon pouch
 
 Status adds the dungeon's keys and gear only when `player_is_indoors` is set and
