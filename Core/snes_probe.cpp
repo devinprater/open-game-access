@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <sys/stat.h>
 
 static void Usage(const char* argv0)
 {
@@ -23,8 +24,10 @@ static void Usage(const char* argv0)
                  "       %s --input <rom> <savedir>\n"
                  "       %s --reset <rom> <savedir>\n"
                  "       %s --reads <rom> <savedir>\n"
-                 "       %s --states <rom> <savedir>\n",
-                 argv0, argv0, argv0, argv0, argv0, argv0);
+                 "       %s --states <rom> <savedir>\n"
+                 "       %s --headered <rom> <savedir> <headered-copy>\n"
+                 "       %s --after-stop <rom> <savedir>\n",
+                 argv0, argv0, argv0, argv0, argv0, argv0, argv0, argv0);
 }
 
 static uint32_t Fnv1a(const uint8_t* p, size_t n)
@@ -66,10 +69,12 @@ static int Identity(const char* rom, const char* savedir)
 // Start from frame 120 to 150, which is enough to leave the title screen.
 struct RunResult {
     int frames = 0;
+    unsigned crc = 0;
     unsigned console_frames = 0;
     int w = 0, h = 0;
     size_t nonzero = 0;
     uint32_t hash = 0;
+    unsigned module = 0;
     bool framebuffer = false;
 };
 
@@ -92,10 +97,12 @@ static bool RunFrames(const char* rom, const char* savedir, int frames,
     int ran = 0;
     for (; ran < frames; ran++) {
         if (press_start)
-            snes_set_button(c, SNES_BTN_START, ran >= 120 && ran < 150);
+            snes_set_button(c, SNES_BTN_START, ran >= 30 && ran < 90);
         if (!snes_frame(c)) break;
     }
 
+    out->crc = snes_rom_crc32(c);
+    snes_read(c, 0x7E0010u, 1, &out->module);
     out->frames = ran;
     out->console_frames = snes_console_frame_count(c);
     out->framebuffer = snes_framebuffer(c, &out->w, &out->h);
@@ -136,17 +143,43 @@ static int Run(const char* rom, const char* savedir, int frames)
     return ok ? 0 : 1;
 }
 
-// Task 2, input: two identical runs, one with Start held, must differ in video.
+// Task 2, input: the host's button press must reach Mesen's SNES controller.
+// ⛔ MEASURED: the screen is not a usable oracle here. The guest reaches attract
+// mode early and uncapped frame capture is not frame-exact, so two identical runs
+// produced three different hashes. The pad state is deterministic.
 static int Input(const char* rom, const char* savedir)
 {
-    RunResult quiet, pressed;
-    if (!RunFrames(rom, savedir, 600, false, &quiet)) return 1;
-    if (!RunFrames(rom, savedir, 600, true, &pressed)) return 1;
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: could not create the core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
 
-    std::printf("quiet-hash=%08x\n", quiet.hash);
-    std::printf("start-hash=%08x\n", pressed.hash);
-    bool ok = quiet.hash != 0 && pressed.hash != 0 && quiet.hash != pressed.hash;
-    std::printf("input-changes-video=%s\n", ok ? "YES" : "NO");
+    for (int i = 0; i < 5; i++) snes_frame(c);
+    unsigned idle = snes_provider_bits(c);
+    (void) snes_controller_bits(c);
+
+    snes_set_button(c, SNES_BTN_START, true);
+    for (int i = 0; i < 2; i++) snes_frame(c);
+    unsigned held = snes_provider_bits(c);
+
+    snes_set_button(c, SNES_BTN_START, false);
+    for (int i = 0; i < 2; i++) snes_frame(c);
+    unsigned released = snes_provider_bits(c);
+
+    std::printf("provider-calls=%d last-type=%d\n", snes_provider_calls(c), snes_provider_last_type(c));
+    std::printf("idle-bits=%08x\n", idle);
+    std::printf("start-bits=%08x\n", held);
+    std::printf("released-bits=%08x\n", released);
+
+    bool ok = idle == 0 && (held & (1u << SNES_BTN_START)) != 0 && released == 0;
+    std::printf("input-reaches-pad=%s\n", ok ? "YES" : "NO");
+    snes_stop(c);
+    snes_destroy(c);
     return ok ? 0 : 1;
 }
 
@@ -300,6 +333,47 @@ static int States(const char* rom, const char* savedir)
     return ok ? 0 : 1;
 }
 
+// Review fix: a headered dump must be the same game, not just the same CRC.
+// Same payload CRC AND the same frame hash after 60 frames is the proof that
+// Mesen stripped the same bytes the id was computed over.
+static int Headered(const char* rom, const char* savedir, const char* other)
+{
+    RunResult plain, headered;
+    if (!RunFrames(rom, savedir, 60, false, &plain)) return 1;
+    if (!RunFrames(other, savedir, 60, false, &headered)) return 1;
+
+    std::printf("plain-crc=%08x plain-hash=%08x\n", plain.crc, plain.hash);
+    std::printf("headered-crc=%08x headered-hash=%08x\n", headered.crc, headered.hash);
+    bool ok = plain.crc == headered.crc && plain.hash == headered.hash;
+    std::printf("headered-same=%s\n", ok ? "YES" : "NO");
+    return ok ? 0 : 1;
+}
+
+// Review fix: after a stop, the read must refuse and the reset must not crash.
+static int AfterStop(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    for (int i = 0; i < 10; i++) snes_frame(c);
+    snes_stop(c);
+
+    uint32_t v = 0xDEADBEEFu;
+    bool read_after_stop = snes_read(c, 0x7E001Au, 1, &v);
+    snes_reset(c);          // must be a no-op, not a null-console dereference
+    bool ok = !read_after_stop;
+    std::printf("read-after-stop=%s\n", read_after_stop ? "ANSWERED (bad)" : "refused");
+    std::printf("reset-after-stop=survived\n");
+    std::printf("after-stop=%s\n", ok ? "YES" : "NO");
+    snes_destroy(c);
+    return ok ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -325,6 +399,14 @@ int main(int argc, char** argv)
         return Reads(argv[2], argv[3]);
     }
     if (std::strcmp(argv[1], "--resolve") == 0) return Resolve();
+    if (std::strcmp(argv[1], "--headered") == 0) {
+        if (argc < 5) { Usage(argv[0]); return 2; }
+        return Headered(argv[2], argv[3], argv[4]);
+    }
+    if (std::strcmp(argv[1], "--after-stop") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return AfterStop(argv[2], argv[3]);
+    }
     if (std::strcmp(argv[1], "--states") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return States(argv[2], argv[3]);

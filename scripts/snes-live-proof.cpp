@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "pokecore.h"
+#include "snes_core.h"
 
 static std::vector<std::string> g_say;
 
@@ -100,16 +101,57 @@ static int Reload(const char* romA, const char* romB, const char* savedir)
     return ok ? 0 : 1;
 }
 
+// Review fix: a SECOND LOAD ON THE SAME CORE. The old Reload() built two cores,
+// so it never exercised teardown at all.
+static int Teardown(const char* romA, const char* romB, const char* savedir)
+{
+    PokeCore* core = poke_create();
+    if (!core) { std::printf("FAIL: no core\n"); return 1; }
+
+    if (!poke_load_rom(core, romA, savedir) || !poke_start(core)) {
+        std::printf("FAIL: first load: %s\n", poke_last_error(core));
+        poke_destroy(core);
+        return 1;
+    }
+    const std::string codeA = poke_game_code(core);
+    for (int i = 0; i < 30; i++) poke_frame(core);
+
+    if (!poke_load_rom(core, romB, savedir)) {
+        std::printf("FAIL: second load: %s\n", poke_last_error(core));
+        poke_destroy(core);
+        return 1;
+    }
+    const std::string codeB = poke_game_code(core);
+    for (int i = 0; i < 30; i++) poke_frame(core);
+
+    const int live_after_second_load = snes_live_instances();
+    poke_stop(core);
+    poke_destroy(core);
+    const int live_after_destroy = snes_live_instances();
+
+    std::printf("first-code=%s\n", codeA.c_str());
+    std::printf("second-code=%s\n", codeB.c_str());
+    std::printf("live-after-second-load=%d\n", live_after_second_load);
+    std::printf("live-after-destroy=%d\n", live_after_destroy);
+
+    bool ok = codeA != codeB && live_after_second_load == 1 && live_after_destroy == 0;
+    std::printf("teardown=%s\n", ok ? "YES" : "NO");
+    return ok ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
     if (argc >= 5 && std::strcmp(argv[1], "--reload") == 0)
         return Reload(argv[2], argv[3], argv[4]);
+    if (argc >= 5 && std::strcmp(argv[1], "--teardown") == 0)
+        return Teardown(argv[2], argv[3], argv[4]);
     if (argc >= 4)
         return One(argv[1], argv[2], argc >= 4 ? argv[3] : "any");
 
     std::fprintf(stderr,
                  "usage: %s <rom> <savedir> [expected-code|any]\n"
-                 "       %s --reload <romA> <romB> <savedir>\n",
-                 argv[0], argv[0]);
+                 "       %s --reload <romA> <romB> <savedir>\n"
+                 "       %s --teardown <romA> <romB> <savedir>\n",
+                 argv[0], argv[0], argv[0]);
     return 2;
 }

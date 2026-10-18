@@ -66,24 +66,35 @@ build_probe() {
 }
 
 build_live() {
+  # The probe binary carries snes_core.o from THIS source, so the proof never
+  # links a stale archive member after a core change.
+  build_core
   g++ "${CXXFLAGS[@]}" -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" \
       -c "$ROOT/scripts/snes-live-proof.cpp" -o "$OUT/snes_live_proof.o" \
       || { echo "!! compile snes-live-proof.cpp" >&2; exit 1; }
-  link "$OUT/snes_live_proof.o" "$OUT/libmesen.a" -o "$OUT/snes-live-proof" \
+  link "$OUT/snes_live_proof.o" "$OUT/snes_core.o" "$OUT/libmesen.a" -o "$OUT/snes-live-proof" \
       > "$OUT/live-link.log" 2>&1 || { echo "!! link snes-live-proof" >&2; tail -n 8 "$OUT/live-link.log" >&2; exit 1; }
 }
 
 echo "== $MODE"
 case "$MODE" in
-  --live|--live-cases) build_live ;;
+  --live|--live-cases|--teardown) build_live ;;
   *)                   build_probe ;;
 esac
 
 case "$MODE" in
-  --identity|--run|--input|--reset|--reads|--resolve|--states)
+  --identity|--run|--input|--reset|--reads|--resolve|--states|--after-stop)
     exec "$OUT/snes-probe" "$MODE" "$ROM" "$SAVE" "${@:2}" ;;
+  --headered)
+    HEADERED="$HOME/z3work/alttp-headered.smc"
+    dd if=/dev/zero bs=512 count=1 status=none > "$HEADERED"
+    cat "$ROM" >> "$HEADERED"
+    exec "$OUT/snes-probe" --headered "$ROM" "$SAVE" "$HEADERED" ;;
   --live)
     exec "$OUT/snes-live-proof" "$ROM" "$SAVE" "crc:777aac2f" ;;
+  --teardown)
+    [ -f "$OTHER_ROM" ] || { echo "!! no second SNES ROM at $OTHER_ROM" >&2; exit 1; }
+    exec "$OUT/snes-live-proof" --teardown "$ROM" "$OTHER_ROM" "$SAVE" ;;
   --live-cases)
     set -e
     cp "$ROM" "$HOME/z3work/alttp-renamed.sfc"

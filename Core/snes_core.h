@@ -38,6 +38,9 @@ extern "C" {
 typedef struct SnesCore SnesCore;
 
 SnesCore *snes_create(void);
+
+/* Live SnesCore objects, for the teardown proof. Diagnostic only. */
+int snes_live_instances(void);
 void snes_destroy(SnesCore *core);
 
 /* Load a .sfc/.smc/.fig/.swc ROM. save_path becomes Mesen's home folder, the
@@ -73,6 +76,17 @@ const uint8_t *snes_framebuffer_ptr(SnesCore *core);
 const char *snes_video_result(SnesCore *core);
 
 void snes_set_button(SnesCore *core, int snes_button, bool down);
+
+/* The pad state Mesen serializes for port 1, as a bit field in SNES_BTN_*
+ * order. Diagnostic: proves the host's input reached the console's controller.
+ * Returns 0xFFFFFFFF when there is no SNES controller on port 1. */
+unsigned snes_controller_bits(SnesCore *core);
+
+/* What the core's IInputProvider last wrote to Mesen's controller, in
+ * SNES_BTN_* bit order, and how many times Mesen asked for input. */
+unsigned snes_provider_bits(SnesCore *core);
+int snes_provider_calls(SnesCore *core);
+int snes_provider_last_type(SnesCore *core);
 
 /* ---- memory reads (the adapter Host path) ----
  *

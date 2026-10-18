@@ -59,6 +59,10 @@ struct SnesCore {
     long header_bytes = 0;  /* 512 for a headered .smc, 0 otherwise */
 
     uint8_t buttons[SNES_BTN_COUNT] = {0};  /* 1 = pressed, in SNES_BTN_* order */
+    /* What the host last handed Mesen's controller, for the input proof. */
+    unsigned providerBits = 0;
+    int providerCalls = 0;
+    int lastDeviceType = -1;
     std::vector<uint8_t> frameRGBA;         /* our own copy: Mesen's buffer dies with the frame */
     int fbW = 0, fbH = 0;
     /* ⛔ ONE FILTER, REUSED. SnesConsole::GetVideoFilter RETURNS A NEW OBJECT on
@@ -78,9 +82,16 @@ public:
     bool SetInput(BaseControlDevice *device) override
     {
         if (!_core || !device) return false;
+        _core->providerCalls++;
+        _core->lastDeviceType = (int) device->GetControllerType();
         if (device->GetControllerType() != ControllerType::SnesController) return false;
-        for (int i = 0; i < SNES_BTN_COUNT; i++)
-            device->SetBitValue((uint8_t) i, _core->buttons[i] != 0);
+        unsigned bits = 0;
+        for (int i = 0; i < SNES_BTN_COUNT; i++) {
+            bool down = _core->buttons[i] != 0;
+            if (down) bits |= (1u << i);
+            device->SetBitValue((uint8_t) i, down);
+        }
+        _core->providerBits = bits;
         return true;
     }
 
@@ -171,6 +182,13 @@ void CaptureFrame(SnesCore *c)
     BaseVideoFilter *filter = c->videoFilter;
     if (!filter) { g_captureResult = "no video filter"; return; }
 
+    /* ⛔ THE PPU BUFFER IS LIVE. Without the emulator lock the emulation thread
+     * may be drawing the next frame while this copies the last one, so the same
+     * input produces different pixels run to run — measured: three identical
+     * --run 600 processes gave hashes d1eab5e6, 58aea79e, 7589182b. The lock is
+     * Mesen's own mechanism for exactly this (Emulator::AcquireLock). */
+    EmulatorLock frameLock = c->emu->AcquireLock(false);
+
     PpuFrameInfo ppu = console->GetPpuFrame();
     if (!ppu.FrameBuffer || !ppu.Width || !ppu.Height) { g_captureResult = "empty ppu frame"; return; }
 
@@ -207,9 +225,13 @@ void CaptureFrame(SnesCore *c)
 
 extern "C" {
 
+static std::atomic<int> g_liveInstances{0};
+
 SnesCore *snes_create(void)
 {
-    return new (std::nothrow) SnesCore();
+    SnesCore *c = new (std::nothrow) SnesCore();
+    if (c) g_liveInstances.fetch_add(1);
+    return c;
 }
 
 void snes_destroy(SnesCore *c)
@@ -220,6 +242,7 @@ void snes_destroy(SnesCore *c)
     c->console.reset();
     c->emu.reset();
     delete c;
+    g_liveInstances.fetch_sub(1);
 }
 
 bool snes_load_rom(SnesCore *c, const char *rom_path, const char *save_path,
@@ -251,6 +274,18 @@ bool snes_load_rom(SnesCore *c, const char *rom_path, const char *save_path,
      * Loading on an uninitialized Emulator fails in ways that look like a bad ROM. */
     c->emu->Initialize();
 
+    /* ⛔ MESEN DOES NOT CONNECT A PAD BY ITSELF. Its front end does that from the
+     * settings file; a library use starts with Port1.Type == None, so the console
+     * builds NO controller, our IInputProvider is offered only "None" devices and
+     * every button press is dropped. Measured: provider-calls=15, last-type=0
+     * (ControllerType::None), pad bits all zero. Connect the standard pad before
+     * the ROM is loaded so the console creates it. */
+    if (EmuSettings *settings = c->emu->GetSettings()) {
+        SnesConfig &cfg = settings->GetSnesConfig();
+        if (cfg.Port1.Type == ControllerType::None)
+            cfg.Port1.Type = ControllerType::SnesController;
+    }
+
     VirtualFile rom((std::string(rom_path)));
     if (!rom.IsValid()) { c->error = "The ROM could not be opened."; return false; }
 
@@ -272,8 +307,21 @@ bool snes_load_rom(SnesCore *c, const char *rom_path, const char *save_path,
     c->console = c->emu->GetConsole();
     if (!c->console) { c->error = "The ROM loaded but no console was created."; return false; }
 
-    /* ⛔ DO NOT TAKE Mesen's GetCrc32 HERE. It hashes the file, header included;
-     * the payload CRC above is the id. See the note beside CrcTable(). */
+    /* ⛔ THE ID IS THE IMAGE MESEN RUNS, NOT A SECOND GUESS AT THE FILE.
+     * Mesen decides for itself whether a dump carries the 512-byte copier header
+     * (BaseCartridge.cpp scores eight candidate bases). The file-size heuristic
+     * above can disagree with it, and then the id would describe bytes the
+     * console is not executing. SnesPrgRom is the cartridge's ROM AFTER Mesen's
+     * own decision, so hashing that makes the id and the running game the same
+     * thing by construction. The file CRC stays only as a fallback for a build
+     * where the block is not exposed. */
+    {
+        ConsoleMemoryInfo rom = c->emu->GetMemory(MemoryType::SnesPrgRom);
+        if (rom.Memory && rom.Size > 0) {
+            c->crc = Crc32Payload((const uint8_t *) rom.Memory, (size_t) rom.Size);
+            c->header_bytes = 0;   /* Mesen's decision, not ours */
+        }
+    }
     if (code_out) std::snprintf(code_out, 16, "crc:%08x", c->crc);
     c->loaded = true;
     return true;
@@ -340,7 +388,9 @@ bool snes_running(SnesCore *c) { return c && c->running; }
 
 void snes_reset(SnesCore *c)
 {
-    if (!c || !c->emu) return;
+    /* Emulator::Stop clears its console, and Reset dereferences it. A reset
+     * of a stopped console is a no-op, not a crash. */
+    if (!c || !c->emu || !c->running) return;
     c->emu->Reset();
 }
 
@@ -436,7 +486,14 @@ void snes_set_button(SnesCore *c, int snes_button, bool down)
 
 bool snes_read(SnesCore *c, uint32_t addr, int width, uint32_t *out)
 {
-    if (!c || !c->emu || !out) return false;
+    if (!out) return false;
+    /* A refusal must never look like a value: zero the caller's slot before
+     * any check, so a caller that ignores the bool cannot read stale data. */
+    *out = 0;
+    /* ⛔ NO CONSOLE, NO ANSWER. After snes_stop the emulator has cleared its
+     * console, and GetMemory would still hand back the dead core's cached
+     * bytes -- a plausible answer from a console that is not running. */
+    if (!c || !c->emu || !c->running) return false;
     if (width != 1 && width != 2 && width != 4) return false;
 
     /* The work-RAM block itself, not the CPU bus: no side effects, and the
@@ -469,6 +526,26 @@ int snes_cpu_pc(SnesCore *c)
     SnesConsole *snes = dynamic_cast<SnesConsole *>(console.get());
     if (!snes || !snes->GetCpu()) return -1;
     return (int) snes->GetCpu()->GetState().PC;
+}
+
+unsigned snes_provider_bits(SnesCore *c) { return c ? c->providerBits : 0; }
+int snes_provider_calls(SnesCore *c) { return c ? c->providerCalls : 0; }
+int snes_provider_last_type(SnesCore *c) { return c ? c->lastDeviceType : -1; }
+
+unsigned snes_controller_bits(SnesCore *c)
+{
+    std::shared_ptr<IConsole> console = LiveConsole(c);
+    if (!console) return 0xFFFFFFFFu;
+    BaseControlManager *cm = console->GetControlManager();
+    if (!cm) return 0xFFFFFFFFu;
+    for (const ControllerData &d : cm->GetPortStates()) {
+        if (d.Port != 0 || d.Type != ControllerType::SnesController) continue;
+        unsigned v = 0;
+        for (size_t i = 0; i < d.State.State.size() && i < 4; i++)
+            v |= (unsigned) d.State.State[i] << (8 * i);
+        return v;
+    }
+    return 0xFFFFFFFFu;
 }
 
 void snes_set_uncapped(SnesCore *c, bool uncapped)
@@ -517,6 +594,8 @@ bool snes_load_state(SnesCore *c, const char *path)
     c->framesSeenOnConsole = c->console ? c->console->GetFrameCount() : 0;
     return true;
 }
+
+int snes_live_instances(void) { return g_liveInstances.load(); }
 
 const char *snes_last_error(SnesCore *c)
 {

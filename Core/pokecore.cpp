@@ -1265,6 +1265,7 @@ static void TeardownBackends(PokeCore* core)
     if (core->gba) { gba_destroy(core->gba); core->gba = nullptr; }
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
+    if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
     core->adapter = nullptr;
     core->adapterAttached = false;
     // Clearing the ops is what makes "is a game loaded?" answerable from one

@@ -55,51 +55,22 @@
 </ul>
 <p>Decisions and their reasons:</p>
 <ol>
-<li><strong>Frame loop on its own thread.</strong> Mesen's <code>Run()</code> owns its frame limiter and</li>
+<li><strong>Frame loop on its own thread.</strong> Mesen's <code>Run()</code> owns its frame limiter and its own loop; the NES core already lives with this. No synchronous single-frame stepping is invented.</li>
+<li><strong>Memory reads through <code>MemoryType::SnesWorkRam</code>.</strong> That is a plain 128 KiB buffer, bounded by <code>ConsoleMemoryInfo.Size</code>, with no MMIO side effects. Addresses outside <code>0x7E0000–0x7FFFFF</code> are refused, not mapped through the CPU bus, because a read of <code>$2100</code> would have side effects. Adapters get <code>false</code> for those, which they already treat as "no answer".</li>
+<li><strong>No audio in the first pass.</strong> <code>nes_read_audio</code> returns 0 today. The SNES core does the same until Mesen's <code>IAudioDevice</code> path is wired and measured. P0 must prove the console runs frames with no audio device registered. Sound is a later phase, and the reader never depends on it.</li>
+<li><strong>Identification is content, not filename.</strong> <code>snes_load_rom</code> writes <code>crc:&lt;8 lowercase hex&gt;</code> from <code>Emulator::GetCrc32()</code> into <code>code_out</code>. A file rename or a translation patch cannot attach the wrong reader. The string is an identifier for the registry, never spoken.</li>
+<li><strong>Battery save on stop.</strong> <code>SnesConsole::SaveBattery()</code> runs in <code>snes_stop</code>, with Mesen's home folder pointed at the save directory, as the NES core does.</li>
+<li><strong>Input provider.</strong> A <code>SnesInputProvider</code> translates the app's twelve <code>POKE_BTN_*</code> indices to Mesen's SNES controller, registered before the loop starts, mirroring <code>NesInputProvider</code>.</li>
 </ol>
-<p>its own loop; the NES core already lives with this. No synchronous single-frame stepping is invented.</p>
-<ol>
-<li><strong>Memory reads through <code>MemoryType::SnesWorkRam</code>.</strong> That is a plain 128 KiB</li>
-</ol>
-<p>buffer, bounded by <code>ConsoleMemoryInfo.Size</code>, with no MMIO side effects. Addresses outside <code>0x7E0000–0x7FFFFF</code> are refused, not mapped through the CPU bus, because a read of <code>$2100</code> would have side effects. Adapters get <code>false</code> for those, which they already treat as "no answer".</p>
-<ol>
-<li><strong>No audio in the first pass.</strong> <code>nes_read_audio</code> returns 0 today. The SNES</li>
-</ol>
-<p>core does the same until Mesen's <code>IAudioDevice</code> path is wired and measured. P0 must prove the console runs frames with no audio device registered. Sound is a later phase, and the reader never depends on it.</p>
-<ol>
-<li><strong>Identification is content, not filename.</strong> <code>snes_load_rom</code> writes</li>
-</ol>
-<p><code>crc:&lt;8 lowercase hex&gt;</code> from <code>Emulator::GetCrc32()</code> into <code>code_out</code>. A file rename or a translation patch cannot attach the wrong reader. The string is an identifier for the registry, never spoken.</p>
-<ol>
-<li><strong>Battery save on stop.</strong> <code>SnesConsole::SaveBattery()</code> runs in <code>snes_stop</code>,</li>
-</ol>
-<p>with Mesen's home folder pointed at the save directory, as the NES core does.</p>
-<ol>
-<li><strong>Input provider.</strong> A <code>SnesInputProvider</code> translates the app's twelve</li>
-</ol>
-<p><code>POKE_BTN_*</code> indices to Mesen's SNES controller, registered before the loop starts, mirroring <code>NesInputProvider</code>.</p>
 <p>Wiring changes:</p>
 <ul>
-<li><code>Core/pokecore.h</code> / <code>Core/pokecore.cpp</code>: a <code>SnesCore* snes</code> member, a</li>
-</ul>
-<p><code>LoadSnesRom</code> path, teardown, and the load dispatch.</p>
-<ul>
-<li><code>Core/oga_core.h</code> / <code>Core/oga_core.cpp</code>: <code>snes_hint</code> in</li>
-</ul>
-<p><code>OgaResolvedBackend</code>, extension cases for <code>.sfc</code>, <code>.smc</code>, <code>.fig</code>, <code>.swc</code>, and a <code>SnesOps</code> table.</p>
-<ul>
-<li><code>Core/systems.cpp</code>: the SNES row moves <code>PLANNED</code> → <code>READY</code> in the same commit</li>
-</ul>
-<p>that boots a ROM, per the registry's own rule.</p>
-<ul>
+<li><code>Core/pokecore.h</code> / <code>Core/pokecore.cpp</code>: a <code>SnesCore* snes</code> member, a <code>LoadSnesRom</code> path, teardown, and the load dispatch.</li>
+<li><code>Core/oga_core.h</code> / <code>Core/oga_core.cpp</code>: <code>snes_hint</code> in <code>OgaResolvedBackend</code>, extension cases for <code>.sfc</code>, <code>.smc</code>, <code>.fig</code>, <code>.swc</code>, and a <code>SnesOps</code> table.</li>
+<li><code>Core/systems.cpp</code>: the SNES row moves <code>PLANNED</code> → <code>READY</code> in the same commit that boots a ROM, per the registry's own rule.</li>
 <li><code>scripts/core-sources.sh</code>: <code>snes_core.cpp</code> joins <code>OGA_GLUE</code>.</li>
-<li><code>Sources/OpenGameAccess/InputBridge.swift</code>: <code>.sfc</code>, <code>.smc</code>, <code>.fig</code>, <code>.swc</code></li>
+<li><code>Sources/OpenGameAccess/InputBridge.swift</code>: <code>.sfc</code>, <code>.smc</code>, <code>.fig</code>, <code>.swc</code> join the picker filter. No new UI concept.</li>
+<li>The Android front end gets the same extension list when the phone build is attempted, not before.</li>
 </ul>
-<p>join the picker filter. No new UI concept.</p>
-<ul>
-<li>The Android front end gets the same extension list when the phone build is</li>
-</ul>
-<p>attempted, not before.</p>
 <h3>3.2 Registry identity</h3>
 <p>The existing registry already compares full strings, and the SNES core's <code>crc:…</code> id is just a string. So <strong>the registry needs no new matching code and the <code>Adapter</code> struct gains no member</strong>: the ALttP adapter sets <code>game_code = "crc:777aac2f"</code>. Only the <code>Command</code> enum grows, append-only, for <code>Status</code>. That keeps the C ABI stable and works for every future SNES reader.</p>
 <h3>3.3 Part 2 — the reader</h3>
@@ -108,9 +79,8 @@
 <ul>
 <li>the id is the measured CRC,</li>
 <li>the console is running and has produced frames,</li>
-<li><code>link_x_coord</code> and <code>link_y_coord</code> are inside the coordinate range the game</li>
+<li><code>link_x_coord</code> and <code>link_y_coord</code> are inside the coordinate range the game uses, and the frame counter is advancing.</li>
 </ul>
-<p>uses, and the frame counter is advancing.</p>
 <p>If any check fails, <code>ready()</code> is false and the UI shows no reader controls. Silence is the correct failure, per the project rule.</p>
 <p>The memory map starts from these zelda3 names. Each row is confirmed live before it is used in speech, and the confirmation is recorded in <code>docs/design/alttp-memory.md</code> with the value observed.</p>
 <table><thead><tr><th>Purpose</th><th>zelda3 name</th><th>Address</th><th>Width</th></tr></thead><tbody>
@@ -130,71 +100,41 @@
 <p>Health is counted in eighths of a heart by the game; speech converts that to hearts and half hearts. Magic and rupees keep the game's own units in the dump and are converted only when spoken.</p>
 <h3>3.4 Speech policy</h3>
 <ul>
-<li>Player-requested answers go through <code>oga::announce()</code> with the queue's High</li>
-</ul>
-<p>priority, so a repeat request always speaks (existing behaviour).</p>
-<ul>
-<li>Automatic changes (area entered, health crossing a threshold) are Low and</li>
-</ul>
-<p>deduplicated by the queue. No automatic line may interrupt a dialogue line the player triggered.</p>
-<ul>
+<li>Player-requested answers go through <code>oga::announce()</code> with the queue's High priority, so a repeat request always speaks (existing behaviour).</li>
+<li>Automatic changes (area entered, health crossing a threshold) are Low and deduplicated by the queue. No automatic line may interrupt a dialogue line the player triggered.</li>
 <li>Nothing speaks before <code>ready()</code>. No "reading" filler.</li>
 <li><code>DumpState</code> writes the raw values for a bug report and speaks nothing.</li>
 </ul>
 <h2>4. Reader content, phase by phase</h2>
 <h3>P1 — identity, position, status</h3>
 <ul>
-<li><code>WhereAmI</code>: overworld area or dungeon and room, spoken with the raw numbers</li>
-</ul>
-<p>until names exist ("Area 3, screen 4" is honest; a guessed name is not). Include distance from the room's origin only if it helps; otherwise omit.</p>
-<ul>
-<li><code>Status</code> (new append-only command): hearts and health, magic, rupees. Keys</li>
-</ul>
-<p>when mapped.</p>
-<ul>
+<li><code>WhereAmI</code>: overworld area or dungeon and room, spoken with the raw numbers until names exist ("Area 3, screen 4" is honest; a guessed name is not). Include distance from the room's origin only if it helps; otherwise omit.</li>
+<li><code>Status</code> (new append-only command): hearts and health, magic, rupees. Keys when mapped.</li>
 <li><code>DumpState</code>: the table above, with values.</li>
 </ul>
 <h3>P2 — names</h3>
 <ul>
-<li>A shipped table <code>Core/alttp_names.cpp</code> maps overworld area index and dungeon</li>
+<li>A shipped table <code>Core/alttp_names.cpp</code> maps overworld area index and dungeon room id to names. Area names follow the game's own regions; dungeon names are the game's own.</li>
+<li>The table is data about the game, not game data: no ROM bytes, no text ripped from the cartridge.</li>
+<li>The light/dark world split and the area index range are measured in P2, not assumed.</li>
 </ul>
-<p>room id to names. Area names follow the game's own regions; dungeon names are the game's own.</p>
-<ul>
-<li>The table is data about the game, not game data: no ROM bytes, no text ripped</li>
-</ul>
-<p>from the cartridge.</p>
-<ul>
-<li>The light/dark world split and the area index range are measured in P2, not</li>
-</ul>
-<p>assumed.</p>
 <h3>P3 — menus</h3>
 <ul>
 <li>File select (three save slots, name, progress).</li>
-<li>Item menu and equipment menu, driven by the existing <code>MenuNext</code> / <code>MenuPrev</code></li>
+<li>Item menu and equipment menu, driven by the existing <code>MenuNext</code> / <code>MenuPrev</code> / <code>MenuLeft</code> / <code>MenuRight</code> commands, so the host's menu tracker works with no new mechanism.</li>
+<li>Cursor addresses are not in the table above because they are not yet measured. P3 begins with live reverse engineering of those screens, using the repo's existing tooling, and records what it finds.</li>
 </ul>
-<p>/ <code>MenuLeft</code> / <code>MenuRight</code> commands, so the host's menu tracker works with no new mechanism.</p>
-<ul>
-<li>Cursor addresses are not in the table above because they are not yet</li>
-</ul>
-<p>measured. P3 begins with live reverse engineering of those screens, using the repo's existing tooling, and records what it finds.</p>
 <h3>P4 — dialogue</h3>
 <ul>
-<li>The game decompresses dialogue into the <code>kTextDialoguePointers</code> region. The</li>
-</ul>
-<p>decoder is ported from the decomp's own text routine (<code>src/messaging.c</code> in zelda3), with no game data.</p>
-<ul>
-<li>Speech fires when a new message index appears, not every frame, and finishes</li>
-</ul>
-<p>before any automatic line.</p>
-<ul>
+<li>The game decompresses dialogue into the <code>kTextDialoguePointers</code> region. The decoder is ported from the decomp's own text routine (<code>src/messaging.c</code> in zelda3), with no game data.</li>
+<li>Speech fires when a new message index appears, not every frame, and finishes before any automatic line.</li>
 <li>Choice prompts ("yes/no") speak each option and the current selection.</li>
 </ul>
 <h3>P5 — guidance</h3>
 <ul>
 <li>Counted steps and turns, following <code>docs/design/navigation-prior-art.md</code>.</li>
-<li>Requires room collision or a waypoint graph. The cheapest source is the</li>
+<li>Requires room collision or a waypoint graph. The cheapest source is the game's own room data in the ROM; the fallback is a hand-built graph per room. This is the largest phase and does not gate P1–P4.</li>
 </ul>
-<p>game's own room data in the ROM; the fallback is a hand-built graph per room. This is the largest phase and does not gate P1–P4.</p>
 <h2>5. Failure behaviour</h2>
 <table><thead><tr><th>Situation</th><th>Behaviour</th></tr></thead><tbody>
 <tr><td>Unknown SNES dump</td><td>Console loads, no adapter, UI shows no reader controls. Log names the CRC.</td></tr>
@@ -205,22 +145,10 @@
 </tbody></table>
 <h2>6. Testing</h2>
 <ol>
-<li><strong>Unit tests, no ROM.</strong> <code>Core/alttp_adapter_test.cpp</code> with a stubbed host</li>
-</ol>
-<p>and a synthetic 128 KiB work-RAM image, like the Mortal Kombat test. Covers: identity refusal on a wrong CRC, coordinate sanity, health conversion, speech strings, and <code>DumpState</code>. Runner: <code>scripts/alttp-adapter-test.sh</code>, added to <code>scripts/adapter-tests.sh</code>.</p>
-<ol>
-<li><strong>Host proof, real ROM.</strong> <code>scripts/snes-alttp-proof.sh</code> builds a probe that</li>
-</ol>
-<p>loads the ROM through the core, runs a fixed number of frames, and prints: CRC, frames completed, PPU frame count, <code>frame_counter</code>, Link X/Y, area, room, health. It fails when any value is out of range or when the frame counter does not advance by the expected amount. No input is scripted in P0; the title screen is enough to prove the console and the reads.</p>
-<ol>
-<li><strong>Adapter smoke on the host.</strong> A second probe drives the game through the</li>
-</ol>
-<p>app's own <code>PokeCore</code> path, so the wiring is proven separately from the core.</p>
-<ol>
-<li><strong>Phone measurement.</strong> Android build, then frames per second and the first</li>
-</ol>
-<p>ten seconds of the opening on Devin's phone. This is the only number that decides whether the SNES route is viable on device.</p>
-<ol>
+<li><strong>Unit tests, no ROM.</strong> <code>Core/alttp_adapter_test.cpp</code> with a stubbed host and a synthetic 128 KiB work-RAM image, like the Mortal Kombat test. Covers: identity refusal on a wrong CRC, coordinate sanity, health conversion, speech strings, and <code>DumpState</code>. Runner: <code>scripts/alttp-adapter-test.sh</code>, added to <code>scripts/adapter-tests.sh</code>.</li>
+<li><strong>Host proof, real ROM.</strong> <code>scripts/snes-alttp-proof.sh</code> builds a probe that loads the ROM through the core, runs a fixed number of frames, and prints: CRC, frames completed, PPU frame count, <code>frame_counter</code>, Link X/Y, area, room, health. It fails when any value is out of range or when the frame counter does not advance by the expected amount. No input is scripted in P0; the title screen is enough to prove the console and the reads.</li>
+<li><strong>Adapter smoke on the host.</strong> A second probe drives the game through the app's own <code>PokeCore</code> path, so the wiring is proven separately from the core.</li>
+<li><strong>Phone measurement.</strong> Android build, then frames per second and the first ten seconds of the opening on Devin's phone. This is the only number that decides whether the SNES route is viable on device.</li>
 <li><strong>Playtest.</strong> Devin plays the opening. Speech usefulness is his call.</li>
 </ol>
 <h2>7. Phases and acceptance criteria</h2>
@@ -237,46 +165,20 @@
 <p>Sizes are relative to the code that exists: L is "a new subsystem", M is "one file plus tests", not hours.</p>
 <h2>8. Risks</h2>
 <ol>
-<li><strong>Phone speed is unmeasured.</strong> Mesen's SNES interpreter may be too slow on</li>
+<li><strong>Phone speed is unmeasured.</strong> Mesen's SNES interpreter may be too slow on Android. P0a and P6 measure it. If it fails, the fallback is a lighter SNES core with the same adapter seam, and that decision is made on numbers.</li>
+<li><strong>Work-RAM reads race the emulator thread.</strong> The NES core reads live memory the same way. P0a measures stability by reading <code>frame_counter</code> across 600 frames and asserting it advances.</li>
+<li><strong>Menus and dialogue need new reverse engineering.</strong> Only the table in §3.3 is measured. P3 and P4 each begin with live RE and can slip without affecting P1.</li>
+<li><strong>Names are curated.</strong> The table will have gaps; the adapter must say "room 42" rather than invent a name.</li>
+<li><strong>No sound at first.</strong> A Zelda dungeon silent is a worse experience, but not a broken reader. Audio is scheduled after P1.</li>
 </ol>
-<p>Android. P0a and P6 measure it. If it fails, the fallback is a lighter SNES core with the same adapter seam, and that decision is made on numbers.</p>
-<ol>
-<li><strong>Work-RAM reads race the emulator thread.</strong> The NES core reads live memory</li>
-</ol>
-<p>the same way. P0a measures stability by reading <code>frame_counter</code> across 600 frames and asserting it advances.</p>
-<ol>
-<li><strong>Menus and dialogue need new reverse engineering.</strong> Only the table in §3.3</li>
-</ol>
-<p>is measured. P3 and P4 each begin with live RE and can slip without affecting P1.</p>
-<ol>
-<li><strong>Names are curated.</strong> The table will have gaps; the adapter must say "room</li>
-</ol>
-<p>42" rather than invent a name.</p>
-<ol>
-<li><strong>No sound at first.</strong> A Zelda dungeon silent is a worse experience, but not</li>
-</ol>
-<p>a broken reader. Audio is scheduled after P1.</p>
 <h2>9. Open questions, with the default I would pick</h2>
 <ol>
-<li><strong>Sound.</strong> Default: skip in P0, wire Mesen audio after P1 if the phone can</li>
+<li><strong>Sound.</strong> Default: skip in P0, wire Mesen audio after P1 if the phone can afford it. Revisit when the reader is usable.</li>
+<li><strong>A separate <code>Status</code> command, or fold health into <code>WhereAmI</code>?</strong> Default: separate, append-only, because health changes constantly and location does not, and a player will want one without the other.</li>
+<li><strong>Key counts.</strong> Default: read from the game's own dungeon save table once its layout is measured in P1; if that proves expensive, speak keys only on the item menu in P3.</li>
+<li><strong>Which revisions to support.</strong> Default: the USA 1.0 dump measured here. Other regions and revisions are added only when a CRC is measured on a real file.</li>
+<li><strong>Room naming granularity.</strong> Default: dungeon name plus room number, with a short landmark phrase once a table exists.</li>
 </ol>
-<p>afford it. Revisit when the reader is usable.</p>
-<ol>
-<li><strong>A separate <code>Status</code> command, or fold health into <code>WhereAmI</code>?</strong> Default:</li>
-</ol>
-<p>separate, append-only, because health changes constantly and location does not, and a player will want one without the other.</p>
-<ol>
-<li><strong>Key counts.</strong> Default: read from the game's own dungeon save table once</li>
-</ol>
-<p>its layout is measured in P1; if that proves expensive, speak keys only on the item menu in P3.</p>
-<ol>
-<li><strong>Which revisions to support.</strong> Default: the USA 1.0 dump measured here.</li>
-</ol>
-<p>Other regions and revisions are added only when a CRC is measured on a real file.</p>
-<ol>
-<li><strong>Room naming granularity.</strong> Default: dungeon name plus room number, with a</li>
-</ol>
-<p>short landmark phrase once a table exists.</p>
 <h2>10. Not in scope</h2>
 <ul>
 <li>Randomizer support.</li>
@@ -286,14 +188,8 @@
 </ul>
 <h2>11. Status log</h2>
 <ul>
-<li>2026-10-17: console implemented and proved on the host: load + payload CRC identity,</li>
-</ul>
-<p>frame loop, video, input, work-RAM reads, backend wiring, registry READY, savestates; <code>scripts/snes-alttp-proof.sh</code> is the proof. The iOS app builds and its picker offers <code>.sfc/.smc/.fig/.swc</code>.</p>
-<ul>
-<li>2026-10-17: ⛔ THE ANDROID APP HAS NO BACKEND SEAM AT ALL (<code>app/src/main/cpp</code> is</li>
-</ul>
-<p>melonDS only; no Mesen, no <code>oga_core</code>). The phone measurement therefore moved to iOS, or waits for a separate Android plan. Measured: <code>docs/evidence/alttp-android-fps.txt</code>.</p>
-<ul>
+<li>2026-10-17: console implemented and proved on the host: load + payload CRC identity, frame loop, video, input, work-RAM reads, backend wiring, registry READY, savestates; <code>scripts/snes-alttp-proof.sh</code> is the proof. The iOS app builds and its picker offers <code>.sfc/.smc/.fig/.swc</code>.</li>
+<li>2026-10-17: ⛔ THE ANDROID APP HAS NO BACKEND SEAM AT ALL (<code>app/src/main/cpp</code> is melonDS only; no Mesen, no <code>oga_core</code>). The phone measurement therefore moved to iOS, or waits for a separate Android plan. Measured: <code>docs/evidence/alttp-android-fps.txt</code>.</li>
 <li>2026-10-17: design written. Nothing implemented.</li>
 </ul>
 </body></html>
