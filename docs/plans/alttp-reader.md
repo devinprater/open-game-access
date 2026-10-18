@@ -153,6 +153,11 @@ git commit -m "alttp: status command with hearts, magic and rupees"
 
 ### Task 4: Names for areas, dungeons and rooms
 
+**UPDATED 2026-10-17 — UNBLOCKED.** A public save loaded, one START press closed the
+interface module, and walking out gave the first outdoor reading: module 9 (Overworld),
+area 44, screen 44. Names now need a curated table, not a measurement; the numbers speak
+in the meantime.
+
 **⛔ MEASURED 2026-10-17 — BLOCKED ON A SAVE.** The scripted drive reached
 gameplay (module 7, indoors=1, room=260, hp 24/24) and confirmed the indoor room
 and health addresses, but could not leave Link's house, so the overworld area and
