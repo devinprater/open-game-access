@@ -139,8 +139,111 @@ static int Teardown(const char* romA, const char* romB, const char* savedir)
     return ok ? 0 : 1;
 }
 
+// --menus: the ADAPTER's menu speech on the real ROM and the public save.
+// The core probe measured the addresses; this proves the app path speaks from
+// them (adapter attached, on_frame running, announcements reaching the sink).
+static void TapApp(PokeCore* core, int btn, int hold, int settle)
+{
+    for (int i = 0; i < hold; i++) { poke_set_button(core, btn, true); poke_frame(core); }
+    poke_set_button(core, btn, false);
+    for (int i = 0; i < settle; i++) poke_frame(core);
+}
+
+static int Menus(const char* rom, const char* savedir)
+{
+    PokeCore* core = poke_create();
+    if (!core) { std::printf("FAIL: no core\n"); return 1; }
+    poke_set_speech_callback(core, OnSpeak, nullptr);
+    g_say.clear();
+
+    if (!poke_load_rom(core, rom, savedir) || !poke_start(core)) {
+        std::printf("FAIL: %s\n", poke_last_error(core));
+        poke_destroy(core);
+        return 1;
+    }
+    std::printf("adapter=%s ready=%d\n",
+                poke_adapter_id(core) ? poke_adapter_id(core) : "(none)",
+                (int) poke_adapter_ready(core));
+
+    // The same boot drive the core probe uses: START every 90 frames, A shortly
+    // after, about 1500 frames to land in the save.
+    for (int f = 0; f < 1500; f++) {
+        poke_set_button(core, POKE_BTN_START, (f % 90) < 4);
+        poke_set_button(core, POKE_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        poke_frame(core);
+    }
+    poke_set_button(core, POKE_BTN_START, false);
+    poke_set_button(core, POKE_BTN_A, false);
+
+    // The boot drive can end with the interface overlay already up (the first
+    // load did) or closed (after a run that saved). One START tells us which:
+    // if the adapter speaks an item menu line, the press opened it.
+    std::printf("-- normalising the overlay with one START --\n");
+    size_t before = g_say.size();
+    TapApp(core, POKE_BTN_START, 4, 60);
+    bool item_open = g_say.size() > before;
+    if (!item_open) {
+        std::printf("-- the menu was closed; opening it --\n");
+        before = g_say.size();
+        TapApp(core, POKE_BTN_START, 4, 60);
+        item_open = g_say.size() > before;
+    }
+    if (!item_open) {
+        std::printf("FAIL: the item menu never opened\n");
+        poke_stop(core);
+        poke_destroy(core);
+        return 1;
+    }
+
+    std::printf("-- item menu: right --\n");
+    TapApp(core, POKE_BTN_RIGHT, 4, 40);
+    std::printf("-- item menu: left --\n");
+    TapApp(core, POKE_BTN_LEFT, 4, 40);
+    std::printf("-- closing the item menu --\n");
+    TapApp(core, POKE_BTN_START, 4, 60);
+
+    std::printf("-- opening the save menu --\n");
+    before = g_say.size();
+    TapApp(core, POKE_BTN_SELECT, 4, 90);
+    bool save_open = g_say.size() > before;
+    if (!save_open) {
+        std::printf("-- SELECT did not open it; trying once more --\n");
+        before = g_say.size();
+        TapApp(core, POKE_BTN_SELECT, 4, 90);
+        save_open = g_say.size() > before;
+    }
+    if (!save_open) {
+        std::printf("FAIL: the save menu never opened\n");
+        poke_stop(core);
+        poke_destroy(core);
+        return 1;
+    }
+
+    std::printf("-- save menu: down --\n");
+    TapApp(core, POKE_BTN_DOWN, 4, 60);
+    std::printf("-- save menu: up --\n");
+    TapApp(core, POKE_BTN_UP, 4, 60);
+    std::printf("-- cancelling the save menu --\n");
+    TapApp(core, POKE_BTN_B, 4, 90);
+
+    bool spoke_item = false, spoke_save = false;
+    for (const std::string& s : g_say) {
+        if (s.rfind("Item menu.", 0) == 0) spoke_item = true;
+        if (s.rfind("Save menu.", 0) == 0) spoke_save = true;
+    }
+    bool ok = spoke_item && spoke_save;
+    std::printf("item-menu-spoken=%d save-menu-spoken=%d\n", (int) spoke_item, (int) spoke_save);
+    std::printf("lines=%d\n", (int) g_say.size());
+    std::printf("menu-proof=%s\n", ok ? "YES" : "NO");
+    poke_stop(core);
+    poke_destroy(core);
+    return ok ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
+    if (argc >= 4 && std::strcmp(argv[1], "--menus") == 0)
+        return Menus(argv[2], argv[3]);
     if (argc >= 5 && std::strcmp(argv[1], "--reload") == 0)
         return Reload(argv[2], argv[3], argv[4]);
     if (argc >= 5 && std::strcmp(argv[1], "--teardown") == 0)

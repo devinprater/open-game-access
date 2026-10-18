@@ -56,4 +56,72 @@ const char* AlttpAreaName(uint8_t area)
     return nullptr;
 }
 
+/* The item menu's 20 equipment slots, in the game's own order (the order of
+ * link_item_bow..link_item_mirror, hud.c's inventory pointers, and the 4-wide
+ * grid the menu draws). Names are the game's item names; the levels are the
+ * values hud.c's own graphics tables distinguish (bow 5 frames, boomerang 3,
+ * mushroom 3, flute 4, sword 5, shield 4, armour 5).
+ *
+ * ⛔ The bottle slot is hud 16 in the original inventory and 21-24 in the newer
+ * one; neither is an equipment count, so a zero value there says nothing about
+ * whether bottles are empty. */
+const char* AlttpItemName(uint8_t hud, uint8_t value)
+{
+    switch (hud) {
+        case 1:  return "Bow";
+        case 2:  return value >= 2 ? "Magical boomerang" : "Boomerang";
+        case 3:  return value >= 2 ? "Long shot" : "Hookshot";
+        case 4:  return "Bombs";
+        case 5:  return value >= 2 ? "Magic powder" : "Mushroom";
+        case 6:  return "Fire rod";
+        case 7:  return "Ice rod";
+        case 8:  return "Bombos medallion";
+        case 9:  return "Ether medallion";
+        case 10: return "Quake medallion";
+        case 11: return "Lamp";
+        case 12: return "Hammer";
+        case 13: return value == 1 ? "Shovel" : "Flute";
+        case 14: return "Bug net";
+        case 15: return "Book of Mudora";
+        case 16: return "Bottles";
+        case 17: return "Cane of Somaria";
+        case 18: return "Cane of Byrna";
+        case 19: return "Magic cape";
+        case 20: return "Magic mirror";
+        case 21: case 22: case 23: case 24: return "Bottle";
+        default: return nullptr;
+    }
+}
+
+const char* AlttpSwordName(uint8_t value)
+{
+    switch (value) {
+        case 1: return "Fighter's Sword";
+        case 2: return "Master Sword";
+        case 3: return "Tempered Sword";
+        case 4: return "Golden Sword";
+        default: return nullptr;
+    }
+}
+
+const char* AlttpShieldName(uint8_t value)
+{
+    switch (value) {
+        case 1: return "Fighter's Shield";
+        case 2: return "Fire Shield";
+        case 3: return "Mirror Shield";
+        default: return nullptr;
+    }
+}
+
+const char* AlttpArmorName(uint8_t value)
+{
+    switch (value) {
+        case 1: return "Green Mail";
+        case 2: return "Blue Mail";
+        case 3: return "Red Mail";
+        default: return nullptr;
+    }
+}
+
 } // namespace oga

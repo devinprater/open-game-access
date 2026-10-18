@@ -170,6 +170,12 @@ compile() {
   printf '%s|cxx|dbzar_adapter\n'     "$ROOT/Core/dbzar_adapter.cpp"
   printf '%s|cxx|dq9_adapter\n'  "$ROOT/Core/dq9_adapter.cpp"
   printf '%s|cxx|mku_adapter\n'  "$ROOT/Core/mku_adapter.cpp"
+  # A Link to the Past. The same omission class as MKU above: adapters.o names
+  # oga::kZeldaLinkToThePast, so the host set must carry the adapter and its
+  # decoder and name table or every harness dies at the LINK.
+  printf '%s|cxx|alttp_adapter\n' "$ROOT/Core/alttp_adapter.cpp"
+  printf '%s|cxx|alttp_text\n'    "$ROOT/Core/alttp_text.cpp"
+  printf '%s|cxx|alttp_names\n'   "$ROOT/Core/alttp_names.cpp"
   # Mortal Kombat: Unchained. Its adapter was in OGA_GLUE but in NO host list,
   # so adapters.o referenced oga::kMortalKombatUnchained with nothing to resolve it.
   printf '%s|cxx|osk_echo\n'  "$ROOT/Core/osk_echo.cpp"

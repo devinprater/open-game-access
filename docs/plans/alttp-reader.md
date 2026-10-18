@@ -233,6 +233,17 @@ git commit -m "alttp: file-select screen"
 
 ### Task 6: Item and equipment menus
 
+**DONE 2026-10-17.** Measured with `scripts/snes-alttp-proof.sh --menus` on the
+public save: the item menu is module 14 submodule 1 and the cursor is
+`hud_cur_item` (`0x7E0202`), which moved 2 -> 11 on RIGHT and back on LEFT while
+the item bytes stayed still. SELECT's box is module 14 submodule 11 and its
+cursor is `choice_in_multiselect_box` (`0x7E1CE8`), 0 = continue, 1 = save and
+quit. The adapter speaks the item, its row and column, and the equipment box on
+opening, speaks each cursor move, and reads the save box's options. The app path
+was proved on the real ROM and save (`menu-proof=YES`). Details are in
+`docs/design/alttp-memory.md`; the item names and levels are in
+`Core/alttp_names.cpp`.
+
 **Files:**
 - Modify: `Core/alttp_adapter.cpp`
 - Modify: `Core/alttp_adapter_test.cpp`

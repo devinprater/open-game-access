@@ -49,6 +49,26 @@ constexpr uint32_t MAIN_MODULE        = 0x7E0010u;  /* main_module_index */
 constexpr uint32_t SAVED_MODULE       = 0x7E010Cu;  /* saved_module_for_menu */
 constexpr uint32_t DIALOGUE_INDEX     = 0x7E1CF0u;  /* dialogue_message_index */
 constexpr uint32_t TEXT_BUFFER        = 0x7F1200u;  /* messaging_text_buffer */
+/* Menus (measured 2026-10-17, docs/design/alttp-memory.md). */
+constexpr uint32_t SUBMODULE          = 0x7E0011u;  /* submodule_index */
+constexpr uint32_t HUD_MAP_STATE      = 0x7E0200u;  /* overworld_map_state */
+constexpr uint32_t HUD_CUR_ITEM       = 0x7E0202u;  /* hud_cur_item */
+constexpr uint32_t CHOICE_BOX         = 0x7E1CE8u;  /* choice_in_multiselect_box */
+constexpr uint32_t ITEM_BASE          = 0x7EF340u;  /* link_item_bow ... */
+constexpr uint32_t SWORD_TYPE         = 0x7EF359u;  /* link_sword_type */
+constexpr uint32_t SHIELD_TYPE        = 0x7EF35Au;  /* link_shield_type */
+constexpr uint32_t ARMOR_TYPE         = 0x7EF35Bu;  /* link_armor */
+
+/* Interface submodules from the decomp's kMessagingSubmodules. */
+enum : uint8_t {
+    SUB_HUD = 1,          /* Hud_Module_Run: the item menu while module 14 is up */
+    SUB_SAVE_MENU = 11,   /* Module0E_0B_SaveMenu: SELECT's continue/save box */
+};
+
+enum class Menu { None, Item, Save };
+Menu g_menu = Menu::None;
+uint16_t g_lastHudItem = 0xFFFFu;
+uint16_t g_lastChoice = 0xFFFFu;
 
 /* Module numbers from the decomp's kMainRouting (src/misc.c). */
 enum : uint8_t {
@@ -122,13 +142,14 @@ void DumpState()
 {
     char line[256];
     snprintf(line, sizeof(line),
-             "crc:777aac2f health=%u/%u area=%u screen=%u room=%u indoors=%u magic=%u rupees=%u x=%u y=%u frame=%u",
+             "crc:777aac2f health=%u/%u area=%u screen=%u room=%u indoors=%u magic=%u rupees=%u x=%u y=%u frame=%u hud=%u choice=%u",
              (unsigned) u8(HEALTH_CURRENT), (unsigned) u8(HEALTH_CAPACITY),
              (unsigned) u16(OVERWORLD_AREA), (unsigned) u16(OVERWORLD_SCREEN),
              (unsigned) u16(DUNGEON_ROOM), (unsigned) u8(PLAYER_INDOORS),
              (unsigned) u8(MAGIC), (unsigned) u16(RUPEES),
              (unsigned) u16(LINK_X), (unsigned) u16(LINK_Y),
-             (unsigned) u8(FRAME_COUNTER));
+             (unsigned) u8(FRAME_COUNTER),
+             (unsigned) u8(HUD_CUR_ITEM), (unsigned) u8(CHOICE_BOX));
     Log(line);
 }
 
@@ -145,6 +166,9 @@ void AlttpDetach()
     g_host = nullptr;
     g_attached = false;
     g_lastMessage = 0xFFFFu;
+    g_menu = Menu::None;
+    g_lastHudItem = 0xFFFFu;
+    g_lastChoice = 0xFFFFu;
 }
 
 /* Module 14 is the interface/HUD layer; the real screen is in
@@ -158,9 +182,63 @@ uint8_t RealModule()
 
 bool AlttpReady();
 
+void SpeakItemMenu(bool withPrefix, bool withEquipment);
+void SpeakSaveMenu(bool opening);
+
+/* Module 14 with submodule 1 is the item menu, and module 14 with submodule 11
+ * is SELECT's continue/save box. Both were measured on the public save; neither
+ * can be told from the module number alone. */
+Menu CurrentMenu()
+{
+    if (u8(MAIN_MODULE) != MOD_INTERFACE) return Menu::None;
+    uint8_t sub = u8(SUBMODULE);
+    if (sub == SUB_HUD) return Menu::Item;
+    if (sub == SUB_SAVE_MENU) return Menu::Save;
+    return Menu::None;
+}
+
 void AlttpFrame()
 {
-    if (!g_attached || !AlttpReady()) return;
+    if (!g_attached || !AlttpReady()) { g_menu = Menu::None; return; }
+
+    Menu menu = CurrentMenu();
+
+    if (menu != g_menu) {
+        g_menu = menu;
+        g_lastHudItem = 0xFFFFu;
+        g_lastChoice = 0xFFFFu;
+        if (menu == Menu::Item) {
+            g_lastHudItem = u8(HUD_CUR_ITEM);
+            SpeakItemMenu(true, true);
+        } else if (menu == Menu::Save) {
+            g_lastChoice = u8(CHOICE_BOX);
+            SpeakSaveMenu(true);
+        }
+        /* Leaving a menu says nothing: the game's own transition is enough. */
+        return;
+    }
+
+    /* ⛔ A MENU OWNS THE FRAME. The save box's message index changes with the
+     * cursor (390 -> 9 -> 10), and its buffer is cursor decoration, not prose;
+     * the dialogue reader must not speak it. The index is marked as seen so
+     * closing the menu cannot replay that decoration as a new line. */
+    if (menu != Menu::None) {
+        g_lastMessage = u16(DIALOGUE_INDEX);
+        if (menu == Menu::Item) {
+            uint8_t hud = u8(HUD_CUR_ITEM);
+            if (hud != g_lastHudItem) {
+                g_lastHudItem = hud;
+                SpeakItemMenu(false, false);
+            }
+        } else if (menu == Menu::Save) {
+            uint8_t choice = u8(CHOICE_BOX);
+            if (choice != g_lastChoice) {
+                g_lastChoice = choice;
+                SpeakSaveMenu(false);
+            }
+        }
+        return;
+    }
 
     /* ⛔ THE GAME HAS ALREADY DECODED ITS TEXT. messaging_text_buffer holds font
      * tile indices for the current message; a new index means new words. */
@@ -179,7 +257,14 @@ void AlttpFrame()
 
     char text[192];
     int n = AlttpDecodeText(buf, (int) sizeof(buf), text, (int) sizeof(text));
-    if (n > 0) Say(text, "dialogue", Priority::Normal);
+
+    /* ⛔ MENU DECORATION IS NOT SPEECH. Message 9 and 10 are cursor glyphs, and
+     * they decode to punctuation alone; a line with no letter or digit is never
+     * worth saying. */
+    bool words = false;
+    for (int i = 0; i < n; i++)
+        if (isalnum((unsigned char) text[i])) { words = true; break; }
+    if (words) Say(text, "dialogue", Priority::Normal);
 }
 
 bool AlttpReady()
@@ -215,6 +300,99 @@ void NumberWords(unsigned n, char* out, size_t cap)
     char rest_words[48];
     NumberWords(rest, rest_words, sizeof(rest_words));
     snprintf(out, cap, "%s hundred %s", kSmall[hundreds], rest_words);
+}
+
+/* The item menu's value byte. hud 16 is the bottle slot in the original
+ * inventory, and it stores a bottle index rather than an item count; 21-24 are
+ * the newer inventory's bottles. Neither is read as an item level. */
+uint8_t HudItemValue(uint8_t hud)
+{
+    if (hud == 0 || hud == 16 || hud > 20) return 0;
+    return u8(ITEM_BASE + (uint32_t) (hud - 1));
+}
+
+void SpeakItemMenu(bool withPrefix, bool withEquipment)
+{
+    uint8_t hud = u8(HUD_CUR_ITEM);
+    const char* name = AlttpItemName(hud, HudItemValue(hud));
+    char item[128];
+
+    if (hud == 0) {
+        snprintf(item, sizeof(item), "No item chosen.");
+    } else if (name && hud <= 20) {
+        /* The menu draws four columns; the cursor's row and column are worth
+         * saying because they are the only spatial fact a blind player has. */
+        char row[16], column[16];
+        NumberWords((unsigned) ((hud - 1) / 4 + 1), row, sizeof(row));
+        NumberWords((unsigned) ((hud - 1) % 4 + 1), column, sizeof(column));
+        snprintf(item, sizeof(item), "%s, row %s, column %s.", name, row, column);
+    } else if (name) {
+        snprintf(item, sizeof(item), "%s.", name);
+    } else {
+        /* ⛔ AN UNKNOWN SLOT SPEAKS ITS NUMBER. Calling it empty would be a
+         * guess about a slot this table has never seen. */
+        snprintf(item, sizeof(item), "Item %u.", (unsigned) hud);
+    }
+
+    char line[256];
+    snprintf(line, sizeof(line), "%s%s", withPrefix ? "Item menu. " : "", item);
+
+    if (withEquipment) {
+        const char* parts[3] = {
+            AlttpSwordName(u8(SWORD_TYPE)),
+            AlttpShieldName(u8(SHIELD_TYPE)),
+            AlttpArmorName(u8(ARMOR_TYPE)),
+        };
+        char eq[128] = {0};
+        size_t used = 0;
+        for (const char* p : parts) {
+            if (!p) continue;
+            size_t n = strlen(p);
+            if (used + n + 3 >= sizeof(eq)) break;
+            if (used) { eq[used++] = ','; eq[used++] = ' '; }
+            memcpy(eq + used, p, n);
+            used += n;
+            eq[used] = 0;
+        }
+        if (eq[0]) {
+            size_t n = strlen(line);
+            snprintf(line + n, sizeof(line) - n, " %s.", eq);
+        }
+    }
+
+    Say(line, "itemmenu", Priority::High);
+}
+
+const char* SaveChoiceName(uint8_t choice)
+{
+    switch (choice) {
+        case 0: return "Continue game";
+        case 1: return "Save and quit";
+        default: return nullptr;
+    }
+}
+
+void SpeakSaveMenu(bool opening)
+{
+    uint8_t choice = u8(CHOICE_BOX);
+    const char* name = SaveChoiceName(choice);
+    char line[192];
+
+    if (name) {
+        if (opening)
+            snprintf(line, sizeof(line),
+                     "Save menu. Continue game, or save and quit. %s selected.", name);
+        else
+            snprintf(line, sizeof(line), "%s selected.", name);
+    } else {
+        if (opening)
+            snprintf(line, sizeof(line),
+                     "Save menu. Continue game, or save and quit. Choice %u selected.",
+                     (unsigned) choice);
+        else
+            snprintf(line, sizeof(line), "Choice %u selected.", (unsigned) choice);
+    }
+    Say(line, "savemenu", Priority::High);
 }
 
 void SpeakStatus()
@@ -259,6 +437,13 @@ void SpeakStatus()
 
 void SpeakWhereAmI()
 {
+    /* ⛔ A MENU IS THE ANSWER WHILE IT IS UP. Module 14 resolves through
+     * saved_module_for_menu, so without this the item menu would answer with
+     * the room underneath it. */
+    Menu menu = CurrentMenu();
+    if (menu == Menu::Item) { SpeakItemMenu(true, false); return; }
+    if (menu == Menu::Save) { SpeakSaveMenu(true); return; }
+
     char line[96];
     uint8_t mod = RealModule();
 

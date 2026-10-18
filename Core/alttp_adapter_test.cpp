@@ -212,6 +212,82 @@ int main()
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], decoded) == 0,
           "a new message speaks once and is not repeated per frame");
 
+    // ---- item menu: the measured cursor and the equipment box ----
+    // MEASURED 2026-10-17 with the public save: START gives module 14 submodule 1,
+    // overworld_map_state 4, and hud_cur_item moves 2 -> 11 on RIGHT and back on
+    // LEFT while the item bytes stay still. The cursor is hud_cur_item (0x7E0202).
+    put8(0x7E0010u, 14); put8(0x7E0011u, 1); put8(0x7E010Cu, 7);
+    put8(0x7E0202u, 1);            // hud_cur_item = 1, the bow's slot
+    put8(0x7EF340u, 1);            // link_item_bow
+    put8(0x7EF359u, 2); put8(0x7EF35Au, 1); put8(0x7EF35Bu, 1);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Item menu. Bow, row one, column one. Master Sword, Fighter's Shield, Green Mail.") == 0,
+          "item menu: opening names the item and the equipment");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7EF34Au, 1);            // lamp, as on the measured save
+    put8(0x7E0202u, 11);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Lamp, row three, column three.") == 0,
+          "item menu: a cursor move speaks the item, row and column");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7EF341u, 2); put8(0x7E0202u, 2);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Magical boomerang, row one, column two.") == 0,
+          "item menu: a levelled item keeps its real name");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0202u, 30);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Item 30.") == 0,
+          "item menu: an unnamed slot speaks its number, never a guess");
+
+    // Where am I on the item menu must speak the menu, not the room beneath it.
+    put8(0x7E0202u, 2);
+    put8(INDOORS, 1); put16(ROOM, 260);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Item menu. Magical boomerang, row one, column two.") == 0,
+          "where am I on the item menu names the menu, not the room");
+
+    // ---- save menu: module 14 submodule 11, a two-choice text box ----
+    // MEASURED: SELECT gives submodule 11 and message 390, whose decoded text is
+    // "Continue Game, Save and Quit."; choice 0 is continue, 1 is save and quit
+    // (the decomp's Module0E_0B_SaveMenu saves only when the choice is non-zero).
+    put8(0x7E0010u, 14); put8(0x7E0011u, 11); put8(0x7E1CE8u, 0);
+    put16(0x7E1CF0u, 390);
+    static const unsigned char kSaveMenu[] = {
+        0x7a,0x00,0x44,0x59,0x02,0x28,0x27,0x2d,0x22,0x27,0x2e,0x1e,0x59,0x06,0x1a,0x26,
+        0x1e,0x75,0x59,0x59,0x59,0x12,0x1a,0x2f,0x1e,0x59,0x1a,0x27,0x1d,0x59,0x10,0x2e,
+        0x22,0x2d,0x72,0x7f
+    };
+    memcpy(&RAM[OFF(0x7F1200u)], kSaveMenu, sizeof(kSaveMenu));
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Save menu. Continue game, or save and quit. Continue game selected.") == 0,
+          "save menu: opening reads the options and speaks the box text once, not twice");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E1CE8u, 1); put16(0x7E1CF0u, 10);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Save and quit selected.") == 0,
+          "save menu: moving the choice speaks the new option");
+
+    // Closing the box must not replay the cursor glyphs (message 9) as prose.
+    put8(0x7E0010u, 7); put8(0x7E0011u, 0);
+    static const unsigned char kCursorGlyphs[] = {
+        0x7a,0x00,0x74,0x44,0x75,0x59,0x59,0x72,0x7f
+    };
+    memcpy(&RAM[OFF(0x7F1200u)], kCursorGlyphs, sizeof(kCursorGlyphs));
+    put16(0x7E1CF0u, 9);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 0, "closing the save menu does not speak the cursor glyphs");
+
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();
     CHECK(!oga::kZeldaLinkToThePast.ready(), "not ready after detach");

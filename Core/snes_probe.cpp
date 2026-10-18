@@ -798,6 +798,110 @@ static int KeyTest(const char* rom, const char* savedir)
     return 0;
 }
 
+// ---- menus: measure the item menu cursor and the save/quit text ----
+//
+// Task 6 of docs/plans/alttp-reader.md. The item menu is module 14 submodule 1
+// (the interface layer, entered with START); the save and quit box is module 14
+// submodule 11 (entered with SELECT). Both are measured here before the adapter
+// speaks a word about either.
+static void DumpMenu(SnesCore* c, const char* label, int frame)
+{
+    uint32_t mod = 0, sub = 0, real = 0, oms = 0, hud = 0, choice = 0, msg = 0;
+    uint32_t sword = 0, shield = 0, armor = 0;
+    snes_read(c, 0x7E0010u, 1, &mod);
+    snes_read(c, 0x7E0011u, 1, &sub);
+    snes_read(c, 0x7E010Cu, 1, &real);
+    snes_read(c, 0x7E0200u, 1, &oms);
+    snes_read(c, 0x7E0202u, 1, &hud);
+    snes_read(c, 0x7E1CE8u, 1, &choice);
+    snes_read(c, 0x7E1CF0u, 2, &msg);
+    snes_read(c, 0x7EF359u, 1, &sword);
+    snes_read(c, 0x7EF35Au, 1, &shield);
+    snes_read(c, 0x7EF35Bu, 1, &armor);
+
+    std::printf("%s f=%d mod=%u sub=%u real=%u oms=%u hud_cur=%u choice=%u msg=%u sword=%u shield=%u armor=%u\n",
+                label, frame, mod, sub, real, oms, hud, choice, msg, sword, shield, armor);
+
+    std::printf("  items:");
+    for (int i = 0; i < 24; i++) {
+        uint32_t v = 0;
+        snes_read(c, 0x7EF340u + (uint32_t) i, 1, &v);
+        std::printf(" %02x", v);
+    }
+    std::printf("\n  text:");
+    for (int i = 0; i < 48; i++) {
+        uint32_t v = 0;
+        snes_read(c, 0x7F1200u + (uint32_t) i, 1, &v);
+        std::printf(" %02x", v);
+    }
+    std::printf("\n");
+}
+
+static void Tap(SnesCore* c, int btn, int hold, int settle, int* f)
+{
+    for (int i = 0; i < hold; i++, (*f)++) {
+        snes_set_button(c, btn, true);
+        snes_frame(c);
+    }
+    snes_set_button(c, btn, false);
+    for (int i = 0; i < settle; i++, (*f)++) snes_frame(c);
+}
+
+static int Menus(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    for (; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+
+    /* The downloaded save loads with the interface overlay up; close it so the
+     * menu presses below start from gameplay (measured: 14/1 -> 7/0). */
+    Tap(c, SNES_BTN_START, 4, 40, &f);
+    DumpMenu(c, "-- at rest --", f);
+
+    /* Item menu: START. */
+    Tap(c, SNES_BTN_START, 4, 60, &f);
+    DumpMenu(c, "-- item menu opened --", f);
+    Tap(c, SNES_BTN_RIGHT, 4, 30, &f);
+    DumpMenu(c, "-- item menu right --", f);
+    Tap(c, SNES_BTN_DOWN, 4, 30, &f);
+    DumpMenu(c, "-- item menu down --", f);
+    Tap(c, SNES_BTN_LEFT, 4, 30, &f);
+    DumpMenu(c, "-- item menu left --", f);
+    Tap(c, SNES_BTN_UP, 4, 30, &f);
+    DumpMenu(c, "-- item menu up --", f);
+
+    /* Close the item menu, then open the save/quit box: SELECT. */
+    Tap(c, SNES_BTN_START, 4, 60, &f);
+    DumpMenu(c, "-- item menu closed --", f);
+    Tap(c, SNES_BTN_SELECT, 4, 90, &f);
+    DumpMenu(c, "-- save menu opened --", f);
+    Tap(c, SNES_BTN_DOWN, 4, 60, &f);
+    DumpMenu(c, "-- save menu down --", f);
+    Tap(c, SNES_BTN_UP, 4, 60, &f);
+    DumpMenu(c, "-- save menu up --", f);
+    Tap(c, SNES_BTN_B, 4, 90, &f);
+    DumpMenu(c, "-- save menu cancelled --", f);
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -870,6 +974,10 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--after-stop") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return AfterStop(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--menus") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Menus(argv[2], argv[3]);
     }
     if (std::strcmp(argv[1], "--states") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }

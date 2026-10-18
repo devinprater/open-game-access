@@ -16,5 +16,5 @@ g++ -O1 -g -fwrapv -fno-strict-aliasing \
     -o "$OUT" Core/mku_adapter_test.cpp \
     Core/mku_adapter.cpp Core/dbz_adapter.cpp Core/dbzar_adapter.cpp Core/dissidia_adapter.cpp \
     Core/dq9_adapter.cpp Core/osk_echo.cpp Core/nes_adapter.cpp \
-    Core/n64_adapter.cpp Core/alttp_adapter.cpp Core/adapters.cpp Core/announce.cpp
+    Core/n64_adapter.cpp Core/alttp_adapter.cpp Core/alttp_text.cpp Core/alttp_names.cpp Core/adapters.cpp Core/announce.cpp
 "$OUT"

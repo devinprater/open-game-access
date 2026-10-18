@@ -216,3 +216,71 @@ Named today:
 
 Everything else speaks "Outside, area N, screen S." A wrong name sends a blind
 player the wrong way; a number does not.
+
+## Menus measured and spoken
+
+Measured 2026-10-17 on the public save (the "Intro Complete" SRM), with
+`scripts/snes-alttp-proof.sh --menus`. Two different screens share module 14, and
+only the submodule tells them apart.
+
+### The item menu (START)
+
+```
+-- at rest --      mod=7  sub=0  real=7  oms=0  hud_cur=2
+-- opened --       mod=14 sub=1  real=7  oms=4  hud_cur=2
+-- RIGHT --        mod=14 sub=1  oms=4  hud_cur=11
+-- LEFT --         mod=14 sub=1  oms=4  hud_cur=2
+```
+
+- The gate is `main_module_index == 14 && submodule_index == 1`
+  (`Hud_Module_Run`).
+- The cursor is `hud_cur_item` at `0x7E0202`. It moved 2 -> 11 on RIGHT and back
+  on LEFT while the inventory bytes did not change, so it is the cursor and not
+  a copy of the item.
+- `hud_cur_item` indexes the game's inventory order directly: 1 bow, 2
+  boomerang, 3 hookshot, 4 bombs, 5 mushroom, 6 fire rod, 7 ice rod, 8 Bombos,
+  9 Ether, 10 Quake, 11 lamp, 12 hammer, 13 flute/shovel, 14 bug net, 15 Book of
+  Mudora, 16 bottles (original inventory), 17 Cane of Somaria, 18 Cane of Byrna,
+  19 Magic Cape, 20 Magic Mirror. The save had bytes `00 01 .. 01` at
+  `0x7EF340`/`0x7EF34A`, i.e. boomerang at hud 2 and lamp at hud 11, exactly
+  where the cursor stopped.
+- The grid is four columns; row and column are `(hud-1)/4 + 1` and
+  `(hud-1)%4 + 1`.
+- Equipment at `0x7EF359` sword, `0x7EF35A` shield, `0x7EF35B` armour (the save
+  read 1/1/0 here, so only sword and shield are spoken for that file).
+
+### The continue/save box (SELECT)
+
+```
+-- opened --  mod=14 sub=11 real=7  choice=0  msg=390
+-- DOWN --    mod=14 sub=11        choice=1  msg=10
+-- UP --      mod=14 sub=11        choice=0  msg=9
+-- B --       mod=7  sub=0         choice=0
+```
+
+- The gate is `main_module_index == 14 && submodule_index == 11`
+  (`Module0E_0B_SaveMenu`).
+- The cursor is `choice_in_multiselect_box` at `0x7E1CE8`. Choice 0 is
+  "Continue game"; choice 1 is "Save and quit" — the decomp saves and quits only
+  when the choice is non-zero.
+- Message 390 decodes to "Continue Game, Save and Quit." Moving the choice
+  loads messages 9 and 10, which decode to the cursor glyphs alone (`","` and
+  `"."`). They are NOT prose and must never be spoken; the adapter marks the
+  menu's message index as seen and refuses a decoded line with no letter or
+  digit.
+
+### App-path proof
+
+`scripts/snes-alttp-proof.sh --menus` drives the APP path (`poke_load_rom`,
+`poke_frame`, `poke_set_button`) on the real ROM and save, and prints what the
+adapter says. Measured output:
+
+```
+SAY: Item menu. Boomerang, row one, column two. Fighter's Sword, Fighter's Shield.
+SAY: Lamp, row three, column three.
+SAY: Boomerang, row one, column two.
+SAY: Save menu. Continue game, or save and quit. Continue game selected.
+SAY: Save and quit selected.
+SAY: Continue game selected.
+menu-proof=YES
+```
