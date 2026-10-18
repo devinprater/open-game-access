@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Link to the Past reader: implementation plan</title>
+<style>body{font-family:system-ui,sans-serif;max-width:52em;margin:2em auto;line-height:1.55;padding:0 1em;color:#111}h1{font-size:1.7em}h2{font-size:1.3em;margin-top:1.8em;border-bottom:1px solid #ddd;padding-bottom:.2em}h3{font-size:1.08em;margin-top:1.4em}code{background:#eee;padding:0 .15em;font-size:.95em;border-radius:3px}table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.95em}th,td{border:1px solid #ccc;padding:.35em .5em;text-align:left;vertical-align:top}th{background:#f4f4f4}li{margin:.3em 0}blockquote{border-left:3px solid #ccc;margin-left:0;padding-left:1em;color:#444}hr{border:0;border-top:1px solid #ddd;margin:2em 0}pre{background:#f7f7f7;padding:.8em;overflow:auto;font-size:.9em}</style></head><body>
+<h1>A Link to the Past Reader — Implementation Plan</h1>
+<blockquote><strong>For agentic workers:</strong> REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (<code>- [ ]</code>) syntax for tracking.</blockquote>
+<p><strong>Goal:</strong> A native OGA adapter that lets a blind player ask A Link to the Past where they are, what state Link is in, what the menus say, and what the game is saying.</p>
+<p><strong>Architecture:</strong> One registered adapter (<code>Core/alttp_adapter.cpp</code>) reading the SNES work RAM that <code>Core/snes_core.cpp</code> already exposes, speaking through the announcement queue, and matching the dump by <code>crc:777aac2f</code>. Names, menus and dialogue are separate tasks because each needs its own live measurement first.</p>
+<p><strong>Tech Stack:</strong> C++17 adapter against <code>oga::Host</code>, the announcement queue, host-stub unit tests, and the existing <code>scripts/snes-alttp-proof.sh</code> probe.</p>
+<p><strong>Spec:</strong> <code>docs/design/alttp-adapter.md</code></p>
+<h2>Global Constraints</h2>
+<ul>
+<li>Never commit a ROM, ROM-derived text, or game data. Names are curated text about the game, not extracted bytes.</li>
+<li>Every address is confirmed against live memory before use. The table below comes from the decompilation's naming and is a hypothesis until a task's measurement step records the observed value.</li>
+<li>Refusal over guessing: when a read is out of range or the state is not readable, speak nothing rather than a number.</li>
+<li>Speech goes through <code>oga::announce()</code>. Player-requested answers are <code>Priority::High</code>; automatic lines are <code>Low</code> or <code>Normal</code>. No speech before <code>ready()</code>.</li>
+<li>The C ABI is append-only: <code>Command</code> gains <code>Status</code> at the end, nothing is reordered.</li>
+<li><code>scripts/adapter-tests.sh</code>, <code>scripts/systems-test.sh</code> and <code>scripts/snes-alttp-proof.sh</code> stay green at every commit.</li>
+<li>Commits on <code>main</code>, no PRs.</li>
+</ul>
+<h2>Review Focus</h2>
+<ul>
+<li><strong>A ROM that has only just loaded.</strong> The adapter must be not-ready and silent while the game is still booting, even though the CRC matches immediately. A reader that speaks before the game has state is the "bunch of numbers" failure.</li>
+<li><strong>Health at zero, death, and save-and-quit.</strong> Zero hearts is a real answer and must speak as such; the adapter must not treat 0 as "unreadable" and go quiet at the worst moment.</li>
+<li><strong>A question asked during dialogue.</strong> A <code>WhereAmI</code> or <code>Status</code> answer must be High, must not be swallowed by dedup, and must not be replaced by a dialogue line arriving in the same group.</li>
+<li><strong><code>Status</code> on the file-select screen.</strong> Gameplay values there are stale leftovers. The adapter must say there is no game in progress, or read the file-select screen, never yesterday's hearts.</li>
+<li><strong>A refused read.</strong> With the console stopped or the RAM block unavailable, commands speak "I cannot read the game right now" at most once, then stay silent.</li>
+</ul>
+<hr>
+<h3>Task 1: Adapter skeleton, validation, DumpState</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>Core/alttp_adapter.cpp</code></li>
+<li>Modify: <code>Core/adapters.cpp</code></li>
+<li>Create: <code>Core/alttp_adapter_test.cpp</code></li>
+<li>Create: <code>scripts/alttp-adapter-test.sh</code></li>
+<li>Modify: <code>scripts/adapter-tests.sh</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>const Adapter kZeldaLinkToThePast</code> with <code>id = "alttp"</code>, <code>display_name = "The Legend of Zelda: A Link to the Past"</code>, <code>game_code = "crc:777aac2f"</code>.</li>
+<li>Produces (internal): <code>uint8_t u8(uint32_t)</code>, <code>uint16_t u16(uint32_t)</code>, <code>bool InRam(uint32_t addr, int n)</code>, <code>bool StateSane()</code>.</li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<p><code>Core/alttp_adapter_test.cpp</code> supplies a stub <code>Host</code> over a 128 KiB synthetic image, with <code>ctx</code> pointing at it. Assert:</p>
+<ol>
+<li><code>attach</code> returns false when <code>0x7EF36C</code> (capacity) is 0 and coordinates are 0 — boot state.</li>
+<li><code>attach</code> returns true when capacity is <code>0x18</code>, current health is <code>0x18</code>, coordinates are <code>0x0800</code>/<code>0x0800</code>.</li>
+<li><code>ready()</code> is false before attach and true after a sane attach.</li>
+<li><code>DumpState</code> speaks nothing, and logs a line containing <code>health</code> and <code>area</code>.</li>
+</ol>
+<ul>
+<li>[ ] <strong>Step 2: Run it and watch it fail</strong></li>
+</ul>
+<p>Run: <code>bash scripts/alttp-adapter-test.sh</code> Expected: compile error naming <code>kZeldaLinkToThePast</code>.</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement the skeleton</strong></li>
+</ul>
+<p><code>alttp_adapter.cpp</code> keeps a file-scope <code>const Host* g_host</code> and an <code>attached</code> flag. <code>Say()</code> mirrors <code>Core/dq9_adapter.cpp</code>: dedup note, <code>announce()</code> with a group, direct <code>speak</code> fallback when the queue is absent. <code>StateSane()</code> requires capacity between <code>0x18</code> and <code>0xA0</code>, current health <code>&lt;= capacity</code>, and both coordinates non-zero. Register the adapter in <code>adapters.cpp</code> with a comment saying the id is a CRC because the cartridge has no game code.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run it</strong></li>
+</ul>
+<p>Run: <code>bash scripts/alttp-adapter-test.sh</code> Expected: every assertion prints <code>ok</code>, final line <code>PASS</code>.</p>
+<ul>
+<li>[ ] <strong>Step 5: Add it to the shared runner and commit</strong></li>
+</ul>
+<p>Add <code>alttp-adapter-test.sh</code> to the loop in <code>scripts/adapter-tests.sh</code>.</p>
+<pre><code class="language-bash">git add Core/alttp_adapter.cpp Core/adapters.cpp Core/alttp_adapter_test.cpp scripts/alttp-adapter-test.sh scripts/adapter-tests.sh
+git commit -m &quot;alttp: adapter skeleton, validation and dump&quot;</code></pre>
+<hr>
+<h3>Task 2: Where am I</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/alttp_adapter.cpp</code></li>
+<li>Modify: <code>Core/alttp_adapter_test.cpp</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Consumes: Task 1's <code>u8</code>, <code>u16</code>, <code>StateSane</code>.</li>
+<li>Produces: <code>void SpeakWhereAmI()</code> bound to <code>Command::WhereAmI</code>.</li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Measure before speaking</strong></li>
+</ul>
+<p>Extend the probe (or use <code>scripts/ramdiff.py</code>) to print <code>0x7E0010</code>, <code>0x7E0011</code>, <code>0x7E001B</code>, <code>0x7E008A</code>, <code>0x7E00A0</code>, <code>0x7E040A</code>, <code>0x7E0020</code>, <code>0x7E0022</code> at the title, in Link's house, and outdoors. Record the observed values in <code>docs/design/alttp-memory.md</code> with the state each was read in. Acceptance for this step: the values move sensibly between the three states, and <code>0x7E001B</code> (indoors) distinguishes house from outdoors.</p>
+<ul>
+<li>[ ] <strong>Step 2: Write the failing test</strong></li>
+</ul>
+<p>Stub image with <code>player_is_indoors = 0</code>, <code>area = 3</code>, <code>screen = 4</code> expects the exact line <code>Area 3, screen 4.</code>; with <code>indoors = 1</code>, <code>dungeon room = 12</code> expects <code>Dungeon room 12.</code>; with <code>ready() == false</code> expects no speech.</p>
+<ul>
+<li>[ ] <strong>Step 3: Run it and watch it fail</strong></li>
+</ul>
+<p>Run: <code>bash scripts/alttp-adapter-test.sh</code> Expected: FAIL, the command speaks nothing.</p>
+<ul>
+<li>[ ] <strong>Step 4: Implement</strong></li>
+</ul>
+<p><code>WhereAmI</code> speaks High through <code>Say(..., "whereami", Priority::High)</code>. Numbers only in this task; names arrive in Task 4.</p>
+<ul>
+<li>[ ] <strong>Step 5: Run it, then commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/alttp_adapter.cpp Core/alttp_adapter_test.cpp docs/design/alttp-memory.md
+git commit -m &quot;alttp: where am I, with measured area and room numbers&quot;</code></pre>
+<hr>
+<h3>Task 3: Status, and the command that asks for it</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/adapter.h</code></li>
+<li>Modify: <code>Core/alttp_adapter.cpp</code></li>
+<li>Modify: <code>Core/alttp_adapter_test.cpp</code></li>
+<li>Modify: <code>Sources/OpenGameAccess/AdapterCommand.swift</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>Command::Status</code> appended after <code>RepeatOlder</code> (numeric value 40).</li>
+<li>Produces: <code>void SpeakStatus()</code>.</li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Write the failing test</strong></li>
+</ul>
+<p>With capacity <code>0x18</code>, health <code>0x14</code>, magic <code>0x40</code>, rupees <code>0x00F2</code>, the expected line is <code>Two and a half hearts. Magic half. Two hundred forty-two rupees.</code> With health <code>0</code> expect <code>Zero hearts.</code> — a real answer, not silence. With a refused read (host read returns 0 but attach was never made) expect <code>I cannot read the game right now.</code> once.</p>
+<ul>
+<li>[ ] <strong>Step 2: Run it and watch it fail</strong></li>
+</ul>
+<p>Run: <code>bash scripts/alttp-adapter-test.sh</code> Expected: FAIL, <code>Command::Status</code> does not exist.</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<p>Append <code>Status</code> to <code>Command</code> in <code>adapter.h</code> with a comment that the value is the C ABI. Implement hearts as <code>health / 8</code> plus <code>and a half</code> when the remainder is 4; magic as a percentage of <code>0x80</code> rounded to quarters; rupees as a number. Add <code>case status = 40</code> and its title in <code>AdapterCommand.swift</code>, and add <code>"alttp"</code> to <code>supported(adapterID:)</code> returning <code>[.whereAmI, .status, .dumpState]</code>.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run the tests and the app build</strong></li>
+</ul>
+<p>Run: <code>bash scripts/alttp-adapter-test.sh &amp;&amp; bash scripts/xtool-build.sh</code> Expected: PASS, then <code>Build complete!</code>.</p>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/adapter.h Core/alttp_adapter.cpp Core/alttp_adapter_test.cpp Sources/OpenGameAccess/AdapterCommand.swift
+git commit -m &quot;alttp: status command with hearts, magic and rupees&quot;</code></pre>
+<hr>
+<h3>Task 4: Names for areas, dungeons and rooms</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>Core/alttp_names.h</code></li>
+<li>Create: <code>Core/alttp_names.cpp</code></li>
+<li>Modify: <code>Core/alttp_adapter.cpp</code></li>
+<li>Modify: <code>Core/alttp_adapter_test.cpp</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>const char<em> AlttpAreaName(uint16_t area)</code> returning <code>nullptr</code> for an unknown id; <code>const char</em> AlttpDungeonName(uint8_t dungeon)</code>; <code>const char* AlttpRoomNote(uint16_t room)</code>.</li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Measure the id ranges</strong></li>
+</ul>
+<p>With the probe, record <code>overworld_area_index</code> at the light-world start, in the dark world after the first crystal, and inside two dungeons. Record which value ranges are light and dark, and what identifies the current dungeon. Write the observations into <code>docs/design/alttp-memory.md</code>. Acceptance: the light/dark split and the dungeon identifier are known numbers, not assumptions.</p>
+<ul>
+<li>[ ] <strong>Step 2: Write the failing test</strong></li>
+</ul>
+<p><code>AlttpAreaName(0x00)</code> returns the name recorded in Step 1 for the light-world start; <code>AlttpAreaName(0xFF)</code> returns <code>nullptr</code>; <code>WhereAmI</code> on an unknown area speaks <code>Area 255.</code> rather than inventing a name.</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement the table and the fallback</strong></li>
+</ul>
+<p>The table holds the game's own region names (Hyrule Castle, Eastern Palace, Death Mountain, and so on) keyed by the measured ranges. Unknown ids fall through to numbers. Room notes are a short landmark phrase for rooms measured in this task; unmapped rooms get no note.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run it, then commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/alttp_names.h Core/alttp_names.cpp Core/alttp_adapter.cpp Core/alttp_adapter_test.cpp docs/design/alttp-memory.md
+git commit -m &quot;alttp: area, dungeon and room names with numeric fallback&quot;</code></pre>
+<hr>
+<h3>Task 5: The file-select screen</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/alttp_adapter.cpp</code></li>
+<li>Modify: <code>Core/alttp_adapter_test.cpp</code></li>
+<li>Modify: <code>docs/design/alttp-memory.md</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>void SpeakFileSelect()</code>, plus menu detection in <code>StateSane</code> that keeps gameplay answers off this screen.</li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Measure the screen</strong></li>
+</ul>
+<p>Drive the game to the file-select screen with the probe's input, dump RAM before and after pressing Down, and diff with <code>scripts/ramdiff.py</code> to find the cursor. Record the module/submodule values that identify this screen and the cursor address. Acceptance: a recorded address that changes 1→2→3 on Down and wraps.</p>
+<ul>
+<li>[ ] <strong>Step 2: Write the failing test</strong></li>
+</ul>
+<p>Synthetic image with the measured module values and cursor 2 expects a line naming slot 2; with the cursor at an unnamed slot expects <code>Slot 3.</code> (numbers, no invented name).</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<p><code>MenuNext</code>/<code>MenuPrev</code> speak the highlighted slot and its contents (name, hearts, dungeon count when readable). <code>Status</code> on this screen speaks the file-select state instead of gameplay values.</p>
+<ul>
+<li>[ ] <strong>Step 4: Run it. Then prove it on the game</strong></li>
+</ul>
+<p>Run: <code>bash scripts/alttp-adapter-test.sh</code>, then a probe mode that asks <code>Status</code> on the file-select screen and prints what was spoken. Expected: a slot line, and no hearts from a previous game.</p>
+<ul>
+<li>[ ] <strong>Step 5: Commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/alttp_adapter.cpp Core/alttp_adapter_test.cpp docs/design/alttp-memory.md scripts/snes-alttp-proof.sh
+git commit -m &quot;alttp: file-select screen&quot;</code></pre>
+<hr>
+<h3>Task 6: Item and equipment menus</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/alttp_adapter.cpp</code></li>
+<li>Modify: <code>Core/alttp_adapter_test.cpp</code></li>
+<li>Modify: <code>docs/design/alttp-memory.md</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>void SpeakItemMenu()</code>, <code>void SpeakEquipment()</code>.</li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Measure the menus</strong></li>
+</ul>
+<p>Open the item menu with the probe, dump with <code>scripts/ramdiff.py</code> while moving the cursor, and find the cursor address. Candidate inventory bytes already named by the decompilation: <code>0x7EF340</code>–<code>0x7EF357</code> (items), <code>0x7EF359</code> sword, <code>0x7EF35A</code> shield, <code>0x7EF35B</code> armour. Confirm each against the screen before speaking it.</p>
+<ul>
+<li>[ ] <strong>Step 2: Write the failing test</strong></li>
+</ul>
+<p>Synthetic image with sword <code>2</code>, shield <code>1</code>, armour <code>1</code>, and a cursor on the bow expects <code>Bow. Sword two. Shield one. Armour one.</code></p>
+<ul>
+<li>[ ] <strong>Step 3: Implement</strong></li>
+</ul>
+<p><code>MenuNext</code>/<code>MenuPrev</code> move through items and speak name plus state. <code>MenuLeft</code>/<code>MenuRight</code> speak equipment values. Item names come from a table in <code>Core/alttp_names.cpp</code>; unknown item ids speak <code>Item 31.</code></p>
+<ul>
+<li>[ ] <strong>Step 4: Run it, then commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/alttp_adapter.cpp Core/alttp_adapter_test.cpp Core/alttp_names.cpp docs/design/alttp-memory.md
+git commit -m &quot;alttp: item and equipment menus&quot;</code></pre>
+<hr>
+<h3>Task 7: Dialogue</h3>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Create: <code>Core/alttp_text.h</code></li>
+<li>Create: <code>Core/alttp_text.cpp</code></li>
+<li>Modify: <code>Core/alttp_adapter.cpp</code></li>
+<li>Modify: <code>Core/alttp_adapter_test.cpp</code></li>
+</ul>
+<p><strong>Interfaces:</strong></p>
+<ul>
+<li>Produces: <code>int AlttpDecodeMessage(const uint8_t<em> ram, uint32_t text_base, char</em> out, int cap)</code> returning decoded bytes or -1.</li>
+<li>Produces: automatic speech when a new message id appears.</li>
+</ul>
+<ul>
+<li>[ ] <strong>Step 1: Measure the message state</strong></li>
+</ul>
+<p>Find the byte that identifies the current message and the one that says a message is on screen, by dumping RAM before, during and after the uncle's opening text. Record both in <code>docs/design/alttp-memory.md</code>. Acceptance: the on-screen byte is set while the box is up and clear when it closes, and the message byte changes between two different lines.</p>
+<ul>
+<li>[ ] <strong>Step 2: Write the failing test</strong></li>
+</ul>
+<p>A synthetic text buffer containing a known encoded sentence decodes to that sentence; an empty buffer returns -1; a truncated buffer returns -1 rather than a half sentence.</p>
+<ul>
+<li>[ ] <strong>Step 3: Implement the decoder</strong></li>
+</ul>
+<p>Port the encoding rules from the decompilation's text routine (<code>~/z3work/zelda3/src/messaging.c</code>), not from guesses: the dictionary lookup, the terminator, and the control codes that insert the player's name. No game text is committed; the test's sentence is written for the test.</p>
+<ul>
+<li>[ ] <strong>Step 4: Wire it to speech</strong></li>
+</ul>
+<p><code>on_frame</code> checks the message byte; when a new message appears, decode and speak at <code>Normal</code>, group <code>dialogue</code>, replacing any pending dialogue line. Player commands keep group <code>whereami</code>/<code>status</code>, so they are never replaced by dialogue.</p>
+<ul>
+<li>[ ] <strong>Step 5: Run it, then commit</strong></li>
+</ul>
+<pre><code class="language-bash">git add Core/alttp_text.h Core/alttp_text.cpp Core/alttp_adapter.cpp Core/alttp_adapter_test.cpp docs/design/alttp-memory.md
+git commit -m &quot;alttp: dialogue decoded from the game&#x27;s own text buffer&quot;</code></pre>
+<hr>
+<h2>Follow-on plan</h2>
+<p>Guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project and its own spec section (<code>docs/design/navigation-prior-art.md</code>). It gets a plan after Task 7, when speech, names and dialogue are stable.</p>
+</body></html>

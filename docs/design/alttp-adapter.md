@@ -312,4 +312,6 @@ file plus tests", not hours.
 - 2026-10-17: ⛔ THE ANDROID APP HAS NO BACKEND SEAM AT ALL (`app/src/main/cpp` is
   melonDS only; no Mesen, no `oga_core`). The phone measurement therefore moved to iOS,
   or waits for a separate Android plan. Measured: `docs/evidence/alttp-android-fps.txt`.
+- 2026-10-17: reader plan written: `docs/plans/alttp-reader.md` (identity, where am I,
+  status, names, file select, item and equipment menus, dialogue).
 - 2026-10-17: design written. Nothing implemented.
