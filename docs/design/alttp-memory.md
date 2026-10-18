@@ -90,3 +90,27 @@ walk could not leave the house in 1800 frames — the opening sequence still gat
 movement. Those need a real save file from a playthrough (`--gameplay` writes the
 `.srm` when the game itself saves), after which the same probe can be pointed at
 that save.
+
+## Measured 2026-10-17 — with a downloaded save (stateofsave "Intro Complete")
+
+A public 8192-byte `.srm` (stateofsave.com, "Intro Complete", described as just
+after the rescue of Zelda) was placed at
+`Saves/Legend of Zelda, The - A Link to the Past (USA).srm` and the probe booted
+with it. The save is real and Mesen loaded it:
+
+```
+module 14 sub 1  indoors=1  room=260  area=0 screen=0
+hp=24/32  magic=128  rupees=205
+```
+
+So the reader now has in-game evidence for all three status figures: four
+hearts of capacity (`0x20`), 24 eighths current, a full magic meter (`0x80`),
+and 205 rupees. The indoor room id is 260 again.
+
+⛔ The save sits inside a message/cutscene state (`module 14 sub 1`). Scripted
+A, B and Start presses over 700+ frames did not advance it, and the coordinates
+never moved, so no OUTDOOR area or screen id was observed. `module 7` is
+gameplay, `module 14` is the text/cutscene module; both were seen.
+
+Names still wait on a save at a playable point (outdoors), not on an address
+question: the ids are readable, they have simply never been observed outdoors.

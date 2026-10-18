@@ -499,6 +499,214 @@ static int Gameplay(const char* rom, const char* savedir)
     return 0;
 }
 
+// After the boot drive, try each direction in turn and print the coordinates,
+// so the scripted drive can tell a wall from a locked intro.
+static int Explore(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    // Boot: Start at the title, A on the file slot, Start at name entry, and a
+    // steady A tap through the opening text.
+    for (; f < 3600; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 120) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 60) >= 50 && (f % 60) < 54);
+        snes_frame(c);
+    }
+    std::printf("-- boot done --\n");
+    DumpReaderAddresses(c, f);
+
+    static const int dirs[] = { SNES_BTN_DOWN, SNES_BTN_RIGHT, SNES_BTN_UP, SNES_BTN_LEFT };
+    static const char* names[] = { "down", "right", "up", "left" };
+    for (int d = 0; d < 4; d++) {
+        for (int i = 0; i < 120; i++, f++) {
+            snes_set_button(c, dirs[d], true);
+            snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+            snes_frame(c);
+        }
+        snes_set_button(c, dirs[d], false);
+        std::printf("-- after %s --\n", names[d]);
+        DumpReaderAddresses(c, f);
+    }
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
+// Walks north out of Link's house, tapping A through the opening text, and
+// prints the reader state so leaving the house is observed rather than assumed.
+static int Leave(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    for (; f < 3600; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 120) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 60) >= 50 && (f % 60) < 54);
+        snes_frame(c);
+    }
+    std::printf("-- boot done --\n");
+    DumpReaderAddresses(c, f);
+
+    for (int i = 0; i < 3600; i++, f++) {
+        snes_set_button(c, SNES_BTN_UP, true);
+        snes_set_button(c, SNES_BTN_A, (i % 45) >= 40 && (i % 45) < 44);
+        snes_frame(c);
+        if (i % 300 == 0) DumpReaderAddresses(c, f);
+    }
+    snes_set_button(c, SNES_BTN_UP, false);
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
+// Sweeps along the top wall looking for the house door: diagonally up-right,
+// then up-left, repeating, and stops the moment the game says it is outdoors.
+static int Wander(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    for (; f < 3600; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 120) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 60) >= 50 && (f % 60) < 54);
+        snes_frame(c);
+    }
+    std::printf("-- boot done --\n");
+    DumpReaderAddresses(c, f);
+
+    for (int leg = 0; leg < 24; leg++, f += 180) {
+        bool right = (leg % 2) == 0;
+        for (int i = 0; i < 180; i++) {
+            snes_set_button(c, SNES_BTN_UP, true);
+            snes_set_button(c, SNES_BTN_RIGHT, right);
+            snes_set_button(c, SNES_BTN_LEFT, !right);
+            snes_set_button(c, SNES_BTN_A, (i % 45) >= 40 && (i % 45) < 44);
+            snes_frame(c);
+        }
+        std::printf("-- leg %d (%s) --\n", leg, right ? "up-right" : "up-left");
+        DumpReaderAddresses(c, f);
+        uint32_t indoors = 0;
+        snes_read(c, 0x7E001Bu, 1, &indoors);
+        if (indoors == 0) { std::printf("OUTDOORS\n"); break; }
+    }
+
+    snes_set_button(c, SNES_BTN_UP, false);
+    snes_set_button(c, SNES_BTN_RIGHT, false);
+    snes_set_button(c, SNES_BTN_LEFT, false);
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
+// Boots with a real save file present: Start past the title, Start on the file
+// slot, then observe the reader state and walk.
+static int Resume(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    for (; f < 900; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 120) < 4);
+        snes_frame(c);
+    }
+    std::printf("-- after the file select --\n");
+    DumpReaderAddresses(c, f);
+
+    static const int dirs[] = { SNES_BTN_DOWN, SNES_BTN_LEFT, SNES_BTN_UP, SNES_BTN_RIGHT };
+    static const char* names[] = { "down", "left", "up", "right" };
+    for (int d = 0; d < 4; d++) {
+        for (int i = 0; i < 120; i++, f++) {
+            snes_set_button(c, dirs[d], true);
+            snes_frame(c);
+        }
+        snes_set_button(c, dirs[d], false);
+        std::printf("-- after %s --\n", names[d]);
+        DumpReaderAddresses(c, f);
+    }
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
+// With a real save present: drive into the game, then walk each direction and
+// dump the reader state, so outdoor area/screen ids are measured.
+static int Measure(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    for (; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    std::printf("-- after the drive --\n");
+    DumpReaderAddresses(c, f);
+
+    static const int dirs[] = { SNES_BTN_DOWN, SNES_BTN_LEFT, SNES_BTN_UP, SNES_BTN_RIGHT };
+    static const char* names[] = { "down", "left", "up", "right" };
+    for (int d = 0; d < 4; d++) {
+        for (int i = 0; i < 180; i++, f++) {
+            snes_set_button(c, dirs[d], true);
+            /* A tap dismisses a message box; without it the text holds the player. */
+            snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+            snes_frame(c);
+        }
+        snes_set_button(c, SNES_BTN_A, false);
+        snes_set_button(c, dirs[d], false);
+        std::printf("-- after %s --\n", names[d]);
+        DumpReaderAddresses(c, f);
+    }
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -527,6 +735,26 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--headered") == 0) {
         if (argc < 5) { Usage(argv[0]); return 2; }
         return Headered(argv[2], argv[3], argv[4]);
+    }
+    if (std::strcmp(argv[1], "--measure") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Measure(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--resume") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Resume(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--wander") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Wander(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--leave") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Leave(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--explore") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Explore(argv[2], argv[3]);
     }
     if (std::strcmp(argv[1], "--gameplay") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
