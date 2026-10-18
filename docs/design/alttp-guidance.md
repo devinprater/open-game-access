@@ -55,7 +55,38 @@ Swift `AdapterCommand` carries the same value with the button title "Guide".
   3:1 ratio so a small offset does not wobble between north and north-east.
 - ⛔ Found on the way: `poke_command` still rejected any command above
   RepeatOlder, so Status (40) and Guide (41) were dead on the live path while
-  their unit tests passed. The bound now ends at Guide.
+  their unit tests passed. The bound must move with every appended command; it
+  now ends at Objective (42).
+
+## The objective
+
+`Command::Objective` = 42 names the current story goal and adds the bearing to
+the place it happens at. The stage comes from the game's own bytes, not from a
+guess about where the player should be.
+
+- `sram_progress_flags` at `0x7EF3C6`: bit `0x01` = the uncle gave the sword,
+  bit `0x04` = Zelda reached the Sanctuary, bit `0x10` = the uncle left the
+  house.
+- `sram_progress_indicator` at `0x7EF3C5`.
+- `link_which_pendants` at `0x7EF374`; all three are `& 7 == 7`.
+- **Measured on the public save:** flags `0x15`, indicator `2`, pendants `0`,
+  sword `1`, standing outdoors at area `0x2C`. That reads as "Collect the three
+  pendants. Sahasrahla in Kakariko knows where to start." with Kakariko to the
+  north-west, five screens away.
+
+Stages, in order:
+
+1. No sword flag: "Find your uncle in Hyrule Castle." Target `0x1B`.
+2. Sword but no Sanctuary flag: "Rescue Zelda in Hyrule Castle." Target `0x1B`.
+3. Pendants incomplete: "Collect the three pendants. Sahasrahla in Kakariko knows
+   where to start." Target `0x18`.
+4. Pendants complete, no Master Sword: "Claim the Master Sword in the Lost
+   Woods." Target `0x00`.
+5. Master Sword: "Confront Agahnim in Hyrule Castle." Target `0x1B`.
+
+Indoors it names the goal without a bearing, because room coordinates are not
+world coordinates. In the dark world it refuses: none of those stages have been
+measured.
 
 ## What was measured before speaking
 

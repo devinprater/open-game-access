@@ -398,8 +398,17 @@ static void DumpReaderAddresses(SnesCore* c, int frame)
     snes_read(c, 0x7E1CF0u, 2, &msg);
     snes_read(c, 0x7E0046u, 1, &incap);
     snes_read(c, 0x7E040Cu, 2, &palace);
-    std::printf("f=%3d mod=%u sub=%u real=%u in=%u x=%u y=%u scr=%u room=%u area=%u pal=%04x hp=%u/%u mag=%u rup=%u msg=%u incap=%u\n",
-                frame, mod, sub, saved_mod, indoors, x, y, screen, room, area, palace, cur, cap, magic, rupees, msg, incap);
+    /* Story progress (zelda3 variables.h): sram_progress_indicator at 0xF3C5,
+     * sram_progress_flags at 0xF3C6, link_which_pendants at 0xF374, and the
+     * sword we already read elsewhere. These name the objective stage. */
+    uint32_t prog = 0, flags = 0, pend = 0, sword = 0;
+    snes_read(c, 0x7EF3C5u, 1, &prog);
+    snes_read(c, 0x7EF3C6u, 1, &flags);
+    snes_read(c, 0x7EF374u, 1, &pend);
+    snes_read(c, 0x7EF359u, 1, &sword);
+    std::printf("f=%3d mod=%u sub=%u real=%u in=%u x=%u y=%u scr=%u room=%u area=%u pal=%04x hp=%u/%u mag=%u rup=%u msg=%u incap=%u prog=%u flags=%02x pend=%u sword=%u\n",
+                frame, mod, sub, saved_mod, indoors, x, y, screen, room, area, palace, cur, cap, magic, rupees, msg, incap,
+                prog, flags, pend, sword);
 }
 
 static int Memory(const char* rom, const char* savedir)
@@ -414,10 +423,20 @@ static int Memory(const char* rom, const char* savedir)
     }
     snes_set_uncapped(c, true);
 
-    for (int f = 0; f <= 600; f++) {
-        if (f == 120) snes_set_button(c, SNES_BTN_START, true);
-        if (f == 160) snes_set_button(c, SNES_BTN_START, false);
-        if (f % 60 == 0) DumpReaderAddresses(c, f);
+    /* ⛔ THE SAVE IS BEHIND THE FILE SELECT. A bare START press reaches the title
+     * and stops; the measured boot is the Menus() sequence, START plus A taps,
+     * which walks title -> file select -> the loaded file. Measured 2026-10-17. */
+    int f = 0;
+    for (; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+
+    for (int i = 0; i <= 600; i++) {
+        if (i % 60 == 0) DumpReaderAddresses(c, i);
         snes_frame(c);
     }
 

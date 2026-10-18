@@ -292,6 +292,23 @@ git commit -m &quot;alttp: dialogue decoded from the game&#x27;s own text buffer
 </ol>
 <p><strong>Not done:</strong> walking routes, dark-world landmarks, and the last screen of a large area (it aims at the base cell; arrival is detected by area id).</p>
 <hr>
+<h3>Task 9: The next objective</h3>
+<p><strong>DONE 2026-10-18.</strong></p>
+<p><strong>Files:</strong></p>
+<ul>
+<li>Modify: <code>Core/adapter.h</code> (<code>Command::Objective</code> = 42)</li>
+<li>Modify: <code>Core/alttp_adapter.cpp</code> (<code>CurrentObjective</code>, <code>SpeakObjective</code>, <code>BearingText</code> factored out of <code>SpeakGuide</code>, the progress constants, the dump)</li>
+<li>Modify: <code>Core/alttp_adapter_test.cpp</code> (seven tests)</li>
+<li>Modify: <code>Core/pokecore.cpp</code> (the bound now ends at Objective)</li>
+<li>Modify: <code>Sources/OpenGameAccess/AdapterCommand.swift</code> (case 42, title, hint, symbol, supported list)</li>
+<li>Modify: <code>Core/snes_probe.cpp</code> (<code>--memory</code> boots through the file select and prints progress bytes)</li>
+<li>Modify: <code>scripts/snes-live-proof.cpp</code> (<code>--walk</code> proves the objective)</li>
+<li>Modify: <code>docs/design/alttp-guidance.md</code>, <code>docs/design/alttp-memory.md</code></li>
+</ul>
+<p><strong>Measured.</strong> The public save reads <code>prog=2 flags=15 pend=0 sword=1</code> at area <code>0x2C</code>, so its objective is the pendants, starting at Kakariko. The live proof prints exactly that, with Kakariko north-west and five screens away.</p>
+<p><strong>What it reads.</strong> One stage per press: find the uncle, rescue Zelda, collect the pendants, claim the Master Sword, confront Agahnim. Each comes from a measured progress bit, never from a guess. Indoors the goal is named without a bearing; the dark world refuses because its stages are not measured.</p>
+<p><strong>Proof.</strong> <code>scripts/alttp-adapter-test.sh</code> prints 65 passed; the live walk prints <code>SAY: Objective: Collect the three pendants...</code> and <code>objective-proof=YES</code>.</p>
+<hr>
 <h2>Follow-on plan</h2>
 <p>Route guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The beacon slice is now done and documented in <code>docs/design/alttp-guidance.md</code>; what remains there is the screen graph, dark-world landmarks, and a better aim for large areas.</p>
 </body></html>

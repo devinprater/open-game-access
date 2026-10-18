@@ -368,6 +368,37 @@ large area (it aims at the base cell; arrival is detected by area id).
 
 ---
 
+### Task 9: The next objective
+
+**DONE 2026-10-18.**
+
+**Files:**
+- Modify: `Core/adapter.h` (`Command::Objective` = 42)
+- Modify: `Core/alttp_adapter.cpp` (`CurrentObjective`, `SpeakObjective`,
+  `BearingText` factored out of `SpeakGuide`, the progress constants, the dump)
+- Modify: `Core/alttp_adapter_test.cpp` (seven tests)
+- Modify: `Core/pokecore.cpp` (the bound now ends at Objective)
+- Modify: `Sources/OpenGameAccess/AdapterCommand.swift` (case 42, title, hint,
+  symbol, supported list)
+- Modify: `Core/snes_probe.cpp` (`--memory` boots through the file select and
+  prints progress bytes)
+- Modify: `scripts/snes-live-proof.cpp` (`--walk` proves the objective)
+- Modify: `docs/design/alttp-guidance.md`, `docs/design/alttp-memory.md`
+
+**Measured.** The public save reads `prog=2 flags=15 pend=0 sword=1` at area
+`0x2C`, so its objective is the pendants, starting at Kakariko. The live proof
+prints exactly that, with Kakariko north-west and five screens away.
+
+**What it reads.** One stage per press: find the uncle, rescue Zelda, collect the
+pendants, claim the Master Sword, confront Agahnim. Each comes from a measured
+progress bit, never from a guess. Indoors the goal is named without a bearing;
+the dark world refuses because its stages are not measured.
+
+**Proof.** `scripts/alttp-adapter-test.sh` prints 65 passed; the live walk prints
+`SAY: Objective: Collect the three pendants...` and `objective-proof=YES`.
+
+---
+
 ## Follow-on plan
 
 Route guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The beacon slice is now done and documented in `docs/design/alttp-guidance.md`; what remains there is the screen graph, dark-world landmarks, and a better aim for large areas.

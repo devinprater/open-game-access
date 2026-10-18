@@ -499,6 +499,60 @@ int main()
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guidance covers the light world only.") == 0,
           "guide refuses in the dark world rather than guess a name");
 
+    // Objective: the game's own progress bytes pick the story stage. The save
+    // measured flags 0x15 (sword given, Zelda at the Sanctuary, uncle gone),
+    // no pendants, Fighter's Sword.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0010u, 9); put8(0x7E0011u, 0);
+    put8(INDOORS, 0); put16(AREA, 0x2C); put16(SCREEN, 0x2C);
+    put16(X, 2232); put16(Y, 2792);
+    put8(0x7EF3C6u, 0x15); put8(0x7EF374u, 0); put8(0x7EF359u, 1);
+    oga::kZeldaLinkToThePast.command(oga::Command::Objective);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Objective: Collect the three pendants. Sahasrahla in Kakariko knows where to start. Kakariko Village is north-west, about five screens away.") == 0,
+          "objective: after the Sanctuary, the pendants are the goal");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7EF3C6u, 0x00);
+    oga::kZeldaLinkToThePast.command(oga::Command::Objective);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Objective: Find your uncle in Hyrule Castle. Hyrule Castle is north-west, about two screens away.") == 0,
+          "objective: before the sword, find the uncle");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7EF3C6u, 0x11);
+    oga::kZeldaLinkToThePast.command(oga::Command::Objective);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Objective: Rescue Zelda in Hyrule Castle. Hyrule Castle is north-west, about two screens away.") == 0,
+          "objective: with the sword, Zelda is the goal");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7EF3C6u, 0x15); put8(0x7EF374u, 7);
+    oga::kZeldaLinkToThePast.command(oga::Command::Objective);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Objective: Claim the Master Sword in the Lost Woods. Lost Woods is north-west, about seven screens away.") == 0,
+          "objective: three pendants, the Master Sword is the goal");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7EF374u, 0); put8(INDOORS, 1);
+    oga::kZeldaLinkToThePast.command(oga::Command::Objective);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Objective: Collect the three pendants. Sahasrahla in Kakariko knows where to start.") == 0,
+          "objective: indoors names the goal without a bogus bearing");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(INDOORS, 0); put8(0x7E0010u, 14); put8(0x7E0011u, 1);
+    oga::kZeldaLinkToThePast.command(oga::Command::Objective);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Close the menu first.") == 0,
+          "objective refuses while a menu owns the frame");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0010u, 9); put8(0x7E0011u, 0); put16(AREA, 0x43);
+    oga::kZeldaLinkToThePast.command(oga::Command::Objective);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Objective: nothing mapped for the dark world yet.") == 0,
+          "objective refuses in the dark world rather than guess the goal");
+
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();
     CHECK(!oga::kZeldaLinkToThePast.ready(), "not ready after detach");

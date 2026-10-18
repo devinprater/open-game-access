@@ -382,10 +382,22 @@ static int Walk(const char* rom, const char* savedir)
     }
     std::printf("guide-lines=%d\n", bearings);
     std::printf("guide-proof=%s\n", bearings >= 2 ? "YES" : "NO");
+
+    /* The objective on the live save: progress flags 0x15 and no pendants, so
+     * it must name the pendants and point at Kakariko. 42 is Command::Objective. */
+    g_say.clear();
+    poke_command(core, 42);
+    for (int f = 0; f < 400; f++) poke_frame(core);
+    bool objective_spoke = false;
+    for (const std::string& s : g_say) {
+        std::printf("SAY: %s\n", s.c_str());
+        if (s.rfind("Objective:", 0) == 0) objective_spoke = true;
+    }
+    std::printf("objective-proof=%s\n", objective_spoke ? "YES" : "NO");
     std::printf("walk-proof=%s\n", spoke_outside ? "YES" : "NO");
     poke_stop(core);
     poke_destroy(core);
-    return (spoke_outside && bearings >= 2) ? 0 : 1;
+    return (spoke_outside && bearings >= 2 && objective_spoke) ? 0 : 1;
 }
 
 int main(int argc, char** argv)

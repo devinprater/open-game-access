@@ -413,5 +413,23 @@ moves, so watching only the item cursor leaves this menu silent.
   while every unit test passed. Any command appended after this must widen that
   bound and be checked by a live proof, not only by a unit test.
 
+## The objective
+
+- **Command:** `Command::Objective` = 42.
+- **Story bytes** (zelda3 `variables.h`):
+  - `sram_progress_flags` `0x7EF3C6`: `0x01` uncle gave the sword, `0x04`
+    Zelda reached the Sanctuary, `0x10` the uncle left the house.
+  - `sram_progress_indicator` `0x7EF3C5`.
+  - `link_which_pendants` `0x7EF374`, all three when `& 7 == 7`.
+- **Measured on the public save** (booted through the file select, standing
+  outdoors): `prog=2 flags=15 pend=0 sword=1`, area `0x2C`.
+- **Stages:** no sword flag -> find the uncle in Hyrule Castle (`0x1B`); sword
+  but no Sanctuary flag -> rescue Zelda (`0x1B`); pendants incomplete -> collect
+  them, starting with Sahasrahla in Kakariko (`0x18`); pendants complete and no
+  Master Sword -> Lost Woods (`0x00`); Master Sword -> Agahnim (`0x1B`).
+- **Refusals:** indoors it names the goal without a bearing (room coordinates are
+  not world coordinates); in the dark world it refuses, because none of those
+  stages have been measured.
+
 
 

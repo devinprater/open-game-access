@@ -125,6 +125,11 @@ enum class Command {
     // Status; raw values are the C ABI shared with Swift and must never be
     // reordered. It never claims a walkable route, only a bearing.
     Guide,
+    // Player objective query: names the current story goal from the game's own
+    // progress bytes and adds the bearing to the place that goal happens at.
+    // Appended after Guide; raw values are the C ABI shared with Swift and must
+    // never be reordered.
+    Objective,
 };
 
 /// Per-frame battle snapshot for host-side audio cues (item 5 spike).

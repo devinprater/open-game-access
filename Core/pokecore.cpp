@@ -1051,9 +1051,10 @@ bool poke_command(PokeCore *core, int cmd)
     // ⛔ WIDENED IN THE SAME COMMIT THAT APPENDED THE COMMANDS. A stale upper bound
     // silently rejects a new command with no speech and no error. This bound was
     // left at RepeatOlder when Status (40) and Guide (41) were appended, so both
-    // buttons were dead on the live path while their unit tests passed.
+    // buttons were dead on the live path while their unit tests passed. It now
+    // ends at Objective (42) and must move with every appended command.
     if (cmd < 0 ||
-        cmd > (int) oga::Command::Guide) return false;
+        cmd > (int) oga::Command::Objective) return false;
     if (cmd == (int) oga::Command::StopSpeech)
     {
         // Player stop key: clear queued lines and stop the platform voice.

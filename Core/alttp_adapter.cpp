@@ -61,6 +61,9 @@ constexpr uint32_t SHIELD_TYPE        = 0x7EF35Au;  /* link_shield_type */
 constexpr uint32_t ARMOR_TYPE         = 0x7EF35Bu;  /* link_armor */
 constexpr uint32_t BOTTLE_INDEX       = 0x7EF34Fu;  /* link_item_bottle_index, 1-4 */
 constexpr uint32_t BOTTLE_INFO        = 0x7EF35Cu;  /* link_bottle_info[4] */
+constexpr uint32_t PROGRESS_FLAGS     = 0x7EF3C6u;  /* sram_progress_flags */
+constexpr uint32_t PROGRESS_INDICATOR = 0x7EF3C5u;  /* sram_progress_indicator */
+constexpr uint32_t PENDANTS           = 0x7EF374u;  /* link_which_pendants */
 
 /* The file select (module 1). Its slots are NOT in work RAM: select_file.c draws
  * them straight out of the cartridge's save RAM, which the core exposes at the
@@ -164,9 +167,9 @@ void Log(const char* text)
 
 void DumpState()
 {
-    char line[256];
+    char line[320];
     snprintf(line, sizeof(line),
-             "crc:777aac2f health=%u/%u area=%u screen=%u room=%u indoors=%u magic=%u rupees=%u x=%u y=%u frame=%u hud=%u choice=%u guide=%u",
+             "crc:777aac2f health=%u/%u area=%u screen=%u room=%u indoors=%u magic=%u rupees=%u x=%u y=%u frame=%u hud=%u choice=%u guide=%u prog=%u flags=%02x pend=%u",
              (unsigned) u8(HEALTH_CURRENT), (unsigned) u8(HEALTH_CAPACITY),
              (unsigned) u16(OVERWORLD_AREA), (unsigned) u16(OVERWORLD_SCREEN),
              (unsigned) u16(DUNGEON_ROOM), (unsigned) u8(PLAYER_INDOORS),
@@ -174,7 +177,9 @@ void DumpState()
              (unsigned) u16(LINK_X), (unsigned) u16(LINK_Y),
              (unsigned) u8(FRAME_COUNTER),
              (unsigned) u8(HUD_CUR_ITEM), (unsigned) u8(CHOICE_BOX),
-             (unsigned) g_guideIndex);
+             (unsigned) g_guideIndex,
+             (unsigned) u8(PROGRESS_INDICATOR), (unsigned) u8(PROGRESS_FLAGS),
+             (unsigned) u8(PENDANTS));
     Log(line);
 }
 
@@ -755,6 +760,36 @@ const char* CompassWords(int dx, int dy)
     return east ? "south-east" : "south-west";
 }
 
+/* "north-west, about three screens" for the target area's base cell. The octile
+ * span is exact enough for "about" and needs no sqrt. Returns `out`. */
+const char* BearingText(uint8_t targetArea, char* out, size_t cap)
+{
+    int column = (int) (targetArea & 7);
+    int row = (int) ((targetArea >> 3) & 7);
+    int tx = column * SCREEN_UNITS + SCREEN_UNITS / 2;
+    int ty = row * SCREEN_UNITS + SCREEN_UNITS / 2;
+    int dx = tx - (int) u16(LINK_X);
+    int dy = ty - (int) u16(LINK_Y);
+    int ax = dx < 0 ? -dx : dx;
+    int ay = dy < 0 ? -dy : dy;
+
+    int span = (ax > ay ? ax : ay) + (ax < ay ? ax : ay) / 2;
+    unsigned screens = (unsigned) ((span + SCREEN_UNITS / 2) / SCREEN_UNITS);
+
+    char count[40];
+    if (screens == 0) {
+        snprintf(count, sizeof(count), "less than a screen");
+    } else if (screens == 1) {
+        snprintf(count, sizeof(count), "one screen");
+    } else {
+        NumberWords(screens, count, sizeof(count));
+        size_t used = strlen(count);
+        snprintf(count + used, sizeof(count) - used, " screens");
+    }
+    snprintf(out, cap, "%s, about %s", CompassWords(dx, dy), count);
+    return out;
+}
+
 void SpeakGuide()
 {
     if (CurrentMenu() != Menu::None) {
@@ -792,34 +827,74 @@ void SpeakGuide()
      * still gives the right side of the map, and arrival is detected by the id
      * rather than by the cell, so entering any of the four quadrants says "You
      * are here". */
-    int column = (int) (target.area & 7);
-    int row = (int) ((target.area >> 3) & 7);
-    int tx = column * SCREEN_UNITS + SCREEN_UNITS / 2;
-    int ty = row * SCREEN_UNITS + SCREEN_UNITS / 2;
-    int dx = tx - (int) u16(LINK_X);
-    int dy = ty - (int) u16(LINK_Y);
-    int ax = dx < 0 ? -dx : dx;
-    int ay = dy < 0 ? -dy : dy;
-
-    /* Octile distance: exact enough for "about N screens", and no sqrt. */
-    int span = (ax > ay ? ax : ay) + (ax < ay ? ax : ay) / 2;
-    unsigned screens = (unsigned) ((span + SCREEN_UNITS / 2) / SCREEN_UNITS);
-
-    char count[40];
-    if (screens == 0) {
-        snprintf(count, sizeof(count), "less than a screen");
-    } else if (screens == 1) {
-        snprintf(count, sizeof(count), "one screen");
-    } else {
-        NumberWords(screens, count, sizeof(count));
-        size_t used = strlen(count);
-        snprintf(count + used, sizeof(count) - used, " screens");
-    }
-
-    snprintf(line, sizeof(line), "Guide: %s, %s, about %s away.", name,
-             CompassWords(dx, dy), count);
+    char bearing[80];
+    snprintf(line, sizeof(line), "Guide: %s, %s away.", name,
+             BearingText(target.area, bearing, sizeof(bearing)));
     Say(line, "guide", Priority::High);
     g_guideIndex = (g_guideIndex + 1) % kGuideTargetCount;
+}
+
+/* ---- the objective -------------------------------------------------------
+ * ⛔ THE STAGE COMES FROM THE GAME'S OWN PROGRESS BYTES, never from a guess
+ * about where the player "should" be. Measured on the public save: progress
+ * flags 0x15 (sword, Zelda delivered, uncle gone), pendants 0, sword 1.
+ * bits: 0x01 uncle gave the sword, 0x04 Zelda reached the Sanctuary,
+ * 0x10 the uncle left the house.
+ */
+struct Objective { const char* text; uint8_t area; };
+
+Objective CurrentObjective()
+{
+    uint8_t flags = u8(PROGRESS_FLAGS);
+    uint8_t pendants = u8(PENDANTS);
+    uint8_t sword = u8(SWORD_TYPE);
+
+    if (!(flags & 0x01))
+        return { "Find your uncle in Hyrule Castle.", 0x1B };
+    if (!(flags & 0x04))
+        return { "Rescue Zelda in Hyrule Castle.", 0x1B };
+    if ((pendants & 7) != 7)
+        return { "Collect the three pendants. Sahasrahla in Kakariko knows where to start.", 0x18 };
+    if (sword < 2)
+        return { "Claim the Master Sword in the Lost Woods.", 0x00 };
+    return { "Confront Agahnim in Hyrule Castle.", 0x1B };
+}
+
+void SpeakObjective()
+{
+    if (CurrentMenu() != Menu::None) {
+        Say("Close the menu first.", "objective", Priority::High);
+        return;
+    }
+
+    unsigned area = u16(OVERWORLD_AREA);
+    /* ⛔ THE DARK WORLD HAS ITS OWN STORY AFTER AGHANIM, and none of its stages
+     * have been measured, so the reader refuses instead of naming the wrong
+     * goal for the second half of the game. */
+    if (area >= 0x40) {
+        Say("Objective: nothing mapped for the dark world yet.", "objective", Priority::High);
+        return;
+    }
+
+    Objective goal = CurrentObjective();
+    char line[220];
+    if (u8(PLAYER_INDOORS) != 0) {
+        snprintf(line, sizeof(line), "Objective: %s", goal.text);
+        Say(line, "objective", Priority::High);
+        return;
+    }
+    if (area == goal.area) {
+        snprintf(line, sizeof(line), "Objective: %s You are there.", goal.text);
+        Say(line, "objective", Priority::High);
+        return;
+    }
+
+    const char* name = AlttpAreaName(goal.area);
+    char bearing[80];
+    BearingText(goal.area, bearing, sizeof(bearing));
+    snprintf(line, sizeof(line), "Objective: %s %s is %s away.", goal.text,
+             name ? name : "The target", bearing);
+    Say(line, "objective", Priority::High);
 }
 
 void AlttpCommand(Command cmd)
@@ -843,6 +918,7 @@ void AlttpCommand(Command cmd)
         case Command::WhereAmI: SpeakWhereAmI(); break;
         case Command::Status:   SpeakStatus(); break;
         case Command::Guide:    SpeakGuide(); break;
+        case Command::Objective: SpeakObjective(); break;
         default: break;
     }
 }
