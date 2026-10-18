@@ -153,6 +153,14 @@ git commit -m "alttp: status command with hearts, magic and rupees"
 
 ### Task 4: Names for areas, dungeons and rooms
 
+**DONE 2026-10-17 for overworld areas.** The first table used development-map
+numbering; the live `overworld_area_index` differs (Kakariko is 0x18, the Desert
+is 0x30, and the dark-world Death Mountain ids were wrong). `Core/alttp_names.cpp`
+now follows the community `ow_names` table from the yba.lua auto-tracker, keyed by
+the live index, with abbreviations expanded and unknown ids still speaking their
+number. `0x2C` Link's House stays the measured value. Still open: dungeon names
+and room notes.
+
 **UPDATED 2026-10-17 — UNBLOCKED.** A public save loaded, one START press closed the
 interface module, and walking out gave the first outdoor reading: module 9 (Overworld),
 area 44, screen 44. Names now need a curated table, not a measurement; the numbers speak
@@ -198,15 +206,17 @@ git commit -m "alttp: area, dungeon and room names with numeric fallback"
 
 ### Task 5: The file-select screen
 
-**PARTIAL 2026-10-17.** `Status` no longer speaks the previous file's hearts on
-the file select, the title or name entry: those screens say "No game in
-progress." Reading the slots, their contents and the cursor is still open.
+**DONE 2026-10-17.** Module 1 with submodule >= 4 (the fade-in is not the screen),
+cursor `selectfile_R16` at `0x7E00C8`, slots read from the save RAM window at
+`0x700000`. The adapter speaks the slot's name, hearts and equipment, the empty
+slots, and copy/erase; Status and Where am I both read the slot instead of stale
+gameplay values. The app path proves it on the real ROM: "File select. File one,
+Link. Four hearts. Fighter's Sword, Fighter's Shield."
 
 **Files:**
 - Modify: `Core/alttp_adapter.cpp`
 - Modify: `Core/alttp_adapter_test.cpp`
 - Modify: `docs/design/alttp-memory.md`
-
 **Interfaces:**
 - Produces: `void SpeakFileSelect()`, plus menu detection in `StateSane` that keeps gameplay answers off this screen.
 

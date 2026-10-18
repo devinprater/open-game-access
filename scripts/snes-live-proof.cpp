@@ -240,8 +240,75 @@ static int Menus(const char* rom, const char* savedir)
     return ok ? 0 : 1;
 }
 
+// --files: the ADAPTER's file-select speech on the real ROM and save. The probe
+// measured the slots in save RAM; this proves the app path speaks them.
+static int Files(const char* rom, const char* savedir)
+{
+    PokeCore* core = poke_create();
+    if (!core) { std::printf("FAIL: no core\n"); return 1; }
+    poke_set_speech_callback(core, OnSpeak, nullptr);
+    g_say.clear();
+
+    if (!poke_load_rom(core, rom, savedir) || !poke_start(core)) {
+        std::printf("FAIL: %s\n", poke_last_error(core));
+        poke_destroy(core);
+        return 1;
+    }
+
+    /* Tap START until the adapter reports the file select; the moment it does,
+     * stop pressing so no file loads. */
+    /* Attach the adapter: on_frame only runs once ready() has wired it (the app
+     * does this when it offers the controls). */
+    (void) poke_adapter_ready(core);
+    bool reached = false;
+    std::printf("adapter=%s started\n", poke_adapter_id(core) ? poke_adapter_id(core) : "(none)");
+    for (int f = 0; f < 4000 && !reached; f++) {
+        poke_set_button(core, POKE_BTN_START, (f % 120) < 4);
+        poke_frame(core);
+        for (const std::string& s : g_say)
+            if (s.rfind("File select.", 0) == 0) { reached = true; break; }
+    }
+    poke_set_button(core, POKE_BTN_START, false);
+    for (int i = 0; i < 30; i++) poke_frame(core);
+    if (!reached) {
+        std::printf("FAIL: the file select never spoke\n");
+        poke_stop(core);
+        poke_destroy(core);
+        return 1;
+    }
+
+    std::printf("-- file select: down --\n");
+    TapApp(core, POKE_BTN_DOWN, 4, 40);
+    std::printf("-- file select: down again --\n");
+    TapApp(core, POKE_BTN_DOWN, 4, 40);
+    std::printf("-- file select: copy --\n");
+    TapApp(core, POKE_BTN_DOWN, 4, 40);
+    std::printf("-- file select: erase --\n");
+    TapApp(core, POKE_BTN_DOWN, 4, 40);
+    std::printf("-- file select: up --\n");
+    TapApp(core, POKE_BTN_UP, 4, 40);
+
+    bool spoke_slot = false, spoke_empty = false, spoke_copy = false, spoke_erase = false;
+    for (const std::string& s : g_say) {
+        if (s.rfind("File select. File one", 0) == 0) spoke_slot = true;
+        if (s.rfind("File two, empty.", 0) == 0) spoke_empty = true;
+        if (s.rfind("Copy file.", 0) == 0) spoke_copy = true;
+        if (s.rfind("Erase file.", 0) == 0) spoke_erase = true;
+    }
+    bool ok = spoke_slot && spoke_empty && spoke_copy && spoke_erase;
+    std::printf("slot=%d empty=%d copy=%d erase=%d\n",
+                (int) spoke_slot, (int) spoke_empty, (int) spoke_copy, (int) spoke_erase);
+    std::printf("lines=%d\n", (int) g_say.size());
+    std::printf("file-proof=%s\n", ok ? "YES" : "NO");
+    poke_stop(core);
+    poke_destroy(core);
+    return ok ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
+    if (argc >= 4 && std::strcmp(argv[1], "--files") == 0)
+        return Files(argv[2], argv[3]);
     if (argc >= 4 && std::strcmp(argv[1], "--menus") == 0)
         return Menus(argv[2], argv[3]);
     if (argc >= 5 && std::strcmp(argv[1], "--reload") == 0)

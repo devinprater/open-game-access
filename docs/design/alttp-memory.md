@@ -284,3 +284,58 @@ SAY: Save and quit selected.
 SAY: Continue game selected.
 menu-proof=YES
 ```
+
+## File select measured and spoken
+
+Measured 2026-10-17 with `scripts/snes-alttp-proof.sh --file` (core probe) and
+`--files` (app path).
+
+```
+-- entering --  mod=1 sub=1  cursor=216   <- fade-in: 216, 77, 155, 85
+-- settled --   mod=1 sub=4  cursor=0
+-- DOWN --      mod=1 sub=5  cursor=1  arr1=01
+-- DOWN --      mod=1 sub=5  cursor=2
+-- UP --        mod=1 sub=5  cursor=1
+```
+
+- **Gate:** `main_module_index == 1` AND `submodule_index >= 4`. During
+  submodules 1-3 the screen is still being built and `0x7E00C8` holds garbage;
+  the first version announced "Erase file" over a screen that was still drawing.
+- **Cursor:** `selectfile_R16` at `0x7E00C8`. 0-2 are the three files, 3 is
+  copy, 4 is erase.
+- **Slots are not in work RAM.** The game draws them straight from the
+  cartridge's save RAM, so `snes_read` now also serves the LoROM SRAM window at
+  `0x700000-0x70FFFF` (`MemoryType::SnesSaveRam`). Per slot, `0x500` bytes:
+
+| Field | Slot offset | Notes |
+| --- | --- | --- |
+| exists | `0x3E5` | `0x55AA` when the file is used |
+| name | `0x3D9` | six 16-bit glyphs, `0xA9` pads |
+| hearts | `0x36C` | capacity in eighths; 32 = four hearts |
+| sword / shield | `0x359` / `0x35A` | same values as the item menu |
+
+- **Name encoding:** the decomp stores
+  `chr = (t & 0xFFF0) * 2 + (t & 0x0F)`. Invert that, then use the game's font
+  order: `0x00-0x19` A-Z, `0x1A-0x33` a-z, `0x34-0x3D` 0-9, `0x60` i, `0x61` j.
+  The public save's four glyphs `0x0B, 0xC0, 0x47, 0x44` decode to **Link**.
+  One unknown glyph drops the whole name rather than guessing a letter.
+- **Measured app-path output:**
+
+```
+SAY: File select. File one, Link. Four hearts. Fighter's Sword, Fighter's Shield.
+SAY: File two, empty.
+SAY: File three, empty.
+SAY: Copy file.
+SAY: Erase file.
+file-proof=YES
+```
+
+## Area names corrected
+
+The first area table used development-map numbering, not the live
+`overworld_area_index`. Kakariko is **0x18**, not 0x21; the Desert of Mystery is
+**0x30**, not 0x39; and the dark-world Death Mountain ids were wrong too. The
+table now follows the community `ow_names` table from the yba.lua auto-tracker
+(`milde.no/public/alttp/yba.lua`), keyed by the same live index, with
+abbreviations expanded. `0x2C` Link's House stays the measured value.
+

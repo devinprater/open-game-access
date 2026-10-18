@@ -140,6 +140,7 @@ git commit -m &quot;alttp: where am I, with measured area and room numbers&quot;
 git commit -m &quot;alttp: status command with hearts, magic and rupees&quot;</code></pre>
 <hr>
 <h3>Task 4: Names for areas, dungeons and rooms</h3>
+<p><strong>DONE 2026-10-17 for overworld areas.</strong> The first table used development-map numbering; the live <code>overworld_area_index</code> differs (Kakariko is 0x18, the Desert is 0x30, and the dark-world Death Mountain ids were wrong). <code>Core/alttp_names.cpp</code> now follows the community <code>ow_names</code> table from the yba.lua auto-tracker, keyed by the live index, with abbreviations expanded and unknown ids still speaking their number. <code>0x2C</code> Link's House stays the measured value. Still open: dungeon names and room notes.</p>
 <p><strong>UPDATED 2026-10-17 — UNBLOCKED.</strong> A public save loaded, one START press closed the interface module, and walking out gave the first outdoor reading: module 9 (Overworld), area 44, screen 44. Names now need a curated table, not a measurement; the numbers speak in the meantime.</p>
 <p><strong>⛔ MEASURED 2026-10-17 — BLOCKED ON A SAVE.</strong> The scripted drive reached gameplay (module 7, indoors=1, room=260, hp 24/24) and confirmed the indoor room and health addresses, but could not leave Link's house, so the overworld area and screen ids, the dungeon identifier, menu cursors and dialogue bytes are unmeasured. Names for unmeasured ids would be invented. Needs a <code>.srm</code> from a real playthrough; <code>scripts/snes-alttp-proof.sh --gameplay</code> writes one when the game saves. See <code>docs/design/alttp-memory.md</code>.</p>
 <p><strong>Files:</strong></p>
@@ -172,7 +173,7 @@ git commit -m &quot;alttp: status command with hearts, magic and rupees&quot;</c
 git commit -m &quot;alttp: area, dungeon and room names with numeric fallback&quot;</code></pre>
 <hr>
 <h3>Task 5: The file-select screen</h3>
-<p><strong>PARTIAL 2026-10-17.</strong> <code>Status</code> no longer speaks the previous file's hearts on the file select, the title or name entry: those screens say "No game in progress." Reading the slots, their contents and the cursor is still open.</p>
+<p><strong>DONE 2026-10-17.</strong> Module 1 with submodule &gt;= 4 (the fade-in is not the screen), cursor <code>selectfile_R16</code> at <code>0x7E00C8</code>, slots read from the save RAM window at <code>0x700000</code>. The adapter speaks the slot's name, hearts and equipment, the empty slots, and copy/erase; Status and Where am I both read the slot instead of stale gameplay values. The app path proves it on the real ROM: "File select. File one, Link. Four hearts. Fighter's Sword, Fighter's Shield."</p>
 <p><strong>Files:</strong></p>
 <ul>
 <li>Modify: <code>Core/alttp_adapter.cpp</code></li>

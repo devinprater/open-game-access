@@ -902,6 +902,102 @@ static int Menus(const char* rom, const char* savedir)
     return 0;
 }
 
+// ---- file select: the cursor, the three slots, and a screenshot ----
+//
+// Task 5 of docs/plans/alttp-reader.md. The slots are not in work RAM: the game
+// draws them straight out of the cartridge's save RAM, which the core exposes at
+// 0x700000 (LoROM SRAM). One PPM is written when a path is given, because the
+// name bytes are the game's own font indices and the screenshot is how the
+// mapping gets measured rather than guessed.
+static void DumpFileSelect(SnesCore* c, const char* label, int frame)
+{
+    uint32_t mod = 0, sub = 0, cursor = 0, arr1 = 0;
+    snes_read(c, 0x7E0010u, 1, &mod);
+    snes_read(c, 0x7E0011u, 1, &sub);
+    snes_read(c, 0x7E00C8u, 1, &cursor);
+    snes_read(c, 0x7E00BFu, 1, &arr1);
+    std::printf("%s f=%d mod=%u sub=%u cursor=%u arr1=%02x\n", label, frame, mod, sub, cursor, arr1);
+
+    for (int k = 0; k < 3; k++) {
+        uint32_t base = 0x700000u + (uint32_t) k * 0x500u;
+        uint32_t exists = 0, cap = 0, sword = 0, shield = 0, armor = 0;
+        uint16_t name[6] = {0};
+        snes_read(c, base + 0x3E5u, 2, &exists);
+        snes_read(c, base + 0x36Cu, 1, &cap);
+        snes_read(c, base + 0x359u, 1, &sword);
+        snes_read(c, base + 0x35Au, 1, &shield);
+        snes_read(c, base + 0x35Bu, 1, &armor);
+        for (int i = 0; i < 6; i++) {
+            uint32_t v = 0;
+            if (snes_read(c, base + 0x3D9u + (uint32_t) i * 2u, 2, &v)) name[i] = (uint16_t) v;
+        }
+        std::printf("  slot %d exists=%04x name=%04x %04x %04x %04x %04x %04x health=%u sword=%u shield=%u armor=%u\n",
+                    k, exists, name[0], name[1], name[2], name[3], name[4], name[5],
+                    cap, sword, shield, armor);
+    }
+}
+
+static bool WritePpm(SnesCore* c, const char* path)
+{
+    int w = 0, h = 0;
+    if (!snes_framebuffer(c, &w, &h)) return false;
+    const uint8_t* px = snes_framebuffer_ptr(c);
+    if (!px || w <= 0 || h <= 0) return false;
+    FILE* f = std::fopen(path, "wb");
+    if (!f) return false;
+    std::fprintf(f, "P6\n%d %d\n255\n", w, h);
+    for (int i = 0; i < w * h; i++)
+        std::fwrite(px + (size_t) i * 4, 1, 3, f);
+    std::fclose(f);
+    return true;
+}
+
+static int FileSelect(const char* rom, const char* savedir, const char* ppm)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    /* The intro runs for an unknown number of frames before the title. Press
+     * START in short taps until the game itself says it is on module 1 (File
+     * Select); the moment it does, stop pressing so no file loads. */
+    int f = 0;
+    while (f < 4000) {
+        snes_set_button(c, SNES_BTN_START, (f % 120) < 4);
+        if (!snes_frame(c)) break;
+        f++;
+        uint32_t mod = 0;
+        if (snes_read(c, 0x7E0010u, 1, &mod) && mod == 1) break;
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    for (int i = 0; i < 60; i++, f++) snes_frame(c);
+    DumpFileSelect(c, "-- file select --", f);
+    if (ppm && *ppm) std::printf("ppm=%s wrote=%d\n", ppm, (int) WritePpm(c, ppm));
+
+    Tap(c, SNES_BTN_DOWN, 4, 30, &f);
+    DumpFileSelect(c, "-- down --", f);
+    Tap(c, SNES_BTN_DOWN, 4, 30, &f);
+    DumpFileSelect(c, "-- down again --", f);
+    Tap(c, SNES_BTN_UP, 4, 30, &f);
+    DumpFileSelect(c, "-- up --", f);
+
+    if (ppm && *ppm) {
+        char second[512];
+        std::snprintf(second, sizeof(second), "%s.2.ppm", ppm);
+        std::printf("ppm2=%s wrote=%d\n", second, (int) WritePpm(c, second));
+    }
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -978,6 +1074,10 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--menus") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return Menus(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--file") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return FileSelect(argv[2], argv[3], argc > 4 ? argv[4] : nullptr);
     }
     if (std::strcmp(argv[1], "--states") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }

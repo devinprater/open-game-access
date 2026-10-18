@@ -98,6 +98,13 @@ int snes_provider_last_type(SnesCore *core);
 #define SNES_RAM_BASE 0x7E0000u
 #define SNES_RAM_SIZE 0x20000u
 
+/* Cartridge save RAM (the .srm) is exposed at 0x700000-0x70FFFF, the LoROM SRAM
+ * window. The file-select slots live there and cannot be reached through work
+ * RAM; the window is below 0x7E0000, so the two ranges cannot collide. Reads
+ * outside both windows are still refused. */
+#define SNES_SRAM_BASE 0x700000u
+#define SNES_SRAM_SIZE 0x10000u
+
 bool snes_read(SnesCore *core, uint32_t addr, int width, uint32_t *out);
 uint32_t snes_ram_base(void);
 uint32_t snes_ram_size(void);

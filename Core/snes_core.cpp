@@ -496,13 +496,21 @@ bool snes_read(SnesCore *c, uint32_t addr, int width, uint32_t *out)
     if (!c || !c->emu || !c->running) return false;
     if (width != 1 && width != 2 && width != 4) return false;
 
-    /* The work-RAM block itself, not the CPU bus: no side effects, and the
-     * bounds are the block's own size rather than an assumption. */
-    ConsoleMemoryInfo mem = c->emu->GetMemory(MemoryType::SnesWorkRam);
-    if (!mem.Memory || mem.Size == 0) return false;
-    if (addr < SNES_RAM_BASE) return false;
+    /* Two blocks, both read directly rather than through the CPU bus (which has
+     * side effects on MMIO): work RAM at 0x7E0000, and the cartridge's save RAM
+     * at the LoROM window 0x700000. */
+    uint32_t base = SNES_RAM_BASE;
+    MemoryType type = MemoryType::SnesWorkRam;
+    if (addr >= SNES_SRAM_BASE && addr < SNES_SRAM_BASE + SNES_SRAM_SIZE) {
+        base = SNES_SRAM_BASE;
+        type = MemoryType::SnesSaveRam;
+    }
 
-    uint32_t off = addr - SNES_RAM_BASE;
+    ConsoleMemoryInfo mem = c->emu->GetMemory(type);
+    if (!mem.Memory || mem.Size == 0) return false;
+    if (addr < base) return false;
+
+    uint32_t off = addr - base;
     if (off >= mem.Size) return false;
     /* A read that would cross the end is REFUSED, never wrapped: a wrapped
      * 16-bit read is a silently wrong answer the adapter cannot detect. */

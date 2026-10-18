@@ -59,16 +59,29 @@ constexpr uint32_t SWORD_TYPE         = 0x7EF359u;  /* link_sword_type */
 constexpr uint32_t SHIELD_TYPE        = 0x7EF35Au;  /* link_shield_type */
 constexpr uint32_t ARMOR_TYPE         = 0x7EF35Bu;  /* link_armor */
 
+/* The file select (module 1). Its slots are NOT in work RAM: select_file.c draws
+ * them straight out of the cartridge's save RAM, which the core exposes at the
+ * LoROM window 0x700000. Cursor is selectfile_R16 (0x7E00C8). */
+constexpr uint32_t FILE_CURSOR        = 0x7E00C8u;  /* selectfile_R16 */
+constexpr uint32_t SRAM_BASE          = 0x700000u;  /* SNES_SRAM_BASE */
+constexpr uint32_t SRAM_SLOT          = 0x500u;
+constexpr uint32_t SRAM_EXISTS        = 0x3E5u;     /* 0x55AA when the slot is used */
+constexpr uint32_t SRAM_NAME          = 0x3D9u;     /* 6 x 16-bit glyphs */
+constexpr uint32_t SRAM_HEALTH        = 0x36Cu;     /* heart capacity, eighths */
+constexpr uint32_t SRAM_SWORD         = 0x359u;
+constexpr uint32_t SRAM_SHIELD        = 0x35Au;
+
 /* Interface submodules from the decomp's kMessagingSubmodules. */
 enum : uint8_t {
     SUB_HUD = 1,          /* Hud_Module_Run: the item menu while module 14 is up */
     SUB_SAVE_MENU = 11,   /* Module0E_0B_SaveMenu: SELECT's continue/save box */
 };
 
-enum class Menu { None, Item, Save };
+enum class Menu { None, Item, Save, FileSelect };
 Menu g_menu = Menu::None;
 uint16_t g_lastHudItem = 0xFFFFu;
 uint16_t g_lastChoice = 0xFFFFu;
+uint16_t g_lastFileCursor = 0xFFFFu;
 
 /* Module numbers from the decomp's kMainRouting (src/misc.c). */
 enum : uint8_t {
@@ -169,6 +182,7 @@ void AlttpDetach()
     g_menu = Menu::None;
     g_lastHudItem = 0xFFFFu;
     g_lastChoice = 0xFFFFu;
+    g_lastFileCursor = 0xFFFFu;
 }
 
 /* Module 14 is the interface/HUD layer; the real screen is in
@@ -184,13 +198,23 @@ bool AlttpReady();
 
 void SpeakItemMenu(bool withPrefix, bool withEquipment);
 void SpeakSaveMenu(bool opening);
+void SpeakFileSelect(bool withPrefix);
 
 /* Module 14 with submodule 1 is the item menu, and module 14 with submodule 11
  * is SELECT's continue/save box. Both were measured on the public save; neither
  * can be told from the module number alone. */
 Menu CurrentMenu()
 {
-    if (u8(MAIN_MODULE) != MOD_INTERFACE) return Menu::None;
+    uint8_t mod = u8(MAIN_MODULE);
+    if (mod == MOD_FILE_SELECT) {
+        /* ⛔ THE FADE-IN IS NOT THE SCREEN. Measured: while the file select is
+         * being set up (submodule 1), 0x7E00C8 holds garbage (216, 77, 155, 85)
+         * and only settles to the real cursor when submodule reaches 4/5. A
+         * reader that trusts the cursor during setup announces "Erase file" over
+         * a screen that is still drawing. */
+        return u8(SUBMODULE) >= 4 ? Menu::FileSelect : Menu::None;
+    }
+    if (mod != MOD_INTERFACE) return Menu::None;
     uint8_t sub = u8(SUBMODULE);
     if (sub == SUB_HUD) return Menu::Item;
     if (sub == SUB_SAVE_MENU) return Menu::Save;
@@ -199,9 +223,29 @@ Menu CurrentMenu()
 
 void AlttpFrame()
 {
-    if (!g_attached || !AlttpReady()) { g_menu = Menu::None; return; }
+    if (!g_attached) return;
 
     Menu menu = CurrentMenu();
+
+    /* ⛔ THE FILE SELECT COMES BEFORE `ready()`. Its slots are in save RAM, and
+     * the work-RAM health that ready() validates belongs to no game yet. */
+    if (menu == Menu::FileSelect) {
+        g_lastMessage = u16(DIALOGUE_INDEX);
+        if (menu != g_menu) {
+            g_menu = menu;
+            g_lastFileCursor = u8(FILE_CURSOR);
+            SpeakFileSelect(true);
+            return;
+        }
+        uint8_t cursor = u8(FILE_CURSOR);
+        if (cursor != g_lastFileCursor) {
+            g_lastFileCursor = cursor;
+            SpeakFileSelect(false);
+        }
+        return;
+    }
+
+    if (!AlttpReady()) { g_menu = Menu::None; return; }
 
     if (menu != g_menu) {
         g_menu = menu;
@@ -395,6 +439,90 @@ void SpeakSaveMenu(bool opening)
     Say(line, "savemenu", Priority::High);
 }
 
+/* The file select's name field. Measured on the public save: its four glyphs
+ * decode to "Link" (0x0B, 0xC0, 0x47, 0x44). The game stores a transformed
+ * name-entry tile, chr = (t & 0xFFF0) * 2 + (t & 0xF); invert it, then use the
+ * game's font order. 0xA9 pads the field and ends the name.
+ *
+ * ⛔ AN UNREADABLE NAME IS NOT GUESSED. One glyph this table does not know makes
+ * the whole name unavailable, and the slot is spoken without it. */
+bool FileNameFromSram(uint32_t base, char* out, int cap)
+{
+    int n = 0;
+    for (int i = 0; i < 6; i++) {
+        uint16_t v = u16(base + SRAM_NAME + (uint32_t) i * 2u);
+        if (v == 0xA9 || v == 0x0000) break;
+
+        uint16_t low = v & 0xFu;
+        if (((v - low) & 1u) != 0) return false;
+        uint16_t t = (uint16_t) (((v - low) / 2u) | low);
+
+        char c;
+        if (t <= 0x19)                     c = (char) ('A' + t);
+        else if (t <= 0x33)                c = (char) ('a' + (t - 0x1A));
+        else if (t >= 0x34 && t <= 0x3D)   c = (char) ('0' + (t - 0x34));
+        else if (t == 0x60)                c = 'i';   /* the name font's dotted i */
+        else if (t == 0x61)                c = 'j';
+        else return false;
+
+        if (n >= cap - 1) break;
+        out[n++] = c;
+    }
+    out[n] = 0;
+    return n > 0;
+}
+
+void SpeakFileSelect(bool withPrefix)
+{
+    uint8_t cursor = u8(FILE_CURSOR);
+    char line[192];
+    const char* prefix = withPrefix ? "File select. " : "";
+
+    if (cursor >= 3) {
+        snprintf(line, sizeof(line), "%s%s.", prefix,
+                 cursor == 3 ? "Copy file" : "Erase file");
+        Say(line, "fileselect", Priority::High);
+        return;
+    }
+
+    char number[16];
+    NumberWords((unsigned) cursor + 1u, number, sizeof(number));
+
+    uint32_t base = SRAM_BASE + (uint32_t) cursor * SRAM_SLOT;
+    if (u16(base + SRAM_EXISTS) != 0x55AAu) {
+        snprintf(line, sizeof(line), "%sFile %s, empty.", prefix, number);
+        Say(line, "fileselect", Priority::High);
+        return;
+    }
+
+    char name[8] = {0};
+    bool named = FileNameFromSram(base, name, (int) sizeof(name));
+
+    unsigned capacity = u8(base + SRAM_HEALTH);
+    char hearts[48] = {0};
+    if (capacity >= 0x18) {
+        char words[16];
+        NumberWords(capacity / 8u, words, sizeof(words));
+        words[0] = (char) toupper((unsigned char) words[0]);
+        snprintf(hearts, sizeof(hearts), " %s %s.", words,
+                 capacity / 8u == 1 ? "heart" : "hearts");
+    }
+
+    const char* sword = AlttpSwordName(u8(base + SRAM_SWORD));
+    const char* shield = AlttpShieldName(u8(base + SRAM_SHIELD));
+    char equip[96] = {0};
+    if (sword && shield) snprintf(equip, sizeof(equip), " %s, %s.", sword, shield);
+    else if (sword)      snprintf(equip, sizeof(equip), " %s.", sword);
+    else if (shield)     snprintf(equip, sizeof(equip), " %s.", shield);
+
+    if (named)
+        snprintf(line, sizeof(line), "%sFile %s, %s.%s%s", prefix, number, name, hearts, equip);
+    else
+        snprintf(line, sizeof(line), "%sFile %s.%s%s", prefix, number, hearts, equip);
+
+    Say(line, "fileselect", Priority::High);
+}
+
 void SpeakStatus()
 {
     /* ⛔ NO GAME, NO HEARTS. The file select, the title and name entry leave the
@@ -402,7 +530,8 @@ void SpeakStatus()
      * naive range check. Speaking yesterday's hearts on the file select is the
      * "bunch of numbers" failure with a friendly voice. */
     uint8_t mod = RealModule();
-    if (mod == MOD_FILE_SELECT || mod == MOD_TITLE || mod == MOD_NAME_ENTRY) {
+    if (mod == MOD_FILE_SELECT) { SpeakFileSelect(false); return; }
+    if (mod == MOD_TITLE || mod == MOD_NAME_ENTRY) {
         Say("No game in progress.", "status", Priority::High);
         return;
     }
@@ -451,6 +580,7 @@ void SpeakWhereAmI()
      * saved_module_for_menu, so without this the item menu would answer with
      * the room underneath it. */
     Menu menu = CurrentMenu();
+    if (menu == Menu::FileSelect) { SpeakFileSelect(true); return; }
     if (menu == Menu::Item) { SpeakItemMenu(true, false); return; }
     if (menu == Menu::Save) { SpeakSaveMenu(true); return; }
 
@@ -492,6 +622,14 @@ void SpeakWhereAmI()
 void AlttpCommand(Command cmd)
 {
     if (cmd == Command::DumpState) { DumpState(); return; }
+
+    /* The file select answers even though no game is running: its state is in
+     * save RAM, not in the work RAM that ready() validates. */
+    if (CurrentMenu() == Menu::FileSelect) {
+        if (cmd == Command::WhereAmI) SpeakFileSelect(true);
+        else if (cmd == Command::Status) SpeakFileSelect(false);
+        return;
+    }
 
     /* ⛔ SILENT UNTIL THE GAME HAS STATE. A player command answered from a
      * booting console is the "bunch of numbers" failure the design forbids; the

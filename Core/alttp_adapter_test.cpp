@@ -17,15 +17,28 @@
 #include <string.h>
 
 static uint8_t RAM[0x20000];
+static uint8_t SRAM[0x2000];
 static const uint32_t RAMBASE = 0x7E0000u;
+static const uint32_t SRAMBASE = 0x700000u;
 static inline size_t OFF(uint32_t a) { return (size_t) (a - RAMBASE); }
+static inline bool IS_SRAM(uint32_t a) { return a >= SRAMBASE && a < SRAMBASE + sizeof(SRAM); }
 
 static char SPOKEN[32][192]; static int NSPOKEN = 0;
 static char LOGGED[32][256]; static int NLOGGED = 0;
 
-static uint8_t  r8 (void*, uint32_t a) { return RAM[OFF(a)]; }
-static uint16_t r16(void*, uint32_t a) { uint16_t v; memcpy(&v, &RAM[OFF(a)], 2); return v; }
-static uint32_t r32(void*, uint32_t a) { uint32_t v; memcpy(&v, &RAM[OFF(a)], 4); return v; }
+static uint8_t  r8 (void*, uint32_t a) { return IS_SRAM(a) ? SRAM[a - SRAMBASE] : RAM[OFF(a)]; }
+static uint16_t r16(void*, uint32_t a) {
+    uint16_t v;
+    if (IS_SRAM(a)) memcpy(&v, &SRAM[a - SRAMBASE], 2);
+    else memcpy(&v, &RAM[OFF(a)], 2);
+    return v;
+}
+static uint32_t r32(void*, uint32_t a) {
+    uint32_t v;
+    if (IS_SRAM(a)) memcpy(&v, &SRAM[a - SRAMBASE], 4);
+    else memcpy(&v, &RAM[OFF(a)], 4);
+    return v;
+}
 static void spk(void*, const char* s, bool) { if (NSPOKEN < 32) snprintf(SPOKEN[NSPOKEN++], 192, "%s", s); }
 static void lg (void*, const char* s) { if (NLOGGED < 32) snprintf(LOGGED[NLOGGED++], 256, "%s", s); }
 static void btn(void*, int, bool) {}
@@ -38,6 +51,8 @@ extern const Adapter kGameBoyAdvance;
 
 static void put8(uint32_t a, uint8_t v) { RAM[OFF(a)] = v; }
 static void put16(uint32_t a, uint16_t v) { memcpy(&RAM[OFF(a)], &v, 2); }
+static void putS8(uint32_t a, uint8_t v) { SRAM[a - SRAMBASE] = v; }
+static void putS16(uint32_t a, uint16_t v) { memcpy(&SRAM[a - SRAMBASE], &v, 2); }
 
 static const uint32_t CAP = 0x7EF36Cu, CUR = 0x7EF36Du, MAGIC = 0x7EF36Eu;
 static const uint32_t AREA = 0x7E040Au, SCREEN = 0x7E008Au, ROOM = 0x7E00A0u;
@@ -111,9 +126,9 @@ int main()
 
     // Where am I: outdoors speaks area and screen, indoors speaks the room.
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    put16(AREA, 3); put16(SCREEN, 4); put8(INDOORS, 0); put8(0x7E0010u, 9);
+    put16(AREA, 4); put16(SCREEN, 5); put8(INDOORS, 0); put8(0x7E0010u, 9);
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, area 3, screen 4.") == 0,
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, area 4, screen 5.") == 0,
           "outdoors: area and screen");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
@@ -146,10 +161,11 @@ int main()
     // Status on the file select must not read the last file's leftovers.
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(0x7E0010u, 1);            // file select
+    put8(0x7E0011u, 4);            // and its interactive submodule
     put8(CAP, 0x20); put8(CUR, 0x20); put16(X, 0x0800); put16(Y, 0x0800);
     oga::kZeldaLinkToThePast.command(oga::Command::Status);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "No game in progress.") == 0,
-          "status: no hearts on the file select, only that no game is running");
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "File one, empty.") == 0,
+          "status: the file select speaks its slot, not yesterday's hearts");
     put8(0x7E0010u, 7);
 
     // ---- module-aware where am I (the decomp's module table) ----
@@ -164,9 +180,9 @@ int main()
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(0x7E010Cu, 9);           // Overworld
-    put8(INDOORS, 0); put16(AREA, 3); put16(SCREEN, 4);
+    put8(INDOORS, 0); put16(AREA, 4); put16(SCREEN, 5);
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, area 3, screen 4.") == 0,
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, area 4, screen 5.") == 0,
           "interface layer resolves to the overworld module");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
@@ -189,15 +205,29 @@ int main()
           "a sourced area is named");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    put16(AREA, 0x05); put16(SCREEN, 0x05);
+    put16(AREA, 0x01); put16(SCREEN, 0x01);
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, area 5, screen 5.") == 0,
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, area 1, screen 1.") == 0,
           "an unknown area speaks its number, never a guessed name");
 
+    // The old table called 0x21 Kakariko and 0x39 the desert; the live area
+    // index (and the tracker table) says 0x18 and 0x30.
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    put16(AREA, 0x42); put16(SCREEN, 0x02);
+    put16(AREA, 0x18); put16(SCREEN, 0x18);
     oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside in the dark world, Death Mountain.") == 0,
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, Kakariko Village.") == 0,
+          "Kakariko is at its live area id 0x18");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(AREA, 0x30); put16(SCREEN, 0x30);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside, Desert of Mystery.") == 0,
+          "the desert is at its live area id 0x30");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(AREA, 0x40); put16(SCREEN, 0x00);
+    oga::kZeldaLinkToThePast.command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Outside in the dark world, Skull Woods.") == 0,
           "the dark world is said out loud");
 
     // ---- dialogue: the measured message 388 ----
@@ -296,6 +326,64 @@ int main()
     NSPOKEN = 0; oga::AdapterSpeechReset();
     oga::kZeldaLinkToThePast.on_frame();
     CHECK(NSPOKEN == 0, "closing the save menu does not speak the cursor glyphs");
+
+    // ---- file select: slots live in the cartridge's save RAM ----
+    // The fade-in (submodule 1) is not the screen: 0x7E00C8 holds garbage then.
+    put8(0x7E0010u, 1); put8(0x7E0011u, 1); put8(0x7E00C8u, 216);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 0, "file select: the fade-in speaks nothing, even on a garbage cursor");
+
+    // MEASURED 2026-10-17: module 1, cursor selectfile_R16 (0x7E00C8) walking
+    // 0 -> 1 -> 2 with DOWN; slot 0 exists (0x55AA at +0x3E5) with the name
+    // glyphs 0x0B, 0xC0, 0x47, 0x44 = "Link", capacity 32, sword 1, shield 1.
+    put8(0x7E0010u, 1); put8(0x7E0011u, 4); put8(0x7E00C8u, 0);
+    putS16(0x700000u + 0x3E5u, 0x55AA);
+    putS16(0x700000u + 0x3D9u, 0x000B);
+    putS16(0x700000u + 0x3DBu, 0x00C0);
+    putS16(0x700000u + 0x3DDu, 0x0047);
+    putS16(0x700000u + 0x3DFu, 0x0044);
+    putS16(0x700000u + 0x3E1u, 0xA9);
+    putS16(0x700000u + 0x3E3u, 0xA9);
+    putS8(0x700000u + 0x36Cu, 32);
+    putS8(0x700000u + 0x359u, 2);
+    putS8(0x700000u + 0x35Au, 1);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "File select. File one, Link. Four hearts. Master Sword, Fighter's Shield.") == 0,
+          "file select: the used slot names its file, hearts and equipment");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E00C8u, 1);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "File two, empty.") == 0,
+          "file select: an empty slot says so");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E00C8u, 3);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Copy file.") == 0,
+          "file select: the copy position is named");
+
+    // An unreadable name is dropped, never guessed.
+    putS16(0x700A00u + 0x3E5u, 0x55AA);
+    putS16(0x700A00u + 0x3D9u, 0x00FF);
+    putS8(0x700A00u + 0x36Cu, 24);
+    putS8(0x700A00u + 0x359u, 1);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E00C8u, 2);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "File three. Three hearts. Fighter's Sword.") == 0,
+          "file select: an unreadable name is left out, not invented");
+
+    // Status on the file select reads the slot, not stale gameplay values.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E00C8u, 0);
+    oga::kZeldaLinkToThePast.command(oga::Command::Status);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "File one, Link. Four hearts. Master Sword, Fighter's Shield.") == 0,
+          "status on the file select speaks the slot");
 
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();
