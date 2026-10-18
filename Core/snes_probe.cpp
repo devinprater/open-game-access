@@ -598,9 +598,9 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
     std::printf("start area=%u x=%u y=%u in=%u pal=%02x target=%04x\n",
                 prev.area, prev.x, prev.y, prev.indoors, prev.palace, target);
 
-    int stuck = 0, detour = 0, detour_dir = 0;
+    int stuck = 0, detour = 0, detour_dir = 0, hug_dir = 0, hug_timer = 900;
     bool arrived = false;
-    for (int i = 0; i < 12000; i++) {
+    for (int i = 0; i < 26000; i++) {
         NavPos p = ReadNav(c);
         if (p.indoors && p.palace != 0xFF) { arrived = true; break; }
         uint32_t mod = 0;
@@ -612,47 +612,51 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
 
         int dx = tx - (int) p.x, dy = ty - (int) p.y;
         bool up = false, down = false, left = false, right = false;
-        if (p.area == 0x2D) {
-            /* ⛔ THE BRIDGE IS A CORRIDOR, NOT A FIELD. Line up with the span
-             * first, then push north; the guard at the north end is what blocks
-             * the exit, so stun it with the boomerang rather than detouring into
-             * the moat. */
-            if ((int) p.x > 2870) left = true;
-            else if ((int) p.x < 2760) right = true;
-            else up = true;
-            snes_set_button(c, SNES_BTN_B, (i % 40) < 6);
-        } else if (detour > 0) {
+        /* ⛔ THE ROUTE IS THE WALKTHROUGH'S, EXPRESSED IN SCREENS. 0x2C is
+         * Uncle's Estate East (the house); go east to 0x2D Eastern Ruins Bridge,
+         * NORTH across it into 0x25 Moundlands, east into 0x26 Eastern Ruins,
+         * then north into 0x1E Eastern Ruins NW, the palace. Both a walkthrough
+         * and IGN say "east from Link's house, north across the bridge, then
+         * east again". */
+        switch (p.area) {
+            case 0x2C: right = true; break;
+            case 0x2D:
+                if ((int) p.x > 2900) left = true;
+                else if ((int) p.x < 2760) right = true;
+                else up = true;
+                break;
+            case 0x25:
+                /* Hug the east wall: hold east and slide along it in one
+                 * direction until a corner, then sweep the other way. */
+                right = true;
+                if (hug_dir) down = true; else up = true;
+                break;
+            case 0x26: case 0x27:
+                up = true;
+                if (hug_dir) right = true; else left = true;
+                break;
+            case 0x1E: up = true; break;
+            default:
+                if (dx > 24) right = true; else if (dx < -24) left = true;
+                if (dy > 24) down = true; else if (dy < -24) up = true;
+                break;
+        }
+
+        /* Wall slide: when the wanted direction is blocked, ADD the
+         * perpendicular direction in growing sweeps instead of replacing the
+         * wanted one. Random four-way detours turned the earlier runs into a
+         * random walk. */
+        if (detour > 0) {
             detour--;
-            if (detour_dir == 0) right = true;
-            else if (detour_dir == 1) down = true;
-            else if (detour_dir == 2) left = true;
-            else up = true;
-        } else if (p.area == target) {
-            /* In the palace's field: the entrance sits at the top of the area,
-             * so climb, and slide sideways when a wall stops the climb. */
-            up = true;
-            if (stuck > 1) {
-                up = false;
-                if ((stuck / 2) % 2 == 0) right = true; else left = true;
-            }
-        } else if ((int) p.x < 3100) {
-            /* Leg one: east along the southern road to the screen below the
-             * palace (0x2E, "South of Eastern Palace"). The bridge route turned
-             * north too early and ended on Death Mountain. */
-            right = true;
-        } else if ((int) p.y > 2560) {
-            /* Leg two: north out of the southern road. */
-            up = true;
-        } else if ((int) p.y > 2048) {
-            /* Leg three: north into the palace's row. */
-            up = true;
-        } else {
-            /* The entrance is in this screen; keep climbing and slide on walls. */
-            up = true;
-            if (stuck > 1) {
-                up = false;
-                if ((stuck / 2) % 2 == 0) right = true; else left = true;
-            }
+            if (up || down) { if (detour_dir) right = true; else left = true; }
+            else { if (detour_dir) up = true; else down = true; }
+            if (detour == 0) detour_dir ^= 1;   /* next sweep goes the other way */
+        }
+
+        /* A full-screen sweep before reversing, or the hug reverses at the
+         * first obstacle and never covers the rest of the wall. */
+        if (p.area == 0x25 || p.area == 0x26 || p.area == 0x27) {
+            if (--hug_timer <= 0) { hug_dir ^= 1; hug_timer = 900; }
         }
 
         snes_set_button(c, SNES_BTN_UP, up);
@@ -666,9 +670,8 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
                         (int) (p.y > prev.y ? p.y - prev.y : prev.y - p.y);
             if (moved < 8) {
                 stuck++;
-                if (stuck > 2) {
-                    detour = 120;
-                    detour_dir = (detour_dir + 1) % 4;
+                if (stuck > 2 && detour == 0) {
+                    detour = 420;   /* one long sweep along the wall */
                     stuck = 0;
                 }
             } else {
