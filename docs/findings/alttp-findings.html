@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="en"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>A Link to the Past in Open Game Access: findings</title>
+<style>body{font-family:system-ui,sans-serif;max-width:52em;margin:2em auto;line-height:1.55;padding:0 1em;color:#111}h1{font-size:1.7em}h2{font-size:1.3em;margin-top:1.8em;border-bottom:1px solid #ddd;padding-bottom:.2em}h3{font-size:1.08em;margin-top:1.4em}code{background:#eee;padding:0 .15em;font-size:.95em;border-radius:3px}table{border-collapse:collapse;width:100%;margin:1em 0;font-size:.95em}th,td{border:1px solid #ccc;padding:.35em .5em;text-align:left;vertical-align:top}th{background:#f4f4f4}li{margin:.3em 0}blockquote{border-left:3px solid #ccc;margin-left:0;padding-left:1em;color:#444}hr{border:0;border-top:1px solid #ddd;margin:2em 0}pre{background:#f7f7f7;padding:.8em;overflow:auto;font-size:.9em}</style></head><body>
+<h1>A Link to the Past in Open Game Access — findings so far</h1>
+<p>Paused 2026-10-17. This is the state of the work, what is proven, what is only believed, and what is still open. Every address below was measured or taken from the decompilation at <code>~/z3work/zelda3</code>; none is a guess.</p>
+<h2>1. Where the work stands</h2>
+<p>The SNES console runs inside OGA through MesenCE, and the A Link to the Past adapter is registered, tested, and linked into the iOS app. The reader can say what screen you are on, indoors or outdoors, read health, magic, rupees, keys, and speak dialogue from the game's own text buffer.</p>
+<p>It cannot yet read the item, save, or map menus, and it cannot guide a route.</p>
+<p>The Android app is not a path for this work yet: its native code is melonDS only, with no Mesen and no OGA core, and no device was attached to measure.</p>
+<h2>2. The console layer (SNES in OGA)</h2>
+<p><code>Core/snes_core.h</code> / <code>Core/snes_core.cpp</code> wrap MesenCE's <code>SnesConsole</code> behind the OGA C ABI: create, load, start, stop, frame, framebuffer, work-RAM read, input, savestate, battery save, destroy.</p>
+<p>Things that were wrong at first and are fixed, each proven by a specific check:</p>
+<ul>
+<li>Framebuffer was empty (<code>fb=0x0</code>, <code>nonzero=0</code>). <code>GetVideoFilter()</code> returns a new object per call, so a cached filter is now configured with <code>SetBaseFrameInfo()</code> and <code>SetOverscan()</code> before <code>SendFrame()</code>. Output is <code>0xAARRGGBB</code>, matching <code>SnesDefaultVideoFilter.cpp</code>.</li>
+<li>Identity was a file-size guess. Now the CRC32 is computed from <code>MemoryType::SnesPrgRom</code>, the image Mesen actually runs, so a headered <code>.smc</code> and a headerless <code>.sfc</code> both report <code>crc:777aac2f</code>.</li>
+<li>No controller existed: Mesen starts with <code>Port1.Type == None</code>, so every press was dropped (<code>provider-calls=15 last-type=0</code>). Setting <code>cfg.Port1.Type = ControllerType::SnesController</code> before load fixed it (<code>provider-calls=34 last-type=1</code>, <code>start-bits=00000080</code>).</li>
+<li>Teardown leaked one console (<code>live-after-second-load=2</code>, <code>live-after-destroy=1</code>); <code>snes_destroy</code> had landed in the wrong function. Now 1 and 0.</li>
+<li>Reading after stop returned true from a dead console, and reset after stop segfaulted. Both paths now refuse cleanly.</li>
+</ul>
+<p>Proof harness: <code>Core/snes_probe.cpp</code> with <code>scripts/snes-alttp-proof.sh</code> (<code>--identity</code>, <code>--run</code>, <code>--input</code>, <code>--reads</code>, <code>--resolve</code>, <code>--states</code>, <code>--after-stop</code>, <code>--teardown</code>, <code>--headered</code>, <code>--memory</code>, <code>--resume</code>, <code>--drive</code>, <code>--measure</code>, <code>--text</code>, <code>--keytest</code>).</p>
+<h2>3. Measured memory map</h2>
+<table><thead><tr><th>What</th><th>Address</th><th>Notes</th></tr></thead><tbody>
+<tr><td>main module</td><td><code>0x7E0010</code></td><td>the dispatch index</td></tr>
+<tr><td>submodule</td><td><code>0x7E0011</code></td><td></td></tr>
+<tr><td>saved module for menu</td><td><code>0x7E010C</code></td><td>the real module when 14 is up</td></tr>
+<tr><td>indoors flag</td><td><code>0x7E001B</code></td><td>1 = indoors</td></tr>
+<tr><td>Link x / y</td><td><code>0x7E0022</code> / <code>0x7E0020</code></td><td>16-bit</td></tr>
+<tr><td>overworld screen</td><td><code>0x7E008A</code></td><td>16-bit</td></tr>
+<tr><td>room index</td><td><code>0x7E00A0</code></td><td></td></tr>
+<tr><td>overworld area</td><td><code>0x7E040A</code></td><td>game computes `screen &amp; 0x3F \</td><td>darkworld`</td></tr>
+<tr><td>heart capacity</td><td><code>0x7EF36C</code></td><td>eighths of a heart</td></tr>
+<tr><td>current health</td><td><code>0x7EF36D</code></td><td>eighths</td></tr>
+<tr><td>magic</td><td><code>0x7EF36E</code></td><td>0 when no meter yet</td></tr>
+<tr><td>rupees</td><td><code>0x7EF362</code></td><td>16-bit</td></tr>
+<tr><td>message index</td><td><code>0x7E1CF0</code></td><td></td></tr>
+<tr><td>message text buffer</td><td><code>0x7F1200</code></td><td>already decoded by the game</td></tr>
+</tbody></table>
+<p>Boot garbage at frame 0 reads capacity <code>0x7F</code> and health <code>0x56</code>, which a naive range check accepts. The adapter requires capacity in <code>0x18..0xA0</code> and <code>(capacity - 0x18) % 8 == 0</code>, one heart container being eight eighths, and current health no greater than capacity.</p>
+<h2>4. Module semantics (from the decompilation)</h2>
+<p><code>kMainRouting</code> in <code>src/misc.c</code> names the modules. The important correction: <strong>module 14 is the interface/HUD layer, not a cutscene.</strong> The real screen is in <code>saved_module_for_menu</code>.</p>
+<ul>
+<li>0 title, 1 file select, 4 name entry, 5 load file, 7 dungeon/gameplay, 8–11 overworld load and overworld, 14 interface, 16 spotlight open, 18 game over, 20 attract, 23 save and quit.</li>
+<li>Interface submodules: 1 HUD, 2 text, 3 dungeon map, 11 save menu.</li>
+</ul>
+<p>Consequence: "where am I" must resolve module 14 through <code>saved_module_for_menu</code>. Reading module 14 literally is how a HUD over indoor gameplay was mistaken for a cutscene.</p>
+<h2>5. Dialogue comes from the game's own buffer</h2>
+<p>The game decodes its messages before display. <code>messaging_text_buffer</code> at <code>0x7F1200</code> holds font tile indices for the current message, so the reader needs no menu driving and no decompression.</p>
+<p>Measured message 388:</p>
+<pre><code>7a 00 44 12 2d 1a 2b 2d 59 05 2b 28 26 59 0b 22 27 24 51 2c 59
+07 28 2e 2c 1e 75 59 59 12 2d 1a 2b 2d 59 05 2b 28 26 59 12 1a
+27 1c 2d 2e 1a 2b 32 72 7f</code></pre>
+<p>Decodes to: <strong>"Start From Link's House, Start From Sanctuary."</strong></p>
+<p>The mapping, all measured: A–Z <code>0x00</code>–<code>0x19</code>, a–z <code>0x1A</code>–<code>0x33</code>, digits <code>0x34</code>–<code>0x3D</code>, space <code>0x59</code>, apostrophe <code>0x51</code>, comma <code>0x75</code>, period <code>0x72</code>, end <code>0x7F</code>. Commands start at <code>0x67</code> (<code>kTextCommandStart_US</code>) and their parameter counts come from the decomp's <code>kText_CommandLengths_US</code>; skipping only the command byte would read its parameter as text.</p>
+<p>The adapter speaks a message once per new index, not once per frame.</p>
+<h2>6. Getting outside</h2>
+<p>The downloaded save looked frozen. It was not: the game was sitting in the interface module. <strong>One START press closes it</strong> — measured <code>module 14 sub 1</code> → <code>7 sub 0</code>. Direction input does nothing until that happens.</p>
+<p>With the interface closed, walking out gave the first outdoor reading:</p>
+<pre><code>module 16 sub 1  real=9  indoors=0  x=2232 y=2792  area=44 screen=44</code></pre>
+<p>Module 16 is the transition, then module 9 is the overworld, and Left moved the coordinates. So area 44 is a real observation, and the save's own description text says where it is.</p>
+<h2>7. Area names</h2>
+<p>The game never shows an area name and the decompilation has no name table, so <code>Core/alttp_names.cpp</code> is curated and deliberately small. <code>0x2C</code> Link's House is measured; Sanctuary, Graveyard, Hyrule Castle, Kakariko, the Desert squares, Skull Woods, Death Mountain and Turtle Rock come from the development map data. Everything else speaks its number. A wrong name sends a blind player the wrong way; a number does not.</p>
+<h2>8. What is not done</h2>
+<ul>
+<li><strong>Menus.</strong> Item, save, and map screens are not read. The module and submodule values are known (<code>14</code> with submodule <code>11</code> for save), but no reader exists.</li>
+<li><strong>Route guidance.</strong> No navigation, no beacon, no directions.</li>
+<li><strong>Names.</strong> Most areas are unnamed; the dark world is sparse.</li>
+<li><strong>Dialogue coverage.</strong> Only one real message has been decoded end to end. Commands with larger parameter blocks are untested.</li>
+<li><strong>Android.</strong> No Mesen backend in <code>app/src/main/cpp</code>, no device attached. The iOS build is the only phone path this work delivers today.</li>
+<li><strong>The no-ROM gate</strong> trips on untracked vendor objects and probe binaries in a working tree, so a commit gate run from this tree will fail even though the branch contains no game data.</li>
+</ul>
+<h2>9. Reproduce</h2>
+<pre><code>wsl -d Ubuntu-24.04
+cd ~/oga-work
+bash scripts/alttp-adapter-test.sh        # 24 tests
+bash scripts/snes-alttp-proof.sh --identity
+ALTP_SAVE=$HOME/z3work/alttp-save bash scripts/snes-alttp-proof.sh --measure
+bash scripts/build-core.sh                # device archive with the adapter
+bash scripts/xtool-build.sh               # iOS app</code></pre>
+<p>The ROM is Devin's USA dump, payload CRC32 <code>777AAC2F</code>, and it never enters the repository.</p>
+</body></html>
