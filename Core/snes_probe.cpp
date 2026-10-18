@@ -393,8 +393,12 @@ static void DumpReaderAddresses(SnesCore* c, int frame)
     snes_read(c, 0x7EF36Du, 1, &cur);
     snes_read(c, 0x7EF36Eu, 1, &magic);
     snes_read(c, 0x7EF362u, 2, &rupees);
-    std::printf("f=%3d mod=%u sub=%u in=%u x=%u y=%u scr=%u room=%u area=%u hp=%u/%u mag=%u rup=%u\n",
-                frame, mod, sub, indoors, x, y, screen, room, area, cur, cap, magic, rupees);
+    uint32_t saved_mod = 0, msg = 0, incap = 0;
+    snes_read(c, 0x7E010Cu, 1, &saved_mod);
+    snes_read(c, 0x7E1CF0u, 2, &msg);
+    snes_read(c, 0x7E0046u, 1, &incap);
+    std::printf("f=%3d mod=%u sub=%u real=%u in=%u x=%u y=%u scr=%u room=%u area=%u hp=%u/%u mag=%u rup=%u msg=%u incap=%u\n",
+                frame, mod, sub, saved_mod, indoors, x, y, screen, room, area, cur, cap, magic, rupees, msg, incap);
 }
 
 static int Memory(const char* rom, const char* savedir)
@@ -707,6 +711,48 @@ static int Measure(const char* rom, const char* savedir)
     return 0;
 }
 
+// Prints the game's decompressed message buffer, which the decompilation names
+// messaging_text_buffer (g_ram+0x11200 -> 0x7F1200), plus the message index.
+static int TextDump(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    for (int f = 0; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+
+    uint32_t msg = 0, pos = 0, mod = 0, sub = 0, real = 0;
+    snes_read(c, 0x7E1CF0u, 2, &msg);
+    snes_read(c, 0x7E1CF2u, 2, &pos);
+    snes_read(c, 0x7E0010u, 1, &mod);
+    snes_read(c, 0x7E0011u, 1, &sub);
+    snes_read(c, 0x7E010Cu, 1, &real);
+    std::printf("module=%u sub=%u real=%u message=%u read_pos=%u\n", mod, sub, real, msg, pos);
+
+    std::printf("buffer:");
+    for (int i = 0; i < 96; i++) {
+        uint32_t v = 0;
+        if (!snes_read(c, 0x7F1200u + (uint32_t) i, 1, &v)) break;
+        std::printf(" %02x", v);
+        if (i % 16 == 15) std::printf("\n       ");
+    }
+    std::printf("\n");
+
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -735,6 +781,10 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--headered") == 0) {
         if (argc < 5) { Usage(argv[0]); return 2; }
         return Headered(argv[2], argv[3], argv[4]);
+    }
+    if (std::strcmp(argv[1], "--text") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return TextDump(argv[2], argv[3]);
     }
     if (std::strcmp(argv[1], "--measure") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }

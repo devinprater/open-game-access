@@ -114,3 +114,55 @@ gameplay, `module 14` is the text/cutscene module; both were seen.
 
 Names still wait on a save at a playable point (outdoors), not on an address
 question: the ids are readable, they have simply never been observed outdoors.
+
+## What the decompilation says the modules are (2026-10-17)
+
+`~/z3work/zelda3/src/misc.c` holds `kMainRouting[28]`, the module table the
+game dispatches on `main_module_index`:
+
+```
+0  Module00_Intro          8  OverworldLoad        16  SpotlightOpen
+1  FileSelect              9  Overworld            17  DungeonFallingEntrance
+2  CopyFile               10  OverworldLoad        18  GameOver
+3  KILLFile               11  Overworld            19  BossVictory_Pendant
+4  NameFile               12  Unknown0             20  Attract
+5  LoadFile               13  Unknown1             21  MirrorWarpFromAga
+6  PreDungeon             14  Interface (HUD/menus) 22 BossVictory_Crystal
+7  Dungeon                15  SpotlightClose       23  SaveAndQuit
+```
+
+⛔ **`main_module_index == 14` does NOT mean "cutscene".** It is the interface
+module. The real game state is in `saved_module_for_menu` (`0x7E010C`):
+measured in the downloaded save, `module=14 sub=1 real=7` — the HUD running over
+indoor gameplay. `submodule_index` selects the interface handler
+(`kMessagingSubmodules`): 1 = `Hud_Module_Run`, 2 = `RenderText`, 3 = dungeon
+map, 11 = save menu.
+
+**Consequence for the reader:** "what screen am I on" must read
+`saved_module_for_menu` when `main_module_index == 14`, and the module table
+above is the vocabulary for that answer.
+
+## Dialogue is readable from RAM, no gameplay needed
+
+`messaging_text_buffer` is `g_ram+0x11200` = **`0x7F1200`**: the message text
+AFTER the game has decoded it into font tile indices. Measured in the
+downloaded save (`dialogue_message_index` `0x7E1CF0` = 388):
+
+```
+7a 00 44 12 2d 1a 2b 2d 59 05 2b 28 26 59 0b 22 27 24 51 2c 59
+07 28 2e 2c 1e 75 59 59 12 2d 1a 2b 2d 59 05 2b 28 26 59 12 1a
+27 1c 2d 2e 1a 2b 32 72 7f
+```
+
+Decoded with the US font order (A–Z = `0x00`–`0x19`, a–z = `0x1A`–`0x33`,
+space = `0x59`, `0x51` = apostrophe):
+
+**"Start From Link's House,"** — the save's own description text.
+
+So a dialogue reader needs no cursor driving at all: read the message index,
+read the buffer, map tiles to characters, and speak. Commands above the letter
+range (`0x7A`, `0x7F`, …) terminate or decorate.
+
+Still unknown: why that particular save refuses to move Link (module 14 sub 1
+with `message=388`, `incap=0`, coordinates frozen). It is a save made mid-event,
+not a reader problem.
