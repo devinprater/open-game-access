@@ -519,6 +519,200 @@ static int Talk(const char* rom, const char* savedir)
     return 0;
 }
 
+/* ---- dungeon: drive the real save to a dungeon ----------------------------
+ * Keys and room notes had no live proof because nothing had ever walked into a
+ * dungeon. This mode boots the save, walks out, then uses an eight-way greedy
+ * walk toward the target area with a stuck detector and a detour, and writes a
+ * savestate once the player is indoors with a dungeon id. Screenshots are
+ * optional, because a wrong turn is easier to see than to infer from RAM.
+ */
+struct NavPos { uint32_t x, y; uint16_t area; uint8_t indoors, palace; };
+
+static bool WritePpm(SnesCore* c, const char* path);   /* defined below */
+
+/* ⛔ THE BOOT TAPS LEAVE THE PAUSE MENU OPEN OR CLOSED AT RANDOM. A fixed
+ * "press START once" turns a closed menu into an open one, and the walk then
+ * goes nowhere while the game ignores the d-pad. Read the module and close it
+ * only when it is the interface. */
+static void CloseMenu(SnesCore* c)
+{
+    for (int tries = 0; tries < 4; tries++) {
+        uint32_t mod = 0;
+        snes_read(c, 0x7E0010u, 1, &mod);
+        if (mod != 14) return;
+        for (int i = 0; i < 4; i++) { snes_set_button(c, SNES_BTN_START, true); snes_frame(c); }
+        for (int i = 0; i < 24; i++) { snes_set_button(c, SNES_BTN_START, false); snes_frame(c); }
+    }
+}
+
+static NavPos ReadNav(SnesCore* c)
+{
+    NavPos p = {};
+    uint32_t v = 0;
+    snes_read(c, 0x7E0022u, 2, &p.x);
+    snes_read(c, 0x7E0020u, 2, &p.y);
+    snes_read(c, 0x7E040Au, 2, &v); p.area = (uint16_t) v;
+    snes_read(c, 0x7E001Bu, 1, &v); p.indoors = (uint8_t) v;
+    snes_read(c, 0x7E040Cu, 1, &v); p.palace = (uint8_t) v;
+    return p;
+}
+
+static int Dungeon(const char* rom, const char* savedir, const char* stateout, const char* shot)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    for (; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    CloseMenu(c);
+
+    /* Walk out of the house. */
+    for (int i = 0; i < 300; i++) {
+        snes_set_button(c, SNES_BTN_DOWN, true);
+        snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        snes_frame(c); f++;
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 30; i++) { snes_frame(c); f++; }
+    CloseMenu(c);
+
+    const uint16_t target = 0x1E;          /* Eastern Palace */
+    const int tx = (target & 7) * 512 + 256;
+    const int ty = ((target >> 3) & 7) * 512 + 256;
+
+    NavPos prev = ReadNav(c);
+    std::printf("start area=%u x=%u y=%u in=%u pal=%02x target=%04x\n",
+                prev.area, prev.x, prev.y, prev.indoors, prev.palace, target);
+
+    int stuck = 0, detour = 0, detour_dir = 0;
+    bool arrived = false;
+    for (int i = 0; i < 12000; i++) {
+        NavPos p = ReadNav(c);
+        if (p.indoors && p.palace != 0xFF) { arrived = true; break; }
+        uint32_t mod = 0;
+        snes_read(c, 0x7E0010u, 1, &mod);
+        if (mod == 18) { std::printf("game-over at f=%d\n", f); break; }
+        /* A SWINGS THE SWORD; B is the Boomerang in this save. The first attempts
+         * mashed B, which only stuns, and the guards killed Link. */
+        snes_set_button(c, SNES_BTN_A, (i % 20) < 8);
+
+        int dx = tx - (int) p.x, dy = ty - (int) p.y;
+        bool up = false, down = false, left = false, right = false;
+        if (p.area == 0x2D) {
+            /* ⛔ THE BRIDGE IS A CORRIDOR, NOT A FIELD. Line up with the span
+             * first, then push north; the guard at the north end is what blocks
+             * the exit, so stun it with the boomerang rather than detouring into
+             * the moat. */
+            if ((int) p.x > 2870) left = true;
+            else if ((int) p.x < 2760) right = true;
+            else up = true;
+            snes_set_button(c, SNES_BTN_B, (i % 40) < 6);
+        } else if (detour > 0) {
+            detour--;
+            if (detour_dir == 0) right = true;
+            else if (detour_dir == 1) down = true;
+            else if (detour_dir == 2) left = true;
+            else up = true;
+        } else if (p.area == target) {
+            /* In the palace's field: the entrance sits at the top of the area,
+             * so climb, and slide sideways when a wall stops the climb. */
+            up = true;
+            if (stuck > 1) {
+                up = false;
+                if ((stuck / 2) % 2 == 0) right = true; else left = true;
+            }
+        } else if ((int) p.x < 3100) {
+            /* Leg one: east along the southern road to the screen below the
+             * palace (0x2E, "South of Eastern Palace"). The bridge route turned
+             * north too early and ended on Death Mountain. */
+            right = true;
+        } else if ((int) p.y > 2560) {
+            /* Leg two: north out of the southern road. */
+            up = true;
+        } else if ((int) p.y > 2048) {
+            /* Leg three: north into the palace's row. */
+            up = true;
+        } else {
+            /* The entrance is in this screen; keep climbing and slide on walls. */
+            up = true;
+            if (stuck > 1) {
+                up = false;
+                if ((stuck / 2) % 2 == 0) right = true; else left = true;
+            }
+        }
+
+        snes_set_button(c, SNES_BTN_UP, up);
+        snes_set_button(c, SNES_BTN_DOWN, down);
+        snes_set_button(c, SNES_BTN_LEFT, left);
+        snes_set_button(c, SNES_BTN_RIGHT, right);
+        snes_frame(c); f++;
+
+        if ((i % 40) == 0) {
+            int moved = (int) (p.x > prev.x ? p.x - prev.x : prev.x - p.x) +
+                        (int) (p.y > prev.y ? p.y - prev.y : prev.y - p.y);
+            if (moved < 8) {
+                stuck++;
+                if (stuck > 2) {
+                    detour = 120;
+                    detour_dir = (detour_dir + 1) % 4;
+                    stuck = 0;
+                }
+            } else {
+                stuck = 0;
+            }
+            prev = p;
+        }
+        if ((i % 600) == 0) {
+            uint32_t hp = 0, cap = 0, mmod = 0;
+            snes_read(c, 0x7EF36Du, 1, &hp);
+            snes_read(c, 0x7EF36Cu, 1, &cap);
+            snes_read(c, 0x7E0010u, 1, &mmod);
+            std::printf("f=%d area=%u x=%u y=%u in=%u pal=%02x stuck=%d hp=%u/%u mod=%u\n",
+                        f, p.area, p.x, p.y, p.indoors, p.palace, stuck, hp, cap, mmod);
+            if (shot && *shot) {
+                char path[512];
+                std::snprintf(path, sizeof(path), "%s.%d.ppm", shot, i / 600);
+                WritePpm(c, path);
+            }
+        }
+    }
+
+    snes_set_button(c, SNES_BTN_UP, false);
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_LEFT, false);
+    snes_set_button(c, SNES_BTN_RIGHT, false);
+
+    NavPos end = ReadNav(c);
+    std::printf("end area=%u x=%u y=%u in=%u pal=%02x\n",
+                end.area, end.x, end.y, end.indoors, end.palace);
+    if (shot && *shot) {
+        char path[512];
+        std::snprintf(path, sizeof(path), "%s.final.ppm", shot);
+        std::printf("ppm=%s wrote=%d\n", path, (int) WritePpm(c, path));
+    }
+    std::printf("dungeon-arrived=%s\n", arrived ? "YES" : "NO");
+    bool saved = false;
+    if (arrived && stateout && *stateout) saved = snes_save_state(c, stateout);
+    std::printf("state=%s wrote=%d\n", stateout ? stateout : "", (int) saved);
+    snes_stop(c);
+    snes_destroy(c);
+    return arrived ? 0 : 1;
+}
+
 static int Memory(const char* rom, const char* savedir)
 {
     SnesCore* c = snes_create();
@@ -1190,6 +1384,11 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--drive") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return Drive(argv[2], argv[3], argc > 4 ? std::atoi(argv[4]) : 1800);
+    }
+    if (std::strcmp(argv[1], "--dungeon") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Dungeon(argv[2], argv[3], argc > 4 ? argv[4] : nullptr,
+                       argc > 5 ? argv[5] : nullptr);
     }
     if (std::strcmp(argv[1], "--talk") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }

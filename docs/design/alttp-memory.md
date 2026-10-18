@@ -474,6 +474,29 @@ moves, so watching only the item cursor leaves this menu silent.
   enemy to open`), and numeric placeholder effects are dropped.
 - ⚠ Unit-tested only. The harness cannot reach a dungeon without steering.
 
+## Harness route to a dungeon (work in progress)
+
+The harness now boots the public save, walks out of the house, and survives long
+enough to travel, but it has NOT entered a dungeon yet. `--dungeon` in
+`Core/snes_probe.cpp` drives an eight-way walk with a stuck detector, screenshots
+and a savestate, and prints where it ends.
+
+What was measured on the way:
+
+- **The save slot has a checksum.** `Intro_CheckCksum` sums the first `0x280`
+  16-bit words and requires `0x5A5A`; the checksum word is at `+0x27E`. Editing
+  health without recomputing it makes the file select zero the slot.
+- **A test fixture with 20 hearts** (capacity and current `0xA0`, checksum fixed,
+  file made read-only so the game cannot save over it) survives the guards that
+  killed the 4-heart save in about 12 seconds.
+- **Route findings:** from Link's house go east to the bridge (`0x2D`), cross it
+  north, and the east edge of the next row (`0x25`) is a cliff at x≈3008. The
+  castle gate is shut after the Sanctuary, so north from the bridge bounces.
+  Death Mountain (`0x1D`) is reached by going too far north.
+- **What is next:** the remaining work is route knowledge, not memory. The
+  decomp's per-screen overworld files carry the entrances and collision layers;
+  a screen graph built from them is the same work the walking-route feature needs.
+
 ## The dungeon pouch
 
 Status adds the dungeon's keys and gear only when `player_is_indoors` is set and
