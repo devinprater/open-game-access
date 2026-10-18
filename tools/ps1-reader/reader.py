@@ -15,11 +15,16 @@ import sys
 import time
 
 import ps
+from species import SPECIES
 
 # Measured on Pokemon Stadium (USA) Rev 2, 2026-10-18.
 STATE_ADDR = 0x800757A8
 AREA_CURSOR_ADDR = 0x80117EFA          # s16 inside fragment37's overlay
 CUP_CURSOR_ADDR = 0x8008157C           # u32, cup-select screen
+FRAGMENT_TABLE = 0x800A58F0            # gFragments[], 8 bytes per entry
+CUP_FRAGMENT = 87                      # cup-select screen fragment
+TEAM_FRAGMENT = 88                     # the team-select fragment
+TEAM_STRUCT_OFFSET = 0x168D2           # rental cursor struct inside that fragment
 
 SCREENS = {
     0x01: "Nintendo 64 logo",
@@ -103,10 +108,43 @@ def read_u32(addr):
     return struct.unpack("<I", ps.read_bytes(addr, 4))[0]
 
 
+def team_struct():
+    """Return the rental cursor struct address, or None when the screen is away."""
+    base = read_u32(FRAGMENT_TABLE + TEAM_FRAGMENT * 8)
+    if not (0x80000000 <= base < 0x80800000):
+        return None
+    return base + TEAM_STRUCT_OFFSET
+
+
+def fragment_loaded(fragment_id):
+    base = read_u32(FRAGMENT_TABLE + fragment_id * 8)
+    return 0x80000000 <= base < 0x80800000
+
+
+def rental_entry(struct_addr):
+    """Return (index, species name) for the rental grid, or None.
+
+    The list is 3 columns by 4 visible rows, in Pokedex order. Scrolling one
+    row at the bottom adds one to the scroll byte, so the visible row is
+    scroll + row.
+    """
+    b = ps.read_bytes(struct_addr, 0x10)
+    scroll = b[3]
+    row = struct.unpack_from("<h", b, 0xA)[0]
+    col = struct.unpack_from("<h", b, 0xC)[0]
+    if not (0 <= row <= 3 and 0 <= col <= 2):
+        return None
+    index = (scroll + row) * 3 + col
+    if 0 <= index < len(SPECIES):
+        return index, SPECIES[index]
+    return None
+
+
 def main():
     speech = Speech()
     speech.say("Pokemon Stadium reader ready.")
     last_state = None
+    last_screen_name = None
     last_item = None
     pending_state = None
     state_hits = 0
@@ -126,24 +164,40 @@ def main():
         else:
             pending_state, state_hits = cur, 1
 
-        if state_hits == 2 and cur != last_state:
-            speech.say(SCREENS.get(cur, f"Unknown screen {cur:#x}"))
-            last_state = cur
-            last_item = None
-
         item = None
+        screen_name = SCREENS.get(cur, f"Unknown screen {cur:#x}")
         if cur == 0x10:
             v = read_s16(AREA_CURSOR_ADDR)
             if 0 <= v <= 8:
                 item = FACILITIES.get(v)
         elif cur == 0x20:
-            raw = ps.read_bytes(CUP_CURSOR_ADDR, 8)
-            v, nxt = struct.unpack("<2I", raw)
-            # The cup cursor is followed by a pointer into RDRAM on that screen.
-            # Other Stadium sub-screens reuse this heap area, so without the
-            # guard a stale word reads as a cup name.
-            if 0x80000000 <= nxt < 0x80800000:
-                item = CUPS.get(v)
+            st = team_struct()
+            if st is not None:
+                entry = rental_entry(st)
+                if entry is not None:
+                    screen_name = "Rental Pokemon list"
+                    item = f"{entry[1]}, number {entry[0] + 1}"
+                else:
+                    screen_name = "Stadium menu"
+            elif fragment_loaded(CUP_FRAGMENT):
+                screen_name = "Stadium cup select"
+                raw = ps.read_bytes(CUP_CURSOR_ADDR, 8)
+                v, nxt = struct.unpack("<2I", raw)
+                # The cup cursor is followed by a pointer into RDRAM on that
+                # screen. Other Stadium sub-screens reuse this heap area.
+                if 0x80000000 <= nxt < 0x80800000:
+                    item = CUPS.get(v)
+            else:
+                screen_name = "Stadium menu"
+
+        if state_hits == 2 and screen_name != last_screen_name:
+            speech.say(screen_name)
+            last_state = cur
+            last_screen_name = screen_name
+            last_item = None
+            # A sub-screen change inside state 0x20 must re-announce the item.
+            if item is not None:
+                pending_item, item_hits = item, 1
 
         if item == pending_item:
             item_hits += 1

@@ -151,12 +151,23 @@ Measured on Pokémon Stadium (USA) Rev 2:
   (Poké/Great/Ultra/Master Ball), the Battle/Rules/Registration menu, the
   Registered/Rental choice, and the rental grid. `gCurrentGameState` does not
   distinguish them, so a reader needs a sub-screen signal before it can name them.
-- The rental grid is reached and navigable (3 columns x 4 rows, 12 per page, 151
-  rentals). **Its cursor has not been located yet.** The decompilation's rental struct
-  is `unk_D_842168A0` in `fragment61_2DFB60.c`, with `unk_00005` as the selected tab,
-  `unk_0000C` as the column (0–2), and the row index in a field the code reaches
-  through the heap-allocated struct — which is why no fixed address turned up in a
-  whole-RAM diff.
+- The rental grid is reached and its cursor is mapped. The base moves between
+  screens, so the reader reads `gFragments` at `0x800A58F0` (240 entries of vaddr and
+  size) and takes fragment 88's base. The cursor struct is that base + `0x168D2`:
+  scroll byte at +3, row `s16` at +0xA (0–3), column `s16` at +0xC (0–2). The
+  absolute index is `(scroll + row) * 3 + column`, and the species number is
+  `index + 1`. Verified against the stat card: index 14 = Beedrill (No. 015) and
+  index 17 = Pidgeot (No. 018).
+- Fragment ids also separate the Stadium sub-screens: 87 is cup select and 88 is the
+  team-select screen. That is the discriminator `gCurrentGameState` cannot give.
+- ⛔ **The stat card's numbers and move names are not in RAM.** Exact-value scans for
+  Bulbasaur, Metapod and Pidgeot stats and for Pidgeot's four move ids returned zero
+  hits in all encodings. The card derives them from ROM tables at draw time, so
+  speaking stats and moves needs a pre-baked per-species table extracted from the
+  ROM — the reader-pattern rule about shipping pre-baked data rather than
+  re-deriving it.
+- The rental order is assumed to be Pokedex order for all 151 entries. That is
+  verified for the Poké Cup list; a filtered cup could break the index mapping.
 
 The prototype reader announces the screen name and, on area select and cup select, the
 highlighted entry. It debounces every value over four consecutive polls so a transient
