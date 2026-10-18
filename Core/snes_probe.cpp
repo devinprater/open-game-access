@@ -557,6 +557,102 @@ static NavPos ReadNav(SnesCore* c)
     return p;
 }
 
+/* ---- teleport: a harness fixture, never an adapter feature ----------------
+ * Walking to the Eastern Palace has failed on terrain every time. This moves
+ * Link with snes_write instead: a few pixels a frame toward the palace screen,
+ * then a real walk up into the door. Everything after the door is the game's own
+ * state. The cheat is confined to this probe mode. */
+static int Teleport(const char* rom, const char* savedir, const char* stateout)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+
+    int f = 0;
+    for (; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    CloseMenu(c);
+    for (int i = 0; i < 300; i++) {
+        snes_set_button(c, SNES_BTN_DOWN, true);
+        snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        snes_frame(c); f++;
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 40; i++) { snes_frame(c); f++; }
+    CloseMenu(c);
+
+    /* 0x1E Eastern Ruins NW: x 3072-3583, y 1536-2047. Land south of the door. */
+    const int tx = 3328, ty = 1800;
+    NavPos start = ReadNav(c);
+    std::printf("start area=%u x=%u y=%u in=%u pal=%02x -> %d,%d\n",
+                start.area, start.x, start.y, start.indoors, start.palace, tx, ty);
+
+    for (int i = 0; i < 9000; i++) {
+        NavPos p = ReadNav(c);
+        if (p.indoors) break;
+        if (p.area == 0x1E && p.y <= 1900) break;
+        int dx = tx - (int) p.x, dy = ty - (int) p.y;
+        if (dx == 0 && dy == 0) break;
+        /* Walking speed, not a jump: the screen-transition code has to see a
+         * normal crossing, or the world keeps the old screen while the
+         * coordinates move. */
+        int sx = dx > 4 ? 4 : (dx < -4 ? -4 : dx);
+        int sy = dy > 4 ? 4 : (dy < -4 ? -4 : dy);
+        snes_write(c, 0x7E0022u, 2, (uint32_t) ((int) p.x + sx) & 0xFFFF);
+        snes_write(c, 0x7E0020u, 2, (uint32_t) ((int) p.y + sy) & 0xFFFF);
+        snes_frame(c); f++;
+        if (i % 120 == 0) {
+            NavPos q = ReadNav(c);
+            std::printf("f=%d area=%u x=%u y=%u\n", f, q.area, q.x, q.y);
+        }
+    }
+
+    NavPos p = ReadNav(c);
+    std::printf("arrived area=%u x=%u y=%u in=%u pal=%02x\n", p.area, p.x, p.y, p.indoors, p.palace);
+
+    /* The coordinates moved but the world did not: area stayed at the house.
+     * Ask the overworld module to load the palace screen by name. */
+    snes_write(c, 0x7E008Au, 2, 0x1E);   /* overworld_screen_index */
+    snes_write(c, 0x7E0700u, 2, 0x1E);   /* current_area_of_player */
+    for (int i = 0; i < 240; i++) snes_frame(c);
+    NavPos r = ReadNav(c);
+    std::printf("after screen set: area=%u x=%u y=%u in=%u pal=%02x\n",
+                r.area, r.x, r.y, r.indoors, r.palace);
+
+    /* Now walk, honestly, into the door. */
+    bool entered = false;
+    for (int i = 0; i < 900; i++) {
+        NavPos q = ReadNav(c);
+        if (q.indoors && q.palace != 0xFF) { entered = true; break; }
+        snes_set_button(c, SNES_BTN_UP, true);
+        snes_frame(c); f++;
+    }
+    snes_set_button(c, SNES_BTN_UP, false);
+    NavPos end = ReadNav(c);
+    std::printf("end area=%u x=%u y=%u in=%u pal=%02x dungeon-arrived=%s\n",
+                end.area, end.x, end.y, end.indoors, end.palace, entered ? "YES" : "NO");
+    if (stateout && entered) {
+        bool ok = snes_save_state(c, stateout);
+        std::printf("state=%s wrote=%d\n", stateout, ok ? 1 : 0);
+    }
+
+    snes_stop(c);
+    snes_destroy(c);
+    return entered ? 0 : 1;
+}
+
 static int Dungeon(const char* rom, const char* savedir, const char* stateout, const char* shot)
 {
     SnesCore* c = snes_create();
@@ -1483,6 +1579,10 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--walkmap") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return WalkMap(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--teleport") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return Teleport(argv[2], argv[3], argc > 4 ? argv[4] : nullptr);
     }
     if (std::strcmp(argv[1], "--dungeon") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }

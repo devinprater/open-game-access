@@ -106,6 +106,12 @@ int snes_provider_last_type(SnesCore *core);
 #define SNES_SRAM_SIZE 0x10000u
 
 bool snes_read(SnesCore *core, uint32_t addr, int width, uint32_t *out);
+
+/* ---- memory writes (harness only) ----
+ * The adapter never writes: it reads the game. A test harness sometimes must,
+ * to place Link somewhere reproducible, so the write lives here, marked, and
+ * refuses exactly as the read refuses: no console, no write. */
+bool snes_write(SnesCore *core, uint32_t addr, int width, uint32_t value);
 uint32_t snes_ram_base(void);
 uint32_t snes_ram_size(void);
 

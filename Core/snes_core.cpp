@@ -527,6 +527,35 @@ bool snes_read(SnesCore *c, uint32_t addr, int width, uint32_t *out)
 uint32_t snes_ram_base(void) { return SNES_RAM_BASE; }
 uint32_t snes_ram_size(void) { return SNES_RAM_SIZE; }
 
+/* The mirror of snes_read: same windowing, same refusals. Work RAM and save RAM
+ * are plain host buffers here, so a store needs no CPU bus and has no MMIO side
+ * effects. */
+bool snes_write(SnesCore *c, uint32_t addr, int width, uint32_t value)
+{
+    if (!c || !c->emu || !c->running) return false;
+    if (width != 1 && width != 2 && width != 4) return false;
+
+    uint32_t base = SNES_RAM_BASE;
+    MemoryType type = MemoryType::SnesWorkRam;
+    if (addr >= SNES_SRAM_BASE && addr < SNES_SRAM_BASE + SNES_SRAM_SIZE) {
+        base = SNES_SRAM_BASE;
+        type = MemoryType::SnesSaveRam;
+    }
+
+    ConsoleMemoryInfo mem = c->emu->GetMemory(type);
+    if (!mem.Memory || mem.Size == 0) return false;
+    if (addr < base) return false;
+
+    uint32_t off = addr - base;
+    if (off >= mem.Size) return false;
+    if ((uint64_t) off + (uint64_t) width > (uint64_t) mem.Size) return false;
+
+    uint8_t *p = (uint8_t *) mem.Memory;
+    for (int i = 0; i < width; i++)
+        p[off + (uint32_t) i] = (uint8_t) (value >> (8 * i));
+    return true;
+}
+
 int snes_cpu_pc(SnesCore *c)
 {
     std::shared_ptr<IConsole> console = LiveConsole(c);
