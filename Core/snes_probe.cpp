@@ -762,14 +762,21 @@ static int WalkMap(const char* rom, const char* savedir)
     snes_read(c, 0x7E070Cu, 2, &bx);
     snes_read(c, 0x7E070Eu, 2, &mx);
     NavPos p = ReadNav(c);
-    std::printf("area=%u x=%u y=%u base=%u,%u mask=%04x,%04x\n", p.area, p.x, p.y, bx, by, mx, my);
+    uint32_t mod = 0, sub = 0, oms = 0;
+    snes_read(c, 0x7E0010u, 1, &mod);
+    snes_read(c, 0x7E0011u, 1, &sub);
+    snes_read(c, 0x7E0200u, 1, &oms);
+    std::printf("mod=%u sub=%u oms=%u area=%u x=%u y=%u base=%u,%u mask=%04x,%04x\n",
+                mod, sub, oms, p.area, p.x, p.y, bx, by, mx, my);
 
-    /* One character per 16x16 pixel cell, ids mapped to letters on first use. */
+    /* One character per 16x16 pixel cell (x in 8px units, y in pixels). */
     uint16_t ids[64]; char glyph[64]; int nids = 0;
     char rows[32][33];
     for (int ry = 0; ry < 32; ry++) {
         for (int rx = 0; rx < 32; rx++) {
-            int px = rx * 16, py = ry * 16;
+            /* Absolute world coords: the formula subtracts the base, so a
+             * screen-relative coordinate would underflow through the mask. */
+            uint32_t px = bx + (uint32_t) rx * 2, py = by + (uint32_t) ry * 16;
             uint32_t t = (((uint32_t) py - by) & my) * 8 + (((uint32_t) px - bx) & mx);
             uint32_t v = 0;
             snes_read(c, 0x7E2000u + ((t >> 1) * 2u), 2, &v);
@@ -782,6 +789,16 @@ static int WalkMap(const char* rom, const char* savedir)
         rows[ry][32] = 0;
     }
     for (int ry = 0; ry < 32; ry++) std::printf("%s\n", rows[ry]);
+    /* Machine-readable copy for scripts/alttp-walkability.py. */
+    std::printf("attrs=");
+    for (int ry = 0; ry < 32; ry++) {
+        for (int rx = 0; rx < 32; rx++) {
+            int k = 0;
+            for (; k < nids; k++) if (glyph[k] == rows[ry][rx]) break;
+            std::printf("%s%04x", (ry || rx) ? "," : "", (unsigned) ids[k]);
+        }
+    }
+    std::printf("\n");
     std::printf("legend:");
     for (int k = 0; k < nids; k++) std::printf(" %c=%04x", glyph[k], ids[k]);
     std::printf("\n");
