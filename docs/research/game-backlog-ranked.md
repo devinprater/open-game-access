@@ -79,7 +79,7 @@ is a *design* solution a post-hoc reader can only approximate.
 | **Danganronpa** | PSP | Visual novel + trial minigames. No core. |
 | **Mario Party 1/2/3** | N64 | Mostly menu/dice (tractable); minigames are not. No core. |
 | **Paper Mario / TTYD** | N64/GC | Turn-based combat but action commands are timed; no core. |
-| **Pokémon Stadium 1/2** | N64 | Turn-based battles, real-time minigames. No core. |
+| **Pokémon Stadium 1/2** | N64 | Turn-based battles, real-time minigames. No core. **Stadium 1 is the easier adapter** — see `pokemon-stadium-adapter-ease.md`. |
 
 ## Tier 3 — Hard (real-time but forgiving, or heavy modelling)
 
