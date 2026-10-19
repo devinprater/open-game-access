@@ -224,3 +224,40 @@ Next session should either:
    `fragment62` is the battle engine; the party data is the same 84-byte record shape
    used by the rental tables (moves at +0, level at +0x1B, stats at +0x1D, name at
    +0x27), so a battle struct should be findable from that.
+
+## BizHawk: full input, battle reached, HP still unmapped
+
+RetroArch's `mupen64plus_next` cannot send the whole controller over MCP. Holding
+RetroPad L, R, L3 or R3 set no N64 button bit, while B mapped to N64 A, Y to N64 B,
+Start to Start, L2 to Z, and the right analog stick to the C buttons. L and R are
+therefore unreachable, which matters because the battle HUD offers `[L] Cancel` and
+`[R] Check`.
+
+BizHawk 2.11.1 was installed at `C:\Users\Devin Prater\bizhawk` and runs the ROM.
+Its Lua `joypad.set` reaches the full controller: A, B, Z, Start, L, R and
+`C Up`/`C Down`/`C Left`/`C Right` all set the expected bits in the game's controller
+struct (read at `0x800A7455` for A/B/Z/Start and `0x800A7457` for C/L/R). The
+`Up`/`Down`/`Left`/`Right` names did not register at all.
+
+Scripted route to a battle, measured: A at the title, A through the menu, area select
+and cup select, four confirms to the rental list, six times (A opens the card, A
+confirms the pick), A on the team popup, A on the bracket, then A, B, `C Left` on the
+lineup and A to confirm. The battle is loaded when fragments `22,23,25,38,42,89` are
+present; the team screens show `22,23,24,25,94` instead, which is the reliable
+in-battle test.
+
+⛔ **The 84-byte party records are definitions, not live state.** Charmander's record
+sits at `0x800AE699` and the opponent's (`KEY-MAN`) at `0x800AEA59`, with the same
+layout as the rental table: moves at +0, level at +0x1B, stats at +0x1D, name at
++0x27. The +0x1D HP field read 126 and 112 and did not change through a scripted
+attack — those are the maximum stats.
+
+⛔ A whole-RAM diff (4 MiB before and after one scripted attack) found exactly one
+u16 decrease: `0x80104B8A`, 15 to 7. That is not HP-shaped. Either the scripted turn
+did not actually execute, or live HP is stored somewhere other than a plain u16. The
+next step is to confirm the turn runs (a battle message or a PP value should change)
+and then diff the damage frame itself rather than a 25-second window.
+
+The scripts are in `tools/ps1-reader/bizhawk/`. They load `battle2.state`, which is
+written by `bh15.lua` when the battle fragment set appears, so the 4-minute drive is
+paid once per emulator run.
