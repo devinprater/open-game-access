@@ -209,11 +209,18 @@ void CmdDump(void)
 // below excludes Konquest on this flag, and Konquest gets its own
 // surfaces as they are verified.
 constexpr uint32_t kKonquestFlagAAddr = 0x08AF69C8;
-constexpr uint32_t kKonquestFlagBAddr = 0x08B123DC;
+constexpr uint32_t kKonquestFlagBAddr = 0x08B123DC;   // bout sub-state, see below
 
+// Flag A is the mode itself. Flag B is NOT: it reads 1 inside a Konquest bout
+// (the dojo drills) and 0 in free-roam, which was measured in the village
+// (2026-10-19) while A stayed 1 and the compass HUD was live. Requiring both
+// therefore declared free-roam "not Konquest": the dialogue and objective
+// channels went silent exactly where the objectives matter, and the front-end
+// gates lost their Konquest exclusion in the same state. Gate on A alone and
+// treat B as what it is — whether a bout is running.
 bool InKonquest(void)
 {
-    return u32(kKonquestFlagAAddr) == 1 && u32(kKonquestFlagBAddr) == 1;
+    return u32(kKonquestFlagAAddr) == 1;
 }
 
 constexpr uint32_t kMainMenuCursorAddr = 0x09E61750;
