@@ -186,3 +186,41 @@ The prototype reader announces the screen name and, on area select and cup selec
 highlighted entry. It debounces every value over four consecutive polls so a transient
 during a screen load cannot become speech. It is a proof of the reads, not a shippable
 adapter: the rental and battle screens are still silent.
+
+## Battle screen: reached, not yet readable
+
+The battle flow was driven end to end on 2026-10-18: six rentals entered (A on a rental
+opens the card, A again confirms and advances the cursor), the team confirmed, three
+battle Pokémon chosen, and the match started.
+
+How to drive it, measured:
+
+- Entering all six and confirming opens a four-choice popup. A on "OK" registers the
+  team and shows the tournament bracket. A advances to the three-Pokémon lineup screen.
+- On the lineup screen each of the six is bound to a controller button: N64 B and A for
+  the first two, then the C buttons. **The C buttons are the right analog stick**:
+  `right_x = -32768` selected the third Pokémon (C-Left). A on "Is this OK?" starts
+  the match.
+- The battle shows both sides' name, level, status and HP, and the command menu
+  `[A] BATTLE`, `[B] POKÉMON`, `[S] RUN`.
+
+⛔ **The turn would not execute under scripted input.** After choosing an action the
+screen sits on "READY!" with both Pokémon at full health, and pressing each RetroPad
+button and each button name in turn left the HP values unchanged. Nothing in the
+RetroArch log explains it. Until a turn actually runs, no HP address can be verified —
+the skill's rule is that a value must CHANGE across the run, and one matching read is
+not evidence.
+
+Candidate, unverified: `0x800FCC58` held 126 and `0x800FCC5C` held 112, which are
+exactly the two HP values on screen (Charmander 126/126, Primeape 112/112). A third 126
+sits at `0x800FCC78`. Treat these as a hypothesis only.
+
+Next session should either:
+
+1. Resolve the battle input mapping — the C buttons are analog axes on this core, and
+   the command menu may need a digital bind or a different axis direction than the
+   lineup screen used; or
+2. Skip the input problem and read the battle struct out of the decompilation.
+   `fragment62` is the battle engine; the party data is the same 84-byte record shape
+   used by the rental tables (moves at +0, level at +0x1B, stats at +0x1D, name at
+   +0x27), so a battle struct should be findable from that.
