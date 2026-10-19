@@ -261,3 +261,28 @@ and then diff the damage frame itself rather than a 25-second window.
 The scripts are in `tools/ps1-reader/bizhawk/`. They load `battle2.state`, which is
 written by `bh15.lua` when the battle fragment set appears, so the 4-minute drive is
 paid once per emulator run.
+
+## Status: battle reader parked (2026-10-18)
+
+The menu half is done and stays as the deliverable: title, menu select, area select,
+cup select, rental grid, rental stat cards, all spoken from measured addresses and
+from the ROM tables.
+
+The battle half is parked because the emulators stop rendering at the battle intro.
+BizHawk sends every button and the game still freezes on the same frame, with memory
+continuing to change underneath (an unrelated counter oscillates), so the command menu
+cannot be seen or driven. A 4 MiB before/after diff across a scripted attack changed
+one u16 that is not health-shaped. Until a battle can be played to completion, no HP
+address can be trusted, and a wrong HP value is worse than silence.
+
+To resume, in this order:
+
+1. Get a battle that visibly plays through one turn in any emulator (try ares or
+   Project64; both Mupen64Plus front ends fail the same way).
+2. Once a turn runs, diff RAM across the damage frame only, not a 25-second window,
+   and look for a value that drops by the damage dealt.
+3. Cross-check the found address against the on-screen numbers before wiring speech.
+
+Scripts: `tools/ps1-reader/bizhawk/` (`bh15` drives to the battle and saves
+`battle2.state`, `bh23` is the whole-RAM diff). Savestates live in
+`C:\Users\Devin Prater\ps1-reader\`.
