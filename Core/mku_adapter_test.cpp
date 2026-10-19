@@ -410,6 +410,34 @@ int main()
     CHECK(NSPOKEN == 0, "a broken signature fails closed (no dialogue speech)");
     put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
 
+    // ---- a child screen that REUSES the Kombat submenu's object slot --------
+    // Measured live 2026-10-18 on the Options screen: the cursor read 9
+    // (Options), the current-item pointer named object 9, and the child cell
+    // at kKombatSubHolderAddr held 0x091181E0 — the same live object the
+    // Kombat list uses, because the slot is shared. The fight struct's words
+    // also still read round 1, timer 72 and HP 1.0/1.0. Both older gates
+    // passed that state ("Kombat menu, Arcade" and a fight line); the parent
+    // index separates the screens, and a live front-end row outranks leftover
+    // fight words.
+    put_u32(0x09E61750, 9);
+    put_u32(0x09119000 + 4, 0x4F424A20);             // object 9 magic
+    put_u32(0x0911F868, 0x09119000);                 // holder on Options
+    put_u32(0x091181E0 + 4, 0x4F424A20);             // child slot: a live object
+    put_u32(0x091181E0 + 0x0C, 0x08BAF3C0);
+    put_u32(0x09118348, 0x091181E0);
+    put_u32(0x08D929B4, 0); put_u32(0x08D92A2C, 0);  // leftover fight words,
+    put_f32(0x08D929B8, 1.0f); put_f32(0x08D92A24, 1.0f);
+    put_u32(0x08D92AE0, 1); put_u32(0x08D92AF0, 72); // exactly as measured
+    CHECK(!a->ready(), "the Options screen is not a mapped state");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "not mapped yet") &&
+          !strstr(SPOKEN[0], "Kombat menu") && !strstr(SPOKEN[0], "Round"),
+          "Options speaks the honest scope, not the Kombat list or a fight line");
+    put_u32(0x09118348, 0);                          // close the child screen
+    put_u32(0x09E61750, 0); put_u32(0x0911F868, 0);
+    put_u32(0x08D92AE0, 0); put_u32(0x08D92AF0, 0);
+
     // ---- detach -------------------------------------------------------------------
     a->detach();
     NSPOKEN = 0; oga::AdapterSpeechReset();

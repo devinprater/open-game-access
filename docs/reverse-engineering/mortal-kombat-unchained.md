@@ -922,6 +922,43 @@ standing rule.
    first) — replaces heap anchors with static ones where they exist,
    and is the remaining road to the quit dialog's selection.
 
+
+## Options screen — the shared child slot and leftover fight words (2026-10-18)
+
+Measured live in the same PPSSPP session, after booting from the title screen:
+main menu reached with Start, eight Down presses to item 9, Cross to open the Options
+screen. The screen shows three tabs read off the capture: GAMEPLAY, AUDIO, CONTROLS,
+with GAMEPLAY focused.
+
+State at that moment (absolute PSP addresses):
+
+- `kMainMenuCursorAddr` 0x09E61750 = **9** (Options).
+- `kMainMenuHolderAddr` 0x0911F868 = **0x09119000** — exactly
+  `kMainMenuPoolTop - (9-1) * kMenuObjStride`, magic `0x4F424A20` at +4. The main
+  menu's own state stays live under the child screen.
+- `kKombatSubHolderAddr` 0x09118348 = **0x091181E0**, with magic at +4 and class word
+  `0x08BAF3C0` at +0x0C. That is one of the three objects the Kombat list uses, and it
+  is **a live object on the Options screen too** — the child-screen cell is shared by
+  submenus, so a non-null, magic-valid holder does not identify the Kombat list.
+- Fight words, left over from the attract demo, still read **round 1, timer 72, P1 HP
+  1.0, P2 HP 1.0, both fighter ids 0**. Every clause of the old fight gate accepted
+  that.
+
+Two adapter lies followed, both now fixed:
+
+1. `OnKombatSub()` spoke "Kombat menu. Arcade, 1 of 3." over the Options tabs, because
+   the holder named a live object and the parent index (9) was only range-checked.
+   The Kombat list is opened only by the KOMBAT item, and the measured parent index
+   reads 1 while it is up, so the gate now requires **cursor == 1**.
+2. `InFight()` spoke a fight over the same screen, because the leftover round/timer/HP
+   words passed. A live front-end row (`FrontEndRow()`: index 1..9, holder naming the
+   implied pool object, magic intact) now **outranks** those words.
+
+Both fixes carry host checks against synthetic RAM planted with exactly the values
+above (mku adapter: 59 passed, 0 failed). What is still unmapped on this screen: the
+three tab objects, the settings rows under each tab, and every value. It stays on the
+honest "this screen is not mapped yet" line until those are measured.
+
 ## Decomp upgrades queued (from the 2026-10-16 community sweep)
 
 Digest: ~/workspace/games/mk-unchained/decomp-ideas.md (r/decomps,

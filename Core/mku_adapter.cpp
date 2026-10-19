@@ -228,14 +228,26 @@ const char* const kMainMenuItems[] = {
 };
 constexpr int kMainMenuCount = 9;
 
-bool OnMainMenu(void)
+// The front end is sitting on one of the nine main-menu rows: the index is in
+// range and the current-item pointer names exactly the pool object that index
+// implies, magic intact. True on the main menu AND on any child screen opened
+// from it, because the parent's state stays live underneath — so this is a
+// "the front end owns the screen" test, not "the main menu is visible".
+bool FrontEndRow(void)
 {
-    if (InKonquest()) return false;   // stale pool state (see flag note)
     uint32_t c = u32(kMainMenuCursorAddr);
     if (c < 1 || c > (uint32_t) kMainMenuCount) return false;
     uint32_t obj = kMainMenuPoolTop - (c - 1) * kMenuObjStride;
     if (u32(kMainMenuHolderAddr) != obj) return false;
-    if (u32(obj + 4) != kObjMagic) return false;
+    return u32(obj + 4) == kObjMagic;
+}
+
+bool OnMainMenu(void)
+{
+    if (InKonquest()) return false;   // stale pool state (see flag note)
+    if (!FrontEndRow()) return false;
+    // A child screen opened from the main menu means the menu itself is not
+    // what the player is looking at; the child pointer is the tell.
     uint32_t sub = u32(kKombatSubHolderAddr);
     if (sub == 0x091181E0 || sub == 0x09117500 || sub == 0x09116820) return false;
     return true;
@@ -278,8 +290,13 @@ bool OnKombatSub(void)
     // the submenu alone would report "Arcade, 1 of 3" over a demo fight
     // (measured). The main-menu index reads 1..9 only while the front end owns
     // the screen, and reads 0 in the attract demo, so use it for liveness.
-    uint32_t c = u32(kMainMenuCursorAddr);
-    if (c < 1 || c > (uint32_t) kMainMenuCount) return false;
+    // ⛔ The child-screen cell is REUSED by other submenus. Measured live
+    // 2026-10-18: on the Options screen the cell holds 0x091181E0 — the same
+    // live object this list uses — with the cursor on item 9, and the old
+    // gate spoke "Kombat menu. Arcade, 1 of 3" over the Options tabs. Only the
+    // KOMBAT item opens this list, and the parent index reads 1 while it is
+    // up, so that index is what separates the two screens.
+    if (u32(kMainMenuCursorAddr) != 1) return false;
     return KombatSubIndex() >= 0;
 }
 
@@ -499,6 +516,12 @@ bool InFight(void)
 {
     if (InKonquest()) return false;   // Konquest bouts: same engine,
                                       // different id semantics (above)
+    // The fight struct's words LINGER after a match and on front-end screens:
+    // measured live 2026-10-18 on the Options tabs, round read 1, the timer 72
+    // and both HP words 1.0 while the menu was up, which passed every check
+    // below and made the adapter speak a fight over a settings screen. A live
+    // front-end row is the positive signal that overrides them.
+    if (FrontEndRow()) return false;
     uint32_t round = u32(kRoundAddr);
     if (round < 1 || round > 3) return false;
     if (u32(kTimerAddr) > 99) return false;
