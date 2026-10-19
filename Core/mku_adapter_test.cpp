@@ -410,6 +410,41 @@ int main()
     CHECK(NSPOKEN == 0, "a broken signature fails closed (no dialogue speech)");
     put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
 
+    // ---- Konquest objective line (measured 2026-10-19, dojo tutorial) --------
+    // The red instruction text uses the same buffer and struct as dialogue, but
+    // the colour word reads 0xFF4848FF and no box is drawn. The old gate
+    // treated that as "box down" and a blind player heard nothing.
+    put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 1);
+    {
+        const uint32_t base = 0x09178568 - 48;
+        const uint32_t sig[12] = {0x30, 0xE9, 0x24, 0x180, 0x2A, 0x11,
+                                  0xFFFFFFFF, 0xC8C8C8FF, 0x6, 0x0,
+                                  0x08AFD1C0, 0x0};
+        for (int i = 0; i < 12; i++) put_u32(base + (uint32_t) i * 4, sig[i]);
+    }
+    put_u32(0x09178D30, 0x091782A0);
+    put_u32(0x09178554, 0xFF4848FF);                 // red objective tint
+    put_ascii(0x09178568, "Your first exercise will be to step toward me three times.");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 45; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Objective.") &&
+          strstr(SPOKEN[0], "step toward me three times"),
+          "the red objective line speaks with an Objective prefix");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Objective."),
+          "WhereAmI speaks the live objective first");
+
+    put_u32(0x09178554, 0xC8C8C8FF);                 // ordinary dialogue again
+    put_ascii(0x09178568, "Well done, Shujinko.");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 45; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && !strstr(SPOKEN[0], "Objective.") &&
+          strstr(SPOKEN[0], "Well done"),
+          "a dialogue line stays on the dialogue channel");
+    put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
+
     // ---- a child screen that REUSES the Kombat submenu's object slot --------
     // Measured live 2026-10-18 on the Options screen: the cursor read 9
     // (Options), the current-item pointer named object 9, and the child cell

@@ -1105,6 +1105,42 @@ Next in Konquest: the free-roam sector/clock callouts and the pause/map screens,
 this entry path so the mode can be reached in one pass.
 
 
+
+## Konquest objectives are spoken now; the dojo tutorial gate is the next wall (2026-10-19)
+
+Measured in the opening dojo tutorial with Bo' Rai Cho, after the profile login:
+
+- The instruction text is the **same buffer and struct as dialogue**
+  (0x09178568, signature at -48) but the colour word at 0x09178554 reads
+  **0xFF4848FF** and no dialogue box is drawn — the line is red HUD text.
+  The adapter used to call that "box down" and stayed silent, so the one line a
+  blind player needs ("step toward me three times") was never spoken.
+- Now `ObjectiveUp()` accepts that colour, objectives speak as their own channel with an
+  "Objective." prefix (once per line, deduped), and `WhereAmI` reads the live objective
+  before dialogue. Host checks: 69 passed, 0 failed.
+- Dialogue lines still use 0xC8C8C8FF and keep the plain channel, so the two do not
+  collide.
+
+**The training bout itself.** During the exercise the HUD shows a health bar, a
+countdown (40, counting down), and an objective counter reading **0 / 6**. Six steps
+are needed for "step toward three times, then step away three times".
+
+**Blocker: the counter did not move.** D-pad taps injected through the debugger
+(`up` / `down`, 8-30 frames, with and without rests, repeated in both orders) left the
+counter at 0 / 6 while the timer ran. The inputs are accepted by the emulator (the same
+calls drive the menus), so either the tutorial wants something other than a d-pad tap
+(analog? a double tap? facing-relative input?) or the bout's step counter ignores the
+injected pad. Until this is solved the tutorial cannot be completed, and free-roam — the
+village, the coordinate HUD, the sector/clock values, the pause/map screens and any
+quest — stays unreached.
+
+**Navigation: not shipped, deliberately.** The game does show its own locator — the
+guide describes a compass with grid coordinates A1-H8 under it, and the objective line is
+game-given. Objective text is now spoken. The coordinate and clock words are still
+unmeasured, so no navigation callouts were invented; per the standing rule the adapter
+stays quiet rather than guessing a direction.
+
+
 ## Decomp upgrades queued (from the 2026-10-16 community sweep)
 
 Digest: ~/workspace/games/mk-unchained/decomp-ideas.md (r/decomps,

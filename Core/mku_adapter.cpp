@@ -517,6 +517,13 @@ void SayMainMenuRow(void)
 constexpr uint32_t kDlgBufferAddr = 0x09178568;
 constexpr uint32_t kDlgColorAddr = 0x09178554;   // buffer - 0x14
 constexpr uint32_t kDlgColorUp = 0xC8C8C8FF;
+// The red instruction line (2026-10-19, measured in the dojo tutorial): the
+// SAME buffer and the same signed struct carry the current objective, but the
+// colour word reads 0xFF4848FF and no text box is drawn — the line is red text
+// on the HUD. The old check treated that as "box down" and stayed silent, so a
+// blind player never heard "step toward me three times". Objectives speak as
+// their own channel and do not collide with the dialogue line.
+constexpr uint32_t kDlgColorObjective = 0xFF4848FF;
 constexpr uint32_t kDlgPtrAddr = 0x09178D30;     // buffer + 0x7C8
 constexpr int kDlgStableFrames = 30;
 
@@ -558,19 +565,32 @@ bool DialogueUp(void)
            u32(kDlgColorAddr) == kDlgColorUp;
 }
 
+bool ObjectiveUp(void)
+{
+    return InKonquest() && DlgStructOk() && u32(kDlgPtrAddr) != 0 &&
+           u32(kDlgColorAddr) == kDlgColorObjective;
+}
+
 // Per-frame dialogue watch: speak a line once it settles, and only
 // once per showing.
 void DlgOnFrame(void)
 {
     char line[224];
-    if (DialogueUp() && DlgReadLine(line, sizeof(line))) {
+    bool objective = ObjectiveUp();
+    if ((DialogueUp() || objective) && DlgReadLine(line, sizeof(line))) {
         if (strcmp(line, g_dlgPending) != 0) {
             strncpy(g_dlgPending, line, sizeof(g_dlgPending) - 1);
             g_dlgPending[sizeof(g_dlgPending) - 1] = 0;
             g_dlgStable = 0;
         } else if (++g_dlgStable >= kDlgStableFrames) {
             if (strcmp(line, g_dlgLast) != 0) {
-                Say(line, "dialogue", oga::Priority::Normal);
+                char spoken[256];
+                if (objective)
+                    snprintf(spoken, sizeof(spoken), "Objective. %s", line);
+                else
+                    snprintf(spoken, sizeof(spoken), "%s", line);
+                Say(spoken, objective ? "objective" : "dialogue",
+                    oga::Priority::Normal);
                 strncpy(g_dlgLast, line, sizeof(g_dlgLast) - 1);
                 g_dlgLast[sizeof(g_dlgLast) - 1] = 0;
             }
@@ -917,6 +937,14 @@ void CmdWhereAmI(void)
     }
     if (InKonquest()) {
         char line[224];
+        if (ObjectiveUp() && DlgReadLine(line, sizeof(line))) {
+            char spoken[256];
+            snprintf(spoken, sizeof(spoken), "Objective. %s", line);
+            Say(spoken, "objective", oga::Priority::High);
+            strncpy(g_dlgLast, line, sizeof(g_dlgLast) - 1);
+            g_dlgLast[sizeof(g_dlgLast) - 1] = 0;
+            return;
+        }
         if (DialogueUp() && DlgReadLine(line, sizeof(line))) {
             Say(line, "dialogue", oga::Priority::High);
             strncpy(g_dlgLast, line, sizeof(g_dlgLast) - 1);
