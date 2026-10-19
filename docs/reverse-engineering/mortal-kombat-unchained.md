@@ -1141,6 +1141,57 @@ unmeasured, so no navigation callouts were invented; per the standing rule the a
 stays quiet rather than guessing a direction.
 
 
+
+## The dojo drills, passed: what the inputs really wanted (2026-10-19)
+
+The drills are playable through the debugger. Two input paths matter, and using the wrong
+one looks exactly like a broken game:
+
+- **Double taps need `input.buttons.send`, not `input.buttons.press`.** `press` does not
+  answer until the hold finishes, so a 6-frame press plus the round trip is about 200 ms —
+  too slow for the engine to read as a double tap. Send explicit press/release pairs
+  (45 ms down, 55 ms up, then again) and a Backward Dash registers at once.
+- **Directions are camera-relative.** With the camera framing Shujinko on the left and
+  Bo' Rai Cho on the right, "away from me" is **left**. Down-taps did nothing; three left
+  dashes moved the drill counter from 0 to 2 / 3 immediately.
+- **Walking in free-roam is the analog stick** (`input.analog.send`), held for a second or
+  more. D-pad holds do not move the character there.
+
+The drill objectives rotate through phases ("step toward me three times", "three Backward
+Dashes", "four different basic attacks"), all on the red 0xFF4848FF channel, so the
+adapter's new objective channel reads each phase as it appears.
+
+## Free-roam: the game's own wayfinding
+
+Konquest opens into the village with a HUD that is exactly what a blind player needs:
+
+- **A compass** in the upper left. The dial's cardinal letters rotate with the camera
+  (W at the top when facing west, N to the right, and so on) and a green arrow sits on
+  the rim.
+- **A grid coordinate under it** — measured `B - 6`, then `A - 6` after walking one sector,
+  then `B - 6` again on the way back. It only changes when a sector boundary is crossed.
+- **The pause menu** (`start`) reads PAUSED: RESUME / SAVE AND QUIT / QUIT GAME.
+
+There is **no quest marker and no waypoint arrow**. The compass and the grid coordinate are
+the game's wayfinding, which is what a navigation aid must be built on rather than
+inventing waypoints.
+
+## Open problem: the coordinate is drawn, not stored
+
+The HUD coordinate was not located in RAM. A full 24 MB user-memory dump takes 0.4 s, so
+diffing is cheap, but a paused A-6 versus B-6 diff changes 246k bytes (the entire visible
+world). The one clean `(row, col)` candidate at 0x091519B4 / 0x091519B8 turned out to be a
+step toggle: it flipped 0/1 with every walk and never followed the display.
+
+The next attempt should hunt the **player transform** instead — paused diffs show float
+triples around 0x08B97xxx that track world position (for example 13.85, -22.94), with the
+companion yaw float driving the compass. Sector then comes from position divided by the
+sector size, calibrated on one boundary crossing.
+
+No navigation callout is shipped until that is proven against the on-screen readout at two
+different sectors: a wrong direction is worse than silence.
+
+
 ## Decomp upgrades queued (from the 2026-10-16 community sweep)
 
 Digest: ~/workspace/games/mk-unchained/decomp-ideas.md (r/decomps,
