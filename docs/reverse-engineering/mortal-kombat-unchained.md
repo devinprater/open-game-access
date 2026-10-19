@@ -1056,6 +1056,55 @@ main menu to load the profile; (c) only then expect Konquest to open. Do not del
 save: it is the profile that will be loaded once the login path is found.
 
 
+
+## Getting into Konquest: the working recipe (2026-10-19)
+
+Konquest is now reachable and was entered live. Two things had to be right.
+
+**1. A profile must exist and be LOGGED IN.** Creating it is not enough: the save sits
+on the card locked by its Kombat Kode, and the game will not use it until the kode is
+entered at the main menu. The mode list then behaves normally.
+
+**2. The login is the L shoulder, and the debugger's name for it is `ltrigger`.**
+This was the whole blocker. PPSSPP's WebSocket input lookup
+(`Core/Debugger/WebSocket/InputSubscriber.cpp`) accepts these names and no others:
+
+```
+cross circle triangle square up down left right start select
+home screen note ltrigger rtrigger hold wlan remote_hold
+vol_up vol_down disc memstick forward back playpause
+```
+
+`l`, `l1`, `l2`, `shoulder_l`, `L1` and every other spelling are rejected with
+`Unsupported button value`. **`ltrigger` is L; `rtrigger` is R.**
+
+The recipe, measured end to end:
+
+1. Main menu (front-end index 1).
+2. `ltrigger` → an ENTER KODE prompt opens in the lower right with six bead slots.
+3. Enter the six-symbol kode (Cross, Circle, Triangle, Square, Cross, Circle — the one
+   set at profile creation). The prompt closes.
+4. Select KONQUEST (Down x3) and Cross. The mode loads.
+5. `konquestA` and `konquestB` (0x08AF69C8 / 0x08B123DC) both read 1 from that point,
+   which is the adapter's Konquest gate.
+
+**First measured Konquest state.** The mode opens on its title card ("Mortal Kombat /
+Konquest"), then the opening training with Bo' Rai Cho. The dialogue buffer machinery
+already wired in the adapter reads the tutorial lines live:
+
+- "How you maneuver in kombat plays as much a part of your strategy as how you punch or
+  kick."
+- "Your first exercise will be to step toward me three times. Then, step away from me
+  three times."
+
+with `dlgColor` 0xC8C8C8FF (box up) and `dlgPtr` non-null, i.e. exactly the pair the
+adapter's `DialogueUp()` requires. The training bout runs on the arcade engine (round 1,
+timer visible) with the Konquest flag set, so the fight gate correctly stays shut.
+
+Next in Konquest: the free-roam sector/clock callouts and the pause/map screens, using
+this entry path so the mode can be reached in one pass.
+
+
 ## Decomp upgrades queued (from the 2026-10-16 community sweep)
 
 Digest: ~/workspace/games/mk-unchained/decomp-ideas.md (r/decomps,
