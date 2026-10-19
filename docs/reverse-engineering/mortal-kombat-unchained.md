@@ -1016,6 +1016,46 @@ even-length Kode (the entry row draws six slots) and confirm it exactly, or a sa
 created once by hand and kept outside the repository.
 
 
+
+## Konquest entry research and the profile attempt (2026-10-19)
+
+Community sources agree on the mechanism. Deception and Unchained require a **player
+profile** before the modes unlock, and profile creation asks for a **Kombat Kode**
+(a button-sequence passcode). GameFAQs' answer for Deception: create the profile under
+Profiles (name, picture, code), save it to the memory card, then at the main menu
+**press L and enter the profile code**, after which "all the modes should be
+accessible". A locked profile is not loaded automatically.
+
+Attempted live on ULUS10102 v1.03:
+
+1. Press Start to the title, then the main menu (index 1).
+2. Down to item 8 (Profiles), Cross: only CREATE PROFILE is enabled (VIEW and DELETE
+   greyed), confirming no profile is loaded.
+3. Create Profile → name entry (default PLAYER 1) → "ARE YOU SURE?" → icon choice
+   (Sub-Zero) → ENTER YOUR KODE.
+4. Six-symbol Kode: Cross, Circle, Triangle, Square, Cross, Circle; the same six on
+   CONFIRM YOUR KODE. The confirm was accepted.
+5. "SAVE PROFILE?" appeared with four EMPTY slots; Square creates the data, Cross on
+   slot 1 writes it, and the game showed the "REMEMBER YOUR KODE" tip.
+
+Result on disk: `Documents/PPSSPP/PSP/SAVEDATA/ULUS10102MKU0000/` with `DATA.BIN`
+262,696 bytes, `ICON0.PNG` and `PARAM.SFO`, written 2026-10-19 00:14.
+
+**But the game still does not see the profile.** After a cold boot the Profiles screen
+again offers only CREATE PROFILE (VIEW/DELETE greyed), and KONQUEST on the main menu
+still does nothing on Cross or Start.
+
+The missing step is the **L login**. The PPSSPP debugger accepts only `l2`/`r2` as
+shoulder buttons; `l1`, `l`, `shoulder_l` and the other spellings are rejected, and
+pressing `l2` on the main menu or the Profiles screen produces no Kode prompt. So the
+login was never performed and the profile stays locked.
+
+Next attempt, in order: (a) verify which debugger name reaches the PSP L shoulder, or
+press it on a real keyboard binding; (b) if that works, enter the six-symbol Kode at the
+main menu to load the profile; (c) only then expect Konquest to open. Do not delete the
+save: it is the profile that will be loaded once the login path is found.
+
+
 ## Decomp upgrades queued (from the 2026-10-16 community sweep)
 
 Digest: ~/workspace/games/mk-unchained/decomp-ideas.md (r/decomps,
