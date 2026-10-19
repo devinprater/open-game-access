@@ -313,6 +313,113 @@ void MainMenuRow(char* out, size_t cap)
     snprintf(out, cap, "%s, %u of %d", kMainMenuItems[c - 1], c, kMainMenuCount);
 }
 
+// ---- the Options screen (VERIFIED 2026-10-18, live) -------------------------
+//
+// The Options list is three category tabs — GAMEPLAY, AUDIO, CONTROLS — and
+// each tab opens its own settings list. Measured live, ULUS10102 v1.03:
+//   * the tab selection is the SAME child-screen cell the Kombat submenu
+//     uses (kKombatSubHolderAddr) with the SAME three objects, reused:
+//     0x091181E0 (Gameplay), 0x09117500 (Audio), 0x09116820 (Controls), each
+//     carrying kObjMagic at +4. The PARENT index reads 9, which is what
+//     separates Options from the Kombat list (see the gate note there).
+//   * inside a tab, the row selection is a current-item pointer at
+//     kOptionsRowHolderAddr stepping DOWN through that tab's own object run,
+//     every object carrying kObjMagic at +4:
+//       GAMEPLAY: top 0x09106040, stride 0x1160, 8 rows, wraps.
+//       AUDIO:    top 0x0910B400, stride 0x10B0, 5 rows, wraps.
+//     Both tops are heap addresses measured on this build, like the main-menu
+//     pool — the gates below fail closed if a later boot puts the run
+//     elsewhere, rather than speaking the wrong row.
+//   * CONTROLS opens a button-mapping screen (a PSP diagram with ATTACK 1 /
+//     ATTACK 2 style prompts) whose selection is a different widget: the row
+//     cell read 0 there, so that tab stays unmapped and says so.
+// What is NOT mapped: the VALUE of any row (volumes, difficulty words, round
+// counts). Only the row names and the tab names are spoken.
+constexpr uint32_t kOptionsParentIndex = 9;
+constexpr uint32_t kOptionsRowHolderAddr = 0x09119CE8;
+constexpr uint32_t kOptionsTabObjs[3] = { 0x091181E0, 0x09117500, 0x09116820 };
+const char* const kOptionsTabNames[3] = { "Gameplay", "Audio", "Controls" };
+
+struct RowList {
+    uint32_t top;
+    uint32_t stride;
+    int count;
+    const char* const* names;
+};
+
+const char* const kGameplayRowNames[8] = {
+    "Kombat CPU", "Chess CPU", "Puzzle CPU", "Rounds to Win",
+    "Puzzle Rounds", "Round Time", "Death Traps", "Violence",
+};
+const char* const kAudioRowNames[5] = {
+    "Game Music", "Environment", "Announcer", "Effects", "Speech",
+};
+const RowList kRowLists[2] = {
+    { 0x09106040, 0x1160, 8, kGameplayRowNames },
+    { 0x0910B400, 0x10B0, 5, kAudioRowNames },
+};
+const char* const kRowListTabs[2] = { "Gameplay", "Audio" };
+
+// 0..2 while the tab list is up, else -1.
+int OptionsTabIndex(void)
+{
+    if (InKonquest()) return -1;
+    if (u32(kMainMenuCursorAddr) != kOptionsParentIndex) return -1;
+    uint32_t v = u32(kKombatSubHolderAddr);
+    for (int i = 0; i < 3; i++)
+        if (v == kOptionsTabObjs[i]) return u32(v + 4) == kObjMagic ? i : -1;
+    return -1;
+}
+
+bool OnOptionsTabs(void) { return OptionsTabIndex() >= 0; }
+
+// Which measured row list the holder names, or nullptr. Fills *idx with the
+// 0-based row.
+const RowList* OptionsRowList(int* idx)
+{
+    uint32_t v = u32(kOptionsRowHolderAddr);
+    if (InKonquest() || v == 0) return nullptr;
+    for (int i = 0; i < 2; i++) {
+        const RowList& r = kRowLists[i];
+        if (v > r.top) continue;
+        uint32_t d = r.top - v;
+        if (d % r.stride != 0) continue;
+        uint32_t row = d / r.stride;
+        if ((int) row >= r.count) continue;
+        if (u32(v + 4) != kObjMagic) continue;
+        *idx = (int) row;
+        return &r;
+    }
+    return nullptr;
+}
+
+bool OnOptionsRows(void)
+{
+    int idx;
+    return OptionsRowList(&idx) != nullptr;
+}
+
+void OptionsRow(char* out, size_t cap, bool with_section)
+{
+    int idx = 0;
+    const RowList* r = OptionsRowList(&idx);
+    if (!r) { snprintf(out, cap, ""); return; }
+    int list = (r == &kRowLists[0]) ? 0 : 1;
+    if (with_section)
+        snprintf(out, cap, "Options, %s. %s, %d of %d", kRowListTabs[list],
+                 r->names[idx], idx + 1, r->count);
+    else
+        snprintf(out, cap, "%s, %d of %d", r->names[idx], idx + 1, r->count);
+}
+
+// "Options. Audio, 2 of 3." for a tab; empty when the tabs are not up.
+void OptionsTabRow(char* out, size_t cap)
+{
+    int i = OptionsTabIndex();
+    if (i < 0) { snprintf(out, cap, ""); return; }
+    snprintf(out, cap, "Options. %s, %d of 3", kOptionsTabNames[i], i + 1);
+}
+
 // ---- character select (VERIFIED 2026-10-16 night, ULUS10102 v1.03) ----------
 //
 // The Arcade fighter grid: 10 columns x 3 rows, row-major, the cursor
@@ -776,6 +883,22 @@ void CmdWhereAmI(void)
         Say(line, "menu", oga::Priority::High);
         return;
     }
+    if (OnOptionsTabs()) {
+        char line[128];
+        char row[96];
+        OptionsTabRow(row, sizeof(row));
+        snprintf(line, sizeof(line), "%s.", row);
+        Say(line, "menu", oga::Priority::High);
+        return;
+    }
+    if (OnOptionsRows()) {
+        char line[192];
+        char row[160];
+        OptionsRow(row, sizeof(row), false);
+        snprintf(line, sizeof(line), "Options, settings. %s.", row);
+        Say(line, "menu", oga::Priority::High);
+        return;
+    }
     if (OnCharSelect()) {
         char line[128];
         char row[96];
@@ -853,6 +976,18 @@ void CmdMenuNav(Command cmd)
         Say(row, "menu", oga::Priority::High);
         return;
     }
+    if (OnOptionsTabs()) {
+        char row[96];
+        OptionsTabRow(row, sizeof(row));
+        Say(row, "menu", oga::Priority::High);
+        return;
+    }
+    if (OnOptionsRows()) {
+        char row[96];
+        OptionsRow(row, sizeof(row), false);
+        Say(row, "menu", oga::Priority::High);
+        return;
+    }
     if (OnCharSelect()) { SayCharRow(); return; }
     if (InFight()) {
         // Pause menu: up/down taps also drive holder confirmation (the
@@ -919,8 +1054,8 @@ static bool mku_ready(void)
     // on the screens whose gates verify (main menu, Kombat submenu,
     // character select), in a live fight, and in Konquest, using the
     // same gates the speech uses.
-    return OnMainMenu() || OnKombatSub() || OnCharSelect() || InFight() ||
-           InKonquest();
+    return OnMainMenu() || OnKombatSub() || OnOptionsTabs() ||
+           OnOptionsRows() || OnCharSelect() || InFight() || InKonquest();
 }
 
 static void mku_detach(void) { g_host = nullptr; }

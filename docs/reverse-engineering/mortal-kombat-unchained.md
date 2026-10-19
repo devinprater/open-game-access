@@ -959,6 +959,63 @@ above (mku adapter: 59 passed, 0 failed). What is still unmapped on this screen:
 three tab objects, the settings rows under each tab, and every value. It stays on the
 honest "this screen is not mapped yet" line until those are measured.
 
+
+## Options screen — tabs, and the GAMEPLAY and AUDIO lists (2026-10-18, live)
+
+Second live pass on the same build (PPSSPP 1.20.4, ULUS10102 v1.03). The Options
+screen is a three-item category list, then a settings list per category.
+
+**Tabs.** Measured by stepping and by screenshot:
+
+| index | tab | child-cell value |
+|---|---|---|
+| 1 | GAMEPLAY | `0x091181E0` |
+| 2 | AUDIO | `0x09117500` |
+| 3 | CONTROLS | `0x09116820` |
+
+The child cell is `kKombatSubHolderAddr` (0x09118348) — the *same* cell and the *same*
+three objects the Kombat submenu uses, reused. What separates the two screens is the
+parent index: 9 for Options, 1 for Kombat. The list wraps at both ends.
+
+**Rows.** Inside a tab, the selection is a current-item pointer at
+`kOptionsRowHolderAddr` 0x09119CE8, stepping DOWN through that tab's own object run,
+each object carrying `0x4F424A20` (" OBJ") at +4:
+
+- GAMEPLAY: top `0x09106040`, stride `0x1160`, **8 rows**, wraps:
+  KOMBAT CPU, CHESS CPU, PUZZLE CPU, ROUNDS TO WIN, PUZZLE ROUNDS, ROUND TIME,
+  DEATH TRAPS, VIOLENCE.
+- AUDIO: top `0x0910B400`, stride `0x10B0`, **5 rows**, wraps:
+  GAME MUSIC, ENVIRONMENT, ANNOUNCER, EFFECTS, SPEECH (all sliders read full in the
+  capture).
+
+Both tops are heap addresses on this build, like the main-menu pool: the adapter gates
+fail closed when a later boot puts the run elsewhere instead of speaking a wrong row.
+
+**CONTROLS is a different screen** — a button-mapping page drawn around a PSP diagram
+with prompts like ATTACK 1 and ATTACK 2. Its selection is not the row widget (the row
+cell read 0 there), so the tab is mapped but its rows are not, and the adapter says so.
+
+**Not mapped:** every value (volumes, difficulty words, round counts). The adapter
+speaks the tab and the row name, nothing else.
+
+## Konquest is blocked by profile creation (2026-10-18)
+
+There is **no ULUS10102 save data** on this memstick (`Documents/PPSSPP/PSP/SAVEDATA`
+holds only ULUS10234, ULUS10437 and ULUS10537). With no profile:
+
+- Konquest cannot be entered from the main menu: Cross and Start on the KONQUEST row
+  change nothing, and the screen stays the main menu.
+- PROFILES offers only **CREATE PROFILE**; VIEW and DELETE are greyed out, which
+  confirms the missing profile is the cause.
+
+The creation flow was driven as far as: name entry (default PLAYER 1) → "ARE YOU SURE?"
+→ icon choice → **ENTER YOUR KODE** → **CONFIRM YOUR KODE**. Replaying the same
+8 button presses did not settle the confirmation, and no save file appeared, so the
+profile was not created and Konquest stays unreached. Next attempt should use a short,
+even-length Kode (the entry row draws six slots) and confirm it exactly, or a save
+created once by hand and kept outside the repository.
+
+
 ## Decomp upgrades queued (from the 2026-10-16 community sweep)
 
 Digest: ~/workspace/games/mk-unchained/decomp-ideas.md (r/decomps,

@@ -428,15 +428,61 @@ int main()
     put_u32(0x08D929B4, 0); put_u32(0x08D92A2C, 0);  // leftover fight words,
     put_f32(0x08D929B8, 1.0f); put_f32(0x08D92A24, 1.0f);
     put_u32(0x08D92AE0, 1); put_u32(0x08D92AF0, 72); // exactly as measured
-    CHECK(!a->ready(), "the Options screen is not a mapped state");
+    CHECK(a->ready(), "the Options tabs are a mapped state");
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "not mapped yet") &&
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Options") &&
+          strstr(SPOKEN[0], "Gameplay") &&
           !strstr(SPOKEN[0], "Kombat menu") && !strstr(SPOKEN[0], "Round"),
-          "Options speaks the honest scope, not the Kombat list or a fight line");
+          "Options speaks its tab, not the Kombat list or a fight line");
     put_u32(0x09118348, 0);                          // close the child screen
     put_u32(0x09E61750, 0); put_u32(0x0911F868, 0);
     put_u32(0x08D92AE0, 0); put_u32(0x08D92AF0, 0);
+
+    // ---- the Options settings lists (verified live 2026-10-18) --------------
+    // Tabs: parent index 9 plus one of the three shared child objects.
+    put_u32(0x09E61750, 9);
+    put_u32(0x0911F868, 0);
+    put_u32(0x09118348, 0x09117500);                 // Audio tab
+    put_u32(0x09117500 + 4, 0x4F424A20);
+    CHECK(a->ready(), "ready on the Options tabs");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Options") &&
+          strstr(SPOKEN[0], "Audio, 2 of 3"),
+          "WhereAmI speaks the Options tab");
+
+    // GAMEPLAY rows step 0x1160 down from 0x09106040; row 2 is Chess CPU.
+    put_u32(0x09118348, 0);
+    put_u32(0x09104000 + 0, 0);                      // (harmless gap filler)
+    put_u32(0x09106040 - 0x1160 + 4, 0x4F424A20);
+    put_u32(0x09119CE8, 0x09106040 - 0x1160);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Chess CPU, 2 of 8"),
+          "WhereAmI speaks the Gameplay settings row");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Chess CPU, 2 of 8"),
+          "a tap inside the Gameplay list speaks the landed row");
+
+    // AUDIO rows: 5, stride 0x10B0 from 0x0910B400.
+    put_u32(0x0910B400 + 4, 0x4F424A20);
+    put_u32(0x09119CE8, 0x0910B400);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Game Music, 1 of 5"),
+          "WhereAmI speaks the Audio settings row");
+
+    // A pointer outside every measured run fails closed.
+    put_u32(0x09119CE8, 0x09123450);
+    CHECK(!a->ready(), "an unmapped row pointer is not usable state");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 0, "menu nav stays silent when the row pointer is unmapped");
+    put_u32(0x09119CE8, 0);
+    put_u32(0x09E61750, 0);
 
     // ---- detach -------------------------------------------------------------------
     a->detach();
