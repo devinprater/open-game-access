@@ -35,6 +35,8 @@ same lines print to the console.
 - Area select: the highlighted facility.
 - Cup select: the highlighted cup with its level range.
 - Rental list: the highlighted Pokemon and its Pokedex number, in dex order.
+- Detail card: name, level, the five stats and the four moves, read from a
+  table extracted from the ROM.
 
 Every value must read the same on four consecutive polls before it is spoken,
 so a transient during a screen load cannot become speech.
@@ -50,7 +52,25 @@ so a transient during a screen load cannot become speech.
 | Fragment table (`gFragments`) | `0x800A58F0` | 240 entries, 8 bytes each: vaddr, size |
 | Cup-screen fragment id | 87 | Its presence separates cup select from the other `0x20` screens |
 | Team-select fragment id | 88 | Rental list and the stat card |
-| Rental cursor struct | team base + `0x168D2` | scroll `u8` at +3, row `s16` at +0xA, column `s16` at +0xC |
+| Rental cursor struct | team base + `0x168D2` | scroll `u8` at +3, row `s16` at +0xA, column `s16` at +0xC, card-open byte at +8 (0 = card, 1 = grid) |
+
+### Rental data from the ROM
+
+`extract_rentals.py` reads the four cup tables out of the player's own ROM and
+writes `rentals.json`. Each record is 84 bytes:
+
+| Offset | Field |
+|---|---|
+| +0x00 | four move ids, in up, right, down, left order |
+| +0x1B | level |
+| +0x1D | five big-endian u16 stats: HP, Attack, Defense, Speed, Special |
+| +0x27 | ten-byte ASCII name |
+
+Table starts: Pika `0x8A735D`, Petit `0x8A648D`, Poke `0x8AC22D`, Prime
+`0x8A913D`. Move names are a packed null-terminated list of 165 strings at
+`0x796DD8`. Entries found: Pika 91, Petit 45, Poke 149, Prime 149. The Poke and
+Prime lists are Pokedex order; the smaller cups are filtered lists and the
+index maps to that cup's own order.
 
 The decompilation targets US 1.0 and its addresses are shifted by `+0x140` here.
 The area cursor sits inside fragment37's heap-allocated overlay: the reader
@@ -75,14 +95,14 @@ is absent, which is what separates the rental screen from the cup screen.
 
 ## Limits
 
-- The stat card's numbers and move names are **not in RAM**. Exact-value scans
-  for Bulbasaur, Metapod and Pidgeot stats and moves returned zero hits; the
-  card computes them from ROM tables at draw time. Speaking them needs a
-  pre-baked per-species table extracted from the ROM, which is the next step.
+- The stat card's numbers and move names are not in live RAM. The reader ships
+  them from `rentals.json`, extracted from the ROM. The table must be rebuilt
+  for a different ROM revision.
+- The cup is learned at cup select. Starting the reader while already inside
+  the team screen defaults to the Poke Cup, so a Pika, Petit or Prime card is
+  misread until the player passes through cup select.
 - The intermediate Stadium sub-menus (round select, Battle/Rules/Registration,
   entry source) are named only as "Stadium menu"; their cursors are unmapped.
-- The rental order is assumed to be Pokedex order for all 151 entries. That is
-  verified for the Poke Cup list; a filtered cup may break the index mapping.
 - No battle reads yet.
 
 ## Scripting notes

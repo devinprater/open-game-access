@@ -1,0 +1,9558 @@
+{
+ "pika": [
+  {
+   "dex": 1,
+   "name": "Bulbasaur",
+   "level": 15,
+   "hp": 42,
+   "attack": 23,
+   "defense": 23,
+   "speed": 22,
+   "special": 28,
+   "moves": [
+    "Leech Seed",
+    "Toxic",
+    "Mega Drain",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    73,
+    92,
+    72,
+    38
+   ]
+  },
+  {
+   "dex": 2,
+   "name": "Ivysaur",
+   "level": 15,
+   "hp": 47,
+   "attack": 27,
+   "defense": 28,
+   "speed": 27,
+   "special": 33,
+   "moves": [
+    "Swords Dance",
+    "Body Slam",
+    "Solarbeam",
+    "Leech Seed"
+   ],
+   "move_ids": [
+    14,
+    34,
+    76,
+    73
+   ]
+  },
+  {
+   "dex": 3,
+   "name": "Charmander",
+   "level": 15,
+   "hp": 40,
+   "attack": 24,
+   "defense": 22,
+   "speed": 28,
+   "special": 24,
+   "moves": [
+    "Fire Blast",
+    "Seismic Toss",
+    "Strength",
+    "Growl"
+   ],
+   "move_ids": [
+    126,
+    69,
+    70,
+    45
+   ]
+  },
+  {
+   "dex": 4,
+   "name": "Charmeleon",
+   "level": 15,
+   "hp": 46,
+   "attack": 28,
+   "defense": 26,
+   "speed": 33,
+   "special": 28,
+   "moves": [
+    "Swords Dance",
+    "Mega Kick",
+    "Toxic",
+    "Ember"
+   ],
+   "move_ids": [
+    14,
+    25,
+    92,
+    52
+   ]
+  },
+  {
+   "dex": 5,
+   "name": "Squirtle",
+   "level": 15,
+   "hp": 42,
+   "attack": 23,
+   "defense": 28,
+   "speed": 22,
+   "special": 24,
+   "moves": [
+    "Tackle",
+    "Dig",
+    "Surf",
+    "Blizzard"
+   ],
+   "move_ids": [
+    33,
+    91,
+    57,
+    59
+   ]
+  },
+  {
+   "dex": 6,
+   "name": "Wartortle",
+   "level": 15,
+   "hp": 46,
+   "attack": 28,
+   "defense": 33,
+   "speed": 26,
+   "special": 28,
+   "moves": [
+    "Body Slam",
+    "Bide",
+    "Surf",
+    "Reflect"
+   ],
+   "move_ids": [
+    34,
+    117,
+    57,
+    115
+   ]
+  },
+  {
+   "dex": 7,
+   "name": "Caterpie",
+   "level": 15,
+   "hp": 42,
+   "attack": 18,
+   "defense": 19,
+   "speed": 22,
+   "special": 15,
+   "moves": [
+    "String Shot",
+    "Tackle",
+    null,
+    null
+   ],
+   "move_ids": [
+    81,
+    33,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 8,
+   "name": "Metapod",
+   "level": 15,
+   "hp": 44,
+   "attack": 15,
+   "defense": 25,
+   "speed": 18,
+   "special": 16,
+   "moves": [
+    "Tackle",
+    "String Shot",
+    null,
+    null
+   ],
+   "move_ids": [
+    33,
+    81,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 9,
+   "name": "Butterfree",
+   "level": 15,
+   "hp": 47,
+   "attack": 22,
+   "defense": 24,
+   "speed": 30,
+   "special": 33,
+   "moves": [
+    "Poisonpowder",
+    "Hyper Beam",
+    "Psywave",
+    "Take Down"
+   ],
+   "move_ids": [
+    77,
+    63,
+    149,
+    36
+   ]
+  },
+  {
+   "dex": 10,
+   "name": "Weedle",
+   "level": 15,
+   "hp": 41,
+   "attack": 19,
+   "defense": 18,
+   "speed": 24,
+   "special": 15,
+   "moves": [
+    "String Shot",
+    "Poison Sting",
+    null,
+    null
+   ],
+   "move_ids": [
+    81,
+    40,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 11,
+   "name": "Kakuna",
+   "level": 15,
+   "hp": 42,
+   "attack": 16,
+   "defense": 24,
+   "speed": 19,
+   "special": 16,
+   "moves": [
+    "String Shot",
+    "Poison Sting",
+    null,
+    null
+   ],
+   "move_ids": [
+    81,
+    40,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 12,
+   "name": "Beedrill",
+   "level": 15,
+   "hp": 48,
+   "attack": 33,
+   "defense": 21,
+   "speed": 31,
+   "special": 22,
+   "moves": [
+    "Fury Attack",
+    "Double Team",
+    "Swords Dance",
+    "Hyper Beam"
+   ],
+   "move_ids": [
+    31,
+    104,
+    14,
+    63
+   ]
+  },
+  {
+   "dex": 13,
+   "name": "Pidgey",
+   "level": 15,
+   "hp": 41,
+   "attack": 22,
+   "defense": 21,
+   "speed": 26,
+   "special": 19,
+   "moves": [
+    "Reflect",
+    "Fly",
+    "Toxic",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    115,
+    19,
+    92,
+    38
+   ]
+  },
+  {
+   "dex": 14,
+   "name": "Pidgeotto",
+   "level": 15,
+   "hp": 48,
+   "attack": 27,
+   "defense": 25,
+   "speed": 30,
+   "special": 24,
+   "moves": [
+    "Sky Attack",
+    "Take Down",
+    "Quick Attack",
+    "Sand-Attack"
+   ],
+   "move_ids": [
+    143,
+    36,
+    98,
+    28
+   ]
+  },
+  {
+   "dex": 15,
+   "name": "Rattata",
+   "level": 15,
+   "hp": 38,
+   "attack": 26,
+   "defense": 19,
+   "speed": 30,
+   "special": 16,
+   "moves": [
+    "Thunder",
+    "Quick Attack",
+    "Blizzard",
+    "Dig"
+   ],
+   "move_ids": [
+    87,
+    98,
+    59,
+    91
+   ]
+  },
+  {
+   "dex": 16,
+   "name": "Raticate",
+   "level": 15,
+   "hp": 45,
+   "attack": 33,
+   "defense": 27,
+   "speed": 38,
+   "special": 24,
+   "moves": [
+    "Hyper Fang",
+    "Toxic",
+    "Ice Beam",
+    "Swift"
+   ],
+   "move_ids": [
+    158,
+    92,
+    58,
+    129
+   ]
+  },
+  {
+   "dex": 17,
+   "name": "Spearow",
+   "level": 15,
+   "hp": 41,
+   "attack": 27,
+   "defense": 18,
+   "speed": 30,
+   "special": 18,
+   "moves": [
+    "Double-Edge",
+    "Double Team",
+    "Fly",
+    "Mimic"
+   ],
+   "move_ids": [
+    38,
+    104,
+    19,
+    102
+   ]
+  },
+  {
+   "dex": 18,
+   "name": "Fearow",
+   "level": 15,
+   "hp": 48,
+   "attack": 36,
+   "defense": 28,
+   "speed": 39,
+   "special": 27,
+   "moves": [
+    "Fly",
+    "Double Team",
+    "Peck",
+    "Mimic"
+   ],
+   "move_ids": [
+    19,
+    104,
+    64,
+    102
+   ]
+  },
+  {
+   "dex": 19,
+   "name": "Ekans",
+   "level": 15,
+   "hp": 39,
+   "attack": 27,
+   "defense": 22,
+   "speed": 25,
+   "special": 21,
+   "moves": [
+    "Wrap",
+    "Poison Sting",
+    "Earthquake",
+    "Leer"
+   ],
+   "move_ids": [
+    35,
+    40,
+    89,
+    43
+   ]
+  },
+  {
+   "dex": 20,
+   "name": "Pikachu",
+   "level": 15,
+   "hp": 39,
+   "attack": 25,
+   "defense": 18,
+   "speed": 36,
+   "special": 24,
+   "moves": [
+    "Quick Attack",
+    "Submission",
+    "Thunderbolt",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    98,
+    66,
+    85,
+    86
+   ]
+  },
+  {
+   "dex": 21,
+   "name": "Raichu",
+   "level": 15,
+   "hp": 47,
+   "attack": 36,
+   "defense": 25,
+   "speed": 39,
+   "special": 36,
+   "moves": [
+    "Thunder",
+    "Thunder Wave",
+    "Seismic Toss",
+    "Growl"
+   ],
+   "move_ids": [
+    87,
+    86,
+    69,
+    45
+   ]
+  },
+  {
+   "dex": 22,
+   "name": "Sandshrew",
+   "level": 15,
+   "hp": 44,
+   "attack": 31,
+   "defense": 34,
+   "speed": 21,
+   "special": 18,
+   "moves": [
+    "Sand-Attack",
+    "Earthquake",
+    "Submission",
+    "Swords Dance"
+   ],
+   "move_ids": [
+    28,
+    89,
+    66,
+    14
+   ]
+  },
+  {
+   "dex": 23,
+   "name": "Nidoran\u00be",
+   "level": 15,
+   "hp": 45,
+   "attack": 23,
+   "defense": 24,
+   "speed": 21,
+   "special": 21,
+   "moves": [
+    "Toxic",
+    "Thunder",
+    "Blizzard",
+    "Body Slam"
+   ],
+   "move_ids": [
+    92,
+    87,
+    59,
+    34
+   ]
+  },
+  {
+   "dex": 24,
+   "name": "Nidorina",
+   "level": 15,
+   "hp": 50,
+   "attack": 27,
+   "defense": 29,
+   "speed": 26,
+   "special": 25,
+   "moves": [
+    "Toxic",
+    "Ice Beam",
+    "Take Down",
+    "Horn Drill"
+   ],
+   "move_ids": [
+    92,
+    58,
+    36,
+    32
+   ]
+  },
+  {
+   "dex": 25,
+   "name": "Nidoqueen",
+   "level": 15,
+   "hp": 56,
+   "attack": 33,
+   "defense": 35,
+   "speed": 32,
+   "special": 31,
+   "moves": [
+    "Fissure",
+    "Double Kick",
+    "Surf",
+    "Reflect"
+   ],
+   "move_ids": [
+    90,
+    24,
+    57,
+    115
+   ]
+  },
+  {
+   "dex": 26,
+   "name": "Nidoran\u00a9",
+   "level": 15,
+   "hp": 43,
+   "attack": 26,
+   "defense": 21,
+   "speed": 24,
+   "special": 21,
+   "moves": [
+    "Blizzard",
+    "Thunderbolt",
+    "Body Slam",
+    "Toxic"
+   ],
+   "move_ids": [
+    59,
+    85,
+    34,
+    92
+   ]
+  },
+  {
+   "dex": 27,
+   "name": "Nidorino",
+   "level": 15,
+   "hp": 47,
+   "attack": 30,
+   "defense": 26,
+   "speed": 28,
+   "special": 25,
+   "moves": [
+    "Horn Drill",
+    "Ice Beam",
+    "Double Kick",
+    "Horn Attack"
+   ],
+   "move_ids": [
+    32,
+    58,
+    24,
+    30
+   ]
+  },
+  {
+   "dex": 28,
+   "name": "Nidoking",
+   "level": 15,
+   "hp": 53,
+   "attack": 36,
+   "defense": 32,
+   "speed": 34,
+   "special": 31,
+   "moves": [
+    "Poison Sting",
+    "Earthquake",
+    "Bubblebeam",
+    "Double Kick"
+   ],
+   "move_ids": [
+    40,
+    89,
+    61,
+    24
+   ]
+  },
+  {
+   "dex": 29,
+   "name": "Clefairy",
+   "level": 15,
+   "hp": 50,
+   "attack": 22,
+   "defense": 23,
+   "speed": 19,
+   "special": 27,
+   "moves": [
+    "Thunder Wave",
+    "Tri Attack",
+    "Psychic",
+    "Metronome"
+   ],
+   "move_ids": [
+    86,
+    161,
+    94,
+    118
+   ]
+  },
+  {
+   "dex": 30,
+   "name": "Clefable",
+   "level": 15,
+   "hp": 57,
+   "attack": 30,
+   "defense": 31,
+   "speed": 27,
+   "special": 34,
+   "moves": [
+    "Metronome",
+    "Tri Attack",
+    "Sing",
+    "Double Team"
+   ],
+   "move_ids": [
+    118,
+    161,
+    47,
+    104
+   ]
+  },
+  {
+   "dex": 31,
+   "name": "Vulpix",
+   "level": 15,
+   "hp": 40,
+   "attack": 21,
+   "defense": 21,
+   "speed": 28,
+   "special": 28,
+   "moves": [
+    "Double-Edge",
+    "Fire Blast",
+    "Double Team",
+    "Dig"
+   ],
+   "move_ids": [
+    38,
+    126,
+    104,
+    91
+   ]
+  },
+  {
+   "dex": 32,
+   "name": "Ninetales",
+   "level": 15,
+   "hp": 51,
+   "attack": 32,
+   "defense": 31,
+   "speed": 39,
+   "special": 39,
+   "moves": [
+    "Dig",
+    "Ember",
+    "Reflect",
+    "Hyper Beam"
+   ],
+   "move_ids": [
+    91,
+    52,
+    115,
+    63
+   ]
+  },
+  {
+   "dex": 33,
+   "name": "Jigglypuff",
+   "level": 15,
+   "hp": 63,
+   "attack": 22,
+   "defense": 15,
+   "speed": 15,
+   "special": 16,
+   "moves": [
+    "Sing",
+    "Body Slam",
+    "Thunder Wave",
+    "Ice Beam"
+   ],
+   "move_ids": [
+    47,
+    34,
+    86,
+    58
+   ]
+  },
+  {
+   "dex": 34,
+   "name": "Wigglytuff",
+   "level": 15,
+   "hp": 71,
+   "attack": 30,
+   "defense": 22,
+   "speed": 22,
+   "special": 24,
+   "moves": [
+    "Thunder",
+    "Mega Punch",
+    "Double Team",
+    "Sing"
+   ],
+   "move_ids": [
+    87,
+    5,
+    104,
+    47
+   ]
+  },
+  {
+   "dex": 35,
+   "name": "Zubat",
+   "level": 15,
+   "hp": 41,
+   "attack": 22,
+   "defense": 19,
+   "speed": 25,
+   "special": 21,
+   "moves": [
+    "Supersonic",
+    "Swift",
+    "Mega Drain",
+    "Toxic"
+   ],
+   "move_ids": [
+    48,
+    129,
+    72,
+    92
+   ]
+  },
+  {
+   "dex": 36,
+   "name": "Oddish",
+   "level": 15,
+   "hp": 42,
+   "attack": 24,
+   "defense": 25,
+   "speed": 18,
+   "special": 31,
+   "moves": [
+    "Toxic",
+    "Swords Dance",
+    "Mega Drain",
+    "Take Down"
+   ],
+   "move_ids": [
+    92,
+    14,
+    72,
+    36
+   ]
+  },
+  {
+   "dex": 37,
+   "name": "Paras",
+   "level": 15,
+   "hp": 39,
+   "attack": 30,
+   "defense": 25,
+   "speed": 16,
+   "special": 25,
+   "moves": [
+    "Stun Spore",
+    "Dig",
+    "Mega Drain",
+    "Take Down"
+   ],
+   "move_ids": [
+    78,
+    91,
+    72,
+    36
+   ]
+  },
+  {
+   "dex": 38,
+   "name": "Venonat",
+   "level": 15,
+   "hp": 47,
+   "attack": 25,
+   "defense": 24,
+   "speed": 22,
+   "special": 21,
+   "moves": [
+    "Supersonic",
+    "Psychic",
+    "Flash",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    48,
+    94,
+    148,
+    38
+   ]
+  },
+  {
+   "dex": 39,
+   "name": "Diglett",
+   "level": 15,
+   "hp": 32,
+   "attack": 25,
+   "defense": 16,
+   "speed": 37,
+   "special": 22,
+   "moves": [
+    "Earthquake",
+    "Double Team",
+    "Take Down",
+    "Fissure"
+   ],
+   "move_ids": [
+    89,
+    104,
+    36,
+    90
+   ]
+  },
+  {
+   "dex": 40,
+   "name": "Meowth",
+   "level": 15,
+   "hp": 41,
+   "attack": 22,
+   "defense": 19,
+   "speed": 36,
+   "special": 21,
+   "moves": [
+    "Double Team",
+    "Thunderbolt",
+    "Body Slam",
+    "Rest"
+   ],
+   "move_ids": [
+    104,
+    85,
+    34,
+    156
+   ]
+  },
+  {
+   "dex": 41,
+   "name": "Psyduck",
+   "level": 15,
+   "hp": 44,
+   "attack": 24,
+   "defense": 23,
+   "speed": 25,
+   "special": 24,
+   "moves": [
+    "Bubblebeam",
+    "Blizzard",
+    "Dig",
+    "Mimic"
+   ],
+   "move_ids": [
+    61,
+    59,
+    91,
+    102
+   ]
+  },
+  {
+   "dex": 42,
+   "name": "Mankey",
+   "level": 15,
+   "hp": 41,
+   "attack": 33,
+   "defense": 19,
+   "speed": 30,
+   "special": 19,
+   "moves": [
+    "Low Kick",
+    "Karate Chop",
+    "Dig",
+    "Counter"
+   ],
+   "move_ids": [
+    67,
+    2,
+    91,
+    68
+   ]
+  },
+  {
+   "dex": 43,
+   "name": "Growlithe",
+   "level": 15,
+   "hp": 45,
+   "attack": 30,
+   "defense": 22,
+   "speed": 27,
+   "special": 24,
+   "moves": [
+    "Dig",
+    "Fire Blast",
+    "Double-Edge",
+    "Reflect"
+   ],
+   "move_ids": [
+    91,
+    126,
+    38,
+    115
+   ]
+  },
+  {
+   "dex": 44,
+   "name": "Arcanine",
+   "level": 15,
+   "hp": 56,
+   "attack": 42,
+   "defense": 33,
+   "speed": 37,
+   "special": 33,
+   "moves": [
+    "Dig",
+    "Bite",
+    "Ember",
+    "Double Team"
+   ],
+   "move_ids": [
+    91,
+    44,
+    52,
+    104
+   ]
+  },
+  {
+   "dex": 45,
+   "name": "Poliwag",
+   "level": 15,
+   "hp": 41,
+   "attack": 24,
+   "defense": 21,
+   "speed": 36,
+   "special": 21,
+   "moves": [
+    "Surf",
+    "Body Slam",
+    "Blizzard",
+    "Toxic"
+   ],
+   "move_ids": [
+    57,
+    34,
+    59,
+    92
+   ]
+  },
+  {
+   "dex": 46,
+   "name": "Poliwhirl",
+   "level": 15,
+   "hp": 48,
+   "attack": 28,
+   "defense": 28,
+   "speed": 36,
+   "special": 24,
+   "moves": [
+    "Surf",
+    "Double-Edge",
+    "Metronome",
+    "Earthquake"
+   ],
+   "move_ids": [
+    57,
+    38,
+    118,
+    89
+   ]
+  },
+  {
+   "dex": 47,
+   "name": "Poliwrath",
+   "level": 15,
+   "hp": 56,
+   "attack": 34,
+   "defense": 37,
+   "speed": 30,
+   "special": 30,
+   "moves": [
+    "Surf",
+    "Doubleslap",
+    "Metronome",
+    "Hypnosis"
+   ],
+   "move_ids": [
+    57,
+    3,
+    118,
+    95
+   ]
+  },
+  {
+   "dex": 48,
+   "name": "Abra",
+   "level": 15,
+   "hp": 36,
+   "attack": 15,
+   "defense": 13,
+   "speed": 36,
+   "special": 40,
+   "moves": [
+    "Psychic",
+    "Thunder Wave",
+    "Seismic Toss",
+    "Reflect"
+   ],
+   "move_ids": [
+    94,
+    86,
+    69,
+    115
+   ]
+  },
+  {
+   "dex": 49,
+   "name": "Kadabra",
+   "level": 15,
+   "hp": 41,
+   "attack": 19,
+   "defense": 18,
+   "speed": 40,
+   "special": 45,
+   "moves": [
+    "Psychic",
+    "Metronome",
+    "Double Team",
+    "Seismic Toss"
+   ],
+   "move_ids": [
+    94,
+    118,
+    104,
+    69
+   ]
+  },
+  {
+   "dex": 50,
+   "name": "Alakazam",
+   "level": 15,
+   "hp": 45,
+   "attack": 24,
+   "defense": 22,
+   "speed": 45,
+   "special": 49,
+   "moves": [
+    "Psywave",
+    "Metronome",
+    "Thunder Wave",
+    "Mega Punch"
+   ],
+   "move_ids": [
+    149,
+    118,
+    86,
+    5
+   ]
+  },
+  {
+   "dex": 51,
+   "name": "Machop",
+   "level": 15,
+   "hp": 50,
+   "attack": 33,
+   "defense": 24,
+   "speed": 19,
+   "special": 19,
+   "moves": [
+    "Karate Chop",
+    "Submission",
+    "Fire Blast",
+    "Bide"
+   ],
+   "move_ids": [
+    2,
+    66,
+    126,
+    117
+   ]
+  },
+  {
+   "dex": 52,
+   "name": "Bellsprout",
+   "level": 15,
+   "hp": 44,
+   "attack": 31,
+   "defense": 19,
+   "speed": 21,
+   "special": 30,
+   "moves": [
+    "Growth",
+    "Take Down",
+    "Mega Drain",
+    "Reflect"
+   ],
+   "move_ids": [
+    74,
+    36,
+    72,
+    115
+   ]
+  },
+  {
+   "dex": 53,
+   "name": "Tentacool",
+   "level": 15,
+   "hp": 41,
+   "attack": 21,
+   "defense": 19,
+   "speed": 30,
+   "special": 39,
+   "moves": [
+    "Surf",
+    "Acid",
+    "Supersonic",
+    "Toxic"
+   ],
+   "move_ids": [
+    57,
+    51,
+    48,
+    92
+   ]
+  },
+  {
+   "dex": 54,
+   "name": "Tentacruel",
+   "level": 15,
+   "hp": 53,
+   "attack": 30,
+   "defense": 28,
+   "speed": 39,
+   "special": 45,
+   "moves": [
+    "Supersonic",
+    "Wrap",
+    "Toxic",
+    "Mega Drain"
+   ],
+   "move_ids": [
+    48,
+    35,
+    92,
+    72
+   ]
+  },
+  {
+   "dex": 55,
+   "name": "Geodude",
+   "level": 15,
+   "hp": 41,
+   "attack": 33,
+   "defense": 39,
+   "speed": 15,
+   "special": 18,
+   "moves": [
+    "Mega Punch",
+    "Earthquake",
+    "Rock Slide",
+    "Defense Curl"
+   ],
+   "move_ids": [
+    5,
+    89,
+    157,
+    111
+   ]
+  },
+  {
+   "dex": 56,
+   "name": "Ponyta",
+   "level": 15,
+   "hp": 44,
+   "attack": 34,
+   "defense": 25,
+   "speed": 36,
+   "special": 28,
+   "moves": [
+    "Fire Blast",
+    "Horn Drill",
+    "Reflect",
+    "Swift"
+   ],
+   "move_ids": [
+    126,
+    32,
+    115,
+    129
+   ]
+  },
+  {
+   "dex": 57,
+   "name": "Slowpoke",
+   "level": 15,
+   "hp": 56,
+   "attack": 28,
+   "defense": 28,
+   "speed": 13,
+   "special": 21,
+   "moves": [
+    "Psychic",
+    "Surf",
+    "Flash",
+    "Dig"
+   ],
+   "move_ids": [
+    94,
+    57,
+    148,
+    91
+   ]
+  },
+  {
+   "dex": 58,
+   "name": "Magnemite",
+   "level": 15,
+   "hp": 36,
+   "attack": 19,
+   "defense": 30,
+   "speed": 22,
+   "special": 37,
+   "moves": [
+    "Thunder Wave",
+    "Thunderbolt",
+    "Swift",
+    "Substitute"
+   ],
+   "move_ids": [
+    86,
+    85,
+    129,
+    164
+   ]
+  },
+  {
+   "dex": 59,
+   "name": "Farfetch'D",
+   "level": 15,
+   "hp": 44,
+   "attack": 28,
+   "defense": 25,
+   "speed": 27,
+   "special": 26,
+   "moves": [
+    "Sand-Attack",
+    "Fury Attack",
+    "Fly",
+    "Reflect"
+   ],
+   "move_ids": [
+    28,
+    31,
+    19,
+    115
+   ]
+  },
+  {
+   "dex": 60,
+   "name": "Seel",
+   "level": 15,
+   "hp": 48,
+   "attack": 22,
+   "defense": 25,
+   "speed": 22,
+   "special": 30,
+   "moves": [
+    "Surf",
+    "Headbutt",
+    "Horn Drill",
+    "Blizzard"
+   ],
+   "move_ids": [
+    57,
+    29,
+    32,
+    59
+   ]
+  },
+  {
+   "dex": 61,
+   "name": "Shellder",
+   "level": 15,
+   "hp": 38,
+   "attack": 28,
+   "defense": 39,
+   "speed": 21,
+   "special": 22,
+   "moves": [
+    "Blizzard",
+    "Tri Attack",
+    "Explosion",
+    "Surf"
+   ],
+   "move_ids": [
+    59,
+    161,
+    153,
+    57
+   ]
+  },
+  {
+   "dex": 62,
+   "name": "Cloyster",
+   "level": 15,
+   "hp": 44,
+   "attack": 37,
+   "defense": 63,
+   "speed": 30,
+   "special": 34,
+   "moves": [
+    "Supersonic",
+    "Clamp",
+    "Hyper Beam",
+    "Aurora Beam"
+   ],
+   "move_ids": [
+    48,
+    128,
+    63,
+    62
+   ]
+  },
+  {
+   "dex": 63,
+   "name": "Gastly",
+   "level": 15,
+   "hp": 38,
+   "attack": 19,
+   "defense": 18,
+   "speed": 33,
+   "special": 39,
+   "moves": [
+    "Confuse Ray",
+    "Psychic",
+    "Night Shade",
+    "Explosion"
+   ],
+   "move_ids": [
+    109,
+    94,
+    101,
+    153
+   ]
+  },
+  {
+   "dex": 64,
+   "name": "Haunter",
+   "level": 15,
+   "hp": 42,
+   "attack": 24,
+   "defense": 22,
+   "speed": 37,
+   "special": 43,
+   "moves": [
+    "Confuse Ray",
+    "Thunderbolt",
+    "Night Shade",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    109,
+    85,
+    101,
+    120
+   ]
+  },
+  {
+   "dex": 65,
+   "name": "Gengar",
+   "level": 15,
+   "hp": 47,
+   "attack": 28,
+   "defense": 27,
+   "speed": 42,
+   "special": 48,
+   "moves": [
+    "Confuse Ray",
+    "Night Shade",
+    "Mega Drain",
+    "Metronome"
+   ],
+   "move_ids": [
+    109,
+    101,
+    72,
+    118
+   ]
+  },
+  {
+   "dex": 66,
+   "name": "Onix",
+   "level": 15,
+   "hp": 39,
+   "attack": 22,
+   "defense": 57,
+   "speed": 30,
+   "special": 18,
+   "moves": [
+    "Rock Slide",
+    "Strength",
+    "Earthquake",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    157,
+    70,
+    89,
+    120
+   ]
+  },
+  {
+   "dex": 67,
+   "name": "Drowzee",
+   "level": 15,
+   "hp": 47,
+   "attack": 23,
+   "defense": 22,
+   "speed": 21,
+   "special": 36,
+   "moves": [
+    "Hypnosis",
+    "Psychic",
+    "Dream Eater",
+    "Tri Attack"
+   ],
+   "move_ids": [
+    95,
+    94,
+    138,
+    161
+   ]
+  },
+  {
+   "dex": 68,
+   "name": "Krabby",
+   "level": 15,
+   "hp": 38,
+   "attack": 40,
+   "defense": 36,
+   "speed": 24,
+   "special": 16,
+   "moves": [
+    "Ice Beam",
+    "Body Slam",
+    "Surf",
+    "Toxic"
+   ],
+   "move_ids": [
+    58,
+    34,
+    57,
+    92
+   ]
+  },
+  {
+   "dex": 69,
+   "name": "Kingler",
+   "level": 15,
+   "hp": 45,
+   "attack": 48,
+   "defense": 43,
+   "speed": 31,
+   "special": 24,
+   "moves": [
+    "Surf",
+    "Strength",
+    "Double Team",
+    "Mimic"
+   ],
+   "move_ids": [
+    57,
+    70,
+    104,
+    102
+   ]
+  },
+  {
+   "dex": 70,
+   "name": "Voltorb",
+   "level": 15,
+   "hp": 41,
+   "attack": 18,
+   "defense": 24,
+   "speed": 39,
+   "special": 25,
+   "moves": [
+    "Explosion",
+    "Take Down",
+    "Thunderbolt",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    153,
+    36,
+    85,
+    86
+   ]
+  },
+  {
+   "dex": 71,
+   "name": "Exeggcute",
+   "level": 15,
+   "hp": 47,
+   "attack": 21,
+   "defense": 33,
+   "speed": 21,
+   "special": 27,
+   "moves": [
+    "Psychic",
+    "Double Team",
+    "Egg Bomb",
+    "Toxic"
+   ],
+   "move_ids": [
+    94,
+    104,
+    121,
+    92
+   ]
+  },
+  {
+   "dex": 72,
+   "name": "Exeggutor",
+   "level": 15,
+   "hp": 57,
+   "attack": 37,
+   "defense": 34,
+   "speed": 25,
+   "special": 46,
+   "moves": [
+    "Toxic",
+    "Barrage",
+    "Mega Drain",
+    "Psywave"
+   ],
+   "move_ids": [
+    92,
+    140,
+    72,
+    149
+   ]
+  },
+  {
+   "dex": 73,
+   "name": "Cubone",
+   "level": 15,
+   "hp": 44,
+   "attack": 24,
+   "defense": 37,
+   "speed": 19,
+   "special": 21,
+   "moves": [
+    "Strength",
+    "Earthquake",
+    "Tail Whip",
+    "Blizzard"
+   ],
+   "move_ids": [
+    70,
+    89,
+    39,
+    59
+   ]
+  },
+  {
+   "dex": 74,
+   "name": "Lickitung",
+   "level": 15,
+   "hp": 56,
+   "attack": 25,
+   "defense": 31,
+   "speed": 18,
+   "special": 27,
+   "moves": [
+    "Double-Edge",
+    "Supersonic",
+    "Fire Blast",
+    "Thunder"
+   ],
+   "move_ids": [
+    38,
+    48,
+    126,
+    87
+   ]
+  },
+  {
+   "dex": 75,
+   "name": "Koffing",
+   "level": 15,
+   "hp": 41,
+   "attack": 28,
+   "defense": 37,
+   "speed": 19,
+   "special": 27,
+   "moves": [
+    "Fire Blast",
+    "Toxic",
+    "Thunderbolt",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    126,
+    92,
+    85,
+    120
+   ]
+  },
+  {
+   "dex": 76,
+   "name": "Rhyhorn",
+   "level": 15,
+   "hp": 53,
+   "attack": 34,
+   "defense": 37,
+   "speed": 16,
+   "special": 18,
+   "moves": [
+    "Rock Slide",
+    "Earthquake",
+    "Horn Attack",
+    "Substitute"
+   ],
+   "move_ids": [
+    157,
+    89,
+    30,
+    164
+   ]
+  },
+  {
+   "dex": 77,
+   "name": "Chansey",
+   "level": 15,
+   "hp": 104,
+   "attack": 10,
+   "defense": 10,
+   "speed": 24,
+   "special": 40,
+   "moves": [
+    "Tri Attack",
+    "Counter",
+    "Bubblebeam",
+    "Thunderbolt"
+   ],
+   "move_ids": [
+    161,
+    68,
+    61,
+    85
+   ]
+  },
+  {
+   "dex": 78,
+   "name": "Horsea",
+   "level": 15,
+   "hp": 38,
+   "attack": 21,
+   "defense": 30,
+   "speed": 27,
+   "special": 30,
+   "moves": [
+    "Surf",
+    "Blizzard",
+    "Toxic",
+    "Swift"
+   ],
+   "move_ids": [
+    57,
+    59,
+    92,
+    129
+   ]
+  },
+  {
+   "dex": 79,
+   "name": "Seadra",
+   "level": 15,
+   "hp": 45,
+   "attack": 28,
+   "defense": 37,
+   "speed": 34,
+   "special": 37,
+   "moves": [
+    "Smokescreen",
+    "Bubblebeam",
+    "Ice Beam",
+    "Mimic"
+   ],
+   "move_ids": [
+    108,
+    61,
+    58,
+    102
+   ]
+  },
+  {
+   "dex": 80,
+   "name": "Goldeen",
+   "level": 15,
+   "hp": 42,
+   "attack": 29,
+   "defense": 27,
+   "speed": 28,
+   "special": 24,
+   "moves": [
+    "Surf",
+    "Double-Edge",
+    "Ice Beam",
+    "Horn Drill"
+   ],
+   "move_ids": [
+    57,
+    38,
+    58,
+    32
+   ]
+  },
+  {
+   "dex": 81,
+   "name": "Staryu",
+   "level": 15,
+   "hp": 38,
+   "attack": 22,
+   "defense": 25,
+   "speed": 34,
+   "special": 30,
+   "moves": [
+    "Surf",
+    "Psychic",
+    "Tri Attack",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    57,
+    94,
+    161,
+    86
+   ]
+  },
+  {
+   "dex": 82,
+   "name": "Starmie",
+   "level": 15,
+   "hp": 47,
+   "attack": 31,
+   "defense": 34,
+   "speed": 43,
+   "special": 39,
+   "moves": [
+    "Psywave",
+    "Bubblebeam",
+    "Thunder",
+    "Substitute"
+   ],
+   "move_ids": [
+    149,
+    61,
+    87,
+    164
+   ]
+  },
+  {
+   "dex": 83,
+   "name": "Mr.Mime",
+   "level": 15,
+   "hp": 41,
+   "attack": 22,
+   "defense": 28,
+   "speed": 36,
+   "special": 39,
+   "moves": [
+    "Mega Kick",
+    "Psychic",
+    "Barrier",
+    "Metronome"
+   ],
+   "move_ids": [
+    25,
+    94,
+    112,
+    118
+   ]
+  },
+  {
+   "dex": 84,
+   "name": "Scyther",
+   "level": 15,
+   "hp": 50,
+   "attack": 42,
+   "defense": 33,
+   "speed": 40,
+   "special": 25,
+   "moves": [
+    "Quick Attack",
+    "Swords Dance",
+    "Hyper Beam",
+    "Double Team"
+   ],
+   "move_ids": [
+    98,
+    14,
+    63,
+    104
+   ]
+  },
+  {
+   "dex": 85,
+   "name": "Pinsir",
+   "level": 15,
+   "hp": 48,
+   "attack": 46,
+   "defense": 39,
+   "speed": 34,
+   "special": 25,
+   "moves": [
+    "Take Down",
+    "Submission",
+    "Bide",
+    "Mimic"
+   ],
+   "move_ids": [
+    36,
+    66,
+    117,
+    102
+   ]
+  },
+  {
+   "dex": 86,
+   "name": "Magikarp",
+   "level": 15,
+   "hp": 35,
+   "attack": 12,
+   "defense": 25,
+   "speed": 33,
+   "special": 15,
+   "moves": [
+    "Splash",
+    "Tackle",
+    null,
+    null
+   ],
+   "move_ids": [
+    150,
+    33,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 87,
+   "name": "Gyarados",
+   "level": 15,
+   "hp": 57,
+   "attack": 46,
+   "defense": 32,
+   "speed": 33,
+   "special": 39,
+   "moves": [
+    "Hydro Pump",
+    "Bite",
+    "Rest",
+    "Leer"
+   ],
+   "move_ids": [
+    56,
+    44,
+    156,
+    43
+   ]
+  },
+  {
+   "dex": 88,
+   "name": "Lapras",
+   "level": 15,
+   "hp": 68,
+   "attack": 34,
+   "defense": 33,
+   "speed": 27,
+   "special": 37,
+   "moves": [
+    "Bubblebeam",
+    "Ice Beam",
+    "Growl",
+    "Skull Bash"
+   ],
+   "move_ids": [
+    61,
+    58,
+    45,
+    130
+   ]
+  },
+  {
+   "dex": 89,
+   "name": "Ditto",
+   "level": 15,
+   "hp": 43,
+   "attack": 23,
+   "defense": 23,
+   "speed": 23,
+   "special": 23,
+   "moves": [
+    "Transform",
+    null,
+    null,
+    null
+   ],
+   "move_ids": [
+    144,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 90,
+   "name": "Porygon",
+   "level": 15,
+   "hp": 48,
+   "attack": 27,
+   "defense": 30,
+   "speed": 21,
+   "special": 31,
+   "moves": [
+    "Conversion",
+    "Sharpen",
+    "Tri Attack",
+    "Psychic"
+   ],
+   "move_ids": [
+    160,
+    159,
+    161,
+    94
+   ]
+  },
+  {
+   "dex": 91,
+   "name": "Dratini",
+   "level": 15,
+   "hp": 41,
+   "attack": 28,
+   "defense": 22,
+   "speed": 24,
+   "special": 24,
+   "moves": [
+    "Fire Blast",
+    "Blizzard",
+    "Body Slam",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    126,
+    59,
+    34,
+    86
+   ]
+  }
+ ],
+ "petit": [
+  {
+   "dex": 1,
+   "name": "Bulbasaur",
+   "level": 25,
+   "hp": 69,
+   "attack": 40,
+   "defense": 40,
+   "speed": 39,
+   "special": 49,
+   "moves": [
+    "Leech Seed",
+    "Mega Drain",
+    "Solarbeam",
+    "Cut"
+   ],
+   "move_ids": [
+    73,
+    72,
+    76,
+    15
+   ]
+  },
+  {
+   "dex": 2,
+   "name": "Charmander",
+   "level": 25,
+   "hp": 66,
+   "attack": 42,
+   "defense": 37,
+   "speed": 49,
+   "special": 41,
+   "moves": [
+    "Fire Blast",
+    "Rage",
+    "Growl",
+    "Mega Punch"
+   ],
+   "move_ids": [
+    126,
+    99,
+    45,
+    5
+   ]
+  },
+  {
+   "dex": 3,
+   "name": "Squirtle",
+   "level": 25,
+   "hp": 68,
+   "attack": 40,
+   "defense": 48,
+   "speed": 38,
+   "special": 41,
+   "moves": [
+    "Bite",
+    "Bubblebeam",
+    "Toxic",
+    "Submission"
+   ],
+   "move_ids": [
+    44,
+    61,
+    92,
+    66
+   ]
+  },
+  {
+   "dex": 4,
+   "name": "Caterpie",
+   "level": 25,
+   "hp": 69,
+   "attack": 31,
+   "defense": 33,
+   "speed": 39,
+   "special": 26,
+   "moves": [
+    "Tackle",
+    "String Shot",
+    null,
+    null
+   ],
+   "move_ids": [
+    33,
+    81,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 5,
+   "name": "Weedle",
+   "level": 25,
+   "hp": 66,
+   "attack": 33,
+   "defense": 31,
+   "speed": 41,
+   "special": 26,
+   "moves": [
+    "Poison Sting",
+    "String Shot",
+    null,
+    null
+   ],
+   "move_ids": [
+    40,
+    81,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 6,
+   "name": "Pidgey",
+   "level": 25,
+   "hp": 66,
+   "attack": 38,
+   "defense": 36,
+   "speed": 44,
+   "special": 34,
+   "moves": [
+    "Sand-Attack",
+    "Quick Attack",
+    "Double-Edge",
+    "Fly"
+   ],
+   "move_ids": [
+    28,
+    98,
+    38,
+    19
+   ]
+  },
+  {
+   "dex": 7,
+   "name": "Rattata",
+   "level": 25,
+   "hp": 61,
+   "attack": 44,
+   "defense": 33,
+   "speed": 52,
+   "special": 29,
+   "moves": [
+    "Quick Attack",
+    "Hyper Fang",
+    "Bubblebeam",
+    "Dig"
+   ],
+   "move_ids": [
+    98,
+    158,
+    61,
+    91
+   ]
+  },
+  {
+   "dex": 8,
+   "name": "Spearow",
+   "level": 25,
+   "hp": 66,
+   "attack": 46,
+   "defense": 31,
+   "speed": 51,
+   "special": 32,
+   "moves": [
+    "Double-Edge",
+    "Mirror Move",
+    "Fly",
+    "Toxic"
+   ],
+   "move_ids": [
+    38,
+    119,
+    19,
+    92
+   ]
+  },
+  {
+   "dex": 9,
+   "name": "Ekans",
+   "level": 25,
+   "hp": 64,
+   "attack": 46,
+   "defense": 38,
+   "speed": 44,
+   "special": 36,
+   "moves": [
+    "Bite",
+    "Glare",
+    "Dig",
+    "Mega Drain"
+   ],
+   "move_ids": [
+    44,
+    137,
+    91,
+    72
+   ]
+  },
+  {
+   "dex": 10,
+   "name": "Pikachu",
+   "level": 25,
+   "hp": 64,
+   "attack": 43,
+   "defense": 31,
+   "speed": 61,
+   "special": 41,
+   "moves": [
+    "Thunder Wave",
+    "Slam",
+    "Thunder",
+    "Flash"
+   ],
+   "move_ids": [
+    86,
+    21,
+    87,
+    148
+   ]
+  },
+  {
+   "dex": 11,
+   "name": "Sandshrew",
+   "level": 25,
+   "hp": 71,
+   "attack": 53,
+   "defense": 58,
+   "speed": 36,
+   "special": 31,
+   "moves": [
+    "Slash",
+    "Poison Sting",
+    "Dig",
+    "Rock Slide"
+   ],
+   "move_ids": [
+    163,
+    40,
+    91,
+    157
+   ]
+  },
+  {
+   "dex": 12,
+   "name": "Nidoran\u00be",
+   "level": 25,
+   "hp": 74,
+   "attack": 39,
+   "defense": 42,
+   "speed": 37,
+   "special": 36,
+   "moves": [
+    "Double Kick",
+    "Blizzard",
+    "Take Down",
+    "Toxic"
+   ],
+   "move_ids": [
+    24,
+    59,
+    36,
+    92
+   ]
+  },
+  {
+   "dex": 13,
+   "name": "Nidoran\u00a9",
+   "level": 25,
+   "hp": 69,
+   "attack": 44,
+   "defense": 36,
+   "speed": 41,
+   "special": 36,
+   "moves": [
+    "Double Kick",
+    "Horn Drill",
+    "Body Slam",
+    "Toxic"
+   ],
+   "move_ids": [
+    24,
+    32,
+    34,
+    92
+   ]
+  },
+  {
+   "dex": 14,
+   "name": "Clefairy",
+   "level": 25,
+   "hp": 81,
+   "attack": 38,
+   "defense": 40,
+   "speed": 34,
+   "special": 46,
+   "moves": [
+    "Sing",
+    "Fire Blast",
+    "Tri Attack",
+    "Metronome"
+   ],
+   "move_ids": [
+    47,
+    126,
+    161,
+    118
+   ]
+  },
+  {
+   "dex": 15,
+   "name": "Vulpix",
+   "level": 25,
+   "hp": 65,
+   "attack": 36,
+   "defense": 36,
+   "speed": 49,
+   "special": 49,
+   "moves": [
+    "Toxic",
+    "Double-Edge",
+    "Dig",
+    "Ember"
+   ],
+   "move_ids": [
+    92,
+    38,
+    91,
+    52
+   ]
+  },
+  {
+   "dex": 16,
+   "name": "Jigglypuff",
+   "level": 25,
+   "hp": 104,
+   "attack": 38,
+   "defense": 26,
+   "speed": 26,
+   "special": 29,
+   "moves": [
+    "Sing",
+    "Psychic",
+    "Take Down",
+    "Submission"
+   ],
+   "move_ids": [
+    47,
+    94,
+    36,
+    66
+   ]
+  },
+  {
+   "dex": 17,
+   "name": "Zubat",
+   "level": 25,
+   "hp": 66,
+   "attack": 38,
+   "defense": 33,
+   "speed": 44,
+   "special": 36,
+   "moves": [
+    "Confuse Ray",
+    "Double-Edge",
+    "Toxic",
+    "Mega Drain"
+   ],
+   "move_ids": [
+    109,
+    38,
+    92,
+    72
+   ]
+  },
+  {
+   "dex": 18,
+   "name": "Oddish",
+   "level": 25,
+   "hp": 69,
+   "attack": 41,
+   "defense": 43,
+   "speed": 31,
+   "special": 54,
+   "moves": [
+    "Acid",
+    "Sleep Powder",
+    "Solarbeam",
+    "Cut"
+   ],
+   "move_ids": [
+    51,
+    79,
+    76,
+    15
+   ]
+  },
+  {
+   "dex": 19,
+   "name": "Paras",
+   "level": 25,
+   "hp": 64,
+   "attack": 51,
+   "defense": 43,
+   "speed": 29,
+   "special": 44,
+   "moves": [
+    "Stun Spore",
+    "Mega Drain",
+    "Leech Life",
+    "Dig"
+   ],
+   "move_ids": [
+    78,
+    72,
+    141,
+    91
+   ]
+  },
+  {
+   "dex": 20,
+   "name": "Diglett",
+   "level": 25,
+   "hp": 51,
+   "attack": 43,
+   "defense": 28,
+   "speed": 64,
+   "special": 39,
+   "moves": [
+    "Dig",
+    "Sand-Attack",
+    "Cut",
+    "Rock Slide"
+   ],
+   "move_ids": [
+    91,
+    28,
+    15,
+    157
+   ]
+  },
+  {
+   "dex": 21,
+   "name": "Meowth",
+   "level": 25,
+   "hp": 66,
+   "attack": 38,
+   "defense": 33,
+   "speed": 61,
+   "special": 36,
+   "moves": [
+    "Bite",
+    "Screech",
+    "Bubblebeam",
+    "Thunderbolt"
+   ],
+   "move_ids": [
+    44,
+    103,
+    61,
+    85
+   ]
+  },
+  {
+   "dex": 22,
+   "name": "Psyduck",
+   "level": 25,
+   "hp": 71,
+   "attack": 42,
+   "defense": 40,
+   "speed": 44,
+   "special": 41,
+   "moves": [
+    "Bubblebeam",
+    "Mimic",
+    "Mega Punch",
+    "Submission"
+   ],
+   "move_ids": [
+    61,
+    102,
+    5,
+    66
+   ]
+  },
+  {
+   "dex": 23,
+   "name": "Growlithe",
+   "level": 25,
+   "hp": 74,
+   "attack": 51,
+   "defense": 38,
+   "speed": 46,
+   "special": 41,
+   "moves": [
+    "Fire Blast",
+    "Bite",
+    "Mimic",
+    "Leer"
+   ],
+   "move_ids": [
+    126,
+    44,
+    102,
+    43
+   ]
+  },
+  {
+   "dex": 24,
+   "name": "Poliwag",
+   "level": 25,
+   "hp": 66,
+   "attack": 41,
+   "defense": 36,
+   "speed": 61,
+   "special": 36,
+   "moves": [
+    "Hypnosis",
+    "Skull Bash",
+    "Psywave",
+    "Surf"
+   ],
+   "move_ids": [
+    95,
+    130,
+    149,
+    57
+   ]
+  },
+  {
+   "dex": 25,
+   "name": "Abra",
+   "level": 25,
+   "hp": 59,
+   "attack": 26,
+   "defense": 23,
+   "speed": 61,
+   "special": 69,
+   "moves": [
+    "Metronome",
+    "Psywave",
+    "Body Slam",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    118,
+    149,
+    34,
+    86
+   ]
+  },
+  {
+   "dex": 26,
+   "name": "Machop",
+   "level": 25,
+   "hp": 81,
+   "attack": 56,
+   "defense": 41,
+   "speed": 34,
+   "special": 34,
+   "moves": [
+    "Karate Chop",
+    "Low Kick",
+    "Seismic Toss",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    2,
+    67,
+    69,
+    126
+   ]
+  },
+  {
+   "dex": 27,
+   "name": "Bellsprout",
+   "level": 25,
+   "hp": 71,
+   "attack": 53,
+   "defense": 33,
+   "speed": 36,
+   "special": 51,
+   "moves": [
+    "Wrap",
+    "Mega Drain",
+    "Growth",
+    "Poisonpowder"
+   ],
+   "move_ids": [
+    35,
+    72,
+    74,
+    77
+   ]
+  },
+  {
+   "dex": 28,
+   "name": "Geodude",
+   "level": 25,
+   "hp": 66,
+   "attack": 56,
+   "defense": 66,
+   "speed": 26,
+   "special": 31,
+   "moves": [
+    "Rock Throw",
+    "Selfdestruct",
+    "Dig",
+    "Strength"
+   ],
+   "move_ids": [
+    88,
+    120,
+    91,
+    70
+   ]
+  },
+  {
+   "dex": 29,
+   "name": "Magnemite",
+   "level": 25,
+   "hp": 59,
+   "attack": 33,
+   "defense": 51,
+   "speed": 39,
+   "special": 64,
+   "moves": [
+    "Flash",
+    "Swift",
+    "Thunder Wave",
+    "Thunder"
+   ],
+   "move_ids": [
+    148,
+    129,
+    86,
+    87
+   ]
+  },
+  {
+   "dex": 30,
+   "name": "Farfetch'D",
+   "level": 25,
+   "hp": 72,
+   "attack": 48,
+   "defense": 43,
+   "speed": 46,
+   "special": 45,
+   "moves": [
+    "Fury Attack",
+    "Swords Dance",
+    "Sand-Attack",
+    "Fly"
+   ],
+   "move_ids": [
+    31,
+    14,
+    28,
+    19
+   ]
+  },
+  {
+   "dex": 31,
+   "name": "Shellder",
+   "level": 25,
+   "hp": 61,
+   "attack": 48,
+   "defense": 66,
+   "speed": 36,
+   "special": 39,
+   "moves": [
+    "Supersonic",
+    "Clamp",
+    "Ice Beam",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    48,
+    128,
+    58,
+    120
+   ]
+  },
+  {
+   "dex": 32,
+   "name": "Gastly",
+   "level": 25,
+   "hp": 61,
+   "attack": 33,
+   "defense": 31,
+   "speed": 56,
+   "special": 66,
+   "moves": [
+    "Confuse Ray",
+    "Night Shade",
+    "Thunder",
+    "Mega Drain"
+   ],
+   "move_ids": [
+    109,
+    101,
+    87,
+    72
+   ]
+  },
+  {
+   "dex": 33,
+   "name": "Krabby",
+   "level": 25,
+   "hp": 61,
+   "attack": 68,
+   "defense": 61,
+   "speed": 41,
+   "special": 29,
+   "moves": [
+    "Guillotine",
+    "Surf",
+    "Swords Dance",
+    "Strength"
+   ],
+   "move_ids": [
+    12,
+    57,
+    14,
+    70
+   ]
+  },
+  {
+   "dex": 34,
+   "name": "Voltorb",
+   "level": 25,
+   "hp": 66,
+   "attack": 31,
+   "defense": 41,
+   "speed": 66,
+   "special": 44,
+   "moves": [
+    "Screech",
+    "Thunder Wave",
+    "Thunder",
+    "Take Down"
+   ],
+   "move_ids": [
+    103,
+    86,
+    87,
+    36
+   ]
+  },
+  {
+   "dex": 35,
+   "name": "Exeggcute",
+   "level": 25,
+   "hp": 76,
+   "attack": 36,
+   "defense": 56,
+   "speed": 36,
+   "special": 46,
+   "moves": [
+    "Hypnosis",
+    "Psywave",
+    "Egg Bomb",
+    "Reflect"
+   ],
+   "move_ids": [
+    95,
+    149,
+    121,
+    115
+   ]
+  },
+  {
+   "dex": 36,
+   "name": "Cubone",
+   "level": 25,
+   "hp": 71,
+   "attack": 41,
+   "defense": 63,
+   "speed": 34,
+   "special": 36,
+   "moves": [
+    "Bone Club",
+    "Tail Whip",
+    "Fire Blast",
+    "Headbutt"
+   ],
+   "move_ids": [
+    125,
+    39,
+    126,
+    29
+   ]
+  },
+  {
+   "dex": 37,
+   "name": "Koffing",
+   "level": 25,
+   "hp": 66,
+   "attack": 48,
+   "defense": 63,
+   "speed": 34,
+   "special": 46,
+   "moves": [
+    "Smog",
+    "Toxic",
+    "Fire Blast",
+    "Thunderbolt"
+   ],
+   "move_ids": [
+    123,
+    92,
+    126,
+    85
+   ]
+  },
+  {
+   "dex": 38,
+   "name": "Horsea",
+   "level": 25,
+   "hp": 61,
+   "attack": 36,
+   "defense": 51,
+   "speed": 46,
+   "special": 51,
+   "moves": [
+    "Smokescreen",
+    "Bubblebeam",
+    "Swift",
+    "Ice Beam"
+   ],
+   "move_ids": [
+    108,
+    61,
+    129,
+    58
+   ]
+  },
+  {
+   "dex": 39,
+   "name": "Goldeen",
+   "level": 25,
+   "hp": 69,
+   "attack": 49,
+   "defense": 46,
+   "speed": 48,
+   "special": 41,
+   "moves": [
+    "Supersonic",
+    "Horn Attack",
+    "Surf",
+    "Horn Drill"
+   ],
+   "move_ids": [
+    48,
+    30,
+    57,
+    32
+   ]
+  },
+  {
+   "dex": 40,
+   "name": "Magikarp",
+   "level": 25,
+   "hp": 56,
+   "attack": 21,
+   "defense": 43,
+   "speed": 56,
+   "special": 26,
+   "moves": [
+    "Splash",
+    "Tackle",
+    null,
+    null
+   ],
+   "move_ids": [
+    150,
+    33,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 41,
+   "name": "Ditto",
+   "level": 25,
+   "hp": 70,
+   "attack": 40,
+   "defense": 40,
+   "speed": 40,
+   "special": 40,
+   "moves": [
+    "Transform",
+    null,
+    null,
+    null
+   ],
+   "move_ids": [
+    144,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 42,
+   "name": "Eevee",
+   "level": 25,
+   "hp": 74,
+   "attack": 43,
+   "defense": 41,
+   "speed": 44,
+   "special": 49,
+   "moves": [
+    "Sand-Attack",
+    "Quick Attack",
+    "Double-Edge",
+    "Substitute"
+   ],
+   "move_ids": [
+    28,
+    98,
+    38,
+    164
+   ]
+  },
+  {
+   "dex": 43,
+   "name": "Omanyte",
+   "level": 25,
+   "hp": 64,
+   "attack": 36,
+   "defense": 66,
+   "speed": 34,
+   "special": 61,
+   "moves": [
+    "Withdraw",
+    "Bubblebeam",
+    "Double-Edge",
+    "Toxic"
+   ],
+   "move_ids": [
+    110,
+    61,
+    38,
+    92
+   ]
+  },
+  {
+   "dex": 44,
+   "name": "Kabuto",
+   "level": 25,
+   "hp": 61,
+   "attack": 56,
+   "defense": 61,
+   "speed": 44,
+   "special": 39,
+   "moves": [
+    "Ice Beam",
+    "Take Down",
+    "Surf",
+    "Bide"
+   ],
+   "move_ids": [
+    58,
+    36,
+    57,
+    117
+   ]
+  },
+  {
+   "dex": 45,
+   "name": "Dratini",
+   "level": 25,
+   "hp": 67,
+   "attack": 48,
+   "defense": 38,
+   "speed": 41,
+   "special": 41,
+   "moves": [
+    "Thunder Wave",
+    "Wrap",
+    "Thunder",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    86,
+    35,
+    87,
+    126
+   ]
+  }
+ ],
+ "poke": [
+  {
+   "dex": 1,
+   "name": "Bulbasaur",
+   "level": 50,
+   "hp": 132,
+   "attack": 80,
+   "defense": 81,
+   "speed": 77,
+   "special": 97,
+   "moves": [
+    "Leech Seed",
+    "Toxic",
+    "Body Slam",
+    "Razor Leaf"
+   ],
+   "move_ids": [
+    73,
+    92,
+    34,
+    75
+   ]
+  },
+  {
+   "dex": 2,
+   "name": "Ivysaur",
+   "level": 50,
+   "hp": 141,
+   "attack": 87,
+   "defense": 89,
+   "speed": 85,
+   "special": 106,
+   "moves": [
+    "Razor Leaf",
+    "Sleep Powder",
+    "Growth",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    75,
+    79,
+    74,
+    38
+   ]
+  },
+  {
+   "dex": 3,
+   "name": "Venusaur",
+   "level": 50,
+   "hp": 156,
+   "attack": 103,
+   "defense": 104,
+   "speed": 102,
+   "special": 121,
+   "moves": [
+    "Leech Seed",
+    "Poisonpowder",
+    "Solarbeam",
+    "Take Down"
+   ],
+   "move_ids": [
+    73,
+    77,
+    76,
+    36
+   ]
+  },
+  {
+   "dex": 4,
+   "name": "Charmander",
+   "level": 50,
+   "hp": 126,
+   "attack": 83,
+   "defense": 75,
+   "speed": 97,
+   "special": 82,
+   "moves": [
+    "Flamethrower",
+    "Slash",
+    "Dig",
+    "Fire Spin"
+   ],
+   "move_ids": [
+    53,
+    163,
+    91,
+    83
+   ]
+  },
+  {
+   "dex": 5,
+   "name": "Charmeleon",
+   "level": 50,
+   "hp": 141,
+   "attack": 91,
+   "defense": 86,
+   "speed": 107,
+   "special": 93,
+   "moves": [
+    "Flamethrower",
+    "Counter",
+    "Seismic Toss",
+    "Strength"
+   ],
+   "move_ids": [
+    53,
+    68,
+    69,
+    70
+   ]
+  },
+  {
+   "dex": 6,
+   "name": "Charizard",
+   "level": 50,
+   "hp": 154,
+   "attack": 105,
+   "defense": 99,
+   "speed": 122,
+   "special": 106,
+   "moves": [
+    "Fly",
+    "Swords Dance",
+    "Fire Spin",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    19,
+    14,
+    83,
+    126
+   ]
+  },
+  {
+   "dex": 7,
+   "name": "Squirtle",
+   "level": 50,
+   "hp": 131,
+   "attack": 79,
+   "defense": 97,
+   "speed": 75,
+   "special": 82,
+   "moves": [
+    "Surf",
+    "Blizzard",
+    "Body Slam",
+    "Dig"
+   ],
+   "move_ids": [
+    57,
+    59,
+    34,
+    91
+   ]
+  },
+  {
+   "dex": 8,
+   "name": "Wartortle",
+   "level": 50,
+   "hp": 140,
+   "attack": 88,
+   "defense": 106,
+   "speed": 83,
+   "special": 91,
+   "moves": [
+    "Surf",
+    "Strength",
+    "Rest",
+    "Ice Beam"
+   ],
+   "move_ids": [
+    57,
+    70,
+    156,
+    58
+   ]
+  },
+  {
+   "dex": 9,
+   "name": "Blastoise",
+   "level": 50,
+   "hp": 155,
+   "attack": 104,
+   "defense": 121,
+   "speed": 100,
+   "special": 106,
+   "moves": [
+    "Hydro Pump",
+    "Skull Bash",
+    "Withdraw",
+    "Seismic Toss"
+   ],
+   "move_ids": [
+    56,
+    130,
+    110,
+    69
+   ]
+  },
+  {
+   "dex": 10,
+   "name": "Caterpie",
+   "level": 50,
+   "hp": 132,
+   "attack": 61,
+   "defense": 67,
+   "speed": 77,
+   "special": 52,
+   "moves": [
+    "String Shot",
+    "Tackle",
+    null,
+    null
+   ],
+   "move_ids": [
+    81,
+    33,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 11,
+   "name": "Metapod",
+   "level": 50,
+   "hp": 137,
+   "attack": 51,
+   "defense": 87,
+   "speed": 62,
+   "special": 57,
+   "moves": [
+    "String Shot",
+    "Tackle",
+    null,
+    null
+   ],
+   "move_ids": [
+    81,
+    33,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 12,
+   "name": "Butterfree",
+   "level": 50,
+   "hp": 141,
+   "attack": 70,
+   "defense": 76,
+   "speed": 95,
+   "special": 106,
+   "moves": [
+    "Psychic",
+    "Supersonic",
+    "Mega Drain",
+    "Stun Spore"
+   ],
+   "move_ids": [
+    94,
+    48,
+    72,
+    78
+   ]
+  },
+  {
+   "dex": 13,
+   "name": "Weedle",
+   "level": 50,
+   "hp": 127,
+   "attack": 66,
+   "defense": 62,
+   "speed": 82,
+   "special": 52,
+   "moves": [
+    "String Shot",
+    "Poison Sting",
+    null,
+    null
+   ],
+   "move_ids": [
+    81,
+    40,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 14,
+   "name": "Kakuna",
+   "level": 50,
+   "hp": 132,
+   "attack": 56,
+   "defense": 82,
+   "speed": 67,
+   "special": 57,
+   "moves": [
+    "String Shot",
+    "Poison Sting",
+    null,
+    null
+   ],
+   "move_ids": [
+    81,
+    40,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 15,
+   "name": "Beedrill",
+   "level": 50,
+   "hp": 146,
+   "attack": 105,
+   "defense": 66,
+   "speed": 100,
+   "special": 71,
+   "moves": [
+    "Twineedle",
+    "Hyper Beam",
+    "Toxic",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    41,
+    63,
+    92,
+    116
+   ]
+  },
+  {
+   "dex": 16,
+   "name": "Pidgey",
+   "level": 50,
+   "hp": 127,
+   "attack": 76,
+   "defense": 72,
+   "speed": 88,
+   "special": 67,
+   "moves": [
+    "Fly",
+    "Toxic",
+    "Double-Edge",
+    "Double Team"
+   ],
+   "move_ids": [
+    19,
+    92,
+    38,
+    104
+   ]
+  },
+  {
+   "dex": 17,
+   "name": "Pidgeotto",
+   "level": 50,
+   "hp": 147,
+   "attack": 89,
+   "defense": 83,
+   "speed": 99,
+   "special": 79,
+   "moves": [
+    "Fly",
+    "Quick Attack",
+    "Sand-Attack",
+    "Take Down"
+   ],
+   "move_ids": [
+    19,
+    98,
+    28,
+    36
+   ]
+  },
+  {
+   "dex": 18,
+   "name": "Pidgeot",
+   "level": 50,
+   "hp": 161,
+   "attack": 104,
+   "defense": 99,
+   "speed": 114,
+   "special": 93,
+   "moves": [
+    "Mirror Move",
+    "Fly",
+    "Quick Attack",
+    "Sand-Attack"
+   ],
+   "move_ids": [
+    119,
+    19,
+    98,
+    28
+   ]
+  },
+  {
+   "dex": 19,
+   "name": "Rattata",
+   "level": 50,
+   "hp": 117,
+   "attack": 87,
+   "defense": 67,
+   "speed": 104,
+   "special": 57,
+   "moves": [
+    "Super Fang",
+    "Blizzard",
+    "Quick Attack",
+    "Hyper Fang"
+   ],
+   "move_ids": [
+    162,
+    59,
+    98,
+    158
+   ]
+  },
+  {
+   "dex": 20,
+   "name": "Raticate",
+   "level": 50,
+   "hp": 136,
+   "attack": 106,
+   "defense": 86,
+   "speed": 122,
+   "special": 76,
+   "moves": [
+    "Hyper Fang",
+    "Hyper Beam",
+    "Focus Energy",
+    "Thunder"
+   ],
+   "move_ids": [
+    158,
+    63,
+    116,
+    87
+   ]
+  },
+  {
+   "dex": 21,
+   "name": "Spearow",
+   "level": 50,
+   "hp": 127,
+   "attack": 91,
+   "defense": 62,
+   "speed": 102,
+   "special": 63,
+   "moves": [
+    "Drill Peck",
+    "Mirror Move",
+    "Double Team",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    65,
+    119,
+    104,
+    38
+   ]
+  },
+  {
+   "dex": 22,
+   "name": "Fearow",
+   "level": 50,
+   "hp": 143,
+   "attack": 114,
+   "defense": 89,
+   "speed": 123,
+   "special": 84,
+   "moves": [
+    "Drill Peck",
+    "Mirror Move",
+    "Fury Attack",
+    "Swift"
+   ],
+   "move_ids": [
+    65,
+    119,
+    31,
+    129
+   ]
+  },
+  {
+   "dex": 23,
+   "name": "Ekans",
+   "level": 50,
+   "hp": 122,
+   "attack": 91,
+   "defense": 76,
+   "speed": 87,
+   "special": 72,
+   "moves": [
+    "Earthquake",
+    "Acid",
+    "Screech",
+    "Body Slam"
+   ],
+   "move_ids": [
+    89,
+    51,
+    103,
+    34
+   ]
+  },
+  {
+   "dex": 24,
+   "name": "Arbok",
+   "level": 50,
+   "hp": 138,
+   "attack": 109,
+   "defense": 93,
+   "speed": 103,
+   "special": 88,
+   "moves": [
+    "Glare",
+    "Wrap",
+    "Dig",
+    "Strength"
+   ],
+   "move_ids": [
+    137,
+    35,
+    91,
+    70
+   ]
+  },
+  {
+   "dex": 25,
+   "name": "Pikachu",
+   "level": 50,
+   "hp": 122,
+   "attack": 86,
+   "defense": 62,
+   "speed": 122,
+   "special": 82,
+   "moves": [
+    "Thunderbolt",
+    "Slam",
+    "Thunder Wave",
+    "Seismic Toss"
+   ],
+   "move_ids": [
+    85,
+    21,
+    86,
+    69
+   ]
+  },
+  {
+   "dex": 26,
+   "name": "Raichu",
+   "level": 50,
+   "hp": 138,
+   "attack": 114,
+   "defense": 79,
+   "speed": 123,
+   "special": 113,
+   "moves": [
+    "Thunder",
+    "Thunder Wave",
+    "Flash",
+    "Mega Kick"
+   ],
+   "move_ids": [
+    87,
+    86,
+    148,
+    25
+   ]
+  },
+  {
+   "dex": 27,
+   "name": "Sandshrew",
+   "level": 50,
+   "hp": 134,
+   "attack": 104,
+   "defense": 113,
+   "speed": 68,
+   "special": 59,
+   "moves": [
+    "Earthquake",
+    "Slash",
+    "Seismic Toss",
+    "Sand-Attack"
+   ],
+   "move_ids": [
+    89,
+    163,
+    69,
+    28
+   ]
+  },
+  {
+   "dex": 28,
+   "name": "Sandslash",
+   "level": 50,
+   "hp": 151,
+   "attack": 121,
+   "defense": 131,
+   "speed": 87,
+   "special": 76,
+   "moves": [
+    "Dig",
+    "Swift",
+    "Seismic Toss",
+    "Sand-Attack"
+   ],
+   "move_ids": [
+    91,
+    129,
+    69,
+    28
+   ]
+  },
+  {
+   "dex": 29,
+   "name": "Nidoran\u00be",
+   "level": 50,
+   "hp": 142,
+   "attack": 78,
+   "defense": 84,
+   "speed": 73,
+   "special": 72,
+   "moves": [
+    "Toxic",
+    "Thunderbolt",
+    "Body Slam",
+    "Blizzard"
+   ],
+   "move_ids": [
+    92,
+    85,
+    34,
+    59
+   ]
+  },
+  {
+   "dex": 30,
+   "name": "Nidorina",
+   "level": 50,
+   "hp": 151,
+   "attack": 87,
+   "defense": 93,
+   "speed": 81,
+   "special": 81,
+   "moves": [
+    "Toxic",
+    "Thunder",
+    "Double-Edge",
+    "Ice Beam"
+   ],
+   "move_ids": [
+    92,
+    87,
+    38,
+    58
+   ]
+  },
+  {
+   "dex": 31,
+   "name": "Nidoqueen",
+   "level": 50,
+   "hp": 166,
+   "attack": 103,
+   "defense": 108,
+   "speed": 98,
+   "special": 96,
+   "moves": [
+    "Toxic",
+    "Double Kick",
+    "Bite",
+    "Earthquake"
+   ],
+   "move_ids": [
+    92,
+    24,
+    44,
+    89
+   ]
+  },
+  {
+   "dex": 32,
+   "name": "Nidoran\u00a9",
+   "level": 50,
+   "hp": 135,
+   "attack": 90,
+   "defense": 74,
+   "speed": 84,
+   "special": 74,
+   "moves": [
+    "Blizzard",
+    "Body Slam",
+    "Focus Energy",
+    "Thunderbolt"
+   ],
+   "move_ids": [
+    59,
+    34,
+    116,
+    85
+   ]
+  },
+  {
+   "dex": 33,
+   "name": "Nidorino",
+   "level": 50,
+   "hp": 142,
+   "attack": 97,
+   "defense": 83,
+   "speed": 90,
+   "special": 81,
+   "moves": [
+    "Double-Edge",
+    "Horn Drill",
+    "Focus Energy",
+    "Thunder"
+   ],
+   "move_ids": [
+    38,
+    32,
+    116,
+    87
+   ]
+  },
+  {
+   "dex": 34,
+   "name": "Nidoking",
+   "level": 50,
+   "hp": 157,
+   "attack": 113,
+   "defense": 98,
+   "speed": 107,
+   "special": 96,
+   "moves": [
+    "Earthquake",
+    "Horn Drill",
+    "Rage",
+    "Substitute"
+   ],
+   "move_ids": [
+    89,
+    32,
+    99,
+    164
+   ]
+  },
+  {
+   "dex": 35,
+   "name": "Clefairy",
+   "level": 50,
+   "hp": 157,
+   "attack": 76,
+   "defense": 80,
+   "speed": 67,
+   "special": 92,
+   "moves": [
+    "Thunderbolt",
+    "Psychic",
+    "Body Slam",
+    "Blizzard"
+   ],
+   "move_ids": [
+    85,
+    94,
+    34,
+    59
+   ]
+  },
+  {
+   "dex": 36,
+   "name": "Clefable",
+   "level": 50,
+   "hp": 173,
+   "attack": 94,
+   "defense": 97,
+   "speed": 83,
+   "special": 108,
+   "moves": [
+    "Sing",
+    "Tri Attack",
+    "Minimize",
+    "Ice Beam"
+   ],
+   "move_ids": [
+    47,
+    161,
+    107,
+    58
+   ]
+  },
+  {
+   "dex": 37,
+   "name": "Vulpix",
+   "level": 50,
+   "hp": 125,
+   "attack": 72,
+   "defense": 72,
+   "speed": 97,
+   "special": 97,
+   "moves": [
+    "Flamethrower",
+    "Dig",
+    "Confuse Ray",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    53,
+    91,
+    109,
+    38
+   ]
+  },
+  {
+   "dex": 38,
+   "name": "Ninetales",
+   "level": 50,
+   "hp": 149,
+   "attack": 97,
+   "defense": 96,
+   "speed": 122,
+   "special": 121,
+   "moves": [
+    "Fire Blast",
+    "Skull Bash",
+    "Confuse Ray",
+    "Tail Whip"
+   ],
+   "move_ids": [
+    126,
+    130,
+    109,
+    39
+   ]
+  },
+  {
+   "dex": 39,
+   "name": "Jigglypuff",
+   "level": 50,
+   "hp": 202,
+   "attack": 76,
+   "defense": 52,
+   "speed": 52,
+   "special": 57,
+   "moves": [
+    "Sing",
+    "Body Slam",
+    "Seismic Toss",
+    "Psychic"
+   ],
+   "move_ids": [
+    47,
+    34,
+    69,
+    94
+   ]
+  },
+  {
+   "dex": 40,
+   "name": "Wigglytuff",
+   "level": 50,
+   "hp": 221,
+   "attack": 95,
+   "defense": 71,
+   "speed": 70,
+   "special": 76,
+   "moves": [
+    "Sing",
+    "Double-Edge",
+    "Submission",
+    "Thunderbolt"
+   ],
+   "move_ids": [
+    47,
+    38,
+    66,
+    85
+   ]
+  },
+  {
+   "dex": 41,
+   "name": "Zubat",
+   "level": 50,
+   "hp": 127,
+   "attack": 76,
+   "defense": 67,
+   "speed": 87,
+   "special": 72,
+   "moves": [
+    "Confuse Ray",
+    "Mega Drain",
+    "Toxic",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    109,
+    72,
+    92,
+    38
+   ]
+  },
+  {
+   "dex": 42,
+   "name": "Golbat",
+   "level": 50,
+   "hp": 153,
+   "attack": 104,
+   "defense": 94,
+   "speed": 113,
+   "special": 98,
+   "moves": [
+    "Confuse Ray",
+    "Mega Drain",
+    "Bite",
+    "Haze"
+   ],
+   "move_ids": [
+    109,
+    72,
+    44,
+    114
+   ]
+  },
+  {
+   "dex": 43,
+   "name": "Oddish",
+   "level": 50,
+   "hp": 132,
+   "attack": 81,
+   "defense": 87,
+   "speed": 62,
+   "special": 107,
+   "moves": [
+    "Petal Dance",
+    "Toxic",
+    "Mega Drain",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    80,
+    92,
+    72,
+    38
+   ]
+  },
+  {
+   "dex": 44,
+   "name": "Gloom",
+   "level": 50,
+   "hp": 141,
+   "attack": 90,
+   "defense": 96,
+   "speed": 65,
+   "special": 111,
+   "moves": [
+    "Petal Dance",
+    "Take Down",
+    "Mega Drain",
+    "Stun Spore"
+   ],
+   "move_ids": [
+    80,
+    36,
+    72,
+    78
+   ]
+  },
+  {
+   "dex": 45,
+   "name": "Vileplume",
+   "level": 50,
+   "hp": 153,
+   "attack": 104,
+   "defense": 109,
+   "speed": 73,
+   "special": 123,
+   "moves": [
+    "Petal Dance",
+    "Sleep Powder",
+    "Acid",
+    "Cut"
+   ],
+   "move_ids": [
+    80,
+    79,
+    51,
+    15
+   ]
+  },
+  {
+   "dex": 46,
+   "name": "Paras",
+   "level": 50,
+   "hp": 122,
+   "attack": 101,
+   "defense": 87,
+   "speed": 57,
+   "special": 87,
+   "moves": [
+    "Spore",
+    "Slash",
+    "Dig",
+    "Mega Drain"
+   ],
+   "move_ids": [
+    147,
+    163,
+    91,
+    72
+   ]
+  },
+  {
+   "dex": 47,
+   "name": "Parasect",
+   "level": 50,
+   "hp": 141,
+   "attack": 120,
+   "defense": 106,
+   "speed": 55,
+   "special": 106,
+   "moves": [
+    "Spore",
+    "Take Down",
+    "Dig",
+    "Solarbeam"
+   ],
+   "move_ids": [
+    147,
+    36,
+    91,
+    76
+   ]
+  },
+  {
+   "dex": 48,
+   "name": "Venonat",
+   "level": 50,
+   "hp": 147,
+   "attack": 86,
+   "defense": 82,
+   "speed": 77,
+   "special": 72,
+   "moves": [
+    "Psychic",
+    "Mega Drain",
+    "Double-Edge",
+    "Stun Spore"
+   ],
+   "move_ids": [
+    94,
+    72,
+    38,
+    78
+   ]
+  },
+  {
+   "dex": 49,
+   "name": "Venomoth",
+   "level": 50,
+   "hp": 148,
+   "attack": 89,
+   "defense": 84,
+   "speed": 113,
+   "special": 113,
+   "moves": [
+    "Psychic",
+    "Supersonic",
+    "Solarbeam",
+    "Swift"
+   ],
+   "move_ids": [
+    94,
+    48,
+    76,
+    129
+   ]
+  },
+  {
+   "dex": 50,
+   "name": "Diglett",
+   "level": 50,
+   "hp": 97,
+   "attack": 86,
+   "defense": 57,
+   "speed": 127,
+   "special": 77,
+   "moves": [
+    "Earthquake",
+    "Slash",
+    "Sand-Attack",
+    "Rock Slide"
+   ],
+   "move_ids": [
+    89,
+    163,
+    28,
+    157
+   ]
+  },
+  {
+   "dex": 51,
+   "name": "Dugtrio",
+   "level": 50,
+   "hp": 113,
+   "attack": 104,
+   "defense": 74,
+   "speed": 143,
+   "special": 93,
+   "moves": [
+    "Dig",
+    "Sand-Attack",
+    "Toxic",
+    "Hyper Beam"
+   ],
+   "move_ids": [
+    91,
+    28,
+    92,
+    63
+   ]
+  },
+  {
+   "dex": 52,
+   "name": "Meowth",
+   "level": 50,
+   "hp": 127,
+   "attack": 76,
+   "defense": 67,
+   "speed": 122,
+   "special": 72,
+   "moves": [
+    "Slash",
+    "Thunderbolt",
+    "Swift",
+    "Double Team"
+   ],
+   "move_ids": [
+    163,
+    85,
+    129,
+    104
+   ]
+  },
+  {
+   "dex": 53,
+   "name": "Persian",
+   "level": 50,
+   "hp": 143,
+   "attack": 94,
+   "defense": 84,
+   "speed": 138,
+   "special": 88,
+   "moves": [
+    "Slash",
+    "Bubblebeam",
+    "Mimic",
+    "Growl"
+   ],
+   "move_ids": [
+    163,
+    61,
+    102,
+    45
+   ]
+  },
+  {
+   "dex": 54,
+   "name": "Psyduck",
+   "level": 50,
+   "hp": 137,
+   "attack": 83,
+   "defense": 80,
+   "speed": 87,
+   "special": 82,
+   "moves": [
+    "Surf",
+    "Confusion",
+    "Dig",
+    "Blizzard"
+   ],
+   "move_ids": [
+    57,
+    93,
+    91,
+    59
+   ]
+  },
+  {
+   "dex": 55,
+   "name": "Golduck",
+   "level": 50,
+   "hp": 156,
+   "attack": 103,
+   "defense": 99,
+   "speed": 107,
+   "special": 103,
+   "moves": [
+    "Ice Beam",
+    "Surf",
+    "Toxic",
+    "Disable"
+   ],
+   "move_ids": [
+    58,
+    57,
+    92,
+    50
+   ]
+  },
+  {
+   "dex": 56,
+   "name": "Mankey",
+   "level": 50,
+   "hp": 127,
+   "attack": 111,
+   "defense": 67,
+   "speed": 102,
+   "special": 67,
+   "moves": [
+    "Submission",
+    "Rock Slide",
+    "Seismic Toss",
+    "Screech"
+   ],
+   "move_ids": [
+    66,
+    157,
+    69,
+    103
+   ]
+  },
+  {
+   "dex": 57,
+   "name": "Primeape",
+   "level": 50,
+   "hp": 143,
+   "attack": 129,
+   "defense": 84,
+   "speed": 118,
+   "special": 83,
+   "moves": [
+    "Fury Swipes",
+    "Rock Slide",
+    "Low Kick",
+    "Screech"
+   ],
+   "move_ids": [
+    154,
+    157,
+    67,
+    103
+   ]
+  },
+  {
+   "dex": 58,
+   "name": "Growlithe",
+   "level": 50,
+   "hp": 139,
+   "attack": 99,
+   "defense": 73,
+   "speed": 88,
+   "special": 79,
+   "moves": [
+    "Flamethrower",
+    "Body Slam",
+    "Reflect",
+    "Dig"
+   ],
+   "move_ids": [
+    53,
+    34,
+    115,
+    91
+   ]
+  },
+  {
+   "dex": 59,
+   "name": "Arcanine",
+   "level": 50,
+   "hp": 163,
+   "attack": 128,
+   "defense": 98,
+   "speed": 113,
+   "special": 98,
+   "moves": [
+    "Fire Blast",
+    "Take Down",
+    "Dragon Rage",
+    "Substitute"
+   ],
+   "move_ids": [
+    126,
+    36,
+    82,
+    164
+   ]
+  },
+  {
+   "dex": 60,
+   "name": "Poliwag",
+   "level": 50,
+   "hp": 127,
+   "attack": 81,
+   "defense": 72,
+   "speed": 122,
+   "special": 72,
+   "moves": [
+    "Body Slam",
+    "Blizzard",
+    "Surf",
+    "Amnesia"
+   ],
+   "move_ids": [
+    34,
+    59,
+    57,
+    133
+   ]
+  },
+  {
+   "dex": 61,
+   "name": "Poliwhirl",
+   "level": 50,
+   "hp": 146,
+   "attack": 90,
+   "defense": 91,
+   "speed": 115,
+   "special": 76,
+   "moves": [
+    "Hypnosis",
+    "Surf",
+    "Ice Beam",
+    "Earthquake"
+   ],
+   "move_ids": [
+    95,
+    57,
+    58,
+    89
+   ]
+  },
+  {
+   "dex": 62,
+   "name": "Poliwrath",
+   "level": 50,
+   "hp": 166,
+   "attack": 106,
+   "defense": 116,
+   "speed": 92,
+   "special": 91,
+   "moves": [
+    "Hypnosis",
+    "Submission",
+    "Counter",
+    "Hydro Pump"
+   ],
+   "move_ids": [
+    95,
+    66,
+    68,
+    56
+   ]
+  },
+  {
+   "dex": 63,
+   "name": "Abra",
+   "level": 50,
+   "hp": 112,
+   "attack": 51,
+   "defense": 47,
+   "speed": 122,
+   "special": 137,
+   "moves": [
+    "Psychic",
+    "Seismic Toss",
+    "Reflect",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    94,
+    69,
+    115,
+    86
+   ]
+  },
+  {
+   "dex": 64,
+   "name": "Kadabra",
+   "level": 50,
+   "hp": 121,
+   "attack": 60,
+   "defense": 56,
+   "speed": 130,
+   "special": 146,
+   "moves": [
+    "Psychic",
+    "Counter",
+    "Recover",
+    "Dig"
+   ],
+   "move_ids": [
+    94,
+    68,
+    105,
+    91
+   ]
+  },
+  {
+   "dex": 65,
+   "name": "Alakazam",
+   "level": 50,
+   "hp": 131,
+   "attack": 71,
+   "defense": 66,
+   "speed": 142,
+   "special": 156,
+   "moves": [
+    "Psybeam",
+    "Metronome",
+    "Disable",
+    "Tri Attack"
+   ],
+   "move_ids": [
+    60,
+    118,
+    50,
+    161
+   ]
+  },
+  {
+   "dex": 66,
+   "name": "Machop",
+   "level": 50,
+   "hp": 154,
+   "attack": 109,
+   "defense": 78,
+   "speed": 63,
+   "special": 64,
+   "moves": [
+    "Submission",
+    "Rock Slide",
+    "Earthquake",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    66,
+    157,
+    89,
+    116
+   ]
+  },
+  {
+   "dex": 67,
+   "name": "Machoke",
+   "level": 50,
+   "hp": 161,
+   "attack": 125,
+   "defense": 96,
+   "speed": 70,
+   "special": 76,
+   "moves": [
+    "Submission",
+    "Strength",
+    "Rock Slide",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    66,
+    70,
+    157,
+    116
+   ]
+  },
+  {
+   "dex": 68,
+   "name": "Machamp",
+   "level": 50,
+   "hp": 166,
+   "attack": 151,
+   "defense": 101,
+   "speed": 77,
+   "special": 86,
+   "moves": [
+    "Low Kick",
+    "Strength",
+    "Counter",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    67,
+    70,
+    68,
+    116
+   ]
+  },
+  {
+   "dex": 69,
+   "name": "Bellsprout",
+   "level": 50,
+   "hp": 134,
+   "attack": 104,
+   "defense": 63,
+   "speed": 68,
+   "special": 99,
+   "moves": [
+    "Razor Leaf",
+    "Growth",
+    "Mega Drain",
+    "Stun Spore"
+   ],
+   "move_ids": [
+    75,
+    74,
+    72,
+    78
+   ]
+  },
+  {
+   "dex": 70,
+   "name": "Weepinbell",
+   "level": 50,
+   "hp": 146,
+   "attack": 115,
+   "defense": 76,
+   "speed": 80,
+   "special": 111,
+   "moves": [
+    "Razor Leaf",
+    "Acid",
+    "Wrap",
+    "Toxic"
+   ],
+   "move_ids": [
+    75,
+    51,
+    35,
+    92
+   ]
+  },
+  {
+   "dex": 71,
+   "name": "Victreebel",
+   "level": 50,
+   "hp": 156,
+   "attack": 126,
+   "defense": 86,
+   "speed": 92,
+   "special": 121,
+   "moves": [
+    "Solarbeam",
+    "Acid",
+    "Reflect",
+    "Slam"
+   ],
+   "move_ids": [
+    76,
+    51,
+    115,
+    21
+   ]
+  },
+  {
+   "dex": 72,
+   "name": "Tentacool",
+   "level": 50,
+   "hp": 124,
+   "attack": 69,
+   "defense": 63,
+   "speed": 98,
+   "special": 129,
+   "moves": [
+    "Surf",
+    "Supersonic",
+    "Mega Drain",
+    "Blizzard"
+   ],
+   "move_ids": [
+    57,
+    48,
+    72,
+    59
+   ]
+  },
+  {
+   "dex": 73,
+   "name": "Tentacruel",
+   "level": 50,
+   "hp": 156,
+   "attack": 91,
+   "defense": 86,
+   "speed": 122,
+   "special": 141,
+   "moves": [
+    "Acid",
+    "Supersonic",
+    "Hydro Pump",
+    "Cut"
+   ],
+   "move_ids": [
+    51,
+    48,
+    56,
+    15
+   ]
+  },
+  {
+   "dex": 74,
+   "name": "Geodude",
+   "level": 50,
+   "hp": 124,
+   "attack": 109,
+   "defense": 128,
+   "speed": 48,
+   "special": 59,
+   "moves": [
+    "Earthquake",
+    "Seismic Toss",
+    "Rock Slide",
+    "Explosion"
+   ],
+   "move_ids": [
+    89,
+    69,
+    157,
+    153
+   ]
+  },
+  {
+   "dex": 75,
+   "name": "Graveler",
+   "level": 50,
+   "hp": 136,
+   "attack": 120,
+   "defense": 141,
+   "speed": 60,
+   "special": 71,
+   "moves": [
+    "Earthquake",
+    "Seismic Toss",
+    "Strength",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    89,
+    69,
+    70,
+    120
+   ]
+  },
+  {
+   "dex": 76,
+   "name": "Golem",
+   "level": 50,
+   "hp": 156,
+   "attack": 131,
+   "defense": 151,
+   "speed": 67,
+   "special": 76,
+   "moves": [
+    "Dig",
+    "Seismic Toss",
+    "Fire Blast",
+    "Metronome"
+   ],
+   "move_ids": [
+    91,
+    69,
+    126,
+    118
+   ]
+  },
+  {
+   "dex": 77,
+   "name": "Ponyta",
+   "level": 50,
+   "hp": 131,
+   "attack": 110,
+   "defense": 81,
+   "speed": 115,
+   "special": 91,
+   "moves": [
+    "Fire Blast",
+    "Agility",
+    "Horn Drill",
+    "Body Slam"
+   ],
+   "move_ids": [
+    126,
+    97,
+    32,
+    34
+   ]
+  },
+  {
+   "dex": 78,
+   "name": "Rapidash",
+   "level": 50,
+   "hp": 141,
+   "attack": 121,
+   "defense": 91,
+   "speed": 127,
+   "special": 101,
+   "moves": [
+    "Fire Blast",
+    "Stomp",
+    "Toxic",
+    "Fire Spin"
+   ],
+   "move_ids": [
+    126,
+    23,
+    92,
+    83
+   ]
+  },
+  {
+   "dex": 79,
+   "name": "Slowpoke",
+   "level": 50,
+   "hp": 174,
+   "attack": 94,
+   "defense": 93,
+   "speed": 43,
+   "special": 69,
+   "moves": [
+    "Surf",
+    "Psychic",
+    "Thunder Wave",
+    "Amnesia"
+   ],
+   "move_ids": [
+    57,
+    94,
+    86,
+    133
+   ]
+  },
+  {
+   "dex": 80,
+   "name": "Slowbro",
+   "level": 50,
+   "hp": 173,
+   "attack": 99,
+   "defense": 134,
+   "speed": 53,
+   "special": 103,
+   "moves": [
+    "Surf",
+    "Psychic",
+    "Disable",
+    "Withdraw"
+   ],
+   "move_ids": [
+    57,
+    94,
+    50,
+    110
+   ]
+  },
+  {
+   "dex": 81,
+   "name": "Magnemite",
+   "level": 50,
+   "hp": 109,
+   "attack": 64,
+   "defense": 98,
+   "speed": 73,
+   "special": 124,
+   "moves": [
+    "Thunderbolt",
+    "Thunder Wave",
+    "Supersonic",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    85,
+    86,
+    48,
+    38
+   ]
+  },
+  {
+   "dex": 82,
+   "name": "Magneton",
+   "level": 50,
+   "hp": 128,
+   "attack": 84,
+   "defense": 119,
+   "speed": 93,
+   "special": 143,
+   "moves": [
+    "Thunder",
+    "Screech",
+    "Supersonic",
+    "Swift"
+   ],
+   "move_ids": [
+    87,
+    103,
+    48,
+    129
+   ]
+  },
+  {
+   "dex": 83,
+   "name": "Farfetch'D",
+   "level": 50,
+   "hp": 136,
+   "attack": 94,
+   "defense": 83,
+   "speed": 88,
+   "special": 87,
+   "moves": [
+    "Slash",
+    "Sand-Attack",
+    "Toxic",
+    "Fly"
+   ],
+   "move_ids": [
+    163,
+    28,
+    92,
+    19
+   ]
+  },
+  {
+   "dex": 84,
+   "name": "Doduo",
+   "level": 50,
+   "hp": 119,
+   "attack": 114,
+   "defense": 73,
+   "speed": 103,
+   "special": 64,
+   "moves": [
+    "Drill Peck",
+    "Tri Attack",
+    "Double Team",
+    "Reflect"
+   ],
+   "move_ids": [
+    65,
+    161,
+    104,
+    115
+   ]
+  },
+  {
+   "dex": 85,
+   "name": "Dodrio",
+   "level": 50,
+   "hp": 138,
+   "attack": 134,
+   "defense": 94,
+   "speed": 123,
+   "special": 83,
+   "moves": [
+    "Fly",
+    "Tri Attack",
+    "Agility",
+    "Reflect"
+   ],
+   "move_ids": [
+    19,
+    161,
+    97,
+    115
+   ]
+  },
+  {
+   "dex": 86,
+   "name": "Seel",
+   "level": 50,
+   "hp": 149,
+   "attack": 74,
+   "defense": 83,
+   "speed": 73,
+   "special": 99,
+   "moves": [
+    "Ice Beam",
+    "Body Slam",
+    "Horn Drill",
+    "Surf"
+   ],
+   "move_ids": [
+    58,
+    34,
+    32,
+    57
+   ]
+  },
+  {
+   "dex": 87,
+   "name": "Dewgong",
+   "level": 50,
+   "hp": 166,
+   "attack": 91,
+   "defense": 101,
+   "speed": 92,
+   "special": 116,
+   "moves": [
+    "Aurora Beam",
+    "Headbutt",
+    "Rest",
+    "Surf"
+   ],
+   "move_ids": [
+    62,
+    29,
+    156,
+    57
+   ]
+  },
+  {
+   "dex": 88,
+   "name": "Grimer",
+   "level": 50,
+   "hp": 164,
+   "attack": 109,
+   "defense": 78,
+   "speed": 53,
+   "special": 69,
+   "moves": [
+    "Sludge",
+    "Body Slam",
+    "Screech",
+    "Explosion"
+   ],
+   "move_ids": [
+    124,
+    34,
+    103,
+    153
+   ]
+  },
+  {
+   "dex": 89,
+   "name": "Muk",
+   "level": 50,
+   "hp": 183,
+   "attack": 129,
+   "defense": 99,
+   "speed": 73,
+   "special": 88,
+   "moves": [
+    "Sludge",
+    "Thunderbolt",
+    "Hyper Beam",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    124,
+    85,
+    63,
+    120
+   ]
+  },
+  {
+   "dex": 90,
+   "name": "Shellder",
+   "level": 50,
+   "hp": 114,
+   "attack": 94,
+   "defense": 128,
+   "speed": 68,
+   "special": 74,
+   "moves": [
+    "Surf",
+    "Explosion",
+    "Blizzard",
+    "Tri Attack"
+   ],
+   "move_ids": [
+    57,
+    153,
+    59,
+    161
+   ]
+  },
+  {
+   "dex": 91,
+   "name": "Cloyster",
+   "level": 50,
+   "hp": 123,
+   "attack": 113,
+   "defense": 198,
+   "speed": 88,
+   "special": 103,
+   "moves": [
+    "Clamp",
+    "Spike Cannon",
+    "Ice Beam",
+    "Supersonic"
+   ],
+   "move_ids": [
+    128,
+    131,
+    58,
+    48
+   ]
+  },
+  {
+   "dex": 92,
+   "name": "Gastly",
+   "level": 50,
+   "hp": 114,
+   "attack": 64,
+   "defense": 58,
+   "speed": 108,
+   "special": 129,
+   "moves": [
+    "Hypnosis",
+    "Dream Eater",
+    "Psychic",
+    "Confuse Ray"
+   ],
+   "move_ids": [
+    95,
+    138,
+    94,
+    109
+   ]
+  },
+  {
+   "dex": 93,
+   "name": "Haunter",
+   "level": 50,
+   "hp": 126,
+   "attack": 75,
+   "defense": 71,
+   "speed": 120,
+   "special": 141,
+   "moves": [
+    "Mega Drain",
+    "Psychic",
+    "Explosion",
+    "Confuse Ray"
+   ],
+   "move_ids": [
+    72,
+    94,
+    153,
+    109
+   ]
+  },
+  {
+   "dex": 94,
+   "name": "Gengar",
+   "level": 50,
+   "hp": 136,
+   "attack": 86,
+   "defense": 81,
+   "speed": 132,
+   "special": 151,
+   "moves": [
+    "Thunderbolt",
+    "Night Shade",
+    "Hypnosis",
+    "Confuse Ray"
+   ],
+   "move_ids": [
+    85,
+    101,
+    95,
+    109
+   ]
+  },
+  {
+   "dex": 95,
+   "name": "Onix",
+   "level": 50,
+   "hp": 116,
+   "attack": 70,
+   "defense": 186,
+   "speed": 95,
+   "special": 56,
+   "moves": [
+    "Earthquake",
+    "Rock Slide",
+    "Strength",
+    "Explosion"
+   ],
+   "move_ids": [
+    89,
+    157,
+    70,
+    153
+   ]
+  },
+  {
+   "dex": 96,
+   "name": "Drowzee",
+   "level": 50,
+   "hp": 144,
+   "attack": 77,
+   "defense": 73,
+   "speed": 70,
+   "special": 119,
+   "moves": [
+    "Hypnosis",
+    "Dream Eater",
+    "Psychic",
+    "Tri Attack"
+   ],
+   "move_ids": [
+    95,
+    138,
+    94,
+    161
+   ]
+  },
+  {
+   "dex": 97,
+   "name": "Hypno",
+   "level": 50,
+   "hp": 161,
+   "attack": 94,
+   "defense": 91,
+   "speed": 89,
+   "special": 136,
+   "moves": [
+    "Hypnosis",
+    "Headbutt",
+    "Dream Eater",
+    "Meditate"
+   ],
+   "move_ids": [
+    95,
+    29,
+    138,
+    96
+   ]
+  },
+  {
+   "dex": 98,
+   "name": "Krabby",
+   "level": 50,
+   "hp": 114,
+   "attack": 134,
+   "defense": 118,
+   "speed": 78,
+   "special": 54,
+   "moves": [
+    "Crabhammer",
+    "Guillotine",
+    "Double-Edge",
+    "Blizzard"
+   ],
+   "move_ids": [
+    152,
+    12,
+    38,
+    59
+   ]
+  },
+  {
+   "dex": 99,
+   "name": "Kingler",
+   "level": 50,
+   "hp": 131,
+   "attack": 151,
+   "defense": 136,
+   "speed": 97,
+   "special": 71,
+   "moves": [
+    "Crabhammer",
+    "Guillotine",
+    "Stomp",
+    "Substitute"
+   ],
+   "move_ids": [
+    152,
+    12,
+    23,
+    164
+   ]
+  },
+  {
+   "dex": 100,
+   "name": "Voltorb",
+   "level": 50,
+   "hp": 124,
+   "attack": 59,
+   "defense": 78,
+   "speed": 128,
+   "special": 84,
+   "moves": [
+    "Thunderbolt",
+    "Thunder Wave",
+    "Swift",
+    "Explosion"
+   ],
+   "move_ids": [
+    85,
+    86,
+    129,
+    153
+   ]
+  },
+  {
+   "dex": 101,
+   "name": "Electrode",
+   "level": 50,
+   "hp": 138,
+   "attack": 74,
+   "defense": 96,
+   "speed": 163,
+   "special": 103,
+   "moves": [
+    "Thunder",
+    "Thunder Wave",
+    "Swift",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    87,
+    86,
+    129,
+    120
+   ]
+  },
+  {
+   "dex": 102,
+   "name": "Exeggcute",
+   "level": 50,
+   "hp": 144,
+   "attack": 69,
+   "defense": 108,
+   "speed": 68,
+   "special": 89,
+   "moves": [
+    "Psychic",
+    "Explosion",
+    "Leech Seed",
+    "Toxic"
+   ],
+   "move_ids": [
+    94,
+    153,
+    73,
+    92
+   ]
+  },
+  {
+   "dex": 103,
+   "name": "Exeggutor",
+   "level": 50,
+   "hp": 168,
+   "attack": 113,
+   "defense": 103,
+   "speed": 73,
+   "special": 143,
+   "moves": [
+    "Mega Drain",
+    "Stun Spore",
+    "Leech Seed",
+    "Egg Bomb"
+   ],
+   "move_ids": [
+    72,
+    78,
+    73,
+    121
+   ]
+  },
+  {
+   "dex": 104,
+   "name": "Cubone",
+   "level": 50,
+   "hp": 134,
+   "attack": 79,
+   "defense": 123,
+   "speed": 63,
+   "special": 69,
+   "moves": [
+    "Earthquake",
+    "Submission",
+    "Blizzard",
+    "Strength"
+   ],
+   "move_ids": [
+    89,
+    66,
+    59,
+    70
+   ]
+  },
+  {
+   "dex": 105,
+   "name": "Marowak",
+   "level": 50,
+   "hp": 141,
+   "attack": 105,
+   "defense": 136,
+   "speed": 70,
+   "special": 76,
+   "moves": [
+    "Bonemerang",
+    "Thrash",
+    "Fire Blast",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    155,
+    37,
+    126,
+    116
+   ]
+  },
+  {
+   "dex": 106,
+   "name": "Hitmonlee",
+   "level": 50,
+   "hp": 131,
+   "attack": 145,
+   "defense": 79,
+   "speed": 112,
+   "special": 61,
+   "moves": [
+    "Hi Jump Kick",
+    "Mega Kick",
+    "Metronome",
+    "Seismic Toss"
+   ],
+   "move_ids": [
+    136,
+    25,
+    118,
+    69
+   ]
+  },
+  {
+   "dex": 107,
+   "name": "Hitmonchan",
+   "level": 50,
+   "hp": 131,
+   "attack": 130,
+   "defense": 105,
+   "speed": 101,
+   "special": 61,
+   "moves": [
+    "Submission",
+    "Thunderpunch",
+    "Ice Punch",
+    "Strength"
+   ],
+   "move_ids": [
+    66,
+    9,
+    8,
+    70
+   ]
+  },
+  {
+   "dex": 108,
+   "name": "Lickitung",
+   "level": 50,
+   "hp": 171,
+   "attack": 80,
+   "defense": 101,
+   "speed": 55,
+   "special": 86,
+   "moves": [
+    "Strength",
+    "Blizzard",
+    "Thunder",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    70,
+    59,
+    87,
+    126
+   ]
+  },
+  {
+   "dex": 109,
+   "name": "Koffing",
+   "level": 50,
+   "hp": 124,
+   "attack": 94,
+   "defense": 123,
+   "speed": 63,
+   "special": 89,
+   "moves": [
+    "Sludge",
+    "Toxic",
+    "Thunderbolt",
+    "Explosion"
+   ],
+   "move_ids": [
+    124,
+    92,
+    85,
+    153
+   ]
+  },
+  {
+   "dex": 110,
+   "name": "Weezing",
+   "level": 50,
+   "hp": 141,
+   "attack": 111,
+   "defense": 141,
+   "speed": 82,
+   "special": 106,
+   "moves": [
+    "Sludge",
+    "Hyper Beam",
+    "Fire Blast",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    124,
+    63,
+    126,
+    120
+   ]
+  },
+  {
+   "dex": 111,
+   "name": "Rhyhorn",
+   "level": 50,
+   "hp": 161,
+   "attack": 110,
+   "defense": 121,
+   "speed": 50,
+   "special": 56,
+   "moves": [
+    "Earthquake",
+    "Body Slam",
+    "Rock Slide",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    89,
+    34,
+    157,
+    126
+   ]
+  },
+  {
+   "dex": 112,
+   "name": "Rhydon",
+   "level": 50,
+   "hp": 181,
+   "attack": 151,
+   "defense": 141,
+   "speed": 62,
+   "special": 66,
+   "moves": [
+    "Dig",
+    "Strength",
+    "Thunder",
+    "Surf"
+   ],
+   "move_ids": [
+    91,
+    70,
+    87,
+    57
+   ]
+  },
+  {
+   "dex": 113,
+   "name": "Chansey",
+   "level": 50,
+   "hp": 326,
+   "attack": 26,
+   "defense": 26,
+   "speed": 72,
+   "special": 126,
+   "moves": [
+    "Thunder",
+    "Fire Blast",
+    "Minimize",
+    "Rest"
+   ],
+   "move_ids": [
+    87,
+    126,
+    107,
+    156
+   ]
+  },
+  {
+   "dex": 114,
+   "name": "Tangela",
+   "level": 50,
+   "hp": 143,
+   "attack": 79,
+   "defense": 139,
+   "speed": 83,
+   "special": 123,
+   "moves": [
+    "Mega Drain",
+    "Growth",
+    "Toxic",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    72,
+    74,
+    92,
+    38
+   ]
+  },
+  {
+   "dex": 115,
+   "name": "Kangaskhan",
+   "level": 50,
+   "hp": 181,
+   "attack": 116,
+   "defense": 101,
+   "speed": 112,
+   "special": 61,
+   "moves": [
+    "Dizzy Punch",
+    "Rock Slide",
+    "Surf",
+    "Thunderbolt"
+   ],
+   "move_ids": [
+    146,
+    157,
+    57,
+    85
+   ]
+  },
+  {
+   "dex": 116,
+   "name": "Horsea",
+   "level": 50,
+   "hp": 114,
+   "attack": 69,
+   "defense": 98,
+   "speed": 88,
+   "special": 99,
+   "moves": [
+    "Hydro Pump",
+    "Toxic",
+    "Smokescreen",
+    "Ice Beam"
+   ],
+   "move_ids": [
+    56,
+    92,
+    108,
+    58
+   ]
+  },
+  {
+   "dex": 117,
+   "name": "Seadra",
+   "level": 50,
+   "hp": 133,
+   "attack": 89,
+   "defense": 119,
+   "speed": 108,
+   "special": 118,
+   "moves": [
+    "Surf",
+    "Toxic",
+    "Smokescreen",
+    "Swift"
+   ],
+   "move_ids": [
+    57,
+    92,
+    108,
+    129
+   ]
+  },
+  {
+   "dex": 118,
+   "name": "Goldeen",
+   "level": 50,
+   "hp": 129,
+   "attack": 96,
+   "defense": 88,
+   "speed": 91,
+   "special": 79,
+   "moves": [
+    "Surf",
+    "Supersonic",
+    "Horn Drill",
+    "Blizzard"
+   ],
+   "move_ids": [
+    57,
+    48,
+    32,
+    59
+   ]
+  },
+  {
+   "dex": 119,
+   "name": "Seaking",
+   "level": 50,
+   "hp": 158,
+   "attack": 116,
+   "defense": 89,
+   "speed": 91,
+   "special": 103,
+   "moves": [
+    "Waterfall",
+    "Supersonic",
+    "Horn Attack",
+    "Ice Beam"
+   ],
+   "move_ids": [
+    127,
+    48,
+    30,
+    58
+   ]
+  },
+  {
+   "dex": 120,
+   "name": "Staryu",
+   "level": 50,
+   "hp": 114,
+   "attack": 74,
+   "defense": 83,
+   "speed": 113,
+   "special": 99,
+   "moves": [
+    "Hydro Pump",
+    "Recover",
+    "Thunderbolt",
+    "Psychic"
+   ],
+   "move_ids": [
+    56,
+    105,
+    85,
+    94
+   ]
+  },
+  {
+   "dex": 121,
+   "name": "Starmie",
+   "level": 50,
+   "hp": 136,
+   "attack": 96,
+   "defense": 106,
+   "speed": 137,
+   "special": 121,
+   "moves": [
+    "Surf",
+    "Thunder",
+    "Swift",
+    "Harden"
+   ],
+   "move_ids": [
+    57,
+    87,
+    129,
+    106
+   ]
+  },
+  {
+   "dex": 122,
+   "name": "Mr.Mime",
+   "level": 50,
+   "hp": 121,
+   "attack": 70,
+   "defense": 91,
+   "speed": 115,
+   "special": 126,
+   "moves": [
+    "Barrier",
+    "Psychic",
+    "Metronome",
+    "Seismic Toss"
+   ],
+   "move_ids": [
+    112,
+    94,
+    118,
+    69
+   ]
+  },
+  {
+   "dex": 123,
+   "name": "Scyther",
+   "level": 50,
+   "hp": 146,
+   "attack": 131,
+   "defense": 101,
+   "speed": 127,
+   "special": 76,
+   "moves": [
+    "Slash",
+    "Wing Attack",
+    "Leer",
+    "Double Team"
+   ],
+   "move_ids": [
+    163,
+    17,
+    43,
+    104
+   ]
+  },
+  {
+   "dex": 124,
+   "name": "Jynx",
+   "level": 50,
+   "hp": 146,
+   "attack": 75,
+   "defense": 61,
+   "speed": 120,
+   "special": 121,
+   "moves": [
+    "Ice Punch",
+    "Mega Punch",
+    "Psychic",
+    "Lovely Kiss"
+   ],
+   "move_ids": [
+    8,
+    5,
+    94,
+    142
+   ]
+  },
+  {
+   "dex": 125,
+   "name": "Electabuzz",
+   "level": 50,
+   "hp": 143,
+   "attack": 107,
+   "defense": 81,
+   "speed": 128,
+   "special": 108,
+   "moves": [
+    "Thunderpunch",
+    "Mega Punch",
+    "Psychic",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    9,
+    5,
+    94,
+    86
+   ]
+  },
+  {
+   "dex": 126,
+   "name": "Magmar",
+   "level": 50,
+   "hp": 143,
+   "attack": 119,
+   "defense": 81,
+   "speed": 116,
+   "special": 108,
+   "moves": [
+    "Fire Punch",
+    "Mega Punch",
+    "Psychic",
+    "Smokescreen"
+   ],
+   "move_ids": [
+    7,
+    5,
+    94,
+    108
+   ]
+  },
+  {
+   "dex": 127,
+   "name": "Pinsir",
+   "level": 50,
+   "hp": 141,
+   "attack": 146,
+   "defense": 121,
+   "speed": 107,
+   "special": 76,
+   "moves": [
+    "Strength",
+    "Harden",
+    "Seismic Toss",
+    "Guillotine"
+   ],
+   "move_ids": [
+    70,
+    106,
+    69,
+    12
+   ]
+  },
+  {
+   "dex": 128,
+   "name": "Tauros",
+   "level": 50,
+   "hp": 151,
+   "attack": 121,
+   "defense": 116,
+   "speed": 132,
+   "special": 91,
+   "moves": [
+    "Double-Edge",
+    "Fire Blast",
+    "Tail Whip",
+    "Bide"
+   ],
+   "move_ids": [
+    38,
+    126,
+    39,
+    117
+   ]
+  },
+  {
+   "dex": 129,
+   "name": "Magikarp",
+   "level": 50,
+   "hp": 107,
+   "attack": 41,
+   "defense": 87,
+   "speed": 112,
+   "special": 52,
+   "moves": [
+    "Splash",
+    "Tackle",
+    null,
+    null
+   ],
+   "move_ids": [
+    150,
+    33,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 130,
+   "name": "Gyarados",
+   "level": 50,
+   "hp": 168,
+   "attack": 143,
+   "defense": 97,
+   "speed": 99,
+   "special": 118,
+   "moves": [
+    "Surf",
+    "Dragon Rage",
+    "Bite",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    57,
+    82,
+    44,
+    126
+   ]
+  },
+  {
+   "dex": 131,
+   "name": "Lapras",
+   "level": 50,
+   "hp": 206,
+   "attack": 106,
+   "defense": 101,
+   "speed": 82,
+   "special": 116,
+   "moves": [
+    "Ice Beam",
+    "Solarbeam",
+    "Body Slam",
+    "Sing"
+   ],
+   "move_ids": [
+    58,
+    76,
+    34,
+    47
+   ]
+  },
+  {
+   "dex": 132,
+   "name": "Ditto",
+   "level": 50,
+   "hp": 135,
+   "attack": 79,
+   "defense": 80,
+   "speed": 80,
+   "special": 80,
+   "moves": [
+    "Transform",
+    null,
+    null,
+    null
+   ],
+   "move_ids": [
+    144,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 133,
+   "name": "Eevee",
+   "level": 50,
+   "hp": 139,
+   "attack": 84,
+   "defense": 78,
+   "speed": 83,
+   "special": 94,
+   "moves": [
+    "Body Slam",
+    "Swift",
+    "Sand-Attack",
+    "Toxic"
+   ],
+   "move_ids": [
+    34,
+    129,
+    28,
+    92
+   ]
+  },
+  {
+   "dex": 134,
+   "name": "Vaporeon",
+   "level": 50,
+   "hp": 206,
+   "attack": 86,
+   "defense": 81,
+   "speed": 87,
+   "special": 131,
+   "moves": [
+    "Surf",
+    "Quick Attack",
+    "Sand-Attack",
+    "Acid Armor"
+   ],
+   "move_ids": [
+    57,
+    98,
+    28,
+    151
+   ]
+  },
+  {
+   "dex": 135,
+   "name": "Jolteon",
+   "level": 50,
+   "hp": 141,
+   "attack": 86,
+   "defense": 81,
+   "speed": 152,
+   "special": 131,
+   "moves": [
+    "Thunderbolt",
+    "Pin Missile",
+    "Toxic",
+    "Sand-Attack"
+   ],
+   "move_ids": [
+    85,
+    42,
+    92,
+    28
+   ]
+  },
+  {
+   "dex": 136,
+   "name": "Flareon",
+   "level": 50,
+   "hp": 141,
+   "attack": 151,
+   "defense": 81,
+   "speed": 87,
+   "special": 131,
+   "moves": [
+    "Fire Blast",
+    "Take Down",
+    "Smog",
+    "Sand-Attack"
+   ],
+   "move_ids": [
+    126,
+    36,
+    123,
+    28
+   ]
+  },
+  {
+   "dex": 137,
+   "name": "Porygon",
+   "level": 50,
+   "hp": 146,
+   "attack": 85,
+   "defense": 96,
+   "speed": 65,
+   "special": 101,
+   "moves": [
+    "Tri Attack",
+    "Psychic",
+    "Sharpen",
+    "Conversion"
+   ],
+   "move_ids": [
+    161,
+    94,
+    159,
+    160
+   ]
+  },
+  {
+   "dex": 138,
+   "name": "Omanyte",
+   "level": 50,
+   "hp": 119,
+   "attack": 69,
+   "defense": 128,
+   "speed": 63,
+   "special": 119,
+   "moves": [
+    "Surf",
+    "Ice Beam",
+    "Double-Edge",
+    "Double Team"
+   ],
+   "move_ids": [
+    57,
+    58,
+    38,
+    104
+   ]
+  },
+  {
+   "dex": 139,
+   "name": "Omastar",
+   "level": 50,
+   "hp": 146,
+   "attack": 81,
+   "defense": 146,
+   "speed": 77,
+   "special": 136,
+   "moves": [
+    "Hydro Pump",
+    "Submission",
+    "Spike Cannon",
+    "Withdraw"
+   ],
+   "move_ids": [
+    56,
+    66,
+    131,
+    110
+   ]
+  },
+  {
+   "dex": 140,
+   "name": "Kabuto",
+   "level": 50,
+   "hp": 114,
+   "attack": 109,
+   "defense": 118,
+   "speed": 83,
+   "special": 74,
+   "moves": [
+    "Hydro Pump",
+    "Blizzard",
+    "Slash",
+    "Double Team"
+   ],
+   "move_ids": [
+    56,
+    59,
+    163,
+    104
+   ]
+  },
+  {
+   "dex": 141,
+   "name": "Kabutops",
+   "level": 50,
+   "hp": 136,
+   "attack": 136,
+   "defense": 126,
+   "speed": 102,
+   "special": 91,
+   "moves": [
+    "Surf",
+    "Swords Dance",
+    "Mega Kick",
+    "Submission"
+   ],
+   "move_ids": [
+    57,
+    14,
+    25,
+    66
+   ]
+  },
+  {
+   "dex": 142,
+   "name": "Aerodactyl",
+   "level": 50,
+   "hp": 156,
+   "attack": 126,
+   "defense": 86,
+   "speed": 152,
+   "special": 81,
+   "moves": [
+    "Fly",
+    "Hyper Beam",
+    "Supersonic",
+    "Dragon Rage"
+   ],
+   "move_ids": [
+    19,
+    63,
+    48,
+    82
+   ]
+  },
+  {
+   "dex": 143,
+   "name": "Snorlax",
+   "level": 50,
+   "hp": 236,
+   "attack": 131,
+   "defense": 86,
+   "speed": 52,
+   "special": 86,
+   "moves": [
+    "Mega Kick",
+    "Rock Slide",
+    "Metronome",
+    "Rest"
+   ],
+   "move_ids": [
+    25,
+    157,
+    118,
+    156
+   ]
+  },
+  {
+   "dex": 144,
+   "name": "Articuno",
+   "level": 50,
+   "hp": 162,
+   "attack": 102,
+   "defense": 117,
+   "speed": 102,
+   "special": 142,
+   "moves": [
+    "Ice Beam",
+    "Sky Attack",
+    "Razor Wind",
+    "Substitute"
+   ],
+   "move_ids": [
+    58,
+    143,
+    13,
+    164
+   ]
+  },
+  {
+   "dex": 145,
+   "name": "Zapdos",
+   "level": 50,
+   "hp": 162,
+   "attack": 107,
+   "defense": 102,
+   "speed": 117,
+   "special": 142,
+   "moves": [
+    "Thunderbolt",
+    "Sky Attack",
+    "Thunder Wave",
+    "Flash"
+   ],
+   "move_ids": [
+    85,
+    143,
+    86,
+    148
+   ]
+  },
+  {
+   "dex": 146,
+   "name": "Moltres",
+   "level": 50,
+   "hp": 162,
+   "attack": 117,
+   "defense": 107,
+   "speed": 107,
+   "special": 142,
+   "moves": [
+    "Fire Blast",
+    "Fly",
+    "Swift",
+    "Substitute"
+   ],
+   "move_ids": [
+    126,
+    19,
+    129,
+    164
+   ]
+  },
+  {
+   "dex": 147,
+   "name": "Dratini",
+   "level": 50,
+   "hp": 128,
+   "attack": 95,
+   "defense": 77,
+   "speed": 82,
+   "special": 82,
+   "moves": [
+    "Hyper Beam",
+    "Body Slam",
+    "Thunderbolt",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    63,
+    34,
+    85,
+    86
+   ]
+  },
+  {
+   "dex": 148,
+   "name": "Dragonair",
+   "level": 50,
+   "hp": 142,
+   "attack": 109,
+   "defense": 91,
+   "speed": 95,
+   "special": 96,
+   "moves": [
+    "Hyper Beam",
+    "Swift",
+    "Ice Beam",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    63,
+    129,
+    58,
+    86
+   ]
+  },
+  {
+   "dex": 149,
+   "name": "Dragonite",
+   "level": 50,
+   "hp": 163,
+   "attack": 151,
+   "defense": 112,
+   "speed": 97,
+   "special": 117,
+   "moves": [
+    "Slam",
+    "Dragon Rage",
+    "Thunder",
+    "Agility"
+   ],
+   "move_ids": [
+    21,
+    82,
+    87,
+    97
+   ]
+  }
+ ],
+ "prime": [
+  {
+   "dex": 1,
+   "name": "Bulbasaur",
+   "level": 100,
+   "hp": 262,
+   "attack": 165,
+   "defense": 163,
+   "speed": 157,
+   "special": 197,
+   "moves": [
+    "Leech Seed",
+    "Razor Leaf",
+    "Growth",
+    "Body Slam"
+   ],
+   "move_ids": [
+    73,
+    75,
+    74,
+    34
+   ]
+  },
+  {
+   "dex": 2,
+   "name": "Ivysaur",
+   "level": 100,
+   "hp": 284,
+   "attack": 181,
+   "defense": 185,
+   "speed": 179,
+   "special": 219,
+   "moves": [
+    "Leech Seed",
+    "Razor Leaf",
+    "Growth",
+    "Mega Drain"
+   ],
+   "move_ids": [
+    73,
+    75,
+    74,
+    72
+   ]
+  },
+  {
+   "dex": 3,
+   "name": "Venusaur",
+   "level": 100,
+   "hp": 310,
+   "attack": 209,
+   "defense": 211,
+   "speed": 205,
+   "special": 245,
+   "moves": [
+    "Leech Seed",
+    "Solarbeam",
+    "Growth",
+    "Sleep Powder"
+   ],
+   "move_ids": [
+    73,
+    76,
+    74,
+    79
+   ]
+  },
+  {
+   "dex": 4,
+   "name": "Charmander",
+   "level": 100,
+   "hp": 250,
+   "attack": 171,
+   "defense": 151,
+   "speed": 197,
+   "special": 167,
+   "moves": [
+    "Flamethrower",
+    "Body Slam",
+    "Seismic Toss",
+    "Dig"
+   ],
+   "move_ids": [
+    53,
+    34,
+    69,
+    91
+   ]
+  },
+  {
+   "dex": 5,
+   "name": "Charmeleon",
+   "level": 100,
+   "hp": 280,
+   "attack": 185,
+   "defense": 175,
+   "speed": 219,
+   "special": 189,
+   "moves": [
+    "Flamethrower",
+    "Slash",
+    "Dig",
+    "Submission"
+   ],
+   "move_ids": [
+    53,
+    163,
+    91,
+    66
+   ]
+  },
+  {
+   "dex": 6,
+   "name": "Charizard",
+   "level": 100,
+   "hp": 306,
+   "attack": 213,
+   "defense": 201,
+   "speed": 245,
+   "special": 215,
+   "moves": [
+    "Fire Blast",
+    "Fly",
+    "Fire Spin",
+    "Swords Dance"
+   ],
+   "move_ids": [
+    126,
+    19,
+    83,
+    14
+   ]
+  },
+  {
+   "dex": 7,
+   "name": "Squirtle",
+   "level": 100,
+   "hp": 260,
+   "attack": 163,
+   "defense": 195,
+   "speed": 153,
+   "special": 167,
+   "moves": [
+    "Hydro Pump",
+    "Blizzard",
+    "Body Slam",
+    "Dig"
+   ],
+   "move_ids": [
+    56,
+    59,
+    34,
+    91
+   ]
+  },
+  {
+   "dex": 8,
+   "name": "Wartortle",
+   "level": 100,
+   "hp": 282,
+   "attack": 183,
+   "defense": 219,
+   "speed": 175,
+   "special": 189,
+   "moves": [
+    "Surf",
+    "Seismic Toss",
+    "Dig",
+    "Toxic"
+   ],
+   "move_ids": [
+    57,
+    69,
+    91,
+    92
+   ]
+  },
+  {
+   "dex": 9,
+   "name": "Blastoise",
+   "level": 100,
+   "hp": 308,
+   "attack": 211,
+   "defense": 245,
+   "speed": 201,
+   "special": 215,
+   "moves": [
+    "Hydro Pump",
+    "Skull Bash",
+    "Withdraw",
+    "Tail Whip"
+   ],
+   "move_ids": [
+    56,
+    130,
+    110,
+    39
+   ]
+  },
+  {
+   "dex": 10,
+   "name": "Caterpie",
+   "level": 100,
+   "hp": 262,
+   "attack": 127,
+   "defense": 135,
+   "speed": 157,
+   "special": 107,
+   "moves": [
+    "Tackle",
+    "String Shot",
+    null,
+    null
+   ],
+   "move_ids": [
+    33,
+    81,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 11,
+   "name": "Metapod",
+   "level": 100,
+   "hp": 272,
+   "attack": 107,
+   "defense": 175,
+   "speed": 127,
+   "special": 117,
+   "moves": [
+    "Tackle",
+    "String Shot",
+    null,
+    null
+   ],
+   "move_ids": [
+    33,
+    81,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 12,
+   "name": "Butterfree",
+   "level": 100,
+   "hp": 284,
+   "attack": 147,
+   "defense": 159,
+   "speed": 199,
+   "special": 219,
+   "moves": [
+    "Psychic",
+    "Mega Drain",
+    "Swift",
+    "Stun Spore"
+   ],
+   "move_ids": [
+    94,
+    72,
+    129,
+    78
+   ]
+  },
+  {
+   "dex": 13,
+   "name": "Weedle",
+   "level": 100,
+   "hp": 252,
+   "attack": 137,
+   "defense": 125,
+   "speed": 167,
+   "special": 107,
+   "moves": [
+    "Poison Sting",
+    "String Shot",
+    null,
+    null
+   ],
+   "move_ids": [
+    40,
+    81,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 14,
+   "name": "Kakuna",
+   "level": 100,
+   "hp": 262,
+   "attack": 117,
+   "defense": 165,
+   "speed": 137,
+   "special": 117,
+   "moves": [
+    "Poison Sting",
+    "String Shot",
+    null,
+    null
+   ],
+   "move_ids": [
+    40,
+    81,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 15,
+   "name": "Beedrill",
+   "level": 100,
+   "hp": 294,
+   "attack": 217,
+   "defense": 139,
+   "speed": 209,
+   "special": 149,
+   "moves": [
+    "Twineedle",
+    "Hyper Beam",
+    "Mega Drain",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    41,
+    63,
+    72,
+    116
+   ]
+  },
+  {
+   "dex": 16,
+   "name": "Pidgey",
+   "level": 100,
+   "hp": 252,
+   "attack": 157,
+   "defense": 145,
+   "speed": 179,
+   "special": 137,
+   "moves": [
+    "Fly",
+    "Sand-Attack",
+    "Mirror Move",
+    "Whirlwind"
+   ],
+   "move_ids": [
+    19,
+    28,
+    119,
+    18
+   ]
+  },
+  {
+   "dex": 17,
+   "name": "Pidgeotto",
+   "level": 100,
+   "hp": 298,
+   "attack": 187,
+   "defense": 175,
+   "speed": 209,
+   "special": 167,
+   "moves": [
+    "Fly",
+    "Sand-Attack",
+    "Swift",
+    "Toxic"
+   ],
+   "move_ids": [
+    19,
+    28,
+    129,
+    92
+   ]
+  },
+  {
+   "dex": 18,
+   "name": "Pidgeot",
+   "level": 100,
+   "hp": 322,
+   "attack": 209,
+   "defense": 199,
+   "speed": 233,
+   "special": 191,
+   "moves": [
+    "Quick Attack",
+    "Mirror Move",
+    "Sand-Attack",
+    "Fly"
+   ],
+   "move_ids": [
+    98,
+    119,
+    28,
+    19
+   ]
+  },
+  {
+   "dex": 19,
+   "name": "Rattata",
+   "level": 100,
+   "hp": 232,
+   "attack": 179,
+   "defense": 135,
+   "speed": 211,
+   "special": 117,
+   "moves": [
+    "Super Fang",
+    "Body Slam",
+    "Dig",
+    "Toxic"
+   ],
+   "move_ids": [
+    162,
+    34,
+    91,
+    92
+   ]
+  },
+  {
+   "dex": 20,
+   "name": "Raticate",
+   "level": 100,
+   "hp": 274,
+   "attack": 219,
+   "defense": 179,
+   "speed": 253,
+   "special": 159,
+   "moves": [
+    "Super Fang",
+    "Hyper Fang",
+    "Quick Attack",
+    "Toxic"
+   ],
+   "move_ids": [
+    162,
+    158,
+    98,
+    92
+   ]
+  },
+  {
+   "dex": 21,
+   "name": "Spearow",
+   "level": 100,
+   "hp": 252,
+   "attack": 187,
+   "defense": 125,
+   "speed": 207,
+   "special": 129,
+   "moves": [
+    "Drill Peck",
+    "Swift",
+    "Double Team",
+    "Fly"
+   ],
+   "move_ids": [
+    65,
+    129,
+    104,
+    19
+   ]
+  },
+  {
+   "dex": 22,
+   "name": "Fearow",
+   "level": 100,
+   "hp": 286,
+   "attack": 229,
+   "defense": 179,
+   "speed": 251,
+   "special": 173,
+   "moves": [
+    "Drill Peck",
+    "Mirror Move",
+    "Hyper Beam",
+    "Growl"
+   ],
+   "move_ids": [
+    65,
+    119,
+    63,
+    45
+   ]
+  },
+  {
+   "dex": 23,
+   "name": "Ekans",
+   "level": 100,
+   "hp": 242,
+   "attack": 187,
+   "defense": 153,
+   "speed": 177,
+   "special": 147,
+   "moves": [
+    "Double-Edge",
+    "Glare",
+    "Earthquake",
+    "Mega Drain"
+   ],
+   "move_ids": [
+    38,
+    137,
+    89,
+    72
+   ]
+  },
+  {
+   "dex": 24,
+   "name": "Arbok",
+   "level": 100,
+   "hp": 284,
+   "attack": 227,
+   "defense": 197,
+   "speed": 219,
+   "special": 189,
+   "moves": [
+    "Dig",
+    "Glare",
+    "Strength",
+    "Acid"
+   ],
+   "move_ids": [
+    91,
+    137,
+    70,
+    51
+   ]
+  },
+  {
+   "dex": 25,
+   "name": "Pikachu",
+   "level": 100,
+   "hp": 242,
+   "attack": 177,
+   "defense": 125,
+   "speed": 247,
+   "special": 167,
+   "moves": [
+    "Thunderbolt",
+    "Thunder Wave",
+    "Swift",
+    "Reflect"
+   ],
+   "move_ids": [
+    85,
+    86,
+    129,
+    115
+   ]
+  },
+  {
+   "dex": 26,
+   "name": "Raichu",
+   "level": 100,
+   "hp": 276,
+   "attack": 229,
+   "defense": 159,
+   "speed": 251,
+   "special": 231,
+   "moves": [
+    "Thunder",
+    "Thunder Wave",
+    "Quick Attack",
+    "Mega Kick"
+   ],
+   "move_ids": [
+    87,
+    86,
+    98,
+    25
+   ]
+  },
+  {
+   "dex": 27,
+   "name": "Sandshrew",
+   "level": 100,
+   "hp": 272,
+   "attack": 217,
+   "defense": 235,
+   "speed": 147,
+   "special": 127,
+   "moves": [
+    "Sand-Attack",
+    "Earthquake",
+    "Slash",
+    "Rock Slide"
+   ],
+   "move_ids": [
+    28,
+    89,
+    163,
+    157
+   ]
+  },
+  {
+   "dex": 28,
+   "name": "Sandslash",
+   "level": 100,
+   "hp": 306,
+   "attack": 249,
+   "defense": 269,
+   "speed": 181,
+   "special": 161,
+   "moves": [
+    "Sand-Attack",
+    "Dig",
+    "Strength",
+    "Rock Slide"
+   ],
+   "move_ids": [
+    28,
+    91,
+    70,
+    157
+   ]
+  },
+  {
+   "dex": 29,
+   "name": "Nidoran\u00be",
+   "level": 100,
+   "hp": 282,
+   "attack": 161,
+   "defense": 169,
+   "speed": 149,
+   "special": 147,
+   "moves": [
+    "Body Slam",
+    "Blizzard",
+    "Thunderbolt",
+    "Toxic"
+   ],
+   "move_ids": [
+    34,
+    59,
+    85,
+    92
+   ]
+  },
+  {
+   "dex": 30,
+   "name": "Nidorina",
+   "level": 100,
+   "hp": 304,
+   "attack": 181,
+   "defense": 193,
+   "speed": 171,
+   "special": 169,
+   "moves": [
+    "Body Slam",
+    "Bubblebeam",
+    "Thunder",
+    "Toxic"
+   ],
+   "move_ids": [
+    34,
+    61,
+    87,
+    92
+   ]
+  },
+  {
+   "dex": 31,
+   "name": "Nidoqueen",
+   "level": 100,
+   "hp": 330,
+   "attack": 209,
+   "defense": 219,
+   "speed": 197,
+   "special": 195,
+   "moves": [
+    "Earthquake",
+    "Double Kick",
+    "Rock Slide",
+    "Toxic"
+   ],
+   "move_ids": [
+    89,
+    24,
+    157,
+    92
+   ]
+  },
+  {
+   "dex": 32,
+   "name": "Nidoran\u00a9",
+   "level": 100,
+   "hp": 264,
+   "attack": 181,
+   "defense": 145,
+   "speed": 167,
+   "special": 147,
+   "moves": [
+    "Body Slam",
+    "Blizzard",
+    "Thunder",
+    "Horn Drill"
+   ],
+   "move_ids": [
+    34,
+    59,
+    87,
+    32
+   ]
+  },
+  {
+   "dex": 33,
+   "name": "Nidorino",
+   "level": 100,
+   "hp": 286,
+   "attack": 201,
+   "defense": 173,
+   "speed": 189,
+   "special": 169,
+   "moves": [
+    "Body Slam",
+    "Thunderbolt",
+    "Ice Beam",
+    "Horn Drill"
+   ],
+   "move_ids": [
+    34,
+    85,
+    58,
+    32
+   ]
+  },
+  {
+   "dex": 34,
+   "name": "Nidoking",
+   "level": 100,
+   "hp": 312,
+   "attack": 229,
+   "defense": 199,
+   "speed": 215,
+   "special": 195,
+   "moves": [
+    "Horn Attack",
+    "Earthquake",
+    "Bide",
+    "Horn Drill"
+   ],
+   "move_ids": [
+    30,
+    89,
+    117,
+    32
+   ]
+  },
+  {
+   "dex": 35,
+   "name": "Clefairy",
+   "level": 100,
+   "hp": 312,
+   "attack": 157,
+   "defense": 161,
+   "speed": 137,
+   "special": 187,
+   "moves": [
+    "Metronome",
+    "Body Slam",
+    "Thunder Wave",
+    "Blizzard"
+   ],
+   "move_ids": [
+    118,
+    34,
+    86,
+    59
+   ]
+  },
+  {
+   "dex": 36,
+   "name": "Clefable",
+   "level": 100,
+   "hp": 346,
+   "attack": 189,
+   "defense": 195,
+   "speed": 171,
+   "special": 221,
+   "moves": [
+    "Metronome",
+    "Strength",
+    "Thunder Wave",
+    "Thunder"
+   ],
+   "move_ids": [
+    118,
+    70,
+    86,
+    87
+   ]
+  },
+  {
+   "dex": 37,
+   "name": "Vulpix",
+   "level": 100,
+   "hp": 248,
+   "attack": 149,
+   "defense": 145,
+   "speed": 197,
+   "special": 197,
+   "moves": [
+    "Flamethrower",
+    "Dig",
+    "Confuse Ray",
+    "Toxic"
+   ],
+   "move_ids": [
+    53,
+    91,
+    109,
+    92
+   ]
+  },
+  {
+   "dex": 38,
+   "name": "Ninetales",
+   "level": 100,
+   "hp": 296,
+   "attack": 197,
+   "defense": 195,
+   "speed": 245,
+   "special": 245,
+   "moves": [
+    "Fire Blast",
+    "Quick Attack",
+    "Confuse Ray",
+    "Tail Whip"
+   ],
+   "move_ids": [
+    126,
+    98,
+    109,
+    39
+   ]
+  },
+  {
+   "dex": 39,
+   "name": "Jigglypuff",
+   "level": 100,
+   "hp": 402,
+   "attack": 157,
+   "defense": 105,
+   "speed": 107,
+   "special": 117,
+   "moves": [
+    "Sing",
+    "Flash",
+    "Body Slam",
+    "Seismic Toss"
+   ],
+   "move_ids": [
+    47,
+    148,
+    34,
+    69
+   ]
+  },
+  {
+   "dex": 40,
+   "name": "Wigglytuff",
+   "level": 100,
+   "hp": 444,
+   "attack": 197,
+   "defense": 149,
+   "speed": 149,
+   "special": 159,
+   "moves": [
+    "Sing",
+    "Disable",
+    "Strength",
+    "Hyper Beam"
+   ],
+   "move_ids": [
+    47,
+    50,
+    70,
+    63
+   ]
+  },
+  {
+   "dex": 41,
+   "name": "Zubat",
+   "level": 100,
+   "hp": 252,
+   "attack": 157,
+   "defense": 135,
+   "speed": 177,
+   "special": 147,
+   "moves": [
+    "Confuse Ray",
+    "Swift",
+    "Mega Drain",
+    "Haze"
+   ],
+   "move_ids": [
+    109,
+    129,
+    72,
+    114
+   ]
+  },
+  {
+   "dex": 42,
+   "name": "Golbat",
+   "level": 100,
+   "hp": 306,
+   "attack": 209,
+   "defense": 189,
+   "speed": 231,
+   "special": 201,
+   "moves": [
+    "Supersonic",
+    "Hyper Beam",
+    "Mega Drain",
+    "Haze"
+   ],
+   "move_ids": [
+    48,
+    63,
+    72,
+    114
+   ]
+  },
+  {
+   "dex": 43,
+   "name": "Oddish",
+   "level": 100,
+   "hp": 262,
+   "attack": 167,
+   "defense": 175,
+   "speed": 127,
+   "special": 217,
+   "moves": [
+    "Petal Dance",
+    "Mega Drain",
+    "Stun Spore",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    80,
+    72,
+    78,
+    38
+   ]
+  },
+  {
+   "dex": 44,
+   "name": "Gloom",
+   "level": 100,
+   "hp": 284,
+   "attack": 187,
+   "defense": 199,
+   "speed": 139,
+   "special": 229,
+   "moves": [
+    "Petal Dance",
+    "Mega Drain",
+    "Stun Spore",
+    "Acid"
+   ],
+   "move_ids": [
+    80,
+    72,
+    78,
+    51
+   ]
+  },
+  {
+   "dex": 45,
+   "name": "Vileplume",
+   "level": 100,
+   "hp": 306,
+   "attack": 209,
+   "defense": 219,
+   "speed": 151,
+   "special": 251,
+   "moves": [
+    "Solarbeam",
+    "Mega Drain",
+    "Stun Spore",
+    "Acid"
+   ],
+   "move_ids": [
+    76,
+    72,
+    78,
+    51
+   ]
+  },
+  {
+   "dex": 46,
+   "name": "Paras",
+   "level": 100,
+   "hp": 242,
+   "attack": 207,
+   "defense": 175,
+   "speed": 117,
+   "special": 177,
+   "moves": [
+    "Slash",
+    "Spore",
+    "Dig",
+    "Mega Drain"
+   ],
+   "move_ids": [
+    163,
+    147,
+    91,
+    72
+   ]
+  },
+  {
+   "dex": 47,
+   "name": "Parasect",
+   "level": 100,
+   "hp": 284,
+   "attack": 247,
+   "defense": 219,
+   "speed": 119,
+   "special": 219,
+   "moves": [
+    "Slash",
+    "Spore",
+    "Growth",
+    "Mega Drain"
+   ],
+   "move_ids": [
+    163,
+    147,
+    74,
+    72
+   ]
+  },
+  {
+   "dex": 48,
+   "name": "Venonat",
+   "level": 100,
+   "hp": 292,
+   "attack": 177,
+   "defense": 165,
+   "speed": 157,
+   "special": 147,
+   "moves": [
+    "Psychic",
+    "Mega Drain",
+    "Double-Edge",
+    "Toxic"
+   ],
+   "move_ids": [
+    94,
+    72,
+    38,
+    92
+   ]
+  },
+  {
+   "dex": 49,
+   "name": "Venomoth",
+   "level": 100,
+   "hp": 304,
+   "attack": 187,
+   "defense": 179,
+   "speed": 239,
+   "special": 239,
+   "moves": [
+    "Psychic",
+    "Mega Drain",
+    "Sleep Powder",
+    "Flash"
+   ],
+   "move_ids": [
+    94,
+    72,
+    79,
+    148
+   ]
+  },
+  {
+   "dex": 50,
+   "name": "Diglett",
+   "level": 100,
+   "hp": 192,
+   "attack": 177,
+   "defense": 115,
+   "speed": 257,
+   "special": 157,
+   "moves": [
+    "Earthquake",
+    "Fissure",
+    "Slash",
+    "Sand-Attack"
+   ],
+   "move_ids": [
+    89,
+    90,
+    163,
+    28
+   ]
+  },
+  {
+   "dex": 51,
+   "name": "Dugtrio",
+   "level": 100,
+   "hp": 234,
+   "attack": 217,
+   "defense": 159,
+   "speed": 299,
+   "special": 199,
+   "moves": [
+    "Dig",
+    "Rock Slide",
+    "Growl",
+    "Sand-Attack"
+   ],
+   "move_ids": [
+    91,
+    157,
+    45,
+    28
+   ]
+  },
+  {
+   "dex": 52,
+   "name": "Meowth",
+   "level": 100,
+   "hp": 252,
+   "attack": 157,
+   "defense": 135,
+   "speed": 247,
+   "special": 147,
+   "moves": [
+    "Bubblebeam",
+    "Screech",
+    "Slash",
+    "Thunderbolt"
+   ],
+   "move_ids": [
+    61,
+    103,
+    163,
+    85
+   ]
+  },
+  {
+   "dex": 53,
+   "name": "Persian",
+   "level": 100,
+   "hp": 294,
+   "attack": 197,
+   "defense": 179,
+   "speed": 289,
+   "special": 189,
+   "moves": [
+    "Hyper Beam",
+    "Screech",
+    "Bite",
+    "Thunder"
+   ],
+   "move_ids": [
+    63,
+    103,
+    44,
+    87
+   ]
+  },
+  {
+   "dex": 54,
+   "name": "Psyduck",
+   "level": 100,
+   "hp": 272,
+   "attack": 171,
+   "defense": 161,
+   "speed": 177,
+   "special": 167,
+   "moves": [
+    "Hydro Pump",
+    "Blizzard",
+    "Dig",
+    "Disable"
+   ],
+   "move_ids": [
+    56,
+    59,
+    91,
+    50
+   ]
+  },
+  {
+   "dex": 55,
+   "name": "Golduck",
+   "level": 100,
+   "hp": 316,
+   "attack": 213,
+   "defense": 205,
+   "speed": 221,
+   "special": 211,
+   "moves": [
+    "Bubblebeam",
+    "Ice Beam",
+    "Confusion",
+    "Disable"
+   ],
+   "move_ids": [
+    61,
+    58,
+    93,
+    50
+   ]
+  },
+  {
+   "dex": 56,
+   "name": "Mankey",
+   "level": 100,
+   "hp": 252,
+   "attack": 227,
+   "defense": 135,
+   "speed": 207,
+   "special": 137,
+   "moves": [
+    "Submission",
+    "Thrash",
+    "Dig",
+    "Counter"
+   ],
+   "move_ids": [
+    66,
+    37,
+    91,
+    68
+   ]
+  },
+  {
+   "dex": 57,
+   "name": "Primeape",
+   "level": 100,
+   "hp": 286,
+   "attack": 259,
+   "defense": 169,
+   "speed": 241,
+   "special": 171,
+   "moves": [
+    "Low Kick",
+    "Thrash",
+    "Seismic Toss",
+    "Counter"
+   ],
+   "move_ids": [
+    67,
+    37,
+    69,
+    68
+   ]
+  },
+  {
+   "dex": 58,
+   "name": "Growlithe",
+   "level": 100,
+   "hp": 282,
+   "attack": 207,
+   "defense": 155,
+   "speed": 187,
+   "special": 167,
+   "moves": [
+    "Flamethrower",
+    "Dig",
+    "Body Slam",
+    "Double Team"
+   ],
+   "move_ids": [
+    53,
+    91,
+    34,
+    104
+   ]
+  },
+  {
+   "dex": 59,
+   "name": "Arcanine",
+   "level": 100,
+   "hp": 324,
+   "attack": 259,
+   "defense": 199,
+   "speed": 229,
+   "special": 199,
+   "moves": [
+    "Fire Blast",
+    "Dig",
+    "Leer",
+    "Agility"
+   ],
+   "move_ids": [
+    126,
+    91,
+    43,
+    97
+   ]
+  },
+  {
+   "dex": 60,
+   "name": "Poliwag",
+   "level": 100,
+   "hp": 252,
+   "attack": 167,
+   "defense": 145,
+   "speed": 247,
+   "special": 147,
+   "moves": [
+    "Hydro Pump",
+    "Blizzard",
+    "Psychic",
+    "Amnesia"
+   ],
+   "move_ids": [
+    56,
+    59,
+    94,
+    133
+   ]
+  },
+  {
+   "dex": 61,
+   "name": "Poliwhirl",
+   "level": 100,
+   "hp": 294,
+   "attack": 187,
+   "defense": 189,
+   "speed": 239,
+   "special": 159,
+   "moves": [
+    "Surf",
+    "Ice Beam",
+    "Psychic",
+    "Amnesia"
+   ],
+   "move_ids": [
+    57,
+    58,
+    94,
+    133
+   ]
+  },
+  {
+   "dex": 62,
+   "name": "Poliwrath",
+   "level": 100,
+   "hp": 336,
+   "attack": 219,
+   "defense": 239,
+   "speed": 191,
+   "special": 191,
+   "moves": [
+    "Bubblebeam",
+    "Submission",
+    "Hypnosis",
+    "Amnesia"
+   ],
+   "move_ids": [
+    61,
+    66,
+    95,
+    133
+   ]
+  },
+  {
+   "dex": 63,
+   "name": "Abra",
+   "level": 100,
+   "hp": 222,
+   "attack": 107,
+   "defense": 95,
+   "speed": 247,
+   "special": 277,
+   "moves": [
+    "Psychic",
+    "Thunder Wave",
+    "Double Team",
+    "Body Slam"
+   ],
+   "move_ids": [
+    94,
+    86,
+    104,
+    34
+   ]
+  },
+  {
+   "dex": 64,
+   "name": "Kadabra",
+   "level": 100,
+   "hp": 244,
+   "attack": 127,
+   "defense": 119,
+   "speed": 269,
+   "special": 299,
+   "moves": [
+    "Psychic",
+    "Recover",
+    "Reflect",
+    "Dig"
+   ],
+   "move_ids": [
+    94,
+    105,
+    115,
+    91
+   ]
+  },
+  {
+   "dex": 65,
+   "name": "Alakazam",
+   "level": 100,
+   "hp": 260,
+   "attack": 145,
+   "defense": 135,
+   "speed": 276,
+   "special": 306,
+   "moves": [
+    "Psybeam",
+    "Kinesis",
+    "Reflect",
+    "Hyper Beam"
+   ],
+   "move_ids": [
+    60,
+    134,
+    115,
+    63
+   ]
+  },
+  {
+   "dex": 66,
+   "name": "Machop",
+   "level": 100,
+   "hp": 312,
+   "attack": 227,
+   "defense": 165,
+   "speed": 137,
+   "special": 137,
+   "moves": [
+    "Submission",
+    "Body Slam",
+    "Seismic Toss",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    66,
+    34,
+    69,
+    116
+   ]
+  },
+  {
+   "dex": 67,
+   "name": "Machoke",
+   "level": 100,
+   "hp": 324,
+   "attack": 257,
+   "defense": 199,
+   "speed": 149,
+   "special": 159,
+   "moves": [
+    "Submission",
+    "Dig",
+    "Seismic Toss",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    66,
+    91,
+    69,
+    116
+   ]
+  },
+  {
+   "dex": 68,
+   "name": "Machamp",
+   "level": 100,
+   "hp": 330,
+   "attack": 305,
+   "defense": 205,
+   "speed": 155,
+   "special": 175,
+   "moves": [
+    "Low Kick",
+    "Mega Punch",
+    "Leer",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    67,
+    5,
+    43,
+    116
+   ]
+  },
+  {
+   "dex": 69,
+   "name": "Bellsprout",
+   "level": 100,
+   "hp": 272,
+   "attack": 217,
+   "defense": 135,
+   "speed": 147,
+   "special": 207,
+   "moves": [
+    "Razor Leaf",
+    "Toxic",
+    "Wrap",
+    "Double-Edge"
+   ],
+   "move_ids": [
+    75,
+    92,
+    35,
+    38
+   ]
+  },
+  {
+   "dex": 70,
+   "name": "Weepinbell",
+   "level": 100,
+   "hp": 294,
+   "attack": 237,
+   "defense": 159,
+   "speed": 169,
+   "special": 229,
+   "moves": [
+    "Razor Leaf",
+    "Mega Drain",
+    "Growth",
+    "Stun Spore"
+   ],
+   "move_ids": [
+    75,
+    72,
+    74,
+    78
+   ]
+  },
+  {
+   "dex": 71,
+   "name": "Victreebel",
+   "level": 100,
+   "hp": 310,
+   "attack": 255,
+   "defense": 175,
+   "speed": 185,
+   "special": 245,
+   "moves": [
+    "Razor Leaf",
+    "Acid",
+    "Wrap",
+    "Sleep Powder"
+   ],
+   "move_ids": [
+    75,
+    51,
+    35,
+    79
+   ]
+  },
+  {
+   "dex": 72,
+   "name": "Tentacool",
+   "level": 100,
+   "hp": 252,
+   "attack": 147,
+   "defense": 135,
+   "speed": 207,
+   "special": 267,
+   "moves": [
+    "Surf",
+    "Blizzard",
+    "Mega Drain",
+    "Toxic"
+   ],
+   "move_ids": [
+    57,
+    59,
+    72,
+    92
+   ]
+  },
+  {
+   "dex": 73,
+   "name": "Tentacruel",
+   "level": 100,
+   "hp": 310,
+   "attack": 185,
+   "defense": 175,
+   "speed": 245,
+   "special": 285,
+   "moves": [
+    "Bubblebeam",
+    "Wrap",
+    "Screech",
+    "Toxic"
+   ],
+   "move_ids": [
+    61,
+    35,
+    103,
+    92
+   ]
+  },
+  {
+   "dex": 74,
+   "name": "Geodude",
+   "level": 100,
+   "hp": 252,
+   "attack": 227,
+   "defense": 265,
+   "speed": 107,
+   "special": 127,
+   "moves": [
+    "Rock Slide",
+    "Earthquake",
+    "Seismic Toss",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    157,
+    89,
+    69,
+    126
+   ]
+  },
+  {
+   "dex": 75,
+   "name": "Graveler",
+   "level": 100,
+   "hp": 274,
+   "attack": 247,
+   "defense": 289,
+   "speed": 129,
+   "special": 149,
+   "moves": [
+    "Rock Slide",
+    "Earthquake",
+    "Fire Blast",
+    "Metronome"
+   ],
+   "move_ids": [
+    157,
+    89,
+    126,
+    118
+   ]
+  },
+  {
+   "dex": 76,
+   "name": "Golem",
+   "level": 100,
+   "hp": 310,
+   "attack": 265,
+   "defense": 305,
+   "speed": 135,
+   "special": 155,
+   "moves": [
+    "Rock Throw",
+    "Dig",
+    "Defense Curl",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    88,
+    91,
+    111,
+    126
+   ]
+  },
+  {
+   "dex": 77,
+   "name": "Ponyta",
+   "level": 100,
+   "hp": 264,
+   "attack": 227,
+   "defense": 169,
+   "speed": 239,
+   "special": 189,
+   "moves": [
+    "Fire Spin",
+    "Agility",
+    "Horn Drill",
+    "Toxic"
+   ],
+   "move_ids": [
+    83,
+    97,
+    32,
+    92
+   ]
+  },
+  {
+   "dex": 78,
+   "name": "Rapidash",
+   "level": 100,
+   "hp": 280,
+   "attack": 245,
+   "defense": 185,
+   "speed": 255,
+   "special": 205,
+   "moves": [
+    "Fire Blast",
+    "Stomp",
+    "Reflect",
+    "Tail Whip"
+   ],
+   "move_ids": [
+    126,
+    23,
+    115,
+    39
+   ]
+  },
+  {
+   "dex": 79,
+   "name": "Slowpoke",
+   "level": 100,
+   "hp": 352,
+   "attack": 197,
+   "defense": 195,
+   "speed": 97,
+   "special": 147,
+   "moves": [
+    "Surf",
+    "Psychic",
+    "Amnesia",
+    "Thunder Wave"
+   ],
+   "move_ids": [
+    57,
+    94,
+    133,
+    86
+   ]
+  },
+  {
+   "dex": 80,
+   "name": "Slowbro",
+   "level": 100,
+   "hp": 346,
+   "attack": 199,
+   "defense": 269,
+   "speed": 111,
+   "special": 207,
+   "moves": [
+    "Surf",
+    "Psychic",
+    "Disable",
+    "Mega Punch"
+   ],
+   "move_ids": [
+    57,
+    94,
+    50,
+    5
+   ]
+  },
+  {
+   "dex": 81,
+   "name": "Magnemite",
+   "level": 100,
+   "hp": 222,
+   "attack": 137,
+   "defense": 205,
+   "speed": 157,
+   "special": 257,
+   "moves": [
+    "Thunderbolt",
+    "Thunder Wave",
+    "Swift",
+    "Flash"
+   ],
+   "move_ids": [
+    85,
+    86,
+    129,
+    148
+   ]
+  },
+  {
+   "dex": 82,
+   "name": "Magneton",
+   "level": 100,
+   "hp": 256,
+   "attack": 169,
+   "defense": 239,
+   "speed": 191,
+   "special": 291,
+   "moves": [
+    "Thunder",
+    "Thunder Wave",
+    "Supersonic",
+    "Flash"
+   ],
+   "move_ids": [
+    87,
+    86,
+    48,
+    148
+   ]
+  },
+  {
+   "dex": 83,
+   "name": "Farfetch'D",
+   "level": 100,
+   "hp": 276,
+   "attack": 197,
+   "defense": 175,
+   "speed": 187,
+   "special": 183,
+   "moves": [
+    "Slash",
+    "Sand-Attack",
+    "Fly",
+    "Toxic"
+   ],
+   "move_ids": [
+    163,
+    28,
+    19,
+    92
+   ]
+  },
+  {
+   "dex": 84,
+   "name": "Doduo",
+   "level": 100,
+   "hp": 242,
+   "attack": 237,
+   "defense": 155,
+   "speed": 217,
+   "special": 137,
+   "moves": [
+    "Drill Peck",
+    "Body Slam",
+    "Reflect",
+    "Double Team"
+   ],
+   "move_ids": [
+    65,
+    34,
+    115,
+    104
+   ]
+  },
+  {
+   "dex": 85,
+   "name": "Dodrio",
+   "level": 100,
+   "hp": 276,
+   "attack": 269,
+   "defense": 189,
+   "speed": 251,
+   "special": 171,
+   "moves": [
+    "Tri Attack",
+    "Fly",
+    "Growl",
+    "Agility"
+   ],
+   "move_ids": [
+    161,
+    19,
+    45,
+    97
+   ]
+  },
+  {
+   "dex": 86,
+   "name": "Seel",
+   "level": 100,
+   "hp": 302,
+   "attack": 157,
+   "defense": 175,
+   "speed": 157,
+   "special": 207,
+   "moves": [
+    "Surf",
+    "Blizzard",
+    "Body Slam",
+    "Double Team"
+   ],
+   "move_ids": [
+    57,
+    59,
+    34,
+    104
+   ]
+  },
+  {
+   "dex": 87,
+   "name": "Dewgong",
+   "level": 100,
+   "hp": 336,
+   "attack": 189,
+   "defense": 209,
+   "speed": 191,
+   "special": 241,
+   "moves": [
+    "Aurora Beam",
+    "Surf",
+    "Headbutt",
+    "Horn Drill"
+   ],
+   "move_ids": [
+    62,
+    57,
+    29,
+    32
+   ]
+  },
+  {
+   "dex": 88,
+   "name": "Grimer",
+   "level": 100,
+   "hp": 324,
+   "attack": 217,
+   "defense": 159,
+   "speed": 109,
+   "special": 139,
+   "moves": [
+    "Sludge",
+    "Body Slam",
+    "Thunderbolt",
+    "Acid Armor"
+   ],
+   "move_ids": [
+    124,
+    34,
+    85,
+    151
+   ]
+  },
+  {
+   "dex": 89,
+   "name": "Muk",
+   "level": 100,
+   "hp": 366,
+   "attack": 259,
+   "defense": 199,
+   "speed": 151,
+   "special": 181,
+   "moves": [
+    "Sludge",
+    "Fire Blast",
+    "Screech",
+    "Acid Armor"
+   ],
+   "move_ids": [
+    124,
+    126,
+    103,
+    151
+   ]
+  },
+  {
+   "dex": 90,
+   "name": "Shellder",
+   "level": 100,
+   "hp": 232,
+   "attack": 197,
+   "defense": 265,
+   "speed": 147,
+   "special": 157,
+   "moves": [
+    "Blizzard",
+    "Surf",
+    "Swift",
+    "Supersonic"
+   ],
+   "move_ids": [
+    59,
+    57,
+    129,
+    48
+   ]
+  },
+  {
+   "dex": 91,
+   "name": "Cloyster",
+   "level": 100,
+   "hp": 244,
+   "attack": 229,
+   "defense": 399,
+   "speed": 179,
+   "special": 209,
+   "moves": [
+    "Ice Beam",
+    "Bubblebeam",
+    "Clamp",
+    "Supersonic"
+   ],
+   "move_ids": [
+    58,
+    61,
+    128,
+    48
+   ]
+  },
+  {
+   "dex": 92,
+   "name": "Gastly",
+   "level": 100,
+   "hp": 232,
+   "attack": 137,
+   "defense": 125,
+   "speed": 227,
+   "special": 267,
+   "moves": [
+    "Hypnosis",
+    "Psychic",
+    "Confuse Ray",
+    "Night Shade"
+   ],
+   "move_ids": [
+    95,
+    94,
+    109,
+    101
+   ]
+  },
+  {
+   "dex": 93,
+   "name": "Haunter",
+   "level": 100,
+   "hp": 254,
+   "attack": 157,
+   "defense": 149,
+   "speed": 249,
+   "special": 289,
+   "moves": [
+    "Hypnosis",
+    "Dream Eater",
+    "Confuse Ray",
+    "Psychic"
+   ],
+   "move_ids": [
+    95,
+    138,
+    109,
+    94
+   ]
+  },
+  {
+   "dex": 94,
+   "name": "Gengar",
+   "level": 100,
+   "hp": 270,
+   "attack": 175,
+   "defense": 165,
+   "speed": 265,
+   "special": 305,
+   "moves": [
+    "Hypnosis",
+    "Dream Eater",
+    "Metronome",
+    "Night Shade"
+   ],
+   "move_ids": [
+    95,
+    138,
+    118,
+    101
+   ]
+  },
+  {
+   "dex": 95,
+   "name": "Onix",
+   "level": 100,
+   "hp": 234,
+   "attack": 147,
+   "defense": 379,
+   "speed": 199,
+   "special": 119,
+   "moves": [
+    "Rock Slide",
+    "Earthquake",
+    "Fissure",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    157,
+    89,
+    90,
+    120
+   ]
+  },
+  {
+   "dex": 96,
+   "name": "Drowzee",
+   "level": 100,
+   "hp": 292,
+   "attack": 163,
+   "defense": 155,
+   "speed": 151,
+   "special": 247,
+   "moves": [
+    "Hypnosis",
+    "Dream Eater",
+    "Seismic Toss",
+    "Psychic"
+   ],
+   "move_ids": [
+    95,
+    138,
+    69,
+    94
+   ]
+  },
+  {
+   "dex": 97,
+   "name": "Hypno",
+   "level": 100,
+   "hp": 320,
+   "attack": 191,
+   "defense": 185,
+   "speed": 179,
+   "special": 275,
+   "moves": [
+    "Hypnosis",
+    "Poison Gas",
+    "Headbutt",
+    "Psychic"
+   ],
+   "move_ids": [
+    95,
+    139,
+    29,
+    94
+   ]
+  },
+  {
+   "dex": 98,
+   "name": "Krabby",
+   "level": 100,
+   "hp": 224,
+   "attack": 267,
+   "defense": 239,
+   "speed": 159,
+   "special": 109,
+   "moves": [
+    "Surf",
+    "Body Slam",
+    "Guillotine",
+    "Blizzard"
+   ],
+   "move_ids": [
+    57,
+    34,
+    12,
+    59
+   ]
+  },
+  {
+   "dex": 99,
+   "name": "Kingler",
+   "level": 100,
+   "hp": 260,
+   "attack": 305,
+   "defense": 275,
+   "speed": 195,
+   "special": 145,
+   "moves": [
+    "Crabhammer",
+    "Strength",
+    "Guillotine",
+    "Toxic"
+   ],
+   "move_ids": [
+    152,
+    70,
+    12,
+    92
+   ]
+  },
+  {
+   "dex": 100,
+   "name": "Voltorb",
+   "level": 100,
+   "hp": 252,
+   "attack": 127,
+   "defense": 165,
+   "speed": 267,
+   "special": 177,
+   "moves": [
+    "Thunderbolt",
+    "Thunder Wave",
+    "Take Down",
+    "Reflect"
+   ],
+   "move_ids": [
+    85,
+    86,
+    36,
+    115
+   ]
+  },
+  {
+   "dex": 101,
+   "name": "Electrode",
+   "level": 100,
+   "hp": 276,
+   "attack": 149,
+   "defense": 189,
+   "speed": 331,
+   "special": 211,
+   "moves": [
+    "Thunder",
+    "Thunder Wave",
+    "Swift",
+    "Flash"
+   ],
+   "move_ids": [
+    87,
+    86,
+    129,
+    148
+   ]
+  },
+  {
+   "dex": 102,
+   "name": "Exeggcute",
+   "level": 100,
+   "hp": 292,
+   "attack": 147,
+   "defense": 225,
+   "speed": 147,
+   "special": 187,
+   "moves": [
+    "Leech Seed",
+    "Toxic",
+    "Psychic",
+    "Selfdestruct"
+   ],
+   "move_ids": [
+    73,
+    92,
+    94,
+    120
+   ]
+  },
+  {
+   "dex": 103,
+   "name": "Exeggutor",
+   "level": 100,
+   "hp": 334,
+   "attack": 229,
+   "defense": 209,
+   "speed": 149,
+   "special": 289,
+   "moves": [
+    "Stomp",
+    "Sleep Powder",
+    "Psychic",
+    "Solarbeam"
+   ],
+   "move_ids": [
+    23,
+    79,
+    94,
+    76
+   ]
+  },
+  {
+   "dex": 104,
+   "name": "Cubone",
+   "level": 100,
+   "hp": 272,
+   "attack": 167,
+   "defense": 255,
+   "speed": 137,
+   "special": 147,
+   "moves": [
+    "Bonemerang",
+    "Blizzard",
+    "Thrash",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    155,
+    59,
+    37,
+    116
+   ]
+  },
+  {
+   "dex": 105,
+   "name": "Marowak",
+   "level": 100,
+   "hp": 284,
+   "attack": 217,
+   "defense": 279,
+   "speed": 149,
+   "special": 159,
+   "moves": [
+    "Bone Club",
+    "Headbutt",
+    "Thrash",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    125,
+    29,
+    37,
+    116
+   ]
+  },
+  {
+   "dex": 106,
+   "name": "Hitmonlee",
+   "level": 100,
+   "hp": 264,
+   "attack": 297,
+   "defense": 165,
+   "speed": 233,
+   "special": 129,
+   "moves": [
+    "Rolling Kick",
+    "Jump Kick",
+    "Hi Jump Kick",
+    "Focus Energy"
+   ],
+   "move_ids": [
+    27,
+    26,
+    136,
+    116
+   ]
+  },
+  {
+   "dex": 107,
+   "name": "Hitmonchan",
+   "level": 100,
+   "hp": 264,
+   "attack": 267,
+   "defense": 217,
+   "speed": 211,
+   "special": 129,
+   "moves": [
+    "Mega Punch",
+    "Fire Punch",
+    "Ice Punch",
+    "Thunderpunch"
+   ],
+   "move_ids": [
+    5,
+    7,
+    8,
+    9
+   ]
+  },
+  {
+   "dex": 108,
+   "name": "Lickitung",
+   "level": 100,
+   "hp": 344,
+   "attack": 167,
+   "defense": 209,
+   "speed": 119,
+   "special": 179,
+   "moves": [
+    "Body Slam",
+    "Thunder",
+    "Earthquake",
+    "Blizzard"
+   ],
+   "move_ids": [
+    34,
+    87,
+    89,
+    59
+   ]
+  },
+  {
+   "dex": 109,
+   "name": "Koffing",
+   "level": 100,
+   "hp": 252,
+   "attack": 197,
+   "defense": 255,
+   "speed": 137,
+   "special": 187,
+   "moves": [
+    "Sludge",
+    "Thunder",
+    "Haze",
+    "Toxic"
+   ],
+   "move_ids": [
+    124,
+    87,
+    114,
+    92
+   ]
+  },
+  {
+   "dex": 110,
+   "name": "Weezing",
+   "level": 100,
+   "hp": 280,
+   "attack": 225,
+   "defense": 285,
+   "speed": 165,
+   "special": 215,
+   "moves": [
+    "Sludge",
+    "Thunder",
+    "Haze",
+    "Mimic"
+   ],
+   "move_ids": [
+    124,
+    87,
+    114,
+    102
+   ]
+  },
+  {
+   "dex": 111,
+   "name": "Rhyhorn",
+   "level": 100,
+   "hp": 324,
+   "attack": 227,
+   "defense": 249,
+   "speed": 109,
+   "special": 119,
+   "moves": [
+    "Body Slam",
+    "Earthquake",
+    "Rock Slide",
+    "Fissure"
+   ],
+   "move_ids": [
+    34,
+    89,
+    157,
+    90
+   ]
+  },
+  {
+   "dex": 112,
+   "name": "Rhydon",
+   "level": 100,
+   "hp": 354,
+   "attack": 299,
+   "defense": 279,
+   "speed": 119,
+   "special": 129,
+   "moves": [
+    "Horn Attack",
+    "Earthquake",
+    "Thunder",
+    "Fissure"
+   ],
+   "move_ids": [
+    30,
+    89,
+    87,
+    90
+   ]
+  },
+  {
+   "dex": 113,
+   "name": "Chansey",
+   "level": 100,
+   "hp": 650,
+   "attack": 55,
+   "defense": 55,
+   "speed": 145,
+   "special": 255,
+   "moves": [
+    "Egg Bomb",
+    "Rest",
+    "Metronome",
+    "Seismic Toss"
+   ],
+   "move_ids": [
+    121,
+    156,
+    118,
+    69
+   ]
+  },
+  {
+   "dex": 114,
+   "name": "Tangela",
+   "level": 100,
+   "hp": 294,
+   "attack": 167,
+   "defense": 289,
+   "speed": 179,
+   "special": 259,
+   "moves": [
+    "Mega Drain",
+    "Solarbeam",
+    "Growth",
+    "Stun Spore"
+   ],
+   "move_ids": [
+    72,
+    76,
+    74,
+    78
+   ]
+  },
+  {
+   "dex": 115,
+   "name": "Kangaskhan",
+   "level": 100,
+   "hp": 360,
+   "attack": 235,
+   "defense": 205,
+   "speed": 225,
+   "special": 125,
+   "moves": [
+    "Dizzy Punch",
+    "Rock Slide",
+    "Surf",
+    "Substitute"
+   ],
+   "move_ids": [
+    146,
+    157,
+    57,
+    164
+   ]
+  },
+  {
+   "dex": 116,
+   "name": "Horsea",
+   "level": 100,
+   "hp": 232,
+   "attack": 147,
+   "defense": 205,
+   "speed": 187,
+   "special": 207,
+   "moves": [
+    "Hydro Pump",
+    "Ice Beam",
+    "Toxic",
+    "Smokescreen"
+   ],
+   "move_ids": [
+    56,
+    58,
+    92,
+    108
+   ]
+  },
+  {
+   "dex": 117,
+   "name": "Seadra",
+   "level": 100,
+   "hp": 266,
+   "attack": 179,
+   "defense": 239,
+   "speed": 221,
+   "special": 241,
+   "moves": [
+    "Surf",
+    "Double-Edge",
+    "Toxic",
+    "Smokescreen"
+   ],
+   "move_ids": [
+    57,
+    38,
+    92,
+    108
+   ]
+  },
+  {
+   "dex": 118,
+   "name": "Goldeen",
+   "level": 100,
+   "hp": 262,
+   "attack": 201,
+   "defense": 185,
+   "speed": 193,
+   "special": 167,
+   "moves": [
+    "Surf",
+    "Horn Drill",
+    "Double Team",
+    "Agility"
+   ],
+   "move_ids": [
+    57,
+    32,
+    104,
+    97
+   ]
+  },
+  {
+   "dex": 119,
+   "name": "Seaking",
+   "level": 100,
+   "hp": 316,
+   "attack": 233,
+   "defense": 179,
+   "speed": 187,
+   "special": 211,
+   "moves": [
+    "Waterfall",
+    "Horn Drill",
+    "Supersonic",
+    "Fury Attack"
+   ],
+   "move_ids": [
+    127,
+    32,
+    48,
+    31
+   ]
+  },
+  {
+   "dex": 120,
+   "name": "Staryu",
+   "level": 100,
+   "hp": 224,
+   "attack": 147,
+   "defense": 169,
+   "speed": 229,
+   "special": 199,
+   "moves": [
+    "Surf",
+    "Psychic",
+    "Minimize",
+    "Recover"
+   ],
+   "move_ids": [
+    57,
+    94,
+    107,
+    105
+   ]
+  },
+  {
+   "dex": 121,
+   "name": "Starmie",
+   "level": 100,
+   "hp": 270,
+   "attack": 195,
+   "defense": 215,
+   "speed": 275,
+   "special": 245,
+   "moves": [
+    "Bubblebeam",
+    "Thunder",
+    "Minimize",
+    "Swift"
+   ],
+   "move_ids": [
+    61,
+    87,
+    107,
+    129
+   ]
+  },
+  {
+   "dex": 122,
+   "name": "Mr.Mime",
+   "level": 100,
+   "hp": 244,
+   "attack": 147,
+   "defense": 189,
+   "speed": 239,
+   "special": 259,
+   "moves": [
+    "Barrier",
+    "Light Screen",
+    "Psychic",
+    "Hyper Beam"
+   ],
+   "move_ids": [
+    112,
+    113,
+    94,
+    63
+   ]
+  },
+  {
+   "dex": 123,
+   "name": "Scyther",
+   "level": 100,
+   "hp": 290,
+   "attack": 265,
+   "defense": 205,
+   "speed": 255,
+   "special": 155,
+   "moves": [
+    "Focus Energy",
+    "Hyper Beam",
+    "Swift",
+    "Double Team"
+   ],
+   "move_ids": [
+    116,
+    63,
+    129,
+    104
+   ]
+  },
+  {
+   "dex": 124,
+   "name": "Jynx",
+   "level": 100,
+   "hp": 286,
+   "attack": 149,
+   "defense": 119,
+   "speed": 241,
+   "special": 237,
+   "moves": [
+    "Lovely Kiss",
+    "Body Slam",
+    "Ice Punch",
+    "Psychic"
+   ],
+   "move_ids": [
+    142,
+    34,
+    8,
+    94
+   ]
+  },
+  {
+   "dex": 125,
+   "name": "Electabuzz",
+   "level": 100,
+   "hp": 286,
+   "attack": 215,
+   "defense": 163,
+   "speed": 261,
+   "special": 221,
+   "moves": [
+    "Thunderpunch",
+    "Thunder Wave",
+    "Metronome",
+    "Reflect"
+   ],
+   "move_ids": [
+    9,
+    86,
+    118,
+    115
+   ]
+  },
+  {
+   "dex": 126,
+   "name": "Magmar",
+   "level": 100,
+   "hp": 286,
+   "attack": 239,
+   "defense": 163,
+   "speed": 237,
+   "special": 221,
+   "moves": [
+    "Fire Punch",
+    "Mega Punch",
+    "Confuse Ray",
+    "Psychic"
+   ],
+   "move_ids": [
+    7,
+    5,
+    109,
+    94
+   ]
+  },
+  {
+   "dex": 127,
+   "name": "Pinsir",
+   "level": 100,
+   "hp": 280,
+   "attack": 295,
+   "defense": 245,
+   "speed": 215,
+   "special": 155,
+   "moves": [
+    "Slash",
+    "Guillotine",
+    "Seismic Toss",
+    "Toxic"
+   ],
+   "move_ids": [
+    163,
+    12,
+    69,
+    92
+   ]
+  },
+  {
+   "dex": 128,
+   "name": "Tauros",
+   "level": 100,
+   "hp": 294,
+   "attack": 239,
+   "defense": 229,
+   "speed": 259,
+   "special": 179,
+   "moves": [
+    "Stomp",
+    "Skull Bash",
+    "Bide",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    23,
+    130,
+    117,
+    126
+   ]
+  },
+  {
+   "dex": 129,
+   "name": "Magikarp",
+   "level": 100,
+   "hp": 212,
+   "attack": 87,
+   "defense": 175,
+   "speed": 227,
+   "special": 107,
+   "moves": [
+    "Splash",
+    "Tackle",
+    null,
+    null
+   ],
+   "move_ids": [
+    150,
+    33,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 130,
+   "name": "Gyarados",
+   "level": 100,
+   "hp": 334,
+   "attack": 289,
+   "defense": 197,
+   "speed": 201,
+   "special": 239,
+   "moves": [
+    "Bubblebeam",
+    "Bite",
+    "Fire Blast",
+    "Leer"
+   ],
+   "move_ids": [
+    61,
+    44,
+    126,
+    43
+   ]
+  },
+  {
+   "dex": 131,
+   "name": "Lapras",
+   "level": 100,
+   "hp": 404,
+   "attack": 209,
+   "defense": 199,
+   "speed": 159,
+   "special": 229,
+   "moves": [
+    "Bubblebeam",
+    "Mist",
+    "Sing",
+    "Ice Beam"
+   ],
+   "move_ids": [
+    61,
+    54,
+    47,
+    58
+   ]
+  },
+  {
+   "dex": 132,
+   "name": "Ditto",
+   "level": 100,
+   "hp": 268,
+   "attack": 163,
+   "defense": 161,
+   "speed": 163,
+   "special": 163,
+   "moves": [
+    "Transform",
+    null,
+    null,
+    null
+   ],
+   "move_ids": [
+    144,
+    0,
+    0,
+    0
+   ]
+  },
+  {
+   "dex": 133,
+   "name": "Eevee",
+   "level": 100,
+   "hp": 282,
+   "attack": 177,
+   "defense": 165,
+   "speed": 177,
+   "special": 197,
+   "moves": [
+    "Double-Edge",
+    "Focus Energy",
+    "Sand-Attack",
+    "Quick Attack"
+   ],
+   "move_ids": [
+    38,
+    116,
+    28,
+    98
+   ]
+  },
+  {
+   "dex": 134,
+   "name": "Vaporeon",
+   "level": 100,
+   "hp": 410,
+   "attack": 175,
+   "defense": 165,
+   "speed": 175,
+   "special": 265,
+   "moves": [
+    "Hydro Pump",
+    "Acid Armor",
+    "Haze",
+    "Quick Attack"
+   ],
+   "move_ids": [
+    56,
+    151,
+    114,
+    98
+   ]
+  },
+  {
+   "dex": 135,
+   "name": "Jolteon",
+   "level": 100,
+   "hp": 280,
+   "attack": 175,
+   "defense": 165,
+   "speed": 305,
+   "special": 265,
+   "moves": [
+    "Thunder",
+    "Pin Missile",
+    "Sand-Attack",
+    "Quick Attack"
+   ],
+   "move_ids": [
+    87,
+    42,
+    28,
+    98
+   ]
+  },
+  {
+   "dex": 136,
+   "name": "Flareon",
+   "level": 100,
+   "hp": 280,
+   "attack": 305,
+   "defense": 165,
+   "speed": 175,
+   "special": 265,
+   "moves": [
+    "Fire Blast",
+    "Smog",
+    "Sand-Attack",
+    "Quick Attack"
+   ],
+   "move_ids": [
+    126,
+    123,
+    28,
+    98
+   ]
+  },
+  {
+   "dex": 137,
+   "name": "Porygon",
+   "level": 100,
+   "hp": 294,
+   "attack": 177,
+   "defense": 199,
+   "speed": 139,
+   "special": 209,
+   "moves": [
+    "Psybeam",
+    "Tri Attack",
+    "Conversion",
+    "Recover"
+   ],
+   "move_ids": [
+    60,
+    161,
+    160,
+    105
+   ]
+  },
+  {
+   "dex": 138,
+   "name": "Omanyte",
+   "level": 100,
+   "hp": 234,
+   "attack": 137,
+   "defense": 259,
+   "speed": 129,
+   "special": 239,
+   "moves": [
+    "Hydro Pump",
+    "Body Slam",
+    "Ice Beam",
+    "Toxic"
+   ],
+   "move_ids": [
+    56,
+    34,
+    58,
+    92
+   ]
+  },
+  {
+   "dex": 139,
+   "name": "Omastar",
+   "level": 100,
+   "hp": 290,
+   "attack": 165,
+   "defense": 295,
+   "speed": 155,
+   "special": 275,
+   "moves": [
+    "Surf",
+    "Spike Cannon",
+    "Horn Drill",
+    "Toxic"
+   ],
+   "move_ids": [
+    57,
+    131,
+    32,
+    92
+   ]
+  },
+  {
+   "dex": 140,
+   "name": "Kabuto",
+   "level": 100,
+   "hp": 224,
+   "attack": 217,
+   "defense": 239,
+   "speed": 169,
+   "special": 149,
+   "moves": [
+    "Surf",
+    "Blizzard",
+    "Slash",
+    "Double Team"
+   ],
+   "move_ids": [
+    57,
+    59,
+    163,
+    104
+   ]
+  },
+  {
+   "dex": 141,
+   "name": "Kabutops",
+   "level": 100,
+   "hp": 270,
+   "attack": 275,
+   "defense": 255,
+   "speed": 205,
+   "special": 185,
+   "moves": [
+    "Hydro Pump",
+    "Mega Kick",
+    "Ice Beam",
+    "Swords Dance"
+   ],
+   "move_ids": [
+    56,
+    25,
+    58,
+    14
+   ]
+  },
+  {
+   "dex": 142,
+   "name": "Aerodactyl",
+   "level": 100,
+   "hp": 304,
+   "attack": 249,
+   "defense": 169,
+   "speed": 299,
+   "special": 159,
+   "moves": [
+    "Bite",
+    "Supersonic",
+    "Fly",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    44,
+    48,
+    19,
+    126
+   ]
+  },
+  {
+   "dex": 143,
+   "name": "Snorlax",
+   "level": 100,
+   "hp": 470,
+   "attack": 265,
+   "defense": 175,
+   "speed": 105,
+   "special": 175,
+   "moves": [
+    "Take Down",
+    "Metronome",
+    "Rest",
+    "Bide"
+   ],
+   "move_ids": [
+    36,
+    118,
+    156,
+    117
+   ]
+  },
+  {
+   "dex": 144,
+   "name": "Articuno",
+   "level": 100,
+   "hp": 318,
+   "attack": 203,
+   "defense": 233,
+   "speed": 203,
+   "special": 283,
+   "moves": [
+    "Ice Beam",
+    "Sky Attack",
+    "Mist",
+    "Agility"
+   ],
+   "move_ids": [
+    58,
+    143,
+    54,
+    97
+   ]
+  },
+  {
+   "dex": 145,
+   "name": "Zapdos",
+   "level": 100,
+   "hp": 318,
+   "attack": 213,
+   "defense": 203,
+   "speed": 233,
+   "special": 283,
+   "moves": [
+    "Thunder",
+    "Sky Attack",
+    "Bide",
+    "Flash"
+   ],
+   "move_ids": [
+    87,
+    143,
+    117,
+    148
+   ]
+  },
+  {
+   "dex": 146,
+   "name": "Moltres",
+   "level": 100,
+   "hp": 318,
+   "attack": 233,
+   "defense": 213,
+   "speed": 213,
+   "special": 283,
+   "moves": [
+    "Fire Blast",
+    "Sky Attack",
+    "Agility",
+    "Reflect"
+   ],
+   "move_ids": [
+    126,
+    143,
+    97,
+    115
+   ]
+  },
+  {
+   "dex": 147,
+   "name": "Dratini",
+   "level": 100,
+   "hp": 254,
+   "attack": 195,
+   "defense": 155,
+   "speed": 167,
+   "special": 167,
+   "moves": [
+    "Blizzard",
+    "Thunderbolt",
+    "Body Slam",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    59,
+    85,
+    34,
+    126
+   ]
+  },
+  {
+   "dex": 148,
+   "name": "Dragonair",
+   "level": 100,
+   "hp": 286,
+   "attack": 225,
+   "defense": 189,
+   "speed": 199,
+   "special": 199,
+   "moves": [
+    "Thunderbolt",
+    "Body Slam",
+    "Ice Beam",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    85,
+    34,
+    58,
+    126
+   ]
+  },
+  {
+   "dex": 149,
+   "name": "Dragonite",
+   "level": 100,
+   "hp": 320,
+   "attack": 301,
+   "defense": 223,
+   "speed": 193,
+   "special": 233,
+   "moves": [
+    "Thunder",
+    "Wrap",
+    "Slam",
+    "Fire Blast"
+   ],
+   "move_ids": [
+    87,
+    35,
+    21,
+    126
+   ]
+  }
+ ]
+}

@@ -162,12 +162,25 @@ Measured on Pokémon Stadium (USA) Rev 2:
   team-select screen. That is the discriminator `gCurrentGameState` cannot give.
 - ⛔ **The stat card's numbers and move names are not in RAM.** Exact-value scans for
   Bulbasaur, Metapod and Pidgeot stats and for Pidgeot's four move ids returned zero
-  hits in all encodings. The card derives them from ROM tables at draw time, so
-  speaking stats and moves needs a pre-baked per-species table extracted from the
-  ROM — the reader-pattern rule about shipping pre-baked data rather than
-  re-deriving it.
-- The rental order is assumed to be Pokedex order for all 151 entries. That is
-  verified for the Poké Cup list; a filtered cup could break the index mapping.
+  hits in all encodings. The card derives them from ROM tables at draw time — the
+  reader-pattern rule about shipping pre-baked data rather than re-deriving it.
+- The four cup tables were then extracted from the player's own ROM. Each record is
+  84 bytes: four move ids at +0x00 in up, right, down, left order; level at +0x1B;
+  five big-endian u16 stats at +0x1D (HP, Attack, Defense, Speed, Special); a
+  ten-byte ASCII name at +0x27. Table starts: Pika `0x8A735D`, Petit `0x8A648D`,
+  Poké `0x8AC22D`, Prime `0x8A913D`. Move names are 165 packed null-terminated
+  strings at `0x796DD8`. Counts: Pika 91, Petit 45, Poké 149, Prime 149.
+- Verified against the card: Poké Bulbasaur 132/80/81/77/97 with Leech Seed, Toxic,
+  Body Slam and Razor Leaf; Petit Bulbasaur 69/40/40/39/49 with Leech Seed, Mega
+  Drain, Solarbeam and Cut; Petit Charmander 66/42/37/49/41 with Fire Blast, Rage,
+  Growl and Mega Punch.
+- The card-open state is a byte at struct +8: 0 while the stat card is up, 1 on the
+  grid. That is what lets the reader speak stats and moves on demand instead of
+  reading them out on every cursor move.
+- The small cups hold filtered lists in their own order (Petit entry 2 is Charmander,
+  Poké entry 2 is Ivysaur), so the index maps to that cup's table, not to the
+  Pokedex. The cup is learned at cup select; a reader started mid-flow defaults to
+  Poké until the player passes through cup select.
 
 The prototype reader announces the screen name and, on area select and cup select, the
 highlighted entry. It debounces every value over four consecutive polls so a transient

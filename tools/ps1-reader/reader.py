@@ -10,12 +10,18 @@ Run beside a running RetroArch instance:
 It never sends input. The player drives the game; the reader only observes.
 """
 import ctypes
+import json
+import os
 import struct
 import sys
 import time
 
 import ps
 from species import SPECIES
+
+RENTALS = json.load(open(os.path.join(os.path.dirname(os.path.abspath(__file__)), "rentals.json"),
+                         encoding="utf-8"))
+CUP_BY_VALUE = {1: "prime", 2: "pika", 3: "petit", 5: "poke"}
 
 # Measured on Pokemon Stadium (USA) Rev 2, 2026-10-18.
 STATE_ADDR = 0x800757A8
@@ -122,11 +128,11 @@ def fragment_loaded(fragment_id):
 
 
 def rental_entry(struct_addr):
-    """Return (index, species name) for the rental grid, or None.
+    """Return (index, species name, card_open) for the rental screen, or None.
 
-    The list is 3 columns by 4 visible rows, in Pokedex order. Scrolling one
-    row at the bottom adds one to the scroll byte, so the visible row is
-    scroll + row.
+    The list is 3 columns by 4 visible rows. Scrolling one row at the bottom
+    adds one to the scroll byte, so the visible row is scroll + row.
+    The byte at +8 is 1 on the grid and 0 while the stat card is open.
     """
     b = ps.read_bytes(struct_addr, 0x10)
     scroll = b[3]
@@ -135,9 +141,25 @@ def rental_entry(struct_addr):
     if not (0 <= row <= 3 and 0 <= col <= 2):
         return None
     index = (scroll + row) * 3 + col
-    if 0 <= index < len(SPECIES):
-        return index, SPECIES[index]
-    return None
+    if not (0 <= index < len(SPECIES)):
+        return None
+    return index, SPECIES[index], b[8] == 0
+
+
+def describe_rental(entry, index, cup, card_open):
+    """Speakable text for the highlighted rental, from the extracted ROM table."""
+    table = RENTALS.get(cup) or RENTALS["poke"]
+    rec = table[index] if index < len(table) else None
+    if rec is None:
+        return entry
+    if not card_open:
+        return f"{rec['name']}, number {rec['dex']}"
+    moves = rec["moves"]
+    labels = ("Up", "Right", "Down", "Left")
+    move_text = ". ".join(f"{labels[i]}: {moves[i]}" for i in range(4) if moves[i])
+    return (f"{rec['name']}, level {rec['level']}. "
+            f"HP {rec['hp']}, attack {rec['attack']}, defense {rec['defense']}, "
+            f"speed {rec['speed']}, special {rec['special']}. {move_text}.")
 
 
 def main():
@@ -146,6 +168,7 @@ def main():
     last_state = None
     last_screen_name = None
     last_item = None
+    current_cup = "poke"
     pending_state = None
     state_hits = 0
     pending_item = None
@@ -175,8 +198,9 @@ def main():
             if st is not None:
                 entry = rental_entry(st)
                 if entry is not None:
-                    screen_name = "Rental Pokemon list"
-                    item = f"{entry[1]}, number {entry[0] + 1}"
+                    index, name, card_open = entry
+                    screen_name = "Pokemon detail card" if card_open else "Rental Pokemon list"
+                    item = describe_rental(name, index, current_cup, card_open)
                 else:
                     screen_name = "Stadium menu"
             elif fragment_loaded(CUP_FRAGMENT):
@@ -187,6 +211,8 @@ def main():
                 # screen. Other Stadium sub-screens reuse this heap area.
                 if 0x80000000 <= nxt < 0x80800000:
                     item = CUPS.get(v)
+                    if v in CUP_BY_VALUE:
+                        current_cup = CUP_BY_VALUE[v]
             else:
                 screen_name = "Stadium menu"
 
