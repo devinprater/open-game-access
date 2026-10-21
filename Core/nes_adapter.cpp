@@ -114,6 +114,10 @@ const Adapter kNintendoEntertainmentSystem = {
     nullptr,     // no commands
     nullptr,     // never ready: there is nothing to be ready with
     nullptr,     // nothing to detach
+    nullptr,     // cue_snapshot
+    "Console only — no game-specific speech yet",
+    "This entry runs NES games. No NES game has an adapter yet, so "
+    "games load without speech or cues: playable, but not accessible.",
 };
 
 } // namespace oga

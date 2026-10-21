@@ -55,6 +55,15 @@ extern const Adapter kDragonQuestIX;
 // docs/reverse-engineering/mortal-kombat-unchained.md.
 extern const Adapter kMortalKombatUnchained;
 
+// Implemented in khbbs_adapter.cpp — Kingdom Hearts: Birth by Sleep (PSP,
+// ULUS10505). Title and difficulty menus, field state (character, health,
+// selected command, gauge), world + room names and player position, camp
+// menu and command inventory, the Meld Commands screen, lock-on foe
+// readout and the beacon data feed are mapped, spoken and live-verified;
+// movement-derived facing is wired for the directions work. Status and
+// method: docs/reverse-engineering/kingdom-hearts-birth-by-sleep.md.
+extern const Adapter kKingdomHeartsBirthBySleep;
+
 // ⛔ IMPLEMENTED? NO — AND THE REGISTRY SAYS SO. kNintendoEntertainmentSystem
 // exists so the NES has a home in the code BEFORE its backend does, which is the
 // order this repo has settled on (the system registry lists a console before its
@@ -99,6 +108,7 @@ static const Adapter* const kAdapters[] = {
     &kDragonBallZAnotherRoad,
     &kDragonQuestIX,
     &kMortalKombatUnchained,
+    &kKingdomHeartsBirthBySleep,
     &kZeldaLinkToThePast,
     &kNintendoEntertainmentSystem,
     &kNintendo64,

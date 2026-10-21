@@ -275,6 +275,13 @@ const Adapter kDragonBallZSaiyans = {
     dbz_command,
     dbz_ready,
     dbz_detach,
+    nullptr,  // cue_snapshot
+    "Party status speech",
+    "Speech covers your party — who is in it, in slot order — read "
+    "from the game's own party data, the same data its Status screen "
+    "shows. Battle and field navigation are not covered yet.\n"
+    "Supported version: Dragon Ball Z: Attack of the Saiyans (game "
+    "code BRPE).",
 };
 
 } // namespace oga

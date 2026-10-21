@@ -286,6 +286,13 @@ const Adapter kGameBoyAdvance = {
     gba_command,
     gba_ready,
     gba_detach,
+    nullptr,  // cue_snapshot
+    "Map name and position speech for Pokémon games",
+    "Where Am I speaks the map name and your x, y coordinates. One "
+    "reader serves the Pokémon games on Game Boy, Game Boy Color and "
+    "Game Boy Advance, so coverage varies by title.\n"
+    "This is not a tactical reader: grid and unit queries from other "
+    "games do not apply here.",
 };
 
 } // namespace oga

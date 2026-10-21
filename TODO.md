@@ -693,6 +693,51 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   passed the gate independently. (Two CI builds of identical source differ by 46 bytes
   — `LC_UUID` is random per link. Content is identical.)
 
+- [~] **Mortal Kombat: Unchained (PSP, ULUS10102) adapter:** far past the
+  2026-10-16 scaffold this entry originally described. Live-verified and spoken:
+  main menu, Kombat submenu, character select, fight state (health, round wins,
+  timer), pause menu, and Konquest dialogue (auto-speaks each new line). Host
+  tests: 56 checks, all passing locally (2026-10-21). On GitHub main since
+  2026-10-17 (commit 96746ce), with Hermes's 2026-10-19 commits wiring the
+  red objective line's speech and gating Konquest on flag A alone (71 host
+  checks). The missing test-strength baseline row for mku (71) was pushed
+  2026-10-21 (commit cec2048). Still open: the QUIT GAME dialog's selection (decomp
+  route), Konquest bout speech (gate + opponent naming), the objective
+  counters, free-roam position/sector/clock (the HUD draws a compass + grid
+  coordinate; their RAM values are unlocated), and Apep's talk trigger
+  (script-VM decomp is the next route, not more blind navigation). Detail:
+  docs/reverse-engineering/mortal-kombat-unchained.md.
+
+- [~] **Kingdom Hearts: Birth by Sleep (PSP, ULUS10505) adapter:** local only,
+  pushed 2026-10-21 at the user's word (the push was LAST on his
+  completion list until he moved it up). Host
+  tests: 95 checks, all passing (2026-10-21). Live-verified and spoken: title
+  and difficulty menus, field state (character, health, selected command,
+  gauge), world + room names and player position, camp menu and command
+  inventory, the Meld Commands screen, lock-on foe readout (health + distance),
+  and the lock-on beacon data feed. Still open, in the user's order: directions
+  to exits/objectives (landmark tables; facing mechanism designed), the enemy's
+  NAME, multi-enemy awareness, Focus/shotlock + D-Link + low-HP warning,
+  game-over and movie-pause menus, meld speech, the remaining camp sub-screens,
+  save/load, shops, field dialogue boxes, world map speech, and Command
+  Board/minigames/arena entry. Detail:
+  docs/reverse-engineering/kingdom-hearts-birth-by-sleep.md.
+
+- [~] **Pokémon Stadium (N64, USA Rev 2) — data and spec, no adapter yet:**
+  OGA has no N64 core, so this is address/spec work that transfers when a core
+  lands. Crowned and screen-verified: the party store (HP, species, level,
+  status byte, moves + PP for all six, both teams), HUD HP, the battle-phase
+  word, the "Keep battling?" dialog word, and stat-stage indices 0 (Special),
+  2 (Defense) and 3 (Attack). Battles 1–3 are banked via Save and Quit. Still
+  open: confusion (never observed — no trainer through battle 4 carries a
+  fishable confusion move), freeze, substitute, the foe's stage array, stage
+  indices 1/4/5/6/7, the continues-remaining count, and the Phase 2 road
+  screens. Current blocker: the second send-in in battle 4 never lands (the
+  pick screen's input rules are the open question); per the user, finish the
+  confusion hunt and the foe's stage array, then park. Spec:
+  docs/design/pokemon-stadium-adapter.md; evidence:
+  docs/reverse-engineering/pokemon-stadium.md.
+
 ## Verification
 
 - [x] Add `MGBA_DEFS` and `MGBA_INC` specifically to the `gba_core.cpp` C++ compile; validate cached objects against compiler/toolchain, effective flags, target, SDK metadata, and compiler-emitted header dependencies (including generated `flags.h`). `scripts/build-cache-test.sh` passes, and both archive builds pass locally with verified cache hits on the next run; the remote simulator core-build step passed in [run 36212903265](https://github.com/devinprater/open-game-access/actions/runs/36212903265).

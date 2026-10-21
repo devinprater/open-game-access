@@ -213,6 +213,21 @@ struct Adapter {
     /// Must be read-only and speech-free: the same BattleFighters()/lock reads the
     /// on-demand commands already use, repackaged without Say().
     bool (*cue_snapshot)(CueSnapshot* out);
+
+    /// Player-facing coverage summary for the app's game library (see
+    /// docs/proposals/adapter-game-library.md): one line naming what this
+    /// adapter speaks or cues, shown next to the game's name in the
+    /// library list. May be nullptr (the library then shows no summary).
+    /// Trailing member, same reasoning as cue_snapshot: existing
+    /// initializers value-initialize it to nullptr.
+    const char* coverage;
+
+    /// Player-facing notes for this game's library page: what is spoken,
+    /// the game-specific controls a generic manual cannot know, and what
+    /// is NOT mapped yet, stated plainly. Written for the player, not the
+    /// RE record — the deep record stays in docs/reverse-engineering/.
+    /// May be nullptr. Trailing member, as above.
+    const char* notes;
 };
 
 /// Look up an adapter by ROM game code. Returns nullptr when none matches, which

@@ -504,6 +504,13 @@ const Adapter kDragonQuestIX = {
     dq9_command,
     dq9_ready,
     dq9_detach,
+    nullptr,  // cue_snapshot
+    "Menu, party and location speech",
+    "Menus are spoken with their item counts. Where Am I speaks the "
+    "map name and your position on it, and the adapter can report "
+    "your party and who is nearby.\n"
+    "Supported version: Dragon Quest IX: Sentinels of the Starry "
+    "Skies, USA (game code YDQE).",
 };
 
 } // namespace oga

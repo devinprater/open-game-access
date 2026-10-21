@@ -110,7 +110,7 @@ if [ ! -d "lua-$LUA_VER" ]; then
   echo "== fetching Lua $LUA_VER"
   curl -fL -o "lua-$LUA_VER.tar.gz" \
     "https://www.lua.org/ftp/lua-$LUA_VER.tar.gz"
-  tar xzf "lua-$LUA_VER.tar.gz"
+  tar --no-same-owner -xzf "lua-$LUA_VER.tar.gz"
   rm -f "lua-$LUA_VER.tar.gz"
 fi
 echo "   lua-$LUA_VER/src: $(ls "lua-$LUA_VER/src"/*.c 2>/dev/null | wc -l) C files"

@@ -1108,6 +1108,19 @@ const Adapter kMortalKombatUnchained = {
     mku_command,
     mku_ready,
     mku_detach,
+    nullptr,     // cue_snapshot
+    "Menus, character select, fight state, pause, and Konquest dialogue and objectives",
+    "Spoken: the main menu, the Kombat submenu, character select, "
+    "fight state (health, round wins, timer), the pause menu, the "
+    "Options tabs and rows, and Konquest dialogue and objective "
+    "lines as they appear.\n"
+    "Controls: Triangle goes back in the front-end menus.\n"
+    "Not mapped yet: the QUIT GAME dialog reached from the main "
+    "menu — the game asks NO/YES and the selection is not read, so "
+    "do not confirm a quit by ear. Konquest free-roam position and "
+    "headings are not read, and Konquest bout speech is partial.\n"
+    "Supported version: Mortal Kombat: Unchained, USA (ULUS10102). "
+    "Other pressings are not verified.",
 };
 
 } // namespace oga

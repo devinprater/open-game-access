@@ -1872,6 +1872,15 @@ const Adapter kDissidiaFinalFantasy = {
     dissidia::Ready,
     dissidia::Detach,
     dissidia::CueSnapshotFill,
+    "Menu speech, battle position and foe queries, battle audio cues",
+    "Menus are spoken as you move through them. In battle, speech "
+    "covers on-demand queries: where you are, and the direction, "
+    "distance and state of your foe or the EX core.\n"
+    "Continuous battle information is carried by audio cues, not "
+    "speech: with a lock-on, the beacon's pulse quickens as your "
+    "target closes, and its tone differs for an enemy and for an EX "
+    "core. Your own health is a low tone that tracks your HP.\n"
+    "Supported version: Dissidia Final Fantasy, USA (ULUS10437).",
 };
 
 } // namespace oga

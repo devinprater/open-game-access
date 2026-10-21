@@ -170,6 +170,7 @@ compile() {
   printf '%s|cxx|dbzar_adapter\n'     "$ROOT/Core/dbzar_adapter.cpp"
   printf '%s|cxx|dq9_adapter\n'  "$ROOT/Core/dq9_adapter.cpp"
   printf '%s|cxx|mku_adapter\n'  "$ROOT/Core/mku_adapter.cpp"
+  printf '%s|cxx|khbbs_adapter\n' "$ROOT/Core/khbbs_adapter.cpp"
   # A Link to the Past. The same omission class as MKU above: adapters.o names
   # oga::kZeldaLinkToThePast, so the host set must carry the adapter and its
   # decoder and name table or every harness dies at the LINK.

@@ -174,6 +174,13 @@ extern const Adapter kFireEmblemShadowDragon = {
     HandleCommand,
     Ready,
     Detach,
+    nullptr,  // cue_snapshot
+    "Battle map state speech (early coverage)",
+    "Speech covers battle map state read from the game. This adapter "
+    "is still growing: some queries — reading unacted units, for one — "
+    "are refused honestly rather than guessed.\n"
+    "Supported version: Fire Emblem: Shadow Dragon, USA (game code "
+    "YFEE); the reader's addresses are verified against this revision.",
 };
 
 } // namespace oga

@@ -56,6 +56,10 @@ const Adapter kNintendo64 = {
     nullptr,
     nullptr,
     nullptr,
+    nullptr,     // cue_snapshot
+    "Console only — no game-specific speech yet",
+    "This entry is the Nintendo 64 console; its backend is still "
+    "planned, and no N64 game has an adapter yet.",
 };
 
 } // namespace oga

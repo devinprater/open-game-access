@@ -28,7 +28,7 @@ from earlier milestones are in [`docs/history/`](docs/history/).
 | DS emulation (melonDS + Lua 5.4) | working; iOS, host harness |
 | GB / GBC / GBA emulation (mGBA) | working; iOS, Android |
 | PSP emulation (PPSSPP, IR interpreter + software GPU) | working; iOS simulator boots Dissidia in CI |
-| Adapter seam (`Core/adapter.h`) | five native adapters, keyed on ROM game code |
+| Adapter seam (`Core/adapter.h`) | native game adapters, keyed on ROM game code |
 | Announcement queue (`Core/announce.*`) | one line in flight, priorities, dedup; wired on iOS and in all adapters |
 | Speech engine, VoiceOver routing, input bridging | working; device proof of the queue pending |
 | Android | Pokémon Lua readers only — native adapters need the NDK port |
@@ -41,8 +41,12 @@ from earlier milestones are in [`docs/history/`](docs/history/).
 | Pokémon Red/Blue/Yellow, Gold/Silver/Crystal, Emerald, FireRed/LeafGreen | Lua (`gba-lua` readers) | working |
 | Fire Emblem: Shadow Dragon (DS) | native | map reader (cursor, terrain, units, allies/enemies) and title/menu/difficulty — [notes](docs/fire-emblem-shadow-dragon-memory.md) |
 | Dissidia Final Fantasy (PSP, ULUS10437) | native | menus, dialogs, battle + EX Burst prompts, board, name entry, story speakers — host-tested; [notes](docs/reverse-engineering/dissidia-final-fantasy.md) |
+| Dragon Ball Z: Shin Budokai — Another Road (PSP, ULUS10234) | native | story-mode field reader: city health, nearest city — host-tested; [notes](docs/reverse-engineering/dbz-another-road.md) |
+| The Legend of Zelda: A Link to the Past (SNES) | native | reader keyed on the ROM CRC — [notes](docs/plans/alttp-reader.md) |
 | Dragon Ball Z: Attack of the Saiyans (DS) | native | party HP/Ki — [notes](docs/reverse-engineering/dbz-attack-of-the-saiyans.md) |
 | Dragon Quest IX (DS, YDQE) | native | scaffold: where-am-I, party cycling, dump — [notes](docs/reverse-engineering/dragon-quest-ix.md) |
+| Mortal Kombat: Unchained (PSP, ULUS10102) | native | menus, character select, fight state, pause, Konquest dialogue — host-tested; [notes](docs/reverse-engineering/mortal-kombat-unchained.md) |
+| Kingdom Hearts: Birth by Sleep (PSP, ULUS10505) | native | title/difficulty, field state (world, room, position, health, command, gauge), camp menu + command inventory + meld, lock-on foe readout — host-tested, local only; [notes](docs/reverse-engineering/kingdom-hearts-birth-by-sleep.md) |
 
 Every native reader reads the game's own structures, verified against a running
 emulator; what is verified, what is not, and the method for each is in the linked
