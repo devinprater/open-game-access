@@ -775,6 +775,19 @@ const Adapter kDragonBallZAnotherRoad = {
     dbzar::Ready,
     dbzar::Detach,
     dbzar::CueSnapshotFill,   // the field-mode radar: bearing + distance + what it points at
+    "Story-mode field radar, city health and enemy count",
+    "Spoken: Where Am I reads your chapter, the number of cities, their "
+    "average health and the enemy count. The city list reads each city's "
+    "health, worst first, and the status query says how many cities are "
+    "critical or below half. The target ring names the city, enemy or ally "
+    "at the top of the ring and gives its distance and clock direction "
+    "relative to your direction of travel.\n"
+    "Controls: Next and Previous item step the target ring. Next Enemy "
+    "reads the city list, Previous Enemy reads your status, and Next "
+    "Waiting Ally re-reads the current target.\n"
+    "Not mapped yet: the game's menus and battle controls.\n"
+    "Supported version: Dragon Ball Z: Shin Budokai - Another Road, USA "
+    "(ULUS10234).",
 };
 
 } // namespace oga

@@ -332,6 +332,19 @@ enum AdapterCommand: Int32, CaseIterable {
             return [.whereAmI, .menuNext, .menuPrev, .menuLeft, .menuRight,
                     .custToggle, .charToggle, .oskToggle, .dumpState]
 
+        case "khbbs":
+            // Kingdom Hearts: Birth by Sleep. Menus, camp screens and the
+            // Command Deck speak automatically as the player moves (the input
+            // bridge forwards the menu echoes to every adapter); these are the
+            // on-demand field and battle queries.
+            return [.whereAmI, .nextAlly, .nextEnemy, .dumpState]
+
+        case "mku":
+            // Mortal Kombat: Unchained. Menu rows and Konquest lines speak
+            // automatically; Where Am I and the menu status are the on-demand
+            // reads. The other navigation commands are not mapped.
+            return [.whereAmI, .menuState, .dumpState]
+
         default:
             return []
         }

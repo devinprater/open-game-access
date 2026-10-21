@@ -87,9 +87,10 @@ int main()
     CHECK(oga::find_by_game_code("ULUS10505") == a, "registry resolves ULUS10505");
     CHECK(oga::find_by_game_code("ULUS10102") == &oga::kMortalKombatUnchained,
           "ULUS10102 still resolves to MK Unchained (no registry theft)");
-    // Game-library wiring (docs/proposals/adapter-game-library.md):
-    // the library list and game pages read coverage/notes off the
-    // Adapter, so both launch titles must carry them.
+    // Game-library data (docs/proposals/adapter-game-library.md): the
+    // proposed library list and game pages will read coverage/notes off the
+    // Adapter. Until that UI lands, this checks the data is present and
+    // honest for the two PSP launch titles.
     CHECK(a->coverage != nullptr && a->coverage[0] != '\0',
           "khbbs carries a library coverage line");
     CHECK(a->notes != nullptr && strstr(a->notes, "ULUS10505") != nullptr,
@@ -235,6 +236,12 @@ int main()
     put_u32(ACTOR + 0x58, 0x099816A0);              // live pointer field
     put_u32(0x099964EC, 1);                         // deck cursor: Aero
     CHECK(a->ready(), "ready in the field (actor fingerprints planted)");
+
+    // The first deck nav with no prior read must stay silent: nothing has
+    // been seen to move, so the adapter cannot claim a landed command.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    CHECK(NSPOKEN == 0, "the first deck nav with no prior read stays silent");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);

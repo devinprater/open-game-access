@@ -1053,6 +1053,18 @@ const Adapter kZeldaLinkToThePast = {
     AlttpCommand,
     AlttpReady,
     AlttpDetach,
+    nullptr,   // cue_snapshot: this reader has no audio beacon
+    "Menus, dialogue, file select, location, status, guidance and objectives",
+    "Spoken: the file select reads each file's name, hearts and equipment; "
+    "in-game dialogue is spoken as it appears; the item menu reads the "
+    "selected item, and the save menu reads the selected slot. Where Am I "
+    "names your area. Status reads hearts, magic, rupees and, inside a "
+    "dungeon, keys, big key, map and compass. Guide and Objective give a "
+    "compass bearing and a rough distance to named places and to your "
+    "current goal.\n"
+    "Guide is a bearing, not a walkable route, and the dark world's "
+    "objectives are not mapped yet.\n"
+    "Supported version: the USA 1.0 ROM with CRC32 777AAC2F.",
 };
 
 } // namespace oga

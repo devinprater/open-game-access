@@ -33,7 +33,8 @@ from collections import Counter, defaultdict
 
 ADAPTERS = ["fe_adapter.cpp", "fe_access.cpp", "dq9_adapter.cpp", "dbz_adapter.cpp",
             "gba_adapter.cpp", "dissidia_adapter.cpp", "osk_echo.cpp",
-            "nes_adapter.cpp", "n64_adapter.cpp", "mku_adapter.cpp"]
+            "nes_adapter.cpp", "n64_adapter.cpp", "mku_adapter.cpp",
+            "dbzar_adapter.cpp", "alttp_adapter.cpp", "khbbs_adapter.cpp"]
 
 # A literal that is a path, a log line, or a format-only stub is not speech.
 SKIP = re.compile(r'(\.cpp|\.h"|\.lua|adapter attached|pokecore\.h|^\W*$)', re.I)

@@ -4,7 +4,7 @@ Status: proposal (Devin, 2026-10-18). The data half is implemented:
 option (a) below shipped the same day — `coverage` and `notes` are
 trailing members of `Core/adapter.h`'s Adapter struct, populated for
 every registered adapter, with host-test checks that the two PSP
-launch titles carry them (khbbs test, 34 checks). The app UI (library
+launch titles carry them. The app UI (library
 list, game pages, verify-then-play flow) is not built yet. The flow
 below is the app-level companion to the adapter registry: the
 registry already knows which games have adapters; the app should
@@ -47,8 +47,9 @@ present that fact instead of opening on a bare ROM picker.
 Each game page carries notes written for that game alone, because the
 accessibility shape differs per game: MK Unchained speaks menus,
 character select, fight state and Konquest dialogue; Birth by Sleep
-speaks its title/difficulty menus and field state (health, selected
-command, gauge). The notes should cover, in plain language:
+speaks its title/difficulty menus, field state (health, selected
+command, gauge), the camp menu and command inventory, and the lock-on
+readout. The notes should cover, in plain language:
 
 - **What is spoken or cued** — the surfaces the adapter covers, in the
   order a player meets them.
@@ -58,7 +59,7 @@ command, gauge). The notes should cover, in plain language:
   front-end's back button.
 - **What is NOT mapped yet, stated plainly.** MK Unchained's QUIT GAME
   dialog is unmapped (the adapter still reports the pause row under
-  it); BBS's camp menu is not mapped yet. A blind player planning
+  it); BBS's other camp sub-screens are not mapped yet. A blind player planning
   around a gap needs to hear about it from us first, not discover it
   mid-game.
 - **The supported version line** (above), so a player with the wrong

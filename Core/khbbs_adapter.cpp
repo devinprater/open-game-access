@@ -688,6 +688,7 @@ uint64_t g_lastScanMs = 0;  // host time of the last locate sweep
 int g_charId = -1;          // character id from the player block; -1 = unknown
 int g_lastLock = -1;        // last polled lock state: -1 unknown, 0 off, 1 on
 uint32_t g_lockRec = 0;     // located lock-on record address; 0 = not yet
+uint64_t g_lastLockScanMs = 0;  // host time of the last lock-record sweep
 uint32_t g_nodeBase = 0;    // located engagement component; 0 = not yet
 uint32_t g_nodeActor = 0;   // actor the cached component belongs to
 uint64_t g_lastNodeScanMs = 0;  // host time of the last component sweep
@@ -800,6 +801,10 @@ bool InField(void)
     }
     g_actorBase = 0;
     g_charId = -1;
+    // No map loaded: both map-id copies read 0xFF on the title and the
+    // difficulty screens, so no field actor can exist. Skip the heap sweep
+    // there instead of walking 8 MB every few seconds for nothing.
+    if (u8(kWorldAddrA) == 0xFF && u8(kWorldAddrB) == 0xFF) return false;
     // Not located: sweep, but at most once every few seconds —
     // ready() is polled per frame and the sweep walks the heap.
     uint64_t now = g_host ? g_host->now_ms : 0;
@@ -865,8 +870,17 @@ uint32_t LocateLockRecord(void)
 // not read yet — the scene id is not proven to be a type id.)
 bool ReadFoe(unsigned* curOut, unsigned* mxOut, float* distOut, float* dyOut)
 {
-    if (!g_lockRec || u32(g_lockRec + kLockRecOffActor) != g_actorBase)
+    if (!g_lockRec || u32(g_lockRec + kLockRecOffActor) != g_actorBase) {
+        // The record sweep is 2M reads. ReadFoe() runs inside the per-frame
+        // cue snapshot, so an unlocatable record must NOT be re-swept every
+        // frame: throttle it like the player-node locate does.
+        uint64_t now = g_host ? g_host->now_ms : 0;
+        if (g_lastLockScanMs && now >= g_lastLockScanMs &&
+            now - g_lastLockScanMs < 1000)
+            return false;
+        g_lastLockScanMs = now;
         g_lockRec = LocateLockRecord();
+    }
     if (!g_lockRec) return false;
     uint32_t tgt = u32(g_lockRec + kLockRecOffTgt);
     if (!tgt) return false;
@@ -1488,6 +1502,10 @@ void CmdMenuNav(void)
         // tutorial lineage; a relocated actor stays silent here.
         if (!ActorIsTutorial()) return;
         int idx = (int) u32(kDeckCursorAddr);
+        // First sighting proves nothing moved. Seed it silently, so the first
+        // D-pad tap before any other query cannot announce a command that was
+        // already highlighted (the deck word reads 0 while it is dormant).
+        if (g_lastDeck < 0) { g_lastDeck = idx; return; }
         if (idx != g_lastDeck) {
             g_lastDeck = idx;
             DeckName((uint32_t) idx, row, sizeof(row));
@@ -1602,6 +1620,11 @@ static bool khbbs_attach(const Host* host)
 {
     g_host = host;
     g_actorBase = 0; g_lastScanMs = 0; g_charId = -1; g_lastLock = -1; g_lockRec = 0; g_nodeBase = 0; g_nodeActor = 0; g_lastNodeScanMs = 0;  // actor + character located per boot
+    g_lastLockScanMs = 0;
+    g_lastDeck = -1;
+    g_campScreen = CampScreen::None;
+    g_lastMain = g_lastSub = g_lastGroup = g_lastSlot = g_lastInv = -1;
+    g_lastSlotRaw = -1;
     FaceReset(); g_faceNode = 0;
     return true;   // the game code check already happened in the registry
 }
@@ -1621,7 +1644,7 @@ static void khbbs_on_frame(void)
     // held and 1 otherwise, across lock, unlock, and relock tests.
     // Announce acquiring a lock; losing one stays silent (it is
     // usually deliberate, and the field line reports current state).
-    if (!InField()) { g_lastLock = -1; g_lockRec = 0; g_nodeBase = 0; g_nodeActor = 0; FaceReset(); g_faceNode = 0; return; }
+    if (!InField()) { g_lastLock = -1; g_lockRec = 0; g_lastLockScanMs = 0; g_nodeBase = 0; g_nodeActor = 0; FaceReset(); g_faceNode = 0; return; }
     FaceTrack();
     int lock = (u16(g_actorBase + kActorOffMark) == 2) ? 1 : 0;
     if (g_lastLock == 0 && lock == 1)
@@ -1662,6 +1685,7 @@ static void khbbs_detach(void)
 {
     g_host = nullptr; g_lastDeck = -1;
     g_actorBase = 0; g_lastScanMs = 0; g_charId = -1; g_lastLock = -1; g_lockRec = 0;
+    g_lastLockScanMs = 0;
     g_nodeBase = 0; g_nodeActor = 0; g_lastNodeScanMs = 0;
     FaceReset(); g_faceNode = 0;
     g_campScreen = CampScreen::None;
