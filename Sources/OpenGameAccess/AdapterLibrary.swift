@@ -132,6 +132,10 @@ struct AdapterLibraryView: View {
                 }
             } header: {
                 Text("Games with readers")
+                    // SECTION HEADERS ARE UPPERCASED BY THE LIST STYLE. A screen
+                    // reader spells an all-caps heading letter by letter ("G A M E S"),
+                    // so the style must not change the words.
+                    .textCase(.none)
             } footer: {
                 Text("Each game opens notes on what its reader speaks, the controls it adds, and a Load Game button that shows only that console's files.")
             }

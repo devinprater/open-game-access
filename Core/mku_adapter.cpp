@@ -855,6 +855,73 @@ void PauseRow(char* out, size_t cap)
     snprintf(out, cap, "%s, %d of %d", kPauseItems[i], i + 1, kPauseCount);
 }
 
+// ---- the menu watch ---------------------------------------------------------
+//
+// ⛔ THE PAD EDGE REACHES THE GAME ON THE NEXT FRAME, SO SPEAKING FROM THE
+// COMMAND IS ALWAYS ONE ROW BEHIND. The host forwards MenuNext on touch-down
+// and the adapter answered immediately, before `poke_frame` had let the game
+// move the cursor. Live, the row called "Options" was the Kombat row: Cross
+// opened the Kombat submenu. A player could not trust a single announcement.
+//
+// The watch runs AFTER the frame, so it sees the settled cursor. It also speaks
+// when the SCREEN changes, which is the thing a player needs and no row query
+// can give: entering the main menu, the Kombat submenu, Options, character
+// select or the pause menu is announced once, with its first row.
+void CmdWhereAmI(void);
+void MainMenuRow(char* out, size_t cap);
+void KombatSubRow(char* out, size_t cap);
+void OptionsTabRow(char* out, size_t cap);
+void OptionsRow(char* out, size_t cap, bool with_section);
+void CharRow(char* out, size_t cap);
+void PauseRow(char* out, size_t cap);
+
+static int g_uiScreen = 0;
+static char g_uiRow[128] = "";
+
+static void MenuWatch(void)
+{
+    int screen = 0;
+    char row[128];
+    row[0] = 0;
+
+    if (OnMainMenu()) {
+        screen = 1;
+        MainMenuRow(row, sizeof(row));
+    } else if (OnKombatSub()) {
+        screen = 2;
+        KombatSubRow(row, sizeof(row));
+    } else if (OnOptionsTabs()) {
+        screen = 3;
+        OptionsTabRow(row, sizeof(row));
+    } else if (OnOptionsRows()) {
+        screen = 4;
+        OptionsRow(row, sizeof(row), false);
+    } else if (OnCharSelect()) {
+        screen = 5;
+        CharRow(row, sizeof(row));
+    } else if (OnPause()) {
+        screen = 6;
+        PauseRow(row, sizeof(row));
+    }
+
+    if (screen == 0) {
+        g_uiScreen = 0;
+        g_uiRow[0] = 0;
+        return;
+    }
+    if (screen != g_uiScreen) {
+        g_uiScreen = screen;
+        snprintf(g_uiRow, sizeof(g_uiRow), "%s", row);
+        CmdWhereAmI();       // screen name + row, spoken once on entry
+        return;
+    }
+    if (strcmp(row, g_uiRow) != 0) {
+        snprintf(g_uiRow, sizeof(g_uiRow), "%s", row);
+        Say(row, "menu", oga::Priority::High);
+    }
+}
+
+
 void MkuOnFrame(void)
 {
     g_frameNo++;
@@ -865,6 +932,7 @@ void MkuOnFrame(void)
         g_pauseHolder = 0;
         g_pauseTop = 0;
         g_candCount = -1;
+        MenuWatch();
         return;
     }
     uint32_t t = u32(kTimerAddr);
@@ -888,6 +956,7 @@ void MkuOnFrame(void)
             }
         }
     }
+    MenuWatch();
 }
 
 // ---- commands ---------------------------------------------------------------
@@ -1002,45 +1071,13 @@ void CmdMenuState(void)
 
 void CmdMenuNav(Command cmd)
 {
-    // The host forwards the D-pad tap alongside this command; the cursor
-    // has already moved when this runs, so speak the row it landed on.
-    if (OnMainMenu()) { SayMainMenuRow(); return; }
-    if (OnKombatSub()) {
-        char row[96];
-        KombatSubRow(row, sizeof(row));
-        Say(row, "menu", oga::Priority::High);
-        return;
-    }
-    if (OnOptionsTabs()) {
-        char row[96];
-        OptionsTabRow(row, sizeof(row));
-        Say(row, "menu", oga::Priority::High);
-        return;
-    }
-    if (OnOptionsRows()) {
-        char row[96];
-        OptionsRow(row, sizeof(row), false);
-        Say(row, "menu", oga::Priority::High);
-        return;
-    }
-    if (OnCharSelect()) { SayCharRow(); return; }
-    if (InFight()) {
-        // Pause menu: up/down taps also drive holder confirmation (the
-        // first stepping tap identifies the holder cell). Left/right
-        // stay silent — in pause they belong to the unmapped quit
-        // dialog, and in the fight itself they are movement.
-        if (cmd == Command::MenuNext || cmd == Command::MenuPrev) {
-            if (!g_pauseHolder && g_candCount >= 0 &&
-                g_frozenFrames >= kPauseFreezeFrames)
-                PauseConfirmStep(cmd == Command::MenuNext ? 1 : -1);
-            if (OnPause()) {
-                char row[96];
-                PauseRow(row, sizeof(row));
-                Say(row, "menu", oga::Priority::High);
-            }
-        }
-        return;
-    }
+    // The pad edge reaches the game on the NEXT frame, so nothing is spoken
+    // here: the frame watch names the row the cursor actually landed on and
+    // announces screen entry. The pause menu still needs this tap to identify
+    // its holder (a scan, not a speech), so that work stays.
+    if (InFight() && !g_pauseHolder && g_candCount >= 0 &&
+        g_frozenFrames >= kPauseFreezeFrames)
+        PauseConfirmStep(cmd == Command::MenuNext ? 1 : -1);
 }
 
 void CmdNotMapped(void)

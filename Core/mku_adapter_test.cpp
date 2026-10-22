@@ -148,6 +148,7 @@ int main()
     put_u32(0x0911F868, 0x0911C380);                 // holder follows the cursor
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::MenuNext);
+    a->on_frame();   // the watch speaks the settled row
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "MK Wireless") &&
           strstr(SPOKEN[0], "5 of 9"),
           "MenuNext speaks the row the cursor landed on");
@@ -184,6 +185,7 @@ int main()
     put_u32(0x09F9C1A8, 0x0910DC10);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::MenuRight);
+    a->on_frame();   // the watch speaks the settled row
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Jax") &&
           strstr(SPOKEN[0], "row 2, column 6"),
           "MenuRight speaks the cell the cursor landed on");
@@ -216,6 +218,7 @@ int main()
     put_u32(0x09116820 + 4, 0x4F424A20);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::MenuNext);
+    a->on_frame();   // the watch speaks the settled row
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Practice") &&
           strstr(SPOKEN[0], "3 of 3"),
           "MenuNext speaks the submenu row landed on");
@@ -320,6 +323,7 @@ int main()
     for (int i = 0; i < 2; i++) a->on_frame();
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::MenuNext);
+    a->on_frame();   // the watch speaks the settled row
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Moves List") &&
           strstr(SPOKEN[0], "2 of 4"),
           "one stepping tap confirms the holder (not its trailing copy)");
@@ -333,12 +337,14 @@ int main()
     put_u32(HOLDER, PTOP - 3 * 0xAF0);               // DOWN to Main Menu
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::MenuNext);
+    a->on_frame();   // the watch speaks the settled row
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Main Menu") &&
           strstr(SPOKEN[0], "4 of 4"), "pause nav speaks Main Menu, 4 of 4");
 
     put_u32(HOLDER, PTOP);                           // DOWN wraps to Resume
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::MenuNext);
+    a->on_frame();   // the watch speaks the settled row
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Resume") &&
           strstr(SPOKEN[0], "1 of 4"), "pause nav wraps to Resume, 1 of 4");
 
@@ -524,6 +530,7 @@ int main()
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::MenuNext);
+    a->on_frame();   // the watch speaks the settled row
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Chess CPU, 2 of 8"),
           "a tap inside the Gameplay list speaks the landed row");
 
