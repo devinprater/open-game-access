@@ -107,6 +107,15 @@
   returns a boolean and never stores the entity), the mission text and its pass/fail, the
   Senzu Bean counters, and any field-mode audio beacon. The adapter refuses to guess.
 
+- [ ] **MK Unchained's SECOND-PLAYER character select is not mapped (open; recorded 2026-10-21).**
+  The first grid is read, but after P1 locks a fighter the opponent grid is a
+  second screen with its own state. Measured live from the 9:34 recording: P1
+  Shao Kahn versus P2 Tanya, while the static cursor still held 24 (P1's pick)
+  and the holder read 0x090E7850, an object in a third table. ready() was false,
+  so the app sat on "reader loading" and the opponent was never named. Next:
+  diff RAM while moving the P2 cursor (it is not 0x08C1B3B0), find its holder,
+  gate it like the other two tables, and speak the opponent on entry. Then
+  re-check the fight ids against that selection.
 - [ ] **Another Road's MENUS and battle controls are not mapped (open; recorded 2026-10-21).**
   The field-mode reader above speaks the story map, not the front end. `Core/dbzar_adapter.cpp`
   says it in its own notes: "Not mapped yet: the game's menus and battle controls." Its
