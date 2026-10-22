@@ -50,6 +50,7 @@ UNCHECKABLE = {
     "SettingsView.swift": "imports SwiftUI",
     "CuePlayer.swift": "imports AVFoundation (Apple-only)",
     "SpeechEngine.swift": "imports UIKit/AVFoundation",
+    "AdapterLibrary.swift": "imports SwiftUI/UniformTypeIdentifiers/CPokeCore",
 }
 
 
