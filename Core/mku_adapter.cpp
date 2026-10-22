@@ -468,14 +468,38 @@ const char* const kCharNames[] = {
     "Kobra", "Darrius", "Kira", "Liu Kang",
 };
 
+// Is this address one of the engine's character objects? Every entry in the
+// fighter table carries the ` OBJ` magic at +4.
+static bool CharObjectAt(uint32_t addr)
+{
+    return addr >= kUserRamBase && addr + 8 <= kUserRamEnd &&
+           (addr & 3) == 0 && u32(addr + 4) == kObjMagic;
+}
+
 bool OnCharSelect(void)
 {
     if (InKonquest()) return false;   // front-end state is stale there
     uint32_t idx = u32(kCharCursorAddr);
     if (idx >= (uint32_t) kCharCount) return false;
+
+    // Arcade's table is the STATIC one, and this is the gate all 33 mapping
+    // dumps certified.
     uint32_t obj = kCharObjBase - idx * kCharObjStride;
-    if (u32(kCharHolderAddr) != obj) return false;
-    return u32(obj + 4) == kObjMagic;
+    if (u32(kCharHolderAddr) == obj)
+        return u32(obj + 4) == kObjMagic;
+
+    // ⛔ PRACTICE OPENS A SECOND FIGHTER TABLE IN THE HEAP. Measured on the
+    // live host 2026-10-21: cursor 2 (Scorpion, the screen's own highlight) and
+    // a holder of 0x090E05A0 — three RIGHTs later, cursor 5 and holder
+    // 0x090DF7F0, exactly three 0x490 strides lower. That is the same cursor
+    // formula around a different base, about 0x30000 below the static table.
+    // The base is derived from the holder, not pinned: the heap address can
+    // move between boot paths. It still has to satisfy BOTH ends of the run
+    // (the held object and the index-0 object), each with the engine magic.
+    uint32_t h = u32(kCharHolderAddr);
+    if (h < 0x09000000u || h >= 0x09120000u) return false;
+    if (!CharObjectAt(h)) return false;
+    return CharObjectAt(h + idx * kCharObjStride);
 }
 
 // "<name>, row R, column C" for the hovered fighter; on-grid only.
@@ -877,6 +901,7 @@ void PauseRow(char* out, size_t cap);
 
 static int g_uiScreen = 0;
 static char g_uiRow[128] = "";
+static int g_unmappedFrames = 0;
 
 static void MenuWatch(void)
 {
@@ -907,8 +932,26 @@ static void MenuWatch(void)
     if (screen == 0) {
         g_uiScreen = 0;
         g_uiRow[0] = 0;
+        // One diagnostic per unmapped stretch: cursor/holder/expected/magic are
+        // what a new screen's gate has to explain, and guessing them wastes a boot.
+        if (++g_unmappedFrames % 120 == 0) {
+            uint32_t ci = u32(kCharCursorAddr);
+            uint32_t ch = u32(kCharHolderAddr);
+            uint32_t exp = ci < (uint32_t) kCharCount
+                               ? kCharObjBase - ci * kCharObjStride : 0;
+            char line[192];
+            snprintf(line, sizeof(line),
+                     "[mku] unmapped: char cursor=%u holder=0x%08X expected=0x%08X magic=0x%08X",
+                     ci, ch, exp, ci < (uint32_t) kCharCount ? u32(exp + 4) : 0);
+            Log(line);
+        }
         return;
     }
+    // A tracked screen resets the diagnostic so the next untracked one logs again.
+    {
+        static bool *reset = nullptr; (void) reset;
+    }
+    g_unmappedFrames = 0;
     if (screen != g_uiScreen) {
         g_uiScreen = screen;
         snprintf(g_uiRow, sizeof(g_uiRow), "%s", row);
@@ -1066,7 +1109,19 @@ void CmdMenuState(void)
         CmdWhereAmI();
         return;
     }
-    // untracked menu: silent, per adapter.h
+    // Untracked menu: silent, per adapter.h — but leave the character gate's
+    // numbers in the log, or the next screen's mismatch is a guess.
+    {
+        uint32_t ci = u32(kCharCursorAddr);
+        uint32_t ch = u32(kCharHolderAddr);
+        uint32_t exp = ci < (uint32_t) kCharCount
+                           ? kCharObjBase - ci * kCharObjStride : 0;
+        char line[192];
+        snprintf(line, sizeof(line),
+                 "[mku] unmapped screen: char cursor=%u holder=0x%08X expected=0x%08X cursor_magic=0x%08X",
+                 ci, ch, exp, ci < (uint32_t) kCharCount ? u32(exp + 4) : 0);
+        Log(line);
+    }
 }
 
 void CmdMenuNav(Command cmd)

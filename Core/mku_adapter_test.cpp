@@ -200,6 +200,32 @@ int main()
     CHECK(!a->ready(), "an out-of-range index is not usable state");
     put_u32(0x08C1B3B0, 0); put_u32(0x09F9C1A8, 0);
 
+    // ---- Practice's character select: a SECOND fighter table in the heap --------
+    // Live 2026-10-21: cursor 2 with holder 0x090E05A0; three RIGHTs later cursor 5
+    // with holder 0x090DF7F0, exactly 3 * 0x490 lower. The index-0 object of that
+    // run is 0x090E0EC0. The static Arcade table is not involved.
+    put_u32(0x09E61750, 0); put_u32(0x0911F868, 0);   // main menu certainly off
+    put_u32(0x08C1B3B0, 2);
+    put_u32(0x09F9C1A8, 0x090E05A0);
+    put_u32(0x090E05A0 + 4, 0x4F424A20);
+    put_u32(0x090E0EC0 + 4, 0x4F424A20);
+    CHECK(a->ready(), "Practice's second character table is a mapped state");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Character select") &&
+          strstr(SPOKEN[0], "Scorpion") && strstr(SPOKEN[0], "row 1, column 3"),
+          "Practice character select names Scorpion");
+
+    put_u32(0x08C1B3B0, 5);
+    put_u32(0x09F9C1A8, 0x090DF7F0);
+    put_u32(0x090DF7F0 + 4, 0x4F424A20);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Kitana") &&
+          strstr(SPOKEN[0], "row 1, column 6"),
+          "Practice character select follows the cursor");
+    put_u32(0x08C1B3B0, 0); put_u32(0x09F9C1A8, 0);
+
     // ---- the Kombat submenu (verified structure, synthetic plant) ---------------
     // The front end keeps the parent index while the child screen is up: measured
     // on the game, the cursor reads 1 with the Kombat submenu open.
