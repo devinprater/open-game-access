@@ -127,6 +127,11 @@ final class GameSession: ObservableObject {
 
     private let cuePlayer = CuePlayer()
     private var audioSource: AudioSourceNode?
+    /// The core's audio, staged ahead of the render block. Pushing on the main
+    /// thread and popping on the audio thread means the render block never calls
+    /// into the emulator and never waits for a frame.
+    private let audioQueue = AudioQueue(capacityFrames: 32768)
+    private var audioScratch = [Int16](repeating: 0, count: 4096 * 2)
     private var thermalObserver: NSObjectProtocol?
 
     /// The emulation core's output sample rate.
@@ -580,6 +585,7 @@ final class GameSession: ObservableObject {
             }
             return
         }
+        drainAudio()
         if showPicture { refreshFramebuffer() }
         refreshAdapterState()
         refreshCue()
@@ -678,6 +684,18 @@ final class GameSession: ObservableObject {
         _ = poke_command(core, command.rawValue)
     }
 
+    /// Pull this frame's samples from the core into the staging queue. The
+    /// render block is fed from there, so a slow frame costs latency, never a
+    /// starved buffer.
+    private func drainAudio() {
+        guard audioEnabled, let core else { return }
+        audioScratch.withUnsafeMutableBufferPointer { buf in
+            guard let base = buf.baseAddress else { return }
+            let got = Int(poke_read_audio(core, base, Int32(buf.count / 2)))
+            if got > 0 { audioQueue.push(base, frames: got) }
+        }
+    }
+
     private func refreshFramebuffer() {
         guard let core else { return }
         var w: Int32 = 0
@@ -754,8 +772,9 @@ final class GameSession: ObservableObject {
                "audio format drifted from the core's interleaved-int16 contract")
         NSLog("[poke] audio format: \(format) interleaved=\(format.isInterleaved)")
 
-        AudioSourceNode.warmupFrames = 0
-        let source = AudioSourceNode(core: core, format: format)
+        audioQueue.reset()
+        audioQueue.prefillSilence(frames: 3277)   // ~100 ms of lead
+        let source = AudioSourceNode(core: core, queue: audioQueue, format: format)
         engine.attach(source)
         engine.connect(source, to: engine.mainMixerNode, format: format)
         do {
@@ -818,28 +837,75 @@ final class GameSession: ObservableObject {
 /// main thread — a slow emulated frame, a VoiceOver utterance, a SwiftUI update —
 /// empties it. That is the crackling: not a format problem, but the buffer
 /// running dry under jitter.
+final class AudioQueue {
+    private var storage: [Int16]
+    private var read = 0
+    private var write = 0
+    private var count = 0
+    private let capacity: Int
+    private let lock = NSLock()
+
+    init(capacityFrames: Int) {
+        capacity = capacityFrames
+        storage = Array(repeating: 0, count: capacityFrames * 2)
+    }
+
+    func reset() {
+        lock.lock(); defer { lock.unlock() }
+        read = 0; write = 0; count = 0
+        for i in 0..<storage.count { storage[i] = 0 }
+    }
+
+    func prefillSilence(frames: Int) {
+        var zeros = [Int16](repeating: 0, count: frames * 2)
+        zeros.withUnsafeBufferPointer { if let b = $0.baseAddress { push(b, frames: frames) } }
+    }
+
+    func push(_ src: UnsafePointer<Int16>, frames: Int) {
+        guard frames > 0 else { return }
+        var n = frames
+        var p = src
+        if n > capacity { p = src + (n - capacity) * 2; n = capacity }
+        lock.lock(); defer { lock.unlock() }
+        let overflow = count + n - capacity
+        if overflow > 0 {
+            read = (read + overflow) % capacity
+            count -= overflow
+        }
+        for i in 0..<n {
+            let idx = (write + i) % capacity
+            storage[idx * 2] = p[i * 2]
+            storage[idx * 2 + 1] = p[i * 2 + 1]
+        }
+        write = (write + n) % capacity
+        count += n
+    }
+
+    func pop(_ dst: UnsafeMutablePointer<Int16>, frames: Int) -> Int {
+        lock.lock(); defer { lock.unlock() }
+        let n = min(frames, count)
+        for i in 0..<n {
+            let idx = (read + i) % capacity
+            dst[i * 2] = storage[idx * 2]
+            dst[i * 2 + 1] = storage[idx * 2 + 1]
+        }
+        read = (read + n) % capacity
+        count -= n
+        return n
+    }
+}
+
 private final class AudioSourceNode: AVAudioSourceNode {
     private let core: OpaquePointer
 
-    /// Frames of silence the render block emits while the core's ring fills.
-    /// Without it the first block drains a ring that has never been ahead, and
-    /// every block after it runs a few samples short: heard as a constant stutter.
-    fileprivate nonisolated(unsafe) static var warmupFrames = 0
-    private static let warmupTarget = 3277   // ~100 ms at 32768 Hz
-
-    init(core: OpaquePointer, format: AVAudioFormat) {
+    init(core: OpaquePointer, queue: AudioQueue, format: AVAudioFormat) {
         self.core = core
         super.init(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
             let abl = UnsafeMutableAudioBufferListPointer(audioBufferList)
             guard let first = abl.first, let raw = first.mData else { return noErr }
             let ptr = raw.assumingMemoryBound(to: Int16.self)
             let frames = Int(frameCount)
-            if AudioSourceNode.warmupFrames < AudioSourceNode.warmupTarget {
-                memset(ptr, 0, frames * 4)
-                AudioSourceNode.warmupFrames += frames
-                return noErr
-            }
-            let got = Int(poke_read_audio(core, ptr, Int32(frames)))
+            let got = queue.pop(ptr, frames: frames)
             // ⛔ MIX THE CUE IN HERE, AFTER THE CORE'S FRAMES, so there is one output path.
             // Only over the frames the core actually produced: writing into the starved
             // tail would put a tone where the fade below is trying to remove a click.
