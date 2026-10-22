@@ -114,7 +114,7 @@
   is the two fighters' world positions in the fight struct. The Konquest position/compass hunt is a
   different mode and must not be reused here. Next: find P1 and P2 x/z in a fight, return state 2
   (enemy lock) with their distance while `InFight()`, tune near/far to the arena, and prove the rate
-  tracks a walk-in on the host before it ships. Silent outsidea fight, and only when Lock cue is on.
+  tracks a walk-in on the host before it ships. Silent outside a fight, and only when Lock cue is on.
 - [ ] **MK Unchained's SECOND-PLAYER character select is not mapped (open; recorded 2026-10-21).**
   The first grid is read, but after P1 locks a fighter the opponent grid is a
   second screen with its own state. Measured live from the 9:34 recording: P1
