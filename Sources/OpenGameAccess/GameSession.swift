@@ -48,19 +48,6 @@ final class GameSession: ObservableObject {
     ///
     /// ⛔ PERSISTED. A cue the player switched off and which came back after a restart is
     /// worse than one they never found.
-    /// Draw every other frame. The emulated CPU still runs every frame, so game
-    /// time, input and speech are unchanged; only the picture is thinned. On by
-    /// default for a VoiceOver player, who is not looking at the picture anyway,
-    /// and persisted so a choice survives a restart.
-    @Published var skipDrawing: Bool =
-        UserDefaults.standard.object(forKey: "skipDrawing") as? Bool ?? false {
-        didSet {
-            UserDefaults.standard.set(skipDrawing, forKey: "skipDrawing")
-            if let core { _ = poke_set_frame_skip(core, skipDrawing ? 1 : 0) }
-            speech?.announce(skipDrawing ? "Skip drawing on." : "Skip drawing off.")
-        }
-    }
-
     /// Keep the emulated picture out of the app's frame path entirely. The core
     /// still renders (that is PPSSPP's job); this only stops the RGBA-to-UIImage
     /// conversion and the 60 Hz image update, which are pure cost when the player
@@ -164,7 +151,6 @@ final class GameSession: ObservableObject {
             status = .failed("Could not start the emulator core.")
             return
         }
-        _ = poke_set_frame_skip(core, skipDrawing ? 1 : 0)
         poke_set_speech_id_callback(core, GameSession.speechCallback,
                                     Unmanaged.passUnretained(speechPlaceholder).toOpaque())
 
@@ -375,15 +361,13 @@ final class GameSession: ObservableObject {
         let fs = frameTimes.sorted()
         let ps = padTimes.sorted()
         func pct(_ a: [Int], _ p: Double) -> Int { a.isEmpty ? 0 : a[min(a.count - 1, Int(Double(a.count - 1) * p))] }
-        appendDebug(String(format: "[stats] frames=%d avg=%dms p90=%dms max=%dms | pads=%d med=%dms p90=%dms max=%dms skip=%d",
+        appendDebug(String(format: "[stats] frames=%d avg=%dms p90=%dms max=%dms | pads=%d med=%dms p90=%dms max=%dms",
                            fs.count, fs.reduce(0, +) / max(1, fs.count), pct(fs, 0.9), fs.last ?? 0,
-                           ps.count, pct(ps, 0.5), pct(ps, 0.9), ps.last ?? 0,
-                           session_skipDrawingFlag()))
+                           ps.count, pct(ps, 0.5), pct(ps, 0.9), ps.last ?? 0))
         frameTimes.removeAll(keepingCapacity: true)
         padTimes.removeAll(keepingCapacity: true)
     }
 
-    private func session_skipDrawingFlag() -> Int32 { skipDrawing ? 1 : 0 }
 
     // MARK: - ROM
 

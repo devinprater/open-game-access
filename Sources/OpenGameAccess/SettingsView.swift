@@ -31,8 +31,6 @@ struct SettingsView: View {
             Section {
                 Toggle("Show game picture", isOn: $session.showPicture)
                     .accessibilityHint("Off omits the picture from the app's frame path. The game still runs; the screen shows nothing.")
-                Toggle("Skip drawing", isOn: $session.skipDrawing)
-                    .accessibilityHint("Draws every other frame. The game runs faster; speech, controls and game timing do not change. The picture may stutter.")
             } header: {
                 Text("Performance")
             }
