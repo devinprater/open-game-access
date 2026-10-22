@@ -139,6 +139,10 @@ void poke_set_hotkey(PokeCore *core, const char *key, bool down);
 /* Audio: interleaved stereo s16. Returns frames written. */
 int poke_read_audio(PokeCore *core, int16_t *out, int max_frames);
 void poke_set_audio_enabled(PokeCore *core, bool enabled);
+/* Counts render blocks that could not be filled by the core (starvation).
+ * Safe to call from the audio thread; read from the main thread for a report. */
+void poke_note_audio_underrun(void);
+uint64_t poke_audio_underrun_count(void);
 /* PSP drawing skip: 0 = every frame, 1 = every other frame. The emulated CPU
  * still runs every frame; only drawing is thinned. Returns false for backends
  * that do not draw through PPSSPP's frame skipper. */

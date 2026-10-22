@@ -15,6 +15,7 @@
     Nothing here knows about SwiftUI, and nothing above it knows about melonDS.
 */
 #include "pokecore.h"
+#include <atomic>
 
 #include "NDS.h"
 #include "NDSCart.h"
@@ -2062,6 +2063,11 @@ bool poke_set_frame_skip(PokeCore* core, int skip)
 #endif
     return true;
 }
+
+static std::atomic<uint64_t> gAudioUnderruns{0};
+
+void poke_note_audio_underrun(void) { gAudioUnderruns.fetch_add(1, std::memory_order_relaxed); }
+uint64_t poke_audio_underrun_count(void) { return gAudioUnderruns.load(std::memory_order_relaxed); }
 
 void poke_set_audio_enabled(PokeCore* core, bool enabled)
 {
