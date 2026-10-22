@@ -107,6 +107,13 @@
   returns a boolean and never stores the entity), the mission text and its pass/fail, the
   Senzu Bean counters, and any field-mode audio beacon. The adapter refuses to guess.
 
+- [ ] **Birth by Sleep: the title-menu gate fires before the title is interactive (observed 2026-10-21).**
+  With the converted ISO in the host core, the adapter is ready at frame 540 and says "Title menu.
+  New Game, 1 of 3" while the framebuffer is a white transition; three Down taps never moved the
+  cursor and the reader repeated New Game. The gate (submenu pointer 0 plus a valid cursor and
+  count) is satisfied by values that survive the intro and the save-data prompt. It needs a
+  positive "the title menu is on screen" witness, not another inference. Until then the first menu
+  line can arrive early and navigation can be silent even though the rows and camp menu are mapped.
 - [ ] **MK Unchained may simply be sluggish on iOS, not in OGA (observed 2026-10-21).**
   RetroArch from the App Store is just as sluggish on the same phone, so the delay is not this app's
   input or audio path. OGA pins PPSSPP f293b10fb2 (2026-09-19); RetroArch ships its own core, so the
