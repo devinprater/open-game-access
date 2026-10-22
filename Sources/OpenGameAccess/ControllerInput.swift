@@ -150,6 +150,7 @@ final class ControllerInput: ObservableObject {
     // MARK: - Routing
 
     private func direction(_ d: Pad, _ source: String, _ pressed: Bool) {
+        if pressed { session?.noteControllerPress() }
         if pressed, active[source] == nil, let slot = chord(for: .pad(d)) {
             perform(slot)   // consumed: the game never sees this press
             return
@@ -165,6 +166,7 @@ final class ControllerInput: ObservableObject {
     }
 
     private func faceButton(_ f: Face, _ source: String, _ pressed: Bool) {
+        if pressed { session?.noteControllerPress() }
         if pressed, active[source] == nil, let slot = chord(for: .face(f)) {
             perform(slot)
             return

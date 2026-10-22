@@ -312,9 +312,50 @@ final class GameSession: ObservableObject {
         speech.configureAudioSession()
     }
 
+    /// The reading log is also a file, because a latency report a player has to
+    /// read aloud is a report that never arrives. Documents/oga-debug.log is
+    /// pulled off the phone after a session and read here.
+    private lazy var debugLogURL: URL = {
+        let dir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+        let url = dir.appendingPathComponent("oga-debug.log")
+        try? FileManager.default.removeItem(at: url)
+        return url
+    }()
+
     private func appendDebug(_ line: String) {
         debugLines.append(line)
         if debugLines.count > 400 { debugLines.removeFirst(debugLines.count - 400) }
+        let text = String(format: "%.3f %@\n", Date.timeIntervalSinceReferenceDate, line)
+        guard let data = text.data(using: .utf8) else { return }
+        if let handle = try? FileHandle(forWritingTo: debugLogURL) {
+            handle.seekToEndOfFile()
+            handle.write(data)
+            try? handle.close()
+        } else {
+            try? data.write(to: debugLogURL)
+        }
+    }
+
+    // MARK: - Controller timing
+    //
+    // A press that feels half a second late is either the pad's link or this
+    // app's main thread, and the phone speaker already ruled audio out. The
+    // handler timestamps the press; the frame that consumes it logs the delta,
+    // and a slow frame logs its own duration. No UI, no speech.
+    private var padPressAt: TimeInterval = 0
+
+    func noteControllerPress() {
+        if padPressAt == 0 { padPressAt = Date.timeIntervalSinceReferenceDate }
+    }
+
+    private func reportControllerTiming(frameStart: TimeInterval) {
+        let end = Date.timeIntervalSinceReferenceDate
+        if padPressAt > 0 {
+            appendDebug("[pad] press to end of frame: \(Int((end - padPressAt) * 1000)) ms")
+            padPressAt = 0
+        }
+        let frameMs = Int((end - frameStart) * 1000)
+        if frameMs > 50 { appendDebug("[frame] \(frameMs) ms") }
     }
 
     // MARK: - ROM
@@ -517,6 +558,7 @@ final class GameSession: ObservableObject {
 
     @objc private func tick() {
         guard let core else { return }
+        let frameStart = Date.timeIntervalSinceReferenceDate
         if !poke_frame(core) {
             let message = String(cString: poke_last_error(core))
             stop()
@@ -529,6 +571,7 @@ final class GameSession: ObservableObject {
         refreshFramebuffer()
         refreshAdapterState()
         refreshCue()
+        reportControllerTiming(frameStart: frameStart)
     }
 
     // MARK: - Game adapters (native readers)
