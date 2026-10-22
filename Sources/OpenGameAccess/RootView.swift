@@ -73,9 +73,11 @@ private struct ScreenView: View {
         GeometryReader { geo in
             ZStack {
                 Color.black
-                FrameImage(frames: session.frames,
-                           placeholder: session.status == .needROM ? "Choose a game to begin" : "Starting…")
-                    .frame(width: geo.size.width, height: geo.size.height)
+                if session.showPicture {
+                    FrameImage(frames: session.frames,
+                               placeholder: session.status == .needROM ? "Choose a game to begin" : "Starting…")
+                        .frame(width: geo.size.width, height: geo.size.height)
+                }
             }
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)

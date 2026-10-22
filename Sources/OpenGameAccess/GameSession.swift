@@ -53,13 +53,22 @@ final class GameSession: ObservableObject {
     /// default for a VoiceOver player, who is not looking at the picture anyway,
     /// and persisted so a choice survives a restart.
     @Published var skipDrawing: Bool =
-        UserDefaults.standard.object(forKey: "skipDrawing") as? Bool
-            ?? UIAccessibility.isVoiceOverRunning {
+        UserDefaults.standard.object(forKey: "skipDrawing") as? Bool ?? false {
         didSet {
             UserDefaults.standard.set(skipDrawing, forKey: "skipDrawing")
             if let core { _ = poke_set_frame_skip(core, skipDrawing ? 1 : 0) }
             speech?.announce(skipDrawing ? "Skip drawing on." : "Skip drawing off.")
         }
+    }
+
+    /// Keep the emulated picture out of the app's frame path entirely. The core
+    /// still renders (that is PPSSPP's job); this only stops the RGBA-to-UIImage
+    /// conversion and the 60 Hz image update, which are pure cost when the player
+    /// is listening rather than looking. Off by default for a VoiceOver player.
+    @Published var showPicture: Bool =
+        UserDefaults.standard.object(forKey: "showPicture") as? Bool
+            ?? !UIAccessibility.isVoiceOverRunning {
+        didSet { UserDefaults.standard.set(showPicture, forKey: "showPicture") }
     }
 
     @Published var cueBeaconEnabled: Bool =
@@ -586,7 +595,7 @@ final class GameSession: ObservableObject {
             }
             return
         }
-        refreshFramebuffer()
+        if showPicture { refreshFramebuffer() }
         refreshAdapterState()
         refreshCue()
         reportControllerTiming(frameStart: frameStart)
