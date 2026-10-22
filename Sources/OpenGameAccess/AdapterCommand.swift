@@ -336,8 +336,10 @@ enum AdapterCommand: Int32, CaseIterable {
             // Kingdom Hearts: Birth by Sleep. Menus, camp screens and the
             // Command Deck speak automatically as the player moves (the input
             // bridge forwards the menu echoes to every adapter); these are the
-            // on-demand field and battle queries.
-            return [.whereAmI, .menuState, .nextAlly, .nextEnemy, .dumpState]
+            // on-demand field and battle queries. Guide answers only in the
+            // Mirage Arena Hub (its landmark table); everywhere else the
+            // adapter stays silent by design.
+            return [.whereAmI, .menuState, .nextAlly, .nextEnemy, .guide, .dumpState]
 
         case "mku":
             // Mortal Kombat: Unchained. Menu rows and Konquest lines speak

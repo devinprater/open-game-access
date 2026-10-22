@@ -72,10 +72,29 @@ PPSSPP's allocation is deterministic for this path):
 - Title cursor: u16 @ **0x09920D76** (current), +2 previous, **+4 item
   count (3)**. 0-based: 0 New Game, 1 Continue, 2 Install Game. Wraps.
 - Submenu gate pointer: u32 @ **0x09920D8C** — 0 while the title menu is
-  on top; **0x09922EB0** while the difficulty select is open.
-- Difficulty cursor: u16 @ **0x09922FA6** (current), +2 previous,
-  **+4 item count (4)**. 0 Beginner, 1 Standard, 2 Proud, 3 Critical.
-  Wraps.
+  on top; while the difficulty select is open it holds that object's
+  heap address. **The address moves with the profile**: 0x09922EB0 on a
+  no-system-data profile, **0x09922ED0** with system data (see the
+  moved-object trap below). Never exact-match the value.
+- Difficulty cursor: u16 @ **the object + 0xF6** (current), +0xF8
+  previous, **+0xFA item count (4)**. 0 Beginner, 1 Standard, 2 Proud,
+  3 Critical. Wraps. Object identity, verified in every
+  difficulty-open dump in both lineages (nine dumps): u32 @ object+0
+  == **0xFFFFFFFF**, u32 @ object+0x0C == **0x08B90160**. The adapter
+  follows the gate pointer, verifies those two words, then reads the
+  cursor/count at the derived offsets.
+- "Title is up and answering input" witnesses (2026-10-22,
+  khbbs-titlegate, six cold boots): flow phase u32 @ **0x09920CD0**
+  (1 = boot logos, 2 = opening movie, 3 = title screen owns the
+  flow); title step u8 @ **0x09920D98** (walks 1, 2 across the logo
+  cards, 3 while the title fades in, 4 once the menu is idle); fade
+  word u32 @ **0x09920F44** (ramps during the title fade-in, returns
+  to exactly 0 in the same few frames the step reaches 4). The
+  adapter's title gate requires all three on top of the pointer /
+  count / cursor checks. During the movie the word around the step
+  byte is reused by the player — the phase word is what closes the
+  gate there. The difficulty round-trip leaves all three in their
+  title state, so the gate reopens on return, matching the game.
 
 Traps recorded (both live-proven, both covered by host tests):
 
@@ -88,6 +107,36 @@ Traps recorded (both live-proven, both covered by host tests):
   The +4 count field reads garbage there (2189), not 3. Both adapter
   gates therefore require the count field before believing a cursor:
   zeroed RAM and pre-title states fail closed.
+- **The early-title fake (found 2026-10-21 in the app, fixed
+  2026-10-22).** The count check was NOT sufficient: TITLE.ELF
+  writes the real count and cursor when the title struct is built,
+  before the boot logos finish, so the old gate fired at the Disney
+  logo fade and stayed fired through the logos, the movie and the
+  title fade-in — announcing the menu over a white transition while
+  the D-pad did nothing. Only the phase/step/fade witness triple
+  above separates "struct built" from "menu on screen".
+- **The moved difficulty object (found 2026-10-21, fixed
+  2026-10-22, khbbs-diffgate).** The map above was verified on the
+  hunts' no-system-data lineage (title count 3). On a system-data
+  profile (title count 4 — Trinity Archives; SYSTEM.DAT alone
+  drives it, game slots removed changed nothing) the object lands
+  at 0x09922ED0, +0x20: the title leaves one extra 0x20 heap block
+  ahead of it, and the neighbouring blocks are already allocated
+  at title time on that profile, while on the fresh profile they
+  appear only when the difficulty screen opens. Placement is
+  deterministic per profile (three boots each lineage, plus the
+  original hunt dumps). The old gate exact-matched 0x09922EB0 and
+  read the cursor/count at fixed addresses, so on system-data
+  cold boots it read zeros and failed closed — the difficulty
+  select was entirely unspoken there. The fix follows the gate
+  pointer and verifies the object's header words (above); cursor
+  walks were re-proven by screenshot at both bases, and the fixed
+  adapter speaks the screen end-to-end on both lineages. Related
+  behaviour, both lineages: while the "Play the game in ... Mode?"
+  confirm dialog is up, the pointer and identity hold but the
+  count word reads 2 (the dialog's own option count), so the
+  difficulty gate closes during the dialog — unchanged from the
+  old gate's behaviour on the lineage where it worked.
 
 ## Adapter state (2026-10-17)
 
@@ -1189,6 +1238,16 @@ the position readout now makes room surveys possible
 (walk to a landmark, record its coordinates); per-room
 exit/landmark tables and spoken bearings are the remaining
 work, with the .ngd navigation grids as the data lead.
+FIRST TABLE WIRED 2026-10-22: the Mirage Arena Hub (world
+15 room 1). Its landmark set came from the room's own .olo
+spawn data rather than a walk survey (games/kh-bbs/
+hub-landmarks.md; the room proved to be two floors joined
+only by a transporter), and the Guide query now speaks the
+current floor's landmarks with distances and clock
+bearings relative to the movement facing (CmdHubGuide;
+12 host-test plants cover both floors, the z split, and
+the fail-silent states). Other rooms still wait on their
+tables.
 
 DIRECTIONS — state of the hunt (2026-10-19, navigation tail):
 Mechanism designed, data not yet collected. (1) FACING:
@@ -1244,3 +1303,81 @@ hub dump; hub props/interactables use a different system
 the next lead). Directions therefore wait on per-room
 walked surveys or the spawn-table hunt; the position and
 room readouts above are the substrate either way.
+
+## Camp menu cold-boot audit + RELOCATION fix (2026-10-22, khbbs-campgate)
+Question (from the difficulty hunt): the difficulty object shifts
++0x20 whenever SYSTEM.DAT exists — do the camp cursors, mapped on
+the fixture lineage only, shift the same way on cold boots?
+Bench: khbbs-campgate (cold boot -> title -> Continue -> load ->
+Hub field -> START camp -> full cursor walks + adapter speech,
+on std = SYSTEM.DAT + saves and nosys = saves only).
+- COLD BOOTS: NO SHIFT. On both lineages the first camp build of
+  a session lands exactly on the fixture addresses (screen object
+  0x099195F0, slot widget base 0x09925170), every cursor tracked
+  its walk, and even the off-screen stale-garbage fingerprints
+  are identical across lineages (slot word 2361 / inventory word
+  19268 on the main list, slot count garbage 1280 / inventory
+  4440 on the submenu, slot word garbage 2361 in the editor).
+  The camp heap does not allocate the extra title-build block
+  that moves the difficulty object.
+- BUT the objects RELOCATE WITHIN a session (cg-p7/cg-p8 RAM
+  dumps, exact-sequence hunts over DOWN/DOWN/UP walks): every
+  dive/return cycle rebuilds the screen objects at fresh heap
+  addresses. Main object 0x099195F0 -> 0x0992E020 -> 0x0992E0C0
+  over two cycles; decks object -> 0x0991F4F0 in cycle 2; slot
+  widget 0x09925170 -> 0x09922CF0 on the second visit (cg-p9).
+  The fixed addresses read garbage from the second build on
+  (main word 49024, decks word 2361, group word 65534) — so the
+  pre-fix adapter would have gone quiet/wrong on any repeat camp
+  visit in a real session.
+- THE LOCATOR (DiffObj pattern): a per-session screen registry
+  at 0x09919264 — address stable on fixture dumps and cold boots
+  of both lineages. Slot 3 = main screen object, slot 6 = decks
+  screen object, each zeroed while its screen is unbuilt. Both
+  carry the standard identity (head 0xFFFFFFFF @ +0x00, class tag
+  @ +0x0C: main 0x08BAD400, decks 0x08BA59D0 — invariant across
+  13 dumps / 3 lineages). Fields: main cursor +0x66, count +0x6A;
+  decks group focus +0xA4, decks cursor +0x126, slot-screen
+  pointer +0x9C. The slot screen object (tag 0x08BA29E0) is 0 on
+  the submenu and in the editor's group stage — it is written
+  when the slot list first opens and stays live through the
+  inventory; its +0x84 points at the slot widget: slot cursor
+  +0x66, slot count +0x6A, filter tab +0x134, inventory cursor
+  +0x138 (slot/inventory cursors 0xD2 apart in every sample).
+  Chain proven by a same-address pointer-holder intersection
+  across cg-p9 visits 1 and 2.
+- CHURN BUG (found by the audit, fixed): on cold boots the
+  decks-submenu word does NOT freeze under the slot list — opening
+  the list rewrites it with heap churn (0, 1, 2360 across identical
+  dives; frame trace cg-p4b: slot arrived f=7465, churn f=7469).
+  A plausible churn value demoted CampTrack to the submenu and
+  the adapter spoke "Meld Commands, 2 of 5" through the slot list
+  and inventory (cg-std1/3/4). Fix: slot arrival outranks a
+  same-frame sub move in the Editor branch, and the SlotList /
+  Inventory branches ignore sub moves outright (no genuine path
+  leaves either screen straight for the submenu; g_lastSub still
+  syncs silently at the top of CampTrack).
+- ADAPTER: all camp reads now go through CampMainObj /
+  CampDecksObj / CampPaneObj / CampSlotWidget; an unresolved
+  word reads as -1 (no signal / primes arrival); a tracked
+  SlotList/Inventory whose widget stops resolving has returned
+  to the editor (widget freed on back-out). CampTrack's Main
+  gate is the registry object + count identity (the camp-active
+  BSS witnesses are unchanged).
+- HOST TESTS: 128 checks (was 108 at the difficulty fix):
+  plants rebuilt as the real object graph at epoch-1 addresses,
+  +5 delayed-churn plants, +8 relocation plants at the REAL
+  cycle-2 addresses (0x0992E020 / 0x0991F4F0 / 0x09928310 /
+  0x09922CF0) incl. a freed-widget return, +1 registry impostor
+  (right head, decks tag in the main slot, plausible cursor and
+  count — not followed). Full suite green; test-strength 129
+  sites vs 97 floor.
+- LIVE (locator build): cg-std6 + cg-nosys3 full flows (every
+  camp screen speaks, both lineages), cg-p8b (main epochs 1-3
+  and decks epochs 1-2 walks speak), cg-p9b + cg-p9nosys (slot
+  list and inventory speak on visits 1 AND 2, both lineages;
+  visit-2 WhereAmI "Edit Deck. Slot 1 of 8." where the fixed
+  addresses read slot count 0). The inventory checkpoint
+  WhereAmI still names the slot list until the inventory cursor
+  first moves — pre-existing, by-design (the word holds 0 under
+  the list, so row 0 is indistinguishable until it moves).

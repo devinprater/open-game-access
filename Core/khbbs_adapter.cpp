@@ -22,20 +22,69 @@
  *                          clear data adds TRINITY ARCHIVES at index 2,
  *                          Install Game last). 0-based. Wraps.
  *   Title submenu ptr .... u32 @ 0x09920D8C. 0 while the title menu is on
- *                          top; 0x09922EB0 while the difficulty select is
- *                          open. This is the gate: the difficulty cursor
- *                          below KEEPS its last value after the screen
- *                          closes (hunt5 x0->x1), so the pointer — and only
- *                          the pointer — says which screen is on top.
- *   Difficulty cursor .... u16 @ 0x09922FA6 (current), u16 @ 0x09922FA8
- *                          (previous), +4 the item count (4). 0 Beginner
+ *                          top; while the difficulty select is open it
+ *                          holds that object's heap address. This is the
+ *                          gate: the difficulty cursor below KEEPS its
+ *                          last value after the screen closes (hunt5
+ *                          x0->x1), so the pointer — and only the
+ *                          pointer — says which screen is on top.
+ *   Difficulty cursor .... u16 @ the object + 0xF6 (current), +0xF8
+ *                          (previous), +0xFA the item count (4). 0 Beginner
  *                          Mode, 1 Standard Mode, 2 Proud Mode, 3 Critical
  *                          Mode. Opens on Standard (1). Wraps.
+ *
+ *   ⛔ THE OBJECT BASE MOVES (bug observed 2026-10-21 in the
+ *   titlegate boots, fixed 2026-10-22): the addresses above were
+ *   mapped on the hunts' no-system-data lineage (title count 3),
+ *   where the object sits at 0x09922EB0. On a system-data profile
+ *   (title count 4, Trinity Archives present) the title leaves one
+ *   extra 0x20 heap block ahead of it — present from title-build
+ *   time — and the object lands at 0x09922ED0, so the old gate
+ *   (exact pointer value + cursor/count at fixed addresses) read
+ *   zeros and failed closed: no difficulty speech at all on those
+ *   boots. Placement is deterministic per profile (three boots
+ *   each lineage, khbbs-diffgate plus the original hunt dumps).
+ *   The gate now FOLLOWS the pointer and verifies the object by
+ *   its header words — u32 @ obj+0x00 == 0xFFFFFFFF and u32 @
+ *   obj+0x0C == 0x08B90160 in every difficulty-open dump in both
+ *   lineages — then reads cursor/count at the derived offsets.
+ *   While the "Play the game in ... Mode?" confirm dialog is up
+ *   the pointer and identity hold but the count word reads 2
+ *   (the dialog's own option count), so the gate closes there,
+ *   exactly as the old gate behaved on the lineage it worked on.
  *
  *   The +4 count fields are the fail-closed witnesses: on the boot
  *   dialogs (where the cursor and pointer both read 0 and would fake a
  *   title menu at NEW GAME) the title count reads garbage, not 3 — so
  *   both gates require the count before they believe the cursor.
+ *
+ *   ⛔ THE COUNT ALONE WAS NOT ENOUGH (bug observed 2026-10-21 in the
+ *   app, fixed 2026-10-22): TITLE.ELF writes the count and cursor when
+ *   the title struct is BUILT, which happens before the boot logos
+ *   finish — so the old gate (pointer 0 + count + cursor) fired during
+ *   the Disney logo fade and stayed fired through the opening movie
+ *   and the title's own fade-in, announcing "Title menu. New Game"
+ *   over a white transition while D-pad taps did nothing. The count
+ *   check only ever excluded the pre-init dialogs. Reproduced and
+ *   dissected on the bench (khbbs-titlegate, six cold boots, two
+ *   profiles): the gate turned true at the logo fade on every boot,
+ *   and every scripted D-pad probe failed until one specific event.
+ *   The positive witnesses — the title is only believed when ALL hold:
+ *     Flow phase, u32 @ 0x09920CD0: 1 during the boot logos, 2 during
+ *       the opening movie, 3 once the title screen owns the flow.
+ *     Title step, u8 @ 0x09920D98: walks 1, 2 through the logo cards,
+ *       3 while the title fades in, 4 once the menu is idle. (During
+ *       the movie the surrounding word is reused by the player; the
+ *       phase word above is what closes the gate there.)
+ *     Fade word, u32 @ 0x09920F44: ramps while the title fades in and
+ *       returns to exactly 0 in the same few frames the step reaches
+ *       4. Before that event the menu ignores input; after it, the
+ *       cursor answers the next tap — on the skip path, on the
+ *       no-skip path (movie played out, ~9,300 frames), and on a
+ *       fresh profile (the no-system-data prompt path, count 3).
+ *   The difficulty round-trip leaves all three in their title state,
+ *   so the gate reopens the moment backing out lands — matching the
+ *   game, whose title answers input immediately on return.
  *
  * FIELD STATE (verified 2026-10-18, decomp-led; RE notes have the full
  * evidence chain). The player's actor struct sits at 0x09976090 on the
@@ -70,28 +119,50 @@
  *
  * CAMP MENU (verified 2026-10-18, fixture lineage, hunts camp1-14;
  * opened with START in the field):
- *   Main cursor ........ u16 @ 0x09919656 (0..8, wraps both ends;
- *                        unique exact-sequence hit over an 11-dump
- *                        DOWN/UP walk). +4 the item count (9). Items:
- *                        Command Decks, Items, Abilities, D-Links,
- *                        Stats, Reports, Command Board, Config,
- *                        Game Help.
+ *   Main cursor ........ u16 @ main object +0x66 (0..8, wraps both
+ *                        ends; unique exact-sequence hit over an
+ *                        11-dump DOWN/UP walk). +0x6A the item count
+ *                        (9). Items: Command Decks, Items, Abilities,
+ *                        D-Links, Stats, Reports, Command Board,
+ *                        Config, Game Help.
  *   Active witnesses ... u32 @ 0x08B5BEF8 == 8 and u32 @ 0x08BD194C
  *                        == 2 on EVERY camp screen; both read 0 on
  *                        the title, in the field, and after the menu
  *                        closes. The cursor itself PERSISTS STALE after
  *                        close — the witnesses, not the cursor, say the
- *                        menu is up. Camp heap addresses are from one
- *                        lineage; cross-boot check still owed.
- *   Decks submenu ...... cursor u16 @ 0x09919716 (0..4, wraps):
- *                        Edit Deck, Meld Commands, Command List,
- *                        Choose Deck, Finish Commands.
- *   Edit Deck groups ... focus u16 @ 0x09919694: 0 Battle Commands,
- *                        1 Action Commands, 2 Shotlock Command.
- *                        Navigation is spatial, not a ring.
- *   Slot list .......... cursor u16 @ 0x099251D6, +4 the slot count
- *                        (8 for Battle Commands; read dynamically).
- *   Command inventory .. cursor u16 @ 0x099252A8 (the list opened by
+ *                        menu is up.
+ *   RELOCATION (2026-10-22, khbbs-campgate cg-p7/cg-p8/cg-p9):
+ *   the camp heap does NOT shift on cold boots — a session's FIRST
+ *   camp build lands on the fixture addresses on both profile
+ *   lineages (with or without SYSTEM.DAT), unlike the difficulty
+ *   object, which moves +0x20 when SYSTEM.DAT exists; every
+ *   cursor was walked live on cold boots of both lineages, and
+ *   even the off-screen stale-garbage fingerprints match (slot
+ *   word 2361, inventory word 19268 on the main list). BUT the
+ *   screen objects are rebuilt at fresh heap addresses on every
+ *   dive/return cycle within a session (main object 0x099195F0 ->
+ *   0x0992E020 -> 0x0992E0C0 across two cycles; slot widget
+ *   0x09925170 -> 0x09922CF0 on the second visit), so the fixture
+ *   addresses are first-build values only. The adapter reads
+ *   every camp word through the game's per-session screen
+ *   registry (0x09919264: slot 3 = main object, slot 6 = decks
+ *   object, each zeroed while unbuilt and verified by its class
+ *   tag) and the decks object's child chain (slot screen object
+ *   @ +0x9C, slot widget @ its +0x84) — see the camp constants
+ *   block for the full map. One behavioural correction also came
+ *   out of the cold-boot check: the decks-submenu word does not
+ *   freeze under the slot list on cold boots (see CampTrack).
+ *   Decks submenu ...... cursor u16 @ decks object +0x126 (0..4,
+ *                        wraps): Edit Deck, Meld Commands, Command
+ *                        List, Choose Deck, Finish Commands.
+ *   Edit Deck groups ... focus u16 @ decks object +0xA4: 0 Battle
+ *                        Commands, 1 Action Commands, 2 Shotlock
+ *                        Command. Navigation is spatial, not a ring.
+ *   Slot list .......... cursor u16 @ slot widget +0x66, +0x6A the
+ *                        slot count (8 for Battle Commands; read
+ *                        dynamically).
+ *   Command inventory .. cursor u16 @ slot widget +0x138, filter
+ *                        tab u16 @ +0x134 (the list opened by
  *                        Cross on a slot). The cursor is 0-based over
  *                        the command rows — the "---" none entry pinned
  *                        above them is NOT counted (camp13/14: cursor
@@ -135,6 +206,7 @@
  *   * the registry identity (the core reads the disc ID from PARAM.SFO and
  *     exact-matches it, as with the other PSP adapters),
  *   * verified speech for the title menu and the difficulty select,
+ *   * the Mirage Arena Hub landmark table behind the Guide query,
  *   * honest "not mapped" speech everywhere else,
  *   * DumpState: an anchor-string scan of PSP user RAM, the RE tool the
  *     next mapping passes pull threads from.
@@ -183,9 +255,25 @@ void Log(const char* s)
 constexpr uint32_t kTitleCursorAddr   = 0x09920D76;  // u16 current (+2: prev)
 constexpr uint32_t kTitleCountAddr    = 0x09920D7A;  // u16 item count: 3 or 4
 constexpr uint32_t kSubmenuPtrAddr    = 0x09920D8C;  // u32 gate pointer
-constexpr uint32_t kDifficultyObjPtr  = 0x09922EB0;  // value while open
-constexpr uint32_t kDiffCursorAddr    = 0x09922FA6;  // u16 current (+2: prev)
-constexpr uint32_t kDiffCountAddr     = 0x09922FAA;  // u16 item count == 4
+// Positive "the title menu is up and answers input" witnesses
+// (bench-verified 2026-10-22, six cold boots; see the header note):
+constexpr uint32_t kTitlePhaseAddr    = 0x09920CD0;  // u32 flow phase == 3
+constexpr uint32_t kTitleStepAddr     = 0x09920D98;  // u8 title step == 4 (idle)
+constexpr uint32_t kTitleFadeAddr     = 0x09920F44;  // u32 fade word == 0 (settled)
+// The difficulty object is located THROUGH the submenu pointer,
+// never by its base address: the object is heap-allocated and its
+// base moves with the profile — 0x09922EB0 on a no-system-data
+// profile (title count 3), 0x09922ED0 with system data (count 4) —
+// because a system-data title leaves one extra 0x20 heap block
+// ahead of it, present from title-build time (khbbs-diffgate,
+// 2026-10-22; the +0x20 cold-boot failure of the old exact-pointer
+// gate). Cursor and count ride at fixed offsets from the base;
+// the two header words are the object's identity, identical in
+// every difficulty-open dump in both lineages (nine dumps).
+constexpr uint32_t kDiffObjHead       = 0xFFFFFFFF;  // u32 @ obj+0x00 while open
+constexpr uint32_t kDiffObjTag        = 0x08B90160;  // u32 @ obj+0x0C while open
+constexpr uint32_t kDiffOffCursor     = 0xF6;        // u16 current (+2: prev)
+constexpr uint32_t kDiffOffCount      = 0xFA;        // u16 item count == 4
 
 // The title grows a fourth item, Trinity Archives, once any clear
 // data / archives exist (fixture lineage, 2026-10-18): the order is
@@ -197,11 +285,31 @@ const char* const kDiffItems[] = {
     "Beginner Mode", "Standard Mode", "Proud Mode", "Critical Mode"};
 constexpr int kDiffCount = 4;
 
+// The difficulty-select object the submenu pointer currently
+// names, verified by the object's own header words; 0 when the
+// current submenu is anything else. Following the pointer (with
+// the identity check) is what makes the gate work on both heap
+// placements — an exact match on the base address silently
+// failed closed on every system-data cold boot.
+uint32_t DiffObj(void)
+{
+    uint32_t obj = u32(kSubmenuPtrAddr);
+    if (obj < kUserRamBase || obj + 0x100 > kUserRamEnd) return 0;
+    if (u32(obj) != kDiffObjHead || u32(obj + 0x0C) != kDiffObjTag) return 0;
+    return obj;
+}
 bool OnDifficulty(void)
 {
-    return u32(kSubmenuPtrAddr) == kDifficultyObjPtr &&
-           u16(kDiffCountAddr) == kDiffCount &&
-           u16(kDiffCursorAddr) < kDiffCount;
+    // The count witness still applies, read at the derived
+    // address: while the "Play the game in ... Mode?" confirm
+    // dialog is up the pointer and identity hold but the count
+    // word reads 2 (the dialog's own option count), so this gate
+    // closes there — the same behaviour the old gate had on the
+    // one lineage where it worked.
+    uint32_t obj = DiffObj();
+    return obj != 0 &&
+           u16(obj + kDiffOffCount) == kDiffCount &&
+           u16(obj + kDiffOffCursor) < kDiffCount;
 }
 bool OnTitleMenu(void)
 {
@@ -211,10 +319,22 @@ bool OnTitleMenu(void)
     // check keeps zeroed RAM and the boot dialogs (cursor 0, pointer 0,
     // count garbage) from faking a title menu at NEW GAME. The count
     // itself names the table: 3 on a fresh profile, 4 with archives.
+    //
+    // The phase/step/fade triple is the positive witness that the
+    // menu is actually on screen and answering input: the count and
+    // cursor are written at struct-build time and hold their title
+    // values through the logos, the opening movie and the fade-in
+    // (the 2026-10-21 early-fire bug). Only when the flow phase is
+    // the title's (3), the title step has reached idle (4) and the
+    // fade word has settled (0) does the real menu take input —
+    // bench-verified across six cold boots (header note).
     int count = u16(kTitleCountAddr);
     return u32(kSubmenuPtrAddr) == 0 &&
            (count == 3 || count == 4) &&
-           u16(kTitleCursorAddr) < count;
+           u16(kTitleCursorAddr) < count &&
+           u32(kTitlePhaseAddr) == 3 &&
+           u8(kTitleStepAddr) == 4 &&
+           u32(kTitleFadeAddr) == 0;
 }
 
 void TitleRow(char* buf, size_t n)
@@ -226,7 +346,9 @@ void TitleRow(char* buf, size_t n)
 }
 void DiffRow(char* buf, size_t n)
 {
-    int c = u16(kDiffCursorAddr);
+    uint32_t obj = DiffObj();
+    int c = obj ? (int) u16(obj + kDiffOffCursor) : 0;
+    if (c < 0 || c >= kDiffCount) c = 0;  // unreachable via the gate; stay safe
     snprintf(buf, n, "%s, %d of %d", kDiffItems[c], c + 1, kDiffCount);
 }
 
@@ -348,21 +470,43 @@ const char* const kWorldNames[] = {
 };
 constexpr int kWorldKnown = 0x13;
 
-// ---- camp menu (VERIFIED 2026-10-18, fixture lineage) ------------------------
-
-constexpr uint32_t kCampCursorAddr = 0x09919656;  // u16 current
-constexpr uint32_t kCampCountAddr  = 0x0991965A;  // u16 item count == 9
+// ---- camp menu (VERIFIED 2026-10-18, fixture lineage; relocation
+// audit + locator fix 2026-10-22, khbbs-campgate cg-p7/cg-p8/cg-p9) ---
+//
+// The camp cursors are NOT at fixed addresses. A cold boot's FIRST
+// camp build lands on the fixture lineage's addresses (screen object
+// 0x099195F0, slot widget 0x09925170) on both profile lineages — the
+// camp heap does not shift for SYSTEM.DAT the way the difficulty
+// object did — but every dive/return cycle REPLACES the screen
+// objects at fresh heap addresses (main object 0x099195F0 ->
+// 0x0992E020 -> 0x0992E0C0 across two cycles, cg-p8; slot widget
+// 0x09925170 -> 0x09922CF0 on the second visit, cg-p9), so a fixed
+// address goes stale the second time any camp screen is built in a
+// session. What IS stable is the game's per-session screen
+// registry at 0x09919264 (identical address on fixture dumps, cold
+// std boots and cold nosys boots): slot 3 holds the main screen
+// object, slot 6 the decks screen object, each zeroed while its
+// screen is not built. The objects carry the difficulty object's
+// identity shape (head 0xFFFFFFFF @ +0x00, class tag @ +0x0C), so
+// the locators below follow the registry and verify identity,
+// DiffObj-style:
+//   main object (tag 0x08BAD400):  cursor @ +0x66, count @ +0x6A (9)
+//   decks object (tag 0x08BA59D0): group focus @ +0xA4,
+//                                  decks cursor @ +0x126,
+//                                  slot screen pointer @ +0x9C
+//   slot screen obj (tag 0x08BA29E0): slot widget pointer @ +0x84
+//   slot widget: slot cursor @ +0x66, slot count @ +0x6A,
+//                filter tab @ +0x134, inventory cursor @ +0x138
+// (the slot list and the command inventory are two list widgets in
+// one allocation — their cursors sit 0xD2 apart in every sample:
+// fixture lineage, cg-p9 visits 1 and 2, cg-std2, cg-nosys1).
+constexpr uint32_t kCampRegistryAddr = 0x09919264;  // u32[] screen registry
 constexpr uint32_t kCampActiveAAddr = 0x08B5BEF8; // u32 == 8 while open
 constexpr uint32_t kCampActiveBAddr = 0x08BD194C; // u32 == 2 while open
-constexpr uint32_t kDecksCursorAddr = 0x09919716; // u16, decks submenu
-constexpr uint32_t kGroupFocusAddr  = 0x09919694; // u16, Edit Deck group
-constexpr uint32_t kSlotCursorAddr  = 0x099251D6; // u16, slot list
-constexpr uint32_t kSlotCountAddr   = 0x099251DA; // u16, slot count
-constexpr uint32_t kInvCursorAddr   = 0x099252A8; // u16, command inventory
-constexpr uint32_t kInvTabAddr      = 0x099252A4; // u16, inventory filter
-                                                  // tab (live9/13): 0 All,
-                                                  // 1 Battle, 2 Magic,
-                                                  // 3 Items, 4 Friendship
+constexpr uint32_t kCampObjHead     = 0xFFFFFFFF; // u32 @ any camp obj+0x00
+constexpr uint32_t kCampMainObjTag  = 0x08BAD400; // u32 @ main obj+0x0C
+constexpr uint32_t kCampDecksObjTag = 0x08BA59D0; // u32 @ decks obj+0x0C
+constexpr uint32_t kCampPaneObjTag  = 0x08BA29E0; // u32 @ pane obj+0x0C
 
 const char* const kCampItems[] = {
     "Command Decks", "Items", "Abilities", "D-Links", "Stats",
@@ -380,16 +524,75 @@ bool CampActive(void)
 {
     return u32(kCampActiveAAddr) == 8 && u32(kCampActiveBAddr) == 2;
 }
+
+// The current main screen object, via registry slot 3, or 0. The
+// count word is part of the identity: it is 9 only while the main
+// list is the built screen.
+uint32_t CampMainObj(void)
+{
+    uint32_t obj = u32(kCampRegistryAddr + 3 * 4);
+    if (obj < kUserRamBase || obj + 0x100 > kUserRamEnd) return 0;
+    if (u32(obj) != kCampObjHead || u32(obj + 0x0C) != kCampMainObjTag)
+        return 0;
+    if (u16(obj + 0x6A) != (uint16_t) kCampCount) return 0;
+    if (u16(obj + 0x66) >= (uint16_t) kCampCount) return 0;
+    return obj;
+}
+
+// The current decks screen object, via registry slot 6, or 0. Its
+// cursor words are NOT part of the identity: the decks cursor word
+// churns under the deeper screens (see CampTrack), so only the
+// head/tag words verify.
+uint32_t CampDecksObj(void)
+{
+    uint32_t obj = u32(kCampRegistryAddr + 6 * 4);
+    if (obj < kUserRamBase || obj + 0x100 > kUserRamEnd) return 0;
+    if (u32(obj) != kCampObjHead || u32(obj + 0x0C) != kCampDecksObjTag)
+        return 0;
+    return obj;
+}
+
+// The slot screen object (the decks object's +0x9C child), or 0
+// while the slot list is not built — the pointer is 0 on the
+// submenu AND in the editor's group stage; it is written when
+// the slot list first opens and stays live through the inventory
+// (cg-p9 dumps; the editor must therefore NOT gate on it).
+uint32_t CampPaneObj(void)
+{
+    uint32_t decks = CampDecksObj();
+    if (!decks) return 0;
+    uint32_t obj = u32(decks + 0x9C);
+    if (obj < kUserRamBase || obj + 0x100 > kUserRamEnd) return 0;
+    if (u32(obj) != kCampObjHead || u32(obj + 0x0C) != kCampPaneObjTag)
+        return 0;
+    return obj;
+}
+
+// The slot list / command inventory widget (the pane's +0x84
+// child), or 0 while the slot list is not built. The count word
+// (the deck's slot count, 1..16) and a plausible cursor verify the
+// widget; a dangling pointer to the freed widget fails here.
+uint32_t CampSlotWidget(void)
+{
+    uint32_t pane = CampPaneObj();
+    if (!pane) return 0;
+    uint32_t w = u32(pane + 0x84);
+    if (w < kUserRamBase || w + 0x200 > kUserRamEnd) return 0;
+    uint16_t cnt = u16(w + 0x6A);
+    if (cnt < 1 || cnt > 16) return 0;
+    if (u16(w + 0x66) > 64) return 0;
+    return w;
+}
+
 bool OnCampMenu(void)
 {
-    return CampActive() &&
-           u16(kCampCountAddr) == kCampCount &&
-           u16(kCampCursorAddr) < (uint16_t) kCampCount;
+    return CampActive() && CampMainObj() != 0;
 }
 
 void CampRow(char* buf, size_t n)
 {
-    int c = u16(kCampCursorAddr);
+    uint32_t obj = CampMainObj();
+    int c = obj ? (int) u16(obj + 0x66) : 0;
     snprintf(buf, n, "%s, %d of %d", kCampItems[c], c + 1, kCampCount);
 }
 
@@ -416,21 +619,37 @@ bool CampCursorMoved(int raw, int plausibleMax, int* last)
 
 // Screen tracking, driven by each cursor's VERIFIED off-screen
 // behaviour (camp7-14 dumps; word table re-measured on a straight
-// Cross dive, live11, 2026-10-19):
-//   sub + group words freeze at their last value under deeper
-//   screens, so a change while tracked shallower means a dive or a
-//   return; the slot word reads garbage (2361) on the main list,
-//   submenu and editor, and turns plausible the moment the slot
-//   list opens — but then STAYS plausible for the rest of the
-//   session, so only the garbage->plausible TRANSITION (slotArrived)
-//   proves the list just opened; mere plausibility does not (it
-//   would ping-pong after a back-out). The inventory word is
-//   garbage above the slot list, holds 0 under it, and moves only
-//   in the inventory, so a change from the seeded 0 means the
-//   inventory is up. Editor and submenu are word-identical at
-//   entry (sub 0, group 0, slot garbage): the editor is named once
-//   the group focus moves or the slot list arrives — a straight
-//   Cross dive is followed through the cascade below in one call.
+// Cross dive, live11, 2026-10-19; relocation audit khbbs-campgate
+// cg-p7/cg-p8/cg-p9, 2026-10-22). All words are read through the
+// locators above; a word whose object is not currently built reads
+// as -1, which the move discipline treats as "no signal" and the
+// arrival discipline treats as garbage:
+//   the group word freezes at its last value under deeper screens,
+//   so a change while tracked shallower means a dive or a return.
+//   The SUB word only pretends to freeze: on the fixture lineage it
+//   held its value under the slot list, but on cold boots opening
+//   the slot list rewrites it with heap churn (0, 1, 2360 across
+//   identical dives) — it is only meaningful while the submenu is
+//   the tracked screen. The churn can land in the arrival frame
+//   itself or a few frames later (frame trace cg-p4b: slot arrived
+//   f=7465, churn at f=7469), so the Editor branch lets a slot
+//   arrival outrank a same-frame sub move AND the SlotList /
+//   Inventory branches ignore sub moves outright: no genuine path
+//   leaves either screen straight for the submenu. The slot word
+//   is unreachable above the slot list (widget not built), and
+//   turns plausible the moment the list opens — but then STAYS
+//   plausible for the rest of the visit, so only the
+//   unreachable->plausible TRANSITION (slotArrived) proves the
+//   list just opened; mere plausibility does not (it would
+//   ping-pong after a back-out). The widget is freed on back-out,
+//   so a tracked SlotList/Inventory whose widget stops resolving
+//   has returned to the editor. The inventory word holds 0 under
+//   the slot list and moves only in the inventory, so a change
+//   from the seeded 0 means the inventory is up. Editor and
+//   submenu are word-identical at entry (sub 0, group 0, slot
+//   unreachable): the editor is named once the group focus moves
+//   or the slot list arrives — a straight Cross dive is followed
+//   through the cascade below in one call.
 void CampTrack(void)
 {
     if (!CampActive()) {
@@ -439,10 +658,10 @@ void CampTrack(void)
         g_lastSlotRaw = -1;
         return;
     }
-    int main = (int) u16(kCampCursorAddr);
-    g_lastMain = main;
-    if (u16(kCampCountAddr) == kCampCount && main < kCampCount) {
+    uint32_t mainObj = CampMainObj();
+    if (mainObj) {
         g_campScreen = CampScreen::Main;
+        g_lastMain = (int) u16(mainObj + 0x66);
         g_lastSub = g_lastGroup = g_lastSlot = g_lastInv = -1;
         g_lastSlotRaw = -1;
         return;
@@ -452,13 +671,16 @@ void CampTrack(void)
         g_lastSub = g_lastGroup = g_lastSlot = g_lastInv = -1;
         g_lastSlotRaw = -1;
     }
-    int sub = (int) u16(kDecksCursorAddr);
-    int grp = (int) u16(kGroupFocusAddr);
-    int slot = (int) u16(kSlotCursorAddr);
-    int inv = (int) u16(kInvCursorAddr);
+    uint32_t decksObj = CampDecksObj();
+    uint32_t slotW = CampSlotWidget();
+    int sub  = decksObj ? (int) u16(decksObj + 0x126) : -1;
+    int grp  = decksObj ? (int) u16(decksObj + 0xA4) : -1;
+    int slot = slotW ? (int) u16(slotW + 0x66) : -1;
+    int inv  = slotW ? (int) u16(slotW + 0x138) : -1;
     bool subMoved = CampCursorMoved(sub, 15, &g_lastSub);
     bool grpMoved = CampCursorMoved(grp, 2, &g_lastGroup);
-    bool slotArrived = g_lastSlotRaw > 64 && slot >= 0 && slot <= 64;
+    bool slotArrived = (g_lastSlotRaw > 64 || g_lastSlotRaw < 0) &&
+                       slot >= 0 && slot <= 64;
     g_lastSlotRaw = slot;
 
     if (g_campScreen == CampScreen::DecksSub) {
@@ -467,28 +689,48 @@ void CampTrack(void)
         // promoted: fall through so a straight dive cascades
     }
     if (g_campScreen == CampScreen::Editor) {
-        if (subMoved) {
-            g_campScreen = CampScreen::DecksSub;
-            g_lastGroup = g_lastSlot = g_lastInv = -1;
-            return;
-        }
         bool slotMoved = CampCursorMoved(slot, 64, &g_lastSlot);
         if (slotArrived || slotMoved) {
+            // The slot list just opened. The sub word does NOT
+            // reliably freeze under deeper screens: on cold boots,
+            // opening the slot list rewrites it with heap churn
+            // (0, 1 and 2360 observed across identical dives,
+            // khbbs-campgate cg-std1 / cg-p3, 2026-10-22), and a
+            // plausible churn value lands in this very frame.
+            // Arrival is the stronger signal — it can only fire on
+            // the garbage->plausible transition the opening causes —
+            // so it wins, and the stale sub move is discarded with
+            // the promotion instead of demoting the screen.
             g_campScreen = CampScreen::SlotList;
             g_lastSlot = slot;
             g_lastInv = (inv >= 0 && inv <= 1023) ? inv : -1;
+            subMoved = false;
             // fall through to the SlotList block
-        } else return;
-    }
-    if (g_campScreen == CampScreen::SlotList) {
-        bool invMoved = CampCursorMoved(inv, 1023, &g_lastInv);
-        CampCursorMoved(slot, 64, &g_lastSlot);
-        if (invMoved) { g_campScreen = CampScreen::Inventory; return; }
-        if (subMoved) {
+        } else if (subMoved) {
             g_campScreen = CampScreen::DecksSub;
             g_lastGroup = g_lastSlot = g_lastInv = -1;
             return;
+        } else return;
+    }
+    if (g_campScreen == CampScreen::SlotList) {
+        if (!slotW) {
+            // The widget was freed on back-out: the editor is up.
+            g_campScreen = CampScreen::Editor;
+            g_lastSlot = g_lastInv = -1;
+            return;
         }
+        bool invMoved = CampCursorMoved(inv, 1023, &g_lastInv);
+        CampCursorMoved(slot, 64, &g_lastSlot);
+        if (invMoved) { g_campScreen = CampScreen::Inventory; return; }
+        // No subMoved exit here: the churn that rewrites the sub
+        // word when the slot list opens can land frames AFTER the
+        // arrival frame (cg-std3/cg-std4: the list spoke as the
+        // decks submenu from its first row), and no genuine path
+        // leaves the slot list straight for the submenu — CIRCLE
+        // returns to the editor, which the grpMoved exit below
+        // catches. The top-of-function CampCursorMoved call has
+        // already synced g_lastSub, so ignoring the move here
+        // loses nothing.
         if (grpMoved) {
             g_campScreen = CampScreen::Editor;
             g_lastSlot = slot;  // seed: a later slot MOVE re-promotes
@@ -497,6 +739,12 @@ void CampTrack(void)
         return;
     }
     if (g_campScreen == CampScreen::Inventory) {
+        if (!slotW) {
+            // The widget was freed on back-out: the editor is up.
+            g_campScreen = CampScreen::Editor;
+            g_lastSlot = g_lastInv = -1;
+            return;
+        }
         CampCursorMoved(inv, 1023, &g_lastInv);
         if (CampCursorMoved(slot, 64, &g_lastSlot)) {
             g_campScreen = CampScreen::SlotList;
@@ -509,10 +757,11 @@ void CampTrack(void)
             g_lastInv = -1;
             return;
         }
-        if (subMoved) {
-            g_campScreen = CampScreen::DecksSub;
-            g_lastGroup = g_lastSlot = g_lastInv = -1;
-        }
+        // subMoved ignored here too, same reason as the SlotList
+        // branch: the sub word is heap churn under every screen
+        // deeper than the submenu, and leaving the inventory goes
+        // through the slot list or the editor, never straight to
+        // the submenu.
         return;
     }
 }
@@ -564,8 +813,9 @@ bool InvRowText(int row, char* buf, size_t n)
     // every deck command; the other tabs show one sub-type each
     // (Friendship = the group and special commands). An unknown tab
     // value fails closed to the row-number fallback.
-    int tab = (int) u16(kInvTabAddr);
-    if (tab > 4) return false;
+    uint32_t slotW = CampSlotWidget();
+    int tab = slotW ? (int) u16(slotW + 0x134) : -1;
+    if (tab < 0 || tab > 4) return false;
     int cnt = 0;
     for (int s = 0; s < kPoolScan; s++) {
         uint32_t a = pool + (uint32_t) s * 10;
@@ -637,7 +887,8 @@ void CampRowFor(CampScreen s, char* buf, size_t n)
                 snprintf(buf, n, "Edit Deck");
             return;
         case CampScreen::SlotList: {
-            int cnt = u16(kSlotCountAddr);
+            uint32_t slotW = CampSlotWidget();
+            int cnt = slotW ? (int) u16(slotW + 0x6A) : 0;
             if (cnt >= 1 && cnt <= 16)
                 snprintf(buf, n, "Slot %d of %d", g_lastSlot + 1, cnt);
             else
@@ -698,9 +949,10 @@ uint64_t g_lastNodeScanMs = 0;  // host time of the last component sweep
 // per area), so facing comes from the player's own movement: the
 // anchor is the last position a >= 1-unit leg started from, and the
 // facing delta is that leg's displacement. Bearings to landmarks are
-// spoken as clock positions relative to this delta once per-room
-// landmark tables exist; until then the tracker is bench-visible via
-// DumpState and nothing speaks a bearing.
+// spoken as clock positions relative to this delta. The first
+// landmark table — the Mirage Arena Hub — speaks through the Guide
+// query (CmdHubGuide below); other rooms' tables are still open
+// work, and the tracker stays bench-visible via DumpState.
 float g_faceAnchorX = 0.0f, g_faceAnchorZ = 0.0f;  // last leg's start
 bool g_faceAnchorSet = false;
 float g_faceDX = 0.0f, g_faceDZ = 0.0f;            // last >= 1-unit leg
@@ -1012,6 +1264,92 @@ void FaceTrack(void)
     if (dx * dx + dz * dz >= 1.0f) {
         g_faceDX = dx; g_faceDZ = dz; g_faceValid = true;
         g_faceAnchorX = px; g_faceAnchorZ = pz;
+    }
+}
+
+// ---- Mirage Arena Hub landmarks (table VERIFIED 2026-10-22) ------------------
+// The Hub (world 15, room 1) is two floors that are NOT walkably
+// connected: the entrance platform (spawn, save point, transporter
+// ring) and the main lobby (arena terminal, Moogle Medal Shop,
+// return ring), joined only by the transporter. The positions are
+// the room's own spawn data (.olo in the VS01 map arc), cross-
+// checked against the bench's walked survey and two interaction
+// proofs (games/kh-bbs/hub-landmarks.md): the save point matched
+// the fixture's stand position to 0.01, both rings were used in
+// both directions, and the save point's menu is the world-map
+// exit. Only the current floor's landmarks are spoken: naming the
+// other floor's would send the player walking at a rim with no
+// exit on it. The floor split is z: the platform is the disc
+// around z = -40, the lobby is around the origin, and -20 sits in
+// the unwalkable gap between them.
+// Bearings are clock positions relative to the movement-derived
+// facing (the directions design in the RE doc): 12 is straight
+// ahead, 3 is to the right — DBZ: Another Road's field form. No
+// facing yet (the player has not moved a full unit since arriving
+// in the room) means distance only, never a guessed direction.
+struct HubLandmark { const char* name; float x; float z; };
+static const HubLandmark kHubPlatformMarks[] = {
+    {"Save point", 0.01f, -43.00f},
+    {"Transporter", 0.04f, -37.00f},
+};
+static const HubLandmark kHubLobbyMarks[] = {
+    {"Arena terminal", 0.00f, 0.00f},
+    {"Moogle Medal Shop", 4.68f, 9.01f},
+    {"Transporter", 0.00f, -9.00f},
+};
+constexpr float kHubFloorSplitZ = -20.0f;
+
+// The Guide query in the Hub: speak this floor's landmarks, each
+// with its distance and, once facing is known, its clock bearing.
+// FAIL SILENT everywhere else — the query has no answer outside
+// world 15 room 1, the camp menu owns speech while it is open,
+// and an unlocatable position says nothing rather than guessing.
+void CmdHubGuide(void)
+{
+    if (CampActive()) return;
+    unsigned wA = u8(kWorldAddrA), rA = u8(kWorldAddrA + 1);
+    unsigned wB = u8(kWorldAddrB), rB = u8(kWorldAddrB + 1);
+    if (wA != 15 || rA != 1 || wA != wB || rA != rB) return;
+    if (!InField() || !EnsureNode()) return;
+    float px = f32(g_nodeBase + kLockRecOffPPos);
+    float pz = f32(g_nodeBase + kLockRecOffPPos + 8);
+    const HubLandmark* marks = kHubLobbyMarks;
+    int count = (int) (sizeof(kHubLobbyMarks) / sizeof(kHubLobbyMarks[0]));
+    if (pz < kHubFloorSplitZ) {
+        marks = kHubPlatformMarks;
+        count = (int) (sizeof(kHubPlatformMarks) / sizeof(kHubPlatformMarks[0]));
+    }
+    float fdx = 0.0f, fdz = 0.0f;
+    bool facing = FacingVector(&fdx, &fdz);
+    for (int i = 0; i < count; i++) {
+        float dx = marks[i].x - px, dz = marks[i].z - pz;
+        float dist = sqrtf(dx * dx + dz * dz);
+        char line[128];
+        if (dist < 1.5f) {
+            snprintf(line, sizeof(line), "%s, right here.", marks[i].name);
+        } else if (!facing) {
+            snprintf(line, sizeof(line), "%s, %u away.", marks[i].name,
+                     (unsigned) (dist + 0.5f));
+        } else {
+            // Signed angle from the facing leg to the landmark,
+            // in degrees: 0 ahead, + to the right (the y-component
+            // of facing x target, which the hub survey's frame —
+            // x east, z north — makes positive to the right).
+            float inv = 1.0f / dist;
+            float sinA = fdz * (dx * inv) - fdx * (dz * inv);
+            float cosA = fdx * (dx * inv) + fdz * (dz * inv);
+            float rel = atan2f(sinA, cosA) * 57.2957795f;
+            if (rel < 0.0f) rel += 360.0f;
+            int clock = (int) (rel / 30.0f + 0.5f);
+            if (clock == 0) clock = 12;
+            if (clock == 12)
+                snprintf(line, sizeof(line), "%s, %u away, straight ahead.",
+                         marks[i].name, (unsigned) (dist + 0.5f));
+            else
+                snprintf(line, sizeof(line), "%s, %u away, %d o'clock.",
+                         marks[i].name, (unsigned) (dist + 0.5f), clock);
+        }
+        Say(line, "guide", oga::Priority::High);
     }
 }
 
@@ -1667,6 +2005,7 @@ static void khbbs_command(Command cmd)
         case Command::MenuPrev:        CmdMenuNav();   break;
         case Command::MenuLeft:        CmdMenuNav();   break;
         case Command::MenuRight:       CmdMenuNav();   break;
+        case Command::Guide:           CmdHubGuide();  break;
         // OSK and cue commands are ignored silently: this adapter is not
         // on a tracked keyboard, and adapter.h is explicit that adapters
         // in that position do exactly that.
@@ -1739,7 +2078,7 @@ const Adapter kKingdomHeartsBirthBySleep = {
     khbbs_ready,
     khbbs_detach,
     khbbs_cue_snapshot,
-    "Title and difficulty menu speech; camp menu speech; field health, command and gauge speech; lock-on beacon cue",
+    "Title and difficulty menu speech; camp menu speech; field health, command and gauge speech; lock-on beacon cue; Mirage Arena Hub landmark guide",
     "Spoken: the title menu (New Game, Continue, Install Game — plus "
     "Trinity Archives once clear data exists) and the New Game "
     "difficulty select. In the field, Where Am I speaks your health, "
@@ -1769,6 +2108,16 @@ const Adapter kKingdomHeartsBirthBySleep = {
     "demand: Next Ally speaks the foe (its health, distance, and "
     "whether it is above or below you), and Next Enemy speaks "
     "the lock state. The target's name is not read yet.\n"
+    "Mirage Arena: in the Hub, the Guide control reads the "
+    "landmarks on your floor of the room. On the entrance "
+    "platform it names the save point and the transporter; in "
+    "the lobby, the arena terminal, the Moogle Medal Shop and "
+    "the transporter back. Each comes with its distance, and "
+    "once you have walked a step and the reader knows which "
+    "way you are facing, a clock direction too (straight "
+    "ahead, 3 o'clock, and so on). A bearing is not a route: "
+    "the two floors are joined only by the transporter, so "
+    "the other floor's landmarks are never named.\n"
     "Battle cue: with the app's battle cues turned on in "
     "Settings, locking on also starts the beacon, a low beep "
     "that pulses faster as your target gets closer and stops "

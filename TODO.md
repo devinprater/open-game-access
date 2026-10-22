@@ -107,13 +107,91 @@
   returns a boolean and never stores the entity), the mission text and its pass/fail, the
   Senzu Bean counters, and any field-mode audio beacon. The adapter refuses to guess.
 
-- [ ] **Birth by Sleep: the title-menu gate fires before the title is interactive (observed 2026-10-21).**
+- [x] **Birth by Sleep: the title-menu gate fires before the title is interactive (observed 2026-10-21).**
   With the converted ISO in the host core, the adapter is ready at frame 540 and says "Title menu.
   New Game, 1 of 3" while the framebuffer is a white transition; three Down taps never moved the
   cursor and the reader repeated New Game. The gate (submenu pointer 0 plus a valid cursor and
   count) is satisfied by values that survive the intro and the save-data prompt. It needs a
   positive "the title menu is on screen" witness, not another inference. Until then the first menu
   line can arrive early and navigation can be silent even though the rows and camp menu are mapped.
+  **FIXED locally 2026-10-22 (not yet pushed).** Root cause: TITLE.ELF writes the title count and
+  cursor when the title struct is built — before the boot logos finish — so the old gate fired at
+  the Disney logo fade and stayed fired through the logos, the opening movie and the title fade-in.
+  Bench proof (khbbs-titlegate, six cold boots, two profiles, skip and no-skip paths): the positive
+  witness is a triple in the title struct — flow phase u32 @ 0x09920CD0 == 3 (1 = logos, 2 = movie),
+  title step u8 @ 0x09920D98 == 4 (menu idle; 3 = fading in), fade word u32 @ 0x09920F44 == 0
+  (settled). The step reaches 4 and the fade word zeroes in the same few frames, and the cursor
+  answers the next D-pad tap after that event on every boot; every probe before it failed. The
+  difficulty round-trip leaves all three in their title state, so the gate reopens on return.
+  OnTitleMenu() now requires all three; host test 101 checks (five new plants cover the logo,
+  movie, fade-in and unsettled-fade fakes), full suite green, live bench re-run: ready() now
+  stays false until the title actually answers input. Side finding, NOT fixed: on these cold
+  boots the difficulty object sat at 0x09922ED0, +0x20 from the address OnDifficulty() checks
+  (0x09922EB0, fixture lineage) — the exact-pointer difficulty gate may fail closed on cold
+  boots; worth its own hunt.
+  **Difficulty side finding FIXED locally 2026-10-22 (not yet pushed).** Bench hunt
+  (khbbs-diffgate, three boots per lineage plus the hunts 4-5 dumps): placement is
+  deterministic per profile — no system data (title count 3) → object at 0x09922EB0; system
+  data present (title count 4, Trinity Archives; SYSTEM.DAT alone drives it, removing the
+  game slots changed nothing) → 0x09922ED0, because that title leaves one extra 0x20 heap
+  block ahead of the object, present from title-build time. The old gate read zeros at its
+  fixed addresses on the system-data lineage, so the difficulty select was entirely
+  unspoken on those boots. OnDifficulty() now follows the submenu pointer, verifies the
+  object's header words (u32 @ +0x00 == 0xFFFFFFFF, u32 @ +0x0C == 0x08B90160 — identical in
+  all nine difficulty-open dumps across both lineages) and reads cursor/count at +0xF6/+0xFA
+  from the base. Host test 108 checks (seven new plants: the shifted base speaks, the
+  confirm-dialog count 2 fails closed there, an impostor block fails closed, half an
+  identity fails, the full identity at a third address passes); full suite green;
+  test-strength PASS (109 sites, floor 97). Live bench re-run: the fixed adapter speaks the
+  difficulty screen end-to-end on BOTH lineages. During the confirm dialog the count word
+  reads 2 on both lineages, so the gate closes there exactly as the old gate did on the
+  lineage where it worked.
+- [x] **Birth by Sleep: camp menu cursor cross-boot audit (done 2026-10-22, local only, not pushed).**
+  Question left by the difficulty hunt: do the camp cursors shift on cold boots of either
+  profile lineage? Bench khbbs-campgate (cold boot -> Continue -> load -> field -> camp,
+  std + nosys). Answer in two parts. (1) Cold boots do NOT shift the camp heap: a session's
+  first camp build lands on the fixture addresses on both lineages and every cursor tracked
+  live walks. (2) But the camp screen objects RELOCATE within a session — every dive/return
+  cycle rebuilds them at fresh heap addresses (main object 0x099195F0 -> 0x0992E020 ->
+  0x0992E0C0; slot widget 0x09925170 -> 0x09922CF0 on visit 2), so the fixed addresses went
+  stale from the second build on. Fix: all camp reads follow the game's per-session screen
+  registry (0x09919264; slot 3 = main object, slot 6 = decks object, class-tag verified:
+  0x08BAD400 / 0x08BA59D0) and the decks object's child chain (slot screen @ +0x9C, tag
+  0x08BA29E0; slot widget @ +0x84; slot cursor +0x66, count +0x6A, tab +0x134, inventory
+  +0x138) — CampMainObj / CampDecksObj / CampPaneObj / CampSlotWidget in khbbs_adapter.cpp.
+  Audit also caught a live bug: the decks-submenu word churns under the slot list on cold
+  boots (same-frame and delayed variants; cg-std1/3/4 demoted to "Meld Commands, 2 of 5"
+  through the slot list) — arrival now outranks the sub word and the SlotList/Inventory
+  branches ignore sub moves. Host test 128 checks (relocation plants at the real cycle-2
+  addresses + a registry impostor); full suite green; test-strength 129 sites vs 97 floor.
+  Live-verified on the locator build: full flows on both lineages (cg-std6, cg-nosys3),
+  main/decks epoch walks (cg-p8b), slot/inventory on visits 1 AND 2 on both lineages
+  (cg-p9b, cg-p9nosys). Detail: RE doc section "Camp menu cold-boot audit + RELOCATION fix".
+- [x] **Birth by Sleep: app-exposure audit + Mirage Arena Hub landmark guide (done 2026-10-22, local only, not pushed).**
+  Every Core khbbs feature checked against the app surface. Present: title,
+  difficulty, field and camp speech ride the input bridge's automatic menu
+  echoes (D-pad edges forward to every adapter, ungated by the button list)
+  plus the Where Am I and Menu status buttons; the foe and lock queries are
+  the Next Ally / Next Enemy buttons; the beacon's cue snapshot is polled
+  generically (poke_cue_snapshot). Deliberately NOT buttoned: the PrevAlly /
+  PrevEnemy / NextUnactedAlly self readout — the shared Swift labels would
+  misdescribe it, and Where Am I already speaks the same field line. One real
+  gap found and fixed: Guide. The Hub's proven landmark table
+  (~/workspace/games/kh-bbs/hub-landmarks.md, from the room's .olo spawn data)
+  is wired as CmdHubGuide behind Command::Guide, with .guide added to the
+  Swift supported list for khbbs: in world 15 room 1 it speaks only the
+  current floor's landmarks (platform z < -20: Save point, Transporter;
+  lobby: Arena terminal, Moogle Medal Shop, Transporter), each with its
+  distance and — once a movement leg sets the facing — a clock bearing in
+  DBZ: Another Road's form ("3 o'clock" / "straight ahead"); no facing means
+  distance only. Silent outside the Hub, while camp is open, when the two
+  location copies disagree, and when the position cannot be located.
+  Registry coverage/notes updated to name the guide. Host test 140 checks
+  (12 new plants: both floors, bearings, the z split, the silent states);
+  full suite green; test-strength 141 sites vs 97 floor — raising the
+  baseline is owed at push time. The Swift change is one list entry plus a
+  comment; swiftc is not installed on this VM, so CI must verify the Swift
+  build.
 - [ ] **MK Unchained may simply be sluggish on iOS, not in OGA (observed 2026-10-21).**
   RetroArch from the App Store is just as sluggish on the same phone, so the delay is not this app's
   input or audio path. OGA pins PPSSPP f293b10fb2 (2026-09-19); RetroArch ships its own core, so the
@@ -762,12 +840,19 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 - [~] **Kingdom Hearts: Birth by Sleep (PSP, ULUS10505) adapter:** local only,
   pushed 2026-10-21 at the user's word (the push was LAST on his
   completion list until he moved it up). Host
-  tests: 95 checks, all passing (2026-10-21). Live-verified and spoken: title
+  tests: 140 checks, all passing locally (2026-10-22; the pushed state had 95).
+  Local-only fixes since the push, all live-verified and awaiting the user's
+  push word: the title-gate triple witness, the difficulty-object locator
+  (SYSTEM.DAT +0x20 shift), and the camp-menu screen-registry locators +
+  slot-list churn fix (see the camp audit item above). App-exposure audit +
+  Mirage Arena Hub landmark Guide also wired locally 2026-10-22 (see the
+  wiring item above). Live-verified and spoken: title
   and difficulty menus, field state (character, health, selected command,
   gauge), world + room names and player position, camp menu and command
   inventory, the Meld Commands screen, lock-on foe readout (health + distance),
   and the lock-on beacon data feed. Still open, in the user's order: directions
-  to exits/objectives (landmark tables; facing mechanism designed), the enemy's
+  to exits/objectives (landmark tables — the Mirage Arena Hub table is wired
+  behind Guide; other rooms still open), the enemy's
   NAME, multi-enemy awareness, Focus/shotlock + D-Link + low-HP warning,
   game-over and movie-pause menus, meld speech, the remaining camp sub-screens,
   save/load, shops, field dialogue boxes, world map speech, and Command
