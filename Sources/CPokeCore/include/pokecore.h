@@ -139,6 +139,10 @@ void poke_set_hotkey(PokeCore *core, const char *key, bool down);
 /* Audio: interleaved stereo s16. Returns frames written. */
 int poke_read_audio(PokeCore *core, int16_t *out, int max_frames);
 void poke_set_audio_enabled(PokeCore *core, bool enabled);
+/* PSP drawing skip: 0 = every frame, 1 = every other frame. The emulated CPU
+ * still runs every frame; only drawing is thinned. Returns false for backends
+ * that do not draw through PPSSPP's frame skipper. */
+bool poke_set_frame_skip(PokeCore *core, int skip);
 
 /* Savestates (whole-core, as melonDS does). */
 bool poke_save_state(PokeCore *core, const char *path);

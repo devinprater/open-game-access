@@ -26,6 +26,16 @@ printed on the controller:
 
 L2 and R2 never reach the game. They are held for reader commands.
 
+## Stick clicks
+
+| Press | Command |
+|---|---|
+| Left stick click (L3) | Where am I |
+| Right stick click (R3) | Menu status |
+
+These need no modifier: the sticks are already under the thumbs, and no console
+this app runs uses L3 or R3 for a game button.
+
 ## Reader commands
 
 Hold a trigger, then press a button. The game does not receive that press.

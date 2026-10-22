@@ -107,6 +107,10 @@ void psp_debug_write(PspCore *core, uint32_t addr, uint32_t value, int width);
  * once per frame and diff: a new pc is an instruction that read the watched
  * bytes that frame. Requires the classic interpreter (see above). */
 void psp_set_classic_interpreter(PspCore *core);
+/* Drop every (skip)th frame's drawing. 0 = draw all; 1 = every other frame.
+ * The emulated CPU still runs every frame, so game time and input are unchanged;
+ * only the picture is thinned. For a screen-reader player that is free speed. */
+void psp_set_frame_skip(PspCore *core, int skip);
 void psp_watch_read(PspCore *core, uint32_t start, uint32_t end);
 /* Same, but each hit also emits a log line with (pc, addr, size) through the
  * core log callback path. Use sparingly on hot ranges: every watched read

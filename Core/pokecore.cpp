@@ -123,6 +123,8 @@ struct PokeCore {
     // and the Lua script is the only accessibility layer.
     const oga::Adapter* adapter = nullptr;
     bool adapterAttached = false;
+    // Drawing skip for the PSP backend: 0 draws every frame, 1 every other.
+    int frameSkip = 0;
     // ROM game ID: 4 chars for NDS (header 0x0C), up to 9+ for PSP (PARAM.SFO,
     // e.g. ULUS10437). 16 covers both with room.
     char gameCode[16] = {0};
@@ -1478,6 +1480,9 @@ static bool LoadPspRom(PokeCore* core, const char* rom_path, const char* save_pa
         return false;
     }
     core->backend = oga_psp_core(core->psp);
+#ifndef POKE_HOST
+    psp_set_frame_skip(core->psp, core->frameSkip);
+#endif
     strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
     // The adapter comes from the registry by game ID (ULUS10437 -> Dissidia),
     // exactly like an NDS game. A PSP game with no adapter is the normal
@@ -2044,6 +2049,18 @@ int poke_read_audio(PokeCore* core, int16_t* out, int max_frames)
     }
     if (!core->nds || !core->audioEnabled) return 0;
     return core->nds->SPU.ReadOutput(out, max_frames);
+}
+
+bool poke_set_frame_skip(PokeCore* core, int skip)
+{
+    if (!core) return false;
+    if (skip < 0) skip = 0;
+    if (skip > 2) skip = 2;
+    core->frameSkip = skip;
+#ifndef POKE_HOST
+    if (core->psp) psp_set_frame_skip(core->psp, skip);
+#endif
+    return true;
 }
 
 void poke_set_audio_enabled(PokeCore* core, bool enabled)

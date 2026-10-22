@@ -694,6 +694,16 @@ void psp_set_classic_interpreter(PspCore *core)
     core->traceClassicCpu = true;
 }
 
+void psp_set_frame_skip(PspCore *core, int skip)
+{
+    (void) core;
+    if (skip < 0) skip = 0;
+    if (skip > 2) skip = 2;
+    // PPSSPP reads this every frame (sceDisplay and SoftGpu), so a setting change
+    // takes effect without reinitialising the game.
+    g_Config.iFrameSkip = skip;
+}
+
 void psp_watch_read(PspCore *core, uint32_t start, uint32_t end)
 {
     if (!core || end <= start) return;

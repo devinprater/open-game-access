@@ -1,6 +1,7 @@
 import Foundation
 import AVFoundation
 import SwiftUI
+import UIKit
 import CPokeCore
 
 /// GameSession owns the emulator core and drives the frame loop.
@@ -47,6 +48,20 @@ final class GameSession: ObservableObject {
     ///
     /// ⛔ PERSISTED. A cue the player switched off and which came back after a restart is
     /// worse than one they never found.
+    /// Draw every other frame. The emulated CPU still runs every frame, so game
+    /// time, input and speech are unchanged; only the picture is thinned. On by
+    /// default for a VoiceOver player, who is not looking at the picture anyway,
+    /// and persisted so a choice survives a restart.
+    @Published var skipDrawing: Bool =
+        UserDefaults.standard.object(forKey: "skipDrawing") as? Bool
+            ?? UIAccessibility.isVoiceOverRunning {
+        didSet {
+            UserDefaults.standard.set(skipDrawing, forKey: "skipDrawing")
+            if let core { _ = poke_set_frame_skip(core, skipDrawing ? 1 : 0) }
+            speech?.announce(skipDrawing ? "Skip drawing on." : "Skip drawing off.")
+        }
+    }
+
     @Published var cueBeaconEnabled: Bool =
         UserDefaults.standard.object(forKey: "cueBeacon") as? Bool ?? false {
         didSet {
@@ -140,6 +155,7 @@ final class GameSession: ObservableObject {
             status = .failed("Could not start the emulator core.")
             return
         }
+        _ = poke_set_frame_skip(core, skipDrawing ? 1 : 0)
         poke_set_speech_id_callback(core, GameSession.speechCallback,
                                     Unmanaged.passUnretained(speechPlaceholder).toOpaque())
 

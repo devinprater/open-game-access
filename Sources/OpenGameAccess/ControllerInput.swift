@@ -114,6 +114,17 @@ final class ControllerInput: ObservableObject {
         onPress(pad.buttonMenu, "menu") { $0.set($1, .start, pressed: $2) }
         onPress(pad.buttonOptions, "options") { $0.set($1, .select, pressed: $2) }
 
+        // The stick clicks are the reader's two most-used commands. A player who
+        // reaches for L3/R3 should not have to learn a trigger chord first, and on
+        // a pad the sticks are already under the thumbs. Neither is a game button
+        // on any console this app runs, so nothing is taken from the game.
+        onPress(pad.leftThumbstickButton, "l3") { s, _, pressed in
+            if pressed { s.perform(.whereAmI) }
+        }
+        onPress(pad.rightThumbstickButton, "r3") { s, _, pressed in
+            if pressed { s.perform(.menuStatus) }
+        }
+
         // The reader's modifiers. Never game input.
         onPress(pad.leftTrigger, "l2") { s, source, pressed in
             if pressed { s.askHeld.insert(source) } else { s.askHeld.remove(source) }
@@ -225,7 +236,7 @@ final class ControllerInput: ObservableObject {
     /// The reader's command slots — what a chord means, before it is resolved
     /// against the loaded game.
     private enum Slot {
-        case whereAmI, stopSpeech, repeatLast, findPath, tiles
+        case whereAmI, menuStatus, stopSpeech, repeatLast, findPath, tiles
         case prevItem, nextItem, prevGroup, nextGroup, readItem
         case gameToggle1, gameToggle2, gameToggle3
         /// Step one line further back through the spoken history. Separate from
@@ -290,6 +301,7 @@ final class ControllerInput: ObservableObject {
 
         switch slot {
         case .whereAmI:    return cmd(.whereAmI) ?? key("C") ?? key("M")
+        case .menuStatus:  return cmd(.menuState)
         // The DS script's own stop key also clears its queue; elsewhere the
         // engine stop is what makes silence stick (see SpeechGroup).
         case .stopSpeech:  return key("R") ?? .stopSpeech

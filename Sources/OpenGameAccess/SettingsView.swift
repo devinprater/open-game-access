@@ -29,6 +29,13 @@ struct SettingsView: View {
             }
 
             Section {
+                Toggle("Skip drawing", isOn: $session.skipDrawing)
+                    .accessibilityHint("Draws every other frame. The game runs faster; speech, controls and game timing do not change. The picture may stutter.")
+            } header: {
+                Text("Performance")
+            }
+
+            Section {
                 Toggle("Game sound", isOn: $session.audioEnabled)
                     .accessibilityHint("Plays the game's own audio. Speech is never turned off.")
                 // The lock-on cue. A separate switch from game sound on purpose: a player
