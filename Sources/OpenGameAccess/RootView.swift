@@ -12,13 +12,11 @@ struct RootView: View {
 
     var body: some View {
         NavigationStack {
-            VStack(spacing: 0) {
-                ScreenView()
-                StatusBar()
-                if case .running = session.status {
-                    Controls()
+            Group {
+                if session.hasGame {
+                    GameLayout()
                 } else {
-                    SetupPanel()
+                    AdapterLibraryView()
                 }
             }
             .navigationTitle("Open Game Access")
@@ -41,6 +39,25 @@ struct RootView: View {
                     }
                     .accessibilityLabel("Settings")
                 }
+            }
+        }
+    }
+}
+
+/// The screen a loaded game gets: the emulated picture, the status line, and
+/// either the controls (while running) or the way to start it. It exists only
+/// after a game is loaded, so the app never opens on an empty game screen.
+private struct GameLayout: View {
+    @EnvironmentObject private var session: GameSession
+
+    var body: some View {
+        VStack(spacing: 0) {
+            ScreenView()
+            StatusBar()
+            if case .running = session.status {
+                Controls()
+            } else {
+                StartPanel()
             }
         }
     }
@@ -127,21 +144,17 @@ private struct StatusBar: View {
 }
 
 /// Setup: pick a ROM and start. Two buttons, in the order they are needed.
-private struct SetupPanel: View {
+private struct StartPanel: View {
     @EnvironmentObject private var session: GameSession
-    @EnvironmentObject private var speech: SpeechEngine
-    @State private var showingPicker = false
 
     var body: some View {
         VStack(spacing: 12) {
-            Button {
-                showingPicker = true
-            } label: {
-                Label("Select Game", systemImage: "folder")
-                    .frame(maxWidth: .infinity, minHeight: 44)
+            if case .failed(let message) = session.status {
+                Text(message)
+                    .font(.footnote)
+                    .foregroundStyle(.red)
+                    .accessibilityLabel("Error: \(message)")
             }
-            .buttonStyle(.borderedProminent)
-            .accessibilityHint("Opens the file picker. Choose a supported game.")
 
             Button {
                 session.start()
@@ -149,31 +162,20 @@ private struct SetupPanel: View {
                 Label("Start Game", systemImage: "play.fill")
                     .frame(maxWidth: .infinity, minHeight: 44)
             }
-            .buttonStyle(.bordered)
+            .buttonStyle(.borderedProminent)
             .disabled({ if case .ready = session.status { return false }; return true }())
             .accessibilityHint("Starts the game and the accessibility script.")
 
-            if case .failed(let message) = session.status {
-                Text(message)
-                    .font(.footnote)
-                    .foregroundStyle(.red)
-                    .accessibilityLabel("Error: \(message)")
+            Button {
+                session.closeGame()
+            } label: {
+                Label("Back to game list", systemImage: "chevron.left")
+                    .frame(maxWidth: .infinity, minHeight: 44)
             }
+            .buttonStyle(.bordered)
+            .accessibilityHint("Closes the loaded game and returns to the list of games.")
         }
         .padding()
-        .fileImporter(
-            isPresented: $showingPicker,
-            allowedContentTypes: ROMStore.allowedTypes,
-            allowsMultipleSelection: false
-        ) { result in
-            switch result {
-            case .success(let urls):
-                guard let url = urls.first else { return }
-                session.loadROM(at: url)
-            case .failure(let error):
-                speech.announce("Could not open that file: \(error.localizedDescription)")
-            }
-        }
     }
 }
 

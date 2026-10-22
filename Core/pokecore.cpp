@@ -940,6 +940,90 @@ const char *poke_adapter_name(PokeCore *core)
     return (core && core->adapter) ? core->adapter->display_name : nullptr;
 }
 
+// ---- the app's game library -------------------------------------------------
+//
+// The list is generated from the adapter registry, so it cannot drift from the
+// readers that actually ship. Console-only placeholder rows are skipped: their
+// notes say there is no game-specific reader yet, and the library is a list of
+// games.
+
+static bool LibraryAdapter(const oga::Adapter* a)
+{
+    if (!a || !a->id) return false;
+    return strcmp(a->id, "nes") != 0 && strcmp(a->id, "n64") != 0;
+}
+
+static const oga::Adapter* LibraryAt(int index)
+{
+    if (index < 0) return nullptr;
+    int n = 0;
+    const oga::Adapter* const* list = oga::all_adapters(&n);
+    int seen = 0;
+    for (int i = 0; i < n; i++)
+    {
+        if (!LibraryAdapter(list[i])) continue;
+        if (seen == index) return list[i];
+        seen++;
+    }
+    return nullptr;
+}
+
+int poke_adapter_library_count(void)
+{
+    int n = 0;
+    const oga::Adapter* const* list = oga::all_adapters(&n);
+    int count = 0;
+    for (int i = 0; i < n; i++) if (LibraryAdapter(list[i])) count++;
+    return count;
+}
+
+const char *poke_adapter_library_id(int index)
+{
+    const oga::Adapter* a = LibraryAt(index);
+    return a ? a->id : nullptr;
+}
+
+const char *poke_adapter_library_name(int index)
+{
+    const oga::Adapter* a = LibraryAt(index);
+    return a ? a->display_name : nullptr;
+}
+
+const char *poke_adapter_library_code(int index)
+{
+    const oga::Adapter* a = LibraryAt(index);
+    return (a && a->game_code) ? a->game_code : "";
+}
+
+const char *poke_adapter_library_coverage(int index)
+{
+    const oga::Adapter* a = LibraryAt(index);
+    return (a && a->coverage) ? a->coverage : "";
+}
+
+const char *poke_adapter_library_notes(int index)
+{
+    const oga::Adapter* a = LibraryAt(index);
+    return (a && a->notes) ? a->notes : "";
+}
+
+const char *poke_adapter_library_console(int index)
+{
+    const oga::Adapter* a = LibraryAt(index);
+    if (!a || !a->id) return "";
+
+    // The registry already encodes the console twice over: the id names the
+    // console (gba) or the game (fe11), and the code's shape does the rest. This
+    // is derived rather than stored so no initializer can forget a field.
+    if (strcmp(a->id, "gba") == 0) return "gb";
+    if (strcmp(a->id, "nes") == 0) return "nes";
+    if (strcmp(a->id, "n64") == 0) return "n64";
+    if (a->game_code && strncmp(a->game_code, "crc:", 4) == 0) return "snes";
+    if (a->game_code && strncmp(a->game_code, "ULUS", 4) == 0) return "psp";
+    if (a->game_code && strlen(a->game_code) == 4) return "nds";
+    return "";
+}
+
 const char *poke_game_code(PokeCore *core)
 {
     return (core && core->gameCode[0]) ? core->gameCode : "";

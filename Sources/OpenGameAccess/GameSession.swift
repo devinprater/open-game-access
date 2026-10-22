@@ -20,6 +20,19 @@ final class GameSession: ObservableObject {
     }
 
     @Published private(set) var status: Status = .idle
+
+    /// True once a ROM is loaded and there is a game screen to show. The home
+    /// screen is the game library until then: an emulator screen with no game
+    /// is a picture of nothing, and it used to be the first thing a player met.
+    ///
+    /// `.failed` counts, so a failed load reports its error on the game screen
+    /// instead of silently returning to the list.
+    var hasGame: Bool {
+        switch status {
+        case .ready, .running, .failed: return true
+        case .idle, .needROM: return false
+        }
+    }
     @Published private(set) var romName: String?
     @Published var showDebugLog = false
     @Published private(set) var debugLines: [String] = []
@@ -442,10 +455,38 @@ final class GameSession: ObservableObject {
         let saved = poke_save_state(core, path)
 
         stop()
+        // A quit leaves no loaded game, so it goes back to the library rather
+        // than to a paused game screen with nothing running behind it.
+        resetToLibrary()
 
         // Report the outcome, because silence after a destructive-looking action
         // is indistinguishable from the app having crashed.
         speech?.announce(saved ? "Game closed. Progress saved." : "Game closed. Could not save.")
+    }
+
+    /// Leave the game screen without a running game: back to the library.
+    ///
+    /// Unlike quit() this does not save, because nothing has run yet.
+    func closeGame() {
+        resetToLibrary()
+        speech?.announce("Back to the game list.")
+    }
+
+    /// Drop the loaded ROM and return the app to its library screen. The
+    /// adapter's identity is cleared with it, so the next load reads its own
+    /// reader instead of showing this one's controls for a frame.
+    private func resetToLibrary() {
+        if let core { poke_stop(core) }
+        displayLink?.invalidate()
+        displayLink = nil
+        stopAudio()
+        adapterReady = false
+        adapterID = nil
+        adapterName = nil
+        readerSetName = nil
+        romGameCode = nil
+        romName = nil
+        status = .needROM
     }
 
     private func startDisplayLink() {

@@ -170,6 +170,24 @@ const char *poke_backend_id(PokeCore *core);
  * there is none. */
 const char *poke_adapter_name(PokeCore *core);
 
+/* THE GAME LIBRARY: the adapters a player can choose from before loading a
+ * ROM, in registry order. Console-only placeholder rows (NES, N64) are
+ * excluded: their notes say there is no game reader yet, so listing them as
+ * games would be a promise the app cannot keep.
+ *
+ * Every string is static storage owned by the adapter and stays valid for the
+ * life of the process. An out-of-range index returns NULL (or 0 for the count);
+ * callers must not cache these pointers across a rebuild. */
+int poke_adapter_library_count(void);
+const char *poke_adapter_library_id(int index);
+const char *poke_adapter_library_name(int index);
+const char *poke_adapter_library_code(int index);
+const char *poke_adapter_library_coverage(int index);
+const char *poke_adapter_library_notes(int index);
+/* "nds", "gb", "psp", "snes", "nes", "n64", or "" — the console that picks the
+ * file types the game page's picker offers. */
+const char *poke_adapter_library_console(int index);
+
 /* The loaded ROM's four-letter game code from header offset 0x0C, e.g. "IRBO"
  * or "YFEE". Empty string when no ROM is loaded. This is what decides BOTH the
  * adapter AND whether the bundled Lua script knows the game, so the UI reads

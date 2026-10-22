@@ -1,14 +1,16 @@
 # Proposal: an adapter game library in the OGA app
 
-Status: proposal (Devin, 2026-10-18). The data half is implemented:
-option (a) below shipped the same day — `coverage` and `notes` are
-trailing members of `Core/adapter.h`'s Adapter struct, populated for
-every registered adapter, with host-test checks that the two PSP
-launch titles carry them. The app UI (library
-list, game pages, verify-then-play flow) is not built yet. The flow
-below is the app-level companion to the adapter registry: the
-registry already knows which games have adapters; the app should
-present that fact instead of opening on a bare ROM picker.
+Status: implemented (data and UI, 2026-10-21). `coverage` and `notes`
+are trailing members of `Core/adapter.h`'s Adapter struct, populated for
+every registered adapter, and the app's home screen is now the library:
+a list generated from the registry, a page per game with its notes and a
+Load Game button filtered to that console, and "Load another game" for
+everything else. The game screen appears only after a ROM is loaded.
+
+NOT built: the verify-then-play step below (match the picked file's code
+after the pick, then offer "Load anyway without accessibility"). Today a
+file whose code does not match simply loads without a reader, and the
+adapter's absence is the honest signal.
 
 ## The flow
 
