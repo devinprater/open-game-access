@@ -674,6 +674,12 @@ bool InFight(void)
 {
     if (InKonquest()) return false;   // Konquest bouts: same engine,
                                       // different id semantics (above)
+    // ⛔ THE FIGHT STRUCT LINGERS ON CHARACTER SELECT. Measured live: the grid
+    // was up with Shao Kahn highlighted, and the last match's round/timer/HP
+    // still passed every check below, so WhereAmI read that dead match's fighter
+    // ids (Goro and Scorpion) over the grid. The fighter table is a positive
+    // signal for "not in a match" and must win over the lingering words.
+    if (OnCharSelect()) return false;
     // The fight struct's words LINGER after a match and on front-end screens:
     // measured live 2026-10-18 on the Options tabs, round read 1, the timer 72
     // and both HP words 1.0 while the menu was up, which passed every check
@@ -941,8 +947,12 @@ static void MenuWatch(void)
                                ? kCharObjBase - ci * kCharObjStride : 0;
             char line[192];
             snprintf(line, sizeof(line),
-                     "[mku] unmapped: char cursor=%u holder=0x%08X expected=0x%08X magic=0x%08X",
-                     ci, ch, exp, ci < (uint32_t) kCharCount ? u32(exp + 4) : 0);
+                     "[mku] unmapped: char cursor=%u holder=0x%08X expected=0x%08X magic=0x%08X "
+                     "fight p1=%u p2=%u round=%u timer=%u hp=%.2f/%.2f",
+                     ci, ch, exp, ci < (uint32_t) kCharCount ? u32(exp + 4) : 0,
+                     u32(kP1FighterIdAddr), u32(kP2FighterIdAddr),
+                     u32(kRoundAddr), u32(kTimerAddr),
+                     (double) f32(kP1HpAddr), (double) f32(kP2HpAddr));
             Log(line);
         }
         return;
