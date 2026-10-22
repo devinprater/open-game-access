@@ -79,6 +79,11 @@ bool gba_running(GbaCore *core);
 /* One emulated frame: latch buttons, run, resume the reader coroutine. */
 bool gba_frame(GbaCore *core);
 
+/* Enable or disable the emulated audio path. Disabling drops queued samples:
+ * a muted game must not accumulate a backlog nobody consumes. Called from the
+ * core's set_audio path, on the main thread. */
+void gba_set_audio_enabled(GbaCore *core, bool enabled);
+
 /* Video. Dimensions are the core's own (GBA 240x160, GB/GBC 160x144);
  * pixels are RGBA8888, valid until the next frame. */
 bool gba_framebuffer(GbaCore *core, int *width, int *height);

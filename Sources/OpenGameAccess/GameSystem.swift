@@ -65,7 +65,12 @@ struct GameSystem: Equatable {
     /// a console, or the file gets loaded into the wrong emulator. That default
     /// is what once made a .gba try to boot melonDS.
     static func forROMExtension(_ ext: String) -> GameSystem? {
-        guard let h = ext.withCString({ oga_system_for_path($0) }) else { return nil }
+        // ⛔ THE EXTENSION, NOT THE PATH. oga_system_for_path() wants a filename
+        // with a dot ("game.iso"); handed a bare "iso" it returns nil for every
+        // console. That nil was invisible on the DS, which falls back to a
+        // default pad, but it meant the PSP never received its runtime-asset
+        // directory and the NES never staged its per-game reader.
+        guard let h = ext.withCString({ oga_system_for_extension($0) }) else { return nil }
         return GameSystem(handle: OpaquePointer(h), id: oga_system_id(h))
     }
 

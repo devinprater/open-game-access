@@ -2035,7 +2035,13 @@ int poke_read_audio(PokeCore* core, int16_t* out, int max_frames)
 
 void poke_set_audio_enabled(PokeCore* core, bool enabled)
 {
-    if (core) core->audioEnabled = enabled;
+    if (!core) return;
+    core->audioEnabled = enabled;
+    // The GBA backend stages its audio on the emulation thread, so it has to know
+    // whether anybody is consuming: otherwise a muted game grows a backlog.
+    if (core->backend.ops && core->backend.ops->id &&
+        strcmp(core->backend.ops->id, "gba") == 0)
+        gba_set_audio_enabled((GbaCore*) core->backend.state, enabled);
 }
 
 // ------------------------------------------------------------------ savestates

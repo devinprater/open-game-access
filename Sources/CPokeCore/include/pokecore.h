@@ -294,6 +294,11 @@ const char *poke_version(void);
  * ⛔ NULL means "cannot run this", never "assume the DS". */
 const void* oga_system_for_path(const char* path);
 
+/* The same lookup by extension alone ("iso", ".iso" or "ISO"): the form the app
+ * has once a file is picked. oga_system_for_path needs a name with a dot and
+ * returns NULL for a bare extension, which is why this exists. */
+const void* oga_system_for_extension(const char* ext);
+
 /* True when this build has a backend that can actually load that console. */
 bool oga_system_is_runnable(const void* sys);
 
