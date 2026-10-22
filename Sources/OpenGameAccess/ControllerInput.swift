@@ -24,6 +24,7 @@ import GameController
 ///     north (Triangle / X)        Repeat
 ///     west  (Square / Y)          Find path
 ///     D-pad down                  Tiles around you
+///     D-pad up                    Previous spoken line (walk back through history)
 ///   R2 ("browse" — index on R2, left thumb on the D-pad)
 ///     D-pad left / right          Previous / next item (allies, list entries)
 ///     D-pad up / down             Previous / next group (enemies, list groups)
@@ -256,6 +257,7 @@ final class ControllerInput: ObservableObject {
             case .face(.north): return .repeatLast
             case .face(.west):  return .findPath
             case .pad(.down):   return .tiles
+            case .pad(.up):     return .repeatOlder
             default: return nil
             }
         }
@@ -266,7 +268,7 @@ final class ControllerInput: ObservableObject {
             case .pad(.up):     return .prevGroup
             case .pad(.down):   return .nextGroup
             case .face(.south): return .readItem
-            case .face(.north): return .repeatOlder
+            case .face(.north): return .gameToggle1
             case .face(.west):  return .gameToggle2
             case .face(.east):  return .gameToggle3
             }

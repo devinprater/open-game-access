@@ -49,6 +49,7 @@ Hold a trigger, then press a button. The game does not receive that press.
 | Top (Triangle) | Repeat the last thing said |
 | Left (Square) | Find path |
 | D-pad down | Tiles around you |
+| D-pad up | Previous spoken line (walk back through the history) |
 
 **Hold R2 — browse** (left thumb on the D-pad)
 
