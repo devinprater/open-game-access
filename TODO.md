@@ -107,6 +107,16 @@
   returns a boolean and never stores the entity), the mission text and its pass/fail, the
   Senzu Bean counters, and any field-mode audio beacon. The adapter refuses to guess.
 
+- [ ] **MK Unchained may simply be sluggish on iOS, not in OGA (observed 2026-10-21).**
+  RetroArch from the App Store is just as sluggish on the same phone, so the delay is not this app's
+  input or audio path. OGA pins PPSSPP f293b10fb2 (2026-09-19); RetroArch ships its own core, so the
+  common factor is iOS 27.2 plus the PSP core, not one frontend. OGA's own numbers: menus 60 fps
+  (avg 5 ms, p90 11 ms), a fight around 26-30 fps with the old frameskip; with frameskip removed the
+  tick rate is 60 but the game still decides how fast it runs. ⚠ At 26 emulated frames a second the
+  core produces only 26/60 of a second of audio per wall second, so no queue can stop the stutter —
+  it can only smooth jitter. Next: compare another PSP title (Dissidia, Birth by Sleep) in OGA and
+  RetroArch, and re-test after an iOS or PPSSPP update. Do not call the remaining stutter an OGA bug
+  until that comparison exists.
 - [ ] **MK Unchained: speak the tower/versus screen, so the next opponent is known (open; asked 2026-10-21).**
   After a win the game shows the next fighter on the tower before the match, and today the adapter
   says nothing there. Feasible, but not mapped: the opponent-select screen that precedes it already
