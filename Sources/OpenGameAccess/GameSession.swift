@@ -451,39 +451,6 @@ final class GameSession: ObservableObject {
         CueSynth.shared.updateBeacon(state: state, distance: dist, enabled: on)
     }
 
-    // MARK: - Controller latency probe
-    //
-    // A press that feels half a second late is either the pad's link or this
-    // app's frame loop, and the difference decides where to look. Arm this from
-    // Settings; the next controller press is timestamped in its handler and the
-    // delay is measured at the end of the frame that consumed it.
-    private var padProbeArmed = false
-    private var padPressAt: TimeInterval = 0
-
-    func armControllerDelayProbe() {
-        padProbeArmed = true
-        padPressAt = 0
-        speech?.announce("Press any controller button now.")
-    }
-
-    /// Called from the controller handler on the main actor, before the input
-    /// reaches the core. Only the FIRST press after arming is kept, so a chord
-    /// cannot overwrite the number being measured.
-    func noteControllerPress() {
-        if padPressAt == 0 { padPressAt = Date.timeIntervalSinceReferenceDate }
-    }
-
-    private func reportControllerDelayIfNeeded() {
-        guard padPressAt > 0 else { return }
-        let ms = Int((Date.timeIntervalSinceReferenceDate - padPressAt) * 1000)
-        padPressAt = 0
-        appendDebug("[pad] press to end of frame: \(ms) ms")
-        if padProbeArmed {
-            padProbeArmed = false
-            speech?.announce("Controller delay \(ms) milliseconds.")
-        }
-    }
-
     /// Leave the running game, saving first.
     ///
     /// Saving is not a courtesy here, it is the difference between quitting and
@@ -562,7 +529,6 @@ final class GameSession: ObservableObject {
         refreshFramebuffer()
         refreshAdapterState()
         refreshCue()
-        reportControllerDelayIfNeeded()
     }
 
     // MARK: - Game adapters (native readers)

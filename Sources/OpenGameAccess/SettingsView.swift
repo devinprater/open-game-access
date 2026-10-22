@@ -29,8 +29,6 @@ struct SettingsView: View {
             }
 
             Section {
-                Button("Measure controller delay") { session.armControllerDelayProbe() }
-                    .accessibilityHint("After this, press any controller button. The app speaks how many milliseconds passed before the game saw it.")
                 Toggle("Skip drawing", isOn: $session.skipDrawing)
                     .accessibilityHint("Draws every other frame. The game runs faster; speech, controls and game timing do not change. The picture may stutter.")
             } header: {
