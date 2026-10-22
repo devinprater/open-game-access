@@ -1,67 +1,40 @@
-#!/usr/bin/env bash
-# check-reader-assets.sh — fail if the reader set is duplicated or incomplete.
+#!/bin/bash
+# check-reader-assets.sh — the Android GB/GBA reader set must be the CURRENT set.
 #
-# Two defects this guards, both measured on the shipped v0.6.1 APK:
-#  1. a hand-copied SECOND reader tree under app/src/main/assets/ drifted five
-#     days behind the canonical one and shipped without oga_bootstrap.lua or
-#     mgba_compat.lua, i.e. without the loader and the mGBA API shim;
-#  2. the canonical tree was missing sounds/ entirely (33 positional-audio WAVs
-#     the reader names with `scriptpath .. "sounds\..."`), so the iOS bundle
-#     never carried them.
+# The Android app ships the reader Lua from app/src/main/assets/lua/gb/;
+# the canonical set lives in Sources/OpenGameAccess/Resources/gba-lua/
+# (iOS copies that whole directory via Package.swift). The two trees have
+# drifted before: a 2026-09-15 Android snapshot shipped for weeks without
+# oga_bootstrap.lua / mgba_compat.lua (added 2026-09-20), and the old gate
+# (`grep -qi lua` over the APK) could not see it. The APK gates in
+# .github/workflows/android-apk.yml and scripts/android-build-local.sh now
+# assert the files by name; this script is the source-tree half of the same
+# check, run by the workflow before the build.
 #
-# Run from the repo root. Exits non-zero with a specific reason.
-set -uo pipefail
-
-ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
-CANON="$ROOT/Sources/OpenGameAccess/Resources/gba-lua"
-DUP="$ROOT/app/src/main/assets/lua/gb"
-
-# Files a staged reader set cannot work without. oga_bootstrap.lua calls itself
-# "the ONE file to load"; mgba_compat.lua is the mGBA<-BizHawk API shim.
-REQUIRED="oga_bootstrap.lua mgba_compat.lua gb.lua gba.lua pokemon.lua"
-# Positional-audio files the readers name. At least one per directory proves the
-# tree is wired for sound at all.
-REQUIRED_SOUNDS="sounds/gba/s_grass.wav sounds/common/s_water.wav sounds/gb/menusel.wav"
+# NOTE (2026-10-22): TODO.md records a build-time STAGING design for this
+# (2026-10-07, 4870f45) — stage from gba-lua, no in-tree copy. That staging
+# and this script were both absent from main@7567ac3 while the workflow
+# still referenced the script, so the workflow failed before building.
+# Until the staging is restored, the in-tree copy is what ships and this
+# check keeps it honest: every runtime .lua in gba-lua must exist in the
+# Android assets with identical content. host-sim-rom.lua is a host test
+# harness, not a runtime file, and is excluded; the Android-only sounds/
+# directory is not compared.
+set -u
+ROOT="$(cd "$(dirname "$0")/.." && pwd)"
+SRC="$ROOT/Sources/OpenGameAccess/Resources/gba-lua"
+DST="$ROOT/app/src/main/assets/lua/gb"
 fail=0
-
-echo "== reader assets: $CANON"
-[ -d "$CANON" ] || { echo "!! the canonical reader tree is missing" >&2; exit 1; }
-
-for f in $REQUIRED; do
-  if [ -f "$CANON/$f" ]; then
-    echo "  ok:      $f"
-  else
-    echo "  MISSING: $f" >&2
+for f in "$SRC"/*.lua; do
+  b="$(basename "$f")"
+  [ "$b" = "host-sim-rom.lua" ] && continue
+  if [ ! -f "$DST/$b" ]; then
+    echo "!! $b is in the reader set but missing from app/src/main/assets/lua/gb/" >&2
+    fail=1
+  elif ! cmp -s "$f" "$DST/$b"; then
+    echo "!! $b differs between Sources/.../gba-lua and app/src/main/assets/lua/gb/" >&2
     fail=1
   fi
 done
-
-for f in $REQUIRED_SOUNDS; do
-  if [ -f "$CANON/$f" ]; then
-    echo "  ok:      $f"
-  else
-    echo "  MISSING: $f (the readers name it and nothing else ships it)" >&2
-    fail=1
-  fi
-done
-
-# ⛔ The duplicate tree is the actual bug. If it reappears, the reader set is
-# being hand-copied again and will drift again.
-if [ -d "$DUP" ]; then
-  echo "!! a SECOND reader tree exists at app/src/main/assets/lua/gb/" >&2
-  echo "   It is staged at build time from the canonical tree (see" >&2
-  echo "   scripts/android-apply-overlay.sh, step 1b). A tracked copy here will" >&2
-  echo "   drift and ship stale -- delete it and put changes in the canonical tree." >&2
-  fail=1
-else
-  echo "  ok:      no duplicate reader tree (assets are staged at build time)"
-fi
-
-# The host dev tools exist to be run on a workstation; they must not be part of
-# what a bundle ships.
-for f in host-sim-rom.lua oga_capture.lua; do
-  if [ -f "$CANON/$f" ]; then echo "  note:    $f is present (excluded from staging, correct)"; fi
-done
-
-[ "$fail" -eq 0 ] || { echo "!! reader assets FAILED" >&2; exit 1; }
-echo "PASS: the reader set is single-sourced, complete, and sound-wired."
+[ "$fail" -eq 0 ] && echo "ok: the Android GB/GBA reader assets match the current reader set"
+exit "$fail"

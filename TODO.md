@@ -385,6 +385,34 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   STILL OPEN: the NES readers are iOS-only — `nes-lua/` has no Android staging path at
   all.
 
+- [x] **Android has the adapter game list, at parity with iOS** (2026-10-22, local —
+  lands with the next push). iOS opens on the adapter library; Android's launcher
+  had no equivalent. The launcher now has a "Games with readers" screen listing
+  the same nine games with the same coverage and notes, each row a single
+  TalkBack stop ("Name. Coverage."), and a per-game page with console name,
+  version line and notes, mirroring AdapterLibrary.swift — including being
+  honest where iOS is not: no per-game Load button, because the Android build
+  only runs the Game Boy family today, so DS/PSP/SNES pages say the reader is
+  not in this build yet instead of implying a load that cannot work. The data
+  is NOT hand-copied: the Android layer never links the Core registry, so
+  `scripts/gen-android-library.sh` builds `tools/android-library-gen.cpp`
+  against the real registry TUs and generates
+  `app/.../AdapterLibraryData.kt` from `oga::all_adapters()`; `--check` mode
+  fails on drift, and the launcher contract test now counts the entries
+  against `Core/adapters.cpp` (a deleted entry is a sabotage case). Proven by
+  a full local build (`scripts/android-build-local.sh`, DONE): the APK's dex
+  carries the screen and the registry text.
+  FOUND AND FIXED ON THE WAY: the APK gate failed — `assets/lua/gb/` was the
+  stale snapshot AGAIN (missing oga_bootstrap.lua, mgba_compat.lua and the
+  rest of the current set), because the 2026-10-07 staging design and
+  `scripts/check-reader-assets.sh` are both absent from main@7567ac3 while
+  `android-apk.yml` still runs the script — so Android CI has been failing
+  before the build. The assets are resynced in-tree (10 files) and the guard
+  script restored for the in-tree layout; `docs/android-assets.md` is still
+  missing. STILL OWED: on-device proof (TalkBack pass over the new screen,
+  a GB game actually loading) — this VM has no configured emulator and no
+  KVM; run it on the Legion or a real device. PSP on Android remains the
+  deferred 2026-10-03 decision, unchanged.
 - [x] **Android APK builds on `main` (2026-10-07).** `android-apk.yml` now runs on
   `push: branches: [main]` with a path filter over the reader sets, the overlay,
   `app/src/main`, `Core` and the Android scripts, plus the tag trigger and

@@ -22,6 +22,13 @@ been wrong here before:
      check fails.
   4. CAPABILITY IS ASKED, NOT ASSERTED. The launcher once hardcoded "not compiled
      into this test build" and kept saying it for weeks after the core landed.
+  5. THE GAME LIBRARY DATA MATCHES THE REGISTRY. AdapterLibraryData.kt is
+     generated from Core's adapter registry (tools/android-library-gen.cpp),
+     but it is CHECKED IN, so it can go stale the day someone registers an
+     adapter and forgets to regenerate. The count identity below — registry
+     entries minus the two console-only placeholders the library filter
+     excludes — is the part that catches exactly that, without the test
+     having to parse C++ initializers.
 
 Comments are stripped before scanning, because a check that fires on prose ABOUT a
 defect is a false alarm — and that has happened here twice.
@@ -43,6 +50,9 @@ GBSCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
                "accessibility/GbAccessibilityScript.kt")
 JNI_CPP = "app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp"
 LEGACY_HTML = "app/src/main/assets/index.html"
+LIBRARY_KT = "app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
+GAMES_SCREEN_KT = "app/src/main/java/com/devin/opengameaccess/ui/AdapterGamesScreen.kt"
+REGISTRY_CPP = "Core/adapters.cpp"
 
 # ⛔ SANITY: a missing file must be an ERROR, not a pass. An early version of this
 # class of check scanned a file that did not exist, found no bad strings in nothing,
@@ -225,6 +235,48 @@ if "storedAnnouncementView" in session_src and "setAnnouncementView" in session_
 else:
     bad("the announcement view is re-forwarded when the bridge is built",
         "no stored view to re-forward, so it stays null and speech falls back to TTS")
+
+# ---- 7. THE GAME LIBRARY DATA MATCHES THE REGISTRY -------------------------
+# AdapterLibraryData.kt is generated from the registry but checked in, so it
+# can go stale. What is asserted here is the identity a regeneration cannot
+# fake: one library entry per registered adapter, minus the two console-only
+# placeholders (the NES and N64 rows) that Core's LibraryAdapter filter
+# excludes — if a tenth adapter is registered and the data is not
+# regenerated, the counts diverge and this fails. The screen must also exist
+# and be wired from the Activity, or the data is a list nobody can reach.
+if not os.path.exists(LIBRARY_KT):
+    bad("the game library data is present", "%s is missing" % LIBRARY_KT)
+elif not os.path.exists(REGISTRY_CPP):
+    bad("the game library data matches the registry",
+        "%s is missing; refusing to report a pass" % REGISTRY_CPP)
+else:
+    registry = read(REGISTRY_CPP)
+    block = re.search(r"kAdapters\[\]\s*=\s*\{(.*?)\};", registry, re.S)
+    entries = re.findall(r"&(k\w+)", block.group(1)) if block else []
+    placeholders = [e for e in entries
+                    if e in ("kNintendoEntertainmentSystem", "kNintendo64")]
+    want_count = len(entries) - len(placeholders)
+    data = read(LIBRARY_KT)
+    # One match is the data class declaration; the rest are list entries.
+    got_count = data.count("AdapterGameInfo(") - 1
+    ids = re.findall(r'id\s*=\s*"([^"]+)"', data)
+    if got_count == want_count and len(ids) == want_count:
+        ok("the game library lists every registered adapter's game (%d)"
+           % want_count)
+    else:
+        bad("the game library lists every registered adapter's game",
+            "registry says %d library games, data has %d entries / %d ids; "
+            "regenerate with scripts/gen-android-library.sh"
+            % (want_count, got_count, len(ids)))
+    if len(ids) == len(set(ids)) and all(ids):
+        ok("the game library ids are unique and non-empty")
+    else:
+        bad("the game library ids are unique and non-empty", "ids: %s" % ids)
+    if os.path.exists(GAMES_SCREEN_KT) and "AdapterGamesScreen" in activity:
+        ok("the game library screen exists and is wired from the Activity")
+    else:
+        bad("the game library screen exists and is wired from the Activity",
+            "AdapterGamesScreen missing or not referenced by MainActivity")
 
 print()
 if fails:

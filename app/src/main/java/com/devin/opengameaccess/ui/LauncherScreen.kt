@@ -65,6 +65,7 @@ fun LauncherScreen(
     session: GbGameSession,
     announce: (String, Boolean) -> Unit,
     onOpenSettings: () -> Unit,
+    onOpenGames: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -190,6 +191,17 @@ fun LauncherScreen(
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 Text("Settings", fontSize = 18.sp)
+            }
+
+            // The library: every game that has a reader, with its notes.
+            // Mirrors iOS, whose home screen IS this list (AdapterLibraryView);
+            // here it sits one tap off the launcher because the launcher also
+            // carries the running game's controls.
+            Button(
+                onClick = { onOpenGames() },
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text("Games with readers", fontSize = 18.sp)
             }
 
             if (!running) {

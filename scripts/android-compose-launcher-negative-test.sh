@@ -14,7 +14,9 @@ stage() {
   mkdir -p "$TMP/t/app/src/main/java/com/devin/opengameaccess/ui" \
            "$TMP/t/app/src/main/java/me/magnum/melonds/accessibility" \
            "$TMP/t/app/native-overlay/app/src/main/cpp" \
-           "$TMP/t/scripts"
+           "$TMP/t/scripts" \
+           "$TMP/t/Core"
+  cp Core/adapters.cpp "$TMP/t/Core/"
   cp app/src/main/java/com/devin/opengameaccess/*.kt \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/"
   cp app/src/main/java/com/devin/opengameaccess/ui/*.kt \
@@ -61,8 +63,12 @@ case_stale() {  # sabotage: the stale capability claim comes back into CODE
   printf '\nval msg = "not compiled into this test build"\n' \
      >> "$TMP/t/app/src/main/java/com/devin/opengameaccess/ui/LauncherScreen.kt"
 }
+case_library() {  # sabotage: a registry game vanishes from the library data
+  sed -i '/id = "alttp"/,+6d' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
+}
 
-for s in key announce sideeffect jni webview stale bridgelate; do
+for s in key announce sideeffect jni webview stale bridgelate library; do
   stage
   "case_$s"
   if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then

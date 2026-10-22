@@ -14,6 +14,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
+import com.devin.opengameaccess.ui.AdapterGamesScreen
 import com.devin.opengameaccess.ui.LauncherScreen
 import com.devin.opengameaccess.ui.SettingsScreen
 import me.magnum.melonds.accessibility.AccessibilityScript
@@ -91,6 +92,7 @@ class MainActivity : ComponentActivity() {
         }
 
         var showSettings by remember { mutableStateOf(false) }
+        var showGames by remember { mutableStateOf(false) }
 
         if (showSettings) {
             SettingsScreen(
@@ -100,9 +102,15 @@ class MainActivity : ComponentActivity() {
             return
         }
 
+        if (showGames) {
+            AdapterGamesScreen(onBack = { showGames = false })
+            return
+        }
+
         LauncherScreen(
             session = GbGameSession,
             onOpenSettings = { showSettings = true },
+            onOpenGames = { showGames = true },
             announce = { text, interrupt ->
                 // ⛔ THE STATUS LIVE REGION IS THE VOICE; THIS IS ONLY A FALLBACK.
                 // The status Text carries a liveRegion and its contentDescription is
