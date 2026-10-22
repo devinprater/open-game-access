@@ -107,6 +107,15 @@
   returns a boolean and never stores the entity), the mission text and its pass/fail, the
   Senzu Bean counters, and any field-mode audio beacon. The adapter refuses to guess.
 
+- [ ] **Another Road's MENUS and battle controls are not mapped (open; recorded 2026-10-21).**
+  The field-mode reader above speaks the story map, not the front end. `Core/dbzar_adapter.cpp`
+  says it in its own notes: "Not mapped yet: the game's menus and battle controls." Its
+  Next/Previous commands step the field target ring, so they are not menu navigation either.
+  Next: find the front-end cursor and screen state the way MKU's was found, with a live RAM
+  diff across D-pad moves and PPSSPP screenshots to name each row; then prove pause and the
+  battle HUD the same way. Add commands and synthetic-RAM tests only after a live run matches
+  the spoken row. ⛔ Do not list Another Road as a menu reader until then.
+
 - [x] **Dissidia first-battle vertical slice:** host-verified with synthetic RAM built from the validated layout (same rule as the other adapter tests: no PSP boot on this host). `dissidia-adapter-test.sh` now covers the YES/NO dialog confirm branch (YES speaks) and cancel branch (NO speaks) on both dialog systems, dialog nav re-reading RAM, the title -> Play Plan -> Bonus Day path, and the first accessible battle screen (self + foe speech). 56 checks pass locally; live-RAM re-proof is now unblocked (real PSP core landed — see below) but not yet run.
 - [x] **Reconcile pending Windows-only work:** 0 untracked scripts and 0 untracked docs (2026-09-27). Update 2026-10-03: the Windows tree and the WSL mirror are retired — `~/oga-work` is the only tree (see `docs/where-things-run.md`); the sync/stage scripts were removed and `scripts/git-hooks/pre-commit` is the ROM guard. The 85 Windows-only files were all obsolete one-shot commit/sync helpers whose payloads the repo had superseded (verified by content diff); deleted. The adapter-contribution guide and announcement-queue proposals are tracked under `docs/proposals/` (the latter sketches the C queue API behind the policy in `docs/design/announcement-queue.md`). The Chrono Trigger DS notes were removed (SNES version instead; git history keeps them). The Dissidia battle-audio spec is tracked at `docs/proposals/dissidia-battle-audio.md` (in-battle cues, speech for menus/queries only). The `reverse-engineering/ctds/` dir holds SNES ChronoAccess research (live WRAM verification) and is tracked. (Chrono Trigger DS research dropped — SNES version instead.)
 - [x] **The readers' positional sound cues reach the host (2026-10-07).** All 42
