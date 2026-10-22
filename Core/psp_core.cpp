@@ -17,6 +17,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstring>
+#include <mutex>
 #include <string>
 #include <vector>
 
@@ -117,6 +118,11 @@ struct PspCore {
     // jitter. Single-game-at-a-time embedding: the System_* callbacks below
     // serve whichever core created last (g_audioCore).
     std::vector<int16_t> audio;
+    // ⛔ THE MIXER AND THE AUDIO THREAD BOTH TOUCH THIS VECTOR. System_AudioPushSamples
+    // runs on the emulation thread; psp_read_audio runs in AVAudioEngine's render
+    // block. push_back can reallocate the buffer while the reader is inside data(),
+    // which is an audible tear, not a theoretical race.
+    mutable std::mutex audioMutex;
     size_t audioRead = 0;   // consumed frames (compacts when fully drained)
     double audioFrac = 0.0;  // resampler phase carried across reads
     void *gfxCtx = nullptr;     // owned NullGraphicsContext (lives till stop)
@@ -168,6 +174,7 @@ int16_t Clamp16(int32_t v) {
 
 void System_AudioClear() {
     if (g_audioCore) {
+        std::lock_guard<std::mutex> lock(g_audioCore->audioMutex);
         g_audioCore->audio.clear();
         g_audioCore->audioRead = 0;
         g_audioCore->audioFrac = 0.0;
@@ -180,6 +187,7 @@ void System_AudioClear() {
 void System_AudioPushSamples(const int32_t *audio, int numSamples, float volume) {
     PspCore *core = g_audioCore;
     if (!core || !audio || numSamples <= 0) return;
+    std::lock_guard<std::mutex> lock(core->audioMutex);
     size_t have = (core->audio.size() / 2 > core->audioRead)
         ? core->audio.size() / 2 - core->audioRead : 0;
     // Room first: drop oldest whole pushes when full (never grow unbounded
@@ -206,6 +214,7 @@ void System_AudioPushSamples(const int32_t *audio, int numSamples, float volume)
 // app fades the tail instead of clicking).
 int psp_read_audio(PspCore *core, int16_t *out, int max_frames) {
     if (!core || !out || max_frames <= 0) return 0;
+    std::lock_guard<std::mutex> lock(core->audioMutex);
     size_t avail = (core->audio.size() / 2 > core->audioRead)
         ? core->audio.size() / 2 - core->audioRead : 0;
     if (avail == 0) return 0;
