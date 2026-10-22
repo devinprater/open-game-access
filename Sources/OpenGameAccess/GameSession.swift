@@ -563,6 +563,22 @@ final class GameSession: ObservableObject {
         AdapterCommand.supported(adapterID: adapterID)
     }
 
+    /// Does VoiceOver's magic tap have a job in this game right now?
+    ///
+    /// Only readers that actually answer Where Am I get the gesture. In every
+    /// other game the screen keeps its ordinary magic tap, which is nothing —
+    /// better than a gesture that announces "not supported" in a game with no
+    /// reader at all.
+    var magicTapAnswersWhereAmI: Bool {
+        adapterReady && availableAdapterCommands.contains(.whereAmI)
+    }
+
+    /// The VoiceOver two-finger double tap: say where the player is.
+    func performMagicTap() {
+        guard magicTapAnswersWhereAmI else { return }
+        sendAdapterCommand(.whereAmI)
+    }
+
     /// Send one accessibility command to the game's native reader.
     ///
     /// The raw command ids match `oga::Command` in Core/adapter.h. They are written

@@ -83,7 +83,18 @@ private struct ScreenView: View {
         .accessibilityElement()
         .accessibilityLabel("Game screen")
         .accessibilityValue(screenDescription)
-        .accessibilityHint("The game screen is described by spoken output. Use the controls below, or swipe past this to reach them.")
+        .accessibilityHint(magicTapHint)
+        // VoiceOver's two-finger double tap is the one gesture a player can make
+        // without finding a button. In a reader that answers Where Am I, that is
+        // what it does; in every other game it stays inert.
+        .accessibilityAction(.magicTap) { session.performMagicTap() }
+    }
+
+    private var magicTapHint: String {
+        if session.magicTapAnswersWhereAmI {
+            return "Double-tap with two fingers to hear where you are. The game screen is described by spoken output. Use the controls below, or swipe past this to reach them."
+        }
+        return "The game screen is described by spoken output. Use the controls below, or swipe past this to reach them."
     }
 
     private var screenDescription: String {
