@@ -337,7 +337,7 @@ enum AdapterCommand: Int32, CaseIterable {
             // Command Deck speak automatically as the player moves (the input
             // bridge forwards the menu echoes to every adapter); these are the
             // on-demand field and battle queries.
-            return [.whereAmI, .nextAlly, .nextEnemy, .dumpState]
+            return [.whereAmI, .menuState, .nextAlly, .nextEnemy, .dumpState]
 
         case "mku":
             // Mortal Kombat: Unchained. Menu rows and Konquest lines speak
