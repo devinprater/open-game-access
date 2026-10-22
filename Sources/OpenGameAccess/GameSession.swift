@@ -362,9 +362,9 @@ final class GameSession: ObservableObject {
         let ps = padTimes.sorted()
         func pct(_ a: [Int], _ p: Double) -> Int { a.isEmpty ? 0 : a[min(a.count - 1, Int(Double(a.count - 1) * p))] }
         let underruns = poke_audio_underrun_count()
-        appendDebug(String(format: "[stats] frames=%d avg=%dms p90=%dms max=%dms | pads=%d med=%dms p90=%dms max=%dms | audio=%llu",
+        appendDebug(String(format: "[stats] frames=%d avg=%dms p90=%dms max=%dms | pads=%d med=%dms p90=%dms max=%dms | audio=%llu empty=%llu",
                            fs.count, fs.reduce(0, +) / max(1, fs.count), pct(fs, 0.9), fs.last ?? 0,
-                           ps.count, pct(ps, 0.5), pct(ps, 0.9), ps.last ?? 0, underruns))
+                           ps.count, pct(ps, 0.5), pct(ps, 0.9), ps.last ?? 0, underruns, poke_audio_empty_count()))
         frameTimes.removeAll(keepingCapacity: true)
         padTimes.removeAll(keepingCapacity: true)
     }
@@ -754,6 +754,7 @@ final class GameSession: ObservableObject {
                "audio format drifted from the core's interleaved-int16 contract")
         NSLog("[poke] audio format: \(format) interleaved=\(format.isInterleaved)")
 
+        AudioSourceNode.warmupFrames = 0
         let source = AudioSourceNode(core: core, format: format)
         engine.attach(source)
         engine.connect(source, to: engine.mainMixerNode, format: format)
@@ -820,6 +821,12 @@ final class GameSession: ObservableObject {
 private final class AudioSourceNode: AVAudioSourceNode {
     private let core: OpaquePointer
 
+    /// Frames of silence the render block emits while the core's ring fills.
+    /// Without it the first block drains a ring that has never been ahead, and
+    /// every block after it runs a few samples short: heard as a constant stutter.
+    fileprivate nonisolated(unsafe) static var warmupFrames = 0
+    private static let warmupTarget = 3277   // ~100 ms at 32768 Hz
+
     init(core: OpaquePointer, format: AVAudioFormat) {
         self.core = core
         super.init(format: format) { _, _, frameCount, audioBufferList -> OSStatus in
@@ -827,12 +834,17 @@ private final class AudioSourceNode: AVAudioSourceNode {
             guard let first = abl.first, let raw = first.mData else { return noErr }
             let ptr = raw.assumingMemoryBound(to: Int16.self)
             let frames = Int(frameCount)
+            if AudioSourceNode.warmupFrames < AudioSourceNode.warmupTarget {
+                memset(ptr, 0, frames * 4)
+                AudioSourceNode.warmupFrames += frames
+                return noErr
+            }
             let got = Int(poke_read_audio(core, ptr, Int32(frames)))
             // ⛔ MIX THE CUE IN HERE, AFTER THE CORE'S FRAMES, so there is one output path.
             // Only over the frames the core actually produced: writing into the starved
             // tail would put a tone where the fade below is trying to remove a click.
             if got > 0 { CueSynth.shared.render(into: ptr, frames: got) }
-            if got < frames { poke_note_audio_underrun() }
+            if got < frames { poke_note_audio_underrun(got == 0 ? 1 : 0) }
             if got < frames {
                 // ⛔ DO NOT HARD-ZERO THE TAIL. A jump from full-scale audio
                 // straight to 0 in the middle of a waveform IS the click — the

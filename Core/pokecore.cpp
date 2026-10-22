@@ -2065,9 +2065,15 @@ bool poke_set_frame_skip(PokeCore* core, int skip)
 }
 
 static std::atomic<uint64_t> gAudioUnderruns{0};
+static std::atomic<uint64_t> gAudioEmpty{0};
 
-void poke_note_audio_underrun(void) { gAudioUnderruns.fetch_add(1, std::memory_order_relaxed); }
+void poke_note_audio_underrun(int empty)
+{
+    if (empty) gAudioEmpty.fetch_add(1, std::memory_order_relaxed);
+    else gAudioUnderruns.fetch_add(1, std::memory_order_relaxed);
+}
 uint64_t poke_audio_underrun_count(void) { return gAudioUnderruns.load(std::memory_order_relaxed); }
+uint64_t poke_audio_empty_count(void) { return gAudioEmpty.load(std::memory_order_relaxed); }
 
 void poke_set_audio_enabled(PokeCore* core, bool enabled)
 {
