@@ -343,6 +343,9 @@ final class GameSession: ObservableObject {
     // handler timestamps the press; the frame that consumes it logs the delta,
     // and a slow frame logs its own duration. No UI, no speech.
     private var padPressAt: TimeInterval = 0
+    private var frameTimes: [Int] = []
+    private var padTimes: [Int] = []
+    private var statsWindowStart: TimeInterval = 0
 
     func noteControllerPress() {
         if padPressAt == 0 { padPressAt = Date.timeIntervalSinceReferenceDate }
@@ -351,12 +354,27 @@ final class GameSession: ObservableObject {
     private func reportControllerTiming(frameStart: TimeInterval) {
         let end = Date.timeIntervalSinceReferenceDate
         if padPressAt > 0 {
-            appendDebug("[pad] press to end of frame: \(Int((end - padPressAt) * 1000)) ms")
+            padTimes.append(Int((end - padPressAt) * 1000))
             padPressAt = 0
         }
-        let frameMs = Int((end - frameStart) * 1000)
-        if frameMs > 50 { appendDebug("[frame] \(frameMs) ms") }
+        frameTimes.append(Int((end - frameStart) * 1000))
+        if statsWindowStart == 0 { statsWindowStart = end }
+        // One line every five seconds, not one per frame: a file write on every
+        // slow frame both floods the log and perturbs the thing being measured.
+        guard end - statsWindowStart >= 5.0 else { return }
+        statsWindowStart = end
+        let fs = frameTimes.sorted()
+        let ps = padTimes.sorted()
+        func pct(_ a: [Int], _ p: Double) -> Int { a.isEmpty ? 0 : a[min(a.count - 1, Int(Double(a.count - 1) * p))] }
+        appendDebug(String(format: "[stats] frames=%d avg=%dms p90=%dms max=%dms | pads=%d med=%dms p90=%dms max=%dms skip=%d",
+                           fs.count, fs.reduce(0, +) / max(1, fs.count), pct(fs, 0.9), fs.last ?? 0,
+                           ps.count, pct(ps, 0.5), pct(ps, 0.9), ps.last ?? 0,
+                           session_skipDrawingFlag()))
+        frameTimes.removeAll(keepingCapacity: true)
+        padTimes.removeAll(keepingCapacity: true)
     }
+
+    private func session_skipDrawingFlag() -> Int32 { skipDrawing ? 1 : 0 }
 
     // MARK: - ROM
 

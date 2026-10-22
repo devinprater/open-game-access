@@ -885,6 +885,8 @@ void PauseRow(char* out, size_t cap)
     snprintf(out, cap, "%s, %d of %d", kPauseItems[i], i + 1, kPauseCount);
 }
 
+bool InFight(void);
+
 // ---- the menu watch ---------------------------------------------------------
 //
 // ⛔ THE PAD EDGE REACHES THE GAME ON THE NEXT FRAME, SO SPEAKING FROM THE
@@ -938,6 +940,9 @@ static void MenuWatch(void)
     if (screen == 0) {
         g_uiScreen = 0;
         g_uiRow[0] = 0;
+        // A fight is not an unmapped screen. Logging it every two seconds both
+        // floods the log and adds a file write mid-match.
+        if (InFight()) return;
         // One diagnostic per unmapped stretch: cursor/holder/expected/magic are
         // what a new screen's gate has to explain, and guessing them wastes a boot.
         if (++g_unmappedFrames % 120 == 0) {
