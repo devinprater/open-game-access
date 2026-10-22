@@ -1218,6 +1218,19 @@ static void InstallLibraries(PokeCore* core)
     makeLibrary("input", kInputFuncs);
     makeLibrary("gui", kGuiFuncs);
 
+    // Does a NATIVE adapter own this ROM's speech? main.lua is Ola's DS loader and
+    // only knows the games it ships readers for, so on a native-adapter game it
+    // used to announce "This game is not supported." OVER the adapter that was
+    // already speaking. The loader asks this before it identifies the game and
+    // stays silent when a native reader is attached. Script-adapter games
+    // (Pokémon Black/White) have no native adapter, so the answer is false there.
+    lua_pushcfunction(L, [](lua_State* L) -> int {
+        PokeCore* core = CoreFromLua(L);
+        lua_pushboolean(L, core && core->adapter != nullptr);
+        return 1;
+    });
+    lua_setglobal(L, "oga_native_reader_active");
+
     // hermes_tts: what the compat shim's speech.say calls.
     lua_newtable(L);
     lua_pushcfunction(L, LuaSpeak);

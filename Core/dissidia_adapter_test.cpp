@@ -1147,28 +1147,30 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
           "watch re-announces after restore");
 
-    // 48b. story-dialogue portrait names the speaker (verified IDs only)
+    // 48b. the story portrait byte is a GATE, not a speaker name
+    //
+    // ⛔ LIVE REGRESSION (2026-10-21): the Warrior of Light's opening cutscene
+    // made this table say "Chaos. Garland." The byte is a portrait-pool slot,
+    // not the speaker. Every value stays silent now, including the four that
+    // used to be mapped, until a per-scene speaker map is proven.
     reset();
     CHECK(a->attach(&HOST), "watch attach story");
     put8(0x08BB376Au, 0x9Au);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     FRAME(); FRAME();
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Garland.") == 0,
-          "story portrait names Garland");
+    CHECK(NSPOKEN == 0, "mapped portrait 9A stays silent");
     put8(0x08BB376Au, 0x9Eu);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     FRAME(); FRAME();
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Chaos.") == 0,
-          "story portrait change names Chaos");
+    CHECK(NSPOKEN == 0, "mapped portrait 9E stays silent");
     put8(0x08BB376Au, 0x0Cu);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     FRAME(); FRAME();
-    CHECK(NSPOKEN == 0, "unverified portrait stays silent");
+    CHECK(NSPOKEN == 0, "unmapped portrait stays silent");
     put8(0x08BB376Au, 0x46u);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     FRAME(); FRAME();
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Chaos.") == 0,
-          "second Chaos variant names Chaos");
+    CHECK(NSPOKEN == 0, "the 46 variant stays silent too");
 
     // 48c. story scene table: DO 3 (throne scene) run + DO 5 (WoL/Garland)
     {
@@ -1190,7 +1192,7 @@ int main(void)
     putU16str(0x09980100u, "I have been defeated by ");
     CHECK(oga::dissidia::DissidiaMatchStoryScene() && strcmp(oga::dissidia::DissidiaMatchStoryScene(), "DO 3") == 0,
           "content scan identifies DO 3");
-    // 48e. dialogue entry speaks the scene title once, then names only
+    // 48e. dialogue entry speaks the scene title once, and no portrait name
     reset();
     CHECK(a->attach(&HOST), "watch attach storyentry");
     putU16str(0x09980000u, "Cosmos!");
@@ -1201,9 +1203,11 @@ int main(void)
     put8(0x08BB376Au, 0x9Au);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     FRAME(); FRAME();
-    CHECK(NSPOKEN == 2, "entry speaks twice");
-    CHECK(strcmp(SPOKE(0), "Prologue.") == 0, "entry first is title");
-    CHECK(strcmp(SPOKE(1), "Garland.") == 0, "entry second is name");
+    CHECK(NSPOKEN == 1, "entry speaks once on entry");
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Prologue.") == 0,
+          "entry names the scene, not a speaker");
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1, "entry speaks no portrait name");
     // 49. main-menu entry announces row 1 (TITLE_CURSOR 8 + live A10 chain)
     reset();
     CHECK(a->attach(&HOST), "watch attach main");

@@ -23987,6 +23987,11 @@ local function fail(spoken, logged)
 end
 
 -------------------------------------------------------------------- LOAD -----
+-- A native adapter (Fire Emblem, Dragon Quest IX) owns speech for its game. This
+-- loader only knows Ola's script readers, so without this guard it answered
+-- "This game is not supported." over a reader that was already working.
+if oga_native_reader_active and oga_native_reader_active() then return end
+
 local code = rom_code() or code_from_name()
 if not code then
 	return fail("Could not identify the game.",

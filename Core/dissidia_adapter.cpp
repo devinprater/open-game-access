@@ -1363,9 +1363,15 @@ enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN
 static int g_wsScreen = WS_NONE;
 static int g_wsIndex = -1;
 static int g_wsStable = 0;
-/// Story-dialogue speaker portrait byte (visual-novel box, no name tag).
-/// Tracks the active portrait across advances (Chaos/Garland scene: 4/4).
-/// Only verified portrait IDs speak; everything else stays silent.
+/// Story-dialogue portrait byte (visual-novel box, no name tag).
+///
+/// ⛔ THIS IS A GATE, NOT A SPEAKER IDENTITY. Live, the opening cutscene with the
+/// Warrior of Light read values that this table calls Chaos and Garland, so the
+/// byte is not the current speaker across scenes (it looks like a portrait-pool
+/// slot). The adapter therefore uses a known value only to say "a dialogue
+/// portrait is live" and speaks no name from it. Speaker names need a per-scene
+/// map proven against the game's own portrait table first; guessing is worse
+/// than silence.
 #include "story/dissidia_story_scenes.inc"
 static const StoryScene* StorySceneById(const char* id)
 {
@@ -1589,8 +1595,8 @@ static void WatchSpeak(int s, int i)
                 g_storyScene = MatchStoryScene();
                 if (g_storyScene) { snprintf(line, sizeof(line), "%s.", g_storyScene->title); Say(line, "storytitle", oga::Priority::Normal); }
             }
-            const char* nm = StoryPortraitName((uint8_t)i);
-            if (nm) { snprintf(line, sizeof(line), "%s.", nm); Say(line, "story", oga::Priority::Normal); }
+            // ⛔ NO SPEAKER NAME FROM THE PORTRAIT BYTE. It read Chaos/Garland
+            // during the Warrior of Light's opening scene (live, 2026-10-21).
             return;
         }
         case WS_BOARD: BoardArriveSpeak(i); return;

@@ -14,6 +14,7 @@
  * it with --state-in and reaches the world in seconds.
  *
  * Usage: gba-probe <rom> <script-dir> [max-frames] [--state-out P] [--state-in P]
+ *        [--save P]   load a .sav before the first frame (in-world saves)
  * ios-debug: host-only diagnostic, not part of the app.
  */
 #include "pokecore.h"
@@ -139,6 +140,7 @@ int main(int argc, char** argv)
     long maxFrames = 20000;
     const char* stateOut = nullptr;
     const char* stateIn = nullptr;
+    const char* savePath = nullptr;
     int profile = 0;   /* 0 = generic walk, 1 = naming-screen walk to OK */
     long shotEvery = 0;              /* 0 = never; otherwise one PPM every N frames */
     const char* shotOut = nullptr;   /* prefix; files are <prefix><frame>.ppm */
@@ -146,6 +148,7 @@ int main(int argc, char** argv)
     {
         if (strcmp(argv[i], "--state-out") == 0 && i + 1 < argc) stateOut = argv[++i];
         else if (strcmp(argv[i], "--state-in") == 0 && i + 1 < argc) stateIn = argv[++i];
+        else if (strcmp(argv[i], "--save") == 0 && i + 1 < argc) savePath = argv[++i];
         else if (strcmp(argv[i], "--profile") == 0 && i + 1 < argc) profile = atoi(argv[++i]);
         else if (strcmp(argv[i], "--shot-every") == 0 && i + 1 < argc) shotEvery = atol(argv[++i]);
         else if (strcmp(argv[i], "--shot-out") == 0 && i + 1 < argc) shotOut = argv[++i];
@@ -158,7 +161,7 @@ int main(int argc, char** argv)
     poke_set_speech_callback(core, on_speech, nullptr);
     poke_set_log_callback(core, on_log, nullptr);
 
-    if (!poke_load_rom(core, rom, nullptr))
+    if (!poke_load_rom(core, rom, savePath))
     {
         printf("LOAD FAIL: %s\n", poke_last_error(core));
         return 1;
