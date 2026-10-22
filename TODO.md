@@ -107,6 +107,14 @@
   returns a boolean and never stores the entity), the mission text and its pass/fail, the
   Senzu Bean counters, and any field-mode audio beacon. The adapter refuses to guess.
 
+- [ ] **MK Unchained: speak the tower/versus screen, so the next opponent is known (open; asked 2026-10-21).**
+  After a win the game shows the next fighter on the tower before the match, and today the adapter
+  says nothing there. Feasible, but not mapped: the opponent-select screen that precedes it already
+  fails the same way (a third fighter table; holder 0x090E7850 with the static cursor still on P1),
+  and the fight struct's P2 id cannot be trusted on menu screens (measured 0 on the matchup screen).
+  Next: a live capture on the tower — screenshot plus a state dump at the moment the next portrait
+  is shown — then find a word that matches the roster index and changes when the opponent changes.
+  Speak it once on entry as "Next: <name>", and keep it silent if no index is proven.
 - [ ] **MK Unchained: a proximity click that quickens as you close on the opponent (MK1 2023 style).**
   The adapter has no `cue_snapshot` today (it is `nullptr` in the registry), so the app's Lock cue
   toggle does nothing in this game. The cue side is ready: `CueSynth.updateBeacon(state:distance:)`
