@@ -10,7 +10,11 @@ package com.devin.opengameaccess
  *
  * The fields mirror iOS's AdapterGame (AdapterLibrary.swift) exactly,
  * because both are read from the same registry entry: id, display
- * name, game code, coverage line, library notes, console.
+ * name, game code, coverage line, library notes, console. The
+ * commands list is the one deliberate addition: the oga::Command
+ * values (adapter.h's raw ABI values) of the buttons iOS shows
+ * for this game, copied from AdapterCommand.supported — see the
+ * generator's header for why that rule is copied, not read.
  */
 data class AdapterGameInfo(
     val id: String,
@@ -19,6 +23,7 @@ data class AdapterGameInfo(
     val coverage: String,
     val notes: String,
     val console: String,
+    val commands: List<Int>,
 )
 
 /** The registry's library games, in registry order. */
@@ -31,6 +36,7 @@ object AdapterLibraryData {
             coverage = "Battle map state speech (early coverage)",
             notes = "Speech covers battle map state read from the game. This adapter is still growing: some queries — reading unacted units, for one — are refused honestly rather than guessed.\nSupported version: Fire Emblem: Shadow Dragon, USA (game code YFEE); the reader's addresses are verified against this revision.",
             console = "nds",
+            commands = listOf(0, 1, 2, 3, 4, 5, 6),
         ),
         AdapterGameInfo(
             id = "gba",
@@ -39,6 +45,7 @@ object AdapterLibraryData {
             coverage = "Map name and position speech for Pokémon games",
             notes = "Where Am I speaks the map name and your x, y coordinates. One reader serves the Pokémon games on Game Boy, Game Boy Color and Game Boy Advance, so coverage varies by title.\nThis is not a tactical reader: grid and unit queries from other games do not apply here.",
             console = "gb",
+            commands = listOf(),
         ),
         AdapterGameInfo(
             id = "dbz-saiyans",
@@ -47,6 +54,7 @@ object AdapterLibraryData {
             coverage = "Party status speech",
             notes = "Speech covers your party — who is in it, in slot order — read from the game's own party data, the same data its Status screen shows. Battle and field navigation are not covered yet.\nSupported version: Dragon Ball Z: Attack of the Saiyans (game code BRPE).",
             console = "nds",
+            commands = listOf(0, 1, 2, 6),
         ),
         AdapterGameInfo(
             id = "dissidia",
@@ -55,6 +63,7 @@ object AdapterLibraryData {
             coverage = "Menu speech, battle position and foe queries, battle audio cues",
             notes = "Menus are spoken as you move through them. In battle, speech covers on-demand queries: where you are, and the direction, distance and state of your foe or the EX core.\nContinuous battle information is carried by audio cues, not speech: with a lock-on, the beacon's pulse quickens as your target closes, and its tone differs for an enemy and for an EX core. Your own health is a low tone that tracks your HP.\nSupported version: Dissidia Final Fantasy, USA (ULUS10437).",
             console = "psp",
+            commands = listOf(0, 8, 9, 10, 11, 12, 13, 31, 6),
         ),
         AdapterGameInfo(
             id = "dbzar",
@@ -63,6 +72,7 @@ object AdapterLibraryData {
             coverage = "Story-mode field radar, city health and enemy count",
             notes = "Spoken: Where Am I reads your chapter, the number of cities, their average health and the enemy count. The city list reads each city's health, worst first, and the status query says how many cities are critical or below half. The target ring names the city, enemy or ally at the top of the ring and gives its distance and clock direction relative to your direction of travel.\nControls: Next and Previous item step the target ring. Next Enemy reads the city list, Previous Enemy reads your status, and Next Waiting Ally re-reads the current target.\nNot mapped yet: the game's menus and battle controls.\nSupported version: Dragon Ball Z: Shin Budokai - Another Road, USA (ULUS10234).",
             console = "psp",
+            commands = listOf(),
         ),
         AdapterGameInfo(
             id = "dq9",
@@ -71,6 +81,7 @@ object AdapterLibraryData {
             coverage = "Menu, party and location speech",
             notes = "Menus are spoken with their item counts. Where Am I speaks the map name and your position on it, and the adapter can report your party and who is nearby.\nSupported version: Dragon Quest IX: Sentinels of the Starry Skies, USA (game code YDQE).",
             console = "nds",
+            commands = listOf(),
         ),
         AdapterGameInfo(
             id = "mku",
@@ -79,6 +90,7 @@ object AdapterLibraryData {
             coverage = "Menus, character select, fight state, pause, and Konquest dialogue and objectives",
             notes = "Spoken: the main menu, the Kombat submenu, character select, fight state (health, round wins, timer), the pause menu, the Options tabs and rows, and Konquest dialogue and objective lines as they appear.\nControls: Triangle goes back in the front-end menus.\nNot mapped yet: the QUIT GAME dialog reached from the main menu — the game asks NO/YES and the selection is not read, so do not confirm a quit by ear. Konquest free-roam position and headings are not read, and Konquest bout speech is partial.\nSupported version: Mortal Kombat: Unchained, USA (ULUS10102). Other pressings are not verified.",
             console = "psp",
+            commands = listOf(0, 7, 6),
         ),
         AdapterGameInfo(
             id = "khbbs",
@@ -87,6 +99,7 @@ object AdapterLibraryData {
             coverage = "Title and difficulty menu speech; camp menu speech; field health, command and gauge speech; lock-on beacon cue; Mirage Arena Hub landmark guide",
             notes = "Spoken: the title menu (New Game, Continue, Install Game — plus Trinity Archives once clear data exists) and the New Game difficulty select. In the field, Where Am I speaks your health, the currently selected deck command, and the Command Gauge. It also names the world and the room you are in (for example, Radiant Garden, Central Square), and speaks your position as two numbers, your coordinates within the room. The player's field data is located fresh each boot; on boots where the deck layout is not the verified one, Where Am I speaks health and gauge only. The camp menu (opened with Start in the field) is spoken: Command Decks, Items, Abilities, D-Links, Stats, Reports, Command Board, Config, Game Help.\nControls: Cross executes the Attack row. The Command Deck (Quick Blitz, Aero, Strike Raid at the start) is cycled with the D-pad, and the highlighted command is executed with Triangle. The deck selection is spoken only when it actually changes.\nAlso spoken: the camp menu's Command Decks tree — the Decks submenu, the Edit Deck group focus (Battle Commands, Action Commands, Shotlock Command), the deck slot list, and the command inventory by name: each row speaks its command, its level (or how many you hold, for items), and any ability it carries, following the screen's filter tabs (All, Battle, Magic, Items, Friendship).\nLock-on: acquiring a lock (L and R together) is announced. While locked on, Where Am I also reports the target's health and how far away it is, and two queries answer on demand: Next Ally speaks the foe (its health, distance, and whether it is above or below you), and Next Enemy speaks the lock state. The target's name is not read yet.\nMirage Arena: in the Hub, the Guide control reads the landmarks on your floor of the room. On the entrance platform it names the save point and the transporter; in the lobby, the arena terminal, the Moogle Medal Shop and the transporter back. Each comes with its distance, and once you have walked a step and the reader knows which way you are facing, a clock direction too (straight ahead, 3 o'clock, and so on). A bearing is not a route: the two floors are joined only by the transporter, so the other floor's landmarks are never named.\nBattle cue: with the app's battle cues turned on in Settings, locking on also starts the beacon, a low beep that pulses faster as your target gets closer and stops when the lock ends. No lock, no beep.\nNot mapped yet: the other camp sub-screens (Items, Abilities, and the rest), and battle state beyond the field readouts above. The tutorial is still being mapped.\nSupported version: Kingdom Hearts: Birth by Sleep, USA retail v1.00 (ULUS10505). Other pressings are not verified.",
             console = "psp",
+            commands = listOf(0, 7, 1, 3, 41, 6),
         ),
         AdapterGameInfo(
             id = "alttp",
@@ -95,6 +108,35 @@ object AdapterLibraryData {
             coverage = "Menus, dialogue, file select, location, status, guidance and objectives",
             notes = "Spoken: the file select reads each file's name, hearts and equipment; in-game dialogue is spoken as it appears; the item menu reads the selected item, and the save menu reads the selected slot. Where Am I names your area. Status reads hearts, magic, rupees and, inside a dungeon, keys, big key, map and compass. Guide and Objective give a compass bearing and a rough distance to named places and to your current goal.\nGuide is a bearing, not a walkable route, and the dark world's objectives are not mapped yet.\nSupported version: the USA 1.0 ROM with CRC32 777AAC2F.",
             console = "snes",
+            commands = listOf(0, 40, 41, 42, 6),
         ),
+    )
+}
+
+/**
+ * The player-facing title of each command a supported set names,
+ * keyed by the command's raw value — copied from
+ * AdapterCommand.title by the same generator rule as the sets.
+ */
+object AdapterCommandTitles {
+    val byId: Map<Int, String> = mapOf(
+        0 to "Where am I",
+        1 to "Next ally",
+        2 to "Previous ally",
+        3 to "Next enemy",
+        4 to "Previous enemy",
+        5 to "Next waiting ally",
+        6 to "Copy state to log",
+        7 to "Menu status",
+        8 to "Next item",
+        9 to "Previous item",
+        10 to "Previous value",
+        11 to "Next value",
+        12 to "Customize row",
+        13 to "Character",
+        31 to "Name entry",
+        40 to "Status",
+        41 to "Guide",
+        42 to "Objective",
     )
 }

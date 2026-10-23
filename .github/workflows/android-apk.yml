@@ -23,6 +23,8 @@ on:
       - 'scripts/check-reader-assets.sh'
       - 'scripts/core-sources.sh'               # the audited source lists
       - 'scripts/bootstrap-deps.sh'
+      - 'scripts/ppsspp-subset-test.sh'         # the PPSSPP subset gate below
+      - 'scripts/ppsspp-stage-assets.sh'        # stages the PSP runtime assets
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
 
@@ -43,10 +45,19 @@ jobs:
           distribution: temurin
           java-version: '21'
 
+      # ⛔ NDK 28 IS DELIBERATE — DO NOT "RESTORE" THE 26.1 PIN. The pin used
+      # to match the other builds, but the FULL FRONTEND no longer links
+      # under 26.1's libc++: upstream melonDS-android master uses
+      # std::mutex / std::condition_variable / std::optional in
+      # renderer/FrameQueue.h without including them, and 26.1's headers
+      # reject it (verified against the UNMODIFIED baseline, PPSSPP stage 1,
+      # 2026-10-23). The PPSSPP subset itself compiles under either; the
+      # frontend is the constraint. 28.0.13004108 is the version AGP selects
+      # for this project, and the one the Legion proofs build with.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
         with:
-          packages: 'platforms;android-34 build-tools;34.0.0 ndk;26.1.10909125 cmake;3.22.1'
+          packages: 'platforms;android-34 build-tools;34.0.0 ndk;28.0.13004108 cmake;3.22.1'
 
       # The JIT is what makes the emulator fast enough to leave headroom for the
       # accessibility adapters, and a missing ARCHITECTURE silently turns it OFF.
@@ -85,6 +96,21 @@ jobs:
           rm -rf frontend/melonDS-android-lib
           cp -r "$MELONDS_LUA" frontend/melonDS-android-lib
 
+      # The PPSSPP subset is an audited list, not a glob: every file it
+      # names must exist in the pinned tree before the overlay generates
+      # the Android subproject from it. Same gate, same env, as the iOS
+      # workflow.
+      - name: Verify the PPSSPP subset against the fetched tree
+        env:
+          PPSPP_SRC: ${{ runner.temp }}/src/ppsspp
+        run: bash scripts/ppsspp-subset-test.sh
+
+      # The overlay's PSP section copies the runtime assets out of
+      # build-assets/ppsspp-assets and FAILS LOUDLY if they are not
+      # staged; the local build route stages them itself, CI must too.
+      - name: Stage the PPSSPP runtime assets
+        run: bash scripts/ppsspp-stage-assets.sh "$RUNNER_TEMP/src/ppsspp"
+
       # ⛔ NOT a blind `cp -r app/src/main/.`. That OVERWROTE upstream's
       # res/values/strings.xml (475 entries) and AndroidManifest.xml (every
       # upstream activity) with ours, which is why the Kotlin step failed on
@@ -98,6 +124,10 @@ jobs:
           # is how the omission survived the first time.
           MGBA_SRC: ${{ runner.temp }}/src/mgba
           LUA_SRC: ${{ runner.temp }}/src/lua-5.4.7
+          # ⛔ REQUIRED since the PSP core landed: without it the overlay's
+          # PSP section cannot find the pinned tree and exits on purpose
+          # (a silent skip is how a core goes missing).
+          PPSSPP_SRC: ${{ runner.temp }}/src/ppsspp
         run: bash scripts/android-apply-overlay.sh "$GITHUB_WORKSPACE/frontend" "$GITHUB_WORKSPACE"
 
       # The shell is melonDS 2025; our core is melonDS-lua 2026, which refactored

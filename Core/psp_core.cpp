@@ -13,6 +13,10 @@
 
 #include "psp_core.h"
 
+#ifdef __ANDROID__
+#include <android/api-level.h>
+#endif
+
 #include <cstdarg>
 #include <cstdint>
 #include <cstdio>
@@ -249,6 +253,17 @@ bool System_MakeRequest(SystemRequestType, int, const std::string &, const std::
 std::vector<std::string> System_GetCameraDeviceList() { return {}; }
 int64_t System_GetPropertyInt(SystemProperty prop)
 {
+#ifdef __ANDROID__
+    // MemArenaAndroid branches on this BEFORE allocating PSP memory:
+    // API >= 26 takes the ASharedMemory_create path, below it PPSSPP
+    // opens /dev/ashmem directly -- which SELinux denies to apps
+    // (avc: denied { open } for path="/dev/ashmem", tclass=chr_file,
+    // measured on the test34 AVD: "Memory init failed" at load). The
+    // blanket 0 below was written for iOS, where the arena is the Posix
+    // one and never asks. Report Android's real API level; other
+    // platforms compile this branch away entirely.
+    if (prop == SYSPROP_SYSTEMVERSION) return android_get_device_api_level();
+#endif
     // A 60Hz progressive display; the software GPU renders 480x272.
     if (prop == SYSPROP_DISPLAY_REFRESH_RATE) return 60000;
     if (prop == SYSPROP_DISPLAY_XRES) return 480;

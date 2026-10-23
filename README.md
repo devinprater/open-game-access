@@ -130,6 +130,18 @@ is other people's work, and their licences apply.
   audited subset (IR interpreter + software GPU) is compiled into the iOS core, and
   its runtime asset files (`compat.ini`, `langregion.ini`, the PPGe atlas, VFPU
   tables) are bundled with the app.
+- Since 2026-10-23 the same subset is also compiled into the **Android** app
+  (superseding a 2026-10-03 decision to keep PSP iOS-only; see TODO.md). The
+  consequence, stated plainly: like the iOS build, the distributed Android app
+  is a GPL combined work, and its source offer covers PPSSPP too — the exact
+  pinned revision above, fetched and built by this repository's public scripts
+  (`scripts/bootstrap-deps.sh`, `scripts/core-sources.sh`,
+  `scripts/android-apply-overlay.sh`). Linking a GPL core is not reversible
+  for a distributed build; that was the reason for the original deferral, and
+  the decision to proceed was made with it on the table.
+- Not shipped: PPSSPP's `flash0` firmware files are Sony IP; PPSSPP installs
+  them from the game disc's own updater partition on first boot. Game images
+  are never distributed with the app.
 
 ### DQ9-Access
 - <https://github.com/RetroSanity/DQ9-Access> — the Dragon Quest IX accessibility

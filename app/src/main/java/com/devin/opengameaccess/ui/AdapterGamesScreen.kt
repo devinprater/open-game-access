@@ -41,10 +41,11 @@ import com.devin.opengameaccess.AdapterLibraryData
  *
  * ⛔ THE ONE DELIBERATE DIFFERENCE FROM iOS: THE LOAD BUTTON. iOS's game page
  * loads the game filtered to that console's files. The Android launcher's
- * Select Game flow only starts Game Boy games today, and the other consoles'
- * readers are not in this build at all, so a per-game Load button here would
- * promise what the build cannot do. Each page instead ends with a plain line
- * saying what THIS build does with that console (see [platformLine]).
+ * Select Game flow starts Game Boy and PSP games from its own screen, and
+ * there is no per-game filtered picker behind this list, so a per-game Load
+ * button here would promise a flow that does not exist. Each page instead
+ * ends with a plain line saying what THIS build does with that console
+ * (see [platformLine]).
  */
 @Composable
 fun AdapterGamesScreen(
@@ -220,20 +221,24 @@ private fun versionLine(code: String): String? = when {
  * What THIS Android build does with the game's console, stated plainly.
  *
  * ⛔ MEASURED AGAINST THE BUILD, NOT THE REGISTRY. The registry lists every
- * reader the project has; this app runs Game Boy games (its Select Game flow
- * and Lua reader set) inside a melonDS shell, and the native Core readers —
- * DS, PSP, SNES — are not compiled into it. PSP is additionally a standing
- * decision, not an oversight (TODO: "PPSSPP on Android (DEFERRED 2026-10-03)").
- * A page that implied otherwise would send a blind player hunting for a Load
- * button that cannot exist.
+ * reader the project has. This build runs Game Boy games (its Select Game
+ * flow and Lua reader set) inside a melonDS shell, and PSP games too: the
+ * PPSSPP core is compiled in, the launcher starts them, and — since
+ * stage 4 — their readers are in the build with it, attached by the same
+ * DISC_IDs iOS dispatches on. What a PSP game's speech covers is whatever
+ * its adapter reports (the coverage line above, from the adapter itself);
+ * this line only claims the reader is present. The DS and SNES readers
+ * are not compiled into this build at all. A page that implied otherwise
+ * would send a blind player hunting for speech that cannot happen.
  */
 private fun platformLine(console: String): String = when (console) {
     "gb" -> "This Android build runs these games: pick one with Select Game " +
         "on the launcher."
     "nds" -> "This game's reader is not in the Android build yet; its speech " +
         "is in the iOS app today."
-    "psp" -> "PlayStation Portable games cannot run in this Android build: " +
-        "there is no PSP core in it. This reader is in the iOS app today."
+    "psp" -> "PlayStation Portable games run in this Android build, and this " +
+        "game's reader is in the build too: pick one with Select Game on " +
+        "the launcher."
     "snes" -> "Super Nintendo games cannot run in this Android build yet. " +
         "This reader is in the iOS app today."
     else -> "This console's games cannot run in this Android build yet."

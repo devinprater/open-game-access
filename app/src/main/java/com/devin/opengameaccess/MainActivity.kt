@@ -44,6 +44,13 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
 
+        // ⛔ STAGE 2 DEBUG HARNESS (PPSSPP boot proof): inert unless the launch
+        // intent carries PspProbe's ROM extra, which only an `adb shell am
+        // start --es ...` sets — with no extra the launcher is unchanged.
+        // This is NOT the speech bridge (see the warning below): the probe
+        // loads the frontend library itself, on its own background thread.
+        PspProbe.maybeStart(this, intent)
+
         // ⛔ DO NOT INITIALISE THE SPEECH BRIDGE HERE.
         // `AccessibilityScript.initialize()` reaches a JNI method (`setSpeechBridge`),
         // and the native library is NOT loaded until a ROM loads. Calling it in
@@ -71,7 +78,20 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * Wires the announcement view and owns the frame clock.
+     * Wires the announcement view.
+     *
+     * ⛔ IT DOES NOT OWN A FRAME CLOCK, whatever this docstring used to
+     * say (checked and corrected in stage 4): the PSP clock is
+     * rememberPspFrameClock, composed by LauncherScreen beside its
+     * session. The GB twin (rememberFrameClock in GbGameSession.kt)
+     * has NO call site — nothing composes it — so GbGameSession.runFrame
+     * is never called and the GB reader's per-frame resume
+     * (runGbFrame → the native runner) never runs on Android. GB speech
+     * in the shipped flow comes from the reader's load-time run inside
+     * its native start and from hotkey events, both of which the proofs
+     * exercised; frame-driven reader lines are a known gap in the GB
+     * flow, recorded here rather than fixed — stage 4's remit was the
+     * docstring, and the GB flow is otherwise proven as it stands.
      *
      * ⛔ THE ANNOUNCEMENT VIEW IS NOT OPTIONAL, AND IT MUST BE AN ATTACHED VIEW.
      * `AccessibilitySpeech` announces by mutating a view's live region when a screen
@@ -88,7 +108,10 @@ class MainActivity : ComponentActivity() {
             // Kept so the view is handed over as soon as the bridge EXISTS; attaching
             // it before then forwards to a null bridge and does nothing (see
             // GbGameSession.attachAnnouncementView, which also re-forwards on start).
+            // Both sessions store the same view and forward to the same bridge;
+            // whichever starts a game re-forwards it then.
             GbGameSession.attachAnnouncementView(view)
+            PspGameSession.attachAnnouncementView(view)
         }
 
         var showSettings by remember { mutableStateOf(false) }
@@ -122,16 +145,21 @@ class MainActivity : ComponentActivity() {
                 // is both a crash (no native library) and unnecessary. Guarded rather
                 // than removed: with a game running, this is the same bridge the reader
                 // uses, so a launcher line during play queues behind the reader's speech
-                // instead of opening a second TTS client.
-                if (GbGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
+                // instead of opening a second TTS client. Either session's game counts:
+                // the bridge is shared, and a PSP session builds it at start the same
+                // way the GB session does.
+                if (GbGameSession.isRunning || PspGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
             },
         )
     }
 
     override fun onDestroy() {
-        // Stop the reader before the process goes away, or the emulator thread
-        // outlives the Activity that owns the views it announces through.
+        // Stop the sessions before the process goes away, or an emulator
+        // thread outlives the Activity that owns the views it announces
+        // through. The PSP stop is safe with no PSP game running (and on
+        // builds with no PSP core), so it is unconditional, like the GB one.
         GbGameSession.stop()
+        PspGameSession.stop()
         super.onDestroy()
     }
 }

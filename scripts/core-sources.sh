@@ -1248,6 +1248,31 @@ PPSPP_X86="
 PPSPP_X86_ASM="
     ext/zstd/lib/decompress/huf_decompress_amd64.S
 "
+# Android arm64 only: cpu_features' AArch64 implementation. No other OGA
+# list compiles an AArch64 cpu_features impl (iOS's ArmCPUDetect takes a
+# sysctl path, and the x86 list is x86_64-only), but on Android
+# Common/ArmCPUDetect.cpp calls cpu_features::GetAarch64Info(), so the
+# Android build needs the impl plus the same helper TUs PPSPP_X86 carries
+# for x86_64 (upstream's cpu_features CMake composes the AArch64 target
+# from exactly these). ANDROID-ONLY: compiled solely by
+# scripts/android-apply-overlay.sh's generated oga-ppsspp subproject.
+PPSPP_ANDROID_ARM64="
+    ext/cpu_features/src/filesystem.c ext/cpu_features/src/stack_line_reader.c
+    ext/cpu_features/src/string_view.c ext/cpu_features/src/hwcaps.c
+    ext/cpu_features/src/impl_aarch64_linux_or_android.c
+"
+
+# Android only, both ABIs: upstream's Android MemArena. PPSPP_CORE
+# carries the platform arena TUs as a set (Darwin/Horizon/Posix/Win32),
+# each guarded to its platform; the Android member was never listed
+# because iOS does not need it. On Android, MemArenaPosix.cpp's guard
+# leaves GrabMemSpace/CreateView/ReleaseView/Find4GBBase/roundup
+# undefined and this file provides them (ashmem via dlopen, upstream's
+# own code). ANDROID-ONLY: compiled solely by scripts/
+# android-apply-overlay.sh's generated oga-ppsspp subproject.
+PPSPP_ANDROID="
+    Common/MemArenaAndroid.cpp
+"
 # psp_core.cpp is OGA glue but needs the PPSSPP tree, so it has its own
 # list and lang (ppspp) rather than riding OGA_GLUE's plain cxx.
 # Runtime assets the boot path actually opens (strace-proven, Sep 2026):

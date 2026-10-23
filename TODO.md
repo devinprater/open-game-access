@@ -290,7 +290,43 @@ ppsspp-assets via poke_set_psp_asset_dir(), and the UI adapts per system
 shows A/B with the verified P/E/K/J/L reader keys, the screen picker is
 DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-09-26: iOS simulator CI is green with the real core (run 36242939387 — 640+ PPSSPP TUs under AppleClang, app links, boots on a simulated iPhone).
 
-- [ ] **PPSSPP on Android (DEFERRED 2026-10-03, don't start without a new decision):**
+- [x] **PPSSPP on Android (DEFERRED 2026-10-03; SUPERSEDED 2026-10-22 by the
+  user's direction — "get PPSSPP working on Android" — and LANDED 2026-10-23,
+  stages 1–4):** PSP now runs on Android with adapter speech, from the same
+  audited subset iOS ships. The subset compiles and links for arm64-v8a +
+  x86_64 into the frontend .so (armeabi-v7a gets an empty PSP core by design —
+  the lists were never audited for 32-bit ARM); a real PSP session starts
+  from the launcher like a GB game (picker → Start), with AudioTrack sound,
+  whole-core savestates and the accessible pad; and the four PSP adapters
+  (Dissidia ULUS10437, DBZ: Another Road ULUS10234, MK: Unchained ULUS10102,
+  KH: Birth by Sleep ULUS10505) attach by DISC_ID through a small native host
+  (`PspAdapterHost`, not a pokecore port — the adapters were already
+  self-contained) and speak through the app's speech path. Proven on the
+  Legion's AVD (test34): Dissidia boots from the launcher end-to-end and its
+  title speaks; BBS speaks its title state, Menu status and live cursor
+  moves; a Pokémon Blue GB regression stayed green in the same builds. CI
+  builds the frontend with NDK 28 (it no longer links under the old 26.1 pin
+  — upstream's, not PPSSPP's, breakage) and runs the subset gate.
+  The three 2026-10-03 reasons, and what became of them:
+    1. LICENSE IS PERMANENT. Accepted with the direction; the source-offer
+       note lives in README.md's PPSSPP attribution. (The app was already a
+       GPL combination via melonDS; PPSSPP adds a GPL-2.0+ component.)
+    2. SIZE. Real: the APK grew from ~58 MB to ~96 MB.
+    3. THE READER IS A PORT, NOT A CARRY-OVER. It was a small one — see the
+       host above.
+  STILL OPEN (stage 5): the ffmpeg Android port + `USE_FFMPEG`. Without it,
+  FMV video and Atrac movie audio degrade — and BBS's opening movie STALLS
+  on the AVD build (black frame, flow phase 2 forever, where the host bench
+  passes it in ~300 frames). Whether the stall is this build's PMF playback
+  or the emulator's software GPU/media path is the open question; it may
+  not reproduce on a real device. Dissidia's boot flow needs no such help.
+  ROM STORAGE: PSP images picked through SAF are materialised into
+  `filesDir/psproms` (app-specific, NON-cache storage): an earlier cacheDir
+  version was evicted by the system within ~a minute on a 6 GB device,
+  killing boots mid-load. The copy is a second full 0.5–2 GB per game and
+  counts toward app storage until uninstall/clear-data; a `file://` image
+  is still used in place. Savestates stay in `filesDir/ppsspp-states`.
+  Original 2026-10-03 deferral text, kept for the record:
   PSP is complete and proven on iOS (`Core/psp_core.cpp`, PPSSPP pinned at `f293b10`,
   IR interpreter + software GPU, Dissidia ULUS10437 900/900 frames) but Android has
   NOTHING for it — the Android shell is melonDS-only.
