@@ -25,6 +25,7 @@ on:
       - 'scripts/bootstrap-deps.sh'
       - 'scripts/ppsspp-subset-test.sh'         # the PPSSPP subset gate below
       - 'scripts/ppsspp-stage-assets.sh'        # stages the PSP runtime assets
+      - 'scripts/build-ffmpeg-android.sh'       # the minimal ffmpeg the PSP core links
       - '.github/workflows/android-apk.yml'
   workflow_dispatch:
 
@@ -111,6 +112,29 @@ jobs:
       - name: Stage the PPSSPP runtime assets
         run: bash scripts/ppsspp-stage-assets.sh "$RUNNER_TEMP/src/ppsspp"
 
+      # The PSP core compiles with USE_FFMPEG (stage 5b) against a
+      # minimal static ffmpeg cross-built from PPSSPP's pinned fork —
+      # build-ffmpeg.sh's decoder/demuxer set, the same one iOS links.
+      # The overlay invokes this script too (stamp-gated, so a current
+      # install is a no-op there); building it as its own step keeps a
+      # configure failure out of the overlay's logs and gives the cache
+      # a clean boundary. The stamp inside each install records the
+      # ffmpeg source rev + the full flag set, so a stale cache entry
+      # rebuilds instead of silently passing.
+      - name: Cache the Android ffmpeg builds
+        uses: actions/cache@v4
+        with:
+          path: ${{ runner.temp }}/ffmpeg-android
+          key: ffmpeg-android-${{ hashFiles('scripts/build-ffmpeg-android.sh', 'scripts/bootstrap-deps.sh') }}
+
+      - name: Build the minimal ffmpeg for Android (USE_FFMPEG)
+        env:
+          FFMPEG_SRC: ${{ runner.temp }}/src/ppsspp/ffmpeg
+          FFMPEG_ANDROID_OUT: ${{ runner.temp }}/ffmpeg-android
+        run: |
+          bash scripts/build-ffmpeg-android.sh arm64-v8a
+          bash scripts/build-ffmpeg-android.sh x86_64
+
       # ⛔ NOT a blind `cp -r app/src/main/.`. That OVERWROTE upstream's
       # res/values/strings.xml (475 entries) and AndroidManifest.xml (every
       # upstream activity) with ours, which is why the Kotlin step failed on
@@ -128,6 +152,9 @@ jobs:
           # PSP section cannot find the pinned tree and exits on purpose
           # (a silent skip is how a core goes missing).
           PPSSPP_SRC: ${{ runner.temp }}/src/ppsspp
+          # Where the ffmpeg step above put the Android installs; the
+          # overlay stages them into the frontend tree from here.
+          FFMPEG_ANDROID_OUT: ${{ runner.temp }}/ffmpeg-android
         run: bash scripts/android-apply-overlay.sh "$GITHUB_WORKSPACE/frontend" "$GITHUB_WORKSPACE"
 
       # The shell is melonDS 2025; our core is melonDS-lua 2026, which refactored

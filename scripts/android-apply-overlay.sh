@@ -556,9 +556,16 @@ fi
 #   armeabi-v7a: the lists were never audited for 32-bit ARM, so the
 #               subproject builds an EMPTY oga-ppsspp there; the frontend
 #               link line stays unconditional and PSP is simply absent.
-# No USE_FFMPEG yet: the subset compiles and boots without it (FFmpeg's
-# Android slices are a later stage). -DMOBILE_DEVICE matches the iOS
-# ppspp/ppsppc cases in build-core.sh.
+# -DMOBILE_DEVICE matches the iOS ppspp/ppsppc cases in build-core.sh.
+#
+# Stage 5b adds ffmpeg: USE_FFMPEG, defined exactly as build-core.sh
+# defines it for iOS, against the minimal static libs
+# scripts/build-ffmpeg-android.sh cross-builds from the same pinned
+# fork with build-ffmpeg.sh's decoder/demuxer set. Without it the
+# subset's sceMpeg/sceVideocodec PMF paths are compiled out and KH
+# Birth by Sleep's opening movie never advances (stage-4 find). The
+# installs are staged under ppsspp/ffmpeg/<abi>/ below, beside the
+# generated CMake that links them.
 #
 # Stage 2 adds the debug boot-proof harness: PspSessionJNI.cpp rides in
 # the oga-ppsspp-glue OBJECT library (so it exists on exactly the ABIs
@@ -740,6 +747,32 @@ PYEOF
   cp -r "$ROOT/build-assets/ppsspp-assets" "$FRONTEND/app/src/main/assets/ppsspp-assets"
   echo "     staged the PPSSPP runtime assets into the APK assets"
 
+  # ---- ffmpeg for the subset (stage 5b) ----
+  # build-ffmpeg-android.sh is stamp-gated, so this costs nothing when
+  # the installs are current; it FAILS LOUDLY when the NDK is missing,
+  # because a silent skip here is how USE_FFMPEG would quietly vanish
+  # and BBS's opening movie would stall again. The installs are copied
+  # into the frontend tree beside the generated CMake (which links
+  # them per-ABI), so the build tree stays self-contained like the
+  # copied PPSSPP tree above.
+  FFMPEG_SRC="$PPSSPP_SRC/ffmpeg" \
+    bash "$ROOT/scripts/build-ffmpeg-android.sh" arm64-v8a || exit 1
+  FFMPEG_SRC="$PPSSPP_SRC/ffmpeg" \
+    bash "$ROOT/scripts/build-ffmpeg-android.sh" x86_64 || exit 1
+  rm -rf "$FRONTEND/app/ppsspp/ffmpeg"
+  for abi in arm64-v8a x86_64; do
+    ffout="${FFMPEG_ANDROID_OUT:-$HOME/ffmpeg-android}/$abi"
+    for lib in avcodec avformat avutil swresample swscale; do
+      [ -f "$ffout/lib/lib$lib.a" ] || { echo "   !! ffmpeg android/$abi missing lib$lib.a at $ffout" >&2; exit 1; }
+    done
+    mkdir -p "$FRONTEND/app/ppsspp/ffmpeg/$abi/lib"
+    cp "$ffout"/lib/libavcodec.a "$ffout"/lib/libavformat.a \
+       "$ffout"/lib/libavutil.a "$ffout"/lib/libswresample.a \
+       "$ffout"/lib/libswscale.a "$FRONTEND/app/ppsspp/ffmpeg/$abi/lib/"
+    cp -r "$ffout/include" "$FRONTEND/app/ppsspp/ffmpeg/$abi/include"
+  done
+  echo "     staged the minimal ffmpeg (USE_FFMPEG) for arm64-v8a + x86_64"
+
   python3 - "$ROOT/scripts/core-sources.sh" "$FRONTEND/app/ppsspp/CMakeLists.txt" "$FRONTEND/app/ppsspp" <<'PY'
 import os, re, sys
 srcs = open(sys.argv[1], encoding="utf-8").read()
@@ -886,7 +919,8 @@ add_library(oga-ppsspp STATIC ${OGA_PPSPP_SOURCES})
 if (OGA_PPSPP_HAVE_CORE)
     add_library(oga-ppsspp-glue OBJECT ${OGA_PPSPP_GLUE})
     target_include_directories(oga-ppsspp-glue PRIVATE ${OGA_PPSPP_INC})
-    target_compile_definitions(oga-ppsspp-glue PRIVATE MOBILE_DEVICE)
+    target_compile_definitions(oga-ppsspp-glue PRIVATE MOBILE_DEVICE USE_FFMPEG)
+    target_include_directories(oga-ppsspp-glue PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/${CMAKE_ANDROID_ARCH_ABI}/include)
     target_compile_options(oga-ppsspp-glue PRIVATE -fwrapv -fno-strict-aliasing -w)
     set(OGA_PPSPP_GLUE_OBJECTS $<TARGET_OBJECTS:oga-ppsspp-glue> PARENT_SCOPE)
     # The glue references cousin symbols (cpu_info, for core counts), so
@@ -927,7 +961,8 @@ endif ()
 target_include_directories(oga-ppsspp PRIVATE ${OGA_PPSPP_INC})
 
 # build-core.sh's ppspp/ppsppc cases: -DMOBILE_DEVICE, and the COMMON
-# arithmetic flags the subset is proven with. No USE_FFMPEG yet.
+# arithmetic flags the subset is proven with. USE_FFMPEG is defined
+# in the ffmpeg block below (stage 5b), exactly as on iOS.
 target_compile_definitions(oga-ppsspp PRIVATE MOBILE_DEVICE)
 target_compile_options(oga-ppsspp PRIVATE -fwrapv -fno-strict-aliasing -w)
 
@@ -950,6 +985,25 @@ set_source_files_properties(${PPSPP_SRC}/ext/cpu_features/src/hwcaps.c
 # zlib; PPSSPP's logging and the Android file paths want liblog; dl for
 # the loaders). PUBLIC: they belong to the frontend's final link.
 target_link_libraries(oga-ppsspp PUBLIC z log dl)
+
+# ffmpeg (stage 5b): USE_FFMPEG exactly as scripts/build-core.sh defines
+# it for iOS, against the minimal static libs
+# scripts/build-ffmpeg-android.sh builds (build-ffmpeg.sh's
+# decoder/demuxer set, pinned fork) and section 8 stages under
+# ffmpeg/<abi>/. Imported archives linked PUBLIC in dependency order,
+# so the frontend's final link sees them after the subset objects that
+# reference them; libm rides along (ffmpeg's tables want it).
+if (OGA_PPSPP_HAVE_CORE)
+    set(OGA_FFMPEG_DIR ${CMAKE_CURRENT_SOURCE_DIR}/ffmpeg/${CMAKE_ANDROID_ARCH_ABI})
+    foreach (fflib avformat avcodec swresample swscale avutil)
+        add_library(ff${fflib} STATIC IMPORTED)
+        set_target_properties(ff${fflib} PROPERTIES
+            IMPORTED_LOCATION ${OGA_FFMPEG_DIR}/lib/lib${fflib}.a)
+    endforeach ()
+    target_compile_definitions(oga-ppsspp PRIVATE USE_FFMPEG)
+    target_include_directories(oga-ppsspp PRIVATE ${OGA_FFMPEG_DIR}/include)
+    target_link_libraries(oga-ppsspp PUBLIC ffavformat ffavcodec ffswresample ffswscale ffavutil m)
+endif ()
 """)
 print("     generated the PPSSPP build (%d core + %d ext-cpp + %d ext-c audited sources + glue)"
       % (len(CORE), len(EXT_CPP), len(EXT_C)))

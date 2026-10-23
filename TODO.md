@@ -314,12 +314,20 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
     2. SIZE. Real: the APK grew from ~58 MB to ~96 MB.
     3. THE READER IS A PORT, NOT A CARRY-OVER. It was a small one — see the
        host above.
-  STILL OPEN (stage 5): the ffmpeg Android port + `USE_FFMPEG`. Without it,
-  FMV video and Atrac movie audio degrade — and BBS's opening movie STALLS
-  on the AVD build (black frame, flow phase 2 forever, where the host bench
-  passes it in ~300 frames). Whether the stall is this build's PMF playback
-  or the emulator's software GPU/media path is the open question; it may
-  not reproduce on a real device. Dissidia's boot flow needs no such help.
+  DONE (stage 5b, 2026-10-23): the ffmpeg Android port + `USE_FFMPEG`.
+  scripts/build-ffmpeg-android.sh cross-builds the SAME minimal set as
+  build-ffmpeg.sh (the pinned ppsspp-ffmpeg fork; h263/h264/mpeg2video/
+  rawvideo + aac/atrac3/atrac3p/mp3/pcm; mpegps/mpegvideo/aac/oma) for
+  arm64-v8a + x86_64 with the NDK, and the overlay (§8) defines
+  USE_FFMPEG and links it exactly as iOS does. The open question is
+  answered: the stall WAS this build's missing PMF playback. On AVD
+  test34, BBS now cold-boots UNAIDED — first-boot dialogs, the opening
+  movie plays through (savestate autopsy: flow phase 2 → 3, title step
+  4, fade settled), the title screen is reached and Menu status speaks
+  "Title menu. New Game, 1 of 3." Movie-window audio frames advanced
+  in step at 32768 Hz throughout. Dissidia + Pokémon Blue regressions
+  stayed green in the same APK. Proof: ~/workspace/oga-android-proof
+  (oga-psp6-*). CI builds the ffmpeg step (cached) before the overlay.
   ROM STORAGE: PSP images picked through SAF are materialised into
   `filesDir/psproms` (app-specific, NON-cache storage): an earlier cacheDir
   version was evicted by the system within ~a minute on a 6 GB device,
