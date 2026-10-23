@@ -45,19 +45,37 @@ object GbGameSession {
     /**
      * True when this build can actually run Game Boy ROMs.
      *
-     * ⛔ ASK THE APK, DO NOT GUESS A LIBRARY NAME. `ApplicationInfo.nativeLibraryDir`
-     * names every .so that actually shipped, so a wrong guess cannot masquerade as
-     * "the feature is not in this build". Measured on the shipped v0.5.0 APK: the
-     * library is `libmelonDS-android-frontend.so`, which does contain "frontend",
-     * so the check passes today — but the check is a name match, so it is stated
-     * here rather than left implicit.
+     * ⛔ ASK THE APK, DO NOT ASK THE LIBRARY DIRECTORY. The GB reader's native
+     * code is linked into `libmelonDS-android-frontend.so`, and this build sets
+     * `extractNativeLibs=false` — so on an installed app `nativeLibraryDir` is
+     * EMPTY: the libraries are never extracted to disk, they stay in the APK and
+     * the platform loads them straight out of it. The previous probe listed
+     * `nativeLibraryDir`, found nothing (logcat: `no frontend .so in
+     * /data/app/~~…/lib/x86_64: []`), and reported the core missing on every
+     * launch — the launcher's Select Game / Start Game buttons were permanently
+     * disabled even though the frontend .so was sitting in the APK. The probe
+     * now reads the APK's own entries (`applicationInfo.sourceDir` as a zip) and
+     * looks for `lib/<any-abi>/lib…frontend….so`, which is where the library
+     * actually is in this build configuration. Still fail-closed: no frontend
+     * entry in the APK means the feature really is not in this build.
      */
     fun coreAvailable(context: Context): Boolean {
         return try {
-            val dir = context.applicationInfo.nativeLibraryDir ?: return false
-            val libs = java.io.File(dir).listFiles()?.filter { it.name.endsWith(".so") } ?: return false
-            val hasFrontend = libs.any { it.name.contains("frontend") }
-            if (!hasFrontend) Log.w(TAG, "no frontend .so in $dir: ${libs.map { it.name }}")
+            val apk = context.applicationInfo.sourceDir ?: return false
+            var hasFrontend = false
+            java.util.zip.ZipFile(apk).use { zip ->
+                val entries = zip.entries()
+                while (entries.hasMoreElements()) {
+                    val name = entries.nextElement().name
+                    if (name.startsWith("lib/") && name.endsWith(".so") &&
+                        name.substringAfterLast('/').contains("frontend")
+                    ) {
+                        hasFrontend = true
+                        break
+                    }
+                }
+            }
+            if (!hasFrontend) Log.w(TAG, "no frontend .so in APK $apk")
             hasFrontend
         } catch (t: Throwable) {
             Log.w(TAG, "Game Boy path unavailable: ${t.message}")

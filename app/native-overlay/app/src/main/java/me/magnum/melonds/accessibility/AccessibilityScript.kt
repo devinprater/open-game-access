@@ -48,10 +48,53 @@ object AccessibilityScript
     // ref and this Kotlin object have the same lifetime.
     private var speech: AccessibilitySpeech? = null
 
-    /** True once the script has compiled and reached its first frame yield. */
-    val isRunning: Boolean get() = isScriptRunning()
+    /**
+     * ⛔ THE DS NATIVE HOST IS NOT IN THIS BUILD — REGISTER BEST-EFFORT.
+     * The natives above belong to PokeScriptJNI.cpp, which this build does not
+     * link: the only native library in the APK is the frontend's, and it
+     * carries the GB host (MGBAScriptJNI.cpp) only. Calling [setSpeechBridge]
+     * here therefore throws UnsatisfiedLinkError — measured on the device,
+     * where it killed [GbAccessibilityScript.start] as it asked for the
+     * shared bridge, before the GB host could register anything. The Kotlin
+     * [AccessibilitySpeech] object is the actual bridge both hosts speak
+     * through, and the GB host registers it through its own
+     * `setGbSpeechBridge`, so a missing DS registration must not take the
+     * shared bridge down with it.
+     */
+    private fun registerSpeechBridge(bridge: Any?)
+    {
+        try
+        {
+            setSpeechBridge(bridge)
+        }
+        catch (e: UnsatisfiedLinkError)
+        {
+            Log.i(TAG, "[pokemon-access] DS native host absent; speech bridge not registered natively")
+        }
+    }
 
-    val frameCount: Long get() = getScriptFrameCount()
+    /** True once the script has compiled and reached its first frame yield. */
+    val isRunning: Boolean
+        get() = try
+        {
+            isScriptRunning()
+        }
+        catch (e: UnsatisfiedLinkError)
+        {
+            // No DS native host in this build (see registerSpeechBridge):
+            // the DS script is not running, so this reads false.
+            false
+        }
+
+    val frameCount: Long
+        get() = try
+        {
+            getScriptFrameCount()
+        }
+        catch (e: UnsatisfiedLinkError)
+        {
+            0L
+        }
 
     /**
      * Point speech at the Activity's live-region view.
@@ -76,7 +119,7 @@ object AccessibilityScript
             val s = AccessibilitySpeech(context.applicationContext)
             s.init()
             speech = s
-            setSpeechBridge(s)
+            registerSpeechBridge(s)
             Log.i(TAG, "[pokemon-access] speech bridge ready")
         }
     }
@@ -105,7 +148,18 @@ object AccessibilityScript
             .append(main)
             .toString()
 
-        val started = startScript(script)
+        val started = try
+        {
+            startScript(script)
+        }
+        catch (e: UnsatisfiedLinkError)
+        {
+            // No DS native host in this build (see registerSpeechBridge): the
+            // DS script cannot start here, and that must read as "not
+            // started", not as a crash.
+            Log.e(TAG, "[pokemon-access] DS native host absent; accessibility script cannot start")
+            false
+        }
         if (started)
         {
             Log.i(TAG, "[pokemon-access] accessibility script loaded (shim + main.lua, ${script.length} chars)")
@@ -119,7 +173,14 @@ object AccessibilityScript
 
     fun stop()
     {
-        stopScript()
+        try
+        {
+            stopScript()
+        }
+        catch (e: UnsatisfiedLinkError)
+        {
+            // No DS native host in this build: nothing is running to stop.
+        }
     }
 
     /**
@@ -139,8 +200,8 @@ object AccessibilityScript
 
     fun shutdown()
     {
-        stopScript()
-        setSpeechBridge(null)
+        stop()
+        registerSpeechBridge(null)
         speech?.shutdown()
         speech = null
     }
@@ -148,7 +209,16 @@ object AccessibilityScript
     /** Speak a line from the app itself (not the script). */
     fun speak(text: String, interrupt: Boolean = true)
     {
-        speakNow(text, interrupt)
+        try
+        {
+            speakNow(text, interrupt)
+        }
+        catch (e: UnsatisfiedLinkError)
+        {
+            // No DS native host in this build (see registerSpeechBridge):
+            // the shared Kotlin bridge is the voice, so speak through it.
+            speech?.speak(text, interrupt)
+        }
     }
 
     /**
@@ -165,7 +235,15 @@ object AccessibilityScript
     {
         val upper = key.uppercaseChar()
         if (upper !in 'A'..'Z') return
-        setHotkey(upper, down)
+        try
+        {
+            setHotkey(upper, down)
+        }
+        catch (e: UnsatisfiedLinkError)
+        {
+            // No DS native host in this build: the DS script is not running,
+            // so there is nothing to forward the key to.
+        }
     }
 
     private fun readAsset(context: Context, name: String): String?

@@ -48,6 +48,8 @@ SCREEN_KT = "app/src/main/java/com/devin/opengameaccess/ui/LauncherScreen.kt"
 ACTIVITY_KT = "app/src/main/java/com/devin/opengameaccess/MainActivity.kt"
 GBSCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
                "accessibility/GbAccessibilityScript.kt")
+DSSCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+               "accessibility/AccessibilityScript.kt")
 JNI_CPP = "app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp"
 LEGACY_HTML = "app/src/main/assets/index.html"
 LIBRARY_KT = "app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
@@ -57,7 +59,7 @@ REGISTRY_CPP = "Core/adapters.cpp"
 # ⛔ SANITY: a missing file must be an ERROR, not a pass. An early version of this
 # class of check scanned a file that did not exist, found no bad strings in nothing,
 # and reported success.
-for rel in (SESSION_KT, SCREEN_KT, ACTIVITY_KT, GBSCRIPT_KT, JNI_CPP):
+for rel in (SESSION_KT, SCREEN_KT, ACTIVITY_KT, GBSCRIPT_KT, DSSCRIPT_KT, JNI_CPP):
     if not os.path.exists(rel):
         print("!! %s is missing; refusing to report a pass" % rel)
         sys.exit(1)
@@ -151,8 +153,10 @@ else:
         "and the screen reader and TTS interrupt each other")
 
 # It must be wired from a side effect / attached view, not during composition:
-# an unattached view announces nothing.
-if "SideEffect" in activity:
+# an unattached view announces nothing. ⛔ MATCH THE CALL, NOT THE WORD: the
+# import line alone contains "SideEffect", so a bare substring check passes
+# even with the call deleted (the mutation suite proved exactly that).
+if "SideEffect {" in activity:
     ok("the announcement view is wired after attachment (SideEffect)")
 else:
     bad("the announcement view is wired after attachment",
@@ -277,6 +281,49 @@ else:
     else:
         bad("the game library screen exists and is wired from the Activity",
             "AdapterGamesScreen missing or not referenced by MainActivity")
+
+# ---- 8. EVERY DS NATIVE CALL IS GUARDED ------------------------------------
+# ⛔ THE SAME CRASH CLASS, ONE FILE DEEPER. AccessibilityScript's `external fun`s
+# belong to the DS native host (PokeScriptJNI.cpp), which the GB build does not
+# link — the only native library in the APK carries the GB host. Section 6 keeps
+# the Activity from building the bridge early, but the calls INSIDE this file
+# were reachable too: on device, Start died with UnsatisfiedLinkError from
+# setSpeechBridge before the GB host could register anything. The fix guarded
+# the bridge registration and speak(); this rule holds EVERY native call in the
+# file to the same pattern — an UnsatisfiedLinkError catch in the calling
+# member, with a fail-closed fallback — so the next unguarded call site fails
+# here instead of on a device.
+ds_src = strip_kt(read(DSSCRIPT_KT))
+ds_natives = re.findall(r"external\s+fun\s+(\w+)", ds_src)
+if not ds_natives:
+    bad("every DS native call is guarded by an UnsatisfiedLinkError catch",
+        "no `external fun` declarations found in %s; the file changed shape"
+        % DSSCRIPT_KT)
+else:
+    ds_lines = ds_src.splitlines()
+    # Member spans: a member of the object starts at exactly four spaces with
+    # `fun`/`val`/`var` (optionally `private`). The `external fun` declarations
+    # never match — `external` intervenes — and they sit before the first
+    # member, so declaration lines are never mistaken for call sites.
+    starts = [i for i, l in enumerate(ds_lines)
+              if re.match(r"^    (private )?(fun|val|var) ", l)]
+    unguarded = []
+    for name in ds_natives:
+        call = re.compile(r"(?<![\w.])" + re.escape(name) + r"\s*\(")
+        for j, s0 in enumerate(starts):
+            e0 = starts[j + 1] if j + 1 < len(starts) else len(ds_lines)
+            body = "\n".join(ds_lines[s0:e0])
+            if not call.search(body):
+                continue
+            if "catch" not in body or "UnsatisfiedLinkError" not in body:
+                unguarded.append("%s (member at %s:%d)"
+                                 % (name, DSSCRIPT_KT, s0 + 1))
+    if unguarded:
+        bad("every DS native call is guarded by an UnsatisfiedLinkError catch",
+            "unguarded: %s" % unguarded)
+    else:
+        ok("every DS native call is guarded by an UnsatisfiedLinkError catch "
+           "(%d natives)" % len(ds_natives))
 
 print()
 if fails:

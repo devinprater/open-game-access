@@ -13,6 +13,7 @@ stage() {
   rm -rf "$TMP/t"
   mkdir -p "$TMP/t/app/src/main/java/com/devin/opengameaccess/ui" \
            "$TMP/t/app/src/main/java/me/magnum/melonds/accessibility" \
+           "$TMP/t/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility" \
            "$TMP/t/app/native-overlay/app/src/main/cpp" \
            "$TMP/t/scripts" \
            "$TMP/t/Core"
@@ -23,6 +24,9 @@ stage() {
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/ui/"
   cp app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/GbAccessibilityScript.kt \
      "$TMP/t/app/src/main/java/me/magnum/melonds/accessibility/"
+  cp app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/GbAccessibilityScript.kt \
+     app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/AccessibilityScript.kt \
+     "$TMP/t/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/"
   cp app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp \
      "$TMP/t/app/native-overlay/app/src/main/cpp/"
   cp "$TEST" "$TMP/t/scripts/"
@@ -33,8 +37,10 @@ case_key() {   # sabotage: swap the UP and DOWN bit values
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/GbGameSession.kt"
 }
 case_announce() {  # sabotage: drop the announcement-view wiring (the bug we fixed)
-  sed -i 's/AccessibilityScript.setAnnouncementView(view)/\/\/ removed/' \
-     "$TMP/t/app/src/main/java/com/devin/opengameaccess/MainActivity.kt"
+  # The forwarding calls live in the session now, not the Activity (the chain
+  # moved when the launch crash was fixed); remove both so the chain is broken.
+  sed -i 's/AccessibilityScript\.setAnnouncementView(/\/\/ removed(/g' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/GbGameSession.kt"
 }
 case_sideeffect() { # sabotage: wire during composition instead of after attach
   sed -i 's/^        SideEffect {/        run {/' \
@@ -67,8 +73,24 @@ case_library() {  # sabotage: a registry game vanishes from the library data
   sed -i '/id = "alttp"/,+6d' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
 }
+case_dsguard() {  # sabotage: the DS-native guards come out of AccessibilityScript
+  sed -i '/catch (e: UnsatisfiedLinkError)/d' \
+     "$TMP/t/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/AccessibilityScript.kt"
+}
 
-for s in key announce sideeffect jni webview stale bridgelate library; do
+# CONTROL: the staged tree, unmutated, must PASS. Without this, a staging gap
+# makes every case below "fail as required" vacuously and the suite proves
+# nothing (this bit us: GbAccessibilityScript.kt was staged at a path the test
+# never reads, so the sanity check failed before any rule ran).
+stage
+if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then
+  printf '  ok %-12s staged tree passes unmutated\n' "control"
+else
+  printf '  !! %-12s staged tree FAILS unmutated; every case below is vacuous\n' "control"
+  bad=1
+fi
+
+for s in key announce sideeffect jni webview stale bridgelate library dsguard; do
   stage
   "case_$s"
   if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then
