@@ -378,6 +378,77 @@ int main()
     a->command(oga::Command::MenuLeft);
     CHECK(NSPOKEN == 0, "left/right stay silent in pause (quit dialog territory)");
 
+    // ---- the QUIT GAME dialog over the pause menu ----------------------------
+    // Back to Main Menu first (the dialog's doorway).
+    put_u32(HOLDER, PTOP - 3 * 0xAF0);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuNext);
+    a->on_frame();   // the watch speaks the settled row
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Main Menu"),
+          "pause cursor back on Main Menu before opening the dialog");
+
+    // Plant this boot's pause context: the static ctx cell holds the pause
+    // value while the plain menu is up (hunt13's was 0x09E2A990), and the
+    // dialog object's selection field sits below the pause top.
+    const uint32_t PACTX = 0x09E2A990;
+    put_u32(0x08D9742C, PACTX);
+    put_u32(PTOP - 0x2C28, PTOP - 0x3AE0);           // selection field -> NO widget
+    for (int i = 0; i < 3; i++) a->on_frame();       // the sample needs a stable value
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Paused"),
+          "the dialog gate stays shut while the ctx cell holds the pause value");
+
+    put_u32(0x08D9742C, PACTX + 0x98);               // dialog opens (default NO)
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();                                    // the watch speaks the new screen
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Quit game") &&
+          strstr(SPOKEN[0], "Are you sure") && strstr(SPOKEN[0], "No, 1 of 2"),
+          "opening the dialog speaks Quit game with No, 1 of 2");
+
+    // The ctx cell blinks on the real hardware bench: one-frame visits
+    // to 0 and to other layers' contexts while the dialog stays open.
+    // The latch must ride through them without a word.
+    put_u32(0x08D9742C, 0);
+    a->on_frame();
+    put_u32(0x08D9742C, 0x09E26D98);                 // a background layer's context
+    a->on_frame();
+    put_u32(0x08D9742C, PACTX + 0x98);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN == 0, "ctx blinks mid-dialog say nothing (the latch holds)");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Quit game"),
+          "WhereAmI still speaks the dialog after ctx blinks");
+
+    put_u32(PTOP - 0x2C28, PTOP - 0x45C0);           // highlight moves to YES
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuRight);
+    a->on_frame();                                    // the watch speaks the settled row
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Yes, 2 of 2"),
+          "right on the dialog speaks Yes, 2 of 2");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Quit game") &&
+          strstr(SPOKEN[0], "Yes, 2 of 2"),
+          "WhereAmI on the dialog speaks the question and the Yes row");
+
+    put_u32(PTOP - 0x2C28, PTOP - 0x3AE0);           // highlight back to NO
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::MenuLeft);
+    a->on_frame();                                    // the watch speaks the settled row
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No, 1 of 2"),
+          "left on the dialog speaks No, 1 of 2 again");
+
+    put_u32(0x08D9742C, PACTX);                      // confirm: ctx restores, dialog closed
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 3; i++) a->on_frame();       // the latch needs 3 steady frames
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Paused") &&
+          strstr(SPOKEN[0], "Main Menu"),
+          "confirming No closes the dialog and the pause menu speaks again");
+
     put_u32(0x08D92AF0, 47);                         // timer ticks: unpaused
     for (int i = 0; i < 3; i++) a->on_frame();
     NSPOKEN = 0; oga::AdapterSpeechReset();
@@ -501,6 +572,255 @@ int main()
           strstr(SPOKEN[0], "Well done"),
           "a dialogue line stays on the dialogue channel");
     put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
+
+    // ---- Konquest bout speech (measured 2026-10-23, bout hunts) -------------
+    // A Konquest bout runs on the versus engine: flag A for the mode, flag B
+    // for the live engine, and the shared struct's HP floats (P1 id 2 =
+    // Shujinko, P2 id 0 = Bo' Rai Cho in the tutorial). The raw gate also
+    // holds through the opening cinematic and dojo talk phases, where the
+    // struct sits frozen — the bout must latch on engine motion (timer or
+    // health moving) before it speaks, and free-roam (B = 0, stale struct
+    // and all) must never open it.
+    put_u32(0x09178D30, 0);                          // dialogue box down (isolate)
+    auto put_f32b = [](uint32_t a, float f) {
+        uint32_t u; memcpy(&u, &f, 4); put_u32(a, u);
+    };
+    put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 0);
+    for (int i = 0; i < 3; i++) a->on_frame();       // latch forced closed
+    put_u32(0x08B123DC, 1);
+    put_u32(0x08D929B4, 2); put_u32(0x08D92A2C, 0);  // Shujinko vs Bo' Rai Cho
+    put_f32b(0x08D929B8, 1.0f); put_f32b(0x08D92A24, 1.0f);
+    put_u32(0x08D92AE0, 3); put_u32(0x08D92AF0, 25); // phase machinery values
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 60; i++) a->on_frame();
+    CHECK(NSPOKEN == 0,
+          "a frozen Konquest struct (cinematic/talk) never latches the bout");
+    put_u32(0x08D92AF0, 24);                         // the phase timer moves
+    a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Fight.") &&
+          strstr(SPOKEN[0], "Shujinko 100 percent") &&
+          strstr(SPOKEN[0], "Bo' Rai Cho 100 percent"),
+          "engine motion latches the bout and speaks the entry health line");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Fight.") &&
+          strstr(SPOKEN[0], "Bo' Rai Cho 100 percent"),
+          "WhereAmI in a latched bout speaks the fight line");
+    put_f32b(0x08D92A24, 0.888f);                    // a landed strike (bench: 0.912/0.888)
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 100; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bo' Rai Cho 89 percent") &&
+          !strstr(SPOKEN[0], "Fight."),
+          "a health change re-speaks the bout line (percent style, no prefix)");
+    put_f32b(0x08D92A24, 0.0f);                      // the fourth strike lands
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 5; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bo' Rai Cho defeated."),
+          "the opponent reaching zero speaks the outcome");
+    put_f32b(0x08D92A24, 0.5f);                      // the tutorial refills him
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 100; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bo' Rai Cho 50 percent"),
+          "a refill speaks as a health change and re-arms the outcome");
+    put_f32b(0x08D92A24, 0.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 5; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "defeated"),
+          "a re-armed outcome speaks again on the next zero");
+    put_f32b(0x08D92A24, 0.5f); put_f32b(0x08D929B8, 0.0f);
+    put_u32(0x08D92AF0, 10);                         // time left: a real knockout
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 5; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Shujinko defeated."),
+          "Shujinko at zero with time left speaks his defeat");
+    put_f32b(0x08D929B8, 1.0f);                      // re-arm, then a timeout:
+    for (int i = 0; i < 3; i++) a->on_frame();
+    put_f32b(0x08D929B8, 0.0f); put_u32(0x08D92AF0, 0);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 5; i++) a->on_frame();
+    CHECK(NSPOKEN == 0,
+          "P1 zeroed at timer zero is a failed exercise, not a spoken defeat");
+    put_f32b(0x08D929B8, 1.0f); put_f32b(0x08D92A24, 1.0f);
+    put_u32(0x08D92A2C, 7);                          // an unproven Konquest foe id
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 100; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "opponent 100 percent"),
+          "an unproven foe id speaks as opponent, never a guessed name");
+    put_u32(0x08B123DC, 0);                          // free-roam: B drops,
+    put_f32b(0x08D92A24, 0.0f);                      // the struct goes stale
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Konquest") &&
+          !strstr(SPOKEN[0], "Fight."),
+          "free-roam closes the bout; WhereAmI is the plain mode line again");
+    put_u32(0x08AF69C8, 0);
+
+    // ---- Konquest free-roam position (measured 2026-10-23, pos hunts) ------
+    // The world-state vec3 at 0x08AED478 (x, y, z). Free-roam = A 1, B 0,
+    // no dialogue up; WhereAmI answers with the ground-plane pair, rounded
+    // BBS-style. A bout state (B 1) or an implausible vec3 falls back to
+    // the plain mode line, and a dialogue line still outranks position.
+    put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 0);
+    put_u32(0x09178D30, 0);                          // dialogue box down
+    put_f32b(0x08AED478, -53.85f);                   // Apep's post, as measured
+    put_f32b(0x08AED47C, 0.87f);
+    put_f32b(0x08AED480, 162.96f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Konquest.") &&
+          strstr(SPOKEN[0], "Position -54, 163."),
+          "free-roam WhereAmI speaks the position pair");
+    put_f32b(0x08AED478, -64.18f); put_f32b(0x08AED480, 140.84f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Position -64, 141."),
+          "the spoken position tracks the vec3 (and rounds)");
+    put_u32(0x08B123DC, 1);                          // a bout owns the mode
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && !strstr(SPOKEN[0], "Position"),
+          "no position line while flag B is up (bout/cinematic)");
+    put_u32(0x08B123DC, 0);
+    put_u32(0x08AED478, 0x7FC00000);                 // NaN x: not a place
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Konquest.") &&
+          !strstr(SPOKEN[0], "Position"),
+          "an implausible vec3 falls back to the plain mode line");
+    put_f32b(0x08AED478, -53.85f);
+    {   // dialogue in free-roam still outranks the position line
+        const uint32_t base = 0x09178568 - 48;
+        const uint32_t sig[12] = {0x30, 0xE9, 0x24, 0x180, 0x2A, 0x11,
+                                  0xFFFFFFFF, 0xC8C8C8FF, 0x6, 0x0,
+                                  0x08AFD1C0, 0x0};
+        for (int i = 0; i < 12; i++) put_u32(base + (uint32_t) i * 4, sig[i]);
+    }
+    put_u32(0x09178D30, 0x091782A0);
+    put_u32(0x09178554, 0xC8C8C8FF);
+    put_ascii(0x09178568, "The old woman watches you pass.");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "old woman") &&
+          !strstr(SPOKEN[0], "Position"),
+          "dialogue in free-roam outranks the position line");
+    put_u32(0x09178D30, 0);
+    put_u32(0x08AF69C8, 0);
+
+    // ---- Konquest village guide (landmark table wired 2026-10-23) ----------
+    // The Guide query in free-roam speaks the village's landmarks, one
+    // line each: "right here" inside 1.5 units, distance only before
+    // any facing is tracked, else distance plus a clock bearing from
+    // the movement-derived facing (12 ahead, 3 right, 6 behind, 9
+    // left). Distances below are the table's own geometry from the
+    // planted spot; bearings assume the +z arrival the helper drives.
+    auto roam_plant = [&](float x, float z) {
+        put_f32b(0x08AED478, x);
+        put_f32b(0x08AED47C, 0.87f);
+        put_f32b(0x08AED480, z);
+    };
+    auto roam_arrive_plusz = [&](float sx, float sz) {
+        // Stand at (sx, sz) having travelled toward +z: clear the
+        // tracker out of roam, sit 4 units back for a full window,
+        // then step onto the spot — the window's displacement is
+        // (0, +4), so RoamFacing reads (0, +1).
+        put_u32(0x08AF69C8, 0);
+        for (int i = 0; i < 3; i++) a->on_frame();
+        put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 0);
+        put_u32(0x09178D30, 0);                      // dialogue box down
+        roam_plant(sx, sz - 4.0f);
+        for (int i = 0; i < 130; i++) a->on_frame();
+        roam_plant(sx, sz);
+        for (int i = 0; i < 130; i++) a->on_frame();
+    };
+    // No facing yet: distances only, in table order.
+    put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 0);
+    put_u32(0x09178D30, 0);
+    roam_plant(-53.85f, 162.96f);                    // Apep's post checkpoint
+    for (int i = 0; i < 10; i++) a->on_frame();      // window not full
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 4, "the guide speaks one line per village landmark");
+    CHECK(strstr(SPOKEN[0], "Apep's post, right here."),
+          "standing at Apep's post, the guide says right here");
+    CHECK(strstr(SPOKEN[1], "Village spawn, 9 away.") &&
+          !strstr(SPOKEN[1], "o'clock") && !strstr(SPOKEN[1], "ahead"),
+          "with no tracked facing, the spawn is distance only (9.03 to 9)");
+    CHECK(strstr(SPOKEN[2], "Bo' Rai Cho's hall, 8 away."),
+          "the hall is distance only with no facing (8.17 to 8)");
+    CHECK(strstr(SPOKEN[3], "The west fence, 11 away."),
+          "the fence distance rounds, not truncates (10.80 to 11)");
+    // Facing (0, +1) at the post: bearings join the distances.
+    roam_arrive_plusz(-53.85f, 162.96f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 4 && strstr(SPOKEN[0], "right here"),
+          "the guide still leads with the post, right here, once facing is tracked");
+    CHECK(strstr(SPOKEN[1], "Village spawn, 9 away, 6 o'clock."),
+          "the spawn is behind after a +z arrival (rel 194)");
+    CHECK(strstr(SPOKEN[2], "Bo' Rai Cho's hall, 8 away, 11 o'clock."),
+          "the hall is ahead-left after a +z arrival (rel 330)");
+    CHECK(strstr(SPOKEN[3], "The west fence, 11 away, 8 o'clock."),
+          "the fence is behind-left after a +z arrival (rel 243)");
+    // The four clock quadrants, read off Apep's post itself.
+    roam_arrive_plusz(-58.00f, 162.96f);             // post dead right
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 4 && strstr(SPOKEN[0], "Apep's post, 5 away, 3 o'clock."),
+          "a landmark dead right of the facing reads 3 o'clock");
+    roam_arrive_plusz(-49.00f, 162.96f);             // post dead left
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 4 && strstr(SPOKEN[0], "Apep's post, 4 away, 9 o'clock."),
+          "a landmark dead left of the facing reads 9 o'clock (4.49 away, not 5: "
+          "the post sits at x -53.49, so the two side spots are not symmetric");
+    roam_arrive_plusz(-53.49f, 170.00f);             // post dead behind
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 4 && strstr(SPOKEN[0], "Apep's post, 7 away, 6 o'clock."),
+          "a landmark dead behind the facing reads 6 o'clock");
+    roam_arrive_plusz(-53.49f, 154.20f);             // post dead ahead
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 4 && strstr(SPOKEN[0], "Apep's post, 9 away, straight ahead."),
+          "a landmark dead ahead reads straight ahead, not 12 o'clock");
+    // Gating: the guide is free-roam only, and dialogue outranks it.
+    put_u32(0x08B123DC, 1);                          // a bout/cinematic owns it
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 0, "the guide stays silent while flag B is up");
+    put_u32(0x08B123DC, 0); put_u32(0x08AF69C8, 0);  // out of Konquest
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 0, "the guide stays silent outside Konquest");
+    put_u32(0x08AF69C8, 1);
+    {   // dialogue up in free-roam: the guide yields to the dialogue channel
+        const uint32_t base = 0x09178568 - 48;
+        const uint32_t sig[12] = {0x30, 0xE9, 0x24, 0x180, 0x2A, 0x11,
+                                  0xFFFFFFFF, 0xC8C8C8FF, 0x6, 0x0,
+                                  0x08AFD1C0, 0x0};
+        for (int i = 0; i < 12; i++) put_u32(base + (uint32_t) i * 4, sig[i]);
+    }
+    put_u32(0x09178D30, 0x091782A0);
+    put_u32(0x09178554, 0xC8C8C8FF);
+    put_ascii(0x09178568, "The old woman watches you pass.");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 0, "the guide stays silent while dialogue is up");
+    put_u32(0x09178D30, 0);                          // box down: guide returns
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 4, "the guide speaks again once the dialogue box closes");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Position -53, 154."),
+          "plain WhereAmI is unchanged by the guide (position line, no bearings)");
+    roam_plant(0.0f, 0.0f);                          // plausible vec3, not the village
+    for (int i = 0; i < 3; i++) a->on_frame();
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Guide);
+    CHECK(NSPOKEN == 0, "the guide stays silent outside the village bounds");
+    put_u32(0x08AF69C8, 0);
 
     // ---- a child screen that REUSES the Kombat submenu's object slot --------
     // Measured live 2026-10-18 on the Options screen: the cursor read 9

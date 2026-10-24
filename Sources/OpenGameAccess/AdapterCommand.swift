@@ -344,8 +344,11 @@ enum AdapterCommand: Int32, CaseIterable {
         case "mku":
             // Mortal Kombat: Unchained. Menu rows and Konquest lines speak
             // automatically; Where Am I and the menu status are the on-demand
-            // reads. The other navigation commands are not mapped.
-            return [.whereAmI, .menuState, .dumpState]
+            // reads. Guide answers only in Konquest free-roam in the
+            // Earthrealm village (its landmark table); everywhere else the
+            // adapter stays silent by design. The other navigation commands
+            // are not mapped.
+            return [.whereAmI, .menuState, .guide, .dumpState]
 
         default:
             return []

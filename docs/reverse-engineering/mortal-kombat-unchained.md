@@ -550,21 +550,144 @@ dialog). Host tests 46. Live (mku-live4, real paused state): the
 confirming tap itself spoke "Moves List, 2 of 4", the full walk and
 both wraps spoke in sync.
 
-**The QUIT GAME dialog stays unmapped.** Its NO/YES selection lives in
-a generic widget list (two 0x18-apart linked nodes, reachable from the
-static "current UI object" pointer at 0x08B12964 — which also points
-at unrelated objects all session, so it cannot gate). No distinctive
+**The QUIT GAME dialog stays unmapped.** — ⛔ SUPERSEDED 2026-10-23:
+it is mapped and spoken now; see "The QUIT GAME dialog" below. What
+this paragraph got right: its NO/YES selection does live in a generic
+widget list (two 0x18-apart linked nodes, reachable from the static
+"current UI object" pointer at 0x08B12964 — which also points at
+unrelated objects all session, so it cannot gate). No distinctive
 signature survived testing; two boolean flag candidates (0x08B12938,
 0x08B40E74) and a 9-word cross-boot pause-flag set all proved to be
-animation/render state. While the dialog is open the adapter still
-reports the pause row underneath it — a documented inaccuracy, queued
-behind the decomp writer route. Same for a true pause FLAG: none
-exists in static memory (cross-boot test over 13 paused dumps); the
+animation/render state. Same for a true pause FLAG: none exists in
+static memory (cross-boot test over 13 paused dumps); the
 timer-freeze gate is the substitute.
 
 Also settled incidentally: **TRIANGLE is the front-end's back button**
 (it exits the profile screens to the main menu). The Kombat submenu's
 "no button exits" bench note was a wrong-button artifact.
+
+## The QUIT GAME dialog (2026-10-23, hunts quit1/quit2 + live7) — MAPPED AND SPOKEN
+
+Choosing MAIN MENU on the fight pause menu opens a confirmation
+dialog: title **"QUIT GAME"**, question **"Are you sure ?"**, options
+**NO (left, the default) and YES (right)**. Behaviour, all
+screenshot-verified (hunt13/q0-q3, hunt-quit1, hunt-quit2): LEFT and
+RIGHT move the gold highlight and **wrap at both ends** (RIGHT on YES
+lands on NO; LEFT on NO lands on YES); **UP and DOWN do not move it**
+(their screenshots are byte-identical to the pre-tap one); settle
+lengths of 39-43 frames change nothing.
+
+### The dead end, settled for good
+
+The 0x08B12964 focus pointer is **tap parity, not the selection**.
+In hunt-quit2 (hunt1's first-boot lineage), one UP tap flipped the
+pointer 0x09145328 -> 0x09145310 while the screenshot still showed NO
+highlighted; across six taps the pointer alternated strictly per tap
+while the selection followed only the LEFT/RIGHT ones. The two 0x18
+nodes relink symmetrically on every commit (the pointed-at node
+always carries +08 == 0), so neither the pointer nor the links can
+carry the selection. The dialog's text strings are pre-loaded in RAM
+in every state including mid-fight, so text presence cannot gate
+either. And both static UI cells (0x08B12964/68) keep their dialog
+values indefinitely after the dialog closes — through resume and
+re-pause — so they cannot gate presence.
+
+### Presence: the current-context cell 0x08D9742C
+
+A static cell at **0x08D9742C** (BSS, just past the fight struct)
+names the UI layer's current context object. Method: labeled dumps
+(premain / dialog NO / dialog YES / back-at-pause / unpaused) from
+two independent boots, intersecting the static words that sit at a
+constant dialog-vs-pause relation. The cell is constant for a whole
+pause in each lineage; opening the dialog moves it by exactly
+**+0x98**; confirming NO restores the pause value:
+
+- hunt12/13 lineage: pause **0x09E2A990**, dialog **0x09E2AA28**
+  (restore proven in hunt13/back.ram and hunt-quit1).
+- hunt1 first-boot lineage: pause **0x09DAF138**, dialog
+  **0x09DAF1D0** (predicted before the run, confirmed; restore
+  observed 30 frames after confirming NO).
+
+The pause value is a heap address that differs per lineage (other
+screens read yet other values: main menu 0x09EA3F00, character
+select 0x09E71758, plain fights 0x09EA3878), so the adapter
+self-calibrates: it samples the cell while the plain pause menu is
+up and gates the dialog on sample + 0x98. The +0x98 step itself is
+an observed constant on two boots, not a proven struct size.
+
+**The cell blinks.** Single settled reads never showed it, but
+watching every frame over an open dialog (live7's instrument
+window) shows ~10-frame runs of the dialog value broken by exactly
+one frame of another layer's context (0x09E26D98, 0x09E28850,
+0x09EA4328, even 0x09EA3F00) or 0, on a ~26-frame cadence — the
+cell names the layer being serviced that frame, and the top layer
+dominates. The adapter therefore **latches**: the pause sample is
+only trusted after the same value repeats on consecutive frames
+(blinks never repeat), entry takes one frame at sample + 0x98 with
+a valid selection field, exit takes the pause value back for 3
+consecutive frames, and blink frames while latched are ignored.
+
+### Selection: the dialog object's +0x28 field
+
+The dialog's own object — same ` OBJ` family as the pause items
+(magic at +4, class 0x08BAF3C0 at +0xC) — sits at a fixed offset
+below the pause run's top object, and its **+0x28 field points at
+the selected option's widget**. As offsets from the pause top
+(RESUME), identical on both boots:
+
+- selection field: **top - 0x2C28** (field address)
+- NO widget: **top - 0x3AE0** (hunt13: 0x0905CCF0; hunt-quit2 boot:
+  0x0905FB50)
+- YES widget: **top - 0x45C0** (hunt13: 0x0905C210; hunt-quit2 boot:
+  0x0905F070)
+
+The field reads 0 before the dialog has ever opened, follows the
+highlight exactly (checked against the screenshot at every tap in
+both boots), and keeps its last value after the dialog closes — so
+it is read only under the presence latch, and the gate fails closed
+on any value that is neither widget.
+
+### Wiring and proof
+
+`Core/mku_adapter.cpp`: a dialog section after the pause plumbing
+(kScreenCtxAddr, the offsets above, TrackPauseCtx / OnQuitDialog /
+QuitDialogIndex / QuitDialogRow), screen 7 in MenuWatch above the
+pause, and a WhereAmI branch ahead of the pause branch:
+**"Quit game. Are you sure? No, 1 of 2."**, with settled-row speech
+("Yes, 2 of 2") as the highlight moves. The adapter's player-facing
+description no longer lists the dialog as unmapped.
+
+- Host test: a synthetic dialog scene joins the pause scene in
+  `Core/mku_adapter_test.cpp` (plant the ctx pair + selection field
+  at hunt13's real addresses): gate shut at the pause value, entry
+  line, YES/NO row speech both directions, blink frames mid-dialog
+  say nothing and WhereAmI still speaks the dialog, close after 3
+  steady frames speaks the pause again. **83 checks pass**;
+  test-strength floor for the file raised 71 -> 84 sites.
+- Live (mku-live7, the real adapter on hunt12/paused.ppst, app-style
+  drive): "Paused. Moves List, 2 of 4." -> "Main Menu, 4 of 4" ->
+  WhereAmI "Paused. Main Menu, 4 of 4." -> **"Quit game. Are you
+  sure? No, 1 of 2."** -> 240 blink-filled frames of silence ->
+  RIGHT **"Yes, 2 of 2"** -> RIGHT **"No, 1 of 2"** (the wrap) ->
+  WhereAmI "Quit game. Are you sure? No, 1 of 2." -> confirm NO ->
+  "Paused. Main Menu, 4 of 4.", ctx back at 0x09E2A990.
+
+### Still unproven
+
+- **Only the fight pause's dialog is verified** (the 4-item menu, in
+  versus/arcade-style matches, two boots). The Konquest free-roam
+  pause's QUIT GAME item belongs to a different 3-item menu and was
+  not driven into its dialog; the adapter's Konquest speech takes
+  precedence there regardless. Any other confirmation dialogs in
+  the game are unchecked.
+- **Confirming YES was never driven with the adapter attached.**
+  The latch clears when OnPause drops and the main menu is a mapped
+  screen, but that exact transition is unobserved live.
+- The hunt1-lineage pause state reads Konquest flag A = 1, so in
+  that lineage the adapter says "Konquest." until the pause holder
+  confirms (the pause branch then wins by precedence, and the
+  dialog gate rides on it the same way). What sets flag A in that
+  lineage was not chased here.
 
 ## Profiles and Konquest entry (2026-10-17, hunts 14-15)
 
@@ -875,10 +998,16 @@ north-south boundary crossing. (An automated scan briefly
 reported the H3 control reading 0 at this address; a direct read
 proved that a scanner bug — the word reads 1. Trust, but verify
 the verifier.)
+⚠️ **Caveat added 2026-10-23:** two fresh A-6 samples disagree at
+this word (1 and 0 at the same x, opposite z) — see "Free-roam
+position — CROWNED" below before trusting it as the HUD column.
 
 **Position — narrowed, NOT yet crowned.** Six movement dumps
 (J0-J5, hunt32-33: four stick legs + an idle control) cut the
-float-pair field to ~20 survivors and a prime cluster. The
+float-pair field to ~20 survivors and a prime cluster.
+(Superseded 2026-10-23: the position was crowned in the static
+world-state block at 0x08AED478 — see "Free-roam position —
+CROWNED" below. The cluster below was a heap shadow that drifts.) The
 entity array around 0x08CC5530 holds ground-plane vec3s (Y ≈ 0)
 that move rigidly and idle-stabilize — one of them is Shujinko,
 the neighbours are NPCs and possibly the camera; a second value at
@@ -906,10 +1035,12 @@ standing rule.
 
 ### Next
 
-1. Free-roam position/sector/clock: finish the hunts above, then
-   speak sector + clock ("Earthrealm, B 6, Sunday 7:03 AM") and
-   build toward navigation callouts; NPC interaction test
-   (dialogue should fire through the wired machinery).
+1. Free-roam position/sector/clock: position is DONE (2026-10-23,
+   spoken; facing tracked movement-derived). Sector needs re-proof
+   (see the caveat on the sector word) and the clock is still
+   unencoded; then speak sector + clock ("Earthrealm, B 6, Sunday
+   7:03 AM") and build toward navigation callouts; NPC interaction
+   test (dialogue should fire through the wired machinery).
 2. Konquest pause/map screens as met in free-roam.
 2. Konquest bout speech: percentages are verified speakable; the
    work is a bout gate proven against free-roam/dialogue negatives
@@ -922,6 +1053,180 @@ standing rule.
    first) — replaces heap anchors with static ones where they exist,
    and is the remaining road to the quit dialog's selection.
 
+
+## Free-roam position — CROWNED; facing movement-derived (2026-10-23, pos hunts)
+
+**Position: the float vec3 at 0x08AED478** (x, y at +4, z at +8) in the
+Konquest world-state block — the same static block as the sector word.
+The "float at 0x08AED480 that twitches with movement" from the
+2026-10-17 hunt was this vec3's z all along. Found by diffing
+controlled legs (probes ~/mku-scan/mku-pos{,2,3}.cpp; dump sets
+pos2/pos3/pos4, all from hunt79/ck-atapep.ppst) and cross-reading
+every .ram already on file. Evidence:
+
+- **Idle:** two dumps 300 frames apart in one boot agree to 0.001;
+  a second boot's idle pair agrees to 0.003.
+- **Legs track quantitatively:** stick-up 180f Δ(+0.01, −0.33) (the
+  fence cut it short — the trajectory probe below shows the hold);
+  stick-right 180f Δ(−0.00, −2.22); stick-up 360f Δ(−10.25, +11.69),
+  crossing B→A; stick-down 480f Δ(−10.34, −22.65).
+- **Rotation purity:** L held 240f moves it 0.08; R held 240f, 0.20
+  (collision settle). It is the player's feet, not the camera.
+- **Continuity:** a trajectory probe sampling every 30 frames shows
+  a smooth path — ~2 s diagonal, wall contact at x = −63.469, then a
+  pure −z slide decelerating to rest. No steps, no teleports.
+- **Cross-lineage:** hunt32's J0 (spawn) reads (−55.99, 0.87,
+  154.19) and J1–J5 move it walk-sized steps; hunt79's
+  atapep-clean.ram matches pos2's fresh boot of the same checkpoint
+  to 0.01; the dojo bout lineage reads (−58.00, 0.88, 170.00),
+  frozen with the fight; hunt80's corner spot reads (−58.03, 0.88,
+  155.22). One static address, every boot.
+- **The heap shadow records are NOT it:** records near 0x08CE5000
+  (this lineage's twin of the old 0x08CC5530 cluster) sit ~0.5 from
+  the vec3 and drift under camera rotation and sector streaming.
+  That drift is what killed the cluster in 2026-10-17; the static
+  vec3 does neither.
+
+Axes: **x is east-west** (two B→A crossings, x dropping ~10 both
+times while z moved in opposite directions). Which way z runs
+cardinally is **unproven** (no row-boundary crossing on file), and
+y sits ≈ 0.87 at village ground level in every sample.
+
+**Facing — native hunt NEGATIVE.** Three dump sets (20 dumps) with
+displacement-measured ground-truth headings, including two pure
+camera rotations and an A-B-A heading cycle (−117° / +77° / −84°),
+were tested against every angle encoding — wrapped and unwrapped
+radians, degrees, turns, sin/cos pairs. No survivor. The HUD
+compass rose is too small to calibrate from screenshots (two reads
+contradicted each other), so no compass words are spoken either.
+
+**Wired** (Core/mku_adapter.cpp): `InFreeRoam()` = flag A set, flag
+B clear, vec3 plausible (finite, |x| and |z| < 1000, −50 < y < 100).
+WhereAmI in free-roam — after the bout, objective and dialogue
+channels, which keep priority — speaks **"Konquest. Position -54,
+163."** (the rounded ground pair, Birth by Sleep style).
+`RoamFacing()` is movement-derived: a 121-frame (2 s) window of
+positions; ≥ 0.5 units across the window makes the facing that
+displacement. It is tracked and DumpState-visible ("[mku] konquest
+pos=(…) facing=(…) (movement-derived)"), **not spoken** — a clock
+bearing needs a landmark to point at, and a compass word needs the
+unproven z calibration. Live proof (mku-live10, real adapter):
+"Position -54, 163." at Apep's post; after the street leg
+"Position -63, 158." with facing (0.00, −1.00) — the measured wall
+slide, not the leg's average; after the return leg "Position -54,
+160."; in the strikes bout (B = 1) WhereAmI speaks the fight line
+and no position, though the vec3 reads the dojo spot. Host tests:
+5 new checks (99 passing); test-strength floor 95 → 100.
+
+**Sector-word caveat (corrects the 2026-10-17 "FOUND" note):** the
+word at 0x08AED5B4 read **1** at pos2's last dump, whose HUD says
+A-6 (position (−64.18, 172.24)), and **0** at pos3's u4, whose HUD
+also says A-6 (position (−64.18, 140.84)). Same HUD letter, same x,
+opposite z excursions — so whatever it tracks, it is not simply the
+HUD column (a streamed-cell index is the standing guess). It needs
+re-proof before anything speaks it; sector and clock stay unwired.
+
+**Still open here:** the z axis's cardinal direction (one
+row-boundary crossing would settle it); the compass needle's
+source word (decomp route); position in the other realms (the
+block is Konquest-global, but only the village and the dojo are
+sampled). The village landmark table this section called for is
+built and spoken — see "Village landmark guide" next.
+
+## Village landmark guide — SPOKEN (2026-10-23, guide hunts)
+
+The landmark table the free-roam section above was waiting for.
+The Guide query (Command::Guide, newly exposed for mku in
+AdapterCommand.swift — the Android generated set regenerated to
+match) speaks the Earthrealm village's named spots, one line each,
+in fixed table order — the Birth by Sleep Hub Guide's presentation,
+formula and fail-silent gating mirrored line for line.
+
+**The table** (ground coordinates in the position vec3's frame):
+
+| Landmark | x | z | Source |
+|---|---|---|---|
+| Apep's post | −53.49 | 162.96 | live-verified — the placed post entity's own record (apep-decomp: entity at 0x0916BBA0); the guide run stood at the player checkpoint beside it, (−53.85, 162.96), and read "right here" |
+| Village spawn | −55.99 | 154.19 | from records — hunt32's J0 spawn dump on an independent lineage; the guide run navigated to the spot and read "right here" on arrival (stopped 1.1 short, inside the 1.5 radius) |
+| Bo' Rai Cho's hall | −58.00 | 170.00 | from records — the dojo bout lineage's frozen vec3 and the dojoprobe's navigation target; the guide run navigated to the yard and read "right here" on arrival (stopped 1.1 short) |
+| The west fence | −63.47 | 158.06 | live-verified — the trajectory probe's wall contact and live10's street-leg endpoint; the guide run's street leg stopped on the exact pair and read "right here" |
+
+**Speech.** Per landmark: "Apep's post, right here." inside 1.5
+units; otherwise distance rounded to the nearest unit ("Village
+spawn, 9 away."); with a tracked facing, a clock bearing joins it —
+"Bo' Rai Cho's hall, 8 away, 11 o'clock." — 12 spoken as "straight
+ahead". With NO tracked facing (the player has not moved since
+entering free-roam) the lines are distance-only: never a guessed
+direction. The bearing is the signed angle from the
+movement-derived facing (RoamFacing — direction of travel over the
+last 2 s) to the landmark.
+
+**Calibration (the left/right sign).** The bearing formula was
+copied from the Hub Guide (sinA = fdz·tx̂ − fdx·t̂z, positive =
+right), but this game's ground frame is not Birth by Sleep's: x
+east-west is proven, z's cardinal run is not, so the sign could
+have been mirrored here. Decisive sample (mku-guide2): one
+straight stick push up the street from (−55.12, 155.79) — travel
+measured (0.15, 0.99), essentially pure +z — with the hall at
+direction (−0.31, +0.95) from the mid-walk position (−54.59,
+159.37). The formula reads that as 11 o'clock, ahead-left. The
+mid-walk screenshot (guide2/g2-east-mid.png), camera trailing the
+walk with the street receding in the direction of travel, shows
+the hall's long tiled-roof building filling the LEFT of the
+frame — its street face ~3.4 units to the −x side of the walk
+line, matching the geometry — with open street and grass on the
+right. The mirrored sign would have put the building on the
+right; the Hub Guide's sign stands, no flip. The other frames in
+the two runs are consistent (no landmark ever appeared on the
+side opposite its spoken bearing) but mostly had the camera
+swung or the landmark out of view — this one frame is the
+load-bearing sample, which is why it is described in full.
+
+**Gating.** Free-roam only — flag A set, flag B clear, position
+plausible — the position inside a generous bounds box around the
+village (x −75…−40, z 130…190), and the guide yields to the
+channels that outrank it: a latched bout, a dialogue box, or an
+objective card all silence it. Everywhere else (menus, pause,
+bouts, other realms) it fails silent, like the Hub Guide outside
+its room. Plain WhereAmI is unchanged.
+
+**Proof.** Host tests: 19 new checks (bearing quadrants — ahead =
+straight ahead, right = 3, behind = 6, left = 9 — distance
+rounding, the right-here radius, the no-facing fallback, gating
+against flag B / leaving Konquest / an up dialogue box / leaving
+the village bounds, and a WhereAmI regression); 118 passing;
+test-strength floor 100 → 119.
+Live (mku-guide1, real adapter on the hunt79 roam state, final
+build): five guide asks — idle at the post, at the fence after
+the street leg, back up the street, at the spawn, at the hall
+yard — and every one of the 20 spoken lines matches the line
+recomputed offline from the same phase's dumped position and
+tracked facing exactly (~/mku-scan/guide1/verify_guide.py: ALL
+PHASES MATCH); the two end-of-walk asks in guide2 verify the
+same way (28 lines in all). Example,
+standing at the post before moving: "Apep's post, right here.
+Village spawn, 9 away. Bo' Rai Cho's hall, 8 away. The west
+fence, 11 away." Example with facing, at the fence after the
+street leg (facing = the measured (0, −1) wall slide): "Apep's
+post, 11 away, 8 o'clock. Village spawn, 8 away, 10 o'clock.
+Bo' Rai Cho's hall, 13 away, 7 o'clock. The west fence, right
+here."
+
+**Limits.** Bearings exist only once the player has moved (the
+facing is movement-derived and persists while standing still
+afterwards; it clears on leaving free-roam). The table is
+village-only — other realms have no measured spots, and the
+bounds box keeps the guide silent on their coordinates rather
+than reading village directions there (a realm whose map
+numerically overlapped the village box would defeat that, but
+the realms are separate maps and no other-realm roam state
+exists on the bench to test with). Bearings
+describe the direction of last travel, so right after a wall
+slide they describe the slide (as live10's facing did), not the
+leg that led there. The z axis's cardinal direction is still
+unproven — clock bearings are relative to travel, so they don't
+need it. Sector/clock speech stays unwired (see the caveat
+above).
 
 ## Options screen — the shared child slot and leftover fight words (2026-10-18)
 
@@ -1209,3 +1514,215 @@ The queue, in order:
 3. Keep the verifier-guided loop as doctrine (already the house rule):
    every adapter claim ships with an automated predicted-vs-actual
    check against the running game — RAM + screenshot — never vibes.
+
+## Konquest bout speech (2026-10-23, bout hunts + live8/live9) — MAPPED AND SPOKEN
+
+This closes the item the "Bout HP" note left open ("a bout gate proven
+against free-roam negatives; names for P2 are the open half") and the
+"Next" list's Konquest bout entry. Bench: ~/mku-scan/mku-bout.cpp (state
+probe), mku-live8.cpp / mku-live9.cpp (live adapter runs), screenshots
+and logs under ~/mku-scan/bout/.
+
+**What a bout looks like.** The dojo lessons and Konquest's scripted
+encounters run on the versus engine in an arena: both fighters' NAMES
+sit in the health bars (SHUJINKO / BO' RAI CHO), the phase timer is
+centered under them, an objective counter ("0 / 4") at the left, style
+names at the bottom (MANTIS / SUMO). Free-roam has none of it — compass,
+grid coordinate ("B - 6"), the day/clock readout and EARTHREALM instead.
+
+**The gate — three signals and a latch.** Each signal was measured per
+state on the running game this session:
+
+| state | flag A | flag B | fight struct | bout speech |
+|---|---|---|---|---|
+| versus fight (hunt11/fight2) | 0 | 1 | live | no (versus owns it) |
+| versus pause + quit dialog | 0/1* | 0 | frozen | no |
+| Konquest opening cinematic (hunt14/konq) | 1 | 1 | sane, FROZEN (timer 60, 1500 frames, no change) | no |
+| Konquest exercises/strikes (hunt15/16/20 states) | 1 | 1 | live, timer ticking | YES |
+| Konquest free-roam, village (hunt79/ck-atapep) | 1 | 0 | STALE (foe HP 0.000 from the last lesson, timer frozen) | no |
+
+*flag A is lineage-sticky in one bench lineage (see the wart below).
+
+Flag A (0x08AF69C8) is the mode — InKonquest() as before. Flag B
+(0x08B123DC) is "the fight engine is live": 1 in versus fights and in
+every Konquest arena scene, 0 in menus, in versus pause, and in
+free-roam. Struct sanity: both HP floats in [0, 1] and P1's id == 2
+(Shujinko's Konquest id, read in every Konquest capture). But A + B +
+sanity ALSO hold through the opening cinematic and the dojo's talk
+phases, struct frozen at full health — so the bout **latches**: it
+opens only when the engine moves (the phase timer word changes or an
+HP word changes) while the raw gate holds, and closes when the raw
+gate drops. A cinematic never trips it; a real bout trips it on its
+first timer tick or first landed hit.
+
+**What is spoken.** On the latch: "Fight. Shujinko 100 percent,
+Bo' Rai Cho 100 percent." While latched, the health line re-speaks
+whenever a percent has moved since the last announcement, at most once
+per 90 frames so combinations coalesce. A side reaching zero speaks
+its outcome once per exchange (re-armed when that side's health rises
+— the tutorial refills between phases): "Bo' Rai Cho defeated.", and
+for P1 "Shujinko defeated." **only with time left on the phase clock**
+— measured this session: letting the strikes clock expire zeroes P1's
+HP and sets the opponent's win word, which is a FAILED EXERCISE, not a
+knockout (the game answers with its own "Try again" dialogue), so that
+path stays silent. WhereAmI in a latched bout speaks the fight line
+ahead of the objective/dialogue lines (which still auto-speak as they
+appear); unlatched Konquest WhereAmI is unchanged.
+
+**What is NOT spoken, and why.** Round, timer and round-wins from the
+versus line are all phase machinery in Konquest: the round word read
+3, 4, 6 across tutorial lessons (it counts phases — a failed exercise
+moved it 3 -> 4), the win words hold lesson tallies (P1's read 2, 4, 6
+in states whose screenshots show mid-lesson play), and the timer is a
+per-phase clock (25 for the strikes lesson, 88 for exercise 1) whose
+expiry fails the exercise. Names: P1 is always Shujinko in Konquest.
+P2 names come from a Konquest-id table with exactly one proven entry,
+0 = Bo' Rai Cho; any other id speaks as "opponent".
+
+**Live proof (mku-live8, hunt20/after-dash3 — the strikes lesson).**
+Restore: bars full, timer 25, counter 0/4 (screenshot). Speech against
+the RAM log, in order: entry "Fight. Shujinko 100 percent,
+Bo' Rai Cho 100 percent."; Square lands (HP 1.000 -> 0.912, the
+documented hit) -> "Shujinko 100 percent, Bo' Rai Cho 91 percent.";
+a phase refill -> the line again at 100; Triangle's hit (0.904) ->
+WhereAmI answered "Fight. Shujinko 100 percent, Bo' Rai Cho 90
+percent."; Circle lands last -> HP 0.000 -> "Bo' Rai Cho defeated."
+(after-Circle screenshot: his bar empty, timer 22). The same run then
+restored the village free-roam state: 600 frames, NO fight speech,
+WhereAmI answered "Konquest." mku-live9 ran the opening cinematic for
+1500 frames with the adapter attached — total silence — then a dojo
+exercise state, where the entry line fired as the engine moved. Host
+tests: 94 checks (11 new: frozen negative, timer-motion entry,
+WhereAmI, the 89-percent change line, outcome, refill re-arm, second
+outcome, P1 knockout vs P1 timeout, unknown-foe wording, free-roam
+close); test-strength floor for mku raised 84 -> 95.
+
+**Wart recorded (pre-existing, not from this work).** Flag A is stuck
+at 1 in the hunt1 lineage — its labeled dumps read A = 1 even at a
+versus pause, and restoring hunt1/end.ppst today makes WhereAmI answer
+"Konquest." there (the pause/dialog speech is dead in that lineage).
+The hunt-quit1 lineage reads A = 0 and the QUIT GAME dialog proof
+stands in it. So A's stuck state is a property of a session's history
+(possibly "Konquest was visited"), not of the current screen. The bout
+gate inherits InKonquest()'s mode reading; its own B + P1-id + motion
+requirements keep it shut in the versus states measured, but a full
+mode-flag repair is its own hunt, not this one.
+
+**Still unproven.** Real (non-tutorial) Konquest fights — the scripted
+encounters and free-roam fights of the later realms, and the monk
+trainings (konquest_monk_1..5) — were not driven live; they run on the
+same engine, flags and struct, and the latch also trips on a first HP
+change, so speech does not depend on their timer behaving like the
+tutorial's, but their opponent ids are unmapped (they will speak as
+"opponent" until named). The pause menu inside a Konquest bout is
+still unmapped (unchanged from before). Bout speech is in the working
+copy only, like the QUIT GAME dialog — not on GitHub main.
+
+## Apep's talk trigger — what it checks (2026-10-23 investigation)
+
+**Question.** Apep (the martial-arts student who guides Shujinko to
+Bo' Rai Cho's other schools) stands at his post in the Earthrealm
+village — placed entity at (-53.49, 2.01, 162.96), RAM 0x0916BBA0 in
+the hunt79 lineage — and has never once answered the interact button,
+on any bench lineage, at point-blank, with any button. His dialogue
+gates the whole Konquest tour (dojos 2-5, the bridges, Earthrealm
+scenes E3-E7), so this trigger is the current critical path.
+
+**What the trigger checks (from the game's own script data).** ER1's
+script/state tables are resident in RAM (name blocks at
+0x09DA3000-0x09DA5C00 and 0x09D90800-0x09D93000). Apep's state names
+spell out his state machine in the authoring tool's own words:
+
+- `apep_startup_script: I haven't talked to apep |AND| I have finished
+  the first dojo` (0x09DA5678) — the state that arms him.
+- `apep: I haven't talked to apep |AND| I haven't finished the first
+  dojo` (0x09DA537C), `apep: default`, `apep: I have talked to apep`.
+- His follow-on states are the tour: `Talk to apep after dojo 2/3/4/5`,
+  `apep_at_dojo_2..5`, `apep_at_bridge_meat: apep arrives at bridge`.
+
+So the talk event exists only in the startup state, and that state
+requires a story flag the script calls "finished the first dojo" (plus
+not-yet-talked). His lines are in the village dialog pool
+(`er1_dialog_text`, pointer table at 0x09D6BCB8): entry at 0x09D62EF8
+"Hi! You must be Shujinko, the one Master Bo' Rai Cho mentioned.",
+0x09D62FB0 "My name is Apep. Master Bo' Rai Cho asked me to show you
+the other schools where he teaches martial arts.", then "Follow me!"
+etc. Villagers confirm the design: "You should find Apep. I heard he
+was waiting for you." / "Go play with Apep. I see him down by the
+dojo." Apep also has `apep_daytime_behavior`, `apep_nighttime_behavior`,
+`apep_go_home`, `apep_at_school`, and an `apep_near_handler` — he is a
+scheduled NPC, not a statue.
+
+**What was ruled out live (all on the bench, this session).**
+
+1. **Input mechanics.** On hunt79's ck-atapep.ppst — a genuine
+   post-tutorial free-roam state (flag B=0, P1 HP 1.000, standing at
+   the post; the lineage that completed the exercises through the
+   final hilow phase) — an exhaustive input matrix fired nothing:
+   3600 frames of idle, repeated Cross, Cross at 8 facings, every other
+   face/shoulder button, Select/Start, and walk-in bumps
+   (mku-talkprobe). Cross-to-talk is not the problem; the event is
+   simply not armed in that state.
+2. **The savestate-hop lineage theory.** A fresh cold-boot, no-loads
+   run (mku-apep1, continuous solver) passed the steps, backward-dash
+   and basic-strikes lessons cleanly, then FAILED OUT of the
+   variations phase and was ejected to the village spawn at 0 HP —
+   the `failed_boraicho_fight` / `move_hero_to_safe_loc_boraicho`
+   path. So the "clean lineage" has still never genuinely finished
+   the tutorial on this bench; the hop lineage (hunt79) remains the
+   only genuine completion, and Apep is silent there too.
+3. **Phase timeouts** (mku-timeoutprobe on the hilow state): when an
+   exercise timer crosses zero, P1 HP is zeroed as bookkeeping, flag B
+   stays 1, the player stays in the dojo, and a "Try again" box waits
+   for dismissal. Timeout is not the ejection mechanism; a lost fight
+   is.
+4. **Just visiting Bo's yard.** In free-roam the school yard
+   (-58, 170) holds only the gate and two student guards; Bo is not
+   there, the gate does not open, and a sweep north to the building
+   wall (z~176) triggers nothing (mku-dojoprobe, mku-sweepprobe).
+   Apep stays silent after the visit.
+5. **The level-reload route is blocked from savestates.** The
+   Konquest pause menu is Resume / Save and Quit / Quit Game. From a
+   savestate-restored session, Save and Quit never wrote the stick
+   (DATA.BIN md5 unchanged) and the title threw "PROFILE NOT FOUND —
+   Data on Memory Stick Duo has changed" (mku-reloadprobe). The
+   emulator's stick-profile path is inconsistent with savestate
+   restores — the same trap recorded for Konquest entry. A reload
+   test therefore needs a full cold-boot lineage whose profile was
+   loaded from the stick in the same session.
+
+**What is still open — the two candidate mechanisms.**
+
+- (A) A post-exercise test: Bo's script has `boraicho_showme`,
+  `boraicho_not_pass`, `boraicho_brc_impressed`, and there is a level
+  object `boraicho_trigger_after_last_dojo` (trigger record at
+  0x091C85C0). "Finished the first dojo" may mean passing Bo's test
+  fight, not merely finishing the exercise phases — and if the fight
+  is lost, the ejection at 0 HP is exactly
+  `move_hero_to_safe_loc_boraicho`. Its trigger volume was not found
+  in the yard sweep; its geometry is not in the trigger record
+  (+0x20 is null; the script-data pointer at +0x18 is 0x09DAE0DC).
+- (B) Startup re-evaluation: the arming state is literally a
+  *startup* script. If states are picked once at level load, Apep can
+  only arm when ER1 loads with the flag already true — i.e. after a
+  Save-and-Quit + Continue cycle on a stick-loaded profile (blocked
+  from savestates per (5) above; needs the cold-boot lineage).
+
+**Next experiments, in order.** (1) One cold-boot lineage: stick
+profile, all tutorial phases in a single process (the continuous
+solver now passes steps/dash/strikes; variations and hilow still need
+a reliable clear), then talk to Apep directly — if silent, Save and
+Quit, Continue, and talk again. That single run tests the clean
+lineage and (B) together. (2) Find the `boraicho_trigger_after_last_dojo`
+volume in the collision data (0x090Bxxxx geometry space) and walk
+into it; if a test fight starts, win it and retest Apep (tests (A)).
+(3) Ghidra: decode the script VM's state-condition evaluation for the
+apep_startup_script entry to the concrete flag word, then read that
+word in a post-tutorial RAM dump — the code-level verdict on which
+event sets it.
+
+Bench artifacts for this investigation: drivers and logs in
+~/mku-scan/ (mku-apep1, mku-talkprobe, mku-dojoprobe, mku-sweepprobe,
+mku-varprobe, mku-timeoutprobe, mku-pauseprobe, mku-reloadprobe;
+apep1-apep12 and probe run folders; working notes in
+~/mku-scan/apep-decomp/NOTES.md). Nothing was pushed.

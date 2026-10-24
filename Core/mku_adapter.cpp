@@ -34,6 +34,7 @@
  */
 #include "adapter.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -105,6 +106,12 @@ bool MatchUtf16Le(uint32_t addr, const char* anchor)
     return true;
 }
 
+// Forward declarations: the Konquest state readers live further down
+// (with the sections that prove them); DumpState reports them.
+bool InKonquest(void);
+bool KonquestPos(float* x, float* y, float* z);
+bool RoamFacing(float* dx, float* dz);
+
 void CmdDump(void)
 {
     char line[200];
@@ -112,6 +119,22 @@ void CmdDump(void)
              "[mku] Mortal Kombat: Unchained (ULUS10102) anchor scan, user RAM 0x%08X-0x%08X",
              kUserRamBase, kUserRamEnd);
     Log(line);
+
+    if (InKonquest()) {
+        float x, y, z, dx, dz;
+        if (KonquestPos(&x, &y, &z)) {
+            if (RoamFacing(&dx, &dz))
+                snprintf(line, sizeof(line),
+                         "[mku] konquest pos=(%.2f, %.2f, %.2f) facing=(%.2f, %.2f) (movement-derived)",
+                         (double) x, (double) y, (double) z,
+                         (double) dx, (double) dz);
+            else
+                snprintf(line, sizeof(line),
+                         "[mku] konquest pos=(%.2f, %.2f, %.2f) facing=none tracked",
+                         (double) x, (double) y, (double) z);
+            Log(line);
+        }
+    }
 
     // One pass over the window; at each byte, try every anchor in both
     // encodings. First-byte dispatch keeps the common case to one compare.
@@ -716,6 +739,395 @@ void FightLine(char* out, size_t cap)
              n1, p1, n2, p2, u32(kTimerAddr), lead);
 }
 
+// ---- Konquest bout speech (VERIFIED 2026-10-23, bout hunts) ------------------
+//
+// Konquest bouts — the dojo lessons, scripted encounters, free-roam fights —
+// run on the versus fight engine over the SAME BSS fight struct, and the HP
+// floats are live and true there (tutorial strikes lesson, 2026-10-17 and
+// re-measured 2026-10-23: Square took the opponent 1.000 -> 0.912, exactly
+// the documented hit). What the struct does NOT carry in Konquest is the
+// versus metadata: the fighter-id fields hold Konquest ids (P1 is 2 =
+// Shujinko in every Konquest capture; P2 is 0 = Bo' Rai Cho through the
+// tutorial), and the round/timer/win words are per-phase machinery — the
+// round word counted lessons (3, 4, 6 across the tutorial), the timer is a
+// phase clock whose expiry zeroes P1's HP and retries the exercise, and
+// the win words hold lesson tallies. So bout speech names the fighters
+// the Konquest way and speaks ONLY the health line: no round, no timer,
+// no lead. (The versus line keeps all three; its words mean what they say
+// there.)
+//
+// The gate needs three signals, because each alone lies somewhere:
+//   * InKonquest() (flag A) — the mode. Versus never sets it in a clean
+//     session.
+//   * Flag B (0x08B123DC) — the fight engine is live: 1 in versus fights
+//     and in every Konquest arena scene, 0 in the menus, in versus pause,
+//     and in Konquest free-roam (village measurement 2026-10-19,
+//     re-measured 2026-10-23: B = 0 with the fight struct holding stale
+//     words from the last lesson, opponent HP 0.000 included).
+//   * Struct sanity — both HP floats inside [0, 1] and P1's id == 2.
+// Even all three together hold during Konquest's opening cinematic and
+// its dojo dialogue phases, where the struct sits frozen at full health.
+// So the bout LATCHES: it opens only when the engine proves itself in
+// motion — the phase timer moves or a health word changes while the raw
+// gate holds — and closes when the raw gate drops. Cinematics and talk
+// phases never trip it; a real bout trips it on its first timer tick or
+// its first landed hit.
+//
+// Speech: on the latch, "Fight." plus the health line; while latched,
+// the health line again whenever a percent has moved since the last
+// announcement (at most once per kBoutAnnGapFrames, so combinations
+// coalesce); a side reaching zero speaks its outcome once per exchange
+// (the latch re-arms when that side's health rises again — the tutorial
+// refills between phases). P1 reaching zero speaks only with time left
+// on the phase clock: at zero the engine zeroes P1 itself when an
+// exercise's time expires, which is a failed drill, not a knockout, and
+// the game's own "try again" dialogue covers it. WhereAmI in a latched
+// bout speaks the fight line ahead of the objective and dialogue lines
+// (they still auto-speak as they appear); unlatched Konquest WhereAmI
+// is unchanged.
+constexpr uint32_t kKonquestPlayerId = 2;   // Shujinko, in Konquest ids
+constexpr int kBoutAnnGapFrames = 90;
+
+// Konquest opponent names by Konquest fighter id. Only the tutorial's
+// id is proven; anything else speaks as "opponent" rather than guess.
+const char* KonquestFoeName(uint32_t id)
+{
+    switch (id) {
+        case 0: return "Bo' Rai Cho";
+        default: return nullptr;
+    }
+}
+
+bool BoutStructSane(void)
+{
+    if (u32(kP1FighterIdAddr) != kKonquestPlayerId) return false;
+    float h1 = f32(kP1HpAddr), h2 = f32(kP2HpAddr);
+    return h1 >= 0.0f && h1 <= 1.0f && h2 >= 0.0f && h2 <= 1.0f;
+}
+
+// Raw gate only — the latch in BoutOnFrame decides speech.
+bool InBoutRaw(void)
+{
+    return InKonquest() && u32(kKonquestFlagBAddr) == 1 && BoutStructSane();
+}
+
+// "Shujinko 100 percent, Bo' Rai Cho 91 percent."
+void BoutLine(char* out, size_t cap)
+{
+    const char* foe = KonquestFoeName(u32(kP2FighterIdAddr));
+    int p1 = (int) (f32(kP1HpAddr) * 100.0f + 0.5f);
+    int p2 = (int) (f32(kP2HpAddr) * 100.0f + 0.5f);
+    if (foe)
+        snprintf(out, cap, "Shujinko %d percent, %s %d percent.", p1, foe, p2);
+    else
+        snprintf(out, cap, "Shujinko %d percent, opponent %d percent.", p1, p2);
+}
+
+bool g_boutLive = false;          // the latch: engine motion proven
+int g_boutFrame = 0;              // frames since the watch started (gap clock)
+uint32_t g_boutTimer = 0xFFFFFFFF;
+float g_boutHp1 = -1.0f, g_boutHp2 = -1.0f;   // last words under the raw gate
+int g_boutAnnHp1 = -1, g_boutAnnHp2 = -1;     // percents last announced
+int g_boutLastAnnFrame = -100000;
+bool g_boutFoeDown = false, g_boutPlayerDown = false;
+
+bool InKonquestBout(void) { return g_boutLive; }
+
+void BoutOnFrame(void)
+{
+    g_boutFrame++;
+    if (!InBoutRaw()) {
+        g_boutLive = false;
+        g_boutTimer = 0xFFFFFFFF;
+        g_boutHp1 = g_boutHp2 = -1.0f;
+        g_boutFoeDown = g_boutPlayerDown = false;
+        return;
+    }
+    uint32_t t = u32(kTimerAddr);
+    float h1 = f32(kP1HpAddr), h2 = f32(kP2HpAddr);
+    if (!g_boutLive) {
+        bool motion = g_boutTimer != 0xFFFFFFFF &&
+                      (t != g_boutTimer || h1 != g_boutHp1 || h2 != g_boutHp2);
+        g_boutTimer = t; g_boutHp1 = h1; g_boutHp2 = h2;
+        if (!motion) return;
+        g_boutLive = true;
+        g_boutAnnHp1 = (int) (h1 * 100.0f + 0.5f);
+        g_boutAnnHp2 = (int) (h2 * 100.0f + 0.5f);
+        g_boutLastAnnFrame = g_boutFrame;
+        char line[192], bout[128];
+        BoutLine(bout, sizeof(bout));
+        snprintf(line, sizeof(line), "Fight. %s", bout);
+        Say(line, "fight", oga::Priority::Normal);
+        return;
+    }
+    g_boutTimer = t; g_boutHp1 = h1; g_boutHp2 = h2;
+    if (h2 > 0.0f) g_boutFoeDown = false;      // a new exchange re-arms
+    if (h1 > 0.0f) g_boutPlayerDown = false;
+    if (h2 == 0.0f && !g_boutFoeDown) {
+        g_boutFoeDown = true;
+        const char* foe = KonquestFoeName(u32(kP2FighterIdAddr));
+        char line[96];
+        snprintf(line, sizeof(line), "%s defeated.", foe ? foe : "Opponent");
+        Say(line, "fight", oga::Priority::Normal);
+        g_boutLastAnnFrame = g_boutFrame;
+        return;
+    }
+    if (h1 == 0.0f && !g_boutPlayerDown) {
+        g_boutPlayerDown = true;
+        if (t > 0) {   // a knockout, not an expired exercise clock
+            Say("Shujinko defeated.", "fight", oga::Priority::Normal);
+            g_boutLastAnnFrame = g_boutFrame;
+        }
+        return;
+    }
+    int p1 = (int) (h1 * 100.0f + 0.5f);
+    int p2 = (int) (h2 * 100.0f + 0.5f);
+    if ((p1 != g_boutAnnHp1 || p2 != g_boutAnnHp2) &&
+        g_boutFrame - g_boutLastAnnFrame >= kBoutAnnGapFrames) {
+        g_boutAnnHp1 = p1; g_boutAnnHp2 = p2;
+        g_boutLastAnnFrame = g_boutFrame;
+        char bout[128];
+        BoutLine(bout, sizeof(bout));
+        Say(bout, "fight", oga::Priority::Normal);
+    }
+}
+
+// ---- Konquest free-roam position (VERIFIED 2026-10-23, pos hunts) ----------
+//
+// Shujinko's position in Konquest is a float vec3 in the Konquest
+// world-state block: x at 0x08AED478, y (height) at +4, z at +8 — the
+// same block that holds the sector word at 0x08AED5B4. (An earlier
+// session noted "a float at 0x08AED480 twitches with movement": that
+// is this vec3's z.) Proven on the bench (probes mku-pos/pos2/pos3,
+// ~/mku-scan/pos2-pos4: 21 dumps across four independent boots):
+//   * idle-stable to millimetres over 300+ frames, in two boots;
+//   * every walking leg moves it smoothly and by the walked amount —
+//     a sample 60 frames into a leg caught it in transit, a 480-frame
+//     leg moved it ~25 units, and a leg into the village fence moved
+//     it ~0.45 and then held it against the fence;
+//   * pure camera rotation (L or R held 240 frames) moved it at most
+//     ~0.2 (collision settle), so it is the player's feet, not a
+//     camera or view value — the heap entity records near 0x08CE5000
+//     that shadow it DO drift under rotation and when a new sector
+//     streams in, which is what killed the 0x08CC5530 cluster in the
+//     2026-10-17 hunt; this static-block vec3 does neither;
+//   * the same address reads the right spot in every lineage on
+//     file: the village spawn (-56.0, 154.2, hunt32's J0), Apep's
+//     post (-53.85, 162.96 — a separate boot's checkpoint matches to
+//     three decimals), and the dojo bout spot, frozen with the fight
+//     (-58.0, 170.0).
+// Axis frame: x is the east-west axis (two B-to-A sector crossings
+// both rode on x dropping ~10 while z moved in opposite directions);
+// z is the other ground axis, but which z direction is "north" is
+// NOT proven (no row-boundary crossing on file), so no compass words
+// are spoken from these numbers yet.
+//
+// Facing: no native yaw word survived. Across the pos2/pos3/pos4
+// dump sets, every angle-shaped candidate (wrapped or unwrapped
+// radians, degrees, turns, sin/cos pairs) failed at least one leg of
+// the ground truth: three displacement-measured headings, two pure
+// camera rotations, and an A-B-A heading cycle. So facing is
+// movement-derived, following the Birth by Sleep pattern: the
+// direction of the player's own recent travel, tracked below and
+// exposed via RoamFacing for the navigation work to come. It is tracked, not
+// spoken: a clock bearing needs a landmark to point at, and a
+// compass word needs the unproven z calibration.
+//
+// Gate: InKonquest() and flag B == 0 (B is the fight engine: 1 in
+// bouts and in the opening cinematic, 0 in free-roam — see the bout
+// section) and the vec3 plausible. Dialogue and objective lines keep
+// their channels and are checked before this in WhereAmI, so the
+// position line answers only where nothing else is on screen.
+constexpr uint32_t kKonquestPosAddr = 0x08AED478;   // f32 x, +4 y, +8 z
+
+bool KonquestPos(float* x, float* y, float* z)
+{
+    float px = f32(kKonquestPosAddr);
+    float py = f32(kKonquestPosAddr + 4);
+    float pz = f32(kKonquestPosAddr + 8);
+    if (!(px > -1000.0f && px < 1000.0f)) return false;   // also rejects NaN
+    if (!(py > -50.0f && py < 100.0f)) return false;
+    if (!(pz > -1000.0f && pz < 1000.0f)) return false;
+    *x = px; *y = py; *z = pz;
+    return true;
+}
+
+bool InFreeRoam(void)
+{
+    if (!InKonquest()) return false;
+    if (u32(kKonquestFlagBAddr) != 0) return false;   // a bout/cinematic owns it
+    float x, y, z;
+    return KonquestPos(&x, &y, &z);
+}
+
+// "Position -54, 163." — the ground-plane pair, Birth by Sleep style.
+void RoamPositionClause(char* out, size_t cap)
+{
+    float x, y, z;
+    if (!KonquestPos(&x, &y, &z)) {
+        snprintf(out, cap, "Position unknown.");
+        return;
+    }
+    int ix = (int) (x + (x >= 0 ? 0.5f : -0.5f));
+    int iz = (int) (z + (z >= 0 ? 0.5f : -0.5f));
+    snprintf(out, cap, "Position %d, %d.", ix, iz);
+}
+
+// Movement-derived facing: a short window of recent positions (the
+// last ~2 s) is kept while in free-roam; whenever the player has
+// covered >= 0.5 units across that window, the facing is the window's
+// displacement — the direction of travel. (Bench trajectory,
+// mku-traj: the long street leg runs diagonally for ~2 s, then slides
+// due -z along the west wall for the last ~2 s; the tracker reports
+// the slide, which is the direction he is actually heading at rest —
+// not the leg's average.) It persists after the player stops and
+// clears when free-roam is left. Never a guessed direction: before
+// the first tracked movement there is no facing.
+constexpr int kRoamHistLen = 121;             // ~2 s of travel
+float g_roamHistX[kRoamHistLen], g_roamHistZ[kRoamHistLen];
+int g_roamHistHead = 0;                       // next write slot
+int g_roamHistCount = 0;
+float g_roamFaceDX = 0.0f, g_roamFaceDZ = 0.0f;
+bool g_roamFaceValid = false;
+
+bool RoamFacing(float* dx, float* dz)
+{
+    if (!g_roamFaceValid) return false;
+    float len = sqrtf(g_roamFaceDX * g_roamFaceDX + g_roamFaceDZ * g_roamFaceDZ);
+    if (!(len >= 0.5f)) return false;
+    *dx = g_roamFaceDX / len;
+    *dz = g_roamFaceDZ / len;
+    return true;
+}
+
+void RoamOnFrame(void)
+{
+    float x, y, z;
+    if (!InFreeRoam() || !KonquestPos(&x, &y, &z)) {
+        g_roamHistCount = 0;
+        g_roamFaceValid = false;
+        return;
+    }
+    g_roamHistX[g_roamHistHead] = x;
+    g_roamHistZ[g_roamHistHead] = z;
+    g_roamHistHead = (g_roamHistHead + 1) % kRoamHistLen;
+    if (g_roamHistCount < kRoamHistLen) g_roamHistCount++;
+    if (g_roamHistCount == kRoamHistLen) {
+        // The oldest sample sits at the head (the next write slot).
+        float dx = x - g_roamHistX[g_roamHistHead];
+        float dz = z - g_roamHistZ[g_roamHistHead];
+        if (dx * dx + dz * dz >= 0.25f) {
+            g_roamFaceDX = dx; g_roamFaceDZ = dz;
+            g_roamFaceValid = true;
+        }
+    }
+}
+
+// ---- Konquest village landmarks — the Guide query (WIRED 2026-10-23) --------
+//
+// The Earthrealm village's named spots, in the position vec3's own
+// frame. Sources, per entry:
+//   * Apep's post (-53.49, 162.96): the placed post entity's own
+//     record (apep-decomp: entity at 0x0916BBA0 reads position
+//     (-53.49, 2.01, 162.96)); the player checkpoint beside it reads
+//     (-53.85, 162.96) in pos3, pos4 and live10, Apep in frame.
+//   * Village spawn (-55.99, 154.19): hunt32's J0 dump, an
+//     independent lineage's spawn reading; every Konquest entry
+//     lands there.
+//   * Bo' Rai Cho's hall (-58.00, 170.00): the dojo bout lineage's
+//     vec3, frozen with the fight, and the dojoprobe's navigation
+//     target for the yard the hall fronts.
+//   * The west fence (-63.47, 158.06): the trajectory probe's wall
+//     contact at x = -63.469 and live10's street-leg endpoint — the
+//     fence line the west street runs into.
+// Only the village has a table; other realms' spots are unmeasured,
+// so the guide speaks only here.
+//
+// The query mirrors Birth by Sleep's Hub Guide: one Say per
+// landmark in table order, "right here" inside 1.5 units, distance
+// only while no facing is tracked (the player has not moved yet —
+// never a guessed direction), else distance plus a clock bearing
+// from the movement-derived facing: 12 straight ahead, 3 to the
+// right, 6 behind, 9 to the left, from the signed angle between the
+// facing leg and the landmark leg. The left/right sign of that
+// angle in this game's ground frame is not implied by the axes (x
+// east-west is proven; z's cardinal run is not) — it was calibrated
+// live (~/mku-scan/guide2, RE doc "Village landmark guide"): on a
+// straight street walk toward +z just east of the hall, the formula
+// puts the hall ahead-left (11 o'clock) and its long tiled-roof
+// building fills the left of the trailing-camera frame; the
+// mirrored sign would have put it on the right. Gate: free-roam
+// only, and dialogue, objective and bout speech keep priority —
+// the guide fails silent everywhere else, exactly like the Hub
+// Guide outside its room.
+struct VillageMark { const char* name; float x; float z; };
+static const VillageMark kVillageMarks[] = {
+    {"Apep's post", -53.49f, 162.96f},
+    {"Village spawn", -55.99f, 154.19f},
+    {"Bo' Rai Cho's hall", -58.00f, 170.00f},
+    {"The west fence", -63.47f, 158.06f},
+};
+constexpr int kVillageMarkCount =
+    (int) (sizeof(kVillageMarks) / sizeof(kVillageMarks[0]));
+
+void VillageGuideLine(char* out, size_t cap, const VillageMark& m,
+                      float px, float pz, bool haveFacing,
+                      float fdx, float fdz)
+{
+    float dx = m.x - px, dz = m.z - pz;
+    float dist = sqrtf(dx * dx + dz * dz);
+    if (dist < 1.5f) {
+        snprintf(out, cap, "%s, right here.", m.name);
+        return;
+    }
+    if (!haveFacing) {
+        snprintf(out, cap, "%s, %u away.", m.name,
+                 (unsigned) (dist + 0.5f));
+        return;
+    }
+    // Signed angle from the facing leg to the landmark leg, in
+    // degrees: 0 ahead, positive to the right — the Hub Guide's
+    // words, with the sign calibrated for this game's frame in the
+    // live guide run (see the section note above).
+    float inv = 1.0f / dist;
+    float sinA = fdz * (dx * inv) - fdx * (dz * inv);
+    float cosA = fdx * (dx * inv) + fdz * (dz * inv);
+    float rel = atan2f(sinA, cosA) * 57.2957795f;
+    if (rel < 0.0f) rel += 360.0f;
+    int clock = (int) (rel / 30.0f + 0.5f);
+    if (clock == 0) clock = 12;
+    if (clock == 12)
+        snprintf(out, cap, "%s, %u away, straight ahead.", m.name,
+                 (unsigned) (dist + 0.5f));
+    else
+        snprintf(out, cap, "%s, %u away, %d o'clock.", m.name,
+                 (unsigned) (dist + 0.5f), clock);
+}
+
+void CmdVillageGuide(void)
+{
+    if (!InFreeRoam()) return;          // Konquest roam only (A on, B off)
+    if (InKonquestBout()) return;       // a bout owns speech
+    if (DialogueUp() || ObjectiveUp()) return;   // those channels win
+    float px, py, pz;
+    if (!KonquestPos(&px, &py, &pz)) return;
+    // The table is the VILLAGE's: inside this generous box around
+    // the measured spots (fence line x ≈ -64, spawn z ≈ 154, hall
+    // wall z ≈ 176, sector samples out to z ≈ 141) the bearings are
+    // the village's own. Outside it — another realm's roam, whose
+    // spots are unmeasured — stay silent rather than read village
+    // directions from foreign coordinates.
+    if (px < -75.0f || px > -40.0f || pz < 130.0f || pz > 190.0f) return;
+    float fdx = 0.0f, fdz = 0.0f;
+    bool facing = RoamFacing(&fdx, &fdz);
+    for (int i = 0; i < kVillageMarkCount; i++) {
+        char line[128];
+        VillageGuideLine(line, sizeof(line), kVillageMarks[i], px, pz,
+                         facing, fdx, fdz);
+        Say(line, "guide", oga::Priority::High);
+    }
+}
+
 // ---- the pause menu (VERIFIED 2026-10-17, hunts 12-13) ---------------------
 //
 // Items: RESUME, MOVES LIST, PLAYER SELECT, MAIN MENU (wraps both
@@ -750,12 +1162,11 @@ void FightLine(char* out, size_t cap)
 //      re-validated on every use.
 // Honest edges, recorded: round intros and win banners also freeze the
 // timer, so a WhereAmI in the last second of a long banner, in a match
-// where the player paused earlier, can briefly say "Paused". And the
-// QUIT GAME dialog (reached from MAIN MENU) is not mapped — its NO/YES
-// selection lives in a generic widget list with no distinctive
-// signature — so while it is open the adapter still reports the pause
-// row underneath it; left/right stay silent in pause speech because
-// they belong to that dialog.
+// where the player paused earlier, can briefly say "Paused". (The
+// QUIT GAME dialog this menu's MAIN MENU row opens is mapped too —
+// see the dialog section below; an earlier note here called it
+// unmapped, from a hunt that only ever found the UI's focus-list
+// pointers, which turn out to track tap parity, not the selection.)
 constexpr uint32_t kPauseStride = 0xAF0;
 constexpr uint32_t kMenuClassWord = 0x08BAF3C0;
 constexpr uint32_t kPoolScanLo = 0x09000000;
@@ -885,6 +1296,115 @@ void PauseRow(char* out, size_t cap)
     snprintf(out, cap, "%s, %d of %d", kPauseItems[i], i + 1, kPauseCount);
 }
 
+// ---- the QUIT GAME dialog ---------------------------------------------------
+//
+// Choosing MAIN MENU on the pause menu opens a confirmation dialog:
+// title "QUIT GAME", question "Are you sure?", options NO (left, the
+// default) and YES (right). Left/right move the highlight and wrap at
+// both ends; up/down do not move it. All bench-verified on two
+// independent boots (hunt13 and hunt-quit2), screenshots against RAM
+// at every step.
+//
+// Presence: a static "current context" cell at 0x08D9742C (BSS, just
+// past the fight struct) names the UI layer's current context object.
+// While the plain pause menu is up the cell is constant for the whole
+// pause; opening the dialog moves it to the pause value + 0x98, and
+// confirming NO restores the pause value. The pause value itself is a
+// heap address that differs per boot, so the watch samples it whenever
+// the pause menu is up without the dialog, and the dialog gate is the
+// +0x98 step from that sample. (The UI focus-list cells at
+// 0x08B12964/68 cannot gate presence — they keep their dialog values
+// after the dialog closes — and the focus pointer cannot carry the
+// selection either: it flips on EVERY direction tap, up/down
+// included, while the highlight only moves on left/right. Verified:
+// one UP tap flipped the pointer and the screenshot still showed NO.)
+//
+// Selection: the dialog's own object — same ` OBJ` family as the
+// pause items — sits at a fixed offset below the pause run's top
+// object, and its +0x28 field points at the selected option's
+// widget: pause-top-0x3AE0 for NO, pause-top-0x45C0 for YES. Every
+// offset matched exactly on both boots. The field keeps its last
+// value after the dialog closes, so it is only read under the
+// presence gate, and the gate fails closed on any other value.
+//
+// One trap the settled dumps hid: the context cell BLINKS. Watched
+// frame by frame over an open dialog it holds the dialog value for
+// ~10-frame runs, then shows another layer's context (or 0) for
+// exactly one frame, on a ~26-frame cadence — it names the layer
+// being serviced that frame, and the top layer dominates. So the
+// dialog state is LATCHED: entry needs one frame at sample+0x98
+// with a valid selection field, exit needs the pause value back
+// for 3 consecutive frames, and the pause sample itself is only
+// trusted after the same value repeats on consecutive frames.
+constexpr uint32_t kScreenCtxAddr = 0x08D9742C;
+constexpr uint32_t kQuitCtxStep = 0x98;
+constexpr uint32_t kQuitSelOff = 0x2C28;  // selection field = pause top - this
+constexpr uint32_t kQuitNoOff = 0x3AE0;   // NO widget  = pause top - this
+constexpr uint32_t kQuitYesOff = 0x45C0;  // YES widget = pause top - this
+constexpr int kQuitCount = 2;
+const char* const kQuitItems[] = { "No", "Yes" };
+
+uint32_t g_pauseCtx = 0;      // context-cell value of the plain pause menu
+uint32_t g_ctxPrev = 0;       // context-cell value on the previous frame
+int g_dlgCloseFrames = 0;     // consecutive frames back at the pause value
+bool g_dlgUp = false;         // the dialog is latched open
+
+// 0 = No, 1 = Yes, -1 = the field holds neither widget (fail closed).
+int QuitDialogIndex(void)
+{
+    if (!g_pauseTop) return -1;
+    uint32_t v = u32(g_pauseTop - kQuitSelOff);
+    if (v == g_pauseTop - kQuitNoOff) return 0;
+    if (v == g_pauseTop - kQuitYesOff) return 1;
+    return -1;
+}
+
+// Per-frame upkeep of the context sample and the dialog latch; see
+// the blink note above. Runs before the screen chain in MenuWatch.
+void TrackPauseCtx(void)
+{
+    uint32_t ctx = u32(kScreenCtxAddr);
+    if (!OnPause()) {
+        g_dlgUp = false;
+        g_dlgCloseFrames = 0;
+    } else if (g_dlgUp) {
+        // Latched: blink frames are ignored; only a sustained return
+        // to the pause menu's own context value closes the dialog.
+        if (ctx == g_pauseCtx) {
+            if (++g_dlgCloseFrames >= 3) {
+                g_dlgUp = false;
+                g_dlgCloseFrames = 0;
+            }
+        } else {
+            g_dlgCloseFrames = 0;
+        }
+    } else if (g_pauseCtx != 0 && ctx == g_pauseCtx + kQuitCtxStep &&
+               QuitDialogIndex() >= 0) {
+        g_dlgUp = true;
+    } else if (ctx == g_ctxPrev && ctx != g_pauseCtx + kQuitCtxStep) {
+        // A value that repeats across frames is a real layer value,
+        // not a blink; and it is never the dialog's own step value,
+        // so the dialog can never poison the pause sample.
+        g_pauseCtx = ctx;
+    }
+    g_ctxPrev = ctx;
+}
+
+bool OnQuitDialog(void)
+{
+    return g_dlgUp && OnPause();
+}
+
+void QuitDialogRow(char* out, size_t cap)
+{
+    int i = QuitDialogIndex();
+    if (i < 0) {
+        out[0] = 0;
+        return;
+    }
+    snprintf(out, cap, "%s, %d of %d", kQuitItems[i], i + 1, kQuitCount);
+}
+
 bool InFight(void);
 
 // ---- the menu watch ---------------------------------------------------------
@@ -917,6 +1437,7 @@ static void MenuWatch(void)
     char row[128];
     row[0] = 0;
 
+    TrackPauseCtx();
     if (OnMainMenu()) {
         screen = 1;
         MainMenuRow(row, sizeof(row));
@@ -932,6 +1453,9 @@ static void MenuWatch(void)
     } else if (OnCharSelect()) {
         screen = 5;
         CharRow(row, sizeof(row));
+    } else if (OnQuitDialog()) {
+        screen = 7;
+        QuitDialogRow(row, sizeof(row));
     } else if (OnPause()) {
         screen = 6;
         PauseRow(row, sizeof(row));
@@ -984,11 +1508,14 @@ void MkuOnFrame(void)
 {
     g_frameNo++;
     DlgOnFrame();
+    BoutOnFrame();
+    RoamOnFrame();
     if (!InFight()) {
         g_frozenFrames = 0;
         g_lastTimer = 0xFFFFFFFF;
         g_pauseHolder = 0;
         g_pauseTop = 0;
+        g_pauseCtx = 0;
         g_candCount = -1;
         MenuWatch();
         return;
@@ -999,6 +1526,9 @@ void MkuOnFrame(void)
     } else {
         g_frozenFrames = 0;
         g_lastTimer = t;
+        g_pauseCtx = 0;   // the freeze ended; the context sample dies with it
+        g_dlgUp = false;
+        g_dlgCloseFrames = 0;
     }
     if (g_frozenFrames >= kPauseFreezeFrames && g_candCount < 0 &&
         !g_pauseHolder)
@@ -1061,6 +1591,14 @@ void CmdWhereAmI(void)
         Say(line, "menu", oga::Priority::High);
         return;
     }
+    if (OnQuitDialog()) {
+        char line[160];
+        char row[96];
+        QuitDialogRow(row, sizeof(row));
+        snprintf(line, sizeof(line), "Quit game. Are you sure? %s.", row);
+        Say(line, "menu", oga::Priority::High);
+        return;
+    }
     if (OnPause()) {
         char line[128];
         char row[96];
@@ -1071,6 +1609,14 @@ void CmdWhereAmI(void)
     }
     if (InKonquest()) {
         char line[224];
+        if (InKonquestBout()) {
+            char spoken[192];
+            char bout[128];
+            BoutLine(bout, sizeof(bout));
+            snprintf(spoken, sizeof(spoken), "Fight. %s", bout);
+            Say(spoken, "fight", oga::Priority::High);
+            return;
+        }
         if (ObjectiveUp() && DlgReadLine(line, sizeof(line))) {
             char spoken[256];
             snprintf(spoken, sizeof(spoken), "Objective. %s", line);
@@ -1083,6 +1629,14 @@ void CmdWhereAmI(void)
             Say(line, "dialogue", oga::Priority::High);
             strncpy(g_dlgLast, line, sizeof(g_dlgLast) - 1);
             g_dlgLast[sizeof(g_dlgLast) - 1] = 0;
+            return;
+        }
+        if (InFreeRoam()) {
+            char pos[64];
+            RoamPositionClause(pos, sizeof(pos));
+            char spoken[128];
+            snprintf(spoken, sizeof(spoken), "Konquest. %s", pos);
+            Say(spoken, "status", oga::Priority::High);
             return;
         }
         Say("Konquest.", "status", oga::Priority::High);
@@ -1116,6 +1670,11 @@ void CmdMenuState(void)
     }
     if (OnCharSelect()) {
         Log("[mku] MENU character select");
+        CmdWhereAmI();
+        return;
+    }
+    if (OnQuitDialog()) {
+        Log("[mku] MENU quit dialog");
         CmdWhereAmI();
         return;
     }
@@ -1179,6 +1738,7 @@ static void mku_command(Command cmd)
         case Command::NextUnactedAlly: CmdNotMapped(); break;
         case Command::DumpState:       CmdDump();      break;
         case Command::MenuState:       CmdMenuState(); break;
+        case Command::Guide:           CmdVillageGuide(); break;
         case Command::MenuNext:        CmdMenuNav(cmd); break;
         case Command::MenuPrev:        CmdMenuNav(cmd); break;
         case Command::MenuLeft:        CmdMenuNav(cmd); break;
@@ -1216,16 +1776,28 @@ const Adapter kMortalKombatUnchained = {
     mku_ready,
     mku_detach,
     nullptr,     // cue_snapshot
-    "Menus, character select, fight state, pause, and Konquest dialogue and objectives",
+    "Menus, character select, fight state, pause, and Konquest dialogue, objectives, bouts, free-roam position and village landmark bearings",
     "Spoken: the main menu, the Kombat submenu, character select, "
-    "fight state (health, round wins, timer), the pause menu, the "
-    "Options tabs and rows, and Konquest dialogue and objective "
-    "lines as they appear.\n"
+    "fight state (health, round wins, timer), the pause menu and "
+    "its quit confirmation dialog, the Options tabs and rows, and "
+    "Konquest dialogue and objective "
+    "lines as they appear, and Konquest bouts (Shujinko and the "
+    "opponent's health as the fight runs, plus the outcome).\n"
     "Controls: Triangle goes back in the front-end menus.\n"
-    "Not mapped yet: the QUIT GAME dialog reached from the main "
-    "menu — the game asks NO/YES and the selection is not read, so "
-    "do not confirm a quit by ear. Konquest free-roam position and "
-    "headings are not read, and Konquest bout speech is partial.\n"
+    "The QUIT GAME dialog reached from the pause menu's Main Menu "
+    "row is read: it asks Are you sure, with No (the default) and "
+    "Yes, and the highlight is spoken as it moves. In Konquest "
+    "free-roam, the Where Am I key reads your position as two "
+    "numbers (the game's own ground coordinates), and the Guide "
+    "key reads the Earthrealm village's landmarks — Apep's post, "
+    "the village spawn, Bo' Rai Cho's hall and the west fence — "
+    "each with its distance and, once you have moved, its clock "
+    "bearing relative to the way you last travelled; before you "
+    "have moved it gives distances only. Compass headings are "
+    "not read. In Konquest bouts the round, timer and "
+    "win words are not read (they are per-phase machinery), and only "
+    "Bo' Rai Cho is named among Konquest opponents — others are "
+    "announced as opponent.\n"
     "Supported version: Mortal Kombat: Unchained, USA (ULUS10102). "
     "Other pressings are not verified.",
 };

@@ -992,6 +992,141 @@ the definition table; the table is EBOOT-owned).
   + Thunder Surge Lv4, no crystal -> Sonic Blade Lv1 via the
   "Meld these commands?" dialog (cursor starts on Yes).
 
+## Meld Commands speech — WIRED + LIVE-VERIFIED (2026-10-24, meld runs 1-8)
+
+The screen is wired end to end: panel focus, both ingredient
+lists, the Synthesis (item) list, picks, refusals, the confirm
+dialog and the result. Anchors are all chain-relative — the
+screen relocates between camp visits (visit 1 pane 0x0992E250 /
+widget 0x09925170; a later visit pane 0x099344E0 / widget
+0x09933070); only the chain is stable:
+
+- The decks object stays in registry slot 6 for the whole
+  screen. Meld pane = decks +0x9C, verified head 0xFFFFFFFF +
+  class tag 0x08B9CF88 @ +0x0C (a different class from the slot
+  list's pane, so CampPaneObj fails closed here). Meld widget =
+  pane +0x88, head + tag 0x08B9CEB8 @ +0x0C.
+- Widget words (u16): +0x66 panel focus (0 Slot 1, 1 Slot 2,
+  2 Item, 3 OK — OK joins the ring only once a valid pair is
+  set; while a list is open the word freezes at the row the list
+  belongs to, which is how the tracker knows which slot a list
+  edits); +0x6A panel row count (3, or 4 with a pair set);
+  +0x74 phase flags (0x200 a list is open, 0x400 the "Meld
+  these commands?" dialog is up, 0x800 "Melding complete!" is
+  up); +0x14A command-list tab; +0x14E command-list cursor;
+  +0x150 Synthesis-list cursor; +0x163 usable-only filter flag.
+  (The 2026-10-19 "cursor @ 0x099252BE" is widget +0x14E on the
+  fixture's first-visit allocation.)
+- The confirm dialog's Yes/No cursor is stored NOWHERE
+  readable. The static word at 0x08B5BEE8 that sparse
+  stop-sampling first suggested is a blink-phase word (opposite
+  values for the same glove state in different runs; run 8's
+  tracker spoke Yes/No alternately every frame from it). Run
+  11's frame-series probe (90 consecutive frames per glove
+  state, across the overlay statics and the camp heap) found
+  the cursor only as scene-graph position floats of the glove
+  graphic (95.0 for Yes, 180.0 for No, in unanchored heap
+  nodes). The adapter therefore tracks the dialog cursor from
+  the host's Left/Right echoes: it starts on Yes
+  (screenshot-proven), either direction flips it in the
+  two-option ring, and a dialog fall the completion phase
+  never blessed speaks "Melding cancelled."
+- Cursor staleness (proven twice): the cursor words are NOT
+  rewritten when a list opens or the filter flips — the display
+  re-bases to row 0 while the word keeps its old value. The
+  tracker holds a resync-pending state (row = 0) until the word
+  next changes; tab switches DO rewrite the word (to 0), so they
+  adopt immediately. Same family as the deck editor's
+  post-deck-switch seed.
+- The decks sub word (+0x126) CHURNS under this screen (0, 1,
+  2231, 2360, 2449, 49024, 35520 all observed) and a plausible
+  churn value used to corrupt the tracker into announcing the
+  Edit Deck submenu row for the whole visit. The meld branch
+  outranks the decks cascade while the pane is up, never reads
+  the sub word, and hands back a freshly seeded DecksSub on
+  exit.
+
+Row construction (run 6 photographed all 156 All-tab rows;
+run 7 measured every tab by its wrap word): the pool's deck
+commands (family 2) WITHOUT the item stacks (sub 3 never
+appears), plus the action commands (family 3, which the pool
+also holds — 13 instances the deck inventory's family-2 filter
+never sees). Family 2 orders by def id; family 3 orders by the
+def table's menu-order byte (+7) — Slide (def 243, order 19)
+sits after Sonic Impact (def 258, order 15). Tabs: All = 147
+commands + the nine Synthesis crystals appended as rows
+147-155 (Shimmering, Fleeting, Pulsing, Wellspring, Soothing,
+Hungry, Abounding, Chaos, Secret Gem — names from the static
+item-name block at 0x08DFA106+; their stack counts are painted
+from a store that was not located, so counts are not spoken);
+Attacks (sub 1) = 56; Magic (sub 2) = 65; Friendship (subs
+12+13) = 13; Movement (family 3 sub 4) = 6; Defense (family 3
+sub 5) = 5; Reprisals (family 3 sub 6) = 2; Synthesis = the
+nine crystals alone as a command-list tab (its rows set the
+item when picked, like the All tab's tail). The filter flag at
++0x163 is a u8 — the byte at +0x164 is 0xFF, so a u16 read
+there is always nonzero (run 8's first wiring read it as u16
+and every row fell back to the row number). Row text is
+the inventory's ("Fire Dash, level 4, with Combo Plus, 6 of
+156"); duplicate copies' abilities can permute between the
+pool order and the game's render order (observed on Quake and
+Dark Haze duplicates — the multiset per def always matches).
+
+Picks and refusals are INFERRED, because nothing in RAM records
+a commitment: the bench swept the heap band, the overlay BSS
+and every camp object for a picked def id / pool slot /
+instance pointer across the pick transition and found only
+render scratch, and the list's rows are never materialized as
+ids or pointers anywhere (two full-RAM scans). The mechanism
+used instead is the host's pad echo (adapter.h: Cross arrives
+as OskType, Circle as OskDelete, press edges only, both
+platforms): a Cross while a list is open is snapshotted (slot,
+tab, row); if the list then closes without a Circle, the pick
+is announced from the snapshot ("Slot 1: Fire Dash, level 4,
+with Combo Plus." — a crystal-tail row of the All tab announces
+as the Item pick instead, matching the game, which treats it
+as the item step's shortcut); if 50 tracker passes pass with
+the list still open, the press was refused and the tracker
+says so once ("That pair won't meld." in slot 2's list,
+"That's an item, not a command." on a crystal row, otherwise
+"That command can't be melded."). The result is read from the
+pool diff: the pool is snapshotted when the dialog opens, and
+when the completion flag rises, the slot that held an
+ingredient and now holds a different command names the result
+("Melding complete. Sonic Blade, level 1."). The NEW COMMAND
+preview's result is computed at render time and stored
+nowhere readable, so it is not announced at pair time. The
+result announcement is itself deferred: at the completion
+banner's first frame both ingredient slots still read empty —
+the created command is written into its slot a moment later
+(run 10's dumps) — so the tracker retries the diff over the
+following passes and only then falls back to the bare line.
+
+What remains silent, and why:
+- The usable-only filter's rows (TRIANGLE). For slot 2 the
+  filtered list is the first ingredient's valid partners —
+  recipe data the adapter does not carry — so filtered rows
+  speak as row numbers ("Row 4"), and a pick made from a
+  filtered list announces the slot without a name ("Slot 2
+  set.").
+- Crystal stack counts (see above).
+
+Host tests: 176 checks (the meld checks plant the pane/widget
+chain and the pool and drive entry, panel, list, pick, refusal,
+cancel, the echo-tracked dialog, completion, cancellation,
+Synthesis, filter fallback and exit). Live proof: bench run
+meld14 — a complete Fire Dash (Combo Plus) + Thunder
+Surge + Fleeting Crystal meld performed through the adapter
+with screenshots matched against every spoken line, including
+a spoken refusal on an action command in the Movement tab.
+The proof iterations caught three bugs the host tests could
+not: the u16 filter-flag read (run 8), the blink-word dialog
+cursor (runs 8/11), and a spurious refusal at the execute
+press (runs 12/13) — the meld execution itself raises the list
+phase bit with the glove at 3 (OK), so list rises are now
+gated on the glove sitting on a list row (0-2), and press
+snapshots carry their list-session id. All are fixed above.
+
 ## Lock-on foe readout — enemy actor FOUND (2026-10-19, battle32-41)
 
 - The FE Radiant Garden fight fields ONE enemy at a time (a Red
@@ -1381,3 +1516,1248 @@ on std = SYSTEM.DAT + saves and nosys = saves only).
   WhereAmI still names the slot list until the inventory cursor
   first moves — pre-existing, by-design (the word holds 0 under
   the list, so row 0 is indistinguishable until it moves).
+
+## Camp sub-screens WIRED + LIVE-VERIFIED (2026-10-24, khbbs-subcamp sub1-sub4)
+Question (completion-list follow-on): the camp main menu's other
+rows — Items, Abilities, D-Links, Stats, Reports, Config, Game
+Help — spoke only the item's name generically (Reports spoke the
+FIELD line; it kills the camp witnesses). What anchors each
+screen, where is its cursor, and where do its rows live?
+Bench: khbbs-subcamp (survey walks with RAM dumps + screenshots at
+every stop on the 100% fixture save), sub2 (deep dives), sub3
+(Config-only re-run), sub4 (live proof with the wired adapter).
+- THE SHAPE (universal): registry slot 6 holds the CURRENT
+  sub-screen object while one is open (0 on the main list). Each
+  screen object carries the standard identity (head 0xFFFFFFFF
+  @ +0x00, class tag @ +0x0C) with its own tag, and every screen's
+  list cursor sits at +0x66 — inline on the object (Stats, Game
+  Help, Reports) or on a child list widget the object points at
+  (Items, Abilities, D-Links, Config; the widget has its own
+  head/tag). Counts ride at the WIDGET's +0x6C, not +0x6A —
+  Abilities 29, D-Links 8, Config 9 (General) / 6 (Multiplayer).
+  The fixed lists (Items 2, Stats 3, Game Help 6) have no usable
+  count word. Objects relocate per rebuild as before; every read
+  follows the registry/pointer chain live.
+- ITEMS (obj tag 0x08B946C0; category widget via obj+0x260, tag
+  0x08B94790): two fixed rows — Equip, Stock (wraps). The deeper
+  lists stay open (see below).
+- ABILITIES (obj 0x08B8F720; widget via obj+0x7C, tag 0x08B8F7F0):
+  rows are 12-byte records at widget+0x80 — def id @ +0 (family 9,
+  names via the def table), group @ +2 low byte (0 Prizes,
+  1 Stats, 2 Support; the high byte flags each group's first
+  row), install capacity @ +4 (pips << 8), installed count @ +6.
+  29 rows on the fixture, zero-id terminated; the +0x6C count
+  agrees. Speech: "Treasure Magnet, 5 installed, 1 of 29".
+- D-LINKS (obj 0x08BB2960; cursor widget via obj+0x220, tag
+  0x08BB2A30): rows are 20-byte records at the OBJECT's +0x80,
+  def id @ +0 (family 7 sub 14, the 375..383 id set). Fixture:
+  Ventus, Aqua, Cinderella, Maleficent, Zack, Experiment 626,
+  Peter Pan, Pete (screen order, not id order), zero-terminated;
+  +0x6C count 8 agrees. A +0x0C record field reads 1 on all rows
+  (maybe the ON flag — unverified, not spoken).
+- STATS (obj 0x08BA8B00, cursor inline): three fixed rows —
+  Basic Stats, Command Styles, Finish Commands. The right pane
+  is display-only (no second cursor found).
+- CONFIG (obj 0x08B92910; widget via obj+0x7C, tag 0x08B929E0):
+  cursor wraps both ways. Two tabs (L/R, also flipped by a
+  d-pad RIGHT/LEFT in the bench walk); NO stable tab word
+  survives the switch (widget+0x300 is a one-frame transition
+  flag) — the count word names the tab (9 = General, 6 =
+  Multiplayer). General rows: Controls, Camera Up/Down, Camera
+  Left/Right, Command Deck, Maps, Color Depth, CPU Speed,
+  Install Data, Game Mode. Multiplayer rows: Nickname, Armor
+  Color, Room Selection, Room, Record Sharing, D-Link Sharing.
+  VALUES are NOT wired: an Install Data flip moved widget+0x170
+  (0->1->0) but a Camera Up/Down flip left no clean word;
+  values are the next hunt, along with the Multiplayer free
+  values (nickname text, armor RGB percentages).
+- GAME HELP (obj 0x08BB4CD8, cursor inline): six fixed topics —
+  Command Deck, Action Commands, Dimension Links, Adaptive
+  Combat, Mirage Arena, Sticker Album. The right pane lists the
+  topic's articles but takes no focus (RIGHT does nothing);
+  article text screens are a deeper, unprobed level.
+- REPORTS — its own module, its own anchor. While Reports is
+  open the camp witnesses are dead (witB 0) and the registry
+  reads 0xFFFFFFFF-filled (the camp heap arena is released), so
+  the pre-fix adapter fell through to the field line. Reports
+  builds its screen object (head 0xFFFFFFFF, tag 0x08B8E2F0,
+  cursor inline @ +0x66, count @ +0x6A = 9) in its own heap, and
+  a STATIC cell at 0x0991C214 names it: 0 in the field, on the
+  main list and inside every other camp screen; the object
+  pointer inside Reports, stable across two opposite dive
+  histories (Reports first vs fifth). Nine fixed categories:
+  Story, Secret Reports, Game Records, Character Files, The
+  Unversed, Ice Cream Guide, Command Collection, Treasures,
+  Sticker Album. Open on an early save: whether locked
+  categories hide (the adapter trusts the count word + fixed
+  order) is unverified. Category contents are a deeper level.
+- COMMAND BOARD is not a camp sub-screen: it leaves camp
+  entirely to the board game's own title (New Game / Continue /
+  How to Play); witnesses die and it stays "not mapped yet".
+- ADAPTER: CampSubObj(tag) / CampSubWidget(obj, off, tag)
+  locators + ReportsObj(); CampTrack names Reports when the
+  witnesses are dead and each sub-screen by its slot-6 tag
+  before the decks demotion; CampRowFor/CampWhere resolve rows
+  live per screen and fall back to the item name on frames that
+  do not resolve (the pre-hunt behaviour). Speech gates widened
+  with ReportsUp() (WhereAmI, MenuNav, on-frame tracking, Hub
+  Guide, foe/lock/self queries, the beacon cue feed) so the
+  field stays quiet while Reports is up.
+- HOST TESTS: 155 checks (was 140): +15 plants covering every
+  screen's WhereAmI/nav lines, the Config tab swap, an
+  unresolvable-widget fallback, Reports beating the stale title
+  plant with dead witnesses, and the return to the main list.
+  Test-strength floor for this file raised 141 -> 156 sites.
+  Full adapter suite green.
+- LIVE (sub4, std fixture): field line intact before camp; every
+  screen above spoken with screenshot-matched rows while
+  walking (see ~/khbbs-scan/subcamp/NOTES.md for the transcript).
+  Not pushed.
+- STILL OPEN from this hunt: the Items deep lists. Equip is a
+  keyblade picker (equipped blade boxed on top, owned list
+  below) whose cursor matched NO exact-sequence hunt — the
+  selection is likely stored as an id/pointer, not an index.
+  Stock is a two-column item grid: a cursor word exists
+  (widget 0x0992D200+0x66 in sub2, tag 0x08B97648, stepping
+  0,2,4,6 per DOWN; reached via Items obj+0x268 -> object tag
+  0x08B97578 -> its +0x80), but item names are NOT in the def
+  table, so contents need the game's separate item table.
+
+## Low-health warning — WIRED + LIVE-VERIFIED (2026-10-24, khbbs-lowhp1 + khbbs-lowhp-live)
+
+The adapter now says "Low health." once when the player's HP
+falls into the danger zone. The trigger is the GAME'S OWN
+criterion, proven three ways:
+
+- Decomp: FUN_089327e8 — the per-actor HUD update the old
+  CWCheat "Infinite HP" code led to (see PLAYER HP — CROWNED) —
+  boosts the HP gauge's presentation byte exactly when
+  `(cur * 100) / max < 26` (integer math on signed shorts) AND a
+  second gate passes: FUN_089326a8(actor, 0x1bf), a status-byte
+  lookup whose table (0x08B3492B, 0x10-byte entries, entry byte =
+  slot) gives slot 23 for id 0x1bf, i.e. the byte at actor+0x39A.
+  The boost writes base+4 to actor+0x5F1 and hands it to the HUD
+  object at actor+0x58. (Decompiled 2026-10-24 for this item;
+  log ~/khbbs-scan/decomp-326a8.log.)
+- Bench khbbs-lowhp1 (battle30 fight state; Aqua, max HP 149,
+  the gate byte reads 1 in normal play): cur HP pinned down a
+  staircase — actor+0x5F1 read 49 at EVERY step at or above the
+  line (149/121/75/47/40/39) and 53 (base+4) at EVERY step below
+  it (38/30/20/10/5), flipping between cur 39 (26%) and cur 38
+  (25%), exactly the decomp's boundary, and back to 49 on heal.
+- The gauge itself: the HP arc around the portrait depletes
+  with HP, and in the low state it pulses — a/b screenshot pairs
+  9 frames apart at 3% HP differ in ~5,851 corner pixels vs
+  ~500 of background motion at healthy HP.
+
+The adapter computes the fraction with the game's own
+arithmetic rather than reading +0x5F1: turning that byte into a
+boolean would need its un-boosted base, which lives in a global
+object the adapter does not locate. The game's second gate (the
+actor+0x39A status byte) is not replicated either — it read 1
+throughout normal play, and the fraction alone matched the
+presentation at every probed step.
+
+Latch design (adapter-side, on top of the game's line):
+speak once on entering pct < 26; stay silent while low; re-arm
+only at pct >= 31 (five points of hysteresis, so a heal landing
+just over the line plus one small hit cannot toggle it). The
+latch is keyed to (actor base, max HP), so a new boot, save, or
+character re-arms it; it survives leaving and re-entering the
+field (door transitions at low HP do not re-warn). The watch
+runs only while the field actor is live (InField, the same gate
+as field speech): title, difficulty, and cutscene flows never
+reach it. The camp menu and Reports sit on the field with live
+HP words, so the spoken line additionally requires both closed;
+the latch still tracks under a menu (a potion used in camp
+re-arms silently), and a drop first noticed under a menu latches
+silently rather than firing late on menu exit. Death is the
+game-over item's territory: ActorPlausible already rejects
+cur HP 0, so the field gate drops at death, and a defensive
+cur == 0 branch clears the latch without speaking. The line is
+High priority — the latch and re-arm gap already make chatter
+impossible, and High keeps a re-armed warning from being
+swallowed by the consecutive-identical-line dedup.
+
+Proof: 12 new host checks (188 total, floor raised 177 -> 189)
+cover the exact boundary (52/200 = 26% silent, 51/200 = 25%
+speaks), enter-once, deeper-damage silence, shallow-heal
+hysteresis (30% does not re-arm), re-arm at 31% and a second
+warning, death silence, post-death recovery, and camp-menu
+silence with no late firing. Live run khbbs-lowhp-live (the
+real adapter on the battle30 fight, HP pinned per frame):
+silent at 121 (81%), one "Low health." at 38 (25%), silent at
+15, silent through a heal to 44 (29%) and a second drop to 38,
+then a second "Low health." after healing to 47 (31%) and
+dropping to 38 again — exactly two speech lines in the whole
+run, both the warning; screenshots match the HP at each step
+(~/khbbs-scan/lowhp-live/).
+
+Limits: live-probed on Aqua's lineage only (battle30/battleFE
+family). The fraction is character-independent integer math on
+the crowned HP words, and the decomp test is per-actor generic
+code, so Terra/Ventus are expected to behave identically — but
+their gauges were not separately probed. The alarm SOUND the
+game plays in the low state was not isolated (the bench does
+not record audio); the warning keys on the visual/code state,
+not the beep.
+
+## Game-over menu — MAPPED + WIRED + LIVE-VERIFIED (2026-10-24, bench go1/go2/go3/go-dbg + khbbs-menus-live)
+
+Death in the field fades to a three-row menu over the fallen
+character: **Continue / Retry / Load Game**. There is no
+separate "GAME OVER" splash — the menu over the body on black
+is the first interactive screen. Speech now: on arrival
+"Game over. <row>, N of 3." (the opening row is read live — it
+was Continue in this session's deaths, but an older capture
+showed the highlight on Load Game, and this doc already
+recorded that the opening position varies), nav echoes of the
+landed row, and WhereAmI in the same arrival form.
+
+Mapping (khbbs-go1..go3, battle30 fight state, Aqua vs Red Hot
+Chili, cur HP pinned to 1): death at frame 318, deterministic
+across four runs, with and without the adapter attached; the
+menu is fully up at death +394 (frame 712). The rows live in a
+small list object (at 0x099BC5A0 on this lineage):
+
+    +0x00 u16 0xFFFF   +0x02 u16 0xFFF8   +0x04 u16 0
+    +0x06 u16 CURSOR   +0x08 u16 0        +0x0A u16 COUNT (3)
+
+The cursor word is the UNIQUE exact match over 24 MB of user
+RAM for the whole D-pad walk (DOWN x3, UP x3: 0,1,2,0,2,1,0 —
+it wraps both ways), and the six-word signature occurs exactly
+once in every menu dump and nowhere in fight, death,
+transition, hub, title, difficulty or camp dumps. The object
+sits inside the battle scene object (pointers to the scene
+object at +0 relative to it were chased: struct = scene +0x130),
+so its address can float per lineage: the adapter locates it by
+signature scan, unique hit only.
+
+The gate is a conjunction, because the object is NOT freed
+when the menu closes — the signature still reads perfectly on
+the world map after Continue and under the Load screen:
+
+- the corpse witness: the player actor still reads dead (cur
+  HP 0, state word 15) at the last base where it verified
+  alive. InField() keeps that base current (g_lastActorBase);
+  the witness re-reads it live every frame instead of latching
+  "he died" on the frame the field gate drops — the first
+  live run missed the menu outright on that single-frame race
+  (the HP and state words do not necessarily land together).
+  After Continue the struct is freed (state reads 0); after
+  Retry the same base is alive at full HP.
+- the overlay fields: two fields of the same object, at +0x14
+  and +0x16, read 0 in all seven menu dumps (five boots) and
+  non-zero whenever another screen owns the display: 14 and 2
+  under the Load screen, 5 and 2 on the world map. (A third
+  word corroborates: +0x12 reads 1279 in every menu dump,
+  4607 under the Load screen, 5120 on the world map.)
+
+The death fade stays silent: the object is not built yet, so
+the scan finds nothing.
+
+FALSIFIED WITNESS, do not re-crown: three words at
+0x099FB41A4/B4/214 read 16 in every game-over menu dump of the
+go1/go3 sessions and 17 in their fight/world-map/load dumps —
+a perfect-looking module-state gate. khbbs-go-dbg (same
+lineage, same menu, live session instrumented at menu time)
+read 0 at all three. They were lineage-session junk that
+happened to correlate across the dump sessions; the in-object
+overlay fields above are the witnesses that survived a live
+session.
+
+Outcomes, each driven live (go2, go3, go-dbg):
+- Retry: the fight restarts in place at full HP with the SAME
+  actor base (state 28 respawn transition, then state 1
+  fighting; the signature is gone — the area is rebuilt).
+- Continue: abandons to the world map (world ids 06 -> 17),
+  the glider parked inside Radiant Garden's ring, the actor
+  struct freed.
+- Load Game: the game's own Load screen (slot list, Cross =
+  Enter, Circle = Back) opens OVER the still-drawn game-over
+  menu; the corpse and the signature both persist under it,
+  which is what the overlay fields exist to separate. Speech
+  for the Load screen itself is separate work (not wired).
+
+The arrival edge is debounced: the first working live run
+proved the gate drops for a frame or two during a cursor move
+(the arrival line re-fired mid-menu, ahead of the nav echo),
+so a rise speaks only after the gate was down for 30+ frames;
+a Load-screen round trip (hundreds of frames) still
+re-announces on return, which is also how backing out of the
+Load screen behaves.
+
+Proof: 15 new host checks (game-over share of the 214 total,
+floor 215 sites) cover arrival, no-repeat, the flicker
+knockout, nav echoes, WhereAmI, ready, and one knockout per
+witness (no death, signature absent mid-fade, Load-screen
+overlay values, freed actor, wrong count). Live run
+khbbs-menus-live mode=go (real adapter on the fight state):
+one "Low health." at frame 121 (the pin held her at 1 HP
+alive — the warning working as designed), death at 318,
+silence through the fade, "Game over. Continue, 1 of 3." at
+frame 712 (the exact frame the menu completed), WhereAmI in
+kind, single echoes "Retry, 2 of 3." / "Load Game, 3 of 3." /
+"Retry, 2 of 3." matched to screenshots, then Retry restarted
+the fight (141/149 after 600 frames of combat) with no
+further speech (~/khbbs-scan/live-go/).
+
+Limits: mapped and proven on the Final Episode lineage
+(Aqua, Radiant Garden field fight) only. Deaths in other
+contexts (boss/story fights, the tutorial, other worlds) were
+not driven; the gate fails closed wherever its witnesses do
+not verify, so an unproven lineage gets silence, not wrong
+speech. If the adapter is attached only after the actor is
+already dead (never seen alive), the corpse witness has no
+base and the menu stays silent for that death. Load Game's
+deeper flow (choosing a slot, its confirmations) is unmapped,
+as is the Load screen's own speech.
+
+## Movie pause menu — MAPPED + WIRED + LIVE-VERIFIED (2026-10-24, bench mp1/mp3/mp4 + khbbs-menus-live)
+
+START during an in-game scene pauses it: a "PAUSE" menu with
+**Resume / Skip Scene**, opening on Resume, wrapping both
+ways. Speech now: on arrival "Paused. <row>, N of 2.", nav
+echoes, and WhereAmI in the same form.
+
+First, a negative: the OPENING MOVIE (cold boot, before the
+title) has no pause menu at all — mp1 proved START skips it
+outright (flow phase 2 -> 3, title fade). The pause menu
+exists only on in-game scenes. The mapped instance is the
+Final Episode's Radiant Garden story scene (Terranort),
+reached by loading the FE save, visiting from the world map,
+and pausing once the scene plays; the prologue scene's menu
+is the same one the New Game flow notes describe (the doc's
+earlier START -> DOWN -> Cross skip), but the prologue itself
+was not re-driven for this wiring.
+
+The menu's words are statics in the menu-system area:
+
+    cursor u16 @ 0x09918D76    count u16 @ 0x09918D7A (2)
+    word   u16 @ 0x09918D82    word  u16 @ 0x09918D84
+
+The cursor word is the unique exact match for the pause walk
+(0,1,0,1,1 across arrival, DOWN, DOWN-wrap, UP-wrap, idle).
+The count word alone is NOT the gate: it reads 2 while the
+scene plays unpaused once the object exists, and keeps
+reading 2 after Resume. The two state words carry the gate —
+1024 and 255 in every paused dump; 5120-5121 and 5 in the
+scene playing, the visit dialog, the world map, the fight,
+the game-over menu, and after resuming. Other lineages read
+unrelated junk at all four words (camp, title, hub,
+difficulty dumps), which fails the conjunction and stays
+silent; the stale game-over signature can also be sitting in
+RAM during a scene (same session, earlier death) without
+interfering — the two gates share no witness.
+
+Outcomes (mp4, deterministic single choices read off the
+live cursor word — an earlier blind two-UPs "resume" in mp3
+actually wrapped the 2-row menu back to Skip Scene, which is
+why these runs assert the cursor from RAM before confirming):
+- Resume: the menu closes (state words back to 5120/5) and
+  the scene plays on — proven by pausing AGAIN: a second
+  START re-opened the same menu over a later scene frame.
+- Skip Scene: the scene ends at once, no confirmation
+  sub-dialog (gate words already closed 45 frames after the
+  confirm), into field control in Central Square at full HP,
+  with the fight the scene was introducing starting
+  (INFORMATION banner, Terranort across the square; the
+  field actor is back at 0x09980B10, state 28 -> fight).
+
+Proof: 11 new host checks (movie-pause share of the 214
+total) cover arrival, no-repeat, nav echoes, WhereAmI, ready,
+the unpaused-scene look-alike (count lingering at 2 with the
+playing state words), and one knockout per witness (missing
+count, missing 1024 word, cursor out of range). Live run
+khbbs-menus-live mode=mp (real adapter, FE save parked at
+Radiant Garden): silence through the scene, "Paused. Resume,
+1 of 2." on START, WhereAmI in kind, echoes "Skip Scene, 2 of
+2." / "Resume, 1 of 2.", Resume, a second "Paused. Resume, 1
+of 2." on the re-pause, then Skip Scene landed in the plaza
+fight (screenshot: boss battle under way) — 6 pause lines,
+all matched to screenshots (~/khbbs-scan/live-mp/). The run
+also recorded one unrelated "Low health." as the visit
+dialog opened — see the side-finding below.
+
+Limits: proven on the Final Episode story scene only;
+pausing other scenes (prologue, mid-world story scenes,
+other episodes) uses the same menu per the game's design
+and the New Game flow notes, but was not re-driven here.
+The opening movie has no pause (START skips it), so nothing
+speaks there by design.
+
+Side-finding (pre-existing, observed 2026-10-24, NOT changed
+by this work): on the Final Episode world map the adapter
+locates a plausible field actor — Aqua at the save's 1 HP —
+so the low-health warning fires once there (mp run, frame
+68, as the visit dialog opened). The warning is right about
+her HP; the field gate is simply loose on the world map (the
+glider-side actor passes the field fingerprints). Recorded
+here so a future world-map pass can decide whether the
+warning should be field-only in fact as well as in name.
+
+## World map — MAPPED + WIRED + LIVE-VERIFIED (2026-10-24, bench wm1 + khbbs-wm-live); the movie-pause side-finding CLOSED
+
+The world map is world 0x11, room 1 in the map-id space: a
+star map the player flies with the analog stick (the
+character's Keyblade glider). The D-pad does nothing on the
+map itself. Flying into a world's ring selects it — the
+banner shows the world's name, COMBAT LV, TREASURES % (and
+a NEW marker) — Triangle opens the visit dialog there, and
+START opens the map's own pause menu. Reached from a save
+point's World Map row, from game-over Continue, and when
+finishing or leaving worlds.
+
+Speech now: on arrival "World map." (plus the selected
+world's name when arriving parked in a ring: "World map.
+Radiant Garden."), selection changes speak the world's name
+alone ("Radiant Garden."), WhereAmI gives the same map form,
+the visit dialog speaks its arrival ("Visit Radiant Garden?
+Leave, 2 of 2.") and nav echoes, and the map's pause speaks
+"Paused. <row>, N of 3." with echoes and WhereAmI in kind.
+
+Witnesses, proven on two lineages (a Final Episode save
+parked at Radiant Garden, mp-park.ppst; the 100% fixture's
+Terra parked at Mirage Arena, battle19/end.ppst), driven by
+hand in bench wm1 with a screenshot and full-RAM dump at
+every step:
+
+- **The session witness**: BOTH map-id copies
+  (0x08B61CA0 / 0x08B759C0) hold world 17, room 1 for the
+  WHOLE map session — parked, in flight (sel 0), with the
+  visit dialog open, with the pause open, in transit. That
+  conjunction is OnWorldMap(), and it is also the field
+  gate's new exclusion (below).
+- **Selected world**: u32 @ 0x099658C0, low byte the world
+  id (upper bytes read 0 in every dump) — 6 parked at
+  Radiant Garden, 15 at Mirage Arena, 0 in open space.
+  Reconfirms the word the 2026-10-18 hunts first read.
+  Flight facts: one 30-frame full-stick burst exits a ring;
+  after a burst the glider COASTS straight (the odometer
+  kept growing ~1/frame over 2400 idle frames), so leaving
+  is easy and re-entry needs reverse bursts with per-burst
+  sel polling. The world does NOT pause under the visit
+  dialog (odometer grows) but DOES freeze under the pause.
+- **The visit dialog**: rows **Visit This World / Leave**,
+  cursor STARTS on Leave, D-pad wraps, Circle backs out
+  (dialog closes, still parked in the ring), choosing Leave
+  closes it, choosing Visit This World leaves the map for
+  that world (FE: into the Terranort scene; fixture: into
+  the Mirage Arena Hub). The dialog's list object RELOCATES
+  per open and persists after close — the game-over object's
+  family. First FE open at 0x0999FD90, second at 0x0999FD10;
+  fixture at 0x099A11F0 then 0x099A1170. Locator (the
+  game-over method): unique signature scan for u16s
+  [+0]=0xE7FF, [+2]=0xFFF8, [+4]=0, [+6]=cursor<2,
+  [+8]=prev<2, [+0xA]=count==2 — exactly one hit in every
+  dialog dump, zero hits in park dumps before the first
+  open. ACTIVE witness: bit 28 of the u32 @ obj+0x10 is
+  clear only while the dialog is open (u16 @ +0x12 reads
+  0x04 open, 0x14 closed; nine dumps, both lineages). Row:
+  cursor @ obj+6. False-positive check: a stale count-2
+  list object in battle37 field dumps (0x099193F0) reads
+  head 0xFDFF and its active bit set — excluded twice over.
+  One live wart, fixed: the gate drops for a few frames
+  during a cursor move, so the arrival edge is debounced
+  (speaks only after 30+ frames down), the game-over
+  pattern — khbbs-wm-live's first run re-fired the arrival
+  line ahead of both nav echoes; the second run is clean.
+- **The map's pause menu**: **Resume / Open Menu / Save**,
+  opens on Resume, wraps both ways — on the SAME menu-system
+  statics as the movie pause (cursor u16 @ 0x09918D76,
+  count u16 @ 0x09918D7A == 3, state words 1024 @
+  0x09918D82 and 255 @ 0x09918D84 while open; closed reads
+  5120/5 with the count lingering at 3). An old battle19
+  dump's w82=1060 reading was superseded: controlled dumps
+  on both lineages read 1024. The movie-pause gate requires
+  count 2, so the two never cross-fire. Choosing Open Menu
+  opens the camp menu (camp's own speech owns the screen;
+  the InField exclusion does not disturb it — camp is
+  checked before the field everywhere). Choosing Save opens
+  the save screen (its speech is the save/load item's job).
+
+**The field-gate fix (the side-finding above, closed).**
+InField() now returns false when both map-id copies read
+17/1, ahead of the actor cache and the sweep. On the map
+this keeps the glider-side actor from passing the field
+fingerprints, so: the low-HP warning stays silent there,
+WhereAmI/foe/lock queries no longer produce the field form,
+the beacon feed refuses, and g_lastActorBase is no longer
+clobbered on the map — the game-over gate's corpse witness
+now survives a Continue (death -> map -> visit) untouched.
+
+**Proof.** 28 new host checks (242 total, floor 243):
+arrival in open space and parked on a world, no-repeat,
+selection changes with a 6-frame confirmation (a two-frame
+graze stays silent), leaving a ring stays silent, WhereAmI
+forms, **the low-HP pair — a plausible actor at 1 HP is
+silent on the map and warns in a real field with the same
+plant**, the visit dialog (arrival on Leave, echoes,
+WhereAmI, the closed-lingering object, the 0xFDFF
+look-alike, relocation adoption, the three-frame flicker
+debounce), the map pause (arrival, echoes, WhereAmI,
+closed-with-lingering-count, and the same statics off the
+map staying silent). Live run khbbs-wm-live mode=wm (real
+adapter, FE save parked at Radiant Garden at 1 HP): 11
+speech lines, all matched to screenshots
+(~/khbbs-scan/wmlive-wm2/) — arrival, WhereAmI, dialog
+arrival and both echoes, Circle out in silence, pause
+arrival and both echoes, paused WhereAmI, Resume, fly out
+in silence, fly back in to a spoken "Radiant Garden.", and
+**zero "Low health." lines in the whole run** — the exact
+spot the old code fired it once (mp run, frame 68). Mode=hp
+(the battle30 field fight) re-proves the other side against
+the new build: pin to 38 (25%) speaks it once, deeper
+damage stays silent, heal and re-pin speaks it a second
+time — 2 lines, as designed.
+
+**Limits.**
+- **No "N of M" for selections.** The selectable set is
+  campaign state and no live witness for it could be
+  crowned: heap stride scans found no materialized node
+  table in any map dump; a differential of the two lineages'
+  runtime save blocks (0x09F00000-0x09F30000, complete vs
+  fresh) was far too noisy to crown a flag array (candidates
+  near 0x09F252CC-0x09F25464 are other progress data,
+  unproven); the loaded map module's image (KEYBLADE_RIDE,
+  single PT_LOAD at 0x08B8BF10) held one clean stride-8
+  world-id sequence [1,2,3,4,5,6,8,9,10,11,12,13] at
+  0x08B94890 that is a RED HERRING — (id, string-pointer)
+  pairs for a trigger/trophy table (adjacent ASCII
+  "tr_wi_KG:0", "tr_wi_LE:0", "trofy_00"); and a
+  node-position scan (world id followed by plausible floats
+  at strides 16-96) over RAM and the module found nothing.
+  Membership questions also stay open (Land of Departure
+  and Command Board as map nodes are unverified). Selection
+  speech is therefore the world's name alone — read live
+  from the selection word — rather than a position from a
+  hardcoded list. A future pass could try a time-boxed
+  Ghidra hunt of the map module for the node-visibility
+  test.
+- The COMBAT LV / TREASURES % banner values are not spoken
+  (never hunted).
+- Proven on the Final Episode and fixture-Terra lineages;
+  mid-campaign saves with fewer worlds unlocked were not
+  driven (their selection speech reads the same live word,
+  so names will be right; nothing here depends on the
+  unlocked count).
+- Choosing Visit This World was resolved live in earlier
+  sessions (both lineages) rather than in the wm-live tape,
+  which backs out with Circle to keep the run on the map;
+  the tape's dialog walk covers open, both rows, and the
+  back-out.
+
+## Save / load screens — MAPPED + WIRED + LIVE-VERIFIED (2026-10-24, bench sl1-sl9)
+
+The Save and Load screens are NOT game UI. They are the PSP
+firmware's savedata utility dialog (sceUtilitySavedata in its
+LIST modes — LISTLOAD 4, LISTSAVE 5), rendered host-side by the
+emulator. Entered from four places: the save point's menu and
+the world map's Start pause (Save); the title's Continue and
+the game-over menu's Load Game row (Load, over the menu — the
+game-over section's overlay fields, 14/2 under it, are what
+keep that menu's gate down while the dialog owns the screen).
+Everything below follows from the dialog being the firmware's:
+
+- **The live selection is a host-side variable.** An 18-dump
+  walk of the open dialog (idle-pair controls, exact-sequence
+  matching, equal-iff-same-index pattern matching over the
+  full 32 MB) found ZERO guest words that move with the
+  selection; dumps with different selections differ only in
+  the animated field behind the dialog plus one timer byte.
+  PPSSPP's source agrees (`currentSelectedSave` is a C++
+  member of PSPSaveDialog). The cursor is therefore
+  ECHO-TRACKED — the meld confirm dialog's precedent — seeded
+  at arrival (below) and moved by MenuNext/MenuPrev echoes.
+  The dialog's list CLAMPS at both ends, never wraps
+  (PSPSaveDialog::DisplaySaveList), and the tracker clamps
+  identically, so echo counting cannot drift.
+- **A slot's stored details never enter guest RAM.** The
+  dialog reads each slot's PARAM.SFO from the memory stick,
+  host-side (character, location, "LV 99 999999 munny",
+  "Play Time 76:03", date, size — all screenshot-captured).
+  The one SFO block in RAM (wide strings at 0x09FFEB60:
+  title / subtitle / detail) is the CURRENT session's save
+  template — what a new save would write — identical at every
+  selection (its Play Time runs one minute ahead of the
+  stored slot's). It must never be spoken as a slot's
+  contents. SAVEDATA.DAT files are encrypted on the stick and
+  their plaintext for OTHER slots is nowhere in RAM; the
+  game's own dir enumeration does not exist (no dirent
+  buffers). So rows speak the slot's NUMBER and position
+  only, and occupied-vs-empty is unknowable — which forces
+  the overwrite-confirm design below.
+- **The sub-states have no RAM signature either.** Confirm
+  dumps differ from list and done dumps in no stable word;
+  the "Saving" / "Save completed" strings appear nowhere in
+  RAM while on screen. Sub-state is echo-tracked like the
+  cursor.
+
+### The gate
+
+Two witnesses, each covering the other's failure mode:
+
+- Work-area words u32 @ 0x09FFF5C4 / 0x09FFF5C8 (the utility
+  dialog's fixed arena at the top of RAM): the same pointer
+  values in all 5 open samples (both modes, three lineages,
+  four routes), 0 in all 6 closed samples (field, save-point
+  menu, title, camp, world map, title after backing out).
+  They LINGER at open values briefly after a load completes
+  (one capture has the field already resumed) — a pre-check,
+  never the proof.
+- The game's SceUtilitySavedataParam block, by signature:
+  size u32 == 0x600, gameName "ULUS10505" @ +0x3C, fileName
+  "SAVEDATA.DAT" @ +0x64, mode 4/5 @ +0x30. Exactly one hit
+  in every open dump, none in any no-dialog dump — but the
+  block LINGERS, fully formed, after a LOAD session closes
+  (its result word @ +0x1C then reads 1 for cancel, 0 for
+  success; after SAVE sessions the block is gone). Arena AND
+  param together are the gate; the block's address is found
+  by scan on the rise and cached (it relocates per lineage:
+  0x09943ED0 / 0x0994A220 / 0x099766A0 / 0x09941420 observed).
+
+From the block: mode (+0x30), the slot-name list pointer
+(+0x60; 20-byte names counted until an empty entry — 200
+names, "0000".."0199", so positions speak as "Slot N of
+200"), the focus request (+0x5C8) and focus name (+0x4C).
+
+### Arrival focus (PPSSPP InitStart, replicated where possible)
+
+- FOCUS_NAME (both save routes): the index of the focus
+  name in the list, else 0. Hub session: name empty → slot
+  1. World-map Final Episode session: name "0003" → slot 4,
+  announced live as "Slot 4 of 200, current save."
+- FOCUS_FIRSTLIST → 0; FOCUS_LASTLIST → last. (Not used by
+  this game; implemented from the same source.)
+- FOCUS_LATEST (both load routes): the most recently
+  modified save — a memory-stick fact the guest never sees.
+  The tracker opens UNSEEDED: arrival is "Load." alone, nav
+  echoes narrow a possible range with the same clamp, and
+  rows speak only once the range collapses to one slot.
+  Nothing is announced from an unproven position.
+
+### The flows, frame-verified
+
+- Save, empty slot: Cross goes straight to the write;
+  "Saving. Please Wait..." shows for only a few frames
+  (the write of ~72 KB is fast), then "Save completed",
+  dismissed with Circle only. Lands back on the menu the
+  dialog came from (save-point menu; map pause — still open,
+  cursor still on Save).
+- Save, occupied slot: Cross asks "Do you want to overwrite
+  the data?" with NO focused (the safe default).
+  Left/Right move (Left at No → Yes; Right at Yes → No);
+  Cross answers; Circle or No returns to the LIST (the
+  dialog does not exit). Yes runs the write as above.
+- Load: Cross on a slot starts at once ("Loading. Please
+  Wait..." ~120 frames on the slow lineage), then "Load
+  completed", dismissed with Circle OR Cross. The game
+  then loads: from the title, gameplay resumes at the
+  loaded save's position (Terra's Hub save → standing on
+  the Hub save point, (0, -43), full health); from
+  game-over, the same — the fight is abandoned for the
+  loaded save's field. (Cross-dismiss is bench-proven at
+  every "Load completed"; Circle also dismisses it per
+  the dialog source but was not separately driven.)
+- Load, empty slot (source-derived, not bench-driven):
+  the load fails ("Load failed — The data is corrupted.")
+  and Circle there returns to the list.
+- Circle in either list cancels the dialog (result 1) back
+  to the calling screen; from game-over's Load, the menu
+  underneath re-announces on return (its own debounce).
+
+### Real saves and loads, driven (the bench firsts)
+
+Backup before touching anything:
+~/khbbs-scan/savedata-backup-20261024-saveload/ (full
+SAVEDATA tree + SHA256SUMS.txt, byte-verified against the
+stick). The savestate-restored lineage writes fine here
+(the MK bench's no-write trap does not apply to this game):
+
+- sl5 (Hub save point): saved into the first empty slot —
+  new directory ULUS105050004 appeared (ICON0/PARAM.SFO/
+  PIC1/SAVEDATA.DAT); its PARAM.SFO detail reads Terra /
+  Mirage Arena Hub / LV 99 / 999999 munny / Play Time 76:04,
+  the session's own data. ULUS10505/SYSTEM.DAT also updated
+  (the game's own bookkeeping).
+- sl6 (Hub): overwrote slot 1 through the confirm —
+  ULUS105050000/SAVEDATA.DAT sha256 a9645d26… → 24620114….
+  A second adapter-driven overwrite in sl9 changed it
+  again (→ 249b60e2…), and sl8b then LOADED that very file
+  back from a cold boot and resumed from it — the
+  write/read pair is closed.
+- sl8 (world map pause): saved the Final Episode session
+  into empty slot 6 — ULUS105050005 created (158 KB,
+  2026/10/24 10:25).
+- sl8b (cold boot, no savestate in the lineage): title →
+  Continue → load → field. sl7: death → game-over → Load
+  Game → load → field. Both completed end to end.
+
+### What's spoken (khbbs-sl7/sl8/sl8b/sl9 speech tapes)
+
+- Arrival: "Save." / "Load.", plus the seeded row when the
+  seed is provable ("Save. Slot 4 of 200, current save.").
+- Rows on nav echoes (change-only; clamped presses silent):
+  "Slot N of 200" (+ ", current save" on the session's own
+  named file in Save).
+- Overwrite confirm: "Overwrite this save? Yes." / "No."
+  as the choice moves; WhereAmI: "Save screen. Overwrite
+  this save? No." A first Cross in the save list announces
+  nothing — occupancy is unknowable, so the tracker waits:
+  a following Left proves the confirm (and speaks it); a
+  following Cross with Yes chosen speaks "Saving.", and
+  the dialog closing after a certain write speaks "Saved."
+  The indistinguishable pair — Cross, Cross (the No answer
+  returning to the list vs an empty slot's write starting)
+  — stays silent by design rather than guess, and the
+  screens around the dialog name where the player lands.
+- Load: "Loading." on the slot Cross; completion is the
+  loaded field's own speech, not a line of this screen's.
+- WhereAmI: "Save screen." / "Load screen." + row or
+  sub-state line. The branch precedes camp in both command
+  handlers — the camp witnesses are SET under this dialog
+  from the save point, and WhereAmI used to answer "Camp
+  menu." there; CampTrack is likewise skipped while the
+  dialog is up.
+
+Two tracker disciplines from the sl7 tape: (1) the press
+that OPENS the dialog can echo after the gate has risen —
+its game-over Cross both opened Load and, echoed late,
+started a phantom "Loading." — so echoes are ignored for
+the first 8 frames after seeding; (2) a dialog that closes
+and reopens inside the 30-frame arrival debounce re-seeds
+its tracker silently (only the announcement debounces).
+The dismiss timeout that separates "DONE screen waiting"
+from "failed transfer returned to the list" is 300 frames:
+sl7's real load took ~120, and a 90-frame timeout fired
+mid-load on the first tape.
+
+Side-fix on this flow's exit: the world map pause's word
+at 0x09918D84 reads 255 at a fresh open but settles at 4
+after the pause has hosted this dialog (sl4 cancel return
+and sl8 completed-save return alike; cursor, count and
+word 82 stay live). MapPauseUp now accepts both values —
+before the fix, WhereAmI on the still-open pause after a
+save answered "World map." The movie pause keeps the
+strict 255: no dialog opens over it.
+
+### Limits
+
+- Slot contents (character / location / level / munny /
+  play time) and occupied-vs-empty are not spoken — they
+  exist only host-side (proof above). The one exception is
+  the "current save" suffix, from the param's own focus
+  name.
+- The Load screen's opening slot is unprovable
+  (FOCUS_LATEST); rows begin once the position is certain.
+  A player who loads the focused save without navigating
+  hears "Load." and "Loading." only.
+- A direct Cross, Cross save (empty slot, no Left) gets
+  no "Saved." line — indistinguishable from answering No.
+  The write itself is unaffected.
+- The empty-slot load failure is source-derived
+  (PSPSaveDialog DS_LOAD_FAILED), not bench-driven: the
+  tracker's return-to-list path for it is host-tested.
+- The gate assumes the arena words are zero whenever no
+  utility dialog is up; a different utility dialog (the
+  boot INFORMATION dialog is a message dialog) opening
+  while a stale savedata param block lingers could in
+  principle false-open it — no such sequence exists in the
+  mapped flows (the boot dialog precedes any savedata
+  param), and the mode/name signature still has to match.
+- Proven on the fixture-Terra and Final Episode lineages;
+  the dialog is firmware, so other saves' sessions differ
+  only in the param's focus inputs, which are read live.
+
+## Cleared-save title + Trinity Archives — FIXED, MAPPED + WIRED + LIVE-VERIFIED (2026-10-24, bench arch1-arch8 + khbbs-arch6)
+
+### The cleared title's actual shape
+
+On a save with clear data (the darkstar-x97 fixture; the Final
+Episode save behaves the same) the title menu has FOUR rows:
+NEW GAME / CONTINUE / **TRINITY ARCHIVES** / INSTALL GAME.
+The count word reads 4 and the existing table already named
+the extra row, so at boot the old adapter spoke the cleared
+title correctly (arch6: "Title menu. New Game, 1 of 4.", full
+walk with wrap, screenshots matched). The standard title is
+unchanged: 3 rows on a fresh stick (arch6 fresh mode: the
+auto-save notice, then "No system data found... Proceed?"
+with the cursor starting on No — LEFT, CROSS — then the
+3-row title speaks and walks exactly as before).
+
+### ⛔ THE PHASE WORD IS A FLOW COUNTER, NOT A SCREEN ID
+
+The real defect was behind the Archives door. The title
+gate's phase word (u32 @ 0x09920CD0) does not identify the
+title screen — it COUNTS scene changes inside the title
+module (frame-logged across two full round trips, arch4/
+arch5/arch7):
+
+  3 = title from boot → 4 = Trinity Archives → 5 = title
+  again → 6 = Archives again → 7 = title → ...
+
+Odd phases are title instances; even phases >= 4 are
+Archives instances. The difficulty select consumes NO phase
+step (its round trip leaves the phase untouched). The old
+gate (phase == 3) therefore spoke the title at boot and then
+went silent FOREVER after a single Archives visit — every
+later title instance lives at phase 5, 7, 9, ...
+
+The gate now accepts any odd phase >= 3, and pays for the
+wider net with a no-world-loaded guard: both map-id bytes
+(u8 @ 0x08B61CA0 and u8 @ 0x08B759C0) must read the 0xFF
+no-map sentinel, as they do at every real title. That guard
+is what keeps the stale-but-valid title words that linger
+under a loaded field (proven to read cursor 1 / count 4 /
+submenu 0 / step 4 in the Hub) from ever speaking as a
+title: with a world loaded the title gate is closed, full
+stop. Gate proofs, both variants: host plants for phases
+3/5/7 speaking, phase 4 (title words planted) silent,
+phase 5 with a world loaded silent; live: arch6's returned
+title at phase 5 spoke "Title menu. New Game, 1 of 4." and
+opened the difficulty select (which read the shifted
+system-data object at 0x09922ED0 and spoke the live cursor,
+Standard Mode) and backed out to a speaking title again.
+
+One timing fact for drivers: after an Archives exit the
+title's fade-in step outlasts a fixed 400-frame wait (step
+read 3; the poll needed 530 frames in arch6). Poll the gate
+words; do not fixed-wait.
+
+### The Trinity Archives, mapped
+
+Top level (widget base 0x099214D0, stable across every cold
+boot driven): header u16 @ +0x00 = 0xDFFF, @ +0x02 = 0xFFF8,
+cursor u16 @ 0x099214D6, count u16 @ 0x099214DA == 5. Five
+rows, wrapping, each with a description line on screen:
+
+  Timeline ....... "See how the story connects together."
+  Theater ........ "Rewatch past cutscenes."
+  Game Stats ..... "See how far along you are in the game."
+  Trophies ....... "Browse the different trophies you have
+                   earned."
+  Secret Reports . "Read the secret writings you have
+                   uncovered."
+  (plus a COMPLETE 100% banner on the fixture)
+
+The child witness u32 @ 0x099214E4 is TWO fields, not a
+boolean (arch7 frame log): the HIGH half is the sub-state —
+0x0002 while any child is open (held ~50 frames while a
+child closes), 0x0006 for exactly two frames when the
+top-level cursor moves; the LOW half reads 0x0008 at the top
+after any child visit (0x0000 only before the first). "A
+child is open" is the high-half test. The first wiring's
+exact equalities (== 0 at the top, == 0x00020008 in a child)
+failed live both ways: silent after one child round trip,
+and a two-frame gate drop on every top-level cursor move
+that reset the arrival watcher and double-spoke every row.
+The top cursor stays parked on the open child's row, which
+is how the child gates know which child they are looking
+at.
+
+What each row opens (all five driven, screenshots matched):
+- Timeline: a story-segment chart (three character lanes,
+  world-medallion nodes, "Select a story segment.") opening
+  prose text pages (scroll, L/R pages, Triangle photo). Not
+  a list — NOT wired.
+- Theater: a plain list of six stories — Terra / Ventus /
+  Aqua / Final Episode / Where the Heart Goes / Blank
+  Points ("Select a cutscene."). WIRED. It shares the child
+  list widget at base 0x09927640 (header word @ +0x02 =
+  0xFFF8) with controller count u16 @ 0x09927704 == 6 and
+  cursor u16 @ 0x09927708. Selecting a story opens that
+  story's cutscene list — a deeper level, NOT wired
+  (playback pause is already covered by the movie-pause
+  work).
+- Game Stats: a static page (Combat / Mini-games / Story /
+  Item Collection percentages, total play time — 183:22:54
+  on the fixture). No cursor — NOT wired.
+- Trophies: an icon grid, glove cursor, no text labels at
+  this level — NOT wired.
+- Secret Reports: a text list. WIRED. Controller cluster
+  (arch7/arch8): cursor u16 @ 0x09927C18, previous @ +0x02
+  trailing exactly (12 at the wrap step), count u16 @
+  0x09927C20 read live, visible-window word u16 @
+  0x09927C22 == 10. ⛔ The arch5 addresses for this screen
+  (shared-widget cursor 0x09927646, controller 0x099276C8,
+  "last index" 0x099276D0) were a stale-widget misread —
+  arch6 proved those words junk while Reports was open.
+  The real list on the fixture has **13 rows: Xehanort's
+  Letter + Reports 1..12** — walked one slow tap at a time
+  with screenshots: Report 12 is the bottom row and the
+  next DOWN wraps to the Letter. The fixture simply holds
+  no Report 13; the count is read live and rows are named
+  by index (0 = Letter, i = Report i), so a fuller
+  collection speaks "Xehanort's Report 13, 14 of 14" by
+  construction. A sibling widget struct at 0x09927B96
+  mirrors the within-window cursor (pins at 9 while the
+  window scrolls) with a constant 14 at 0x09927B8C — noted,
+  not used. Bench-driving note: this list drops 4-frame
+  presses at ~49-frame intervals outright (arch6's first
+  walk never moved); 8-frame presses with long settles are
+  the reliable recipe (arch7/arch8).
+
+### What's spoken
+
+- Title, both variants, at every visit: "Title menu.
+  <row>, N of 4." (or "of 3"), nav echoes, wrap included.
+- Archives top level: arrival "Trinity Archives. <row>,
+  N of 5." after a 30-frame stable gate (children checked
+  first in the watcher, the same placement rule as the
+  other menus), WhereAmI "Trinity Archives. <row>, N of
+  5.", nav echoes; backing out of a child re-announces the
+  top level on its parked row.
+- Theater: arrival "Theater. <story>, N of 6.", WhereAmI
+  "Trinity Archives. Theater. <story>, N of 6.", nav
+  echoes with wrap.
+- Secret Reports: arrival "Secret Reports. <row>, N of
+  M.", WhereAmI "Trinity Archives. Secret Reports. <row>,
+  N of M.", nav echoes with wrap — N/M read live.
+- Backing out to the title re-speaks the title at its new
+  phase (the headline fix).
+
+Host tests: 304 checks (22 new: the phase-5/7 titles, the
+parity and loaded-map negatives, the top level at phases 4
+and 6, the witness-residue and move-pulse plants, the
+unmapped-child negative, Theater and Reports plants with
+wrong-count negatives, the split fingerprint-twins check);
+baseline floor 305 sites.
+
+### Limits
+
+- Fixed widget/controller addresses were proven on the
+  fixture profile across many cold boots; a different stick
+  profile was not driven into the Archives (the title-side
+  relocation precedent — the difficulty object moves on a
+  system-data profile — did not repeat here: the Archives
+  widget sat at 0x099214D0 on every boot of the only
+  cleared profile available).
+- Timeline, Game Stats and Trophies are documented, not
+  spoken (a chart, a static page, an unlabeled icon grid).
+  Theater's per-story cutscene lists (level 2) are mapped
+  as existing, not wired.
+- Report row names derive from the index; a collection
+  with a GAP (a middle report missing) was not driven —
+  whether the game files collected reports contiguously
+  or leaves holes is unproven, and the spoken numbers
+  would follow the list positions either way.
+- Install Game's own flow (and any phase steps it takes)
+  was deliberately not driven: it can write game data.
+
+## Mirage Arena event menu / g10vs00 — IDENTIFIED + WIRED + LIVE-VERIFIED (2026-10-24, bench g10–g10l)
+
+The Hub's one unidentified interactable is settled: `g10vs00`
+at (0, −5.50, 8.20) is the lobby's **Log In terminal** — the
+Mirage Arena's online event console, the big dark machine
+with the sloped control panel and the circular green
+holographic screen on the lobby's north side. Its own `.pmo`
+is a ~1 cm invisible cube (a pure logic fixture; the visible
+machine is room geometry), and OpenKH's object dictionary
+names it "Arena Entrance Device (VS)". The room's
+event-pattern variant spawns a second copy at (0.15, −6,
+9.10) without the save point/terminal/Moogle set — an event
+fixture for the same console.
+
+Bench proof (runs g10/g10b, screenshots are the ground
+truth): Terra clamps ~2.5 units out from the console on
+every side and the field command slot shows the prompt
+**"✕ Log In"**. Cross opens the **MIRAGE ARENA menu**:
+**New Event** (help "Host a new event.") / **Active Events
+— 0 event(s)** ("Show a list of existing events.") /
+**D-Links** ("View the players you can D-Link with.");
+footer MEDALS 99999 / ARENA LV 30. It opens on New Event
+and wraps both ways (D-pad walk with a RAM dump per row).
+One Circle exits to the field, the prompt re-arms, and a
+second Cross reopens deterministically; Triangle does
+nothing there. Controls: at the Moogle the prompt is
+"✕ Medals" and Cross opens the Medal Shop Buy list; at an
+empty platform spot the slot shows plain "✕ Attack" and
+Cross only swings. By-product observation for the
+arena-entry item: the centre terminal (`g11vs00` at (0,0))
+shows NO prompt and Cross attacks when stood on exactly,
+facing north — its interaction semantics belong to that
+item, not this one.
+
+NEW EVENT opens a mode list — **Versus Mode** (greyed
+while offline) / **Arena Mode** ("Join forces with other
+players against a common enemy. You can also choose to
+battle alone.") / **Command Board** / **Rumble Racing** —
+which is the arena-entry queue item's first screen: MAPPED
+here, deliberately NOT wired (below). Active Events and
+D-Links are no-ops with nobody in range; they would list
+other players' sessions, so their sub-lists cannot be
+exercised on this bench at all.
+
+### The gate — a widget with two homes, and a lingering twin
+
+The menu's widget (base = its screen word; cursor at
++0x0E, previous-row tell at +0x10, count at +0x12) exists
+in TWO homes with one layout:
+
+- **Home A @ 0x09919208** — fresh opens from the field
+  (statics in the menu-system block beside the camp
+  registry). The first open and every re-open land here.
+- **Home B @ 0x0991BCB8** — after choosing New Event and
+  backing out of the mode list, the returning menu is
+  REBUILT at B while A reads freed junk (52692/2272/…),
+  even though the menu is visibly up and navigable
+  (g10d's frame trace + g10e's returned-menu row dumps,
+  which track the cursor at B and nowhere else; proven
+  stable across both returns of g10f and again in g10l).
+
+The signature, identical at both homes: screen == 2,
++0x04 == 15, +0x08 == 0xDBFF, +0x0A == 0xFFF8, +0x0C == 0,
+count == 3, cursor < 3. Two conjunctions complete the
+gate:
+
+- **The menu-system active word** (u32 @ 0x08B5BEF8 == 8 —
+  the camp gate's witness A; this menu is built on the
+  same menu system). It is load-bearing: when the menu
+  closes after a mode-child trip, the home-B widget is
+  NEVER torn down — its block lingers with the signature
+  intact while the player walks the field (the g10c/g10f
+  end dumps match home B in the field) — and only the
+  active word (8 through every phase of the flow, 0 in the
+  Hub field before and after; g10k polled two full
+  open/dive/return/close cycles) separates "menu up" from
+  "menu gone, widget stale". Without it, post-close
+  WhereAmI answered with the menu line over the field.
+- **Camp excluded**: camp shares the active word, but its
+  witness B (u32 @ 0x08BD194C == 2) reads 0 throughout the
+  event flow, so `CampActive()` stays false here and the
+  event gate's `!CampActive()` term costs nothing live
+  while closing the camp coexistence hole by construction.
+
+On the mode child both homes fail (A reads zeros; B holds
+the child's own ghost with screen 3 and count 0), so the
+child stays silent and backing out re-announces the top
+menu. One opening transient is worth knowing: the
+widget's +0x0C word reads 26442 for the first ~30 frames
+after Cross (a half-built widget), so the arrival line
+fires a beat after the menu becomes visible — the same
+settle the game-over debounce already tolerates.
+
+Negative space: a sweep of all **2,478 bench RAM dumps**
+finds the full widget signature ONLY in event-menu states
+(fresh opens at A, returns at B) and in post-close field
+dumps where the active word is 0 — never in camp, meld,
+title, Archives, world map, save/load, fights, tutorials,
+or the field. Live, the Medal Shop and the transporter's
+play-mode menu (the two Hub screens with no dumps in the
+corpus) were also driven with the adapter attached and
+stayed silent (g10f/g10l).
+
+### What speaks
+
+- Arrival (game-over-style 30-frame debounce): "Mirage
+  Arena. New Event, 1 of 3." — and the same line again on
+  return from the mode child (the down-stretch is
+  hundreds of frames).
+- WhereAmI in the menu: "Mirage Arena. <row>, N of 3."
+- MenuNext/MenuPrev echo the landed row ("Active Events,
+  2 of 3"), read live from whichever home is live.
+- The lobby Guide gained the landmark: "Log In terminal"
+  at (0, 8.20) — from the save-point approach it reads
+  e.g. "Log In terminal, 2 away." at the console itself.
+
+Full live transcript (g10l): ring menu silent, Medal Shop
+silent, fresh-open arrival + both nav echoes + WhereAmI,
+dive 1 silent in the child with re-announce on return,
+WhereAmI + nav at home B, dive 2 re-announcing again,
+post-close WhereAmI back to the field line, reopen
+announcing again, Guide naming all four lobby landmarks.
+
+### Two traps this item cost, recorded for the next one
+
+- **A decimal-to-hex slip can pass every host test.**
+  The widget's +0x08 word is decimal 56319 = 0xDBFF; an
+  early draft checked 0xDBEF (56303) in BOTH the adapter
+  and the test plants, so the suite was green while the
+  live gate never fired. Settled by an instrumented build
+  printing the checked values next to the verdict
+  (… 56319 … -> false). Plant constants from dump values
+  and distrust any hex conversion done by eye.
+- **First-open statics are not the whole story.** The
+  original 3-word gate at home A worked in g10c and would
+  have shipped blind to the relocation, the stale widget,
+  and the child ghost. Walking the FULL cycle (open →
+  child → return → close → reopen) with dumps at every
+  state is what exposed all three.
+
+Host tests: 322 checks, floor 323 sites (the section
+plants both homes, every witness knockout, the child
+ghost, and the stale-widget-with-word-down case).
+
+Limits: anchors proven on the fixture lineage (Terra,
+Mirage Arena Hub); home B's address was stable across
+every return driven (g10e/g10f/g10l) — if a future return
+lands elsewhere the gate fails closed (silence), never
+false. The mode list and the Active Events / D-Links
+sub-lists are follow-up work (the arena-entry queue item);
+the sub-lists need other players in range and cannot be
+exercised on this bench.
+
+## Field dialogue boxes — WIRED + LIVE-VERIFIED (2026-10-24, bench dlg1–dlg4)
+
+Field text boxes (NPC talk, examines, tutorial prompts and
+info boxes) now speak their text. Three findings made it
+possible; each is proven against screenshots, and the whole
+corpus was swept for false positives before wiring.
+
+### The text: resident message tables ("CTD")
+
+The displayed string never sits in a live buffer — the game
+typesets it on demand from the area's message table. A table
+is a "@CTD" container (magic u32 0x44544340) resident in RAM:
+header +0x08 = first id category << 16, +0x10 = entry start
+(0x20), +0x14 = entry end, +0x18 = string pool start. Entries
+are 12 bytes {id, offset, stringIndex}, count =
+(end − start)/12; one file holds several id categories in
+sequence (the Land of Departure file: 75 entries of 0x032Cxxxx
+then 17 of 0x032Dxxxx). The string at table+offset is up to 3
+NUL bytes, then ASCII with escapes, NUL-terminated:
+
+- 0x0A = newline (spoken as a space; the box's lines are one
+  flowing text)
+- 0xF9 + letter = color/format (Y = highlight, P = colored
+  term, X = end) — formatting only, both bytes dropped
+- 0xF1 + code = a button/control icon. Decoded names, every
+  one screenshot-proven: **B1 = Cross** (ring prompt), **AE =
+  Triangle** and **C5 = D-pad** (deck info box), **B4 = L**
+  and **B3 = R** (lock-on info, hunt49: "switch targets using
+  [L] or [R]" — the glyphs are lettered, in string order),
+  **B0 = Square** ("Use <B0> to defend yourself… block if
+  stationary, slide if moving" is BBS's Square, and the font
+  order AE/B0/B1 = △/□/✕ agrees). Unproven codes are skipped,
+  never guessed.
+
+About seven tables are resident at once (the area table, a
+7-entry scene table, name tables, duplicated scene tables at
+high addresses); the adapter censuses them by magic, keeps
+the ones whose entries actually resolve to text, and dedupes
+ids first-wins (the duplicates are byte-identical).
+
+### The live signal: event command records + activation serial
+
+Dialogue is issued by event scripts as message commands.
+Their command records sit in a heap pool (0x70-byte stride;
+the pool FLOATS — 0x099A04B0.. for the plateau's first lesson
+set, 0x099A5A20.. after the lesson-2 teleport, 0x0999FB..
+for the lock-on lesson, same lineage). Per record:
+
+- +0x00: pointer to the record's own +0x24 word (fingerprint)
+- +0x24: current command's first parameter — the message id
+  for a message command
+- +0x2C: **activation serial** — 0xFFFFFFFF while dormant;
+  when a message command activates, exactly ONE record's
+  serial becomes a small positive number from a global
+  counter. The id stays for the whole display; the record is
+  recycled when the script moves on.
+
+The pool holds dormant copies of every message the area's
+scripts can show (several records share one id — the ring
+prompt had four), so the serial is the load-bearing field.
+Speech is per-record edge-driven: a record carrying a serial
+it hasn't spoken yet speaks once (after 2 stable frames);
+consumption is remembered per record, never by global serial
+order — records recycle after every box and a save load can
+restart the counter, both of which a global-order latch gets
+wrong (the first host-test draft re-spoke a talk line exactly
+that way).
+
+What reads as "pages" is either one box showing its full
+text at once (up to three lines) or the NEXT message command
+(prizes → deck). Speaking each activation's full text once
+covers both. Successive boxes in a conversation are
+successive commands, so NPC conversations page correctly by
+construction.
+
+### Corpus proof (before wiring)
+
+An offline implementation of the same fingerprint swept all
+2,478 bench dumps. Exactly five activations exist in the
+whole corpus, all tutorial info boxes, each matching its
+screenshot word for word: serial 3 ring prompt (dlg1/a00),
+5 prizes (hunt26/m6), 6 Command Deck (hunt27/p1), 9 lock-on
+info (hunt47/c1), 10 target-switch info (hunt49/atk — its
+screenshot settled L/R above). NO activation appears in any
+camp, title, Archives, world-map, game-over or movie dump.
+
+### The banner verdict: NOT this channel
+
+The INFORMATION banner ("Attack the single hanging ring!",
+dlg1/cend) is the objective HUD, not a message box: while it
+was up the record pool was already freed, and the objective's
+message id (0x032C2300 — objectives are their own band of the
+same table) appears nowhere in RAM outside the table itself.
+Speaking objectives needs a separate hunt for the objective
+state. It stays unspoken.
+
+### The movie-scene negative
+
+Voiced scenes are a different system: mp1's playing-scene
+dump holds no command records at all, so the gate cannot
+fire there. In-engine message windows, if a scene uses them,
+are field dialogue by construction and speak as such.
+
+### What's spoken (live proof, khbbs-dlg4)
+
+One deterministic run (hunt24 end state; dismiss, complete
+lesson 1, page the info boxes) with the real adapter ticked
+per frame produced exactly three lines, each verified
+against the run's own screenshots (byte-identical to the
+dlg3 capture run):
+
+- @2: "Press Cross to attack the ring! Keep attacking to
+  string together a powerful combo."
+- @1719: "You can earn prizes by defeating enemies or
+  hitting things in the field. Green prizes restore HP.
+  Yellow ones give you munny."
+- @2211: "Your Command Deck contains special moves. Use
+  D-pad to select one, then press Triangle to use it once
+  its gauge is filled."
+
+Nothing on close, nothing on idle, no dormant line (Terra's
+"I've got time to spare!" record sat armed the whole run and
+never fired — it speaks only if its record activates).
+
+### Guards that keep it honest
+
+- A decoded line must look like dialogue (≥4 chars, with a
+  space or sentence punctuation): the resident tables include
+  command/keyblade NAME lists, and a stray record carrying a
+  name id must not speak a lone name (host-tested with the
+  real 0x00FA table's "Attack").
+- Decode fails closed on any byte outside ASCII + F9/F1
+  escapes: one leftover table entry holds Shift-JIS bytes
+  (id 0x032D8500) and stays silent (host-tested).
+- The watch stands down while camp, the save/load dialog,
+  the Archives, game over, movie pause, the event menu, the
+  world map, title or difficulty own the screen.
+- Host tests: 335 checks, floor 336 sites (dormant silence,
+  1-frame ghost, activation speech with exact decoded text,
+  idle no-repeat, close, pool relocation, late talk
+  activation, name-table guard, undecodable silence +
+  recovery, NUL-prefix variant).
+
+### Limits
+
+- Proven end-to-end on the tutorial lineage (Ventus, Land of
+  Departure). The mechanism is area-agnostic (census by magic
+  + fingerprint, no fixed addresses), and the fixture
+  lineage's dumps contain no activations to contradict it —
+  but no NPC conversation has been driven live yet; Terra's
+  talk record on the plateau is the standing test case.
+- No speaker name: boxes that show one carry it outside the
+  message string (not located); speech is the text alone.
+- Choice prompts speak their full text, options included
+  (the options are lines of the message); the choice CURSOR
+  is a different widget and is not tracked — a follow-up if
+  it proves to live somewhere findable.
+- A box already up when the adapter attaches speaks (a
+  resumed conversation should be audible); a box that opens
+  and closes entirely inside another screen's ownership
+  (camp over a field event) would be missed — not observed
+  in practice.
+- Non-US text is out of scope by construction: the decode
+  fails closed on it rather than garbling it.
