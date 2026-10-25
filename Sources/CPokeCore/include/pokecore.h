@@ -269,6 +269,43 @@ int poke_cue_snapshot(PokeCore *core, float *dist);
 int poke_cue_snapshot_field(PokeCore *core, int *kind, float *bearing_deg, float *dist,
                             int *heading_live);
 
+/* One-shot health-cue events for the sound-first beep family
+ * (docs/design/cue-synth.md, "One-shot event fields"): the per-frame
+ * counterpart to poke_cue_snapshot's continuous beacon. SEPARATE from
+ * poke_cue_snapshot for the same reason the field call is: the beacon
+ * signature is the shared ABI for every adapter and host, and adapters
+ * without hit events have nothing to add to it.
+ *
+ * Returns a bitmask of one-shot events raised since the last frame —
+ * the adapter clears them as the frame's snapshot is taken, so each
+ * event sounds exactly once; call once per frame after the frame step.
+ * All three poke_cue_* calls share that one snapshot (see CueSnap in
+ * pokecore.cpp), so this call neither consumes nor is starved by the
+ * beacon and field polls of the same frame, in any order:
+ *   1  foe beep: a hit dropped the tracked foe's HP.
+ *      *foe_hz / *foe_pan receive the pitch (from the foe's new
+ *      health fraction) and pan (+0.8: the foe's side is RIGHT).
+ *   2  own beep: a hit dropped the player's HP.
+ *      *own_hz / *own_pan receive pitch and pan (−0.8: LEFT).
+ *   4  Focus gauge reached full (gauge-full earcon).
+ *   8  D-Link gauge reached full (gauge-full earcon).
+ * 0 = nothing happened (stay silent — the fail-closed value, as with
+ * poke_cue_snapshot). Any out-pointer may be NULL. This never attaches
+ * the adapter and never speaks; it is safe to call at frame rate. */
+int poke_cue_health(PokeCore *core, float *foe_hz, float *foe_pan,
+                    float *own_hz, float *own_pan);
+
+/* Push the player's HUD gauge-cue choice into the Birth by Sleep
+ * adapter (oga::KhbbsHudGaugeCues, adapter.h): true = gauge-full
+ * moments sound as earcons, false = the adapter speaks its lines
+ * instead. The app resolves the effective value (the game's Per Game
+ * Settings override, else the global default in Settings) and calls
+ * this once when a session starts — settings apply at start
+ * (docs/design/per-game-settings.md). Only the khbbs adapter reads the
+ * flag, so calling it for another game would be harmless, but the app
+ * gates on the adapter id anyway: an unmeant call should not exist. */
+void poke_set_hud_gauge_cues(PokeCore *core, bool use_sound);
+
 /* Announcement-queue completion hooks (additive: estimate pacing works without
  * them). The queue releases one line at a time; a platform that can report
  * "finished" calls poke_announce_done with the utterance id it got from the

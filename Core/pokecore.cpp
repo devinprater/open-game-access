@@ -124,6 +124,23 @@ struct PokeCore {
     // and the Lua script is the only accessibility layer.
     const oga::Adapter* adapter = nullptr;
     bool adapterAttached = false;
+    // ---- the per-frame cue snapshot cache ----
+    //
+    // ONE snapshot per frame, shared by every poke_cue_* entry point (see
+    // CueSnap below). An adapter's cue_snapshot is NOT a pure read: it
+    // consumes one-frame events as it fills them (the health beeps and
+    // gauge earcons of adapter.h's trailing fields; Dissidia's EX-gain
+    // delta likewise advances its previous-gauge word per call). Three
+    // independent entry points each taking their own snapshot therefore
+    // ate each other's events — the field poll discarded the health
+    // beeps and the EX-gain pulse before the calls that voice them ever
+    // ran. Keyed by frameCounter (which poke_frame alone advances) plus
+    // the adapter pointer, so a detach/swap between frames can never be
+    // served the previous game's snapshot.
+    oga::CueSnapshot cueSnap = {};
+    int cueSnapFrame = -1;
+    const oga::Adapter* cueSnapAdapter = nullptr;
+    bool cueSnapValid = false;
     // Drawing skip for the PSP backend: 0 draws every frame, 1 every other.
     int frameSkip = 0;
     // ROM game ID: 4 chars for NDS (header 0x0C), up to 9+ for PSP (PARAM.SFO,
@@ -1081,6 +1098,50 @@ uint32_t poke_announce_id_for_text(PokeCore* core, const char* utf8_text)
     return 0;
 }
 
+/* The one cue snapshot for this frame, taken at most once and shared by
+ * every poke_cue_* entry point below.
+ *
+ * WHY A CACHE, AND WHY KEYED THIS WAY. An adapter's cue_snapshot is not
+ * a pure read: it consumes one-frame events as it fills them (the
+ * health beeps / gauge earcons are copied out and cleared; Dissidia's
+ * EX-gain test advances its previous-gauge word). When each entry point
+ * took its own snapshot, the FIRST poll of a frame ate events the later
+ * polls exist to voice — iOS's field poll silently discarded Dissidia's
+ * EX-gain pulse and every adapter's health beeps before
+ * poke_cue_snapshot / poke_cue_health ever ran. One snapshot per frame
+ * makes the three calls three views of the same moment, in any order.
+ *
+ * The key is (frameCounter, adapter): frameCounter advances only in
+ * poke_frame, which is also the only place adapter on_frame runs, so a
+ * cached snapshot can never outlive the frame whose events it carries;
+ * the adapter half of the key keeps a stop/load between polls from
+ * serving the previous game's snapshot at the same counter value.
+ *
+ * Same rules as the calls it serves: never attaches (an unattached or
+ * cue-less adapter is a null answer, and that answer is NOT cached —
+ * an attach later in the same frame must still be seen), and a refused
+ * snapshot (the adapter returned false) is not cached either, so the
+ * frame's later polls re-ask rather than inherit a refusal the adapter
+ * may have meant only for that instant. */
+static const oga::CueSnapshot* CueSnap(PokeCore* core)
+{
+    if (!core || !core->adapter || !core->adapterAttached) return nullptr;
+    if (!core->adapter->cue_snapshot) return nullptr;   /* backend has no cue data */
+    if (core->cueSnapValid && core->cueSnapFrame == core->frameCounter &&
+        core->cueSnapAdapter == core->adapter)
+        return &core->cueSnap;
+    oga::CueSnapshot s{};
+    if (!core->adapter->cue_snapshot(&s)) {
+        core->cueSnapValid = false;
+        return nullptr;
+    }
+    core->cueSnap = s;
+    core->cueSnapFrame = core->frameCounter;
+    core->cueSnapAdapter = core->adapter;
+    core->cueSnapValid = true;
+    return &core->cueSnap;
+}
+
 /* Per-frame battle snapshot for the host cue synth. See adapter.h CueSnapshot.
  *
  * Returns 0 when there is nothing to cue (no ROM, no adapter, a backend without cue data,
@@ -1100,10 +1161,9 @@ uint32_t poke_announce_id_for_text(PokeCore* core, const char* utf8_text)
 int poke_cue_snapshot(PokeCore* core, float* dist)
 {
     if (dist) *dist = 0.0f;
-    if (!core || !core->adapter || !core->adapterAttached) return 0;
-    if (!core->adapter->cue_snapshot) return 0;   /* backend has no cue data */
-    oga::CueSnapshot s{};
-    if (!core->adapter->cue_snapshot(&s) || !s.battle) return 0;
+    const oga::CueSnapshot* snap = CueSnap(core);
+    if (!snap || !snap->battle) return 0;
+    const oga::CueSnapshot& s = *snap;
     if (dist) *dist = s.dist;
     // 4 = a one-frame EX-gain pulse (an absorbed EX Force / EX Core). It is reported even
     // with the lock off, because the pickup is independent of what is targeted.
@@ -1120,16 +1180,55 @@ int poke_cue_snapshot_field(PokeCore* core, int* kind, float* bearing_deg, float
     if (dist) *dist = 0.0f;
     if (heading_live) *heading_live = 0;
     /* Same rule as poke_cue_snapshot: never attach here. This is polled every frame. */
-    if (!core || !core->adapter || !core->adapterAttached) return 0;
-    if (!core->adapter->cue_snapshot) return 0;
-    oga::CueSnapshot s{};
-    if (!core->adapter->cue_snapshot(&s)) return 0;
+    const oga::CueSnapshot* snap = CueSnap(core);
+    if (!snap) return 0;
+    const oga::CueSnapshot& s = *snap;
     if (!s.field) return 0;                     /* not a free-flight mode: the old call covers it */
     if (kind) *kind = s.kind;
     if (bearing_deg) *bearing_deg = s.bearing_deg;
     if (dist) *dist = s.dist;
     if (heading_live) *heading_live = s.heading_live ? 1 : 0;
     return 1;
+}
+
+/* One-shot health-cue events (see the header): a bitmask read of the
+ * snapshot's trailing event fields, which the adapter clears as it
+ * fills them — consumption happens in the frame's one shared snapshot
+ * (CueSnap above), so this call reads them without starving the other
+ * cue polls. Made once per frame after the frame step. Same rule as
+ * the other cue calls: never attach here. */
+int poke_cue_health(PokeCore* core, float* foe_hz, float* foe_pan, float* own_hz,
+                    float* own_pan)
+{
+    const oga::CueSnapshot* snap = CueSnap(core);
+    if (!snap) return 0;
+    const oga::CueSnapshot& s = *snap;
+    int bits = 0;
+    if (s.foe_beep) {
+        bits |= 1;
+        if (foe_hz) *foe_hz = s.foe_beep_hz;
+        if (foe_pan) *foe_pan = s.foe_beep_pan;
+    }
+    if (s.own_beep) {
+        bits |= 2;
+        if (own_hz) *own_hz = s.own_beep_hz;
+        if (own_pan) *own_pan = s.own_beep_pan;
+    }
+    if (s.focus_cue) bits |= 4;
+    if (s.dlink_cue) bits |= 8;
+    return bits;
+}
+
+/* The per-game-settings seam for Birth by Sleep's gauge-cue mode (see
+ * the header): a thin pass-through to the adapter's own setter. The
+ * core pointer is unused — the flag is adapter state, not core state —
+ * and stays in the signature because every poke_ call takes the core.
+ * The app calls this once at session start with the effective value it
+ * resolved; nothing calls it per frame. */
+void poke_set_hud_gauge_cues(PokeCore *core, bool use_sound)
+{
+    (void)core;
+    oga::KhbbsHudGaugeCues(use_sound);
 }
 
 bool poke_command(PokeCore *core, int cmd)

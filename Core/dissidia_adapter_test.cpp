@@ -169,9 +169,16 @@ static void test_cue_snapshot(void)
     reset();
     CHECK(a->attach(&HOST), "cue attach");
     s.battle = true; s.locked = true; s.is_core = true; s.dist = 99.0f;
+    s.foe_beep = true; s.foe_beep_hz = 999.0f; s.foe_beep_pan = 0.5f;
+    s.own_beep = true; s.own_beep_hz = 888.0f; s.own_beep_pan = -0.5f;
+    s.focus_cue = true; s.dlink_cue = true;
     CHECK(!oga::dissidia::CueSnapshotFill(&s), "no battle -> no snapshot");
     CHECK(!s.battle && !s.locked && s.dist == 0.0f,
           "a refused snapshot clears every field (never stale)");
+    CHECK(!s.foe_beep && s.foe_beep_hz == 0.0f && s.foe_beep_pan == 0.0f &&
+          !s.own_beep && s.own_beep_hz == 0.0f && s.own_beep_pan == 0.0f &&
+          !s.focus_cue && !s.dlink_cue,
+          "a refused snapshot clears the one-shot event fields too");
 
     // 2. Battle, lock off -> battle true, locked false.
     makeFighters(0x08903000u, 0x08903100u, 0x08903200u, 1000u, 0u);
@@ -235,6 +242,144 @@ static void test_cue_snapshot(void)
     CHECK(a->attach(&HOST), "cue attach after reset");
     CHECK(!oga::dissidia::CueSnapshotFill(&s), "broken chain -> no snapshot");
     CHECK(!s.battle, "no battle is claimed from a broken chain");
+}
+
+// Sound-first battle health (2026-10-25): the per-hit beeps and milestone
+// callouts that replaced the proposal's never-built continuous HP tone.
+// HP here is max - damage on the stat blocks makeFighters plants
+// (self stats 0x08904000, foe stats 0x08904100; max at +0x08, damage at +0x02).
+static void test_battle_health(void)
+{
+    const oga::Adapter* a = &oga::kDissidiaFinalFantasy;
+    oga::CueSnapshot s{};
+    const uint32_t S0 = 0x08904000u, S1 = 0x08904100u;
+    auto foeDmg  = [&](uint16_t d) { put16(S1 + 0x02u, d); };
+    auto selfDmg = [&](uint16_t d) { put16(S0 + 0x02u, d); };
+    auto clearSpoken = [&]() { NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset(); };
+
+    reset();
+    CHECK(a->attach(&HOST), "health attach");
+    makeFighters(0x08903000u, 0x08903100u, 0x08903200u, 1000u, 0u);
+    put32(0x08903100u + 0x2ECu, 0u);              // lock off: beeps are not the beacon
+
+    // Priming is silent, and a quiet battle snapshot carries no events.
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "health: priming a battle is silent");
+    CHECK(oga::dissidia::CueSnapshotFill(&s) && s.battle &&
+          !s.foe_beep && !s.own_beep,
+          "health: a quiet battle snapshot claims battle, no beeps");
+
+    // A plain foe hit: beep right at 90-percent pitch, no speech, once.
+    foeDmg(100);
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "health: a plain foe hit says nothing");
+    CHECK(oga::dissidia::CueSnapshotFill(&s) && s.foe_beep && !s.own_beep &&
+          s.foe_beep_pan == 0.8f &&
+          s.foe_beep_hz > 1000.0f && s.foe_beep_hz < 1090.0f,
+          "health: a foe hit beeps right at 90 percent pitch");
+    CHECK(oga::dissidia::CueSnapshotFill(&s) && !s.foe_beep,
+          "health: the beep is consumed exactly once");
+
+    // A plunge across three milestones speaks only the lowest.
+    foeDmg(800);                                   // 20%
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strstr(SPOKE(0), "Foe health 25 percent."),
+          "health: a plunge to 20 percent speaks only the 25 milestone");
+    CHECK(oga::dissidia::CueSnapshotFill(&s) && s.foe_beep,
+          "health: the plunge hit beeps too (drained)");
+
+    // Healing past milestone + 5 re-arms; the ladder then speaks rung by rung.
+    foeDmg(100);                                   // back to 90%
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "health: healing speaks nothing");
+    foeDmg(260);                                   // 74%
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strstr(SPOKE(0), "Foe health 75 percent."),
+          "health: foe crossing 75 speaks the milestone");
+    foeDmg(270);                                   // 73%: drift, no repeat
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "health: drifting below a milestone does not repeat it");
+    foeDmg(510);                                   // 49%
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strstr(SPOKE(0), "Foe health 50 percent."),
+          "health: foe crossing 50 speaks");
+    foeDmg(760);                                   // 24%
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strstr(SPOKE(0), "Foe health 25 percent."),
+          "health: foe crossing 25 speaks");
+    foeDmg(910);                                   // 9%
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strstr(SPOKE(0), "Foe nearly gone."),
+          "health: foe crossing 10 speaks nearly gone");
+    oga::dissidia::CueSnapshotFill(&s);            // drain the hit beep
+
+    // The player's side mirrors it, in the left/duller register.
+    selfDmg(200);                                  // 80%
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "health: a plain player hit says nothing");
+    CHECK(oga::dissidia::CueSnapshotFill(&s) && s.own_beep && !s.foe_beep &&
+          s.own_beep_pan == -0.8f &&
+          s.own_beep_hz > 570.0f && s.own_beep_hz < 640.0f,
+          "health: a player hit beeps left at 80 percent pitch");
+    selfDmg(260);                                  // 74%
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strstr(SPOKE(0), "Your health 75 percent."),
+          "health: own crossing 75 speaks the mirror milestone");
+    selfDmg(180);                                  // heal to 82%: re-arms 75
+    FRAME(); FRAME();
+    selfDmg(260);
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strstr(SPOKE(0), "Your health 75 percent."),
+          "health: healing past 80 re-arms the own 75 milestone");
+    oga::dissidia::CueSnapshotFill(&s);            // drain
+
+    // A refused poll consumes nothing: stash a beep, break the chain,
+    // poll (refused), restore the chain, and the beep is still delivered.
+    foeDmg(100);                                   // heal to 90% (silent)
+    FRAME(); FRAME();
+    foeDmg(200);                                   // a real hit to 80%
+    FRAME(); FRAME();                              // beep pending, no milestone
+    put32(0x08B955A0u, 0u);                        // chain broken
+    CHECK(!oga::dissidia::CueSnapshotFill(&s),
+          "health: a broken chain refuses the snapshot");
+    makeFighters(0x08903000u, 0x08903100u, 0x08903200u, 1000u, 0u);
+    foeDmg(850);                                   // (polls do not run the watch)
+    CHECK(oga::dissidia::CueSnapshotFill(&s) && s.foe_beep,
+          "health: a refused poll did not consume the pending beep");
+
+    // But a battle that ENDS drops its unpolled events: a frame outside
+    // the battle resets the watch, and the next fight primes fresh.
+    foeDmg(800);
+    FRAME(); FRAME();                              // a beep is pending now
+    put32(0x08B955A0u, 0u);
+    FRAME();                                       // the battle is over
+    makeFighters(0x08903000u, 0x08903100u, 0x08903200u, 1000u, 0u);
+    clearSpoken();
+    FRAME(); FRAME();                              // new battle primes at full HP
+    CHECK(NSPOKEN == 0, "health: a new battle primes silently");
+    CHECK(oga::dissidia::CueSnapshotFill(&s) && s.battle && !s.foe_beep,
+          "health: the ended battle's unpolled beep did not leak");
+
+    // The killing blow raises nothing (the game owns the KO), and a
+    // fighter at zero does not re-prime into phantom events.
+    foeDmg(1000);
+    clearSpoken();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "health: the killing blow speaks nothing");
+    CHECK(oga::dissidia::CueSnapshotFill(&s) && !s.foe_beep,
+          "health: the killing blow beeps nothing");
 }
 
 
@@ -791,6 +936,52 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Not tracked yet.") == 0,
           "no dialog falls through");
 
+    // 33b. chapter-entry dialog ("Start the tutorial?", live 2026-10-25):
+    // the battle slot is raised but DLG_X is frozen at 88 in BOTH states,
+    // so the slot's own reader would say YES forever. The chapter pair
+    // (08c0f154, 08c0f198) low16 (1,5)=YES / (2,4)=NO carries the truth
+    // and must win over the frozen float.
+    reset();
+    const uint32_t CDLG_A = 0x08C0F154u, CDLG_B = 0x08C0F198u;
+    put32(DLG_SLOT, 1u);
+    putf(DLG_X, 88.0f);
+    put32(CDLG_A, 0xFFFF0001u); put32(CDLG_B, 0xFFFF0005u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "chapter dialog YES speaks");
+    put32(CDLG_A, 0xFFFF0002u); put32(CDLG_B, 0xFFFF0004u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
+          "chapter dialog NO beats frozen DLG_X");
+    // pair in a non-dialog state: falls back to the slot reader (YES at 88).
+    put32(CDLG_A, 0xFFFF0003u); put32(CDLG_B, 0xFFFF0005u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "chapter pair inactive falls back to slot");
+    // the pair goes stale-static after the dialog closes (live: (2,4) sat
+    // at the main menu false-announcing NO) -- with the slot down it must
+    // not read as a dialog at all.
+    put32(CDLG_A, 0xFFFF0002u); put32(CDLG_B, 0xFFFF0004u);
+    put32(DLG_SLOT, 0u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Not tracked yet.") == 0,
+          "stale chapter pair with slot down is no dialog");
+
+    // 33c. the slot is occupied on the story board by an unrelated object
+    // whose DLG_X reads 0.00 (live 2026-10-25) -- not a dialog: no
+    // phantom YES may hijack the board's own announcements.
+    reset();
+    put32(DLG_SLOT, 1u);
+    putf(DLG_X, 0.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Not tracked yet.") == 0,
+          "slot with implausible X is no dialog");
+
     // 34. title menu: fingerprints + cursor -> New Game / Data Install
     reset();
     const uint32_t TT = 0x09DA8D80u, TW = 0x08C18000u;
@@ -833,6 +1024,40 @@ int main(void)
     CMD(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Bonus Day. Sat. Row 6 of 7.") == 0,
           "bonus day Sat");
+
+    // 36b. Data Setup > "Proceed with these settings?" confirm (live
+    // 2026-10-24): same setup struct, max==1, 0=YES / 1=NO. The title
+    // fingerprints stay valid underneath it, so the confirm must win over
+    // the title read or the player hears "New Game" over a YES/NO prompt.
+    reset();
+    {
+        const uint32_t TT2 = 0x09DA8D80u, TW2 = 0x08C18000u;
+        put32(TT2 + 0x0Cu, 4u);
+        put32(TT2 + 0x20u, 1u);
+        put32(TT2 + 0x24u, 0x00190012u);
+        put32(0x09A3F0C8u, 1u);
+        put32(0x09D8E900u, TW2);
+        put32(TW2, 0x09D90728u);
+        put32(TW2 + 0x0Cu, 4u);
+        put32(0x09D90728u + 4u, TW2);
+        put32(0x09A3F0CCu, 0u);  // title cursor valid underneath
+    }
+    put32(0x09B3FA30u, 0u); put32(0x09B3FA38u, 1u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "setup confirm YES beats title");
+    put32(0x09B3FA30u, 1u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
+          "setup confirm NO");
+    // cursor out of range: the confirm gate fails closed, title read returns.
+    put32(0x09B3FA30u, 2u);
+    NSPOKEN = 0; oga::AdapterSpeechReset(); oga::AdapterSpeechReset();
+    CMD(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "New Game. Row 1 of 3.") == 0,
+          "setup confirm bad cursor falls back to title");
 
     // 37. first accessible battle screen: self + foe read clean
     reset();
@@ -1147,6 +1372,27 @@ int main(void)
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
           "watch re-announces after restore");
 
+    // 48a2. the Data Setup confirm (max==1) overrides the still-valid title
+    // identity in the watch too: YES on arrival, NO on the move, and the
+    // dialog closing (max back to garbage) returns the title identity.
+    put32(0x09B3FA30u, 0u); put32(0x09B3FA38u, 1u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME();
+    CHECK(NSPOKEN == 0, "watch silent on confirm first sighting");
+    FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+          "watch speaks setup confirm YES over title");
+    put32(0x09B3FA30u, 1u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "NO. Row 2 of 2.") == 0,
+          "watch speaks setup confirm NO");
+    put32(0x09B3FA38u, 0u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Load Game. Row 2 of 3.") == 0,
+          "watch returns to title after confirm closes");
+
     // 48b. the story portrait byte is a GATE, not a speaker name
     //
     // ⛔ LIVE REGRESSION (2026-10-21): the Warrior of Light's opening cutscene
@@ -1219,6 +1465,26 @@ int main(void)
     FRAME(); FRAME();
     CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Story Mode. Row 1 of 8.") == 0,
           "watch announces main-menu entry");
+
+    // 49b. the setup cursor word is garbage at the real main menu (live
+    // 2026-10-25: 0x006ACFDB in the fresh-game lineage) -- PLAY_MAX==0 is
+    // the setup-inactive signal, so the menu must still announce. A live
+    // setup screen (PLAY_MAX!=0) must still suppress it.
+    put32(0x09B3FA30u, 0x006ACFDBU);
+    // (the watch speaks each identity once, so re-observe the
+    // classification across a leave-and-return, not on a static screen)
+    put32(0x09B3FA10u, 0u);
+    FRAME(); FRAME();
+    put32(0x09B3FA10u, 0x08C18100u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Story Mode. Row 1 of 8.") == 0,
+          "main menu survives garbage setup cursor");
+    put32(0x09B3FA38u, 2u);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "live setup screen still suppresses main menu");
+    put32(0x09B3FA38u, 0u);
 
     // 50. a live board suspends the watch (cursor could be stale menu pins)
     put32(BROOT + 0x118u, 0x08C18400u);
@@ -1332,6 +1598,12 @@ int main(void)
     CHECK(NSPOKEN == 2 && strcmp(SPOKE(0), "enemy here.") == 0 &&
           strcmp(SPOKE(1), "Press X to engage.") == 0,
           "watch announces enemy arrival plus engage hint");
+    // 56a. standing on the marker must not flood (live bug 2026-10-25:
+    // the two-line arrival repeated every frame -- the announce dedup
+    // only suppresses a repeat of the immediately preceding line).
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 10; i++) FRAME();
+    CHECK(NSPOKEN == 0, "watch does not repeat a stable arrival");
     put16(WBASE + 0x30u + 4u, 9u);
     put8(WBD + 0x194u, 1); put8(WBD + 0x195u, 1);
     NSPOKEN = 0; oga::AdapterSpeechReset();
@@ -1407,6 +1679,7 @@ int main(void)
     CHECK(oga::announce_stats(Q).replaced == 1, "replacement counted");
 
     test_cue_snapshot();
+    test_battle_health();
 
     if (failures == 0) printf("\nALL DISSIDIA ADAPTER TESTS PASSED\n");
     else printf("\n%d FAILURES\n", failures);

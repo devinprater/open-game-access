@@ -773,20 +773,20 @@ void FightLine(char* out, size_t cap)
 // phases never trip it; a real bout trips it on its first timer tick or
 // its first landed hit.
 //
-// Speech: on the latch, "Fight." plus the health line; while latched,
-// the health line again whenever a percent has moved since the last
-// announcement (at most once per kBoutAnnGapFrames, so combinations
-// coalesce); a side reaching zero speaks its outcome once per exchange
-// (the latch re-arms when that side's health rises again — the tutorial
-// refills between phases). P1 reaching zero speaks only with time left
-// on the phase clock: at zero the engine zeroes P1 itself when an
-// exercise's time expires, which is a failed drill, not a knockout, and
-// the game's own "try again" dialogue covers it. WhereAmI in a latched
-// bout speaks the fight line ahead of the objective and dialogue lines
+// Speech: on the latch, "Fight." plus the health line; a side
+// reaching zero speaks its outcome once per exchange (the latch
+// re-arms when that side's health rises again — the tutorial
+// refills between phases). Mid-bout HEALTH is no longer re-spoken:
+// the sound-first pass (below) replaced the throttled health line
+// with per-hit beeps and milestone-only callouts. P1 reaching zero
+// speaks only with time left on the phase clock: at zero the
+// engine zeroes P1 itself when an exercise's time expires, which
+// is a failed drill, not a knockout, and the game's own "try
+// again" dialogue covers it. WhereAmI in a latched bout speaks the
+// fight line ahead of the objective and dialogue lines
 // (they still auto-speak as they appear); unlatched Konquest WhereAmI
 // is unchanged.
 constexpr uint32_t kKonquestPlayerId = 2;   // Shujinko, in Konquest ids
-constexpr int kBoutAnnGapFrames = 90;
 
 // Konquest opponent names by Konquest fighter id. Only the tutorial's
 // id is proven; anything else speaks as "opponent" rather than guess.
@@ -824,11 +824,9 @@ void BoutLine(char* out, size_t cap)
 }
 
 bool g_boutLive = false;          // the latch: engine motion proven
-int g_boutFrame = 0;              // frames since the watch started (gap clock)
+int g_boutFrame = 0;              // frames since the watch started
 uint32_t g_boutTimer = 0xFFFFFFFF;
 float g_boutHp1 = -1.0f, g_boutHp2 = -1.0f;   // last words under the raw gate
-int g_boutAnnHp1 = -1, g_boutAnnHp2 = -1;     // percents last announced
-int g_boutLastAnnFrame = -100000;
 bool g_boutFoeDown = false, g_boutPlayerDown = false;
 
 bool InKonquestBout(void) { return g_boutLive; }
@@ -851,9 +849,6 @@ void BoutOnFrame(void)
         g_boutTimer = t; g_boutHp1 = h1; g_boutHp2 = h2;
         if (!motion) return;
         g_boutLive = true;
-        g_boutAnnHp1 = (int) (h1 * 100.0f + 0.5f);
-        g_boutAnnHp2 = (int) (h2 * 100.0f + 0.5f);
-        g_boutLastAnnFrame = g_boutFrame;
         char line[192], bout[128];
         BoutLine(bout, sizeof(bout));
         snprintf(line, sizeof(line), "Fight. %s", bout);
@@ -869,28 +864,247 @@ void BoutOnFrame(void)
         char line[96];
         snprintf(line, sizeof(line), "%s defeated.", foe ? foe : "Opponent");
         Say(line, "fight", oga::Priority::Normal);
-        g_boutLastAnnFrame = g_boutFrame;
         return;
     }
     if (h1 == 0.0f && !g_boutPlayerDown) {
         g_boutPlayerDown = true;
         if (t > 0) {   // a knockout, not an expired exercise clock
             Say("Shujinko defeated.", "fight", oga::Priority::Normal);
-            g_boutLastAnnFrame = g_boutFrame;
         }
         return;
     }
-    int p1 = (int) (h1 * 100.0f + 0.5f);
-    int p2 = (int) (h2 * 100.0f + 0.5f);
-    if ((p1 != g_boutAnnHp1 || p2 != g_boutAnnHp2) &&
-        g_boutFrame - g_boutLastAnnFrame >= kBoutAnnGapFrames) {
-        g_boutAnnHp1 = p1; g_boutAnnHp2 = p2;
-        g_boutLastAnnFrame = g_boutFrame;
-        char bout[128];
-        BoutLine(bout, sizeof(bout));
-        Say(bout, "fight", oga::Priority::Normal);
-    }
+    // No mid-bout health line any more: WatchMkuHealthCues (below)
+    // owns health feedback now — beeps per hit, percents only at
+    // the milestone crossings.
 }
+
+// ---- Sound-first fight health cues (2026-10-25, the owner's rule) ----------
+// Never speak what the game already cues with a sound. The bench
+// audio audit (two captured fights, ~/mku-scan/snd1 + snd2, peaks
+// measured per frame against each room's own baseline) found:
+//   * every hit lands with a clear impact well above the room's
+//     bed (versus: tight-window median 0.53 foe / 0.45 player
+//     against a near-silent restored-state floor; Konquest dojo:
+//     0.26–0.45 against an ambient bed peaking 0.19) — but an
+//     impact says nothing about HOW MUCH health is left;
+//   * the KO blow is the loudest event of a versus fight (0.59)
+//     with a slow-motion fall behind it, and the round intro is
+//     sounded a beat after the round turns over (0.45–0.49 event)
+//     — the game's own presentation owns both moments;
+//   * the Konquest bout's entry instant has NO distinct sound
+//     (0.11 in a bed peaking 0.19) and its per-phase refills are
+//     silent (0.19, the bed itself).
+// So, exactly as in the BBS pass: a hit raises a one-shot beep
+// through the cue snapshot whose PITCH carries the new health
+// fraction, and speech keeps only the milestone crossings, which
+// the game does not mark at all. The milestones are Mortal Kombat
+// 1's own official accessibility set — 75 / 50 / 25 / nearly gone
+// at 10 — the same set the BBS pass adopted.
+//
+//   foe health: beep on every hit that drops P2; spoken percent
+//     only at the crossings ("Foe health N percent." / "Foe
+//     nearly gone.").
+//   own health: the mirror for P1 ("Your health N percent." /
+//     "Your health nearly gone.").
+//   Exact numbers stay where they always were: the WhereAmI fight
+//   line (versus and latched bouts alike).
+//
+// KEPT AS SPEECH, by the BBS precedent (a sound that cannot carry
+// the information does not retire the line): the Konquest bout
+// ENTRY line — it fires at the latch, names the foe and both
+// healths before the action starts, and its instant is provably
+// unsounded — and the bout OUTCOME lines ("X defeated." /
+// "Shujinko defeated."): a KO thud names nobody, and in Konquest
+// the defeat IS the lesson signal. Versus never had entry or
+// outcome speech (its intros and wins are the game's own
+// announced presentation) and gains none.
+//
+// PITCH IS LOGARITHMIC (perceived pitch is roughly log frequency),
+// foe 1200→300 Hz (bright tick), own 800→200 Hz (duller thud
+// register), panned to the owner's sides: FOE RIGHT (+0.8),
+// PLAYER LEFT (−0.8) — the BBS family's exact parameters, so a
+// player moving between games hears one health language. The HP
+// words here are floats on 0..1, so the fraction is direct and
+// the percent is the fight line's own rounding.
+//
+// THE TRACKED FOE is P2 — this game's fights are 1-on-1, so the
+// lock-on/last-hit distinction the BBS watch needs does not
+// arise: the foe in the struct is the only foe there is. In
+// versus, P1 is the reader's side (the FightLine convention:
+// "You lead"). Milestones latch per fighter (mode + fighter id):
+// priming is silent with at-or-below milestones pre-latched;
+// healing back to a milestone + 5 re-arms it (the tutorial's
+// per-phase refills exercise exactly this, and stay silent
+// doing it — the audit's refill measurement is why a refill is
+// not an announcement any more). A drop to 0 raises NOTHING from
+// this watch: a death is the game's own moment, and Konquest's
+// outcome lines above own the defeat. Events stash only while a
+// fight is live (InFight for versus, the bout latch for
+// Konquest) — the same fail-closed shape as BBS's field gate.
+//
+// There is no HUD-gauge split to seam in this game (no gauge-full
+// lines exist), so there is no MkuHudGaugeCues analog; the beeps
+// sit behind the app's battle-cues switch like every other
+// adapter's, via the snapshot bits. The app synth does not voice
+// this adapter's events yet — poke_cue_health reads the same
+// snapshot fields as BBS's, but the app-side polling/recipes for
+// this game are the separate app queue item (see the RE doc).
+
+bool  g_sfPendFoeBeep = false, g_sfPendOwnBeep = false;
+float g_sfPendFoeHz = 0.0f, g_sfPendOwnHz = 0.0f;
+struct MkuHealthTrack {
+    uint32_t who = 0;       // mode-tagged fighter id; 0 = none
+    float prev = -1.0f;     // last frame's HP fraction; -1 = unprimed
+    bool m75 = false, m50 = false, m25 = false, m10 = false;
+};
+MkuHealthTrack g_sfOwnTrack, g_sfFoeTrack;
+constexpr int   kSfMilestoneRearm = 5;   // percent points above a milestone
+constexpr float kSfFoeHiHz = 1200.0f, kSfFoeLoHz = 300.0f;
+constexpr float kSfOwnHiHz = 800.0f,  kSfOwnLoHz = 200.0f;
+constexpr float kSfFoePan = 0.8f, kSfOwnPan = -0.8f;
+
+int SfPct(float frac)
+{
+    int p = (int) (frac * 100.0f + 0.5f);
+    return p < 0 ? 0 : (p > 100 ? 100 : p);
+}
+
+// Pitch from a health fraction, log-mapped between the family's
+// endpoints (the BBS HealthPitch shape): fraction 1 = hi, 0 = lo.
+float SfPitch(float lo, float hi, float frac)
+{
+    if (frac < 0.0f) frac = 0.0f;
+    if (frac > 1.0f) frac = 1.0f;
+    return lo * powf(hi / lo, frac);
+}
+
+// One frame of milestone/beep tracking for one side. foeSide picks
+// the family (pitch range, wording, speech priority); the pan is
+// applied by the snapshot, from the same constants.
+void SfTrackSide(MkuHealthTrack& t, uint32_t who, float cur, bool foeSide)
+{
+    if (!who) return;
+    if (cur < 0.0f) cur = 0.0f;
+    if (cur > 1.0f) cur = 1.0f;
+    if (t.who != who) {
+        // A new fighter (or the first sight): prime silently —
+        // milestones at or below the current percent are already
+        // passed and must not speak for a fight joined late.
+        t.who = who; t.prev = cur;
+        int pct = SfPct(cur);
+        t.m75 = pct <= 75; t.m50 = pct <= 50;
+        t.m25 = pct <= 25; t.m10 = pct <= 10;
+        return;
+    }
+    int pct = SfPct(cur);
+    if (cur < t.prev) {
+        if (cur > 0.0f) {   // a hit landed (death is the game's own moment)
+            if (foeSide) {
+                g_sfPendFoeBeep = true;
+                g_sfPendFoeHz = SfPitch(kSfFoeLoHz, kSfFoeHiHz, cur);
+            } else {
+                g_sfPendOwnBeep = true;
+                g_sfPendOwnHz = SfPitch(kSfOwnLoHz, kSfOwnHiHz, cur);
+            }
+            int crossed = 0;   // latch every crossing; speak only the lowest
+            if (pct <= 75) { if (!t.m75) crossed = 75; t.m75 = true; }
+            if (pct <= 50) { if (!t.m50) crossed = 50; t.m50 = true; }
+            if (pct <= 25) { if (!t.m25) crossed = 25; t.m25 = true; }
+            if (pct <= 10) { if (!t.m10) crossed = 10; t.m10 = true; }
+            if (crossed) {
+                char line[64];
+                if (crossed == 10)
+                    snprintf(line, sizeof(line),
+                             foeSide ? "Foe nearly gone."
+                                     : "Your health nearly gone.");
+                else
+                    snprintf(line, sizeof(line),
+                             foeSide ? "Foe health %d percent."
+                                     : "Your health %d percent.", crossed);
+                Say(line, "health",
+                    foeSide ? oga::Priority::Low : oga::Priority::Normal);
+            }
+        }
+    } else if (cur > t.prev) {
+        // Healing re-arms each milestone once the percent is back
+        // above it by the margin (milestone + 5).
+        if (pct >= 75 + kSfMilestoneRearm) t.m75 = false;
+        if (pct >= 50 + kSfMilestoneRearm) t.m50 = false;
+        if (pct >= 25 + kSfMilestoneRearm) t.m25 = false;
+        if (pct >= 10 + kSfMilestoneRearm) t.m10 = false;
+    }
+    t.prev = cur;
+}
+
+void WatchMkuHealthCues(void)
+{
+    if (InFight()) {
+        // Versus: P1 is the reader's side, P2 the foe.
+        SfTrackSide(g_sfOwnTrack, 1 + u32(kP1FighterIdAddr),
+                    f32(kP1HpAddr), false);
+        SfTrackSide(g_sfFoeTrack, 1 + u32(kP2FighterIdAddr),
+                    f32(kP2HpAddr), true);
+        if (f32(kP1HpAddr) <= 0.0f) g_sfOwnTrack = MkuHealthTrack{};
+        if (f32(kP2HpAddr) <= 0.0f) g_sfFoeTrack = MkuHealthTrack{};
+        return;
+    }
+    if (g_boutLive) {
+        // Konquest bout: same struct, Konquest ids — tagged apart
+        // from the versus ids so the tracks never share a latch.
+        SfTrackSide(g_sfOwnTrack, 0x101 + kKonquestPlayerId,
+                    f32(kP1HpAddr), false);
+        SfTrackSide(g_sfFoeTrack, 0x101 + u32(kP2FighterIdAddr),
+                    f32(kP2HpAddr), true);
+        if (f32(kP1HpAddr) <= 0.0f) g_sfOwnTrack = MkuHealthTrack{};
+        if (f32(kP2HpAddr) <= 0.0f) g_sfFoeTrack = MkuHealthTrack{};
+        return;
+    }
+    // No live fight: forget the tracks; the next fight primes fresh.
+    g_sfOwnTrack = MkuHealthTrack{};
+    g_sfFoeTrack = MkuHealthTrack{};
+}
+
+void SfReset(void)
+{
+    g_sfPendFoeBeep = g_sfPendOwnBeep = false;
+    g_sfPendFoeHz = g_sfPendOwnHz = 0.0f;
+    g_sfOwnTrack = MkuHealthTrack{};
+    g_sfFoeTrack = MkuHealthTrack{};
+}
+
+// The cue feed (adapter.h CueSnapshot): silent, read-only, polled
+// every frame by the host's cue synth. This game has no lock-on,
+// so the beacon fields stay empty (battle with no lock = the
+// synth's quiet state); the sound-first one-shot health events
+// ride the trailing fields exactly as BBS's do — the watches stash
+// them during on_frame, and the first poll inside a live fight
+// copies them out and clears them, so each hit sounds exactly
+// once. A poll outside a fight is refused and consumes nothing.
+static bool mku_cue_snapshot(CueSnapshot* out)
+{
+    if (!out) return false;
+    out->battle = false;
+    out->locked = false;
+    out->is_core = false;
+    out->dist = 0.0f;
+    out->core_gain = false;
+    out->foe_beep = false; out->foe_beep_hz = 0.0f; out->foe_beep_pan = 0.0f;
+    out->own_beep = false; out->own_beep_hz = 0.0f; out->own_beep_pan = 0.0f;
+    out->focus_cue = false; out->dlink_cue = false;
+    if (!g_host) return false;
+    if (!InFight() && !g_boutLive) return false;
+    out->battle = true;
+    out->foe_beep = g_sfPendFoeBeep;
+    out->foe_beep_hz = g_sfPendFoeHz;
+    out->foe_beep_pan = g_sfPendFoeBeep ? kSfFoePan : 0.0f;
+    out->own_beep = g_sfPendOwnBeep;
+    out->own_beep_hz = g_sfPendOwnHz;
+    out->own_beep_pan = g_sfPendOwnBeep ? kSfOwnPan : 0.0f;
+    g_sfPendFoeBeep = g_sfPendOwnBeep = false;
+    g_sfPendFoeHz = g_sfPendOwnHz = 0.0f;
+    return true;
+}
+
 
 // ---- Konquest free-roam position (VERIFIED 2026-10-23, pos hunts) ----------
 //
@@ -1509,6 +1723,7 @@ void MkuOnFrame(void)
     g_frameNo++;
     DlgOnFrame();
     BoutOnFrame();
+    WatchMkuHealthCues();
     RoamOnFrame();
     if (!InFight()) {
         g_frozenFrames = 0;
@@ -1722,6 +1937,7 @@ void CmdNotMapped(void)
 static bool mku_attach(const Host* host)
 {
     g_host = host;
+    SfReset();   // no stale beeps or latches from a previous session
     return true;   // the game code check already happened in the registry
 }
 
@@ -1760,7 +1976,7 @@ static bool mku_ready(void)
            OnOptionsRows() || OnCharSelect() || InFight() || InKonquest();
 }
 
-static void mku_detach(void) { g_host = nullptr; }
+static void mku_detach(void) { SfReset(); g_host = nullptr; }
 
 // NOTE: the instance lives at oga scope (like kDragonBallZSaiyans), NOT inside
 // an anonymous namespace -- otherwise the registry's `oga::kMortalKombatUnchained`
@@ -1775,14 +1991,18 @@ const Adapter kMortalKombatUnchained = {
     mku_command,
     mku_ready,
     mku_detach,
-    nullptr,     // cue_snapshot
-    "Menus, character select, fight state, pause, and Konquest dialogue, objectives, bouts, free-roam position and village landmark bearings",
+    mku_cue_snapshot,
+    "Menus, character select, fight state, battle health cues (hit beeps and milestone callouts), pause, and Konquest dialogue, objectives, bouts, free-roam position and village landmark bearings",
     "Spoken: the main menu, the Kombat submenu, character select, "
     "fight state (health, round wins, timer), the pause menu and "
     "its quit confirmation dialog, the Options tabs and rows, and "
     "Konquest dialogue and objective "
-    "lines as they appear, and Konquest bouts (Shujinko and the "
-    "opponent's health as the fight runs, plus the outcome).\n"
+    "lines as they appear, and Konquest bouts (the entry line with "
+    "both healths, plus the outcome). During any fight, health is "
+    "carried by sound instead of speech: a pitch-mapped beep on "
+    "every hit (the foe on the right, you on the left, the pitch "
+    "falling as the health falls), with the percent spoken only at "
+    "75, 50, 25 and nearly gone.\n"
     "Controls: Triangle goes back in the front-end menus.\n"
     "The QUIT GAME dialog reached from the pause menu's Main Menu "
     "row is read: it asks Are you sure, with No (the default) and "

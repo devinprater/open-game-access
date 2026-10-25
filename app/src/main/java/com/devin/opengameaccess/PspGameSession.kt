@@ -75,6 +75,15 @@ object PspGameSession {
     /** The rate the core hands audio out at (Core/psp_core.h). */
     private const val AUDIO_RATE = 32768
 
+    /**
+     * The application context, kept from [start] so the per-frame cue
+     * poll can read the battle-cues switch (see [pollCues]). An
+     * application context outlives nothing it shouldn't; holding it is
+     * the standard arrangement.
+     */
+    @Volatile
+    private var appContext: Context? = null
+
     /** True once a disc image is loaded and the core is running. */
     @Volatile
     private var running = false
@@ -169,6 +178,7 @@ object PspGameSession {
     fun start(activity: Activity, uri: Uri, onResult: (String?) -> Unit) {
         val gen = ++generation
         val app = activity.applicationContext
+        appContext = app
         val main = Handler(Looper.getMainLooper())
         val worker = Thread {
             val error = loadOnWorker(app, uri)
@@ -209,6 +219,25 @@ object PspGameSession {
                     PspAccessibilityScript.adapterName()
                 } catch (t: Throwable) {
                     ""
+                }
+                // ⛔ PER-GAME SETTINGS APPLY AT START (docs/design/
+                // per-game-settings.md). Birth by Sleep's gauge-cue
+                // mode is adapter state, so its effective value — the
+                // game's override when one exists, else the global
+                // default — is pushed into the adapter now, before the
+                // first frame. The battle-cues gate needs no push: it
+                // is app state, and pollCues resolves it per frame
+                // against this same adapter id. Guarded like every
+                // native call here: a build without the surface must
+                // not fail the session's start over a setting.
+                if (selectedAdapterId == GameSettings.ID_KHBBS) {
+                    try {
+                        PspAccessibilityScript.setHudGaugeCues(
+                            GameSettings.effectiveHudGaugeCuesSound(app, selectedAdapterId),
+                        )
+                    } catch (t: Throwable) {
+                        Log.w(TAG, "HUD gauge-cue setting not applied: ${t.message}")
+                    }
                 }
                 storedAnnouncementView?.let { AccessibilityScript.setAnnouncementView(it) }
                 startAudio()
@@ -273,6 +302,9 @@ object PspGameSession {
         selectedAdapterId = ""
         selectedAdapterName = ""
         adapterReadyNow = false
+        // Silence the cue as well as the game: a tone left running
+        // after the session ends would outlive the game it described.
+        PspCueSynth.silenceAll()
         stopAudio()
         teardownNative()
     }
@@ -320,6 +352,7 @@ object PspGameSession {
         } catch (t: Throwable) {
             false
         }
+        pollCues()
         val completed = try {
             PspAccessibilityScript.framesCompleted
         } catch (t: Throwable) {
@@ -332,6 +365,52 @@ object PspGameSession {
     }
 
     private var lastHeartbeatFrame = 0L
+
+    /**
+     * One frame of battle cues: the native host's single snapshot,
+     * driven into [PspCueSynth] exactly the way iOS's refreshCue
+     * drives its synth — the field answer wins over the lock answer,
+     * the one-shots are voiced either way, and everything is gated by
+     * the game's effective battle-cues value (its Per Game Settings
+     * override, else the Settings switch; off by default). A null poll
+     * (no adapter, or the reader not attached yet) silences the
+     * beacon: the cue must never outlive the state that fed it.
+     *
+     * The poll costs one JNI call per frame and consumes the
+     * adapter's one-frame events into that frame's snapshot — which
+     * is why it lives here, once, and nowhere else: a second poller
+     * would starve this one of beeps the adapter raises exactly once.
+     */
+    private fun pollCues() {
+        val poll = try {
+            PspAccessibilityScript.cuePoll()
+        } catch (t: Throwable) {
+            null
+        }
+        if (poll == null) {
+            PspCueSynth.silenceAll()
+            return
+        }
+        val ctx = appContext
+        // The gate is the loaded game's EFFECTIVE battle-cues value —
+        // its Per Game Settings override when one exists, else the
+        // global switch — resolved per frame from the store (two cheap
+        // reads against the in-memory prefs cache), so a change in
+        // Settings or the panel takes hold on the next frame.
+        val on = ctx != null && GameSettings.effectiveBattleCues(ctx, selectedAdapterId)
+        if (poll.field) {
+            PspCueSynth.silenceLockBeacon()
+            PspCueSynth.updateFieldBeacon(
+                poll.kind, poll.bearing, poll.fieldDist, poll.headingLive, on,
+            )
+        } else {
+            PspCueSynth.silenceFieldBeacon()
+            PspCueSynth.updateBeacon(poll.state, poll.dist, on)
+        }
+        PspCueSynth.updateOneShots(
+            poll.healthBits, poll.foeHz, poll.foePan, poll.ownHz, poll.ownPan, on,
+        )
+    }
 
     // ---- the emulated pad ---------------------------------------------------
     //
@@ -545,6 +624,11 @@ object PspGameSession {
                 0
             }
             if (frames > 0) {
+                // The cue synth mixes into the game's own audio here,
+                // at the drain — the one output path, so cue and game
+                // can never drift apart (see PspCueSynth). Silent
+                // unless a frame poll armed a voice.
+                PspCueSynth.render(buffer, frames)
                 track.write(buffer, 0, frames * 2, AudioTrack.WRITE_BLOCKING)
                 audioFramesWritten += frames
             } else {
@@ -652,6 +736,7 @@ object PspAdapterCommands {
     const val STOP_SPEECH = 37
     const val STATUS = 40
     const val GUIDE = 41
+    const val ENEMIES = 43
 }
 
 /**

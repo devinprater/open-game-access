@@ -218,6 +218,8 @@
  *     exact-matches it, as with the other PSP adapters),
  *   * verified speech for the title menu and the difficulty select,
  *   * the Mirage Arena Hub landmark table behind the Guide query,
+ *     extended 2026-10-24 to the surveyed Olympus Coliseum and
+ *     Radiant Garden rooms (CmdRoomGuide),
  *   * honest "not mapped" speech everywhere else,
  *   * DumpState: an anchor-string scan of PSP user RAM, the RE tool the
  *     next mapping passes pull threads from.
@@ -233,6 +235,28 @@
 #include <math.h>
 
 namespace oga {
+
+// ---- The sound-first HUD seam (2026-10-24) -----------------------------------
+// The owner's sound-first rule splits the silent HUD events in two: BIG
+// state changes keep their speech (a D-Link activating, a link ending),
+// while GAUGE-FULL moments (Focus full, D-Link ready) become designed
+// sounds instead of spoken lines. Which half a player gets is a
+// PREFERENCE, so the split is switchable here: true (the default) =
+// gauge-full moments raise cue-synth earcon pulses through the cue
+// snapshot and stay unspoken; false = the spoken lines come back and no
+// pulses are raised.
+//
+// This flag is THE SEAM the future per-game settings panel binds to:
+// the panel's "HUD gauge cues: sounds / speech" control for this game
+// calls KhbbsHudGaugeCues() with the player's choice (the app-side
+// settings plumbing does not exist yet — this is the adapter end of
+// it, and the host tests drive it directly). It lives at oga scope,
+// outside the adapter's anonymous namespace, so other translation
+// units can reach it; it is deliberately NOT reset by attach/detach —
+// a setting is not session state.
+bool g_hudGaugeCuesSound = true;
+void KhbbsHudGaugeCues(bool useSound) { g_hudGaugeCuesSound = useSound; }
+
 namespace {
 
 const Host* g_host = nullptr;
@@ -652,6 +676,72 @@ constexpr uint32_t kActorOffMaxHp = 0x382;  // u16
 constexpr int kLowHpPct = 26;       // the game's line: pct < 26 is low
 constexpr int kLowHpRearmPct = 31;  // re-arm: pct >= 31
 
+// ---- battle gauges: Focus / shotlock + D-Link (VERIFIED 2026-10-24, --------
+// ---- bench khbbs-foc1..foc7, decomp-led) -----------------------------------
+//
+// One heap object carries both battle resources. Its address
+// floats per boot (0x099842F0 hub/camp lineage, 0x09994700 LoD,
+// 0x099A4720 the Final Episode fight lineage), but a FIXED global
+// holds it: u32 @ 0x08B73BB8 (the constructor FUN_08919c88 stores
+// it there; the destructor FUN_08919cdc zeroes it). Layout, from
+// decompiling its per-frame updater FUN_0891db48 and confirming
+// every field live in the bench:
+//   +0x3C f32  D-Link gauge, 0..100
+//   +0x44 f32  Focus gauge, 0..100
+//   +0x50 u32  state: 1 while shotlock aiming, 2 while a fired
+//              shotlock resolves, 0 otherwise
+//   +0x54 u32  flags: 0x10000 Focus is full (set by the game at
+//              the fill crossing, clear while Focus < 100);
+//              0x100 D-Link primed (set at the fill crossing,
+//              held through a link, cleared when the drain
+//              empties the gauge); 0x20000 shotlock aiming;
+//              0x200 a D-Link is active
+//   +0x80 u16  the active link partner's def id (family 7 sub 14,
+//              the camp D-Links roster's own id set: 372 Mickey,
+//              373 Donald, 374 Goofy, 375 Experiment 626,
+//              376 Peter Pan, 377 Maleficent, 378 Cinderella,
+//              379 Snow White, 380 Zack, 381 Pete, 382 Aqua,
+//              383 Ventus, 384 Terra); 0 while unlinked. Names
+//              resolve through DefName(), the camp path's table.
+// The object exists wherever the player does (field, hub, camp,
+// battle) — events are gated to the field picture by the watch,
+// not by the object's presence.
+//
+// The mechanics the speech keys on (all bench-driven on the
+// Radiant Garden fight, Aqua vs the Red Hot Chili):
+//   * Shotlock aim = hold L+R: the aim flag rises, the actor's
+//     state goes 24 and its spawn mark goes 4 (see ActorPlausible),
+//     Focus drains as locks accumulate (Lightbloom caps at 20)
+//     and stops at the cap. Releasing L+R CANCELS with a full
+//     Focus refund; pressing Cross FIRES — state +0x50 goes 2 the
+//     same frame the aim flag falls, Focus stays spent, and the
+//     hits land over the following seconds. Taking damage can
+//     knock the player out of the aim (a cancel, refund included).
+//   * D-Link: D-pad RIGHT opens the battle list (roster, cursor),
+//     Triangle confirms. Activation sets flag 0x200, refills HP
+//     to full, swaps in the partner's deck and portrait, and the
+//     gauge drains ~3/second; at empty the primed bit clears and
+//     ~2 frames later 0x200 clears and the own deck returns.
+//   * Focus refills from a budget the updater converts over time;
+//     taking hits feeds it (+4 per hit observed).
+// The lock-on PIP COUNT is deliberately not spoken: exact-pattern
+// scans (u8/u16/u32/float) across the f0/aim45/aim120/aim240 dump
+// series found no word holding 0/3/20/20 — the count the HUD draws
+// is a per-target list length recomputed per frame, not a word.
+// The max-lock moment has no unique memory witness either (the
+// Focus drain also pauses when the reticle leaves every enemy),
+// so no milestone line is wired.
+constexpr uint32_t kGaugesPtrAddr = 0x08B73BB8;  // u32 -> gauges object
+constexpr uint32_t kGaugesOffDLink = 0x3C;       // f32 0..100
+constexpr uint32_t kGaugesOffFocus = 0x44;       // f32 0..100
+constexpr uint32_t kGaugesOffState = 0x50;       // u32: 1 aim, 2 firing
+constexpr uint32_t kGaugesOffFlags = 0x54;       // u32, bits below
+constexpr uint32_t kGaugesOffPartner = 0x80;     // u16 def id, 0 = none
+constexpr uint32_t kGaugesFlagFocusFull = 0x10000;
+constexpr uint32_t kGaugesFlagDLinkPrimed = 0x100;
+constexpr uint32_t kGaugesFlagAiming = 0x20000;
+constexpr uint32_t kGaugesFlagLinked = 0x200;
+
 // ---- lock-on record + locked foe (VERIFIED 2026-10-19, battle41) -----------
 // The player's lock-on component record floats per boot; it is
 // LOCATED by its back-pointer to the actor (see LocateLockRecord).
@@ -661,14 +751,18 @@ constexpr int kLowHpRearmPct = 31;  // re-arm: pct >= 31
 //   +0x50 f32[3]  the target's position (tracks it live)
 // The target's entity block starts 0x1B8 BEFORE its scene object;
 // enemies share the actor layout for HP (cur/max at +0x380/+0x382,
-// damage-verified: the Radiant Garden Red Hot Chili, 1200 max).
-// The scene object's first word is its scene id, which the actor
-// mirrors at +0x33C — that match is the locator's strongest check.
+// damage-verified on the Final Episode Radiant Garden target,
+// object code b51ex00, 1200 max). The scene object's first word is
+// its scene id, which the actor mirrors at +0x33C — that match is
+// the locator's strongest check. The scene id is a per-spawn
+// INSTANCE index, not a type id; the type identity is the object
+// code string embedded at scene object +0x88 (see FoeTypeName).
 constexpr uint32_t kLockRecOffActor = 0x38;
 constexpr uint32_t kLockRecOffTgt   = 0x3C;
 constexpr uint32_t kLockRecOffPPos  = 0x40;
 constexpr uint32_t kLockRecOffTPos  = 0x50;
 constexpr uint32_t kFoeBlockBack    = 0x1B8;
+constexpr uint32_t kFoeObjCodeOff   = 0x88;  // object code, from the scene object
 constexpr uint32_t kDeckCursorAddr = 0x099964EC;          // u32
 
 const char* const kDeckItems[] = {"Quick Blitz", "Aero", "Strike Raid"};
@@ -2151,10 +2245,40 @@ uint32_t g_actorBase = 0;   // located player actor; 0 = not located
 uint32_t g_lastActorBase = 0;   // last base where the actor verified live (game-over gate witness); 0 = none
 uint64_t g_lastScanMs = 0;  // host time of the last locate sweep
 int g_charId = -1;          // character id from the player block; -1 = unknown
+uint32_t g_blockBase = 0;   // player-block base found alongside the character
 int g_lastLock = -1;        // last polled lock state: -1 unknown, 0 off, 1 on
 bool g_lowHpWarned = false; // low-health warning fired for this drop
 uint32_t g_lowHpActor = 0;  // actor the low-HP latch belongs to
 uint16_t g_lowHpMax = 0;    // max HP the low-HP latch belongs to
+// Battle-gauges watch state (Focus / shotlock + D-Link; see the
+// constants block). The primed flag is the previous frame's flag
+// word; edges are state changes of the game's own bits, so nothing
+// repeats without the game itself changing state first.
+bool g_gaugesPrimed = false;   // first live sight primes silently
+uint32_t g_gaugesFlags = 0;    // flag word at the last live sight
+bool g_aimFired = false;       // a firing state seen for this aim
+// Sound-first one-shot events (declared here because the gauges
+// watch raises the first two; the health-cue watch further down
+// raises the beeps and owns the design note). The cue snapshot
+// copies them out and clears them: one event, one sound.
+bool  g_pendFoeBeep = false, g_pendOwnBeep = false;
+float g_pendFoeHz = 0.0f, g_pendOwnHz = 0.0f;
+bool  g_pendFocusCue = false, g_pendDLinkCue = false;
+// Sound-first health-cue tracking (the watch itself is further
+// down, beside WatchLowHp; the design note lives with it). One
+// track per side: the subject the latches belong to, its max HP,
+// last frame's HP, and the four milestone latches (75/50/25/10).
+struct HealthTrack {
+    uint32_t who = 0;       // actor base (own) or foe entity block; 0 = none
+    uint16_t max = 0;       // the max HP the latches belong to
+    int prev = -1;          // last frame's HP; -1 = unprimed
+    bool m75 = false, m50 = false, m25 = false, m10 = false;
+};
+HealthTrack g_ownTrack, g_foeTrack;
+constexpr int   kHealthMilestoneRearm = 5;    // percent points above a milestone
+constexpr float kFoeBeepHiHz = 1200.0f, kFoeBeepLoHz = 300.0f;
+constexpr float kOwnBeepHiHz = 800.0f,  kOwnBeepLoHz = 200.0f;
+constexpr float kFoeBeepPan = 0.8f, kOwnBeepPan = -0.8f;
 uint32_t g_lockRec = 0;     // located lock-on record address; 0 = not yet
 uint64_t g_lastLockScanMs = 0;  // host time of the last lock-record sweep
 uint32_t g_nodeBase = 0;    // located engagement component; 0 = not yet
@@ -2166,10 +2290,11 @@ uint64_t g_lastNodeScanMs = 0;  // host time of the last component sweep
 // per area), so facing comes from the player's own movement: the
 // anchor is the last position a >= 1-unit leg started from, and the
 // facing delta is that leg's displacement. Bearings to landmarks are
-// spoken as clock positions relative to this delta. The first
-// landmark table — the Mirage Arena Hub — speaks through the Guide
-// query (CmdHubGuide below); other rooms' tables are still open
-// work, and the tracker stays bench-visible via DumpState.
+// spoken as clock positions relative to this delta. The landmark
+// tables — the Mirage Arena Hub first, then the surveyed Olympus
+// Coliseum and Radiant Garden rooms — speak through the Guide
+// query (CmdHubGuide / CmdRoomGuide below), and the tracker stays
+// bench-visible via DumpState.
 float g_faceAnchorX = 0.0f, g_faceAnchorZ = 0.0f;  // last leg's start
 bool g_faceAnchorSet = false;
 float g_faceDX = 0.0f, g_faceDZ = 0.0f;            // last >= 1-unit leg
@@ -2211,7 +2336,7 @@ void ResolveCharacter(void)
         if (found) return;  // ambiguous: two blocks claim this actor
         found = base;
     }
-    if (found) g_charId = (int) u8(found + kBlockOffChar);
+    if (found) { g_charId = (int) u8(found + kBlockOffChar); g_blockBase = found; }
 }
 
 bool ActorPlausible(uint32_t base)
@@ -2226,11 +2351,36 @@ bool ActorPlausible(uint32_t base)
     // locked on to a target (VERIFIED 2026-10-18, battle30/31 toggle
     // differential: 1 in every unlocked dump, 2 in both locked
     // dumps, back to 1 after unlocking). Accept both; requiring 1
-    // made the field vanish for the whole lock-on.
-    uint16_t mark = u16(base + kActorOffMark);
-    if (mark != 1 && mark != 2) return false;
-    if ((u32(base + kActorOffFlags) & 0x20) == 0) return false;
+    // made the field vanish for the whole lock-on. It reads 4
+    // through the whole shotlock — the aim AND the firing
+    // animation that follows it (VERIFIED 2026-10-24, bench
+    // khbbs-foc1/foc2: mark 4 + actor state 24 from the aim's
+    // first frame to the animation's end; the gauges object's
+    // aim flag covers only the aim itself, clearing the frame
+    // the shot fires while the mark is still 4) — accept it, or
+    // the field gate drops for exactly the seconds the shotlock
+    // watch must see. But mark 4 is NOT the player's alone: a
+    // full-corpus sweep (2,760 bench dumps, offline replica of
+    // this fingerprint) found mark-4 structs the old rules
+    // rejected — an enemy block in the Radiant Garden fight
+    // dumps (battle27/28: state 35, HP 5/512; an old=1 dump
+    // would have gone ambiguous and several old=0 dumps would
+    // have located the foe) and UI structs on screens with no
+    // gauges object at all (ad91: state 50; arch3: state 102).
+    // The player's mark 4 is therefore accepted ONLY with the
+    // shotlock's own corroboration: the actor state is 24 (the
+    // shotlock action state, constant through aim and firing)
+    // and the battle-gauges object is live. Both held in every
+    // true shotlock dump (foc1/foc2/battle40) and failed in
+    // every false one.
     uint32_t state = u32(base + kActorOffState);
+    uint16_t mark = u16(base + kActorOffMark);
+    if (mark == 4) {
+        if (state != 24) return false;
+        uint32_t g = u32(kGaugesPtrAddr);
+        if (g < kUserRamBase || g + 0x58 > kUserRamEnd) return false;
+    } else if (mark != 1 && mark != 2) return false;
+    if ((u32(base + kActorOffFlags) & 0x20) == 0) return false;
     // The state word is a small enum, but its values are per-module:
     // 1 in the tutorial field and the Mirage Arena hub, 12 in the
     // Final Episode field, 15 while dead, 28 during a respawn
@@ -2285,6 +2435,7 @@ bool InField(void)
     }
     g_actorBase = 0;
     g_charId = -1;
+    g_blockBase = 0;
     // No map loaded: both map-id copies read 0xFF on the title and the
     // difficulty screens, so no field actor can exist. Skip the heap sweep
     // there instead of walking 8 MB every few seconds for nothing.
@@ -2350,12 +2501,13 @@ uint32_t LocateLockRecord(void)
     return hits == 1 ? found : 0;
 }
 
-// Validated read of the locked target: its health pair, the 3D
-// distance, and the height difference (target minus player).
-// Every input is re-validated on each call; any failure returns
-// false and the caller degrades honestly. (The target's NAME is
-// not read yet — the scene id is not proven to be a type id.)
-bool ReadFoe(unsigned* curOut, unsigned* mxOut, float* distOut, float* dyOut)
+// The locked target's scene object, located and validated:
+// the lock record's owner back-pointer must name the actor, its
+// target word must be nonzero, and the target's first word must
+// equal the actor's engagement mirror. 0 when there is no
+// verifiable target. (Extracted from ReadFoe; the foe NAME read
+// below shares the same validation.)
+uint32_t FoeSceneObject(void)
 {
     if (!g_lockRec || u32(g_lockRec + kLockRecOffActor) != g_actorBase) {
         // The record sweep is 2M reads. ReadFoe() runs inside the per-frame
@@ -2364,14 +2516,25 @@ bool ReadFoe(unsigned* curOut, unsigned* mxOut, float* distOut, float* dyOut)
         uint64_t now = g_host ? g_host->now_ms : 0;
         if (g_lastLockScanMs && now >= g_lastLockScanMs &&
             now - g_lastLockScanMs < 1000)
-            return false;
+            return 0;
         g_lastLockScanMs = now;
         g_lockRec = LocateLockRecord();
     }
-    if (!g_lockRec) return false;
+    if (!g_lockRec) return 0;
     uint32_t tgt = u32(g_lockRec + kLockRecOffTgt);
+    if (!tgt) return 0;
+    if (u32(tgt) != u32(g_actorBase + kActorOffEngage)) return 0;
+    return tgt;
+}
+
+// Validated read of the locked target: its health pair, the 3D
+// distance, and the height difference (target minus player).
+// Every input is re-validated on each call; any failure returns
+// false and the caller degrades honestly.
+bool ReadFoe(unsigned* curOut, unsigned* mxOut, float* distOut, float* dyOut)
+{
+    uint32_t tgt = FoeSceneObject();
     if (!tgt) return false;
-    if (u32(tgt) != u32(g_actorBase + kActorOffEngage)) return false;
     uint32_t blk = tgt - kFoeBlockBack;
     unsigned cur = (unsigned) u16(blk + kActorOffCurHp);
     unsigned mx = (unsigned) u16(blk + kActorOffMaxHp);
@@ -2387,6 +2550,99 @@ bool ReadFoe(unsigned* curOut, unsigned* mxOut, float* distOut, float* dyOut)
     *mxOut = mx;
     *distOut = sqrtf(dx * dx + dy * dy + dz * dz);
     *dyOut = dy;
+    return true;
+}
+
+// ---- the foe's NAME (VERIFIED 2026-10-24, bench name1-5 + the
+// journal census in bench sub1/s5) ----
+//
+// What carries the TYPE: every scene object embeds its object
+// code at +0x88 — "m03ex00" for a Bruiser, 7 chars + NUL. The
+// word at +0x00 (the "scene id") cannot do it: it is a per-spawn
+// instance index — the Mirage Arena lobby's two g12vs00
+// transporter rings carry scene ids 20 and 21, and one fight's
+// ids run in spawn order across types (player 15, gimmicks 17/18,
+// the boss 19, its keyblade 21 in battle41's census).
+//
+// The display names are the game's own words. The journal's
+// Unversed entries (message category 0x3800, name part) are
+// keyed by entry = enemy number + 0x80: 0x81 Flood, 0x82
+// Scrapper, 0x83 Bruiser, 0x84 Red Hot Chili, ... 0x99 Blobmob —
+// the same numbering as the object codes m01..m25, in the same
+// order, dumped from a Reports-open RAM image. That table is
+// NOT resident during a fight (it loads with the Reports
+// screen; a fight dump carries five message tables, none of
+// them 0x3800), so the proven mapping ships as data here — the
+// pattern the harvested shop prices already use. Staged types
+// are additionally correlated live (lock the foe, screenshot its
+// visible form, read its code, hear the name).
+//
+// Fail closed: only 'm' codes with the ex/vs infix and a proven
+// number 1..25 resolve. Boss ('b') codes have no proven key —
+// the journal's boss entries (0x9A..0xA4) are sequenced, not
+// numbered by the b-code — and the Jellyshade variants 27/28/32
+// and the arena Heartless 40/41/42 have no journal entry of
+// their own; all stay unnamed rather than guessed.
+static const char* const kFoeTypeNames[] = {
+    nullptr,          // 0
+    "Flood",          // 1
+    "Scrapper",       // 2
+    "Bruiser",        // 3
+    "Red Hot Chili",  // 4
+    "Monotrucker",    // 5
+    "Thornbite",      // 6
+    "Shoegazer",      // 7
+    "Spiderchest",    // 8
+    "Archraven",      // 9
+    "Hareraiser",     // 10
+    "Jellyshade",     // 11
+    "Tank Toppler",   // 12
+    "Vile Phial",     // 13
+    "Sonic Blaster",  // 14
+    "Triple Wrecker", // 15
+    "Wild Bruiser",   // 16
+    "Blue Sea Salt",  // 17
+    "Yellow Mustard", // 18
+    "Mandrake",       // 19
+    "Buckle Bruiser", // 20
+    "Chrono Twister", // 21
+    "Axe Flapper",    // 22
+    "Prize Pod",      // 23
+    "Glidewinder",    // 24 (the ex01/ex02 color variants share it)
+    "Blobmob",        // 25
+};
+
+// Map a raw object code to its proven display name, or nullptr.
+// The code's shape is validated strictly: [a-z] digit digit
+// [a-z] [a-z] digit digit NUL — anything else is not a code.
+const char* FoeTypeName(const char* code)
+{
+    if (code[0] != 'm') return nullptr;
+    if (code[1] < '0' || code[1] > '9' || code[2] < '0' || code[2] > '9')
+        return nullptr;
+    bool ex = code[3] == 'e' && code[4] == 'x';
+    bool vs = code[3] == 'v' && code[4] == 's';
+    if (!ex && !vs) return nullptr;
+    if (code[5] < '0' || code[5] > '9' || code[6] < '0' || code[6] > '9' ||
+        code[7] != 0)
+        return nullptr;
+    int num = (code[1] - '0') * 10 + (code[2] - '0');
+    if (num < 1 || num > 25) return nullptr;
+    return kFoeTypeNames[num];
+}
+
+// The locked foe's proven type name, read live from its scene
+// object. False (speak no name) on any doubt.
+bool ReadFoeName(char* buf, size_t n)
+{
+    uint32_t tgt = FoeSceneObject();
+    if (!tgt) return false;
+    char code[8];
+    for (int i = 0; i < 8; i++)
+        code[i] = (char) u8(tgt + kFoeObjCodeOff + (uint32_t) i);
+    const char* name = FoeTypeName(code);
+    if (!name) return false;
+    snprintf(buf, n, "%s", name);
     return true;
 }
 
@@ -2535,26 +2791,12 @@ static const HubLandmark kHubLobbyMarks[] = {
 };
 constexpr float kHubFloorSplitZ = -20.0f;
 
-// The Guide query in the Hub: speak this floor's landmarks, each
-// with its distance and, once facing is known, its clock bearing.
-// FAIL SILENT everywhere else — the query has no answer outside
-// world 15 room 1, the camp menu owns speech while it is open,
-// and an unlocatable position says nothing rather than guessing.
-void CmdHubGuide(void)
+// Speak one landmark table from (px, pz): each mark with its
+// distance and, once facing is known, its clock bearing. The
+// spoken forms are the Guide's everywhere (see CmdHubGuide).
+static void SpeakMarks(const HubLandmark* marks, int count,
+                       float px, float pz)
 {
-    if (CampActive() || ReportsUp()) return;
-    unsigned wA = u8(kWorldAddrA), rA = u8(kWorldAddrA + 1);
-    unsigned wB = u8(kWorldAddrB), rB = u8(kWorldAddrB + 1);
-    if (wA != 15 || rA != 1 || wA != wB || rA != rB) return;
-    if (!InField() || !EnsureNode()) return;
-    float px = f32(g_nodeBase + kLockRecOffPPos);
-    float pz = f32(g_nodeBase + kLockRecOffPPos + 8);
-    const HubLandmark* marks = kHubLobbyMarks;
-    int count = (int) (sizeof(kHubLobbyMarks) / sizeof(kHubLobbyMarks[0]));
-    if (pz < kHubFloorSplitZ) {
-        marks = kHubPlatformMarks;
-        count = (int) (sizeof(kHubPlatformMarks) / sizeof(kHubPlatformMarks[0]));
-    }
     float fdx = 0.0f, fdz = 0.0f;
     bool facing = FacingVector(&fdx, &fdz);
     for (int i = 0; i < count; i++) {
@@ -2589,17 +2831,482 @@ void CmdHubGuide(void)
     }
 }
 
-// The spoken foe clause for a held lock: the target's health and
-// distance. Any validation failure leaves the plain suffix.
+// The Guide query in the Hub: speak this floor's landmarks, each
+// with its distance and, once facing is known, its clock bearing.
+// FAIL SILENT everywhere else — the query has no answer outside
+// world 15 room 1, the camp menu owns speech while it is open,
+// and an unlocatable position says nothing rather than guessing.
+void CmdHubGuide(void)
+{
+    if (CampActive() || ReportsUp()) return;
+    unsigned wA = u8(kWorldAddrA), rA = u8(kWorldAddrA + 1);
+    unsigned wB = u8(kWorldAddrB), rB = u8(kWorldAddrB + 1);
+    if (wA != 15 || rA != 1 || wA != wB || rA != rB) return;
+    if (!InField() || !EnsureNode()) return;
+    float px = f32(g_nodeBase + kLockRecOffPPos);
+    float pz = f32(g_nodeBase + kLockRecOffPPos + 8);
+    const HubLandmark* marks = kHubLobbyMarks;
+    int count = (int) (sizeof(kHubLobbyMarks) / sizeof(kHubLobbyMarks[0]));
+    if (pz < kHubFloorSplitZ) {
+        marks = kHubPlatformMarks;
+        count = (int) (sizeof(kHubPlatformMarks) / sizeof(kHubPlatformMarks[0]));
+    }
+    SpeakMarks(marks, count, px, pz);
+}
+
+// ---- landmark Guide beyond the Hub (tables SURVEYED 2026-10-24) -------------
+//
+// The same Guide, room by room, for the rooms the bench has
+// walked end to end (guide-progress survey; per-room notes in
+// games/kh-bbs/). Every position below was measured by walking
+// to the thing itself — a position log at contact, and a
+// screenshot, an interaction prompt, or a walked room flip
+// proving it is what the line names. Positions are the objects'
+// own origins from the room's spawn data (the Hub precedent);
+// exits use the exit trigger's center and are named for the
+// room they lead to, exactly as kRoomNames names it — a door
+// counts only when the flip through it was walked and the
+// destination read directly. Anything that could not be walked
+// to is NOT in a table: the Guide would rather say less than
+// guess. Features verified per room:
+//
+//   Vestibule (8,2): the save point matched its walked stand to
+//   0.27 with its Save prompt on screen; the Moogle by its Shop
+//   prompt and the earlier end-to-end shop proof; the big chest
+//   by contact (it is 1.8 long, so contact is ~1.5 from its
+//   center); Hercules and Phil by their Talk prompts and
+//   screenshots. Hades stands in this room's story-pattern
+//   spawn data only — two live censuses of the finished save
+//   list exactly the five residents above plus the player, so
+//   he is not named. The south alcove is decoration, not a
+//   door: the north door is the room's only exit.
+//   Coliseum Gates (8,1): the northwest chest by contact. Two
+//   more chests sit in a strip south of the terrace wall that
+//   walking cannot reach from this room — excluded.
+//   Town Near Thebes (8,5): the street was walked end to end;
+//   it holds nothing but hittable pots and Unversed spawns, so
+//   its table is the single door back.
+//   Entryway (6,2): the room holds only the save point (stand
+//   matched the arrival position to 0.01) and its two doors.
+//   Central Square (6,3): a two-level room — entrance terrace,
+//   upper ring, center basin — spoken with ground-plane
+//   distances, as in the Hub. Both small chests by contact
+//   (west ring 0.98; east chest 1.01 by the south ring). The
+//   west door is shut for the finished save: the player was
+//   stood inside its trigger and pushed to the wall with no
+//   flip, so it is not named. Where it leads was never read.
+//   Castle Town (6,5): the Moogle stands behind its shop
+//   counter — the "gate" an earlier bench could not pass; the
+//   Shop prompt arms at the counter's west end, 2.26 from the
+//   Moogle's origin. The small west door flips to Merlin's
+//   House; the south door to Fountain Court.
+//   Merlin's House (6,8): Merlin by his Talk prompt and
+//   screenshot; the small chest by contact. The exit point is
+//   the west door's trigger, bisected live (safe stand at
+//   x -5.87, flip walking to -6.40) and centered by the
+//   arrival-offset pattern the other rooms show.
+//   Fountain Court (6,7): only the entrance balcony is tabled —
+//   it is fully railed, with no drop or stair down, and its
+//   door back to Castle Town is proven by the arrival itself.
+//   The court's main floor is entered from a west door whose
+//   other side this lineage never reached: unsurveyed.
+//   Outer Gardens (6,12): a long garden corridor. Entryway's
+//   north door lands at the FAR end (arrival stand (0,-119.24)
+//   against the (0,-123.25) trigger); the near door flips to
+//   the Purification Facility. Both chests by contact (~1.0).
+//   There is no save point in this room.
+//
+// The Purification Facility (6,11) and the Land of Departure
+// rooms stay un-Guided: the facility is a vertical maze the
+// survey entered but did not finish, and Mountain Path's exits
+// are story-blocked in the only state that reaches them. The
+// Guide fails closed in both, exactly as everywhere unsurveyed.
+static const HubLandmark kVestibuleMarks[] = {
+    {"Save point", -2.25f, 2.97f},
+    {"Moogle Shop", 2.87f, 3.50f},
+    {"Large chest", 3.98f, -1.10f},
+    {"Hercules", -2.50f, -4.33f},
+    {"Phil", 1.26f, -3.90f},
+    {"Coliseum Gates", 0.00f, 5.60f},
+};
+static const HubLandmark kColiseumGatesMarks[] = {
+    {"Small chest", -21.41f, 17.28f},
+    {"Vestibule", 0.00f, -15.40f},
+    {"Town Near Thebes", 0.00f, 20.80f},
+};
+static const HubLandmark kThebesMarks[] = {
+    {"Coliseum Gates", 0.00f, -15.50f},
+};
+static const HubLandmark kRgEntrywayMarks[] = {
+    {"Save point", -5.87f, 3.28f},
+    {"Outer Gardens", 0.00f, 13.50f},
+    {"Central Square", 0.00f, -12.75f},
+};
+static const HubLandmark kRgCentralSquareMarks[] = {
+    {"Small chest", -32.40f, 13.56f},
+    {"Small chest", 32.40f, -17.31f},
+    {"Entryway", 0.00f, 43.25f},
+    {"Castle Town", 34.00f, 0.00f},
+};
+static const HubLandmark kRgCastleTownMarks[] = {
+    {"Save point", 14.58f, -0.23f},
+    {"Moogle Shop", 15.69f, 9.87f},
+    {"Large chest", 0.75f, -9.73f},
+    {"Merlin's House", -14.15f, -5.20f},
+    {"Central Square", -13.00f, 20.00f},
+    {"Fountain Court", 9.00f, -24.00f},
+};
+static const HubLandmark kRgMerlinsHouseMarks[] = {
+    {"Merlin", 1.83f, 3.87f},
+    {"Small chest", -1.94f, 6.89f},
+    {"Castle Town", -7.50f, 4.00f},
+};
+static const HubLandmark kRgFountainCourtMarks[] = {
+    {"Castle Town", 42.75f, 36.25f},
+};
+static const HubLandmark kRgOuterGardensMarks[] = {
+    {"Small chest", 32.76f, -28.41f},
+    {"Small chest", -36.46f, 22.63f},
+    {"Purification Facility", 0.00f, -3.00f},
+    {"Entryway", 0.00f, -123.25f},
+};
+
+struct RoomGuide { unsigned world; unsigned room;
+                   const HubLandmark* marks; int count; };
+#define ROOM_GUIDE(w, r, t) { w, r, t, (int) (sizeof(t) / sizeof(t[0])) }
+static const RoomGuide kRoomGuides[] = {
+    ROOM_GUIDE(8, 2, kVestibuleMarks),
+    ROOM_GUIDE(8, 1, kColiseumGatesMarks),
+    ROOM_GUIDE(8, 5, kThebesMarks),
+    ROOM_GUIDE(6, 2, kRgEntrywayMarks),
+    ROOM_GUIDE(6, 3, kRgCentralSquareMarks),
+    ROOM_GUIDE(6, 5, kRgCastleTownMarks),
+    ROOM_GUIDE(6, 8, kRgMerlinsHouseMarks),
+    ROOM_GUIDE(6, 7, kRgFountainCourtMarks),
+    ROOM_GUIDE(6, 12, kRgOuterGardensMarks),
+};
+
+// The Guide query in a surveyed room beyond the Hub: the same
+// gating shape as CmdHubGuide — silent in camp and menus,
+// silent while the two location copies disagree, silent when
+// the position cannot be located, silent in any room with no
+// surveyed table.
+void CmdRoomGuide(void)
+{
+    if (CampActive() || ReportsUp()) return;
+    unsigned wA = u8(kWorldAddrA), rA = u8(kWorldAddrA + 1);
+    unsigned wB = u8(kWorldAddrB), rB = u8(kWorldAddrB + 1);
+    if (wA != wB || rA != rB) return;
+    const RoomGuide* g = nullptr;
+    for (size_t i = 0; i < sizeof(kRoomGuides) / sizeof(kRoomGuides[0]); i++)
+        if (kRoomGuides[i].world == wA && kRoomGuides[i].room == rA) {
+            g = &kRoomGuides[i];
+            break;
+        }
+    if (!g) return;
+    if (!InField() || !EnsureNode()) return;
+    float px = f32(g_nodeBase + kLockRecOffPPos);
+    float pz = f32(g_nodeBase + kLockRecOffPPos + 8);
+    SpeakMarks(g->marks, g->count, px, pz);
+}
+
+// The spoken foe clause for a held lock: the target's name (when
+// proven), health and distance. Any validation failure leaves
+// the plain suffix.
 bool LockClause(char* buf, size_t n)
 {
     unsigned cur, mx;
     float dist, dy;
     if (!ReadFoe(&cur, &mx, &dist, &dy)) return false;
     unsigned units = (unsigned) (dist + 0.5f);
-    snprintf(buf, n, " Locked on. Enemy health %u of %u, %u unit%s away.",
-             cur, mx, units, units == 1 ? "" : "s");
+    char name[40];
+    if (ReadFoeName(name, sizeof(name)))
+        snprintf(buf, n, " Locked on. %s health %u of %u, %u unit%s away.",
+                 name, cur, mx, units, units == 1 ? "" : "s");
+    else
+        snprintf(buf, n, " Locked on. Enemy health %u of %u, %u unit%s away.",
+                 cur, mx, units, units == 1 ? "" : "s");
     return true;
+}
+
+// ---- multi-enemy awareness: the foe census (VERIFIED 2026-10-25, bench multi1) ----
+//
+// ReadFoe answers for ONE foe — the locked one. A fight usually
+// holds several, and until now the player had no way to learn how
+// many, or where the others stood. The census below enumerates
+// every live foe in the room, on demand.
+//
+// WHO IS A FOE (each gate mirrors a proven exclusion):
+//   - a scene object: signature 0x00011000 at +0x08, a small scene
+//     id at +0x00, and an object code at +0x88 in the strict shape
+//     (the census pattern the name work proved over the dump
+//     corpus: every scene object in a fight dump matches exactly
+//     once — player, gimmicks, NPCs, weapons and all);
+//   - code prefix 'm' or 'b': monsters and bosses. The prefix is
+//     what keeps the player's 'p' object, the 'g' gimmicks (the
+//     transporter rings, the arena terminal), the 'n' NPCs and the
+//     'w' weapon objects out — several of those carry HP-shaped
+//     words of their own (the boss's keyblade reads 1/1, the arena
+//     gimmick 0/0) and are excluded by the HP gate as well;
+//   - a live HP pair on the entity block (obj − 0x1B8, the
+//     ReadFoe layout): max in [10, 20000], 0 < cur <= max. Dead
+//     and dying blocks (cur 0) do not count — a corpse is not an
+//     enemy the player still has to fight.
+//
+// WHERE A FOE STANDS: no fixed offset holds it — the scene object
+// embeds a palette of bone world matrices whose layout shifts per
+// instance. The position is the translation row of the palette's
+// root matrix (the 4th well-formed matrix, index 3): a translation
+// row (x, y, z, exactly 1.0f) preceded by three rotation rows
+// (unit-length, w = 0). Against the lock record's target position
+// — ground truth — index 3 matched EXACTLY in 17 of 20 locked-foe
+// checks across the name8/9/10 dump corpus (175 foe instances);
+// the other 3 (a Scrapper mid-spawn, a flying Archraven, a
+// Thornbite at 1 HP mid-death) had no well-formed palette at all
+// and fail closed here: the foe still counts and is named, it
+// just claims no distance. 153 of the 175 corpus instances carry
+// a position. No check ever put the true position at a different
+// index.
+//
+// COST: one sweep of the same span LocateLockRecord already walks
+// (0x09800000..RAM end), one signature read per word with rare
+// follow-ups — a query-time cost, never per frame: results are
+// cached for 1.5 s and keyed to the actor, so the field line, the
+// foe query and the roster share one sweep when asked together.
+//
+// SPEECH (the sound-first doctrine: queries only, nothing is
+// announced unasked — a foe dying is already carried by the hit
+// beeps and milestones, and a new wave by the game's own spawn
+// sounds): the Enemies command speaks the count and a roster
+// (nearest first, name when proven, distance, a clock bearing
+// once facing is known, the locked foe marked); the field line
+// and the foe query gain a bare count. No wave event is wired:
+// it would need this sweep on a cadence inside the frame loop
+// to announce a fact the player can ask for in one press.
+constexpr uint32_t kFoeObjSigOff = 0x08;
+constexpr uint32_t kFoeObjSig    = 0x00011000;
+constexpr int kMaxFoes = 16;
+constexpr uint64_t kCensusCacheMs = 1500;
+
+struct FoeEntry {
+    uint32_t obj;
+    const char* name;   // proven type name, or nullptr
+    bool hasPos;
+    float dist;         // 3D distance from the player (hasPos only)
+    float dx, dz;       // ground-plane offset from the player (hasPos only)
+    bool locked;
+};
+
+FoeEntry g_foes[kMaxFoes];
+int g_foeCount = -1;              // -1: no census for this actor yet
+uint32_t g_foeCensusActor = 0;
+uint64_t g_foeCensusMs = 0;
+
+// The strict object-code shape (the same shape FoeTypeName
+// validates before its journal-number rules): [a-z] digit digit
+// [a-z] [a-z] digit digit NUL.
+bool FoeCodeShape(const char* code)
+{
+    if (code[0] < 'a' || code[0] > 'z') return false;
+    if (code[1] < '0' || code[1] > '9' || code[2] < '0' || code[2] > '9')
+        return false;
+    if (code[3] < 'a' || code[3] > 'z' || code[4] < 'a' || code[4] > 'z')
+        return false;
+    if (code[5] < '0' || code[5] > '9' || code[6] < '0' || code[6] > '9')
+        return false;
+    return code[7] == 0;
+}
+
+// The foe's world position: the translation row of the 4th
+// well-formed bone matrix in its scene object (see the census
+// header for the proof and the fail-closed cases).
+bool FoePalettePos(uint32_t obj, float* xOut, float* yOut, float* zOut)
+{
+    float cand[8][3];
+    int n = 0;
+    for (uint32_t o = 0x400; o < 0xC00; o += 4) {
+        if (u32(obj + o + 12) != 0x3F800000) continue;
+        bool ok = true;
+        for (int r = 0; r < 3 && ok; r++) {
+            uint32_t ro = o - 0x30 + (uint32_t) r * 0x10;
+            if (u32(obj + ro + 12) != 0) { ok = false; break; }
+            float a = f32(obj + ro), b = f32(obj + ro + 4),
+                  c = f32(obj + ro + 8);
+            float len = sqrtf(a * a + b * b + c * c);
+            if (!(len >= 0.97f && len <= 1.03f)) ok = false;
+        }
+        if (!ok) continue;
+        float x = f32(obj + o), y = f32(obj + o + 4), z = f32(obj + o + 8);
+        if (!(x >= -300.0f && x <= 300.0f && y >= -300.0f && y <= 300.0f &&
+              z >= -300.0f && z <= 300.0f))
+            continue;
+        if (n < 8) { cand[n][0] = x; cand[n][1] = y; cand[n][2] = z; }
+        n++;
+    }
+    if (n < 4) return false;
+    *xOut = cand[3][0]; *yOut = cand[3][1]; *zOut = cand[3][2];
+    return true;
+}
+
+int RunCensus(void)
+{
+    g_foeCount = -1;
+    if (!g_actorBase) return -1;
+    // The player's position from the engagement component the
+    // position clause reads. Without it the census still counts
+    // and names — it claims no distances.
+    bool havePlayer = EnsureNode();
+    float px = 0, py = 0, pz = 0;
+    if (havePlayer) {
+        px = f32(g_nodeBase + kLockRecOffPPos);
+        py = f32(g_nodeBase + kLockRecOffPPos + 4);
+        pz = f32(g_nodeBase + kLockRecOffPPos + 8);
+    }
+    uint32_t lockedObj = FoeSceneObject();
+    int n = 0;
+    for (uint32_t x = 0x09800000; x + 0xC00 < kUserRamEnd && n < kMaxFoes;
+         x += 4) {
+        if (u32(x + kFoeObjSigOff) != kFoeObjSig) continue;
+        if (u32(x) > 100000) continue;   // the scene id is a small index
+        char code[8];
+        for (int i = 0; i < 8; i++)
+            code[i] = (char) u8(x + kFoeObjCodeOff + (uint32_t) i);
+        if (code[0] != 'm' && code[0] != 'b') continue;
+        if (!FoeCodeShape(code)) continue;
+        uint32_t blk = x - kFoeBlockBack;
+        unsigned cur = (unsigned) u16(blk + kActorOffCurHp);
+        unsigned mx = (unsigned) u16(blk + kActorOffMaxHp);
+        if (mx < 10 || mx > 20000 || cur == 0 || cur > mx) continue;
+        FoeEntry& e = g_foes[n];
+        e.obj = x;
+        e.name = FoeTypeName(code);
+        e.locked = (x == lockedObj);
+        e.hasPos = false;
+        e.dist = 0; e.dx = 0; e.dz = 0;
+        float fx, fy, fz;
+        if (havePlayer && FoePalettePos(x, &fx, &fy, &fz)) {
+            float ddx = fx - px, ddy = fy - py, ddz = fz - pz;
+            e.dist = sqrtf(ddx * ddx + ddy * ddy + ddz * ddz);
+            e.dx = ddx; e.dz = ddz;
+            e.hasPos = true;
+        }
+        n++;
+    }
+    // Nearest first; foes without a verified position sort last
+    // and keep their scan order among themselves (insertion sort
+    // is stable).
+    for (int i = 1; i < n; i++) {
+        FoeEntry t = g_foes[i];
+        float key = t.hasPos ? t.dist : 1e30f;
+        int j = i - 1;
+        while (j >= 0) {
+            float jk = g_foes[j].hasPos ? g_foes[j].dist : 1e30f;
+            if (jk <= key) break;
+            g_foes[j + 1] = g_foes[j];
+            j--;
+        }
+        g_foes[j + 1] = t;
+    }
+    g_foeCount = n;
+    g_foeCensusActor = g_actorBase;
+    g_foeCensusMs = g_host ? g_host->now_ms : 0;
+    return n;
+}
+
+// The foe count, from a census no older than kCensusCacheMs.
+// -1 when there is no located actor to census around. (A census
+// timestamp of 0 means "no cache" — the same convention the
+// lock-record throttle uses — so hosts whose clock starts at 0
+// simply re-census per query.)
+int CensusCount(void)
+{
+    if (!g_actorBase) return -1;
+    uint64_t now = g_host ? g_host->now_ms : 0;
+    if (g_foeCount >= 0 && g_foeCensusActor == g_actorBase && g_foeCensusMs &&
+        now >= g_foeCensusMs && now - g_foeCensusMs < kCensusCacheMs)
+        return g_foeCount;
+    return RunCensus();
+}
+
+// " 3 enemies." for the field line. Spoken when there is more to
+// know than the one tracked foe, or a single foe the player is
+// not locked onto; a lone locked foe is the lock clause's story.
+// Silent whenever the census has nothing to add — it never claims
+// "no enemies" from the field line.
+void EnemyCountClause(char* buf, size_t n)
+{
+    buf[0] = 0;
+    int c = CensusCount();
+    if (c < 0) return;
+    if (c >= 2 || (c == 1 && u16(g_actorBase + kActorOffMark) != 2))
+        snprintf(buf, n, " %d enem%s.", c, c == 1 ? "y" : "ies");
+}
+
+// "straight ahead" / "3 o'clock" for a ground-plane offset, in
+// the Hub Guide's terms: relative to the movement-derived
+// facing, 12 is straight ahead and 3 is to the right. The caller
+// guarantees a live facing and a non-trivial offset.
+void ClockPhrase(float fdx, float fdz, float dx, float dz, char* buf, size_t n)
+{
+    float dist = sqrtf(dx * dx + dz * dz);
+    float inv = 1.0f / dist;
+    float sinA = fdz * (dx * inv) - fdx * (dz * inv);
+    float cosA = fdx * (dx * inv) + fdz * (dz * inv);
+    float rel = atan2f(sinA, cosA) * 57.2957795f;
+    if (rel < 0.0f) rel += 360.0f;
+    int clock = (int) (rel / 30.0f + 0.5f);
+    if (clock == 0) clock = 12;
+    if (clock == 12) snprintf(buf, n, "straight ahead");
+    else snprintf(buf, n, "%d o'clock", clock);
+}
+
+// The roster query (the Enemies command): the count, then each
+// foe nearest first — its name when proven, its distance, a
+// clock bearing once the player's facing is known from movement,
+// and the locked foe marked so the roster reconciles with the
+// beeps and milestones that track it. A foe whose position did
+// not verify is named without a distance rather than given a
+// wrong one. At most 8 entries are spoken; the rest are counted
+// in a closing line, so a big fight stays one short answer.
+void CmdRoster(void)
+{
+    int c = CensusCount();
+    if (c < 0) return;
+    if (c == 0) { Say("No enemies.", "foe", oga::Priority::High); return; }
+    char line[160];
+    if (c == 1) Say("1 enemy.", "foe", oga::Priority::High);
+    else {
+        snprintf(line, sizeof(line), "%d enemies.", c);
+        Say(line, "foe", oga::Priority::High);
+    }
+    float fdx = 0, fdz = 0;
+    bool facing = FacingVector(&fdx, &fdz);
+    int speak = c < 8 ? c : 8;
+    for (int i = 0; i < speak; i++) {
+        const FoeEntry& e = g_foes[i];
+        const char* nm = e.name ? e.name : "Enemy";
+        const char* lockSuffix = e.locked ? ", locked on" : "";
+        if (!e.hasPos) {
+            snprintf(line, sizeof(line), "%s%s.", nm, lockSuffix);
+        } else {
+            unsigned units = (unsigned) (e.dist + 0.5f);
+            float flat = sqrtf(e.dx * e.dx + e.dz * e.dz);
+            if (facing && flat >= 1.0f) {
+                char clock[24];
+                ClockPhrase(fdx, fdz, e.dx, e.dz, clock, sizeof(clock));
+                snprintf(line, sizeof(line), "%s, %u away, %s%s.",
+                         nm, units, clock, lockSuffix);
+            } else {
+                snprintf(line, sizeof(line), "%s, %u away%s.",
+                         nm, units, lockSuffix);
+            }
+        }
+        Say(line, "foe", oga::Priority::High);
+    }
+    if (c > speak) {
+        snprintf(line, sizeof(line), "And %d more.", c - speak);
+        Say(line, "foe", oga::Priority::High);
+    }
 }
 
 // Room names from the OpenKH BBS worlds dictionary
@@ -2927,11 +3634,52 @@ bool LocationClause(char* buf, size_t n)
     return false;
 }
 
+// The live battle-gauges object, or 0 when the game has none
+// (its destructor zeroes the global). The float sanity check
+// keeps a stale or half-built object from speaking: both gauges
+// sit within 0..100 for the object's whole life.
+uint32_t GaugesObj(void)
+{
+    uint32_t obj = u32(kGaugesPtrAddr);
+    if (obj < kUserRamBase || obj + 0x84 > kUserRamEnd) return 0;
+    float dl = f32(obj + kGaugesOffDLink);
+    float foc = f32(obj + kGaugesOffFocus);
+    if (!(dl >= 0.0f && dl <= 100.0f)) return 0;
+    if (!(foc >= 0.0f && foc <= 100.0f)) return 0;
+    return obj;
+}
+
+// " Focus 73. D-Link 45." for the field line, with the full and
+// linked forms (" Focus full. D-Link full." / " Focus 73.
+// Linked to Ventus, D-Link 62."). Empty when the gauges object
+// does not resolve — the line then reads as it did before.
+void GaugesClause(char* buf, size_t n)
+{
+    buf[0] = 0;
+    uint32_t obj = GaugesObj();
+    if (!obj) return;
+    float foc = f32(obj + kGaugesOffFocus);
+    float dl = f32(obj + kGaugesOffDLink);
+    char focBuf[24], dlBuf[72];
+    if (foc >= 99.5f) snprintf(focBuf, sizeof(focBuf), " Focus full.");
+    else snprintf(focBuf, sizeof(focBuf), " Focus %d.", (int) (foc + 0.5f));
+    uint16_t partner = u16(obj + kGaugesOffPartner);
+    char pname[40];
+    if (partner && DefName(partner, pname, sizeof(pname)))
+        snprintf(dlBuf, sizeof(dlBuf), " Linked to %s, D-Link %d.",
+                 pname, (int) (dl + 0.5f));
+    else if (dl >= 99.5f) snprintf(dlBuf, sizeof(dlBuf), " D-Link full.");
+    else snprintf(dlBuf, sizeof(dlBuf), " D-Link %d.", (int) (dl + 0.5f));
+    snprintf(buf, n, "%s%s", focBuf, dlBuf);
+}
+
 void FieldLine(char* buf, size_t n)
 {
     unsigned cur = (unsigned) u16(g_actorBase + kActorOffCurHp);
     unsigned max = (unsigned) u16(g_actorBase + kActorOffMaxHp);
     unsigned gauge = (unsigned) u16(g_actorBase + kActorOffGauge);
+    char gauges[128];
+    GaugesClause(gauges, sizeof(gauges));
     // The character name comes from the player block (all lineages);
     // only the deck cursor word is tutorial-lineage-only.
     const char* name = (g_charId >= 0 && g_charId < kCharKnown)
@@ -2941,14 +3689,16 @@ void FieldLine(char* buf, size_t n)
         !LockClause(lockBuf, sizeof(lockBuf)))
         snprintf(lockBuf, sizeof(lockBuf), " Locked on.");
     const char* lockSuffix = lockBuf;
+    char count[24];
+    EnemyCountClause(count, sizeof(count));
     if (!ActorIsTutorial()) {
         // Relocated actor: health and gauge are struct-relative and
         // proven; add the name when the player block identified the
         // character, but never the tutorial lineage's deck facts.
         if (name)
-            snprintf(buf, n, "%s, health %u of %u. Gauge %u.%s", name, cur, max, gauge, lockSuffix);
+            snprintf(buf, n, "%s, health %u of %u. Gauge %u.%s%s%s", name, cur, max, gauge, lockSuffix, gauges, count);
         else
-            snprintf(buf, n, "Health %u of %u. Gauge %u.%s", cur, max, gauge, lockSuffix);
+            snprintf(buf, n, "Health %u of %u. Gauge %u.%s%s%s", cur, max, gauge, lockSuffix, gauges, count);
         return;
     }
     char cmd[64];
@@ -2957,8 +3707,8 @@ void FieldLine(char* buf, size_t n)
         snprintf(cmd, sizeof(cmd), "%s", kDeckItems[idx]);
     else
         snprintf(cmd, sizeof(cmd), "command %d", (int) idx + 1);
-    snprintf(buf, n, "%s, health %u of %u. Command: %s. Gauge %u.%s",
-             name ? name : "Ventus", cur, max, cmd, gauge, lockSuffix);
+    snprintf(buf, n, "%s, health %u of %u. Command: %s. Gauge %u.%s%s%s",
+             name ? name : "Ventus", cur, max, cmd, gauge, lockSuffix, gauges, count);
 }
 
 // Foe query — the Dissidia battle mapping (NextAlly in battle
@@ -2970,7 +3720,17 @@ void FieldLine(char* buf, size_t n)
 void CmdFoe(void)
 {
     if (u16(g_actorBase + kActorOffMark) != 2) {
-        Say("Not locked on.", "foe", oga::Priority::High);
+        // Unlocked, the honest refusal gains the census count when
+        // there is a fight to know about: "Not locked on. 3 enemies."
+        int c = CensusCount();
+        if (c > 0) {
+            char line[64];
+            snprintf(line, sizeof(line), "Not locked on. %d enem%s.",
+                     c, c == 1 ? "y" : "ies");
+            Say(line, "foe", oga::Priority::High);
+        } else {
+            Say("Not locked on.", "foe", oga::Priority::High);
+        }
         return;
     }
     unsigned cur, mx;
@@ -2980,9 +3740,28 @@ void CmdFoe(void)
         return;
     }
     const char* vert = dy > 5.0f ? ", above you" : dy < -5.0f ? ", below you" : "";
-    char line[192];
-    snprintf(line, sizeof(line), "Enemy health %u of %u. %u away%s.",
-             cur, mx, (unsigned) (dist + 0.5f), vert);
+    // The rest of the fight, in one clause: how many OTHER foes
+    // the census sees beyond the locked one this line reports.
+    char others[32] = "";
+    int c = CensusCount();
+    if (c >= 2) {
+        uint32_t lo = FoeSceneObject();
+        bool lockedIn = false;
+        for (int i = 0; i < c; i++)
+            if (g_foes[i].obj == lo) { lockedIn = true; break; }
+        int other = c - (lockedIn ? 1 : 0);
+        if (other > 0)
+            snprintf(others, sizeof(others), " %d other enem%s.",
+                     other, other == 1 ? "y" : "ies");
+    }
+    char line[224];
+    char name[40];
+    if (ReadFoeName(name, sizeof(name)))
+        snprintf(line, sizeof(line), "%s. Health %u of %u. %u away%s.%s",
+                 name, cur, mx, (unsigned) (dist + 0.5f), vert, others);
+    else
+        snprintf(line, sizeof(line), "Enemy health %u of %u. %u away%s.%s",
+                 cur, mx, (unsigned) (dist + 0.5f), vert, others);
     Say(line, "foe", oga::Priority::High);
 }
 
@@ -3002,7 +3781,12 @@ void CmdLockQuery(void)
         return;
     }
     char line[96];
-    snprintf(line, sizeof(line), "Locked on. %u away.", (unsigned) (dist + 0.5f));
+    char name[40];
+    if (ReadFoeName(name, sizeof(name)))
+        snprintf(line, sizeof(line), "Locked on: %s. %u away.",
+                 name, (unsigned) (dist + 0.5f));
+    else
+        snprintf(line, sizeof(line), "Locked on. %u away.", (unsigned) (dist + 0.5f));
     Say(line, "lock", oga::Priority::High);
 }
 
@@ -3010,7 +3794,7 @@ void CmdLockQuery(void)
 // field (Dissidia maps them to its battle self query).
 void CmdSelfLine(void)
 {
-    char line[192];
+    char line[256];
     FieldLine(line, sizeof(line));
     if (ActorIsTutorial()) g_lastDeck = (int) u32(kDeckCursorAddr);
     Say(line, "status", oga::Priority::High);
@@ -3224,7 +4008,8 @@ void WatchMoviePause(void)
     g_mpUp = up;
 }
 
-// ---- the Mirage Arena event menu (VERIFIED 2026-10-24, bench g10) ----
+// ---- the Mirage Arena event menus (VERIFIED 2026-10-24, bench g10;
+//      the mode child WIRED 2026-10-25, bench khbbs-cb1) ----
 //
 // The Hub lobby's north console — gimmick g10vs00 at (0, 8.20),
 // a big machine with a circular green holographic screen —
@@ -3235,92 +4020,157 @@ void WatchMoviePause(void)
 // gimmick "Arena Entrance Device". Its second spawn copy, in
 // the room's event pattern, sits at the same lobby spot with
 // no other service present, which fits an event fixture.)
-// Choosing New Event opens a mode list (Versus Mode / Arena
-// Mode / Command Board / Rumble Racing; Versus Mode greyed
-// while offline) — that screen is MAPPED but NOT wired: this
-// gate closes there (see below), so the child stays silent and
-// backing out re-announces this menu. Active Events and
-// D-Links would list other players' sessions; with nobody in
-// range both are no-ops that leave this menu up.
-// The menu's widget exists in TWO homes with one layout
-// (base = the screen word; offsets +0x00 screen, +0x0E cursor,
-// +0x10 previous-cursor tell, +0x12 count):
-//   home A @ 0x09919208 — fresh opens from the field (statics
-//     in the same menu-system block as the camp registry,
-//     0x09919264). First open and every re-open land here.
-//   home B @ 0x0991BCB8 — the menu REBUILT after backing out
-//     of the New Event mode child: there home A reads freed
-//     junk while the menu is visibly up and navigable
-//     (bench g10d/g10e: returned-menu row dumps track the
-//     cursor at home B and nowhere else).
-// The gate is the widget's full signature, identical at both
-// homes in the row dumps: screen == 2, +0x04 == 15,
-// +0x08 == 0xDBFF, +0x0A == 0xFFF8, +0x0C == 0, count == 3,
-// cursor < 3 — CONJOINED with the menu-system active word
-// (u32 @ 0x08B5BEF8 == 8, the camp gate's witness A: this
-// menu is built on the same menu system as camp, and the
-// word is up through every phase of the event flow) and
-// with camp itself excluded (camp shares the word, but its
+// Choosing New Event opens the mode child: Versus Mode /
+// Arena Mode / Command Board / Rumble Racing, opening on
+// Arena Mode (Versus is greyed while offline but the cursor
+// still lands on it), wrapping both ways — wired below as
+// the mode menu. Active Events and D-Links would list other
+// players' sessions; with nobody in range both are no-ops
+// that leave the top menu up.
+// Both menus are ONE widget with one layout (base = the
+// screen word; offsets +0x00 screen, +0x0E cursor, +0x10
+// previous-cursor tell, +0x12 count), told apart by the
+// screen word: 2 = the top menu (count word == 3), 3 = the
+// mode child (its count word reads 0; the rows are the four
+// above, proven by the full cb1 walk: start at Arena Mode,
+// Down cycles Command Board, Rumble Racing, Versus Mode,
+// Arena Mode; Up wraps to Versus Mode). The constant
+// signature words are identical for both: +0x04 == 15,
+// +0x08 == 0xDBFF, +0x0A == 0xFFF8, +0x0C == 0.
+// The widget FLOATS. Bench g10 found two homes (fresh opens
+// in the menu-system statics at 0x09919208; the menu rebuilt
+// after a mode-child trip at 0x0991BCB8), and bench cb1 found
+// the rest of the story: after an Arena Mode setup-screen
+// round trip the whole family relocates again (the top menu
+// rebuilt at 0x0991E278, the mode child at 0x0991B5B8, the
+// top menu again at 0x0991E348) — a hardcoded home pair goes
+// silently blind there (cb1's WhereAmI answered the field
+// line over the visibly open rebuilt menu). So the widget is
+// located the way the shop widget is: a signature scan over
+// the menu heap window with a sticky cache, uniqueness
+// required — in every cb1/g10 dump exactly one family
+// widget is live at a time, and across the bench's 2,478
+// RAM dumps the full signature matches only in event-menu
+// states and in post-close field dumps where the flow word
+// (below) is 0. The scan runs only behind the cheap
+// pre-terms; with the cache warm it costs the same handful
+// of reads the old two-home checks did.
+// The conjuncts, unchanged from g10: the menu-system active
+// word (u32 @ 0x08B5BEF8 == 8, the camp gate's witness A:
+// these menus are built on the same menu system as camp,
+// and the word is up through every phase of the event flow)
+// and camp itself excluded (camp shares the word, but its
 // witness B reads 0 throughout the event flow, so
 // CampActive() stays false here). The active word is
-// load-bearing, not decoration: when the menu closes after
-// a mode-child trip, the home-B widget is never torn down —
-// its whole block lingers with the signature intact while
-// the player walks the field (proven by the g10c/g10f end
-// dumps) — and only the active word (8 through the flow,
-// 0 in the Hub field before and after, bench g10k's two
-// full open/dive/return/close cycles) separates "menu up"
-// from "menu gone, widget stale". Across the bench's 2,478
-// RAM dumps the full widget signature matches only in
-// event-menu states (fresh opens at A, returns at B) and
-// in those post-close field dumps where the word is 0.
-// On the mode child the gate fails at both homes (A reads
-// zeros; B holds the child's own ghost with screen 3 and
-// count 0), so the child stays silent and backing out
-// re-announces this menu.
-// The arrival edge is debounced like the game-over menu's:
-// a rise speaks only after the gate was down for 30+ frames,
-// so a flicker cannot re-fire the line mid-menu, while the
-// mode-screen round trip (hundreds of frames down) still
-// re-announces on return.
-constexpr uint32_t kEvHomeA = 0x09919208;   // fresh opens
-constexpr uint32_t kEvHomeB = 0x0991BCB8;   // rebuilt after the mode child
+// load-bearing, not decoration: when a menu closes, its
+// widget block is never torn down — the whole block lingers
+// with the signature intact while the player walks the
+// field (proven by the g10c/g10f end dumps and cb1's closed
+// dump, which finds the last top-menu widget still shaped)
+// — and only the active word (8 through the flow, 0 in the
+// Hub field before and after, bench g10k's two full
+// open/dive/return/close cycles) separates "menu up" from
+// "menu gone, widget stale".
+// The arrival edges are debounced like the game-over
+// menu's: a rise speaks only after the gate was down for
+// 30+ frames, so a flicker cannot re-fire the line mid-menu,
+// while the mode-screen round trip (hundreds of frames
+// down) still re-announces on return. One opening transient
+// from g10 stands: the widget's +0x0C word reads garbage
+// for the first ~30 frames after Cross (a half-built
+// widget), so an arrival line fires a beat after the menu
+// becomes visible.
 constexpr uint32_t kEvFlowAddr = 0x08B5BEF8;  // menu-system active word (camp witness A), u32 == 8
+constexpr uint32_t kEvHeapLo   = 0x09910000;  // widget scan window (the shop heap window)
+constexpr uint32_t kEvHeapHi   = 0x09960000;
 const char* const kEventMenuItems[] = { "New Event", "Active Events", "D-Links" };
 constexpr int kEventMenuCount = 3;
+const char* const kModeMenuItems[] = { "Versus Mode", "Arena Mode", "Command Board", "Rumble Racing" };
+constexpr int kModeMenuCount = 4;
 
-bool g_evUp = false;            // gate state last frame
-int g_evDownFrames = 1 << 30;   // frames since the gate was last up
+uint32_t g_evWidget = 0;        // located family widget base (sticky)
+bool g_evUp = false;            // top-menu gate state last frame
+int g_evDownFrames = 1 << 30;   // frames since the top gate was last up
+bool g_modeSpoken = false;      // mode arrival spoken for this visit
+bool g_modeArmed = true;        // a 30+ frame down-stretch has armed the next arrival
+int g_modeRow = -1;             // mode cursor at the last stable check
+int g_modeStable = 0;           // frames the mode cursor has held still
+int g_modeDownFrames = 1 << 30; // frames since the mode gate was last up
 
-// One widget home's signature; on a match, *row (if given)
-// receives the cursor.
-bool EventMenuAt(uint32_t base, int* row)
+// One block's family signature; on a match, *screen receives
+// the screen word (2 top / 3 mode) and *row the cursor. The
+// mode child's count word reads 0, so its cursor is bounded
+// by the walked row count instead.
+bool EvWidgetShape(uint32_t base, int* screen, int* row)
 {
-    if (u16(base + 0x00) != 2) return false;
-    if (u16(base + 0x04) != 15) return false;
     if (u16(base + 0x08) != 0xDBFF) return false;
     if (u16(base + 0x0A) != 0xFFF8) return false;
+    if (u16(base + 0x04) != 15) return false;
     if (u16(base + 0x0C) != 0) return false;
-    if (u16(base + 0x12) != (uint16_t) kEventMenuCount) return false;
+    uint16_t scr = u16(base + 0x00);
     uint16_t cur = u16(base + 0x0E);
-    if (cur >= (uint16_t) kEventMenuCount) return false;
+    if (scr == 2) {
+        if (u16(base + 0x12) != (uint16_t) kEventMenuCount) return false;
+        if (cur >= (uint16_t) kEventMenuCount) return false;
+    } else if (scr == 3) {
+        if (cur >= (uint16_t) kModeMenuCount) return false;
+    } else return false;
+    if (screen) *screen = (int) scr;
     if (row) *row = (int) cur;
     return true;
 }
 
-bool EventMenuUp(void)
+// The live family widget's base, or 0. The sticky cache is
+// re-validated on every call; a miss scans the heap window
+// and demands exactly one shaped block.
+uint32_t EvLocate(void)
 {
-    if (u32(kEvFlowAddr) != 8) return false;
-    if (CampActive()) return false;   // camp shares the active word; not this menu
-    if (EventMenuAt(kEvHomeA, nullptr)) return true;
-    return EventMenuAt(kEvHomeB, nullptr);
+    if (g_evWidget && EvWidgetShape(g_evWidget, nullptr, nullptr)) return g_evWidget;
+    g_evWidget = 0;
+    uint32_t found = 0; int hits = 0;
+    for (uint32_t a = kEvHeapLo; a + 0x14 <= kEvHeapHi; a += 2) {
+        if (!EvWidgetShape(a, nullptr, nullptr)) continue;
+        hits++; found = a;
+        if (hits > 1) break;   // ambiguous: fail closed below
+    }
+    if (hits != 1) return 0;
+    g_evWidget = found;
+    return found;
 }
+
+// The event family's current screen: 0 = neither menu up,
+// 2 = the top menu, 3 = the New Event mode list. On a hit,
+// *row (if given) receives the cursor. The cheap pre-terms
+// run first, so the locator's scan is only ever paid inside
+// the event flow.
+int EvScreen(int* row)
+{
+    if (u32(kEvFlowAddr) != 8) return 0;
+    if (CampActive()) return 0;   // camp shares the active word; not these menus
+    uint32_t w = EvLocate();
+    if (!w) return 0;
+    int scr = 0;
+    if (!EvWidgetShape(w, &scr, row)) return 0;
+    return scr;
+}
+
+bool EventMenuUp(void) { return EvScreen(nullptr) == 2; }
+bool ModeMenuUp(void) { return EvScreen(nullptr) == 3; }
 
 void EventMenuRow(char* buf, size_t n)
 {
     int cur = 0;
-    if (!EventMenuAt(kEvHomeA, &cur)) EventMenuAt(kEvHomeB, &cur);
+    EvScreen(&cur);
+    if (cur < 0 || cur >= kEventMenuCount) cur = 0;
     snprintf(buf, n, "%s, %d of %d", kEventMenuItems[cur], cur + 1, kEventMenuCount);
+}
+
+void ModeMenuRow(char* buf, size_t n)
+{
+    int cur = 0;
+    EvScreen(&cur);
+    if (cur < 0 || cur >= kModeMenuCount) cur = 0;
+    snprintf(buf, n, "%s, %d of %d", kModeMenuItems[cur], cur + 1, kModeMenuCount);
 }
 
 void WatchEventMenu(void)
@@ -3339,6 +4189,1345 @@ void WatchEventMenu(void)
         g_evUp = false;
         if (g_evDownFrames < (1 << 30)) g_evDownFrames++;
     }
+}
+
+void WatchModeMenu(void)
+{
+    int row = 0;
+    bool up = (EvScreen(&row) == 3);
+    if (up) {
+        // The arrival waits for the cursor to SETTLE: bench
+        // cb3's per-frame poll showed the widget validating
+        // with cursor 0 for ~4 frames before the game writes
+        // its start row (Arena Mode) — an arrival on the first
+        // valid frame names Versus Mode, a row the player is
+        // not on. Ten stable frames clears the transient with
+        // margin; a player already moving the cursor just
+        // delays the line to the row they land on.
+        if (row != g_modeRow) { g_modeRow = row; g_modeStable = 0; }
+        else if (g_modeStable < (1 << 30)) g_modeStable++;
+        if (!g_modeSpoken && g_modeArmed && g_modeStable >= 10) {
+            char r[96]; ModeMenuRow(r, sizeof(r));
+            char line[160];
+            snprintf(line, sizeof(line), "New Event. %s.", r);
+            Say(line, "menu", oga::Priority::High);
+            g_modeSpoken = true;
+            g_modeArmed = false;
+        }
+        g_modeDownFrames = 0;
+    } else {
+        if (g_modeDownFrames < (1 << 30)) g_modeDownFrames++;
+        if (g_modeDownFrames >= 30) {
+            g_modeSpoken = false; g_modeRow = -1; g_modeStable = 0;
+            g_modeArmed = true;
+        }
+    }
+}
+
+// ---- the Arena Mode setup screen (VERIFIED 2026-10-25, benches cb1/cb3/cb4) --
+//
+// Cross on Arena Mode in the mode list replaces it with the
+// event setup screen: a "NEW EVENT / ARENA MODE" form with
+// three focus rows — Battle (Left/Right cycles the event),
+// Players, OK — above a footer with the medal count and
+// Arena LV. The screen is drawn by a list widget of the
+// Trinity Archives class (header +0x00 0xDFFF, +0x02 0xFFF8,
+// cursor at +0x06, count at +0x0A), here with count 3; every
+// proven sighting sits at 0x0991BD60, but it is located by
+// the same scan discipline as the event family rather than
+// trusted at that address. The battle index rides at +0xD8
+// from the widget (0..12, wraps; cb4's full Right cycle)
+// and the Players count at +0x18. Focus wraps too (Down
+// from OK lands back on Battle, cb3's walk).
+// The battle's facts are read from the game's own data,
+// never shipped as adapter constants: the name is walked
+// from the packed string table at 0x08E1CC30 (the thirteen
+// names in list order, the table the screen typesets from;
+// the walk validates the table by its first entry, so a
+// misread can never invent a name), and Risk/Rounds come
+// from the static mission table at 0x08E17AA0 (13 records
+// of 16 bytes: id at +0x00 == the index, a constant
+// 100/28 pair at +0x02/+0x03, Risk at +0x06, Rounds at
+// +0x0C; cross-checked against cb4's thirteen screenshots).
+// The Players selector is inert offline — its arrows draw
+// dimmed and Left/Right change nothing (cb4's probe) — so
+// the row speaks the count word as drawn (1 on the proven
+// fixture); in an ad-hoc session the same word is what the
+// screen shows. Cross on OK closes the menu back to the
+// Hub field with the event set; the pad/Ready/Begin tail
+// of the flow is covered by the event-state watch below.
+constexpr uint32_t kSetupNameTable = 0x08E1CC30;    // packed battle-name strings
+constexpr uint32_t kSetupMissionTable = 0x08E17AA0; // 13 x 16-byte mission records
+constexpr int kArenaBattleCount = 13;
+constexpr int kSetupFocusCount = 3;                 // Battle / Players / OK
+
+uint32_t g_setupWidget = 0;        // located setup widget base (sticky)
+bool g_setupSpoken = false;        // setup arrival spoken for this visit
+bool g_setupArmed = true;          // a 30+ frame down-stretch arms the arrival
+int g_setupPairA = -1;             // focus/battle pair at the last stable check
+int g_setupPairB = -1;
+int g_setupStable = 0;             // frames the pair has held still
+int g_setupDownFrames = 1 << 30;   // frames since the setup gate was last up
+int g_setupBattleLatch = -1;       // last battle seen on the setup screen
+int g_eventKindLatch = 0;          // what the last setup visit was: 0 none, 1 arena battle, 2 rumble race
+int g_raceCourseLatch = -1;        // last course seen on the rumble setup screen
+
+bool SetupWidgetShape(uint32_t base, int* focus)
+{
+    if (u16(base + 0x00) != 0xDFFF) return false;
+    if (u16(base + 0x02) != 0xFFF8) return false;
+    if (u16(base + 0x0A) != (uint16_t) kSetupFocusCount) return false;
+    uint16_t cur = u16(base + 0x06);
+    if (cur >= (uint16_t) kSetupFocusCount) return false;
+    if (focus) *focus = (int) cur;
+    return true;
+}
+
+uint32_t SetupLocate(void)
+{
+    if (g_setupWidget && SetupWidgetShape(g_setupWidget, nullptr)) return g_setupWidget;
+    g_setupWidget = 0;
+    uint32_t found = 0; int hits = 0;
+    for (uint32_t a = kEvHeapLo; a + 0x0C <= kEvHeapHi; a += 2) {
+        if (!SetupWidgetShape(a, nullptr)) continue;
+        hits++; found = a;
+        if (hits > 1) break;   // ambiguous: fail closed below
+    }
+    if (hits != 1) return 0;
+    g_setupWidget = found;
+    return found;
+}
+
+// The Rumble Racing setup (below) is the same widget
+// class with a different row count; the two forms exclude
+// each other so a stale sibling can never double-speak.
+bool RumbleShapeLive(void);
+
+// The setup screen's state, or false when it is not up.
+// The pre-terms keep it out of the sibling screens: the
+// top menu and mode list are excluded explicitly (their
+// family widget can coexist-shaped in stale blocks), and
+// the Archives widget — the same class — never coexists
+// with the event flow word at 8. The Hub term is
+// load-bearing, not decoration: when an arena event ends
+// (win or lose), the event module raises the same flow
+// word for a few hundred frames inside the arena room
+// while the stale setup widget still validates — benches
+// cb5b/cb9 both caught the gate naming that window
+// "Arena Mode setup. OK." The real screen exists only in
+// the Hub, where the terminal is.
+bool SetupState(int* focus, int* battle)
+{
+    if (u32(kEvFlowAddr) != 8) return false;
+    if (u8(0x08B61CA0) != 15 || u8(0x08B61CA1) != 1) return false;  // the Hub
+    if (CampActive()) return false;
+    if (EventMenuUp() || ModeMenuUp()) return false;
+    if (RumbleShapeLive()) return false;
+    uint32_t w = SetupLocate();
+    if (!w) return false;
+    int f = 0;
+    if (!SetupWidgetShape(w, &f)) return false;
+    uint16_t idx = u16(w + 0xD8);
+    if (idx >= (uint16_t) kArenaBattleCount) return false;
+    if (focus) *focus = f;
+    if (battle) *battle = (int) idx;
+    return true;
+}
+
+bool SetupUp(void) { return SetupState(nullptr, nullptr); }
+
+// One name from the packed table, walked by index. Every
+// step is sanity-checked (printable ASCII, bounded), and
+// the first entry must be the proven anchor name.
+bool ArenaBattleName(int idx, char* buf, size_t n)
+{
+    if (idx < 0 || idx >= kArenaBattleCount) return false;
+    uint32_t a = kSetupNameTable;
+    for (int i = 0; i <= idx; i++) {
+        char s[48]; int len = 0; bool term = false;
+        for (int k = 0; k < 47; k++) {
+            uint8_t c = u8(a + (uint32_t) k);
+            if (c == 0) { term = true; break; }
+            if (c < 0x20 || c > 0x7E) return false;
+            s[len++] = (char) c;
+        }
+        if (!term) return false;
+        s[len] = 0;
+        if (i == 0 && strcmp(s, "Day of Reckoning") != 0) return false;
+        if (i == idx) {
+            if (len == 0) return false;
+            snprintf(buf, n, "%s", s);
+            return true;
+        }
+        a += (uint32_t) len + 1;
+    }
+    return false;
+}
+
+// Risk and Rounds from the mission record, each behind
+// the record's own witnesses (its id and constant pair).
+bool ArenaBattleFacts(int idx, int* risk, int* rounds)
+{
+    if (idx < 0 || idx >= kArenaBattleCount) return false;
+    uint32_t rec = kSetupMissionTable + (uint32_t) idx * 16;
+    if (u16(rec + 0x00) != (uint16_t) idx) return false;
+    if (u8(rec + 0x02) != 100 || u8(rec + 0x03) != 28) return false;
+    int r = (int) u8(rec + 0x06);
+    int rd = (int) u8(rec + 0x0C);
+    if (r < 1 || r > 5 || rd < 1 || rd > 20) return false;
+    if (risk) *risk = r;
+    if (rounds) *rounds = rd;
+    return true;
+}
+
+// "Day of Reckoning. Risk 1 of 5. Rounds 4." — the name
+// and the facts degrade independently; a part that fails
+// its witnesses drops out rather than blocking the rest.
+void ArenaBattleLine(int idx, char* buf, size_t n)
+{
+    char name[48];
+    bool hasName = ArenaBattleName(idx, name, sizeof(name));
+    int risk = 0, rounds = 0;
+    bool hasFacts = ArenaBattleFacts(idx, &risk, &rounds);
+    if (hasName && hasFacts)
+        snprintf(buf, n, "%s. Risk %d of 5. Rounds %d.", name, risk, rounds);
+    else if (hasName)
+        snprintf(buf, n, "%s.", name);
+    else if (hasFacts)
+        snprintf(buf, n, "Risk %d of 5. Rounds %d.", risk, rounds);
+    else
+        snprintf(buf, n, "Battle.");
+}
+
+void SetupFocusLine(char* buf, size_t n)
+{
+    int focus = 0, battle = 0;
+    if (!SetupState(&focus, &battle)) { snprintf(buf, n, "Arena Mode setup."); return; }
+    if (focus == 0) {
+        char bl[128]; ArenaBattleLine(battle, bl, sizeof(bl));
+        snprintf(buf, n, "Battle. %s", bl);
+    } else if (focus == 1) {
+        uint32_t w = SetupLocate();
+        int players = w ? (int) u16(w + 0x18) : 0;
+        if (players >= 1 && players <= 4) snprintf(buf, n, "Players. %d.", players);
+        else snprintf(buf, n, "Players.");
+    } else {
+        snprintf(buf, n, "OK.");
+    }
+}
+
+void WatchSetupMenu(void)
+{
+    int focus = 0, battle = 0;
+    bool up = SetupState(&focus, &battle);
+    if (up) {
+        g_setupBattleLatch = battle;
+        g_eventKindLatch = 1;
+        // The arrival waits for the focus/battle pair to
+        // settle, the mode list's discipline: the widget
+        // can validate a beat before the game writes the
+        // rows it opens on.
+        if (focus != g_setupPairA || battle != g_setupPairB) {
+            g_setupPairA = focus; g_setupPairB = battle; g_setupStable = 0;
+        } else if (g_setupStable < (1 << 30)) g_setupStable++;
+        if (!g_setupSpoken && g_setupArmed && g_setupStable >= 10) {
+            char fl[192]; SetupFocusLine(fl, sizeof(fl));
+            char line[288];
+            snprintf(line, sizeof(line), "Arena Mode setup. %s", fl);
+            Say(line, "menu", oga::Priority::High);
+            g_setupSpoken = true;
+            g_setupArmed = false;
+        }
+        g_setupDownFrames = 0;
+    } else {
+        if (g_setupDownFrames < (1 << 30)) g_setupDownFrames++;
+        if (g_setupDownFrames >= 30) {
+            g_setupSpoken = false; g_setupPairA = -1; g_setupPairB = -1;
+            g_setupStable = 0; g_setupArmed = true;
+        }
+    }
+}
+
+// ---- the Rumble Racing setup (VERIFIED 2026-10-25, benches cb11/cb12) --
+//
+// The mode list's fourth row opens a sibling form in the
+// same widget class: banner "NEW EVENT / RUMBLE RACING",
+// four focus rows — Course, Laps, Players, OK — over the
+// same medals / Arena LV footer. The widget sits at the
+// same home as the arena form's (0x0991BD60 in both bench
+// sessions) with row count 4. The three values pack into
+// the word at +0xD8, one byte each (crowned across
+// cb12's sixteen dumps — course cycles with wrap, laps
+// walked 5→6→7→6, players wrapped 6→2 and back):
+//   byte0 = course index (0..3), byte1 = laps − 1,
+//   byte2 = players − 2, byte3 = 0xFF sentinel.
+// The Players selector is LIVE here (2..6 — solo play
+// fills the grid with CPU racers), unlike the arena
+// form's inert offline selector. The four course names
+// ship as adapter data: the game's own name table for
+// them is heap-built at session addresses (seen at
+// 0x0931E5C8, packed and consecutive), so there is no
+// static table to read live the way the arena battles
+// have; the names were verified against the setup
+// screenshots and the game's mission texts.
+const char* const kRumbleCourses[4] = {
+    "Country Chase", "Disney Drive", "Grand Spree", "Castle Circuit"};
+
+uint32_t g_rumbleWidget = 0;       // located rumble widget base (sticky)
+bool g_rumbleSpoken = false;       // rumble arrival spoken for this visit
+bool g_rumbleArmed = true;         // a 30+ frame down-stretch arms the arrival
+int g_rumblePairA = -1;            // focus/values pair at the last stable check
+int g_rumblePairB = -1;
+int g_rumbleStable = 0;
+int g_rumbleDownFrames = 1 << 30;
+
+bool RumbleWidgetShape(uint32_t base, int* focus)
+{
+    if (u16(base + 0x00) != 0xDFFF) return false;
+    if (u16(base + 0x02) != 0xFFF8) return false;
+    if (u16(base + 0x0A) != 4) return false;         // row count: Course/Laps/Players/OK
+    int f = (int) u16(base + 0x06);
+    if (f < 0 || f > 3) return false;
+    if (u8(base + 0xDB) != 0xFF) return false;       // the packed word's sentinel byte
+    if (focus) *focus = f;
+    return true;
+}
+
+uint32_t RumbleLocate(void)
+{
+    int f = 0;
+    if (g_rumbleWidget && RumbleWidgetShape(g_rumbleWidget, &f)) return g_rumbleWidget;
+    g_rumbleWidget = 0;
+    uint32_t found = 0;
+    int hits = 0;
+    for (uint32_t a = 0x09910000; a < 0x09960000; a += 2) {
+        if (RumbleWidgetShape(a, &f)) { found = a; hits++; }
+    }
+    if (hits == 1) g_rumbleWidget = found;
+    return g_rumbleWidget;
+}
+
+bool RumbleShapeLive(void)
+{
+    return RumbleLocate() != 0;
+}
+
+// The rumble setup's state; the value outs are the
+// course index and the DECODED laps/players numbers.
+bool RumbleState(int* focus, int* course, int* laps, int* players)
+{
+    if (u32(kEvFlowAddr) != 8) return false;
+    if (u8(0x08B61CA0) != 15 || u8(0x08B61CA1) != 1) return false;  // the Hub
+    if (CampActive()) return false;
+    if (EventMenuUp() || ModeMenuUp()) return false;
+    if (SetupLocate() != 0) return false;            // the arena form excludes this one
+    uint32_t w = RumbleLocate();
+    if (!w) return false;
+    int f = 0;
+    if (!RumbleWidgetShape(w, &f)) return false;
+    int c = (int) u8(w + 0xD8);
+    int l = (int) u8(w + 0xD9) + 1;
+    int p = (int) u8(w + 0xDA) + 2;
+    if (c < 0 || c > 3) return false;
+    if (l < 1 || l > 30) return false;
+    if (p < 2 || p > 6) return false;
+    if (focus) *focus = f;
+    if (course) *course = c;
+    if (laps) *laps = l;
+    if (players) *players = p;
+    return true;
+}
+
+bool RumbleUp(void)
+{
+    int f = 0, c = 0, l = 0, p = 0;
+    return RumbleState(&f, &c, &l, &p);
+}
+
+void RumbleFocusLine(char* buf, size_t n)
+{
+    int focus = 0, course = 0, laps = 0, players = 0;
+    if (!RumbleState(&focus, &course, &laps, &players)) { snprintf(buf, n, "Rumble Racing setup."); return; }
+    if (focus == 0) snprintf(buf, n, "Course. %s.", kRumbleCourses[course]);
+    else if (focus == 1) snprintf(buf, n, "Laps. %d.", laps);
+    else if (focus == 2) snprintf(buf, n, "Players. %d.", players);
+    else snprintf(buf, n, "OK.");
+}
+
+void WatchRumbleMenu(void)
+{
+    int focus = 0, course = 0, laps = 0, players = 0;
+    bool up = RumbleState(&focus, &course, &laps, &players);
+    if (up) {
+        g_raceCourseLatch = course;
+        g_eventKindLatch = 2;
+        // Settle discipline as the sibling forms: the
+        // arrival waits for the focus/values pair to hold
+        // still (values ride the same int as a packed key).
+        int pairB = (course << 16) | (laps << 8) | players;
+        if (focus != g_rumblePairA || pairB != g_rumblePairB) {
+            g_rumblePairA = focus; g_rumblePairB = pairB; g_rumbleStable = 0;
+        } else if (g_rumbleStable < (1 << 30)) g_rumbleStable++;
+        if (!g_rumbleSpoken && g_rumbleArmed && g_rumbleStable >= 10) {
+            char fl[128]; RumbleFocusLine(fl, sizeof(fl));
+            char line[224];
+            snprintf(line, sizeof(line), "Rumble Racing setup. %s", fl);
+            Say(line, "menu", oga::Priority::High);
+            g_rumbleSpoken = true;
+            g_rumbleArmed = false;
+        }
+        g_rumbleDownFrames = 0;
+    } else {
+        if (g_rumbleDownFrames < (1 << 30)) g_rumbleDownFrames++;
+        if (g_rumbleDownFrames >= 30) {
+            g_rumbleSpoken = false; g_rumblePairA = -1; g_rumblePairB = -1;
+            g_rumbleStable = 0; g_rumbleArmed = true;
+        }
+    }
+}
+
+// ---- the arena event state (VERIFIED 2026-10-25, bench cb4) --
+//
+// After OK, the flow leaves the menu system: the player
+// walks the Hub to the sunken center pad, presses Cross
+// ("Ready"), then START ("Begin"). The game's own state
+// for this tail is an info-text pointer at 0x09F3A38C:
+// the address of the hint line the event flow currently
+// wants the player to read, or 0 when no event is pending.
+// Proven values (cb4's dump chain): 0 at the plain field
+// and in every menu; the "move to the middle" hint string
+// (at 0x08E1BE70) from the moment OK lands until Ready is
+// pressed; the "press START" string (at 0x08E1BEB0) while
+// the player stands ready. The watch keys on the pointer
+// but speaks only when the string at it matches the proven
+// text, so a reused slot in some other state fails closed.
+// Scoped to the Hub field (world 15, room 1): other worlds
+// have their own info lines, which stay unspoken.
+constexpr uint32_t kArenaInfoPtrAddr = 0x09F3A38C;
+constexpr uint32_t kArenaHintPending = 0x08E1BE70;  // "Move to the middle of the hub..."
+constexpr uint32_t kArenaHintReady = 0x08E1BEB0;    // "Once everyone is ready..."
+
+int g_arenaInfoCat = 0;   // 0 none, 1 event pending, 2 ready, 3 other
+
+bool ArenaInfoTextIs(uint32_t addr, const char* prefix)
+{
+    for (int i = 0; prefix[i]; i++)
+        if (u8(addr + (uint32_t) i) != (uint8_t) prefix[i]) return false;
+    return true;
+}
+
+int ArenaInfoCategory(void)
+{
+    uint32_t p = u32(kArenaInfoPtrAddr);
+    if (p == 0) return 0;
+    if (p == kArenaHintPending && ArenaInfoTextIs(p, "Move to the middle")) return 1;
+    if (p == kArenaHintReady && ArenaInfoTextIs(p, "Once everyone is ready")) return 2;
+    return 3;
+}
+
+void WatchArenaEvent(void)
+{
+    if (u8(0x08B61CA0) != 15 || u8(0x08B61CA1) != 1) return;  // the Hub only
+    if (!InField()) return;
+    int cat = ArenaInfoCategory();
+    if (cat == g_arenaInfoCat) return;
+    int prev = g_arenaInfoCat;
+    g_arenaInfoCat = cat;
+    if (cat == 1 && prev != 2) {
+        // A fresh event was set at the terminal (or the
+        // adapter attached over a pending one). Name what
+        // was set when the setup visit latched it — an
+        // arena battle or a rumble race; the pending hint
+        // text is the same string for both.
+        char name[48];
+        char line[256];
+        if (g_eventKindLatch == 2 && g_raceCourseLatch >= 0 && g_raceCourseLatch <= 3)
+            snprintf(line, sizeof(line),
+                     "Event set: Rumble Racing, %s. Move to the middle of the hub and press Cross when ready.",
+                     kRumbleCourses[g_raceCourseLatch]);
+        else if (g_eventKindLatch == 1 && g_setupBattleLatch >= 0 &&
+            ArenaBattleName(g_setupBattleLatch, name, sizeof(name)))
+            snprintf(line, sizeof(line),
+                     "Event set: %s. Move to the middle of the hub and press Cross when ready.", name);
+        else
+            snprintf(line, sizeof(line),
+                     "Event set. Move to the middle of the hub and press Cross when ready.");
+        Say(line, "field", oga::Priority::High);
+    } else if (cat == 2 && prev == 1) {
+        Say("Ready. Press START to begin.", "field", oga::Priority::High);
+    } else if (cat == 1 && prev == 2) {
+        Say("Ready cancelled.", "field", oga::Priority::High);
+    }
+}
+
+// ---- the event-end SUMMARY (VERIFIED 2026-10-25, bench cb9b) --
+//
+// When an arena event finishes — win or lose — the game
+// shows a SUMMARY screen in the arena room: the battle
+// name, the play time, category rankings (Damage,
+// Friendship, Style), an obtained-medals count-up, an
+// MVP line. It captured cleanly in cb9b (endwindow
+// dumps): world 15, room 3, the event flow word raised —
+// the same window that used to trip the setup gate. The
+// screen is NON-interactive: it counts up and returns
+// the player to the Hub unaided, so the adapter marks
+// its arrival with one neutral line and leaves the
+// summary's contents unspoken (their data source is
+// unhunted; the screen is up only seconds). The watch
+// arms on presence in the arena room with the flow word
+// down — the room is reachable only by starting an
+// event — and fires once when the word rises.
+bool g_evEndArmed = false;
+int g_evEndArmFrames = 0;
+
+void WatchEventEnd(void)
+{
+    if (u8(0x08B61CA0) != 15 || u8(0x08B61CA1) != 3) {
+        g_evEndArmed = false; g_evEndArmFrames = 0;
+        return;
+    }
+    if (u32(kEvFlowAddr) == 8) {
+        if (g_evEndArmed) {
+            Say("Event over.", "field", oga::Priority::High);
+            g_evEndArmed = false;
+        }
+        g_evEndArmFrames = 0;
+        return;
+    }
+    if (g_evEndArmFrames < (1 << 30)) g_evEndArmFrames++;
+    if (g_evEndArmFrames >= 30) g_evEndArmed = true;
+}
+
+// ---- the shops (VERIFIED 2026-10-24, bench shop1-shop3, Medal Shop) --
+//
+// Both shops run SHOP.ELF, a module of its own: the camp/event menu
+// system is DOWN while a shop is open (the menu-active word reads 0
+// and the screen registry holds garbage), so the gate is shop-native
+// and fail-closed on three legs:
+//   1. the stock table is in RAM: an "SHP" file image (magic "SHP\0",
+//      u16 version 1, u16 type at +0x06 — 2 = the Medal Shop — then a
+//      u32 record count and 8-byte records {u16 id, u8 kind
+//      (1 = command, 0 = item), u8 sub, u16 v4, u16 price},
+//      zero-terminated). No pointer to it exists; it is found by
+//      signature scan with per-record sanity, unique (or disam-
+//      biguated by the widget's row count). Display order = table
+//      order.
+//   2. the SHOP.ELF phase words (fixed BSS addresses while the
+//      module is loaded, garbage otherwise): u16 @ 0x09918E8C is 2
+//      at the Command Shop's top level, 4 in the buy list, 5 in the
+//      sell list and 6/7 in the buy/sell quantity+confirmation
+//      steps; u16 @ 0x09918F10 is 5 at the top level, 40 on a
+//      confirmation step, 30 while a confirmed transaction
+//      processes, 10 elsewhere. Camp, field and title dumps all
+//      read garbage at these words.
+//   3. the shop widget (a heap block that FLOATS per lineage, so it
+//      is signature-scanned in the heap window, never hardcoded):
+//      cursor u16 @ +0x34, current-list count u16 @ +0x36 with a
+//      mirror @ +0x3E, tab u16 @ +0x04 (lists only), and a
+//      back-pointer @ +0x2C to the shop state block 0x09918AC0 —
+//      and the count must equal the row count this adapter computes
+//      for that tab. The Command Shop has THREE widgets (top, buy,
+//      sell); the Medal Shop has one. Widgets LINGER after the shop
+//      closes, so the phase word is what drops the gate on exit.
+// The Medal Shop (Mirage Arena Hub Moogle) is BUY-ONLY and opens
+// directly on the Buy list — no Buy/Sell top level (Triangle,
+// Square and Select do nothing there; START leaves into camp, and
+// Circle exits). Tabs (L/R): 0 All, 1 Attacks, 2 Magic, 3 Items,
+// 4 Friendship, 5 Movement, 6 Defense, 7 Reprisals, 8 Shotlocks.
+// Rows are NOT materialized per tab anywhere in RAM; they are rebuilt
+// by filtering the stock table through the command def table's
+// family/sub bytes (the same scheme MeldListBuild uses): family 2
+// sub 1 = Attacks, sub 2 = Magic, sub 3 = Items (battle item
+// commands — the Moogle's stock settled this), subs 12/13 =
+// Friendship; family 3 sub 4 = Movement, sub 5 = Defense, sub 6 =
+// Reprisals; anything else (family 5 shotlocks) lands in Shotlocks.
+// The Medal Shop's plain items (tickets/crystals/recipes, ids >=
+// 0x0100) appear only in All.
+// Names: commands from the def table (DefName); ITEM names ride the
+// resident message tables the dialogue work decoded — category
+// 0x2800, message id 0x28000000 | item_id. All 16 Medal Shop items
+// resolve and match their screenshots.
+// The buy flow is three steps: list -> quantity (u16 @ 0x09918F14;
+// up/down +-1, left/right +-10, no 99 cap observed — a slam reached
+// 121) -> confirmation, which DEFAULTS TO NO (proven; the cursor is
+// one-hot floats in a heap block that floats, so — like the meld
+// confirm — the choice is tracked from the player's own presses,
+// starting at No). A completed purchase is proven by the currency
+// word dropping (medals u32 @ player block +0x287E0, munny u32 @
+// +0x287DC). "In stock" for a command is its instance count in the
+// command pool (verified live: a purchase moved it 2 -> 3).
+
+// The save/load gate (defined below) is a stand-down witness here.
+// The dialogue census (defined below) resolves the item names.
+bool SaveLoadUp(void);
+bool ShopUp(void);
+int ShopTab(void);
+int ShopCursor(void);
+const char* ShopCurWord(void);
+extern int g_dlgIdCount;
+extern uint32_t g_dlgIds[];
+extern uint32_t g_dlgStrAddr[];
+extern bool g_dlgTablesValid;
+void DlgRebuildTables(void);
+bool DlgDecode(uint32_t addr, char* out, size_t n);
+
+constexpr uint32_t kShopPhaseAddr = 0x09918E8C;   // 2 top, 4 buy, 5 sell, 6/7 qty+confirm
+constexpr uint32_t kShopSubAddr   = 0x09918F10;   // 5 top, 40 confirm, 30 processing, else 10
+constexpr uint32_t kShopQtyAddr   = 0x09918F14;   // quantity word
+constexpr uint32_t kShopHeapLo    = 0x09910000;   // widget scan window
+constexpr uint32_t kShopHeapHi    = 0x09960000;
+const char* const kShopTabNames[9] = {
+    "All", "Attacks", "Magic", "Items", "Friendship",
+    "Movement", "Defense", "Reprisals", "Shotlocks",
+};
+
+uint32_t g_shopTable = 0;      // located SHP table base; 0 = none
+int g_shopCount = 0;           // its record count
+uint16_t g_shopType = 0;       // its type word (2 = Medal Shop)
+int g_shopFmt = 0;             // record format: 8 = Medal records, 4 = id list
+int g_shopListKind = -1;       // widget's list: 0 top, 1 buy, 2 sell
+bool g_sellCountsValid = false; // cached sell-list tab counts are current
+int g_sellTabCounts[9] = {};   // sell rows per tab (pool rebuild)
+char g_shopSellName[128] = ""; // row on the table at sell-confirm entry
+bool g_shopJustTransacted = false; // a Bought/Sold line just fired; the
+                               // landing commit it belongs to stays silent
+int g_shopSellQty = 0;         // quantity at sell-confirm entry
+uint32_t g_shopWidget = 0;     // located widget base (sticky)
+bool g_shopUp = false;
+int g_shopDownFrames = 1 << 29;
+int g_shopTab = -1;            // last announced tab
+int g_shopPhase = 0;           // last seen step: 0 none, 1 list, 2 qty, 3 confirm
+int g_shopPhaseCand = 0;       // candidate step awaiting stability
+int g_shopPhaseCandFrames = 0; // consecutive frames the candidate held
+bool g_shopConfYes = false;    // confirm choice, tracked from presses
+char g_shopBuyName[128] = "";  // row on the table at confirm entry
+int g_shopBuyQty = 0;          // quantity at confirm entry
+uint32_t g_shopBalance = 0;    // last seen balance of the shop currency
+bool g_shopBalancePrimed = false;
+
+bool ShopRecPlausible(uint32_t rec)
+{
+    uint8_t kind = u8(rec + 2);
+    if (kind > 1) return false;
+    uint16_t price = u16(rec + 6);
+    if (price % 10 != 0 || price > 100000) return false;
+    uint16_t id = u16(rec);
+    if (kind == 1) return id < (uint16_t) kDefCount;
+    return (id >> 8) <= 0x32;
+}
+
+// ---- the munny Command Shop (VERIFIED 2026-10-24, bench shop14-16) --
+//
+// The Moogle shops that take munny are a different program shape from
+// the Medal Shop: a TOP LEVEL first (Buy / Sell / Exit; phase word 2,
+// sub 5), a Buy list (phase 4) and a Sell list (phase 5), each with
+// its own quantity step (buy 6, sell 7) and Yes/No confirm (sub 40,
+// default No; sub 30 while a confirmed transaction processes). The
+// stock table is the same "SHP" magic but a different file format
+// (cmdXXShop.bin): a bare list of def ids (u32 each, ascending), NO
+// prices — prices are per-def game constants that sit in no flat
+// table anywhere in RAM (exhaustively searched), so the 86 prices
+// below were harvested from the live shop screens in the bench and
+// are shipped as data, the same precedent as the room-name tables.
+// Four stock ids are never displayed (meld-only/special commands:
+// 94 Meteor Crash, 99 Chaos Blade, 110 Ars Solum, 130 Break Time —
+// Break Time's price was never needed and is not in the table; a
+// sell row for it speaks without a price). Sell price is computed:
+// floor(buy * (level + 3) / 8) + (ability ? floor(buy / 4) : 0),
+// fitted exactly on a dozen live sell rows. Sell rows are the
+// command pool's family-2 and family-3 instances sorted by def id,
+// pool order breaking ties (matched the live list row for row;
+// the widget's 165 rows = 152 family-2 + 13 family-3 on the
+// fixture — finishers and shotlocks are never sellable).
+struct ShopPrice { uint16_t id; uint16_t price; };
+const ShopPrice kShopPrices[] = {
+    {91,100},{92,1200},{94,2500},{95,100},{96,150},{97,1100},{98,2000},
+    {99,2500},{100,1700},{101,100},{102,200},{106,650},{108,700},
+    {109,1500},{110,4000},{113,150},{115,200},{116,150},{117,700},
+    {118,450},{119,450},{120,400},{122,1800},{123,2300},{125,1500},
+    {126,1500},{127,1300},{128,2100},{129,1500},{131,100},{132,500},
+    {133,1200},{134,2000},{135,1500},{137,1800},{138,100},{139,500},
+    {140,1200},{142,150},{143,600},{144,1300},{146,150},{147,600},
+    {148,1300},{149,600},{150,1000},{151,1000},{153,150},{154,600},
+    {155,1300},{156,120},{157,550},{158,1250},{162,150},{163,600},
+    {164,1300},{165,1500},{167,2200},{173,2500},{177,1500},{178,600},
+    {179,600},{180,100},{181,150},{182,100},{183,150},{184,100},
+    {185,500},{186,1200},{187,100},{188,30},{189,80},{190,150},
+    {191,50},{192,160},{193,50},{194,250},{195,350},{196,120},
+    {243,200},{245,500},{250,800},{260,200},{263,600},{271,1200},
+    {276,1400},
+};
+
+int ShopPriceForDef(uint16_t id)
+{
+    for (size_t i = 0; i < sizeof(kShopPrices) / sizeof(kShopPrices[0]); i++)
+        if (kShopPrices[i].id == id) return kShopPrices[i].price;
+    return 0;
+}
+
+// Defs the Command Shop stocks but never displays.
+bool ShopDefHidden(uint16_t id)
+{
+    return id == 94 || id == 99 || id == 110 || id == 130;
+}
+
+// Signature-scan RAM for the stock table; with a widget count hint
+// (>0) a duplicate image is disambiguated by it. Fail-closed. Two
+// formats share the header: the Medal Shop's 8-byte records and the
+// Command Shop's bare u32 def-id list (type 1, strictly ascending,
+// zero-terminated).
+bool ShopFindTable(int countHint)
+{
+    uint32_t found = 0; int foundCount = 0; uint16_t foundType = 0;
+    int foundFmt = 0;
+    int hits = 0;
+    for (uint32_t a = kUserRamBase; a + 12 <= kUserRamEnd; a += 4) {
+        if (u32(a) != 0x00504853u) continue;            // "SHP\0"
+        if (u16(a + 4) != 1) continue;
+        int count = (int) u32(a + 8);
+        if (count < 1 || count > 512) continue;
+        // The type word selects the format, strictly: a bare id
+        // list ALSO parses as plausible 8-byte records (every def
+        // id is < 65536, so the misread kind byte is 0 and the
+        // misread price is 0), so format must never be guessed
+        // from record sanity alone.
+        int fmt = 0;
+        bool ok = true;
+        if (u16(a + 6) == 1) {
+            uint32_t prev = 0;
+            for (int i = 0; i < count; i++) {
+                uint32_t id = u32(a + 12 + (uint32_t) i * 4);
+                if (id >= (uint32_t) kDefCount || id <= prev) { ok = false; break; }
+                prev = id;
+            }
+            if (ok && u32(a + 12 + (uint32_t) count * 4) != 0) ok = false;
+            if (ok) fmt = 4;
+        } else {
+            for (int i = 0; i < count; i++)
+                if (!ShopRecPlausible(a + 12 + (uint32_t) i * 8)) { ok = false; break; }
+            if (ok) {
+                uint32_t tail = a + 12 + (uint32_t) count * 8;
+                if (u32(tail) == 0 && u32(tail + 4) == 0) fmt = 8;
+                else ok = false;
+            }
+        }
+        if (!ok) continue;
+        hits++;
+        if (countHint > 0 && count != countHint) continue;
+        found = a; foundCount = count; foundType = u16(a + 6); foundFmt = fmt;
+    }
+    if (countHint > 0) {
+        if (!found) return false;
+    } else if (hits != 1) return false;
+    g_shopTable = found; g_shopCount = foundCount; g_shopType = foundType;
+    g_shopFmt = foundFmt;
+    return true;
+}
+
+// Stock entry `i`: its id, kind (1 = command def, 0 = plain item)
+// and price (0 = unknown — only the Command Shop's table can hit
+// that, for a def the bench never priced).
+uint16_t ShopStockId(int i, uint8_t* kindOut, int* priceOut)
+{
+    uint16_t id = 0; uint8_t kind = 1; int price = 0;
+    if (g_shopFmt == 4) {
+        id = (uint16_t) u32(g_shopTable + 12 + (uint32_t) i * 4);
+        price = ShopPriceForDef(id);
+    } else {
+        uint32_t rec = g_shopTable + 12 + (uint32_t) i * 8;
+        id = u16(rec); kind = u8(rec + 2); price = u16(rec + 6);
+    }
+    if (kindOut) *kindOut = kind;
+    if (priceOut) *priceOut = price;
+    return id;
+}
+
+// Is stock entry `i` displayed at all? (The Command Shop hides four
+// meld-only/special commands its table still lists.)
+bool ShopStockVisible(int i)
+{
+    if (g_shopFmt != 4) return true;
+    return !ShopDefHidden((uint16_t) u32(g_shopTable + 12 + (uint32_t) i * 4));
+}
+
+// The tab a stock entry belongs to, from its def family/sub (the
+// classification the live tab counts proved in both shops; plain
+// items are the Medal Shop's consumables rule).
+int ShopEntryTab(uint16_t id, uint8_t kind)
+{
+    if (kind == 0) return id < 0x0100 ? 3 : -1;   // Medal items: All only
+    uint32_t def = kDefTableAddr + (uint32_t) id * 16;
+    uint8_t fam = u8(def), sub = u8(def + 1);
+    if (fam == 2 && sub == 1) return 1;
+    if (fam == 2 && sub == 2) return 2;
+    if (fam == 2 && sub == 3) return 3;           // item commands
+    if (fam == 2 && (sub == 12 || sub == 13)) return 4;
+    if (fam == 3 && sub == 4) return 5;
+    if (fam == 3 && sub == 5) return 6;
+    if (fam == 3 && sub == 6) return 7;
+    return 8;                                      // shotlocks & rest
+}
+
+bool ShopInTab(int i, int tab)
+{
+    if (!ShopStockVisible(i)) return false;
+    if (tab == 0) return true;
+    uint8_t kind;
+    uint16_t id = ShopStockId(i, &kind, nullptr);
+    return ShopEntryTab(id, kind) == tab;
+}
+
+int ShopTabCount(int tab)
+{
+    if (!g_shopTable) return -1;
+    int n = 0;
+    for (int i = 0; i < g_shopCount; i++)
+        if (ShopInTab(i, tab)) n++;
+    return n;
+}
+
+// ---- the sell list (Command Shop) -----------------------------------
+// Rows are the command pool's family-2 and family-3 instances
+// sorted by def id (165 = 152 + 13 on the fixture; family 1 and 5
+// instances — finishers and shotlocks — are never sellable)
+// (pool order breaks ties). Rebuilding per render is a full pool
+// scan, so the per-tab counts are computed once per sell visit and
+// cached; a completed sale invalidates them.
+
+// One pass over the pool counting sell rows per tab.
+void ShopSellCountsCompute(void)
+{
+    for (int t = 0; t < 9; t++) g_sellTabCounts[t] = 0;
+    uint32_t pool = u32(kWorkPtrAddr);
+    if (pool < kUserRamBase || pool + kPoolScan * 10 > kUserRamEnd) {
+        g_sellCountsValid = true;
+        return;
+    }
+    for (int i = 0; i < kPoolScan; i++) {
+        uint32_t rec = pool + (uint32_t) i * 10;
+        uint16_t id = u16(rec);
+        if (!id || u8(rec + 3) != 0) continue;
+        uint32_t def = kDefTableAddr + (uint32_t) id * 16;
+        uint8_t fam = u8(def);
+        if (fam != 2 && fam != 3) continue;   // command families only
+        g_sellTabCounts[0]++;
+        int t = ShopEntryTab(id, 1);
+        if (t >= 1 && t <= 8) g_sellTabCounts[t]++;
+    }
+    g_sellCountsValid = true;
+}
+
+int ShopSellTabCount(int tab)
+{
+    if (!g_sellCountsValid) ShopSellCountsCompute();
+    return g_sellTabCounts[tab];
+}
+
+// The unit sell price of one pool instance (def, level byte, ability
+// id): floor(buy * (level + 3) / 8) + (ability ? floor(buy / 4) : 0).
+// 0 when the def's buy price is unknown (Break Time) or the instance
+// is an item stack (sub 3), whose per-unit price is unproven.
+int ShopSellPrice(uint16_t id, int level, uint16_t ability)
+{
+    uint32_t def = kDefTableAddr + (uint32_t) id * 16;
+    if (u8(def + 1) == 3) return 0;
+    int buy = ShopPriceForDef(id);
+    if (!buy) return 0;
+    int p = buy * (level + 3) / 8;
+    if (ability) p += buy / 4;
+    return p;
+}
+
+// Fetch the sell row at `visual` in `tab`: def id, level/count byte
+// and ability id of the pool instance it names.
+bool ShopSellInstance(int tab, int visual, uint16_t* idOut, int* lvOut,
+                      uint16_t* abOut)
+{
+    uint32_t pool = u32(kWorkPtrAddr);
+    if (pool < kUserRamBase || pool + kPoolScan * 10 > kUserRamEnd) return false;
+    int seen = -1;
+    for (uint16_t want = 1; want < (uint16_t) kDefCount; want++) {
+        if (tab != 0 && ShopEntryTab(want, 1) != tab) continue;
+        uint32_t def = kDefTableAddr + (uint32_t) want * 16;
+        if (u8(def) != 2 && u8(def) != 3) continue;
+        for (int i = 0; i < kPoolScan; i++) {
+            uint32_t rec = pool + (uint32_t) i * 10;
+            if (u16(rec) != want || u8(rec + 3) != 0) continue;
+            if (++seen == visual) {
+                *idOut = want;
+                *lvOut = u8(rec + 2);
+                *abOut = u16(rec + 6);
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
+// "<name>, level <L>[, <ability>], <price> munny, i of n." — item
+// stacks speak their held count instead of a level, without a price.
+bool ShopSellRowText(int visual, char* buf, size_t n)
+{
+    if (!ShopUp()) return false;
+    int tab = ShopTab();
+    int count = ShopSellTabCount(tab);
+    int v = visual >= 0 ? visual : ShopCursor();
+    if (count <= 0 || v >= count) {
+        snprintf(buf, n, "No items.");
+        return true;
+    }
+    uint16_t id = 0, ability = 0; int level = 0;
+    if (!ShopSellInstance(tab, v, &id, &level, &ability)) return false;
+    char name[128] = "";
+    bool named = DefName(id, name, sizeof(name));
+    uint32_t def = kDefTableAddr + (uint32_t) id * 16;
+    if (u8(def + 1) == 3) {                        // item stack
+        if (named)
+            snprintf(buf, n, "%s, %d in stock, %d of %d.",
+                     name, level, v + 1, count);
+        else
+            snprintf(buf, n, "%d in stock, %d of %d.", level, v + 1, count);
+        return true;
+    }
+    int price = ShopSellPrice(id, level, ability);
+    char ab[128] = "";
+    bool abNamed = ability && DefName(ability, ab, sizeof(ab));
+    if (named && abNamed && price > 0)
+        snprintf(buf, n, "%s, level %d, %s, %d %s, %d of %d.",
+                 name, level, ab, price, ShopCurWord(), v + 1, count);
+    else if (named && abNamed)
+        snprintf(buf, n, "%s, level %d, %s, %d of %d.",
+                 name, level, ab, v + 1, count);
+    else if (named && price > 0)
+        snprintf(buf, n, "%s, level %d, %d %s, %d of %d.",
+                 name, level, price, ShopCurWord(), v + 1, count);
+    else if (named)
+        snprintf(buf, n, "%s, level %d, %d of %d.", name, level, v + 1, count);
+    else
+        snprintf(buf, n, "Level %d, %d of %d.", level, v + 1, count);
+    return true;
+}
+
+// The widget at `w` corroborates the list it drives, per list kind:
+// top (count is the fixed 3 rows), buy (count equals the computed
+// stock rows for the widget's tab), sell (count equals the computed
+// pool rows for the tab, from the cached rebuild). Every shop list
+// widget also carries a back-pointer at +0x2C to the shop module's
+// fixed state block (0x09918AC0) — the discriminator that separates
+// the top-level widget from the dozens of static count-3 structs
+// in the heap (live-caught: without it the top level never opens).
+bool ShopWidgetValid(uint32_t w, bool fresh, int kind)
+{
+    if (u32(w + 0x2C) != 0x09918AC0) return false;
+    uint16_t count = u16(w + 0x36);
+    if (u16(w + 0x3E) != count) return false;
+    if (fresh && count < 1) return false;      // zeros are everywhere
+    uint16_t cursor = u16(w + 0x34);
+    if (count == 0) { if (cursor != 0) return false; }
+    else if (cursor >= count) return false;
+    if (kind == 0) return count == 3;
+    uint16_t tab = u16(w + 0x04);
+    if (tab > 8) return false;
+    if (kind == 1) return (int) count == ShopTabCount((int) tab);
+    return (int) count == ShopSellTabCount((int) tab);
+}
+
+bool ShopLocateWidget(int kind)
+{
+    if (g_shopWidget && ShopWidgetValid(g_shopWidget, false, kind)) return true;
+    g_shopWidget = 0;
+    uint32_t found = 0; int hits = 0;
+    for (uint32_t a = kShopHeapLo; a + 0x40 <= kShopHeapHi; a += 2) {
+        if (!ShopWidgetValid(a, true, kind)) continue;
+        hits++; found = a;
+    }
+    if (hits != 1) return false;
+    g_shopWidget = found;
+    return true;
+}
+
+bool ShopMedal(void) { return g_shopType == 2; }
+const char* ShopName(void) { return ShopMedal() ? "Medal Shop" : "Moogle Shop"; }
+const char* ShopCurWord(void) { return ShopMedal() ? "medals" : "munny"; }
+
+uint32_t ShopBalance(void)
+{
+    if (!g_blockBase) return 0;
+    return u32(g_blockBase + (ShopMedal() ? 0x287E0 : 0x287DC));
+}
+
+// The current step: 0 = not shop-shaped, 1 = buy list, 2 = buy
+// quantity, 3 = buy confirmation, 4 = top level (Command Shop only),
+// 5 = sell list, 6 = sell quantity, 7 = sell confirmation.
+int ShopPhase(void)
+{
+    uint16_t main = u16(kShopPhaseAddr);
+    if (main == 2) return 4;
+    if (main == 4) return 1;
+    if (main == 5) return 5;
+    if (main == 6 || main == 7) {
+        // Sub 40 is the Yes/No confirm; sub 30 is the transaction
+        // being processed after Yes (frame-traced in bench shop19) —
+        // both belong to the confirm step. Sub 10 (and a brief 0
+        // while the dialog typesets) is the quantity step.
+        uint16_t sub = u16(kShopSubAddr);
+        bool conf = (sub == 40 || sub == 30);
+        if (main == 6) return conf ? 3 : 2;
+        return conf ? 7 : 6;
+    }
+    return 0;
+}
+
+// Which list the current step drives: 0 top, 1 buy, 2 sell.
+int ShopListKindForPhase(int phase)
+{
+    if (phase == 4) return 0;
+    if (phase == 5 || phase == 6 || phase == 7) return 2;
+    return 1;
+}
+
+bool ShopUp(void)
+{
+    if (CampActive() || SaveLoadUp()) return false;
+    if (u8(kWorldAddrA) == 0xFF && u8(kWorldAddrB) == 0xFF) return false;  // no world
+    int phase = ShopPhase();
+    if (phase == 0) { g_shopTable = 0; g_shopCount = 0; g_shopFmt = 0; return false; }
+    if (!g_shopTable) {
+        // First sighting: the widget's All count disambiguates a
+        // duplicate table image; without it the scan must be unique.
+        if (!ShopFindTable(0)) return false;
+    }
+    int kind = ShopListKindForPhase(phase);
+    if (kind != g_shopListKind) { g_shopWidget = 0; g_shopListKind = kind; }
+    if (!ShopLocateWidget(kind)) return false;
+    return true;
+}
+
+int ShopTab(void)
+{
+    if (g_shopListKind == 0) return 0;         // the top list has no tab
+    return (int) u16(g_shopWidget + 0x04);
+}
+int ShopCursor(void) { return (int) u16(g_shopWidget + 0x34); }
+
+// Instances of command `id` in the pool = its "in stock" count.
+int ShopCmdStock(uint16_t id)
+{
+    uint32_t pool = u32(kWorkPtrAddr);
+    if (pool < kUserRamBase || pool + kPoolScan * 10 > kUserRamEnd) return -1;
+    int n = 0;
+    for (int i = 0; i < kPoolScan; i++) {
+        uint32_t rec = pool + (uint32_t) i * 10;
+        if (u16(rec) == id && u8(rec + 3) == 0) n++;
+    }
+    return n;
+}
+
+// Stock of an item COMMAND (family 2, sub 3 — Potion and friends):
+// its pool instance's +2 byte is the held count, not a level
+// (proven: the Potion instance reads 60 = the shop's "in stock").
+int ShopItemCmdStock(uint16_t id)
+{
+    uint32_t pool = u32(kWorkPtrAddr);
+    if (pool < kUserRamBase || pool + kPoolScan * 10 > kUserRamEnd) return -1;
+    int n = 0; bool any = false;
+    for (int i = 0; i < kPoolScan; i++) {
+        uint32_t rec = pool + (uint32_t) i * 10;
+        if (u16(rec) == id && u8(rec + 3) == 0) { n += u8(rec + 2); any = true; }
+    }
+    return any ? n : -1;
+}
+
+// Stock of a plain item (the Medal Shop's tickets and crystals).
+// Owned items live in the player block's inventory section as
+// category tables of {u16 id, u16 count} pairs, ids ascending
+// within a category (proven by a purchase diff: the Shimmering
+// Crystal's pair at block+0x26184 went 50 -> 51 on buying one).
+// The pair must sit inside an ascending run of at least 3 pairs
+// and be unique in the section; anything less stays unspoken.
+int ShopItemStock(uint16_t id)
+{
+    if (!g_blockBase) return -1;
+    uint32_t lo = g_blockBase + 0x20000, hi = g_blockBase + 0x29000;
+    int found = -1; int hits = 0;
+    for (uint32_t a = lo; a + 4 <= hi; a += 2) {
+        if (u16(a) != id) continue;
+        int count = (int) u16(a + 2);
+        if (count > 999) continue;
+        // Ascending-run corroboration: the pairs around this one.
+        uint16_t prevId = u16(a - 4), nextId = u16(a + 4);
+        if (prevId >= id || nextId <= id) continue;
+        if (u16(a - 2) > 999 || u16(a + 6) > 999) continue;
+        hits++; found = count;
+    }
+    return hits == 1 ? found : -1;
+}
+
+// An item's name through the resident message tables (category
+// 0x2800). Plain read of the dialogue string pool via its decoder.
+bool ShopItemName(uint16_t id, char* buf, size_t n)
+{
+    if (!g_dlgTablesValid) DlgRebuildTables();
+    uint32_t want = 0x28000000u | id;
+    uint32_t strAddr = 0;
+    for (int j = 0; j < g_dlgIdCount; j++)
+        if (g_dlgIds[j] == want) { strAddr = g_dlgStrAddr[j]; break; }
+    if (!strAddr) return false;
+    return DlgDecode(strAddr, buf, n);
+}
+
+// The row under the cursor (or at `visual` < 0 for the cursor's row),
+// spoken as "<name>, <price> <cur>[, N in stock], i of n" — clauses
+// drop out individually when a value is unproven (an unpriced def, an
+// unlocatable item count).
+bool ShopRowText(int visual, char* buf, size_t n)
+{
+    if (!ShopUp()) return false;
+    int tab = ShopTab();
+    int count = ShopTabCount(tab);
+    int v = visual >= 0 ? visual : ShopCursor();
+    if (count <= 0 || v >= count) {
+        snprintf(buf, n, "No items.");
+        return true;
+    }
+    int entry = -1; int seen = -1;
+    for (int i = 0; i < g_shopCount; i++) {
+        if (!ShopInTab(i, tab)) continue;
+        if (++seen == v) { entry = i; break; }
+    }
+    if (entry < 0) return false;
+    uint8_t kind = 1; int price = 0;
+    uint16_t id = ShopStockId(entry, &kind, &price);
+    char name[128] = "";
+    bool named = kind == 1 ? DefName(id, name, sizeof(name))
+                           : ShopItemName(id, name, sizeof(name));
+    int stock = -1;
+    if (kind == 1) {
+        uint32_t def = kDefTableAddr + (uint32_t) id * 16;
+        stock = u8(def + 1) == 3 ? ShopItemCmdStock(id) : ShopCmdStock(id);
+    } else {
+        stock = ShopItemStock(id);
+    }
+    char pricePart[64] = "";
+    if (price > 0) snprintf(pricePart, sizeof(pricePart), ", %d %s", price, ShopCurWord());
+    char stockPart[48] = "";
+    if (stock >= 0) snprintf(stockPart, sizeof(stockPart), ", %d in stock", stock);
+    if (named)
+        snprintf(buf, n, "%s%s%s, %d of %d.", name, pricePart, stockPart, v + 1, count);
+    else if (price > 0)
+        snprintf(buf, n, "%d %s%s, %d of %d.", price, ShopCurWord(), stockPart, v + 1, count);
+    else
+        snprintf(buf, n, "%d of %d.", v + 1, count);
+    return true;
+}
+
+// The Command Shop's top-level row: "Buy, 1 of 3." and friends.
+const char* const kShopTopRows[3] = { "Buy", "Sell", "Exit" };
+bool ShopTopRowText(int visual, char* buf, size_t n)
+{
+    int v = visual >= 0 ? visual : ShopCursor();
+    if (v < 0 || v > 2) return false;
+    snprintf(buf, n, "%s, %d of 3.", kShopTopRows[v], v + 1);
+    return true;
+}
+
+// The full spoken line for the current shop state (WhereAmI and the
+// watch's announcements share it).
+bool ShopLine(char* buf, size_t n)
+{
+    if (!ShopUp()) return false;
+    int phase = ShopPhase();
+    uint32_t bal = ShopBalance();
+    if (phase == 4) {
+        char row[64];
+        if (!ShopTopRowText(-1, row, sizeof(row))) return false;
+        snprintf(buf, n, "%s. %s You have %u %s.",
+                 ShopName(), row, bal, ShopCurWord());
+        return true;
+    }
+    if (phase == 1) {
+        char row[256];
+        if (!ShopRowText(-1, row, sizeof(row))) return false;
+        snprintf(buf, n, "%s. %s You have %u %s.",
+                 ShopName(), row, bal, ShopCurWord());
+        return true;
+    }
+    if (phase == 5) {
+        char row[256];
+        if (!ShopSellRowText(-1, row, sizeof(row))) return false;
+        snprintf(buf, n, "%s. %s You have %u %s.",
+                 ShopName(), row, bal, ShopCurWord());
+        return true;
+    }
+    if (phase == 2 || phase == 3) {
+        // The row being bought is the list cursor's row; the watch
+        // froze its name at quantity entry.
+        int qty = (int) u16(kShopQtyAddr);
+        int price = 0;
+        {
+            int tab = ShopTab(); int v = ShopCursor(); int seen = -1;
+            for (int i = 0; i < g_shopCount; i++) {
+                if (!ShopInTab(i, tab)) continue;
+                if (++seen == v) { ShopStockId(i, nullptr, &price); break; }
+            }
+        }
+        if (phase == 2)
+            snprintf(buf, n, "%s. %s Quantity %d, %d %s. You have %u %s.",
+                     ShopName(), g_shopBuyName, qty, qty * price,
+                     ShopCurWord(), bal, ShopCurWord());
+        else if (ShopMedal())
+            snprintf(buf, n, "%s. Trade in these %s? %s.",
+                     ShopName(), ShopCurWord(), g_shopConfYes ? "Yes" : "No");
+        else
+            snprintf(buf, n, "%s. Complete this purchase? %s.",
+                     ShopName(), g_shopConfYes ? "Yes" : "No");
+        return true;
+    }
+    if (phase == 6 || phase == 7) {
+        int qty = (int) u16(kShopQtyAddr);
+        uint16_t id = 0, ability = 0; int level = 0, price = 0;
+        if (ShopSellInstance(ShopTab(), ShopCursor(), &id, &level, &ability))
+            price = ShopSellPrice(id, level, ability);
+        if (phase == 6)
+            snprintf(buf, n, "%s. %s Quantity %d, %d %s. You have %u %s.",
+                     ShopName(), g_shopSellName, qty, qty * price,
+                     ShopCurWord(), bal, ShopCurWord());
+        else
+            snprintf(buf, n, "%s. Complete this sale? %s.",
+                     ShopName(), g_shopConfYes ? "Yes" : "No");
+        return true;
+    }
+    return false;
+}
+
+void WatchShop(void)
+{
+    if (ShopUp()) {
+        int phase = ShopPhase();
+        int tab = ShopTab();
+        uint32_t bal = ShopBalance();
+        if (!g_shopUp) {
+            g_shopUp = true;
+            g_shopTab = tab; g_shopPhase = phase;
+            g_shopBalance = bal; g_shopBalancePrimed = true;
+            char line[512];
+            if (ShopLine(line, sizeof(line))) Say(line, "menu", oga::Priority::High);
+        } else {
+            // A completed purchase: the currency word dropped.
+            if (g_shopBalancePrimed && bal < g_shopBalance &&
+                g_shopBuyQty > 0 && g_shopBuyName[0]) {
+                char line[256];
+                if (g_shopBuyQty > 1)
+                    snprintf(line, sizeof(line), "Bought %s, quantity %d. You have %u %s.",
+                             g_shopBuyName, g_shopBuyQty, bal, ShopCurWord());
+                else
+                    snprintf(line, sizeof(line), "Bought %s. You have %u %s.",
+                             g_shopBuyName, bal, ShopCurWord());
+                Say(line, "menu", oga::Priority::High);
+                g_shopBuyQty = 0;
+                g_shopJustTransacted = true;
+            }
+            // A completed sale: the currency word rose.
+            if (g_shopBalancePrimed && bal > g_shopBalance &&
+                g_shopSellQty > 0 && g_shopSellName[0]) {
+                char line[256];
+                if (g_shopSellQty > 1)
+                    snprintf(line, sizeof(line), "Sold %s, quantity %d. You have %u %s.",
+                             g_shopSellName, g_shopSellQty, bal, ShopCurWord());
+                else
+                    snprintf(line, sizeof(line), "Sold %s. You have %u %s.",
+                             g_shopSellName, bal, ShopCurWord());
+                Say(line, "menu", oga::Priority::High);
+                g_shopSellQty = 0;
+                g_sellCountsValid = false;   // the pool just changed
+                g_shopJustTransacted = true;
+            }
+            g_shopBalance = bal;
+            // Phase changes must be stable for 4 frames before they
+            // are announced: during the quantity screen's opening
+            // the sub word sits on the confirm value (40) for exactly
+            // 2 frames before settling (frame-traced in bench
+            // shop19), and a shorter latch spoke the confirm line
+            // before the quantity line (live-caught in bench shop13).
+            // The purchase check above stays frame-immediate; only
+            // the announcements latch.
+            if (phase != g_shopPhase) {
+                if (phase != g_shopPhaseCand) { g_shopPhaseCand = phase; g_shopPhaseCandFrames = 1; }
+                else if (++g_shopPhaseCandFrames < 4) { /* hold */ }
+                else g_shopPhaseCandFrames = 0;  // stable: commit below
+            }
+            if (phase != g_shopPhase && g_shopPhaseCandFrames == 0) {
+                if (phase == 2 || phase == 6) {
+                    // Freeze the name of the row being traded (the
+                    // list cursor's row, up to its first comma).
+                    char row[256];
+                    bool ok = phase == 2 ? ShopRowText(-1, row, sizeof(row))
+                                         : ShopSellRowText(-1, row, sizeof(row));
+                    if (ok) {
+                        char* dst = phase == 2 ? g_shopBuyName : g_shopSellName;
+                        snprintf(dst, sizeof(g_shopBuyName), "%s", row);
+                        char* c = strstr(dst, ", ");
+                        if (c) *c = 0;
+                        if (phase == 2) g_shopBuyQty = (int) u16(kShopQtyAddr);
+                        else g_shopSellQty = (int) u16(kShopQtyAddr);
+                        char line[384];
+                        snprintf(line, sizeof(line), "How many? %s", row);
+                        Say(line, "menu", oga::Priority::High);
+                    }
+                } else if (phase == 3 || phase == 7) {
+                    g_shopConfYes = false;      // the game defaults to No
+                    if (phase == 3) g_shopBuyQty = (int) u16(kShopQtyAddr);
+                    else g_shopSellQty = (int) u16(kShopQtyAddr);
+                    char line[256];
+                    if (phase == 7)
+                        snprintf(line, sizeof(line), "Complete this sale? No.");
+                    else if (ShopMedal())
+                        snprintf(line, sizeof(line), "Trade in these %s? No.",
+                                 ShopCurWord());
+                    else
+                        snprintf(line, sizeof(line), "Complete this purchase? No.");
+                    Say(line, "menu", oga::Priority::High);
+                } else if (phase == 1 || phase == 5 || phase == 4) {
+                    // Landing in a list (or back at the top level):
+                    // speak the row the cursor sits on — unless a
+                    // Bought/Sold line just announced this landing.
+                    if (!g_shopJustTransacted) {
+                        char row[256];
+                        bool ok = phase == 1 ? ShopRowText(-1, row, sizeof(row))
+                                : phase == 5 ? ShopSellRowText(-1, row, sizeof(row))
+                                             : ShopTopRowText(-1, row, sizeof(row));
+                        if (ok) Say(row, "menu", oga::Priority::High);
+                    }
+                    g_shopJustTransacted = false;
+                    g_shopTab = tab;
+                }
+                g_shopPhase = phase;
+            } else if ((phase == 1 || phase == 5) && tab != g_shopTab) {
+                g_shopTab = tab;
+                char row[256];
+                bool ok = phase == 1 ? ShopRowText(-1, row, sizeof(row))
+                                     : ShopSellRowText(-1, row, sizeof(row));
+                if (ok) {
+                    char line[384];
+                    snprintf(line, sizeof(line), "%s. %s", kShopTabNames[tab], row);
+                    Say(line, "menu", oga::Priority::High);
+                }
+            }
+            if (phase == 2) g_shopBuyQty = (int) u16(kShopQtyAddr);
+            if (phase == 6) g_shopSellQty = (int) u16(kShopQtyAddr);
+        }
+        g_shopDownFrames = 0;
+        return;
+    }
+    if (g_shopUp) {
+        g_shopUp = false; g_shopPhase = 0; g_shopTab = -1;
+        g_shopPhaseCand = 0; g_shopPhaseCandFrames = 0;
+        g_shopBuyQty = 0; g_shopSellQty = 0; g_shopSellName[0] = 0;
+        g_shopJustTransacted = false;
+        g_shopListKind = -1; g_sellCountsValid = false;
+        g_shopBalancePrimed = false;
+    }
+    if (g_shopDownFrames < (1 << 30)) g_shopDownFrames++;
 }
 
 // ---- the world map (VERIFIED 2026-10-24, bench wm1) -------------------
@@ -4122,7 +6311,7 @@ void SaveLoadLine(char* buf, size_t n)
 
 void CmdWhereAmI(void)
 {
-    char line[192];
+    char line[256];
     if (SaveLoadUp()) {
         // The savedata dialog owns the screen while it is up —
         // ahead of camp, whose witnesses are also set under it
@@ -4166,6 +6355,32 @@ void CmdWhereAmI(void)
         snprintf(line, sizeof(line), "Mirage Arena. %s.", row);
         Say(line, "menu", oga::Priority::High);
         return;
+    }
+    if (ModeMenuUp()) {
+        char row[96]; ModeMenuRow(row, sizeof(row));
+        snprintf(line, sizeof(line), "Mirage Arena. New Event. %s.", row);
+        Say(line, "menu", oga::Priority::High);
+        return;
+    }
+    if (SetupUp()) {
+        char fl[192]; SetupFocusLine(fl, sizeof(fl));
+        snprintf(line, sizeof(line), "Mirage Arena. Arena Mode setup. %s", fl);
+        Say(line, "menu", oga::Priority::High);
+        return;
+    }
+    if (RumbleUp()) {
+        char fl[128]; RumbleFocusLine(fl, sizeof(fl));
+        snprintf(line, sizeof(line), "Mirage Arena. Rumble Racing setup. %s", fl);
+        Say(line, "menu", oga::Priority::High);
+        return;
+    }
+    // A shop likewise owns the screen over the field it opened from.
+    if (ShopUp()) {
+        char shopLine[512];
+        if (ShopLine(shopLine, sizeof(shopLine))) {
+            Say(shopLine, "menu", oga::Priority::High);
+            return;
+        }
     }
     // The world map: InField() excludes it, so it needs its own
     // branch — its two sub-menus first (they own the screen
@@ -4217,7 +6432,7 @@ void CmdWhereAmI(void)
         FieldLine(line, sizeof(line));
         if (ActorIsTutorial()) g_lastDeck = (int) u32(kDeckCursorAddr);
         if (loc[0] || pos[0]) {
-            char full[384];
+            char full[448];
             snprintf(full, sizeof(full), "%s%s%s", loc, pos, line);
             Say(full, "status", oga::Priority::High);
             return;
@@ -4261,6 +6476,30 @@ void CmdMenuNav(void)
     if (GameOverUp())  { GameOverRow(row, sizeof(row));  Say(row, "menu", oga::Priority::High); return; }
     if (MoviePauseUp()) { MoviePauseRow(row, sizeof(row)); Say(row, "menu", oga::Priority::High); return; }
     if (EventMenuUp()) { EventMenuRow(row, sizeof(row)); Say(row, "menu", oga::Priority::High); return; }
+    if (ModeMenuUp()) { ModeMenuRow(row, sizeof(row)); Say(row, "menu", oga::Priority::High); return; }
+    if (SetupUp()) { SetupFocusLine(row, sizeof(row)); Say(row, "menu", oga::Priority::High); return; }
+    if (RumbleUp()) { RumbleFocusLine(row, sizeof(row)); Say(row, "menu", oga::Priority::High); return; }
+    if (ShopUp()) {
+        // List: the landed row. Quantity: the landed quantity line.
+        // Confirmation: the tracked choice (its cursor is command-
+        // tracked like the meld dialog's; left/right flip it in the
+        // command hook below).
+        int phase = ShopPhase();
+        if (phase == 3 || phase == 7) { Say(g_shopConfYes ? "Yes." : "No.", "menu", oga::Priority::High); return; }
+        char sline[512];
+        if (ShopLine(sline, sizeof(sline))) {
+            // In a list step ShopLine carries the shop name and
+            // balance; the nav echo is the bare row.
+            char srow[256];
+            bool bare = phase == 1 ? ShopRowText(-1, srow, sizeof(srow))
+                      : phase == 5 ? ShopSellRowText(-1, srow, sizeof(srow))
+                      : phase == 4 ? ShopTopRowText(-1, srow, sizeof(srow))
+                                   : false;
+            if (bare) Say(srow, "menu", oga::Priority::High);
+            else Say(sline, "menu", oga::Priority::High);
+        }
+        return;
+    }
     if (VisitDialogUp()) { VisitRow(row, sizeof(row)); Say(row, "menu", oga::Priority::High); return; }
     if (MapPauseUp()) { MapPauseRow(row, sizeof(row)); Say(row, "menu", oga::Priority::High); return; }
     if (TheaterUp()) { TheaterRow(row, sizeof(row)); Say(row, "menu", oga::Priority::High); return; }
@@ -4666,7 +6905,7 @@ void WatchDialogue(void)
     // find their furniture. (The movie-scene system never touches
     // this channel at all — see the header note.)
     if (CampActive() || SaveLoadUp() || ArchivesUp() || TheaterUp() ||
-        ArchReportsUp() || GameOverUp() || MoviePauseUp() || EventMenuUp() ||
+        ArchReportsUp() || GameOverUp() || MoviePauseUp() || EventMenuUp() || ModeMenuUp() || SetupUp() || RumbleUp() || ShopUp() ||
         OnWorldMap() || OnTitleMenu() || OnDifficulty())
         return;
     // Census sweep on a frame cadence (the first frame after
@@ -4728,8 +6967,14 @@ static bool khbbs_attach(const Host* host)
     g_lastLockScanMs = 0;
     g_lastDeck = -1;
     g_lowHpWarned = false; g_lowHpActor = 0; g_lowHpMax = 0;
+    g_gaugesPrimed = false; g_gaugesFlags = 0; g_aimFired = false;  // battle gauges watch
+    g_ownTrack = HealthTrack{}; g_foeTrack = HealthTrack{};  // sound-first health cues
+    g_pendFoeBeep = g_pendOwnBeep = g_pendFocusCue = g_pendDLinkCue = false;
     g_lastActorBase = 0; g_goStruct = 0; g_lastGoScanMs = 0; g_goWasUp = false; g_goDownFrames = 1 << 30; g_mpUp = false;  // game-over / movie-pause gates
-    g_evUp = false; g_evDownFrames = 1 << 30;  // Mirage Arena event menu gate
+    g_evUp = false; g_evDownFrames = 1 << 30; g_evWidget = 0; g_modeSpoken = false; g_modeArmed = true; g_modeRow = -1; g_modeStable = 0; g_modeDownFrames = 1 << 30;  // Mirage Arena event menus gate
+    g_setupWidget = 0; g_setupSpoken = false; g_setupArmed = true; g_setupPairA = -1; g_setupPairB = -1; g_setupStable = 0; g_setupDownFrames = 1 << 30; g_setupBattleLatch = -1; g_arenaInfoCat = 0;  // arena setup + event state
+    g_rumbleWidget = 0; g_rumbleSpoken = false; g_rumbleArmed = true; g_rumblePairA = -1; g_rumblePairB = -1; g_rumbleStable = 0; g_rumbleDownFrames = 1 << 30; g_eventKindLatch = 0; g_raceCourseLatch = -1; g_evEndArmed = false; g_evEndArmFrames = 0;  // rumble setup + event end
+    g_shopTable = 0; g_shopCount = 0; g_shopFmt = 0; g_shopListKind = -1; g_sellCountsValid = false; g_shopSellName[0] = 0; g_shopSellQty = 0; g_shopWidget = 0; g_shopUp = false; g_shopDownFrames = 1 << 29; g_shopTab = -1; g_shopPhase = 0; g_shopPhaseCand = 0; g_shopPhaseCandFrames = 0; g_shopConfYes = false; g_shopBuyQty = 0; g_shopBalancePrimed = false; g_blockBase = 0;  // shops
     g_visitObj = 0; g_lastVisitScanMs = 0; g_wmUp = false; g_wmSel = -1; g_wmSelCand = -1; g_wmSelFrames = 0; g_wmDlgUp = false; g_wmDlgDownFrames = 1 << 30; g_wmPauseUp = false;  // world map
     g_archTopUp = false; g_archTopStable = 0; g_theaterUp = false; g_theaterStable = 0; g_reportsUp = false; g_reportsStable = 0;  // trinity archives
     SlReset();  // save/load dialog
@@ -4739,6 +6984,98 @@ static bool khbbs_attach(const Host* host)
     g_lastSlotRaw = -1;
     FaceReset(); g_faceNode = 0;
     return true;   // the game code check already happened in the registry
+}
+
+// The battle-gauges watch: Focus / shotlock and D-Link events
+// (signals in the constants block; mechanics proven in bench
+// khbbs-foc1..foc7). Runs every frame the field actor is live,
+// beside WatchLowHp, and follows its discipline: the latches
+// track in every context, but a line speaks only with the field
+// in front — never under the camp menu or Reports. Every trigger
+// is an edge of a flag bit the GAME sets and clears, so nothing
+// repeats without the game itself changing state first: Focus
+// refilling to full, a fresh aim, a new link. The first live
+// sight primes silently — loading a save with full gauges is
+// reported by the field line, not as a false event.
+//
+// SOUND-FIRST SPLIT (2026-10-24, the owner's rule — the bench
+// audio audit behind it is in the RE doc): the events divide by
+// what the game itself sounds and by what speech alone can say.
+// A FIRED shotlock is fully sounded by the game (the fire
+// transition measured at full scale), so it raises nothing at
+// all now. GAUGE-FULL moments (Focus full, D-Link ready) have no
+// game cue of their own, but they are simple "ready" facts — in
+// the default SOUND mode they raise earcon pulses through the
+// cue snapshot instead of speaking; the KhbbsHudGaugeCues seam
+// (top of file) restores the spoken lines for players who prefer
+// speech. The lines that STAY spoken are the ones carrying what
+// no sound can: the aim starting ("Shotlock." — the aim's entry
+// measured BELOW the music's own peaks, and the line is the only
+// proof a hold engaged rather than re-locking), a cancel
+// ("Shotlock cancelled." — the only sound at a cancel is the
+// generic aim-exit whoosh every aim exit shares; it cannot say
+// the Focus was refunded), and the D-Link state changes
+// ("D-Link: <name>." — the game sounds a jingle, but a jingle
+// cannot name the partner; "D-Link ended." — measured at the
+// music's level, effectively uncued).
+void WatchBattleGauges(void)
+{
+    uint32_t obj = GaugesObj();
+    if (!obj) return;
+    uint32_t flags = u32(obj + kGaugesOffFlags);
+    uint32_t state = u32(obj + kGaugesOffState);
+    bool speak = !CampActive() && !ReportsUp();
+    if (!g_gaugesPrimed) {
+        g_gaugesPrimed = true;
+        g_gaugesFlags = flags;
+        g_aimFired = (state == 2);
+        return;
+    }
+    uint32_t prev = g_gaugesFlags;
+    // A fired shotlock passes through the firing state — catch
+    // it for the frame the aim flag falls (the two change
+    // together when Cross is pressed).
+    if (state == 2) g_aimFired = true;
+    if (!(prev & kGaugesFlagFocusFull) && (flags & kGaugesFlagFocusFull)) {
+        if (speak) {
+            if (g_hudGaugeCuesSound) g_pendFocusCue = true;
+            else Say("Focus full.", "focus", oga::Priority::Normal);
+        }
+    }
+    if (!(prev & kGaugesFlagDLinkPrimed) && (flags & kGaugesFlagDLinkPrimed)) {
+        if (speak) {
+            if (g_hudGaugeCuesSound) g_pendDLinkCue = true;
+            else Say("D-Link ready.", "dlink", oga::Priority::Normal);
+        }
+    }
+    if (!(prev & kGaugesFlagLinked) && (flags & kGaugesFlagLinked)) {
+        if (speak) {
+            char name[40];
+            uint16_t partner = u16(obj + kGaugesOffPartner);
+            char line[96];
+            if (partner && DefName(partner, name, sizeof(name)))
+                snprintf(line, sizeof(line), "D-Link: %s.", name);
+            else
+                snprintf(line, sizeof(line), "D-Link active.");
+            Say(line, "dlink", oga::Priority::Normal);
+        }
+    }
+    if ((prev & kGaugesFlagLinked) && !(flags & kGaugesFlagLinked)) {
+        if (speak) Say("D-Link ended.", "dlink", oga::Priority::Normal);
+    }
+    if (!(prev & kGaugesFlagAiming) && (flags & kGaugesFlagAiming)) {
+        g_aimFired = (state == 2);
+        if (speak) Say("Shotlock.", "shotlock", oga::Priority::Normal);
+    } else if ((prev & kGaugesFlagAiming) && !(flags & kGaugesFlagAiming)) {
+        // A fired shotlock says nothing: the game's own fire sound
+        // (measured full-scale on the bench) already announced it.
+        // A cancel keeps its line — see the header: the refund is
+        // the fact, and no game sound carries it.
+        if (speak && !g_aimFired)
+            Say("Shotlock cancelled.", "shotlock", oga::Priority::Normal);
+        g_aimFired = false;
+    }
+    g_gaugesFlags = flags;
 }
 
 // The low-health watch (see the kLowHpPct note for the game's own
@@ -4755,6 +7092,7 @@ static bool khbbs_attach(const Host* host)
 // starts from a sane armed state. The camp menu and Reports sit
 // ON TOP of the field with live HP words: the latch still tracks
 // there (a potion used in camp re-arms silently), but the spoken
+// there (a potion used in camp re-arms silently), but the spoken
 // line only fires with the field in front — a warning first
 // noticed under a menu would be menu noise. HP does not drop
 // during this game's cutscenes, and a player who enters one
@@ -4763,6 +7101,191 @@ static bool khbbs_attach(const Host* host)
 // re-arm gap already make chatter impossible, and High keeps a
 // re-armed warning from being swallowed by the consecutive-line
 // dedup that status echoes go through.
+
+// ---- Sound-first battle health cues (2026-10-24, the owner's rule) ----------
+// Never speak what the game already cues with a sound. The bench audio
+// audit (two captured fights, ~/khbbs-scan/snd1 + snd2) measured what
+// the game sounds: EVERY hit lands with a full-scale impact (median
+// bucket peak 0.99 of 1.0 for foe hits, 1.00 for hits on the player)
+// — but an impact says nothing about HOW MUCH health is left. So a
+// hit now raises a one-shot beep through the cue snapshot whose PITCH
+// carries the new health fraction, and speech is kept only for the
+// milestone crossings, which the game does not mark at all:
+//
+//   foe health: beep on every hit that drops the tracked foe; spoken
+//     percent only at 75 / 50 / 25, and "Foe nearly gone." at 10.
+//   own health: the mirror — beeps on hits, "Your health N percent."
+//     at the same crossings, "Your health nearly gone." at 10, and
+//     the older "Low health." warning still fires at the game's own
+//     <26% boundary (WatchLowHp, just below).
+//   Exact numbers stay where they always were: the foe query.
+//
+// PITCH IS LOGARITHMIC (perceived pitch is roughly log frequency, so
+// equal health steps sound like equal pitch steps), foe 1200→300 Hz
+// (bright tick), own 800→200 Hz (duller thud register), panned to the
+// owner's sides: FOE RIGHT (+0.8), PLAYER LEFT (−0.8). The registers
+// differ as well as the pans, so the sides stay separable in mono.
+// The design follows the precedents the research found: Mortal
+// Kombat 1's official accessibility "Health Meter" cue sounds at
+// exactly 75/50/25/critical (the same milestone set), Street Fighter
+// 6's designed hit/health indicator sounds, and the Dissidia
+// proposal's one-family-per-kind discipline. Durations and waveforms
+// are the synth's side of the contract (adapter.h, cue-synth.md):
+// foe ~35 ms bright tick, own ~55 ms thud, both at the health
+// family's own level under the app's battle-cues switch.
+//
+// THE TRACKED FOE is the lock-on target while locked. While
+// unlocked it is the last locked foe, followed through its entity
+// block for as long as the block still validates (same max HP, sane
+// current HP, live scene word) — foe HP only ever drops because the
+// player hit it, so "the foe the player just hit" and "the last
+// locked foe" are the same foe in this game's fights. A foe that
+// was never locked is NOT followed: finding it would take a
+// per-frame actor census, and the one census the adapter has (the
+// lock-record sweep) costs ~2M reads and is throttled to once a
+// second for exactly that reason. Documented limit, RE doc.
+//
+// Milestones latch per subject (actor / foe block + max HP): a
+// plunge through several crossings speaks only the lowest; healing
+// back to a milestone + 5 points re-arms it (the low-HP watch's
+// hysteresis shape). A drop to 0 raises NOTHING — a death has the
+// game's own sound, the lock loss, and the game-over flow; a beep
+// and a "0 percent" would be noise on top. Events stash only with
+// the field in front (the same discipline as speech: a hit cannot
+// land under the camp menu anyway, and a stale beep after a menu
+// closes would be a lie about when it happened).
+// (The HealthTrack struct, the pending-event fields and the pitch
+// constants are declared with the battle-gauges state, above.)
+
+// Pitch from a health fraction, log-mapped between the family's
+// endpoints: fraction 1 = hi, 0 = lo, and the midpoint fraction
+// lands on the geometric mean (600 Hz foe / 400 Hz own).
+float HealthPitch(float lo, float hi, unsigned cur, unsigned max)
+{
+    float frac = max ? (float) cur / (float) max : 0.0f;
+    if (frac < 0.0f) frac = 0.0f;
+    if (frac > 1.0f) frac = 1.0f;
+    return lo * powf(hi / lo, frac);
+}
+
+// The foe entity block behind the lock record, with its HP — the
+// same record/target validation ReadFoe does, minus the distance,
+// and minus the record sweep: locating is the cue snapshot's job
+// (it owns the throttle); this watch only rides the cached record.
+// (ReadFoe keeps its own copy: it is on proven query paths and this
+// watch must not be able to disturb them.)
+bool ReadFoeBlock(uint32_t* blkOut, unsigned* curOut, unsigned* mxOut)
+{
+    if (!g_lockRec) return false;
+    if (u32(g_lockRec + kLockRecOffActor) != g_actorBase) return false;
+    uint32_t tgt = u32(g_lockRec + kLockRecOffTgt);
+    if (!tgt) return false;
+    if (u32(tgt) != u32(g_actorBase + kActorOffEngage)) return false;
+    uint32_t blk = tgt - kFoeBlockBack;
+    unsigned cur = (unsigned) u16(blk + kActorOffCurHp);
+    unsigned mx = (unsigned) u16(blk + kActorOffMaxHp);
+    if (mx < 10 || mx > 20000 || cur > mx) return false;
+    *blkOut = blk; *curOut = cur; *mxOut = mx;
+    return true;
+}
+
+// One frame of milestone/beep tracking for one side. foeSide picks
+// the family (pitch range, pan, wording, speech priority).
+void TrackHealthSide(HealthTrack& t, uint32_t who, unsigned cur, unsigned max,
+                     bool foeSide)
+{
+    if (!max || !who) return;
+    if (t.who != who || t.max != (uint16_t) max) {
+        // A new subject (or a new max under the same block): prime
+        // silently — milestones at or below the current percent are
+        // already passed and must not speak for a fight joined late.
+        t.who = who; t.max = (uint16_t) max; t.prev = (int) cur;
+        int pct = (int) ((cur * 100) / max);
+        t.m75 = pct <= 75; t.m50 = pct <= 50;
+        t.m25 = pct <= 25; t.m10 = pct <= 10;
+        return;
+    }
+    int pct = (int) ((cur * 100) / max);
+    if ((int) cur < t.prev) {
+        if (cur > 0) {   // a hit landed (death is the game's own moment)
+            bool front = !CampActive() && !ReportsUp();
+            if (front) {
+                if (foeSide) {
+                    g_pendFoeBeep = true;
+                    g_pendFoeHz = HealthPitch(kFoeBeepLoHz, kFoeBeepHiHz, cur, max);
+                } else {
+                    g_pendOwnBeep = true;
+                    g_pendOwnHz = HealthPitch(kOwnBeepLoHz, kOwnBeepHiHz, cur, max);
+                }
+            }
+            int crossed = 0;   // latch every crossing; speak only the lowest
+            if (pct <= 75) { if (!t.m75) crossed = 75; t.m75 = true; }
+            if (pct <= 50) { if (!t.m50) crossed = 50; t.m50 = true; }
+            if (pct <= 25) { if (!t.m25) crossed = 25; t.m25 = true; }
+            if (pct <= 10) { if (!t.m10) crossed = 10; t.m10 = true; }
+            if (crossed && front) {
+                char line[64];
+                if (crossed == 10)
+                    snprintf(line, sizeof(line),
+                             foeSide ? "Foe nearly gone."
+                                     : "Your health nearly gone.");
+                else
+                    snprintf(line, sizeof(line),
+                             foeSide ? "Foe health %d percent."
+                                     : "Your health %d percent.", crossed);
+                Say(line, "health",
+                    foeSide ? oga::Priority::Low : oga::Priority::Normal);
+            }
+        }
+    } else if ((int) cur > t.prev) {
+        // Healing re-arms each milestone once the percent is back
+        // above it by the margin (milestone + 5).
+        if (pct >= 75 + kHealthMilestoneRearm) t.m75 = false;
+        if (pct >= 50 + kHealthMilestoneRearm) t.m50 = false;
+        if (pct >= 25 + kHealthMilestoneRearm) t.m25 = false;
+        if (pct >= 10 + kHealthMilestoneRearm) t.m10 = false;
+    }
+    t.prev = (int) cur;
+}
+
+void WatchHealthCues(void)
+{
+    // Own side: the located actor's HP words (the same words
+    // WatchLowHp reads). No plausible actor — the field was left,
+    // or the player died and the game-over flow owns the screen —
+    // forget the track; a return primes fresh.
+    if (g_actorBase) {
+        unsigned cur = (unsigned) u16(g_actorBase + kActorOffCurHp);
+        unsigned mx = (unsigned) u16(g_actorBase + kActorOffMaxHp);
+        if (mx >= 10 && mx <= 20000 && cur <= mx && cur > 0)
+            TrackHealthSide(g_ownTrack, g_actorBase, cur, mx, false);
+        else if (cur == 0)
+            g_ownTrack = HealthTrack{};
+    } else {
+        g_ownTrack = HealthTrack{};
+    }
+
+    // Foe side: the lock record's foe while it validates…
+    uint32_t blk; unsigned fc, fm;
+    if (ReadFoeBlock(&blk, &fc, &fm)) {
+        TrackHealthSide(g_foeTrack, blk, fc, fm, true);
+        if (fc == 0) g_foeTrack = HealthTrack{};   // it died under the lock
+    } else if (g_foeTrack.who) {
+        // …else the last locked foe, while its block still validates:
+        // same max HP, sane current HP, and a live scene word at the
+        // scene object the block belongs to.
+        uint32_t b = g_foeTrack.who;
+        unsigned mx = (unsigned) u16(b + kActorOffMaxHp);
+        unsigned cur = (unsigned) u16(b + kActorOffCurHp);
+        if (mx == (unsigned) g_foeTrack.max && mx && cur <= mx && cur > 0 &&
+            b != g_actorBase && u32(b + kFoeBlockBack) != 0) {
+            TrackHealthSide(g_foeTrack, b, cur, mx, true);
+        } else if (mx == (unsigned) g_foeTrack.max && cur == 0) {
+            g_foeTrack = HealthTrack{};   // the remembered foe died
+        }
+    }
+}
+
 void WatchLowHp(void)
 {
     unsigned cur = (unsigned) u16(g_actorBase + kActorOffCurHp);
@@ -4807,6 +7330,19 @@ static void khbbs_on_frame(void)
     // console in the Hub lobby). Same rising-edge pattern; its
     // gate fails cheap outside the Hub.
     WatchEventMenu();
+    // The New Event mode list's arrival watch: the event
+    // menu's child, on the same widget family.
+    WatchModeMenu();
+    // The Arena Mode setup screen's arrival watch, and the
+    // event-state watch for the pad/Ready tail of the flow
+    // (its own gates scope it to the Hub field).
+    WatchSetupMenu();
+    WatchRumbleMenu();
+    WatchArenaEvent();
+    WatchEventEnd();
+    // The shops' watch (arrival, tab landings, buy-flow steps and
+    // the purchase line). Same rising-edge pattern.
+    WatchShop();
     // The save/load dialog's arrival and completion watch. The
     // dialog also appears without a translated command (it is
     // the firmware utility, opened from menus the host drives
@@ -4834,9 +7370,30 @@ static void khbbs_on_frame(void)
     if (!InField()) { g_lastLock = -1; g_lockRec = 0; g_lastLockScanMs = 0; g_nodeBase = 0; g_nodeActor = 0; FaceReset(); g_faceNode = 0; return; }
     FaceTrack();
     WatchLowHp();
-    int lock = (u16(g_actorBase + kActorOffMark) == 2) ? 1 : 0;
-    if (g_lastLock == 0 && lock == 1)
-        Say("Locked on.", "lock", oga::Priority::Normal);
+    WatchBattleGauges();
+    WatchHealthCues();
+    // The mark also reads 4 during a shotlock aim — the lock is
+    // held throughout (the reticle tracks the target), so 4
+    // counts as locked here: without it every shotlock would
+    // read as a lost lock and re-announce "Locked on." at the
+    // aim's end. The foe / lock QUERIES still key on 2 exactly,
+    // as proven; they are not issued mid-aim in practice.
+    int lock = (u16(g_actorBase + kActorOffMark) == 2 ||
+                u16(g_actorBase + kActorOffMark) == 4) ? 1 : 0;
+    if (g_lastLock == 0 && lock == 1) {
+        // Name what was locked onto when its type is proven —
+        // the name alone, no chatter (the lock tick itself
+        // measured at music level in the sound-first audit, so
+        // this line is a query-grade answer, not a cue).
+        char name[40];
+        if (ReadFoeName(name, sizeof(name))) {
+            char line[64];
+            snprintf(line, sizeof(line), "Locked on: %s.", name);
+            Say(line, "lock", oga::Priority::Normal);
+        } else {
+            Say("Locked on.", "lock", oga::Priority::Normal);
+        }
+    }
     g_lastLock = lock;
 }
 
@@ -4846,6 +7403,7 @@ static void khbbs_command(Command cmd)
         case Command::WhereAmI:        CmdWhereAmI();  break;
         case Command::NextAlly:        if (InField() && !CampActive() && !ReportsUp()) CmdFoe();       else CmdNotMapped(); break;
         case Command::NextEnemy:       if (InField() && !CampActive() && !ReportsUp()) CmdLockQuery(); else CmdNotMapped(); break;
+        case Command::Enemies:         if (InField() && !CampActive() && !ReportsUp()) CmdRoster();    else CmdNotMapped(); break;
         case Command::PrevAlly:
         case Command::PrevEnemy:
         case Command::NextUnactedAlly: if (InField() && !CampActive() && !ReportsUp()) CmdSelfLine();  else CmdNotMapped(); break;
@@ -4863,9 +7421,18 @@ static void khbbs_command(Command cmd)
         case Command::MenuRight:
             if (SaveLoadUp()) { CmdSaveLoadFlip(cmd == Command::MenuLeft); break; }
             if (g_meldDialog) { CmdMeldFlip(); break; }
+            if (ShopUp() && (ShopPhase() == 3 || ShopPhase() == 7)) {
+                // The shop confirmation's choice lives in one-hot
+                // heap floats that float per lineage; like the meld
+                // dialog, it is tracked from the player's presses.
+                // It starts on No (proven); a press flips it.
+                g_shopConfYes = !g_shopConfYes;
+                Say(g_shopConfYes ? "Yes." : "No.", "menu", oga::Priority::High);
+                break;
+            }
             CmdMenuNav();
             break;
-        case Command::Guide:           CmdHubGuide();  break;
+        case Command::Guide:           CmdHubGuide(); CmdRoomGuide(); break;
         case Command::OskType:
             if (SaveLoadUp()) { CmdSaveLoadCross(); break; }
             CmdMeldCross();
@@ -4886,8 +7453,8 @@ static bool khbbs_ready(void)
     // Ready means "the adapter currently has usable game state" — true on
     // the screens whose gates verify, using the same gates speech uses.
     return OnTitleMenu() || OnDifficulty() || InField() || CampActive() ||
-           GameOverUp() || MoviePauseUp() || EventMenuUp() || OnWorldMap() || SaveLoadUp() ||
-           ArchivesUp() || TheaterUp() || ArchReportsUp() || DialogueUp();
+           GameOverUp() || MoviePauseUp() || EventMenuUp() || ModeMenuUp() || SetupUp() || RumbleUp() || OnWorldMap() || SaveLoadUp() ||
+           ArchivesUp() || TheaterUp() || ArchReportsUp() || DialogueUp() || ShopUp();
 }
 
 static void khbbs_detach(void)
@@ -4895,14 +7462,21 @@ static void khbbs_detach(void)
     g_host = nullptr; g_lastDeck = -1;
     g_actorBase = 0; g_lastScanMs = 0; g_charId = -1; g_lastLock = -1; g_lockRec = 0;
     g_lowHpWarned = false; g_lowHpActor = 0; g_lowHpMax = 0;
+    g_gaugesPrimed = false; g_gaugesFlags = 0; g_aimFired = false;  // battle gauges watch
+    g_ownTrack = HealthTrack{}; g_foeTrack = HealthTrack{};  // sound-first health cues
+    g_pendFoeBeep = g_pendOwnBeep = g_pendFocusCue = g_pendDLinkCue = false;
     g_lastActorBase = 0; g_goStruct = 0; g_lastGoScanMs = 0; g_goWasUp = false; g_goDownFrames = 1 << 30; g_mpUp = false;  // game-over / movie-pause gates
-    g_evUp = false; g_evDownFrames = 1 << 30;  // Mirage Arena event menu gate
+    g_evUp = false; g_evDownFrames = 1 << 30; g_evWidget = 0; g_modeSpoken = false; g_modeArmed = true; g_modeRow = -1; g_modeStable = 0; g_modeDownFrames = 1 << 30;  // Mirage Arena event menus gate
+    g_setupWidget = 0; g_setupSpoken = false; g_setupArmed = true; g_setupPairA = -1; g_setupPairB = -1; g_setupStable = 0; g_setupDownFrames = 1 << 30; g_setupBattleLatch = -1; g_arenaInfoCat = 0;  // arena setup + event state
+    g_rumbleWidget = 0; g_rumbleSpoken = false; g_rumbleArmed = true; g_rumblePairA = -1; g_rumblePairB = -1; g_rumbleStable = 0; g_rumbleDownFrames = 1 << 30; g_eventKindLatch = 0; g_raceCourseLatch = -1; g_evEndArmed = false; g_evEndArmFrames = 0;  // rumble setup + event end
+    g_shopTable = 0; g_shopCount = 0; g_shopFmt = 0; g_shopListKind = -1; g_sellCountsValid = false; g_shopSellName[0] = 0; g_shopSellQty = 0; g_shopWidget = 0; g_shopUp = false; g_shopDownFrames = 1 << 29; g_shopTab = -1; g_shopPhase = 0; g_shopPhaseCand = 0; g_shopPhaseCandFrames = 0; g_shopConfYes = false; g_shopBuyQty = 0; g_shopBalancePrimed = false; g_blockBase = 0;  // shops
     g_visitObj = 0; g_lastVisitScanMs = 0; g_wmUp = false; g_wmSel = -1; g_wmSelCand = -1; g_wmSelFrames = 0; g_wmDlgUp = false; g_wmDlgDownFrames = 1 << 30; g_wmPauseUp = false;  // world map
     g_archTopUp = false; g_archTopStable = 0; g_theaterUp = false; g_theaterStable = 0; g_reportsUp = false; g_reportsStable = 0;  // trinity archives
     SlReset();  // save/load dialog
     DlgReset();  // field dialogue
     g_lastLockScanMs = 0;
     g_nodeBase = 0; g_nodeActor = 0; g_lastNodeScanMs = 0;
+    g_foeCount = -1; g_foeCensusActor = 0; g_foeCensusMs = 0;  // foe census cache
     FaceReset(); g_faceNode = 0;
     g_campScreen = CampScreen::None;
     g_lastMain = g_lastSub = g_lastGroup = g_lastSlot = g_lastInv = -1;
@@ -4924,14 +7498,35 @@ static bool khbbs_cue_snapshot(CueSnapshot* out)
     // cleared up front, and a held lock whose target cannot be
     // verified reports no lock rather than a distance nobody
     // checked.
+    //
+    // The sound-first one-shot events (foe/own hit beeps, gauge-full
+    // earcons — see adapter.h) ride this same snapshot: the watches
+    // stash them during on_frame, and the first poll that passes the
+    // field gates copies them out and clears them, so each event
+    // sounds exactly once. A poll refused by the gates (camp open,
+    // field left) does NOT consume — but hits cannot land in those
+    // states anyway, so nothing real can be stranded by the wait.
     if (!out) return false;
     out->battle = false;
     out->locked = false;
     out->is_core = false;
     out->dist = 0.0f;
     out->core_gain = false;
+    out->foe_beep = false; out->foe_beep_hz = 0.0f; out->foe_beep_pan = 0.0f;
+    out->own_beep = false; out->own_beep_hz = 0.0f; out->own_beep_pan = 0.0f;
+    out->focus_cue = false; out->dlink_cue = false;
     if (!g_host || !InField() || CampActive() || ReportsUp()) return false;
     out->battle = true;
+    out->foe_beep = g_pendFoeBeep;
+    out->foe_beep_hz = g_pendFoeHz;
+    out->foe_beep_pan = g_pendFoeBeep ? kFoeBeepPan : 0.0f;
+    out->own_beep = g_pendOwnBeep;
+    out->own_beep_hz = g_pendOwnHz;
+    out->own_beep_pan = g_pendOwnBeep ? kOwnBeepPan : 0.0f;
+    out->focus_cue = g_pendFocusCue;
+    out->dlink_cue = g_pendDLinkCue;
+    g_pendFoeBeep = g_pendOwnBeep = g_pendFocusCue = g_pendDLinkCue = false;
+    g_pendFoeHz = g_pendOwnHz = 0.0f;
     if (u16(g_actorBase + kActorOffMark) != 2) return true;
     unsigned foeCur, foeMx;
     float dist, dy;
@@ -4955,7 +7550,7 @@ const Adapter kKingdomHeartsBirthBySleep = {
     khbbs_ready,
     khbbs_detach,
     khbbs_cue_snapshot,
-    "Title and difficulty menu speech; Trinity Archives speech; camp menu speech; field health, command and gauge speech; low-health warning; game-over menu speech; movie pause menu speech; world map speech; Mirage Arena event menu speech; save and load screen speech; lock-on beacon cue; Mirage Arena Hub landmark guide",
+    "Title and difficulty menu speech; Trinity Archives speech; camp menu speech; field health, command and gauge speech; battle health cues (hit beeps and milestone callouts); enemy names in the lock-on readouts; enemy count and roster queries; low-health warning; game-over menu speech; movie pause menu speech; world map speech; Mirage Arena event menu speech; save and load screen speech; lock-on beacon cue; landmark guide for the Mirage Arena Hub and the surveyed Olympus Coliseum and Radiant Garden rooms",
     "Spoken: the title menu (New Game, Continue, Install Game — plus "
     "Trinity Archives once clear data exists) and the New Game "
     "difficulty select. The Trinity Archives speak too: the top "
@@ -5014,12 +7609,27 @@ const Adapter kKingdomHeartsBirthBySleep = {
     "level (or how many you hold, for items), and any ability it "
     "carries, following the screen's filter tabs (All, Battle, "
     "Magic, Items, Friendship).\n"
-    "Lock-on: acquiring a lock (L and R together) is announced. "
-    "While locked on, Where Am I also reports the target's "
-    "health and how far away it is, and two queries answer on "
-    "demand: Next Ally speaks the foe (its health, distance, and "
-    "whether it is above or below you), and Next Enemy speaks "
-    "the lock state. The target's name is not read yet.\n"
+    "Lock-on: acquiring a lock (L and R together) is announced "
+    "with the foe's name when its type is known (\"Locked on: "
+    "Bruiser.\"). While locked on, Where Am I also reports the "
+    "target's name, health and how far away it is, and two "
+    "queries answer on demand: Next Ally speaks the foe (its "
+    "name, health, distance, and whether it is above or below "
+    "you), and Next Enemy speaks the lock state and the name. "
+    "Names are the game's own enemy names, proven type by type; "
+    "a foe whose type is not proven yet — the bosses among "
+    "them — is still read by health and distance, with no name.\n"
+    "Enemy awareness: the Enemies control answers with how many "
+    "foes are in the fight and a roster of them, nearest first — "
+    "each foe's name when proven, how far away it is, and, once "
+    "you have moved and the reader knows which way you face, a "
+    "clock direction; the foe you are locked onto is marked "
+    "\"locked on\". Where Am I and the foe query carry the count "
+    "too. A foe whose position cannot be verified is counted and "
+    "named, but no distance is claimed for it. Nothing about the "
+    "other foes is announced unasked: in a fight, speech stays "
+    "with the crossings and the lock, and the roster is there "
+    "when you ask for it.\n"
     "Mirage Arena: in the Hub, the Guide control reads the "
     "landmarks on your floor of the room. On the entrance "
     "platform it names the save point and the transporter; in "
@@ -5030,16 +7640,60 @@ const Adapter kKingdomHeartsBirthBySleep = {
     "way you are facing, a clock direction too (straight "
     "ahead, 3 o'clock, and so on). A bearing is not a route: "
     "the two floors are joined only by the transporter, so "
-    "the other floor's landmarks are never named. The Log In "
+    "the other floor's landmarks are never named. The Guide "
+    "works the same way in the surveyed rooms of Olympus "
+    "Coliseum — the Vestibule, the Coliseum Gates and the Town "
+    "Near Thebes — and Radiant Garden — the Entryway, Central "
+    "Square, Castle Town, Merlin's House, the Fountain Court "
+    "balcony and the Outer Gardens: it names each room's save "
+    "point, shops, chests and people, and its exits by the room "
+    "they lead to. Rooms that have not been surveyed yet stay "
+    "silent. The Log In "
     "terminal's own menu is spoken too — \"Mirage Arena,\" "
     "then New Event, Active Events, or D-Links. Choosing New "
-    "Event opens a list of event types (Versus Mode, Arena "
-    "Mode, Command Board, Rumble Racing) that is not spoken "
-    "yet.\n"
+    "Event opens the list of event types (Versus Mode, Arena "
+    "Mode, Command Board, Rumble Racing), and the list is "
+    "spoken. Choosing Arena Mode opens the event setup: the "
+    "battle you are on is spoken with its risk (of five) and "
+    "how many rounds it runs — all thirteen battles are read "
+    "from the game's own tables — along with the players row "
+    "and OK. Confirming with OK sets the event: the reader "
+    "says so, names the battle, and tells you to head to the "
+    "middle of the hub; standing on the pad and pressing "
+    "Cross raises a spoken \"Ready. Press START to begin.\" "
+    "When an arena battle ends, the reader says \"Event "
+    "over.\" while the game shows its results summary, and "
+    "then you are back in the hub. Choosing Rumble Racing "
+    "opens its own setup, and that is spoken too: the "
+    "course (Country Chase, Disney Drive, Grand Spree, or "
+    "Castle Circuit), the number of laps, and the number "
+    "of racers — and setting the event names the race, "
+    "just like a battle. The race itself is real-time "
+    "driving and is not narrated. Versus Mode needs other "
+    "players and does nothing on your own. Command Board "
+    "games can be started from the camp menu or the "
+    "terminal, but the board's own screens — its title "
+    "menu, the board and goal choices, and the game "
+    "itself — are not spoken yet, so a board game cannot "
+    "be followed by ear for now.\n"
     "Battle cue: with the app's battle cues turned on in "
     "Settings, locking on also starts the beacon, a low beep "
     "that pulses faster as your target gets closer and stops "
     "when the lock ends. No lock, no beep.\n"
+    "Battle health cues: hits in a fight raise short beeps of "
+    "their own — a hit on the foe beeps on the right, a hit on "
+    "you on the left, and the pitch falls as that health "
+    "falls, so you can hear roughly how much is left without "
+    "stopping the fight. Speech keeps only the big crossings: "
+    "the foe's health and yours at three-quarters, half, and "
+    "a quarter, and \"nearly gone\" near the end; exact "
+    "numbers stay on the foe query. When the Focus or D-Link "
+    "gauge fills, a bright ready chime sounds instead of a "
+    "spoken line. Linking to a partner is still announced by "
+    "name, and a link ending is still spoken. A fired shotlock "
+    "is not announced at all — the game's own shot sound "
+    "already says it. These cues ride the same battle-cues "
+    "setting as the beacon.\n"
     "Not mapped yet: the other camp sub-screens (Items, Abilities, "
     "and the rest), and battle state beyond the field readouts "
     "above. The tutorial is still being mapped.\n"

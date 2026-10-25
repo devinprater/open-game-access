@@ -49,6 +49,7 @@
 
 #include "adapter.h"
 #include "osk_echo.h"
+#include <math.h>
 #include <stdio.h>
 #include <string>
 #include <string.h>
@@ -305,6 +306,24 @@ static int PlayIndex(void)
     return (int) u32(PLAY_CURSOR);
 }
 
+/// Data Setup > "Proceed with these settings?" YES/NO confirm: the setup
+/// struct's third content mode (LIVE-VERIFIED 2026-10-24, bench probes
+/// 7-9): same cursor, max == 1, cursor 0 = YES / 1 = NO (LEFT/RIGHT move
+/// it; a full-region RAM diff between the two selections changed exactly
+/// this one word). Neither dialog system wakes for it (DLG slot reads 0;
+/// the story pair reads (3,5)), and the title structs linger fingerprint-
+/// valid underneath, so without this gate the watch announces "New Game.
+/// Row 1 of 3." over the prompt. Checked before the title everywhere the
+/// setup screens are, like Play/Bonus. An overwrite-data confirm in the
+/// same flow would share the widget and read identically -- benign.
+static int SetupConfirmIndex(void)
+{
+    if (u32(PLAY_CURSOR) > 1) return -1;
+    if (u32(PLAY_MAX) != 1) return -1;
+    if (BoardDispatcher() != 0) return -1;
+    return (int) u32(PLAY_CURSOR);
+}
+
 static bool ManagerOk(void)
 {
     uint32_t m = u32(MGR_SLOT);
@@ -405,6 +424,10 @@ static bool GridLegal(const Grid& g, int x, int y)
 struct EnemySpecies { uint32_t key; const char* name; };
 static const EnemySpecies kEnemySpecies[] = {
     { 0x30u, "False Hero" },
+    // Prologue board 2 (fresh-game lineage, live 2026-10-25): the same
+    // species under a different per-board key -- the game's piece info
+    // box reads "False Hero", battle at the Sanctuary.
+    { 0x97u, "False Hero" },
     { 0x137u, "Delusory Knight" },
     { 0x138u, "Transient Lion" },
     { 0x139u, "Imaginary Soldier" },
@@ -419,9 +442,18 @@ static const char* EnemySpeciesName(uint32_t o)
     for (size_t i = 0; i < sizeof(kEnemySpecies) / sizeof(kEnemySpecies[0]); i++)
         if ((int16_t) kEnemySpecies[i].key == key) return kEnemySpecies[i].name;
     if (g_host && g_host->log && key != 0) {
-        char lg[64];
-        snprintf(lg, sizeof(lg), "board unknown enemy key.");
-        g_host->log(g_host->ctx, lg);
+        // Log each unknown key once (with its value, so a board run can
+        // extend the table): this runs per frame while the cursor rests
+        // on an unmapped enemy, and an unadorned line per frame buries
+        // the log it was meant to inform.
+        static int16_t s_lastUnknownKey = 0;
+        if (key != s_lastUnknownKey) {
+            s_lastUnknownKey = key;
+            char lg[64];
+            snprintf(lg, sizeof(lg), "board unknown enemy key 0x%X.",
+                     (unsigned) (uint16_t) key);
+            g_host->log(g_host->ctx, lg);
+        }
     }
     return nullptr;
 }
@@ -582,6 +614,13 @@ static int BoardDP(void)
 /// then title.
 static bool SpeakTitleSetup(void)
 {
+    int ci = SetupConfirmIndex();
+    if (ci >= 0) {
+        char line[96];
+        snprintf(line, sizeof(line), "%s. Row %d of 2.", ci == 0 ? "YES" : "NO", ci + 1);
+        Say(line, "dialog", oga::Priority::High);
+        return true;
+    }
     int bi = BonusIndex();
     if (bi >= 0) {
         char line[96];
@@ -733,7 +772,11 @@ static Battle BattleFighters(void)
 // screenshots), D-pad wraps both ways (Up from row 1 -> row 8, verified),
 // and the host forwards D-pad taps as MenuNext/MenuPrev alongside set_button.
 // MainLive gates everything: TITLE_CURSOR==8 (left title/setup), no board,
-// no battle, no setup cursor, and the A10 chain resolves (menu UI live).
+// no battle, no setup screen (PLAY_MAX==0 -- the setup struct's max is the
+// inactive signal; its CURSOR word holds garbage while inactive, exactly
+// as on the title screen, and in the fresh-game lineage it still held
+// garbage at the main menu, which silently killed this gate and with it
+// every main-menu announcement), and the A10 chain resolves (menu UI live).
 constexpr uint32_t MAIN_SELGROUP = 0x09B3FA10u;
 static const char* kMainEntries[8] = { "Story Mode", "Arcade Mode",
     "Quick Battle", "Communications Mode", "PP Catalog", "Museum",
@@ -743,7 +786,7 @@ static int g_menuRow = 0;
 static bool MainLive(void)
 {
     if (u32(TITLE_CURSOR) != 8) return false;
-    if (u32(PLAY_CURSOR) != 0 || u32(PLAY_MAX) != 0) return false;
+    if (u32(PLAY_MAX) != 0) return false;
     if (BoardDispatcher() != 0) return false;
     if (BattleFighters().ok) return false;
     uint32_t grp = u32(MAIN_SELGROUP);
@@ -784,7 +827,7 @@ static void CmdMenuState(void)
     const char* st = "MENU none";
     if (g_menuMain) st = "MENU main";
     else if (TitleIndex() >= 0) st = "MENU title";
-    else if (BonusIndex() >= 0 || PlayIndex() >= 0) st = "MENU setup";
+    else if (SetupConfirmIndex() >= 0 || BonusIndex() >= 0 || PlayIndex() >= 0) st = "MENU setup";
     else if (BattleFighters().ok) st = "MENU battle";
     else if (DialogLive() || StoryDlgLive()) st = "MENU dialog";
     else if (g_custLive) st = "MENU customize";
@@ -932,7 +975,18 @@ static void CharSpeakRow(oga::Priority pri)
 // NOTE: early "Right does nothing" findings were a rig bug (button 6 is
 // TRIANGLE, Right is 3); with real D-pad both directions verify.
 static const uint32_t DLG_SLOT = 0x08C0CC3Cu, DLG_X = 0x08C0CCB0u;
-static bool DialogLive(void) { return u32(DLG_SLOT) != 0; }
+static bool DialogLive(void)
+{
+    if (u32(DLG_SLOT) == 0) return false;
+    // The slot alone is not proof of a dialog: on the story board an
+    // unrelated board object occupies it while DLG_X reads 0.00 (live
+    // 2026-10-25) -- that used to announce a phantom "YES. Row 1 of 2."
+    // over the board and hijack every board announcement. A real
+    // dialog's hand cursor rests over its buttons (observed at rest:
+    // 88..272 across the dialog families); require a plausible X.
+    float x = f32(DLG_X);
+    return x >= 40.0f && x <= 440.0f;
+}
 static int DialogSel(void)  // 0 = YES (row 1), 1 = NO (row 2)
 {
     float x = f32(DLG_X);
@@ -953,10 +1007,40 @@ static bool StoryDlgLive(void)
     return (a == 5 && b == 1) || (a == 4 && b == 2);
 }
 static int StoryDlgSel(void) { return (u32(SDLG_A) & 0xffffu) == 5 ? 0 : 1; }
-static bool AnyDialogLive(void) { return DialogLive() || StoryDlgLive(); }
+// ---- Chapter-entry YES/NO ("Start the tutorial?"): a third dialog instance ----
+// LIVE-VERIFIED 2026-10-25 (bench story3-6): this dialog DOES raise the
+// battle slot ([08c0cc3c] != 0), so DialogLive() fires and the arrival YES
+// announces -- but its selection is NOT the DLG_X float, which sits frozen
+// at 88.0 in both states while the highlight visibly moves (the player
+// hears "YES" forever, and NO never announces). Its own record pair, the
+// same record family as the story pair above, sits at 08c0f154/08c0f198:
+//   low16 (1,5) : YES selected     low16 (2,4) : NO selected
+// A full-region YES-vs-NO RAM diff found exactly three reverting words:
+// this pair, and the hand-cursor X float at 08c0eeb0 (120.0 YES / 265.0
+// NO). The pair is the gate (discrete states, fail-closed, mirrors SDLG);
+// where it is live it wins over DialogSel() everywhere dialogs are read.
+// Liveness needs the battle slot too: unlike the story pair, this family
+// never writes a clearing state, so after the dialog closes the pair sits
+// STATIC at its last selection (observed (2,4) at the main menu, where it
+// false-announced "NO" over the menu) -- but the slot reads 0 there, and
+// it is raised for the whole life of the real dialog.
+static const uint32_t CDLG_A = 0x08C0F154u, CDLG_B = 0x08C0F198u;
+static bool ChapterDlgLive(void)
+{
+    if (!DialogLive()) return false;
+    uint32_t a = u32(CDLG_A) & 0xffffu, b = u32(CDLG_B) & 0xffffu;
+    return (a == 1 && b == 5) || (a == 2 && b == 4);
+}
+static int ChapterDlgSel(void) { return (u32(CDLG_A) & 0xffffu) == 1 ? 0 : 1; }
+static bool AnyDialogLive(void) { return DialogLive() || StoryDlgLive() || ChapterDlgLive(); }
+static int AnyDialogSel(void)
+{
+    if (ChapterDlgLive()) return ChapterDlgSel();
+    return DialogLive() ? DialogSel() : StoryDlgSel();
+}
 static void DlgSpeak(oga::Priority pri)
 {
-    int s = DialogLive() ? DialogSel() : StoryDlgSel();
+    int s = AnyDialogSel();
     char b[64];
     snprintf(b, sizeof b, "%s. Row %d of 2.", s == 0 ? "YES" : "NO", s + 1);
     Say(b, "dialog", pri);
@@ -1081,6 +1165,153 @@ static void CmdLock(void)
 ///
 /// Reports the locked target's identity and distance only — the cue stays CENTERED
 /// (the player's own request) and identity rides on timbre, distance on rate.
+// ---- Sound-first battle health cues (2026-10-25, the owner's rule) --------
+// Never speak what the game already cues with a sound. This adapter
+// was already cue-first for POSITION (the lock-on beacon above) and
+// its doctrine doc (docs/proposals/dissidia-battle-audio.md) always
+// planned sound for health too — but the plan there (a CONTINUOUS
+// tone tracking own HP, enemy HP as on-demand speech only) is
+// superseded by the owner's settled cross-game design, proven first
+// in the Birth by Sleep pass:
+//
+//   * a hit that drops a health bar raises a one-shot beep whose
+//     PITCH carries the new fraction — foe 1200→300 Hz RIGHT
+//     (+0.8), player 800→200 Hz LEFT (−0.8), logarithmic, the same
+//     family and numbers as BBS and MK Unchained, so one health
+//     language serves every game;
+//   * speech keeps only the milestone crossings — 75 / 50 / 25 /
+//     nearly gone at 10 (Mortal Kombat 1's official accessibility
+//     set) — latched per fighter, healing back to a milestone + 5
+//     re-arms it;
+//   * exact numbers stay on the existing queries (foe readout,
+//     status), unchanged.
+//
+// KEEP / CHANGE against the proposal doc, decided for the RE doc:
+// KEEP the beacon (navigation, not health), the EX absorption pulse
+// (core_gain), bravery on demand only, the timer tick still blocked
+// (no timer address), QTE prompts untouched. CHANGE: the continuous
+// own-HP tone (spec only — OnFrame's old comment records battles
+// were silent but for QTE; it was never built) gives way to the
+// per-hit beeps + milestones, and "enemy HP: on-demand speech only"
+// gains the milestone callouts + per-hit beeps. The tracked foe
+// needs no rule here: Dissidia is 1-on-1, so the pair foe IS the
+// lock-on target and the foe just hit — all three readings of the
+// rule coincide (BBS's never-locked census limit does not exist:
+// both fighters resolve from one chain, every frame).
+//
+// There is no gauge-full spoken line in this game to split (EX
+// full is a silent host-side edge; the proposal's EX blip is
+// synth-side), so there is NO HudGaugeCues-style seam: the beeps
+// ride the app's battle-cues gating through the snapshot exactly
+// like the other adapters'. Events stash during OnFrame's battle
+// branch; CueSnapshotFill copies them out on its battle-true
+// returns only and clears them there, so a refused poll consumes
+// nothing; a battle that ends with an event unpolled drops it with
+// the watch reset rather than leaking it into the next fight.
+// A killing blow raises nothing from this watch (HP 0 is the
+// game's own moment, and defeat structs linger at 0 — the tracks
+// reset there instead of re-priming on a corpse).
+
+bool  g_sfPendFoeBeep = false, g_sfPendOwnBeep = false;
+float g_sfPendFoeHz = 0.0f, g_sfPendOwnHz = 0.0f;
+struct DisHealthTrack {
+    uint32_t who = 0;       // fighter stat block; 0 = none
+    int prev = -1;          // last frame's current HP; -1 = unprimed
+    bool m75 = false, m50 = false, m25 = false, m10 = false;
+};
+DisHealthTrack g_sfOwnTrack, g_sfFoeTrack;
+constexpr int   kSfMilestoneRearm = 5;   // percent points above a milestone
+constexpr float kSfFoeHiHz = 1200.0f, kSfFoeLoHz = 300.0f;
+constexpr float kSfOwnHiHz = 800.0f,  kSfOwnLoHz = 200.0f;
+constexpr float kSfFoePan = 0.8f, kSfOwnPan = -0.8f;
+
+// Pitch from a health fraction, log-mapped (the BBS HealthPitch shape).
+float SfPitch(float lo, float hi, int cur, int max)
+{
+    float frac = max > 0 ? (float) cur / (float) max : 0.0f;
+    if (frac < 0.0f) frac = 0.0f;
+    if (frac > 1.0f) frac = 1.0f;
+    return lo * powf(hi / lo, frac);
+}
+
+void SfTrackSide(DisHealthTrack& t, const Fighter& f, bool foeSide)
+{
+    if (!f.ok || f.hpMax == 0) return;
+    int max = (int) f.hpMax;
+    int cur = f.hpDmg >= f.hpMax ? 0 : (int) (f.hpMax - f.hpDmg);
+    uint32_t who = f.s;
+    if (!who) return;
+    if (t.who != who) {
+        // A new fighter (or the first sight): prime silently —
+        // milestones at or below the current percent are already
+        // passed and must not speak for a fight joined late.
+        t.who = who; t.prev = cur;
+        int pct = max > 0 ? (cur * 100) / max : 0;
+        t.m75 = pct <= 75; t.m50 = pct <= 50;
+        t.m25 = pct <= 25; t.m10 = pct <= 10;
+        return;
+    }
+    int pct = max > 0 ? (cur * 100) / max : 0;
+    if (cur < t.prev) {
+        if (cur > 0) {   // a hit landed (death is the game's own moment)
+            if (foeSide) {
+                g_sfPendFoeBeep = true;
+                g_sfPendFoeHz = SfPitch(kSfFoeLoHz, kSfFoeHiHz, cur, max);
+            } else {
+                g_sfPendOwnBeep = true;
+                g_sfPendOwnHz = SfPitch(kSfOwnLoHz, kSfOwnHiHz, cur, max);
+            }
+            int crossed = 0;   // latch every crossing; speak only the lowest
+            if (pct <= 75) { if (!t.m75) crossed = 75; t.m75 = true; }
+            if (pct <= 50) { if (!t.m50) crossed = 50; t.m50 = true; }
+            if (pct <= 25) { if (!t.m25) crossed = 25; t.m25 = true; }
+            if (pct <= 10) { if (!t.m10) crossed = 10; t.m10 = true; }
+            if (crossed) {
+                char line[64];
+                if (crossed == 10)
+                    snprintf(line, sizeof(line),
+                             foeSide ? "Foe nearly gone."
+                                     : "Your health nearly gone.");
+                else
+                    snprintf(line, sizeof(line),
+                             foeSide ? "Foe health %d percent."
+                                     : "Your health %d percent.", crossed);
+                Say(line, "health",
+                    foeSide ? oga::Priority::Low : oga::Priority::Normal);
+            }
+        }
+    } else if (cur > t.prev) {
+        // Healing re-arms each milestone once the percent is back
+        // above it by the margin (milestone + 5).
+        if (pct >= 75 + kSfMilestoneRearm) t.m75 = false;
+        if (pct >= 50 + kSfMilestoneRearm) t.m50 = false;
+        if (pct >= 25 + kSfMilestoneRearm) t.m25 = false;
+        if (pct >= 10 + kSfMilestoneRearm) t.m10 = false;
+    }
+    t.prev = cur;
+}
+
+void ResetBattleHealthWatch(void)
+{
+    g_sfPendFoeBeep = g_sfPendOwnBeep = false;
+    g_sfPendFoeHz = g_sfPendOwnHz = 0.0f;
+    g_sfOwnTrack = DisHealthTrack{};
+    g_sfFoeTrack = DisHealthTrack{};
+}
+
+void WatchBattleHealth(const Battle& b)
+{
+    SfTrackSide(g_sfOwnTrack, b.self, false);
+    if (b.foe.ok) SfTrackSide(g_sfFoeTrack, b.foe, true);
+    else g_sfFoeTrack = DisHealthTrack{};   // no readable foe: no foe track
+    // Death resets the side's track (defeat structs linger at HP 0;
+    // the next fight re-primes instead of comparing against a corpse).
+    if (b.self.ok && b.self.hpDmg >= b.self.hpMax && b.self.hpMax > 0)
+        g_sfOwnTrack = DisHealthTrack{};
+    if (b.foe.ok && b.foe.hpDmg >= b.foe.hpMax && b.foe.hpMax > 0)
+        g_sfFoeTrack = DisHealthTrack{};
+}
+
 bool CueSnapshotFill(CueSnapshot* out)
 {
     if (!out) return false;
@@ -1089,10 +1320,26 @@ bool CueSnapshotFill(CueSnapshot* out)
     out->is_core = false;
     out->dist = 0.0f;
     out->core_gain = false;
+    out->foe_beep = false; out->foe_beep_hz = 0.0f; out->foe_beep_pan = 0.0f;
+    out->own_beep = false; out->own_beep_hz = 0.0f; out->own_beep_pan = 0.0f;
+    out->focus_cue = false; out->dlink_cue = false;
 
     Battle b = BattleFighters();
     if (!b.ok) { g_prevEx = -1.0f; return false; }   // not a battle: no cue at all
     out->battle = true;
+
+    // Sound-first health events (see the watch above): they belong
+    // to the battle, not the lock, so the first battle poll carries
+    // them out whichever lock branch follows — copy and clear here,
+    // exactly once per hit. A refused poll (above) consumed nothing.
+    out->foe_beep = g_sfPendFoeBeep;
+    out->foe_beep_hz = g_sfPendFoeHz;
+    out->foe_beep_pan = g_sfPendFoeBeep ? kSfFoePan : 0.0f;
+    out->own_beep = g_sfPendOwnBeep;
+    out->own_beep_hz = g_sfPendOwnHz;
+    out->own_beep_pan = g_sfPendOwnBeep ? kSfOwnPan : 0.0f;
+    g_sfPendFoeBeep = g_sfPendOwnBeep = false;
+    g_sfPendFoeHz = g_sfPendOwnHz = 0.0f;
 
     // The reachable "core" signal: a JUMP in the player's EX gauge. Its only writer is
     // battle event 0x3C, so the jump is an absorption. The threshold sits well above
@@ -1172,7 +1419,7 @@ static void CmdDump(void)
 /// Silent twin of SpeakTitleSetup() for Ready(): same validity claim, no speech.
 static bool SpeakTitleSetupProbe(void)
 {
-    return BonusIndex() >= 0 || PlayIndex() >= 0 || TitleIndex() >= 0;
+    return SetupConfirmIndex() >= 0 || BonusIndex() >= 0 || PlayIndex() >= 0 || TitleIndex() >= 0;
 }
 
 // ---- Universal OSK name entry (docs/research/dissidia-name-entry.md) ----
@@ -1359,7 +1606,7 @@ static bool Ready(void)
 // "Mash Circle!", directions); every other line uses the fewest syllables
 // that still make sense. Say() dedups identical repeats, so a watch line plus
 // a later identical command line never double-speaks.
-enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN, WS_OPTIONS, WS_BOARD, WS_STORY };
+enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN, WS_OPTIONS, WS_BOARD, WS_STORY, WS_SETUPCONFIRM };
 static int g_wsScreen = WS_NONE;
 static int g_wsIndex = -1;
 static int g_wsStable = 0;
@@ -1575,6 +1822,9 @@ static void WatchSpeak(int s, int i)
     char line[96];
     switch (s) {
         case WS_DIALOG: DlgSpeak(oga::Priority::Normal); return;
+        case WS_SETUPCONFIRM:
+            snprintf(line, sizeof(line), "%s. Row %d of 2.", i == 0 ? "YES" : "NO", i + 1);
+            Say(line, "dialog", oga::Priority::Normal); return;
         case WS_BONUS:
             snprintf(line, sizeof(line), "Bonus Day. %s. Row %d of 7.",
                      kBonusEntries[i], i + 1);
@@ -1609,41 +1859,58 @@ static void WatchOk(int s, int i)
 {
     if (s < 0) { WatchResetStory(); return; }
     if (s == g_wsScreen && i == g_wsIndex) {
-        if (g_wsStable < 2) g_wsStable++;
-        if (g_wsStable >= 2) WatchSpeak(s, i);
+        // Speak exactly once, on the frame the identity confirms. Firing
+        // every frame while stable was masked by the announce dedup for
+        // single-line screens, but a two-line announcement defeats it --
+        // the lines alternate, so neither repeats its predecessor -- and
+        // flooded: standing next to a board enemy repeated "enemy here.
+        // Press X to engage." every frame (live 2026-10-25).
+        if (g_wsStable < 2) {
+            g_wsStable++;
+            if (g_wsStable >= 2) WatchSpeak(s, i);
+        }
         return;
     }
     g_wsScreen = s; g_wsIndex = i; g_wsStable = 1;
 }
 static void OnFrame(void)
 {
-    // Battles stay silent except QTE prompts: no watch here at all.
-    if (BattleFighters().ok) { WatchResetStory(); return; }
+    // In battle the only per-frame watch is the sound-first health
+    // watch (hit beeps + milestone callouts, delivered silently
+    // through the cue snapshot); menus stay with the watches below.
+    // QTE prompts arrive as host commands, not from here.
+    Battle bf = BattleFighters();
+    if (bf.ok) { WatchResetStory(); WatchBattleHealth(bf); return; }
+    ResetBattleHealthWatch();
     if (g_custLive || g_charLive || g_oskLive) { WatchResetStory(); return; }
     // Modal YES/NO wins over whatever sits underneath (pause, board, options).
     if (AnyDialogLive()) {
-        WatchOk(WS_DIALOG, DialogLive() ? DialogSel() : StoryDlgSel());
+        WatchOk(WS_DIALOG, AnyDialogSel());
         return;
     }
     uint32_t bd = BoardDispatcher();
     if (bd == 0) {
         MenuSync(); OptSync();
         int s = WS_NONE, i = -1;
-        int bi = BonusIndex();
-        if (bi >= 0) { s = WS_BONUS; i = bi; }
+        int ci = SetupConfirmIndex();
+        if (ci >= 0) { s = WS_SETUPCONFIRM; i = ci; }
         else {
-            int pi = PlayIndex();
-            if (pi >= 0) { s = WS_PLAY; i = pi; }
+            int bi = BonusIndex();
+            if (bi >= 0) { s = WS_BONUS; i = bi; }
             else {
-                int ti = TitleIndex();
-                if (ti >= 0) { s = WS_TITLE; i = ti; }
-                else if (g_menuMain) { s = WS_MAIN; i = g_menuRow; }
-                else if (g_optLive) { s = WS_OPTIONS; i = g_optRow; }
-                if (s == WS_NONE) {
-                    uint8_t por = u8(STORY_PORTRAIT);
-                    if (StoryPortraitName(por)) { s = WS_STORY; i = (int)por; }
+                int pi = PlayIndex();
+                if (pi >= 0) { s = WS_PLAY; i = pi; }
+                else {
+                    int ti = TitleIndex();
+                    if (ti >= 0) { s = WS_TITLE; i = ti; }
+                    else if (g_menuMain) { s = WS_MAIN; i = g_menuRow; }
+                    else if (g_optLive) { s = WS_OPTIONS; i = g_optRow; }
+                    if (s == WS_NONE) {
+                        uint8_t por = u8(STORY_PORTRAIT);
+                        if (StoryPortraitName(por)) { s = WS_STORY; i = (int)por; }
+                    }
+                    if (s != WS_STORY) StoryStateClear();
                 }
-                if (s != WS_STORY) StoryStateClear();
             }
         }
         WatchOk(s, i);
@@ -1856,7 +2123,7 @@ static bool Attach(const Host* host)
     return true;        // the game code check already happened in the registry
 }
 
-static void Detach(void) { g_host = nullptr; g_widgetRoot = 0; g_widgetPinned = false; g_oskLive = false; }
+static void Detach(void) { g_host = nullptr; g_widgetRoot = 0; g_widgetPinned = false; g_oskLive = false; ResetBattleHealthWatch(); }
 
 // Test/diagnostic accessor: lets a host probe read battle fields through the same
 // Host the adapter uses, since the C ABI exposes no raw memory read.
@@ -1878,14 +2145,18 @@ const Adapter kDissidiaFinalFantasy = {
     dissidia::Ready,
     dissidia::Detach,
     dissidia::CueSnapshotFill,
-    "Menu speech, battle position and foe queries, battle audio cues",
+    "Menu speech, battle position and foe queries, battle audio cues (lock-on beacon and health hit beeps)",
     "Menus are spoken as you move through them. In battle, speech "
     "covers on-demand queries: where you are, and the direction, "
     "distance and state of your foe or the EX core.\n"
     "Continuous battle information is carried by audio cues, not "
     "speech: with a lock-on, the beacon's pulse quickens as your "
     "target closes, and its tone differs for an enemy and for an EX "
-    "core. Your own health is a low tone that tracks your HP.\n"
+    "core. Health is carried by hit beeps: a beep on every hit that "
+    "drops a health bar, the foe on the right and you on the left, "
+    "the pitch falling as that health falls; the percent itself is "
+    "spoken only at 75, 50, 25 and nearly gone, and exact numbers "
+    "stay on the battle queries.\n"
     "Supported version: Dissidia Final Fantasy, USA (ULUS10437).",
 };
 

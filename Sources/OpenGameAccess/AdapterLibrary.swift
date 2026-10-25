@@ -224,6 +224,24 @@ struct AdapterGamePage: View {
         }
         .navigationTitle(game.name)
         .navigationBarTitleDisplayMode(.inline)
+        // ⛔ TOP RIGHT, ALWAYS THERE (the player's own design,
+        // 2026-10-24): the Per Game Settings control sits at the top
+        // right of every game page, in the same place for every game,
+        // whether or not that game has settings yet — the panel itself
+        // says in words when a game has none. Nothing opens at load
+        // time and nothing interrupts starting the game; the panel is
+        // a page the player opens when they choose to.
+        .toolbar {
+            ToolbarItem(placement: .topBarTrailing) {
+                NavigationLink {
+                    PerGameSettingsView(game: game)
+                } label: {
+                    Label("Per Game Settings", systemImage: "slider.horizontal.3")
+                }
+                .accessibilityLabel("Per game settings for \(game.name)")
+                .accessibilityHint("Settings that apply to this game only, overriding the app defaults.")
+            }
+        }
         .fileImporter(
             isPresented: $showingPicker,
             allowedContentTypes: game.contentTypes,

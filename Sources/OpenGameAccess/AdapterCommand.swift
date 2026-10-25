@@ -91,6 +91,9 @@ enum AdapterCommand: Int32, CaseIterable {
     /// The current story objective, read from the game's progress bytes, plus
     /// the bearing to the place it happens at. Appended at 42.
     case objective = 42
+    /// The fight's enemy roster: how many foes there are, and for each its
+    /// name (when proven), distance and bearing. Appended at 43.
+    case enemies = 43
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -139,6 +142,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .status:       return "Status"
         case .guide:        return "Guide"
         case .objective:    return "Objective"
+        case .enemies:      return "Enemies"
         }
     }
 
@@ -233,6 +237,8 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Cycles nearby landmarks and reads the direction and rough distance to each. A bearing, not a walking route."
         case .objective:
             return "Reads the current story goal from the game and the direction to the place it happens."
+        case .enemies:
+            return "Reads how many enemies are in the fight and, for each, its name, distance and direction."
         }
     }
 
@@ -282,6 +288,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .status:       return "heart.text.square"
         case .guide:        return "location.north.line"
         case .objective:    return "target"
+        case .enemies:      return "person.3"
         }
     }
 
@@ -336,10 +343,11 @@ enum AdapterCommand: Int32, CaseIterable {
             // Kingdom Hearts: Birth by Sleep. Menus, camp screens and the
             // Command Deck speak automatically as the player moves (the input
             // bridge forwards the menu echoes to every adapter); these are the
-            // on-demand field and battle queries. Guide answers only in the
+            // on-demand field and battle queries. Enemies answers in the field
+            // with the fight's foe count and roster. Guide answers only in the
             // Mirage Arena Hub (its landmark table); everywhere else the
             // adapter stays silent by design.
-            return [.whereAmI, .menuState, .nextAlly, .nextEnemy, .guide, .dumpState]
+            return [.whereAmI, .menuState, .nextAlly, .nextEnemy, .enemies, .guide, .dumpState]
 
         case "mku":
             // Mortal Kombat: Unchained. Menu rows and Konquest lines speak

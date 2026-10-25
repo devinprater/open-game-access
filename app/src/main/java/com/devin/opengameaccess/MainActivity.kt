@@ -116,10 +116,24 @@ class MainActivity : ComponentActivity() {
 
         var showSettings by remember { mutableStateOf(false) }
         var showGames by remember { mutableStateOf(false) }
+        var battleCues by remember { mutableStateOf(CueSettings.battleCuesEnabled(context)) }
+        var hudGaugeCuesSound by remember {
+            mutableStateOf(GameSettings.globalDefault(context, GameSettings.Setting.HUD_GAUGE_CUES))
+        }
 
         if (showSettings) {
             SettingsScreen(
                 coreAvailable = GbGameSession.coreAvailable(context),
+                battleCuesEnabled = battleCues,
+                onBattleCuesChanged = { enabled ->
+                    battleCues = enabled
+                    CueSettings.setBattleCuesEnabled(context, enabled)
+                },
+                hudGaugeCuesSound = hudGaugeCuesSound,
+                onHudGaugeCuesChanged = { useSound ->
+                    hudGaugeCuesSound = useSound
+                    GameSettings.setGlobalHudGaugeCuesSound(context, useSound)
+                },
                 onBack = { showSettings = false },
             )
             return

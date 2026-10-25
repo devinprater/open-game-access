@@ -609,9 +609,15 @@ int main()
     put_f32b(0x08D92A24, 0.888f);                    // a landed strike (bench: 0.912/0.888)
     NSPOKEN = 0; oga::AdapterSpeechReset();
     for (int i = 0; i < 100; i++) a->on_frame();
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bo' Rai Cho 89 percent") &&
-          !strstr(SPOKEN[0], "Fight."),
-          "a health change re-speaks the bout line (percent style, no prefix)");
+    CHECK(NSPOKEN == 0,
+          "a mid-bout health change is NOT re-spoken (sound-first: the hit beeps)");
+    { oga::CueSnapshot snap{};
+      CHECK(a->cue_snapshot(&snap) && snap.battle && snap.foe_beep &&
+            !snap.own_beep && snap.foe_beep_pan == 0.8f &&
+            snap.foe_beep_hz > 1000.0f && snap.foe_beep_hz < 1090.0f,
+            "the landed strike stashes a foe beep (right, pitched at 89 percent)");
+      CHECK(a->cue_snapshot(&snap) && !snap.foe_beep,
+            "the beep is consumed exactly once"); }
     put_f32b(0x08D92A24, 0.0f);                      // the fourth strike lands
     NSPOKEN = 0; oga::AdapterSpeechReset();
     for (int i = 0; i < 5; i++) a->on_frame();
@@ -620,8 +626,8 @@ int main()
     put_f32b(0x08D92A24, 0.5f);                      // the tutorial refills him
     NSPOKEN = 0; oga::AdapterSpeechReset();
     for (int i = 0; i < 100; i++) a->on_frame();
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bo' Rai Cho 50 percent"),
-          "a refill speaks as a health change and re-arms the outcome");
+    CHECK(NSPOKEN == 0,
+          "a refill speaks nothing (it silently re-arms the outcome)");
     put_f32b(0x08D92A24, 0.0f);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     for (int i = 0; i < 5; i++) a->on_frame();
@@ -644,6 +650,10 @@ int main()
     put_u32(0x08D92A2C, 7);                          // an unproven Konquest foe id
     NSPOKEN = 0; oga::AdapterSpeechReset();
     for (int i = 0; i < 100; i++) a->on_frame();
+    CHECK(NSPOKEN == 0,
+          "no mid-bout line names (or misnames) an unproven foe id");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "opponent 100 percent"),
           "an unproven foe id speaks as opponent, never a guessed name");
     put_u32(0x08B123DC, 0);                          // free-roam: B drops,
@@ -896,6 +906,137 @@ int main()
     CHECK(NSPOKEN == 0, "menu nav stays silent when the row pointer is unmapped");
     put_u32(0x09119CE8, 0);
     put_u32(0x09E61750, 0);
+
+    // ---- Sound-first fight health cues (2026-10-25) -------------------------
+    // The owner's rule, MK edition: hits are sounded by the game
+    // already (bench snd1/snd2 measured the impacts), so a hit now
+    // raises a pitch-mapped beep through the cue snapshot (foe
+    // RIGHT +0.8, 1200->300 Hz; player LEFT -0.8, 800->200 Hz, both
+    // logarithmic) and speech keeps only the milestone crossings
+    // 75/50/25/10 with heal re-arm at +5. Versus first: Scorpion
+    // (P1) vs Goro (P2) on the shared fight struct.
+    put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);   // not Konquest
+    put_u32(0x09E61750, 0); put_u32(0x0911F868, 0);   // front end off
+    put_u32(0x08C1B3B0, 30); put_u32(0x09F9C1A8, 0);  // char select off
+    put_u32(0x08D929B4, 2); put_u32(0x08D92A2C, 4);   // Scorpion vs Goro
+    put_f32b(0x08D929B8, 1.0f); put_f32b(0x08D92A24, 1.0f);
+    put_u32(0x08D929EC, 0); put_u32(0x08D92A58, 0);   // wins
+    put_u32(0x08D92AE0, 1); put_u32(0x08D92AF0, 60);  // round 1, 60 s
+    auto sf3 = [&]() { for (int i = 0; i < 3; i++) a->on_frame(); };
+    oga::CueSnapshot vsnap{};
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();                                            // primes both tracks
+    CHECK(a->cue_snapshot(&vsnap) && vsnap.battle && !vsnap.locked &&
+          !vsnap.foe_beep && !vsnap.own_beep,
+          "sound-first: a quiet versus fight claims battle, no lock, no beeps");
+    CHECK(NSPOKEN == 0, "sound-first: versus has no entry speech to prime");
+    put_f32b(0x08D92A24, 0.90f);                      // a plain hit on the foe
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(a->cue_snapshot(&vsnap) && vsnap.foe_beep && !vsnap.own_beep &&
+          vsnap.foe_beep_pan == 0.8f &&
+          vsnap.foe_beep_hz > 1000.0f && vsnap.foe_beep_hz < 1090.0f,
+          "sound-first: a foe hit beeps right at 90 percent pitch");
+    CHECK(NSPOKEN == 0, "sound-first: a plain hit says nothing");
+    CHECK(a->cue_snapshot(&vsnap) && !vsnap.foe_beep,
+          "sound-first: the versus beep is consumed exactly once");
+    put_f32b(0x08D92A24, 0.74f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 75 percent."),
+          "sound-first: foe crossing 75 speaks the milestone");
+    put_f32b(0x08D92A24, 0.73f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 0, "sound-first: drifting below a milestone does not repeat it");
+    put_f32b(0x08D92A24, 0.49f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 50 percent."),
+          "sound-first: foe crossing 50 speaks");
+    put_f32b(0x08D92A24, 0.24f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 25 percent."),
+          "sound-first: foe crossing 25 speaks");
+    put_f32b(0x08D92A24, 0.09f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe nearly gone."),
+          "sound-first: foe crossing 10 speaks nearly gone");
+    CHECK(a->cue_snapshot(&vsnap) && vsnap.foe_beep && !vsnap.own_beep,
+          "sound-first: the nearly-gone hit beeps too (drained before the own-side steps)");
+    put_f32b(0x08D929B8, 0.80f);                      // a plain hit on the player
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(a->cue_snapshot(&vsnap) && vsnap.own_beep && !vsnap.foe_beep &&
+          vsnap.own_beep_pan == -0.8f &&
+          vsnap.own_beep_hz > 570.0f && vsnap.own_beep_hz < 640.0f,
+          "sound-first: a player hit beeps left at 80 percent pitch");
+    CHECK(NSPOKEN == 0, "sound-first: a plain player hit says nothing");
+    put_f32b(0x08D929B8, 0.74f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Your health 75 percent."),
+          "sound-first: own crossing 75 speaks the mirror milestone");
+    put_f32b(0x08D929B8, 0.82f);                      // heal past 75 + 5
+    sf3();
+    put_f32b(0x08D929B8, 0.74f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Your health 75 percent."),
+          "sound-first: healing past 80 re-arms the own 75 milestone");
+    put_f32b(0x08D92A24, 0.0f);                       // the killing blow
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 0 && a->cue_snapshot(&vsnap) && !vsnap.foe_beep,
+          "sound-first: the killing blow raises nothing (the game owns the KO)");
+    put_u32(0x08D92AE0, 2);                           // round 2: fresh bars
+    put_f32b(0x08D929B8, 1.0f); put_f32b(0x08D92A24, 1.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 0, "sound-first: a new round primes silently");
+    put_f32b(0x08D92A24, 0.70f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 75 percent."),
+          "sound-first: round 2 re-arms the foe milestones");
+    put_u32(0x08D92AE0, 0);                           // the fight is over
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(!a->cue_snapshot(&vsnap),
+          "sound-first: outside a fight the snapshot is refused");
+    put_f32b(0x08D92A24, 0.40f);                      // stale struct moves
+    sf3();
+    CHECK(NSPOKEN == 0 && !a->cue_snapshot(&vsnap),
+          "sound-first: no beeps or lines are stashed outside a fight");
+
+    // The Konquest bout rides the same watch through its latch:
+    // entry line kept, hits beep, crossings speak, outcome kept.
+    put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 1);
+    put_u32(0x08D929B4, 2); put_u32(0x08D92A2C, 0);   // Shujinko vs Bo' Rai Cho
+    put_f32b(0x08D929B8, 1.0f); put_f32b(0x08D92A24, 1.0f);
+    put_u32(0x08D92AE0, 3); put_u32(0x08D92AF0, 25);
+    for (int i = 0; i < 3; i++) a->on_frame();        // latch forced priming
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put_u32(0x08D92AF0, 24);                          // engine motion
+    a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Fight.") &&
+          strstr(SPOKEN[0], "Bo' Rai Cho 100 percent"),
+          "sound-first: the bout entry line is kept (it names the foe)");
+    put_f32b(0x08D92A24, 0.70f);                      // one big strike
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 75 percent."),
+          "sound-first: a bout hit crossing 75 speaks the milestone");
+    CHECK(a->cue_snapshot(&vsnap) && vsnap.foe_beep,
+          "sound-first: the bout hit beeps too");
+    put_f32b(0x08D92A24, 0.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf3();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bo' Rai Cho defeated."),
+          "sound-first: the bout outcome line is kept (a thud names nobody)");
+    put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
 
     // ---- detach -------------------------------------------------------------------
     a->detach();

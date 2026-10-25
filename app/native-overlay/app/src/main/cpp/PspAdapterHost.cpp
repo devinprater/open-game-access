@@ -369,3 +369,89 @@ const char* PspAdapterHostId(void) {
 const char* PspAdapterHostName(void) {
   return g_adapter ? g_adapter->display_name : "";
 }
+
+bool PspAdapterHostCuePoll(int* state, float* dist, int* field,
+                           int* kind, float* bearing, float* field_dist,
+                           int* heading_live, int* health_bits,
+                           float* foe_hz, float* foe_pan, float* own_hz,
+                           float* own_pan) {
+  if (state) *state = 0;
+  if (dist) *dist = 0.0f;
+  if (field) *field = 0;
+  if (kind) *kind = 0;
+  if (bearing) *bearing = 0.0f;
+  if (field_dist) *field_dist = 0.0f;
+  if (heading_live) *heading_live = 0;
+  if (health_bits) *health_bits = 0;
+  if (foe_hz) *foe_hz = 0.0f;
+  if (foe_pan) *foe_pan = 0.0f;
+  if (own_hz) *own_hz = 0.0f;
+  if (own_pan) *own_pan = 0.0f;
+
+  // ⛔ ONE SNAPSHOT FOR THE WHOLE POLL, AND NEVER AN ATTACH. An adapter's
+  // cue_snapshot consumes one-frame events as it fills them (the health
+  // beeps are copied out and cleared; Dissidia's EX-gain test advances
+  // its previous-gauge word), so asking the beacon, field and health
+  // questions through three snapshots — the shape pokecore's three
+  // entry points forced before they grew their per-frame cache — eats
+  // events between the questions. This host has no legacy ABI to keep,
+  // so it asks once and answers all three from the same moment. And
+  // like pokecore's calls it never attaches: building the adapter's
+  // host against a half-booted RAM image is the failure the lazy attach
+  // in Ready/Command exists to avoid, so the cue starts with play.
+  if (!g_adapter || !g_attached || !g_adapter->cue_snapshot) return false;
+  oga::CueSnapshot s{};
+  if (!g_adapter->cue_snapshot(&s)) return false;
+
+  // The one-shot health events (poke_cue_health's bitmask and params).
+  int bits = 0;
+  if (s.foe_beep) {
+    bits |= 1;
+    if (foe_hz) *foe_hz = s.foe_beep_hz;
+    if (foe_pan) *foe_pan = s.foe_beep_pan;
+  }
+  if (s.own_beep) {
+    bits |= 2;
+    if (own_hz) *own_hz = s.own_beep_hz;
+    if (own_pan) *own_pan = s.own_beep_pan;
+  }
+  if (s.focus_cue) bits |= 4;
+  if (s.dlink_cue) bits |= 8;
+  if (health_bits) *health_bits = bits;
+
+  // The free-flight field answer (poke_cue_snapshot_field's outs).
+  if (s.field) {
+    if (field) *field = 1;
+    if (kind) *kind = s.kind;
+    if (bearing) *bearing = s.bearing_deg;
+    if (field_dist) *field_dist = s.dist;
+    if (heading_live) *heading_live = s.heading_live ? 1 : 0;
+  }
+
+  // The lock-on beacon state (poke_cue_snapshot's return + distance):
+  // 0 nothing, 1 battle with no lock, 2 enemy, 3 EX core, 4 the
+  // one-frame EX-gain pulse, which outranks the lock states exactly as
+  // it does in pokecore.
+  if (s.battle) {
+    if (dist) *dist = s.dist;
+    if (state) {
+      if (s.core_gain) {
+        *state = 4;
+      } else if (!s.locked) {
+        *state = 1;
+      } else {
+        *state = s.is_core ? 3 : 2;
+      }
+    }
+  }
+  return true;
+}
+
+void PspAdapterHostSetHudGaugeCues(bool use_sound) {
+  // A thin pass-through to the adapter's own setter, mirroring
+  // poke_set_hud_gauge_cues on the iOS side. The flag is adapter
+  // state, deliberately not reset by attach/detach (a setting is not
+  // session state), so setting it before the adapter attaches — the
+  // session calls this at start, ahead of the lazy attach — is safe.
+  oga::KhbbsHudGaugeCues(use_sound);
+}

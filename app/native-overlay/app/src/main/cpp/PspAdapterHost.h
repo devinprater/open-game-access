@@ -61,4 +61,29 @@ bool PspAdapterHostCommand(int cmd);
 const char* PspAdapterHostId(void);
 const char* PspAdapterHostName(void);
 
+// The cue poll: ONE cue_snapshot for the frame, answering all three of
+// pokecore's cue questions from it (poke_cue_snapshot's beacon state,
+// poke_cue_snapshot_field's free-flight bearing, poke_cue_health's
+// one-shot bitmask) — see PspAdapterHost.cpp for why the three answers
+// must come from a single snapshot. False when there is nothing to cue
+// (no adapter, not attached yet, or the adapter refused the snapshot);
+// every out is zeroed first either way, so a false answer is silence,
+// never stale data. Any out-pointer may be null. Never attaches: like
+// pokecore's calls, the cue starts once a Ready/Command call has
+// attached the reader.
+bool PspAdapterHostCuePoll(int* state, float* dist, int* field,
+                           int* kind, float* bearing, float* field_dist,
+                           int* heading_live, int* health_bits,
+                           float* foe_hz, float* foe_pan, float* own_hz,
+                           float* own_pan);
+
+// Push the player's HUD gauge-cue choice into the Birth by Sleep
+// adapter (oga::KhbbsHudGaugeCues in Core/adapter.h): true = gauge-full
+// moments sound as earcons, false = the adapter speaks its lines
+// instead. The session resolves the effective value (the game's Per
+// Game Settings override, else the global default) and calls this once
+// when a session starts — settings apply at start
+// (docs/design/per-game-settings.md). Only that adapter reads the flag.
+void PspAdapterHostSetHudGaugeCues(bool use_sound);
+
 #endif  // OGA_PSP_ADAPTER_HOST_H

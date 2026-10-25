@@ -67,6 +67,24 @@ final class GameSession: ObservableObject {
         }
     }
 
+    /// The gauge-full cues mode — THE GLOBAL DEFAULT for the one
+    /// adapter that has HUD gauges today (Birth by Sleep): true plays
+    /// the Focus / D-Link earcons when a gauge fills, false brings back
+    /// the adapter's spoken "Focus full." / "D-Link ready." lines.
+    /// A game can override it in its Per Game Settings
+    /// (GameSettings.swift); the effective value is pushed into the
+    /// adapter at start() through poke_set_hud_gauge_cues. Default
+    /// true, matching the adapter's own default. Persisted like the
+    /// switch above it, for the same reason.
+    @Published var hudGaugeCuesSound: Bool =
+        UserDefaults.standard.object(forKey: "hudGaugeCuesSound") as? Bool ?? true {
+        didSet {
+            UserDefaults.standard.set(hudGaugeCuesSound, forKey: "hudGaugeCuesSound")
+            speech?.announce(hudGaugeCuesSound
+                ? "Gauge-full cues: sounds." : "Gauge-full cues: spoken lines.")
+        }
+    }
+
     /// Which DS screen is rendered large. The accessibility script reads both,
     /// but the player is looking at whichever one matters right now.
     @Published var focusScreen: Int32 = POKE_SCREEN_BOTTOM
@@ -456,6 +474,17 @@ final class GameSession: ObservableObject {
 
     func start() {
         guard let core, case .ready = status else { return }
+        // ⛔ PER-GAME SETTINGS APPLY AT START (docs/design/
+        // per-game-settings.md). Birth by Sleep's gauge-cue mode is
+        // adapter state, so its effective value — the game's override
+        // when one exists, else the global above — is pushed into the
+        // adapter now, before the first frame. The battle-cues gate
+        // needs no push: it is app state, and refreshCue() resolves it
+        // per frame against this same adapter id.
+        if let c = poke_adapter_id(core), String(cString: c) == "khbbs" {
+            poke_set_hud_gauge_cues(core, GameSettings.effective(
+                .hudGaugeCues, forGameID: "khbbs", globalDefault: hudGaugeCuesSound))
+        }
         guard poke_start(core) else {
             let message = String(cString: poke_last_error(core))
             status = .failed(message)
@@ -485,7 +514,36 @@ final class GameSession: ObservableObject {
     /// simply quiet rather than wrong. Nothing here allocates or speaks.
     private func refreshCue() {
         guard let core else { return }
-        let on = audioEnabled && cueBeaconEnabled
+        // The battle-cues gate is the loaded game's EFFECTIVE value —
+        // its Per Game Settings override when one exists, else the
+        // global switch — resolved per frame from the store, the way
+        // the Android session reads its switch per frame: a change in
+        // Settings or the panel takes hold on the next frame, no
+        // restart needed. adapterID is refreshed earlier in this same
+        // tick (refreshAdapterState runs before refreshCue); before it
+        // is known, the resolver answers with the global, which is
+        // also what the game resolves to once named if it has no
+        // override, so the gate never flips spuriously at start.
+        let on = audioEnabled && GameSettings.effective(
+            .battleCues, forGameID: adapterID, globalDefault: cueBeaconEnabled)
+
+        // The one-shot events (health beeps, gauge-full earcons) ride the
+        // same frame's snapshot as the beacon below — the core now takes
+        // ONE snapshot per frame and shares it across all three cue calls
+        // (see CueSnap in pokecore.cpp), so this poll neither consumes nor
+        // is starved by the field/beacon polls, in any order. It runs
+        // FIRST anyway, because the field branch below returns early and
+        // a hit must sound in a field-mode game too. Gated by the same
+        // battle-cues switch as the beacon; the events are one-frame
+        // moments, so with the switch off they pass unheard rather than
+        // queueing up.
+        var foeHz: Float = 0
+        var foePan: Float = 0
+        var ownHz: Float = 0
+        var ownPan: Float = 0
+        let healthBits = poke_cue_health(core, &foeHz, &foePan, &ownHz, &ownPan)
+        CueSynth.shared.updateOneShots(bits: healthBits, foeHz: foeHz, foePan: foePan,
+                                       ownHz: ownHz, ownPan: ownPan, enabled: on)
 
         // ⛔ ASK THE FIELD QUESTION FIRST, AND LET IT WIN. A free-flight mode and a lock-on
         // battle are different cue contracts: the lock cue is centred and distance-only, the

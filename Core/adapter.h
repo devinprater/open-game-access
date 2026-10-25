@@ -130,6 +130,11 @@ enum class Command {
     // Appended after Guide; raw values are the C ABI shared with Swift and must
     // never be reordered.
     Objective,
+    // Player enemy-roster query: how many foes are in the fight, and for
+    // each its name (when the adapter can prove one), distance and bearing.
+    // Appended after Objective; raw values are the C ABI shared with Swift
+    // and must never be reordered.
+    Enemies,
 };
 
 /// Per-frame battle snapshot for host-side audio cues (item 5 spike).
@@ -165,7 +170,56 @@ struct CueSnapshot {
     /// False when bearing_deg was computed from a stale heading (the player has not moved
     /// recently), so the host can soften or omit the cue rather than point confidently.
     bool  heading_live;
+
+    // ---- TRAILING ADDITIONS (sound-first health cues, 2026-10-24) ----
+    /// One-frame hit events for the adapter's health-beep family (the
+    /// sound-first pass: hits are already sounded by the game itself, so
+    /// these beeps exist to carry the one thing the game's impact sounds
+    /// do not — HOW MUCH health is left, as pitch). The host polls the
+    /// core AFTER each frame's on_frame; a set flag is a one-shot: the
+    /// adapter clears it as the snapshot is taken, so each hit sounds
+    /// exactly once. When no hit landed since the last poll the flags
+    /// stay false and the hz/pan fields are 0.
+    ///
+    /// foe_beep: a hit dropped the TRACKED foe's HP (the lock-on target,
+    /// or the last locked foe while unlocked). foe_beep_hz: pitch mapped
+    /// from the foe's NEW health fraction, logarithmically — full health
+    /// high, near-death low. foe_beep_pan: +0.8 — the foe's side of the
+    /// stereo field is the RIGHT (owner's rule, 2026-10-24).
+    ///
+    /// own_beep: the same for a hit on the PLAYER — a lower, duller
+    /// register and own_beep_pan −0.8: the player's side is the LEFT.
+    /// The two families differ in register AND pan, so the sides stay
+    /// distinguishable even through a mono speaker.
+    ///
+    /// focus_cue / dlink_cue: a gauge reached FULL. Gauge-full moments
+    /// used to be spoken lines; the sound-first split gives them earcons
+    /// instead (fixed recipes owned by the synth: bright, centred,
+    /// ~60 ms — the beacon family's carrier register, so "something is
+    /// ready" sounds related to the lock-on beacon). Only raised in
+    /// sound mode; the adapter's HUD setting (KhbbsHudGaugeCues)
+    /// restores the spoken lines instead when the player prefers speech.
+    bool  foe_beep;
+    float foe_beep_hz;
+    float foe_beep_pan;
+    bool  own_beep;
+    float own_beep_hz;
+    float own_beep_pan;
+    bool  focus_cue;
+    bool  dlink_cue;
 };
+
+/// Birth by Sleep's HUD gauge-cue mode — the per-game setting the apps'
+/// Per Game Settings panels drive (docs/design/per-game-settings.md).
+/// true (the default): a gauge reaching full raises the focus_cue /
+/// dlink_cue earcons above. false: the adapter speaks its "Focus full."
+/// / "D-Link ready." lines instead and raises no earcons. Defined in
+/// khbbs_adapter.cpp; the flag is adapter state, deliberately NOT reset
+/// by attach/detach — a setting is not session state. The apps resolve
+/// the player's effective value (per-game override, else the global
+/// default) and push it in when a session starts: iOS through
+/// poke_set_hud_gauge_cues, Android through the adapter host.
+void KhbbsHudGaugeCues(bool use_sound);
 
 // TWO CORE SIGNALS, because the evidence supports both (2026-10-05), with an honest
 // correction attached:

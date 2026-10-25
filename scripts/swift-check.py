@@ -38,6 +38,7 @@ _CORE_MM = ["-I", str(ROOT / "Sources" / "CPokeCore" / "include"),
 CHECKABLE = {
     "AdapterCommand.swift": [],          # Foundation only
     "CueSynth.swift": _CORE_MM,          # imports CPokeCore for poke_cue_snapshot
+    "GameSettings.swift": [],            # Foundation only: the per-game settings store
     "GameSystem.swift": _CORE_MM,
 }
 # Files that CANNOT be checked on Linux, with the honest reason.
@@ -51,6 +52,7 @@ UNCHECKABLE = {
     "CuePlayer.swift": "imports AVFoundation (Apple-only)",
     "SpeechEngine.swift": "imports UIKit/AVFoundation",
     "AdapterLibrary.swift": "imports SwiftUI/UniformTypeIdentifiers/CPokeCore",
+    "PerGameSettingsView.swift": "imports SwiftUI",
 }
 
 

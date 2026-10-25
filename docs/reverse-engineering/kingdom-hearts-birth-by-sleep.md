@@ -1384,6 +1384,96 @@ bearings relative to the movement facing (CmdHubGuide;
 the fail-silent states). Other rooms still wait on their
 tables.
 
+GUIDE BEYOND THE HUB — SURVEYED 2026-10-24 (bench guide1;
+survey checkpoint ~/khbbs-scan/guide-progress.md; per-room
+notes in games/kh-bbs/guide-landmarks.md): the Guide now
+speaks in eight more rooms — Olympus Coliseum's Vestibule
+(8,2), Coliseum Gates (8,1) and Town Near Thebes (8,5), and
+Radiant Garden's Entryway (6,2), Central Square (6,3),
+Castle Town (6,5), Merlin's House (6,8), Fountain Court
+(6,7, balcony only) and Outer Gardens (6,12) — through
+CmdRoomGuide, a per-(world, room) table lookup behind the
+same gating as the Hub (camp/Reports silent, both location
+copies must agree, field + located position required) and
+the same SpeakMarks line builder, so the spoken forms are
+identical: distance only before the first movement leg,
+clock bearings after. The Hub's own path and table are
+untouched. 19 new host checks pin every table from stands
+the survey stood on, two rooms' bearing math, and the
+fail-closed rooms; each room was then proven live on the
+bench (Guide at spawn + after a walked leg, against the
+position logs).
+
+Survey rules, the ones that made the Hub trustworthy: a
+landmark's position is measured by walking to it (position
+log at contact), never eyeballed from the layout data —
+the .olo origins are candidates, and the table ships the
+origin only once a walked stand, a screenshot, an
+interaction prompt or a walked room flip proves the thing
+is what the line names. Exits are landmarks named by the
+room they lead to (kRoomNames' own names) and count only
+when the flip through them was walked and the destination
+read off the world/room words. Anything unreachable or
+unverifiable is excluded and recorded, never tabled from
+data alone. Notable findings, per room:
+
+- Vestibule: five residents (save point, Moogle Shop, the
+  large chest, Hercules, Phil) + the door back. Hades is
+  in the story-pattern spawn data only — two live censuses
+  of the finished save show he is NOT in the room, and the
+  dark south alcove is decoration, not a door.
+- Coliseum Gates: one reachable chest + both doors. Two
+  more chests sit south of the terrace wall in a strip
+  walking cannot reach from this room — excluded.
+- Town Near Thebes: walked end to end; nothing but
+  hittable pots and Unversed spawns, so its table is the
+  single exit. The return flip was walked in the proof
+  phase (the last unverified door).
+- Entryway: only the save point and its two doors exist
+  in the room. Its north door lands at the FAR end of the
+  Outer Gardens (arrival stand (0,-119.24) against the
+  (0,-123.25) trigger) — the gardens' near door, by the
+  arrival terrace, flips to the Purification Facility.
+- Central Square: two levels (entrance terrace, upper
+  ring, center basin) spoken with ground-plane distances,
+  like the Hub's floors. Both small chests walked (west
+  ring; east chest via the south ring). The west door is
+  SHUT on the finished save — the player was stood inside
+  its trigger and pushed to the wall (x -33.4) with no
+  flip — so it is not named; its destination was never
+  read (presumably Fountain Court, unproven).
+- Castle Town: the Moogle an earlier bench reported as
+  gated IS reachable — the "gate" is its own shop counter;
+  the Shop prompt arms at the counter's west end, 2.26
+  from the Moogle's origin. Six marks incl. the small door
+  to Merlin's House and the south door to Fountain Court.
+- Merlin's House: Merlin (Talk prompt + screenshot), the
+  small chest, and the west door back — its trigger was
+  bisected live (safe stand x -5.87, flip walking to
+  -6.40) and centered by the arrival-offset pattern
+  (~3.7 in from the spawn stand) the other rooms show.
+- Fountain Court: only the entrance balcony is tabled.
+  It is fully railed — no drop, no stair — so the court's
+  main floor (three chests in the layout data) is reached
+  from a west door whose other side this lineage never
+  reached. Balcony table = the one proven door.
+- Outer Gardens: a 177-unit corridor; both chests walked
+  (~1.0 contacts), both doors flipped. No save point
+  exists in this room.
+
+REMAINING UNSURVEYED: the Purification Facility (6,11) —
+entered (arrival on its high terrace at (45, 9.41, -18);
+the door back is its (45, 7.25, -22) trigger), a vertical
+maze of ledges the survey did not finish; the Land of
+Departure rooms — Mountain Path's exits are story-blocked
+in the only reachable state (Ventus mid-training: walking
+the south path fires his "little workout" line and the
+path seals; both training-ring tools were contact-walked
+but are not tabled without their exits), and post-story
+the world leaves the map; Fountain Court's main floor;
+Central Square's west door destination; and every other
+world. The Guide fails closed in all of them.
+
 DIRECTIONS — state of the hunt (2026-10-19, navigation tail):
 Mechanism designed, data not yet collected. (1) FACING:
 actor+0xAB8 is NOT a facing vector — it held one constant
@@ -2592,10 +2682,251 @@ Limits: anchors proven on the fixture lineage (Terra,
 Mirage Arena Hub); home B's address was stable across
 every return driven (g10e/g10f/g10l) — if a future return
 lands elsewhere the gate fails closed (silence), never
-false. The mode list and the Active Events / D-Links
-sub-lists are follow-up work (the arena-entry queue item);
-the sub-lists need other players in range and cannot be
-exercised on this bench.
+false. The mode list is wired by the arena-entry work
+below; the Active Events / D-Links sub-lists need other
+players in range and cannot be exercised on this bench.
+
+## New Event mode list + Arena setup + event state — WIRED + LIVE-VERIFIED (2026-10-25, bench cb1–cb6)
+
+The arena-entry queue item: the New Event flow end to end,
+from the mode list through the Arena setup screen to the
+pad, Ready, and Begin.
+
+### The mode list (bench cb1–cb3)
+
+NEW EVENT's child is a four-row list: **Versus Mode /
+Arena Mode / Command Board / Rumble Racing**, opening on
+Arena Mode, wrapping both ways (help texts: Versus "Battle
+other players." / Arena "Join forces with other players
+against a common enemy. You can also choose to battle
+alone." / Command Board "Play a Command Board game." /
+Rumble "Take on other players in Rumble Racing."). It is
+the SAME widget family as the top menu (signature +0x04
+15, +0x08 0xDBFF, +0x0A 0xFFF8, +0x0C 0, cursor +0x0E) with
+screen word 3; its count word reads 0, so the cursor is
+bounded by the four walked rows instead.
+
+**The family widget floats.** cb1's cycle found the top
+menu at 0x09919208, the mode child at 0x0991BCB8 — and,
+after one Arena-setup round trip, BOTH rebuilt elsewhere
+(top 0x0991E278, mode 0x0991B5B8, top again 0x0991E348).
+The g10 two-home gate went silently blind on the rebuilt
+menu (WhereAmI answered the field line over the visibly
+open menu). The gate is now a scan: `EvLocate()` keeps a
+sticky base re-validated per call and otherwise scans
+0x09910000..0x09960000 demanding exactly one shaped block;
+`EvScreen()` discriminates top (screen 2, count 3,
+cursor < 3) from mode (screen 3, cursor < 4), both behind
+the flow word (u32 @ 0x08B5BEF8 == 8) and !CampActive().
+Exactly one family widget is live at a time in every
+dump; a closed menu leaves a stale shaped block behind
+with the flow word at 0, which stays silent.
+
+**The mode arrival is stability-gated.** cb3's per-frame
+poll across the dive: the top widget tears down ~frame 5,
+the mode widget validates at frame 11 with cursor 0, and
+the game writes its start row (1, Arena Mode) at frame 15.
+An arrival on the first valid frame would name Versus
+Mode, a row the player is not on — so `WatchModeMenu`
+speaks only once the cursor has held still 10 frames,
+armed by a 30+ frame down-stretch (the archives-watch
+shape). Spoken: arrival "New Event. Arena Mode, 2 of 4.",
+nav echoes both directions with wraps, WhereAmI "Mirage
+Arena. New Event. <row>, N of 4." Cross on **Versus Mode
+is inert offline** — no dialog, the list unchanged (cb2);
+the row is greyed because there is no one to battle.
+
+### The Arena Mode setup screen (bench cb1/cb3/cb4)
+
+Cross on Arena Mode replaces the list with the setup
+form: banner "NEW EVENT", tab "ARENA MODE", focus rows
+**Battle → Players → OK** (wrapping), help line per focus
+("Select a battle." / "Select the number of players." /
+"Proceed with these settings."), footer MEDALS 99999 /
+ARENA LV 30. The Battle row shows the event name with
+Risk (stars) and Rounds beside it; some battles also draw
+an "Arena LV n" unlock tag above the name.
+
+The screen's widget is of the **Trinity Archives class**
+(header +0x00 0xDFFF, +0x02 0xFFF8, cursor +0x06, count
++0x0A), here count 3, focus at +0x06 (0 Battle, 1 Players,
+2 OK). Every proven sighting sits at 0x0991BD60; the
+adapter locates it by the same exactly-one scan as the
+event family rather than trusting the address, gated by
+flow == 8, !CampActive(), and neither sibling menu up.
+The battle index rides at widget +0xD8 (cb4's full Right
+cycle: 0..12 then wrap) and the Players count at +0x18.
+The widget lingers fully shaped after OK (focus 2) with
+the flow word down — the flow term is what keeps it
+silent in the field.
+
+**Thirteen battles**, in list order, with the facts the
+screen shows (cb4's screenshots): Day of Reckoning
+(Risk 1, 4 rounds) / Wheels of Misfortune (1, 4) / Risky
+Riches (LV 8, 1, 3) / Weaver Fever (2, 4) / Sinister
+Sentinel (LV 3, 2, 5) / Dead Ringer (LV 5, 2, 5) /
+Combined Threat (LV 7, 3, 6) / Treasure Tussle (LV 15,
+3, 3) / Harsh Punishment (LV 10, 3, 6) / A Time to Chill
+(LV 13, 4, 8) / Copycat Crisis (LV 17, 4, 8) / Keepers of
+the Arena (LV 20, 5, 9) / Villains' Vendetta (LV 30,
+5, 8). Nothing is shipped as adapter data: the names are
+walked from the game's packed string table at
+**0x08E1CC30** (the thirteen names in list order; the
+walk validates the table by its first entry and every
+string for printable ASCII, so a misread degrades to no
+name, never a wrong one), and Risk/Rounds are read from
+the static mission table at **0x08E17AA0** (13 records ×
+16 bytes: id +0x00 == index, constant 100/28 at
++0x02/+0x03, Risk +0x06, Rounds +0x0C; a medal reward at
++0x08 — 50 rising to 500 — is not shown on this screen
+and is not spoken). Name and facts degrade independently
+behind their own witnesses.
+
+The **Players selector is inert offline**: its arrows
+draw dimmed and Left/Right change nothing (cb4's probe).
+The row speaks the count word as drawn (1 on the
+fixture); in an ad-hoc session the same word is what the
+screen shows.
+
+Spoken: arrival "Arena Mode setup. Battle. Day of
+Reckoning. Risk 1 of 5. Rounds 4." (the same settle-gated
+arrival discipline as the mode list, on the focus/battle
+pair); focus echoes ("Players. 1." / "OK." / the battle
+line); battle cycling speaks the landed battle's line;
+WhereAmI "Mirage Arena. Arena Mode setup. <focus line>."
+`khbbs_ready()` includes the screen.
+
+**Limit — list alignment at low Arena LV.** The full
+list is proven at Arena LV 30, where all thirteen battles
+are unlocked. The "Arena LV n" tag marks an unlock
+requirement; whether a lower-level player's selector
+lists locked battles (misalignment impossible) or omits
+them (the game's own list build would shift indices) is
+not provable on this fixture — no low-LV save exists on
+the bench. If the list is filtered there, names/facts
+would misalign by the count of omitted battles; the
+failure mode is documented rather than hidden.
+
+### After OK: the pad, Ready, Begin (bench cb4/cb6)
+
+Cross on OK closes the menu (flow 8 → 0) with the event
+set; the player stands in the Hub by the terminal. The
+tail of the flow has no menus: walk onto the sunken
+center pad (0, ~0.3), where the field prompt becomes
+"✕ Ready"; Cross raises an INFORMATION banner ("Once
+everyone is ready, press the START button to begin!") and
+a "START Begin" chip, and the prompt becomes "✕ Cancel";
+START loads the arena (world 15, room 3), where the
+existing battle speech takes over.
+
+The spoken state for this tail hangs on the **info-text
+pointer at 0x09F3A38C**: the address of the hint line the
+event flow currently wants read, or 0 when no event is
+pending. Proven values across cb4's dump chain (plain
+field, every menu, after OK, at the pad, ready, begun):
+0 everywhere except — event pending → 0x08E1BE70 ("Move
+to the middle of the hub when you're ready, then press
+⟨Cross⟩."); ready → 0x08E1BEB0 ("Once everyone is
+ready…"). `WatchArenaEvent` (Hub field only: world 15
+room 1, InField) keys on the pointer but speaks only when
+the string at it matches the proven text: pending speaks
+"Event set: <battle>. Move to the middle of the hub and
+press Cross when ready." (the battle name latched from
+the setup visit; unnamed if the adapter attached over a
+pending event it never saw set); pending → ready speaks
+"Ready. Press START to begin."; ready → pending speaks
+"Ready cancelled."; any → 0 stays silent (Begin is
+covered by the fight itself). Two candidate witnesses
+were rejected on evidence: 0x08B5BE1C (reads 3, 1, 7
+across dumps of the SAME state — not a state word) and
+0x08B5D144 (32 in both the ready and begun dumps).
+
+The field prompt itself ("✕ Ready" on the pad) is not
+spoken — the same limit as every field prompt (the
+terminal's "✕ Log In", the Moogle's "✕ Medals"): no
+fail-closed witness for the prompt slot has been found,
+and the event-set line already tells the player where to
+go and what to press.
+
+Host tests: the khbbs suite plants the setup screen at a
+relocation home (arrival, focus echoes with wrap, battle
+cycling, WhereAmI, two-widget ambiguity, count/focus/
+index/flow knockouts, and both degradation directions)
+and the event-state chain against a planted Hub actor
+(set line naming the latched battle, ready, cancel,
+re-ready, silent begin, unrelated pointer, corrupted
+text). The rumble form and the event-end watch have
+their own section (arrival, focus echoes, the packed
+value word's knockouts, both-forms-shaped silence, the
+race's set line, the armed/unearned summary window).
+Suite at 526 checks, floor 527 sites after the whole
+New Event arc (483 / 484 before the mode list).
+
+RETURN PATH + THE EVENT-END SUMMARY (cb5b/cb8/cb9/
+cb9b, 2026-10-25): the event-end window is now
+identified. When an arena event finishes, the game
+shows a SUMMARY screen in the arena room (world 15,
+room 3, flow word raised): the battle's name, the play
+time, category rankings (Damage, Friendship, Style,
+each with a 1st/2nd placing), an obtained-medals
+count-up, and an MVP line (cb9b's frame-triggered
+capture, endwindow dumps: "Day of Reckoning", play
+time 0:04:48, medals counting 0 → 75). The screen is
+NON-interactive — it counts up and returns the player
+to the Hub unaided — on a loss as on a win: a clean
+no-input death runs HP to 0, the death animation and
+white fade play, the same window passes, and Terra is
+back in the Hub ON THE PAD (room 1, (0,0)) at full
+health. The player is never trapped on a screen that
+needs input. The adapter marks the summary's arrival
+with one neutral line, "Event over." — a watch that
+arms on presence in the arena room with the flow word
+down (the room is reachable only by starting an event)
+and fires once when the word rises; the summary's
+contents stay unspoken (their data source is unhunted
+and the screen is up only seconds). The same window
+used to trip the setup gate ("Arena Mode setup. OK."
+once per event, cb5b/cb9) — fixed the same day:
+SetupState requires world 15 / room 1, the only place
+the real screen exists, with a host test pinning it.
+
+RUMBLE RACING (benches cb11/cb12): the mode list's
+fourth row opens a sibling setup form in the same
+widget class (same home, row count 4): Course / Laps /
+Players / OK. Its values pack into the word at +0xD8 —
+byte0 course index (0 Country Chase, 1 Disney Drive,
+2 Grand Spree, 3 Castle Circuit; wraps), byte1 laps − 1
+(5 by default), byte2 players − 2 (6 by default; the
+selector is LIVE here, 2..6, wrapping — solo play
+fills the grid with CPU racers), byte3 = 0xFF sentinel.
+Crowned across cb12's sixteen dumps against
+screenshots. The course names ship as adapter data —
+the game's name table for them is heap-built at
+session addresses (seen packed at 0x0931E5C8), unlike
+the arena battles' static table. WIRED like the arena
+form: arrival ("Rumble Racing setup. Course. Country
+Chase."), focus echoes through the nav commands, the
+WhereAmI branch, the same settle discipline; the two
+forms exclude each other in their gates so a stale
+sibling can never double-speak (host-tested with both
+shaped at once). OK sets the event through the SAME
+hub flow — the pending/ready hint strings are the
+identical texts (0x08E1BE70/0x08E1BEB0 in cb12's
+dumps) — and the event-set line names the race
+("Event set: Rumble Racing, Castle Circuit. ...") from
+the rumble visit's latch. The race itself runs in
+world 12 room 10: real-time glider racing (lap and
+position HUD, command prompts for Barrier / Shot
+Charge / Brake / Accelerate) and is NOT narrated, per
+the high-action doctrine; its end does not raise the
+arena room's flow window, so "Event over." does not
+cover races — the player simply lands back in the Hub.
+
+VERSUS MODE: proven inert offline (cb2/cb11) — the
+mode list renders the row greyed, Cross does nothing,
+and there is no setup form to wire. It needs other
+players over ad-hoc; nothing about it is speakable
+from a solo session, and the player notes say so.
 
 ## Field dialogue boxes — WIRED + LIVE-VERIFIED (2026-10-24, bench dlg1–dlg4)
 
@@ -2761,3 +3092,830 @@ never fired — it speaks only if its record activates).
   in practice.
 - Non-US text is out of scope by construction: the decode
   fails closed on it rather than garbling it.
+
+## The Command Board — SURVEYED, GP records crowned, screens NOT yet wired (2026-10-25, benches cb7–cb7d)
+
+The board game is reachable two ways: the camp menu's
+Command Board row, and the arena terminal's mode list.
+One bench trap first, because it looks like a game fact
+and is not: from the g10l-lineage SAVESTATE the camp row
+renders and echoes correctly but Cross never activates
+it (24+ presses, frame-level probes; the Items row in
+the same camp instance opens fine — benches cb7/cb7b/
+cb7c). From a real boot + title-screen save load the
+same row works (cb7d, repeating the subcamp route).
+Treat the inert row as a savestate-lineage artifact,
+not game behavior; the root cause was not found and is
+not worth more time.
+
+ENTRY FLOW (all screenshot-verified, cb7d; dumps in
+~/khbbs-scan/cb7d/):
+
+1. Camp → Command Board row → the board module loads
+   (camp witnesses die; the adapter goes silent — a new
+   screen family).
+2. Title screen "THE COMMAND BOARD": menu New Game /
+   Continue / How to Play, cursor starts on New Game;
+   help lines "Start a new Command Board game." /
+   "Resume a game in progress." / "Learn how to play
+   the game." (bt-dn1/bt-dn2/bt-up1 probes; Continue is
+   selectable when a game is in progress, as on the
+   fixture save.)
+3. New Game → board select, "Select a board." — a
+   carousel; the default is the Keyblade Board (the
+   Land of Departure board), GP Goal 5000, opponents
+   Ventus and Aqua (for Terra), description "The
+   thrills are never more than a roll away on this
+   compact board. (Land of Departure)". The other
+   boards (from the game's trophy strings): Royal,
+   Spaceship, Toon, Hunny Pot, Skull, Secret.
+4. Goal step: "Select a goal." — same screen, the GP
+   Goal selector takes focus.
+5. Confirm: "Play on this board?" Yes / No — the
+   cursor starts on YES (opposite of the shops/meld
+   convention).
+6. Intro card: "Land of Departure / The Land of
+   Departure / GP Goal 5000".
+7. Playing Order screen (the rolled/saved order shown
+   as 1ST/2ND/3RD portraits) + "Shuffle the playing
+   order?" Yes / No (starts on Yes).
+8. Dice roll for order: "Press ✕ to roll the dice!
+   Higher rolls get to play first." Each Cross rolls
+   for the next player; then "Here's the new playing
+   order." (cb7d: Ventus 1ST, Terra 2ND, Aqua 3RD.)
+
+IN GAME (cb7d gp0–gp4): a "TURN 1" banner names the
+player whose turn starts; the human player's turn opens
+a 4-row menu — Roll / Hand / Stats / Options (cursor on
+Roll). Roll throws the die, movement-direction arrows
+appear around the player's panel, and the move commits
+over the following steps. The standings panel (right
+edge) shows per player: laps, name, GP on hand, total
+GP — Ventus ended his first turn at 925 on hand / 1000
+total after buying a panel.
+
+RAM STATE (partially crowned):
+
+- Player GP records live at fixed addresses in the
+  session region: u32 GP-on-hand at 0x09F2DBD0 (Terra),
+  0x09F2DBF4 (Ventus), 0x09F2DC18 (Aqua) — stride 0x24,
+  CHARACTER order (not turn order). Crowned by the
+  1000→925 transition across Ventus's first turn
+  (unique in a full-RAM hunt). The records' full field
+  layout is not yet mapped; the words around them churn
+  with render state.
+- The board module's own state sits around 0x0982xxxx
+  (title-screen diffs churn there — hundreds of small
+  diffs; no cursor crowned yet).
+- NOT yet found: the liveness gate for "a board game
+  is running", each player's panel position (it commits
+  only when a move's animation completes — the gp3/gp4
+  dumps bracket the direction-choice step, before the
+  commit), the dice value as a word, the hand (the
+  turn menu's Hand screen), and the total-GP field.
+
+NEXT EXPERIMENTS (in order): (1) a bench that brackets
+a COMPLETED move with dumps — the position field lights
+up inside the moving player's record, which also fixes
+the record base; (2) open the Hand screen and diff for
+the hand array (command ids resolve through the same
+tables the camp inventory reads); (3) the module-
+liveness word from a title-vs-field dump pair in the
+0x0982xxxx region, filtered by stability across the
+gp dumps. With (3)+(GP)+(1) the minimum core wires as a
+standings/position query during board play; the title
+and setup screens follow once their cursors crown.
+Nothing board-side is spoken today, and the player
+notes say so.
+
+## Battle gauges: Focus / shotlock + D-Link — WIRED + LIVE-VERIFIED (2026-10-24, bench khbbs-foc1–foc8)
+
+Question (completion-list item: Focus/shotlock and D-Link in
+battle): the field picture spoke HP and the Command Gauge, but
+nothing about Focus, the shotlock, or the D-Link — not even that
+a link was active. Where do the two gauges live, what signals
+mark their events, and which of them are clean enough to speak?
+
+### The gauges object
+
+One heap object carries both resources; its address floats per
+boot (0x099842F0 hub/camp lineage, 0x09994700 LoD, 0x099A4720
+the Final Episode fight lineage), but a FIXED global holds it:
+u32 @ **0x08B73BB8** (written by its constructor FUN_08919c88,
+zeroed by its destructor FUN_08919cdc — CWCheat's "Full Focus
+Gauge" store addresses bracket those two functions, which is
+how the object was found). Layout, from decompiling its
+per-frame updater **FUN_0891db48** and confirming every field
+live (bench foc1–foc7):
+
+- +0x3C f32 — D-Link gauge 0..100; +0x40 f32 — pending fill
+  (prizes add here; the updater transfers it into +0x3C over
+  time). +0x44 f32 — Focus gauge 0..100; +0x48 f32 — Focus
+  budget (income lands here; converts into +0x44 at 2.0/frame).
+- +0x50 u32 — state: **1 while shotlock aiming, 2 while a fired
+  shotlock resolves**, 0 otherwise.
+- +0x54 u32 — flags: **0x10000** Focus is full (set by the game
+  at the fill crossing, clear while Focus < 100); **0x100**
+  D-Link primed (set at the fill crossing, HELD through a link,
+  cleared when the drain empties the gauge); **0x20000**
+  shotlock aiming; **0x200** D-Link active. (0x2 = the HP-ghost
+  sync bit, unrelated; 0x800 = a suspend bit seen outside
+  battle.)
+- +0x70/+0x72/+0x74 s16 — current HP mirror, ghost HP (drains
+  toward current in 10% steps — the HP ghost bar), max HP.
+- +0x80 u16 — **the active link partner's def id** (0 while
+  unlinked; see below).
+
+The object exists wherever the player does (field, hub, camp,
+battle — hub flags read 0x100900), so the watch gates its SPEECH
+to the field picture rather than to the object's presence. The
+destructor also mirrors the gauges as shorts into the
+persistent record at 0x09F17A10 (+0x22 Focus, +0x24 D-Link),
+but only at finalize — live values come from the object.
+
+### Shotlock mechanics (corrects the naive model)
+
+Bench foc1/foc2 drove the full cycle on the Radiant Garden
+fight (Aqua, Lightbloom, cap 20):
+
+- Aim = **hold L+R** (R alone toggles lock-on — an earlier
+  brief's "hold R" was wrong). While aiming: time slows, a
+  TIME LEFT countdown runs, the actor's state is 24 and its
+  spawn mark is **4**, Focus drains as locks accumulate and
+  STOPS at the lock cap (100 → 67.5 at MAX 20; the drain is not
+  a clean per-lock constant, and the exact economy was not
+  needed).
+- **Releasing L+R CANCELS with a full refund** to the Focus
+  value at aim entry (the entry snapshot rides at +0x4C).
+  **Pressing Cross FIRES**: state +0x50 goes 2 the same frame
+  the aim flag falls, Focus stays spent, and the hits land over
+  the following seconds (foe 1200 → 1017+ at 25/hit in foc2).
+- Taking damage feeds the Focus budget (+4 per hit observed)
+  and can knock the player out of the aim — a cancel, refund
+  included. Dealing damage also feeds it (foc8's refill:
+  attacking took Focus 73 → 100 and the full line spoke).
+
+### D-Link mechanics
+
+- **D-pad RIGHT** opens the battle list (a scrolling window
+  over the roster; Aqua's: Donald, Mickey, Terra, Ventus, Pete,
+  …; the cursor opens on Ventus). LEFT returns to the deck.
+  **Cross is always Attack**, list open or not; **Triangle
+  confirms** the highlighted partner.
+- Activation (foc5/foc6/foc7, three partners): actor state 25
+  for ~30 frames, then flag 0x200 sets, **HP refills to full**,
+  the deck and portrait swap to the partner's (screenshot-
+  verified: "VENTUS" / "TERRA" / "MICKEY" splashes, their decks
+  and portrait icons), and the gauge drains ≈ 3/second (a full
+  gauge lasts ~33 s). At empty the primed bit clears, ~2 frames
+  later 0x200 clears, the player's own deck returns.
+- **Partner identity**: the gauges object's +0x80 holds the
+  partner's def id while linked (372 Mickey, 383 Ventus,
+  384 Terra; 0 in every unlinked dump). Resolved through the
+  def table (0x08B34924, name ptr +8): family 7 sub 14 —
+  371 Vanitas, 372 Mickey, 373 Donald, 374 Goofy, 375
+  Experiment 626, 376 Peter Pan, 377 Maleficent, 378
+  Cinderella, 379 Snow White, 380 Zack, 381 Pete, 382 Aqua,
+  383 Ventus, 384 Terra. The +0x88/+0x90 words are the link's
+  granted abilities (family 8 sub 11: Haste, Auto-Teleport,
+  …), not deck commands.
+
+### What speaks (WatchBattleGauges + the field-line clause)
+
+- Field line (WhereAmI / self readout) gains: " Focus 73.
+  D-Link 45." — with "Focus full." / "D-Link full." at the
+  top, and " Linked to Ventus, D-Link 62." while a link runs.
+- Events, each an edge of a game-owned flag bit, latched like
+  the low-HP warning (tracked always, spoken only with the
+  field in front — never under camp or Reports; first live
+  sight primes silently):
+  - "Focus full." — 0x10000 rising.
+  - "D-Link ready." — 0x100 rising.
+  - "D-Link: Ventus." — 0x200 rising, name from +0x80 via
+    DefName (fallback "D-Link active." if it won't resolve).
+  - "D-Link ended." — 0x200 falling.
+  - "Shotlock." — 0x20000 rising. At its fall: "Shotlock
+    fired." when the firing state (2) was seen for that aim,
+    else "Shotlock cancelled." (a cancel at full Focus also
+    speaks the refund's "Focus full." first — both are true).
+
+### The mark-4 gate fix (load-bearing, corroboration-gated)
+
+During the shotlock the actor's spawn mark is 4, which the old
+ActorPlausible rejected — InField() dropped for the whole aim,
+exactly when the shotlock watch must see. The mark stays 4
+through the firing animation too (the gauges aim flag clears
+the frame the shot fires; the mark does not), so the acceptance
+cannot key on the flag. Nor can mark 4 be accepted bare: a
+full-corpus sweep (all 2,760 bench dumps, an offline replica
+of the fingerprint) found 34 dumps whose hit set changes —
+every one an old=0 dump gaining a mark-4 struct that is NOT
+the player: an enemy block in the Radiant Garden fight dumps
+(battle27/28 — state 35, HP 5/512; in four battle27 dumps it
+would have made the located actor AMBIGUOUS and dropped the
+field), and UI structs on screens whose gauges object does
+not exist (ad91, state 50; the Archives timeline, state 102).
+The player's mark 4 is therefore accepted only with the
+shotlock's own corroboration: **actor state == 24** (the
+shotlock action state, constant through aim and firing in
+every foc trace) **and the gauges object live**. Both held in
+every true shotlock dump (foc1/foc2/battle40) and failed in
+every false one; the same corpus sweep under the final rule
+changes no dump's hit set except the true shotlock rescues
+(the aim dumps, where the old rules found no actor at all).
+on_frame's lock edge also treats 4 as lock-held, so a shotlock
+no longer reads as a lost lock followed by a spurious
+"Locked on." The foe / lock QUERIES still key on mark == 2
+exactly, as proven in battle41.
+
+### Live proof (khbbs-foc8, the real adapter on the fight)
+
+One continuous fight spoke, in order: the WhereAmI line with
+"Focus full. D-Link full." — "Shotlock." (aim, Focus 100 →
+73.33 at MAX) — "Shotlock fired." (Cross; Focus stayed spent;
+foe 1200 → 950 over the following phases) — "Focus full."
+(refilled by attacking) — "Shotlock." — "Focus full." +
+"Shotlock cancelled." (release; refunded) — "D-Link: Ventus."
+(RIGHT, Triangle; HP refilled) — WhereAmI "Linked to Ventus,
+D-Link 98." — "D-Link ended." (gauge pinned to 1.5 by the
+bench, drained out by the game) — WhereAmI back to "D-Link 0."
+An honest extra: phase 4 opened with a "Locked on." — the
+lock had genuinely been lost and re-acquired during phase 3's
+melee, the pre-existing edge working as designed. Screenshots
+and the full log: ~/khbbs-scan/foc8/.
+
+Host tests: 358 checks, floor 359 sites (priming silence,
+readout percents, each event once and never repeated without a
+state change, the fire and cancel aim endings, the mark-4
+corroboration gate, the unnamed fallback, the named
+activation, camp-menu silence with no late fire, the
+absent-object stand-down). The foc8 proof above was re-run
+against the final corroboration-gated build and reproduced
+every line (log: foc8-final.log).
+
+### Limits
+
+- **Lock-on pip count: NOT spoken, and resisted hard.**
+  Exact-pattern scans for the sequence (0 locks, 3, 20 at MAX,
+  20) across u8/u16/u32/float over the foc1 dump series and the
+  actor/gauges/foe neighbourhoods found no word — the count is
+  a per-target list length the HUD recomputes per frame. The
+  max-lock milestone has no unique witness either: the Focus
+  drain also pauses when the reticle holds no enemy, so
+  "drain stopped" ≠ "MAX". No milestone line is wired.
+- The battle D-Link LIST itself does not speak (its cursor is
+  the field deck-cursor problem, still open); what speaks is
+  the activation, with the partner's name. The camp D-Links
+  page — the roster with levels — already speaks through camp.
+- The link's Finish command is not announced: no distinct
+  signal was isolated for its availability window (the low-
+  gauge screenshots show the partner deck unchanged).
+- Proven on the Final Episode fight lineage (Aqua). The
+  signals are the game's own object + flag bits (located by a
+  fixed global, not heap fingerprints), and the host plants
+  cover the state machine; other lineages re-verify cheaply
+  because the global is constant.
+
+## Shops — the Medal Shop and the Moogle Command Shops (2026-10-24/25)
+
+Both shop families are wired: the Mirage Arena Medal Shop (medals)
+and the Moogle "Command Shop" (munny; proven at Olympus Coliseum —
+the same shop stands in several worlds). The Medal Shop is
+buy-only; the Command Shop has Buy / Sell / Exit. Benches:
+`~/khbbs-scan/khbbs-shop1.cpp` … `shop21.cpp`, findings in
+`~/khbbs-scan/shop-progress.md`.
+
+### Screens and gates
+
+Shops run in their own module (SHOP.ELF); the camp screen registry
+and the camp menu-active word are garbage/zero inside, so the gate
+is shop-native, resting on three corroborations:
+
+1. **Phase words** (SHOP.ELF BSS, fixed while the module is
+   loaded): main u16 @ `0x09918E8C` — 2 = Command Shop top level,
+   4 = buy list, 5 = sell list, 6 = buy quantity/confirmation,
+   7 = sell quantity/confirmation (the Medal Shop uses 4/6 only).
+   Sub u16 @ `0x09918F10` — 5 at the top level, 40 on a
+   confirmation step, 30 while a confirmed transaction processes,
+   10 elsewhere. Camp/field/title dumps read garbage here.
+   Phase announcements latch only after **4 stable frames**: the
+   quantity screen's opening shows the confirm sub-value for
+   exactly 2 frames (frame-traced), which fooled a 2-frame latch
+   into announcing the confirmation before the quantity prompt.
+2. **The list widget** (heap, floats per lineage; signature-scanned
+   in `0x09910000–0x09960000`, never hardcoded): cursor u16 @
+   +0x34, current-list count u16 @ +0x36 with a mirror @ +0x3E,
+   tab u16 @ +0x04 (lists only — the top widget's +0x04 is a type
+   word), and a back-pointer @ +0x2C to the shop state block
+   `0x09918AC0`. The count must equal the row count the adapter
+   computes for that tab (below). The back-pointer is what
+   separates the top-level widget from the dozens of static
+   count-3 structs in the heap — without it the top level never
+   opened live. The Command Shop has three widgets (top / buy /
+   sell), the Medal Shop one. Widgets linger after the shop
+   closes; the phase word drops the gate.
+3. **The stock table** (below), without which the gate stays shut.
+
+Quantity is a u16 @ `0x09918F14` (up/down ±1, left/right ±10; a
+slam reached 121 — no 99 cap observed). The confirmation defaults
+to **No** in both shops; its cursor is a one-hot pair in the heap,
+so the choice is tracked from the player's own presses (the meld
+dialog precedent). A completed transaction is proven by the
+currency word moving — medals u32 @ player block +0x287E0, munny
+@ +0x287DC — with the traded row's name frozen at confirm entry.
+(One fixture quirk: a 1000-medal purchase moved the stored word
+999999 → 99999; the word matched the on-screen balance at every
+checkpoint, and the adapter speaks the word.)
+
+### Stock, rows, names
+
+The stock is a file image loaded with the shop (an ARC sibling:
+`mdlXXShop.bin` for the Medal Shop, `cmdXXShop.bin` for the
+Command Shop), magic `"SHP\0"` at +0, a type u16 at +6 and a u32
+count at +8. **The type word selects the format, and the formats
+differ**: type 2 (Medal) = 8-byte records `{u16 id, u8 kind
+(1 = command, 0 = item), u8 sub, u16 ?, u16 price}`; type 1
+(Command) = bare ascending u32 **def ids only — no prices**.
+
+Rows are never materialized per tab; they are rebuilt by filtering
+the table through the def table's family/sub bytes (the meld
+scheme): family 2 sub 1 = Attacks, sub 2 = Magic, sub 3 = Items
+(battle item commands), subs 12/13 = Friendship; family 3 sub 4 =
+Movement, sub 5 = Defense, sub 6 = Reprisals; family 5 = Shotlocks
+(the Medal Shop's ETC tab; the Command Shop has 8 tabs, no
+Shotlocks). The Medal Shop's plain items appear only in All.
+
+The Command Shop's visible list is its 87 ids minus four defs the
+game never displays (94 Meteor Crash, 99 Chaos Blade, 110 Ars
+Solum, 130 Break Time — meld-only/special commands), verified
+row-for-row against a full photographed walk of the 83 rows.
+
+**Prices are not in RAM** for the Command Shop in any flat,
+indexed or near-id form (exhaustive searches). They are per-def
+game constants, shipped as adapter data (`kShopPrices`, harvested
+from the live buy screens for all 83 visible rows; three hidden
+defs priced through the sell formula — 110 exactly: its LV6 sell
+price 4500 = 4000 × 9/8). 130 Break Time's price was never needed
+or found; its rows speak without one. Medal Shop prices ride in
+its table records.
+
+**Item names — settled.** They ride the same resident message
+tables as the field dialogue: category `0x2800`, message id
+`0x28000000 | item_id`, resolved through the dialogue census.
+All 16 Medal Shop items resolve and match their screenshots
+(Risky Ticket 150 … Giga Attack Recipe 2000). Command names come
+from the def table as usual.
+
+**Sell rows** are the command pool's family-2 **and family-3**
+instances sorted by def id, pool order breaking ties — the
+widget's 165 rows = 152 + 13 on the fixture; finishers (family 1)
+and shotlocks (family 5) are never sellable. Sell price is
+computed: `floor(buy × (level + 3) / 8) + (ability ? floor(buy / 4)
+: 0)`, fitted exactly on ~20 live rows (level and ability from
+the pool instance). Item-command stacks are single rows whose +2
+byte is the held count; they speak their count, not a price.
+
+**"In stock"** has three proven sources: a command's pool
+instance count (a live purchase moved it 2 → 3); an item
+command's held count (its pool instance's +2 byte — Potion reads
+60); and for plain items, the player block's inventory section —
+category tables of `{u16 id, u16 count}` pairs (buying one
+Shimmering Crystal moved its pair 50 → 51). The adapter speaks a
+plain item's stock only when the pair sits in an ascending id run
+with plausible neighbours and is unique in the section; anything
+less stays unspoken.
+
+### What's spoken
+
+Arrival ("Medal Shop. …" / "Moogle Shop. …") with the landed row
+and the balance; top-level rows (Buy / Sell / Exit); buy and sell
+rows with name, price and position; item rows with their stock;
+tab landings ("Attacks. …", incl. "No items." for empty tabs);
+the quantity prompt and its echo; the confirmation in the game's
+own words ("Trade in these medals?" / "Complete this purchase?" /
+"Complete this sale?", choice tracked from presses, starting on
+No); completion ("Bought …" / "Sold …" + the new balance); and
+WhereAmI on every shop screen.
+
+### Limits
+
+- **Refusals are silent in the game and unwired.** Pressing Cross
+  on a Medal Shop ticket row (Sentinel Ticket, one already owned)
+  never entered the quantity step — consistent with a one-own
+  limit, but the mechanism is a single observation, so nothing is
+  wired for it. Can't-afford and full-inventory states were not
+  probed (both fixtures are rich); no refusal speech exists.
+- **No synthesis screen exists in either shop as mapped** — the
+  Medal Shop is buy-only and the Moogle is a Command Shop with
+  Buy/Sell/Exit. (Command melding lives in camp, already wired.)
+- Radiant Garden's Moogle (`n11ex00`, room 5) stands behind a
+  gate/wall the walker could not pass and teleports do not stick;
+  that room's shop was never opened. The Command Shop wiring was
+  proven at Olympus Coliseum's identical shop (`n10ex00`).
+- The shop gate fails closed if two list widgets ever share a
+  row count (the count cross-check is part of the signature);
+  the phase words make a wrong match unable to speak wrong rows.
+- A widget's tab/cursor words are only read while its list is
+  the phase's active list; the dormant widgets hold stale values.
+
+## Sound-first battle feedback — AUDITED + WIRED (2026-10-24/25, bench khbbs-snd1/snd2/snd3)
+
+The owner's rule (2026-10-24): never speak what the game already
+cues with a sound; in high-action play prefer sounds over speech.
+This pass audited every battle line the Focus/D-Link batch added
+(plus the older lock-on line) against the game's own audio, then
+rebuilt the feedback around the settled design. Menus, camp,
+shops, the world map and dialogue are untouched — their speech
+stays.
+
+### The audio audit (bench khbbs-snd1 + khbbs-snd2)
+
+Two bench fights (battle30's Radiant Garden state, Aqua vs the
+1200 HP foe) with the game's audio captured per frame
+(`psp_read_audio`, 32768 Hz) and every adapter-visible event
+frame-stamped against it. Method: 256-sample bucket peaks;
+baseline = the fight's own music with no combat events (peak
+median 0.25, p99 ≈ 0.51 of full scale); an event counts as
+sounded when its tight window (first 0.12 s) clearly beats that
+baseline. Verdicts:
+
+| line / event | verdict | evidence |
+|---|---|---|
+| "Shotlock fired." | REMOVED | the fire transition (aim fall + firing state) peaks at 1.000 in the tight window — the shot is fully sounded by the game |
+| "Shotlock." (aim start) | kept | aim entry peaks 0.31 in both runs, BELOW the music's own p99 — no cue at the entry instant; the line is also the only proof a hold engaged rather than re-locking |
+| "Shotlock cancelled." | kept | the only sound at a clean cancel (snd2 @680) is a 0.80 aim-exit whoosh — the same exit sound every aim end shares; it cannot say "cancelled, Focus refunded", and the refund is the fact that matters |
+| "Focus full." | became a sound | no cue of its own: the one loud window (snd1 @2012) is fully explained by the hit that fed the gauge across the line 2 frames earlier; the clean crossing (snd2 @680) shows only the shared aim-exit whoosh |
+| "D-Link ready." | became a sound | by the owner's split (gauge-full = sound); the primed crossing itself was not captured on the bench (a pinned gauge does not move for prizes — snd2) — recorded as uncaptured, not as silent |
+| "D-Link: <name>." | kept | activation IS sounded (jingle; snd1 tight 0.67, snd2 to 1.00) — but a jingle cannot name the partner, and the name is the content (owner's split: big state changes keep speech) |
+| "D-Link ended." | kept | tight peaks 0.45 / 0.64 across the two runs — at most a soft tick at the music's own level; effectively uncued |
+| "Locked on." | kept | the engage tick measures 0.32–0.58 against a music p99 of 0.51 — at the music's level, not a reliable cue |
+| lock loss | stays silent | 0.25–0.64, inconsistent; nothing reliable to duplicate, and prior behavior was already silent |
+| "Low health." | kept | the owner's decision; the milestone family below now speaks the 25% crossing alongside it |
+| hits (both sides) | beeps added | every HP drop lands with a full-scale game impact (foe hits median peak 0.99, own hits 1.00, n=15/49) — the impact carries no value, so the beep adds the value as pitch |
+| field-line gauge text ("Focus full." etc. in Where Am I) | kept | a query ANSWER, not an event — the same reason exact foe numbers stay on the foe query |
+
+### The health beeps (WatchHealthCues, beside WatchLowHp)
+
+- A hit that drops the TRACKED FOE's HP raises a one-shot foe
+  beep; a hit on the player raises an own beep. Events ride the
+  cue snapshot as trailing one-frame fields (foe_beep/hz/pan,
+  own_beep/hz/pan, focus_cue, dlink_cue) — the core_gain pattern
+  from the Dissidia work — and out through the new core call
+  `poke_cue_health()`. The snapshot consumes them only on a poll
+  that passes its field gates; detach/attach clears them.
+- PITCH IS LOGARITHMIC in the new health fraction (perceived
+  pitch is roughly log frequency, so equal health steps sound
+  like equal pitch steps): foe 1200 Hz at full falling to
+  300 Hz (bright tick, ~35 ms), own 800 falling to 200 Hz
+  (duller thud register, ~55 ms). PAN: foe RIGHT +0.8, own LEFT
+  −0.8 (the owner's sides). Register AND pan both differ, so the
+  sides stay separable through a mono speaker. Waveforms,
+  durations and levels are the synth's side — specified in
+  docs/design/cue-synth.md ("One-shot event fields"), NOT yet
+  implemented in the app; until the synth grows the recipes,
+  the events are computed and delivered but not heard.
+- MILESTONES: crossing 75 / 50 / 25 speaks "Foe health N
+  percent." / "Your health N percent."; crossing 10 speaks
+  "Foe nearly gone." / "Your health nearly gone." The percent
+  is the game's own integer arithmetic, (cur*100)/max. A plunge
+  through several crossings speaks only the lowest. A drop to
+  0 raises NOTHING (a death has the game's own sound and flow).
+- LATCHES: per subject (actor / foe block + max HP). Priming is
+  silent with at-or-below milestones pre-latched (a fight joined
+  at 40% speaks 25 on the way down, never 75/50). Healing back
+  to milestone + 5 re-arms (the low-HP watch's hysteresis
+  shape).
+- THE TRACKED FOE is the lock-on target while locked. While
+  unlocked it is the last locked foe, followed through its
+  entity block while the block still validates (same max HP,
+  sane HP, live scene word) — foe HP only drops because the
+  player hit it, so "the foe the player just hit" and "the last
+  locked foe" coincide in this game's fights. LIMIT: a foe that
+  was NEVER locked is not followed — finding it would take a
+  per-frame actor census, and the one census the adapter has
+  (the lock-record sweep, ~2M reads) is throttled to 1/s for
+  exactly that reason. While locked, the watch rides the cached
+  record (ReadFoeBlock — ReadFoe's validation minus distance
+  and minus the sweep; the proven query paths keep their own
+  code untouched).
+- Events stash only with the field in front (camp/Reports
+  gate), the watches' usual discipline: hits cannot land under
+  a menu, and a stale beep after one closes would misdate the
+  hit.
+- RESEARCH the design borrowed from (the owner asked for the
+  lookup): Mortal Kombat 1's official accessibility "Health
+  Meter" cue sounds at exactly 75/50/25/critical — this
+  milestone set verbatim (WB Games support documentation);
+  Street Fighter 6's designed hit/health/Drive indicator
+  sounds (hit-connect vs blocked get distinct sounds; its
+  distance cue rises in pitch AND rate); the academic
+  informative-sound literature (critical health wants a low,
+  dull, slow character — the own-side thud register); and the
+  known failure mode of REPEATING low-HP alarms, which the
+  per-hit event shape avoids. The project's own Dissidia
+  doctrine supplied the frame: one family per kind, identity
+  in the timbre, thresholds with hysteresis, silence is a cue.
+
+### The gauge-full split (decision: configurable)
+
+In the default SOUND mode, a Focus-full or D-Link-primed edge
+stashes an earcon pulse (Focus 1560 Hz / D-Link 1180 Hz —
+the beacon family's bright carriers, centred, ~60 ms; recipes
+in cue-synth.md) instead of speaking. The seam is
+`oga::KhbbsHudGaugeCues(bool)` at the top of the adapter: pass
+false and the spoken "Focus full." / "D-Link ready." lines
+return and no pulses are raised. It is a setting, not session
+state — attach/detach do not reset it. THE FUTURE PER-GAME
+SETTINGS PANEL BINDS HERE (its "HUD gauge cues: sounds /
+speech" control for this game); no panel was built in this
+pass. The low-HP warning and the milestone lines are not
+behind the seam — they are speech by the owner's decisions in
+both modes.
+
+### Proof
+
+- Host tests: 425 checks, all passing (floor raised 359 ->
+  425). The gauges section now asserts the earcons and the
+  fired shotlock's silence; a dedicated section drives the
+  whole ladder on both sides (beep pitch/pan values, milestone
+  latching and re-arm, plunge rule, silent prime mid-fight,
+  unlocked tracking and its validation end, killing-blow
+  silence, and the seam in both modes). The low-HP and
+  world-map sections' expectations were updated where the
+  milestone lines now legitimately speak alongside.
+- Live proof: bench khbbs-snd3 + khbbs-snd4 (the new adapter
+  in a real fight, cue snapshot polled every frame). snd3's
+  melee: dozens of foe beeps on the right, pitch falling
+  1155 -> 494 Hz as the foe dropped 1167 -> 431, with "Foe
+  health 75 percent." and "Foe health 50 percent." spoken at
+  the crossings; own beeps on the left tracking Aqua's HP the
+  same way; "D-Link: Ventus." and "D-Link ended." spoken;
+  two shotlock cancels, each speaking only "Shotlock
+  cancelled." while the refund raised the Focus earcon. No
+  "Focus full." / "D-Link ready." line anywhere. snd4: three
+  genuine firings (the firing state entered and exited) with
+  the aim spoken and the shot itself silent — the shots were
+  EMPTY, because this fight's foe is a ranged kiter that stays
+  outside lock range (17–23 units at every aim), so no
+  foe-damage beeps came from the shots themselves; foe damage
+  rides the identical drop path the melee proved. A bonus from
+  snd4: a counterattack volley after one shot produced a burst
+  of own beeps with falling pitch, and the hits refilled Focus
+  through full — earcon, no line.
+
+### Remaining app-side work (explicitly not done here)
+
+- DONE 2026-10-24 (app queue item): both apps now voice the events.
+  iOS's CueSynth polls `poke_cue_health()` per frame and renders the
+  four recipes in cue-synth.md; Android gained its synth the same day
+  (it had none at all — beacon included) behind a new Settings
+  "Battle cue sounds" switch, off by default like iOS's. The core
+  bridge grew a per-frame snapshot cache so the three cue polls share
+  one snapshot and no poll starves another (details in
+  docs/design/cue-synth.md, "App-side implementation"). Verification
+  there is compile/contract/algorithm level: neither app's new code
+  has been built on this machine (no Xcode/Android SDK here) and no
+  device has sounded a beep yet — that is the remaining proof.
+- The per-game settings panel (separate queue item) binds
+  `oga::KhbbsHudGaugeCues(bool)`; today the default (sound
+  mode) is compiled in.
+
+## Enemy NAME — the foe readout and the lock-on moment name the foe (2026-10-24/25, bench khbbs-name1–name10)
+
+The open question since the foe readout landed: the target's scene
+id (entity block +0x1B8) was never proven to be a TYPE id, and with
+one enemy on screen an instance id and a type id look alike. Settled
+now, in three steps.
+
+### The scene id is an instance index — proven, not assumed
+
+Every scene object embeds its object code as an ASCII string at
+scene object +0x88 (foe entity block +0x240). A census keyed on
+that string (small id word at string−0x88, 0x00011000 at
+string−0x80) shows the id running in spawn order across types:
+the Mirage Arena lobby holds g11vs00 id 19, g10vs00 id 18, TWO
+g12vs00 transporter rings at ids 20 and 21, g01ex00 id 22,
+n13ex00 id 25. One fight (battle41) holds p02ex00 id 15, g12rg00
+17, g18rg00 18, the locked target 19, its keyblade 21. Same-type
+actors always differ; the code is the constant. (This census also
+corrects a standing mislabel: battle41's target, long called a
+Red Hot Chili in these notes, carries code b51ex00 — the
+screenshots agree, a tall dark figure, no chili pot. Its HP
+series was real; its name was not.)
+
+### The name source: the game's own journal
+
+The journal's Unversed entries are message category 0x3800,
+name part at id 0x38000000 | (entry << 8): entry 0x81 Flood,
+0x82 Scrapper, 0x83 Bruiser, 0x84 Red Hot Chili, 0x85
+Monotrucker, 0x86 Thornbite, 0x87 Shoegazer, 0x88 Spiderchest,
+0x89 Archraven, 0x8A Hareraiser, 0x8B Jellyshade, 0x8C Tank
+Toppler, 0x8D Vile Phial, 0x8E Sonic Blaster, 0x8F Triple
+Wrecker, 0x90 Wild Bruiser, 0x91 Blue Sea Salt, 0x92 Yellow
+Mustard, 0x93 Mandrake, 0x94 Buckle Bruiser, 0x95 Chrono
+Twister, 0x96 Axe Flapper, 0x97 Prize Pod, 0x98 Glidewinder,
+0x99 Blobmob (dumped from the Reports-open image, bench
+sub1/s5). Entry = enemy number + 0x80, in order, for all 25 —
+the same numbering the object codes carry (m01..m25). The table
+is NOT resident during a fight (a fight dump holds five message
+tables, none of them 0x3800; it loads with the Reports screen),
+so the proven mapping ships as adapter data, the pattern the
+harvested shop prices already use.
+
+### Wiring
+
+ReadFoe's locator preamble is extracted as FoeSceneObject()
+(shared, unchanged semantics). ReadFoeName() reads the 8 code
+bytes at target +0x88 and resolves through FoeTypeName():
+strict shape [a-z] digit digit [a-z] [a-z] digit digit NUL,
+'m' codes with the ex/vs infix only, numbers 1..25 (the
+trailing variant digits are spawn variants — m24ex02 is still
+Glidewinder). Speech: the foe query "Bruiser. Health 75 of 75.
+3 away."; the lock query "Locked on: Bruiser. 9 away."; the
+field line's clause " Locked on. Bruiser health …"; the lock-on
+edge "Locked on: Bruiser." (the name only — the audit measured
+the lock tick at music level, so this stays a query-grade
+answer, no chatter). Every surface falls back to the exact
+pre-name line when the code does not resolve. The health-beep /
+milestone tracked-foe logic is untouched: the name is a type
+label, tracking stays per-actor (two same-type foes behave —
+proven live and in host tests). The registry notes and coverage
+line describe the naming now; AdapterLibraryData.kt
+regenerated, --check green.
+
+### Live proof (Mirage Arena, "Day of Reckoning", bench name8–name10)
+
+Arena entry mapped on the way (queue item 15's first screens):
+Log In terminal → New Event → Arena Mode (the mode list's
+cursor starts there) → event screen → Down Down → OK → walk
+onto the sunken pad at the lobby's middle (0, ~0; the field
+prompt lights "✕ Ready") → Cross → START Begin. The event
+fields escalating waves; every spoken name was cross-checked
+against the actor census of the same moment's RAM dump and the
+screenshots:
+
+- m01vs00 Flood ×5 (25 HP, scene ids 32/35/37/39/43 — the
+  instance spread again) + m03vs00 Bruiser (75 HP, id 41):
+  "Locked on: Flood.", "Flood. Health 25 of 25. 2 away."
+- m02vs00 Scrapper ×6 (50 HP): "Locked on: Scrapper.",
+  "Scrapper. Health 50 of 50. 5 away."
+- m04vs00 Red Hot Chili ×2-3 (25 HP): named at lock and query.
+- m06vs00 Thornbite ×3 (60 HP): "Thornbite. Health 1 of 60.
+  4 away." alongside the sound-first "Foe nearly gone."
+- m03vs00 Bruiser packs (three at once in later waves):
+  "Bruiser. Health 16 of 75. 3 away." with the reticle on the
+  Bruiser in cmb10.png and the census block at exactly 16/75.
+- m05vs00 Monotrucker (55 HP) and m09vs00 Archraven ×4
+  (60 HP): "Locked on: Monotrucker.", "Archraven. Health 60
+  of 60. 10 away."
+
+Seven types live-proven (m01, m02, m03, m04, m05, m06, m09);
+the other 18 table entries rest on the journal mapping alone
+(same mechanism, same key) and are listed as such. A lock taken
+in the first frames of a wave's spawn can still announce the
+plain "Locked on." — the code read fails closed while the actor
+settles; the name is there on the next query or re-lock.
+
+### Limits — what stays unnamed, on purpose
+
+- Boss ('b') codes: the journal's boss entries (0x9A Mad
+  Treant … 0xA4 Trinity Armor) are sequenced, not keyed by the
+  b-number, and character bosses have no Unversed entry at
+  all. No b-code resolves. (The event above closed with a boss
+  object, b10vs00 at 1200 HP — read by health/distance only.)
+- The Jellyshade variants m27/m28/m32 and the arena Heartless
+  m40/m41/m42 have no journal entry of their own keyed to their
+  number — unmapped rather than guessed.
+- Host tests: 436 checks (11 new: the four named surfaces,
+  lock-edge naming, same-type bystander, variant-suffix and
+  vs-infix names, boss/variant/range/garbage negatives);
+  strength floor raised 425 → 436.
+
+## Multi-enemy awareness — the count and the roster (2026-10-25, bench khbbs-multi1)
+
+The foe readout answers for ONE foe. In a pack fight the player
+also needs: how many foes are there, and where are the others?
+Built query-driven only, per the sound-first doctrine: battles
+are high-action, so nothing here narrates. Three surfaces:
+
+- The field line (and so Where Am I) appends " N enemies."
+  when two or more validated foes are in the fight.
+- The foe query: locked, it appends " N other enemies.";
+  unlocked, it answers "Not locked on. N enemies." when any
+  foe is present (the plain refusal stands when there are none).
+- A new command, **Enemies** (appended to the ABI as value 43;
+  iOS button "Enemies", symbol person.3; Android constant and
+  generated library data in step), speaks the roster: a count
+  line, then each foe nearest-first — "Bruiser, 4 away,
+  2 o'clock, locked on." Bearings are clock positions from the
+  movement-derived facing when it is live, and are omitted —
+  never invented — when it is not, or when the foe is too close
+  to call (< 1 unit of ground offset). At most 8 entries are
+  spoken, then "And N more."
+
+### Enumeration: the census
+
+One pass over 0x09800000..0x0A000000, one signature read per
+word (2,097,152 reads — the same order as LocateLockRecord's
+proven sweep, and it runs **at query time only**, cached for
+1.5 s, never on the frame path; the tracked-foe beep logic is
+untouched and never pays for it). A word is a scene object when
+the signature 0x00011000 sits at obj+0x08; it is a **foe** when
+all of these hold:
+
+- the object code at obj+0x88 has the strict code shape and an
+  'm' or 'b' prefix (the player is 'p', props/NPCs are 'g'/'n',
+  weapons 'w' — the lobby's transporter rings, the Log In
+  terminal and the player's own keyblade all fall out here);
+- the scene id at obj+0x00 is a small index (≤ 100000);
+- the HP pair at (obj−0x1B8)+0x380/+0x382 is sane: max in
+  10..20000 and 0 < cur ≤ max (the dead, the not-yet-spawned,
+  the 0-HP props and the boss's 1-HP keyblade fall out here).
+
+Measured cost: 17–26 ms per full census on the bench host
+(whose reads go through the emulator's debug interface; the
+shipped host reads memory directly). The 1.5 s cache means a
+burst of queries — roster, then foe, then Where Am I — pays
+for one sweep in the app.
+
+### A foe's position: the bone palette, candidate 3
+
+No fixed offset holds a foe's position (the +0x8F0 word that
+works for some foes reads zero or garbage for others — the
+three Bruisers in the cmb5 dump, while both Chilis beside them
+were exact). What every scene object does embed is a palette
+of bone matrices. A well-formed candidate in obj+0x400..
+obj+0xC00 is a translation row (x, y, z, exactly 1.0f) preceded
+within 0x30 by three rotation rows of unit length (±0.03) with
+w = 0. Validated over the name8/9/10 dump corpus: 175 foe
+instances, 153 (87%) carry at least four candidates; against
+the 20 locked foes whose true position the lock record gives,
+candidate **index 3** (ascending offset) matched exactly 17
+times, no other index matched ever, and 3 had no well-formed
+palette at all (a Scrapper mid-spawn, a flying Archraven, a
+Thornbite mid-death at 1 HP). The roster therefore takes
+candidate 3 or claims **no position**: the foe is still counted
+and named, its entry just carries no distance, and unpositioned
+foes sort after positioned ones. Distances are 3D from the
+player's engagement-node position — ReadFoe's convention.
+
+### No wave event, on purpose
+
+A latched "new wave" announcement was considered and rejected:
+(a) it would put the census sweep on a frame cadence — the
+cost this design exists to avoid; (b) a foe's death is already
+carried by the hit beeps and milestone speech, and the game
+sounds spawns itself; (c) the count is one button press away
+and always current when asked. Deaths are never double-reported.
+
+### Live proof (Mirage Arena "Day of Reckoning", bench khbbs-multi1)
+
+From the name10 bench's mid-fight state; every spoken line was
+checked against an independent re-implementation of the census
+over the same moment's RAM dump (multi_census.py), plus the
+screenshots:
+
+- Unlocked: "6 enemies." — three Red Hot Chilis at census
+  distances 8.70 / 12.37 / 12.61 spoken as 9 / 12 / 13 away;
+  three Bruisers counted and named with no distance (no
+  readable palette at that instant — fail-closed, as offline).
+  Foe query "Not locked on. 6 enemies."; Where Am I "… 6
+  enemies."
+- Locked (the nearest Chili): roster "Red Hot Chili, 9 away,
+  locked on."; foe query "Red Hot Chili. Health 25 of 25.
+  9 away. 5 other enemies."; the lock query agrees at 9 away.
+- After ~40 fight iterations and a wave change: "7 enemies." —
+  Bruiser at 5.77 spoken 6 away, three Archravens at
+  12.04 / 12.49 / 15.84 spoken 12 / 12 / 16 away, with clock
+  bearings (2 / 1 / 5 / 8 o'clock — the facing was live after
+  the fight's movement), three more foes named without
+  distance; Where Am I agrees: 7 enemies. The screenshot shows
+  an Archraven in Terra's face, mid-fight.
+
+### Limits
+
+- The census is query-time truth, cached up to 1.5 s: asked in
+  a burst, the surfaces agree with each other; a foe dying
+  between the sweep and the speech is possible in principle.
+- ~13% of foe instances (corpus measure) have no readable
+  palette at a given instant — mid-spawn, flying, mid-death —
+  and speak name-only. In the live pack above, half the roster
+  was name-only at the first ask; positions came and went as
+  the fight moved. The count never depends on positions.
+- Roster order is by distance among positioned foes; a
+  positionless foe that is actually nearest still sorts last.
+  Its existence and name are never hidden.
+- Census cap 16 foes; roster speaks at most 8 entries plus
+  "And N more." No fight observed comes close (7 is the most
+  seen, in the arena event above).
+- Names follow the foe-name rules: journal-proven types only;
+  bosses and unproven codes count and read as "Enemy".
+- Host tests: 449 checks (13 new: planted scene objects —
+  pack composition, prop/dead/broken-code/player exclusions,
+  roster order and the locked mark, the count on all three
+  surfaces, clock bearings after a movement leg, the
+  no-position fail-closed entry, the empty field); strength
+  floor raised 436 → 449. The full adapter gate, the Swift
+  ABI mirror (43 Enemies) and the Android launcher contract
+  (enum now 44) all pass; the Android library was regenerated
+  with the Enemies button and title.

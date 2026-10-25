@@ -43,9 +43,28 @@ final class CueVoice {
     /// direction -- the lock-on beacon leaves it at 0, because the game already aims you.
     var pan: Float = 0
 
+    // ---- one-shot state (the health / gauge-full event family) --------------
+    //
+    // A one-shot is a triggered moment, not a state: the trigger (main thread)
+    // loads frequency/pan/gain and a sample count, and the render block counts
+    // the shot down and shapes it. The beacon voices never touch these fields.
+    /// Samples left in a triggered one-shot; counted down ONLY by the render
+    /// block, and hitting 0 silences the voice (it sets gain back to 0 there).
+    fileprivate var shotLeft: Double = 0
+    /// The one-shot's full length in samples: the decay envelope's denominator.
+    fileprivate var shotTotal: Double = 1
+    /// Decay exponent of the one-shot envelope. Higher sheds energy faster --
+    /// the foe's bright tick decays harder than the player's duller thud.
+    var shotCurve: Float = 2
+    /// Second-harmonic level at the one-shot's start, decaying FASTER than the
+    /// fundamental (the envelope multiplies it by an extra decay factor), so a
+    /// voice can start slightly rich and settle pure -- the thud's dullness.
+    var partial: Float = 0
+
     // Render-block state (touched only from the audio thread).
     fileprivate var phase: Double = 0
     fileprivate var pulsePhase: Double = 0
+    fileprivate var partialPhase: Double = 0
 }
 
 /// The cue mixer. Owns a fixed pool of voices — no allocation on the audio path, which is
@@ -190,7 +209,7 @@ final class CueSynth {
     /// 3 EX core. Silence for 0 and 1 — a battle with no lock has nothing to point at.
     func updateBeacon(state: Int32, distance: Float, enabled: Bool) {
         let v = voices[Family.beacon.rawValue]
-        guard enabled, state == 2 || state == 3 else {
+        guard enabled, state == 2 || state == 3 || state == 4 else {
             v.gain = 0
             return
         }
@@ -210,6 +229,89 @@ final class CueSynth {
         v.gain = 0.18 + 0.12 * (1 - t)
     }
 
+    // ---- The one-shot family: health beeps and gauge-full earcons --------------
+    //
+    // The second cue shape beside the beacon (docs/design/cue-synth.md,
+    // "One-shot event fields"). The beacon is a STATE the poll re-asserts every
+    // frame; these are MOMENTS the adapter detected from memory edges and
+    // delivered exactly once through poke_cue_health(). Four dedicated voices
+    // sit OUTSIDE the family pool because two of them must sound at once -- a
+    // traded blow fires the foe's and the player's beeps in the same frame,
+    // and one voice can only hold one frequency. Their LEVELS still come from
+    // the families: both hit beeps ride Family.health (one level, never per
+    // side), and the gauge-full earcons ride Family.beacon, the readiness
+    // family they belong to perceptually.
+
+    private let foeHitVoice = CueVoice()
+    private let ownHitVoice = CueVoice()
+    private let focusCueVoice = CueVoice()
+    private let dlinkCueVoice = CueVoice()
+
+    /// The recipes, from the design doc. Durations are the audible shape: a
+    /// 35 ms bright tick for the foe, a 55 ms duller thud for the player, and
+    /// ~60 ms centred blips for the gauges, in the beacon family's carrier
+    /// register (the D-Link earcon reuses the EX core's 1180 Hz on purpose:
+    /// "something is ready" sounds related wherever it comes from).
+    private static let foeHitSeconds: Double = 0.035
+    private static let ownHitSeconds: Double = 0.055
+    private static let earconSeconds: Double = 0.060
+    private static let focusHz: Float = 1560
+    private static let dlinkHz: Float = 1180
+
+    /// Load one voice with a one-shot. Phase restarts at zero so the sine
+    /// starts at a zero crossing; the render envelope adds a ~1 ms attack
+    /// ramp on top, so a trigger can never click.
+    private func trigger(_ v: CueVoice, hz: Float, pan: Float, seconds: Double,
+                         gain: Float, curve: Float, partial: Float) {
+        v.frequency = hz
+        v.pan = max(-1, min(1, pan))
+        v.pulseHz = 0
+        v.phase = 0
+        v.partialPhase = 0
+        v.shotCurve = curve
+        v.partial = partial
+        v.shotTotal = max(1, seconds * Self.sampleRate)
+        v.shotLeft = v.shotTotal
+        v.gain = gain
+    }
+
+    /// Voice one frame of one-shot events. `bits` is poke_cue_health()'s
+    /// return: 1 foe beep, 2 own beep, 4 Focus full, 8 D-Link full.
+    ///
+    /// ⛔ THE PITCH IS PLAYED AS GIVEN, NEVER RE-MAPPED. The adapter already
+    /// mapped the new health fraction to a frequency logarithmically (foe
+    /// 1200→300 Hz, own 800→200 Hz); a second mapping here would compress
+    /// the scale the player is learning. The pan likewise arrives with the
+    /// event (+0.8 foe right, −0.8 own left).
+    ///
+    /// `enabled` is the battle-cues switch, the same one that gates the
+    /// beacon. Off drops the events unheard: they are one-frame moments,
+    /// and holding them for a later un-mute would voice a hit that is
+    /// already over.
+    func updateOneShots(bits: Int32, foeHz: Float, foePan: Float,
+                        ownHz: Float, ownPan: Float, enabled: Bool) {
+        guard enabled else { return }
+        if bits & 1 != 0 {
+            // Bright tick: pure sine, hard decay.
+            trigger(foeHitVoice, hz: foeHz, pan: foePan, seconds: Self.foeHitSeconds,
+                    gain: 0.5, curve: 2.2, partial: 0)
+        }
+        if bits & 2 != 0 {
+            // Duller thud: a slower decay plus a second harmonic that
+            // decays faster than the fundamental (see CueVoice.partial).
+            trigger(ownHitVoice, hz: ownHz, pan: ownPan, seconds: Self.ownHitSeconds,
+                    gain: 0.55, curve: 1.6, partial: 0.35)
+        }
+        if bits & 4 != 0 {
+            trigger(focusCueVoice, hz: Self.focusHz, pan: 0, seconds: Self.earconSeconds,
+                    gain: 0.4, curve: 1.4, partial: 0)
+        }
+        if bits & 8 != 0 {
+            trigger(dlinkCueVoice, hz: Self.dlinkHz, pan: 0, seconds: Self.earconSeconds,
+                    gain: 0.4, curve: 1.4, partial: 0)
+        }
+    }
+
     /// Clear the beacon when a LOCK-ON cue takes over from a field cue. WHY: both cues share
     /// the one beacon voice (one voice per FAMILY), so a field cue's pan would otherwise
     /// persist into a battle cue and pan a sound that is supposed to be centred.
@@ -221,23 +323,89 @@ final class CueSynth {
     /// Silence every family. Used when the game stops.
     func silenceAll() {
         for v in voices { v.gain = 0 }
+        for v in [foeHitVoice, ownHitVoice, focusCueVoice, dlinkCueVoice] {
+            v.gain = 0
+            v.shotLeft = 0
+        }
     }
 
     // ---- The render side ----------------------------------------------------------------
 
     private static let sampleRate: Double = 32768
 
+    /// One sample of one voice (before pan), advancing the voice's render state.
+    ///
+    /// Two envelope shapes share this path. A STATE voice (the beacon) pulses:
+    /// the raised-cosine pulse envelope the beacon has always used. A ONE-SHOT
+    /// voice (shotLeft > 0) decays: a ~1 ms attack ramp so the start cannot
+    /// click, then a power curve down to zero, at which point the voice
+    /// silences itself -- a triggered moment must end even if no later poll
+    /// ever touches the voice again.
+    private func voiceSample(_ v: CueVoice, gain g: Float, sr: Double) -> Float {
+        var env: Float = 1
+        if v.shotLeft > 0 {
+            let frac = Float(v.shotLeft / v.shotTotal)            // 1 at start, 0 at end
+            let attack = Float(min(1.0, (v.shotTotal - v.shotLeft) / (sr * 0.001)))
+            env = attack * powf(frac, v.shotCurve)
+            v.shotLeft -= 1
+            if v.shotLeft <= 0 { v.shotLeft = 0; v.gain = 0 }
+        } else if v.pulseHz > 0 {
+            let period = Double(sr) / Double(v.pulseHz)
+            let pos = v.pulsePhase.truncatingRemainder(dividingBy: period) / period
+            let duty = Double(max(0.05, min(1.0, v.dutyCycle)))
+            let ramp = 0.06                      // fraction of the period
+            if pos < duty {
+                let into = pos, out = duty - pos
+                env = Float(min(1.0, min(into / ramp, out / ramp)))
+            } else {
+                env = 0
+            }
+            v.pulsePhase += 1
+            if v.pulsePhase >= period { v.pulsePhase -= period }
+        }
+
+        var s = sinf(Float(v.phase) * 2 * .pi) * g * env
+        if v.partial > 0 {
+            // The harmonic gets the SAME envelope times one more decay factor,
+            // so it is present at the hit and gone before the fundamental is --
+            // that asymmetry is what makes the thud duller than the tick.
+            let frac = Float(max(0, v.shotLeft / v.shotTotal))
+            s += sinf(Float(v.partialPhase) * 2 * .pi) * g * env * v.partial * frac
+            v.partialPhase += Double(v.frequency) * 2 / sr
+            if v.partialPhase >= 1 { v.partialPhase -= 1 }
+        }
+        v.phase += Double(v.frequency) / sr
+        if v.phase >= 1 { v.phase -= 1 }
+        return s
+    }
+
     /// Mix every voice into an interleaved stereo s16 buffer, ADDING to what is already
     /// there (the game's own audio). Called from the render block.
     ///
     /// `frames` is the frame count; the buffer is (L,R) pairs, matching the core's format.
     func render(into ptr: UnsafeMutablePointer<Int16>, frames: Int) {
+        // The one-shot voices and the family level each rides (see the
+        // one-shot section above for why these pairings).
+        let oneShots: [(CueVoice, Family)] = [
+            (foeHitVoice, .health), (ownHitVoice, .health),
+            (focusCueVoice, .beacon), (dlinkCueVoice, .beacon),
+        ]
         var anyAudible = false
-        for (i, v) in voices.enumerated() where v.gain > 0 {
-            anyAudible = true
-            _ = i
-        }
+        for v in voices where v.gain > 0 { anyAudible = true }
+        for (v, _) in oneShots where v.gain > 0 { anyAudible = true }
         guard anyAudible else { return }
+
+        // ⛔ EQUAL-POWER PAN, NOT A LINEAR CROSSFADE. A linear pan dips ~3 dB in the
+        // middle, so a target directly ahead would sound quieter than one to the side
+        // and read as "farther". The sqrt law holds the power constant across the arc.
+        // A centred voice (pan 0) gets 0.707 on BOTH sides, which is the same loudness
+        // as the old mono write once the 0.5 headroom below is applied.
+        func addPanned(_ s: Float, pan: Float, _ mixL: inout Float, _ mixR: inout Float) {
+            let p = max(-1, min(1, pan))
+            let angle = (p + 1) * Float.pi / 4          // 0 .. pi/2
+            mixL += s * cosf(angle)
+            mixR += s * sinf(angle)
+        }
 
         let sr = Self.sampleRate
         for f in 0..<frames {
@@ -246,40 +414,16 @@ final class CueSynth {
             for (i, v) in voices.enumerated() {
                 let g = v.gain * levels[i] * speechDuck
                 guard g > 0 else { continue }
-
-                // Pulse envelope: 1 while sounding, 0 in the gap. A raised-cosine ramp at
-                // each edge removes the click a hard square edge would make.
-                var env: Float = 1
-                if v.pulseHz > 0 {
-                    let period = Double(sr) / Double(v.pulseHz)
-                    let pos = v.pulsePhase.truncatingRemainder(dividingBy: period) / period
-                    let duty = Double(max(0.05, min(1.0, v.dutyCycle)))
-                    let ramp = 0.06                      // fraction of the period
-                    if pos < duty {
-                        let into = pos, out = duty - pos
-                        env = Float(min(1.0, min(into / ramp, out / ramp)))
-                    } else {
-                        env = 0
-                    }
-                    v.pulsePhase += 1
-                    if v.pulsePhase >= period { v.pulsePhase -= period }
-                }
-
-                // ⛔ EQUAL-POWER PAN, NOT A LINEAR CROSSFADE. A linear pan dips ~3 dB in the
-                // middle, so a target directly ahead would sound quieter than one to the side
-                // and read as "farther". The sqrt law holds the power constant across the arc.
-                // A centred voice (pan 0) gets 0.707 on BOTH sides, which is the same loudness
-                // as the old mono write once the 0.5 headroom below is applied.
-                let pan = max(-1, min(1, v.pan))
-                let angle = (pan + 1) * Float.pi / 4          // 0 .. pi/2
-                let gl = cosf(angle)
-                let gr = sinf(angle)
-
-                let sample = sinf(Float(v.phase) * 2 * .pi) * g * env
-                mixL += sample * gl
-                mixR += sample * gr
-                v.phase += Double(v.frequency) / sr
-                if v.phase >= 1 { v.phase -= 1 }
+                addPanned(voiceSample(v, gain: g, sr: sr), pan: v.pan, &mixL, &mixR)
+            }
+            for (v, fam) in oneShots {
+                let g = v.gain * levels[fam.rawValue] * speechDuck
+                // Not `guard g > 0`: a shot in flight must count down and
+                // self-silence even while its family is ducked or levelled
+                // to zero, or the voice would hang armed (and keep render
+                // out of its early exit) until the next trigger.
+                guard v.shotLeft > 0 || g > 0 else { continue }
+                addPanned(voiceSample(v, gain: g, sr: sr), pan: v.pan, &mixL, &mixR)
             }
 
             // Keep headroom: four voices at full gain would clip.

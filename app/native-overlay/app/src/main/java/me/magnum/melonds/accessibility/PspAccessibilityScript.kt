@@ -76,6 +76,8 @@ object PspAccessibilityScript
     private external fun nativePspAdapterName(): String
     private external fun nativePspAdapterReady(): Boolean
     private external fun nativePspAdapterCommand(command: Int): Boolean
+    private external fun nativePspCuePoll(ints: IntArray, floats: FloatArray): Boolean
+    private external fun nativePspSetHudGaugeCues(useSound: Boolean)
 
     /**
      * True when the PSP core is linked into this build. Throws
@@ -241,4 +243,85 @@ object PspAccessibilityScript
      * range, or not ready yet; the caller decides what a refusal says.
      */
     fun adapterCommand(command: Int): Boolean = nativePspAdapterCommand(command)
+
+    /**
+     * One frame of battle-cue data from the native host's single
+     * snapshot: the lock-on beacon state, the free-flight field answer,
+     * and the one-shot health events (hit beeps and gauge-full earcons)
+     * the adapter raised since the last frame.
+     *
+     * [state] is the beacon state (0 nothing, 1 battle with no lock,
+     * 2 enemy, 3 EX core, 4 the one-frame EX-gain pulse) and [dist] the
+     * locked target's distance in world units. [field] marks the
+     * free-flight answer live, with [kind] (1 enemy, 2 city, 3 ally),
+     * [bearing] in degrees clockwise from the direction of travel,
+     * [fieldDist], and [headingLive] false when the bearing came from
+     * a stale heading. [healthBits] is the one-shot bitmask: 1 foe
+     * beep (with [foeHz]/[foePan]), 2 own beep (with [ownHz]/[ownPan]),
+     * 4 Focus full, 8 D-Link full.
+     */
+    data class CuePoll(
+        val state: Int,
+        val dist: Float,
+        val field: Boolean,
+        val kind: Int,
+        val bearing: Float,
+        val fieldDist: Float,
+        val headingLive: Boolean,
+        val healthBits: Int,
+        val foeHz: Float,
+        val foePan: Float,
+        val ownHz: Float,
+        val ownPan: Float,
+    )
+
+    /**
+     * Push the player's HUD gauge-cue choice into the Birth by Sleep
+     * adapter (oga::KhbbsHudGaugeCues): true = gauge-full moments
+     * sound as earcons, false = the adapter speaks its lines instead.
+     * The session resolves the effective value (the game's Per Game
+     * Settings override, else the global default) and calls this once
+     * when a session starts — settings apply at start
+     * (docs/design/per-game-settings.md). Only that adapter reads the
+     * flag; the session gates the call on its adapter id anyway.
+     */
+    fun setHudGaugeCues(useSound: Boolean)
+    {
+        nativePspSetHudGaugeCues(useSound)
+    }
+
+    // The poll's scratch arrays, reused across frames: the session
+    // confines cuePoll to its frame thread, the same confinement the
+    // native surface's other calls already assume.
+    private val cueInts = IntArray(5)
+    private val cueFloats = FloatArray(7)
+
+    /**
+     * Polls the cue snapshot for this frame, or null when there is
+     * nothing to cue (no adapter, the reader not attached yet, or the
+     * adapter refused the snapshot) — null is silence, never an error,
+     * exactly the fail-closed shape of the adapter's other answers.
+     * Call once per frame, after the frame has run: the native side
+     * takes ONE snapshot per call and the adapter consumes its
+     * one-frame events into it, so a second call in the same frame
+     * would answer for a moment that has already been voiced.
+     */
+    fun cuePoll(): CuePoll?
+    {
+        if (!nativePspCuePoll(cueInts, cueFloats)) return null
+        return CuePoll(
+            state = cueInts[0],
+            dist = cueFloats[0],
+            field = cueInts[1] != 0,
+            kind = cueInts[2],
+            bearing = cueFloats[2],
+            fieldDist = cueFloats[1],
+            headingLive = cueInts[3] != 0,
+            healthBits = cueInts[4],
+            foeHz = cueFloats[3],
+            foePan = cueFloats[4],
+            ownHz = cueFloats[5],
+            ownPan = cueFloats[6],
+        )
+    }
 }

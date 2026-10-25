@@ -380,3 +380,41 @@ Java_me_magnum_melonds_accessibility_PspAccessibilityScript_nativePspAdapterComm
     JNIEnv * /*env*/, jobject /*self*/, jint cmd) {
   return PspAdapterHostCommand((int)cmd) ? JNI_TRUE : JNI_FALSE;
 }
+
+// The cue poll: one snapshot per frame, packed into two scratch arrays
+// the Kotlin side owns. ints: [0]=beacon state, [1]=field active,
+// [2]=field kind, [3]=heading live, [4]=one-shot health bitmask.
+// floats: [0]=lock distance, [1]=field distance, [2]=bearing degrees,
+// [3]=foe hz, [4]=foe pan, [5]=own hz, [6]=own pan. The arrays are
+// written even on a false return (PspAdapterHostCuePoll zeroed them),
+// so a refused poll reads as silence, never as last frame's data.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_me_magnum_melonds_accessibility_PspAccessibilityScript_nativePspCuePoll(
+    JNIEnv *env, jobject /*self*/, jintArray ints, jfloatArray floats) {
+  if (!ints || !floats) return JNI_FALSE;
+  if (env->GetArrayLength(ints) < 5 || env->GetArrayLength(floats) < 7) {
+    return JNI_FALSE;
+  }
+  int state = 0, field = 0, kind = 0, heading_live = 0, health_bits = 0;
+  float dist = 0.0f, bearing = 0.0f, field_dist = 0.0f;
+  float foe_hz = 0.0f, foe_pan = 0.0f, own_hz = 0.0f, own_pan = 0.0f;
+  const bool ok = PspAdapterHostCuePoll(
+      &state, &dist, &field, &kind, &bearing, &field_dist, &heading_live,
+      &health_bits, &foe_hz, &foe_pan, &own_hz, &own_pan);
+  const jint iv[5] = {state, field, kind, heading_live, health_bits};
+  const jfloat fv[7] = {dist, field_dist, bearing, foe_hz,
+                        foe_pan, own_hz, own_pan};
+  env->SetIntArrayRegion(ints, 0, 5, iv);
+  env->SetFloatArrayRegion(floats, 0, 7, fv);
+  return ok ? JNI_TRUE : JNI_FALSE;
+}
+
+// The per-game-settings seam: the session's resolved HUD gauge-cue
+// choice for Birth by Sleep, pushed into the adapter at session start
+// (see PspAdapterHost.h). A forward, nothing more — the value was
+// resolved in Kotlin (GameSettings) before it crossed.
+extern "C" JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_PspAccessibilityScript_nativePspSetHudGaugeCues(
+    JNIEnv * /*env*/, jobject /*self*/, jboolean use_sound) {
+  PspAdapterHostSetHudGaugeCues(use_sound == JNI_TRUE);
+}

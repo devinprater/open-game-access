@@ -2,6 +2,7 @@ package com.devin.opengameaccess.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -11,13 +12,16 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.Button
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
+import androidx.compose.material.Switch
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
@@ -26,6 +30,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devin.opengameaccess.AdapterGameInfo
 import com.devin.opengameaccess.AdapterLibraryData
+import com.devin.opengameaccess.GameSettings
 
 /**
  * The game library: every game that has a reader, mirroring iOS's
@@ -53,10 +58,26 @@ fun AdapterGamesScreen(
     modifier: Modifier = Modifier,
 ) {
     var selected by remember { mutableStateOf<AdapterGameInfo?>(null) }
+    var settingsFor by remember { mutableStateOf<AdapterGameInfo?>(null) }
+
+    val settingsGame = settingsFor
+    if (settingsGame != null) {
+        PerGameSettingsScreen(
+            game = settingsGame,
+            onBack = { settingsFor = null },
+            modifier = modifier,
+        )
+        return
+    }
 
     val game = selected
     if (game != null) {
-        AdapterGamePage(game = game, onBack = { selected = null }, modifier = modifier)
+        AdapterGamePage(
+            game = game,
+            onBack = { selected = null },
+            onOpenSettings = { settingsFor = game },
+            modifier = modifier,
+        )
         return
     }
 
@@ -131,6 +152,7 @@ fun AdapterGamesScreen(
 private fun AdapterGamePage(
     game: AdapterGameInfo,
     onBack: () -> Unit,
+    onOpenSettings: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -146,6 +168,24 @@ private fun AdapterGamePage(
             fontWeight = FontWeight.Bold,
             modifier = Modifier.semantics { heading() },
         )
+
+        // ⛔ AT THE TOP OF THE PAGE, ALWAYS THERE (the player's own
+        // design, 2026-10-24): iOS puts this control at the top right
+        // of the game page; this page is a scrolling column, so the
+        // top slot under the game's name is the same place by the only
+        // measure that matters to a TalkBack user — it is the first
+        // control on the page, in the same place for every game,
+        // whether or not that game has settings yet. The panel itself
+        // says in words when a game has none. Nothing opens on its own
+        // and nothing interrupts starting the game.
+        Button(
+            onClick = { onOpenSettings() },
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = "Per Game Settings for ${game.name}" },
+        ) {
+            Text("Per Game Settings", fontSize = 18.sp)
+        }
 
         Button(onClick = { onBack() }, modifier = Modifier.fillMaxWidth()) {
             Text("Back to games", fontSize = 18.sp)
@@ -183,6 +223,140 @@ private fun AdapterGamePage(
         )
     }
 }
+
+/**
+ * One game's Per Game Settings panel: its overrides, reached from the
+ * "Per Game Settings" control at the top of its page
+ * (docs/design/per-game-settings.md). The twin of iOS's
+ * PerGameSettingsView — same model, same words where the platforms
+ * allow.
+ *
+ * WHAT THE PLAYER SEES. One row per setting this game's reader can
+ * actually use — a game never lists a setting it cannot use. Each
+ * switch shows the value the game will use (its override when one
+ * exists, else the app default from Settings), the line under it says
+ * WHICH of those it is and what the app default is, and a game
+ * carrying an override gets a "Use app default" button that clears
+ * it. Every control's TalkBack description states its provenance, so
+ * the fact does not depend on reading the line under the switch.
+ *
+ * A game whose reader uses no per-game setting still gets this panel
+ * (the control sits on every game page, always in the same place) and
+ * the panel says so in words rather than opening empty.
+ */
+@Composable
+private fun PerGameSettingsScreen(
+    game: AdapterGameInfo,
+    onBack: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    // Bumped after every store write so the rows re-read the
+    // overrides — the store is SharedPreferences, not Compose state.
+    var revision by remember { mutableStateOf(0) }
+    val settings = remember(revision) { GameSettings.supportedSettings(game.id) }
+
+    Column(
+        modifier = modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(24.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Text(
+            text = "Per Game Settings",
+            fontSize = 26.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() },
+        )
+
+        Button(onClick = { onBack() }, modifier = Modifier.fillMaxWidth()) {
+            Text("Back to ${game.name}", fontSize = 18.sp)
+        }
+
+        Text(
+            text = "These settings apply to ${game.name} only. A setting with no " +
+                "override uses the app default from Settings; changing it here " +
+                "overrides it for this game. Settings apply when the game starts.",
+            fontSize = 16.sp,
+        )
+
+        if (settings.isEmpty()) {
+            Text(
+                text = "This game has no per-game settings yet. The settings that " +
+                    "apply to every game live in Settings.",
+                fontSize = 16.sp,
+            )
+        }
+
+        for (setting in settings) {
+            val global = GameSettings.globalDefault(context, setting)
+            val overrideValue = GameSettings.override(context, game.id, setting)
+            val effective = overrideValue ?: global
+            val provenance = if (overrideValue != null) {
+                "Set for this game. The app default is ${onOff(global)}."
+            } else {
+                "Using the app default: ${onOff(global)}. Change the app default in Settings."
+            }
+
+            Text(
+                text = setting.title,
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.semantics { heading() },
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics {
+                        contentDescription =
+                            "${setting.title} for ${game.name}: ${onOff(effective)}. $provenance"
+                    },
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(text = setting.title, fontSize = 16.sp)
+                Switch(
+                    checked = effective,
+                    onCheckedChange = { newValue ->
+                        // Writing always writes an OVERRIDE — even
+                        // when the new value equals the default, the
+                        // player made a choice for this game, and the
+                        // provenance line will say so until they clear
+                        // it with "Use app default".
+                        GameSettings.setOverride(context, game.id, setting, newValue)
+                        revision++
+                    },
+                )
+            }
+            Text(
+                text = provenance,
+                fontSize = 14.sp,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+            )
+            if (overrideValue != null) {
+                OutlinedButton(
+                    onClick = {
+                        GameSettings.setOverride(context, game.id, setting, null)
+                        revision++
+                    },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .semantics {
+                            contentDescription = "Use app default for ${setting.title}. " +
+                                "Removes this game's override, so it follows the app " +
+                                "default again: ${onOff(global)}."
+                        },
+                ) {
+                    Text("Use app default", fontSize = 16.sp)
+                }
+            }
+        }
+    }
+}
+
+/** "on" / "off" for a switch value, in the words the panels speak. */
+private fun onOff(value: Boolean): String = if (value) "on" else "off"
 
 // ---- presentation lines, mirrored from AdapterLibrary.swift -----------------
 

@@ -1618,6 +1618,163 @@ tutorial's, but their opponent ids are unmapped (they will speak as
 still unmapped (unchanged from before). Bout speech is in the working
 copy only, like the QUIT GAME dialog — not on GitHub main.
 
+## Sound-first fight health — AUDITED + WIRED (2026-10-25)
+
+The owner's rule (2026-10-24): never speak what the game already cues
+with a sound; in high-action play prefer sounds over speech because
+speech distracts mid-action. Birth by Sleep's pass (its RE doc,
+2026-10-24/25) is the template; this is the same design on this game's
+fight struct. Two things changed: the Konquest bout's mid-bout health
+re-speak (the throttled line every 90 frames) is REMOVED, and both
+versus fights and Konquest bouts now carry the beep + milestone
+system. The bout entry line and the outcome lines were audited and
+KEPT. Everything else in this doc (dialogue, objectives, free-roam
+position, the Guide, pause/menus) is not high-action and is untouched.
+
+### The audio audit (bench ~/mku-scan/snd1, snd2, snd2ko)
+
+Method, same as BBS: bench fights with the game's audio captured per
+frame (`psp_read_audio`), peaks measured in tight windows (first
+0.12 s) after each HP-word change the driver itself witnesses, against
+each room's own baseline.
+
+Versus (snd1: hunt11/fight.ppst restored, Scorpion vs Goro, driven
+strikes; 24 foe hits, 10 player hits, a KO, a round change, a second
+round, player damage down to 48%):
+
+| Event | Tight-window peak | Reading |
+|---|---|---|
+| room baseline | median 0.0000, p99 0.026, max 0.028 | near-silent (see caveat) |
+| foe hit (n=24) | median 0.525, min 0.414 | sounded |
+| player hit (n=10) | median 0.446, min 0.302 | sounded |
+| KO blow | 0.594 — the fight's loudest event, ~2 s slow-motion fall tail | heavily sounded |
+| round-2 intro (+1.5–2.0 s after the turn) | 0.454–0.488 over ~0.15 surroundings | sounded (announcer/sweep) |
+
+Caveat, stated plainly: in this bench a savestate restore drops the
+music bed, so the versus baseline is near silence and the peaks are
+measured against that floor, not against playing music. The verdicts
+do not lean on the floor alone: BBS's audit (real music bed present)
+found the same impact family at full scale, and a 0.41-minimum impact
+is not a subtle sound in any mix. No announcer line was measurable
+after the KO in this capture, so nothing is claimed either way about
+a winner announcement — the versus decision below does not need one.
+
+Konquest bout (snd2: hunt20/after-dash3.ppst, the strikes lesson
+against Bo' Rai Cho; snd2ko: the same lesson extended until his HP
+was driven to zero between phases):
+
+| Event | Tight-window peak | Reading |
+|---|---|---|
+| dojo ambient bed | median 0.057, p99 0.184, max 0.187 | the room's own level |
+| bout entry latch | 0.107 | NO distinct entry sound (inside the bed) |
+| strike hits | 0.257–0.452 | sounded |
+| per-phase refills (×3) | 0.188 | silent (the bed itself) |
+
+The lesson refills Bo' Rai Cho to 100% between strikes. Under the old
+adapter the arranged-KO run spoke **11 bout lines for 5 identical
+strikes** — every refill + re-drop pair re-spoke the health line.
+That chatter is the concrete thing the removal kills. An arranged
+debug-write of his HP to 0.05 was overridden by the lesson engine
+within a phase, so a genuine Konquest KO could not be captured in
+the tutorial; the outcome verdict rests on the versus KO measurement
+(same engine, same impact family) plus the identification argument.
+
+### Verdicts
+
+- **Mid-bout health re-speak: REMOVED.** Hits are sounded; a spoken
+  percent every 90 frames is exactly the mid-action distraction the
+  rule retires. Replaced by the beep + milestone system below.
+- **Bout entry line: KEPT.** It fires at the latch — before the
+  action, not during it — names the foe (the one fact a new player
+  needs and no sound carries), and its instant is provably unsounded
+  (0.107 in a bed peaking 0.184).
+- **Bout outcome lines: KEPT.** A KO thud names nobody; in Konquest
+  the defeat IS the lesson signal (pass/fail), and Konquest's own
+  dialogue is unvoiced text. Same precedent as BBS keeping
+  "D-Link: <name>." — when the sound cannot carry the information,
+  speech stays. (Training timeouts still speak nothing: the game
+  zeroes Shujinko's HP itself there, unchanged.)
+- **Versus: nothing removed, the system added.** Versus never had
+  entry/outcome speech — its intros and wins are the game's own
+  announced presentation (the round intro measured sounded) — and it
+  gains none. WhereAmI's fight line keeps the exact numbers on query
+  in both modes.
+
+### The wired system (`WatchMkuHealthCues` in Core/mku_adapter.cpp)
+
+One watch, called every frame after `BoutOnFrame`: versus state
+(`InFight()`) tracks P1/P2 from the fight struct; a latched Konquest
+bout tracks Shujinko/the foe from the same struct with mode-tagged
+track identities, so the two modes never share a latch. HP here is a
+0..1 float; the percent is the fight line's own rounding
+(`frac*100 + 0.5`).
+
+- A hit dropping a bar stashes a one-shot beep: foe RIGHT (+0.8),
+  1200→300 Hz; player LEFT (−0.8), 800→200 Hz; pitch logarithmic in
+  the new fraction — the BBS family's exact parameters.
+- Spoken percent ONLY at the milestone crossings 75 / 50 / 25 /
+  nearly gone at 10 ("Foe health N percent." / "Your health N
+  percent." / "Foe nearly gone." / "Your health nearly gone." — the
+  BBS wording verbatim; the milestone set is Mortal Kombat 1's
+  official accessibility Health Meter set). Latched per fighter;
+  priming silent with at-or-below milestones pre-latched; a plunge
+  speaks only the lowest crossing; healing back to milestone + 5
+  re-arms (the tutorial's per-phase refills exercise this and stay
+  silent doing it).
+- A drop to 0 raises nothing: the KO is the game's own loudest
+  moment, and Konquest's outcome lines own the defeat. Death (and
+  round changes, read as a fresh fighter) resets the side's track.
+- Events ride the cue snapshot: `mku_cue_snapshot` (this adapter's
+  cue_snapshot was `nullptr` until now) copies pending events out on
+  the first poll inside a live fight/bout and clears them — each hit
+  sounds once; a poll outside a fight is refused and consumes
+  nothing. No lock-on exists here, so the beacon fields stay empty.
+- No HUD-gauge split exists in this game, so there is no
+  MkuHudGaugeCues-style seam; the beeps sit behind the app's
+  battle-cues switch via the snapshot, like every adapter's.
+
+### Proof
+
+- Host tests: **145 passed, 0 failed** (was 118). The three bout
+  checks that asserted the old re-speak now assert its absence (hit →
+  beep via the snapshot, no speech; refill → silent re-arm; unproven
+  foe id → named only by the entry/WhereAmI "opponent" wording), and
+  a dedicated sound-first section walks the versus ladder (prime,
+  beep pitch/pan both sides, consumed-once, 75/50/25/10 both sides,
+  drift-no-repeat, heal +5 re-arm, killing blow silent, round-2
+  re-arm, refusal outside a fight consumes nothing) plus the bout
+  path (entry kept, crossing speaks, outcome kept).
+- Live versus (snd3, same driven fight as the audit): CUE lines align
+  1:1 with the driver's hit events, pitch falling 1098→317 Hz as the
+  foe fell; milestone lines at exactly the crossing hits (75 @ the
+  76→67 hit, 50, 25, "Foe nearly gone." @ the hit to 10%); the KO
+  raised no beep and no line; round 2 re-primed and re-armed (75
+  spoke again); the player's own crossing spoke "Your health 75
+  percent." in the takedmg phase.
+- Live bout (snd4, strikes lesson): entry line once at the latch;
+  strikes beeped (1062 Hz at 91%, again after the silent refill,
+  1027 Hz at 89%); zero mid-bout health speech.
+
+### Limits and deviations
+
+- Two-player versus stays P1-centric (P1 = "you"), the FightLine
+  convention; there is no second reader side to serve.
+- The BBS never-locked-foe limit does not arise: fights are 1-on-1
+  and both fighters are in the one struct — the tracked foe is
+  simply P2 (who is also the only foe there is).
+- NOW AUDIBLE in the apps (2026-10-24, the shared app queue item):
+  both apps poll this adapter's snapshot — the same BBS-shaped
+  fields — and voice the beeps (iOS CueSynth's per-frame
+  `poke_cue_health()` poll; Android's new PspCueSynth behind its
+  Settings "Battle cue sounds" switch), gated by each platform's
+  battle-cues switch, off by default. The core bridge's per-frame
+  snapshot cache is what guarantees the poll the events reach is
+  the frame's only snapshot (see docs/design/cue-synth.md,
+  "App-side implementation", for the verification level: compile,
+  contract and algorithm proofs — no device has sounded one yet).
+  The milestone speech, being ordinary adapter speech, works today
+  as it did.
+
 ## Apep's talk trigger — what it checks (2026-10-23 investigation)
 
 **Question.** Apep (the martial-arts student who guides Shujinko to

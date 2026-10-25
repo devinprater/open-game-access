@@ -493,8 +493,8 @@ if enum_span:
     enum_body = re.sub(r"//[^\n]*", "", enum_span.group(1))
     enum_names = re.findall(r"([A-Za-z_]\w*)\s*,", enum_body)
 enum_value = {name: i for i, name in enumerate(enum_names)}
-if len(enum_names) == 43 and enum_names[0] == "WhereAmI" \
-        and enum_names[-1] == "Objective":
+if len(enum_names) == 44 and enum_names[0] == "WhereAmI" \
+        and enum_names[-1] == "Enemies":
     ok("adapter.h's Command enum parsed (%d commands, append-only order)"
        % len(enum_names))
 else:

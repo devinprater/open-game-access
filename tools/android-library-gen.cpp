@@ -120,7 +120,7 @@ static const int kSupportedDissidia[] = {CMD(WhereAmI), CMD(MenuNext),
     CMD(MenuPrev), CMD(MenuLeft), CMD(MenuRight), CMD(CustToggle),
     CMD(CharToggle), CMD(OskToggle), CMD(DumpState)};
 static const int kSupportedKhbbs[] = {CMD(WhereAmI), CMD(MenuState),
-    CMD(NextAlly), CMD(NextEnemy), CMD(Guide), CMD(DumpState)};
+    CMD(NextAlly), CMD(NextEnemy), CMD(Enemies), CMD(Guide), CMD(DumpState)};
 static const int kSupportedMku[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(Guide), CMD(DumpState)};
 static const SupportedRow kSupported[] = {
@@ -129,7 +129,7 @@ static const SupportedRow kSupported[] = {
     {"gba", nullptr, 0},
     {"alttp", kSupportedAlttp, 5},
     {"dissidia", kSupportedDissidia, 9},
-    {"khbbs", kSupportedKhbbs, 6},
+    {"khbbs", kSupportedKhbbs, 7},
     {"mku", kSupportedMku, 4},
 };
 #undef CMD
@@ -170,6 +170,7 @@ static const char* CommandTitle(int command)
         case oga::Command::Status: return "Status";
         case oga::Command::Guide: return "Guide";
         case oga::Command::Objective: return "Objective";
+        case oga::Command::Enemies: return "Enemies";
         default: return nullptr;
     }
 }
@@ -269,7 +270,7 @@ int main(void)
     printf(" */\n");
     printf("object AdapterCommandTitles {\n");
     printf("    val byId: Map<Int, String> = mapOf(\n");
-    for (int c = 0; c <= static_cast<int>(oga::Command::Objective); c++) {
+    for (int c = 0; c <= static_cast<int>(oga::Command::Enemies); c++) {
         const char* title = CommandTitle(c);
         if (!title) continue;
         printf("        %d to \"%s\",\n", c, KotlinEscape(title).c_str());

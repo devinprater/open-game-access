@@ -9654,3 +9654,500 @@ switch (`nes_set_uncapped`, `EmulationFlags::MaximumSpeed`). Throughput on this 
 uncapped 785 fps without a reader and 815 fps with the Zelda reader. Per-frame cost inside
 registration is ~1.0 ms and FLAT over 600 frames -- no leak, no per-frame growth. The reader's cost is
 in the noise; the core is not the bottleneck on any drive.
+
+## Sound-first battle health — WIRED (2026-10-25)
+
+The owner's rule (2026-10-24): never speak what the game already cues
+with a sound; in high-action play prefer sounds over speech. This
+adapter was already cue-first for position — the lock-on beacon and
+the EX absorption pulse ride the cue snapshot, and the doctrine doc
+(docs/proposals/dissidia-battle-audio.md) always planned sound for
+health. What the settled cross-game design (proven in Birth by
+Sleep's 2026-10-24/25 pass) changes is the SHAPE of that health
+sound, and this section records the alignment.
+
+### Keep / change against the proposal doc
+
+KEEP, unchanged:
+- The lock-on beacon (pan/timbre/rate by distance and target kind) —
+  it is navigation, not health, and the rule does not touch it.
+- The EX absorption pulse (`core_gain`): a gauge JUMP >= 250 is an
+  absorption; synth-side per the spec.
+- Bravery: on-demand speech only; no continuous bravery sound.
+- The timer tick: still BLOCKED — no timer address has ever been
+  mapped in this game, so the spec's "at low time" family has
+  nothing to read. Unchanged by this pass.
+- QTE prompts (host-command driven input instructions): untouched —
+  they are not state narration.
+
+CHANGE, superseded by the settled design:
+- Own-HP CONTINUOUS TONE (proposal §1) → per-hit pitch beeps +
+  milestone speech. The tone was never built — OnFrame's old comment
+  recorded that battles stayed silent except QTE prompts — so
+  nothing shipped is being removed; the spec is what changes. Two
+  reasons: cross-game consistency (the owner hears ONE health
+  language in every game — BBS and MK Unchained use exactly these
+  beeps and milestones), and the sound-first rule itself retires
+  constant tones in favour of event sounds whose pitch already
+  encodes the fraction on every hit.
+- "Enemy HP: on-demand speech only" → milestone callouts + per-hit
+  beeps added. Exact numbers remain on the existing foe query,
+  unchanged.
+
+The adapter's player-facing notes were corrected in the same pass:
+they described the continuous tone ("Your own health is a low tone
+that tracks your HP") as if it existed; they now describe the beeps
+and milestones that actually ship.
+
+### The wired system
+
+`WatchBattleHealth` runs in OnFrame's battle branch (the branch that
+previously just returned), fed by the same `BattleFighters()` chain
+everything else uses: current HP = max(0, hpMax − hpDmg) per fighter
+(the overkill margin means damage can exceed max on a defeat that
+lingers). Mirroring the BBS/MK family exactly:
+
+- A hit dropping a bar stashes a one-shot beep: foe RIGHT (+0.8),
+  1200→300 Hz; player LEFT (−0.8), 800→200 Hz; pitch logarithmic in
+  the new fraction.
+- Spoken percent ONLY at the milestone crossings 75 / 50 / 25 /
+  nearly gone at 10 — the same wording as BBS/MK ("Foe health N
+  percent." / "Your health N percent." / "Foe nearly gone." /
+  "Your health nearly gone."), the same latch discipline (silent
+  prime with at-or-below pre-latched, a plunge speaks only the
+  lowest crossing, heal to milestone + 5 re-arms), group "health",
+  foe Low / own Normal.
+- A killing blow raises nothing, and a side at HP 0 resets its track
+  (defeat structs linger; the next fight re-primes rather than
+  comparing against a corpse).
+- Events leave through the EXISTING cue feed: `CueSnapshotFill` now
+  zeroes the snapshot's event fields up front (they previously went
+  uninitialised by this adapter) and, once battle is established,
+  copies the pending events out and clears them — before the lock
+  branches, so any battle poll delivers them, locked or not. A
+  refused poll (no battle) consumes nothing; but events do not
+  outlive their battle: a frame outside battle resets the watch and
+  drops an unpolled beep rather than leaking it into the next fight.
+- The tracked foe needs no rule: the game is 1-on-1, so the pair foe
+  IS the lock-on target and the foe just hit — all readings of the
+  owner's rule coincide. (BBS's never-locked census limit does not
+  exist here; both fighters resolve from one chain every frame.)
+- No settings seam: this game has no gauge-full spoken line to split
+  (EX-full is a silent host-side edge; the proposal's EX blip is
+  synth-side), so there is no HudGaugeCues analog — the beeps sit
+  behind the app's battle-cues gating via the snapshot, like the
+  other adapters'.
+
+### Proof — and its stated limit
+
+There is NO Dissidia ISO anywhere on this VM (verified by a
+full-filesystem search 2026-10-25; only MK, BBS and Stadium images
+exist here), so no live bench fight or audio audit was possible in
+this pass — the proof vehicle is the host test suite against the
+two-source-verified fighter layout, which is the standard this
+adapter has always been held to in this environment. New section
+`test_battle_health` in Core/dissidia_adapter_test.cpp: silent
+prime; foe beep (right, 90% pitch) and own beep (left, 80% pitch),
+each consumed exactly once; a plunge speaking only the lowest
+crossing; the full 75/50/25/10 ladder on the foe; drift-no-repeat;
+heal +5 re-arm on the player's side; a refused poll consuming
+nothing; an ended battle dropping its unpolled beep; a new battle
+priming silently; the killing blow silent. Suite total: **229 check
+sites** (floor raised 204 → 229), ALL PASSED. The pre-existing
+cue-snapshot tests (beacon branches, EX pulse, fail-closed clearing)
+pass unchanged, now also asserting the event fields start cleared.
+
+What was NOT proven in that pass: the game's own hit sounds. The
+design premise — Dissidia's hits are sounded impacts, as in the two
+audited games — was an inference from the genre and from this game's
+own audio design (its spec doc treats battle sound as the primary
+channel), NOT a measurement. **That inference has since been
+measured and CONFIRMED on the real disc (2026-10-24/25): see the
+"Live proof on the real disc" section at the end of this document.**
+Every damage event captured (19 bravery hits, 2 HP hits) is followed
+within 1–7 frames by a near-full-scale impact transient (peaks
+0.87–1.00 against a music-bed median of 0.28–0.43); the two HP hits
+peaked at 0.92 and 0.99, and 60+ bravery-regeneration RAM steps —
+value changes with no hit — produced no transient at all. The beep
+parameters therefore stand as chosen; no clash with the game's own
+mix was found that would justify moving the registers.
+
+### Still owed app-side (shared with BBS/MK)
+
+DONE 2026-10-24 (the shared app queue item): both apps now voice the
+snapshot's one-shot events — iOS's CueSynth via its per-frame
+`poke_cue_health()` poll, Android via its new PspCueSynth and
+Settings "Battle cue sounds" switch (Android previously had no cue
+synth at all). One bridge fix rode along and matters to THIS game:
+the core now takes one cue snapshot per frame and shares it across
+the beacon/field/health polls, so Dissidia's EX-gain pulse (state 4)
+is no longer discarded by the field poll before the beacon poll runs
+— and `updateBeacon`'s guard admits state 4 as its comment always
+described. Verification is compile/contract/algorithm level (see
+docs/design/cue-synth.md, "App-side implementation"); no device has
+sounded a beep yet. The milestone speech works today (ordinary
+adapter speech). The per-game settings panel will bind the
+battle-cues gating here exactly as elsewhere.
+
+## Live proof on the real disc — image, battle audio audit, beep chain (2026-10-24/25)
+
+The sound-first pass above shipped on an inference because no
+Dissidia image existed on this machine. The owner directed the image
+be pulled from his Dropbox (fallback: Internet Archive/Redump); this
+section is the owed live proof, run in a PPSSPP bench harness
+patterned on the BBS/MK audio audits (`~/dissidia-scan/dissidia-bench.cpp`:
+adapter attached, per-frame audio drain @ 32768 Hz stereo, per-frame
+fighter-chain CSV, cue-snapshot event log, screenshots).
+
+### Image provenance
+
+- Target (from this doc's recorded disc): **Dissidia Final Fantasy
+  (USA), ULUS10437, disc v1.00, PSP sys 5.50** — the original, not 012.
+- Source: the owner's Dropbox, `/Games/PSP/1982 - Dissidia - Final
+  Fantasy (USA).cso` (file_id `id:j1zbMMa7WQAAAAAAAAWt8g`),
+  **1,370,502,434 bytes**, SHA-256
+  `1e3ae27948b67e923ad43ffaa66cfe90c8edd90f01a23b6a984a5fc314e86b24`.
+  (Bench note: the download tool can report completion while bytes
+  are still flushing — the size was verified stable across two stats
+  before hashing.)
+- Decompressed with the repo's `scripts/oga-cso-extract.py`:
+  ISO 1,646,657,536 bytes (exactly this doc's recorded ISO size),
+  MD5 `6166fb999e7a0c34044fa7e865d0e270`, SHA-256
+  `a8f921bfa4fa8b1e223c577e9d795bdd88ee7c1ed1703acd9840e3ba001e34b3`.
+  PARAM.SFO parsed from the ISO itself: TITLE "DISSIDIA FINAL
+  FANTASY", DISC_ID ULUS10437, DISC_VERSION 1.00, PSP_SYSTEM_VER
+  5.50, CATEGORY UG. Boot confirms gameid=ULUS10437. Local copies:
+  `~/workspace/games/dissidia/` (+ NOTES.md). The Redump fallback was
+  not needed.
+
+### The walk that produced the fight
+
+Fresh memstick lineage, real input only: title (all 3 rows announce,
+both directions, wraparound) → NEW GAME → nickname OSK (firmware
+keyboard; the adapter's OSK echo tracked it: "Type your name.", the
+seed name spelled, finish announced) → Play Plan (all 3 rows) →
+Bonus Day (all rows; up/down only — left/right correctly silent) →
+"Proceed with these settings?" confirm → firmware Save utility
+(save written: `ULUS10437GameData00`, 297 KB) → prologue cutscene →
+tutorial battle 1: Warrior of Light (HP 1545, BRV 220) vs Garland
+(HP 580, BRV 72) on the Chaos Shrine stage. One adapter bug was
+found and fixed on this walk — the settings-confirm dialog was
+mis-announced as the title menu; see "Menus auto-read" below.
+
+### Measured verdict: hits ARE sounded impacts
+
+Method (the BBS way): per-game-frame audio peak of the samples that
+frame produced; event frames taken from the fighter-chain CSV
+(a bravery or HP word changing between frames); baseline = battle
+frames with no event within −2/+12 frames.
+
+| run | no-event frames | peak median | p90 | p99 | bravery hits | hit-window peaks (+lag) | HP hits |
+|---|---|---|---|---|---|---|---|
+| fight2 | 1292 | 0.350 | 0.566 | 0.819 | 7 | 0.95–1.00 (+1..+4) | — |
+| fight3 | 781 | 0.280 | 0.505 | 0.729 | 4 | 1.00 (+1..+4) | — |
+| fight4 | 1657 | 0.356 | 0.603 | 0.830 | 8 | 0.87–1.00 (+1..+7) | **0.921 (+3)** |
+| fight6 | 1593 | 0.426 | 0.667 | 0.939 | 8 | (engage noise in bed) | **0.993 (+2)** |
+| fight22 | 1710 | 0.369 | 0.623 | 0.889 | — | — | **1.000 (+1), 1.000 (+3) — both OWN side** |
+
+The two HP hits, frame by frame (peak per frame; the RAM change
+registers at the **bold** frame):
+
+- fight4, foe 580 → 408 at f1134: `…1131:0.67 1132:0.46 1133:0.74
+  **1134:0.87** 1135:0.83 1136:0.77 1137:0.92 1138:0.80 1139:0.85
+  1140:0.80…` — the transient starts on the hit frame and stays
+  elevated ~10 frames (impact + knockback).
+- fight6, foe 408 → 232 at f922: `…920:0.56 921:0.71 **922:0.56**
+  923:0.94 924:0.99 925:0.71 926:0.63 927:0.77 928:0.83 929:0.86
+  930:0.91…` — transient at +1/+2 frames.
+
+Negative control: after each HP attack the player's bravery regens
+0 → 220 in ~37 small RAM steps (fight4 f1258–1370; fight6
+f1046–1162). Those are value changes with NO hit behind them, and
+their windows peak at 0.44–0.71 — the music bed, no transient. The
+signature belongs to damage, not to numbers moving.
+
+Verdict: **the inference is confirmed by measurement.** Dissidia
+sounds every hit — bravery and HP alike — with a sharp impact
+transient at or near full scale, 1–7 frames after the damage
+registers, over a music bed that typically peaks at 0.28–0.43
+(median). Nothing in the measured mix clashes with the shared beep
+family; the registers in docs/design/cue-synth.md stand unchanged.
+
+### The beep + milestone chain, live on the same hits
+
+The cue feed was logged on every frame of every fight run:
+
+- f1134 (foe 580→408, 70.3%): **"Foe health 75 percent."** +
+  `FOE_BEEP hz=795 pan=+0.8` — 795 Hz is the design's log-mapped
+  pitch for 70.3% on the foe register (1200→300 Hz), pan right.
+- f922 (foe 408→232, 40.0%): **"Foe health 50 percent."** +
+  `FOE_BEEP hz=522 pan=+0.8` — the design's pitch for 40.0% exactly.
+- No beep and no milestone on any bravery-only event, on the regen
+  ramp, or on the killing side of either exchange — crossings only,
+  as designed. The lock/beacon feed ran throughout (`battle=1,
+  locked=1`, distance live: 11.03 at spawn, 0.33 at closest,
+  24 after the first knockback).
+- The foe query answered mid-fight ("Locked. 4 away." / "Locked.
+  2 away."); WhereAmI in battle answered self stats ("HP 1545 of
+  1545. Bravery 214. EX 0.") matching the HUD and the CSV.
+
+Own-side HP events were captured in the same walk (the prologue's
+real Garland battle, where he fights properly): player 1545→1474
+and 1474→1408 produced `OWN_BEEP hz=751 pan=-0.8` and
+`OWN_BEEP hz=707 pan=-0.8` — the design's pitches for 95.4% and
+91.1% on the own register (800→200 Hz), pan left, no milestone
+(nothing crossed), and their audio windows peak at **1.000 at +1
+and +3 frames** (pre-frames 0.48 and 0.70; run baseline median
+0.369, p99 0.889). One further own-HP event inside the tutorial's
+EX Burst cinematic also beeped on pitch (747 Hz at 95.0%), though
+that window saturates (the burst's own sound), so it is counted
+as consistent-but-not-independent evidence. The matrix is now
+symmetric: foe and own, bravery and HP — every damage event
+measured is a sounded impact, and every adapter beep/milestone
+fired exactly on its designed trigger and pitch.
+
+## Menus auto-read — live verification (2026-10-25)
+
+Every menu on the fresh-game path (title -> Data Setup -> main menu
+-> story chapter screens) was walked live with the adapter attached
+and matched against screenshots. Verified speaking: the title menu
+(arrival + all three rows, both directions, wrap), the nickname OSK
+echo end to end (entry line, per-character spelling, finish line),
+Play Plan (all three rows), Bonus Day (all seven rows; LEFT/RIGHT
+correctly silent -- it is a vertical list), and the main menu (see
+the fix below). The firmware savedata utility is not adapter
+territory (the PSP system dialogs speak for themselves); a real
+save was written through it during the walk (ULUS10437GameData00,
+297 KB on the bench memstick). Three defects were found and fixed;
+all are covered by host tests (suite: 243 checks, all passing).
+
+1. **The Data Setup confirm was mis-announced.** Answering the
+   setup ends on "Proceed with these settings?" (YES/NO,
+   LEFT/RIGHT) -- the adapter announced it as "New Game. Row 1 of
+   3." Root cause: the confirm is the setup struct's third content
+   mode. PLAY_CURSOR 0x09B3FA30 holds the selection and PLAY_MAX
+   0x09B3FA38 == 1 there -- the same words that carry the Play Plan
+   cursor, where max == 2; on the title screen both words are
+   garbage (0x7383AE99 / 0x030E1A3A observed), and Bonus Day has max
+   6. The mode gate is exactly the max word: 1 = confirm, 2 = Play
+   Plan, 6 = Bonus Day. The YES-vs-NO selection word was isolated by
+   a full-region RAM diff of the two states: exactly one word
+   changes, PLAY_CURSOR itself (0 = YES, 1 = NO). Fix:
+   SetupConfirmIndex() is checked first in SpeakTitleSetup(), the
+   watch (WS_SETUPCONFIRM), SpeakTitleSetupProbe() and DumpState;
+   it speaks "YES. Row 1 of 2." / "NO. Row 2 of 2." Tests: case 36b,
+   watch case 48a2. Live-verified both selections. One benign
+   artifact: under the firmware Save utility that follows, the
+   confirm identity stays latched in RAM (the game is parked, not
+   showing the dialog); nothing speaks it there because the watch is
+   not the utility's reader.
+
+2. **The main menu was completely silent.** MainLive() required
+   PLAY_CURSOR == 0 as part of its gate -- but at the real main menu
+   in the fresh-game lineage that word holds garbage (0x006ACFDB
+   observed live); PLAY_MAX correctly reads 0. The cursor word is
+   garbage whenever the setup struct is inactive, the same precedent
+   the title screen already relies on. Fix: MainLive() gates on
+   PLAY_MAX != 0 only. Tests: case 49b (garbage cursor still
+   announces; a live setup screen, PLAY_MAX = 2, still suppresses).
+   Live-verified: arrival "Story Mode. Row 1 of 8.", all eight rows
+   (Story Mode, Arcade Mode, Quick Battle, Communications Mode, PP
+   Catalog, Museum, Player Settings, Options) in both directions
+   with wraps, screenshot-matched. Two honest limits: (a) the row
+   tracker syncs from the adapter's attach/entry, because no RAM
+   cursor exists for this menu -- a savestate restored mid-menu
+   leaves the game's cursor where it was while the tracker says row
+   1 (observed live: announcements offset by 2 from the visible
+   cursor, though the game's own cursor still landed Cross on Story
+   Mode). The real-world vector is an app restart mid-menu; recovery
+   is to back out and re-enter. (b) Commands (menunext/menuprev)
+   re-speak the tracked row; the D-pad alone moves the real cursor
+   and the tracker together only when the player pairs them as the
+   app intends.
+
+3. **The board arrival watch flooded.** Standing with the cursor on
+   an enemy piece's cell repeated "enemy here. / Press X to engage."
+   EVERY FRAME (600+ times in one bench run). Root cause: WatchOk
+   called WatchSpeak on every frame once the identity was stable,
+   relying on the announce layer's dedup -- but that dedup only
+   suppresses a repeat of the immediately preceding line, so any
+   two-line announcement alternates forever (A, B, A, B...). Single-
+   line screens were merely masked by the same dedup (they spoke
+   twice at arrival, then went quiet when an interleaved line
+   stopped re-arming them -- the arrival pattern in the live-proof
+   section above shows exactly that shape). Fix: WatchOk speaks
+   exactly once, on the frame the identity confirms (stable count
+   reaching 2). Test: case 56a (ten extra frames on a stable enemy
+   arrival stay silent). Case 49b was restructured to observe its
+   classification across a leave-and-return, since a static screen
+   no longer re-announces (by design; WhereAmI remains the re-query).
+   Live-verified: the enemy arrival now speaks its two lines once,
+   then silence across 400 idle frames.
+
+Related hardening from the story walk, same discipline:
+
+4. **DialogLive() gained a plausibility gate.** DLG_SLOT alone is
+   not proof of a dialog: on a story board an unrelated board UI
+   object occupies the slot while DLG_X reads 0.00, which announced
+   a phantom "YES. Row 1 of 2." over the board and, because the
+   dialog branch precedes the board branch in OnFrame, suppressed
+   every board announcement. A real dialog's hand cursor rests over
+   its buttons -- observed at rest between 88 and 272 across the
+   dialog families (chapter dialog frozen at 88; modal Help at 119;
+   NO positions 265-272). DialogLive() now additionally requires
+   DLG_X in [40, 440]. Test: case 33c. Live-verified on the board
+   (phantom gone, board readouts flow). Corollary: the board's own
+   modal confirms (below) share that slot object with X = 0, so the
+   gate also keeps their (unread) selection from being misreported
+   as a dialog YES -- silence over a wrong answer.
+
+5. **EnemySpeciesName log hygiene.** The unknown-key log line fired
+   once per frame per call (MarkerKeyAt runs in the per-frame
+   identity probe), burying the log it existed to inform, and it did
+   not print the key. It now logs each unknown key once, with its
+   value. Its first catch: the Prologue board's False Hero carries
+   species key 0x97 (the Trunks board's False Hero is 0x30 -- keys
+   are per board instance, not per species); the game's own piece
+   info box names this one "False Hero", so 0x97 is tabled as such
+   and the arrival now speaks "False Hero here."
+
+Still silent, documented rather than wired:
+
+- **Movie pause.** START during a cutscene opens "PAUSED -- Resume
+  / Skip Cutscene"; the adapter says nothing (probe + story runs:
+  the pause-widget chain reads 0, MenuState reports none, WhereAmI
+  says "Not tracked yet."). Its widget instance is a different
+  allocation from the battle pause's; mapping it needs its own
+  RAM-diff session.
+- **Chapter detail arrival.** The chapter screen itself (episode
+  title, board list) has no arrival line; only its start dialog
+  speaks. See the story section below for the dialog's two
+  instances.
+
+## Story mode — the core path walked live (2026-10-25)
+
+The whole Destiny Odyssey entry path was walked with real input
+only, from the main menu to a cleared board and a won board battle,
+on the fresh-game lineage of the live-proof section. The adapter's
+board chain (progress struct -> board struct D -> cursor/origin/DP
+words -> marker catalog) resolved on the real boards exactly as
+mapped in the board sections above.
+
+**Enter.** Main menu -> Story Mode -> the Prologue chapter detail
+screen -> "Start the tutorial?" -> narration cards -> the heroes-
+gathering cinematic -> the first board. The detail screen itself is
+silent on arrival (see Menus). Its start dialog exists in TWO
+instances with different record allocations, and only one is wired:
+
+- *Instance A* (the auto-flow lineage, straight after the tutorial
+  battles): DLG_SLOT raised (0x08C094D0), DLG_X frozen at 88.0 in
+  both states; the real selection lives in the record pair CDLG_A
+  0x08C0F154 / CDLG_B 0x08C0F198, low halves (1,5) = YES, (2,4) = NO,
+  with the hand cursor X at 0x08C0EEB0 (120 = YES, 265 = NO). Wired:
+  ChapterDlgLive()/ChapterDlgSel() feed AnyDialogSel(), the watch
+  and DlgSpeak(); test case 33b. HARDENING THAT MATTERS: the pair
+  stays static at (2,4) after the dialog closes, including at the
+  main menu where the slot reads 0 -- ChapterDlgLive() therefore
+  also requires DialogLive(); without the conjunction the stale
+  pair false-announced "NO. Row 2 of 2." over the main menu
+  (observed live, fixed, re-verified).
+- *Instance B* (the same dialog opened later from the main menu):
+  DLG_SLOT reads 0, the CDLG pair is stale, and the selection lives
+  in a different pair -- 0x08C0BF64 (1 = YES, 2 = NO) / 0x08C0BF20
+  (5, 4) -- with its hand X at 0x08C0BD48 (120 / 265). The records do
+  not exist on the detail screen without the dialog (0xFFFFFFFF /
+  0.0) but PERSIST at their last state after it closes (verified
+  after a YES confirm), so there is no liveness anchor: an adapter
+  keyed to them would announce a stale selection over whatever
+  screen follows. Deliberately NOT wired (fail-closed); the adapter
+  honestly answers "Not tracked yet." on that screen. Record-pair
+  elements sit 0x44 apart in both instances; allocations vary with
+  heap history / open path. The doc's older story pair (SDLG
+  0x08C0B508 / 0x08C0B65C) read 0xFFFFFFFF in both lineages here.
+  Any future wiring needs a per-instance liveness signal first
+  (a dialog-owned flag word that falls when the dialog closes).
+
+**Boards.** Board 1 (the tutorial board): arrival readout "DP 1.
+Home 1, 2."; every D-pad step re-spoke the position; the DP counter
+dropped by 1 on the first move and further moves were free (same on
+board 2: granted 3, one spent, then free) -- DP reads as a per-board
+budget whose full economy (skills, larger boards) is beyond this
+walk, and nothing in the walk was DP-gated: at DP 0 the player can
+still move, target and engage. Empty cells stay silent, as designed.
+The Stigma of Chaos sits at (6,2) with the piece adjacent at (5,2):
+the arrival speaks the catalog text verbatim ("Stigma of Chaos.
+Engaging this piece finishes the level." -- matched against the
+game's own info box on screenshot) plus the DP-empty alert once.
+Cross on the stigma opens "Destroy the Stigma of Chaos?" (a board
+modal, silent -- below); YES plays the destruction sequence and the
+board reports CLEARED; play continues to board 2 after a brief
+"Board unreadable." transition window (the honest answer while the
+board struct is between boards). Board 2 arrives as "DP 3. Home 0,
+2." on a fresh board struct (D = 0x09C11940).
+
+**Encounter.** Board 2 carries a False Hero (species key 0x97,
+above), a teal piece (unvisited in this walk) and the stigma. The
+piece moves next to the enemy; the highlight resting on the enemy's
+cell speaks "False Hero here." + "Press X to engage." (once -- the
+flood fix above). Cross opens "Fight this battle piece?" (board
+modal, silent); YES starts the battle. Board battles then behave
+exactly like the live-proof fights: the fighter chain resolves,
+lock engages once in range ("Locked. 17 away."), and the beep /
+milestone chain fires design-exact -- foe 338 -> 260 beep 871 Hz
+(pan right, no milestone, 77% > 75%), 165 = "Foe health 50
+percent." + 590 Hz, 70 = "Foe health 25 percent." + 400 Hz, silent
+killing blow. Winning returns to the board with the piece destroyed
+(screenshot-verified: the False Hero is gone from board 2) and a
+post-battle dialogue box up. Two bench lessons for the next walk:
+(a) board battles load slowly on a software renderer -- the fighter
+structs resolve and WhereAmI answers while help cards are still
+cycling ("Now Loading..."), and inputs sent then are eaten; page
+the cards and confirm liveness by a changing value (bravery drift)
+before fighting. (b) Lock-on is range-based; dash (Triangle) only
+homes once locked.
+
+**Board modal dialogs are one silent family.** Three were met:
+"Make this area your home area?" (Cross on the player's own cell),
+"Destroy the Stigma of Chaos?", "Fight this battle piece?". All
+share one signature: the board UI object occupies DLG_SLOT
+(0x08C0A20C) with DLG_X = 0.00, the pause-widget root reads a flag
+(1), no known record pair tracks the selection, and MenuState
+classifies the screen only as "board". Their selection word is
+unmapped; they are documented, not wired. A blind player at these
+prompts hears the board context (the arrival line named the piece
+and, for the stigma, its consequence) but not the prompt or its
+selection. This is the board path's biggest remaining gap; the
+mapping route is the same YES-vs-NO RAM diff that cracked the Data
+Setup confirm, run against a board modal.
+
+**Story dialogue is the other documented gap — with its mechanism
+pinned.** The post-battle regroup scene (script scene SI 32; the
+Warrior of Light's "The pulses of disorder are getting stronger!")
+produced NO adapter speech, and neither did the boards' dialogue
+boxes ("What is going on? My body doesn't move as it should..." on
+board 1; "Manikins... Shadow entities employed by Chaos's forces
+as troops." after the board-2 battle; the board-2 tutorial box on
+Destiny Points). Two precise causes, both measured live: (1) the
+portrait gate never opens -- the scene-byte at 0x08BB376A read 0x44
+and 0x18 on the Warrior's lines, and StoryPortraitName maps only
+{0x9A Garland; 0x9E/0xC5/0xD0/0x46 Chaos}, so WS_STORY never engages
+and the scene scan never runs; (2) even with the gate open, this
+scene's FAQ-sourced anchors are not resident -- the resident script
+block at 0x09B42A54 holds only the segment's later lines ("The
+pulses of disorder", "Let us hurry" found there as UTF-16LE), while
+the scene table's raw1/raw2 anchors ("At the end of the dream.",
+"even chaos...") are absent. The fix design, when this is picked
+up: regenerate the scene table with per-line anchors from
+docs/data/dissidia_story_script.json (the full JSON script), and
+widen the portrait gate to any-nonzero -- the two-line text match
+remains the real fail-closed proof. Per-line dialogue position
+inside a scene stays an open problem by design, as recorded in the
+dialogue sections above. Board dialogue boxes ride the same script
+system and inherit the same fix.
+
+Net state of story mode for a blind player after this pass: menus
+into story speak; boards speak position, DP, piece arrivals and
+names; encounters speak in battle exactly as proven; the three
+board modal confirms, the chapter detail screen, movie pause, and
+all story dialogue text are silent -- each with its mechanism and
+mapping route recorded above.

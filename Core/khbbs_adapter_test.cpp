@@ -40,6 +40,7 @@ extern const Adapter kMortalKombatUnchained;
 extern const Adapter kDissidiaFinalFantasy;
 extern const Adapter kFireEmblemShadowDragon;
 extern const Adapter kGameBoyAdvance;
+void KhbbsHudGaugeCues(bool useSound);   // the sound-first seam (khbbs_adapter.cpp)
 }
 
 static void put_ascii(uint32_t a, const char* s)
@@ -654,6 +655,211 @@ int main()
     a->command(oga::Command::PrevEnemy);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Aqua, health 89 of 149."),
           "PrevEnemy falls back to the self readout in the field");
+    // ---- foe NAME (2026-10-24, bench name1-5 + journal census) ----
+    // The foe's type rides in its scene object: the object code
+    // at foe block +0x240 ("m03ex00"). The scene id at +0x1B8
+    // stays an instance index and is never consulted. Names are
+    // the journal's (category 0x3800, entry = number + 0x80),
+    // proven for numbers 1..25; everything else fails closed.
+    put_u16(ACTOR4 + 0x330, 2);   // locked again
+    put_u32(ACTOR4 + 0x33C, 19);
+    put_ascii(FOEBLK + 0x240, "m03ex00");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bruiser. Health 1076 of 1200. 9 away."),
+          "the foe query names a proven type: Bruiser");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Locked on: Bruiser. 9 away."),
+          "the lock query names the locked type");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0],
+              "Locked on. Bruiser health 1076 of 1200, 9 units away."),
+          "the field line names the locked foe");
+    // The lock-on edge names the new target (and only that).
+    put_u16(ACTOR4 + 0x330, 1);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    put_u16(ACTOR4 + 0x330, 2);
+    a->on_frame();
+    {
+        bool named = false;
+        for (int i = 0; i < NSPOKEN; i++)
+            if (strstr(SPOKEN[i], "Locked on: Bruiser.")) named = true;
+        CHECK(named, "acquiring a lock names the target: Locked on: Bruiser.");
+    }
+    // A second Bruiser elsewhere in RAM (same type, different
+    // actor, different health) changes nothing: the name is a
+    // type label, the numbers stay the LOCKED actor's.
+    static const uint32_t FOEBLK3 = 0x099A0000;
+    put_u32(FOEBLK3 + 0x1B8, 44);
+    put_ascii(FOEBLK3 + 0x240, "m03ex00");
+    put_u16(FOEBLK3 + 0x380, 55);
+    put_u16(FOEBLK3 + 0x382, 55);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bruiser. Health 1076 of 1200. 9 away."),
+          "a same-type bystander does not disturb the locked readout");
+    // Variant suffix digits are part of the spawn variant, not
+    // the type: a Glidewinder color variant still names Glidewinder.
+    put_ascii(FOEBLK + 0x240, "m24ex02");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Glidewinder. Health 1076 of 1200."),
+          "variant suffix digits do not change the type name");
+    // The arena spawns the same types under the vs infix (live:
+    // Day of Reckoning fields m01vs00 Floods and an m03vs00
+    // Bruiser, bench name8 census).
+    put_ascii(FOEBLK + 0x240, "m01vs00");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Flood. Health 1076 of 1200. 9 away."),
+          "an arena (vs) code names the same type");
+    // Fail closed, every way: a boss code (no proven key), an
+    // unproven variant number, an out-of-range number, garbage.
+    put_ascii(FOEBLK + 0x240, "b51ex00");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Enemy health 1076 of 1200. 9 away."),
+          "a boss code speaks no name (unproven key)");
+    put_ascii(FOEBLK + 0x240, "m27ex00");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Enemy health 1076 of 1200. 9 away."),
+          "an unproven variant number speaks no name");
+    put_ascii(FOEBLK + 0x240, "m99ex00");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Enemy health 1076 of 1200. 9 away."),
+          "an out-of-range enemy number speaks no name");
+    for (int i = 0; i < 8; i++) put_u8(FOEBLK + 0x240 + (uint32_t) i, 0xFF);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Enemy health 1076 of 1200. 9 away."),
+          "garbage in the code slot speaks no name");
+    for (int i = 0; i < 8; i++) put_u8(FOEBLK + 0x240 + (uint32_t) i, 0);
+    put_u16(ACTOR4 + 0x330, 1);   // restore the unlocked end state
+    put_u32(ACTOR4 + 0x33C, 0);   // the sections below start from
+
+    // ---- multi-enemy awareness: the roster census (2026-10-25) --------
+    // Complete scene objects planted the way the name worker's RAM
+    // census found them: scene id at obj+0x00, the 0x00011000
+    // signature at obj+0x08, the object code at obj+0x88, the HP pair
+    // at (obj-0x1B8)+0x380/+0x382, and a bone palette whose root
+    // matrix (candidate index 3) carries the position.
+    static const uint32_t NODE2 = 0x09977000;   // ACTOR4's node
+    put_u32(NODE2 + 0x04, 0x08B73DD0);
+    put_u32(NODE2 + 0x0C, 0x08B73DE0);
+    put_u32(NODE2 + 0x1C, 0x08B73DB4);
+    put_u32(NODE2 + 0x38, ACTOR4);
+    put_f32(NODE2 + 0x40, 0.0f); put_f32(NODE2 + 0x44, 1.0f); put_f32(NODE2 + 0x48, 0.0f);
+    auto plant_matrix = [&](uint32_t at, float x, float y, float z) {
+        put_f32(at + 0x00, 1.0f); put_f32(at + 0x04, 0.0f); put_f32(at + 0x08, 0.0f); put_f32(at + 0x0C, 0.0f);
+        put_f32(at + 0x10, 0.0f); put_f32(at + 0x14, 1.0f); put_f32(at + 0x18, 0.0f); put_f32(at + 0x1C, 0.0f);
+        put_f32(at + 0x20, 0.0f); put_f32(at + 0x24, 0.0f); put_f32(at + 0x28, 1.0f); put_f32(at + 0x2C, 0.0f);
+        put_f32(at + 0x30, x);    put_f32(at + 0x34, y);    put_f32(at + 0x38, z);    put_f32(at + 0x3C, 1.0f);
+    };
+    auto plant_foe = [&](uint32_t obj, uint32_t id, const char* code,
+                         uint16_t cur, uint16_t mx, bool palette,
+                         float px, float py, float pz) {
+        put_u32(obj + 0x00, id);
+        put_u32(obj + 0x08, 0x00011000);
+        put_ascii(obj + 0x88, code);
+        put_u16(obj - 0x1B8 + 0x380, cur);
+        put_u16(obj - 0x1B8 + 0x382, mx);
+        if (palette) {
+            for (int k = 0; k < 5; k++) {
+                float ox = 20.0f + 10.0f * (float) k, oz = 30.0f + 5.0f * (float) k;
+                if (k == 3) { ox = px; oz = pz; }
+                plant_matrix(obj + 0x700 + 0x40 * (uint32_t) k, ox, py, oz);
+            }
+        }
+    };
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Enemies);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No enemies."),
+          "an empty field answers the roster query with no enemies");
+    // The pack: a boss (counted, unnamed), a Bruiser, a Flood, and a
+    // Thornbite whose palette is unreadable (counted, no distance).
+    static const uint32_t FOE1 = 0x099B0000, FOE2 = 0x099B4000,
+                          FOE3 = 0x099B8000, FOE4 = 0x099BC000;
+    plant_foe(FOE1, 51, "m03vs00", 75, 75, true, 4.0f, 1.0f, 0.0f);    // Bruiser, 4 away
+    plant_foe(FOE2, 52, "m01vs00", 25, 25, true, 0.0f, 1.0f, -6.0f);   // Flood, 6 away
+    plant_foe(FOE3, 53, "b10vs00", 1200, 1200, true, 0.0f, 1.0f, 3.0f); // boss, 3 away
+    plant_foe(FOE4, 54, "m06vs00", 60, 60, false, 0, 0, 0);            // Thornbite, no position
+    // Excluded by the validation rules, each HP-shaped on purpose:
+    plant_foe(0x099C0000, 55, "g12vs00", 100, 100, false, 0, 0, 0);    // a prop ring
+    plant_foe(0x099C4000, 56, "m02vs00", 0, 50, false, 0, 0, 0);       // a dead foe
+    plant_foe(0x099C8000, 57, "m0xvs00", 50, 50, false, 0, 0, 0);      // a broken code
+    plant_foe(0x099CC000, 58, "p13ex00", 100, 100, false, 0, 0, 0);    // the player
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Enemies);
+    CHECK(NSPOKEN == 5 && strstr(SPOKEN[0], "4 enemies."),
+          "the roster counts only validated live foes (props, the dead, broken codes and the player excluded)");
+    CHECK(NSPOKEN == 5 && strstr(SPOKEN[1], "Enemy, 3 away."),
+          "the roster is nearest-first; an unnamed boss speaks as Enemy");
+    CHECK(NSPOKEN == 5 && strstr(SPOKEN[2], "Bruiser, 4 away."),
+          "the roster names a proven type with its distance");
+    CHECK(NSPOKEN == 5 && strstr(SPOKEN[3], "Flood, 6 away."),
+          "the roster orders by distance");
+    CHECK(NSPOKEN == 5 && strcmp(SPOKEN[4], "Thornbite.") == 0,
+          "a foe with no readable palette is named but claims no distance");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "4 enemies."),
+          "Where Am I carries the enemy count");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Not locked on. 4 enemies."),
+          "the foe query while unlocked answers with the count");
+    // Lock the Bruiser: the roster marks it, the foe query counts
+    // the others.
+    put_u16(ACTOR4 + 0x330, 2);
+    put_u32(ACTOR4 + 0x33C, 51);
+    put_u32(REC + 0x3C, FOE1);
+    put_f32(REC + 0x40, 0.0f); put_f32(REC + 0x44, 1.0f); put_f32(REC + 0x48, 0.0f);
+    put_f32(REC + 0x50, 4.0f); put_f32(REC + 0x54, 1.0f); put_f32(REC + 0x58, 0.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::NextAlly);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bruiser. Health 75 of 75. 4 away. 3 other enemies."),
+          "the locked foe query appends how many others are in the fight");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Enemies);
+    CHECK(NSPOKEN == 5 && strstr(SPOKEN[2], "Bruiser, 4 away, locked on."),
+          "the roster marks the locked foe");
+    put_u16(ACTOR4 + 0x330, 1);   // unlock again
+    put_u32(ACTOR4 + 0x33C, 0);
+    // Movement-derived facing turns distances into clock bearings:
+    // a leg in +x makes the facing (1, 0); the player ends at (3,1,0).
+    a->on_frame();
+    put_f32(NODE2 + 0x40, 3.0f);
+    a->on_frame();
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Enemies);
+    CHECK(NSPOKEN == 5 && strstr(SPOKEN[1], "Bruiser, 1 away, straight ahead."),
+          "with a live facing, the roster speaks clock bearings");
+    CHECK(NSPOKEN == 5 && strstr(SPOKEN[2], "Enemy, 4 away, 8 o'clock."),
+          "bearings are relative to the movement-derived facing");
+    CHECK(NSPOKEN == 5 && strstr(SPOKEN[3], "Flood, 7 away, 4 o'clock."),
+          "bearings and distances track the player's new position");
+    // Retire every plant: sig and code zeroed (the census keys on
+    // both), the node descriptors dropped, the actor left unlocked.
+    {
+        static const uint32_t kPlants[] = {FOE1, FOE2, FOE3, FOE4,
+            0x099C0000, 0x099C4000, 0x099C8000, 0x099CC000};
+        for (uint32_t obj : kPlants) {
+            put_u32(obj + 0x08, 0);
+            for (int i = 0; i < 8; i++) put_u8(obj + 0x88 + (uint32_t) i, 0);
+        }
+    }
+    put_u32(NODE2 + 0x04, 0); put_u32(NODE2 + 0x0C, 0);
+    put_u32(NODE2 + 0x1C, 0); put_u32(NODE2 + 0x38, 0);
+    // The lock record's target and positions belong to the cue
+    // section below, which inherits the name section's plant.
+    put_u32(REC + 0x3C, FOEBLK + 0x1B8);
+    put_f32(REC + 0x40, -5.28f); put_f32(REC + 0x44, 1.11f); put_f32(REC + 0x48, -0.21f);
+    put_f32(REC + 0x50, 3.69f);  put_f32(REC + 0x54, 1.16f); put_f32(REC + 0x58, 0.63f);
     // ---- cue snapshot: the beacon's data feed (2026-10-19) ----
     oga::CueSnapshot snap;
     snap.battle = false; snap.locked = true; snap.is_core = true;
@@ -701,13 +907,15 @@ int main()
     put_u16(ACTOR5 + 0x380, 52);       // exactly 26%: the game's line is < 26
     NSPOKEN = 0; oga::AdapterSpeechReset();
     lowhp_frames();
-    CHECK(NSPOKEN == 0, "low HP: at 26 percent the warning stays silent");
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Your health 50 percent."),
+          "low HP: at 26 percent the warning stays silent (the 50 milestone speaks)");
 
     put_u16(ACTOR5 + 0x380, 51);       // 25%: below the game's line
     NSPOKEN = 0; oga::AdapterSpeechReset();
     lowhp_frames();
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Low health."),
-          "low HP: crossing below the line speaks Low health once");
+    CHECK(NSPOKEN == 2 && strstr(SPOKEN[0], "Low health.") &&
+              strstr(SPOKEN[1], "Your health 25 percent."),
+          "low HP: crossing below the line speaks Low health once (plus the 25 milestone)");
 
     put_u16(ACTOR5 + 0x380, 30);       // deeper damage, still low
     NSPOKEN = 0; oga::AdapterSpeechReset();
@@ -719,14 +927,16 @@ int main()
     put_u16(ACTOR5 + 0x380, 51);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     lowhp_frames();
-    CHECK(NSPOKEN == 0, "low HP: a shallow heal does not re-arm the warning");
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Your health 25 percent."),
+          "low HP: a shallow heal does not re-arm the warning (the 25 milestone re-arms at 30)");
 
     put_u16(ACTOR5 + 0x380, 62);       // healed to 31%: re-armed
     lowhp_frames();
     put_u16(ACTOR5 + 0x380, 51);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     lowhp_frames();
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Low health."),
+    CHECK(NSPOKEN == 2 && strstr(SPOKEN[0], "Low health.") &&
+              strstr(SPOKEN[1], "Your health 25 percent."),
           "low HP: healed clear and dropped again, it speaks again");
 
     put_u16(ACTOR5 + 0x380, 0);        // death: the game-over flow's
@@ -740,7 +950,8 @@ int main()
     put_u16(ACTOR5 + 0x380, 51);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     lowhp_frames();
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Low health."),
+    CHECK(NSPOKEN == 2 && strstr(SPOKEN[0], "Low health.") &&
+              strstr(SPOKEN[1], "Your health 25 percent."),
           "low HP: after death and recovery, the next drop speaks");
 
     // The camp menu sits on the field with live HP words: a drop
@@ -764,12 +975,436 @@ int main()
     put_u16(ACTOR5 + 0x380, 51);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     lowhp_frames();
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Low health."),
+    CHECK(NSPOKEN == 2 && strstr(SPOKEN[0], "Low health.") &&
+              strstr(SPOKEN[1], "Your health 25 percent."),
           "low HP: healed and dropped in the field, it speaks");
     put_u16(ACTOR5 + 0x380, 0);        // retire the low-HP plant
     put_u16(ACTOR5 + 0x382, 0);
     put_u16(ACTOR5 + 0x330, 0);
     lowhp_frames();
+
+    // ---- battle gauges: Focus / shotlock + D-Link (2026-10-24) --------------
+    // Signals from bench khbbs-foc1..foc7 (see the adapter's
+    // constants block): the gauges object hangs off the fixed
+    // global u32 @ 0x08B73BB8; f32 D-Link @ +0x3C, f32 Focus
+    // @ +0x44, state @ +0x50 (1 aiming, 2 firing), flags @ +0x54
+    // (0x10000 Focus full, 0x100 D-Link primed, 0x20000 aiming,
+    // 0x200 linked), partner def @ +0x80 (0 = none; 383 = Ventus
+    // in the game's def table, name pointer at def+8).
+    const uint32_t ACTOR6 = 0x09948000, GAUGES = 0x099A4000,
+                   GNAME = 0x099A5000;
+    put_u16(ACTOR6 + 0x380, 149);      // cur HP
+    put_u16(ACTOR6 + 0x382, 149);      // max HP
+    put_u16(ACTOR6 + 0x226, 0);        // gauge
+    put_u16(ACTOR6 + 0x330, 1);        // mark (not locked on)
+    put_u32(ACTOR6 + 0x234, 0x8068);   // flags (bit 0x20 set)
+    put_u32(ACTOR6 + 0x220, 1);        // actor state
+    put_u32(ACTOR6 + 0x58, 0x099816A0);// command cluster pointer
+    put_u32(0x08B73BB8, GAUGES);       // the gauges global
+    put_f32(GAUGES + 0x3C, 40.0f);     // D-Link gauge
+    put_f32(GAUGES + 0x44, 40.0f);     // Focus gauge
+    put_u32(GAUGES + 0x50, 0);         // gauges state: idle
+    put_u32(GAUGES + 0x54, 0);         // flags: nothing set
+    put_u16(GAUGES + 0x80, 0);         // no link partner
+    auto gauges_frames = [&]() { for (int i = 0; i < 4; i++) a->on_frame(); };
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0, "battle gauges: first sight primes silently");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::PrevEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Focus 40.") &&
+              strstr(SPOKEN[0], "D-Link 40."),
+          "battle gauges: the field line reports Focus and D-Link");
+
+    put_f32(GAUGES + 0x44, 100.0f);
+    put_u32(GAUGES + 0x54, 0x10000);   // the game sets its full bit
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0,
+          "battle gauges: Focus reaching full stays silent in sound mode");
+    { oga::CueSnapshot snap{}; a->cue_snapshot(&snap);
+      CHECK(snap.focus_cue && !snap.dlink_cue,
+            "battle gauges: Focus reaching full raises the Focus earcon"); }
+    { oga::CueSnapshot snap{}; a->cue_snapshot(&snap);
+      CHECK(!snap.focus_cue,
+            "battle gauges: the Focus earcon fires exactly once"); }
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0, "battle gauges: staying full does not repeat");
+
+    put_u32(GAUGES + 0x54, 0x10100);   // D-Link gauge filled too
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0,
+          "battle gauges: a full D-Link gauge stays silent in sound mode");
+    { oga::CueSnapshot snap{}; a->cue_snapshot(&snap);
+      CHECK(snap.dlink_cue && !snap.focus_cue,
+            "battle gauges: a full D-Link gauge raises the D-Link earcon"); }
+
+    // Shotlock: lock on first (the mark's lock edge speaks), then
+    // aim — mark 4 must hold the field and the lock, not drop them.
+    put_u16(ACTOR6 + 0x330, 2);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Locked on."),
+          "battle gauges: locking on still announces before the aim");
+    put_u16(ACTOR6 + 0x330, 4);        // aiming mark
+    put_u32(ACTOR6 + 0x220, 24);       // aiming actor state
+    put_u32(GAUGES + 0x50, 1);         // gauges state: aiming
+    put_f32(GAUGES + 0x44, 73.0f);     // Focus drained by locks
+    put_u32(GAUGES + 0x54, 0x20100);   // aim bit up, full bit gone
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Shotlock."),
+          "battle gauges: entering the aim speaks Shotlock once");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::PrevEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Focus 73."),
+          "battle gauges: the field still answers during the aim (mark 4)");
+    // Fire: Cross — the firing state lands the same frame the aim
+    // bit falls, and Focus stays spent. The game sounds the shot
+    // itself (bench audio audit: the fire transition peaks at full
+    // scale), so the adapter now says NOTHING for a fired shotlock.
+    put_u32(GAUGES + 0x50, 2);
+    put_u32(GAUGES + 0x54, 0x100);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0,
+          "battle gauges: a fired shotlock stays silent (the game sounds it)");
+    put_u32(GAUGES + 0x50, 0);
+    put_u16(ACTOR6 + 0x330, 2);        // aim over, lock still held
+    put_u32(ACTOR6 + 0x220, 1);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0, "battle gauges: no Locked on re-announce after a shotlock");
+    // Mark 4 alone is not the player's — a foe block carries it
+    // in the Radiant Garden fight dumps — so without the gauges
+    // object's aim flag it must fail the field gate outright.
+    put_u16(ACTOR6 + 0x330, 4);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::PrevEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Not mapped yet"),
+          "battle gauges: mark 4 without the aim flag fails the field gate");
+    put_u16(ACTOR6 + 0x330, 2);
+    gauges_frames();
+    // Cancel: aim again, release without firing — Focus refunds
+    // to full, so the full bit rises on the same frame the aim
+    // falls: the refund becomes the Focus earcon, the cancel keeps
+    // its spoken line.
+    put_u16(ACTOR6 + 0x330, 4);
+    put_u32(ACTOR6 + 0x220, 24);
+    put_u32(GAUGES + 0x50, 1);
+    put_u32(GAUGES + 0x54, 0x20100);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Shotlock."),
+          "battle gauges: a second aim speaks Shotlock again");
+    put_u16(ACTOR6 + 0x330, 2);
+    put_u32(ACTOR6 + 0x220, 1);
+    put_u32(GAUGES + 0x50, 0);
+    put_f32(GAUGES + 0x44, 100.0f);    // refunded
+    put_u32(GAUGES + 0x54, 0x10100);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Shotlock cancelled."),
+          "battle gauges: a cancelled aim speaks only the cancel");
+    { oga::CueSnapshot snap{}; a->cue_snapshot(&snap);
+      CHECK(snap.focus_cue,
+            "battle gauges: the cancel's refund raises the Focus earcon"); }
+
+    // D-Link activation without a resolvable partner name first:
+    // the honest fallback line.
+    put_u32(GAUGES + 0x54, 0x10300);   // linked bit up
+    put_u16(GAUGES + 0x80, 383);       // Ventus's def (name not planted yet)
+    put_f32(GAUGES + 0x3C, 99.9f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "D-Link active."),
+          "battle gauges: an unnamed link speaks the fallback line");
+    put_u32(GAUGES + 0x54, 0x10000);   // link over (primed + linked gone)
+    put_u16(GAUGES + 0x80, 0);
+    put_f32(GAUGES + 0x3C, 0.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "D-Link ended."),
+          "battle gauges: the link ending speaks D-Link ended");
+    // With the def name planted, the activation names the partner.
+    // (Refill first, as the game sequences it: the primed bit
+    // rises at the fill, the linked bit later at the confirm.)
+    memcpy(&RAM[OFF(GNAME)], "Ventus", 7);
+    put_u32(0x08B34924 + 383 * 16 + 8, GNAME);
+    put_f32(GAUGES + 0x3C, 100.0f);
+    put_u32(GAUGES + 0x54, 0x10100);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0,
+          "battle gauges: refilling after a link stays silent in sound mode");
+    { oga::CueSnapshot snap{}; a->cue_snapshot(&snap);
+      CHECK(snap.dlink_cue,
+            "battle gauges: refilling after a link raises the earcon again"); }
+    put_u32(GAUGES + 0x54, 0x10300);
+    put_u16(GAUGES + 0x80, 383);
+    put_f32(GAUGES + 0x3C, 99.9f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "D-Link: Ventus."),
+          "battle gauges: activation names the partner from the def table");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::PrevEnemy);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Linked to Ventus, D-Link 100."),
+          "battle gauges: the field line names the active link");
+    put_u32(GAUGES + 0x54, 0x10000);
+    put_u16(GAUGES + 0x80, 0);
+    put_f32(GAUGES + 0x3C, 0.0f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "D-Link ended."),
+          "battle gauges: the named link ending speaks too");
+
+    // Menu silence: an edge first seen under the camp menu is
+    // consumed silently and never fires late (low-HP discipline).
+    put_f32(GAUGES + 0x44, 40.0f);
+    put_u32(GAUGES + 0x54, 0);         // Focus spent again, bits clear
+    gauges_frames();
+    put_u32(0x08B5BEF8, 8);            // camp witnesses up
+    put_u32(0x08BD194C, 2);
+    put_f32(GAUGES + 0x44, 100.0f);
+    put_u32(GAUGES + 0x54, 0x10000);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0, "battle gauges: a fill under the camp menu stays silent");
+    put_u32(0x08B5BEF8, 0);            // camp closes
+    put_u32(0x08BD194C, 0);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0, "battle gauges: closing camp does not fire it late");
+
+    // No object: the watch and the readout both stand down.
+    put_u32(0x08B73BB8, 0);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    gauges_frames();
+    CHECK(NSPOKEN == 0, "battle gauges: no object, no speech");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::PrevEnemy);
+    CHECK(NSPOKEN == 1 && !strstr(SPOKEN[0], "Focus"),
+          "battle gauges: without the object the field line omits the gauges");
+    put_u32(0x08B34924 + 383 * 16 + 8, 0);   // retire the name plant
+    put_u16(ACTOR6 + 0x380, 0);              // retire the actor plant
+    put_u16(ACTOR6 + 0x382, 0);
+    put_u16(ACTOR6 + 0x330, 0);
+    gauges_frames();
+
+    // ---- sound-first health cues (2026-10-24) ----------------------------------
+    // The owner's rule: hits are sounded by the game already, so a
+    // hit raises a pitch-mapped beep through the cue snapshot
+    // (foe RIGHT +0.8, 1200->300 Hz; player LEFT -0.8, 800->200 Hz,
+    // both logarithmic) and speech keeps only the milestone
+    // crossings 75/50/25/10 with heal re-arm at +5. Max 200 for the
+    // player (75%=150, 50%=100, 25%=50, 10%=20) and 1200 for the
+    // foe, like the foe-readout section.
+    const uint32_t ACTOR7 = 0x0994C000, REC2 = 0x0998D000,
+                   FOEBLK2 = 0x0998E000;
+    put_u16(ACTOR7 + 0x380, 200);      // cur HP
+    put_u16(ACTOR7 + 0x382, 200);      // max HP
+    put_u16(ACTOR7 + 0x226, 0);        // gauge
+    put_u16(ACTOR7 + 0x330, 2);        // mark (locked on)
+    put_u32(ACTOR7 + 0x234, 0x8068);   // flags (bit 0x20 set)
+    put_u32(ACTOR7 + 0x220, 1);        // actor state
+    put_u32(ACTOR7 + 0x58, 0x099816A0);// command cluster pointer
+    put_u32(ACTOR7 + 0x33C, 21);       // the actor's engagement id
+    put_u32(REC2 + 0x38, ACTOR7);      // the record points back
+    put_u32(REC2 + 0x3C, FOEBLK2 + 0x1B8);
+    for (int i = 0; i < 3; i++) put_f32(REC2 + 0x40 + (uint32_t) i * 4, 0.0f);
+    put_f32(REC2 + 0x50, 5.0f); put_f32(REC2 + 0x54, 0.0f); put_f32(REC2 + 0x58, 0.0f);
+    put_u32(FOEBLK2 + 0x1B8, 21);      // the target's scene word = the id
+    put_u16(FOEBLK2 + 0x380, 1200);
+    put_u16(FOEBLK2 + 0x382, 1200);
+    auto sf_frames = [&]() { for (int i = 0; i < 4; i++) a->on_frame(); };
+    oga::CueSnapshot ssnap{};
+
+    sf_frames();   // primes both tracks (and speaks "Locked on.")
+    a->cue_snapshot(&ssnap);           // trigger the record locate + drain
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    a->cue_snapshot(&ssnap);
+    CHECK(!ssnap.foe_beep && !ssnap.own_beep && !ssnap.focus_cue && !ssnap.dlink_cue,
+          "health cues: a quiet fight raises nothing");
+
+    // Own side: a plain hit beeps (pitched from the NEW fraction,
+    // panned LEFT), with no speech.
+    put_u16(ACTOR7 + 0x380, 190);      // 95%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    a->cue_snapshot(&ssnap);
+    CHECK(ssnap.own_beep && !ssnap.foe_beep && ssnap.own_beep_pan == -0.8f &&
+              ssnap.own_beep_hz > 730.0f && ssnap.own_beep_hz < 765.0f,
+          "health cues: a hit on the player beeps left at 95 percent pitch");
+    CHECK(NSPOKEN == 0, "health cues: a plain hit says nothing");
+    a->cue_snapshot(&ssnap);
+    CHECK(!ssnap.own_beep, "health cues: the beep is consumed exactly once");
+    // The milestone crossings speak, once each.
+    put_u16(ACTOR7 + 0x380, 150);      // 75%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Your health 75 percent."),
+          "health cues: crossing 75 speaks the milestone");
+    put_u16(ACTOR7 + 0x380, 149);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 0, "health cues: drifting below a milestone does not repeat it");
+    // Heal past milestone + 5 and the milestone re-arms.
+    put_u16(ACTOR7 + 0x380, 160);      // 80%
+    sf_frames();
+    put_u16(ACTOR7 + 0x380, 150);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Your health 75 percent."),
+          "health cues: healing past 80 re-arms the 75 milestone");
+    // A plunge speaks only the LOWEST crossed milestone (the
+    // low-HP warning, an older watch, fires alongside).
+    put_u16(ACTOR7 + 0x380, 45);       // 22%: crosses 50 and 25
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 2 && strstr(SPOKEN[0], "Low health.") &&
+              strstr(SPOKEN[1], "Your health 25 percent."),
+          "health cues: a plunge speaks only the lowest crossed milestone");
+    put_u16(ACTOR7 + 0x380, 18);       // 9%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Your health nearly gone."),
+          "health cues: crossing 10 speaks nearly gone");
+    // Death raises nothing at all.
+    put_u16(ACTOR7 + 0x380, 200);
+    sf_frames();
+    put_u16(ACTOR7 + 0x380, 0);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 0, "health cues: death stays silent");
+    put_u16(ACTOR7 + 0x380, 200);
+    sf_frames();
+
+    // Foe side, locked: hits beep RIGHT at the foe's pitch; the
+    // milestone ladder speaks in order. (The death above cleared
+    // the cached lock record — the first poll re-locates it and a
+    // fresh set of frames primes the foe track at full HP.)
+    sf_frames();
+    a->cue_snapshot(&ssnap);
+    sf_frames();
+    put_u16(FOEBLK2 + 0x380, 1100);    // 91%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    a->cue_snapshot(&ssnap);
+    CHECK(ssnap.foe_beep && !ssnap.own_beep && ssnap.foe_beep_pan == 0.8f &&
+              ssnap.foe_beep_hz > 1040.0f && ssnap.foe_beep_hz < 1100.0f,
+          "health cues: a hit on the foe beeps right at 91 percent pitch");
+    CHECK(NSPOKEN == 0, "health cues: a plain foe hit says nothing");
+    put_u16(FOEBLK2 + 0x380, 900);     // 75%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 75 percent."),
+          "health cues: foe crossing 75 speaks");
+    put_u16(FOEBLK2 + 0x380, 500);     // 41%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 50 percent."),
+          "health cues: foe crossing 50 speaks");
+    put_u16(FOEBLK2 + 0x380, 200);     // 16%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 25 percent."),
+          "health cues: foe crossing 25 speaks");
+    put_u16(FOEBLK2 + 0x380, 100);     // 8%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe nearly gone."),
+          "health cues: foe crossing 10 speaks nearly gone");
+    // Heal to 58%: 50/25/10 re-arm (75 does not), so the next drop
+    // past 50 speaks 50 again — and only 50.
+    put_u16(FOEBLK2 + 0x380, 700);
+    sf_frames();
+    put_u16(FOEBLK2 + 0x380, 590);     // 49%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 50 percent."),
+          "health cues: a healed foe re-arms the milestones it passed");
+    a->cue_snapshot(&ssnap);
+    CHECK(ssnap.foe_beep, "health cues: the re-arm drop beeps too");
+    // The killing blow raises nothing.
+    put_u16(FOEBLK2 + 0x380, 0);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    a->cue_snapshot(&ssnap);
+    CHECK(NSPOKEN == 0 && !ssnap.foe_beep,
+          "health cues: the killing blow stays silent");
+    // A foe first tracked mid-fight starts fresh: milestones above
+    // its current percent stay silent.
+    put_u16(FOEBLK2 + 0x380, 480);     // 40%
+    sf_frames();
+    put_u16(FOEBLK2 + 0x380, 290);     // 24%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe health 25 percent."),
+          "health cues: a foe joined at 40 percent speaks only 25 on the way down");
+    // Unlocked: the last locked foe is still followed through its
+    // block after the record stops validating.
+    put_u16(ACTOR7 + 0x330, 1);        // unlock
+    put_u32(REC2 + 0x38, 0);           // the record lets go of the actor
+    sf_frames();
+    put_u16(FOEBLK2 + 0x380, 100);     // 8%
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    a->cue_snapshot(&ssnap);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Foe nearly gone.") && ssnap.foe_beep,
+          "health cues: the last locked foe is followed while unlocked");
+    // Once the block stops validating (scene word gone), tracking ends.
+    put_u32(FOEBLK2 + 0x1B8, 0);
+    sf_frames();
+    put_u16(FOEBLK2 + 0x380, 50);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    a->cue_snapshot(&ssnap);
+    CHECK(NSPOKEN == 0 && !ssnap.foe_beep,
+          "health cues: a foe whose block stops validating is dropped");
+
+    // The settings seam: speech mode brings the gauge lines back
+    // and raises no earcons; sound mode is the default restored.
+    const uint32_t GAUGES2 = 0x099A6000;
+    put_u32(0x08B73BB8, GAUGES2);
+    put_f32(GAUGES2 + 0x3C, 40.0f);
+    put_f32(GAUGES2 + 0x44, 40.0f);
+    put_u32(GAUGES2 + 0x50, 0);
+    put_u32(GAUGES2 + 0x54, 0);
+    put_u16(GAUGES2 + 0x80, 0);
+    sf_frames();                       // the watch takes the new object
+    oga::KhbbsHudGaugeCues(false);
+    put_f32(GAUGES2 + 0x44, 100.0f);
+    put_u32(GAUGES2 + 0x54, 0x10000);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    a->cue_snapshot(&ssnap);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Focus full.") && !ssnap.focus_cue,
+          "health cues: speech mode speaks Focus full and raises no earcon");
+    put_u32(GAUGES2 + 0x54, 0x10100);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "D-Link ready."),
+          "health cues: speech mode speaks D-Link ready");
+    oga::KhbbsHudGaugeCues(true);
+    put_u32(GAUGES2 + 0x54, 0);
+    sf_frames();
+    put_u32(GAUGES2 + 0x54, 0x10000);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    sf_frames();
+    a->cue_snapshot(&ssnap);
+    CHECK(NSPOKEN == 0 && ssnap.focus_cue,
+          "health cues: sound mode restored, the earcon is back");
+    put_u32(0x08B73BB8, 0);             // retire the gauges plant
+    put_u16(ACTOR7 + 0x380, 0);         // retire the actor plant
+    put_u16(ACTOR7 + 0x382, 0);
+    put_u16(ACTOR7 + 0x330, 0);
+    sf_frames();
 
     // ---- camp menu (verified 2026-10-18, fixture lineage) ---------------------------
     // Camp plant: the screen objects at their epoch-1 addresses,
@@ -1659,6 +2294,124 @@ int main()
     a->command(oga::Command::Guide);
     CHECK(NSPOKEN == 2, "Guide speaks again once camp closes");
 
+    // ---- landmark Guide beyond the Hub (tables SURVEYED 2026-10-24) -------------
+    // The surveyed rooms of Olympus Coliseum and Radiant Garden:
+    // every position is the walked survey's (guide-progress;
+    // per-room notes in games/kh-bbs/). Each room is asked from a
+    // stand the survey actually stood on, first with no facing
+    // (fresh attach) so the lines are distance-only, and two
+    // rooms get a movement leg to pin the bearing math outside
+    // the Hub. Unsurveyed rooms must stay silent.
+    {
+        auto guide_room = [&](unsigned w, unsigned r, float px, float pz) {
+            RAM[OFF(0x08B61CA0)] = (uint8_t) w; RAM[OFF(0x08B61CA1)] = (uint8_t) r;
+            RAM[OFF(0x08B759C0)] = (uint8_t) w; RAM[OFF(0x08B759C1)] = (uint8_t) r;
+            a->detach();
+            a->attach(&H);                          // fresh caches, no facing yet
+            put_f32(NODE + 0x40, px); put_f32(NODE + 0x48, pz);
+            NSPOKEN = 0; oga::AdapterSpeechReset();
+            a->command(oga::Command::Guide);
+        };
+
+        guide_room(8, 2, -2.09f, 2.75f);            // Vestibule, at the save point
+        CHECK(NSPOKEN == 6 && strstr(SPOKEN[0], "Save point, right here.") &&
+                  strstr(SPOKEN[1], "Moogle Shop, 5 away.") &&
+                  strstr(SPOKEN[2], "Large chest, 7 away."),
+              "Vestibule guide: save point, Moogle and chest from the save stand");
+        CHECK(strstr(SPOKEN[3], "Hercules, 7 away.") &&
+                  strstr(SPOKEN[4], "Phil, 7 away.") &&
+                  strstr(SPOKEN[5], "Coliseum Gates, 4 away."),
+              "Vestibule guide: Hercules, Phil and the door back, named by destination");
+        CHECK(!strstr(SPOKEN[1], "o'clock") && !strstr(SPOKEN[5], "o'clock"),
+              "Vestibule guide: no facing yet, no bearings");
+        a->on_frame();                              // anchor at the save stand
+        put_f32(NODE + 0x48, 4.75f);                // a 2-unit leg toward the door (+z)
+        a->on_frame();                              // facing (0, 1)
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::Guide);
+        CHECK(strstr(SPOKEN[0], "Save point, 2 away, 6 o'clock.") &&
+                  strstr(SPOKEN[5], "Coliseum Gates, 2 away, 2 o'clock."),
+              "Vestibule guide: bearings ride the movement facing");
+
+        guide_room(8, 1, 0.0f, -11.39f);            // Coliseum Gates, the entrance
+        CHECK(NSPOKEN == 3 && strstr(SPOKEN[0], "Small chest, 36 away.") &&
+                  strstr(SPOKEN[1], "Vestibule, 4 away.") &&
+                  strstr(SPOKEN[2], "Town Near Thebes, 32 away."),
+              "Coliseum Gates guide: the reachable chest and both doors");
+
+        guide_room(8, 5, 0.0f, -9.99f);             // Town Near Thebes, the entrance
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Coliseum Gates, 6 away."),
+              "Thebes guide: the walked street holds only the door back");
+
+        guide_room(6, 2, -5.64f, 3.16f);            // Entryway, at the save point
+        CHECK(NSPOKEN == 3 && strstr(SPOKEN[0], "Save point, right here.") &&
+                  strstr(SPOKEN[1], "Outer Gardens, 12 away.") &&
+                  strstr(SPOKEN[2], "Central Square, 17 away."),
+              "Entryway guide: save point and both doors");
+
+        guide_room(6, 3, 0.0f, 39.74f);             // Central Square, north entrance
+        CHECK(NSPOKEN == 4 && strstr(SPOKEN[0], "Small chest, 42 away.") &&
+                  strstr(SPOKEN[1], "Small chest, 66 away.") &&
+                  strstr(SPOKEN[2], "Entryway, 4 away.") &&
+                  strstr(SPOKEN[3], "Castle Town, 52 away."),
+              "Central Square guide: both chests and the two proven doors");
+        a->on_frame();                              // anchor at the entrance
+        put_f32(NODE + 0x48, 36.74f);               // a 3-unit leg into the square (-z)
+        a->on_frame();                              // facing (0, -1)
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::Guide);
+        CHECK(strstr(SPOKEN[0], "Small chest, 40 away, 2 o'clock.") &&
+                  strstr(SPOKEN[2], "Entryway, 7 away, 6 o'clock."),
+              "Central Square guide: bearings from a -z facing");
+
+        guide_room(6, 5, -8.99f, 20.00f);           // Castle Town, the west entrance
+        CHECK(NSPOKEN == 6 && strstr(SPOKEN[0], "Save point, 31 away.") &&
+                  strstr(SPOKEN[1], "Moogle Shop, 27 away.") &&
+                  strstr(SPOKEN[2], "Large chest, 31 away."),
+              "Castle Town guide: save point, Moogle and chest");
+        CHECK(strstr(SPOKEN[3], "Merlin's House, 26 away.") &&
+                  strstr(SPOKEN[4], "Central Square, 4 away.") &&
+                  strstr(SPOKEN[5], "Fountain Court, 48 away."),
+              "Castle Town guide: the house door and both gates, by destination");
+
+        guide_room(6, 8, -3.84f, 4.18f);            // Merlin's House, the doorway
+        CHECK(NSPOKEN == 3 && strstr(SPOKEN[0], "Merlin, 6 away.") &&
+                  strstr(SPOKEN[1], "Small chest, 3 away.") &&
+                  strstr(SPOKEN[2], "Castle Town, 4 away."),
+              "Merlin's House guide: Merlin, the chest and the door back");
+
+        guide_room(6, 7, 42.00f, 32.24f);           // Fountain Court balcony
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Castle Town, 4 away."),
+              "Fountain Court guide: the railed balcony names only its door");
+
+        guide_room(6, 12, 0.0f, -119.24f);          // Outer Gardens, the far end
+        CHECK(NSPOKEN == 4 && strstr(SPOKEN[0], "Small chest, 97 away.") &&
+                  strstr(SPOKEN[1], "Small chest, 146 away.") &&
+                  strstr(SPOKEN[2], "Purification Facility, 116 away.") &&
+                  strstr(SPOKEN[3], "Entryway, 4 away."),
+              "Outer Gardens guide: both chests and both doors the length of the garden");
+
+        guide_room(6, 11, 45.00f, -17.99f);         // Purification Facility (unsurveyed)
+        CHECK(NSPOKEN == 0, "Guide is silent in the unsurveyed Purification Facility");
+        guide_room(1, 5, 29.11f, 41.58f);           // Mountain Path (unsurveyed)
+        CHECK(NSPOKEN == 0, "Guide is silent on the unsurveyed Mountain Path");
+        guide_room(8, 3, 0.0f, 0.0f);               // West Bracket (unsurveyed)
+        CHECK(NSPOKEN == 0, "Guide is silent in an unsurveyed arena room");
+
+        guide_room(8, 2, -2.09f, 2.75f);            // back to the Vestibule
+        put_u32(0x08B5BEF8, 8);                     // camp opens over a surveyed room
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::Guide);
+        CHECK(NSPOKEN == 0, "Guide is silent in camp in a surveyed room too");
+        put_u32(0x08B5BEF8, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::Guide);
+        CHECK(NSPOKEN == 6, "the room guide speaks again once camp closes");
+
+        RAM[OFF(0x08B61CA0)] = 15; RAM[OFF(0x08B61CA1)] = 1;   // restore the Hub
+        RAM[OFF(0x08B759C0)] = 15; RAM[OFF(0x08B759C1)] = 1;
+    }
+
     // ---- the game-over menu (VERIFIED 2026-10-24, bench go1/go2/go3) ------------
     // Death in the field -> Continue / Retry / Load Game. The gate
     // is the conjunction the bench proved: the list object's
@@ -2014,13 +2767,19 @@ int main()
         CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Mirage Arena. D-Links, 3 of 3."),
               "event menu: WhereAmI names the rebuilt menu and its row");
 
-        // Home B's mode-child ghost (screen 3, count 0) is not
-        // the menu: silence, even on a nav command.
+        // Home B's screen-3 block is the mode child itself
+        // (the g10 section read it as a ghost before the
+        // child was wired): the TOP gate stays shut for it
+        // while the mode gate speaks it as the mode list.
         plant_ev(EVB, 3, 1, 0);
         NSPOKEN = 0; oga::AdapterSpeechReset();
         ev_frames(40);
-        a->command(oga::Command::MenuNext);
-        CHECK(NSPOKEN == 0, "event menu: home B's child ghost stays silent");
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "New Event. Arena Mode, 2 of 4."),
+              "mode menu: the screen-3 child announces as the mode list, not the top menu");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Mirage Arena. New Event. Arena Mode, 2 of 4."),
+              "mode menu: WhereAmI names the mode list and its row");
 
         // The stale widget: after a mode-child trip the menu
         // closes but home B's block keeps the full signature
@@ -2037,6 +2796,587 @@ int main()
         // Retire the section's plants.
         plant_ev(EVA, 0, 0, 0); plant_ev(EVB, 0, 0, 0);
         put_u32(EVFLOW, 0);
+    }
+
+    // ---- the New Event mode list (VERIFIED 2026-10-25, bench khbbs-cb1) -----
+    // The top menu's child: Versus Mode / Arena Mode /
+    // Command Board / Rumble Racing, opening on Arena Mode,
+    // wrapping both ways. It is the SAME widget family as the
+    // top menu with screen word 3 (its count word reads 0;
+    // the cursor is bounded by the four walked rows). The
+    // widget floats: cb1 found the child at 0x0991B5B8 and,
+    // after an Arena setup round trip, the top menu rebuilt
+    // at 0x0991E278 — neither is a g10 home, and the old
+    // two-home gate answered the field line over the rebuilt
+    // menu. The scan (sticky cache, uniqueness required) is
+    // what these plants exercise: a relocation home neither
+    // section above uses, each witness knocked out, two
+    // shaped widgets at once, and the stale widget under a
+    // dead flow word.
+    {
+        static const uint32_t EVC = 0x0991E278;   // cb1: top menu after a setup trip
+        static const uint32_t EVD = 0x0991B5B8;   // cb1: the mode child's home
+        static const uint32_t EVFLOW = 0x08B5BEF8;
+        put_u32(0x08BD194C, 0);   // camp witness B dead for this section
+        a->detach();
+        a->attach(&H);
+        auto md_frames = [&](int n) { for (int i = 0; i < n; i++) a->on_frame(); };
+        auto plant_md = [&](uint32_t base, uint16_t scr, uint16_t cur, uint16_t cnt) {
+            put_u32(EVFLOW, 8);
+            put_u16(base + 0x00, scr);
+            put_u16(base + 0x04, 15);
+            put_u16(base + 0x08, 0xDBFF);
+            put_u16(base + 0x0A, 0xFFF8);
+            put_u16(base + 0x0C, 0);
+            put_u16(base + 0x0E, cur);
+            put_u16(base + 0x12, cnt);
+        };
+        auto zero_md = [&](uint32_t base) { plant_md(base, 0, 0, 0); put_u32(EVFLOW, 8); };
+
+        // The mode widget at the relocation home, opening on
+        // Arena Mode: the arrival speaks once, after the
+        // cursor settles (see the transient check below).
+        plant_md(EVC, 3, 1, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        md_frames(14);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "New Event. Arena Mode, 2 of 4."),
+              "mode menu: arrival speaks the list and its opening row");
+        md_frames(2);
+        CHECK(NSPOKEN == 1, "mode menu: the arrival line does not repeat");
+        CHECK(a->ready(), "mode menu: ready while the list is up");
+
+        // Nav echoes read the live cursor, wraps included.
+        plant_md(EVC, 3, 2, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Command Board, 3 of 4"),
+              "mode menu: nav speaks the landed row (Command Board)");
+        plant_md(EVC, 3, 3, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Rumble Racing, 4 of 4"),
+              "mode menu: nav speaks the landed row (Rumble Racing)");
+        plant_md(EVC, 3, 0, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuPrev);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Versus Mode, 1 of 4"),
+              "mode menu: nav speaks the wrapped row (Versus Mode)");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Mirage Arena. New Event. Versus Mode, 1 of 4."),
+              "mode menu: WhereAmI names the list and the current row");
+
+        // The cb3 transient: the real widget validates with
+        // cursor 0 for ~4 frames before the game writes its
+        // start row (Arena Mode). A few frames at the build
+        // row must not announce; the settled row announces.
+        zero_md(EVC);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        md_frames(40);
+        plant_md(EVC, 3, 0, 0);
+        md_frames(3);
+        CHECK(NSPOKEN == 0, "mode menu: the build-row transient does not announce");
+        plant_md(EVC, 3, 1, 0);
+        md_frames(14);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "New Event. Arena Mode, 2 of 4."),
+              "mode menu: the settled start row announces, not the transient");
+
+        // The cb1 regression: after the child, the top menu
+        // returns at a relocated home and must speak again.
+        zero_md(EVC);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        md_frames(40);
+        plant_md(EVC, 2, 0, 3);
+        md_frames(2);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Mirage Arena. New Event, 1 of 3."),
+              "mode menu: the top menu re-announces from its relocated home");
+        zero_md(EVC);
+        md_frames(40);
+
+        // One witness at a time knocked out of the mode plant.
+        plant_md(EVC, 3, 4, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        md_frames(2);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "mode menu: an out-of-range cursor fails closed");
+        plant_md(EVC, 3, 1, 0);
+        put_u16(EVC + 0x08, 0xDBEF);   // the g10 decimal-slip value, on purpose
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        md_frames(2);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "mode menu: a wrong signature word fails closed");
+        zero_md(EVC);
+
+        // Two shaped widgets at once: the locator cannot
+        // choose, so both menus stay silent.
+        plant_md(EVC, 3, 1, 0);
+        plant_md(EVD, 2, 0, 3);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        md_frames(4);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "mode menu: two shaped widgets fail closed, neither speaks");
+
+        // The stale widget: fully shaped, flow word down.
+        zero_md(EVD);
+        plant_md(EVC, 3, 1, 0);
+        put_u32(EVFLOW, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        md_frames(40);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "mode menu: a lingering widget with the flow word down stays silent");
+
+        // Retire the section's plants.
+        zero_md(EVC); zero_md(EVD);
+        put_u32(EVFLOW, 0);
+    }
+
+    // ---- the Arena Mode setup screen (VERIFIED 2026-10-25, benches cb1/cb3/cb4) --
+    // Cross on Arena Mode replaces the mode list with the
+    // event setup form: focus rows Battle / Players / OK on
+    // an Archives-class list widget (header 0xDFFF/0xFFF8,
+    // cursor +0x06, count +0x0A == 3), the battle index at
+    // +0xD8 and the players count at +0x18, all under the
+    // event flow word. The battle's name is walked from the
+    // packed string table at 0x08E1CC30 (entry 0, "Day of
+    // Reckoning", is the anchor) and Risk/Rounds are read
+    // from the mission records at 0x08E17AA0 (id at +0x00,
+    // constant 100/28 at +0x02/+0x03, Risk +0x06, Rounds
+    // +0x0C) — the values below are cb4's thirteen
+    // screenshots. The widget is planted at a relocation
+    // home on purpose: the gate locates it by scan.
+    {
+        static const uint32_t SU = 0x0991E400;
+        static const uint32_t SU2 = 0x0991C200;
+        static const uint32_t EVFLOW = 0x08B5BEF8;
+        static const uint32_t NAMES = 0x08E1CC30;
+        static const uint32_t MISSIONS = 0x08E17AA0;
+        put_u32(0x08BD194C, 0);   // camp witness B dead for this section
+        a->detach();
+        a->attach(&H);
+        auto su_frames = [&](int n) { for (int i = 0; i < n; i++) a->on_frame(); };
+        static const char* const BNAMES[13] = {
+            "Day of Reckoning", "Wheels of Misfortune", "Risky Riches",
+            "Weaver Fever", "Sinister Sentinel", "Dead Ringer",
+            "Combined Threat", "Treasure Tussle", "Harsh Punishment",
+            "A Time to Chill", "Copycat Crisis", "Keepers of the Arena",
+            "Villains' Vendetta"
+        };
+        static const uint8_t BRISK[13] = { 1, 1, 1, 2, 2, 2, 3, 3, 3, 4, 4, 5, 5 };
+        static const uint8_t BROUNDS[13] = { 4, 4, 3, 4, 5, 5, 6, 3, 6, 8, 8, 9, 8 };
+        {
+            uint32_t p = NAMES;
+            for (int i = 0; i < 13; i++) {
+                put_ascii(p, BNAMES[i]);
+                size_t len = strlen(BNAMES[i]);
+                put_u8(p + (uint32_t) len, 0);
+                p += (uint32_t) len + 1;
+            }
+            for (int i = 0; i < 13; i++) {
+                uint32_t rec = MISSIONS + (uint32_t) i * 16;
+                put_u16(rec + 0x00, (uint16_t) i);
+                put_u8(rec + 0x02, 100); put_u8(rec + 0x03, 28);
+                put_u8(rec + 0x06, BRISK[i]);
+                put_u8(rec + 0x0C, BROUNDS[i]);
+            }
+        }
+        auto plant_su = [&](uint32_t base, uint16_t focus, uint16_t idx) {
+            put_u32(EVFLOW, 8);
+            RAM[OFF(0x08B61CA0)] = 15; RAM[OFF(0x08B61CA1)] = 1;   // the Hub
+            put_u16(base + 0x00, 0xDFFF);
+            put_u16(base + 0x02, 0xFFF8);
+            put_u16(base + 0x06, focus);
+            put_u16(base + 0x0A, 3);
+            put_u16(base + 0xD8, idx);
+            put_u16(base + 0x18, 1);
+        };
+        auto zero_su = [&](uint32_t base) {
+            put_u16(base + 0x00, 0); put_u16(base + 0x02, 0);
+        };
+
+        // Two shaped widgets at once: the locator cannot
+        // choose, so the screen stays silent.
+        plant_su(SU, 0, 0);
+        plant_su(SU2, 0, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        su_frames(16);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "setup: two shaped widgets fail closed, the screen stays silent");
+        zero_su(SU2);
+        zero_su(SU);
+        put_u32(EVFLOW, 0);
+        su_frames(40);
+
+        // Arrival on the Battle focus, opening battle.
+        plant_su(SU, 0, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        su_frames(14);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Arena Mode setup. Battle. Day of Reckoning. Risk 1 of 5. Rounds 4."),
+              "setup: arrival speaks the screen and the opening battle");
+        su_frames(2);
+        CHECK(NSPOKEN == 1, "setup: the arrival line does not repeat");
+        CHECK(a->ready(), "setup: ready while the screen is up");
+
+        // Focus echoes, wrap included.
+        plant_su(SU, 1, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Players. 1."),
+              "setup: nav speaks the Players row and its count");
+        plant_su(SU, 2, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "OK."),
+              "setup: nav speaks the OK row");
+        plant_su(SU, 0, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Battle. Day of Reckoning. Risk 1 of 5. Rounds 4."),
+              "setup: nav wraps from OK back to the Battle row");
+
+        // Cycling the battle speaks the landed battle's
+        // name and facts (index 7 = Treasure Tussle).
+        plant_su(SU, 0, 7);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuRight);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Battle. Treasure Tussle. Risk 3 of 5. Rounds 3."),
+              "setup: cycling speaks the landed battle with its risk and rounds");
+
+        // WhereAmI on the screen.
+        plant_su(SU, 0, 12);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Mirage Arena. Arena Mode setup. Battle. Villains' Vendetta. Risk 5 of 5. Rounds 8."),
+              "setup: WhereAmI names the screen and the current battle");
+
+        // One witness at a time knocked out.
+        plant_su(SU, 0, 0);
+        put_u16(SU + 0x0A, 5);   // the Archives count, not the setup count
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        su_frames(2);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "setup: the Archives count fails closed");
+        plant_su(SU, 3, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        su_frames(2);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "setup: an out-of-range focus fails closed");
+        plant_su(SU, 0, 13);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        su_frames(2);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "setup: an out-of-range battle index fails closed");
+        plant_su(SU, 0, 0);
+        put_u32(EVFLOW, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        su_frames(40);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "setup: a lingering widget with the flow word down stays silent");
+        su_frames(40);
+
+        // The cb5b/cb9 regression: when an arena event ends,
+        // the event module raises the flow word for a few
+        // hundred frames INSIDE THE ARENA ROOM while the
+        // stale setup widget still validates. The gate's Hub
+        // term keeps that window silent.
+        plant_su(SU, 2, 0);
+        RAM[OFF(0x08B61CA1)] = 3;   // the arena room, not the Hub
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        su_frames(16);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "setup: the event-end window in the arena room stays silent");
+        RAM[OFF(0x08B61CA1)] = 1;
+        zero_su(SU);
+        put_u32(EVFLOW, 0);
+        su_frames(40);
+
+        // Degradation: a broken name anchor drops the name
+        // but keeps the mission facts; a broken mission
+        // witness drops the facts but keeps the name.
+        put_u8(NAMES, 'X');   // "Xay of Reckoning"
+        plant_su(SU, 0, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        su_frames(14);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Arena Mode setup. Battle. Risk 1 of 5. Rounds 4."),
+              "setup: a broken name anchor degrades to the facts, never an invented name");
+        put_u8(NAMES, 'D');
+        zero_su(SU);
+        su_frames(40);
+        put_u8(MISSIONS + 0x02, 99);   // record 0's constant witness
+        plant_su(SU, 0, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Battle. Day of Reckoning."),
+              "setup: a broken mission witness degrades to the name alone");
+        put_u8(MISSIONS + 0x02, 100);
+
+        // Retire the section's plants.
+        zero_su(SU);
+        put_u32(EVFLOW, 0);
+        su_frames(2);
+    }
+
+    // ---- the arena event state (VERIFIED 2026-10-25, bench cb4) ----------------
+    // After OK the flow leaves the menus: an info-text
+    // pointer at 0x09F3A38C holds the hint the event flow
+    // wants read — the "move to the middle" string while an
+    // event is pending, the "press START" string while the
+    // player stands ready on the pad, 0 when nothing is
+    // pending. The watch is scoped to the Hub field and
+    // speaks only when the string at the pointer matches
+    // the proven text. The battle name comes from the
+    // setup visit's latch (Dead Ringer, index 5, planted
+    // and torn down first).
+    {
+        static const uint32_t SU = 0x0991E400;
+        static const uint32_t EVFLOW = 0x08B5BEF8;
+        static const uint32_t INFOPTR = 0x09F3A38C;
+        static const uint32_t HINTPEND = 0x08E1BE70;
+        static const uint32_t HINTREADY = 0x08E1BEB0;
+        static const uint32_t EACTOR = 0x09976090;   // the field section's plant base
+        put_u32(0x08BD194C, 0);   // camp witness B dead for this section
+        a->detach();
+        a->attach(&H);
+        auto ae_frames = [&](int n) { for (int i = 0; i < n; i++) a->on_frame(); };
+
+        // The setup visit that latches the battle.
+        put_u32(EVFLOW, 8);
+        RAM[OFF(0x08B61CA0)] = 15; RAM[OFF(0x08B61CA1)] = 1;   // the Hub
+        put_u16(SU + 0x00, 0xDFFF); put_u16(SU + 0x02, 0xFFF8);
+        put_u16(SU + 0x06, 0); put_u16(SU + 0x0A, 3);
+        put_u16(SU + 0xD8, 5); put_u16(SU + 0x18, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        ae_frames(14);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Dead Ringer"),
+              "arena event: the setup visit latches the chosen battle");
+        put_u16(SU + 0x00, 0); put_u16(SU + 0x02, 0);
+        put_u32(EVFLOW, 0);
+        ae_frames(40);
+
+        // The Hub field: a plausible actor, world 15 room 1.
+        RAM[OFF(0x08B61CA0)] = 15; RAM[OFF(0x08B61CA1)] = 1;
+        RAM[OFF(0x08B759C0)] = 15; RAM[OFF(0x08B759C1)] = 1;
+        put_u16(EACTOR + 0x382, 145);
+        put_u16(EACTOR + 0x380, 145);
+        put_u16(EACTOR + 0x226, 22);
+        put_u16(EACTOR + 0x330, 1);
+        put_u32(EACTOR + 0x234, 0x8068);
+        put_u32(EACTOR + 0x220, 1);
+        put_u32(EACTOR + 0x58, 0x09974C50);
+        put_ascii(HINTPEND, "Move to the middle of the hub when you're ready, then press Cross.");
+        put_ascii(HINTREADY, "Once everyone is ready, press the START button to begin!");
+        put_u32(INFOPTR, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        ae_frames(4);
+        CHECK(NSPOKEN == 0, "arena event: no pending event, no line");
+
+        // The event is set.
+        put_u32(INFOPTR, HINTPEND);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        ae_frames(3);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Event set: Dead Ringer. Move to the middle of the hub and press Cross when ready."),
+              "arena event: setting the event speaks where to go, naming the battle");
+        ae_frames(3);
+        CHECK(NSPOKEN == 1, "arena event: the set line does not repeat");
+
+        // Ready, cancelled, ready again, begun.
+        put_u32(INFOPTR, HINTREADY);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        ae_frames(3);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Ready. Press START to begin."),
+              "arena event: pressing Ready on the pad speaks the Begin prompt");
+        put_u32(INFOPTR, HINTPEND);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        ae_frames(3);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Ready cancelled."),
+              "arena event: leaving the ready state speaks the cancellation");
+        put_u32(INFOPTR, HINTREADY);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        ae_frames(3);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Ready. Press START to begin."),
+              "arena event: readying again speaks again");
+        put_u32(INFOPTR, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        ae_frames(3);
+        CHECK(NSPOKEN == 0, "arena event: the event beginning stays silent (the fight speaks for itself)");
+
+        // An unrelated info text, and the right pointer with
+        // the wrong text, both stay silent.
+        put_u32(INFOPTR, 0x08E1C609);   // some other text in the same table
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        ae_frames(3);
+        CHECK(NSPOKEN == 0, "arena event: an unrelated info pointer stays silent");
+        put_u8(HINTPEND, 'X');
+        put_u32(INFOPTR, HINTPEND);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        ae_frames(3);
+        CHECK(NSPOKEN == 0, "arena event: the pending pointer with corrupted text fails closed");
+        put_u8(HINTPEND, 'M');
+
+        // Retire the section's plants.
+        put_u32(INFOPTR, 0);
+        put_u16(EACTOR + 0x382, 0);
+        RAM[OFF(0x08B61CA0)] = 0; RAM[OFF(0x08B61CA1)] = 0;
+        RAM[OFF(0x08B759C0)] = 0; RAM[OFF(0x08B759C1)] = 0;
+        ae_frames(2);
+    }
+
+    // ---- rumble racing setup + the event-end summary
+    // (VERIFIED 2026-10-25, benches cb11/cb12/cb9b) --------
+    // The rumble form is the arena form's widget class
+    // with row count 4 and its three values packed into
+    // the word at +0xD8 (course index, laps - 1, players
+    // - 2, 0xFF sentinel). Its visit latches the race for
+    // the event-set line. The SUMMARY watch arms on
+    // presence in the arena room (world 15 room 3) with
+    // the flow word down and speaks "Event over." once
+    // when the word rises — the summary screen's own
+    // signature.
+    {
+        static const uint32_t RF = 0x0991C380;    // the rumble widget plant
+        static const uint32_t SU2 = 0x0991C600;   // an arena-form plant
+        static const uint32_t EVFLOW = 0x08B5BEF8;
+        static const uint32_t INFOPTR = 0x09F3A38C;
+        static const uint32_t HINTPEND = 0x08E1BE70;
+        static const uint32_t EACTOR = 0x09976090;
+        put_u32(0x08BD194C, 0);
+        a->detach();
+        a->attach(&H);
+        auto rr_frames = [&](int n) { for (int i = 0; i < n; i++) a->on_frame(); };
+        auto plant_rw = [&](uint16_t focus, int course, int laps, int players) {
+            put_u32(EVFLOW, 8);
+            RAM[OFF(0x08B61CA0)] = 15; RAM[OFF(0x08B61CA1)] = 1;
+            put_u16(RF + 0x00, 0xDFFF); put_u16(RF + 0x02, 0xFFF8);
+            put_u16(RF + 0x06, focus); put_u16(RF + 0x0A, 4);
+            RAM[OFF(RF + 0xD8)] = (uint8_t) course;
+            RAM[OFF(RF + 0xD9)] = (uint8_t) (laps - 1);
+            RAM[OFF(RF + 0xDA)] = (uint8_t) (players - 2);
+            RAM[OFF(RF + 0xDB)] = 0xFF;
+        };
+        auto zero_rw = [&] { for (uint32_t o = 0; o < 0x100; o += 2) put_u16(RF + o, 0); };
+
+        // Arrival on the Course row, then the focus walk.
+        plant_rw(0, 0, 5, 6);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(14);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Rumble Racing setup. Course. Country Chase."),
+              "rumble: arrival speaks the form and the course it opens on");
+        rr_frames(40);
+        CHECK(NSPOKEN == 1, "rumble: the arrival does not repeat");
+        plant_rw(1, 0, 5, 6);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Laps. 5."),
+              "rumble: the laps row speaks its number");
+        plant_rw(2, 0, 5, 6);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Players. 6."),
+              "rumble: the players row speaks its number");
+        plant_rw(3, 0, 5, 6);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "OK."),
+              "rumble: the OK row speaks");
+        plant_rw(0, 3, 7, 2);
+        rr_frames(3);   // the frame watch latches the course for the event-set line
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuRight);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Course. Castle Circuit."),
+              "rumble: cycling the course speaks the new course");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Mirage Arena. Rumble Racing setup. Course. Castle Circuit."),
+              "rumble: WhereAmI names the screen and the landed row");
+
+        // Fail closed: a broken sentinel, an out-of-range
+        // course, an out-of-range laps byte.
+        plant_rw(0, 0, 5, 6);
+        RAM[OFF(RF + 0xDB)] = 0;
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(14);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "rumble: a broken sentinel byte stays silent");
+        plant_rw(0, 9, 5, 6);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(14);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "rumble: an out-of-range course index stays silent");
+        plant_rw(0, 0, 41, 6);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(14);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "rumble: an out-of-range laps value stays silent");
+
+        // Both setup forms shaped at once: each gate
+        // excludes the other, so neither speaks.
+        zero_rw();
+        plant_rw(0, 0, 5, 6);
+        put_u16(SU2 + 0x00, 0xDFFF); put_u16(SU2 + 0x02, 0xFFF8);
+        put_u16(SU2 + 0x06, 0); put_u16(SU2 + 0x0A, 3);
+        put_u16(SU2 + 0xD8, 0); put_u16(SU2 + 0x18, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(16);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 0, "rumble: with both setup forms shaped, both gates fail closed");
+        put_u16(SU2 + 0x00, 0); put_u16(SU2 + 0x02, 0);
+
+        // The race's event-set line: the rumble visit above
+        // latched course 3 (Castle Circuit) last, so the
+        // Hub field's pending hint names the race.
+        zero_rw();
+        put_u32(EVFLOW, 0);
+        rr_frames(40);
+        RAM[OFF(0x08B61CA0)] = 15; RAM[OFF(0x08B61CA1)] = 1;
+        RAM[OFF(0x08B759C0)] = 15; RAM[OFF(0x08B759C1)] = 1;
+        put_u16(EACTOR + 0x382, 145);
+        put_u16(EACTOR + 0x380, 145);
+        put_u16(EACTOR + 0x226, 22);
+        put_u16(EACTOR + 0x330, 1);
+        put_u32(EACTOR + 0x234, 0x8068);
+        put_u32(EACTOR + 0x220, 1);
+        put_u32(EACTOR + 0x58, 0x09974C50);
+        put_ascii(HINTPEND, "Move to the middle of the hub when you're ready, then press Cross.");
+        put_u32(INFOPTR, HINTPEND);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(3);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Event set: Rumble Racing, Castle Circuit. Move to the middle of the hub and press Cross when ready."),
+              "rumble: setting the race speaks the event-set line naming the course");
+        put_u32(INFOPTR, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(3);
+        CHECK(NSPOKEN == 0, "rumble: the race beginning stays silent");
+
+        // The event-end summary: presence in the arena
+        // room arms the watch; the flow word rising speaks
+        // once. Rising with no arm (a fresh attach straight
+        // into the window) stays silent.
+        RAM[OFF(0x08B61CA1)] = 3; RAM[OFF(0x08B759C1)] = 3;
+        put_u32(EVFLOW, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(40);
+        CHECK(NSPOKEN == 0, "event end: standing in the arena room is silent while the event runs");
+        put_u32(EVFLOW, 8);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(3);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Event over."),
+              "event end: the summary screen's arrival speaks once");
+        rr_frames(10);
+        CHECK(NSPOKEN == 1, "event end: the line does not repeat across the summary");
+        RAM[OFF(0x08B61CA1)] = 1; RAM[OFF(0x08B759C1)] = 1;
+        put_u32(EVFLOW, 0);
+        rr_frames(3);
+        RAM[OFF(0x08B61CA1)] = 3; RAM[OFF(0x08B759C1)] = 3;
+        put_u32(EVFLOW, 8);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        rr_frames(3);
+        CHECK(NSPOKEN == 0, "event end: the window with no armed event stays silent");
+
+        // Retire the section's plants.
+        put_u32(EVFLOW, 0);
+        put_u16(EACTOR + 0x382, 0);
+        RAM[OFF(0x08B61CA0)] = 0; RAM[OFF(0x08B61CA1)] = 0;
+        RAM[OFF(0x08B759C0)] = 0; RAM[OFF(0x08B759C1)] = 0;
+        rr_frames(2);
     }
 
     // ---- the world map (VERIFIED 2026-10-24, bench wm1) --------------------------
@@ -2132,7 +3472,8 @@ int main()
         put_u16(WMACTOR + 0x380, 1);
         NSPOKEN = 0; oga::AdapterSpeechReset();
         wm_frames(4);
-        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Low health."),
+        CHECK(NSPOKEN == 2 && strstr(SPOKEN[0], "Low health.") &&
+                  strstr(SPOKEN[1], "Your health nearly gone."),
               "world map fix: the same 1 HP in a real field still warns");
 
         // Back on the map, parked at Radiant Garden: arrival
@@ -2899,6 +4240,364 @@ int main()
         CHECK(NSPOKEN == 6 &&
               strcmp(SPOKEN[5], "Press Cross to attack the ring! Keep attacking to string together a powerful combo.") == 0,
               "dialogue: a variant entry decodes from its NUL prefix");
+    }
+
+    // ---- shops: the Medal Shop buy flow (VERIFIED 2026-10-24, bench shop1-3) -------
+    // SHOP.ELF's own structures, planted with the bench's real
+    // layouts: the "SHP" stock table (found by signature scan), the
+    // floating shop widget (tab/cursor/count + mirror, cross-checked
+    // against the row count computed from the table through the def
+    // table's family/sub bytes), the fixed phase words, the quantity
+    // word, and the player block's currency words (munny +0x287DC,
+    // medals +0x287E0). Item names resolve through the resident
+    // message tables (category 0x2800) like the dialogue text.
+    {
+        auto frames = [&](int n) { for (int i = 0; i < n; i++) a->on_frame(); };
+        // Retire earlier sections' actors so the locator's
+        // corroboration is unique to this section's plant.
+        put_u16(0x0996C250 + 0x382, 0);
+        put_u16(0x09948000 + 0x382, 0);
+        // World words: Mirage Arena Hub (15/1) in both field copies
+        // and both map-id copies.
+        RAM[OFF(0x08B61CA0)] = 15; RAM[OFF(0x08B61CA1)] = 1;
+        RAM[OFF(0x08B759C0)] = 15; RAM[OFF(0x08B759C1)] = 1;
+        RAM[OFF(0x09925810)] = 15; RAM[OFF(0x09925811)] = 1;
+        RAM[OFF(0x09927D24)] = 15; RAM[OFF(0x09927D25)] = 1;
+        const uint32_t SACTOR = 0x09971000;
+        put_u16(SACTOR + 0x380, 213); put_u16(SACTOR + 0x382, 213);
+        put_u16(SACTOR + 0x226, 30);
+        put_u16(SACTOR + 0x330, 1);
+        put_u32(SACTOR + 0x234, 0x8068);
+        put_u32(SACTOR + 0x220, 1);
+        put_u32(SACTOR + 0x58, 0x099816A0);
+        const uint32_t SNODE = 0x09972000;
+        put_u32(SNODE + 0x04, 0x08B73DD0); put_u32(SNODE + 0x0C, 0x08B73DE0);
+        put_u32(SNODE + 0x1C, 0x08B73DB4); put_u32(SNODE + 0x38, SACTOR);
+        put_f32(SNODE + 0x40, 1.0f); put_f32(SNODE + 0x44, 0.0f); put_f32(SNODE + 0x48, 2.0f);
+        const uint32_t BLOCK = 0x09F00000;
+        put_u32(BLOCK + 0x287DC, 777);        // munny
+        put_u32(BLOCK + 0x287E0, 5000);       // medals
+        put_u16(BLOCK + 0x287E4, 50);         // level
+        put_u16(BLOCK + 0x287E6, 213);        // max-HP mirror
+        put_u32(BLOCK + 0x287F4, 0);          // character byte (at +0x287F7)
+        // The command pool: two live Group Cure instances.
+        const uint32_t POOL = 0x09973000;
+        put_u32(0x08B75E70, POOL);
+        put_u16(POOL + 0, 211);  put_u8(POOL + 3, 0);
+        put_u16(POOL + 10, 211); put_u8(POOL + 13, 0);
+        put_u16(POOL + 20, 100); put_u8(POOL + 23, 1);   // not an instance
+        // Def-table entries (family/sub drive the tab rebuild).
+        auto def = [&](uint16_t id, uint8_t fam, uint8_t sub, const char* nm, uint32_t na) {
+            uint32_t d = 0x08B34924 + (uint32_t) id * 16;
+            put_u8(d, fam); put_u8(d + 1, sub);
+            put_ascii(na, nm); put_u32(d + 8, na);
+        };
+        def(211, 2, 12, "Group Cure", 0x09974000);
+        def(100, 2, 1, "Zantetsuken", 0x09974020);
+        def(288, 5, 9, "Bio Barrage", 0x09974040);
+        // The item-name message table (category 0x2800).
+        const uint32_t CTD3 = 0x08DF8AC0;
+        put_u32(CTD3 + 0x00, 0x44544340); put_u32(CTD3 + 0x04, 1);
+        put_u32(CTD3 + 0x08, 0x28000000);
+        put_u32(CTD3 + 0x10, 0x20); put_u32(CTD3 + 0x14, 0x20 + 3 * 12); put_u32(CTD3 + 0x18, 0x200);
+        put_ascii(CTD3 + 0x200, "Potion");
+        put_ascii(CTD3 + 0x210, "Shimmering Crystal");
+        put_ascii(CTD3 + 0x230, "Risky Ticket");
+        put_u32(CTD3 + 0x20 + 0, 0x28000001);  put_u32(CTD3 + 0x20 + 4, 0x200);  put_u32(CTD3 + 0x20 + 8, 0);
+        put_u32(CTD3 + 0x20 + 12, 0x28003200); put_u32(CTD3 + 0x20 + 16, 0x210); put_u32(CTD3 + 0x20 + 20, 1);
+        put_u32(CTD3 + 0x20 + 24, 0x28001F06); put_u32(CTD3 + 0x20 + 28, 0x230); put_u32(CTD3 + 0x20 + 32, 2);
+        // The stock table: 3 commands + 3 items.
+        const uint32_t SHP = 0x0935C2FC;
+        put_u32(SHP, 0x00504853); put_u16(SHP + 4, 1); put_u16(SHP + 6, 2); put_u32(SHP + 8, 6);
+        auto rec = [&](int i, uint16_t id, uint8_t kind, uint16_t price) {
+            uint32_t r = SHP + 12 + (uint32_t) i * 8;
+            put_u16(r, id); put_u8(r + 2, kind); put_u16(r + 6, price);
+        };
+        rec(0, 211, 1, 180); rec(1, 100, 1, 1000); rec(2, 288, 1, 1500);
+        rec(3, 0x0001, 0, 50); rec(4, 0x3200, 0, 300); rec(5, 0x1F06, 0, 150);
+        const uint32_t WID = 0x0992D7C0;
+        put_u32(WID + 0x2C, 0x09918AC0);      // the shop-widget back-pointer
+        put_u16(WID + 0x04, 0); put_u16(WID + 0x34, 0);
+        put_u16(WID + 0x36, 6); put_u16(WID + 0x3E, 6);
+
+        // Let the dialogue census rebuild at the new world first
+        // (it is what resolves the item names), then open the shop.
+        put_u16(0x09918E8C, 0);               // shop still closed
+        frames(30);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        put_u16(0x09918E8C, 4); put_u16(0x09918F10, 10); put_u16(0x09918F14, 1);
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Medal Shop.") &&
+                  strstr(SPOKEN[0], "Group Cure, 180 medals, 2 in stock, 1 of 6.") &&
+                  strstr(SPOKEN[0], "You have 5000 medals."),
+              "shop: arrival speaks the shop, the first row with its stock, and the balance");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 0, "shop: an idle list does not re-speak");
+
+        put_u16(WID + 0x34, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Zantetsuken, 1000 medals, 0 in stock, 2 of 6."),
+              "shop: nav speaks the landed command row with its pool stock");
+        put_u16(WID + 0x34, 3);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Potion, 50 medals, 4 of 6."),
+              "shop: an item row speaks the name from the message tables");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Medal Shop. Potion, 50 medals, 4 of 6. You have 5000 medals."),
+              "shop: WhereAmI inside the shop speaks the row and the balance");
+
+        // Tab landings speak through the watch (L/R have no command).
+        put_u16(WID + 0x04, 4); put_u16(WID + 0x34, 0);
+        put_u16(WID + 0x36, 1); put_u16(WID + 0x3E, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Friendship. Group Cure, 180 medals, 2 in stock, 1 of 1."),
+              "shop: a tab landing speaks the tab and its first row");
+        put_u16(WID + 0x04, 2); put_u16(WID + 0x36, 0); put_u16(WID + 0x3E, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Magic. No items."),
+              "shop: an empty tab speaks its name and the empty list");
+        put_u16(WID + 0x04, 0); put_u16(WID + 0x34, 0);
+        put_u16(WID + 0x36, 6); put_u16(WID + 0x3E, 6);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "All. Group Cure, 180 medals, 2 in stock, 1 of 6."),
+              "shop: returning to All speaks its first row");
+
+        // The buy flow: quantity step, quantity echo, confirmation
+        // (starts on No; left/right flip the tracked choice).
+        put_u16(0x09918E8C, 6); put_u16(0x09918F10, 10); put_u16(0x09918F14, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "How many? Group Cure, 180 medals, 2 in stock, 1 of 6."),
+              "shop: the quantity step speaks its prompt with the row");
+        put_u16(0x09918F14, 3);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuRight);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Quantity 3, 540 medals.") &&
+                  strstr(SPOKEN[0], "You have 5000 medals."),
+              "shop: a quantity change speaks the quantity, the total and the balance");
+        put_u16(0x09918F10, 40);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Trade in these medals? No."),
+              "shop: the confirmation speaks, starting on No");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuLeft);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Yes."),
+              "shop: left flips the confirmation to Yes");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuLeft);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No."),
+              "shop: left again flips it back to No");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuRight);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Yes."),
+              "shop: right flips it to Yes again");
+        // Confirm: the game returns to the list and the medals drop.
+        put_u32(BLOCK + 0x287E0, 4460);
+        put_u16(0x09918E8C, 4); put_u16(0x09918F10, 10);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Bought Group Cure, quantity 3. You have 4460 medals."),
+              "shop: a completed purchase speaks what was bought and the new balance");
+
+        // Exit: the phase word leaves the shop and the gate drops.
+        put_u16(0x09918E8C, 3);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN >= 1 && !strstr(SPOKEN[0], "Medal Shop."),
+              "shop: after exit the shop no longer owns WhereAmI");
+
+        // Negatives: each gate leg broken in turn keeps the shop silent.
+        put_u16(0x09918E8C, 9329);            // phase garbage (camp-lineage value)
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 0 || !strstr(SPOKEN[0], "Medal Shop."),
+              "shop: a garbage phase word fails the gate closed");
+        put_u16(0x09918E8C, 4);
+        put_u16(WID + 0x36, 5); put_u16(WID + 0x3E, 5);   // count lies about the tab
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 0 || !strstr(SPOKEN[0], "Medal Shop."),
+              "shop: a widget count that disagrees with the stock table fails closed");
+        put_u16(WID + 0x36, 6); put_u16(WID + 0x3E, 6);
+        put_u32(SHP + 12 + 6 * 8, 7);          // break the table terminator
+        put_u16(0x09918E8C, 3); frames(2);     // force a rescan
+        put_u16(0x09918E8C, 4);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 0 || !strstr(SPOKEN[0], "Medal Shop."),
+              "shop: a stock table without its terminator fails closed");
+        put_u32(SHP + 12 + 6 * 8, 0);
+
+        // (The munny shop's own section follows below: the type
+        // word selects the table format strictly, so a type flip on
+        // Medal-shaped data is a malformed table, not a Moogle
+        // shop — the real thing has its own plants.)
+        put_u16(0x09918E8C, 3);
+        frames(2);
+    }
+
+    // ---- shops: the munny Command Shop (VERIFIED 2026-10-24, bench shop14-16) ----
+    // The other shop family: a top level (phase 2) over Buy (4) and
+    // Sell (5) lists, each with quantity (6/7) and confirm steps; the
+    // stock table is the bare def-id list format (type 1), prices
+    // come from the adapter's harvested table, four stocked defs are
+    // never displayed, and sell rows are the pool's family-2
+    // instances sorted by def id with computed prices.
+    {
+        auto frames = [&](int n) { for (int i = 0; i < n; i++) a->on_frame(); };
+        const uint32_t BLOCK = 0x09F00000, POOL = 0x09973000;
+        put_u32(0x0935C2FC, 0);               // retire the Medal table
+        put_u16(0x0992D7C0 + 0x36, 0); put_u16(0x0992D7C0 + 0x3E, 0);  // and its widget
+        // (a lingering widget whose count matches another list's
+        // would make the scan ambiguous — the gate fails closed on
+        // that, so the plant must not leave one behind)
+        auto def = [&](uint16_t id, uint8_t fam, uint8_t sub, const char* nm, uint32_t na) {
+            uint32_t d = 0x08B34924 + (uint32_t) id * 16;
+            put_u8(d, fam); put_u8(d + 1, sub);
+            put_ascii(na, nm); put_u32(d + 8, na);
+        };
+        def(91, 2, 1, "Quick Blitz", 0x09974060);
+        def(94, 2, 1, "Meteor Crash", 0x09974080);
+        def(188, 2, 3, "Potion", 0x099740A0);
+        def(243, 3, 4, "Slide", 0x099740C0);
+        def(205, 4, 1, "Combo Plus", 0x099740E0);
+        // Pool: the two Group Cure stacks become level 3; add two
+        // Quick Blitz instances (LV1 with an ability, LV3 without)
+        // and a 60-count Potion stack.
+        put_u8(POOL + 2, 3); put_u8(POOL + 12, 3);
+        put_u16(POOL + 30, 91);  put_u8(POOL + 32, 1); put_u8(POOL + 33, 0); put_u16(POOL + 36, 205);
+        put_u16(POOL + 40, 91);  put_u8(POOL + 42, 3); put_u8(POOL + 43, 0); put_u16(POOL + 46, 0);
+        put_u16(POOL + 50, 188); put_u8(POOL + 52, 60); put_u8(POOL + 53, 0);
+        put_u16(POOL + 60, 243); put_u8(POOL + 62, 2); put_u8(POOL + 63, 0); put_u16(POOL + 66, 0);
+        // The stock table: bare id list; 94 is stocked but hidden.
+        const uint32_t CSHP = 0x0935D000;
+        put_u32(CSHP, 0x00504853); put_u16(CSHP + 4, 1); put_u16(CSHP + 6, 1); put_u32(CSHP + 8, 5);
+        put_u32(CSHP + 12, 91); put_u32(CSHP + 16, 94); put_u32(CSHP + 20, 100);
+        put_u32(CSHP + 24, 188); put_u32(CSHP + 28, 243); put_u32(CSHP + 32, 0);
+        // One widget per list.
+        const uint32_t TOPW = 0x09944110, BUYW = 0x099446B0, SELLW = 0x09945190;
+        put_u32(TOPW + 0x2C, 0x09918AC0); put_u32(BUYW + 0x2C, 0x09918AC0); put_u32(SELLW + 0x2C, 0x09918AC0);
+        put_u16(TOPW + 0x34, 0); put_u16(TOPW + 0x36, 3); put_u16(TOPW + 0x3E, 3);
+        put_u16(BUYW + 0x04, 0); put_u16(BUYW + 0x34, 0); put_u16(BUYW + 0x36, 4); put_u16(BUYW + 0x3E, 4);
+        put_u16(SELLW + 0x04, 0); put_u16(SELLW + 0x34, 0); put_u16(SELLW + 0x36, 6); put_u16(SELLW + 0x3E, 6);
+
+        // Top level arrival.
+        put_u16(0x09918E8C, 2); put_u16(0x09918F10, 5);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Moogle Shop. Buy, 1 of 3.") &&
+                  strstr(SPOKEN[0], "You have 777 munny."),
+              "command shop: the top level speaks the shop, the Buy row and the balance");
+        put_u16(TOPW + 0x34, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Sell, 2 of 3."),
+              "command shop: nav speaks the top-level rows");
+        // Into Buy: the landing row carries the harvested price and
+        // the pool stock; the hidden def is skipped in the numbering.
+        put_u16(TOPW + 0x34, 0);
+        put_u16(0x09918E8C, 4); put_u16(0x09918F10, 10);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Quick Blitz, 100 munny, 2 in stock, 1 of 4."),
+              "command shop: the buy landing speaks price and stock from the pool");
+        put_u16(BUYW + 0x34, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Zantetsuken, 1700 munny, 0 in stock, 2 of 4."),
+              "command shop: a buy row speaks its harvested price");
+        put_u16(BUYW + 0x34, 2);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Potion, 30 munny, 60 in stock, 3 of 4."),
+              "command shop: the hidden def is skipped and the item stack speaks its count");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Moogle Shop. Potion, 30 munny, 60 in stock, 3 of 4. You have 777 munny."),
+              "command shop: WhereAmI speaks the buy row and the balance");
+        // Buy quantity and the game's own confirm wording.
+        put_u16(0x09918E8C, 6); put_u16(0x09918F10, 10); put_u16(0x09918F14, 2);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "How many? Potion, 30 munny, 60 in stock, 3 of 4."),
+              "command shop: the quantity step speaks its prompt with the row");
+        put_u16(0x09918F10, 40);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Complete this purchase? No."),
+              "command shop: the confirmation uses the game's wording, starting on No");
+        // Back to the top, then into Sell.
+        put_u16(0x09918E8C, 2); put_u16(0x09918F10, 5);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Buy, 1 of 3."),
+              "command shop: returning to the top level speaks its row");
+        put_u16(0x09918E8C, 5); put_u16(0x09918F10, 10);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Quick Blitz, level 1, Combo Plus, 75 munny, 1 of 6."),
+              "command shop: the sell landing speaks level, ability and the computed price");
+        put_u16(SELLW + 0x34, 2);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Potion, 60 in stock, 3 of 6."),
+              "command shop: a sell row for an item stack speaks its held count");
+        put_u16(SELLW + 0x34, 5);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Slide, level 2, 125 munny, 6 of 6."),
+              "command shop: a family-3 instance sells too, at its computed price");
+        // Sell one Quick Blitz: quantity, echo, confirm, completion.
+        put_u16(SELLW + 0x34, 0);
+        put_u16(0x09918E8C, 7); put_u16(0x09918F10, 10); put_u16(0x09918F14, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "How many? Quick Blitz, level 1, Combo Plus, 75 munny, 1 of 6."),
+              "command shop: the sell quantity step speaks its prompt with the row");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuRight);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Quantity 1, 75 munny.") &&
+                  strstr(SPOKEN[0], "You have 777 munny."),
+              "command shop: the sell quantity echo speaks the total and the balance");
+        put_u16(0x09918F10, 40);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Complete this sale? No."),
+              "command shop: the sale confirmation speaks, starting on No");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuLeft);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Yes."),
+              "command shop: left flips the sale confirmation to Yes");
+        put_u32(BLOCK + 0x287DC, 852);
+        put_u16(0x09918E8C, 5); put_u16(0x09918F10, 10);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Sold Quick Blitz. You have 852 munny."),
+              "command shop: a completed sale speaks what was sold and the new balance");
+        // A widget count that disagrees with the computed rows
+        // fails the gate closed.
+        put_u16(BUYW + 0x36, 9); put_u16(BUYW + 0x3E, 9);
+        put_u16(0x09918E8C, 4); put_u16(0x09918F10, 10);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(8);
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 0 || !strstr(SPOKEN[0], "Moogle Shop."),
+              "command shop: a buy widget count that disagrees with the stock fails closed");
+        put_u16(BUYW + 0x36, 4); put_u16(BUYW + 0x3E, 4);
+        put_u16(0x09918E8C, 3);
+        frames(2);
     }
 
     // ---- detach ---------------------------------------------------------------------

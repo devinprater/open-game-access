@@ -44,10 +44,16 @@ struct SettingsView: View {
                 // an unspoken change is an invisible one.
                 Toggle("Lock cue", isOn: $session.cueBeaconEnabled)
                     .accessibilityHint("A beep that quickens as the locked target gets closer. Different sounds for the enemy and the energy core. Silent when nothing is locked.")
+                // The gauge-full cues mode, for games whose reader has
+                // HUD gauges (today Kingdom Hearts: Birth by Sleep).
+                // This is the app default; the game can override it in
+                // its Per Game Settings on its library page.
+                Toggle("Gauge-full cues", isOn: $session.hudGaugeCuesSound)
+                    .accessibilityHint("On: a short sound when the Focus or D-Link gauge fills. Off: a spoken line instead. Applies to Kingdom Hearts: Birth by Sleep.")
             } header: {
                 Text("Sound")
             } footer: {
-                Text("The lock cue plays only for games whose reader reports a locked target. It never changes what the game does.")
+                Text("The lock cue plays only for games whose reader reports a locked target. It never changes what the game does. Both switches here are app defaults: a game can override them for itself from Per Game Settings on its library page.")
             }
 
             Section {
