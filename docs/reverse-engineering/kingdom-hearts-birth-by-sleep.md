@@ -3093,7 +3093,7 @@ never fired — it speaks only if its record activates).
 - Non-US text is out of scope by construction: the decode
   fails closed on it rather than garbling it.
 
-## The Command Board — SURVEYED, GP records crowned, screens NOT yet wired (2026-10-25, benches cb7–cb7d)
+## The Command Board — WIRED + LIVE-PROVEN (2026-10-25, benches cb7–cb17)
 
 The board game is reachable two ways: the camp menu's
 Command Board row, and the arena terminal's mode list.
@@ -3154,39 +3154,131 @@ edge) shows per player: laps, name, GP on hand, total
 GP — Ventus ended his first turn at 925 on hand / 1000
 total after buying a panel.
 
-RAM STATE (partially crowned):
+WITNESSES (all crowned 2026-10-25, benches cbplay1–
+cbplay17; every widget FLOATS per boot/lineage, so the
+adapter signature-scans with sticky caches and never
+hardcodes an address):
 
-- Player GP records live at fixed addresses in the
-  session region: u32 GP-on-hand at 0x09F2DBD0 (Terra),
-  0x09F2DBF4 (Ventus), 0x09F2DC18 (Aqua) — stride 0x24,
-  CHARACTER order (not turn order). Crowned by the
-  1000→925 transition across Ventus's first turn
-  (unique in a full-RAM hunt). The records' full field
-  layout is not yet mapped; the words around them churn
-  with render state.
-- The board module's own state sits around 0x0982xxxx
-  (title-screen diffs churn there — hundreds of small
-  diffs; no cursor crowned yet).
-- NOT yet found: the liveness gate for "a board game
-  is running", each player's panel position (it commits
-  only when a move's animation completes — the gp3/gp4
-  dumps bracket the direction-choice step, before the
-  commit), the dice value as a word, the hand (the
-  turn menu's Hand screen), and the total-GP field.
+- LIVENESS (experiment 3): u32 @ 0x08BC58FC holds a
+  pointer to the game object while a board game is
+  running, and reads 0 across ~90 sampled non-board
+  dumps (camp/field/title/arena/shop/battle). It flips
+  at game creation. Cheap pre-term: the menu-system
+  screen pointer u32 @ 0x08B5BE50 reads 0x0982xxxx–
+  0x0985xxxx on board screens (0x099xxxxx in camp and
+  the field).
+- PLAYER RECORDS (experiment 1): a stride-0x24 array
+  in the session region (base 0x09F2DBD0 in the
+  cb7d/play lineages), CHARACTER order. +0x00 u32 GP
+  on hand (Ventus 1000→925 across his first turn).
+  +0x08 bytes: character id (Ventus 1, Aqua 2, Terra
+  3), human flag (0 human / 1 CPU), human tell (0xFF
+  for the human), and at +0x0B the turn-order position
+  (0-based). +0x0E u16 = the def id of the panel the
+  player stands on (start panel 38 = Sweet Memory for
+  everyone; names resolve through DefName). +0x18..
+  +0x21: five u16 card slots, 0xFFFF = empty (a queue
+  that pops when a panel is placed — NOT the Hand
+  screen's hand; its count is what the adapter reads).
+  A guest opponent (Cinderella on the Royal Board)
+  has an unknown character id and is named "Opponent".
+- LIST-WIDGET FAMILY: class u32 = 0x08B77D68; count
+  as count<<16 at +0x1C and 0xFFFF0000|count at
+  +0x20; row-table pointer at +0x24; cursor pair at
+  +0x14/+0x18, always equal. Crowned members: board
+  title (3 rows, table 0x08BB1550; New Game / Continue
+  / How to Play), turn menu (4, 0x08BBE088; Roll /
+  Hand / Stats / Options), Hand plays list (5,
+  0x08BCEE60), Options list (5, 0x08BCF5A8), command-
+  card strip (5, 0x08B8DB78). Cursors wrap both ways.
+  PHANTOM TRAP: at a turn's start the turn-menu object
+  is built over a few frames — the bare shape already
+  matches while its row-render sub-objects at +0x60
+  and +0x70 are still null (bench cbplay16 caught one
+  alive for <120 frames and it fired a false "Your
+  turn."). The adapter's turn-menu gate therefore
+  also requires both sub-pointers in user RAM and 15
+  consecutive frames of stability.
+- SETUP WIDGET: class word plus +0x30/+0x34/+0x38 =
+  0x08BAF330/0x08BAF3B0/0x08BAF490; board index pair
+  +0x3C/+0x40; goal index pair +0x60/+0x64; focus
+  word +0x20 (1 = board step, 3 = goal step, 4 =
+  confirm dialog up). Boards: 0 Keyblade, 1 Royal
+  (single opponent Cinderella; descriptions for both
+  are read off the screens verbatim), 2 Spaceship;
+  3–6 named from trophy strings only (Toon, Hunny
+  Pot, Skull, Secret) — their descriptions are NOT
+  spoken. Goal index → GP: 0=5000, 1=10000, 2=15000.
+- YES/NO DIALOG FAMILY (no class word): +0x1C =
+  0x00020000, +0x20 = 0xFFFF0002, +0x24 = 0x08BCD828;
+  choice pair +0x14/+0x18 (0 = Yes, 1 = No; toggled
+  by Left/Right, NOT Up/Down). Crowned instances: the
+  setup confirm ("Play on this board?", starts on
+  YES), the shuffle prompt on the order screen, the
+  card-placement "Are you sure?", and the purchase
+  prompt (context-classified: it appears while the
+  landing watch is armed). Which question is up is
+  told by context, never by the widget alone.
+- EXPERIMENT 2's answer: the Hand screen is a FIXED
+  list of the five special plays — Stun, Two Dice,
+  Navigator, Three Dice, Double Toll — not a hand of
+  command cards. The command cards' own names were
+  never crowned in RAM (no array in any encoding
+  holds a player's cards in display order), so the
+  purchase picker speaks positions only ("Card N of
+  5"). The Options rows are likewise fixed (Walking
+  Speed / Message Speed / Help / Take a Break / End
+  Game); the two speed VALUES are unprobed and silent.
+- NO TURN WORD EXISTS. A frame-by-frame poll across
+  three AI turns (cbplay13) killed the one candidate
+  (it was the setup goal index persisting in the
+  recycled setup struct). Turns are ESTIMATED: the
+  (qualified) turn menu witnesses the human's turn;
+  an opponent's turn is attributed to the order-
+  successor record whose panel or hand first changes
+  (a turn opens with a move or a card play, never
+  with money alone — GP-only changes are payments and
+  never attribute). Opponent turns are summarized at
+  their end from GP snapshots: a paired fall+rise
+  reads "X paid N GP to Y.", a lone fall "X spent
+  N GP.", a lone rise "X gained N GP."
+- THE WALK: after Roll, Cross advances everything —
+  it dismisses the die, accepts the lit default
+  direction arrow, auto-walks, and steps through
+  prompt → picker → confirm → turn end (cbplay8's
+  film strip: 3600 frames of no input changed
+  nothing; analog tilts and D-pad taps at the
+  direction choice are inert). Junction steering is
+  therefore unnarrated; landings are what speak. The
+  Cross-only fixture is deterministic: Terra lands
+  Rising Rock 1 (180 GP) in three lineages.
+- NOT SPOKEN, deliberately: dice values (no crowned
+  word — the landing panel carries the information),
+  panel prices and GP totals (no crowned word; the
+  Stats screen's totals are computed elsewhere), the
+  hand's card names, the Options speed values.
+  Result banners and prompts wait for a Cross press
+  (cbplay11); the game never auto-advances them.
 
-NEXT EXPERIMENTS (in order): (1) a bench that brackets
-a COMPLETED move with dumps — the position field lights
-up inside the moving player's record, which also fixes
-the record base; (2) open the Hand screen and diff for
-the hand array (command ids resolve through the same
-tables the camp inventory reads); (3) the module-
-liveness word from a title-vs-field dump pair in the
-0x0982xxxx region, filtered by stability across the
-gp dumps. With (3)+(GP)+(1) the minimum core wires as a
-standings/position query during board play; the title
-and setup screens follow once their cursors crown.
-Nothing board-side is spoken today, and the player
-notes say so.
+SPEECH SHAPES (host tests: 28 checks; live proof:
+cbplay14's real boot for the entry, cbplay17 for a
+full turn cycle): title arrival "Command Board. New
+Game, 1 of 3."; setup arrival with the board line
+(name, goal, printed description); goal step
+"Select a goal. GP Goal: 10000."; dialogs by context
+("Play on this board? Yes.", the order line prefixed
+to "Shuffle the playing order? Yes.", "You have
+landed on a Command Panel: Rising Rock 1. Place a
+command card on this panel? Yes.", "Are you sure?
+Yes."); turn calls ("Your turn." / "Ventus's turn.");
+summaries as above; "You landed on <panel>." when the
+human's panel settles on their turn; sub-screen
+arrivals (turn menu, Hand, Options, card strip)
+speak only on the human's turn — the same screens
+open for AI picks and stay silent then. WhereAmI:
+the dialog if one is up, else the screen's row, else
+the position line "Command Board. <whose> turn. You
+are on <panel>. <name>: <GP> GP. ..." in turn order.
 
 ## Battle gauges: Focus / shotlock + D-Link — WIRED + LIVE-VERIFIED (2026-10-24, bench khbbs-foc1–foc8)
 

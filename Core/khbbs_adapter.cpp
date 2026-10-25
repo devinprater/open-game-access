@@ -4698,6 +4698,903 @@ void WatchEventEnd(void)
     if (g_evEndArmFrames >= 30) g_evEndArmed = true;
 }
 
+// ---- the Command Board (VERIFIED 2026-10-25, benches cb7d and
+//      cbplay1-cbplay13) -------------------------------------------------------
+//
+// The board game runs in its own module, entered from the camp
+// Command Board row or the Mirage Arena Log In terminal's mode
+// list. The module replaces the world (the world/room words read
+// the Hub's 15/1 throughout, and the flow word reads 0), so every
+// gate below is board-native and signature-based: the module's
+// widgets FLOAT per lineage, and each is found by a signature
+// scan over the module heap window with a sticky cache, the
+// EvLocate discipline — uniqueness required, fail closed.
+//
+// The screens, in flow order:
+//   * The board TITLE (New Game / Continue / How to Play,
+//     wrapping) — a list widget of the camp menu family (class
+//     word 0x08B77D68; cursor pair at +0x14/+0x18; the row count
+//     at +0x1C as count<<16 and at +0x20 as 0xFFFF0000|count; a
+//     per-widget row-table pointer at +0x24). Every board list
+//     shares the shape and differs by (count, table): title
+//     (3, 0x08BB1550), the turn menu (4, 0x08BBE088), the Hand
+//     screen's plays list (5, 0x08BCEE60), the Options list
+//     (5, 0x08BCF5A8) and the command-card strip (5, 0x08B8DB78).
+//   * The SETUP widget (its own signature: the class word plus
+//     three constant pointers at +0x30/+0x34/+0x38): a focus
+//     word at +0x20 steps 1 = board select, 3 = goal select,
+//     4 = the "Play on this board?" dialog is up. The board
+//     index pair (+0x3C/+0x40) cycles the seven boards; the
+//     goal index pair (+0x60/+0x64) maps 0/1/2 to
+//     5,000/10,000/15,000 GP.
+//   * Yes/No DIALOGS are a second widget family (no class word;
+//     count words 0x00020000 / 0xFFFF0002, table 0x08BCD828,
+//     choice pair at +0x14/+0x18, 0 = Yes, 1 = No, toggled by
+//     Left/Right): the setup confirm, the playing-order
+//     shuffle prompt, the card-placement "Are you sure?" and
+//     the panel purchase prompt share it. Which question is up
+//     is told by context (below), never by the widget alone.
+//   * The GAME itself: a fixed liveness global (u32 @
+//     0x08BC58FC) points at the game object exactly while a
+//     game exists (it flips at the setup confirm's Yes and is
+//     0 in every other state sampled — camp, field, title,
+//     shops, arena). Each player has a record (found by scan,
+//     stride 0x24, CHARACTER order): GP on hand at +0x00;
+//     bytes at +0x08: character id (Ventus 1, Aqua 2, Terra 3;
+//     a guest opponent's id is unnamed here), a human flag
+//     (0 for the player, 1 for CPU), a second human tell
+//     (0xFF), and the player's turn-order position (0-based);
+//     the def of the panel the player stands on as a u16 at
+//     +0x0E (names resolve through DefName: the start panel
+//     reads Sweet Memory's 38, a panel Ventus bought Cyclone's
+//     23, Terra's Rising Rock 1's 66). No word names the
+//     player to move (a frame poll across three AI turns
+//     killed the one candidate — it was the setup goal index
+//     persisting), so turns are ESTIMATED: the turn menu
+//     witnesses the human's turn directly, and an opponent's
+//     turn is attributed to the order-successor record whose
+//     GP, panel or hand first changes. GP totals on the Stats screen add
+//     owned panels' prices to the hand GP; prices live in no
+//     crowned word, so totals and prices are NOT spoken.
+//   * A human turn runs: turn menu (Roll / Hand / Stats /
+//     Options) -> Roll -> the walk (Cross advances; junctions
+//     steer with the stick, which the reader only narrates)
+//     -> the landing: a command panel raises the purchase
+//     prompt, Yes opens the card strip ("Select a command
+//     card."), a card choice raises "Are you sure?", and Yes
+//     places the card ("Command Panel acquired!", GP drops by
+//     the price). The Hand screen lists the five special
+//     plays (fixed names; the hand's own card names live in
+//     no crowned structure and stay silent). Options offers
+//     Walking Speed, Message Speed, Help, Take a Break and
+//     End Game (row names spoken; the two speed values are
+//     not crowned). Result banners wait for a Cross press.
+// Opponents' turns are summarized from the records at turn
+// end (clean single deltas only): a paired fall/rise is a
+// toll paid, a lone fall a purchase or toll to the bank, a
+// lone rise a bonus. Anything messier stays silent.
+
+constexpr uint32_t kCbLiveAddr  = 0x08BC58FC;  // u32 -> game object while a board game exists
+constexpr uint32_t kCbHeapLo    = 0x09820000;  // board widget scan window
+constexpr uint32_t kCbHeapHi    = 0x09880000;
+constexpr uint32_t kCbClassPtr  = 0x08B77D68;  // the menu widget class word
+constexpr uint32_t kCbRecWinLo  = 0x09F00000;  // player-record scan window
+constexpr uint32_t kCbRecWinHi  = 0x09F60000;
+constexpr uint32_t kCbRecStride = 0x24;
+
+const char* const kCbTitleItems[] = { "New Game", "Continue", "How to Play" };
+const char* const kCbTurnItems[]  = { "Roll", "Hand", "Stats", "Options" };
+const char* const kCbPlayItems[]  = { "Stun", "Two Dice", "Navigator", "Three Dice", "Double Toll" };
+const char* const kCbOptItems[]   = { "Walking Speed", "Message Speed", "Help", "Take a Break", "End Game" };
+// The seven boards, carousel order. Names are the game's own
+// (the first three read off the select screen, the rest the
+// trophy-list spellings); goal defaults read 5,000 GP on the
+// boards checked. Descriptions were verified for the first
+// two boards only, so only those are ever spoken.
+struct CbBoardInfo { const char* name; const char* desc; };
+const CbBoardInfo kCbBoards[] = {
+    { "Keyblade Board",  "The thrills are never more than a roll away on this compact board. (Land of Departure)" },
+    { "Royal Board",     "The perfect fit, if you're looking to play against Cinderella. (Castle of Dreams)" },
+    { "Spaceship Board", nullptr },
+    { "Toon Board",      nullptr },
+    { "Hunny Pot Board", nullptr },
+    { "Skull Board",     nullptr },
+    { "Secret Board",    nullptr },
+};
+constexpr int kCbBoardCount = 7;
+const char* const kCbCharNames[] = { nullptr, "Ventus", "Aqua", "Terra" };  // by character id byte
+
+// -- widget location ----------------------------------------------------------
+
+struct CbWidgetSlot { uint32_t base = 0; int lastScan = -100; };
+CbWidgetSlot g_cbTitleW, g_cbTurnW, g_cbHandW, g_cbOptW, g_cbStripW, g_cbSetupW, g_cbDlgW;
+int g_cbFrame = 0;        // WatchBoard call counter (scan throttle)
+int g_cbLastRecScan = -100;  // frame of the last cold records scan
+
+bool CbListShape(uint32_t base, uint32_t count, uint32_t table, int* cursor)
+{
+    if (u32(base) != kCbClassPtr) return false;
+    if (u32(base + 0x1C) != (count << 16)) return false;
+    if (u32(base + 0x20) != (0xFFFF0000u | count)) return false;
+    if (u32(base + 0x24) != table) return false;
+    uint32_t cur = u32(base + 0x14);
+    if (cur != u32(base + 0x18) || cur >= count) return false;
+    if (cursor) *cursor = (int) cur;
+    return true;
+}
+
+bool CbSetupShape(uint32_t base, int* focus, int* board, int* goal)
+{
+    if (u32(base) != kCbClassPtr) return false;
+    if (u32(base + 0x30) != 0x08BAF330) return false;
+    if (u32(base + 0x34) != 0x08BAF3B0) return false;
+    if (u32(base + 0x38) != 0x08BAF490) return false;
+    uint32_t b = u32(base + 0x3C);
+    if (b != u32(base + 0x40) || b >= (uint32_t) kCbBoardCount) return false;
+    uint32_t g = u32(base + 0x60);
+    if (g != u32(base + 0x64) || g > 8) return false;
+    if (focus) *focus = (int) u32(base + 0x20);
+    if (board) *board = (int) b;
+    if (goal) *goal = (int) g;
+    return true;
+}
+
+bool CbDialogShape(uint32_t base, int* choice)
+{
+    if (u32(base + 0x1C) != 0x00020000) return false;
+    if (u32(base + 0x20) != 0xFFFF0002) return false;
+    if (u32(base + 0x24) != 0x08BCD828) return false;
+    uint32_t c = u32(base + 0x14);
+    if (c != u32(base + 0x18) || c > 1) return false;
+    if (choice) *choice = (int) c;
+    return true;
+}
+
+bool CbShape(int kind, uint32_t base, uint32_t count, uint32_t table)
+{
+    return kind == 0 ? CbListShape(base, count, table, nullptr)
+         : kind == 1 ? CbSetupShape(base, nullptr, nullptr, nullptr)
+                     : CbDialogShape(base, nullptr);
+}
+
+// The live widget's base, or 0. The sticky cache is
+// re-validated on every call; a miss scans the heap window
+// (throttled) and demands exactly one shaped block.
+uint32_t CbLocate(CbWidgetSlot& slot, int kind, uint32_t count, uint32_t table)
+{
+    if (slot.base) {
+        if (CbShape(kind, slot.base, count, table)) return slot.base;
+        slot.base = 0;
+    }
+    if (g_cbFrame - slot.lastScan < 10) return 0;
+    slot.lastScan = g_cbFrame;
+    uint32_t found = 0; int hits = 0;
+    for (uint32_t b = kCbHeapLo; b + 0x68 <= kCbHeapHi; b += 4) {
+        if (CbShape(kind, b, count, table)) { found = b; if (++hits > 1) break; }
+    }
+    if (hits == 1) slot.base = found;
+    return slot.base;
+}
+
+// The board module's cheap presence probe: the menu-system
+// "current screen" global points into the module heap exactly
+// while the module owns the screen (title, setup and game);
+// in the Hub field and camp it points at 0x099xxxxx objects.
+bool CbModulePlausible(void)
+{
+    // Deliberately a few direct reads only: this gate runs
+    // every frame, and the camp/field locators are far too
+    // heavy to consult here. The widget and record shapes
+    // remain the real arbiters.
+    uint32_t scr = u32(0x08B5BE50);
+    if (scr >= 0x09800000 && scr < 0x09860000) return true;
+    uint32_t live = u32(kCbLiveAddr);
+    if (live >= kUserRamBase && live < kUserRamEnd) return true;
+    return g_cbTitleW.base || g_cbSetupW.base || g_cbTurnW.base || g_cbDlgW.base;
+}
+
+// -- the player records --------------------------------------------------------
+
+uint32_t g_cbRecords = 0;      // base of the first player record
+int g_cbHumans = -1;           // record index of the human player
+int g_cbPlayers = 0;           // records present (2 or 3)
+
+bool CbRecPresent(uint32_t r, bool* human, int* id, int* ord)
+{
+    if (u32(r) > 999999) return false;
+    int i = (int) u8(r + 8);
+    if (i == 0) return false;
+    if (u16(r + 0x0E) >= kDefCount) return false;   // standing panel's def
+    for (int s = 0; s < 5; s++) {
+        uint16_t h = u16(r + 0x18 + (uint32_t) s * 2);
+        if (h != 0xFFFF && h >= kDefCount) return false;
+    }
+    if (human) *human = u8(r + 9) == 0;
+    if (id) *id = i;
+    if (ord) *ord = (int) u8(r + 0x0B);
+    return true;
+}
+
+bool CbRecordsShape(uint32_t base, int* players, int* humans)
+{
+    bool present[3], human[3];
+    int id[3], ord[3];
+    for (int i = 0; i < 3; i++) {
+        uint32_t r = base + (uint32_t) i * kCbRecStride;
+        present[i] = CbRecPresent(r, &human[i], &id[i], &ord[i]);
+        if (!present[i] && u32(r) == 0 && u32(r + 8) == 0 && u32(r + 0x18) == 0)
+            present[i] = false;  // an empty slot: simply absent
+        else if (!present[i]) return false;
+    }
+    if (!present[0] || !present[1]) return false;
+    int n = present[2] ? 3 : 2;
+    int hum = 0;
+    for (int i = 0; i < n; i++) if (human[i]) hum++;
+    if (hum != 1) return false;
+    for (int i = 0; i < n; i++) {
+        if (ord[i] < 0 || ord[i] >= n) return false;
+        for (int j = i + 1; j < n; j++) {
+            if (id[i] == id[j] || ord[i] == ord[j]) return false;
+        }
+    }
+    if (players) *players = n;
+    if (humans) {
+        *humans = -1;
+        for (int i = 0; i < n; i++) if (human[i]) *humans = i;
+    }
+    return true;
+}
+
+uint32_t CbRecords(void)
+{
+    int p, h;
+    if (g_cbRecords && CbRecordsShape(g_cbRecords, &p, &h)) {
+        g_cbPlayers = p; g_cbHumans = h;
+        return g_cbRecords;
+    }
+    g_cbRecords = 0;
+    if (g_cbFrame - g_cbLastRecScan < 30) return 0;
+    g_cbLastRecScan = g_cbFrame;
+    uint32_t found = 0; int hits = 0;
+    for (uint32_t b = kCbRecWinLo; b + 3 * kCbRecStride <= kCbRecWinHi; b += 4) {
+        if (CbRecordsShape(b, nullptr, nullptr)) { found = b; if (++hits > 1) break; }
+    }
+    if (hits != 1) return 0;
+    g_cbRecords = found;
+    CbRecordsShape(found, &g_cbPlayers, &g_cbHumans);
+    return g_cbRecords;
+}
+
+bool CbGameUp(void)
+{
+    uint32_t live = u32(kCbLiveAddr);
+    if (live < kUserRamBase || live >= kUserRamEnd) return false;
+    return CbRecords() != 0;
+}
+
+int CbRecGP(int i)   { return (int) u32(g_cbRecords + (uint32_t) i * kCbRecStride); }
+int CbRecChar(int i) { return (int) u8(g_cbRecords + (uint32_t) i * kCbRecStride + 8); }
+int CbRecOrd(int i)  { return (int) u8(g_cbRecords + (uint32_t) i * kCbRecStride + 0x0B); }
+const char* CbRecName(int i)
+{
+    int id = CbRecChar(i);
+    return (id >= 1 && id <= 3) ? kCbCharNames[id] : "Opponent";
+}
+// The record whose turn-order position is `ord`.
+int CbByOrder(int ord)
+{
+    for (int i = 0; i < g_cbPlayers; i++) if (CbRecOrd(i) == ord) return i;
+    return -1;
+}
+// The panel the record stands on, named through its def.
+bool CbPanelName(int i, char* buf, size_t n)
+{
+    uint16_t def = u16(g_cbRecords + (uint32_t) i * kCbRecStride + 0x0E);
+    return DefName(def, buf, n);
+}
+
+// -- screen gates and row texts -------------------------------------------------
+
+bool CbTitleUp(int* row)
+{
+    if (!CbModulePlausible()) return false;
+    uint32_t b = CbLocate(g_cbTitleW, 0, 3, 0x08BB1550);
+    if (!b) return false;
+    return CbListShape(b, 3, 0x08BB1550, row);
+}
+
+bool CbSetupUp(int* focus, int* board, int* goal)
+{
+    if (!CbModulePlausible()) return false;
+    uint32_t b = CbLocate(g_cbSetupW, 1, 0, 0);
+    if (!b) return false;
+    return CbSetupShape(b, focus, board, goal);
+}
+
+bool CbDialogUp(int* choice)
+{
+    if (!CbModulePlausible()) return false;
+    uint32_t b = CbLocate(g_cbDlgW, 2, 0, 0);
+    if (!b) return false;
+    return CbDialogShape(b, choice);
+}
+
+// The turn menu's verdict needs more than the bare shape.
+// At a turn's start the game builds the menu object over a
+// few frames: class, counts, table and cursor already
+// match while its row-render sub-objects at +0x60 and
+// +0x70 are still null — a shape-valid phantom that lived
+// under 120 frames at the first turn of a live game
+// (bench cbplay16) and fired a false "Your turn." The
+// gate therefore also requires both sub-pointers to be
+// attached and the object to hold for 15 consecutive
+// frames. The frame stamp keeps the count at one per
+// watcher frame; commands between frames read the last
+// verdict.
+uint32_t g_cbMenuBase = 0;
+int g_cbMenuFrames = 0;
+int g_cbMenuStamp = -1;
+
+bool CbTurnMenuUp(int* row)
+{
+    if (!CbGameUp()) return false;
+    uint32_t b = CbLocate(g_cbTurnW, 0, 4, 0x08BBE088);
+    bool raw = b && CbListShape(b, 4, 0x08BBE088, row);
+    if (raw) {
+        uint32_t p60 = u32(b + 0x60), p70 = u32(b + 0x70);
+        raw = p60 >= kUserRamBase && p60 < kUserRamEnd &&
+              p70 >= kUserRamBase && p70 < kUserRamEnd;
+    }
+    if (g_cbFrame != g_cbMenuStamp) {
+        g_cbMenuStamp = g_cbFrame;
+        if (raw && b == g_cbMenuBase) g_cbMenuFrames++;
+        else { g_cbMenuBase = raw ? b : 0; g_cbMenuFrames = raw ? 1 : 0; }
+    }
+    return raw && g_cbMenuFrames >= 15;
+}
+
+bool CbHandUp(int* row)
+{
+    if (!CbGameUp()) return false;
+    uint32_t b = CbLocate(g_cbHandW, 0, 5, 0x08BCEE60);
+    if (!b) return false;
+    return CbListShape(b, 5, 0x08BCEE60, row);
+}
+
+bool CbOptionsUp(int* row)
+{
+    if (!CbGameUp()) return false;
+    uint32_t b = CbLocate(g_cbOptW, 0, 5, 0x08BCF5A8);
+    if (!b) return false;
+    return CbListShape(b, 5, 0x08BCF5A8, row);
+}
+
+bool CbStripUp(int* row)
+{
+    if (!CbGameUp()) return false;
+    uint32_t b = CbLocate(g_cbStripW, 0, 5, 0x08B8DB78);
+    if (!b) return false;
+    return CbListShape(b, 5, 0x08B8DB78, row);
+}
+
+void CbRowText(const char* const* items, int count, int row, char* buf, size_t n)
+{
+    if (row < 0 || row >= count) { snprintf(buf, n, "%d of %d.", row + 1, count); return; }
+    snprintf(buf, n, "%s, %d of %d.", items[row], row + 1, count);
+}
+
+void CbBoardLine(int board, int goalIdx, char* buf, size_t n)
+{
+    if (board < 0 || board >= kCbBoardCount) { snprintf(buf, n, "Board %d of %d.", board + 1, kCbBoardCount); return; }
+    int goal = 5000 + 5000 * (goalIdx < 0 ? 0 : goalIdx);
+    if (kCbBoards[board].desc)
+        snprintf(buf, n, "%s. Goal %d GP. %s.", kCbBoards[board].name, goal, kCbBoards[board].desc);
+    else
+        snprintf(buf, n, "%s. Goal %d GP.", kCbBoards[board].name, goal);
+}
+
+void CbGoalLine(int goalIdx, char* buf, size_t n)
+{
+    snprintf(buf, n, "GP Goal: %d.", 5000 + 5000 * goalIdx);
+}
+
+// The order line: "Playing order: Ventus. Terra. Aqua."
+void CbOrderLine(char* buf, size_t n)
+{
+    char tmp[160]; tmp[0] = 0;
+    for (int o = 0; o < g_cbPlayers; o++) {
+        int r = CbByOrder(o);
+        if (r < 0) continue;
+        char part[40];
+        snprintf(part, sizeof(part), "%s%s", o ? ". " : "", CbRecName(r));
+        strncat(tmp, part, sizeof(tmp) - strlen(tmp) - 1);
+    }
+    snprintf(buf, n, "Playing order: %s.", tmp);
+}
+
+// -- watcher state ---------------------------------------------------------------
+
+bool g_cbTitleUp = false;  int g_cbTitleDown = 1 << 30;
+bool g_cbSetupUp = false;  int g_cbSetupDown = 1 << 30;
+int g_cbSetupFocus = -1;
+bool g_cbDlgUp = false;    int g_cbDlgDown = 1 << 30;
+char g_cbDlgQuestion[128] = "";   // the arrival line's question, for queries/echoes
+bool g_cbGameUp = false;   int g_cbGameDown = 1 << 30;
+bool g_cbOrderSpoken = false;
+int g_cbOrderPerm[3] = { -1, -1, -1 };
+int g_cbOrderCand[3] = { -1, -1, -1 };  int g_cbOrderCandFrames = 0;
+bool g_cbMenuUp = false;   int g_cbMenuDown = 1 << 30;
+bool g_cbHandUp = false;   int g_cbHandDown = 1 << 30;
+bool g_cbOptUp = false;    int g_cbOptDown = 1 << 30;
+bool g_cbStripUp = false;  int g_cbStripDown = 1 << 30;
+int g_cbTurn = -1;                 // record index whose turn it is (estimated)
+int g_cbTurnGP[3] = { 0, 0, 0 };   // GP snapshot at the current turn's start
+int g_cbSeenGP[3] = { 0, 0, 0 };   // last-seen record state (turn attribution)
+int g_cbSeenDef[3] = { -1, -1, -1 };
+int g_cbSeenHand[3] = { -1, -1, -1 };
+int g_cbLandDef = -1;              // human's standing-panel def, settled
+int g_cbLandCand = -1;     int g_cbLandCandFrames = 0;
+bool g_cbPromptArmed = false; int g_cbPromptArmFrames = 0;
+bool g_cbLandedSpoken = true;      // the current landing already announced
+
+void CbReset(void)
+{
+    g_cbTitleW.base = g_cbTurnW.base = g_cbHandW.base = g_cbOptW.base = 0;
+    g_cbStripW.base = g_cbSetupW.base = g_cbDlgW.base = 0;
+    g_cbTitleW.lastScan = g_cbTurnW.lastScan = g_cbHandW.lastScan = -100;
+    g_cbOptW.lastScan = g_cbStripW.lastScan = g_cbSetupW.lastScan = -100;
+    g_cbDlgW.lastScan = -100;
+    g_cbRecords = 0; g_cbHumans = -1; g_cbPlayers = 0;
+    g_cbTitleUp = g_cbSetupUp = g_cbDlgUp = g_cbGameUp = false;
+    g_cbTitleDown = g_cbSetupDown = g_cbDlgDown = g_cbGameDown = 1 << 30;
+    g_cbSetupFocus = -1;
+    g_cbDlgQuestion[0] = 0;
+    g_cbOrderSpoken = false;
+    g_cbOrderPerm[0] = g_cbOrderPerm[1] = g_cbOrderPerm[2] = -1;
+    g_cbOrderCand[0] = g_cbOrderCand[1] = g_cbOrderCand[2] = -1;
+    g_cbOrderCandFrames = 0;
+    g_cbMenuUp = g_cbHandUp = g_cbOptUp = g_cbStripUp = false;
+    g_cbMenuDown = g_cbHandDown = g_cbOptDown = g_cbStripDown = 1 << 30;
+    g_cbTurn = -1;
+    g_cbMenuBase = 0; g_cbMenuFrames = 0; g_cbMenuStamp = -1;
+    for (int i = 0; i < 3; i++) {
+        g_cbTurnGP[i] = g_cbSeenGP[i] = 0;
+        g_cbSeenDef[i] = g_cbSeenHand[i] = -1;
+    }
+    g_cbLandDef = -1; g_cbLandCand = -1; g_cbLandCandFrames = 0;
+    g_cbPromptArmed = false; g_cbPromptArmFrames = 0;
+    g_cbLandedSpoken = true;
+}
+
+// How many hand cards a record currently holds (non-empty
+// slots of its five-card register).
+int CbHandCount(int i)
+{
+    int n = 0;
+    uint32_t r = g_cbRecords + (uint32_t) i * kCbRecStride;
+    for (int s = 0; s < 5; s++)
+        if (u16(r + 0x18 + (uint32_t) s * 2) != 0xFFFF) n++;
+    return n;
+}
+
+void CbSummarizeTurn(int who, const int before[3], const int after[3]);
+
+// Call a new current player: speak the playing order first
+// when it has not been spoken (a continued game), summarize
+// the outgoing opponent, then name the incoming turn.
+void CbCallTurn(int turn)
+{
+    if (!g_cbOrderSpoken) {
+        char line[160]; CbOrderLine(line, sizeof(line));
+        Say(line, "menu", oga::Priority::High);
+        for (int i = 0; i < 3; i++) g_cbOrderPerm[i] = i < g_cbPlayers ? CbByOrder(i) : -1;
+        g_cbOrderSpoken = true;
+    }
+    int after[3];
+    for (int i = 0; i < 3; i++) after[i] = i < g_cbPlayers ? CbRecGP(i) : 0;
+    if (g_cbTurn >= 0 && g_cbTurn != g_cbHumans)
+        CbSummarizeTurn(g_cbTurn, g_cbTurnGP, after);
+    g_cbTurn = turn;
+    for (int i = 0; i < 3; i++) g_cbTurnGP[i] = after[i];
+    char line[128];
+    if (turn == g_cbHumans) snprintf(line, sizeof(line), "Your turn.");
+    else snprintf(line, sizeof(line), "%s's turn.", CbRecName(turn));
+    Say(line, "menu", oga::Priority::High);
+}
+
+// Summarize a finished non-human turn from the GP deltas
+// (clean single patterns only; anything else stays silent).
+void CbSummarizeTurn(int who, const int before[3], const int after[3])
+{
+    int d[3];
+    for (int i = 0; i < 3; i++) d[i] = after[i] - before[i];
+    if (d[who] == 0) return;
+    char line[192];
+    if (d[who] < 0) {
+        int gain = -1;
+        for (int i = 0; i < g_cbPlayers; i++) if (i != who && d[i] == -d[who]) gain = i;
+        if (gain >= 0) {
+            snprintf(line, sizeof(line), "%s paid %d GP to %s.",
+                     CbRecName(who), -d[who], CbRecName(gain));
+            Say(line, "menu", oga::Priority::Normal);
+        } else {
+            bool othersQuiet = true;
+            for (int i = 0; i < g_cbPlayers; i++) if (i != who && d[i] != 0) othersQuiet = false;
+            if (othersQuiet) {
+                snprintf(line, sizeof(line), "%s spent %d GP.", CbRecName(who), -d[who]);
+                Say(line, "menu", oga::Priority::Normal);
+            }
+        }
+    } else {
+        bool othersQuiet = true;
+        for (int i = 0; i < g_cbPlayers; i++) if (i != who && d[i] != 0) othersQuiet = false;
+        if (othersQuiet) {
+            snprintf(line, sizeof(line), "%s gained %d GP.", CbRecName(who), d[who]);
+            Say(line, "menu", oga::Priority::Normal);
+        }
+    }
+}
+
+void WatchBoard(void)
+{
+    g_cbFrame++;
+    // Title.
+    int row = -1;
+    bool titleUp = CbTitleUp(&row);
+    if (titleUp) {
+        if (!g_cbTitleUp && g_cbTitleDown >= 30) {
+            char r[96]; CbRowText(kCbTitleItems, 3, row, r, sizeof(r));
+            char line[160];
+            snprintf(line, sizeof(line), "Command Board. %s", r);
+            Say(line, "menu", oga::Priority::High);
+        }
+        g_cbTitleUp = true; g_cbTitleDown = 0;
+    } else {
+        g_cbTitleUp = false;
+        if (g_cbTitleDown < (1 << 30)) g_cbTitleDown++;
+    }
+    // Setup (the arrival and focus transitions speak; cursor
+    // moves echo through the nav commands).
+    int focus = -1, board = -1, goal = -1;
+    bool setupUp = CbSetupUp(&focus, &board, &goal);
+    if (setupUp) {
+        if (!g_cbSetupUp && g_cbSetupDown >= 30) {
+            char bl[256]; CbBoardLine(board, goal, bl, sizeof(bl));
+            char line[320];
+            snprintf(line, sizeof(line), "Command Board. Select a board. %s", bl);
+            Say(line, "menu", oga::Priority::High);
+            g_cbSetupFocus = focus;
+        } else if (focus != g_cbSetupFocus) {
+            if (focus == 3) {
+                char gl[64]; CbGoalLine(goal, gl, sizeof(gl));
+                char line[128];
+                snprintf(line, sizeof(line), "Select a goal. %s", gl);
+                Say(line, "menu", oga::Priority::High);
+            }
+            g_cbSetupFocus = focus;
+        }
+        g_cbSetupUp = true; g_cbSetupDown = 0;
+    } else {
+        g_cbSetupUp = false;
+        if (g_cbSetupDown < (1 << 30)) g_cbSetupDown++;
+    }
+    // Game state prime.
+    bool gameUp = CbGameUp();
+    if (!gameUp) {
+        if (g_cbGameUp) CbReset();
+        g_cbGameUp = false;
+        if (g_cbGameDown < (1 << 30)) g_cbGameDown++;
+    } else {
+        if (!g_cbGameUp) {
+            g_cbTurn = -1;
+            for (int i = 0; i < 3; i++) {
+                g_cbTurnGP[i] = g_cbSeenGP[i] = i < g_cbPlayers ? CbRecGP(i) : 0;
+                g_cbSeenDef[i] = i < g_cbPlayers
+                    ? (int) u16(g_cbRecords + (uint32_t) i * kCbRecStride + 0x0E) : -1;
+                g_cbSeenHand[i] = i < g_cbPlayers ? CbHandCount(i) : -1;
+            }
+            if (g_cbHumans >= 0)
+                g_cbLandDef = (int) u16(g_cbRecords + (uint32_t) g_cbHumans * kCbRecStride + 0x0E);
+        }
+        g_cbGameUp = true; g_cbGameDown = 0;
+    }
+    if (gameUp) {
+        // Turn estimation. The turn menu witnesses the human's
+        // turn directly. Otherwise the turn is attributed to
+        // the order-successor record whose GP, panel or hand
+        // first changes; a change to the current player's own
+        // record is their turn continuing, and a change to
+        // anyone else's is an effect of it (a toll paid to
+        // them), never a new turn.
+        if (CbTurnMenuUp(nullptr)) {
+            if (g_cbTurn != g_cbHumans) CbCallTurn(g_cbHumans);
+        } else {
+            int changed = 0, moved = 0;
+            for (int i = 0; i < g_cbPlayers; i++) {
+                int gp = CbRecGP(i);
+                int def = (int) u16(g_cbRecords + (uint32_t) i * kCbRecStride + 0x0E);
+                int hand = CbHandCount(i);
+                if (gp != g_cbSeenGP[i] || def != g_cbSeenDef[i] || hand != g_cbSeenHand[i])
+                    changed |= 1 << i;
+                // A turn opens with a move or a card play,
+                // never with money alone: payments change GP
+                // only, so attribution requires a panel or
+                // hand change, not a GP-only one.
+                if (def != g_cbSeenDef[i] || hand != g_cbSeenHand[i])
+                    moved |= 1 << i;
+                g_cbSeenGP[i] = gp; g_cbSeenDef[i] = def; g_cbSeenHand[i] = hand;
+            }
+            if (changed && g_cbTurn >= 0 && !(changed & (1 << g_cbTurn))) {
+                int only = -1, count = 0;
+                for (int i = 0; i < g_cbPlayers; i++)
+                    if (changed & (1 << i)) { only = i; count++; }
+                if (count == 1 && (moved & (1 << only))) {
+                    int succ = CbByOrder((CbRecOrd(g_cbTurn) + 1) % g_cbPlayers);
+                    if (only == succ) CbCallTurn(only);
+                }
+            } else if (changed && g_cbTurn < 0) {
+                int only = -1, count = 0;
+                for (int i = 0; i < g_cbPlayers; i++)
+                    if (changed & (1 << i)) { only = i; count++; }
+                if (count == 1 && (moved & (1 << only))) CbCallTurn(only);
+            }
+        }
+        // A shuffled order replaces the announced one: speak
+        // the final order once the new permutation holds.
+        if (g_cbOrderSpoken) {
+            bool same = true, candSame = true;
+            for (int i = 0; i < 3; i++) {
+                int cur = i < g_cbPlayers ? CbByOrder(i) : -1;
+                if (cur != g_cbOrderPerm[i]) same = false;
+                if (cur != g_cbOrderCand[i]) candSame = false;
+            }
+            if (same) {
+                g_cbOrderCandFrames = 0;
+            } else if (!candSame) {
+                for (int i = 0; i < 3; i++) g_cbOrderCand[i] = i < g_cbPlayers ? CbByOrder(i) : -1;
+                g_cbOrderCandFrames = 0;
+            } else if (++g_cbOrderCandFrames >= 45) {
+                char line[160]; CbOrderLine(line, sizeof(line));
+                Say(line, "menu", oga::Priority::High);
+                for (int i = 0; i < 3; i++) g_cbOrderPerm[i] = g_cbOrderCand[i];
+                g_cbOrderCandFrames = 0;
+            }
+        }
+        // The human's landing watch: the standing-panel def,
+        // settled for 45 frames after a change on their turn.
+        if (g_cbHumans >= 0) {
+            int def = (int) u16(g_cbRecords + (uint32_t) g_cbHumans * kCbRecStride + 0x0E);
+            if (def != g_cbLandCand) {
+                g_cbLandCand = def; g_cbLandCandFrames = 0;
+                if (g_cbTurn == g_cbHumans && g_cbLandDef >= 0 && def != g_cbLandDef) {
+                    g_cbPromptArmed = true; g_cbPromptArmFrames = 0;
+                    g_cbLandedSpoken = false;
+                }
+            } else if (g_cbLandCandFrames < (1 << 30)) g_cbLandCandFrames++;
+            if (g_cbLandCandFrames == 45 && def != g_cbLandDef) {
+                g_cbLandDef = def;
+                if (!g_cbLandedSpoken && !g_cbDlgUp) {
+                    char panel[48];
+                    if (CbPanelName(g_cbHumans, panel, sizeof(panel))) {
+                        char line[128];
+                        snprintf(line, sizeof(line), "You landed on %s.", panel);
+                        Say(line, "menu", oga::Priority::High);
+                    }
+                    g_cbLandedSpoken = true;
+                }
+            }
+            if (g_cbPromptArmed && g_cbPromptArmFrames++ > 1200) g_cbPromptArmed = false;
+        }
+    }
+    // Dialogs: the question is told by context.
+    int choice = -1;
+    bool dlgUp = CbDialogUp(&choice);
+    if (dlgUp && !g_cbDlgUp && g_cbDlgDown >= 30) {
+        char line[256];
+        line[0] = 0;
+        if (g_cbSetupUp && g_cbSetupFocus == 4) {
+            snprintf(g_cbDlgQuestion, sizeof(g_cbDlgQuestion), "Play on this board?");
+            snprintf(line, sizeof(line), "%s %s", g_cbDlgQuestion, choice == 0 ? "Yes." : "No.");
+        } else if (gameUp && g_cbStripUp) {
+            snprintf(g_cbDlgQuestion, sizeof(g_cbDlgQuestion), "Are you sure?");
+            snprintf(line, sizeof(line), "%s %s", g_cbDlgQuestion, choice == 0 ? "Yes." : "No.");
+        } else if (gameUp && g_cbPromptArmed) {
+            char panel[48];
+            if (CbPanelName(g_cbHumans, panel, sizeof(panel)))
+                snprintf(g_cbDlgQuestion, sizeof(g_cbDlgQuestion),
+                         "You have landed on a Command Panel: %s. Place a command card on this panel?", panel);
+            else
+                snprintf(g_cbDlgQuestion, sizeof(g_cbDlgQuestion), "Place a command card on this panel?");
+            snprintf(line, sizeof(line), "%s %s", g_cbDlgQuestion, choice == 0 ? "Yes." : "No.");
+            g_cbLandedSpoken = true;
+            g_cbPromptArmed = false;
+        } else if (gameUp && !g_cbOrderSpoken) {
+            char ol[160]; CbOrderLine(ol, sizeof(ol));
+            snprintf(g_cbDlgQuestion, sizeof(g_cbDlgQuestion), "Shuffle the playing order?");
+            snprintf(line, sizeof(line), "%s %s %s", ol, g_cbDlgQuestion, choice == 0 ? "Yes." : "No.");
+            for (int i = 0; i < 3; i++) g_cbOrderPerm[i] = i < g_cbPlayers ? CbByOrder(i) : -1;
+            g_cbOrderSpoken = true;
+        }
+        if (line[0]) Say(line, "menu", oga::Priority::High);
+        g_cbDlgUp = true; g_cbDlgDown = 0;
+    } else if (dlgUp) {
+        g_cbDlgUp = true; g_cbDlgDown = 0;
+    } else {
+        g_cbDlgUp = false;
+        if (g_cbDlgDown < (1 << 30)) g_cbDlgDown++;
+    }
+    if (!gameUp) return;
+    // Turn menu / Hand / Options / strip arrivals.
+    int mrow = -1;
+    bool menuUp = CbTurnMenuUp(&mrow);
+    if (menuUp) {
+        if (!g_cbMenuUp && g_cbMenuDown >= 30) {
+            char r[96]; CbRowText(kCbTurnItems, 4, mrow, r, sizeof(r));
+            char line[160];
+            snprintf(line, sizeof(line), "Command Board. %s", r);
+            Say(line, "menu", oga::Priority::High);
+        }
+        g_cbMenuUp = true; g_cbMenuDown = 0;
+    } else {
+        g_cbMenuUp = false;
+        if (g_cbMenuDown < (1 << 30)) g_cbMenuDown++;
+    }
+    int hrow = -1;
+    bool handUp = CbHandUp(&hrow);
+    if (handUp) {
+        // Arrivals speak only on the human's own turn: the
+        // same screens open for the AI players' picks, and
+        // narrating those as if they were yours misleads.
+        if (!g_cbHandUp && g_cbHandDown >= 30 && g_cbTurn == g_cbHumans) {
+            char r[96]; CbRowText(kCbPlayItems, 5, hrow, r, sizeof(r));
+            char line[160];
+            snprintf(line, sizeof(line), "Hand. %s", r);
+            Say(line, "menu", oga::Priority::High);
+        }
+        g_cbHandUp = true; g_cbHandDown = 0;
+    } else {
+        g_cbHandUp = false;
+        if (g_cbHandDown < (1 << 30)) g_cbHandDown++;
+    }
+    int orow = -1;
+    bool optUp = CbOptionsUp(&orow);
+    if (optUp) {
+        if (!g_cbOptUp && g_cbOptDown >= 30 && g_cbTurn == g_cbHumans) {
+            char r[96]; CbRowText(kCbOptItems, 5, orow, r, sizeof(r));
+            char line[160];
+            snprintf(line, sizeof(line), "Options. %s", r);
+            Say(line, "menu", oga::Priority::High);
+        }
+        g_cbOptUp = true; g_cbOptDown = 0;
+    } else {
+        g_cbOptUp = false;
+        if (g_cbOptDown < (1 << 30)) g_cbOptDown++;
+    }
+    int srow = -1;
+    bool stripUp = CbStripUp(&srow);
+    if (stripUp) {
+        if (!g_cbStripUp && g_cbStripDown >= 30 && g_cbTurn == g_cbHumans) {
+            char line[128];
+            snprintf(line, sizeof(line), "Select a command card. Card %d of 5.", srow + 1);
+            Say(line, "menu", oga::Priority::High);
+        }
+        g_cbStripUp = true; g_cbStripDown = 0;
+    } else {
+        g_cbStripUp = false;
+        if (g_cbStripDown < (1 << 30)) g_cbStripDown++;
+    }
+}
+
+// The board game's WhereAmI line. Returns false when no board
+// screen owns the moment (the caller falls through).
+bool CbWhereAmI(char* line, size_t n)
+{
+    int choice = -1;
+    if (CbDialogUp(&choice)) {
+        const char* yn = choice == 0 ? "Yes." : "No.";
+        if (g_cbDlgQuestion[0]) {
+            snprintf(line, n, "%s %s", g_cbDlgQuestion, yn);
+            return true;
+        }
+        if (g_cbSetupUp && g_cbSetupFocus == 4) { snprintf(line, n, "Play on this board? %s", yn); return true; }
+        snprintf(line, n, "Command Board. %s", yn);
+        return true;
+    }
+    int trow = -1;
+    if (CbTitleUp(&trow)) {
+        char r[96]; CbRowText(kCbTitleItems, 3, trow, r, sizeof(r));
+        snprintf(line, n, "Command Board. %s", r);
+        return true;
+    }
+    int focus = -1, board = -1, goal = -1;
+    if (CbSetupUp(&focus, &board, &goal)) {
+        if (focus == 3) {
+            char gl[64]; CbGoalLine(goal, gl, sizeof(gl));
+            snprintf(line, n, "Command Board. Select a goal. %s", gl);
+        } else {
+            char bl[256]; CbBoardLine(board, goal, bl, sizeof(bl));
+            snprintf(line, n, "Command Board. Select a board. %s", bl);
+        }
+        return true;
+    }
+    if (!CbGameUp()) return false;
+    int srow = -1;
+    if (CbStripUp(&srow)) {
+        snprintf(line, n, "Command Board. Select a command card. Card %d of 5.", srow + 1);
+        return true;
+    }
+    int hrow = -1;
+    if (CbHandUp(&hrow)) {
+        char r[96]; CbRowText(kCbPlayItems, 5, hrow, r, sizeof(r));
+        snprintf(line, n, "Command Board. Hand. %s", r);
+        return true;
+    }
+    int orow = -1;
+    if (CbOptionsUp(&orow)) {
+        char r[96]; CbRowText(kCbOptItems, 5, orow, r, sizeof(r));
+        snprintf(line, n, "Command Board. Options. %s", r);
+        return true;
+    }
+    int mrow = -1;
+    if (CbTurnMenuUp(&mrow)) {
+        char r[96]; CbRowText(kCbTurnItems, 4, mrow, r, sizeof(r));
+        snprintf(line, n, "Command Board. Your turn. %s", r);
+        return true;
+    }
+    // No sub-screen: the position line — whose turn, the
+    // panel you stand on, and every player's GP in turn order.
+    char who[64];
+    int turn = g_cbTurn;
+    if (turn == g_cbHumans) snprintf(who, sizeof(who), "Your turn. ");
+    else if (turn >= 0) snprintf(who, sizeof(who), "%s's turn. ", CbRecName(turn));
+    else who[0] = 0;
+    char panel[48];
+    char gpList[128]; gpList[0] = 0;
+    for (int o = 0; o < g_cbPlayers; o++) {
+        int r = CbByOrder(o);
+        if (r < 0) continue;
+        char part[48];
+        snprintf(part, sizeof(part), "%s%s: %d GP", o ? ". " : "", CbRecName(r), CbRecGP(r));
+        strncat(gpList, part, sizeof(gpList) - strlen(gpList) - 1);
+    }
+    if (CbPanelName(g_cbHumans, panel, sizeof(panel)))
+        snprintf(line, n, "Command Board. %sYou are on %s. %s.", who, panel, gpList);
+    else
+        snprintf(line, n, "Command Board. %s%s.", who, gpList);
+    return true;
+}
+
+// The board game's nav echo (MenuNext/Prev/Left/Right): the
+// row the player landed on, in the same convention as the
+// other menus. Returns false when no board screen owns the
+// D-pad (the caller falls through).
+bool CbMenuNav(char* row, size_t n)
+{
+    int choice = -1;
+    if (CbDialogUp(&choice)) {
+        snprintf(row, n, "%s", choice == 0 ? "Yes." : "No.");
+        return true;
+    }
+    int trow = -1;
+    if (CbTitleUp(&trow)) { CbRowText(kCbTitleItems, 3, trow, row, n); return true; }
+    int focus = -1, board = -1, goal = -1;
+    if (CbSetupUp(&focus, &board, &goal)) {
+        if (focus == 3) CbGoalLine(goal, row, n);
+        else CbBoardLine(board, goal, row, n);
+        return true;
+    }
+    if (!CbGameUp()) return false;
+    int srow = -1;
+    if (CbStripUp(&srow)) { snprintf(row, n, "Card %d of 5.", srow + 1); return true; }
+    int hrow = -1;
+    if (CbHandUp(&hrow)) { CbRowText(kCbPlayItems, 5, hrow, row, n); return true; }
+    int orow = -1;
+    if (CbOptionsUp(&orow)) { CbRowText(kCbOptItems, 5, orow, row, n); return true; }
+    int mrow = -1;
+    if (CbTurnMenuUp(&mrow)) { CbRowText(kCbTurnItems, 4, mrow, row, n); return true; }
+    return false;
+}
+
 // ---- the shops (VERIFIED 2026-10-24, bench shop1-shop3, Medal Shop) --
 //
 // Both shops run SHOP.ELF, a module of its own: the camp/event menu
@@ -6321,6 +7218,12 @@ void CmdWhereAmI(void)
         Say(line, "menu", oga::Priority::High);
         return;
     }
+    // The Command Board module replaces the world; its screens
+    // own the query while any of its gates verify.
+    if (CbWhereAmI(line, sizeof(line))) {
+        Say(line, "menu", oga::Priority::High);
+        return;
+    }
     CampTrack();
     if (CampActive() || ReportsUp()) {
         // The camp menu opens ON TOP of the field; it wins over the
@@ -6468,6 +7371,7 @@ void CmdMenuNav(void)
         // landed row. Nothing else may answer for this screen.
         return;
     }
+    if (CbMenuNav(row, sizeof(row))) { Say(row, "menu", oga::Priority::High); return; }
     CampTrack();
     if (CampActive() || ReportsUp()) { CampRowFor(g_campScreen, row, sizeof(row)); Say(row, "menu", oga::Priority::High); return; }
     // The game-over and movie-pause menus own the D-pad while
@@ -6906,7 +7810,8 @@ void WatchDialogue(void)
     // this channel at all — see the header note.)
     if (CampActive() || SaveLoadUp() || ArchivesUp() || TheaterUp() ||
         ArchReportsUp() || GameOverUp() || MoviePauseUp() || EventMenuUp() || ModeMenuUp() || SetupUp() || RumbleUp() || ShopUp() ||
-        OnWorldMap() || OnTitleMenu() || OnDifficulty())
+        OnWorldMap() || OnTitleMenu() || OnDifficulty() ||
+        CbGameUp() || CbTitleUp(nullptr) || CbSetupUp(nullptr, nullptr, nullptr))
         return;
     // Census sweep on a frame cadence (the first frame after
     // attach sweeps immediately, so a box already up speaks
@@ -7356,6 +8261,10 @@ static void khbbs_on_frame(void)
     // two wired child lists). Also before the field gate: no
     // world is loaded while the Archives own the screen.
     WatchArchives();
+    // The Command Board's arrival watches (title, setup,
+    // dialogs, turns, landings, sub-screens). The board module
+    // replaces the world, so this too precedes the field gate.
+    WatchBoard();
     // Field dialogue boxes: the arrival watch for the event
     // system's message commands (bench dlg1-3). Runs with the
     // other watches; its own gate keeps it out of every screen
@@ -7454,7 +8363,8 @@ static bool khbbs_ready(void)
     // the screens whose gates verify, using the same gates speech uses.
     return OnTitleMenu() || OnDifficulty() || InField() || CampActive() ||
            GameOverUp() || MoviePauseUp() || EventMenuUp() || ModeMenuUp() || SetupUp() || RumbleUp() || OnWorldMap() || SaveLoadUp() ||
-           ArchivesUp() || TheaterUp() || ArchReportsUp() || DialogueUp() || ShopUp();
+           ArchivesUp() || TheaterUp() || ArchReportsUp() || DialogueUp() || ShopUp() ||
+           CbGameUp() || CbTitleUp(nullptr) || CbSetupUp(nullptr, nullptr, nullptr);
 }
 
 static void khbbs_detach(void)
@@ -7478,6 +8388,7 @@ static void khbbs_detach(void)
     g_nodeBase = 0; g_nodeActor = 0; g_lastNodeScanMs = 0;
     g_foeCount = -1; g_foeCensusActor = 0; g_foeCensusMs = 0;  // foe census cache
     FaceReset(); g_faceNode = 0;
+    CbReset(); g_cbFrame = 0; g_cbLastRecScan = -100;  // command board
     g_campScreen = CampScreen::None;
     g_lastMain = g_lastSub = g_lastGroup = g_lastSlot = g_lastInv = -1;
 }
@@ -7550,7 +8461,7 @@ const Adapter kKingdomHeartsBirthBySleep = {
     khbbs_ready,
     khbbs_detach,
     khbbs_cue_snapshot,
-    "Title and difficulty menu speech; Trinity Archives speech; camp menu speech; field health, command and gauge speech; battle health cues (hit beeps and milestone callouts); enemy names in the lock-on readouts; enemy count and roster queries; low-health warning; game-over menu speech; movie pause menu speech; world map speech; Mirage Arena event menu speech; save and load screen speech; lock-on beacon cue; landmark guide for the Mirage Arena Hub and the surveyed Olympus Coliseum and Radiant Garden rooms",
+    "Title and difficulty menu speech; Trinity Archives speech; camp menu speech; field health, command and gauge speech; battle health cues (hit beeps and milestone callouts); enemy names in the lock-on readouts; enemy count and roster queries; low-health warning; game-over menu speech; movie pause menu speech; world map speech; Mirage Arena event menu speech; Command Board speech (entry flow, turn menus, landings, turn summaries); save and load screen speech; lock-on beacon cue; landmark guide for the Mirage Arena Hub and the surveyed Olympus Coliseum and Radiant Garden rooms",
     "Spoken: the title menu (New Game, Continue, Install Game — plus "
     "Trinity Archives once clear data exists) and the New Game "
     "difficulty select. The Trinity Archives speak too: the top "
@@ -7670,12 +8581,30 @@ const Adapter kKingdomHeartsBirthBySleep = {
     "of racers — and setting the event names the race, "
     "just like a battle. The race itself is real-time "
     "driving and is not narrated. Versus Mode needs other "
-    "players and does nothing on your own. Command Board "
-    "games can be started from the camp menu or the "
-    "terminal, but the board's own screens — its title "
-    "menu, the board and goal choices, and the game "
-    "itself — are not spoken yet, so a board game cannot "
-    "be followed by ear for now.\n"
+    "players and does nothing on your own. The Command "
+    "Board itself is spoken now, from start to finish. "
+    "Its title menu (New Game, Continue, How to Play), "
+    "the board choice — the reader names each board, its "
+    "GP goal and its printed description — the goal "
+    "choice, and the \"Play on this board?\" question all "
+    "speak, as do the playing order and the \"Shuffle the "
+    "playing order?\" question. In the game, your turn "
+    "menu (Roll, Hand, Stats, Options) speaks, the Hand "
+    "screen names its five special plays (Stun, Two Dice, "
+    "Navigator, Three Dice, Double Toll), and the Options "
+    "rows speak by name. Pressing Cross rolls and walks "
+    "for you: you cannot steer at junctions by ear yet, "
+    "but the reader names the panel you land on, and when "
+    "it is a command panel it asks whether to place a "
+    "card and speaks the card picker as \"Card N of 5\" — "
+    "the cards' own names are not spoken there. Asking "
+    "where you are names your panel and every player's GP "
+    "in turn order. The other players' turns are kept to "
+    "outcomes: whose turn it is, and at the end of it what "
+    "they spent, gained, or paid to another player. Not "
+    "spoken on the board: dice values, panel prices and "
+    "the GP totals on the Stats screen, and the two speed "
+    "values on the Options screen.\n"
     "Battle cue: with the app's battle cues turned on in "
     "Settings, locking on also starts the beacon, a low beep "
     "that pulses faster as your target gets closer and stops "

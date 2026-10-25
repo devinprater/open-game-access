@@ -4600,6 +4600,279 @@ int main()
         frames(2);
     }
 
+    // ---- the Command Board (2026-10-25, benches cb7d/cbplay) -------------------
+    // Synthetic plants of the board module's verified structures:
+    // the list-widget family (class word, count words, per-widget
+    // table pointer, cursor pair), the setup widget, the Yes/No
+    // dialog family, the liveness global and the player
+    // records, all at lineage-true addresses. Turns are
+    // estimated (no marker word exists): the tests drive the
+    // estimator with record changes.
+    {
+        a->detach();
+        a->attach(&H);
+        auto frames = [&](int n) { for (int i = 0; i < n; i++) a->on_frame(); };
+        const uint32_t CBSCR = 0x08B5BE50;   // module screen-object pointer
+        const uint32_t CBLIVE = 0x08BC58FC;  // game-object liveness pointer
+        const uint32_t CBTITLE = 0x09836220, CBSETUP = 0x09838DD0;
+        const uint32_t CBDIALOG = 0x098364B0, CBTURN = 0x09867E40;
+        const uint32_t CBHAND = 0x0986D210, CBOPT = 0x0985DF40, CBSTRIP = 0x09859DE0;
+        const uint32_t CBREC = 0x09F2DBD0;   // Terra / Ventus / Aqua records
+        auto cb_list = [&](uint32_t b, uint32_t cnt, uint32_t tab, uint32_t cur) {
+            put_u32(b, 0x08B77D68);
+            put_u32(b + 0x1C, cnt << 16);
+            put_u32(b + 0x20, 0xFFFF0000u | cnt);
+            put_u32(b + 0x24, tab);
+            put_u32(b + 0x14, cur); put_u32(b + 0x18, cur);
+        };
+        auto cb_clear_list = [&](uint32_t b) { put_u32(b, 0); put_u32(b + 0x24, 0); };
+        auto cb_dialog = [&](uint32_t choice) {
+            put_u32(CBDIALOG + 0x1C, 0x00020000);
+            put_u32(CBDIALOG + 0x20, 0xFFFF0002);
+            put_u32(CBDIALOG + 0x24, 0x08BCD828);
+            put_u32(CBDIALOG + 0x14, choice); put_u32(CBDIALOG + 0x18, choice);
+        };
+        auto cb_dialog_clear = [&]() { put_u32(CBDIALOG + 0x24, 0); };
+        // Panel names through the def table (DefName's home).
+        auto cb_def = [&](uint16_t id, const char* name, uint32_t strAddr) {
+            put_ascii(strAddr, name);
+            put_u32(0x08B34924 + (uint32_t) id * 16 + 8, strAddr);
+        };
+        cb_def(38, "Sweet Memory", 0x09F90000);
+        cb_def(66, "Rising Rock 1", 0x09F90040);
+        cb_def(23, "Cyclone", 0x09F90080);
+        auto cb_record = [&](int i, uint32_t gp, uint8_t id, uint8_t humanByte,
+                             uint8_t ord, uint16_t panel) {
+            uint32_t r = CBREC + (uint32_t) i * 0x24;
+            put_u32(r, gp);
+            put_u8(r + 8, id); put_u8(r + 9, humanByte);
+            put_u8(r + 10, humanByte == 0 ? 0xFF : (uint8_t) i);
+            put_u8(r + 0x0B, ord);
+            put_u16(r + 0x0E, panel);
+            put_u16(r + 0x18, 100); put_u16(r + 0x1A, 0xFFFF);
+            put_u16(r + 0x1C, 0xFFFF); put_u16(r + 0x1E, 0xFFFF); put_u16(r + 0x20, 0xFFFF);
+        };
+        auto cb_records = [&]() {
+            cb_record(0, 1000, 3, 0, 1, 38);   // Terra, the human, order 2nd
+            cb_record(1, 925, 1, 1, 0, 23);    // Ventus, order 1st
+            cb_record(2, 1000, 2, 1, 2, 38);   // Aqua, order 3rd
+        };
+        put_u32(CBSCR, 0x09823C90);   // the module owns the screen
+
+        // -- board title ------------------------------------------------------
+        cb_list(CBTITLE, 3, 0x08BB1550, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Command Board. New Game, 1 of 3."),
+              "board title: arrival speaks the menu and its opening row");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        put_u32(CBTITLE + 0x14, 2); put_u32(CBTITLE + 0x18, 2);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "How to Play, 3 of 3"),
+              "board title: nav speaks the landed row");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Command Board. How to Play, 3 of 3."),
+              "board title: WhereAmI names the menu and the current row");
+        CHECK(a->ready(), "board title: ready while the title is up");
+        // A second identical widget makes the scan non-unique:
+        // the title fails closed. (The first widget is retired
+        // first so the sticky cache drops.)
+        cb_clear_list(CBTITLE);
+        frames(15);
+        cb_list(CBTITLE, 3, 0x08BB1550, 0);
+        cb_list(0x09840000, 3, 0x08BB1550, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 0 || !strstr(SPOKEN[0], "Command Board."),
+              "board title: a duplicate widget fails the scan closed");
+        cb_clear_list(0x09840000);
+        cb_clear_list(CBTITLE);
+        frames(40);
+
+        // -- board setup ------------------------------------------------------
+        auto cb_setup = [&](uint32_t focus, uint32_t board, uint32_t goal) {
+            put_u32(CBSETUP, 0x08B77D68);
+            put_u32(CBSETUP + 0x30, 0x08BAF330);
+            put_u32(CBSETUP + 0x34, 0x08BAF3B0);
+            put_u32(CBSETUP + 0x38, 0x08BAF490);
+            put_u32(CBSETUP + 0x20, focus);
+            put_u32(CBSETUP + 0x3C, board); put_u32(CBSETUP + 0x40, board);
+            put_u32(CBSETUP + 0x60, goal); put_u32(CBSETUP + 0x64, goal);
+        };
+        cb_setup(1, 0, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Command Board. Select a board. Keyblade Board. Goal 5000 GP."),
+              "board setup: arrival speaks the board step and the first board");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        cb_setup(1, 1, 0);
+        a->command(oga::Command::MenuRight);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Royal Board. Goal 5000 GP."),
+              "board setup: nav speaks the landed board with its goal");
+        cb_setup(3, 1, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Select a goal. GP Goal: 10000."),
+              "board setup: the goal step announces itself and the goal");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Command Board. Select a goal. GP Goal: 10000."),
+              "board setup: WhereAmI answers the goal step");
+        // The confirm dialog (focus 4) speaks its question.
+        cb_setup(4, 1, 1);
+        cb_dialog(0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Play on this board? Yes."),
+              "board setup: the confirm dialog speaks its question and choice");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        cb_dialog(1);
+        a->command(oga::Command::MenuRight);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "No."),
+              "board dialog: nav echoes the flipped choice");
+        cb_dialog_clear();
+        put_u32(CBSETUP, 0);   // the setup widget dies at creation
+        frames(40);
+
+        // -- the game: order, turns, summaries --------------------------------
+        cb_records();
+        put_u32(CBLIVE, 0x09835EE0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(45);
+        CHECK(NSPOKEN == 0, "board game: creation alone speaks nothing yet");
+        // The shuffle dialog speaks the order line with its question.
+        cb_dialog(0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Playing order: Ventus. Terra. Aqua. Shuffle the playing order? Yes."),
+              "board game: the shuffle dialog speaks the order and its question");
+        cb_dialog_clear();
+        frames(40);
+        // The estimator: the first record to MOVE opens its
+        // owner's turn. Ventus steps (panel 23 -> 29)...
+        put_u16(CBREC + 0x24 + 0x0E, 29);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Ventus's turn."),
+              "board game: the first mover's turn is called");
+        // ...and buys (925 -> 850) on his own record: the turn
+        // continuing is silent. The turn menu's arrival then
+        // closes his turn: summary, call, menu line.
+        put_u32(CBREC + 0x24, 850);
+        frames(4);
+        cb_list(CBTURN, 4, 0x08BBE088, 0);
+        put_u32(CBTURN + 0x60, 0x09820000); put_u32(CBTURN + 0x70, 0x09820000);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 3 && strstr(SPOKEN[0], "Ventus spent 75 GP.") &&
+              strstr(SPOKEN[1], "Your turn.") &&
+              strstr(SPOKEN[2], "Command Board. Roll, 1 of 4."),
+              "board game: the menu's arrival summarizes the opponent, calls your turn, names the menu");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        put_u32(CBTURN + 0x14, 1); put_u32(CBTURN + 0x18, 1);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Hand, 2 of 4"),
+              "board turn menu: nav speaks the landed row");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Command Board. Your turn. Hand, 2 of 4."),
+              "board turn menu: WhereAmI names the turn and the row");
+        cb_clear_list(CBTURN);
+        frames(40);
+        // The Hand screen lists the special plays.
+        cb_list(CBHAND, 5, 0x08BCEE60, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Hand. Stun, 1 of 5."),
+              "board hand: arrival speaks the plays list and its first row");
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        put_u32(CBHAND + 0x14, 4); put_u32(CBHAND + 0x18, 4);
+        a->command(oga::Command::MenuNext);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Double Toll, 5 of 5"),
+              "board hand: nav speaks the landed play");
+        cb_clear_list(CBHAND);
+        frames(40);
+        // Options rows speak by name.
+        cb_list(CBOPT, 5, 0x08BCF5A8, 4);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Options. End Game, 5 of 5."),
+              "board options: arrival speaks the list and the landed row");
+        cb_clear_list(CBOPT);
+        frames(40);
+        // A landing on a command panel arms the purchase prompt.
+        put_u16(CBREC + 0x0E, 66);   // Terra steps onto Rising Rock 1
+        frames(6);
+        cb_dialog(0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "You have landed on a Command Panel: Rising Rock 1. Place a command card on this panel? Yes."),
+              "board landing: the purchase prompt names the panel and asks");
+        cb_dialog_clear();
+        frames(40);
+        // The card strip opens; picking a card raises "Are you sure?".
+        cb_list(CBSTRIP, 5, 0x08B8DB78, 1);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Select a command card. Card 2 of 5."),
+              "board picker: arrival speaks the strip and the highlighted card");
+        cb_dialog(0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(40);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Are you sure? Yes."),
+              "board picker: the placement confirm speaks over the strip");
+        cb_dialog_clear();
+        cb_clear_list(CBSTRIP);
+        frames(40);
+        // Aqua's turn opens when her record first moves (she
+        // is Terra's order-successor).
+        put_u16(CBREC + 0x48 + 0x0E, 23);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Aqua's turn."),
+              "board game: the next opponent's turn is called when she moves");
+        // A toll on her turn: 100 from her to Terra. Her own
+        // record is the current one, so the pair is silent
+        // until her turn ends — when Ventus (her successor)
+        // first moves.
+        put_u32(CBREC + 0x48, 900);
+        put_u32(CBREC, 1100);
+        frames(4);
+        put_u16(CBREC + 0x24 + 0x0E, 66);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(4);
+        CHECK(NSPOKEN == 2 && strstr(SPOKEN[0], "Aqua paid 100 GP to Terra.") &&
+              strstr(SPOKEN[1], "Ventus's turn."),
+              "board game: a toll is summarized as a payment between players");
+        // The human is Ventus's successor; the human's panel
+        // settling back calls their turn in the estimate.
+        put_u16(CBREC + 0x0E, 38);
+        frames(4);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Command Board. Your turn. You are on Sweet Memory. Ventus: 850 GP. Terra: 1100 GP. Aqua: 900 GP."),
+              "board query: the position line names the panel, the turn and the standings");
+        // Fail closed: two human flags invalidate the records.
+        put_u8(CBREC + 0x24 + 9, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(45);
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 0 || !strstr(SPOKEN[0], "Command Board."),
+              "board game: records without exactly one human fail closed");
+        put_u8(CBREC + 0x24 + 9, 1);
+        // Fail closed: the liveness word down ends the game state.
+        put_u32(CBLIVE, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        frames(45);
+        a->command(oga::Command::WhereAmI);
+        CHECK(NSPOKEN == 0 || !strstr(SPOKEN[0], "Command Board."),
+              "board game: no liveness, no board speech");
+        put_u32(CBSCR, 0);
+    }
+
+
     // ---- detach ---------------------------------------------------------------------
     a->detach();
     NSPOKEN = 0; oga::AdapterSpeechReset();
