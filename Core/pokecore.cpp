@@ -1219,6 +1219,22 @@ int poke_cue_health(PokeCore* core, float* foe_hz, float* foe_pan, float* own_hz
     return bits;
 }
 
+/* The Active Guard window (see the header): a continuous read of the
+ * snapshot's guard fields. The one-frame beat is consumed by the
+ * adapter as it fills the frame's shared snapshot (CueSnap above),
+ * so this call — like poke_cue_health — only reads. Same rule as
+ * the other cue calls: never attach here. */
+int poke_cue_guard(PokeCore* core, float* frac, int* beat)
+{
+    if (frac) *frac = 0.0f;
+    if (beat) *beat = 0;
+    const oga::CueSnapshot* snap = CueSnap(core);
+    if (!snap || !snap->guard_active) return 0;
+    if (frac) *frac = snap->guard_frac;
+    if (beat) *beat = snap->guard_beat ? 1 : 0;
+    return 1;
+}
+
 /* The per-game-settings seam for Birth by Sleep's gauge-cue mode (see
  * the header): a thin pass-through to the adapter's own setter. The
  * core pointer is unused — the flag is adapter state, not core state —

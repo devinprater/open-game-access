@@ -207,6 +207,18 @@ struct CueSnapshot {
     float own_beep_pan;
     bool  focus_cue;
     bool  dlink_cue;
+
+    // ---- TRAILING ADDITIONS (Active Guard cue, Saiyans, 2026-10-26) ----
+    /// An incoming enemy attack's guard window, as a CONTINUOUS cue:
+    /// guard_active while the window is open, guard_frac running
+    /// 0 → 1 across it (1 = the guard moment), so the synth can sweep
+    /// a tone whose peak IS the moment to press. guard_beat is a
+    /// one-frame pulse on the frame the window (re)opens — the soft
+    /// restart beat; like the beeps above, the adapter clears it as
+    /// the snapshot is taken, so it sounds exactly once per opening.
+    bool  guard_active;
+    float guard_frac;
+    bool  guard_beat;
 };
 
 /// Birth by Sleep's HUD gauge-cue mode — the per-game setting the apps'

@@ -295,6 +295,24 @@ int poke_cue_snapshot_field(PokeCore *core, int *kind, float *bearing_deg, float
 int poke_cue_health(PokeCore *core, float *foe_hz, float *foe_pan,
                     float *own_hz, float *own_pan);
 
+/* The Active Guard cue (Attack of the Saiyans): a CONTINUOUS window,
+ * the counterpart to poke_cue_health's one-shots. SEPARATE from the
+ * other cue calls for the same reason they are separate from each
+ * other: the beacon/field/health signatures are shared ABI, and only
+ * adapters with a timed-guard mechanic have a window to report.
+ *
+ * Returns 1 while an enemy attack's guard window is open — *frac
+ * receives how far the window has run toward the guard moment
+ * (0 = just opened, 1 = press now), so the synth can sweep a tone
+ * whose peak is the moment itself; *beat receives 1 on the single
+ * frame the window (re)opens, for the soft restart beat, and 0 on
+ * every other frame (the beat rides the frame's one shared snapshot,
+ * like the health events, so it is delivered exactly once). Returns
+ * 0 when no window is open — the fail-closed value, as with every
+ * poke_cue_* call. Any out-pointer may be NULL. This never attaches
+ * the adapter and never speaks; it is safe to call at frame rate. */
+int poke_cue_guard(PokeCore *core, float *frac, int *beat);
+
 /* Push the player's HUD gauge-cue choice into the Birth by Sleep
  * adapter (oga::KhbbsHudGaugeCues, adapter.h): true = gauge-full
  * moments sound as earcons, false = the adapter speaks its lines

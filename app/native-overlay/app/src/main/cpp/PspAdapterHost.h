@@ -61,11 +61,12 @@ bool PspAdapterHostCommand(int cmd);
 const char* PspAdapterHostId(void);
 const char* PspAdapterHostName(void);
 
-// The cue poll: ONE cue_snapshot for the frame, answering all three of
+// The cue poll: ONE cue_snapshot for the frame, answering all four of
 // pokecore's cue questions from it (poke_cue_snapshot's beacon state,
 // poke_cue_snapshot_field's free-flight bearing, poke_cue_health's
-// one-shot bitmask) — see PspAdapterHost.cpp for why the three answers
-// must come from a single snapshot. False when there is nothing to cue
+// one-shot bitmask, poke_cue_guard's continuous window) — see
+// PspAdapterHost.cpp for why the answers must come from a single
+// snapshot. False when there is nothing to cue
 // (no adapter, not attached yet, or the adapter refused the snapshot);
 // every out is zeroed first either way, so a false answer is silence,
 // never stale data. Any out-pointer may be null. Never attaches: like
@@ -75,7 +76,8 @@ bool PspAdapterHostCuePoll(int* state, float* dist, int* field,
                            int* kind, float* bearing, float* field_dist,
                            int* heading_live, int* health_bits,
                            float* foe_hz, float* foe_pan, float* own_hz,
-                           float* own_pan);
+                           float* own_pan, int* guard_active,
+                           float* guard_frac, int* guard_beat);
 
 // Push the player's HUD gauge-cue choice into the Birth by Sleep
 // adapter (oga::KhbbsHudGaugeCues in Core/adapter.h): true = gauge-full

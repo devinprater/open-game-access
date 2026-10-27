@@ -374,7 +374,8 @@ bool PspAdapterHostCuePoll(int* state, float* dist, int* field,
                            int* kind, float* bearing, float* field_dist,
                            int* heading_live, int* health_bits,
                            float* foe_hz, float* foe_pan, float* own_hz,
-                           float* own_pan) {
+                           float* own_pan, int* guard_active,
+                           float* guard_frac, int* guard_beat) {
   if (state) *state = 0;
   if (dist) *dist = 0.0f;
   if (field) *field = 0;
@@ -387,6 +388,9 @@ bool PspAdapterHostCuePoll(int* state, float* dist, int* field,
   if (foe_pan) *foe_pan = 0.0f;
   if (own_hz) *own_hz = 0.0f;
   if (own_pan) *own_pan = 0.0f;
+  if (guard_active) *guard_active = 0;
+  if (guard_frac) *guard_frac = 0.0f;
+  if (guard_beat) *guard_beat = 0;
 
   // ⛔ ONE SNAPSHOT FOR THE WHOLE POLL, AND NEVER AN ATTACH. An adapter's
   // cue_snapshot consumes one-frame events as it fills them (the health
@@ -418,6 +422,17 @@ bool PspAdapterHostCuePoll(int* state, float* dist, int* field,
   if (s.focus_cue) bits |= 4;
   if (s.dlink_cue) bits |= 8;
   if (health_bits) *health_bits = bits;
+
+  // The Active Guard window (poke_cue_guard's continuous answer): a
+  // state, not an event — active on every frame the window is open,
+  // frac running 0→1 toward the guard moment, beat on the one frame
+  // the window (re)opens. From this same snapshot, like everything
+  // above, so the beat can never be split from its window.
+  if (s.guard_active) {
+    if (guard_active) *guard_active = 1;
+    if (guard_frac) *guard_frac = s.guard_frac;
+    if (guard_beat) *guard_beat = s.guard_beat ? 1 : 0;
+  }
 
   // The free-flight field answer (poke_cue_snapshot_field's outs).
   if (s.field) {

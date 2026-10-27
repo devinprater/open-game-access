@@ -410,6 +410,14 @@ object PspGameSession {
         PspCueSynth.updateOneShots(
             poll.healthBits, poll.foeHz, poll.foePan, poll.ownHz, poll.ownPan, on,
         )
+        // The Active Guard window (Attack of the Saiyans): a
+        // continuous cue from the same snapshot — the rising sweep
+        // is voiced every frame the window is open, so it rides this
+        // same per-frame poll and the same gate, exactly as iOS's
+        // refreshCue drives its guard poll beside the health poll.
+        PspCueSynth.updateGuard(
+            poll.guardActive, poll.guardFrac, poll.guardBeat, on,
+        )
     }
 
     // ---- the emulated pad ---------------------------------------------------

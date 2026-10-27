@@ -545,6 +545,20 @@ final class GameSession: ObservableObject {
         CueSynth.shared.updateOneShots(bits: healthBits, foeHz: foeHz, foePan: foePan,
                                        ownHz: ownHz, ownPan: ownPan, enabled: on)
 
+        // The Active Guard window (Attack of the Saiyans): a CONTINUOUS
+        // cue, not an event — poke_cue_guard answers from the same
+        // frame's snapshot as the health poll above (the beat rides it,
+        // delivered exactly once), so it belongs here, ahead of the
+        // field question's early return: Saiyans battles run in the
+        // field areas, and a guard window must sound there too. Gated
+        // by the same battle-cues switch; off silences the sweep on
+        // the next frame rather than letting it run out.
+        var guardFrac: Float = 0
+        var guardBeat: Int32 = 0
+        let guardActive = poke_cue_guard(core, &guardFrac, &guardBeat)
+        CueSynth.shared.updateGuard(active: guardActive != 0, frac: guardFrac,
+                                    beat: guardBeat != 0, enabled: on)
+
         // ⛔ ASK THE FIELD QUESTION FIRST, AND LET IT WIN. A free-flight mode and a lock-on
         // battle are different cue contracts: the lock cue is centred and distance-only, the
         // field cue must carry a BEARING. Both adapters return their own snapshot, so the only

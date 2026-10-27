@@ -258,7 +258,11 @@ object PspAccessibilityScript
      * [fieldDist], and [headingLive] false when the bearing came from
      * a stale heading. [healthBits] is the one-shot bitmask: 1 foe
      * beep (with [foeHz]/[foePan]), 2 own beep (with [ownHz]/[ownPan]),
-     * 4 Focus full, 8 D-Link full.
+     * 4 Focus full, 8 D-Link full. [guardActive] with [guardFrac] and
+     * [guardBeat] is the Active Guard window (Attack of the Saiyans):
+     * a continuous answer, not an event — active on every frame the
+     * window is open, frac running 0 (just opened) to 1 (the guard
+     * moment), beat true on the one frame the window (re)opens.
      */
     data class CuePoll(
         val state: Int,
@@ -273,6 +277,9 @@ object PspAccessibilityScript
         val foePan: Float,
         val ownHz: Float,
         val ownPan: Float,
+        val guardActive: Boolean,
+        val guardFrac: Float,
+        val guardBeat: Boolean,
     )
 
     /**
@@ -293,8 +300,8 @@ object PspAccessibilityScript
     // The poll's scratch arrays, reused across frames: the session
     // confines cuePoll to its frame thread, the same confinement the
     // native surface's other calls already assume.
-    private val cueInts = IntArray(5)
-    private val cueFloats = FloatArray(7)
+    private val cueInts = IntArray(7)
+    private val cueFloats = FloatArray(8)
 
     /**
      * Polls the cue snapshot for this frame, or null when there is
@@ -322,6 +329,9 @@ object PspAccessibilityScript
             foePan = cueFloats[4],
             ownHz = cueFloats[5],
             ownPan = cueFloats[6],
+            guardActive = cueInts[5] != 0,
+            guardFrac = cueFloats[7],
+            guardBeat = cueInts[6] != 0,
         )
     }
 }

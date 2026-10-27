@@ -246,6 +246,7 @@ final class CueSynth {
     private let ownHitVoice = CueVoice()
     private let focusCueVoice = CueVoice()
     private let dlinkCueVoice = CueVoice()
+    private let guardBeatVoice = CueVoice()
 
     /// The recipes, from the design doc. Durations are the audible shape: a
     /// 35 ms bright tick for the foe, a 55 ms duller thud for the player, and
@@ -312,6 +313,74 @@ final class CueSynth {
         }
     }
 
+    // ---- The guard window: a continuous rising sweep (Attack of the Saiyans) ----
+    //
+    // The third cue shape (docs/design/cue-synth.md's timing family, and
+    // the Budokai Access model the design settled on): not a state to
+    // point at, not a moment that already happened, but a window running
+    // toward a moment — an enemy attack is inbound and there is an
+    // instant at which a button press guards it. poke_cue_guard() is
+    // the continuous counterpart to the one-shots: it returns 1 on
+    // every frame the window is open, with `frac` running 0 (just
+    // opened) to 1 (press NOW). The adapter has already normalized
+    // each attack family's own timing into that fraction — a ranged
+    // countdown, a heavy strike countdown, a light attack's fixed
+    // flag lead all peak at frac 1 — so the synth's job is only to
+    // make frac audible: a tone whose pitch climbs as frac runs, so
+    // the PEAK IS the guard moment and the player times the press to
+    // the top of the sweep. A soft low beat sounds on the single frame
+    // the window (re)opens — the restart beat — so a new window never
+    // has to be noticed mid-sweep. CENTRED, always: the window names
+    // no target and no side (the descriptor's target byte is a
+    // formation row, not a party slot — the adapter proved it cannot
+    // be named honestly), so the cue must not pretend to one either.
+    //
+    // The sweep rides the pool's TICK voice (the timing family), so
+    // its level is Family.tick's, one level like every family. The
+    // beat is a dedicated one-shot voice for the same reason the hit
+    // beeps are: the sweep is already sounding on its own voice when
+    // the beat must land.
+
+    /// Sweep endpoints. An exponential rise (300 → 900 Hz) so the
+    /// climb is perceptually even, in a register below the beacon's
+    /// carriers and above the health thud: a window must not be
+    /// mistaken for either.
+    private static let guardBaseHz: Float = 300
+    private static let guardRiseRatio: Float = 3
+    /// Gain rises slightly with frac but never starts at zero — a
+    /// window whose opening is inaudible is a window half missed, and
+    /// silence has to keep meaning "no window".
+    private static let guardGainBase: Float = 0.30
+    private static let guardGainRise: Float = 0.15
+    /// The restart beat: a soft, low, short blip under the sweep's start.
+    private static let guardBeatHz: Float = 160
+    private static let guardBeatSeconds: Double = 0.045
+
+    /// Voice one frame of the guard window. `frac` is
+    /// poke_cue_guard()'s: 0 as the window opens, 1 at the guard
+    /// moment; played as a pure function of frac, never re-shaped —
+    /// the adapter owns the timing truth, the synth only renders it.
+    /// `beat` is the window's opening frame. `enabled` is the same
+    /// battle-cues switch as every cue here: off silences the sweep
+    /// at once and drops the beat unheard — a window is a live moment,
+    /// and voicing its opening late would mark a moment already gone.
+    func updateGuard(active: Bool, frac: Float, beat: Bool, enabled: Bool) {
+        let v = voices[Family.tick.rawValue]
+        guard enabled, active else {
+            v.gain = 0
+            return
+        }
+        let f = max(0, min(1, frac))
+        v.frequency = Self.guardBaseHz * powf(Self.guardRiseRatio, f)
+        v.pulseHz = 0
+        v.pan = 0
+        v.gain = Self.guardGainBase + Self.guardGainRise * f
+        if beat {
+            trigger(guardBeatVoice, hz: Self.guardBeatHz, pan: 0,
+                    seconds: Self.guardBeatSeconds, gain: 0.35, curve: 1.4, partial: 0)
+        }
+    }
+
     /// Clear the beacon when a LOCK-ON cue takes over from a field cue. WHY: both cues share
     /// the one beacon voice (one voice per FAMILY), so a field cue's pan would otherwise
     /// persist into a battle cue and pan a sound that is supposed to be centred.
@@ -323,7 +392,7 @@ final class CueSynth {
     /// Silence every family. Used when the game stops.
     func silenceAll() {
         for v in voices { v.gain = 0 }
-        for v in [foeHitVoice, ownHitVoice, focusCueVoice, dlinkCueVoice] {
+        for v in [foeHitVoice, ownHitVoice, focusCueVoice, dlinkCueVoice, guardBeatVoice] {
             v.gain = 0
             v.shotLeft = 0
         }
@@ -389,6 +458,7 @@ final class CueSynth {
         let oneShots: [(CueVoice, Family)] = [
             (foeHitVoice, .health), (ownHitVoice, .health),
             (focusCueVoice, .beacon), (dlinkCueVoice, .beacon),
+            (guardBeatVoice, .tick),
         ]
         var anyAudible = false
         for v in voices where v.gain > 0 { anyAudible = true }

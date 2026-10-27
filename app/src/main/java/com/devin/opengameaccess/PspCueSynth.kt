@@ -13,10 +13,13 @@ import kotlin.math.sin
  * WHAT IT MAKES. Beside the game's own audio, a third sound the app
  * generates itself: the lock-on beacon (identity in timbre, distance
  * in pulse rate, centred while locked; in free-flight modes the pan
- * carries the bearing), and the one-shot family — the health beeps
+ * carries the bearing), the one-shot family — the health beeps
  * (a hit that dropped a health bar, pitch mapped from the health
  * fraction by the ADAPTER and played here exactly as given, the foe
- * on the right and the player on the left) and the gauge-full earcons.
+ * on the right and the player on the left) and the gauge-full
+ * earcons — and the guard window's rising sweep (Attack of the
+ * Saiyans: pitch climbing toward the guard moment, a soft beat at
+ * the window's open).
  *
  * ⛔ THE SEAM IS THE SESSION'S OWN DRAIN. iOS mixes its synth into the
  * emulator's audio graph at the render callback; here the game audio
@@ -43,6 +46,7 @@ object PspCueSynth {
     // turning one thing down can never make the other side lie.
     private const val FAMILY_BEACON = 0
     private const val FAMILY_HEALTH = 1
+    private const val FAMILY_TICK = 3
 
     /** One cue voice: a sine at a frequency, a gain, a pan, and an envelope. */
     private class Voice {
@@ -72,6 +76,8 @@ object PspCueSynth {
     private val ownHitVoice = Voice()
     private val focusCueVoice = Voice()
     private val dlinkCueVoice = Voice()
+    private val guardVoice = Voice()
+    private val guardBeatVoice = Voice()
 
     /** Per-family level, 0 to 1 (beacon, health; meter/tick slots kept for parity). */
     private val levels = floatArrayOf(1f, 1f, 1f, 1f)
@@ -236,10 +242,67 @@ object PspCueSynth {
         }
     }
 
+    // ---- the guard window: a continuous rising sweep (Attack of the Saiyans) --
+    //
+    // The third cue shape, the iOS CueSynth's timing family: a window
+    // running toward a moment. The poll's guard answer is continuous —
+    // active on every frame the window is open, frac running 0 (just
+    // opened) to 1 (press NOW) — and the adapter has already
+    // normalized each attack family's own timing into that fraction,
+    // so this synth only makes frac audible: a tone whose pitch
+    // climbs as frac runs, its peak the guard moment itself (the
+    // Budokai Access model). A soft low beat sounds on the window's
+    // opening frame — the restart beat. CENTRED, always: the window
+    // names no target and no side, so the cue must not pretend to
+    // one either. The sweep rides the TICK family's level; the beat
+    // is a dedicated one-shot voice because the sweep is already
+    // sounding on its own voice when the beat must land.
+
+    // Sweep endpoints: an exponential rise (300 → 900 Hz) so the
+    // climb is perceptually even, in a register below the beacon's
+    // carriers and above the health thud.
+    private const val GUARD_BASE_HZ = 300f
+    private const val GUARD_RISE_RATIO = 3f
+    // Gain rises slightly with frac but never starts at zero — a
+    // window whose opening is inaudible is a window half missed, and
+    // silence has to keep meaning "no window".
+    private const val GUARD_GAIN_BASE = 0.30f
+    private const val GUARD_GAIN_RISE = 0.15f
+    // The restart beat: a soft, low, short blip under the sweep's start.
+    private const val GUARD_BEAT_HZ = 160f
+    private const val GUARD_BEAT_SECONDS = 0.045
+
+    /**
+     * Voice one frame of the guard window. [frac] is played as a
+     * pure function of the fraction, never re-shaped — the adapter
+     * owns the timing truth, the synth only renders it. [enabled]
+     * is the same battle-cues switch as every cue here: off
+     * silences the sweep at once and drops the beat unheard — a
+     * window is a live moment, and voicing its opening late would
+     * mark a moment already gone.
+     */
+    fun updateGuard(active: Boolean, frac: Float, beat: Boolean, enabled: Boolean) {
+        val v = guardVoice
+        if (!enabled || !active) {
+            v.gain = 0f
+            return
+        }
+        val f = frac.coerceIn(0f, 1f)
+        v.frequency = GUARD_BASE_HZ * GUARD_RISE_RATIO.pow(f)
+        v.pulseHz = 0f
+        v.pan = 0f
+        v.gain = GUARD_GAIN_BASE + GUARD_GAIN_RISE * f
+        if (beat) {
+            trigger(guardBeatVoice, GUARD_BEAT_HZ, 0f, GUARD_BEAT_SECONDS,
+                gain = 0.35f, curve = 1.4f, partial = 0f)
+        }
+    }
+
     /** Silence every voice. Used when the game stops. */
     fun silenceAll() {
         beaconVoice.gain = 0f
-        for (v in arrayOf(foeHitVoice, ownHitVoice, focusCueVoice, dlinkCueVoice)) {
+        guardVoice.gain = 0f
+        for (v in arrayOf(foeHitVoice, ownHitVoice, focusCueVoice, dlinkCueVoice, guardBeatVoice)) {
             v.gain = 0f
             v.shotLeft = 0.0
         }
@@ -308,8 +371,9 @@ object PspCueSynth {
         val oneShots = arrayOf(
             foeHitVoice to FAMILY_HEALTH, ownHitVoice to FAMILY_HEALTH,
             focusCueVoice to FAMILY_BEACON, dlinkCueVoice to FAMILY_BEACON,
+            guardBeatVoice to FAMILY_TICK,
         )
-        var anyAudible = beaconVoice.gain > 0
+        var anyAudible = beaconVoice.gain > 0 || guardVoice.gain > 0
         if (!anyAudible) {
             for ((v, _) in oneShots) {
                 if (v.gain > 0) {
@@ -335,6 +399,16 @@ object PspCueSynth {
                 // across the arc, where a linear crossfade would dip
                 // ~3 dB in the middle and read as "farther".
                 val angle = (beaconVoice.pan.coerceIn(-1f, 1f) + 1f) * Math.PI.toFloat() / 4f
+                mixL += s * cos(angle)
+                mixR += s * sin(angle)
+            }
+            // The guard sweep: a state voice like the beacon, centred
+            // (its pan is always 0 — the window names no side), riding
+            // the tick family's level.
+            val gg = guardVoice.gain * levels[FAMILY_TICK] * speechDuck
+            if (gg > 0) {
+                val s = voiceSample(guardVoice, gg)
+                val angle = (guardVoice.pan.coerceIn(-1f, 1f) + 1f) * Math.PI.toFloat() / 4f
                 mixL += s * cos(angle)
                 mixR += s * sin(angle)
             }
