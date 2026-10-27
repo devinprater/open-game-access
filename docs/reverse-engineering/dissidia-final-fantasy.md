@@ -10013,16 +10013,13 @@ Related hardening from the story walk, same discipline:
 
 Still silent, documented rather than wired:
 
-- **Movie pause.** START during a cutscene opens "PAUSED -- Resume
-  / Skip Cutscene"; the adapter says nothing (probe + story runs:
-  the pause-widget chain reads 0, MenuState reports none, WhereAmI
-  says "Not tracked yet."). Its widget instance is a different
-  allocation from the battle pause's; mapping it needs its own
-  RAM-diff session.
 - **Chapter detail arrival.** The chapter screen itself (episode
   title, board list) has no arrival line; only its start dialog
   speaks. See the story section below for the dialog's two
   instances.
+
+(The movie pause, listed here in the first pass, is WIRED as of the
+2026-10-25 second pass — see "Movie pause" in the story section.)
 
 ## Story mode — the core path walked live (2026-10-25)
 
@@ -10106,48 +10103,158 @@ the cards and confirm liveness by a changing value (bravery drift)
 before fighting. (b) Lock-on is range-based; dash (Triangle) only
 homes once locked.
 
-**Board modal dialogs are one silent family.** Three were met:
-"Make this area your home area?" (Cross on the player's own cell),
-"Destroy the Stigma of Chaos?", "Fight this battle piece?". All
-share one signature: the board UI object occupies DLG_SLOT
-(0x08C0A20C) with DLG_X = 0.00, the pause-widget root reads a flag
-(1), no known record pair tracks the selection, and MenuState
-classifies the screen only as "board". Their selection word is
-unmapped; they are documented, not wired. A blind player at these
-prompts hears the board context (the arrival line named the piece
-and, for the stigma, its consequence) but not the prompt or its
-selection. This is the board path's biggest remaining gap; the
-mapping route is the same YES-vs-NO RAM diff that cracked the Data
-Setup confirm, run against a board modal.
+**Board modal dialogs are one family — WIRED 2026-10-25 (second
+pass).** Five were met and live-proven: "Make this area your home
+area?" (Cross while the piece stands on a cell that is not its
+home), "Use this potion?" (Cross with the cursor on the potion
+cell, piece adjacent — not in the first pass's list), "Destroy the
+Stigma of Chaos?" (Cross with the cursor on the stigma cell),
+"Fight this battle piece?" (Cross with the cursor on a LIVE enemy
+cell, piece adjacent), and "Search this treasure chest?" (Cross
+with the cursor on a chest cell — the chest's tile text is now in
+the arrival catalog verbatim: "Treasure Chest / Contains items
+helpful to battle progress.", screenshot-verified on Prologue-3
+and Prologue-5; marker type 1, met on Prologue-5, is an enemy
+class — "False Stalwart" there — whose arrival still reads
+"Unknown 1 here." because enemy naming rides the per-board
+species key, not the type). The first pass recorded the family's
+signature as the board object in DLG_SLOT with DLG_X = 0; the
+mapping route it prescribed (a YES-vs-NO RAM diff) cracked them:
 
-**Story dialogue is the other documented gap — with its mechanism
-pinned.** The post-battle regroup scene (script scene SI 32; the
-Warrior of Light's "The pulses of disorder are getting stronger!")
-produced NO adapter speech, and neither did the boards' dialogue
-boxes ("What is going on? My body doesn't move as it should..." on
-board 1; "Manikins... Shadow entities employed by Chaos's forces
-as troops." after the board-2 battle; the board-2 tutorial box on
-Destiny Points). Two precise causes, both measured live: (1) the
-portrait gate never opens -- the scene-byte at 0x08BB376A read 0x44
-and 0x18 on the Warrior's lines, and StoryPortraitName maps only
-{0x9A Garland; 0x9E/0xC5/0xD0/0x46 Chaos}, so WS_STORY never engages
-and the scene scan never runs; (2) even with the gate open, this
-scene's FAQ-sourced anchors are not resident -- the resident script
-block at 0x09B42A54 holds only the segment's later lines ("The
-pulses of disorder", "Let us hurry" found there as UTF-16LE), while
-the scene table's raw1/raw2 anchors ("At the end of the dream.",
-"even chaos...") are absent. The fix design, when this is picked
-up: regenerate the scene table with per-line anchors from
-docs/data/dissidia_story_script.json (the full JSON script), and
-widen the portrait gate to any-nonzero -- the two-line text match
-remains the real fail-closed proof. Per-line dialogue position
-inside a scene stays an open problem by design, as recorded in the
-dialogue sections above. Board dialogue boxes ride the same script
-system and inherit the same fix.
+- *Selection:* u32 at 0x09B3FE60 reads a clean 0 (YES) / 1 (NO)
+  inside every modal, flipping exactly with the hand cursor in all
+  five kinds, and the board dispatcher's +0x19C low byte agrees in
+  every sample. Outside modals the word is garbage (0x0001001E
+  observed) or holds its last selection after the modal closes
+  (1 after a NO) — it is never read without the liveness gate.
+- *Liveness:* six widget-registry slots at 0x09B3F518..0x09B3F52C
+  are ALL populated while any of the four modals is up and ALL zero
+  on the plain board, during board dialogue boxes, and after the
+  modal closes (verified across both board lineages and all five
+  modal kinds; an earlier candidate, 0x08C0A164 == 6, held for the
+  home/potion modals but read 0 under the stigma modal — lineage
+  state, refuted as family liveness).
+- *Wiring:* BoardModalLive() = board dispatcher live + all six
+  registry slots nonzero + selection word in {0,1} + dispatcher
+  low byte in agreement; the board branch of OnFrame checks it
+  before the arrival watch and speaks "YES. Row 1 of 2." / "NO.
+  Row 2 of 2." through WS_BOARDMODAL. DialogLive() is untouched —
+  the DLG_X gate that killed the phantom board YES stands, and
+  host tests pin both directions (the phantom state stays silent;
+  the modals speak on arrival and on flips; a stale selection
+  after close, disagreeing words, and a partial registry all stay
+  silent). Live proof: all five modals were driven on the bench —
+  arrival, LEFT to NO, RIGHT back to YES — and every transition
+  announced exactly once. As with the other dialogs, the question
+  text itself is not spoken (it is glyph-rendered, not in RAM as
+  text); the arrival line just before Cross names the piece and,
+  for the stigma, its consequence, and the potion's use is preceded
+  by its info text.
 
-Net state of story mode for a blind player after this pass: menus
-into story speak; boards speak position, DP, piece arrivals and
-names; encounters speak in battle exactly as proven; the three
-board modal confirms, the chapter detail screen, movie pause, and
-all story dialogue text are silent -- each with its mechanism and
-mapping route recorded above.
+One related observation from the same walks: a destroyed piece's
+marker lingers in the board's marker table (the dead False Hero on
+board 2, the consumed potion likewise), so the arrival watch still
+names it and Cross on its cell asks the home-area question instead
+of engaging. Pre-existing shipped behavior; retiring it needs a
+live/dead flag per marker, not yet mapped.
+
+**Story dialogue — WIRED 2026-10-25 (second pass) for the board
+talk-box form; the portrait/cutscene form is mapped but not
+wired.** The game presents story text in two distinct widgets,
+and they do not share a current-line source:
+
+- *The board talk box* (the Destiny Odyssey boards' dialogue form:
+  "What is going on? My body doesn't move as it should..." on
+  board 1; "Manikins... Shadow entities employed by Chaos's
+  forces as troops." after the board-2 battle; "What manner of
+  fiend is that?..." opening Prologue-5). While a box is up, two
+  widget slots at 0x09FFEBF4 and 0x09FFEC08 hold the SAME pointer
+  to the current page's string (UTF-16LE, NUL-terminated, the
+  game's own wraps kept as newlines); the slots diverge to
+  garbage the moment the box closes (battle and menu samples
+  likewise). A page is believed only when both slots agree on an
+  even, in-RAM pointer whose string decodes as printable text
+  with at least one letter, stable across two frames. Pages are
+  accumulated per box (whitespace-normalized, joined with single
+  spaces) and matched against a generated per-line table
+  (Core/story/dissidia_story_lines.inc, built by
+  docs/data/gen_story_lines.py from the shipped
+  dissidia_story_script.json: 137 scenes, 1758 lines) — a page set
+  speaks only when it provably belongs to script blocks; the
+  speaker is named only when every surviving candidate agrees on
+  one (the line "Cosmos!" is the Warrior of Light's in two scenes
+  and Firion's in another, and speaks bare when ambiguous). A
+  completed block that identifies its scene speaks the scene's
+  title first, once ("Prologue." ahead of the board-1 landing
+  box's second page). An unanchorable box stays silent for its
+  whole duration — fail closed, as designed. The portrait gate
+  the first pass prescribed widening is GONE: the byte at
+  0x08BB376A read 0x00 throughout these boxes (0x5B just after one
+  closed), so StoryPortraitName and the gate were deleted and the
+  anchored-text proof — strictly stronger — replaced them. Live
+  proof (bench, wired adapter, screenshots matched page for
+  page): the board-1 landing box (both pages, title first), the
+  board-2 Manikins box (both pages), and the Prologue-5 opening
+  box ("What manner of fiend is that?..."), each spoken verbatim
+  with its speaker as the player's presses advanced the pages.
+- *The portrait box / voiced cutscene form* (bottom box with a
+  corner portrait, and full cutscenes with burned subtitles — the
+  Destiny Odyssey I opening gathering, script scene DO 3, plays
+  this way, as does the post-battle box "I must find her... I
+  have no time for these interruptions!"). NOT wired. Measured
+  this pass: the talk-box slots above read garbage under this
+  form; the scene's script buffer IS resident (found by content
+  scan at a per-boot heap address, ~0x09B41704 in the walked
+  boot) as consecutive subtitle-unit records [u16 code][UTF-16
+  text][NUL], blocks split into units ("I have been defeated by
+  Chaos." / "The god of discord, Chaos..." / ...). No pointer to
+  the current unit exists anywhere in either segment (full-dump
+  diff across two subtitle moments). Position is tracked by two
+  counters — u32 0x09F01630 (A) and u32 0x09F01F90 (B) — that
+  satisfy A = 2B + 8 at seven sampled points across the whole
+  scene, B stepping +1 per subtitle unit and A +2 (plausibly the
+  talk-event .evex entry index and a derived unit count). What
+  wiring still needs: pin one counter against a known unit in
+  two or more scenes and recover the entry->unit offset table
+  (the talk-event manager's +4), or find the manager struct
+  itself. The SI 32 regroup ("The pulses of disorder are getting
+  stronger!") is this form (its portrait byte changed per line
+  in the 2026-10-02 walk: 0x44/0x18 on the Warrior's lines) and
+  stays silent with it; it was not re-walked this pass.
+
+**Movie pause — WIRED 2026-10-25 (second pass).** START during a
+cutscene opens "PAUSED / Resume / Skip Cutscene". Its selection
+word at 0x09F02890 is -1 in every other measured state and 0/1
+only while the pause menu is up (diffed from dumps at both rows;
+the -1 cross-checked in 81 dumps spanning boards, modals, menus,
+battle cards, mid-battle and cutscene playback — 0/1 appeared in
+exactly the two pause dumps). The adapter trusts the word only
+after seeing it idle at -1 once since attach (a cold 0 in zeroed
+or unsampled memory must never mute the other screens), speaks
+"Resume. Row 1 of 2." / "Skip Cutscene. Row 2 of 2." on arrival
+and on flips, and the pause owns the frame while up. Live proof:
+arrival and both flips announced on the bench (including over a
+paused portrait box). One pipeline note: re-pausing on the same
+row as the last line spoken, with nothing spoken in between, is
+collapsed by the announce layer's consecutive-identical rule —
+the same behavior as every other screen's re-entry.
+
+**Chapter select was not re-entered this pass.** The walked
+lineage stayed in the new-game flow (Prologue boards 1–5 cleared,
+chapter results 587 story points, the DO 3 gathering cutscene
+watched to its end); the post-cutscene bench state froze on a
+black transition and never presented the chapter list, so the
+chapter-entry dialog's instance B and the chapter detail arrival
+remain exactly as documented above — instance B deliberately
+unwired for want of a liveness anchor, the detail screen silent
+on arrival.
+
+Net state of story mode for a blind player after the second pass:
+menus into story speak; boards speak position, DP, piece arrivals
+and names; all five board modal confirms speak (YES/NO with
+flips); board talk-box dialogue speaks verbatim with speakers and
+scene titles; the cutscene pause menu speaks; encounters speak in
+battle exactly as proven. Still silent: the voiced-cutscene /
+portrait-box dialogue form (mechanism above, counters pinned,
+offset table open), the chapter detail screen's arrival, and the
+chapter-entry dialog's instance B (no liveness anchor).

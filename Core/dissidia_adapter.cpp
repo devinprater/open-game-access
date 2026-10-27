@@ -1606,19 +1606,20 @@ static bool Ready(void)
 // "Mash Circle!", directions); every other line uses the fewest syllables
 // that still make sense. Say() dedups identical repeats, so a watch line plus
 // a later identical command line never double-speaks.
-enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN, WS_OPTIONS, WS_BOARD, WS_STORY, WS_SETUPCONFIRM };
+enum WatchScreen { WS_NONE = -1, WS_DIALOG, WS_BONUS, WS_PLAY, WS_TITLE, WS_MAIN, WS_OPTIONS, WS_BOARD, WS_BOARDMODAL, WS_SETUPCONFIRM };
 static int g_wsScreen = WS_NONE;
 static int g_wsIndex = -1;
 static int g_wsStable = 0;
-/// Story-dialogue portrait byte (visual-novel box, no name tag).
-///
-/// ⛔ THIS IS A GATE, NOT A SPEAKER IDENTITY. Live, the opening cutscene with the
-/// Warrior of Light read values that this table calls Chaos and Garland, so the
-/// byte is not the current speaker across scenes (it looks like a portrait-pool
-/// slot). The adapter therefore uses a known value only to say "a dialogue
-/// portrait is live" and speaks no name from it. Speaker names need a per-scene
-/// map proven against the game's own portrait table first; guessing is worse
-/// than silence.
+static int g_wsMoviePause = -1;  // last movie-pause selection spoken
+static bool g_moviePauseSeenIdle = false;  // pause word seen at its -1 idle
+/// Story scenes: speaker runs + two-line anchors per scene, from the
+/// GameFAQs script. The per-line table and the dialogue reader that uses
+/// it live below (after the scene matcher). The portrait byte at
+/// 0x08BB376A is deliberately NOT used anywhere: live it read 0x00 through
+/// board dialogue boxes and unrelated per-line presentation values in the
+/// visual-novel scenes (0x44/0x18 on the Warrior of Light's lines), so it
+/// can neither gate nor attribute a line. The anchored text match in the
+/// dialogue reader is the validation instead.
 #include "story/dissidia_story_scenes.inc"
 static const StoryScene* StorySceneById(const char* id)
 {
@@ -1716,18 +1717,216 @@ const char* DissidiaMatchStoryScene(void)
 static const StoryScene* g_storyScene = nullptr;
 static bool g_storyScanned = false;
 static void StoryStateClear(void) { g_storyScene = nullptr; g_storyScanned = false; }
-constexpr uint32_t STORY_PORTRAIT = 0x08BB376Au;
-static const char* StoryPortraitName(uint8_t por)
+// ---- Story dialogue reader (board boxes + visual-novel scenes) ----
+// LIVE-MAPPED 2026-10-25 (bench dlg2/dlg14): while a dialogue box is up,
+// two widget slots in the UI heap hold the SAME pointer to the box's
+// current page string (UTF-16LE, NUL-terminated, the game's own line
+// wraps as '\n'). The pointed string is the exact on-screen text
+// (screenshot-verified page for page on the Destiny Odyssey I boxes), so
+// the reader speaks RAM text verbatim -- never table text. The generated
+// per-line table is used ONLY to anchor the line (fail closed: a page
+// that matches no script block speaks nothing) and to attribute the
+// speaker (the box shows a portrait but no name tag). A box's pages,
+// whitespace-normalized and joined with single spaces, equal the matching
+// block's normalized text exactly (byte-verified against the dumps).
+// Speaker attribution: candidates are blocks consistent with the
+// accumulated text (equal to it, or extending it at a space boundary); a
+// scene locked by a completed unique match narrows them; the name is
+// spoken only when the surviving candidates agree on one speaker -- an
+// ambiguous line ("Cosmos!" is shouted by three casts) speaks its text
+// with no name rather than risk a wrong one.
+#include "story/dissidia_story_lines.inc"
+constexpr uint32_t DLG_TXT_A = 0x09FFEBF4u, DLG_TXT_B = 0x09FFEC08u;
+static char g_dlgAcc[1200];        // normalized text of the open box so far
+static uint32_t g_dlgPagePtr = 0;  // current page pointer (0 = no box)
+static int g_dlgPageStable = 0;    // frames the current pointer has held
+static bool g_dlgPageSpoken = false;
+static int g_dlgSceneLock = -1;    // kStoryLines scene index, -1 = none
+static int g_dlgSceneTitled = -1;  // scene whose title already announced
+static bool g_dlgScanTried = false;
+static void DialogueBoxReset(void)
 {
-    switch (por) {
-        case 0x9Eu: case 0xC5u: case 0xD0u: case 0x46u: return "Chaos";
-        case 0x9Au: return "Garland";
-        default: return nullptr;
+    g_dlgAcc[0] = 0;
+    g_dlgPagePtr = 0; g_dlgPageStable = 0; g_dlgPageSpoken = false;
+}
+static void DialogueReset(void)
+{
+    DialogueBoxReset();
+    g_dlgSceneLock = -1; g_dlgSceneTitled = -1; g_dlgScanTried = false;
+}
+static int StoryLineSceneIndex(const char* id)
+{
+    for (size_t i = 0; i < sizeof(kStorySceneIds) / sizeof(kStorySceneIds[0]); i++)
+        if (strcmp(kStorySceneIds[i], id) == 0) return (int) i;
+    return -1;
+}
+// Join acc + page with the shared normalization: whitespace runs collapse
+// to one space, ends trimmed. False on overflow.
+static bool DlgJoin(const char* acc, const char* page, char* out, size_t cap)
+{
+    size_t n = 0;
+    const char* parts[2] = { acc, page };
+    for (int pi = 0; pi < 2; pi++) {
+        bool pending = n > 0;
+        for (const char* s = parts[pi]; *s; s++) {
+            char c = *s;
+            if (c == ' ' || c == '\t' || c == '\r' || c == '\n') { pending = true; continue; }
+            if (pending && n > 0) { if (n + 1 >= cap) return false; out[n++] = ' '; }
+            pending = false;
+            if (n + 1 >= cap) return false;
+            out[n++] = c;
+        }
     }
+    out[n] = 0;
+    return true;
+}
+struct DlgCand { int speakers[40]; int nSpeakers; bool anyComplete; int completeScene; bool completeMultiScene; int nCand; };
+// Candidates consistent with acc: block == acc (complete) or block
+// extends acc at a space boundary (box still open). restrictScene >= 0
+// limits the search to one scene; completeOnly drops prefix candidates.
+static void DlgCollect(const char* acc, int restrictScene, bool completeOnly, DlgCand* out)
+{
+    memset(out, 0, sizeof(*out));
+    out->completeScene = -1;
+    size_t alen = strlen(acc);
+    for (size_t i = 0; i < sizeof(kStoryLines) / sizeof(kStoryLines[0]); i++) {
+        const StoryLineRec& r = kStoryLines[i];
+        if (restrictScene >= 0 && r.scene != restrictScene) continue;
+        bool complete = strcmp(r.text, acc) == 0;
+        bool prefix = !complete && !completeOnly && strncmp(r.text, acc, alen) == 0 && r.text[alen] == ' ';
+        if (!complete && !prefix) continue;
+        out->nCand++;
+        if (complete) {
+            out->anyComplete = true;
+            if (out->completeScene < 0) out->completeScene = r.scene;
+            else if (out->completeScene != r.scene) out->completeMultiScene = true;
+        }
+        bool seen = false;
+        for (int j = 0; j < out->nSpeakers; j++)
+            if (out->speakers[j] == r.speaker) { seen = true; break; }
+        if (!seen && out->nSpeakers < 40) out->speakers[out->nSpeakers++] = r.speaker;
+    }
+}
+// Resolve the accumulated text to a candidate set. Preference order:
+// the locked scene; completed blocks inside the content-matched scene;
+// completed blocks anywhere; the matched scene; every candidate. A
+// completed match in exactly one scene locks that scene.
+static bool DlgResolve(const char* acc, DlgCand* out)
+{
+    if (g_dlgSceneLock >= 0) {
+        DlgCollect(acc, g_dlgSceneLock, false, out);
+        if (out->nCand > 0) return true;
+    }
+    int soft = g_storyScene ? StoryLineSceneIndex(g_storyScene->id) : -1;
+    if (soft >= 0) {
+        DlgCollect(acc, soft, true, out);
+        if (out->nCand > 0) { g_dlgSceneLock = soft; return true; }
+    }
+    DlgCand all;
+    DlgCollect(acc, -1, true, &all);
+    if (all.nCand > 0) {
+        *out = all;
+        if (!all.completeMultiScene && all.completeScene >= 0)
+            g_dlgSceneLock = all.completeScene;
+        return true;
+    }
+    if (soft >= 0) {
+        DlgCollect(acc, soft, false, out);
+        if (out->nCand > 0) return true;
+    }
+    DlgCollect(acc, -1, false, out);
+    return out->nCand > 0;
+}
+static void DialogueSpeakPage(const char* pageNorm)
+{
+    char joined[1200];
+    DlgCand c;
+    bool anchored = false;
+    if (DlgJoin(g_dlgAcc, pageNorm, joined, sizeof(joined)) && DlgResolve(joined, &c)) {
+        snprintf(g_dlgAcc, sizeof(g_dlgAcc), "%s", joined);
+        anchored = true;
+    } else if (DlgResolve(pageNorm, &c)) {
+        // The accumulated text matched nothing but this page starts a
+        // block on its own: the previous box never closed in the slots
+        // (pointer chained straight to the next box). Restart the box.
+        snprintf(g_dlgAcc, sizeof(g_dlgAcc), "%s", pageNorm);
+        anchored = true;
+    } else {
+        // Unanchored box: stay silent for the rest of it (fail closed).
+        if (DlgJoin(g_dlgAcc, pageNorm, joined, sizeof(joined)))
+            snprintf(g_dlgAcc, sizeof(g_dlgAcc), "%s", joined);
+        return;
+    }
+    if (!anchored) return;
+    // Scene title, once per scene, ahead of the line that proved it.
+    if (g_dlgSceneLock >= 0 && g_dlgSceneTitled != g_dlgSceneLock) {
+        g_dlgSceneTitled = g_dlgSceneLock;
+        const StoryScene* sc = StorySceneById(kStorySceneIds[g_dlgSceneLock]);
+        if (sc && sc->title) {
+            char t[96];
+            snprintf(t, sizeof(t), "%s.", sc->title);
+            Say(t, "storytitle", oga::Priority::Normal);
+        }
+    }
+    char line[512];
+    if (c.nSpeakers == 1)
+        snprintf(line, sizeof(line), "%s: %s", kStorySpeakers[c.speakers[0]], pageNorm);
+    else
+        snprintf(line, sizeof(line), "%s", pageNorm);
+    Say(line, "story", oga::Priority::Normal);
+}
+// Read the page string at p (UTF-16LE) as normalized UTF-8. False when
+// the content is not plausible dialogue text (widget garbage must never
+// reach the anchor test, let alone speech).
+static bool DialogueReadPage(uint32_t p, char* out, size_t cap)
+{
+    size_t n = 0;
+    bool pending = false, anyLetter = false, terminated = false;
+    for (int i = 0; i < 220; i++) {
+        uint16_t c = u16(p + 2u * (uint32_t) i);
+        if (c == 0) { terminated = true; break; }
+        if (c == '\n' || c == '\t' || c == '\r') c = ' ';
+        if (c < 0x20 || c > 0x7E) return false;
+        if (c == ' ') { pending = true; continue; }
+        if ((c >= 'A' && c <= 'Z') || (c >= 'a' && c <= 'z')) anyLetter = true;
+        if (pending && n > 0) { if (n + 1 >= cap) return false; out[n++] = ' '; }
+        pending = false;
+        if (n + 1 >= cap) return false;
+        out[n++] = (char) c;
+    }
+    out[n] = 0;
+    return terminated && n >= 2 && anyLetter;
+}
+// Per-frame dialogue watch. Returns true while a box is up; each page is
+// spoken once, after its pointer holds for two frames (flicker guard,
+// same rule as the other watches).
+static bool DialoguePoll(void)
+{
+    uint32_t a = u32(DLG_TXT_A), b = u32(DLG_TXT_B);
+    uint32_t p = (a == b && InRam(a) && !(a & 1)) ? a : 0;
+    if (p == 0) {
+        if (g_dlgPagePtr != 0) DialogueBoxReset();
+        return false;
+    }
+    if (p != g_dlgPagePtr) {
+        if (g_dlgPagePtr == 0 && g_dlgSceneLock < 0 && !g_dlgScanTried) {
+            g_dlgScanTried = true;
+            if (!g_storyScene) g_storyScene = MatchStoryScene();
+        }
+        g_dlgPagePtr = p; g_dlgPageStable = 1; g_dlgPageSpoken = false;
+        return true;
+    }
+    if (g_dlgPageStable < 2) g_dlgPageStable++;
+    if (g_dlgPageStable >= 2 && !g_dlgPageSpoken) {
+        g_dlgPageSpoken = true;
+        char page[384];
+        if (DialogueReadPage(p, page, sizeof(page))) DialogueSpeakPage(page);
+    }
+    return true;
 }
 static int g_wsLoggedId = -1;  // board-arrival debug log fires on change only
 static void WatchReset(void) { g_wsScreen = WS_NONE; g_wsIndex = -1; g_wsStable = 0; g_wsLoggedId = -1; }
-static void WatchResetStory(void) { WatchReset(); StoryStateClear(); }
+static void WatchResetStory(void) { WatchReset(); StoryStateClear(); DialogueReset(); }
 /// Marker key on a board cell, or -1 when no marker sits there. The name comes
 /// from the verified catalog (MarkerTypeName); the type number rides along for
 /// the debug log. A key of 0 is a real marker (nonzero cell), never "absent".
@@ -1772,6 +1971,7 @@ static int MarkerKeyAt(int hx, int hy, const char** nameOut, uint32_t* typeOut)
 /// pointer -- the block carries no absolute pointers, offsets are computed).
 struct TileText { uint32_t type; const char* name; const char* desc; };
 static const TileText kTileText[] = {
+    { 2, "Treasure Chest", "Contains items helpful to battle progress." },
     { 4, "Potion", "Restores HP and EX Gauge to 100%." },
     { 5, "Stigma of Chaos", "Engaging this piece finishes the level." },
 };
@@ -1839,20 +2039,40 @@ static void WatchSpeak(int s, int i)
             Say(line, "title", oga::Priority::Normal); return;
         case WS_MAIN: MenuSpeakRow(oga::Priority::Normal); return;
         case WS_OPTIONS: OptSpeakRow(oga::Priority::Normal); return;
-        case WS_STORY: {
-            if (!g_storyScanned) {
-                g_storyScanned = true;
-                g_storyScene = MatchStoryScene();
-                if (g_storyScene) { snprintf(line, sizeof(line), "%s.", g_storyScene->title); Say(line, "storytitle", oga::Priority::Normal); }
-            }
-            // ⛔ NO SPEAKER NAME FROM THE PORTRAIT BYTE. It read Chaos/Garland
-            // during the Warrior of Light's opening scene (live, 2026-10-21).
-            return;
-        }
+        case WS_BOARDMODAL:
+            snprintf(line, sizeof(line), "%s. Row %d of 2.", i == 0 ? "YES" : "NO", i + 1);
+            Say(line, "dialog", oga::Priority::Normal); return;
         case WS_BOARD: BoardArriveSpeak(i); return;
         default: return;
     }
 }
+// ---- Board modal confirms (home area / potion / stigma / fight) ----
+// LIVE-MAPPED 2026-10-25 (bench dlg4/dlg7/dlg8/dlg9/dlg10/dlg11): the
+// four board YES/NO modals share one signature the battle-slot dialogs
+// never produce: six widget-registry slots at 0x09B3F518..0x09B3F52C are
+// ALL populated while a modal is up and ALL zero on the plain board,
+// during board dialogue boxes, and after the modal closes. The
+// selection word at 0x09B3FE60 reads a clean 0 (YES) / 1 (NO) inside
+// modals; on the plain board it holds garbage, and it KEEPS its last
+// value after the modal closes -- the registry gate is what makes the
+// stale value unreachable. The board dispatcher +0x19C low byte
+// corroborates the selection; disagreement fails closed. This
+// deliberately does NOT touch DialogLive(): the DLG_X hand-cursor gate
+// that killed the phantom board YES stays exactly as it is, and these
+// modals never raise that dialog family.
+constexpr uint32_t MODAL_WIDGETS = 0x09B3F518u;
+constexpr uint32_t MODAL_SEL = 0x09B3FE60u;
+constexpr uint32_t OFF_MODAL_SEL = 0x19Cu;
+static bool BoardModalLive(uint32_t bd)
+{
+    for (int i = 0; i < 6; i++)
+        if (u32(MODAL_WIDGETS + 4u * (uint32_t) i) == 0) return false;
+    uint32_t sel = u32(MODAL_SEL);
+    if (sel > 1) return false;
+    return u8(bd + OFF_MODAL_SEL) == sel;
+}
+static int BoardModalSel(void) { return (int) u32(MODAL_SEL); }
+
 /// Confirm an identity: two consecutive frames before speaking; anything else
 /// resets. First sighting counts as a change (announces entries, not just moves).
 static void WatchOk(int s, int i)
@@ -1883,11 +2103,40 @@ static void OnFrame(void)
     if (bf.ok) { WatchResetStory(); WatchBattleHealth(bf); return; }
     ResetBattleHealthWatch();
     if (g_custLive || g_charLive || g_oskLive) { WatchResetStory(); return; }
+    // Movie/cutscene pause menu (PAUSED / Resume / Skip Cutscene): its
+    // selection word is -1 in every other measured state (board, board
+    // modals, dialogs, cutscene playback) and 0/1 only while the pause
+    // menu is up -- one word is both the liveness gate and the cursor
+    // (diffed live, dlg58: Resume vs Skip dumps; -1 cross-checked in
+    // dlg2/5/52/53 dumps). While it is up it owns the frame.
+    {
+        int mps = (int)u32(0x09F02890u);
+        if (mps == -1) {
+            // Idle value observed: the word is live and trustworthy,
+            // and any pause that was up has closed.
+            g_moviePauseSeenIdle = true;
+            g_wsMoviePause = -1;
+        } else if ((mps == 0 || mps == 1) && g_moviePauseSeenIdle) {
+            if (mps != g_wsMoviePause) {
+                g_wsMoviePause = mps;
+                Say(mps == 0 ? "Resume. Row 1 of 2."
+                             : "Skip Cutscene. Row 2 of 2.",
+                    "moviepause", oga::Priority::Normal);
+            }
+            return;
+        }
+        // A cold 0/1 with no idle sighting yet (zeroed RAM at boot, an
+        // unsampled mode) is NOT trusted: fall through silently rather
+        // than letting one word mute every other screen.
+    }
     // Modal YES/NO wins over whatever sits underneath (pause, board, options).
     if (AnyDialogLive()) {
         WatchOk(WS_DIALOG, AnyDialogSel());
         return;
     }
+    // Story dialogue boxes (board boxes and visual-novel scenes) speak
+    // their own pages; while one is up it owns the frame.
+    if (DialoguePoll()) return;
     uint32_t bd = BoardDispatcher();
     if (bd == 0) {
         MenuSync(); OptSync();
@@ -1905,17 +2154,17 @@ static void OnFrame(void)
                     if (ti >= 0) { s = WS_TITLE; i = ti; }
                     else if (g_menuMain) { s = WS_MAIN; i = g_menuRow; }
                     else if (g_optLive) { s = WS_OPTIONS; i = g_optRow; }
-                    if (s == WS_NONE) {
-                        uint8_t por = u8(STORY_PORTRAIT);
-                        if (StoryPortraitName(por)) { s = WS_STORY; i = (int)por; }
-                    }
-                    if (s != WS_STORY) StoryStateClear();
+                    StoryStateClear();
                 }
             }
         }
         WatchOk(s, i);
         return;
     }
+    // Board modal confirms pre-empt the arrival watch (the board is
+    // frozen underneath them). Not manager-gated: the modal signature
+    // (registry slots + corroborated selection) is its own proof.
+    if (BoardModalLive(bd)) { WatchOk(WS_BOARDMODAL, BoardModalSel()); return; }
     // Board arrival watch: identity is (cell, marker key-or-absent), so moves
     // across empty cells and standing still both stay silent while arriving on
     // a marker speaks it. Manager-gated like the on-demand marker list.
@@ -2116,6 +2365,7 @@ static bool Attach(const Host* host)
     g_charLive = false; g_charRow = 0;  // character-select tracker neither
     g_quickLive = false;  // Quickmove edge neither
     WatchReset();  // auto-speech watch neither
+    g_wsMoviePause = -1; g_moviePauseSeenIdle = false;  // pause trust neither
     g_exReady = false;  // EX ready latch neither
     g_oskLive = false; g_osk.reset();  // OSK echo tracker neither
     for (int i = 0; i < 23; i++) g_optVal[i] = 0;
@@ -2145,8 +2395,12 @@ const Adapter kDissidiaFinalFantasy = {
     dissidia::Ready,
     dissidia::Detach,
     dissidia::CueSnapshotFill,
-    "Menu speech, battle position and foe queries, battle audio cues (lock-on beacon and health hit beeps)",
-    "Menus are spoken as you move through them. In battle, speech "
+    "Menu and story speech, battle position and foe queries, battle audio cues (lock-on beacon and health hit beeps)",
+    "Menus are spoken as you move through them. In Story Mode, the "
+    "boards speak your position, the pieces you reach, and the "
+    "yes-or-no questions the board asks; story dialogue boxes speak "
+    "their lines with the speaker's name, and the pause menu in "
+    "cutscenes speaks its rows. In battle, speech "
     "covers on-demand queries: where you are, and the direction, "
     "distance and state of your foe or the EX core.\n"
     "Continuous battle information is carried by audio cues, not "

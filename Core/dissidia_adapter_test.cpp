@@ -1438,22 +1438,150 @@ int main(void)
     putU16str(0x09980100u, "I have been defeated by ");
     CHECK(oga::dissidia::DissidiaMatchStoryScene() && strcmp(oga::dissidia::DissidiaMatchStoryScene(), "DO 3") == 0,
           "content scan identifies DO 3");
-    // 48e. dialogue entry speaks the scene title once, and no portrait name
+    // 48e. dialogue entry: with the scene's anchors resident, a live box
+    // page speaks the scene title once (ahead of the line that proves the
+    // scene) and the line itself with its script-attributed speaker. The
+    // portrait byte is never read -- the anchored text is the proof.
     reset();
     CHECK(a->attach(&HOST), "watch attach storyentry");
     putU16str(0x09980000u, "Cosmos!");
     putU16str(0x09980100u, "I have been defeated by ");
-    put8(0x08BB376Au, 0x0Cu);
+    putU16str(0x09990000u, "Cosmos!");
+    put32(0x09FFEBF4u, 0x09990000u);
+    put32(0x09FFEC08u, 0x09990000u);
+    FRAME(); FRAME(); FRAME();
+    CHECK(NSPOKEN == 2, "entry speaks title and line");
+    CHECK(NSPOKEN == 2 && strcmp(SPOKE(0), "Prologue.") == 0,
+          "entry names the scene title first");
+    CHECK(NSPOKEN == 2 && strcmp(SPOKE(1), "Warrior of Light: Cosmos!") == 0,
+          "line carries its script speaker");
     FRAME(); FRAME();
-    NSPOKEN = 0; oga::AdapterSpeechReset();
-    put8(0x08BB376Au, 0x9Au);
-    NSPOKEN = 0; oga::AdapterSpeechReset();
+    CHECK(NSPOKEN == 2, "standing in the box repeats nothing");
+
+    // ---- board modal confirms (live-mapped dlg4/7/8/9/10/11) ----
+    // Board chain as in test 14; D (dispatcher) = BD.
+    {
+        const uint32_t BM = 0x08C168F0u, BP = 0x08C17000u, BB = 0x08C17100u, BD = 0x08C17200u;
+        reset();
+        CHECK(a->attach(&HOST), "watch attach boardmodal");
+        put32(0x08B98940u, BM);
+        put32(BM + 0x118u, BP);
+        put32(BP + 0x04u, BB);
+        put32(BB + 0x10u, BD);
+        // The old phantom state: the board object occupies the dialog
+        // slot with the hand cursor at X = 0. The modal registry is
+        // empty, so nothing may speak (the phantom stays dead).
+        put32(0x08C0CC3Cu, 0x08C0A20Cu);
+        put32(0x08C0CCB0u, 0u);
+        FRAME(); FRAME();
+        CHECK(NSPOKEN == 0, "phantom board YES stays silent");
+        // Modal up, selection YES (registry populated, both words agree).
+        for (int i = 0; i < 6; i++) put32(0x09B3F518u + 4u * (uint32_t) i, 0x08C0F8B8u + 4u * (uint32_t) i);
+        put32(0x09B3FE60u, 0u);
+        put8(BD + 0x19Cu, 0u);
+        FRAME(); FRAME();
+        CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "YES. Row 1 of 2.") == 0,
+              "board modal arrival speaks YES");
+        FRAME(); FRAME();
+        CHECK(NSPOKEN == 1, "board modal does not repeat standing still");
+        // Flip to NO.
+        put32(0x09B3FE60u, 1u);
+        put8(BD + 0x19Cu, 1u);
+        FRAME(); FRAME();
+        CHECK(NSPOKEN == 2 && strcmp(SPOKE(1), "NO. Row 2 of 2.") == 0,
+              "board modal flip speaks NO");
+        // Modal closes; the selection word keeps its stale value (1).
+        for (int i = 0; i < 6; i++) put32(0x09B3F518u + 4u * (uint32_t) i, 0u);
+        FRAME(); FRAME();
+        CHECK(NSPOKEN == 2, "stale selection after close stays silent");
+        // Selection words disagree: fail closed.
+        for (int i = 0; i < 6; i++) put32(0x09B3F518u + 4u * (uint32_t) i, 0x08C0F8B8u + 4u * (uint32_t) i);
+        put32(0x09B3FE60u, 0u);
+        put8(BD + 0x19Cu, 1u);
+        FRAME(); FRAME();
+        CHECK(NSPOKEN == 2, "disagreeing selection words stay silent");
+        // One registry slot empty: not a modal.
+        put8(BD + 0x19Cu, 0u);
+        put32(0x09B3F518u, 0u);
+        FRAME(); FRAME();
+        CHECK(NSPOKEN == 2, "partial registry stays silent");
+    }
+
+    // ---- story dialogue boxes (live-verified strings, dlg14/dlg2) ----
+    reset();
+    CHECK(a->attach(&HOST), "watch attach dialogue");
+    putU16str(0x09990000u, "What is going on?\nMy body doesn't move as it should...");
+    put32(0x09FFEBF4u, 0x09990000u);
+    put32(0x09FFEC08u, 0x09990000u);
+    FRAME(); FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Warrior of Light: What is going on? My body doesn't move as it should...") == 0,
+          "box page 1 speaks verbatim with its speaker");
+    putU16str(0x09990200u, "I must hurry to Cosmos!");
+    put32(0x09FFEBF4u, 0x09990200u);
+    put32(0x09FFEC08u, 0x09990200u);
+    FRAME(); FRAME(); FRAME();
+    CHECK(NSPOKEN == 3 && strcmp(SPOKE(1), "Prologue.") == 0 &&
+          strcmp(SPOKE(2), "Warrior of Light: I must hurry to Cosmos!") == 0,
+          "box page 2 completes the block; the proven scene title lands first");
+    // Box closes (slots diverge): nothing more.
+    put32(0x09FFEC08u, 0u);
     FRAME(); FRAME();
-    CHECK(NSPOKEN == 1, "entry speaks once on entry");
-    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Prologue.") == 0,
-          "entry names the scene, not a speaker");
+    CHECK(NSPOKEN == 3, "box close stays silent");
+    // Plausible text that matches no script block: fail closed.
+    putU16str(0x09990400u, "Zxqv jibber wocky trembles.");
+    put32(0x09FFEBF4u, 0x09990400u);
+    put32(0x09FFEC08u, 0x09990400u);
+    FRAME(); FRAME(); FRAME();
+    CHECK(NSPOKEN == 3, "unanchored page speaks nothing");
+    // Slots disagree: not a box at all.
+    put32(0x09FFEC08u, 0x09990600u);
     FRAME(); FRAME();
-    CHECK(NSPOKEN == 1, "entry speaks no portrait name");
+    CHECK(NSPOKEN == 3, "disagreeing slots stay silent");
+    // Ambiguous line with no scene context: the text speaks, no name is
+    // guessed ("Cosmos!" belongs to WoL in DO 2/DO 3, Firion in DO 99).
+    // Fresh reset: no scene is locked or matched here.
+    reset();
+    CHECK(a->attach(&HOST), "watch attach dialogue ambiguous");
+    putU16str(0x09990800u, "Cosmos!");
+    put32(0x09FFEBF4u, 0x09990800u);
+    put32(0x09FFEC08u, 0x09990800u);
+    FRAME(); FRAME(); FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Cosmos!") == 0,
+          "ambiguous line speaks its text with no guessed name");
+
+    // ---- movie/cutscene pause menu (live-verified dlg58) ----
+    // The selection word is -1 everywhere else; 0/1 only while PAUSED.
+    // A cold 0 with no idle (-1) sighting since attach is untrusted:
+    // it must neither speak nor eat the frame.
+    reset();
+    CHECK(a->attach(&HOST), "watch attach movie pause");
+    put32(0x09F02890u, 0u);
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "cold pause word without idle sighting stays silent");
+    put32(0x09F02890u, 0xFFFFFFFFu);
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 0, "movie pause word -1 stays silent");
+    put32(0x09F02890u, 0u);
+    FRAME();
+    CHECK(NSPOKEN == 1 && strcmp(SPOKE(0), "Resume. Row 1 of 2.") == 0,
+          "movie pause arrival speaks Resume");
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 1, "movie pause steady state does not repeat");
+    put32(0x09F02890u, 1u);
+    FRAME();
+    CHECK(NSPOKEN == 2 && strcmp(SPOKE(1), "Skip Cutscene. Row 2 of 2.") == 0,
+          "movie pause flip speaks Skip Cutscene");
+    put32(0x09F02890u, 0xFFFFFFFFu);
+    FRAME(); FRAME();
+    CHECK(NSPOKEN == 2, "movie pause close stays silent");
+    // Re-entry speaks again (on the other row: the announce pipeline
+    // collapses consecutive identical lines by design, so re-entering
+    // on the same row as the last spoken line is a pipeline repeat,
+    // not a watcher event).
+    put32(0x09F02890u, 0u);
+    FRAME();
+    CHECK(NSPOKEN == 3 && strcmp(SPOKE(2), "Resume. Row 1 of 2.") == 0,
+          "movie pause re-entry speaks again");
     // 49. main-menu entry announces row 1 (TITLE_CURSOR 8 + live A10 chain)
     reset();
     CHECK(a->attach(&HOST), "watch attach main");
