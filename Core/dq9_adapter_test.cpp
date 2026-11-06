@@ -165,16 +165,18 @@ int main()
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
     oga::kDragonQuestIX.command(oga::Command::NextEnemy);
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Someone") && strstr(SPOKEN[0], "5 steps up"),
-          "NextEnemy names the nearest person with camera-relative direction");
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Someone") && strstr(SPOKEN[0], "5 steps up")
+          && strstr(SPOKEN[0], "1 of 2"),
+          "NextEnemy names the nearest person with camera-relative direction and its ordinal");
     NSPOKEN = 0; oga::AdapterSpeechReset();
     oga::kDragonQuestIX.command(oga::Command::NextEnemy);
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Story character") && strstr(SPOKEN[0], "20 steps left"),
-          "second NextEnemy steps to the farther story model");
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Story character") && strstr(SPOKEN[0], "20 steps left")
+          && strstr(SPOKEN[0], "2 of 2"),
+          "second NextEnemy steps to the farther story model, ordinal 2 of 2");
     NSPOKEN = 0; oga::AdapterSpeechReset();
     oga::kDragonQuestIX.command(oga::Command::PrevEnemy);
-    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Someone"),
-          "PrevEnemy steps back to the nearest");
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Someone") && strstr(SPOKEN[0], "1 of 2"),
+          "PrevEnemy steps back to the nearest, ordinal 1 of 2");
 
     // An over-count is a corrupt table, not a crowd: silence, not 65 labels.
     put32(OBJCOUNT, 99);

@@ -105,6 +105,14 @@ static bool CueSnapshotFill(CueSnapshot* out);   // defined below; registered at
 static const Host* g_host = nullptr;
 static float g_lastRatio[CITY_COUNT] = {0};
 static bool  g_haveRatio[CITY_COUNT] = {false};
+/// Per-city band latches for the frame watch below: index 0/1/2 is the game's
+/// 80/50/30 line. A latched band has been announced for this fall and stays
+/// quiet until the city recovers past the band plus kBandRearm — the same
+/// latch + re-arm shape as the PSP health watches (SfTrackSide) and the KHBBS
+/// low-HP warning, so a city hovering at an edge cannot chatter, while a
+/// repaired city that falls again is a new event and speaks.
+static bool  g_bandLatch[CITY_COUNT][3] = {};
+constexpr float kBandRearm = 0.05f;   // five points: the family's margin, and BucketPct's grain
 
 // ---- THE TARGET RING ------------------------------------------------------------------
 // The player's own decision (2026-10-08): ONE ring over all three target kinds --
@@ -608,39 +616,70 @@ static void CmdDump(void)
 // ---------------------------------------------------------------------------
 // the frame hook: the ONE event worth hearing
 // ---------------------------------------------------------------------------
-/// A city crossing a damage band. The bands are the game's own (80/50/30), and this fires
-/// on the crossing edge only, so a city hovering at exactly 50% does not repeat itself.
-/// This is the field-mode equivalent of "the enemy is at the door".
+/// A city crossing a damage band. The bands are the game's own (80/50/30). Each band
+/// announces once per fall and latches; it re-arms only when the city recovers past
+/// the band plus the five-point margin, so hovering at an edge cannot repeat itself
+/// and a repaired city falling again is spoken as the new event it is. This is the
+/// field-mode equivalent of "the enemy is at the door".
 static void OnFrame(void)
 {
     if (!g_host) return;
     if (!FieldIsLive()) {
         // Leaving a live field clears the per-city memory so the next entry announces from
         // the real state instead of comparing against a stale one.
-        for (int i = 0; i < CITY_COUNT; i++) g_haveRatio[i] = false;
+        for (int i = 0; i < CITY_COUNT; i++) {
+            g_haveRatio[i] = false;
+            g_bandLatch[i][0] = g_bandLatch[i][1] = g_bandLatch[i][2] = false;
+        }
         return;
     }
+    static const float kBands[3] = { kBandHealthy, kBandHurt, kBandCritical };
+    static const char* kWords[3] = { "below 80 percent", "below half", "critical" };
     char line[192];
     for (int i = 0; i < CITY_COUNT; i++) {
         CityInfo c;
-        if (!ReadCity(i, &c) || !c.present || c.max <= 0) { g_haveRatio[i] = false; continue; }
+        if (!ReadCity(i, &c) || !c.present || c.max <= 0) {
+            g_haveRatio[i] = false;
+            g_bandLatch[i][0] = g_bandLatch[i][1] = g_bandLatch[i][2] = false;
+            continue;
+        }
         float r = (float) c.cur / (float) c.max;
-        if (!g_haveRatio[i]) { g_lastRatio[i] = r; g_haveRatio[i] = true; continue; }
+        if (!g_haveRatio[i]) {
+            // First sight: prime silently, with the bands already below the ratio
+            // latched — a city first seen at 40% has already passed the 80 and 50
+            // lines and must not announce them as fresh crossings.
+            g_lastRatio[i] = r; g_haveRatio[i] = true;
+            for (int b = 0; b < 3; b++) g_bandLatch[i][b] = (r <= kBands[b]);
+            continue;
+        }
         float was = g_lastRatio[i];
         g_lastRatio[i] = r;
-        if (r >= was) continue;                 // repair is the player's own doing, not an event
-        const char* word = nullptr;
-        if      (was >= kBandHealthy  && r < kBandHealthy)  word = "below 80 percent";
-        else if (was >= kBandHurt     && r < kBandHurt)     word = "below half";
-        else if (was >= kBandCritical && r < kBandCritical) word = "critical";
-        if (!word) continue;
-        snprintf(line, sizeof line, "City %d %s.", c.slot + 1, word);
+        if (r > was) {
+            // Repair is the player's own doing, not an event — but recovering past
+            // a band plus the margin re-arms that band's announcement.
+            for (int b = 0; b < 3; b++)
+                if (r >= kBands[b] + kBandRearm) g_bandLatch[i][b] = false;
+            continue;
+        }
+        if (r == was) continue;
+        // Falling: latch every band now below the ratio, and speak only the
+        // LOWEST band newly crossed — the health watches' "speak the worst"
+        // rule, so a plunge says "critical", not "below 80 percent".
+        int crossed = -1;
+        for (int b = 0; b < 3; b++) {
+            if (r < kBands[b]) {
+                if (!g_bandLatch[i][b]) crossed = b;
+                g_bandLatch[i][b] = true;
+            }
+        }
+        if (crossed < 0) continue;
+        snprintf(line, sizeof line, "City %d %s.", c.slot + 1, kWords[crossed]);
         // Normal, not Low: it is a discrete state change, but it must not interrupt a
-        // decision the way a requested query does. Dedup by slot+band so one crossing
-        // never speaks twice.
-        char key[48];
-        snprintf(key, sizeof key, "dbzar:city%d:%s", c.slot, word);
-        SayRaw(line, Priority::Normal, "dbzar-city", key);
+        // decision the way a requested query does. NO dedup key: the latch above is
+        // the once-per-crossing guard, and the queue's last-line-in-group dedup
+        // would eat a genuine re-crossing whenever no other city line had spoken
+        // in between (the hazard KHBBS's low-HP note documents).
+        SayRaw(line, Priority::Normal, "dbzar-city", nullptr);
     }
 }
 
