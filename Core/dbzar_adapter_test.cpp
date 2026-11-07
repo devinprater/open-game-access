@@ -14,7 +14,9 @@
  *   1. outside Another Road nothing speaks (the mode gate holds);
  *   2. WhereAmI names the LOWEST city first and counts the damage bands using the GAME's
  *      own 80/50/30 thresholds;
- *   3. a city crossing a band speaks once, and re-crossing the same band does not;
+ *   3. a city crossing a band speaks once per fall; the band re-arms only after the
+ *      city recovers five points past it, so a repaired city falling again speaks,
+ *      but hovering at the edge does not;
  *   4. repair (health rising) is not an event;
  *   5. empty slots (id 0) and unused entities (team -1) are never spoken about;
  *   6. Ready() is false with the mode flag clear.
@@ -293,6 +295,45 @@ int main(void)
     CitySet(0, 0x0001, 700, 1000, 0.f, 0.f);     // health RISING: the player is repairing
     oga::FR();
     ok("repair (health rising) never speaks", NSPOKEN == 0);
+
+    // ---------------------------------------------------------------- 3b. the re-arm
+    // The latch owns once-per-crossing now, not the announcement queue's dedup:
+    // recovery INSIDE the five-point margin leaves the band latched (edge-hover
+    // stays quiet); recovery PAST it re-arms, and the next fall is a new event.
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
+    CitySet(0, 0x0001, 900, 1000, 0.f, 0.f);
+    oga::FR();                                   // seed at 90%
+    clear();
+    CitySet(0, 0x0001, 780, 1000, 0.f, 0.f);     // crosses 80
+    oga::FR();
+    ok("first fall through 80 speaks (re-arm setup)", NSPOKEN == 1 && said("below 80 percent"));
+    clear();
+    CitySet(0, 0x0001, 820, 1000, 0.f, 0.f);     // repair to 82%: above the band, inside the margin
+    oga::FR();
+    CitySet(0, 0x0001, 790, 1000, 0.f, 0.f);     // falls through 80 again
+    oga::FR();
+    ok("repair inside the margin does NOT re-arm: the second fall is quiet", NSPOKEN == 0);
+    clear();
+    CitySet(0, 0x0001, 860, 1000, 0.f, 0.f);     // repair to 86%: past band + 5 points
+    oga::FR();
+    CitySet(0, 0x0001, 790, 1000, 0.f, 0.f);     // falls through 80 a third time
+    oga::FR();
+    ok("repair past the margin re-arms: the third fall speaks again",
+       NSPOKEN == 1 && said("below 80 percent"));
+
+    // ---------------------------------------------------------------- 3c. the plunge
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
+    CitySet(0, 0x0001, 900, 1000, 0.f, 0.f);
+    oga::FR();                                   // seed at 90%
+    clear();
+    CitySet(0, 0x0001, 280, 1000, 0.f, 0.f);     // 90% -> 28% in one step: crosses all three bands
+    oga::FR();
+    ok("a plunge across all three bands speaks once, and says 'critical'",
+       NSPOKEN == 1 && said("critical") && !said("below 80 percent"));
 
     // 5. unused entities are not counted as enemies
     setup();

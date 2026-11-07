@@ -277,7 +277,12 @@ void CmdNearby(int dir)
     if (!DirectionsTo(list[g_objcursor].x, list[g_objcursor].z, where, sizeof(where)))
     { Say("Position unknown.", "nearby", oga::Priority::High); return; }
     char line[160];
-    snprintf(line, sizeof(line), "%s. %s.", list[g_objcursor].label, where);
+    // "N of M", the target-cycling house style (this adapter's own party
+    // cycling does the same): with generic labels — three "Someone"s in a
+    // row — the ordinal is the only thing that tells the player the cycle
+    // is actually moving.
+    snprintf(line, sizeof(line), "%s, %d of %d. %s.",
+             list[g_objcursor].label, g_objcursor + 1, n, where);
     Say(line, "nearby", oga::Priority::High);
 }
 
