@@ -19,23 +19,43 @@
  */
 #include "genesis_core.h"
 
-/* The core's own headers. "shared.h" is the umbrella every core TU includes;
- * it pulls osd.h (ours, via the gpgx include dir) and the subsystem headers. */
-#include "shared.h"
-#include "cart_hw/sram.h"
-#include "cart_hw/md_cart.h"
-
+/* \u26d4 INCLUDE ORDER AND LINKAGE, BOTH LOAD-BEARING.
+ *
+ * The standard headers come FIRST: the core's m68k.h does
+ * `#define uint unsigned int`, and any libc++ header included after it is
+ * poisoned (the SDK's own `typedef unsigned int uint;` in sys/types.h
+ * becomes a syntax error). The host compiler tolerated the order; Apple
+ * clang did not, and it was right not to.
+ *
+ * The core's own headers are included inside extern "C": Genesis Plus GX is
+ * C \u2014 its TUs are compiled as C in the build scripts, their native language
+ * (as C++ they lean on implicit void* conversions and implicit declarations
+ * that GCC's -fpermissive forgives and Apple clang refuses). The headers
+ * carry no linkage guards of their own, so the glue declares the linkage,
+ * and the shim definitions below are defined inside extern "C" to match. */
 #include <array>
 #include <cstdio>
+#include <new>
 #include <cstdlib>
 #include <cstring>
 #include <string>
 #include <vector>
 
+extern "C" {
+/* "shared.h" is the umbrella every core TU includes; it pulls osd.h (ours,
+ * via the gpgx include dir) and the subsystem headers. */
+#include "shared.h"
+#include "cart_hw/sram.h"
+#include "cart_hw/md_cart.h"
+}
+
 /* ------------------------------------------------------------------ shim
  *
- * The frontend contract, as documented in Core/gpgx/osd.h.
+ * The frontend contract, as documented in Core/gpgx/osd.h. Defined inside
+ * extern "C": the C translation units reference these exact symbols.
  */
+
+extern "C" {
 
 t_config config;
 
@@ -68,11 +88,9 @@ int load_archive(char *filename, unsigned char *buffer, int maxsize, char *exten
 /* crc32 for the two core files that call it undeclared (see Core/gpgx/osd.h).
  * This is zlib's algorithm and chaining semantics exactly, so the values the
  * core computes for its ROM/SRAM fingerprints match every other frontend.
- * Defined here rather than taken from libz because the core's TUs are
- * compiled as C++ (their headers carry no extern "C" — the reason libretro
- * builds the tree the same way) and would reference the C++-mangled name;
- * this definition has that linkage because osd.h's declaration above is in
- * scope. The Crc32Of table below is the same polynomial. */
+ * Defined here rather than taken from libz so the symbol's provenance is
+ * this file, next to the declaration in osd.h that promises it. The
+ * Crc32Of table below is the same polynomial. */
 unsigned long crc32(unsigned long crc, const unsigned char *buf, unsigned int len)
 {
     static const uint32_t kPoly = 0xEDB88320u;
@@ -84,6 +102,8 @@ unsigned long crc32(unsigned long crc, const unsigned char *buf, unsigned int le
     }
     return crc ^ 0xFFFFFFFFul;
 }
+
+} // extern "C"
 
 namespace {
 

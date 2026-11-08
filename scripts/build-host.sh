@@ -96,10 +96,13 @@ compile() {
     # $LUA_SRC/src, NOT $MESEN_SRC/Lua: the app hosts lua-5.4.7 and Mesen's Lua is a FORK whose
     # headers differ -- the same gap mesen_lua_extras.c exists to bridge. One interpreter.
     mesen) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src $MESEN_INC $MESEN_FORCE -std=c++17 -w"; cc=g++ ;;
-    # Genesis Plus GX: the core TUs AND our glue, one lang (the glue includes
-    # the core's shared.h, so it needs the same roots). Compiled as C++: the
-    # tree's headers carry no extern "C".
-    gpgx) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src $GPGX_INC $GPGX_DEFS -std=c++17 -w"; cc=g++ ;;
+    # Genesis Plus GX core TUs: plain C, the core's native language (as
+    # C++ they lean on implicit conversions/declarations Apple clang
+    # refuses; see build-core.sh's gpgx case).
+    gpgx) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything $GPGX_INC $GPGX_DEFS -std=gnu11 -w"; cc=gcc ;;
+    # Our glue for it: C++, speaking to the C objects through the extern "C"
+    # declarations in genesis_core.cpp, with the same include roots.
+    gpgxglue) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src $GPGX_INC $GPGX_DEFS -std=c++17 -w"; cc=g++ ;;
   esac
   # Timestamp alone is not enough: flag changes (DEFS, includes) must rebuild.
   # The flags file records the exact command that produced $out.
@@ -178,7 +181,7 @@ compile() {
   # The SNES console: same Mesen include roots and forced pch as mesen_core.cpp.
   printf '%s|mesen|snes_core\n' "$ROOT/Core/snes_core.cpp"
   # The Genesis console: Genesis Plus GX underneath (Core/genesis_core.cpp).
-  printf '%s|gpgx|genesis_core\n' "$ROOT/Core/genesis_core.cpp"
+  printf '%s|gpgxglue|genesis_core\n' "$ROOT/Core/genesis_core.cpp"
   # ---- Genesis Plus GX. The measured list from core-sources.sh (the libretro
   # wildcard set), same rule as the Mesen lists above: a subset cannot link.
   for f in $GPGX_ALL; do printf '%s|gpgx|%s\n' "$GPGX_SRC/$f" "gpgx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done

@@ -127,9 +127,8 @@ MESEN_FORCE="-include $MESEN_SRC/Core/pch.h"
 # else's osd.h could ever win. GPGX_DEFS are the core's own configuration:
 # LSB_FIRST + LITTLE_ENDIAN name the host byte order the sound code switches
 # on, and USE_32BPP_RENDERING selects the 32-bit pixel format
-# Core/genesis_core.cpp converts from. The TUs compile as C++ (the `gpgx`
-# lang below): the tree's headers carry no extern "C", which is also why the
-# libretro port builds it as C++.
+# Core/genesis_core.cpp converts from. The TUs compile as C (the `gpgx` lang
+# below), their native language; the glue declares the linkage itself.
 GPGX_SRC="${GPGX_SRC:-$HOME/src/genesis-plus-gx}"
 GPGX_INC="-I$ROOT/Core/gpgx -I$GPGX_SRC/core -I$GPGX_SRC/core/z80 -I$GPGX_SRC/core/m68k -I$GPGX_SRC/core/ntsc -I$GPGX_SRC/core/sound -I$GPGX_SRC/core/sound/minimp3 -I$GPGX_SRC/core/input_hw -I$GPGX_SRC/core/cd_hw -I$GPGX_SRC/core/cart_hw -I$GPGX_SRC/core/cart_hw/svp"
 GPGX_DEFS="-DLSB_FIRST -DBYTE_ORDER=LITTLE_ENDIAN -DUSE_32BPP_RENDERING"
@@ -204,10 +203,13 @@ compile() { # compile <lang> <src> <tag>
     # Mesen's OWN Lua headers must win here (lua_WatchDogHook and the sandbox global live
     # in Mesen's fork). Mesen's Lua root goes FIRST and $INC is absent entirely.
     mesenlua) flags="$COMMON -I$MESEN_SRC/Lua -I$MESEN_SRC/Core -I$LUA_SRC/src -I$ROOT/Core -std=gnu11 -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
-    # Genesis Plus GX: plain C sources compiled as C++ (see the GPGX note at
-    # the top of this script). -fwrapv/-fno-strict-aliasing match the other
-    # cores' sets; the 68k interpreter is not strict-aliasing clean either.
-    gpgx) flags="$COMMON -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $GPGX_DEFS $GPGX_INC" ;;
+    # Genesis Plus GX: plain C, the core's native language (the mesenc
+    # shape). Compiling the tree as C++ was tried first and was wrong: the
+    # sources lean on implicit void* conversions and implicit declarations
+    # that GCC's -fpermissive forgives and Apple clang refuses. The glue
+    # (genesis_core.cpp, via the cxx case) speaks to the C objects through
+    # extern "C" declarations, which is also how upstream's frontends do it.
+    gpgx) flags="$COMMON -std=gnu11 $GPGX_DEFS $GPGX_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     ppspp) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE" ;;
     ppsppmm) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE -fobjc-arc" ;;
     ppsppc) flags="$CFLAGS $PPSPP_INC -DMOBILE_DEVICE -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;

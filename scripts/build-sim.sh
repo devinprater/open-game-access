@@ -206,8 +206,13 @@ compile() {
     # identifier 'CRC32'". A shadowed header, not a missing one. Build from $COMMON plus
     # our own roots and Mesen's, exactly as the working host case does -- never reorder $INC.
     mesen) flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $MESEN_INC $MESEN_FORCE" ;;
-    # Genesis Plus GX: plain C sources compiled as C++ (see build-core.sh).
-    gpgx) flags="$COMMON -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $GPGX_DEFS $GPGX_INC" ;;
+    # Genesis Plus GX: plain C, the core's native language (the mesenc
+    # shape). Compiling the tree as C++ was tried first and was wrong: the
+    # sources lean on implicit void* conversions and implicit declarations
+    # that GCC's -fpermissive forgives and Apple clang refuses. The glue
+    # (genesis_core.cpp, via the cxx case) speaks to the C objects through
+    # extern "C" declarations, which is also how upstream's frontends do it.
+    gpgx) flags="$COMMON -std=gnu11 $GPGX_DEFS $GPGX_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     # Mesen C: spng and the 7-Zip SDK -- no pch force-include (those are plain C).
     mesenc) flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -std=gnu11 $MESEN_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     # The four symbols Mesen's Lua FORK adds over the app's Lua, satisfied without a second

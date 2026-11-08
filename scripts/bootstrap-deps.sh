@@ -57,8 +57,8 @@ fetch "$MGBA_REPO" mgba "$MGBA_REV"
 # ---- Genesis Plus GX (Sega Genesis / Mega Drive core) ----
 # Fetched for the audited TU list in core-sources.sh (GPGX_ALL). No build
 # system of upstream's is run: the build scripts compile the list directly
-# as C++ with GPGX_DEFS (the tree's headers carry no extern "C"; the libretro
-# port builds it the same way). One frontend shim is OURS, not fetched:
+# as C with GPGX_DEFS, the tree's native language. One frontend shim is
+# OURS, not fetched:
 # Core/gpgx/osd.h (the core's TUs include "osd.h", which every frontend
 # supplies) and the shim definitions in Core/genesis_core.cpp.
 #

@@ -1312,9 +1312,9 @@ PPSPP_GLUE="
 # dispatcher (core/system.c) references the Sega CD and SVP objects even
 # though this app loads Genesis cartridges only, so a hand-trimmed subset
 # compiles and cannot link. core/sound/minimp3 contributes no .c (header-only
-# in this tree). The TUs are compiled as C++ (their headers carry no
-# extern "C"; the libretro port builds the tree the same way) under the
-# `gpgx` lang in the build scripts.
+# in this tree). The TUs are compiled as C under the `gpgx` lang in the
+# build scripts — the tree's native language; the glue
+# (Core/genesis_core.cpp) declares the extern "C" linkage itself.
 GPGX_SRC="${GPGX_SRC:-$HOME/src/genesis-plus-gx}"
 GPGX_ALL="
 core/cart_hw/areplay.c
