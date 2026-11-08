@@ -16,6 +16,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import com.devin.opengameaccess.ui.AdapterGamesScreen
 import com.devin.opengameaccess.ui.LauncherScreen
+import com.devin.opengameaccess.ui.ReadingLogScreen
 import com.devin.opengameaccess.ui.SettingsScreen
 import me.magnum.melonds.accessibility.AccessibilityScript
 
@@ -139,6 +140,15 @@ class MainActivity : ComponentActivity() {
 
         var showSettings by remember { mutableStateOf(false) }
         var showGames by remember { mutableStateOf(false) }
+        var showReadingLog by remember { mutableStateOf(false) }
+
+        if (showReadingLog) {
+            // Pushed from Settings' Troubleshooting section; Back
+            // returns there, the way iOS's navigation stack returns
+            // from its Reading log to Settings.
+            ReadingLogScreen(onBack = { showReadingLog = false })
+            return
+        }
         var battleCues by remember { mutableStateOf(CueSettings.battleCuesEnabled(context)) }
         var hudGaugeCuesSound by remember {
             mutableStateOf(GameSettings.globalDefault(context, GameSettings.Setting.HUD_GAUGE_CUES))
@@ -163,6 +173,16 @@ class MainActivity : ComponentActivity() {
                     gameSound = enabled
                     GameSoundSettings.setGameSoundEnabled(context, enabled)
                 },
+                pspRunning = PspGameSession.isRunning,
+                onSaveState = { PspGameSession.saveState(context) },
+                onLoadState = { PspGameSession.loadState(context) },
+                hasSavedState = { PspGameSession.hasSavedState(context) },
+                // Through the session, not the bridge class directly:
+                // the launcher contract keeps every AccessibilityScript
+                // call in this Activity behind the running-game guard
+                // above, and the sessions own bridge access elsewhere.
+                onRepeatSpeech = { PspGameSession.repeatLastSpeech() },
+                onOpenReadingLog = { showReadingLog = true },
                 announce = { text -> announceLine(text, true) },
                 onBack = { showSettings = false },
             )

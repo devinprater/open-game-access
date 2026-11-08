@@ -490,6 +490,14 @@ object PspGameSession {
         }
     }
 
+    /**
+     * True when a saved state exists for the loaded game. Settings'
+     * Load state button picks its spoken answer from this — "No
+     * saved state yet." versus a load that failed — the distinction
+     * iOS's loadState makes the same way.
+     */
+    fun hasSavedState(context: Context): Boolean = stateFile(context).isFile
+
     // ---- the reader (stage 4) ----------------------------------------------
     //
     // The command surface the launcher's PSP screen drives. It mirrors

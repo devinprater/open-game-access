@@ -31,16 +31,25 @@ import androidx.compose.ui.unit.sp
 /**
  * Settings, mirroring iOS's SettingsView as far as the Android path can honestly go.
  *
- * ⛔ WHAT IS DELIBERATELY ABSENT, AND WHY. iOS offers a screen picker, a game-sound
- * toggle, save/load state, repeat-last-speech and a reading log. The Android path
- * exposes none of those yet: there is no game-sound control, no save-state call and
- * no debug-line feed in the session's surface. Shipping buttons for them would be
- * worse than omitting them, for the reason iOS already states about its own hidden
- * reader groups -- a blind player cannot tell a deliberately-absent control from a
- * broken one. They go in when the capability does.
+ * ⛔ WHAT IS DELIBERATELY ABSENT, AND WHY. A screen picker (iOS shows
+ * it only for two-screen consoles; Android has none yet), the
+ * show-game-picture switch (there is no picture in the Android UI to
+ * hide — the picture is parity stage 2's work), and any Game Boy
+ * save-state control (the GB native surface exports no state call, so
+ * the button would be wired to nothing). Shipping buttons for those
+ * would be worse than omitting them, for the reason iOS already
+ * states about its own hidden reader groups -- a blind player cannot
+ * tell a deliberately-absent control from a broken one. They go in
+ * when the capability does.
  *
- * The two switches below are the controls that have crossed that bar: the PSP cue
- * synth (beacon + health beeps + earcons) exists now, so the battle-cues switch
+ * What parity stage 3 brought across from iOS's list: the game-sound
+ * toggle (PSP; Game Boy has no audio path at all, which the switch's
+ * own note says), Save state / Load state / Repeat last speech in the
+ * Game state section, the reading log under Troubleshooting, and a
+ * spoken announcement for every change made on this screen.
+ *
+ * The switches below have each crossed the honesty bar: the PSP cue
+ * synth (beacon + health beeps + earcons) exists, so the battle-cues switch
  * has something real to gate — it is iOS's "Lock cue" switch under the name the
  * design docs use, off by default, exactly like iOS — and Birth by Sleep's
  * gauge-full mode has a real adapter seam behind it. Both are GLOBAL defaults:
@@ -60,6 +69,12 @@ fun SettingsScreen(
     onHudGaugeCuesChanged: (Boolean) -> Unit,
     gameSoundEnabled: Boolean,
     onGameSoundChanged: (Boolean) -> Unit,
+    pspRunning: Boolean,
+    onSaveState: () -> Boolean,
+    onLoadState: () -> Boolean,
+    hasSavedState: () -> Boolean,
+    onRepeatSpeech: () -> Boolean,
+    onOpenReadingLog: () -> Unit,
     announce: (String) -> Unit = {},
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
@@ -227,6 +242,75 @@ fun SettingsScreen(
                 "line says so instead. This is the app default; the game can " +
                 "override it for itself from Per Game Settings on its page in " +
                 "the games list.",
+            fontSize = 14.sp,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+        )
+
+        Text(
+            text = "Game state",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() },
+        )
+        Button(
+            onClick = {
+                changed(if (onSaveState()) "State saved." else "Could not save state.")
+            },
+            enabled = pspRunning,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Save state", fontSize = 16.sp)
+        }
+        Button(
+            onClick = {
+                changed(
+                    when {
+                        !hasSavedState() -> "No saved state yet."
+                        onLoadState() -> "State loaded."
+                        else -> "Could not load state."
+                    }
+                )
+            },
+            enabled = pspRunning,
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Load state", fontSize = 16.sp)
+        }
+        Button(
+            onClick = {
+                if (!onRepeatSpeech()) changed("Nothing to repeat.")
+            },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Repeat last speech", fontSize = 16.sp)
+        }
+        Text(
+            text = "Save and load state act on the PSP game running now, in " +
+                "the same per-game slot its own Save states group uses — " +
+                "they are live while a PSP game runs and dimmed otherwise. " +
+                "Game Boy games have no save-state control in this build " +
+                "yet. Repeat last speech re-reads the newest line the " +
+                "reader spoke.",
+            fontSize = 14.sp,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+        )
+
+        Text(
+            text = "Troubleshooting",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() },
+        )
+        Button(
+            onClick = { onOpenReadingLog() },
+            modifier = Modifier.fillMaxWidth(),
+        ) {
+            Text("Reading log", fontSize = 16.sp)
+        }
+        Text(
+            text = "Shows the lines the reader has spoken, in order, and " +
+                "lets you share them — for troubleshooting when a screen " +
+                "is not announced as expected.",
             fontSize = 14.sp,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
         )
