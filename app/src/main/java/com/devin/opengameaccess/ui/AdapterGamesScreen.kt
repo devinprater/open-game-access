@@ -2,6 +2,7 @@ package com.devin.opengameaccess.ui
 
 import android.net.Uri
 import android.webkit.MimeTypeMap
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -83,8 +84,18 @@ fun AdapterGamesScreen(
     var selected by remember { mutableStateOf<AdapterGameInfo?>(null) }
     var settingsFor by remember { mutableStateOf<AdapterGameInfo?>(null) }
 
+    // The system Back walks this screen's own levels before it may leave
+    // the screen (input parity, stage 1): each early-return level below
+    // registers the handler for its own onBack lambda — the same calls the
+    // levels' Back buttons make — and only that level is composed at a
+    // time, so exactly one of these stands. At the list itself neither
+    // stands, and MainActivity's handler takes the press back to the
+    // launcher. Before this, system Back from a game page or the per-game
+    // settings left the whole screen (or the app) instead of stepping
+    // back one level.
     val settingsGame = settingsFor
     if (settingsGame != null) {
+        BackHandler { settingsFor = null }
         PerGameSettingsScreen(
             game = settingsGame,
             onBack = { settingsFor = null },
@@ -95,6 +106,7 @@ fun AdapterGamesScreen(
 
     val game = selected
     if (game != null) {
+        BackHandler { selected = null }
         AdapterGamePage(
             game = game,
             onBack = { selected = null },
