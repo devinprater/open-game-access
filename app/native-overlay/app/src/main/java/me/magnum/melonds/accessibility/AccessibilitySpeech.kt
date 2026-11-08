@@ -36,12 +36,47 @@ class AccessibilitySpeech(private val context: Context)
     {
         private const val TAG = "PokemonAccess"
         private const val UTTERANCE_PREFIX = "pokemon-access"
+
+        /** How many spoken lines are kept for the repeat walk and the
+         * reading log — iOS caps its reading log at the same 400. */
+        private const val HISTORY_MAX = 400
     }
 
     private var tts: TextToSpeech? = null
     private val ready = AtomicBoolean(false)
     private val pendingSpeech = ArrayDeque<Pair<String, Boolean>>()
-    private var lastSpoken = ""
+
+    /**
+     * Everything this bridge has spoken, in order, newest last: the
+     * repeat walk's ground and the reading log's content.
+     *
+     * iOS keeps its spoken history in the Core's announcement queue,
+     * because the queue is the only thing there that knows what
+     * actually reached the platform — a line suppressed as a duplicate
+     * is correctly not repeatable there. On Android this bridge is
+     * that thing: every script line and every app line converges on
+     * [speakImmediately], whichever console produced it, so the
+     * history lives here and nowhere else. Past the cap the oldest
+     * lines fall off, and a walk that reaches the end of what is kept
+     * refuses honestly rather than inventing an older line.
+     *
+     * Guarded by synchronizing on itself: lines arrive on the
+     * emulator thread, the repeats are asked for on the UI thread.
+     */
+    private val spokenHistory = ArrayDeque<String>()
+
+    /** Where the repeat walk is standing: an index into [spokenHistory]. */
+    private var historyWalkIndex = -1
+
+    /**
+     * True while the walk itself is speaking, so a re-read line is not
+     * recorded as a new line — the walk re-reads history, it does not
+     * add to it. (A repeat queued because the TTS engine was still
+     * starting flushes after this clears and does append; the walk
+     * index simply lands back on the newest line, which is where a
+     * flushed repeat leaves the player anyway.)
+     */
+    private var speakingFromHistory = false
 
     /**
      * The node game narration is announced through while a screen reader is
@@ -265,7 +300,15 @@ class AccessibilitySpeech(private val context: Context)
 
     private fun speakImmediately(text: String, interrupt: Boolean)
     {
-        lastSpoken = text
+        if (!speakingFromHistory)
+        {
+            synchronized(spokenHistory)
+            {
+                spokenHistory.addLast(text)
+                while (spokenHistory.size > HISTORY_MAX) spokenHistory.removeFirst()
+                historyWalkIndex = spokenHistory.size - 1
+            }
+        }
 
         // A screen reader is running: let IT be the voice, exactly as iOS hands
         // announcements to VoiceOver. Speaking through TextToSpeech as well would
@@ -313,7 +356,65 @@ class AccessibilitySpeech(private val context: Context)
     /** The script's repeat key ("U") re-reads the last spoken line. */
     fun repeatLast()
     {
-        if (lastSpoken.isNotEmpty()) speak(lastSpoken, true)
+        repeatNewest()
+    }
+
+    /** The most recent line this bridge spoke, or "" when it has said nothing yet. */
+    fun lastSpokenText(): String = synchronized(spokenHistory) { spokenHistory.lastOrNull() ?: "" }
+
+    /** Everything spoken, in order (oldest first): the reading log's lines. */
+    fun spokenHistory(): List<String> = synchronized(spokenHistory) { spokenHistory.toList() }
+
+    /**
+     * Re-read the newest line in the spoken history, and stand the
+     * walk back on it. True when there was a line to repeat.
+     *
+     * iOS's RepeatNewest (Core command 38) over its queue history.
+     * Silent on refusal by the same contract: the caller speaks
+     * "Nothing to repeat." itself, so a line from here as well would
+     * make the player hear it twice.
+     */
+    fun repeatNewest(): Boolean
+    {
+        val line = synchronized(spokenHistory)
+        {
+            if (spokenHistory.isEmpty()) return false
+            historyWalkIndex = spokenHistory.size - 1
+            spokenHistory[historyWalkIndex]
+        }
+        speakFromHistory(line)
+        return true
+    }
+
+    /**
+     * Step the walk one line further back and re-read that line
+     * (iOS's RepeatOlder, Core command 39). True when an older line
+     * existed; at the oldest recorded line the walk refuses — false,
+     * silently, for the reason [repeatNewest] gives.
+     */
+    fun repeatOlder(): Boolean
+    {
+        val line = synchronized(spokenHistory)
+        {
+            if (historyWalkIndex <= 0) return false
+            historyWalkIndex -= 1
+            spokenHistory[historyWalkIndex]
+        }
+        speakFromHistory(line)
+        return true
+    }
+
+    private fun speakFromHistory(line: String)
+    {
+        speakingFromHistory = true
+        try
+        {
+            speak(line, true)
+        }
+        finally
+        {
+            speakingFromHistory = false
+        }
     }
 
     fun shutdown()

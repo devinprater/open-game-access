@@ -222,6 +222,33 @@ object AccessibilityScript
     }
 
     /**
+     * Repeat the newest line the shared bridge has spoken — iOS's
+     * "Repeat last speech". False, and silent, when nothing has been
+     * spoken yet or no game has built the bridge yet: the caller
+     * speaks the refusal ("Nothing to repeat."), the way iOS's
+     * callers do, so a refusal must not also produce a line here.
+     */
+    fun repeatLastSpeech(): Boolean = speech?.repeatNewest() ?: false
+
+    /**
+     * Step one line further back through what the bridge has spoken
+     * and re-read it — iOS's RepeatOlder walk over the same history.
+     * False at the oldest recorded line, silently, like
+     * [repeatLastSpeech].
+     */
+    fun repeatOlderSpeech(): Boolean = speech?.repeatOlder() ?: false
+
+    /** True once the bridge has spoken anything: the Repeat controls' ground. */
+    fun hasSpokenLine(): Boolean = speech?.lastSpokenText()?.isNotEmpty() == true
+
+    /**
+     * Everything the bridge has spoken, in order (oldest first) —
+     * the reading log's lines. Empty before the first game builds
+     * the bridge.
+     */
+    fun spokenHistory(): List<String> = speech?.spokenHistory() ?: emptyList()
+
+    /**
      * Host key down/up, forwarded to the script so main.lua's poll_keys() can
      * edge-detect the letters it listens for (R stop speech, U repeat, C the
      * overworld coordinates key, and the J/K/L/I/O navigation letters the
