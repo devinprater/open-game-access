@@ -232,7 +232,9 @@ Java_me_magnum_melonds_accessibility_DsAccessibilityScript_nativeDsLoadRom(
   }
   poke_set_log_callback(core, &CoreLog, nullptr);
   poke_set_speech_callback(core, &OnSpeech, nullptr);
-  if (!g_script.empty()) poke_set_script(core, g_script.c_str());
+  // Always applied, even empty: the session sets the script on every
+  // start, and a stale script must never leak into a later game.
+  poke_set_script(core, g_script.c_str());
   if (!poke_load_rom(core, rom.c_str(), save.c_str())) {
     const char *e = poke_last_error(core);
     g_last_error = e ? e : "";
