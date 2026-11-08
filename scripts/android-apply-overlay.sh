@@ -72,6 +72,41 @@ rm -f "$GB_DST/host-sim-rom.lua" "$GB_DST/oga_capture.lua"
 echo "     staged $(find "$GB_DST" -type f | wc -l) files (sounds: $(find "$GB_DST/sounds" -type f 2>/dev/null | wc -l))"
 
 # ---------------------------------------------------------------------------
+# 1c. STAGE the NES reader sets from their SINGLE source of truth.
+#
+# The same rule as 1b, for the same reason: the NES readers (Dragon
+# Warrior Access, Zelda 1 Access) live canonically in
+# Sources/OpenGameAccess/Resources/nes-lua/ -- one directory per set,
+# each with its oga_nes_reader.lua entry -- and iOS copies that whole
+# tree into its bundle (Package.swift). A second tracked copy here
+# would drift the way the GB one did. The sets are gated the way
+# scripts/nes-reader-assets-test.sh gates them: every set directory
+# must carry its reader entry, and there must be at least the two
+# shipped sets. The Android session stages a WRITABLE copy of the set
+# the core names at load (the readers write into their own tree); the
+# APK only ever carries this read-only staging.
+# ---------------------------------------------------------------------------
+say "staging the NES reader sets from their canonical tree"
+NES_READERS="$ROOT/Sources/OpenGameAccess/Resources/nes-lua"
+[ -d "$NES_READERS" ] || { echo "!! no NES reader sets at $NES_READERS" >&2; exit 1; }
+NES_SET_COUNT=0
+for setdir in "$NES_READERS"/*/; do
+  [ -f "$setdir/oga_nes_reader.lua" ] || {
+    echo "!! NES reader set $setdir has no oga_nes_reader.lua -- refusing to stage a broken set" >&2
+    exit 1; }
+  NES_SET_COUNT=$((NES_SET_COUNT+1))
+done
+[ "$NES_SET_COUNT" -ge 2 ] || {
+  echo "!! only $NES_SET_COUNT NES reader set(s) staged -- the shipped readers are missing" >&2
+  exit 1; }
+
+NES_DST="$FRONTEND/app/src/main/assets/nes-lua"
+rm -rf "$NES_DST"
+mkdir -p "$NES_DST"
+cp -r "$NES_READERS/." "$NES_DST/"
+echo "     staged $NES_SET_COUNT NES reader sets ($(find "$NES_DST" -type f | wc -l) files)"
+
+# ---------------------------------------------------------------------------
 # 2. Resources: our app label gets its OWN key. Upstream already defines
 #    `app_name` for its own product, and overwriting it would break upstream
 #    code -- which is exactly the class of bug being fixed here.
@@ -1316,11 +1351,13 @@ fi
 #     melonDS::Platform file IO, which the frontend's PlatformAndroid
 #     already provides in this library. DsSessionJNI.cpp defines the one
 #     symbol pokecore needs from it (PokeSetLogForward).
-#   - gba_core/mesen_core/snes_core are NOT compiled: GB has its own
-#     Android slice, NES/SNES have none. DsBackendStubs.cpp refuses
-#     their ABIs (create() returns null, which pokecore's load path
-#     turns into a clean refusal) — the missing-symbol set was measured
-#     with nm over exactly the TUs staged below, not guessed.
+#   - gba_core is NOT compiled: GB has its own Android slice, and
+#     DsBackendStubs.cpp refuses its ABI (create() returns null, which
+#     pokecore's load path turns into a clean refusal) — the
+#     missing-symbol set was measured with nm over exactly the TUs
+#     staged below, not guessed. mesen_core/snes_core ARE compiled
+#     since section 10 (the MesenCE subproject below); their former
+#     stubs are gone from DsBackendStubs.cpp for exactly that reason.
 #
 # ⛔ THE GLUE RIDES THE FRONTEND TARGET, not a subproject library (the
 # PSP pattern does not transfer): pokecore shares melonDS C++ class
@@ -1886,6 +1923,266 @@ s = s.rstrip("\n") + NL + block + NL
 open(p, "w", encoding="utf-8").write(s)
 print("     wired the Genesis core into the frontend (archives linked; JNI in the target)")
 PY
+
+fi
+# ---------------------------------------------------------------------------
+# 11. The MesenCE cores (NES / SNES) as a subproject, plus the session
+#     surface's wiring.
+#
+# WHAT THIS BUILDS. Core/pokecore.cpp — the shared multi-console host
+# the DS section compiles into the frontend target — routes NES and
+# SNES files to Core/mesen_core.cpp and Core/snes_core.cpp, the
+# MesenCE glue iOS ships. Until this section, Android linked those
+# branches against honest stubs (DsBackendStubs.cpp) because nothing
+# compiled the MesenCE tree; the stubs are gone now, and this section
+# builds the real thing:
+#
+#   - the WHOLE Mesen core (MESEN_CORE_ALL from scripts/core-sources.sh
+#     — Mesen's own Core.vcxproj list), because Shared/Emulator.cpp
+#     constructs every console Mesen supports with no per-console
+#     guard: a NES-only list cannot LINK, however cleanly it compiles
+#     (the core-sources.sh note tells the whole story). Plus
+#     MESEN_UTILS and MESEN_C (spng).
+#   - the glue (mesen_core.cpp, snes_core.cpp) with the host build's
+#     flags (scripts/build-core.sh's mesen case): the tree root, Core
+#     and Utilities on the include path, pch.h forced into every C++
+#     TU — Mesen builds every Core TU that way, so a build that omits
+#     it compiles a different program — and -fwrapv /
+#     -fno-strict-aliasing, which Mesen requires. NO melonDS include
+#     dirs: its src/CRC32.h would shadow Mesen's own CRC32.h (the host
+#     build's warning, kept).
+#   - the app's ONE Lua: Mesen's interpreter in this embedding is the
+#     shared lua-5.4.7 (its objects ride the oga-mgba archive), and
+#     Core/mesen_lua_extras.c satisfies the four symbols Mesen's Lua
+#     fork adds — compiled as its OWN object library because its
+#     include set is the exception: Mesen's fork headers must WIN
+#     there, so it carries exactly its includes and no others (the
+#     host build's mesenlua case, which likewise stands alone).
+#   - MESEN_SEVENZIP_C as an OBJECT library: the audited difference
+#     set of Mesen's 7-Zip SDK (the files the other vendored copies
+#     lack), whose 7zStream.o is post-processed before the link by
+#     scripts/android-mesen-7z-dedupe.sh — Android links TWO other
+#     vendored 7-Zip copies (mGBA's lzma, PPSSPP's lzma-sdk), and the
+#     dedupe localizes in Mesen's object exactly the extern symbols
+#     the union of the others defines, keeping LookToRead_* exported
+#     (SZReader's only source for them). See that script's header.
+#
+# A SUBPROJECT LIBRARY, NOT FRONTEND-TARGET SOURCES (the mGBA/PPSSPP
+# shape, not section 9's): unlike pokecore, the Mesen glue shares no
+# C++ class ABI with the melonDS core — it is a self-contained C ABI
+# over the Mesen tree — so it gets its own target with its own flags,
+# and the ABI-skew risk section 9 avoids does not arise. The wiring
+# block at the end links it into the frontend, compiles
+# MesenSessionJNI.cpp there (the JNI surface is a frontend-target
+# citizen like the other sessions'), and puts the glue headers on the
+# frontend's include path, where the DS-staged oga_core.cpp reaches
+# mesen_core.h / snes_core.h.
+#
+# Skipped on armeabi-v7a like sections 8 and 9; the Kotlin probe reads
+# the absence as "not in this build".
+# ---------------------------------------------------------------------------
+say "building the MesenCE cores (NES / SNES) for Android"
+
+MESEN_SRC="${MESEN_SRC:-}"
+if [ -z "$MESEN_SRC" ]; then
+  # ⛔ NOT a silent skip — the shape section 7 established: a build
+  # without the Mesen cores would ship NES/SNES pages that lie. CI
+  # always sets it (bootstrap-deps.sh fetches the pinned tree). Set
+  # OGA_ALLOW_NO_MESEN=1 to build without them deliberately.
+  if [ "${OGA_ALLOW_NO_MESEN:-0}" = "1" ]; then
+    echo "   MesenCE cores SKIPPED (OGA_ALLOW_NO_MESEN=1)"
+  else
+    echo "   !! MESEN_SRC not set, so the NES/SNES cores would NOT be built." >&2
+    echo "      Set MESEN_SRC (scripts/bootstrap-deps.sh fetches the pinned MesenCE tree)," >&2
+    echo "      or set OGA_ALLOW_NO_MESEN=1 to build without them on purpose." >&2
+    exit 1
+  fi
+else
+  [ -d "$MESEN_SRC/Core" ] || { echo "   !! no MesenCE source at $MESEN_SRC" >&2; exit 1; }
+
+  # The source tree must be reachable from the Gradle/CMake build, so
+  # copy it in, exactly as sections 7 and 8 copy theirs (minus .git).
+  mkdir -p "$FRONTEND/app/mesen"
+  rm -rf "$FRONTEND/app/mesen/src" "$FRONTEND/app/mesen/glue"
+  cp -r "$MESEN_SRC" "$FRONTEND/app/mesen/src"
+  rm -rf "$FRONTEND/app/mesen/src/.git"
+  # The glue and the Core headers it (and the frontend's DS-staged
+  # oga_core.cpp) include.
+  mkdir -p "$FRONTEND/app/mesen/glue"
+  cp "$ROOT/Core/mesen_core.cpp" "$ROOT/Core/snes_core.cpp" \
+     "$ROOT/Core/mesen_lua_extras.c" "$FRONTEND/app/mesen/glue/"
+  cp "$ROOT"/Core/*.h "$FRONTEND/app/mesen/glue/"
+  # The 7z dedupe rides along: the generated CMakeLists runs it at
+  # build time, and the frontend tree is all the build can see.
+  cp "$ROOT/scripts/android-mesen-7z-dedupe.sh" "$FRONTEND/app/mesen/"
+  echo "     MesenCE source copied; glue and headers staged"
+
+  python3 - "$ROOT/scripts/core-sources.sh" "$FRONTEND/app/mesen/CMakeLists.txt" <<'PY'
+import re, sys
+srcs = open(sys.argv[1], encoding="utf-8").read()
+
+# ⛔ THE MESEN LISTS ARE READ FROM scripts/core-sources.sh, NOT WRITTEN
+# HERE — the section 7 rule, for the section 7 reason: iOS builds these
+# exact lists, and a hand copy here would drift into a different
+# emulator (or, worse, a subset that compiles and cannot link — see
+# the MESEN_CORE_ALL note in core-sources.sh).
+def _oga_list(name, suffix):
+    m = re.search(r'^' + name + r'="(.*?)"\n', srcs, re.S | re.M)
+    assert m, "no " + name + " list in " + sys.argv[1]
+    return [f for f in m.group(1).split() if f.endswith(suffix)]
+
+CORE_CPP = _oga_list("MESEN_CORE_ALL", ".cpp")
+UTILS_CPP = _oga_list("MESEN_UTILS", ".cpp")
+MESEN_C = _oga_list("MESEN_C", ".c")
+SEVENZIP_C = _oga_list("MESEN_SEVENZIP_C", ".c")
+assert CORE_CPP and UTILS_CPP and MESEN_C and SEVENZIP_C, \
+    "a Mesen list came back empty -- refusing to generate a broken CMakeLists"
+assert "SevenZip/7zStream.c" in SEVENZIP_C, \
+    "7zStream.c missing from MESEN_SEVENZIP_C -- SZReader would lose LookToRead_*"
+assert "Utilities/spng.c" in MESEN_C, "spng.c missing from MESEN_C"
+
+L = []
+L.append("# Generated by scripts/android-apply-overlay.sh section 11 -- do not edit.")
+L.append("#")
+L.append("# The MesenCE cores for Android: the WHOLE Mesen core (the audited")
+L.append("# MESEN_CORE_ALL list from scripts/core-sources.sh — Mesen's own")
+L.append("# Core.vcxproj list, because Shared/Emulator.cpp constructs every")
+L.append("# console and a subset cannot link), its Utilities, spng, the 7-Zip")
+L.append("# difference set, and the OGA glue (Core/mesen_core.cpp,")
+L.append("# Core/snes_core.cpp, Core/mesen_lua_extras.c). The flags are the")
+L.append("# host build's (scripts/build-core.sh's mesen cases).")
+L.append("")
+L.append("cmake_minimum_required(VERSION 3.22)")
+L.append("project(oga-mesen C CXX)")
+L.append("")
+L.append("set(CMAKE_C_STANDARD 11)")
+L.append("set(CMAKE_CXX_STANDARD 17)")
+L.append("set(CMAKE_CXX_STANDARD_REQUIRED ON)")
+L.append("")
+L.append("set(MESEN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src)")
+L.append("set(MESEN_GLUE ${CMAKE_CURRENT_SOURCE_DIR}/glue)")
+L.append("# The app's ONE Lua (5.4.7), staged by section 7 beside the mGBA")
+L.append("# tree: Mesen's interpreter in this embedding IS that Lua — the")
+L.append("# glue links its symbols from the oga-mgba archive — and")
+L.append("# mesen_lua_extras.c satisfies the fork-only symbols. Mesen's own")
+L.append("# Lua fork contributes headers to exactly one object library")
+L.append("# (oga-mesen-lua-extras below).")
+L.append("set(OGA_LUA_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../mgba/lua/src)")
+L.append("")
+L.append("if (NOT CMAKE_NM)")
+L.append("    find_program(CMAKE_NM llvm-nm)")
+L.append("endif ()")
+L.append("if (NOT CMAKE_OBJCOPY)")
+L.append("    find_program(CMAKE_OBJCOPY llvm-objcopy)")
+L.append("endif ()")
+L.append("")
+L.append("# Mesen's 7-Zip SDK difference set (MESEN_SEVENZIP_C). An OBJECT")
+L.append("# library, never archived: the dedupe step below rewrites its")
+L.append("# 7zStream.c.o in place before the frontend links.")
+L.append("add_library(oga-mesen-sevenzip OBJECT")
+for f in SEVENZIP_C:
+    L.append("    ${MESEN_SRC}/" + f)
+L.append(")")
+L.append("target_include_directories(oga-mesen-sevenzip PRIVATE")
+L.append("    ${MESEN_SRC} ${MESEN_SRC}/Utilities)")
+L.append("")
+L.append("# The 7-Zip dedupe: localize in Mesen's 7zStream.o the extern")
+L.append("# symbols the OTHER vendored copies (mGBA's lzma, PPSSPP's")
+L.append("# lzma-sdk) also define, keeping LookToRead_* exported. Runs")
+L.append("# after every object it reads exists; the frontend target is")
+L.append("# made to depend on it by the wiring block section 11 appends")
+L.append("# to the frontend's CMakeLists, so the link sees the rewritten")
+L.append("# object. See scripts/android-mesen-7z-dedupe.sh.")
+L.append("add_custom_target(oga-mesen-7z-dedupe")
+L.append("    COMMAND ${CMAKE_COMMAND} -E env \"OGA_NM=${CMAKE_NM}\" \"OGA_OBJCOPY=${CMAKE_OBJCOPY}\"")
+L.append("            bash ${CMAKE_CURRENT_SOURCE_DIR}/android-mesen-7z-dedupe.sh ${CMAKE_BINARY_DIR}")
+L.append("    DEPENDS oga-mesen-sevenzip")
+L.append("    VERBATIM)")
+L.append("if (TARGET oga-mgba)")
+L.append("    add_dependencies(oga-mesen-7z-dedupe oga-mgba)")
+L.append("endif ()")
+L.append("if (TARGET oga-ppsspp)")
+L.append("    add_dependencies(oga-mesen-7z-dedupe oga-ppsspp)")
+L.append("endif ()")
+L.append("")
+L.append("# The four symbols Mesen's Lua fork adds over the app's Lua,")
+L.append("# satisfied without a second interpreter (Core/mesen_lua_extras.c).")
+L.append("# Its OWN object library because its include set is the exception:")
+L.append("# Mesen's fork headers must WIN here (lua_WatchDogHook and the")
+L.append("# sandbox global live in the fork), so this target carries exactly")
+L.append("# its includes and no others — the host build's mesenlua case,")
+L.append("# which likewise gives it no shared include set.")
+L.append("add_library(oga-mesen-lua-extras OBJECT ${MESEN_GLUE}/mesen_lua_extras.c)")
+L.append("target_include_directories(oga-mesen-lua-extras PRIVATE")
+L.append("    ${MESEN_SRC}/Lua ${MESEN_SRC}/Core ${OGA_LUA_SRC} ${MESEN_GLUE})")
+L.append("target_compile_definitions(oga-mesen-lua-extras PRIVATE LUA_USE_POSIX)")
+L.append("")
+L.append("add_library(oga-mesen STATIC")
+for f in CORE_CPP + UTILS_CPP:
+    L.append("    ${MESEN_SRC}/" + f)
+for f in MESEN_C:
+    L.append("    ${MESEN_SRC}/" + f)
+L.append("    ${MESEN_GLUE}/mesen_core.cpp")
+L.append("    ${MESEN_GLUE}/snes_core.cpp")
+L.append(")")
+L.append("# Mesen's own build shape (the host build's mesen case): the tree")
+L.append("# root, Core and Utilities on the path, pch.h forced into every")
+L.append("# C++ TU, the app Lua's headers, and the -fwrapv /")
+L.append("# -fno-strict-aliasing Mesen requires. NO melonDS include dirs:")
+L.append("# its src/CRC32.h would shadow Mesen's own CRC32.h.")
+L.append("target_include_directories(oga-mesen PRIVATE")
+L.append("    ${MESEN_SRC} ${MESEN_SRC}/Core ${MESEN_SRC}/Utilities")
+L.append("    ${OGA_LUA_SRC} ${MESEN_GLUE})")
+L.append("target_compile_options(oga-mesen PRIVATE")
+L.append("    $<$<COMPILE_LANGUAGE:CXX>:-include${MESEN_SRC}/Core/pch.h>")
+L.append("    $<$<COMPILE_LANGUAGE:CXX>:-fwrapv>")
+L.append("    $<$<COMPILE_LANGUAGE:CXX>:-fno-strict-aliasing>)")
+L.append("target_link_libraries(oga-mesen PUBLIC oga-mesen-sevenzip oga-mesen-lua-extras)")
+L.append("")
+open(sys.argv[2], "w", encoding="utf-8").write("\n".join(L) + "\n")
+print("     generated the oga-mesen CMakeLists (%d core, %d utils, %d C, %d sevenzip)"
+      % (len(CORE_CPP), len(UTILS_CPP), len(MESEN_C), len(SEVENZIP_C)))
+PY
+
+  CMAKE="$FRONTEND/app/CMakeLists.txt"
+  if grep -q 'OGA_MESEN' "$CMAKE"; then
+    echo "     already wired; nothing to do"
+  else
+    python3 - "$CMAKE" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+NL = chr(10)
+lines = [
+    "",
+    "# ---------------------------------------------------------------------------",
+    "# OGA_MESEN -- the MesenCE cores (NES / SNES), appended by",
+    "# scripts/android-apply-overlay.sh section 11. A subproject library",
+    "# (add_subdirectory), NOT frontend-target sources: the Mesen glue is a",
+    "# self-contained C ABI over the Mesen tree and shares no C++ class ABI",
+    "# with the melonDS core, so section 9's ride-the-frontend-target rule",
+    "# does not apply. The JNI surface rides the frontend target like the",
+    "# other sessions' surfaces, and the glue headers go on its include",
+    "# path for the DS-staged oga_core.cpp. The frontend depends on the",
+    "# 7-Zip dedupe so the link sees the rewritten 7zStream object.",
+    "# Skipped on armeabi-v7a, mirroring sections 8 and 9; the Kotlin",
+    "# availability probe reads the absence as 'not in this build'.",
+    'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
+    "    add_subdirectory(mesen ./oga-mesen)",
+    "    target_link_libraries(melonDS-android-frontend oga-mesen)",
+    "    add_dependencies(melonDS-android-frontend oga-mesen-7z-dedupe)",
+    "    target_sources(melonDS-android-frontend PRIVATE",
+    "        ${ANDROID-CPP}/MesenSessionJNI.cpp)",
+    "    target_include_directories(melonDS-android-frontend PRIVATE",
+    "        ${CMAKE_CURRENT_SOURCE_DIR}/mesen/glue)",
+    "endif ()",
+    "",
+]
+s = s.rstrip("\n") + NL + NL.join(lines) + NL
+open(p, "w", encoding="utf-8").write(s)
+print("     wired the MesenCE cores into the frontend target")
+PY
+  fi
 fi
 
 say "overlay applied"

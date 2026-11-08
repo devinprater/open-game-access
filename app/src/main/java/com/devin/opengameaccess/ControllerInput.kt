@@ -87,6 +87,7 @@ object ControllerInput {
     private sealed interface EmuButton {
         data class Gb(val bit: Int) : EmuButton
         data class Psp(val button: Int) : EmuButton
+        data class Mesen(val button: Int) : EmuButton
         data class Genesis(val button: Int) : EmuButton
     }
 
@@ -190,7 +191,7 @@ object ControllerInput {
         }
 
     private val sessionActive: Boolean
-        get() = GbGameSession.isRunning || PspGameSession.isRunning || GenesisGameSession.isRunning
+        get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning
 
     /**
      * Session-boundary reset. Events are only routed while a session
@@ -267,10 +268,10 @@ object ControllerInput {
             KeyEvent.KEYCODE_BUTTON_B -> { faceButton(Face.EAST, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_X -> { faceButton(Face.WEST, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_Y -> { faceButton(Face.NORTH, source, pressed); true }
-            KeyEvent.KEYCODE_BUTTON_L1 -> { set(source, emuButton(GbKeys.L, PspKeys.L, GenesisKeys.X), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_R1 -> { set(source, emuButton(GbKeys.R, PspKeys.R, GenesisKeys.Z), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_START -> { set(source, emuButton(GbKeys.START, PspKeys.START, GenesisKeys.START), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_SELECT -> { set(source, emuButton(GbKeys.SELECT, PspKeys.SELECT, GenesisKeys.MODE), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_L1 -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_R1 -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_START -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_SELECT -> { set(source, emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE), pressed); true }
             // The reader's modifiers. Never game input.
             KeyEvent.KEYCODE_BUTTON_L2 -> { setModifier(askHeld, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_R2 -> { setModifier(browseHeld, source, pressed); true }
@@ -343,10 +344,10 @@ object ControllerInput {
     private fun direction(dir: PadDir, source: String, pressed: Boolean) {
         if (routeChord(Input.Pad(dir), source, pressed)) return
         val button = when (dir) {
-            PadDir.UP -> emuButton(GbKeys.UP, PspKeys.UP, GenesisKeys.UP)
-            PadDir.DOWN -> emuButton(GbKeys.DOWN, PspKeys.DOWN, GenesisKeys.DOWN)
-            PadDir.LEFT -> emuButton(GbKeys.LEFT, PspKeys.LEFT, GenesisKeys.LEFT)
-            PadDir.RIGHT -> emuButton(GbKeys.RIGHT, PspKeys.RIGHT, GenesisKeys.RIGHT)
+            PadDir.UP -> emuButton(GbKeys.UP, PspKeys.UP, MesenKeys.UP, GenesisKeys.UP)
+            PadDir.DOWN -> emuButton(GbKeys.DOWN, PspKeys.DOWN, MesenKeys.DOWN, GenesisKeys.DOWN)
+            PadDir.LEFT -> emuButton(GbKeys.LEFT, PspKeys.LEFT, MesenKeys.LEFT, GenesisKeys.LEFT)
+            PadDir.RIGHT -> emuButton(GbKeys.RIGHT, PspKeys.RIGHT, MesenKeys.RIGHT, GenesisKeys.RIGHT)
         }
         set(source, button, pressed)
     }
@@ -375,8 +376,9 @@ object ControllerInput {
     }
 
     /** The emulated button for a position, in the running session's terms. */
-    private fun emuButton(gb: Int, psp: Int, genesis: Int): EmuButton? = when {
+    private fun emuButton(gb: Int, psp: Int, mesen: Int, genesis: Int): EmuButton? = when {
         PspGameSession.isRunning -> EmuButton.Psp(psp)
+        MesenGameSession.isRunning -> EmuButton.Mesen(mesen)
         GenesisGameSession.isRunning -> EmuButton.Genesis(genesis)
         GbGameSession.isRunning -> EmuButton.Gb(gb)
         else -> null
@@ -389,6 +391,20 @@ object ControllerInput {
      * two face buttons — north and west map to nothing, as on iOS.
      */
     private fun gameFaceButton(face: Face): EmuButton? {
+        if (MesenGameSession.isRunning) {
+            // The Nintendo order, like the Game Boy's — but the SNES
+            // pad has all four positions (A east, B south, X north, Y
+            // west). On a NES game the core drops the X/Y values the
+            // console does not have, so one mapping serves both.
+            return EmuButton.Mesen(
+                when (face) {
+                    Face.EAST -> MesenKeys.A
+                    Face.SOUTH -> MesenKeys.B
+                    Face.NORTH -> MesenKeys.X
+                    Face.WEST -> MesenKeys.Y
+                }
+            )
+        }
         if (PspGameSession.isRunning) {
             return EmuButton.Psp(
                 when (face) {
@@ -449,6 +465,8 @@ object ControllerInput {
                 if (down) GbGameSession.pressKey(button.bit) else GbGameSession.releaseKey(button.bit)
             is EmuButton.Psp ->
                 if (down) PspGameSession.pressButton(button.button) else PspGameSession.releaseButton(button.button)
+            is EmuButton.Mesen ->
+                if (down) MesenGameSession.pressButton(button.button) else MesenGameSession.releaseButton(button.button)
             is EmuButton.Genesis ->
                 if (down) GenesisGameSession.pressButton(button.button) else GenesisGameSession.releaseButton(button.button)
         }
@@ -540,6 +558,13 @@ object ControllerInput {
         val native: Set<Int> = if (PspGameSession.isRunning) {
             AdapterLibraryData.games.firstOrNull { it.id == PspGameSession.adapterId }
                 ?.commands?.toSet() ?: emptySet()
+        } else if (MesenGameSession.isRunning) {
+            // The Mesen consoles' native reader (A Link to the Past):
+            // its supported set from the same generated table. The
+            // command values compared below are the shared ABI's, and
+            // MesenAdapterCommands mirrors them for this session.
+            AdapterLibraryData.games.firstOrNull { it.id == MesenGameSession.adapterId }
+                ?.commands?.toSet() ?: emptySet()
         } else {
             emptySet()
         }
@@ -588,7 +613,17 @@ object ControllerInput {
         }
         when (action) {
             is Action.Adapter -> {
-                if (!PspGameSession.sendAdapterCommand(action.command)) {
+                if (MesenGameSession.isRunning) {
+                    if (!MesenGameSession.sendAdapterCommand(action.command)) {
+                        announce(
+                            if (MesenGameSession.adapterName.isNotEmpty()) {
+                                "Not ready yet."
+                            } else {
+                                "No reader."
+                            }
+                        )
+                    }
+                } else if (!PspGameSession.sendAdapterCommand(action.command)) {
                     // A supported command the adapter refused (not ready
                     // yet): the launcher screen's own refusal lines for
                     // the same situation (PspReaderGroup's contract).
@@ -606,6 +641,8 @@ object ControllerInput {
                 val context = appContext
                 if (PspGameSession.isRunning && context != null) {
                     PspGameSession.stopSpeech(context)
+                } else if (MesenGameSession.isRunning && context != null) {
+                    MesenGameSession.stopSpeech(context)
                 } else if (GenesisGameSession.isRunning && context != null) {
                     // The bridge stop is the whole of it (no reader
                     // queue behind it — see GenesisGameSession).
