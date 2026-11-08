@@ -18,10 +18,14 @@ import java.io.File
  * streams with a wide buffer and is only redone when the document's
  * length says the file changed.
  *
- * The copy is keyed on the document's name and length, which is enough
- * to tell "the player opened this ROM again" from "the player replaced
- * the file with a patched hack of the same name" for every case that
- * matters here.
+ * The copy is keyed on the document's name and length, and validated
+ * against the document's last-modified time as well: a patched ROM
+ * hack usually keeps the original's name AND its exact length (the
+ * patch rewrites bytes in place), so length alone would hand the
+ * player the stale cached bytes forever. When the document is newer
+ * than the copy, the copy is redone; a provider that reports no
+ * timestamp (0) leaves the length check as the only witness, the
+ * same behaviour as before.
  */
 object DsRomResolver
 {
@@ -63,8 +67,16 @@ object DsRomResolver
         {
             val target = cacheFileFor(context, uri, document)
             val expectedLength = document?.length() ?: -1L
+            // The freshness witness: the document's own timestamp,
+            // when the provider reports one. The copy's timestamp is
+            // when it was made, so a document modified after that —
+            // a patched hack dropped over the original — is newer
+            // and the copy is redone below instead of reused.
+            val documentModified = document?.lastModified() ?: 0L
 
-            if (target.isFile && (expectedLength <= 0 || target.length() == expectedLength))
+            if (target.isFile &&
+                (expectedLength <= 0 || target.length() == expectedLength) &&
+                (documentModified <= 0L || documentModified <= target.lastModified()))
             {
                 return target.absolutePath
             }
@@ -91,17 +103,58 @@ object DsRomResolver
 
     /**
      * The battery-save path the DS host should use for this ROM,
-     * created if needed. Keeping it beside the ROM's cached copy means
-     * saves survive between sessions without going through SAF — the
-     * same arrangement melonDS itself uses (the .sav next to the ROM).
+     * created if needed.
+     *
+     * ⛔ UNDER filesDir, NOT BESIDE THE CACHED ROM. The ROM copy lives
+     * in the cache directory, which Android may evict under storage
+     * pressure — a save kept beside it would vanish with the copy,
+     * and the player would lose the game they were playing to a
+     * cleanup they never saw. The save's name is the ROM copy's own
+     * (already keyed by the URI hash in [cacheFileFor], so two ROMs
+     * sharing a display name keep separate saves), kept in a
+     * ds-saves folder in internal storage, which is never evicted.
+     * A save left beside the ROM by an earlier version is migrated
+     * across on first sight, so the upgrade does not orphan it.
      */
     fun savePathFor(context: Context, romPath: String): String?
     {
         val rom = File(romPath)
-        val save = File(rom.parentFile, rom.nameWithoutExtension + ".sav")
+        // A ROM used in place (a real file the player pointed at) is
+        // in no danger of eviction, and its save stays beside it —
+        // the arrangement melonDS itself uses. Only a cache copy's
+        // save moves to internal storage.
+        if (!rom.absolutePath.startsWith(context.cacheDir.absolutePath))
+        {
+            val adjacent = File(rom.parentFile, rom.nameWithoutExtension + ".sav")
+            return try
+            {
+                if (!adjacent.isFile) adjacent.createNewFile()
+                adjacent.absolutePath
+            }
+            catch (e: Exception)
+            {
+                Log.w(TAG, "[ds] no save file at ${adjacent.absolutePath}", e)
+                null
+            }
+        }
+        val dir = File(context.filesDir, "ds-saves")
+        if (!dir.isDirectory) dir.mkdirs()
+        val save = File(dir, rom.nameWithoutExtension + ".sav")
         return try
         {
-            if (!save.isFile) save.createNewFile()
+            if (!save.isFile)
+            {
+                val legacy = File(rom.parentFile, rom.nameWithoutExtension + ".sav")
+                if (legacy.isFile)
+                {
+                    legacy.copyTo(save)
+                    Log.i(TAG, "[ds] migrated battery save to ${save.absolutePath}")
+                }
+                else
+                {
+                    save.createNewFile()
+                }
+            }
             save.absolutePath
         }
         catch (e: Exception)

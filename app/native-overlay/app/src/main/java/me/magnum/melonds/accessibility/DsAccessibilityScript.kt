@@ -58,6 +58,7 @@ object DsAccessibilityScript
     private external fun nativeDsFrame(): Boolean
     private external fun nativeDsFramesCompleted(): Long
     private external fun nativeDsSetButton(button: Int, down: Boolean)
+    private external fun nativeDsTapButton(button: Int, frames: Int)
     private external fun nativeDsTouch(x: Int, y: Int, down: Boolean)
     private external fun nativeDsSetHotkey(key: Char, down: Boolean)
     private external fun nativeDsReadAudio(out: ShortArray, maxFrames: Int): Int
@@ -144,6 +145,18 @@ object DsAccessibilityScript
     fun setButton(button: Int, down: Boolean)
     {
         nativeDsSetButton(button, down)
+    }
+
+    /**
+     * Tap one DS button for [frames] emulated frames (poke_tap_button):
+     * the core itself holds the press across frame boundaries and
+     * releases it, so the tap is sampled by the game whatever the
+     * host's frame rate is doing — the guarantee a wall-clock
+     * press/release pair cannot make.
+     */
+    fun tapButton(button: Int, frames: Int)
+    {
+        nativeDsTapButton(button, frames)
     }
 
     /**

@@ -84,9 +84,18 @@ object DsGameSession {
     @Volatile
     private var appContext: Context? = null
 
-    /** True once a cartridge is loaded and the core is running. */
-    @Volatile
-    private var running = false
+    /**
+     * True once a cartridge is loaded and the core is running.
+     *
+     * ⛔ COMPOSE-OBSERVABLE, UNLIKE THE OTHER SESSIONS' PLAIN FLAGS.
+     * The launcher reads [isRunning] directly when it decides whether
+     * the DS controls exist, so a session that ends ITSELF (a frame
+     * failure in [runFrame] calls [stop]) takes its controls down
+     * with it. A screen-local flag would stay up over the dead core —
+     * and navigation resetting it was the only thing that ever
+     * corrected it, by accident, in the wrong direction.
+     */
+    private var running by androidx.compose.runtime.mutableStateOf(false)
 
     /** The last failure, for the screen to speak instead of guessing. */
     @Volatile
@@ -95,6 +104,26 @@ object DsGameSession {
     /** Bumped by every start and every stop; a stale load must not land. */
     @Volatile
     private var generation = 0
+
+    /**
+     * Serialises the native half of a load (set script, load ROM,
+     * start core) against [stop]'s teardown, so the two can never
+     * interleave calls into the one native core.
+     */
+    private val loadLock = Any()
+
+    /**
+     * The generation whose load built the live core, or -1 when no
+     * load owns one. A stale load's completion tears the core down
+     * ONLY when the core is still its own generation's — an
+     * unconditional teardown would destroy a NEWER session's core
+     * out from under it.
+     */
+    @Volatile
+    private var coreGeneration = -1
+
+    /** [loadOnWorker]'s answer when a newer start/stop superseded it. */
+    private const val LOAD_SUPERSEDED = "\u0001load-superseded"
 
     /** The loaded game's cartridge code (e.g. YDQE), once a load lands. */
     @Volatile
@@ -176,13 +205,19 @@ object DsGameSession {
         appContext = app
         val main = Handler(Looper.getMainLooper())
         val worker = Thread {
-            val error = loadOnWorker(app, uri)
+            val error = loadOnWorker(app, uri, gen)
             main.post {
                 if (gen != generation) {
-                    // Stopped (or superseded) while loading: the load's
-                    // native core, if it got that far, is torn down
-                    // rather than left running ownerless.
-                    if (error == null) teardownNative()
+                    // Stopped (or superseded) while loading: tear
+                    // down ONLY a core this load itself built and no
+                    // newer load has claimed — if a newer start has
+                    // since loaded its own core, that core is the new
+                    // session's, and destroying it here would kill a
+                    // game the player is looking at.
+                    if (error == null && coreGeneration == gen) {
+                        teardownNative()
+                        coreGeneration = -1
+                    }
                     return@post
                 }
                 if (error != null) {
@@ -225,50 +260,63 @@ object DsGameSession {
     }
 
     /** The worker-thread half of [start]: resolve, set script, load, start. */
-    private fun loadOnWorker(context: Context, uri: Uri): String? {
+    private fun loadOnWorker(context: Context, uri: Uri, gen: Int): String? {
         val romPath = DsRomResolver.resolve(context, uri)
             ?: return "Could not read that game file."
         val savePath = DsRomResolver.savePathFor(context, romPath)
             ?: return "The save file for that game could not be prepared."
-        // The reader script goes in BEFORE the load: pokecore's
-        // contract is set-once-before-load (poke_set_script), the order
-        // iOS's GameSession uses at init. It is set on EVERY start, so
-        // a stale script can never leak into a later game. A failed
-        // asset read is not fatal to the load — the native-adapter
-        // games never touch the script — but it is logged loudly:
-        // Pokémon without its reader is a silent game, and in the
-        // shipped APK the workflow's gates verify these assets exist.
-        try {
-            DsAccessibilityScript.setScript(readScriptText(context))
-        } catch (t: Throwable) {
-            Log.e(TAG, "DS script could not be handed to the core", t)
-            return "The DS core is not in this build."
-        }
-        val loaded = try {
-            DsAccessibilityScript.loadRom(romPath, savePath)
-        } catch (t: Throwable) {
-            Log.e(TAG, "DS load threw", t)
-            return "The DS core is not in this build."
-        }
-        if (!loaded) {
-            val why = DsAccessibilityScript.lastError()
-            return if (why.isNotEmpty()) {
-                "That DS game could not be loaded. $why"
-            } else {
-                "That DS game could not be loaded."
+        // ⛔ THE NATIVE HALF RUNS UNDER THE LOAD LOCK, RE-CHECKING THE
+        // GENERATION FIRST. The core is a singleton: two loads racing
+        // it, or a load racing stop()'s teardown, would interleave
+        // create/load/start/destroy calls on one core. The lock
+        // serialises the native calls; the generation check keeps a
+        // superseded load from touching the core at all (its ROM copy
+        // above is its own file and needs no lock); and a load that
+        // completes records its generation as the core's owner, which
+        // is what the completion's teardown rule in start() reads.
+        synchronized(loadLock) {
+            if (gen != generation) return LOAD_SUPERSEDED
+            // The reader script goes in BEFORE the load: pokecore's
+            // contract is set-once-before-load (poke_set_script), the order
+            // iOS's GameSession uses at init. It is set on EVERY start, so
+            // a stale script can never leak into a later game. A failed
+            // asset read is not fatal to the load — the native-adapter
+            // games never touch the script — but it is logged loudly:
+            // Pokémon without its reader is a silent game, and in the
+            // shipped APK the workflow's gates verify these assets exist.
+            try {
+                DsAccessibilityScript.setScript(readScriptText(context))
+            } catch (t: Throwable) {
+                Log.e(TAG, "DS script could not be handed to the core", t)
+                return "The DS core is not in this build."
             }
-        }
-        gameCode = DsAccessibilityScript.gameCode()
-        if (!DsAccessibilityScript.startCore()) {
-            val why = DsAccessibilityScript.lastError()
-            teardownNative()
-            return if (why.isNotEmpty()) {
-                "That DS game could not be started. $why"
-            } else {
-                "That DS game could not be started."
+            val loaded = try {
+                DsAccessibilityScript.loadRom(romPath, savePath)
+            } catch (t: Throwable) {
+                Log.e(TAG, "DS load threw", t)
+                return "The DS core is not in this build."
             }
+            if (!loaded) {
+                val why = DsAccessibilityScript.lastError()
+                return if (why.isNotEmpty()) {
+                    "That DS game could not be loaded. $why"
+                } else {
+                    "That DS game could not be loaded."
+                }
+            }
+            gameCode = DsAccessibilityScript.gameCode()
+            if (!DsAccessibilityScript.startCore()) {
+                val why = DsAccessibilityScript.lastError()
+                teardownNative()
+                return if (why.isNotEmpty()) {
+                    "That DS game could not be started. $why"
+                } else {
+                    "That DS game could not be started."
+                }
+            }
+            coreGeneration = gen
+            return null
         }
-        return null
     }
 
     /**
@@ -310,6 +358,7 @@ object DsGameSession {
         generation++
         running = false
         heldButtons.clear()
+        pendingReleases.clear()
         selectedAdapterId = ""
         selectedAdapterName = ""
         adapterReadyNow = false
@@ -317,7 +366,13 @@ object DsGameSession {
         // after the session ends would outlive the game it described.
         PspCueSynth.silenceAll()
         stopAudio()
-        teardownNative()
+        // Under the load lock: a load in its native half finishes (or
+        // is superseded by the generation bump above) before the
+        // teardown touches the core, never during it.
+        synchronized(loadLock) {
+            teardownNative()
+            coreGeneration = -1
+        }
     }
 
     private fun teardownNative() {
@@ -363,6 +418,9 @@ object DsGameSession {
         } catch (t: Throwable) {
             false
         }
+        // A frame has now sampled whatever is held: count the tap
+        // releases against it (see the frame-counted releases note).
+        tickPendingReleases()
         pollCues()
         val completed = try {
             DsAccessibilityScript.framesCompleted
@@ -440,12 +498,62 @@ object DsGameSession {
         if (running) DsAccessibilityScript.setButton(button, false)
     }
 
-    /** Release a held button a moment later, for the screen-reader click path. */
+    // ---- frame-counted tap releases ------------------------------------
+    //
+    // ⛔ RELEASES ARE COUNTED IN FRAMES, NOT MILLISECONDS. A press
+    // exists for the game only if a frame SAMPLES it: the core reads
+    // its input state as a frame runs. A wall-clock release (the
+    // Handler delays this replaces) can fire before any frame has run
+    // on a busy device — press and release both land between two
+    // frames, no frame ever sees the button down, and the tap is
+    // silently lost. Counting frames guarantees the press spans a
+    // frame boundary, so at least one frame samples it. Pad buttons
+    // have the stronger native form (poke_tap_button, see [tapButton]);
+    // the script hotkeys and the touch panel are level states with no
+    // native tap, so their releases are counted here. Touched only
+    // from the main thread: taps originate in UI/controller paths and
+    // the counting happens in [runFrame].
+    private class PendingRelease(var framesLeft: Int, val fire: () -> Unit)
+
+    private val pendingReleases = mutableListOf<PendingRelease>()
+
+    private fun releaseAfterFrames(frames: Int, fire: () -> Unit) {
+        pendingReleases.add(PendingRelease(frames, fire))
+    }
+
+    private fun tickPendingReleases() {
+        if (pendingReleases.isEmpty()) return
+        val due = mutableListOf<PendingRelease>()
+        val iterator = pendingReleases.iterator()
+        while (iterator.hasNext()) {
+            val pending = iterator.next()
+            if (--pending.framesLeft <= 0) {
+                due.add(pending)
+                iterator.remove()
+            }
+        }
+        due.forEach { it.fire() }
+    }
+
+    /**
+     * Tap a pad button for the screen-reader click path: the core
+     * itself holds the press for two emulated frames
+     * (poke_tap_button), so the game samples it whatever the host's
+     * timing is doing — no timer anywhere in the path.
+     */
+    fun tapButton(button: Int) {
+        if (!running) return
+        try {
+            DsAccessibilityScript.tapButton(button, 2)
+        } catch (t: Throwable) {
+            Log.w(TAG, "DS tap failed: ${t.message}")
+        }
+        forwardPadEcho(button)
+    }
+
+    /** Release a held button once two frames have sampled it. */
     fun releaseButtonSoon(button: Int) {
-        Handler(Looper.getMainLooper()).postDelayed(
-            { releaseButton(button) },
-            120L,
-        )
+        releaseAfterFrames(2) { releaseButton(button) }
     }
 
     // ---- the reader script's hotkeys ---------------------------------------
@@ -468,10 +576,7 @@ object DsGameSession {
 
     fun tapHotkey(key: Char) {
         pressHotkey(key)
-        Handler(Looper.getMainLooper()).postDelayed(
-            { releaseHotkey(key) },
-            80L,
-        )
+        releaseAfterFrames(2) { releaseHotkey(key) }
     }
 
     // ---- the touch screen ----------------------------------------------------
@@ -490,12 +595,9 @@ object DsGameSession {
     fun tapTouch(x: Int, y: Int) {
         if (!running) return
         DsAccessibilityScript.setTouch(x, y, true)
-        Handler(Looper.getMainLooper()).postDelayed(
-            {
-                if (running) DsAccessibilityScript.setTouch(x, y, false)
-            },
-            120L,
-        )
+        releaseAfterFrames(2) {
+            if (running) DsAccessibilityScript.setTouch(x, y, false)
+        }
     }
 
     // ---- savestates ---------------------------------------------------------
@@ -805,20 +907,36 @@ object DsAdapterCommands {
 }
 
 /**
- * Drives one emulated DS frame per Compose frame while a DS game runs.
+ * Drives the DS session's frames while a DS game runs — PACED TO THE
+ * CONSOLE, NOT TO THE DISPLAY.
  *
- * The twin of rememberPspFrameClock, kept beside its own session for
- * the same reason that one is beside its: the cadence is the app's
- * frame signal, so the core's per-frame work happens on the same
- * thread that produced it.
+ * ⛔ ONE EMULATED FRAME PER DISPLAY FRAME RUNS THE GAME FAST on any
+ * screen above 60 Hz (90/120 Hz phones are the common case): the DS
+ * renders ~59.83 frames a second, so an unpaced clock would run the
+ * game at 1.5-2x speed and overproduce audio the drain then has to
+ * swallow. The clock still wakes on the display's frame signal (the
+ * core's per-frame work belongs on the thread that produced it, the
+ * PSP twin's reasoning), but a frame only RUNS when its slot has
+ * arrived; a stretch that falls behind resyncs to the next slot
+ * instead of bursting to catch up.
+ *
+ * Kept beside its own session, like rememberPspFrameClock beside its.
  */
 @Composable
 fun rememberDsFrameClock(running: Boolean) {
     if (!running) return
     androidx.compose.runtime.LaunchedEffect(Unit) {
+        // The DS frame interval: 1 s / 59.8261 Hz ≈ 16.715 ms.
+        val frameNs = (1_000_000_000.0 / 59.8261).toLong()
+        var nextFrameAt = 0L
         while (true) {
-            androidx.compose.runtime.withFrameNanos { }
-            DsGameSession.runFrame()
+            val now = androidx.compose.runtime.withFrameNanos { it }
+            if (nextFrameAt == 0L) nextFrameAt = now
+            if (now >= nextFrameAt) {
+                DsGameSession.runFrame()
+                nextFrameAt += frameNs
+                if (nextFrameAt <= now) nextFrameAt = now + frameNs
+            }
         }
     }
 }

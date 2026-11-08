@@ -164,6 +164,12 @@ void StoreLastError() {
 
 void DestroyCoreLocked() {
   if (g_core) {
+    // ⛔ FLUSH THE BATTERY SAVE BEFORE ANYTHING IS TORN DOWN.
+    // pokecore's periodic flush runs once a second (its NdsTick),
+    // and neither poke_stop nor poke_destroy flushes — so without
+    // this, a game saved in the last second before quit (or before
+    // a new load replaced this core) silently loses that save.
+    poke_flush_save(g_core);
     poke_stop(g_core);
     poke_destroy(g_core);
     g_core = nullptr;
@@ -309,6 +315,17 @@ Java_me_magnum_melonds_accessibility_DsAccessibilityScript_nativeDsSetButton(
     JNIEnv * /*env*/, jobject /*self*/, jint button, jboolean down) {
   PokeCore *core = g_core;
   if (core) poke_set_button(core, (int)button, down == JNI_TRUE);
+}
+
+// A tap counted in emulated frames (poke_tap_button): the core holds
+// the press across frame boundaries itself, so the game samples it
+// whatever the host's timing does — the fix for taps whose
+// wall-clock release fired before any frame ran.
+extern "C" JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_DsAccessibilityScript_nativeDsTapButton(
+    JNIEnv * /*env*/, jobject /*self*/, jint button, jint frames) {
+  PokeCore *core = g_core;
+  if (core) poke_tap_button(core, (int)button, (int)frames);
 }
 
 // The DS touch screen, in the bottom screen's own 0..255 / 0..191
