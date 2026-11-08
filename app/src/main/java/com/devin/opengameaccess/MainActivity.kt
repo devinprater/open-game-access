@@ -19,7 +19,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import com.devin.opengameaccess.ui.AdapterGamesScreen
-import com.devin.opengameaccess.ui.AdapterGameInfo
 import com.devin.opengameaccess.ui.LauncherScreen
 import com.devin.opengameaccess.ui.ReadingLogScreen
 import com.devin.opengameaccess.ui.SettingsScreen

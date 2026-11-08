@@ -608,10 +608,10 @@ private fun versionLine(code: String): String? = when {
  * would send a blind player hunting for speech that cannot happen.
  */
 private fun platformLine(console: String): String = when (console) {
-    "gb" -> "This Android build runs these games: use Load game on this "
+    "gb" -> "This Android build runs these games: use Load game on this " +
         "page, or pick one with Select Game on the launcher."
-    "nds" -> "Nintendo DS games run in this Android build, and this "
-        "game's reader is in the build too: use Load this game above, or "
+    "nds" -> "Nintendo DS games run in this Android build, and this " +
+        "game's reader is in the build too: use Load this game above, or " +
         "pick the game with Select Game on the launcher."
     "psp" -> "PlayStation Portable games run in this Android build, and this " +
         "game's reader is in the build too: use Load game on this page, " +

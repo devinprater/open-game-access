@@ -244,7 +244,7 @@ fun LauncherScreen(
             say(
                 "$pickedName selected. That is a Nintendo DS game, and this build has no DS core.",
             )
-            return@rememberLauncherForActivityResult
+            return
         }
         if (pickedIsPsp && !pspAvailable) {
             // Said at pick time, not left for a disabled Start button to

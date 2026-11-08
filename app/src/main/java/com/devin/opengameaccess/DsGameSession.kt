@@ -11,6 +11,8 @@ import android.os.Looper
 import android.util.Log
 import android.view.View
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.setValue
 import me.magnum.melonds.accessibility.AccessibilityScript
 import me.magnum.melonds.accessibility.DsAccessibilityScript
 import me.magnum.melonds.accessibility.DsRomResolver
