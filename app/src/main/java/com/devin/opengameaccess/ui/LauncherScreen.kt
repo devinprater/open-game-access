@@ -29,6 +29,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -50,11 +51,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devin.opengameaccess.AdapterCommandTitles
+import com.devin.opengameaccess.AdapterGameInfo
 import com.devin.opengameaccess.AdapterLibraryData
+import com.devin.opengameaccess.DsAdapterCommands
+import com.devin.opengameaccess.DsGameSession
+import com.devin.opengameaccess.DsKeys
 import com.devin.opengameaccess.GbGameSession
 import com.devin.opengameaccess.GbKeys
 import com.devin.opengameaccess.PspGameSession
 import com.devin.opengameaccess.PspKeys
+import com.devin.opengameaccess.rememberDsFrameClock
 import com.devin.opengameaccess.rememberPspFrameClock
 
 /**
@@ -75,6 +81,8 @@ import com.devin.opengameaccess.rememberPspFrameClock
 @Composable
 fun LauncherScreen(
     session: GbGameSession,
+    dsLoadRequest: AdapterGameInfo?,
+    onDsLoadRequestConsumed: () -> Unit,
     announce: (String, Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGames: () -> Unit,
@@ -88,13 +96,16 @@ fun LauncherScreen(
     // fate (a build can carry the GB host without the PSP subset).
     val gbAvailable = remember { GbGameSession.coreAvailable(context) }
     val pspAvailable = remember { PspGameSession.coreAvailable(context) }
-    val available = gbAvailable || pspAvailable
+    val dsAvailable = remember { DsGameSession.coreAvailable(context) }
+    val available = gbAvailable || pspAvailable || dsAvailable
 
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var pickedName by remember { mutableStateOf("") }
     var pickedIsPsp by remember { mutableStateOf(false) }
+    var pickedIsDs by remember { mutableStateOf(false) }
     var running by remember { mutableStateOf(false) }
     var pspRunning by remember { mutableStateOf(false) }
+    var dsRunning by remember { mutableStateOf(false) }
     var starting by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var problem by remember { mutableStateOf("") }
@@ -103,12 +114,15 @@ fun LauncherScreen(
     // One running flag for the parts of the screen that only care THAT a
     // game is up (the header, the status line); the control groups below
     // still branch on which session it is.
-    val anyRunning = running || pspRunning
+    val anyRunning = running || pspRunning || dsRunning
 
     // The PSP frame clock: one emulated frame per Compose frame while a
     // PSP game runs. (GB's twin, rememberFrameClock, belongs to the GB
     // session's own wiring.)
     rememberPspFrameClock(pspRunning)
+
+    // The DS frame clock, the PSP one's twin.
+    rememberDsFrameClock(dsRunning)
 
     fun say(message: String, interrupt: Boolean = false) {
         status = message
@@ -130,10 +144,20 @@ fun LauncherScreen(
         problem = ""
         // Routing is by extension, the Kotlin equivalent of the core's
         // own backend resolution: a PSP disc image goes to the PSP
-        // session, everything else the launcher has ever handled goes
-        // to the GB session (which still refuses what it cannot run).
+        // session, a DS cartridge to the DS session, everything else
+        // the launcher has ever handled goes to the GB session (which
+        // still refuses what it cannot run).
         val extension = pickedName.substringAfterLast('.', "").lowercase()
         pickedIsPsp = PspGameSession.handlesExtension(extension)
+        pickedIsDs = DsGameSession.handlesExtension(extension)
+        if (pickedIsDs && !dsAvailable) {
+            // Said at pick time, like the PSP answer below: on a build
+            // without the DS host (armeabi-v7a) this is the honest one.
+            say(
+                "$pickedName selected. That is a Nintendo DS game, and this build has no DS core.",
+            )
+            return@rememberLauncherForActivityResult
+        }
         if (pickedIsPsp && !pspAvailable) {
             // Said at pick time, not left for a disabled Start button to
             // imply: on a build without the PSP core (armeabi-v7a) this
@@ -144,6 +168,18 @@ fun LauncherScreen(
             return@rememberLauncherForActivityResult
         }
         say("$pickedName selected. Press Start Game.")
+    }
+
+    // A DS library page's Load button (the DS half of the parity
+    // program's Stage 2 load flow): the page named the game, so open
+    // the picker for its ROM. The pick routes by extension like any
+    // other, which lands a .nds file in the DS session. The request is
+    // consumed the moment it is seen — it is a doorbell, not state.
+    LaunchedEffect(dsLoadRequest) {
+        val request = dsLoadRequest ?: return@LaunchedEffect
+        onDsLoadRequestConsumed()
+        say("Choose the game file for ${request.name}.")
+        pickRom.launch(arrayOf("*/*"))
     }
 
     // The status line, said once when the screen comes up. iOS's StatusBar is read
@@ -164,8 +200,9 @@ fun LauncherScreen(
         val parts = mutableListOf<String>()
         if (gbAvailable) parts += GbGameSession.romExtensions()
         if (pspAvailable) parts += PspGameSession.romExtensions()
+        if (dsAvailable) parts += DsGameSession.romExtensions()
         if (parts.isEmpty()) {
-            "Game Boy, Game Boy Color, Game Boy Advance, PSP"
+            "Game Boy, Game Boy Color, Game Boy Advance, PSP, Nintendo DS"
         } else {
             parts.joinToString(", ") { it.uppercase() }
         }
@@ -251,7 +288,7 @@ fun LauncherScreen(
                 Text("Games with readers", fontSize = 18.sp)
             }
 
-            if (!running && !pspRunning) {
+            if (!running && !pspRunning && !dsRunning) {
                 // Idle: pick, then start -- in the order they are needed.
                 Button(
                     onClick = {
@@ -274,6 +311,33 @@ fun LauncherScreen(
                         val activity = context as? Activity
                         if (activity == null) {
                             say("That game could not be started.")
+                            return@Button
+                        }
+                        if (pickedIsDs) {
+                            // ⛔ ASYNCHRONOUS, LIKE THE PSP START BELOW:
+                            // a DS ROM can take a while to copy and load,
+                            // so Start says so and the session calls back;
+                            // `starting` keeps a second press from racing
+                            // the first load.
+                            starting = true
+                            say(
+                                "Loading $pickedName. A large DS game can " +
+                                "take a while to copy."
+                            )
+                            DsGameSession.start(activity, uri) { error ->
+                                starting = false
+                                if (error != null) {
+                                    problem = error
+                                    say(
+                                        "That game could not be started. $error",
+                                        interrupt = true,
+                                    )
+                                } else {
+                                    dsRunning = true
+                                    problem = ""
+                                    say("Game started.")
+                                }
+                            }
                             return@Button
                         }
                         if (pickedIsPsp) {
@@ -318,7 +382,7 @@ fun LauncherScreen(
                         )
                     },
                     enabled = available && pickedUri != null && !starting &&
-                        (if (pickedIsPsp) pspAvailable else gbAvailable),
+                        (if (pickedIsDs) dsAvailable else if (pickedIsPsp) pspAvailable else gbAvailable),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Start Game", fontSize = 18.sp)
@@ -332,6 +396,30 @@ fun LauncherScreen(
                         modifier = Modifier.semantics { contentDescription = "Error: $problem" },
                     )
                 }
+            } else if (dsRunning) {
+                // Running a DS game: the pad the console actually has
+                // (shoulders always, X/Y beside A/B), the reader
+                // commands the running game's adapter supports, and —
+                // for Pokémon Black/White only — the Lua script's own
+                // hotkey groups, the full DS set iOS shows (path,
+                // reading, speech), not the GB subset. The touch group
+                // offers coarse taps in the bottom screen's own
+                // coordinates; see DsGameSession's touch note for what
+                // that honestly is and is not.
+                DsDirectionalPad(DsGameSession)
+                DsActionButtons(DsGameSession)
+                DsSystemButtons(DsGameSession)
+                DsReaderGroup(DsGameSession) { message -> say(message) }
+                if (DsGameSession.isPokemonGame) {
+                    DsPathGroup(DsGameSession)
+                    DsReadingGroup(DsGameSession)
+                    DsScriptSpeechGroup(DsGameSession)
+                } else {
+                    DsSpeechGroup(DsGameSession)
+                }
+                DsTouchGroup(DsGameSession)
+                DsStateGroup(DsGameSession) { message -> say(message) }
+                QuitDsGame(DsGameSession) { dsRunning = false }
             } else if (pspRunning) {
                 // Running a PSP game: the pad the console actually has,
                 // the reader commands the running game's adapter
@@ -834,6 +922,354 @@ private fun HotkeyButton(
     label: String,
     key: Char,
     session: GbGameSession,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = { session.tapHotkey(key) },
+        colors = ButtonDefaults.outlinedButtonColors(),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = label },
+    ) {
+        Text(label, fontSize = 14.sp)
+    }
+}
+
+// ---- the DS pad --------------------------------------------------------------
+//
+// The same grouping-by-activity as the GB and PSP pads above, with the
+// buttons the Nintendo DS actually has: A/B/X/Y, shoulders that always
+// exist, and a touch screen. Two reader surfaces sit below the pad: the
+// native adapters' command group (the registry set, like PSP's), and —
+// for Pokémon Black/White only — the Lua script's hotkey groups, which
+// are the script's letters rather than the console's buttons.
+
+/** Move up / left / right / down. */
+@Composable
+private fun DsDirectionalPad(session: DsGameSession) {
+    GroupLabel("Directional pad")
+    DsHoldButton("Up", session, DsKeys.UP)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHoldButton("Left", session, DsKeys.LEFT, Modifier.weight(1f))
+        DsHoldButton("Right", session, DsKeys.RIGHT, Modifier.weight(1f))
+    }
+    DsHoldButton("Down", session, DsKeys.DOWN)
+}
+
+/** The face buttons, named as the console names them. */
+@Composable
+private fun DsActionButtons(session: DsGameSession) {
+    GroupLabel("Action buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHoldButton("A", session, DsKeys.A, Modifier.weight(1f))
+        DsHoldButton("B", session, DsKeys.B, Modifier.weight(1f))
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHoldButton("X", session, DsKeys.X, Modifier.weight(1f))
+        DsHoldButton("Y", session, DsKeys.Y, Modifier.weight(1f))
+    }
+}
+
+/** Start, Select, and the shoulders — the DS always has shoulders. */
+@Composable
+private fun DsSystemButtons(session: DsGameSession) {
+    GroupLabel("System buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHoldButton("Start", session, DsKeys.START, Modifier.weight(1f))
+        DsHoldButton("Select", session, DsKeys.SELECT, Modifier.weight(1f))
+        DsHoldButton("L", session, DsKeys.L, Modifier.weight(1f))
+        DsHoldButton("R", session, DsKeys.R, Modifier.weight(1f))
+    }
+}
+
+/**
+ * The reader's command buttons for the running DS game: exactly the
+ * commands its adapter supports on iOS (AdapterCommand.supported,
+ * carried into AdapterLibraryData by the library generator), titled as
+ * iOS titles them, and nothing else. A game with no adapter, or an
+ * adapter whose supported set is empty (Dragon Quest IX speaks on its
+ * own and answers through play), renders no group at all. A refused
+ * command speaks the refusal — iOS's two lines, chosen the way iOS
+ * chooses them. [PspReaderGroup]'s twin.
+ */
+@Composable
+private fun DsReaderGroup(session: DsGameSession, say: (String) -> Unit) {
+    val game = AdapterLibraryData.games.firstOrNull { it.id == session.adapterId }
+    val commands = game?.commands ?: emptyList()
+    if (commands.isEmpty()) return
+    GroupLabel("Reader")
+    commands.chunked(2).forEach { rowCommands ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (command in rowCommands) {
+                val title = AdapterCommandTitles.byId[command] ?: continue
+                Button(
+                    onClick = {
+                        if (!session.sendAdapterCommand(command)) {
+                            say(
+                                if (session.adapterName.isNotEmpty()) {
+                                    "Not ready yet."
+                                } else {
+                                    "No reader."
+                                }
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .semantics { contentDescription = title },
+                ) {
+                    Text(title, fontSize = 14.sp)
+                }
+            }
+            if (rowCommands.size == 1) {
+                Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/**
+ * Choosing a destination and being guided to it — the Pokémon script's
+ * path keys (GameSystem's DS set): P finds a path, C answers Where
+ * Am I, E shows the tiles. Shown only for the script's games.
+ */
+@Composable
+private fun DsPathGroup(session: DsGameSession) {
+    GroupLabel("Path finding and map")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHotkeyButton("Find path", 'P', session, Modifier.weight(1f))
+        DsHotkeyButton("Where am I", 'C', session, Modifier.weight(1f))
+        DsHotkeyButton("Tiles", 'E', session, Modifier.weight(1f))
+    }
+}
+
+/**
+ * Reading a list in the Pokémon script: K reads the current item, J/L
+ * step items, I/O step groups — the full DS reading set, not the GB
+ * subset (which has no groups and answers Where Am I with a path key).
+ */
+@Composable
+private fun DsReadingGroup(session: DsGameSession) {
+    GroupLabel("Reading items and lists")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHotkeyButton("Read item", 'K', session, Modifier.weight(1f))
+        DsHotkeyButton("Previous", 'J', session, Modifier.weight(1f))
+        DsHotkeyButton("Next", 'L', session, Modifier.weight(1f))
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHotkeyButton("Previous group", 'I', session, Modifier.weight(1f))
+        DsHotkeyButton("Next group", 'O', session, Modifier.weight(1f))
+    }
+}
+
+/**
+ * Speech in the Pokémon script is the script's own: R stops it (the DS
+ * has no direct engine stop for script speech — iOS marks
+ * hasDirectSpeechStop false for DS), U repeats the last line.
+ */
+@Composable
+private fun DsScriptSpeechGroup(session: DsGameSession) {
+    GroupLabel("Speech controls")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHotkeyButton("Stop speech", 'R', session, Modifier.weight(1f))
+        DsHotkeyButton("Repeat", 'U', session, Modifier.weight(1f))
+    }
+}
+
+/**
+ * The controls that act on speech itself, for a native-adapter DS
+ * game: stop (the bridge stop plus the host queue's own — the session
+ * performs both halves), and repeat, which is the host's own command.
+ */
+@Composable
+private fun DsSpeechGroup(session: DsGameSession) {
+    val context = LocalContext.current
+    GroupLabel("Speech controls")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = { session.stopSpeech(context) },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics {
+                    contentDescription = "Stop speech"
+                },
+        ) {
+            Text("Stop speech", fontSize = 16.sp)
+        }
+        OutlinedButton(
+            onClick = { session.sendAdapterCommand(DsAdapterCommands.REPEAT_NEWEST) },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics {
+                    contentDescription = "Repeat last speech"
+                },
+        ) {
+            Text("Repeat", fontSize = 16.sp)
+        }
+    }
+}
+
+/**
+ * The bottom screen as nine coarse tap targets, in its own 256x192
+ * coordinates (the cell centres). ⛔ THIS IS NOT A PICTURE: there is no
+ * DS frame surface in the Android UI in this stage, so a blind player
+ * cannot explore the screen by finger — the grid answers "tap roughly
+ * here" for the menus and prompts that only need a tap somewhere
+ * sensible, and does not pretend to more. See DsGameSession's touch
+ * note.
+ */
+@Composable
+private fun DsTouchGroup(session: DsGameSession) {
+    GroupLabel("Touch screen")
+    val rows = listOf(
+        listOf("Top left" to (42 to 32), "Top centre" to (128 to 32), "Top right" to (213 to 32)),
+        listOf("Middle left" to (42 to 96), "Centre" to (128 to 96), "Middle right" to (213 to 96)),
+        listOf("Bottom left" to (42 to 160), "Bottom centre" to (128 to 160), "Bottom right" to (213 to 160)),
+    )
+    for (row in rows) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for ((label, point) in row) {
+                Button(
+                    onClick = { session.tapTouch(point.first, point.second) },
+                    colors = ButtonDefaults.outlinedButtonColors(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .semantics { contentDescription = "Touch $label" },
+                ) {
+                    Text(label, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+/** Whole-core savestates, one slot per game. [PspStateGroup]'s twin. */
+@Composable
+private fun DsStateGroup(session: DsGameSession, say: (String) -> Unit) {
+    val context = LocalContext.current
+    GroupLabel("Save states")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = {
+                say(
+                    if (session.saveState(context)) {
+                        "State saved."
+                    } else {
+                        "That state could not be saved."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Save state" },
+        ) {
+            Text("Save state", fontSize = 14.sp)
+        }
+        Button(
+            onClick = {
+                say(
+                    if (session.loadState(context)) {
+                        "State loaded."
+                    } else {
+                        "There is no saved state for this game yet."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Load state" },
+        ) {
+            Text("Load state", fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun QuitDsGame(session: DsGameSession, onQuit: () -> Unit) {
+    OutlinedButton(
+        onClick = {
+            session.stop()
+            onQuit()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = "Quit game" },
+    ) {
+        Text("Quit game", fontSize = 16.sp)
+    }
+}
+
+/**
+ * A DS game button: [PspHoldButton]'s twin, typed to the DS session —
+ * hold under a finger, short press on the screen-reader click, drawn
+ * by hand so the gesture detector owns the touch (see PspHoldButton's
+ * note for the defect that taught the shape).
+ */
+@Composable
+private fun DsHoldButton(
+    label: String,
+    session: DsGameSession,
+    button: Int,
+    modifier: Modifier = Modifier,
+) {
+    var held by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                1.dp,
+                MaterialTheme.colors.onSurface.copy(alpha = 0.12f),
+                RoundedCornerShape(4.dp),
+            )
+            .clip(RoundedCornerShape(4.dp))
+            .background(
+                if (held) MaterialTheme.colors.primary.copy(alpha = 0.12f)
+                else MaterialTheme.colors.surface
+            )
+            .pointerInput(button) {
+                detectTapGestures(
+                    onPress = {
+                        held = true
+                        session.pressButton(button)
+                        tryAwaitRelease()
+                        held = false
+                        session.releaseButton(button)
+                    },
+                )
+            }
+            .semantics {
+                contentDescription = label
+                onClick(label = "press") {
+                    session.pressButton(button)
+                    session.releaseButtonSoon(button)
+                    true
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(if (held) "$label (held)" else label, fontSize = 16.sp)
+    }
+}
+
+/** A DS script hotkey. Edge-triggered: the script wants the frame the key went down. */
+@Composable
+private fun DsHotkeyButton(
+    label: String,
+    key: Char,
+    session: DsGameSession,
     modifier: Modifier = Modifier,
 ) {
     Button(

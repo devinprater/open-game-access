@@ -37,12 +37,13 @@ import com.devin.opengameaccess.GameSettings
  * AdapterLibraryView (Sources/OpenGameAccess/AdapterLibrary.swift).
  *
  * ⛔ THE LIST IS THE REGISTRY'S, READ FROM GENERATED DATA. iOS reads the Core
- * adapter registry live through poke_adapter_library_*; the Android layer
- * never links that registry (its readers are Lua), so it reads
- * AdapterLibraryData instead — which is GENERATED from the same registry
- * objects by tools/android-library-gen.cpp and checked for staleness by the
- * launcher contract test. A reader that ships without its library entry is
- * therefore impossible on either platform.
+ * adapter registry live through poke_adapter_library_*; this screen reads
+ * AdapterLibraryData instead — GENERATED from the same registry objects by
+ * tools/android-library-gen.cpp and checked for staleness by the launcher
+ * contract test. (The DS host itself links the registry — that is how its
+ * adapters select by cartridge code — but a Compose screen still reads the
+ * generated data, not a native query.) A reader that ships without its
+ * library entry is therefore impossible on either platform.
  *
  * ⛔ THE ONE DELIBERATE DIFFERENCE FROM iOS: THE LOAD BUTTON. iOS's game page
  * loads the game filtered to that console's files. The Android launcher's
@@ -51,10 +52,19 @@ import com.devin.opengameaccess.GameSettings
  * button here would promise a flow that does not exist. Each page instead
  * ends with a plain line saying what THIS build does with that console
  * (see [platformLine]).
+ *
+ * THE DS EXCEPTION (parity stage 4, DS half): Nintendo DS pages DO carry a
+ * Load button now. The DS session landed after this screen was written, and
+ * its load flow is the DS half of the parity program's Stage 2 shape: the
+ * button hands the game to the launcher (MainActivity's dsLoadRequest),
+ * which opens its picker and routes the picked .nds file into the DS
+ * session. The other consoles' pages still have no button — their halves
+ * of that flow have not landed, and the rule above still holds for them.
  */
 @Composable
 fun AdapterGamesScreen(
     onBack: () -> Unit,
+    onLoadGame: (AdapterGameInfo) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selected by remember { mutableStateOf<AdapterGameInfo?>(null) }
@@ -76,6 +86,7 @@ fun AdapterGamesScreen(
             game = game,
             onBack = { selected = null },
             onOpenSettings = { settingsFor = game },
+            onLoadGame = onLoadGame,
             modifier = modifier,
         )
         return
@@ -153,6 +164,7 @@ private fun AdapterGamePage(
     game: AdapterGameInfo,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
+    onLoadGame: (AdapterGameInfo) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     Column(
@@ -189,6 +201,24 @@ private fun AdapterGamePage(
 
         Button(onClick = { onBack() }, modifier = Modifier.fillMaxWidth()) {
             Text("Back to games", fontSize = 18.sp)
+        }
+
+        // The DS half of the parity program's load flow (see the file
+        // doc): a DS page can start its game from here. The button
+        // hands the game to the launcher, which opens its picker — the
+        // player still chooses the ROM file, and the launcher routes
+        // it into the DS session by extension, as it does for a pick
+        // made on its own screen. Other consoles' pages have no such
+        // button until their halves of the flow land.
+        if (game.console == "nds") {
+            Button(
+                onClick = { onLoadGame(game) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Load ${game.name}" },
+            ) {
+                Text("Load this game", fontSize = 18.sp)
+            }
         }
 
         Text(
@@ -401,15 +431,19 @@ private fun versionLine(code: String): String? = when {
  * stage 4 — their readers are in the build with it, attached by the same
  * DISC_IDs iOS dispatches on. What a PSP game's speech covers is whatever
  * its adapter reports (the coverage line above, from the adapter itself);
- * this line only claims the reader is present. The DS and SNES readers
- * are not compiled into this build at all. A page that implied otherwise
+ * this line only claims the reader is present. Nintendo DS joined them
+ * with the parity program's DS stage: the shared Core DS host is compiled
+ * in, the launcher starts DS games, and its readers — the native adapters
+ * and the Pokémon script — are in the build with it. The SNES reader is
+ * not compiled into this build at all. A page that implied otherwise
  * would send a blind player hunting for speech that cannot happen.
  */
 private fun platformLine(console: String): String = when (console) {
     "gb" -> "This Android build runs these games: pick one with Select Game " +
         "on the launcher."
-    "nds" -> "This game's reader is not in the Android build yet; its speech " +
-        "is in the iOS app today."
+    "nds" -> "Nintendo DS games run in this Android build, and this " +
+        "game's reader is in the build too: use Load this game above, or " +
+        "pick the game with Select Game on the launcher."
     "psp" -> "PlayStation Portable games run in this Android build, and this " +
         "game's reader is in the build too: pick one with Select Game on " +
         "the launcher."

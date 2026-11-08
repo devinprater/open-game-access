@@ -112,10 +112,17 @@ class MainActivity : ComponentActivity() {
             // whichever starts a game re-forwards it then.
             GbGameSession.attachAnnouncementView(view)
             PspGameSession.attachAnnouncementView(view)
+            DsGameSession.attachAnnouncementView(view)
         }
 
         var showSettings by remember { mutableStateOf(false) }
         var showGames by remember { mutableStateOf(false) }
+        // A DS library page's Load button (the DS half of the parity
+        // program's Stage 2 load flow): the page names the game, the
+        // launcher opens its picker for the game's ROM, and the pick
+        // routes into the DS session by extension like any other pick.
+        // The request is consumed (and cleared) by LauncherScreen.
+        var dsLoadRequest by remember { mutableStateOf<AdapterGameInfo?>(null) }
         var battleCues by remember { mutableStateOf(CueSettings.battleCuesEnabled(context)) }
         var hudGaugeCuesSound by remember {
             mutableStateOf(GameSettings.globalDefault(context, GameSettings.Setting.HUD_GAUGE_CUES))
@@ -140,12 +147,20 @@ class MainActivity : ComponentActivity() {
         }
 
         if (showGames) {
-            AdapterGamesScreen(onBack = { showGames = false })
+            AdapterGamesScreen(
+                onBack = { showGames = false },
+                onLoadGame = { game ->
+                    dsLoadRequest = game
+                    showGames = false
+                },
+            )
             return
         }
 
         LauncherScreen(
             session = GbGameSession,
+            dsLoadRequest = dsLoadRequest,
+            onDsLoadRequestConsumed = { dsLoadRequest = null },
             onOpenSettings = { showSettings = true },
             onOpenGames = { showGames = true },
             announce = { text, interrupt ->
@@ -162,7 +177,7 @@ class MainActivity : ComponentActivity() {
                 // instead of opening a second TTS client. Either session's game counts:
                 // the bridge is shared, and a PSP session builds it at start the same
                 // way the GB session does.
-                if (GbGameSession.isRunning || PspGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
+                if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
             },
         )
     }
@@ -174,6 +189,7 @@ class MainActivity : ComponentActivity() {
         // builds with no PSP core), so it is unconditional, like the GB one.
         GbGameSession.stop()
         PspGameSession.stop()
+        DsGameSession.stop()
         super.onDestroy()
     }
 }
