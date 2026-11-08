@@ -120,6 +120,7 @@ class MainActivity : ComponentActivity() {
         var hudGaugeCuesSound by remember {
             mutableStateOf(GameSettings.globalDefault(context, GameSettings.Setting.HUD_GAUGE_CUES))
         }
+        var gameSound by remember { mutableStateOf(GameSoundSettings.gameSoundEnabled(context)) }
 
         if (showSettings) {
             SettingsScreen(
@@ -133,6 +134,11 @@ class MainActivity : ComponentActivity() {
                 onHudGaugeCuesChanged = { useSound ->
                     hudGaugeCuesSound = useSound
                     GameSettings.setGlobalHudGaugeCuesSound(context, useSound)
+                },
+                gameSoundEnabled = gameSound,
+                onGameSoundChanged = { enabled ->
+                    gameSound = enabled
+                    GameSoundSettings.setGameSoundEnabled(context, enabled)
                 },
                 onBack = { showSettings = false },
             )

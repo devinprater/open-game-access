@@ -51,6 +51,8 @@ fun SettingsScreen(
     onBattleCuesChanged: (Boolean) -> Unit,
     hudGaugeCuesSound: Boolean,
     onHudGaugeCuesChanged: (Boolean) -> Unit,
+    gameSoundEnabled: Boolean,
+    onGameSoundChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -85,6 +87,30 @@ fun SettingsScreen(
                 "Game Boy core: NOT compiled into this build."
             },
             fontSize = 16.sp,
+        )
+
+        Text(
+            text = "Sound",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() },
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(text = "Game sound", fontSize = 16.sp)
+            Switch(checked = gameSoundEnabled, onCheckedChange = onGameSoundChanged)
+        }
+        Text(
+            text = "The game's own audio, for PSP games. On unless you turn it " +
+                "off. Speech and the battle cues are never turned off by this: " +
+                "a cue can still sound over a muted game. Game Boy games have " +
+                "no sound in this app yet, so this switch has nothing to gate " +
+                "for them.",
+            fontSize = 14.sp,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
         )
 
         Text(
