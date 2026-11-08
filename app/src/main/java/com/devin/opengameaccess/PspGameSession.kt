@@ -537,6 +537,20 @@ object PspGameSession {
     }
 
     /**
+     * Re-read the newest spoken line, or step one line further back
+     * through what was spoken — the shared bridge's spoken-history
+     * walk (see AccessibilitySpeech), iOS's RepeatNewest /
+     * RepeatOlder pair. The bridge is where PSP speech converges
+     * too (the adapter host speaks through it), so one walk covers
+     * both consoles' lines. False when there is nothing (older) to
+     * repeat; speaking the refusal is the screen's job, as it is for
+     * iOS's callers.
+     */
+    fun repeatLastSpeech(): Boolean = AccessibilityScript.repeatLastSpeech()
+
+    fun repeatOlderSpeech(): Boolean = AccessibilityScript.repeatOlderSpeech()
+
+    /**
      * Forward one pad press to the adapter as its echo command — the
      * adapter.h echo contract, in this pad's own button names: face
      * buttons are the on-screen keyboard's keys while a text entry is

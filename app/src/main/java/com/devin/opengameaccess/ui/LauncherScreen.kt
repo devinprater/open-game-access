@@ -351,7 +351,7 @@ fun LauncherScreen(
                 PspActionButtons(PspGameSession)
                 PspSystemButtons(PspGameSession)
                 PspReaderGroup(PspGameSession) { message -> say(message) }
-                PspSpeechGroup(PspGameSession)
+                PspSpeechGroup(PspGameSession) { message -> say(message) }
                 PspStateGroup(PspGameSession) { message -> say(message) }
                 QuitPspGame(PspGameSession) { pspRunning = false }
             } else {
@@ -361,7 +361,7 @@ fun LauncherScreen(
                 SystemButtons(session, pickedName)
                 PathFindingGroup(session)
                 ReadingGroup(session)
-                SpeechGroup(session)
+                SpeechGroup(session) { message -> say(message) }
                 QuitGame(session) { running = false }
             }
         }
@@ -442,9 +442,16 @@ private fun ReadingGroup(session: GbGameSession) {
  * something. iOS makes exactly this distinction (`system.hasDirectSpeechStop`),
  * because a two-finger tap only ends the current utterance while the script keeps
  * producing lines.
+ *
+ * Repeat and Repeat older walk the shared bridge's spoken history
+ * (iOS's RepeatNewest / RepeatOlder). iOS reaches them from Settings
+ * and from controller chords; Android has neither surface in the
+ * session, so they live here beside Stop speech, and in Settings.
+ * A refused repeat is answered aloud -- "Nothing to repeat." is
+ * iOS's own line for it -- because a silent button reads as broken.
  */
 @Composable
-private fun SpeechGroup(session: GbGameSession) {
+private fun SpeechGroup(session: GbGameSession, say: (String) -> Unit) {
     GroupLabel("Speech controls")
     OutlinedButton(
         onClick = { session.stopSpeech() },
@@ -456,6 +463,30 @@ private fun SpeechGroup(session: GbGameSession) {
             },
     ) {
         Text("Stop speech", fontSize = 16.sp)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatLastSpeech()) say("Nothing to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat last speech" },
+        ) {
+            Text("Repeat", fontSize = 14.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatOlderSpeech()) say("Nothing older to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat older speech" },
+        ) {
+            Text("Repeat older", fontSize = 14.sp)
+        }
     }
 }
 
@@ -627,9 +658,13 @@ private fun PspReaderGroup(session: PspGameSession, say: (String) -> Unit) {
  * The controls that act on speech itself. PSP stops directly — the
  * bridge's stop plus the adapter queue's own stop (the session performs
  * both halves) — where the GB group above can only stop at its engine.
+ *
+ * Repeat and Repeat older are the GB group's twins over the same
+ * shared history — adapter lines and launcher lines alike, since the
+ * adapter host speaks through the same bridge.
  */
 @Composable
-private fun PspSpeechGroup(session: PspGameSession) {
+private fun PspSpeechGroup(session: PspGameSession, say: (String) -> Unit) {
     val context = LocalContext.current
     GroupLabel("Speech controls")
     OutlinedButton(
@@ -642,6 +677,30 @@ private fun PspSpeechGroup(session: PspGameSession) {
             },
     ) {
         Text("Stop speech", fontSize = 16.sp)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatLastSpeech()) say("Nothing to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat last speech" },
+        ) {
+            Text("Repeat", fontSize = 14.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatOlderSpeech()) say("Nothing older to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat older speech" },
+        ) {
+            Text("Repeat older", fontSize = 14.sp)
+        }
     }
 }
 
