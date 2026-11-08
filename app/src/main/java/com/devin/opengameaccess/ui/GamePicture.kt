@@ -59,6 +59,13 @@ fun GamePicture(
 
     LaunchedEffect(Unit) {
         var target: Bitmap? = null
+        // ⛔ THE BYTE BUFFER IS CACHED ACROSS POLLS, like the Bitmap.
+        // Allocating it per frame churned a fresh 522,240-byte buffer
+        // for every PSP frame — ~15.7 MB/s of garbage at this poll
+        // rate, on the main-thread coroutine. It is reallocated only
+        // when a frame needs more room than it has, and rewound
+        // before every refill.
+        var byteBuffer: ByteBuffer? = null
         var ticks = 0L
         var copies = 0L
         while (true) {
@@ -76,8 +83,13 @@ fun GamePicture(
             // ARGB_8888 Bitmap reads from a buffer. Bitmap.setPixels
             // would want the channels packed the other way and swap
             // red and blue, so the copy goes through a buffer instead.
-            val bytes = ByteBuffer.allocate(width * height * 4)
-                .order(ByteOrder.LITTLE_ENDIAN)
+            val needed = width * height * 4
+            if (byteBuffer == null || byteBuffer!!.capacity() < needed) {
+                byteBuffer = ByteBuffer.allocate(needed)
+                    .order(ByteOrder.LITTLE_ENDIAN)
+            }
+            val bytes = byteBuffer!!
+            bytes.position(0)
             bytes.asIntBuffer().put(pixels, 0, width * height)
             bytes.position(0)
             target.copyPixelsFromBuffer(bytes)

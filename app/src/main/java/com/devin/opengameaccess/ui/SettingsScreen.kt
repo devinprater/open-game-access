@@ -15,6 +15,7 @@ import androidx.compose.material.Switch
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -107,7 +108,15 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(text = "Show game picture", fontSize = 16.sp)
-            Switch(checked = showPicture, onCheckedChange = onShowPictureChanged)
+            // ⛔ THE SWITCH CARRIES ITS OWN NAME. The label Text is a
+            // separate semantics node and this Row does not merge, so
+            // without the description TalkBack would focus an unnamed
+            // on/off switch.
+            Switch(
+                checked = showPicture,
+                onCheckedChange = onShowPictureChanged,
+                modifier = Modifier.semantics { contentDescription = "Show game picture" },
+            )
         }
         Text(
             text = "When on, the running game's picture is shown at the top " +
