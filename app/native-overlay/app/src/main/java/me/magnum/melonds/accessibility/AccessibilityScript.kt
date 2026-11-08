@@ -222,6 +222,20 @@ object AccessibilityScript
     }
 
     /**
+     * Speak repeat-walk feedback ("Nothing to repeat." and kin)
+     * WITHOUT recording it in the spoken history — see
+     * [AccessibilitySpeech.speakControl] for why a recorded refusal
+     * corrupts the walk. Goes straight to the Kotlin bridge, the
+     * history's keeper; with no bridge there is no history to
+     * protect and nothing to speak through, so it stays silent and
+     * the caller's own live region carries the line instead.
+     */
+    fun speakControl(text: String)
+    {
+        speech?.speakControl(text)
+    }
+
+    /**
      * Repeat the newest line the shared bridge has spoken — iOS's
      * "Repeat last speech". False, and silent, when nothing has been
      * spoken yet or no game has built the bridge yet: the caller

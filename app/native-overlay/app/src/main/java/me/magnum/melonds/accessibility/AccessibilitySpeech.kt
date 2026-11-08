@@ -330,7 +330,14 @@ class AccessibilitySpeech(private val context: Context)
                     android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE
                 // Setting the text is what triggers the announcement; clearing it
                 // first restarts the region when the same line repeats, which is
-                // what the script's "repeat" key does.
+                // what the script's "repeat" key does. ⛔ THE CLEAR MUST ACTUALLY
+                // HAPPEN: assigning the identical description is no change, no
+                // content-change event fires, and a repeated line — above all a
+                // repeat-walk re-read of the line just spoken — is never heard.
+                if (view.contentDescription?.toString() == text)
+                {
+                    view.contentDescription = null
+                }
                 view.contentDescription = text
                 Log.i(TAG, "[speech] ${if (interrupt) "say" else "queue"} (screen reader): $text")
                 return
@@ -410,6 +417,35 @@ class AccessibilitySpeech(private val context: Context)
         try
         {
             speak(line, true)
+        }
+        finally
+        {
+            speakingFromHistory = false
+        }
+    }
+
+    /**
+     * Speak feedback ABOUT the speech feature itself — the repeat
+     * walk's refusals ("Nothing to repeat." / "Nothing older to
+     * repeat."), spoken by the app when [repeatNewest] /
+     * [repeatOlder] return false.
+     *
+     * ⛔ SUCH A LINE MUST NOT ENTER THE HISTORY. Recorded like any
+     * other line, a refusal would become the newest entry and stand
+     * the walk back on it (speakImmediately resets the walk index to
+     * the newest line), so one refused step backwards would undo the
+     * player's place in the walk — and the history and the reading
+     * log would fill with the refusals themselves. The walk re-reads
+     * history without adding to it ([speakFromHistory]); its
+     * refusals are control feedback of the same kind, so they ride
+     * the same suppression.
+     */
+    fun speakControl(text: String)
+    {
+        speakingFromHistory = true
+        try
+        {
+            speak(text, true)
         }
         finally
         {
