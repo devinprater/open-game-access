@@ -99,8 +99,16 @@ fun LauncherScreen(
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var pickedName by remember { mutableStateOf("") }
     var pickedIsPsp by remember { mutableStateOf(false) }
-    var running by remember { mutableStateOf(false) }
-    var pspRunning by remember { mutableStateOf(false) }
+    // ⛔ SEEDED FROM THE SESSIONS, NOT FROM FALSE. This screen leaves the
+    // composition entirely when Settings or the games list opens, while
+    // the session objects (singletons) keep the game running. Starting
+    // these flags at false would resurrect the launcher as an idle
+    // screen over a live game — control groups gone, and the Back
+    // handlers below disabled, so the next Back would exit the Activity
+    // instead of quitting the game. The sessions are the source of
+    // truth; the flags below only track what THIS screen started.
+    var running by remember { mutableStateOf(GbGameSession.isRunning) }
+    var pspRunning by remember { mutableStateOf(PspGameSession.isRunning) }
     var starting by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var problem by remember { mutableStateOf("") }
@@ -234,9 +242,13 @@ fun LauncherScreen(
     }
 
     // The status line, said once when the screen comes up. iOS's StatusBar is read
-    // first on focus and always reflects state.
+    // first on focus and always reflects state. Returning from Settings
+    // or the games list mid-game recomposes this screen; the ready line
+    // is for the idle launcher only, never spoken over a running game.
     remember(available) {
-        if (available) {
+        if (GbGameSession.isRunning || PspGameSession.isRunning) {
+            // A game is already running (see the seeded flags above).
+        } else if (available) {
             say("Open Game Access ready. Press Select Game to choose a game.", interrupt = true)
         } else {
             say(
@@ -313,6 +325,28 @@ fun LauncherScreen(
                     contentDescription = statusLine
                 },
         )
+
+        // The transient line: the last thing say() was given. The status
+        // line above only ever shows the derived session state, so a
+        // one-off message (a controller connecting at the idle launcher,
+        // where MainActivity's bridge fallback stays silent because no
+        // session is running) would otherwise be written to state and
+        // never heard. This region observes that state, so the message
+        // is announced when it lands.
+        if (status.isNotEmpty()) {
+            Text(
+                text = status,
+                fontSize = 14.sp,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 4.dp)
+                    .semantics {
+                        liveRegion = liveMode
+                        contentDescription = status
+                    },
+            )
+        }
 
         Column(
             modifier = Modifier.padding(24.dp),
@@ -840,9 +874,17 @@ private fun HoldButton(
                     onPress = {
                         held = true
                         session.pressKey(bit)
-                        tryAwaitRelease()
-                        held = false
-                        session.releaseKey(bit)
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            // Finally, not sequence: if this composable
+                            // is removed mid-press (the pad hides when a
+                            // controller connects), the await is cancelled
+                            // and without the finally the emulated button
+                            // would stay down in the running game.
+                            held = false
+                            session.releaseKey(bit)
+                        }
                     },
                 )
             }
@@ -915,9 +957,15 @@ private fun PspHoldButton(
                     onPress = {
                         held = true
                         session.pressButton(button)
-                        tryAwaitRelease()
-                        held = false
-                        session.releaseButton(button)
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            // Finally, not sequence — see HoldButton: a
+                            // mid-press removal cancels the await, and the
+                            // button must still come up in the game.
+                            held = false
+                            session.releaseButton(button)
+                        }
                     },
                 )
             }
