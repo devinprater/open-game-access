@@ -697,7 +697,11 @@ fun LauncherScreen(
                     PspSystemButtons(PspGameSession)
                 }
                 PspReaderGroup(PspGameSession) { message -> say(message) }
-                PspSpeechGroup(PspGameSession) { message -> say(message) }
+                PspSpeechGroup(
+                    PspGameSession,
+                    say = { message -> say(message) },
+                    sayControl = { message -> sayControl(message) },
+                )
                 PspStateGroup(PspGameSession) { message -> say(message) }
                 QuitPspGame(PspGameSession, { message -> say(message) }) { pspRunning = false }
             } else {
@@ -711,7 +715,11 @@ fun LauncherScreen(
                 }
                 PathFindingGroup(session)
                 ReadingGroup(session)
-                SpeechGroup(session) { message -> say(message) }
+                SpeechGroup(
+                    session,
+                    say = { message -> say(message) },
+                    sayControl = { message -> sayControl(message) },
+                )
                 QuitGame(session) { running = false }
             }
         }
@@ -801,7 +809,11 @@ private fun ReadingGroup(session: GbGameSession) {
  * iOS's own line for it -- because a silent button reads as broken.
  */
 @Composable
-private fun SpeechGroup(session: GbGameSession, say: (String) -> Unit) {
+private fun SpeechGroup(
+    session: GbGameSession,
+    say: (String) -> Unit,
+    sayControl: (String) -> Unit,
+) {
     GroupLabel("Speech controls")
     OutlinedButton(
         onClick = { session.stopSpeech() },
@@ -1014,7 +1026,11 @@ private fun PspReaderGroup(session: PspGameSession, say: (String) -> Unit) {
  * adapter host speaks through the same bridge.
  */
 @Composable
-private fun PspSpeechGroup(session: PspGameSession, say: (String) -> Unit) {
+private fun PspSpeechGroup(
+    session: PspGameSession,
+    say: (String) -> Unit,
+    sayControl: (String) -> Unit,
+) {
     val context = LocalContext.current
     GroupLabel("Speech controls")
     OutlinedButton(
