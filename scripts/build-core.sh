@@ -304,6 +304,12 @@ export COMMON LUA_SRC ROOT
 # ⛔ EXPORTED: compile() runs in xargs-spawned children, where an unexported include path
 # expands to EMPTY and every Mesen TU fails with "header not found".
 export MESEN_SRC MESEN_INC MESEN_FORCE
+# ⛔ EXPORTED, for the identical reason as MESEN_* above: the gpgx lang and
+# the genesis_core.cpp case build their flags from these, and unexported
+# they reach the xargs children EMPTY — every GPGX TU then fails with
+# "'shared.h' file not found" (and its glue with "'osd.h' file not found"),
+# which reads like a missing header in the tree. It is not in the tree.
+export GPGX_SRC GPGX_INC GPGX_DEFS
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED. Without it xargs reads STDIN, which is
 # empty under a non-interactive shell, so it compiles ZERO files, the archive is

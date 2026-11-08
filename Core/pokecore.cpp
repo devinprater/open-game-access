@@ -38,6 +38,7 @@
 namespace oga {
 extern const Adapter kGameBoyAdvance;
 extern const Adapter kNintendoEntertainmentSystem;
+extern const Adapter kSegaGenesis;
 void gba_set_game_code(const char* code);
 void gba_set_platform(int platform);
 }
