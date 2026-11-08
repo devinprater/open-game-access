@@ -24,6 +24,7 @@ struct AdapterGame: Identifiable, Hashable {
         case "snes": return "Super Nintendo"
         case "nes":  return "Nintendo Entertainment System"
         case "n64":  return "Nintendo 64"
+        case "genesis": return "Sega Genesis"
         default:     return "this console"
         }
     }
@@ -36,6 +37,7 @@ struct AdapterGame: Identifiable, Hashable {
         case "psp":  return "The picker shows PSP .iso, .cso and .pbp files."
         case "snes": return "The picker shows .sfc, .smc, .fig and .swc files."
         case "nes":  return "The picker shows .nes, .fds and .unf files."
+        case "genesis": return "The picker shows .md, .gen, .smd and .bin files."
         default:     return "The picker shows the file types this console uses."
         }
     }
@@ -61,6 +63,7 @@ struct AdapterGame: Identifiable, Hashable {
         case "snes": exts = ["sfc", "smc", "fig", "swc"]
         case "nes":  exts = ["nes", "fds", "unf"]
         case "n64":  exts = ["z64", "n64", "v64"]
+        case "genesis": exts = ["md", "gen", "smd", "bin"]
         default:     return ROMStore.allowedTypes
         }
         let types = exts.compactMap { UTType(filenameExtension: $0) }
