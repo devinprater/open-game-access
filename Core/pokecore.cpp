@@ -28,6 +28,7 @@
 #include "psp_core.h"
 #include "mesen_core.h"
 #include "snes_core.h"
+#include "genesis_core.h"
 
 // The GBA adapter's symbols (defined in gba_adapter.cpp). A GBA ROM selects
 // its native reader the same way an NDS ROM is matched from the registry —
@@ -103,6 +104,10 @@ struct PokeCore {
     // The SNES (MesenCE). Same ownership rule: created here, destroyed here, and
     // pointed at by backend.state.
     SnesCore* snes = nullptr;
+    // The Genesis (Genesis Plus GX). Same ownership rule: created here,
+    // destroyed here, and pointed at by backend.state. The core underneath is
+    // a singleton machine; this pointer is the one live wrapper for it.
+    GenesisCore* genesis = nullptr;
     // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
     // the app bundle; the app points the core at them before loading a PSP
     // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
@@ -807,6 +812,7 @@ void poke_destroy(PokeCore* core)
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
+    if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
     core->backend.ops = nullptr;
     core->backend.state = nullptr;
     if (gCurrentCore == core) gCurrentCore = nullptr;
@@ -970,7 +976,8 @@ const char *poke_adapter_name(PokeCore *core)
 static bool LibraryAdapter(const oga::Adapter* a)
 {
     if (!a || !a->id) return false;
-    return strcmp(a->id, "nes") != 0 && strcmp(a->id, "n64") != 0;
+    return strcmp(a->id, "nes") != 0 && strcmp(a->id, "n64") != 0 &&
+           strcmp(a->id, "genesis") != 0;
 }
 
 static const oga::Adapter* LibraryAt(int index)
@@ -1038,6 +1045,7 @@ const char *poke_adapter_library_console(int index)
     if (strcmp(a->id, "gba") == 0) return "gb";
     if (strcmp(a->id, "nes") == 0) return "nes";
     if (strcmp(a->id, "n64") == 0) return "n64";
+    if (strcmp(a->id, "genesis") == 0) return "genesis";
     if (a->game_code && strncmp(a->game_code, "crc:", 4) == 0) return "snes";
     if (a->game_code && strncmp(a->game_code, "ULUS", 4) == 0) return "psp";
     if (a->game_code && strlen(a->game_code) == 4) return "nds";
@@ -1484,6 +1492,7 @@ static void TeardownBackends(PokeCore* core)
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
+    if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
     core->adapter = nullptr;
     core->adapterAttached = false;
     // Clearing the ops is what makes "is a game loaded?" answerable from one
@@ -1579,6 +1588,35 @@ static bool LoadSnesRom(PokeCore* core, const char* rom_path, const char* save_p
     return true;
 }
 
+static bool LoadGenesisRom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    TeardownBackends(core);
+
+    core->genesis = genesis_create();
+    if (!core->genesis) { SetError(core, "Could not create the Genesis core."); return false; }
+    char code[16] = {0};
+    /* The save path is the battery file itself here (unlike Mesen's home
+     * folder): genesis_load_rom restores it into the cartridge SRAM, and the
+     * core flushes it back on stop. */
+    if (!genesis_load_rom(core->genesis, rom_path, save_path ? save_path : "", code))
+    {
+        SetError(core, "%s", genesis_last_error(core->genesis));
+        genesis_destroy(core->genesis);
+        core->genesis = nullptr;
+        return false;
+    }
+    core->backend = oga_genesis_core(core->genesis);
+    strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
+    // The Genesis adapter is a console row that REFUSES by design
+    // (Core/genesis_adapter.cpp): no Genesis game has a reader yet, and
+    // selecting the row is what makes the UI correctly show no reader
+    // controls, which is the truth. Selected directly because a Genesis ROM
+    // carries no four-character code for find_by_game_code to match — the
+    // "crc:<hex>" id in gameCode is a content fingerprint, not a key.
+    core->adapter = &oga::kSegaGenesis;
+    return true;
+}
+
 static bool LoadPspRom(PokeCore* core, const char* rom_path, const char* save_path)
 {
     TeardownBackends(core);
@@ -1632,6 +1670,7 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
          * be the exact bug the resolver was written to end. */
         if (backend->nes_hint) return LoadNesRom(core, rom_path, save_path);
         if (backend->snes_hint) return LoadSnesRom(core, rom_path, save_path);
+        if (backend->genesis_hint) return LoadGenesisRom(core, rom_path, save_path);
         if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
     }
 

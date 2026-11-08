@@ -99,6 +99,7 @@ extern const Adapter kNintendoEntertainmentSystem;
 //      read even with a core. See docs/research/accessibility-mods-survey.md.
 // A StarFox reader for this app would be a NEW N64 Lua reader, gated on blocker 1.
 extern const Adapter kNintendo64;
+extern const Adapter kSegaGenesis;
 
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
@@ -112,6 +113,7 @@ static const Adapter* const kAdapters[] = {
     &kZeldaLinkToThePast,
     &kNintendoEntertainmentSystem,
     &kNintendo64,
+    &kSegaGenesis,
 };
 
 const Adapter* const* all_adapters(int* count)
