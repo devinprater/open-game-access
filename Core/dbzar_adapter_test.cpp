@@ -335,6 +335,44 @@ int main(void)
     ok("a plunge across all three bands speaks once, and says 'critical'",
        NSPOKEN == 1 && said("critical") && !said("below 80 percent"));
 
+    // ---------------------------------------------------------------- 3d. first sight ON a band
+    // Regression (Copilot follow-up): the first-sight prime must use the same strict
+    // inequality as the crossing rule below it. A city first seen exactly ON a band has
+    // not crossed it yet; if the prime latches that band anyway (<=), the fall through
+    // it can never announce.
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
+    CitySet(0, 0x0001, 800, 1000, 0.f, 0.f);
+    oga::FR();                                   // first sight at exactly 80%
+    clear();
+    CitySet(0, 0x0001, 790, 1000, 0.f, 0.f);     // first fall below it
+    oga::FR();
+    ok("a city first seen at exactly 80% still announces its fall below 80",
+       NSPOKEN == 1 && said("below 80 percent"));
+
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
+    CitySet(0, 0x0001, 500, 1000, 0.f, 0.f);
+    oga::FR();                                   // first sight at exactly 50%
+    clear();
+    CitySet(0, 0x0001, 490, 1000, 0.f, 0.f);     // first fall below it
+    oga::FR();
+    ok("a city first seen at exactly 50% still announces its fall below half",
+       NSPOKEN == 1 && said("below half"));
+
+    setup();
+    oga::AT(&H);
+    w8(AR_MODE, 1); w32(FIELD_LIVE, 0x09AF1760u);
+    CitySet(0, 0x0001, 300, 1000, 0.f, 0.f);
+    oga::FR();                                   // first sight at exactly 30%
+    clear();
+    CitySet(0, 0x0001, 290, 1000, 0.f, 0.f);     // first fall below it
+    oga::FR();
+    ok("a city first seen at exactly 30% still announces its fall to critical",
+       NSPOKEN == 1 && said("critical"));
+
     // 5. unused entities are not counted as enemies
     setup();
     oga::AT(&H);
