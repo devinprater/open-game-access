@@ -41,8 +41,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.liveRegion
@@ -56,6 +58,7 @@ import com.devin.opengameaccess.AdapterLibraryData
 import com.devin.opengameaccess.ControllerInput
 import com.devin.opengameaccess.GbGameSession
 import com.devin.opengameaccess.GbKeys
+import com.devin.opengameaccess.PspAdapterCommands
 import com.devin.opengameaccess.PspGameSession
 import com.devin.opengameaccess.PspKeys
 import com.devin.opengameaccess.rememberPspFrameClock
@@ -161,6 +164,41 @@ fun LauncherScreen(
         announce(message, interrupt)
     }
 
+    // ⛔ THE MAGIC-TAP EQUIVALENT (input parity, stage 1). On iOS a
+    // VoiceOver magic tap on the game screen asks the reader where the
+    // player is (GameSession.performMagicTap, answered only by readers
+    // that support it). TalkBack has no magic tap, so the game-screen
+    // element below carries the same query as a custom action. It asks
+    // exactly what the on-screen routes ask: on PSP the adapter's Where
+    // am I, with the reader group's own refusal lines; on Game Boy the
+    // script hotkey this screen's own Where am I button taps. A game
+    // whose reader does not answer it says so, in the controller
+    // layer's line, rather than the action going silent.
+    fun whereAmI() {
+        when {
+            pspRunning -> {
+                val commands = AdapterLibraryData.games
+                    .firstOrNull { it.id == PspGameSession.adapterId }?.commands
+                    ?: emptyList()
+                if (PspAdapterCommands.WHERE_AM_I in commands) {
+                    if (!PspGameSession.sendAdapterCommand(PspAdapterCommands.WHERE_AM_I)) {
+                        say(
+                            if (PspGameSession.adapterName.isNotEmpty()) {
+                                "Not ready yet."
+                            } else {
+                                "No reader."
+                            }
+                        )
+                    }
+                } else {
+                    say("No reader command there for this game.")
+                }
+            }
+            running -> session.tapHotkey('E')
+            else -> Unit
+        }
+    }
+
     val pickRom = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
     ) { uri: Uri? ->
@@ -243,6 +281,17 @@ fun LauncherScreen(
                 .padding(horizontal = 24.dp, vertical = 12.dp)
                 .semantics {
                     contentDescription = "Game screen. $statusLine"
+                    // The magic-tap equivalent (see whereAmI above):
+                    // offered only while a game runs, as on iOS, where
+                    // the gesture exists only on the game screen.
+                    if (anyRunning) {
+                        customActions = listOf(
+                            CustomAccessibilityAction(label = "Where am I") {
+                                whereAmI()
+                                true
+                            },
+                        )
+                    }
                 },
         )
 
