@@ -126,6 +126,7 @@ class MainActivity : ComponentActivity() {
             GbGameSession.attachAnnouncementView(view)
             PspGameSession.attachAnnouncementView(view)
             DsGameSession.attachAnnouncementView(view)
+            GenesisGameSession.attachAnnouncementView(view)
         }
 
         // ⛔ THE APP'S VOICE FOR ITS OWN LINES, SHARED BY EVERY SCREEN.
@@ -148,7 +149,7 @@ class MainActivity : ComponentActivity() {
             // ⛔ ONE LINE, ON PURPOSE: the launcher contract test checks
             // line by line that every AccessibilityScript call in this
             // Activity is guarded by a running game on the same line.
-            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || GenesisGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
         }
 
         // The repeat walk's refusal channel: feedback ABOUT the spoken
@@ -158,7 +159,7 @@ class MainActivity : ComponentActivity() {
         // AccessibilitySpeech.speakControl). Same guard, same line
         // shape, for the same contract test.
         val announceControlLine: (String) -> Unit = { text ->
-            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning) AccessibilityScript.speakControl(text)
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || GenesisGameSession.isRunning) AccessibilityScript.speakControl(text)
         }
 
         var showSettings by remember { mutableStateOf(false) }
@@ -311,6 +312,7 @@ class MainActivity : ComponentActivity() {
         GbGameSession.stop()
         PspGameSession.stop()
         DsGameSession.stop()
+        GenesisGameSession.stop()
         super.onDestroy()
     }
 }
