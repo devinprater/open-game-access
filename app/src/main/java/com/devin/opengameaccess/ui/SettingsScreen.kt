@@ -48,8 +48,13 @@ import androidx.compose.ui.unit.sp
  * Game state section, the reading log under Troubleshooting, and a
  * spoken announcement for every change made on this screen.
  *
- * The switches below have each crossed the honesty bar: the PSP cue
- * synth (beacon + health beeps + earcons) exists, so the battle-cues switch
+ * The game-picture switch is the most recent to cross that bar: the
+ * picture itself landed on the session screen (GamePicture, stage 2),
+ * so the switch has something real to gate — and it defaults the way
+ * iOS defaults it, off while a screen reader's touch exploration is
+ * on (see DisplaySettings).
+ *
+ * The switches below are the controls that have crossed that bar: the PSP cue
  * has something real to gate — it is iOS's "Lock cue" switch under the name the
  * design docs use, off by default, exactly like iOS — and Birth by Sleep's
  * gauge-full mode has a real adapter seam behind it. Both are GLOBAL defaults:
@@ -69,6 +74,8 @@ fun SettingsScreen(
     onHudGaugeCuesChanged: (Boolean) -> Unit,
     gameSoundEnabled: Boolean,
     onGameSoundChanged: (Boolean) -> Unit,
+    showPicture: Boolean,
+    onShowPictureChanged: (Boolean) -> Unit,
     pspRunning: Boolean,
     onSaveState: () -> Boolean,
     onLoadState: () -> Boolean,
@@ -153,12 +160,17 @@ fun SettingsScreen(
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Text(text = "Game sound", fontSize = 16.sp)
+            // ⛔ THE SWITCH CARRIES ITS OWN NAME, like the picture
+            // switch below: the label Text is a separate semantics
+            // node and this Row does not merge, so without the
+            // description TalkBack would focus an unnamed switch.
             Switch(
                 checked = gameSoundEnabled,
                 onCheckedChange = { enabled ->
                     onGameSoundChanged(enabled)
                     changed(if (enabled) "Game sound on." else "Game sound off.")
                 },
+                modifier = Modifier.semantics { contentDescription = "Game sound" },
             )
         }
         Text(
@@ -167,6 +179,39 @@ fun SettingsScreen(
                 "a cue can still sound over a muted game. Game Boy games have " +
                 "no sound in this app yet, so this switch has nothing to gate " +
                 "for them.",
+            fontSize = 14.sp,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+        )
+
+        Text(
+            text = "Performance",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() },
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(text = "Show game picture", fontSize = 16.sp)
+            // ⛔ THE SWITCH CARRIES ITS OWN NAME. The label Text is a
+            // separate semantics node and this Row does not merge, so
+            // without the description TalkBack would focus an unnamed
+            // on/off switch.
+            Switch(
+                checked = showPicture,
+                onCheckedChange = onShowPictureChanged,
+                modifier = Modifier.semantics { contentDescription = "Show game picture" },
+            )
+        }
+        Text(
+            text = "When on, the running game's picture is shown at the top " +
+                "of the game screen, for someone looking at the phone. Off " +
+                "keeps the picture out of the app entirely: the game still " +
+                "runs, the screen shows nothing, and no time is spent " +
+                "copying frames. Off by default while a screen reader's " +
+                "touch exploration is on, as on iOS.",
             fontSize = 14.sp,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
         )
