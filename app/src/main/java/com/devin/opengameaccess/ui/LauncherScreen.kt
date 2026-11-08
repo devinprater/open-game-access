@@ -353,7 +353,7 @@ fun LauncherScreen(
                 PspReaderGroup(PspGameSession) { message -> say(message) }
                 PspSpeechGroup(PspGameSession) { message -> say(message) }
                 PspStateGroup(PspGameSession) { message -> say(message) }
-                QuitPspGame(PspGameSession) { pspRunning = false }
+                QuitPspGame(PspGameSession, { message -> say(message) }) { pspRunning = false }
             } else {
                 // Running: the controls, grouped by what the player is doing.
                 DirectionalPad(session)
@@ -704,11 +704,41 @@ private fun PspSpeechGroup(session: PspGameSession, say: (String) -> Unit) {
     }
 }
 
+/**
+ * Quit the PSP game — saving first, and saying so.
+ *
+ * iOS's quit (GameSession.quit) auto-saves a state to the same slot
+ * the manual Save state control uses and announces the outcome,
+ * because closing the game is one gesture away at all times and an
+ * unsaved quit would silently discard whatever the player just did.
+ * The save runs BEFORE stop: it is a whole-core state and needs the
+ * core alive. The two lines are iOS's own, combined into one
+ * announcement so the quit does not produce two overlapping ones.
+ *
+ * Game Boy's QuitGame above does NOT do this: the GB native surface
+ * (GbAccessibilityScript / MGBAScriptJNI.cpp) exports no save-state
+ * call at all, so there is nothing honest to call — see the stage 3
+ * notes in the PR. A GB game's own battery save is unaffected: mGBA
+ * writes it to the save path as the game itself saves.
+ */
 @Composable
-private fun QuitPspGame(session: PspGameSession, onQuit: () -> Unit) {
+private fun QuitPspGame(
+    session: PspGameSession,
+    say: (String) -> Unit,
+    onQuit: () -> Unit,
+) {
+    val context = LocalContext.current
     OutlinedButton(
         onClick = {
+            val saved = session.saveState(context)
             session.stop()
+            say(
+                if (saved) {
+                    "Game closed. Progress saved."
+                } else {
+                    "Game closed. Could not save."
+                }
+            )
             onQuit()
         },
         modifier = Modifier
