@@ -21,6 +21,7 @@ import androidx.compose.material.Switch
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -196,12 +197,25 @@ private fun AdapterGamePage(
     // button exists either way (see the file header); this decides
     // whether its press opens the picker or speaks the honest line.
     val canRun = game.console == "gb" || game.console == "psp"
+    val context = LocalContext.current
 
     // The page's spoken answers (a cancelled picker, a wrong file, an
     // un-runnable console): rendered under the Load button as a live
     // region, the launcher status line's pattern, so a screen reader
     // announces them rather than leaving the press unanswered.
     var loadNote by remember { mutableStateOf("") }
+    // ⛔ EVERY ATTEMPT ANNOUNCES, EVEN A REPEATED ONE. Assigning the
+    // same note twice (Load pressed again for an un-runnable console,
+    // a second cancelled picker) changes no state, so the live region
+    // would stay silent on the repeat. The nonce counts attempts; the
+    // note's Text is keyed on it below, so each attempt re-enters
+    // composition and is announced, while the text itself stays the
+    // display copy.
+    var loadNoteNonce by remember { mutableStateOf(0) }
+    fun note(text: String) {
+        loadNote = text
+        loadNoteNonce++
+    }
 
     val pickForGame = rememberLauncherForActivityResult(
         ActivityResultContracts.OpenDocument()
@@ -209,10 +223,12 @@ private fun AdapterGamePage(
         if (uri == null) {
             // A cancel is SPOKEN rather than left silent, the same
             // contract the launcher's own picker keeps.
-            loadNote = "No game selected."
+            note("No game selected.")
             return@rememberLauncherForActivityResult
         }
-        val name = uri.lastPathSegment ?: uri.toString()
+        // The provider's display name, not the URI's last segment: an
+        // opaque SAF id (msf:42) carries no extension to check.
+        val name = displayName(context, uri)
         val extension = name.substringAfterLast('.', "").lowercase()
         if (extension in consoleExtensions(game.console)) {
             // The hand-off: the Activity closes this screen and the
@@ -221,8 +237,10 @@ private fun AdapterGamePage(
             // launcher's own.
             onLoadRom(uri)
         } else {
-            loadNote = "That file is not a ${consoleShortName(game.console)} game. " +
-                formatLine(game.console)
+            note(
+                "That file is not a ${consoleShortName(game.console)} game. " +
+                    formatLine(game.console)
+            )
         }
     }
 
@@ -293,7 +311,7 @@ private fun AdapterGamePage(
                 if (canRun) {
                     pickForGame.launch(pickerMimeTypes(game.console))
                 } else {
-                    loadNote = platformLine(game.console)
+                    note(platformLine(game.console))
                 }
             },
             modifier = Modifier
@@ -304,14 +322,19 @@ private fun AdapterGamePage(
         }
 
         if (loadNote.isNotEmpty()) {
-            Text(
-                text = loadNote,
-                fontSize = 16.sp,
-                modifier = Modifier.semantics {
-                    liveRegion = LiveRegionMode.Polite
-                    contentDescription = loadNote
-                },
-            )
+            // Keyed on the attempt nonce (see note() above): a repeated
+            // identical answer is a fresh element, so the live region
+            // announces it again instead of treating it as no change.
+            key(loadNoteNonce) {
+                Text(
+                    text = loadNote,
+                    fontSize = 16.sp,
+                    modifier = Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                        contentDescription = loadNote
+                    },
+                )
+            }
         }
 
         Text(

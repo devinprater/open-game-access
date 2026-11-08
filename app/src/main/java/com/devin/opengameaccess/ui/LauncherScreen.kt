@@ -61,6 +61,7 @@ import com.devin.opengameaccess.GbKeys
 import com.devin.opengameaccess.PspAdapterCommands
 import com.devin.opengameaccess.PspGameSession
 import com.devin.opengameaccess.PspKeys
+import com.devin.opengameaccess.rememberFrameClock
 import com.devin.opengameaccess.rememberPspFrameClock
 
 /**
@@ -122,9 +123,14 @@ fun LauncherScreen(
     // still branch on which session it is.
     val anyRunning = running || pspRunning
 
-    // The PSP frame clock: one emulated frame per Compose frame while a
-    // PSP game runs. (GB's twin, rememberFrameClock, belongs to the GB
-    // session's own wiring.)
+    // The frame clocks: one emulated frame per Compose frame while a
+    // game runs, one per session, both composed HERE at the screen's
+    // top level — outside the game picture's switch gate, so turning
+    // the picture off never stops the GB game advancing. (This branch
+    // composed only the PSP twin at first, which left a running GB
+    // game frozen on its first frame whenever it was started from
+    // here: nothing pumped its session.)
+    rememberFrameClock(running)
     rememberPspFrameClock(pspRunning)
 
     // ⛔ BACK IN A SESSION IS QUIT, NEVER AN EXIT (input parity, stage 1).
@@ -172,7 +178,11 @@ fun LauncherScreen(
     // spoken answers, whichever door the file came through.
     fun acceptPickedRom(uri: Uri) {
         pickedUri = uri
-        pickedName = uri.lastPathSegment ?: uri.toString()
+        // The provider's display name, not the URI's last segment:
+        // an opaque SAF id (msf:42) carries no extension to route
+        // by, so a PSP image behind one would fall through to the
+        // GB session and be refused there.
+        pickedName = displayName(context, uri)
         problem = ""
         // Routing is by extension, the Kotlin equivalent of the core's
         // own backend resolution: a PSP disc image goes to the PSP
@@ -343,7 +353,16 @@ fun LauncherScreen(
         val uri = pendingRom ?: return@LaunchedEffect
         onPendingRomHandled()
         acceptPickedRom(uri)
-        if (!anyRunning) startPickedGame()
+        // ⛔ THE START DECISION ASKS THE SESSIONS, NOT THIS SCREEN'S
+        // FLAGS. The flags are seeded from the sessions at first
+        // composition, but the hand-off is consumed in that same
+        // first composition; the sessions are the source of truth, so
+        // a pick handed up while a game runs can never start a second
+        // session over the live one — it stays the pending selection
+        // until the player quits, exactly as the comment above says.
+        if (!GbGameSession.isRunning && !PspGameSession.isRunning) {
+            startPickedGame()
+        }
     }
 
     // The status line, said once when the screen comes up. iOS's StatusBar is read
