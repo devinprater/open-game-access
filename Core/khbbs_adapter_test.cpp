@@ -4382,6 +4382,15 @@ int main()
         CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Quantity 3, 540 medals.") &&
                   strstr(SPOKEN[0], "You have 5000 medals."),
               "shop: a quantity change speaks the quantity, the total and the balance");
+        // Voyager 16.6 (mined 2026-11-08): a total beyond the balance
+        // speaks the shortfall itself, not just total vs balance.
+        put_u16(0x09918F14, 30);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::MenuRight);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Quantity 30, 5400 medals.") &&
+                  strstr(SPOKEN[0], "You need 400 more medals."),
+              "shop: a total beyond the balance speaks the shortfall");
+        put_u16(0x09918F14, 3);
         put_u16(0x09918F10, 40);
         NSPOKEN = 0; oga::AdapterSpeechReset();
         frames(4);
