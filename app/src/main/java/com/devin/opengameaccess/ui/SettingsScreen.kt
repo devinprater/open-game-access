@@ -32,6 +32,12 @@ import androidx.compose.ui.unit.sp
  * reader groups -- a blind player cannot tell a deliberately-absent control from a
  * broken one. They go in when the capability does.
  *
+ * The game-picture switch is the most recent to cross that bar: the
+ * picture itself landed on the session screen (GamePicture, stage 2),
+ * so the switch has something real to gate — and it defaults the way
+ * iOS defaults it, off while a screen reader's touch exploration is
+ * on (see DisplaySettings).
+ *
  * The two switches below are the controls that have crossed that bar: the PSP cue
  * synth (beacon + health beeps + earcons) exists now, so the battle-cues switch
  * has something real to gate — it is iOS's "Lock cue" switch under the name the
@@ -51,6 +57,8 @@ fun SettingsScreen(
     onBattleCuesChanged: (Boolean) -> Unit,
     hudGaugeCuesSound: Boolean,
     onHudGaugeCuesChanged: (Boolean) -> Unit,
+    showPicture: Boolean,
+    onShowPictureChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -85,6 +93,31 @@ fun SettingsScreen(
                 "Game Boy core: NOT compiled into this build."
             },
             fontSize = 16.sp,
+        )
+
+        Text(
+            text = "Performance",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() },
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(text = "Show game picture", fontSize = 16.sp)
+            Switch(checked = showPicture, onCheckedChange = onShowPictureChanged)
+        }
+        Text(
+            text = "When on, the running game's picture is shown at the top " +
+                "of the game screen, for someone looking at the phone. Off " +
+                "keeps the picture out of the app entirely: the game still " +
+                "runs, the screen shows nothing, and no time is spent " +
+                "copying frames. Off by default while a screen reader's " +
+                "touch exploration is on, as on iOS.",
+            fontSize = 14.sp,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
         )
 
         Text(

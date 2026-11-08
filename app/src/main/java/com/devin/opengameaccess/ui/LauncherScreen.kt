@@ -75,6 +75,7 @@ import com.devin.opengameaccess.rememberPspFrameClock
 @Composable
 fun LauncherScreen(
     session: GbGameSession,
+    showPicture: Boolean,
     announce: (String, Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGames: () -> Unit,
@@ -215,6 +216,26 @@ fun LauncherScreen(
                     contentDescription = statusLine
                 },
         )
+
+        // The game picture: iOS's FrameImage, sitting where its ScreenView
+        // sits — under the screen's spoken description, above the controls.
+        // ⛔ COMPOSED ONLY WHILE A GAME RUNS AND THE SWITCH IS ON. Off, the
+        // composable does not exist, so no frame is ever copied: iOS keeps
+        // the picture out of its frame path the same way when its switch is
+        // off. The image itself is decorative (GamePicture says why); the
+        // "Game screen" element above remains the one spoken stop.
+        if (anyRunning && showPicture) {
+            GamePicture(
+                fetchFrame = {
+                    if (PspGameSession.isRunning) {
+                        PspGameSession.currentFrame()
+                    } else {
+                        GbGameSession.currentFrame()
+                    }
+                },
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+        }
 
         Column(
             modifier = Modifier.padding(24.dp),

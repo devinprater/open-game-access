@@ -120,6 +120,7 @@ class MainActivity : ComponentActivity() {
         var hudGaugeCuesSound by remember {
             mutableStateOf(GameSettings.globalDefault(context, GameSettings.Setting.HUD_GAUGE_CUES))
         }
+        var showPicture by remember { mutableStateOf(DisplaySettings.showPicture(context)) }
 
         if (showSettings) {
             SettingsScreen(
@@ -134,6 +135,11 @@ class MainActivity : ComponentActivity() {
                     hudGaugeCuesSound = useSound
                     GameSettings.setGlobalHudGaugeCuesSound(context, useSound)
                 },
+                showPicture = showPicture,
+                onShowPictureChanged = { show ->
+                    showPicture = show
+                    DisplaySettings.setShowPicture(context, show)
+                },
                 onBack = { showSettings = false },
             )
             return
@@ -146,6 +152,7 @@ class MainActivity : ComponentActivity() {
 
         LauncherScreen(
             session = GbGameSession,
+            showPicture = showPicture,
             onOpenSettings = { showSettings = true },
             onOpenGames = { showGames = true },
             announce = { text, interrupt ->
