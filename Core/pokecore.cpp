@@ -1472,6 +1472,23 @@ static void GbaSoundForward(const char* path, int pan, int volume, void* ctx)
     if (core && core->soundCb && path) core->soundCb(path, pan, volume, core->soundUserdata);
 }
 
+/* The NES reader's speech arrives the same way the GBA reader's does: the
+ * core's own callback (nes_set_speech_callback), fed by mesen_core's poll of
+ * the reader's speech file. Until now nothing registered it, so a bundled
+ * NES reader (Dragon Warrior, Zelda 1) ran in the app with its speech sink
+ * null -- the mods spoke into a file nobody forwarded. The GBA forwards
+ * above are the shape; these are the same two lines for the NES core. */
+static void NesSayForward(const char* utf8, bool interrupt, void* ctx)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (utf8) EmitSpeech(core, utf8, interrupt, 0);
+}
+static void NesLogForward(const char* utf8, void* ctx)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (core && core->logCb && utf8) core->logCb(utf8, core->logUserdata);
+}
+
 // Tear down whichever backend ran before, so a new ROM never inherits a live
 // core, a Lua state, or an attached adapter from the previous game.
 static void TeardownBackends(PokeCore* core)
@@ -1544,6 +1561,8 @@ static bool LoadNesRom(PokeCore* core, const char* rom_path, const char* save_pa
         return false;
     }
     core->backend = oga_nes_core(core->nes);
+    nes_set_speech_callback(core->nes, NesSayForward, core);
+    nes_set_log_callback(core->nes, NesLogForward, core);
     strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
     // The NES adapter is a SEAM that refuses by design (Core/nes_adapter.cpp): it is the script
     // adapter's job to narrate, and no reader script is bundled yet. Selecting it here means the UI

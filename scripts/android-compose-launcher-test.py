@@ -811,6 +811,184 @@ else:
         "the widened announce guard, launcher lines during DS play "
         "reach no voice")
 
+# ---- 12. THE MESEN SESSION: BUTTON IDS, JNI, READER SETS, THE PAGES -----
+# Parity stage 5 adds a fourth session beside GB, PSP and DS, over the
+# SAME shared Core host (Core/pokecore.cpp): its NES and SNES branches,
+# driving the MesenCE glue (Core/mesen_core.cpp / Core/snes_core.cpp)
+# that the overlay's section 10 now builds. The same defect classes
+# apply, with Mesen twists:
+#  * The button ids index the shared pad table, so they are checked
+#    against pokecore.h's POKE_BTN_* defines, exactly as the DS ids
+#    are (section 11) — the SNES and NES button orders live in the
+#    glue, reached through these shared indices.
+#  * Presence is a JNI question again: every external the Kotlin
+#    declares must resolve to an exact symbol in MesenSessionJNI.cpp,
+#    and availability must be the guarded native probe.
+#  * The command integers are the same C ABI (adapter.h's enum),
+#    mirrored in MesenAdapterCommands and checked the same way
+#    (section 10's enum parse and snake() are reused).
+#  * The stubs must have let go: DsBackendStubs.cpp used to refuse the
+#    NES/SNES ABIs; with the real glue linked into the same .so, a
+#    leftover nes_create/snes_create there is a duplicate symbol, and
+#    a removed gba_create is a missing refusal. Both directions are
+#    checked.
+#  * The Lua readers must be wired, not just present: the session
+#    stages the reader set the core names (stageReaderSet) and hands
+#    its directory over (setScriptDir) between load and start, and
+#    the overlay stages the sets from the canonical tree (its
+#    section 1c) and builds the cores (its section 10).
+#  * The library pages must stop saying NES/SNES "cannot run in this
+#    Android build yet": the platform lines claim the build runs
+#    them, and canRun lets their Load buttons open the picker.
+MESEN_SESSION_KT = "app/src/main/java/com/devin/opengameaccess/MesenGameSession.kt"
+MESEN_SCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+                   "accessibility/MesenAccessibilityScript.kt")
+MESEN_JNI_CPP = "app/native-overlay/app/src/main/cpp/MesenSessionJNI.cpp"
+STUBS_CPP = "app/native-overlay/app/src/main/cpp/DsBackendStubs.cpp"
+for rel in (MESEN_SESSION_KT, MESEN_SCRIPT_KT, MESEN_JNI_CPP, STUBS_CPP):
+    if not os.path.exists(rel):
+        print("!! %s is missing; refusing to report a pass" % rel)
+        sys.exit(1)
+
+mesen_session = strip_kt(read(MESEN_SESSION_KT))
+block = re.search(r"object\s+MesenKeys\s*\{(.*?)\n\}", mesen_session, re.S)
+if not block:
+    bad("MesenKeys is defined", "no `object MesenKeys {` found")
+else:
+    got_mesen = {k: int(v) for k, v in
+                 re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)",
+                            block.group(1))}
+    if got_mesen == want_ds and len(want_ds) == 12:
+        ok("the Mesen button ids match pokecore.h exactly (%d buttons)"
+           % len(want_ds))
+    else:
+        diff = {k: (got_mesen.get(k), v) for k, v in want_ds.items()
+                if got_mesen.get(k) != v}
+        bad("the Mesen button ids match pokecore.h exactly",
+            "differs: %s" % diff)
+
+mesen_kt = read(MESEN_SCRIPT_KT)
+mesen_jni = read(MESEN_JNI_CPP)
+mesen_jni_symbols = set(re.findall(r"Java_[A-Za-z0-9_]+", mesen_jni))
+mesen_externals = re.findall(r"external\s+fun\s+(\w+)\s*\(", mesen_kt)
+unbound = []
+for name in mesen_externals:
+    simple = ("Java_me_magnum_melonds_accessibility_"
+              "MesenAccessibilityScript_" + name)
+    if simple not in mesen_jni_symbols:
+        unbound.append(name)
+if mesen_externals and not unbound:
+    ok("every Mesen external fun has its exact JNI symbol (%d)"
+       % len(mesen_externals))
+else:
+    bad("every Mesen external fun has its exact JNI symbol",
+        "unbound: %s" % unbound)
+
+if ("coreAvailable" in mesen_session and "isCoreLinked" in mesen_session
+        and "UnsatisfiedLinkError" in mesen_session):
+    ok("Mesen availability is the guarded native probe "
+       "(the cores share one .so)")
+else:
+    bad("Mesen availability is the guarded native probe",
+        "the probe must reach the JNI existence check behind an "
+        "UnsatisfiedLinkError catch; the package cannot tell the "
+        "cores apart")
+
+if ("MesenGameSession.start(" in read(SCREEN_KT)
+        and '"nes"' in mesen_kt and '"sfc"' in mesen_kt):
+    ok("the launcher routes NES and SNES cartridges to the Mesen session")
+else:
+    bad("the launcher routes NES and SNES cartridges to the Mesen session",
+        "no MesenGameSession.start in the screen, or the Mesen "
+        "extension sets lost nes/sfc")
+
+cmd_block = re.search(r"object\s+MesenAdapterCommands\s*\{(.*?)\n\}",
+                      mesen_session, re.S)
+if not cmd_block:
+    bad("MesenAdapterCommands is defined",
+        "no `object MesenAdapterCommands {` found")
+else:
+    got_cmds = {k: int(v) for k, v in
+                re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)",
+                           cmd_block.group(1))}
+    wrong = {}
+    for k, v in got_cmds.items():
+        match = [n for n in enum_names if snake(n) == k]
+        if not match or enum_value[match[0]] != v:
+            wrong[k] = (v, enum_value.get(match[0]) if match else None)
+    if got_cmds and not wrong and got_cmds.get("STOP_SPEECH") == 37:
+        ok("every MesenAdapterCommands value matches adapter.h's enum "
+           "(%d commands)" % len(got_cmds))
+    else:
+        bad("every MesenAdapterCommands value matches adapter.h's enum",
+            "wrong: %s" % wrong)
+
+stubs = read(STUBS_CPP)
+if ("nes_create" not in stubs and "snes_create" not in stubs
+        and "gba_create" in stubs):
+    ok("the backend stubs refuse only GBA now (the Mesen glue is real)")
+else:
+    bad("the backend stubs refuse only GBA now (the Mesen glue is real)",
+        "a leftover nes_create/snes_create stub would duplicate the "
+        "real symbol in the frontend .so; a missing gba_create drops "
+        "the GBA refusal the DS host links against")
+
+if ("OGA_MESEN" in overlay_sh and "MesenSessionJNI" in overlay_sh
+        and "mesen/glue" in overlay_sh and "assets/nes-lua" in overlay_sh):
+    ok("the overlay builds the MesenCE cores, stages the NES reader "
+       "sets and wires the session into the frontend target")
+else:
+    bad("the overlay builds the MesenCE cores, stages the NES reader "
+        "sets and wires the session into the frontend target",
+        "section 10's subproject/wiring or section 1c's asset "
+        "staging is missing from android-apply-overlay.sh")
+
+if ("stageReaderSet" in mesen_session and "setScriptDir" in mesen_session
+        and "readerSet" in mesen_session):
+    ok("the Mesen session stages the reader set the core names and "
+       "hands its directory over before the start")
+else:
+    bad("the Mesen session stages the reader set the core names and "
+        "hands its directory over before the start",
+        "without the staged writable copy and the setScriptDir call "
+        "between load and start, the NES Lua readers never load")
+
+games_raw = read(GAMES_SCREEN_KT)
+pline_at = games_raw.find("private fun platformLine")
+pline_span = games_raw[pline_at:] if pline_at >= 0 else ""
+snes_m = re.search(r'"snes"\s*->\s*(.*?)\n\s*"nes"', pline_span, re.S)
+nes_m = re.search(r'"nes"\s*->\s*(.*?)\n\s*else', pline_span, re.S)
+snes_line = "".join(re.findall(r'"([^"]*)"', snes_m.group(1))) if snes_m else ""
+nes_line = "".join(re.findall(r'"([^"]*)"', nes_m.group(1))) if nes_m else ""
+can_run_at = games_screen.find("val canRun")
+can_run = games_screen[can_run_at:can_run_at + 300] if can_run_at >= 0 else ""
+if ("run in this Android build" in snes_line
+        and "cannot run" not in snes_line
+        and "run in this Android build" in nes_line
+        and "cannot run" not in nes_line
+        and 'game.console == "nes"' in can_run
+        and 'game.console == "snes"' in can_run):
+    ok("the game library's NES and SNES pages say their games run in "
+       "this build, and their Load buttons open the picker")
+else:
+    bad("the game library's NES and SNES pages say their games run in "
+        "this build, and their Load buttons open the picker",
+        "a platform line is stale or canRun excludes them: "
+        "snes=%r nes=%r canRun=%r" % (snes_line, nes_line, can_run))
+
+if ("AccessibilityScript.speechBridge(app)" in mesen_session
+        and "storedAnnouncementView" in mesen_session
+        and "MesenGameSession.attachAnnouncementView" in activity_raw
+        and "MesenGameSession.isRunning" in activity_raw):
+    ok("the Mesen session builds the shared speech bridge and the "
+       "launcher guard covers it")
+else:
+    bad("the Mesen session builds the shared speech bridge and the "
+        "launcher guard covers it",
+        "without the bridge built at Mesen start, the view "
+        "re-forward and the widened announce guard, launcher lines "
+        "during NES/SNES play reach no voice")
+
 print()
 if fails:
     print("FAIL: the Compose launcher contract is broken:")

@@ -206,7 +206,8 @@ private fun AdapterGamePage(
     // Whether THIS build can start the game's console today. The Load
     // button exists either way (see the file header); this decides
     // whether its press opens the picker or speaks the honest line.
-    val canRun = game.console == "gb" || game.console == "psp"
+    val canRun = game.console == "gb" || game.console == "psp" ||
+        game.console == "nes" || game.console == "snes"
     val context = LocalContext.current
 
     // The page's spoken answers (a cancelled picker, a wrong file, an
@@ -603,9 +604,14 @@ private fun versionLine(code: String): String? = when {
  * this line only claims the reader is present. Nintendo DS joined them
  * with the parity program's DS stage: the shared Core DS host is compiled
  * in, the launcher starts DS games, and its readers — the native adapters
- * and the Pokémon script — are in the build with it. The SNES reader is
- * not compiled into this build at all. A page that implied otherwise
- * would send a blind player hunting for speech that cannot happen.
+ * and the Pokémon script — are in the build with it. NES and Super
+ * Nintendo joined them with the parity program's Mesen stage: the
+ * MesenCE cores are compiled in (the overlay's section 10), the launcher
+ * starts their games, the NES reader sets (Dragon Warrior, Zelda 1) are
+ * staged from the bundled assets, and the SNES A Link to the Past
+ * adapter attaches through the shared registry. A page that implied
+ * otherwise would send a blind player hunting for speech that cannot
+ * happen.
  */
 private fun platformLine(console: String): String = when (console) {
     "gb" -> "This Android build runs these games: use Load game on this " +
@@ -616,8 +622,12 @@ private fun platformLine(console: String): String = when (console) {
     "psp" -> "PlayStation Portable games run in this Android build, and this " +
         "game's reader is in the build too: use Load game on this page, " +
         "or pick one with Select Game on the launcher."
-    "snes" -> "Super Nintendo games cannot run in this Android build yet. " +
-        "This reader is in the iOS app today."
+    "snes" -> "Super Nintendo games run in this Android build, and this " +
+        "game's reader is in the build too: use Load game on this page, " +
+        "or pick one with Select Game on the launcher."
+    "nes" -> "Nintendo Entertainment System games run in this Android " +
+        "build, and this game's reader is in the build too: use Load " +
+        "game on this page, or pick one with Select Game on the launcher."
     else -> "This console's games cannot run in this Android build yet."
 }
 

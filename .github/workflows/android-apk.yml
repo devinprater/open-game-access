@@ -152,6 +152,10 @@ jobs:
           # PSP section cannot find the pinned tree and exits on purpose
           # (a silent skip is how a core goes missing).
           PPSSPP_SRC: ${{ runner.temp }}/src/ppsspp
+          # ⛔ REQUIRED since the MesenCE cores landed (overlay section
+          # 10): bootstrap-deps.sh already fetches the pinned tree here;
+          # without the path the overlay exits on purpose.
+          MESEN_SRC: ${{ runner.temp }}/src/mesen
           # Where the ffmpeg step above put the Android installs; the
           # overlay stages them into the frontend tree from here.
           FFMPEG_ANDROID_OUT: ${{ runner.temp }}/ffmpeg-android
@@ -213,11 +217,12 @@ jobs:
           }
           echo "ok: the Game Boy / GBA reader set is present and current"
 
-          # The NES readers are iOS-only today: nes-lua/ exists under Sources/
-          # only and the Android asset tree has no NES path at all. Do not assert
-          # them here -- that would fail until Android has NES staging to test.
-          # Assert instead that the claim is not being made falsely: if an
-          # assets/nes path ever appears, it must carry a real reader.
+          # The NES reader sets are staged into the APK by the overlay's
+          # section 1c (from Sources/OpenGameAccess/Resources/nes-lua/, the
+          # canonical tree iOS ships), so the assets/nes path DOES appear
+          # now and this assertion carries weight: it must carry a real
+          # reader. (The branch below stays for a build made without the
+          # staging, which must not claim the readers either.)
           if grep -q "assets/.*nes" "$RUNNER_TEMP/apk-list.txt"; then
             grep -q "DragonWarriorAccess" "$RUNNER_TEMP/apk-list.txt" \
               || { echo "!! an NES asset path exists but carries no reader set" >&2; exit 1; }
