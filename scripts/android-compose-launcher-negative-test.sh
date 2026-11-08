@@ -22,6 +22,8 @@ stage() {
   cp Core/adapters.cpp "$TMP/t/Core/"
   cp Core/psp_core.h "$TMP/t/Core/"
   cp Core/adapter.h "$TMP/t/Core/"
+  cp Core/genesis_core.h "$TMP/t/Core/"
+  cp Core/oga_core.cpp "$TMP/t/Core/"
   cp Core/dissidia_adapter.cpp Core/dbzar_adapter.cpp Core/mku_adapter.cpp \
      Core/khbbs_adapter.cpp "$TMP/t/Core/"
   cp Sources/OpenGameAccess/AdapterCommand.swift "$TMP/t/Sources/OpenGameAccess/"
@@ -37,11 +39,14 @@ stage() {
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/AccessibilityScript.kt \
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/PspAccessibilityScript.kt \
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/DsAccessibilityScript.kt \
+     app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/GenesisAccessibilityScript.kt \
+     app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/GenesisRomResolver.kt \
      "$TMP/t/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/"
   cp app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp \
      app/native-overlay/app/src/main/cpp/PspSessionJNI.cpp \
      app/native-overlay/app/src/main/cpp/PspAdapterHost.cpp \
      app/native-overlay/app/src/main/cpp/DsSessionJNI.cpp \
+     app/native-overlay/app/src/main/cpp/GenesisSessionJNI.cpp \
      "$TMP/t/app/native-overlay/app/src/main/cpp/"
   cp scripts/android-apply-overlay.sh "$TMP/t/scripts/"
   cp "$TEST" "$TMP/t/scripts/"
@@ -124,6 +129,14 @@ case_dskeys() {  # sabotage: swap the A and B button ids (a wrong button, silent
   sed -i 's/const val A = 0/const val A = 1/; s/const val B = 1/const val B = 0/' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/DsGameSession.kt"
 }
+case_genkeys() {  # sabotage: swap the Genesis A and B slot ids (a wrong button, silently)
+  sed -i 's/const val A = 0/const val A = 1/; s/const val B = 1/const val B = 0/' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/GenesisGameSession.kt"
+}
+case_genjni() {  # sabotage: rename a Genesis JNI symbol so it no longer resolves
+  sed -i 's/Java_me_magnum_melonds_accessibility_GenesisAccessibilityScript_nativeGenesisLoadRom/Java_me_magnum_melonds_accessibility_GenesisAccessibilityScript_nativeGenesisLoadRomRenamed/' \
+     "$TMP/t/app/native-overlay/app/src/main/cpp/GenesisSessionJNI.cpp"
+}
 case_pspsupported() {  # sabotage: a generated command set drops a real button
   sed -i 's/commands = listOf(0, 7, 1, 3, 43, 41, 6)/commands = listOf(0, 7, 1, 3, 41, 6)/' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
@@ -141,7 +154,7 @@ else
   bad=1
 fi
 
-for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys; do
+for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys genkeys genjni; do
   stage
   "case_$s"
   if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then

@@ -27,7 +27,7 @@ BIN="${TMPDIR:-/tmp}/oga-android-library-gen"
 g++ -O1 -g -fwrapv -fno-strict-aliasing \
     -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" -std=c++17 \
     -o "$BIN" tools/android-library-gen.cpp \
-    Core/adapters.cpp Core/announce.cpp \
+    Core/adapters.cpp Core/genesis_adapter.cpp Core/announce.cpp \
     Core/fe_adapter.cpp \
     Core/gba_adapter.cpp \
     Core/dbz_adapter.cpp Core/dissidia_adapter.cpp Core/dbzar_adapter.cpp \
