@@ -66,13 +66,28 @@ function mainmemory.read_bytes_as_array(off, n)
 end
 
 -- ---------- joypad ----------
--- melonDS-lua exposes input.GetJoy()/NDSTapDown/Up; BizHawk's joypad.set writes
--- a per-frame button override that this core does not have. main.lua's
--- controller-mod layer uses set{} to BLOCK buttons while a modifier is held, so
--- an empty function degrades that layer rather than breaking the script.
+-- melonDS-lua exposes input.GetJoy()/NDSTapDown/Up. `joypad.set` is the
+-- per-frame button OVERRIDE main.lua's controller-mod layer runs on: while the
+-- left trigger is held, the script writes every button as false so the game
+-- receives no input at all, and the pad drives the accessibility list instead.
+--
+-- ⛔ AN EMPTY TABLE IS NOT A NO-OP — it CLEARS the overrides, and main.lua calls
+-- joypad.set({}) exactly for that: to drop its overrides and re-latch from the
+-- physical pad before asking joypad.getimmediate() what is really held. Making
+-- this an empty function (as the first mobile port did) leaves the release latch
+-- unable to engage, so a direction still held when the trigger is let go leaks
+-- through to the game as an unasked-for step.
 joypad = joypad or {}
 
-function joypad.set() end
+function joypad.set(t)
+    if input.JoySet then
+        input.JoySet(type(t) == "table" and t or {})
+    end
+end
+
+-- The touch panel is driven through stylus-style axes in this script; those are
+-- handled by the mnemonic/touch path, so the analog entry point stays inert but
+-- present (main.lua calls it to clear a sticky hold).
 function joypad.setanalog() end
 
 function joypad.getimmediate()
