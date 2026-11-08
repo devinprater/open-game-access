@@ -166,8 +166,8 @@ object ControllerInput {
     /**
      * One gamepad key event from the Activity funnel. True when consumed.
      * Key repeats are consumed silently: the holder model below already
-     * tracks the held state, and a chord (next commit) must fire once per
-     * physical press, not per repeat.
+     * tracks the held state, and a chord must fire once per physical
+     * press, not per repeat.
      */
     fun handleKeyEvent(event: KeyEvent): Boolean {
         if (!sessionActive) return false
