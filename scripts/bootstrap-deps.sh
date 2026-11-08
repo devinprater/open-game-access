@@ -54,6 +54,31 @@ fetch "$MELONDS_LUA_REPO" melonds-lua master
 # MGBA_DEFS and a generated flags.h (see build-core.sh).
 fetch "$MGBA_REPO" mgba "$MGBA_REV"
 
+# ---- Genesis Plus GX (Sega Genesis / Mega Drive core) ----
+# Fetched for the audited TU list in core-sources.sh (GPGX_ALL). No build
+# system of upstream's is run: the build scripts compile the list directly
+# as C++ with GPGX_DEFS (the tree's headers carry no extern "C"; the libretro
+# port builds it the same way). One frontend shim is OURS, not fetched:
+# Core/gpgx/osd.h (the core's TUs include "osd.h", which every frontend
+# supplies) and the shim definitions in Core/genesis_core.cpp.
+#
+# ⛔ LICENCE, READ BEFORE ANY DISTRIBUTION DECISION: Genesis Plus GX is NOT
+# public-domain or MIT. Its LICENSE.txt permits use and redistribution with
+# attribution but states that redistributions "may not be sold, nor may they
+# be used in a commercial product or activity", and that modified
+# redistributions must include the complete source code. That fits this
+# project's non-commercial distribution today; it is a real constraint on
+# any future one, recorded here so it is never discovered late.
+#
+# PINNED BY HOST ADMISSIBILITY, the house pattern: at this exact revision,
+# on the build host, all 54 TUs of GPGX_ALL compile, link, and run a
+# synthetic-ROM harness (frames, framebuffer, audio, save states, battery
+# SRAM round-trip through the .sav file). A pin bump re-runs that evidence
+# before it lands.
+GPGX_REPO="${GPGX_REPO:-https://github.com/ekeeke/Genesis-Plus-GX.git}"
+GPGX_REV="${GPGX_REV:-a5834b3df455c49bb97bfaa328c20845831f576b}"
+fetch "$GPGX_REPO" genesis-plus-gx "$GPGX_REV"
+
 # ---- PPSSPP (PlayStation Portable core) ----
 # Fetched for headers + the audited IR-interpreter/software-GPU TU subset in
 # core-sources.sh. No CMake: the build scripts compile the subset directly.
@@ -174,6 +199,7 @@ cat <<EOF
   melonds-lua  $( [ -d melonds-lua ] && echo present || echo MISSING )
   mgba         $( [ -d mgba ] && echo present || echo MISSING )
   ppsspp       $( [ -d ppsspp ] && echo present || echo MISSING )
+  genesis-plus-gx $( [ -d genesis-plus-gx ] && echo present || echo MISSING )
   lua-$LUA_VER      $( [ -d "lua-$LUA_VER" ] && echo present || echo MISSING )
 
 Next:
