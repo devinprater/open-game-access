@@ -137,8 +137,11 @@ object ControllerInput {
 
     /** Re-scan: publish the first gamepad's name, or none. */
     private fun refresh() {
+        // (getDeviceIds returns an IntArray, which has no mapNotNull —
+        // map + filterNotNull it is.)
         val pads = InputDevice.getDeviceIds()
-            .mapNotNull { InputDevice.getDevice(it) }
+            .map { id -> InputDevice.getDevice(id) }
+            .filterNotNull()
             .filter { it.isGameController() }
         val name = pads.firstOrNull()?.name?.takeIf { it.isNotBlank() } ?: pads.firstOrNull()?.let { "Game controller" }
         if (name == null && connectedName != null) releaseAll()

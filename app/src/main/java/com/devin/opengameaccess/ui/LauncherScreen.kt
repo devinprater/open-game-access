@@ -147,6 +147,16 @@ fun LauncherScreen(
     val controllerName = ControllerInput.connectedName
     val controllerConnected = controllerName != null
     var previousControllerName by remember { mutableStateOf(controllerName) }
+
+    fun say(message: String, interrupt: Boolean = false) {
+        status = message
+        liveMode = if (interrupt) LiveRegionMode.Assertive else LiveRegionMode.Polite
+        announce(message, interrupt)
+    }
+
+    // The speaking half of the controller watch above (kept below say's
+    // declaration — a local fun is only visible from where it is
+    // declared, and the compiler enforces it).
     LaunchedEffect(controllerName) {
         val previous = previousControllerName
         previousControllerName = controllerName
@@ -156,12 +166,6 @@ fun LauncherScreen(
         } else {
             say("Controller disconnected.")
         }
-    }
-
-    fun say(message: String, interrupt: Boolean = false) {
-        status = message
-        liveMode = if (interrupt) LiveRegionMode.Assertive else LiveRegionMode.Polite
-        announce(message, interrupt)
     }
 
     // ⛔ THE MAGIC-TAP EQUIVALENT (input parity, stage 1). On iOS a
