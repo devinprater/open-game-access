@@ -112,7 +112,13 @@ object ControllerInput {
 
     private val deviceListener = object : InputManager.InputDeviceListener {
         override fun onInputDeviceAdded(deviceId: Int) = refresh()
-        override fun onInputDeviceRemoved(deviceId: Int) = refresh()
+        override fun onInputDeviceRemoved(deviceId: Int) {
+            // A removed pad can never send its releases: drop everything
+            // it was holding (buttons, consumed chords, modifiers) even
+            // when another controller stays connected.
+            releaseDevice(deviceId)
+            refresh()
+        }
         override fun onInputDeviceChanged(deviceId: Int) = refresh()
     }
 
@@ -133,6 +139,7 @@ object ControllerInput {
         inputManager?.unregisterInputDeviceListener(deviceListener)
         inputManager = null
         releaseAll()
+        wasSessionActive = false
     }
 
     /** Re-scan: publish the first gamepad's name, or none. */
@@ -148,9 +155,16 @@ object ControllerInput {
         connectedName = name
     }
 
+    // ⛔ COMPLETE-MASK MATCHES, NEVER A NONZERO TEST. Android's source
+    // constants share class bits (SOURCE_KEYBOARD is 0x101 and
+    // SOURCE_GAMEPAD is 0x401 — they overlap in bit 0), so
+    // `(sources and MASK) != 0` classifies an ordinary physical keyboard
+    // as a controller: the pad would hide and its arrow keys would be
+    // intercepted during play. Each allowed source must match in full.
     private fun InputDevice.isGameController(): Boolean =
         !isVirtual &&
-            (sources and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK)) != 0
+            ((sources and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
+                (sources and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK)
 
     /** An event is ours when its device is a gamepad; a device-less event
      *  (some pads emit them) must at least carry a gamepad source flag. */
@@ -158,11 +172,48 @@ object ControllerInput {
         if (device != null) {
             device.isGameController()
         } else {
-            (source and (InputDevice.SOURCE_GAMEPAD or InputDevice.SOURCE_JOYSTICK or InputDevice.SOURCE_DPAD)) != 0
+            (source and InputDevice.SOURCE_GAMEPAD) == InputDevice.SOURCE_GAMEPAD ||
+                (source and InputDevice.SOURCE_JOYSTICK) == InputDevice.SOURCE_JOYSTICK ||
+                (source and InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD
         }
 
     private val sessionActive: Boolean
         get() = GbGameSession.isRunning || PspGameSession.isRunning
+
+    /**
+     * Session-boundary reset. Events are only routed while a session
+     * runs, so a button or modifier still held when a game quits never
+     * gets its release processed — the bookkeeping would survive into
+     * the next session, dropping its first press or leaving a modifier
+     * latched. Watching for the active flag to FLIP (either way) and
+     * releasing everything at the boundary keeps the state honest
+     * without this layer having to observe the sessions' internals.
+     */
+    private var wasSessionActive = false
+
+    private fun syncSessionLifecycle() {
+        val now = sessionActive
+        if (now != wasSessionActive) {
+            wasSessionActive = now
+            releaseAll()
+        }
+    }
+
+    /** Everything one device was holding, released: it is gone and can
+     *  never send the releases itself. Source strings are built as
+     *  "key:<deviceId>:<keycode>" and "motion:<deviceId>[.axis...]". */
+    private fun releaseDevice(deviceId: Int) {
+        fun owns(source: String): Boolean =
+            source.startsWith("key:$deviceId:") ||
+                source.startsWith("motion:$deviceId.") ||
+                source == "motion:$deviceId"
+        for (source in active.keys.filter(::owns)) {
+            set(source, null, pressed = false)
+        }
+        consumedSources.removeAll(::owns)
+        askHeld.removeAll(::owns)
+        browseHeld.removeAll(::owns)
+    }
 
     // ---- key events -------------------------------------------------------
 
@@ -172,10 +223,27 @@ object ControllerInput {
      * tracks the held state, and a chord must fire once per physical
      * press, not per repeat.
      */
+    /** The keycodes the when below actually maps. Repeats of anything
+     *  else (a pad's volume keys, say) must fall through unconsumed —
+     *  swallowing them would break the key's long-press behaviour. */
+    private val handledKeyCodes = setOf(
+        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+        KeyEvent.KEYCODE_BUTTON_A, KeyEvent.KEYCODE_BUTTON_B,
+        KeyEvent.KEYCODE_BUTTON_X, KeyEvent.KEYCODE_BUTTON_Y,
+        KeyEvent.KEYCODE_BUTTON_L1, KeyEvent.KEYCODE_BUTTON_R1,
+        KeyEvent.KEYCODE_BUTTON_L2, KeyEvent.KEYCODE_BUTTON_R2,
+        KeyEvent.KEYCODE_BUTTON_START, KeyEvent.KEYCODE_BUTTON_SELECT,
+        KeyEvent.KEYCODE_BUTTON_THUMBL, KeyEvent.KEYCODE_BUTTON_THUMBR,
+    )
+
     fun handleKeyEvent(event: KeyEvent): Boolean {
+        syncSessionLifecycle()
         if (!sessionActive) return false
         if (!isGamepadEvent(event.device, event.source)) return false
-        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0) return true
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0) {
+            return event.keyCode in handledKeyCodes
+        }
         val pressed = event.action == KeyEvent.ACTION_DOWN
         val source = "key:${event.deviceId}:${event.keyCode}"
         return when (event.keyCode) {
@@ -217,21 +285,16 @@ object ControllerInput {
      * comparisons are flipped relative to the Swift.
      */
     fun handleMotionEvent(event: MotionEvent): Boolean {
+        syncSessionLifecycle()
         if (!sessionActive) return false
         if (!isGamepadEvent(event.device, event.source)) return false
         val id = "motion:${event.deviceId}"
-        val x = event.getAxisValue(MotionEvent.AXIS_X)
-        val y = event.getAxisValue(MotionEvent.AXIS_Y)
-        direction(PadDir.UP, "$id.stick.up", y < -STICK_THRESHOLD)
-        direction(PadDir.DOWN, "$id.stick.down", y > STICK_THRESHOLD)
-        direction(PadDir.LEFT, "$id.stick.left", x < -STICK_THRESHOLD)
-        direction(PadDir.RIGHT, "$id.stick.right", x > STICK_THRESHOLD)
-        val hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X)
-        val hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
-        direction(PadDir.UP, "$id.hat.up", hatY < -STICK_THRESHOLD)
-        direction(PadDir.DOWN, "$id.hat.down", hatY > STICK_THRESHOLD)
-        direction(PadDir.LEFT, "$id.hat.left", hatX < -STICK_THRESHOLD)
-        direction(PadDir.RIGHT, "$id.hat.right", hatX > STICK_THRESHOLD)
+        // ⛔ MODIFIERS BEFORE DIRECTIONS. An axes-only pad can report a
+        // trigger and a direction in the SAME event; routing the
+        // direction first would read the modifier state of the previous
+        // event — sending game input where a chord was meant, or firing
+        // a stale chord on a release-plus-direction event. Update both
+        // trigger modifiers before any direction is routed.
         // Analog triggers are the same modifiers as BUTTON_L2/R2, for
         // pads that report them only as axes. iOS reads GameController's
         // pressed flag (its own internal threshold); Android hands over
@@ -248,6 +311,18 @@ object ControllerInput {
             event.getAxisValue(MotionEvent.AXIS_GAS),
         )
         setModifier(browseHeld, "$id.axis.r2", r2 > STICK_THRESHOLD)
+        val x = event.getAxisValue(MotionEvent.AXIS_X)
+        val y = event.getAxisValue(MotionEvent.AXIS_Y)
+        direction(PadDir.UP, "$id.stick.up", y < -STICK_THRESHOLD)
+        direction(PadDir.DOWN, "$id.stick.down", y > STICK_THRESHOLD)
+        direction(PadDir.LEFT, "$id.stick.left", x < -STICK_THRESHOLD)
+        direction(PadDir.RIGHT, "$id.stick.right", x > STICK_THRESHOLD)
+        val hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X)
+        val hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
+        direction(PadDir.UP, "$id.hat.up", hatY < -STICK_THRESHOLD)
+        direction(PadDir.DOWN, "$id.hat.down", hatY > STICK_THRESHOLD)
+        direction(PadDir.LEFT, "$id.hat.left", hatX < -STICK_THRESHOLD)
+        direction(PadDir.RIGHT, "$id.hat.right", hatX > STICK_THRESHOLD)
         return true
     }
 
