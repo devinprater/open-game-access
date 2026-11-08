@@ -17,6 +17,7 @@ stage() {
            "$TMP/t/app/native-overlay/app/src/main/cpp" \
            "$TMP/t/scripts" \
            "$TMP/t/Sources/OpenGameAccess" \
+           "$TMP/t/Sources/CPokeCore/include" \
            "$TMP/t/Core"
   cp Core/adapters.cpp "$TMP/t/Core/"
   cp Core/psp_core.h "$TMP/t/Core/"
@@ -24,19 +25,23 @@ stage() {
   cp Core/dissidia_adapter.cpp Core/dbzar_adapter.cpp Core/mku_adapter.cpp \
      Core/khbbs_adapter.cpp "$TMP/t/Core/"
   cp Sources/OpenGameAccess/AdapterCommand.swift "$TMP/t/Sources/OpenGameAccess/"
+  cp Sources/CPokeCore/include/pokecore.h "$TMP/t/Sources/CPokeCore/include/"
   cp app/src/main/java/com/devin/opengameaccess/*.kt \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/"
   cp app/src/main/java/com/devin/opengameaccess/ui/*.kt \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/ui/"
   cp app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/GbAccessibilityScript.kt \
+     app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/DsRomResolver.kt \
      "$TMP/t/app/src/main/java/me/magnum/melonds/accessibility/"
   cp app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/GbAccessibilityScript.kt \
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/AccessibilityScript.kt \
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/PspAccessibilityScript.kt \
+     app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/DsAccessibilityScript.kt \
      "$TMP/t/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/"
   cp app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp \
      app/native-overlay/app/src/main/cpp/PspSessionJNI.cpp \
      app/native-overlay/app/src/main/cpp/PspAdapterHost.cpp \
+     app/native-overlay/app/src/main/cpp/DsSessionJNI.cpp \
      "$TMP/t/app/native-overlay/app/src/main/cpp/"
   cp scripts/android-apply-overlay.sh "$TMP/t/scripts/"
   cp "$TEST" "$TMP/t/scripts/"
@@ -111,6 +116,14 @@ case_pspregistry() {  # sabotage: the host's dispatch table loses an adapter
   sed -i 's/kKingdomHeartsBirthBySleep/kKingdomHeartsBirthBySleepDropped/' \
      "$TMP/t/app/native-overlay/app/src/main/cpp/PspAdapterHost.cpp"
 }
+case_dsjni() {  # sabotage: rename a DS JNI symbol so it no longer resolves
+  sed -i 's/Java_me_magnum_melonds_accessibility_DsAccessibilityScript_nativeDsLoadRom/Java_me_magnum_melonds_accessibility_DsAccessibilityScript_nativeDsLoadRomRenamed/' \
+     "$TMP/t/app/native-overlay/app/src/main/cpp/DsSessionJNI.cpp"
+}
+case_dskeys() {  # sabotage: swap the A and B button ids (a wrong button, silently)
+  sed -i 's/const val A = 0/const val A = 1/; s/const val B = 1/const val B = 0/' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/DsGameSession.kt"
+}
 case_pspsupported() {  # sabotage: a generated command set drops a real button
   sed -i 's/commands = listOf(0, 7, 1, 3, 43, 41, 6)/commands = listOf(0, 7, 1, 3, 41, 6)/' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
@@ -128,7 +141,7 @@ else
   bad=1
 fi
 
-for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported; do
+for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys; do
   stage
   "case_$s"
   if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then

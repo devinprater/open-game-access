@@ -532,12 +532,20 @@ else:
         "ULUS adapters",
         "host has %s, the registry's PSP set is %s"
         % (sorted(host_set), sorted(expected_psp)))
-if "AdapterNoteSpoken" in psp_host and "AdapterSpeechReset" in psp_host:
-    ok("the host carries the adapters' spoken-line dedup helpers")
+# The dedup helpers live in the registry TU ONLY. The PSP host used to
+# carry copies (the registry could not link here then); the DS stage
+# links adapters.cpp, copies and originals collided at link time, and
+# the copies were removed — a second definition anywhere is the
+# duplicate-symbol defect returning.
+if ("bool AdapterNoteSpoken(const char* s)" in registry
+        and "void AdapterSpeechReset(void)" in registry
+        and "bool AdapterNoteSpoken(const char* s) {" not in psp_host
+        and "void AdapterSpeechReset(void) {" not in psp_host):
+    ok("the spoken-line dedup helpers live in the registry TU only")
 else:
-    bad("the host carries the adapters' spoken-line dedup helpers",
+    bad("the spoken-line dedup helpers live in the registry TU only",
         "the adapters call oga::AdapterNoteSpoken/AdapterSpeechReset; "
-        "without definitions in the host TU the glue cannot link")
+        "they must be defined exactly once, by Core/adapters.cpp")
 
 # The Kotlin command mirror, checked value by value against the enum.
 def snake(name):
@@ -655,13 +663,153 @@ wiring = {
         # the span section 9's note describes (the picker's MIME string
         # blinds the comment stripper to everything after it).
         "PspReaderGroup(PspGameSession)" in read(SCREEN_KT)
-        and "PspSpeechGroup(PspGameSession)" in read(SCREEN_KT),
+        and "PspSpeechGroup(PspGameSession," in read(SCREEN_KT),
 }
 for what, present in wiring.items():
     if present:
         ok(what)
     else:
         bad(what, "the stage-4 surface was edited away")
+
+
+# ---- 11. THE DS SESSION: BUTTON IDS, JNI, ROUTING, THE HONEST PAGE --------
+# Parity stage 4 (DS half) adds a third session beside GB and PSP, over the
+# shared Core DS host (Core/pokecore.cpp) rather than a new slice. The same
+# defect classes apply, with DS twists:
+#  * The button ids index the shared pad table, so they are checked against
+#    pokecore.h's POKE_BTN_* defines — not against PspKeys (a different
+#    core's order) and not against a Kotlin convention.
+#  * The host shares the frontend .so with both other cores, so presence is
+#    a JNI question: every external the Kotlin declares must resolve to an
+#    exact symbol in DsSessionJNI.cpp, and availability must be the guarded
+#    native probe.
+#  * The command integers are the same C ABI as PSP's (adapter.h's enum),
+#    mirrored in DsAdapterCommands and checked the same way (section 10's
+#    enum parse and snake() are reused).
+#  * The overlay must actually stage and wire the host (its section 9): a
+#    DS page over an unwired host is the defect sections 7-8 exist to catch
+#    — files present, nothing compiled — wearing a DS badge.
+#  * The library page must stop saying the DS reader "is not in the Android
+#    build yet", and its Load button (the DS half of the Stage 2 load flow)
+#    must exist.
+DS_SESSION_KT = "app/src/main/java/com/devin/opengameaccess/DsGameSession.kt"
+DS_SCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+                "accessibility/DsAccessibilityScript.kt")
+DS_JNI_CPP = "app/native-overlay/app/src/main/cpp/DsSessionJNI.cpp"
+POKE_HEADER = "Sources/CPokeCore/include/pokecore.h"
+for rel in (DS_SESSION_KT, DS_SCRIPT_KT, DS_JNI_CPP, POKE_HEADER):
+    if not os.path.exists(rel):
+        print("!! %s is missing; refusing to report a pass" % rel)
+        sys.exit(1)
+
+ds_session = strip_kt(read(DS_SESSION_KT))
+poke_header = read(POKE_HEADER)
+want_ds = {k: int(v) for k, v in
+           re.findall(r"#define\s+POKE_BTN_(\w+)\s+(\d+)", poke_header)}
+want_ds.pop("COUNT", None)  # a count, not a button; DsKeys holds buttons
+block = re.search(r"object\s+DsKeys\s*\{(.*?)\n\}", ds_session, re.S)
+if not block:
+    bad("DsKeys is defined", "no `object DsKeys {` found")
+else:
+    got_ds = {k: int(v) for k, v in
+              re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)", block.group(1))}
+    if got_ds == want_ds and len(want_ds) == 12:
+        ok("the DS button ids match pokecore.h exactly (%d buttons)"
+           % len(want_ds))
+    else:
+        diff = {k: (got_ds.get(k), v) for k, v in want_ds.items()
+                if got_ds.get(k) != v}
+        bad("the DS button ids match pokecore.h exactly",
+            "differs: %s" % diff)
+
+ds_kt = read(DS_SCRIPT_KT)
+ds_jni = read(DS_JNI_CPP)
+ds_jni_symbols = set(re.findall(r"Java_[A-Za-z0-9_]+", ds_jni))
+ds_externals = re.findall(r"external\s+fun\s+(\w+)\s*\(", ds_kt)
+unbound = []
+for name in ds_externals:
+    simple = ("Java_me_magnum_melonds_accessibility_"
+              "DsAccessibilityScript_" + name)
+    if simple not in ds_jni_symbols:
+        unbound.append(name)
+if ds_externals and not unbound:
+    ok("every DS external fun has its exact JNI symbol (%d)"
+       % len(ds_externals))
+else:
+    bad("every DS external fun has its exact JNI symbol",
+        "unbound: %s" % unbound)
+
+if ("coreAvailable" in ds_session and "isCoreLinked" in ds_session
+        and "UnsatisfiedLinkError" in ds_session):
+    ok("DS availability is the guarded native probe "
+       "(the cores share one .so)")
+else:
+    bad("DS availability is the guarded native probe",
+        "the probe must reach the JNI existence check behind an "
+        "UnsatisfiedLinkError catch; the package cannot tell the "
+        "cores apart")
+
+# The raw screen, like section 9's routing check (the stripped screen
+# loses the span after the picker's MIME string).
+if "DsGameSession.start(" in read(SCREEN_KT) and '"nds"' in ds_kt:
+    ok("the launcher routes DS cartridges (.nds) to the DS session")
+else:
+    bad("the launcher routes DS cartridges (.nds) to the DS session",
+        "no DsGameSession.start in the screen, or the DS extension "
+        "set lost nds")
+
+cmd_block = re.search(r"object\s+DsAdapterCommands\s*\{(.*?)\n\}",
+                      ds_session, re.S)
+if not cmd_block:
+    bad("DsAdapterCommands is defined",
+        "no `object DsAdapterCommands {` found")
+else:
+    got_cmds = {k: int(v) for k, v in
+                re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)",
+                           cmd_block.group(1))}
+    wrong = {}
+    for k, v in got_cmds.items():
+        match = [n for n in enum_names if snake(n) == k]
+        if not match or enum_value[match[0]] != v:
+            wrong[k] = (v, enum_value.get(match[0]) if match else None)
+    if got_cmds and not wrong and got_cmds.get("STOP_SPEECH") == 37:
+        ok("every DsAdapterCommands value matches adapter.h's enum "
+           "(%d commands)" % len(got_cmds))
+    else:
+        bad("every DsAdapterCommands value matches adapter.h's enum",
+            "wrong: %s" % wrong)
+
+if ("OGA_DS_GLUE" in overlay_sh and "DsSessionJNI" in overlay_sh
+        and "ds-glue" in overlay_sh):
+    ok("the overlay stages the DS host and wires it into the frontend target")
+else:
+    bad("the overlay stages the DS host and wires it into the frontend target",
+        "section 9's staging/CMake wiring is missing from "
+        "android-apply-overlay.sh")
+
+if ("not in the Android build yet" not in games_screen
+        and "Nintendo DS games run in this Android build" in games_screen
+        and "Load this game" in games_screen):
+    ok("the game library's DS page says DS games run in this build "
+       "and offers Load")
+else:
+    bad("the game library's DS page says DS games run in this build "
+        "and offers Load",
+        "the platform line is stale, or the DS Load button is missing")
+
+activity_raw = read(ACTIVITY_KT)
+if ("AccessibilityScript.speechBridge(app)" in ds_session
+        and "storedAnnouncementView" in ds_session
+        and "DsGameSession.attachAnnouncementView" in activity_raw
+        and "DsGameSession.isRunning" in activity_raw):
+    ok("the DS session builds the shared speech bridge and the "
+       "launcher guard covers it")
+else:
+    bad("the DS session builds the shared speech bridge and the "
+        "launcher guard covers it",
+        "without the bridge built at DS start, the view re-forward and "
+        "the widened announce guard, launcher lines during DS play "
+        "reach no voice")
 
 print()
 if fails:

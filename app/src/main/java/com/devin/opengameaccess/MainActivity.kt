@@ -125,6 +125,7 @@ class MainActivity : ComponentActivity() {
             // whichever starts a game re-forwards it then.
             GbGameSession.attachAnnouncementView(view)
             PspGameSession.attachAnnouncementView(view)
+            DsGameSession.attachAnnouncementView(view)
         }
 
         // ⛔ THE APP'S VOICE FOR ITS OWN LINES, SHARED BY EVERY SCREEN.
@@ -147,7 +148,7 @@ class MainActivity : ComponentActivity() {
             // ⛔ ONE LINE, ON PURPOSE: the launcher contract test checks
             // line by line that every AccessibilityScript call in this
             // Activity is guarded by a running game on the same line.
-            if (GbGameSession.isRunning || PspGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
         }
 
         // The repeat walk's refusal channel: feedback ABOUT the spoken
@@ -157,11 +158,17 @@ class MainActivity : ComponentActivity() {
         // AccessibilitySpeech.speakControl). Same guard, same line
         // shape, for the same contract test.
         val announceControlLine: (String) -> Unit = { text ->
-            if (GbGameSession.isRunning || PspGameSession.isRunning) AccessibilityScript.speakControl(text)
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning) AccessibilityScript.speakControl(text)
         }
 
         var showSettings by remember { mutableStateOf(false) }
         var showGames by remember { mutableStateOf(false) }
+        // A DS library page's Load button (the DS half of the parity
+        // program's Stage 2 load flow): the page names the game, the
+        // launcher opens its picker for the game's ROM, and the pick
+        // routes into the DS session by extension like any other pick.
+        // The request is consumed (and cleared) by LauncherScreen.
+        var dsLoadRequest by remember { mutableStateOf<AdapterGameInfo?>(null) }
         var showReadingLog by remember { mutableStateOf(false) }
 
         if (showReadingLog) {
@@ -242,6 +249,10 @@ class MainActivity : ComponentActivity() {
             AdapterGamesScreen(
                 onBack = { showGames = false },
                 announce = { text -> announceLine(text, true) },
+                onLoadGame = { game ->
+                    dsLoadRequest = game
+                    showGames = false
+                },
                 onLoadRom = { uri ->
                     pendingRom = uri
                     showGames = false
@@ -252,6 +263,8 @@ class MainActivity : ComponentActivity() {
 
         LauncherScreen(
             session = GbGameSession,
+            dsLoadRequest = dsLoadRequest,
+            onDsLoadRequestConsumed = { dsLoadRequest = null },
             showPicture = showPicture,
             pendingRom = pendingRom,
             onPendingRomHandled = { pendingRom = null },
@@ -297,6 +310,7 @@ class MainActivity : ComponentActivity() {
         // builds with no PSP core), so it is unconditional, like the GB one.
         GbGameSession.stop()
         PspGameSession.stop()
+        DsGameSession.stop()
         super.onDestroy()
     }
 }

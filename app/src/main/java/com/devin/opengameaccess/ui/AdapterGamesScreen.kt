@@ -45,24 +45,29 @@ import com.devin.opengameaccess.GameSettings
  * AdapterLibraryView (Sources/OpenGameAccess/AdapterLibrary.swift).
  *
  * ⛔ THE LIST IS THE REGISTRY'S, READ FROM GENERATED DATA. iOS reads the Core
- * adapter registry live through poke_adapter_library_*; the Android layer
- * never links that registry (its readers are Lua), so it reads
- * AdapterLibraryData instead — which is GENERATED from the same registry
- * objects by tools/android-library-gen.cpp and checked for staleness by the
- * launcher contract test. A reader that ships without its library entry is
- * therefore impossible on either platform.
+ * adapter registry live through poke_adapter_library_*; this screen reads
+ * AdapterLibraryData instead — GENERATED from the same registry objects by
+ * tools/android-library-gen.cpp and checked for staleness by the launcher
+ * contract test. (The DS host itself links the registry — that is how its
+ * adapters select by cartridge code — but a Compose screen still reads the
+ * generated data, not a native query.) A reader that ships without its
+ * library entry is therefore impossible on either platform.
  *
- * ⛔ THE LOAD BUTTON, AND HOW ITS FILTER IS KEPT HONEST. Each page
- * carries the Load button iOS's page carries, in iOS's place (after
- * the notes) and under iOS's label. For a console this build runs,
- * the button opens the file picker filtered to that console's files
- * and the pick is handed to the launcher (the screen's onLoadRom
- * callback), which starts it through its own accept + start path —
- * the same routing and spoken answers as its Select Game flow.
+ * ⛔ THE LOAD BUTTONS, AND HOW THEIR FILTERS ARE KEPT HONEST. Each page
+ * carries a Load button in iOS's place (after the notes) and under iOS's
+ * label. Game Boy and PSP pages open the file picker filtered to the
+ * console's files and hand the pick to the launcher (the screen's
+ * onLoadRom callback), which starts it through its own accept + start
+ * path — the same routing and spoken answers as its Select Game flow.
+ * Nintendo DS pages carry their own button ("Load this game"): the DS
+ * half of the flow landed with the DS session (parity stage 4), and it
+ * hands the GAME to the launcher (onLoadGame / MainActivity's
+ * dsLoadRequest), which opens its picker and routes the pick into the
+ * DS session by extension, like any other pick.
  *
  * Android's picker filters by MIME TYPE, NOT BY EXTENSION, and has
  * no equivalent of iOS's UTType-by-extension filter
- * (AdapterGame.contentTypes). So the picker launches with the
+ * (AdapterGame.contentTypes). So a page's picker launches with the
  * console's MIME types plus the generic binary type (which is what
  * the system tags most ROM files as, their extensions being unknown
  * to it), and the picked file's extension is checked against the
@@ -80,6 +85,7 @@ import com.devin.opengameaccess.GameSettings
 fun AdapterGamesScreen(
     onBack: () -> Unit,
     onLoadRom: (Uri) -> Unit,
+    onLoadGame: (AdapterGameInfo) -> Unit,
     announce: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
@@ -114,6 +120,7 @@ fun AdapterGamesScreen(
             game = game,
             onBack = { selected = null },
             onOpenSettings = { settingsFor = game },
+            onLoadGame = onLoadGame,
             onLoadRom = onLoadRom,
             modifier = modifier,
         )
@@ -193,6 +200,7 @@ private fun AdapterGamePage(
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
     onLoadRom: (Uri) -> Unit,
+    onLoadGame: (AdapterGameInfo) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     // Whether THIS build can start the game's console today. The Load
@@ -282,6 +290,24 @@ private fun AdapterGamePage(
             Text("Back to games", fontSize = 18.sp)
         }
 
+        // The DS half of the parity program's load flow (see the file
+        // doc): a DS page can start its game from here. The button
+        // hands the game to the launcher, which opens its picker — the
+        // player still chooses the ROM file, and the launcher routes
+        // it into the DS session by extension, as it does for a pick
+        // made on its own screen. Other consoles' pages have no such
+        // button until their halves of the flow land.
+        if (game.console == "nds") {
+            Button(
+                onClick = { onLoadGame(game) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Load ${game.name}" },
+            ) {
+                Text("Load this game", fontSize = 18.sp)
+            }
+        }
+
         Text(
             text = consoleName(game.console),
             fontSize = 16.sp,
@@ -308,19 +334,27 @@ private fun AdapterGamePage(
         // cannot run yet, the press answers with the platform line
         // as the note below — the button never promises a flow that
         // does not exist.
-        Button(
-            onClick = {
-                if (canRun) {
-                    pickForGame.launch(pickerMimeTypes(game.console))
-                } else {
-                    note(platformLine(game.console))
-                }
-            },
-            modifier = Modifier
-                .fillMaxWidth()
-                .semantics { contentDescription = "Load ${game.name}" },
-        ) {
-            Text("Load game", fontSize = 18.sp)
+        //
+        // ⛔ NOT ON DS PAGES: a DS page already carries its own Load
+        // button above ("Load this game", the DS stage's flow through
+        // the launcher). Two Load buttons on one page would be two
+        // doors to the same room; each console keeps the flow its own
+        // stage built.
+        if (game.console != "nds") {
+            Button(
+                onClick = {
+                    if (canRun) {
+                        pickForGame.launch(pickerMimeTypes(game.console))
+                    } else {
+                        note(platformLine(game.console))
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Load ${game.name}" },
+            ) {
+                Text("Load game", fontSize = 18.sp)
+            }
         }
 
         if (loadNote.isNotEmpty()) {
@@ -566,15 +600,19 @@ private fun versionLine(code: String): String? = when {
  * stage 4 — their readers are in the build with it, attached by the same
  * DISC_IDs iOS dispatches on. What a PSP game's speech covers is whatever
  * its adapter reports (the coverage line above, from the adapter itself);
- * this line only claims the reader is present. The DS and SNES readers
- * are not compiled into this build at all. A page that implied otherwise
+ * this line only claims the reader is present. Nintendo DS joined them
+ * with the parity program's DS stage: the shared Core DS host is compiled
+ * in, the launcher starts DS games, and its readers — the native adapters
+ * and the Pokémon script — are in the build with it. The SNES reader is
+ * not compiled into this build at all. A page that implied otherwise
  * would send a blind player hunting for speech that cannot happen.
  */
 private fun platformLine(console: String): String = when (console) {
     "gb" -> "This Android build runs these games: use Load game on this " +
         "page, or pick one with Select Game on the launcher."
-    "nds" -> "This game's reader is not in the Android build yet; its speech " +
-        "is in the iOS app today."
+    "nds" -> "Nintendo DS games run in this Android build, and this " +
+        "game's reader is in the build too: use Load this game above, or " +
+        "pick the game with Select Game on the launcher."
     "psp" -> "PlayStation Portable games run in this Android build, and this " +
         "game's reader is in the build too: use Load game on this page, " +
         "or pick one with Select Game on the launcher."
