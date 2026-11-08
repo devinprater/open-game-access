@@ -136,6 +136,12 @@ enum ROMStore {
         for ext in ["sfc", "smc", "fig", "swc"] {
             if let t = UTType(filenameExtension: ext) { types.append(t) }
         }
+        // Genesis ROMs run in the Genesis Plus GX core (see Core/genesis_core.cpp).
+        // .bin is the raw-dump extension much of the Genesis library uses; the core
+        // refuses a .bin that is not really a Genesis ROM, in words, at load.
+        for ext in ["md", "gen", "smd", "bin"] {
+            if let t = UTType(filenameExtension: ext) { types.append(t) }
+        }
         // PSP images run in the PPSSPP core (see Core/psp_core.cpp).
         if let iso = UTType(filenameExtension: "iso") { types.append(iso) }
         if let cso = UTType(filenameExtension: "cso") { types.append(cso) }
@@ -190,7 +196,8 @@ enum ROMStore {
             // recent-games list afterwards -- reachable to import, invisible after.
             .filter { ["nds", "gba", "gbc", "gb", "nes", "fds", "unf",
                        "iso", "cso", "pbp",
-                       "sfc", "smc", "fig", "swc"].contains($0.pathExtension.lowercased()) }
+                       "sfc", "smc", "fig", "swc",
+                       "md", "gen", "smd", "bin"].contains($0.pathExtension.lowercased()) }
             .sorted { a, b in
                 let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
                 let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
