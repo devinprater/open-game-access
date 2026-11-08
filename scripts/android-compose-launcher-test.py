@@ -532,12 +532,20 @@ else:
         "ULUS adapters",
         "host has %s, the registry's PSP set is %s"
         % (sorted(host_set), sorted(expected_psp)))
-if "AdapterNoteSpoken" in psp_host and "AdapterSpeechReset" in psp_host:
-    ok("the host carries the adapters' spoken-line dedup helpers")
+# The dedup helpers live in the registry TU ONLY. The PSP host used to
+# carry copies (the registry could not link here then); the DS stage
+# links adapters.cpp, copies and originals collided at link time, and
+# the copies were removed — a second definition anywhere is the
+# duplicate-symbol defect returning.
+if ("bool AdapterNoteSpoken(const char* s)" in registry
+        and "void AdapterSpeechReset(void)" in registry
+        and "bool AdapterNoteSpoken(const char* s) {" not in psp_host
+        and "void AdapterSpeechReset(void) {" not in psp_host):
+    ok("the spoken-line dedup helpers live in the registry TU only")
 else:
-    bad("the host carries the adapters' spoken-line dedup helpers",
+    bad("the spoken-line dedup helpers live in the registry TU only",
         "the adapters call oga::AdapterNoteSpoken/AdapterSpeechReset; "
-        "without definitions in the host TU the glue cannot link")
+        "they must be defined exactly once, by Core/adapters.cpp")
 
 # The Kotlin command mirror, checked value by value against the enum.
 def snake(name):

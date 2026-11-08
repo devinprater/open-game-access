@@ -4,26 +4,30 @@
 // rebuilt against the PSP core directly instead of the cross-system
 // ops table, because on Android only the PSP core exists.
 //
-// THE REGISTRY: Core/adapters.cpp is deliberately NOT linked here. Its
-// find_by_game_code table references all eleven adapters, and two of
-// the non-PSP ones cannot exist on Android (the Fire Emblem adapter
-// needs the DS core's memory functions; the GBA/DS ones belong to the
-// melonDS/mGBA side this build does not carry) — linking the registry
-// would fail on their symbols. Instead this file declares extern the
-// four PSP adapter structs (defined by the same adapter TUs iOS links)
-// and matches the loaded DISC_ID against them with the registry's own
+// THE REGISTRY: this host deliberately does NOT dispatch through
+// Core/adapters.cpp's find_by_game_code. It declares extern the four
+// PSP adapter structs (defined by the same adapter TUs iOS links) and
+// matches the loaded DISC_ID against them with the registry's own
 // rule — FULL-string equality against game_code, in adapters.cpp: "a
 // substring would let a similar id attach another game's tables". The
 // launcher contract test (§10) asserts this table names exactly the
 // registry's ULUS-coded adapters, so the two cannot drift silently.
+// (adapters.cpp itself IS linked into this build since the DS stage —
+// the DS host dispatches through it — but the PSP host's own table
+// stays: it is the seam the stage-4 host was proven against, and §10
+// keeps it honest.)
 //
 // THE DEDUPLICATION HELPERS: the adapters call two process-wide
 // helpers the registry TU owns — oga::AdapterNoteSpoken /
-// oga::AdapterSpeechReset declared in adapter.h. They are copied below
-// (flagged), because linking adapters.cpp just for them is exactly
-// what cannot happen here. The repo already keeps such copies under a
-// "copied, not shared" flag where platforms genuinely diverge; the
-// contract test's registry check also covers this file keeping them.
+// oga::AdapterSpeechReset declared in adapter.h. This file used to
+// carry flagged copies of them (linking adapters.cpp just for them
+// was impossible while the registry could not link here). The DS
+// stage links the registry TU, the copies collided with the originals
+// at link time, and they were removed: the registry's definitions now
+// serve both hosts, which is also the more correct shape — the dedup
+// memory is a property of the one voice, and only one session ever
+// runs at a time. (The copies differed from the originals only on a
+// null/empty input the adapters' Say guards make unreachable.)
 //
 // SPEECH: everything spoken goes to the one shared AccessibilitySpeech
 // instance the app owns (the same object MGBAScriptJNI forwards to),
@@ -219,29 +223,12 @@ bool EnsureAttached(void) {
 
 }  // namespace
 
-namespace oga {
-
-// COPIED FROM Core/adapters.cpp — AdapterNoteSpoken / AdapterSpeechReset
-// and the one-utterance memory behind them. The adapters gate their
-// automatic lines on this process-wide dedup; on iOS the definitions
-// live in the registry TU, which this build cannot link (see the file
-// header). Keep the two in step; adapter.h declares them.
-static char g_lastSpoken[256] = {0};
-static bool g_haveLast = false;
-
-bool AdapterNoteSpoken(const char* s) {
-  if (!s) return false;
-  char buf[256];
-  std::snprintf(buf, sizeof(buf), "%s", s);
-  if (g_haveLast && std::strcmp(buf, g_lastSpoken) == 0) return false;
-  std::memcpy(g_lastSpoken, buf, sizeof(g_lastSpoken));
-  g_haveLast = true;
-  return true;
-}
-
-void AdapterSpeechReset(void) { g_haveLast = false; }
-
-}  // namespace oga
+// oga::AdapterNoteSpoken / oga::AdapterSpeechReset — the adapters'
+// process-wide spoken-line dedup — are defined by Core/adapters.cpp,
+// which the DS stage's glue links into this same library (see the
+// file header). They used to be copied here; the copies were removed
+// when the registry TU landed, and the contract test (§10) now pins
+// that they live in the registry TU only.
 
 void PspAdapterHostSetSpeechBridge(JNIEnv* env, jobject bridge) {
   if (g_bridge) {
