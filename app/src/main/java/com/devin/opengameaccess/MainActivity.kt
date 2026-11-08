@@ -1,6 +1,8 @@
 package com.devin.opengameaccess
 
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
@@ -51,6 +53,14 @@ class MainActivity : ComponentActivity() {
         // This is NOT the speech bridge (see the warning below): the probe
         // loads the frontend library itself, on its own background thread.
         PspProbe.maybeStart(this, intent)
+
+        // The controller watch (input parity, stage 1). Safe here, unlike
+        // the speech bridge below: it registers an InputManager listener
+        // and scans InputDevices — platform calls only, no JNI, no native
+        // library. Connection state lands on ControllerInput.connectedName,
+        // which the launcher observes to announce changes and to hide the
+        // on-screen pad while a pad is connected.
+        ControllerInput.start(this)
 
         // ⛔ DO NOT INITIALISE THE SPEECH BRIDGE HERE.
         // `AccessibilityScript.initialize()` reaches a JNI method (`setSpeechBridge`),
@@ -184,7 +194,30 @@ class MainActivity : ComponentActivity() {
         )
     }
 
+    /**
+     * The single input funnel for game controllers (input parity,
+     * stage 1): gamepad-sourced key and motion events are offered to
+     * [ControllerInput] first, which consumes the ones a running session
+     * maps and declines the rest — so volume keys, TalkBack's keys and
+     * every launcher key keep their normal path, and nothing outside a
+     * game is ever eaten.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (ControllerInput.handleKeyEvent(event)) return true
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if (ControllerInput.handleMotionEvent(event)) return true
+        return super.onGenericMotionEvent(event)
+    }
+
     override fun onDestroy() {
+        // Release any held controller buttons BEFORE the sessions stop,
+        // so the releases reach live sessions (their own stops clear
+        // held state anyway — this is the same belt and braces, kept in
+        // the order that makes the releases real).
+        ControllerInput.stop()
         // Stop the sessions before the process goes away, or an emulator
         // thread outlives the Activity that owns the views it announces
         // through. The PSP stop is safe with no PSP game running (and on

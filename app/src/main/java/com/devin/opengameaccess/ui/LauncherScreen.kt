@@ -30,6 +30,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +53,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devin.opengameaccess.AdapterCommandTitles
 import com.devin.opengameaccess.AdapterLibraryData
+import com.devin.opengameaccess.ControllerInput
 import com.devin.opengameaccess.GbGameSession
 import com.devin.opengameaccess.GbKeys
 import com.devin.opengameaccess.PspGameSession
@@ -128,6 +130,29 @@ fun LauncherScreen(
     BackHandler(enabled = pspRunning) {
         PspGameSession.stop()
         pspRunning = false
+    }
+
+    // ⛔ CONTROLLER CONNECT / DISCONNECT IS SPOKEN (input parity, stage 1).
+    // iOS publishes the connected controller's name and the player hears
+    // the change; here the name lives on ControllerInput (Compose state,
+    // written by its InputManager listener) and this effect turns a
+    // CHANGE into a status line — which is the launcher's voice, live
+    // region and bridge fallback both. The remembered previous value
+    // starts at whatever is already connected, so a pad paired before
+    // the app opened is not "announced" at first composition; a pad
+    // that arrives or leaves mid-session is.
+    val controllerName = ControllerInput.connectedName
+    val controllerConnected = controllerName != null
+    var previousControllerName by remember { mutableStateOf(controllerName) }
+    LaunchedEffect(controllerName) {
+        val previous = previousControllerName
+        previousControllerName = controllerName
+        if (previous == controllerName) return@LaunchedEffect
+        if (controllerName != null) {
+            say("Controller connected: $controllerName")
+        } else {
+            say("Controller disconnected.")
+        }
     }
 
     fun say(message: String, interrupt: Boolean = false) {
@@ -359,18 +384,27 @@ fun LauncherScreen(
                 // no adapter, or an adapter with an empty command set),
                 // speech controls, and the whole-core savestates the
                 // psp_* ABI exposes directly.
-                PspDirectionalPad(PspGameSession)
-                PspActionButtons(PspGameSession)
-                PspSystemButtons(PspGameSession)
+                // The on-screen pad hides while a controller is connected
+                // (iOS does the same): the physical pad replaces it, and
+                // the reader / speech / state / quit groups stay.
+                if (!controllerConnected) {
+                    PspDirectionalPad(PspGameSession)
+                    PspActionButtons(PspGameSession)
+                    PspSystemButtons(PspGameSession)
+                }
                 PspReaderGroup(PspGameSession) { message -> say(message) }
                 PspSpeechGroup(PspGameSession)
                 PspStateGroup(PspGameSession) { message -> say(message) }
                 QuitPspGame(PspGameSession) { pspRunning = false }
             } else {
                 // Running: the controls, grouped by what the player is doing.
-                DirectionalPad(session)
-                ActionButtons(session, pickedName)
-                SystemButtons(session, pickedName)
+                // The pad groups hide while a controller is connected, as
+                // on iOS; the reader groups below are not the pad and stay.
+                if (!controllerConnected) {
+                    DirectionalPad(session)
+                    ActionButtons(session, pickedName)
+                    SystemButtons(session, pickedName)
+                }
                 PathFindingGroup(session)
                 ReadingGroup(session)
                 SpeechGroup(session)
