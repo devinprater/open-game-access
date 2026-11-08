@@ -59,12 +59,21 @@ trap 'rm -f "$SHARED" "$MINE"' EXIT
 
 # ---- step 2 first: rename the mandated generic names on the GPGX side ----
 # Before the overlap computation, so the renamed symbols never enter it.
-RENAMES="config=oga_gpgx_config crc32=oga_gpgx_crc32"
+# ⛔ SPELLING: Mach-O stores C symbols with a leading underscore (_config)
+# and ELF does not, and objcopy matches the stored spelling — so BOTH
+# spellings are passed; the one the object format does not use simply
+# matches nothing. (First device CI run of this script failed its own
+# re-prove because nm on Mach-O prints _oga_gpgx_config: the checks below
+# normalise one leading underscore away before comparing.)
+norm() { sed 's/^_//' ; }
+RENAMES="config crc32"
 renamed=0
 for o in "$OBJ"/gpgx*.o "$OBJ"/genesis_core.o; do
   [ -f "$o" ] || continue
   args=""
-  for r in $RENAMES; do args="$args --redefine-sym $r"; done
+  for r in $RENAMES; do
+    args="$args --redefine-sym $r=oga_gpgx_$r --redefine-sym _$r=_oga_gpgx_$r"
+  done
   # objcopy errors on a redefine for a symbol the object does not mention at
   # all are NOT fatal to us (most TUs mention neither); the re-prove below
   # is what guarantees the outcome, so a silent pass here is acceptable.
@@ -109,15 +118,15 @@ done
 
 for o in "$OBJ"/gpgx*.o "$OBJ"/genesis_core.o; do
   [ -f "$o" ] || continue
-  if "$NM" --defined-only --extern-only "$o" 2>/dev/null | awk 'NF {print $3}' | grep -qx -e config -e crc32; then
+  if "$NM" --defined-only --extern-only "$o" 2>/dev/null | awk 'NF {print $3}' | norm | grep -qx -e config -e crc32; then
     echo "!! $(basename "$o") still exports a generic frontend-contract name (config/crc32)" >&2
     exit 1
   fi
 done
 if [ -f "$OBJ/genesis_core.o" ]; then
-  "$NM" --defined-only --extern-only "$OBJ/genesis_core.o" 2>/dev/null | awk 'NF {print $3}' | grep -qx "oga_gpgx_config" \
+  "$NM" --defined-only --extern-only "$OBJ/genesis_core.o" 2>/dev/null | awk 'NF {print $3}' | norm | grep -qx "oga_gpgx_config" \
     || { echo "!! genesis_core.o does not export oga_gpgx_config after the rename" >&2; exit 1; }
-  "$NM" --defined-only --extern-only "$OBJ/genesis_core.o" 2>/dev/null | awk 'NF {print $3}' | grep -qx "oga_gpgx_crc32" \
+  "$NM" --defined-only --extern-only "$OBJ/genesis_core.o" 2>/dev/null | awk 'NF {print $3}' | norm | grep -qx "oga_gpgx_crc32" \
     || { echo "!! genesis_core.o does not export oga_gpgx_crc32 after the rename" >&2; exit 1; }
 fi
 echo "localized + renamed GPGX symbols in $(basename "$OBJ"): no global is defined twice"
