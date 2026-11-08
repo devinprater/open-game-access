@@ -81,17 +81,17 @@ class MainActivity : ComponentActivity() {
      * Wires the announcement view.
      *
      * ⛔ IT DOES NOT OWN A FRAME CLOCK, whatever this docstring used to
-     * say (checked and corrected in stage 4): the PSP clock is
-     * rememberPspFrameClock, composed by LauncherScreen beside its
-     * session. The GB twin (rememberFrameClock in GbGameSession.kt)
-     * has NO call site — nothing composes it — so GbGameSession.runFrame
-     * is never called and the GB reader's per-frame resume
-     * (runGbFrame → the native runner) never runs on Android. GB speech
-     * in the shipped flow comes from the reader's load-time run inside
-     * its native start and from hotkey events, both of which the proofs
-     * exercised; frame-driven reader lines are a known gap in the GB
-     * flow, recorded here rather than fixed — stage 4's remit was the
-     * docstring, and the GB flow is otherwise proven as it stands.
+     * say (checked and corrected in stage 4): the clocks are
+     * rememberPspFrameClock and rememberFrameClock, composed by
+     * LauncherScreen beside their sessions. The GB clock long had NO
+     * call site, so GbGameSession.runFrame was never called and the GB
+     * reader's per-frame resume (runGbFrame → the native runner) never
+     * ran on Android — GB speech came only from the reader's load-time
+     * run and from hotkey events, and frame-driven reader lines could
+     * not happen. Parity stage 3 composed the GB clock in
+     * LauncherScreen next to its PSP twin, the way the PSP clock has
+     * always been driven; iOS drives the same cadence from the
+     * session's own CADisplayLink (GameSession.startDisplayLink).
      *
      * ⛔ THE ANNOUNCEMENT VIEW IS NOT OPTIONAL, AND IT MUST BE AN ATTACHED VIEW.
      * `AccessibilitySpeech` announces by mutating a view's live region when a screen

@@ -53,6 +53,7 @@ import com.devin.opengameaccess.AdapterCommandTitles
 import com.devin.opengameaccess.AdapterLibraryData
 import com.devin.opengameaccess.GbGameSession
 import com.devin.opengameaccess.GbKeys
+import com.devin.opengameaccess.rememberFrameClock
 import com.devin.opengameaccess.PspGameSession
 import com.devin.opengameaccess.PspKeys
 import com.devin.opengameaccess.rememberPspFrameClock
@@ -105,10 +106,17 @@ fun LauncherScreen(
     // still branch on which session it is.
     val anyRunning = running || pspRunning
 
-    // The PSP frame clock: one emulated frame per Compose frame while a
-    // PSP game runs. (GB's twin, rememberFrameClock, belongs to the GB
-    // session's own wiring.)
+    // The frame clocks: one emulated frame per Compose frame while a
+    // game runs, one clock per session. iOS drives its frames from a
+    // CADisplayLink the session starts in start() (GameSession's
+    // startDisplayLink); the Android shape composes the clock beside
+    // the session instead, which is what the PSP clock has always done
+    // here. The GB clock joins it (parity stage 3): without it
+    // GbGameSession.runFrame was never called, so the GB reader's
+    // per-frame resume never ran and frame-driven reader lines could
+    // not happen — only load-time and hotkey-driven speech could.
     rememberPspFrameClock(pspRunning)
+    rememberFrameClock(running)
 
     fun say(message: String, interrupt: Boolean = false) {
         status = message
