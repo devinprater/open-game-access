@@ -106,13 +106,64 @@ git -C ppsspp submodule update --init --depth 1 ext/armips ext/cpu_features ext/
 git -C ppsspp/ext/armips submodule update --init --depth 1 ext/filesystem
 
 # ---- Lua 5.4 (MIT) ----
+# ⛔ FETCHED FROM THE LUA TEAM'S OWN GITHUB MIRROR, NOT www.lua.org.
+# The release-tarball download this used to do
+# (curl https://www.lua.org/ftp/lua-$LUA_VER.tar.gz) is unreachable from
+# GitHub-hosted runners: the transfer stalls at 0 bytes and dies with
+# "curl: (35) Recv failure: Connection reset by peer", which is what has
+# been failing the Android APK and iOS simulator workflows in the core-swap
+# step ("== fetching Lua ...") while every git clone in this script —
+# all of them github.com — succeeds. lua.org is one small host; github.com
+# is what this script already depends on for every other dep.
+#
+# The mirror's layout is NOT the tarball's: the git tree keeps the sources
+# at its root, while the builds expect lua-$LUA_VER/src/. So the tree is
+# cloned to a scratch dir and src/ is assembled from the explicit manifest
+# below — the exact file set the release tarball ships in src/. Measured
+# against a lua.org-fetched tree (2026-11-08): every file in the manifest
+# is byte-identical between the two (sha256), so the assembled tree is the
+# release, not an approximation of it.
+#
+# ⛔ THE MANIFEST IS EXACT, IN BOTH DIRECTIONS. The git tree carries three
+# files the release does not — ltests.c, ltests.h (Lua's internal test
+# library) and onelua.c (the single-file amalgamation) — and they must NOT
+# land in src/: the build scripts glob src/*.c, and compiling either .c
+# breaks the link. The tarball in turn ships two files the git tree lacks
+# — luac.c and lua.hpp — and neither is missed: every build script skips
+# luac by name (it is the standalone compiler's main(), not library code),
+# and nothing OGA compiles includes lua.hpp. If a future Lua bump changes
+# either side of that ledger, the copy loop fails loudly on the first
+# missing file rather than shipping a quietly wrong tree.
+#
+# Integrity: LUA_REV pins the full commit SHA of tag v$LUA_VER, as with
+# the other deps — git verifies the checkout against it — and the marker
+# check after the copy fails the bootstrap if lua.h does not identify as
+# the pinned release (which is also what catches a LUA_VER bump that
+# forgot to move LUA_REV).
+LUA_REPO="${LUA_REPO:-https://github.com/lua/lua.git}"
+LUA_REV="${LUA_REV:-1ab3208a1fceb12fca8f24ba57d6e13c5bff15e3}" # tag v5.4.7
+LUA_SRC_FILES="
+  lapi.c lapi.h lauxlib.c lauxlib.h lbaselib.c lcode.c lcode.h lcorolib.c
+  lctype.c lctype.h ldblib.c ldebug.c ldebug.h ldo.c ldo.h ldump.c lfunc.c
+  lfunc.h lgc.c lgc.h linit.c liolib.c ljumptab.h llex.c llex.h llimits.h
+  lmathlib.c lmem.c lmem.h loadlib.c lobject.c lobject.h lopcodes.c
+  lopcodes.h lopnames.h loslib.c lparser.c lparser.h lprefix.h lstate.c
+  lstate.h lstring.c lstring.h lstrlib.c ltable.c ltable.h ltablib.c
+  ltm.c ltm.h lua.c luaconf.h lua.h lualib.h lundump.c lundump.h
+  lutf8lib.c lvm.c lvm.h lzio.c lzio.h
+"
 if [ ! -d "lua-$LUA_VER" ]; then
-  echo "== fetching Lua $LUA_VER"
-  curl -fL -o "lua-$LUA_VER.tar.gz" \
-    "https://www.lua.org/ftp/lua-$LUA_VER.tar.gz"
-  tar --no-same-owner -xzf "lua-$LUA_VER.tar.gz"
-  rm -f "lua-$LUA_VER.tar.gz"
+  fetch "$LUA_REPO" "lua-$LUA_VER-git" "$LUA_REV"
+  mkdir -p "lua-$LUA_VER/src"
+  for f in $LUA_SRC_FILES; do
+    cp "lua-$LUA_VER-git/$f" "lua-$LUA_VER/src/$f"
+  done
+  rm -rf "lua-$LUA_VER-git"
 fi
+# Tripwire: the assembled tree really is Lua $LUA_VER.
+grep -Eq "#define LUA_VERSION_MAJOR[[:space:]]+\"${LUA_VER%%.*}\"" "lua-$LUA_VER/src/lua.h" \
+  && grep -Eq "#define LUA_VERSION_RELEASE[[:space:]]+\"${LUA_VER##*.}\"" "lua-$LUA_VER/src/lua.h" \
+  || { echo "!! lua-$LUA_VER/src/lua.h does not identify as Lua $LUA_VER" >&2; exit 1; }
 echo "   lua-$LUA_VER/src: $(ls "lua-$LUA_VER/src"/*.c 2>/dev/null | wc -l) C files"
 
 # ---- what the build scripts expect ----
