@@ -1480,12 +1480,30 @@ rep("""    void SignalStop(StopReason reason, void* userdata)
 # Every MelonInstance userdata cast: a hostless instance (the DS
 # host's NDS) has no instance to serve it, and the reference
 # platform layer (Core/poke_platform.cpp) no-ops exactly these.
-cast = "        auto emulatorInstance = (MelonDSAndroid::MelonInstance*) userdata;\n"
-count = s.count(cast)
+# The guard's return spelling follows the enclosing function —
+# `return;` in a void function, `return {};` (zero) elsewhere;
+# one blanket spelling compiles in only one of the two worlds.
+import re
+cast = "        auto emulatorInstance = (MelonDSAndroid::MelonInstance*) userdata;"
+count = 0
+current_ret = None
+out_lines = []
+for line in s.split("\n"):
+    m = re.match(r"    (\w+) (\w+)\(", line)
+    if m:
+        current_ret = m.group(1)
+    out_lines.append(line)
+    if line == cast:
+        count += 1
+        if current_ret is None:
+            fails.append("MelonInstance userdata cast (no enclosing function)")
+        elif current_ret == "void":
+            out_lines.append("        if (!emulatorInstance) return; // OGA (section 9b)")
+        else:
+            out_lines.append("        if (!emulatorInstance) return {}; // OGA (section 9b)")
 if count == 0:
     fails.append("MelonInstance userdata cast")
-else:
-    s = s.replace(cast, cast + "        if (!emulatorInstance) return {}; // OGA (section 9b)\n")
+s = "\n".join(out_lines)
 
 # Rumble and camera globals: same empty-global shape.
 rep("        MelonDSAndroid::eventMessenger->onRumbleStart(len);",
