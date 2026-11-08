@@ -241,6 +241,18 @@ object GbGameSession {
         GbAccessibilityScript.stop()
     }
 
+    /**
+     * Re-read the newest spoken line, or step one line further back
+     * through what was spoken — the shared bridge's spoken-history
+     * walk (see AccessibilitySpeech), iOS's RepeatNewest /
+     * RepeatOlder pair. False when there is nothing (older) to
+     * repeat; speaking the refusal is the screen's job, as it is for
+     * iOS's callers.
+     */
+    fun repeatLastSpeech(): Boolean = AccessibilityScript.repeatLastSpeech()
+
+    fun repeatOlderSpeech(): Boolean = AccessibilityScript.repeatOlderSpeech()
+
     /** True once a game is running, so the pad and commands can appear. */
     val isRunning: Boolean get() = running
 }

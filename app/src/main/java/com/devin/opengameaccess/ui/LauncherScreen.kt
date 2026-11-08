@@ -84,6 +84,7 @@ fun LauncherScreen(
     session: GbGameSession,
     showPicture: Boolean,
     announce: (String, Boolean) -> Unit,
+    announceControl: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGames: () -> Unit,
     pendingRom: Uri?,
@@ -124,14 +125,19 @@ fun LauncherScreen(
     val anyRunning = running || pspRunning
 
     // The frame clocks: one emulated frame per Compose frame while a
-    // game runs, one per session, both composed HERE at the screen's
-    // top level — outside the game picture's switch gate, so turning
-    // the picture off never stops the GB game advancing. (This branch
-    // composed only the PSP twin at first, which left a running GB
-    // game frozen on its first frame whenever it was started from
-    // here: nothing pumped its session.)
-    rememberFrameClock(running)
+    // game runs, one clock per session. iOS drives its frames from a
+    // CADisplayLink the session starts in start() (GameSession's
+    // startDisplayLink); the Android shape composes the clock beside
+    // the session instead, which is what the PSP clock has always done
+    // here. The GB clock joins it (parity stage 3): without it
+    // GbGameSession.runFrame was never called, so the GB reader's
+    // per-frame resume never ran and frame-driven reader lines could
+    // not happen — only load-time and hotkey-driven speech could.
+    // Both clocks are composed HERE at the screen's top level —
+    // outside the game picture's switch gate, so turning the picture
+    // off never stops a game advancing.
     rememberPspFrameClock(pspRunning)
+    rememberFrameClock(running)
 
     // ⛔ BACK IN A SESSION IS QUIT, NEVER AN EXIT (input parity, stage 1).
     // iOS leaves a game through an explicit Quit with a VoiceOver escape
@@ -169,6 +175,19 @@ fun LauncherScreen(
         status = message
         liveMode = if (interrupt) LiveRegionMode.Assertive else LiveRegionMode.Polite
         announce(message, interrupt)
+    }
+
+    // Repeat-walk refusals ("Nothing to repeat." and kin) are spoken
+    // through the bridge's control channel, NOT through say(): a
+    // refusal is feedback about the spoken history, and if it were
+    // recorded into that history it would stand the walk back on the
+    // newest line and leave the refusal itself in the reading log
+    // (see AccessibilitySpeech.speakControl). The status line still
+    // carries the line, the same fallback every say() keeps.
+    fun sayControl(message: String) {
+        status = message
+        liveMode = LiveRegionMode.Assertive
+        announceControl(message)
     }
 
     // A picked file becomes the pending game: the name the screen
@@ -573,9 +592,9 @@ fun LauncherScreen(
                     PspSystemButtons(PspGameSession)
                 }
                 PspReaderGroup(PspGameSession) { message -> say(message) }
-                PspSpeechGroup(PspGameSession)
+                PspSpeechGroup(PspGameSession) { message -> say(message) }
                 PspStateGroup(PspGameSession) { message -> say(message) }
-                QuitPspGame(PspGameSession) { pspRunning = false }
+                QuitPspGame(PspGameSession, { message -> say(message) }) { pspRunning = false }
             } else {
                 // Running: the controls, grouped by what the player is doing.
                 // The pad groups hide while a controller is connected, as
@@ -587,7 +606,7 @@ fun LauncherScreen(
                 }
                 PathFindingGroup(session)
                 ReadingGroup(session)
-                SpeechGroup(session)
+                SpeechGroup(session) { message -> say(message) }
                 QuitGame(session) { running = false }
             }
         }
@@ -668,9 +687,16 @@ private fun ReadingGroup(session: GbGameSession) {
  * something. iOS makes exactly this distinction (`system.hasDirectSpeechStop`),
  * because a two-finger tap only ends the current utterance while the script keeps
  * producing lines.
+ *
+ * Repeat and Repeat older walk the shared bridge's spoken history
+ * (iOS's RepeatNewest / RepeatOlder). iOS reaches them from Settings
+ * and from controller chords; Android has neither surface in the
+ * session, so they live here beside Stop speech, and in Settings.
+ * A refused repeat is answered aloud -- "Nothing to repeat." is
+ * iOS's own line for it -- because a silent button reads as broken.
  */
 @Composable
-private fun SpeechGroup(session: GbGameSession) {
+private fun SpeechGroup(session: GbGameSession, say: (String) -> Unit) {
     GroupLabel("Speech controls")
     OutlinedButton(
         onClick = { session.stopSpeech() },
@@ -682,6 +708,30 @@ private fun SpeechGroup(session: GbGameSession) {
             },
     ) {
         Text("Stop speech", fontSize = 16.sp)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatLastSpeech()) sayControl("Nothing to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat last speech" },
+        ) {
+            Text("Repeat", fontSize = 14.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatOlderSpeech()) sayControl("Nothing older to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat older speech" },
+        ) {
+            Text("Repeat older", fontSize = 14.sp)
+        }
     }
 }
 
@@ -853,9 +903,13 @@ private fun PspReaderGroup(session: PspGameSession, say: (String) -> Unit) {
  * The controls that act on speech itself. PSP stops directly — the
  * bridge's stop plus the adapter queue's own stop (the session performs
  * both halves) — where the GB group above can only stop at its engine.
+ *
+ * Repeat and Repeat older are the GB group's twins over the same
+ * shared history — adapter lines and launcher lines alike, since the
+ * adapter host speaks through the same bridge.
  */
 @Composable
-private fun PspSpeechGroup(session: PspGameSession) {
+private fun PspSpeechGroup(session: PspGameSession, say: (String) -> Unit) {
     val context = LocalContext.current
     GroupLabel("Speech controls")
     OutlinedButton(
@@ -869,12 +923,74 @@ private fun PspSpeechGroup(session: PspGameSession) {
     ) {
         Text("Stop speech", fontSize = 16.sp)
     }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatLastSpeech()) sayControl("Nothing to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat last speech" },
+        ) {
+            Text("Repeat", fontSize = 14.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatOlderSpeech()) sayControl("Nothing older to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat older speech" },
+        ) {
+            Text("Repeat older", fontSize = 14.sp)
+        }
+    }
 }
 
+/**
+ * Quit the PSP game — saving first, and saying so.
+ *
+ * iOS's quit (GameSession.quit) auto-saves a state to the same slot
+ * the manual Save state control uses and announces the outcome,
+ * because closing the game is one gesture away at all times and an
+ * unsaved quit would silently discard whatever the player just did.
+ * The save runs BEFORE stop: it is a whole-core state and needs the
+ * core alive. The two lines are iOS's own, combined into one
+ * announcement so the quit does not produce two overlapping ones.
+ *
+ * Game Boy's QuitGame above does NOT do this: the GB native surface
+ * (GbAccessibilityScript / MGBAScriptJNI.cpp) exports no save-state
+ * call at all, so there is nothing honest to call — see the stage 3
+ * notes in the PR. A GB game's own battery save is unaffected: mGBA
+ * writes it to the save path as the game itself saves.
+ */
 @Composable
-private fun QuitPspGame(session: PspGameSession, onQuit: () -> Unit) {
+private fun QuitPspGame(
+    session: PspGameSession,
+    say: (String) -> Unit,
+    onQuit: () -> Unit,
+) {
+    val context = LocalContext.current
     OutlinedButton(
         onClick = {
+            val saved = session.saveState(context)
+            // ⛔ THE LINE IS SPOKEN BEFORE THE STOP, NOT AFTER. The
+            // Activity's bridge only forwards while a session is
+            // running, so a say() after stop() — which clears the
+            // session's running flag — is dropped by the guard and
+            // the player hears nothing at all. Spoken first, the
+            // line is already in the bridge's hands; stop() does not
+            // cancel bridge speech (its speech stop is a separate,
+            // explicit control), so the line still lands.
+            say(
+                if (saved) {
+                    "Game closed. Progress saved."
+                } else {
+                    "Game closed. Could not save."
+                }
+            )
             session.stop()
             onQuit()
         },

@@ -40,3 +40,39 @@ object CueSettings {
         if (!enabled) PspCueSynth.silenceAll()
     }
 }
+
+/**
+ * The game-sound switch: iOS's Settings "Game sound"
+ * (`GameSession.audioEnabled`, on by default there), in the same
+ * preferences file as the cue switches.
+ *
+ * ⛔ IT GATES THE GAME'S AUDIO, NEVER THE CUES OR THE SPEECH. iOS
+ * keeps the three apart on purpose — a player may want the lock cue
+ * with the music muted — and the Android drain honours the same
+ * split: [PspGameSession] silences the game's samples before
+ * [PspCueSynth] mixes its cues into the same buffer, so the cues
+ * keep sounding with game sound off. Speech never passes through
+ * the drain at all.
+ *
+ * ⛔ PSP ONLY, STATED IN THE SETTINGS TEXT. Game Boy has no audio
+ * path in this app at all (no audio export exists on its native
+ * surface), so there is no GB sound for this switch to gate; the
+ * switch must not pretend otherwise.
+ */
+object GameSoundSettings {
+
+    private const val PREFS = "oga_settings"
+    private const val KEY_GAME_SOUND = "game_sound"
+
+    /** On by default, as on iOS — and as Android behaved before the switch existed. */
+    fun gameSoundEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_GAME_SOUND, true)
+
+    fun setGameSoundEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_GAME_SOUND, enabled)
+            .apply()
+    }
+}

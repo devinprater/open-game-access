@@ -64,9 +64,11 @@ import java.io.File
  * core. Game Boy has no audio path on Android today (a standing TODO in
  * the GB session's world); PSP ships with one because the core already
  * mixes the game's sound and leaving it unplayed would make every PSP
- * game a silent movie. There is no Android audio setting to gate the
- * drain behind — SettingsScreen says so itself — so it runs whenever a
- * PSP game does.
+ * game a silent movie. The drain is gated by Settings' Game sound
+ * switch ([GameSoundSettings], parity stage 3 — iOS's audioEnabled):
+ * with it off the drain still runs and the cue synth still mixes in,
+ * but the game's own samples are silenced first, so the cues keep
+ * sounding over a muted game exactly as they do on iOS.
  */
 object PspGameSession {
 
@@ -352,6 +354,9 @@ object PspGameSession {
         } catch (t: Throwable) {
             false
         }
+        // The Game sound gate, resolved per frame like the cue gate
+        // in pollCues: a flip in Settings lands on the next frame.
+        appContext?.let { gameSoundOn = GameSoundSettings.gameSoundEnabled(it) }
         pollCues()
         val completed = try {
             PspAccessibilityScript.framesCompleted
@@ -485,6 +490,13 @@ object PspGameSession {
         }
     }
 
+    /**
+     * True when a saved state exists for the loaded game. Settings'
+     * Load state button picks its spoken answer from this — "No
+     * saved state yet." versus a load that failed — the distinction
+     * iOS's loadState makes the same way.
+     */
+    fun hasSavedState(context: Context): Boolean = stateFile(context).isFile
     // ---- the picture ---------------------------------------------------------
     //
     // The session screen's game picture (the iOS app's FrameImage): the
@@ -559,6 +571,20 @@ object PspGameSession {
     }
 
     /**
+     * Re-read the newest spoken line, or step one line further back
+     * through what was spoken — the shared bridge's spoken-history
+     * walk (see AccessibilitySpeech), iOS's RepeatNewest /
+     * RepeatOlder pair. The bridge is where PSP speech converges
+     * too (the adapter host speaks through it), so one walk covers
+     * both consoles' lines. False when there is nothing (older) to
+     * repeat; speaking the refusal is the screen's job, as it is for
+     * iOS's callers.
+     */
+    fun repeatLastSpeech(): Boolean = AccessibilityScript.repeatLastSpeech()
+
+    fun repeatOlderSpeech(): Boolean = AccessibilityScript.repeatOlderSpeech()
+
+    /**
      * Forward one pad press to the adapter as its echo command — the
      * adapter.h echo contract, in this pad's own button names: face
      * buttons are the on-screen keyboard's keys while a text entry is
@@ -591,6 +617,18 @@ object PspGameSession {
     }
 
     // ---- audio --------------------------------------------------------------
+
+    /**
+     * The Game sound switch's current value, refreshed once a frame
+     * by [runFrame] from the store (the same per-frame resolution
+     * [pollCues] gives the battle-cues gate, so a flip in Settings
+     * takes hold on the next frame) and read by the drain thread.
+     * True until the first frame says otherwise: sound on is both
+     * the setting's default and the behaviour this session shipped
+     * with before the switch existed.
+     */
+    @Volatile
+    private var gameSoundOn = true
 
     @Volatile
     private var audioRunning = false
@@ -654,6 +692,15 @@ object PspGameSession {
                 0
             }
             if (frames > 0) {
+                // Game sound off: the game's samples are silenced
+                // BEFORE the cue mix, never instead of draining — the
+                // ring must keep emptying or the core's audio backs
+                // up, and the cues must keep sounding over a muted
+                // game (iOS's split between audioEnabled and the cue
+                // switch, honoured at the one place they meet).
+                if (!gameSoundOn) {
+                    java.util.Arrays.fill(buffer, 0, frames * 2, 0)
+                }
                 // The cue synth mixes into the game's own audio here,
                 // at the drain — the one output path, so cue and game
                 // can never drift apart (see PspCueSynth). Silent
