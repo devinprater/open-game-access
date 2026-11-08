@@ -150,6 +150,18 @@ object GbGameSession {
         if (running) GbAccessibilityScript.runFrame()
     }
 
+    /**
+     * The current frame (pixels, width, height) as RGBA8888 ints, or
+     * null when nothing is loaded — the session screen's game picture
+     * (the iOS app's FrameImage). The native copy has existed since
+     * the reader landed (GbAccessibilityScript.currentFrame); this is
+     * its session surface, the twin of PspGameSession.currentFrame.
+     */
+    fun currentFrame(): Triple<IntArray, Int, Int>? {
+        if (!running) return null
+        return GbAccessibilityScript.currentFrame()
+    }
+
     // ---- the emulated pad ---------------------------------------------------
     //
     // ⛔ HOLD, NOT TAP. Walking in these games means holding a direction, so the pad
