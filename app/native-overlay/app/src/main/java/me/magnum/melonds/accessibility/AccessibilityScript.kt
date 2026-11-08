@@ -49,17 +49,24 @@ object AccessibilityScript
     private var speech: AccessibilitySpeech? = null
 
     /**
-     * ⛔ THE DS NATIVE HOST IS NOT IN THIS BUILD — REGISTER BEST-EFFORT.
-     * The natives above belong to PokeScriptJNI.cpp, which this build does not
-     * link: the only native library in the APK is the frontend's, and it
-     * carries the GB host (MGBAScriptJNI.cpp) only. Calling [setSpeechBridge]
-     * here therefore throws UnsatisfiedLinkError — measured on the device,
-     * where it killed [GbAccessibilityScript.start] as it asked for the
-     * shared bridge, before the GB host could register anything. The Kotlin
-     * [AccessibilitySpeech] object is the actual bridge both hosts speak
-     * through, and the GB host registers it through its own
-     * `setGbSpeechBridge`, so a missing DS registration must not take the
-     * shared bridge down with it.
+     * ⛔ THIS OBJECT'S OWN NATIVES ARE NOT LINKED — REGISTER BEST-EFFORT.
+     * The natives above belong to PokeScriptJNI.cpp, the JNI counterpart of
+     * the script-only PokeScript host, which this build does not link BY
+     * DESIGN: the DS host the build carries is the shared Core host
+     * (pokecore, behind DsAccessibilityScript / DsSessionJNI.cpp), and the
+     * Pokémon script runs inside it — so this object's PokeScript-shaped
+     * surface stays unbound, and every call into it below keeps its
+     * UnsatisfiedLinkError guard. Calling [setSpeechBridge] here therefore
+     * throws — measured on the device, where it once killed
+     * [GbAccessibilityScript.start] as it asked for the shared bridge,
+     * before the GB host could register anything. The Kotlin
+     * [AccessibilitySpeech] object is the actual bridge every host speaks
+     * through, and each host registers it through its own bridge setter
+     * (the GB host's `setGbSpeechBridge`, the DS host's `setDsSpeechBridge`),
+     * so a missing registration here must not take the shared bridge down
+     * with it. This object remains the bridge's OWNER (its Kotlin side is
+     * live infrastructure) and the fail-closed fallback for its own
+     * unbound natives.
      */
     private fun registerSpeechBridge(bridge: Any?)
     {
@@ -81,8 +88,10 @@ object AccessibilityScript
         }
         catch (e: UnsatisfiedLinkError)
         {
-            // No DS native host in this build (see registerSpeechBridge):
-            // the DS script is not running, so this reads false.
+            // This object's natives are not linked (see
+            // registerSpeechBridge): its script is not running, so this
+            // reads false. (The DS session's own state lives in
+            // DsGameSession.)
             false
         }
 
@@ -154,10 +163,13 @@ object AccessibilityScript
         }
         catch (e: UnsatisfiedLinkError)
         {
-            // No DS native host in this build (see registerSpeechBridge): the
-            // DS script cannot start here, and that must read as "not
-            // started", not as a crash.
-            Log.e(TAG, "[pokemon-access] DS native host absent; accessibility script cannot start")
+            // This object's natives are not linked (see
+            // registerSpeechBridge): the script cannot start THROUGH
+            // HERE, and that must read as "not started", not as a crash.
+            // The DS session starts it inside pokecore instead
+            // (DsGameSession hands the same concatenated text to
+            // poke_set_script before its load).
+            Log.e(TAG, "[pokemon-access] PokeScript host absent; accessibility script cannot start here")
             false
         }
         if (started)
@@ -179,7 +191,8 @@ object AccessibilityScript
         }
         catch (e: UnsatisfiedLinkError)
         {
-            // No DS native host in this build: nothing is running to stop.
+            // This object's natives are not linked: nothing of ITS is
+            // running to stop.
         }
     }
 
@@ -215,8 +228,9 @@ object AccessibilityScript
         }
         catch (e: UnsatisfiedLinkError)
         {
-            // No DS native host in this build (see registerSpeechBridge):
-            // the shared Kotlin bridge is the voice, so speak through it.
+            // This object's natives are not linked (see
+            // registerSpeechBridge): the shared Kotlin bridge is the
+            // voice, so speak through it.
             speech?.speak(text, interrupt)
         }
     }
@@ -241,8 +255,9 @@ object AccessibilityScript
         }
         catch (e: UnsatisfiedLinkError)
         {
-            // No DS native host in this build: the DS script is not running,
-            // so there is nothing to forward the key to.
+            // This object's natives are not linked: ITS script is not
+            // running, so there is nothing to forward the key to. (The
+            // DS session forwards hotkeys through DsAccessibilityScript.)
         }
     }
 
