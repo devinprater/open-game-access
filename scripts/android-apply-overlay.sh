@@ -1394,4 +1394,117 @@ print("     wired the DS host into the frontend target")
 PY
 fi
 
+# ---------------------------------------------------------------------------
+# 9b. PlatformAndroid guards for the DS host (pokecore).
+#
+# pokecore drives its melonDS::NDS directly; it never runs the
+# frontend's own emulator setup, so two of that setup's globals stay
+# empty for the DS host's whole life — and PlatformAndroid.cpp
+# dereferences both, and the NDS instance's userdata, without
+# checking:
+#   - Platform::SignalStop calls MelonDSAndroid::eventMessenger->
+#     onEmulatorStop(...). The core calls SignalStop from NDS::Stop,
+#     which pokecore's poke_stop reaches on EVERY DS quit or load —
+#     an empty-shared_ptr dereference, i.e. a crash on every stop.
+#   - The MP_*/Net_* callbacks (and WriteNDSSave / WriteGBASave /
+#     WriteFirmware) cast the instance userdata to MelonInstance*
+#     and dereference it; pokecore's NDS carries no such userdata,
+#     so a guest touching local Wi-Fi would crash the same way.
+#   - Addon_Rumble* and Camera_* dereference eventMessenger /
+#     cameraHandler the same way.
+# Core/poke_platform.cpp — the platform layer pokecore was built
+# against — shows the intended behaviour: SignalStop forwards to
+# pokecore's poke_internal_signal_stop, and every one of those
+# callbacks is a no-op for a hostless instance. This patch gives the
+# Android file the same behaviour: guards that change nothing when
+# the frontend's own emulator IS running (its messenger is set and
+# its userdata is a real instance), plus the SignalStop forward —
+# which is itself a no-op when no pokecore core exists. The forward
+# is declared weak so the armeabi-v7a build, which compiles no DS
+# glue (section 9), still links.
+#
+# ⛔ NOT a silent skip if the anchors move: the frontend is cloned
+# unpinned, and a guard patch that quietly stops applying would
+# ship the crash again. Missing anchors fail the build loudly.
+# ---------------------------------------------------------------------------
+say "guarding PlatformAndroid for the DS host"
+
+PLATFORM_ANDROID="$FRONTEND/app/src/main/cpp/PlatformAndroid.cpp"
+if [ ! -f "$PLATFORM_ANDROID" ]; then
+  echo "   !! $PLATFORM_ANDROID not found; the DS host would crash on stop." >&2
+  exit 1
+fi
+if grep -q 'OGA (section 9b)' "$PLATFORM_ANDROID"; then
+  echo "     PlatformAndroid guards: already applied"
+else
+  python3 - "$PLATFORM_ANDROID" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+fails = []
+
+def rep(old, new):
+    global s
+    if old in s:
+        s = s.replace(old, new, 1)
+    else:
+        fails.append(old.split("\n")[0].strip())
+
+# The stop sink's declaration, at global scope (weak: see the header note).
+rep("using namespace melonDS;",
+    "using namespace melonDS;\n\n"
+    "// OGA (section 9b): pokecore's stop sink, defined by the DS host\n"
+    "// glue (Core/pokecore.cpp) when that glue is compiled in. Weak,\n"
+    "// so builds without the DS host (armeabi-v7a) link with the\n"
+    "// symbol absent and SignalStop below skips the forward.\n"
+    "__attribute__((weak)) void poke_internal_signal_stop(int stopReason);")
+
+# SignalStop: guard the messenger; forward the stop to pokecore.
+rep("""    void SignalStop(StopReason reason, void* userdata)
+    {
+        MelonDSAndroid::eventMessenger->onEmulatorStop(reason);
+    }""",
+    """    void SignalStop(StopReason reason, void* userdata)
+    {
+        // OGA (section 9b): the messenger exists only when the
+        // frontend's own emulator set it up; the DS host never does.
+        // pokecore's sink is forwarded every stop and ignores the
+        // ones that are not its core's, so each host hears only its
+        // own console stopping.
+        if (MelonDSAndroid::eventMessenger)
+            MelonDSAndroid::eventMessenger->onEmulatorStop(reason);
+        if (&poke_internal_signal_stop)
+            poke_internal_signal_stop((int) reason);
+    }""")
+
+# Every MelonInstance userdata cast: a hostless instance (the DS
+# host's NDS) has no instance to serve it, and the reference
+# platform layer (Core/poke_platform.cpp) no-ops exactly these.
+cast = "        auto emulatorInstance = (MelonDSAndroid::MelonInstance*) userdata;\n"
+count = s.count(cast)
+if count == 0:
+    fails.append("MelonInstance userdata cast")
+else:
+    s = s.replace(cast, cast + "        if (!emulatorInstance) return {}; // OGA (section 9b)\n")
+
+# Rumble and camera globals: same empty-global shape.
+rep("        MelonDSAndroid::eventMessenger->onRumbleStart(len);",
+    "        if (MelonDSAndroid::eventMessenger) MelonDSAndroid::eventMessenger->onRumbleStart(len); // OGA (section 9b)")
+rep("        MelonDSAndroid::eventMessenger->onRumbleStop();",
+    "        if (MelonDSAndroid::eventMessenger) MelonDSAndroid::eventMessenger->onRumbleStop(); // OGA (section 9b)")
+rep("        MelonDSAndroid::cameraHandler->startCamera(num);",
+    "        if (MelonDSAndroid::cameraHandler) MelonDSAndroid::cameraHandler->startCamera(num); // OGA (section 9b)")
+rep("        MelonDSAndroid::cameraHandler->stopCamera(num);",
+    "        if (MelonDSAndroid::cameraHandler) MelonDSAndroid::cameraHandler->stopCamera(num); // OGA (section 9b)")
+rep("        MelonDSAndroid::cameraHandler->captureFrame(num, frame, width, height, yuv);",
+    "        if (MelonDSAndroid::cameraHandler) MelonDSAndroid::cameraHandler->captureFrame(num, frame, width, height, yuv); // OGA (section 9b)")
+
+if fails:
+    print("   !! PlatformAndroid guard anchors not found: %s" % fails, file=sys.stderr)
+    sys.exit(1)
+open(p, "w", encoding="utf-8").write(s)
+print("     PlatformAndroid guards applied (incl. %d userdata casts)" % count)
+PY
+fi
+
 say "overlay applied"
