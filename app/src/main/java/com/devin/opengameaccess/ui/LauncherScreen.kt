@@ -2,6 +2,7 @@ package com.devin.opengameaccess.ui
 
 import android.app.Activity
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -29,6 +30,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,8 +41,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.liveRegion
@@ -51,8 +55,10 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devin.opengameaccess.AdapterCommandTitles
 import com.devin.opengameaccess.AdapterLibraryData
+import com.devin.opengameaccess.ControllerInput
 import com.devin.opengameaccess.GbGameSession
 import com.devin.opengameaccess.GbKeys
+import com.devin.opengameaccess.PspAdapterCommands
 import com.devin.opengameaccess.PspGameSession
 import com.devin.opengameaccess.PspKeys
 import com.devin.opengameaccess.rememberPspFrameClock
@@ -93,8 +99,16 @@ fun LauncherScreen(
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var pickedName by remember { mutableStateOf("") }
     var pickedIsPsp by remember { mutableStateOf(false) }
-    var running by remember { mutableStateOf(false) }
-    var pspRunning by remember { mutableStateOf(false) }
+    // ⛔ SEEDED FROM THE SESSIONS, NOT FROM FALSE. This screen leaves the
+    // composition entirely when Settings or the games list opens, while
+    // the session objects (singletons) keep the game running. Starting
+    // these flags at false would resurrect the launcher as an idle
+    // screen over a live game — control groups gone, and the Back
+    // handlers below disabled, so the next Back would exit the Activity
+    // instead of quitting the game. The sessions are the source of
+    // truth; the flags below only track what THIS screen started.
+    var running by remember { mutableStateOf(GbGameSession.isRunning) }
+    var pspRunning by remember { mutableStateOf(PspGameSession.isRunning) }
     var starting by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var problem by remember { mutableStateOf("") }
@@ -110,10 +124,91 @@ fun LauncherScreen(
     // session's own wiring.)
     rememberPspFrameClock(pspRunning)
 
+    // ⛔ BACK IN A SESSION IS QUIT, NEVER AN EXIT (input parity, stage 1).
+    // iOS leaves a game through an explicit Quit with a VoiceOver escape
+    // action; the Android system Back is the same gesture wearing system
+    // clothes, so it performs the same leave-game flow the Quit buttons
+    // below perform — session stop, flag cleared, launcher state back —
+    // instead of Android's default, which finished the whole Activity
+    // mid-game. The two handlers are mutually exclusive (a GB and a PSP
+    // session never run at once). MainActivity's handler covers the
+    // Settings / games-list level; at the idle launcher nothing here is
+    // enabled, so Back still leaves the app from the front door.
+    BackHandler(enabled = running) {
+        session.stop()
+        running = false
+    }
+    BackHandler(enabled = pspRunning) {
+        PspGameSession.stop()
+        pspRunning = false
+    }
+
+    // ⛔ CONTROLLER CONNECT / DISCONNECT IS SPOKEN (input parity, stage 1).
+    // iOS publishes the connected controller's name and the player hears
+    // the change; here the name lives on ControllerInput (Compose state,
+    // written by its InputManager listener) and this effect turns a
+    // CHANGE into a status line — which is the launcher's voice, live
+    // region and bridge fallback both. The remembered previous value
+    // starts at whatever is already connected, so a pad paired before
+    // the app opened is not "announced" at first composition; a pad
+    // that arrives or leaves mid-session is.
+    val controllerName = ControllerInput.connectedName
+    val controllerConnected = controllerName != null
+    var previousControllerName by remember { mutableStateOf(controllerName) }
+
     fun say(message: String, interrupt: Boolean = false) {
         status = message
         liveMode = if (interrupt) LiveRegionMode.Assertive else LiveRegionMode.Polite
         announce(message, interrupt)
+    }
+
+    // The speaking half of the controller watch above (kept below say's
+    // declaration — a local fun is only visible from where it is
+    // declared, and the compiler enforces it).
+    LaunchedEffect(controllerName) {
+        val previous = previousControllerName
+        previousControllerName = controllerName
+        if (previous == controllerName) return@LaunchedEffect
+        if (controllerName != null) {
+            say("Controller connected: $controllerName")
+        } else {
+            say("Controller disconnected.")
+        }
+    }
+
+    // ⛔ THE MAGIC-TAP EQUIVALENT (input parity, stage 1). On iOS a
+    // VoiceOver magic tap on the game screen asks the reader where the
+    // player is (GameSession.performMagicTap, answered only by readers
+    // that support it). TalkBack has no magic tap, so the game-screen
+    // element below carries the same query as a custom action. It asks
+    // exactly what the on-screen routes ask: on PSP the adapter's Where
+    // am I, with the reader group's own refusal lines; on Game Boy the
+    // script hotkey this screen's own Where am I button taps. A game
+    // whose reader does not answer it says so, in the controller
+    // layer's line, rather than the action going silent.
+    fun whereAmI() {
+        when {
+            pspRunning -> {
+                val commands = AdapterLibraryData.games
+                    .firstOrNull { it.id == PspGameSession.adapterId }?.commands
+                    ?: emptyList()
+                if (PspAdapterCommands.WHERE_AM_I in commands) {
+                    if (!PspGameSession.sendAdapterCommand(PspAdapterCommands.WHERE_AM_I)) {
+                        say(
+                            if (PspGameSession.adapterName.isNotEmpty()) {
+                                "Not ready yet."
+                            } else {
+                                "No reader."
+                            }
+                        )
+                    }
+                } else {
+                    say("No reader command there for this game.")
+                }
+            }
+            running -> session.tapHotkey('E')
+            else -> Unit
+        }
     }
 
     val pickRom = rememberLauncherForActivityResult(
@@ -147,9 +242,13 @@ fun LauncherScreen(
     }
 
     // The status line, said once when the screen comes up. iOS's StatusBar is read
-    // first on focus and always reflects state.
+    // first on focus and always reflects state. Returning from Settings
+    // or the games list mid-game recomposes this screen; the ready line
+    // is for the idle launcher only, never spoken over a running game.
     remember(available) {
-        if (available) {
+        if (GbGameSession.isRunning || PspGameSession.isRunning) {
+            // A game is already running (see the seeded flags above).
+        } else if (available) {
             say("Open Game Access ready. Press Select Game to choose a game.", interrupt = true)
         } else {
             say(
@@ -198,6 +297,17 @@ fun LauncherScreen(
                 .padding(horizontal = 24.dp, vertical = 12.dp)
                 .semantics {
                     contentDescription = "Game screen. $statusLine"
+                    // The magic-tap equivalent (see whereAmI above):
+                    // offered only while a game runs, as on iOS, where
+                    // the gesture exists only on the game screen.
+                    if (anyRunning) {
+                        customActions = listOf(
+                            CustomAccessibilityAction(label = "Where am I") {
+                                whereAmI()
+                                true
+                            },
+                        )
+                    }
                 },
         )
 
@@ -215,6 +325,28 @@ fun LauncherScreen(
                     contentDescription = statusLine
                 },
         )
+
+        // The transient line: the last thing say() was given. The status
+        // line above only ever shows the derived session state, so a
+        // one-off message (a controller connecting at the idle launcher,
+        // where MainActivity's bridge fallback stays silent because no
+        // session is running) would otherwise be written to state and
+        // never heard. This region observes that state, so the message
+        // is announced when it lands.
+        if (status.isNotEmpty()) {
+            Text(
+                text = status,
+                fontSize = 14.sp,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 4.dp)
+                    .semantics {
+                        liveRegion = liveMode
+                        contentDescription = status
+                    },
+            )
+        }
 
         Column(
             modifier = Modifier.padding(24.dp),
@@ -339,18 +471,27 @@ fun LauncherScreen(
                 // no adapter, or an adapter with an empty command set),
                 // speech controls, and the whole-core savestates the
                 // psp_* ABI exposes directly.
-                PspDirectionalPad(PspGameSession)
-                PspActionButtons(PspGameSession)
-                PspSystemButtons(PspGameSession)
+                // The on-screen pad hides while a controller is connected
+                // (iOS does the same): the physical pad replaces it, and
+                // the reader / speech / state / quit groups stay.
+                if (!controllerConnected) {
+                    PspDirectionalPad(PspGameSession)
+                    PspActionButtons(PspGameSession)
+                    PspSystemButtons(PspGameSession)
+                }
                 PspReaderGroup(PspGameSession) { message -> say(message) }
                 PspSpeechGroup(PspGameSession)
                 PspStateGroup(PspGameSession) { message -> say(message) }
                 QuitPspGame(PspGameSession) { pspRunning = false }
             } else {
                 // Running: the controls, grouped by what the player is doing.
-                DirectionalPad(session)
-                ActionButtons(session, pickedName)
-                SystemButtons(session, pickedName)
+                // The pad groups hide while a controller is connected, as
+                // on iOS; the reader groups below are not the pad and stay.
+                if (!controllerConnected) {
+                    DirectionalPad(session)
+                    ActionButtons(session, pickedName)
+                    SystemButtons(session, pickedName)
+                }
                 PathFindingGroup(session)
                 ReadingGroup(session)
                 SpeechGroup(session)
@@ -733,9 +874,17 @@ private fun HoldButton(
                     onPress = {
                         held = true
                         session.pressKey(bit)
-                        tryAwaitRelease()
-                        held = false
-                        session.releaseKey(bit)
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            // Finally, not sequence: if this composable
+                            // is removed mid-press (the pad hides when a
+                            // controller connects), the await is cancelled
+                            // and without the finally the emulated button
+                            // would stay down in the running game.
+                            held = false
+                            session.releaseKey(bit)
+                        }
                     },
                 )
             }
@@ -808,9 +957,15 @@ private fun PspHoldButton(
                     onPress = {
                         held = true
                         session.pressButton(button)
-                        tryAwaitRelease()
-                        held = false
-                        session.releaseButton(button)
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            // Finally, not sequence — see HoldButton: a
+                            // mid-press removal cancels the await, and the
+                            // button must still come up in the game.
+                            held = false
+                            session.releaseButton(button)
+                        }
                     },
                 )
             }
