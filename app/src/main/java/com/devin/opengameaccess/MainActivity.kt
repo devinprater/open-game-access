@@ -1,5 +1,6 @@
 package com.devin.opengameaccess
 
+import android.net.Uri
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
@@ -116,6 +117,11 @@ class MainActivity : ComponentActivity() {
 
         var showSettings by remember { mutableStateOf(false) }
         var showGames by remember { mutableStateOf(false) }
+        // A game file picked on a library page (AdapterGamesScreen's
+        // Load button), waiting for the launcher to run it through its
+        // own accept + start path. Set with the pick, cleared by the
+        // launcher as it consumes it — see LauncherScreen's hand-off.
+        var pendingRom by remember { mutableStateOf<Uri?>(null) }
         var battleCues by remember { mutableStateOf(CueSettings.battleCuesEnabled(context)) }
         var hudGaugeCuesSound by remember {
             mutableStateOf(GameSettings.globalDefault(context, GameSettings.Setting.HUD_GAUGE_CUES))
@@ -146,13 +152,21 @@ class MainActivity : ComponentActivity() {
         }
 
         if (showGames) {
-            AdapterGamesScreen(onBack = { showGames = false })
+            AdapterGamesScreen(
+                onBack = { showGames = false },
+                onLoadRom = { uri ->
+                    pendingRom = uri
+                    showGames = false
+                },
+            )
             return
         }
 
         LauncherScreen(
             session = GbGameSession,
             showPicture = showPicture,
+            pendingRom = pendingRom,
+            onPendingRomHandled = { pendingRom = null },
             onOpenSettings = { showSettings = true },
             onOpenGames = { showGames = true },
             announce = { text, interrupt ->

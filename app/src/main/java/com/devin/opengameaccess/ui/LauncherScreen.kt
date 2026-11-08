@@ -29,6 +29,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -79,6 +80,8 @@ fun LauncherScreen(
     announce: (String, Boolean) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGames: () -> Unit,
+    pendingRom: Uri?,
+    onPendingRomHandled: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -117,15 +120,12 @@ fun LauncherScreen(
         announce(message, interrupt)
     }
 
-    val pickRom = rememberLauncherForActivityResult(
-        ActivityResultContracts.OpenDocument()
-    ) { uri: Uri? ->
-        if (uri == null) {
-            // A cancel is SPOKEN rather than left silent, the same contract the
-            // WebView page had.
-            say("No game selected.")
-            return@rememberLauncherForActivityResult
-        }
+    // A picked file becomes the pending game: the name the screen
+    // shows, and which session it belongs to. Shared by the Select
+    // Game picker below and by a library page's Load button (the
+    // pendingRom hand-off further down): one routing, one set of
+    // spoken answers, whichever door the file came through.
+    fun acceptPickedRom(uri: Uri) {
         pickedUri = uri
         pickedName = uri.lastPathSegment ?: uri.toString()
         problem = ""
@@ -142,9 +142,114 @@ fun LauncherScreen(
             say(
                 "$pickedName selected. That is a PSP game, and this build has no PSP core.",
             )
-            return@rememberLauncherForActivityResult
+            return
         }
         say("$pickedName selected. Press Start Game.")
+    }
+
+    val pickRom = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) {
+            // A cancel is SPOKEN rather than left silent, the same contract the
+            // WebView page had.
+            say("No game selected.")
+            return@rememberLauncherForActivityResult
+        }
+        acceptPickedRom(uri)
+    }
+
+    // Start the pending game: the Start Game button's whole behaviour,
+    // extracted so a game loaded from its own library page starts
+    // exactly the way a game picked here starts — same routing, same
+    // spoken lines. The availability guards below duplicate the Start
+    // button's enabled state because the hand-off calls this directly;
+    // on the button's own path they can never fire (the button is
+    // disabled in those states), so nothing about it changes.
+    fun startPickedGame() {
+        val uri = pickedUri
+        if (uri == null) {
+            say("Select a game first.")
+            return
+        }
+        if (starting) {
+            // A load is already in flight (its button is disabled for
+            // the same reason); the session's generation counter would
+            // supersede it, but the in-flight load's own spoken result
+            // is the answer the player is waiting for.
+            return
+        }
+        val activity = context as? Activity
+        if (activity == null) {
+            say("That game could not be started.")
+            return
+        }
+        if (pickedIsPsp) {
+            if (!pspAvailable) {
+                // acceptPickedRom already said this at pick time.
+                return
+            }
+            // ⛔ ASYNCHRONOUS, UNLIKE THE GB START BELOW. A disc image
+            // can take a while to copy and load (PspGameSession's doc
+            // has the numbers), so Start says so and the session calls
+            // back; `starting` keeps a second press from racing the
+            // first load.
+            starting = true
+            say(
+                "Loading $pickedName. PSP games are large, " +
+                    "so this can take a while."
+            )
+            PspGameSession.start(activity, uri) { error ->
+                starting = false
+                if (error != null) {
+                    problem = error
+                    say(
+                        "That game could not be started. $error",
+                        interrupt = true,
+                    )
+                } else {
+                    pspRunning = true
+                    problem = ""
+                    say("Game started.")
+                }
+            }
+            return
+        }
+        if (!gbAvailable) {
+            say("That is a Game Boy game, and this build has no Game Boy core.")
+            return
+        }
+        val error = session.start(activity, uri)
+        if (error != null) {
+            problem = error
+            say("That game could not be started. $error", interrupt = true)
+            return
+        }
+        running = true
+        problem = ""
+        say(
+            "Game started. The reader will speak one startup line, " +
+                "then only game content."
+        )
+    }
+
+    // ⛔ A LIBRARY PAGE'S LOAD LANDS HERE. The game page's Load button
+    // opens its own console-filtered picker; a pick is handed up to
+    // the Activity (pendingRom) and the games screen closes, which
+    // composes this screen with the hand-off waiting. It is consumed
+    // once, then run through the SAME accept + start path as a file
+    // picked here — so the routing, the core checks and the spoken
+    // answers are this screen's own, and a game started from its page
+    // is indistinguishable from one started from this screen. While a
+    // game is already running the pick only becomes the pending
+    // selection (the player quits first, as on iOS, where the library
+    // sits behind the running game too); idle, it starts at once —
+    // that is the page's whole promise.
+    LaunchedEffect(pendingRom) {
+        val uri = pendingRom ?: return@LaunchedEffect
+        onPendingRomHandled()
+        acceptPickedRom(uri)
+        if (!anyRunning) startPickedGame()
     }
 
     // The status line, said once when the screen comes up. iOS's StatusBar is read
@@ -286,58 +391,7 @@ fun LauncherScreen(
                 }
 
                 Button(
-                    onClick = {
-                        val uri = pickedUri
-                        if (uri == null) {
-                            say("Select a game first.")
-                            return@Button
-                        }
-                        val activity = context as? Activity
-                        if (activity == null) {
-                            say("That game could not be started.")
-                            return@Button
-                        }
-                        if (pickedIsPsp) {
-                            // ⛔ ASYNCHRONOUS, UNLIKE THE GB START BELOW.
-                            // A disc image can take a while to copy and
-                            // load (PspGameSession's doc has the numbers),
-                            // so Start says so and the session calls back;
-                            // `starting` keeps a second press from racing
-                            // the first load.
-                            starting = true
-                            say(
-                                "Loading $pickedName. PSP games are large, " +
-                                "so this can take a while."
-                            )
-                            PspGameSession.start(activity, uri) { error ->
-                                starting = false
-                                if (error != null) {
-                                    problem = error
-                                    say(
-                                        "That game could not be started. $error",
-                                        interrupt = true,
-                                    )
-                                } else {
-                                    pspRunning = true
-                                    problem = ""
-                                    say("Game started.")
-                                }
-                            }
-                            return@Button
-                        }
-                        val error = session.start(activity, uri)
-                        if (error != null) {
-                            problem = error
-                            say("That game could not be started. $error", interrupt = true)
-                            return@Button
-                        }
-                        running = true
-                        problem = ""
-                        say(
-                            "Game started. The reader will speak one startup line, " +
-                            "then only game content."
-                        )
-                    },
+                    onClick = { startPickedGame() },
                     enabled = available && pickedUri != null && !starting &&
                         (if (pickedIsPsp) pspAvailable else gbAvailable),
                     modifier = Modifier.fillMaxWidth(),

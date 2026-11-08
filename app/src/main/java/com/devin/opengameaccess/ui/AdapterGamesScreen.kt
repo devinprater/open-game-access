@@ -1,5 +1,9 @@
 package com.devin.opengameaccess.ui
 
+import android.net.Uri
+import android.webkit.MimeTypeMap
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -22,8 +26,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -44,17 +50,34 @@ import com.devin.opengameaccess.GameSettings
  * launcher contract test. A reader that ships without its library entry is
  * therefore impossible on either platform.
  *
- * ⛔ THE ONE DELIBERATE DIFFERENCE FROM iOS: THE LOAD BUTTON. iOS's game page
- * loads the game filtered to that console's files. The Android launcher's
- * Select Game flow starts Game Boy and PSP games from its own screen, and
- * there is no per-game filtered picker behind this list, so a per-game Load
- * button here would promise a flow that does not exist. Each page instead
- * ends with a plain line saying what THIS build does with that console
- * (see [platformLine]).
+ * ⛔ THE LOAD BUTTON, AND HOW ITS FILTER IS KEPT HONEST. Each page
+ * carries the Load button iOS's page carries, in iOS's place (after
+ * the notes) and under iOS's label. For a console this build runs,
+ * the button opens the file picker filtered to that console's files
+ * and the pick is handed to the launcher (the screen's onLoadRom
+ * callback), which starts it through its own accept + start path —
+ * the same routing and spoken answers as its Select Game flow.
+ *
+ * Android's picker filters by MIME TYPE, NOT BY EXTENSION, and has
+ * no equivalent of iOS's UTType-by-extension filter
+ * (AdapterGame.contentTypes). So the picker launches with the
+ * console's MIME types plus the generic binary type (which is what
+ * the system tags most ROM files as, their extensions being unknown
+ * to it), and the picked file's extension is checked against the
+ * console's own list on return: a wrong file is refused in words,
+ * on this page, rather than routed into a session that cannot use
+ * it. The guarantee iOS gets at the picker's front door is kept at
+ * this end instead (see consoleExtensions / pickerMimeTypes).
+ *
+ * For a console this build cannot run yet, the button still exists
+ * — every page has it, as on iOS — and its press speaks the plain
+ * line saying what THIS build does with that console (see
+ * [platformLine]) instead of opening a picker onto a dead end.
  */
 @Composable
 fun AdapterGamesScreen(
     onBack: () -> Unit,
+    onLoadRom: (Uri) -> Unit,
     modifier: Modifier = Modifier,
 ) {
     var selected by remember { mutableStateOf<AdapterGameInfo?>(null) }
@@ -76,6 +99,7 @@ fun AdapterGamesScreen(
             game = game,
             onBack = { selected = null },
             onOpenSettings = { settingsFor = game },
+            onLoadRom = onLoadRom,
             modifier = modifier,
         )
         return
@@ -100,8 +124,8 @@ fun AdapterGamesScreen(
         }
 
         Text(
-            text = "Each game opens notes on what its reader speaks and the " +
-                "controls it adds.",
+            text = "Each game opens notes on what its reader speaks, the " +
+                "controls it adds, and a Load Game button.",
             fontSize = 16.sp,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
         )
@@ -147,14 +171,49 @@ fun AdapterGamesScreen(
     }
 }
 
-/** One game's page: what the reader does, and what this build does with it. */
+/** One game's page: what the reader does, its Load button, and what this build does with it. */
 @Composable
 private fun AdapterGamePage(
     game: AdapterGameInfo,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
+    onLoadRom: (Uri) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Whether THIS build can start the game's console today. The Load
+    // button exists either way (see the file header); this decides
+    // whether its press opens the picker or speaks the honest line.
+    val canRun = game.console == "gb" || game.console == "psp"
+
+    // The page's spoken answers (a cancelled picker, a wrong file, an
+    // un-runnable console): rendered under the Load button as a live
+    // region, the launcher status line's pattern, so a screen reader
+    // announces them rather than leaving the press unanswered.
+    var loadNote by remember { mutableStateOf("") }
+
+    val pickForGame = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) {
+            // A cancel is SPOKEN rather than left silent, the same
+            // contract the launcher's own picker keeps.
+            loadNote = "No game selected."
+            return@rememberLauncherForActivityResult
+        }
+        val name = uri.lastPathSegment ?: uri.toString()
+        val extension = name.substringAfterLast('.', "").lowercase()
+        if (extension in consoleExtensions(game.console)) {
+            // The hand-off: the Activity closes this screen and the
+            // launcher runs the pick through its own accept + start
+            // path, so everything it says and checks is the
+            // launcher's own.
+            onLoadRom(uri)
+        } else {
+            loadNote = "That file is not a ${consoleShortName(game.console)} game. " +
+                formatLine(game.console)
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -209,6 +268,39 @@ private fun AdapterGamePage(
             text = game.notes.ifEmpty { "No notes have been written for this game yet." },
             fontSize = 16.sp,
         )
+
+        // The page's one action, in iOS's place (after the notes) and
+        // under iOS's label, spoken as "Load <game>" the way iOS
+        // speaks it. For a console this build runs it opens the
+        // picker filtered to the console's file types; for one it
+        // cannot run yet, the press answers with the platform line
+        // as the note below — the button never promises a flow that
+        // does not exist.
+        Button(
+            onClick = {
+                if (canRun) {
+                    pickForGame.launch(pickerMimeTypes(game.console))
+                } else {
+                    loadNote = platformLine(game.console)
+                }
+            },
+            modifier = Modifier
+                .fillMaxWidth()
+                .semantics { contentDescription = "Load ${game.name}" },
+        ) {
+            Text("Load game", fontSize = 18.sp)
+        }
+
+        if (loadNote.isNotEmpty()) {
+            Text(
+                text = loadNote,
+                fontSize = 16.sp,
+                modifier = Modifier.semantics {
+                    liveRegion = LiveRegionMode.Polite
+                    contentDescription = loadNote
+                },
+            )
+        }
 
         Text(
             text = platformLine(game.console),
@@ -406,14 +498,62 @@ private fun versionLine(code: String): String? = when {
  * would send a blind player hunting for speech that cannot happen.
  */
 private fun platformLine(console: String): String = when (console) {
-    "gb" -> "This Android build runs these games: pick one with Select Game " +
-        "on the launcher."
+    "gb" -> "This Android build runs these games: use Load game on this " +
+        "page, or pick one with Select Game on the launcher."
     "nds" -> "This game's reader is not in the Android build yet; its speech " +
         "is in the iOS app today."
     "psp" -> "PlayStation Portable games run in this Android build, and this " +
-        "game's reader is in the build too: pick one with Select Game on " +
-        "the launcher."
+        "game's reader is in the build too: use Load game on this page, " +
+        "or pick one with Select Game on the launcher."
     "snes" -> "Super Nintendo games cannot run in this Android build yet. " +
         "This reader is in the iOS app today."
     else -> "This console's games cannot run in this Android build yet."
+}
+
+// ---- the Load button's filter -----------------------------------------------
+
+/**
+ * The file extensions a console's games use: the extension lists of
+ * iOS's AdapterGame.contentTypes, verbatim. A page's pick is checked
+ * against this list on return — Android's picker filters by MIME
+ * type, not by extension, so the console's guarantee is kept at this
+ * end of the picker (see the file header).
+ */
+private fun consoleExtensions(console: String): Set<String> = when (console) {
+    "nds" -> setOf("nds")
+    "gb" -> setOf("gba", "gbc", "gb")
+    "psp" -> setOf("iso", "cso", "pbp")
+    "snes" -> setOf("sfc", "smc", "fig", "swc")
+    "nes" -> setOf("nes", "fds", "unf")
+    "n64" -> setOf("z64", "n64", "v64")
+    else -> emptySet()
+}
+
+/**
+ * The picker's filter for a console: the MIME types its extensions
+ * resolve to, plus the generic binary type.
+ *
+ * ⛔ THE GENERIC TYPE RIDES ALONG ON PURPOSE. Most of these
+ * extensions are unknown to the system's MIME table, so most real
+ * ROM files are tagged application/octet-stream by their providers;
+ * filtering on the registered types alone would hide the very files
+ * the picker exists to offer. With the generic type included, the
+ * picker hides everything carrying a known non-game type, and the
+ * extension check on return (consoleExtensions) keeps the console's
+ * promise exactly.
+ */
+private fun pickerMimeTypes(console: String): Array<String> {
+    val mimeMap = MimeTypeMap.getSingleton()
+    val types = consoleExtensions(console)
+        .mapNotNull { mimeMap.getMimeTypeFromExtension(it) }
+        .toMutableSet()
+    types += "application/octet-stream"
+    return types.toTypedArray()
+}
+
+/** "Game Boy" / "PlayStation Portable" — for the wrong-file line. */
+private fun consoleShortName(console: String): String = when (console) {
+    "gb" -> "Game Boy"
+    "psp" -> "PlayStation Portable"
+    else -> consoleName(console)
 }
