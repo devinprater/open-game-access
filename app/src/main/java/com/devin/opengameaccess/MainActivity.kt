@@ -1,5 +1,6 @@
 package com.devin.opengameaccess
 
+import android.net.Uri
 import android.os.Bundle
 import android.view.KeyEvent
 import android.view.MotionEvent
@@ -127,10 +128,16 @@ class MainActivity : ComponentActivity() {
 
         var showSettings by remember { mutableStateOf(false) }
         var showGames by remember { mutableStateOf(false) }
+        // A game file picked on a library page (AdapterGamesScreen's
+        // Load button), waiting for the launcher to run it through its
+        // own accept + start path. Set with the pick, cleared by the
+        // launcher as it consumes it — see LauncherScreen's hand-off.
+        var pendingRom by remember { mutableStateOf<Uri?>(null) }
         var battleCues by remember { mutableStateOf(CueSettings.battleCuesEnabled(context)) }
         var hudGaugeCuesSound by remember {
             mutableStateOf(GameSettings.globalDefault(context, GameSettings.Setting.HUD_GAUGE_CUES))
         }
+        var showPicture by remember { mutableStateOf(DisplaySettings.showPicture(context)) }
 
         // ⛔ THE SYSTEM BACK BUTTON ENDS HERE FIRST (input parity, stage 1).
         // Until now nothing in the app touched the OnBackPressedDispatcher,
@@ -161,18 +168,32 @@ class MainActivity : ComponentActivity() {
                     hudGaugeCuesSound = useSound
                     GameSettings.setGlobalHudGaugeCuesSound(context, useSound)
                 },
+                showPicture = showPicture,
+                onShowPictureChanged = { show ->
+                    showPicture = show
+                    DisplaySettings.setShowPicture(context, show)
+                },
                 onBack = { showSettings = false },
             )
             return
         }
 
         if (showGames) {
-            AdapterGamesScreen(onBack = { showGames = false })
+            AdapterGamesScreen(
+                onBack = { showGames = false },
+                onLoadRom = { uri ->
+                    pendingRom = uri
+                    showGames = false
+                },
+            )
             return
         }
 
         LauncherScreen(
             session = GbGameSession,
+            showPicture = showPicture,
+            pendingRom = pendingRom,
+            onPendingRomHandled = { pendingRom = null },
             onOpenSettings = { showSettings = true },
             onOpenGames = { showGames = true },
             announce = { text, interrupt ->

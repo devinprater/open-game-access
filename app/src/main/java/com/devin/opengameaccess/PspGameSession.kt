@@ -485,6 +485,28 @@ object PspGameSession {
         }
     }
 
+    // ---- the picture ---------------------------------------------------------
+    //
+    // The session screen's game picture (the iOS app's FrameImage): the
+    // core's current frame as RGBA8888 ints plus its size, or null when
+    // no frame can be had. Guarded like every native call in this
+    // session — on a build without the PSP surface the picture is
+    // simply absent, never a crash in a UI poll. The caller confines
+    // this to its picture composable's own cadence, NOT the frame
+    // clock: the readback is a copy of a staged frame, and the player
+    // who has the picture switched off never pays for it at all (the
+    // composable is not composed then — see LauncherScreen).
+
+    /** The current frame (pixels, width, height), or null. */
+    fun currentFrame(): Triple<IntArray, Int, Int>? {
+        if (!running) return null
+        return try {
+            PspAccessibilityScript.currentFrame()
+        } catch (t: Throwable) {
+            null
+        }
+    }
+
     // ---- the reader (stage 4) ----------------------------------------------
     //
     // The command surface the launcher's PSP screen drives. It mirrors

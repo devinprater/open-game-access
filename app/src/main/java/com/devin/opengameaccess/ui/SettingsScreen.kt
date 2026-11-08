@@ -15,6 +15,7 @@ import androidx.compose.material.Switch
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -31,6 +32,12 @@ import androidx.compose.ui.unit.sp
  * worse than omitting them, for the reason iOS already states about its own hidden
  * reader groups -- a blind player cannot tell a deliberately-absent control from a
  * broken one. They go in when the capability does.
+ *
+ * The game-picture switch is the most recent to cross that bar: the
+ * picture itself landed on the session screen (GamePicture, stage 2),
+ * so the switch has something real to gate — and it defaults the way
+ * iOS defaults it, off while a screen reader's touch exploration is
+ * on (see DisplaySettings).
  *
  * The two switches below are the controls that have crossed that bar: the PSP cue
  * synth (beacon + health beeps + earcons) exists now, so the battle-cues switch
@@ -51,6 +58,8 @@ fun SettingsScreen(
     onBattleCuesChanged: (Boolean) -> Unit,
     hudGaugeCuesSound: Boolean,
     onHudGaugeCuesChanged: (Boolean) -> Unit,
+    showPicture: Boolean,
+    onShowPictureChanged: (Boolean) -> Unit,
     onBack: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
@@ -85,6 +94,39 @@ fun SettingsScreen(
                 "Game Boy core: NOT compiled into this build."
             },
             fontSize = 16.sp,
+        )
+
+        Text(
+            text = "Performance",
+            fontSize = 18.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.semantics { heading() },
+        )
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Text(text = "Show game picture", fontSize = 16.sp)
+            // ⛔ THE SWITCH CARRIES ITS OWN NAME. The label Text is a
+            // separate semantics node and this Row does not merge, so
+            // without the description TalkBack would focus an unnamed
+            // on/off switch.
+            Switch(
+                checked = showPicture,
+                onCheckedChange = onShowPictureChanged,
+                modifier = Modifier.semantics { contentDescription = "Show game picture" },
+            )
+        }
+        Text(
+            text = "When on, the running game's picture is shown at the top " +
+                "of the game screen, for someone looking at the phone. Off " +
+                "keeps the picture out of the app entirely: the game still " +
+                "runs, the screen shows nothing, and no time is spent " +
+                "copying frames. Off by default while a screen reader's " +
+                "touch exploration is on, as on iOS.",
+            fontSize = 14.sp,
+            color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
         )
 
         Text(

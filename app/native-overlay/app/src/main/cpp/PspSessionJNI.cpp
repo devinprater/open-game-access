@@ -41,6 +41,7 @@
 #include <algorithm>
 #include <cstdarg>
 #include <cstdint>
+#include <cstring>
 #include <mutex>
 #include <string>
 #include <vector>
@@ -318,6 +319,35 @@ Java_me_magnum_melonds_accessibility_PspAccessibilityScript_nativePspReadAudio(
   const int frames = psp_read_audio(core, scratch.data(), want);
   if (frames > 0) env->SetShortArrayRegion(out, 0, frames * 2, scratch.data());
   return frames;
+}
+
+extern "C" JNIEXPORT jint JNICALL
+Java_me_magnum_melonds_accessibility_PspAccessibilityScript_nativePspCopyFrame(
+    JNIEnv *env, jobject /*self*/, jintArray out, jintArray sizeOut) {
+  PspCore *core = g_core;
+  if (!core || !out) return 0;
+  int w = 0, h = 0;
+  // ⛔ THE FILL CALL MUST COME FIRST: psp_framebuffer stages the pixels
+  // in the core (the GPU readback + RGBA expansion), and the pointer
+  // accessor only hands back that staging buffer — the contract
+  // oga_core.cpp and this file's own stage-2 proof both observe.
+  if (!psp_framebuffer(core, &w, &h) || w <= 0 || h <= 0) return 0;
+  const uint8_t *fb = psp_framebuffer_ptr(core);
+  if (!fb) return 0;
+  const int count = w * h;
+  if (env->GetArrayLength(out) < count) return 0;
+  // The staged pixels are RGBA8888 BYTES. Copied word-wise they are the
+  // same jints GbAccessibilityScript's copyGbFrame returns (little-
+  // endian R,G,B,A per word), so one Kotlin consumer — an IntArray of
+  // RGBA words plus a size — serves both sessions' pictures.
+  std::vector<jint> words((size_t)count);
+  std::memcpy(words.data(), fb, (size_t)count * 4);
+  env->SetIntArrayRegion(out, 0, count, words.data());
+  if (sizeOut && env->GetArrayLength(sizeOut) >= 2) {
+    jint size[2] = {(jint)w, (jint)h};
+    env->SetIntArrayRegion(sizeOut, 0, 2, size);
+  }
+  return count;
 }
 
 extern "C" JNIEXPORT jboolean JNICALL
