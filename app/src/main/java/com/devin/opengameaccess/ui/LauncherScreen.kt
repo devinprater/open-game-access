@@ -2,6 +2,7 @@ package com.devin.opengameaccess.ui
 
 import android.app.Activity
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -109,6 +110,25 @@ fun LauncherScreen(
     // PSP game runs. (GB's twin, rememberFrameClock, belongs to the GB
     // session's own wiring.)
     rememberPspFrameClock(pspRunning)
+
+    // ⛔ BACK IN A SESSION IS QUIT, NEVER AN EXIT (input parity, stage 1).
+    // iOS leaves a game through an explicit Quit with a VoiceOver escape
+    // action; the Android system Back is the same gesture wearing system
+    // clothes, so it performs the same leave-game flow the Quit buttons
+    // below perform — session stop, flag cleared, launcher state back —
+    // instead of Android's default, which finished the whole Activity
+    // mid-game. The two handlers are mutually exclusive (a GB and a PSP
+    // session never run at once). MainActivity's handler covers the
+    // Settings / games-list level; at the idle launcher nothing here is
+    // enabled, so Back still leaves the app from the front door.
+    BackHandler(enabled = running) {
+        session.stop()
+        running = false
+    }
+    BackHandler(enabled = pspRunning) {
+        PspGameSession.stop()
+        pspRunning = false
+    }
 
     fun say(message: String, interrupt: Boolean = false) {
         status = message

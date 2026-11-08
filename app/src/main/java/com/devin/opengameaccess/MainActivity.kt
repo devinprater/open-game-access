@@ -2,6 +2,7 @@ package com.devin.opengameaccess
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -119,6 +120,22 @@ class MainActivity : ComponentActivity() {
         var battleCues by remember { mutableStateOf(CueSettings.battleCuesEnabled(context)) }
         var hudGaugeCuesSound by remember {
             mutableStateOf(GameSettings.globalDefault(context, GameSettings.Setting.HUD_GAUGE_CUES))
+        }
+
+        // ⛔ THE SYSTEM BACK BUTTON ENDS HERE FIRST (input parity, stage 1).
+        // Until now nothing in the app touched the OnBackPressedDispatcher,
+        // so Android's default callback finished the Activity from ANY
+        // screen — the 2026-11-08 logcat caught it doing exactly that
+        // mid-game. BackHandler IS the dispatcher's Compose face: while
+        // Settings or the games list is up, Back walks back to the launcher
+        // (the same lambdas the screens' own Back buttons call); deeper
+        // levels register their own handlers (the games list's pages, a
+        // running session in LauncherScreen) and, being composed later,
+        // are asked first. At the launcher itself nothing is enabled, the
+        // dispatcher falls through, and Back leaves the app — the one
+        // place that is the right answer.
+        BackHandler(enabled = showSettings || showGames) {
+            if (showSettings) showSettings = false else showGames = false
         }
 
         if (showSettings) {
