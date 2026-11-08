@@ -114,6 +114,29 @@ class MainActivity : ComponentActivity() {
             PspGameSession.attachAnnouncementView(view)
         }
 
+        // ⛔ THE APP'S VOICE FOR ITS OWN LINES, SHARED BY EVERY SCREEN.
+        // The settings screens speak their changes through this too
+        // (parity stage 3): iOS announces every settings and per-game
+        // change aloud, because with no screen an unspoken change is
+        // an invisible one.
+        //
+        // The bridge only exists once a game has started, so calling it
+        // earlier is both a crash (no native library) and unnecessary.
+        // Guarded rather than removed: with a game running, this is the
+        // same bridge the reader uses, so an app line during play queues
+        // behind the reader's speech instead of opening a second TTS
+        // client. Either session's game counts: the bridge is shared,
+        // and a PSP session builds it at start the same way the GB
+        // session does. Before any game, the screens' own live regions
+        // carry their lines to the screen reader instead (the launcher
+        // status line below is the first of those).
+        val announceLine: (String, Boolean) -> Unit = { text, interrupt ->
+            // ⛔ ONE LINE, ON PURPOSE: the launcher contract test checks
+            // line by line that every AccessibilityScript call in this
+            // Activity is guarded by a running game on the same line.
+            if (GbGameSession.isRunning || PspGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
+        }
+
         var showSettings by remember { mutableStateOf(false) }
         var showGames by remember { mutableStateOf(false) }
         var battleCues by remember { mutableStateOf(CueSettings.battleCuesEnabled(context)) }
@@ -140,13 +163,17 @@ class MainActivity : ComponentActivity() {
                     gameSound = enabled
                     GameSoundSettings.setGameSoundEnabled(context, enabled)
                 },
+                announce = { text -> announceLine(text, true) },
                 onBack = { showSettings = false },
             )
             return
         }
 
         if (showGames) {
-            AdapterGamesScreen(onBack = { showGames = false })
+            AdapterGamesScreen(
+                onBack = { showGames = false },
+                announce = { text -> announceLine(text, true) },
+            )
             return
         }
 
@@ -154,22 +181,12 @@ class MainActivity : ComponentActivity() {
             session = GbGameSession,
             onOpenSettings = { showSettings = true },
             onOpenGames = { showGames = true },
-            announce = { text, interrupt ->
-                // ⛔ THE STATUS LIVE REGION IS THE VOICE; THIS IS ONLY A FALLBACK.
-                // The status Text carries a liveRegion and its contentDescription is
-                // this same string, so a running screen reader announces it -- that is
-                // how the WebView-era bug was fixed (the screen reader should be the
-                // only voice).
-                //
-                // The bridge only exists once a game has started, so calling it earlier
-                // is both a crash (no native library) and unnecessary. Guarded rather
-                // than removed: with a game running, this is the same bridge the reader
-                // uses, so a launcher line during play queues behind the reader's speech
-                // instead of opening a second TTS client. Either session's game counts:
-                // the bridge is shared, and a PSP session builds it at start the same
-                // way the GB session does.
-                if (GbGameSession.isRunning || PspGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
-            },
+            // ⛔ THE STATUS LIVE REGION IS THE VOICE; THIS IS ONLY A FALLBACK.
+            // The status Text carries a liveRegion and its contentDescription is
+            // this same string, so a running screen reader announces it -- that is
+            // how the WebView-era bug was fixed (the screen reader should be the
+            // only voice). announceLine above owns the bridge half.
+            announce = announceLine,
         )
     }
 

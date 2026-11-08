@@ -22,8 +22,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -55,6 +57,7 @@ import com.devin.opengameaccess.GameSettings
 @Composable
 fun AdapterGamesScreen(
     onBack: () -> Unit,
+    announce: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var selected by remember { mutableStateOf<AdapterGameInfo?>(null) }
@@ -65,6 +68,7 @@ fun AdapterGamesScreen(
         PerGameSettingsScreen(
             game = settingsGame,
             onBack = { settingsFor = null },
+            announce = announce,
             modifier = modifier,
         )
         return
@@ -248,6 +252,7 @@ private fun AdapterGamePage(
 private fun PerGameSettingsScreen(
     game: AdapterGameInfo,
     onBack: () -> Unit,
+    announce: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -255,6 +260,20 @@ private fun PerGameSettingsScreen(
     // overrides — the store is SharedPreferences, not Compose state.
     var revision by remember { mutableStateOf(0) }
     val settings = remember(revision) { GameSettings.supportedSettings(game.id) }
+
+    // ⛔ EVERY CHANGE HERE IS SPOKEN, AS ON iOS (parity stage 3).
+    // iOS's panel announces each change itself ("Battle cue sounds:
+    // on, for Birth by Sleep." / "...now uses the app default: on."),
+    // because with no screen an unspoken change is an invisible one.
+    // The line goes two ways, the launcher's pattern: [lastChange]
+    // feeds the live-region line below — the games list is usually
+    // browsed with no game running, when the speech bridge does not
+    // exist — and [announce] carries it to the bridge while one does.
+    var lastChange by remember { mutableStateOf("") }
+    fun changed(line: String) {
+        lastChange = line
+        announce(line)
+    }
 
     Column(
         modifier = modifier
@@ -280,6 +299,20 @@ private fun PerGameSettingsScreen(
                 "overrides it for this game. Settings apply when the game starts.",
             fontSize = 16.sp,
         )
+
+        // The change line: a live region, spoken as changes happen
+        // (see the note at the top of this screen).
+        if (lastChange.isNotEmpty()) {
+            Text(
+                text = lastChange,
+                fontSize = 14.sp,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+                modifier = Modifier.semantics {
+                    liveRegion = LiveRegionMode.Polite
+                    contentDescription = lastChange
+                },
+            )
+        }
 
         if (settings.isEmpty()) {
             Text(
@@ -326,6 +359,8 @@ private fun PerGameSettingsScreen(
                         // it with "Use app default".
                         GameSettings.setOverride(context, game.id, setting, newValue)
                         revision++
+                        // iOS's own words for this change.
+                        changed("${setting.title}: ${onOff(newValue)}, for ${game.name}.")
                     },
                 )
             }
@@ -339,6 +374,11 @@ private fun PerGameSettingsScreen(
                     onClick = {
                         GameSettings.setOverride(context, game.id, setting, null)
                         revision++
+                        // iOS's own words for this change.
+                        changed(
+                            "${setting.title} for ${game.name} now uses the app " +
+                                "default: ${onOff(global)}."
+                        )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
