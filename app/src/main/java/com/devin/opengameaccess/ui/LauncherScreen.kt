@@ -489,6 +489,8 @@ fun LauncherScreen(
                     }
                 },
                 modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+        }
 
         Column(
             modifier = Modifier.padding(24.dp),
