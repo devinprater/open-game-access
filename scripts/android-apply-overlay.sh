@@ -1292,4 +1292,106 @@ else
   echo "     achievement rows: already labelled, or not found"
 fi
 
+
+# ---------------------------------------------------------------------------
+# 9. The Nintendo DS native path (pokecore, the shared Core DS host).
+#
+# The DS host is NOT a new slice: it is Core/pokecore.cpp, the same
+# translation unit the iOS app ships — it owns the melonDS::NDS instance,
+# the embedded Lua the Pokemon Black/White reader script runs in, the
+# native adapter attach (the shared registry's DS adapters), the
+# announcement queue and the battle-cue snapshots. The Android side adds
+# only a JNI surface over it (DsSessionJNI.cpp, riding the frontend
+# target like the other accessibility hosts) — see that file's header
+# for why the earlier DS starts in this tree (the MelonCore stub, the
+# script-only PokeScript) could not run a game.
+#
+# The glue list is the DS-relevant part of scripts/core-sources.sh's
+# OGA_GLUE, MINUS what Android already carries elsewhere:
+#   - dissidia/dbzar/mku/khbbs_adapter.cpp, announce.cpp, osk_echo.cpp
+#     already ride the oga-ppsspp-glue objects (section 8), and the
+#     registry TU references them from there — compiling them again
+#     here would duplicate their symbols.
+#   - poke_platform.cpp is deliberately NOT compiled: it implements
+#     melonDS::Platform file IO, which the frontend's PlatformAndroid
+#     already provides in this library. DsSessionJNI.cpp defines the one
+#     symbol pokecore needs from it (PokeSetLogForward).
+#   - gba_core/mesen_core/snes_core are NOT compiled: GB has its own
+#     Android slice, NES/SNES have none. DsBackendStubs.cpp refuses
+#     their ABIs (create() returns null, which pokecore's load path
+#     turns into a clean refusal) — the missing-symbol set was measured
+#     with nm over exactly the TUs staged below, not guessed.
+#
+# ⛔ THE GLUE RIDES THE FRONTEND TARGET, not a subproject library (the
+# PSP pattern does not transfer): pokecore shares melonDS C++ class
+# ABIs with the core (NDS/ARM/JIT headers), and only the frontend
+# target's exact compile definitions and include paths — the core's
+# PUBLIC JIT_ENABLED, its interface include dir, the Lua headers
+# section 7 added — are proven to match. A separate library compiled
+# with almost-the-same flags is how a core ABI silently skews.
+# ---------------------------------------------------------------------------
+say "building the Nintendo DS host (pokecore) into the frontend"
+
+if [ ! -f "$FRONTEND/app/mgba/lua/src/lua.h" ]; then
+  # ⛔ NOT a silent skip — the shape section 7 established: a DS build
+  # without the Lua headers section 7 staged would compile nothing and
+  # ship a DS page that lies. CI always stages them.
+  echo "   !! the staged Lua headers are missing (section 7 did not run?), so the DS host would NOT be built." >&2
+  echo "      This stage needs section 7's wiring (MGBA_SRC and LUA_SRC set)." >&2
+  exit 1
+fi
+
+DS_GLUE="$FRONTEND/app/ds-glue"
+mkdir -p "$DS_GLUE"
+for f in pokecore oga_core systems adapters fe_adapter fe_access \
+         dbz_adapter dq9_adapter gba_adapter nes_adapter alttp_adapter \
+         alttp_text alttp_names alttp_rooms n64_adapter; do
+  cp "$ROOT/Core/$f.cpp" "$DS_GLUE/$f.cpp" || { echo "   !! Core/$f.cpp missing" >&2; exit 1; }
+done
+cp "$ROOT"/Core/*.h "$DS_GLUE/"
+cp "$ROOT/Sources/CPokeCore/include/pokecore.h" "$DS_GLUE/"
+echo "     staged the DS host (15 Core translation units + headers)"
+
+CMAKE="$FRONTEND/app/CMakeLists.txt"
+if grep -q 'OGA_DS_GLUE' "$CMAKE"; then
+  echo "     already wired; nothing to do"
+else
+  python3 - "$CMAKE" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+NL = chr(10)
+tus = ["pokecore", "oga_core", "systems", "adapters", "fe_adapter",
+       "fe_access", "dbz_adapter", "dq9_adapter", "gba_adapter",
+       "nes_adapter", "alttp_adapter", "alttp_text", "alttp_names",
+       "alttp_rooms", "n64_adapter"]
+lines = [
+    "",
+    "# ---------------------------------------------------------------------------",
+    "# OGA_DS_GLUE -- the Nintendo DS host (Core/pokecore.cpp and its glue),",
+    "# appended by scripts/android-apply-overlay.sh section 9. The DS glue",
+    "# rides the frontend target itself, NOT a subproject library: pokecore",
+    "# shares melonDS C++ class ABIs with the core, and only this target's",
+    "# exact compile definitions and include paths are proven to match it.",
+    "# Skipped on armeabi-v7a, mirroring the PSP subset's stance (section 8);",
+    "# the Kotlin availability probe reads the absence as 'not in this build'.",
+    'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
+    "    target_sources(melonDS-android-frontend PRIVATE",
+    "        ${ANDROID-CPP}/DsSessionJNI.cpp",
+    "        ${ANDROID-CPP}/DsBackendStubs.cpp",
+]
+lines += ["        ${CMAKE_CURRENT_SOURCE_DIR}/ds-glue/%s.cpp" % t for t in tus]
+lines += [
+    "    )",
+    "    target_include_directories(melonDS-android-frontend PRIVATE",
+    "        ${CMAKE_CURRENT_SOURCE_DIR}/ds-glue)",
+    "endif ()",
+    "",
+]
+s = s.rstrip("\n") + NL + NL.join(lines) + NL
+open(p, "w", encoding="utf-8").write(s)
+print("     wired the DS host into the frontend target")
+PY
+fi
+
 say "overlay applied"
