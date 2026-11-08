@@ -76,6 +76,8 @@ n64_adapter.cpp
 gba_core.cpp mgba_version_stub.cpp
 mesen_core.cpp
 snes_core.cpp
+genesis_core.cpp
+genesis_adapter.cpp
 dbz_adapter.cpp
 dissidia_adapter.cpp
 dbzar_adapter.cpp
@@ -1300,4 +1302,73 @@ PPSPP_MM="
 "
 PPSPP_GLUE="
     psp_core.cpp
+"
+
+# ---- Genesis Plus GX (Sega Genesis / Mega Drive core) ----
+# Fetched by scripts/bootstrap-deps.sh (pin + licence note live there). The
+# build scripts compile this list directly with GPGX_DEFS — no build system
+# of upstream's is run. The list is the libretro port's own wildcard set
+# (every .c under core/), generated from the pinned tree: the core's frame
+# dispatcher (core/system.c) references the Sega CD and SVP objects even
+# though this app loads Genesis cartridges only, so a hand-trimmed subset
+# compiles and cannot link. core/sound/minimp3 contributes no .c (header-only
+# in this tree). The TUs are compiled as C under the `gpgx` lang in the
+# build scripts — the tree's native language; the glue
+# (Core/genesis_core.cpp) declares the extern "C" linkage itself.
+GPGX_SRC="${GPGX_SRC:-$HOME/src/genesis-plus-gx}"
+GPGX_ALL="
+core/cart_hw/areplay.c
+core/cart_hw/eeprom_93c.c
+core/cart_hw/eeprom_i2c.c
+core/cart_hw/eeprom_spi.c
+core/cart_hw/flash_cfi.c
+core/cart_hw/ggenie.c
+core/cart_hw/md_cart.c
+core/cart_hw/megasd.c
+core/cart_hw/sms_cart.c
+core/cart_hw/sram.c
+core/cart_hw/svp/ssp16.c
+core/cart_hw/svp/svp.c
+core/cart_hw/yx5200.c
+core/cd_hw/cd_cart.c
+core/cd_hw/cdc.c
+core/cd_hw/cdd.c
+core/cd_hw/gfx.c
+core/cd_hw/pcm.c
+core/cd_hw/scd.c
+core/genesis.c
+core/input_hw/activator.c
+core/input_hw/gamepad.c
+core/input_hw/graphic_board.c
+core/input_hw/input.c
+core/input_hw/lightgun.c
+core/input_hw/mouse.c
+core/input_hw/paddle.c
+core/input_hw/smash.c
+core/input_hw/sportspad.c
+core/input_hw/teamplayer.c
+core/input_hw/terebi_oekaki.c
+core/input_hw/xe_1ap.c
+core/io_ctrl.c
+core/loadrom.c
+core/m68k/m68kcpu.c
+core/m68k/s68kcpu.c
+core/mem68k.c
+core/membnk.c
+core/memz80.c
+core/ntsc/md_ntsc.c
+core/ntsc/sms_ntsc.c
+core/sound/blip_buf.c
+core/sound/eq.c
+core/sound/opll.c
+core/sound/psg.c
+core/sound/sound.c
+core/sound/ym2413.c
+core/sound/ym2612.c
+core/sound/ym3438.c
+core/state.c
+core/system.c
+core/vdp_ctrl.c
+core/vdp_render.c
+core/z80/z80.c
 "

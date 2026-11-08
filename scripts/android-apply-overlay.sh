@@ -1562,9 +1562,371 @@ print("     PlatformAndroid guards applied (incl. %d userdata casts)" % count)
 PY
 fi
 
-
 # ---------------------------------------------------------------------------
-# 10. The MesenCE cores (NES / SNES) as a subproject, plus the session
+# 10. The Sega Genesis native path (Genesis Plus GX).
+#
+# Mirrors section 8's generator shape: parse the AUDITED list out of
+# scripts/core-sources.sh (GPGX_ALL — the libretro wildcard set, the
+# same 54 core translation units iOS builds), copy the pinned
+# Genesis-Plus-GX tree in, and emit a CMake subproject building two
+# static libraries:
+#   oga-gpgx         the core itself, compiled AS C (its native
+#                    language — as C++ it leans on implicit void*
+#                    conversions and implicit declarations strict
+#                    clang refuses, and m68k.h's `#define uint`
+#                    poisons C++ standard headers; the iOS build
+#                    learned this first, see build-core.sh's gpgx case)
+#   oga-genesis-glue Core/genesis_core.cpp (the wrapper) and
+#                    Core/genesis_adapter.cpp (the registry's console
+#                    row), compiled as C++ against the core through
+#                    the extern "C" surface in genesis_core.h.
+#
+# ⛔ THE GLUE IS ITS OWN LIBRARY, NOT FRONTEND-TARGET SOURCES (the
+# section 9 shape does NOT transfer): the DS glue rides the frontend
+# target because pokecore shares melonDS C++ class ABIs with the
+# core. The Genesis glue shares nothing with melonDS — the backend
+# contract pokecore sees is a plain function-pointer struct, the
+# genesis_* surface is extern "C", and oga_genesis_core()'s mangled
+# name is produced by the same toolchain on both sides. What the glue
+# MUST NOT share is an include path: Genesis Plus GX's headers use
+# generic names (shared.h, system.h, state.h, genesis.h) that would
+# shadow — and be shadowed by — the frontend core's own headers if
+# the two include sets ever mixed. Its own library keeps the core's
+# include roots exactly as contained as the iOS build keeps them.
+# The one piece that DOES ride the frontend target is
+# GenesisSessionJNI.cpp (section 1 copied it there), listed below
+# beside the DS host's JNI: it speaks only the poke_* C ABI, whose
+# header the DS glue already puts on that target's include path.
+#
+# ⛔ THE TWIN RENAMES. Genesis Plus GX exports two aggressively
+# generic globals — `config` (its settings struct) and `crc32` (its
+# own implementation) — plus a vendored blip_buf, the third copy of
+# that library in this link (melonDS's core and mGBA vendor the other
+# two). On iOS the same three collided at app link (config with
+# PPSSPP's sceUsbCam, crc32 with mGBA's vendored copy) and are
+# renamed on the GPGX side by scripts/gpgx-localize-twins.sh to
+# oga_gpgx_config / oga_gpgx_crc32 / oga_gpgx_blip_*. The Android link
+# contains the same other parties (the frontend core lib, oga-mgba,
+# the PPSSPP subset), so the same renames run here, as POST_BUILD
+# steps over BOTH Genesis archives — the definitions live in the glue
+# (genesis_core.cpp defines config and crc32) while the core's own
+# translation units hold the references, so renaming only one side
+# would break the pair apart. The rename set is the iOS-measured one;
+# gen/oga_rename_gpgx_twins.py is its Android form.
+#
+# Per-ABI gating happens INSIDE the generated CMake, where
+# CMAKE_ANDROID_ARCH_ABI is known (section 8's shape): the 64-bit
+# ABIs build the real libraries; armeabi-v7a — whose Genesis build
+# was never measured — builds EMPTY ones, the frontend link line
+# stays unconditional, the JNI surface is not compiled, and the
+# Kotlin availability probe reads the absence as "not in this
+# build". Genesis is absent there, honestly, like PSP and DS.
+#
+# THE SESSION ITSELF. GenesisGameSession drives the backend through
+# pokecore (section 9's host routes .md/.gen/.smd/.bin loads to it),
+# so this section adds no host of its own — only the core, its glue,
+# and the JNI surface. There is NO Genesis reader: the registry row
+# refuses to attach, and the session ships pad, states, battery
+# saves, audio and the game picture only.
+# ---------------------------------------------------------------------------
+say "building the Genesis core (Genesis Plus GX) for Android"
+
+GPGX_SRC="${GPGX_SRC:-$HOME/src/genesis-plus-gx}"
+
+if [ ! -d "$GPGX_SRC/core" ]; then
+  # Same rule as sections 7/8: a silent skip is how a core goes missing.
+  if [ "${OGA_ALLOW_NO_GENESIS:-0}" = "1" ]; then
+    echo "   Genesis core SKIPPED (OGA_ALLOW_NO_GENESIS=1)"
+  else
+    echo "   !! no Genesis Plus GX source at $GPGX_SRC, so the Genesis core would NOT be built." >&2
+    echo "      Run scripts/bootstrap-deps.sh, or set GPGX_SRC, or set" >&2
+    echo "      OGA_ALLOW_NO_GENESIS=1 to build without Genesis on purpose." >&2
+    exit 1
+  fi
+else
+  mkdir -p "$FRONTEND/app/genesis"
+  rm -rf "$FRONTEND/app/genesis/src"
+  cp -r "$GPGX_SRC" "$FRONTEND/app/genesis/src"
+  # The checkout's .git is not build input (same rule as the mGBA copy).
+  rm -rf "$FRONTEND/app/genesis/src/.git"
+  if [ ! -f "$FRONTEND/app/genesis/src/core/genesis.c" ]; then
+    echo "   !! the copied Genesis Plus GX tree is not usable (no core/)" >&2; exit 1
+  fi
+  # ⛔ NO GAME IMAGES RIDE ALONG. The pinned tree ships none; if one
+  # ever appears in it, the build stops here rather than shipping a
+  # ROM inside the APK (the repo guard scans the build tree for the
+  # same extensions). .md is deliberately NOT in this list: it is the
+  # tree's documentation extension as much as a cartridge one, and a
+  # Genesis cartridge file in the tree would be caught by the .gen /
+  # .smd / .bin arms or the CI scan, not by eating the READMEs.
+  if find "$FRONTEND/app/genesis/src" -type f \( -iname '*.gen' -o -iname '*.smd' -o -iname '*.bin' -o -iname '*.sav' -o -iname '*.sms' -o -iname '*.gg' -o -iname '*.sg' \) 2>/dev/null | grep -q .; then
+    echo "   !! game image files survived in the copied Genesis Plus GX tree" >&2; exit 1
+  fi
+  echo "     Genesis Plus GX source copied (pinned $(git -C "$GPGX_SRC" rev-parse --short HEAD 2>/dev/null || echo unknown)); ROM check asserted"
+
+  # The glue: OGA code, copied in like section 8's psp_core glue.
+  # glue/gpgx holds ONLY Core/gpgx/osd.h — the frontend shim every
+  # core TU includes as "osd.h" — in its own directory, FIRST on the
+  # core's include path, exactly the iOS arrangement (build-core.sh's
+  # GPGX_INC): the shim must win over nothing and be found before
+  # anything else named osd.h could be.
+  mkdir -p "$FRONTEND/app/genesis/glue/gpgx" "$FRONTEND/app/genesis/gen"
+  cp "$ROOT/Core/genesis_core.cpp" "$ROOT/Core/genesis_adapter.cpp" \
+     "$FRONTEND/app/genesis/glue/"
+  cp "$ROOT/Core/gpgx/osd.h" "$FRONTEND/app/genesis/glue/gpgx/osd.h"
+  cp "$ROOT"/Core/*.h "$FRONTEND/app/genesis/glue/"
+  cp "$ROOT/Sources/CPokeCore/include/pokecore.h" "$FRONTEND/app/genesis/glue/"
+  echo "     added the genesis_core glue + the osd.h frontend shim"
+
+  # The v7a stub TU (see the header comment): a real file, so the
+  # generated CMake can name it unconditionally per-ABI.
+  printf '// Generated by scripts/android-apply-overlay.sh.\n// armeabi-v7a gets empty Genesis libraries: the Genesis Plus GX\n// Android build was never measured for 32-bit ARM. Genesis is\n// absent there, and the Kotlin probe says so.\n' \
+    > "$FRONTEND/app/genesis/gen/oga_genesis_empty.cpp"
+
+  # The twin rename script (see the generated CMakeLists): it runs as
+  # a POST_BUILD step on each Genesis archive.
+  cat > "$FRONTEND/app/genesis/gen/oga_rename_gpgx_twins.py" <<'PYEOF'
+#!/usr/bin/env python3
+# oga_rename_gpgx_twins.py -- generated by scripts/android-apply-overlay.sh.
+#
+# Rename the twin symbols in the Genesis archives:
+#
+#   * `config` -- Genesis Plus GX's settings struct, defined by the
+#     glue (genesis_core.cpp's frontend shim) and referenced by every
+#     core TU. PPSSPP's subset defines its own `config` (sceUsbCam).
+#   * `crc32` -- the shim's own implementation. mGBA vendors another.
+#   * `blip_*` -- the core's vendored blip_buf: the THIRD copy of
+#     that library in this .so (melonDS's core and mGBA vendor the
+#     other two).
+#
+# Every matching symbol in each file given -- definitions and
+# references alike -- gets the oga_gpgx_ prefix, so Genesis code
+# binds Genesis's copies and the other cores keep theirs. Runs as a
+# POST_BUILD step on each Genesis archive, each file self-contained,
+# so incremental rebuilds stay renamed. Idempotent: prefixed names
+# no longer match. The set is the one scripts/gpgx-localize-twins.sh
+# measured for the iOS link; the other first-wins twins inside the
+# core are its own upstream code and collide with nobody.
+import os
+import subprocess
+import sys
+
+EXACT = ("config", "crc32")
+PREFIXES = ("blip_",)
+
+
+def rename_in(path, objcopy, nm):
+    if not os.path.exists(path):
+        print("oga-genesis: rename target does not exist: %s" % path)
+        sys.exit(1)
+    proc = subprocess.run([nm, path], capture_output=True, text=True)
+    if proc.returncode != 0:
+        print("oga-genesis: nm failed on %s: %s" % (path, proc.stderr.strip()))
+        sys.exit(1)
+    names = set()
+    for line in proc.stdout.splitlines():
+        parts = line.split()
+        if parts and (parts[-1] in EXACT or parts[-1].startswith(PREFIXES)):
+            names.add(parts[-1])
+    if not names:
+        print("oga-genesis: no twin symbols in %s" % os.path.basename(path))
+        return
+    map_path = path + ".renames"
+    with open(map_path, "w", encoding="utf-8") as fh:
+        for n in sorted(names):
+            fh.write("%s oga_gpgx_%s\n" % (n, n))
+    subprocess.run([objcopy, "--redefine-syms", map_path, path], check=True)
+    print("oga-genesis: renamed %d twin symbols in %s"
+          % (len(names), os.path.basename(path)))
+
+
+def main():
+    objcopy, args = sys.argv[1], sys.argv[2:]
+    nm = os.path.join(os.path.dirname(objcopy), "llvm-nm")
+    for path in args:
+        rename_in(path, objcopy, nm)
+
+
+main()
+PYEOF
+  echo "     generated the twin-symbol rename script"
+
+  python3 - "$ROOT/scripts/core-sources.sh" "$FRONTEND/app/genesis/CMakeLists.txt" "$FRONTEND/app/genesis" <<'PY'
+import os, re, sys
+srcs = open(sys.argv[1], encoding="utf-8").read()
+out_path, genesis_dir = sys.argv[2], sys.argv[3]
+
+m = re.search(r'^GPGX_ALL="(.*?)"\n', srcs, re.S | re.M)
+assert m, "no GPGX_ALL list in " + sys.argv[1]
+files = [f for f in m.group(1).split() if f.endswith('.c')]
+assert files, "GPGX_ALL came back empty -- refusing to generate a broken CMakeLists"
+
+# Fail at generation time, not at some later link: every named file
+# must exist in the copied tree.
+tree = os.path.join(genesis_dir, "src")
+for f in files:
+    assert os.path.isfile(os.path.join(tree, f)), "missing from the Genesis Plus GX tree: " + f
+
+NL = chr(10)
+with open(out_path, "w", encoding="utf-8") as fh:
+    fh.write("""# Generated by scripts/android-apply-overlay.sh -- do not edit.
+#
+# Genesis Plus GX (the Sega Genesis / Mega Drive core) plus the OGA
+# glue for it, built from the AUDITED source list in
+# scripts/core-sources.sh (GPGX_ALL -- the libretro wildcard set, the
+# same 54 core translation units the iOS build compiles). Upstream's
+# own build files are not used: the libretro Makefile targets a
+# shared object with its own frontend, and this app needs the bare
+# core behind Core/genesis_core.cpp's wrapper.
+#
+# The core compiles AS C (its native language; see the overlay's
+# section 10 for what C++ does to it) with the defines the iOS build
+# uses. The glue compiles as C++ and speaks to the C objects through
+# genesis_core.h's extern "C" declarations, with the standard headers
+# included before the core's (m68k.h's `#define uint` poisons them
+# otherwise -- genesis_core.cpp already observes that order).
+#
+# Per-ABI gating (section 8's shape): armeabi-v7a builds EMPTY
+# libraries -- the Genesis Android build was never measured for
+# 32-bit ARM -- so the frontend link line stays unconditional and the
+# Kotlin availability probe answers "not in this build" there.
+
+cmake_minimum_required(VERSION 3.22)
+project(oga-genesis C CXX)
+
+if (CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+    add_library(oga-gpgx STATIC gen/oga_genesis_empty.cpp)
+    add_library(oga-genesis-glue STATIC gen/oga_genesis_empty.cpp)
+else ()
+    set(GPGX_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+    set(GPGX_SOURCES
+""")
+    for f in files:
+        fh.write("        ${GPGX_SRC_DIR}/%s\n" % f)
+    fh.write("""    )
+
+    # The include roots are the iOS build's (build-core.sh's GPGX_INC),
+    # with the glue's gpgx/ directory -- holding ONLY our osd.h, the
+    # frontend shim every core TU includes -- FIRST: no other header
+    # of ours may be visible to the core, and no core header may leak
+    # to the frontend target (the isolation section 10 exists for).
+    set(OGA_GPGX_INC
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue/gpgx
+        ${GPGX_SRC_DIR}/core
+        ${GPGX_SRC_DIR}/core/z80
+        ${GPGX_SRC_DIR}/core/m68k
+        ${GPGX_SRC_DIR}/core/ntsc
+        ${GPGX_SRC_DIR}/core/sound
+        ${GPGX_SRC_DIR}/core/sound/minimp3
+        ${GPGX_SRC_DIR}/core/input_hw
+        ${GPGX_SRC_DIR}/core/cd_hw
+        ${GPGX_SRC_DIR}/core/cart_hw
+        ${GPGX_SRC_DIR}/core/cart_hw/svp
+    )
+    set(OGA_GPGX_DEFS LSB_FIRST BYTE_ORDER=LITTLE_ENDIAN USE_32BPP_RENDERING)
+
+    add_library(oga-gpgx STATIC ${GPGX_SOURCES})
+    set_target_properties(oga-gpgx PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
+    target_include_directories(oga-gpgx PRIVATE ${OGA_GPGX_INC})
+    target_compile_definitions(oga-gpgx PRIVATE ${OGA_GPGX_DEFS})
+    target_compile_options(oga-gpgx PRIVATE -w)
+
+    add_library(oga-genesis-glue STATIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue/genesis_core.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue/genesis_adapter.cpp
+    )
+    target_include_directories(oga-genesis-glue PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue
+        ${OGA_GPGX_INC}
+    )
+    target_compile_definitions(oga-genesis-glue PRIVATE ${OGA_GPGX_DEFS})
+    target_compile_options(oga-genesis-glue PRIVATE -w)
+
+    # The twin renames (see gen/oga_rename_gpgx_twins.py): POST_BUILD
+    # on EACH archive -- the definitions live in the glue, the
+    # references in the core, so both sides move together.
+    add_custom_command(TARGET oga-gpgx POST_BUILD
+        COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/gen/oga_rename_gpgx_twins.py
+                ${CMAKE_OBJCOPY} $<TARGET_FILE:oga-gpgx>)
+    add_custom_command(TARGET oga-genesis-glue POST_BUILD
+        COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/gen/oga_rename_gpgx_twins.py
+                ${CMAKE_OBJCOPY} $<TARGET_FILE:oga-genesis-glue>)
+endif ()
+""")
+print("     generated the Genesis build (%d audited core sources + glue)" % len(files))
+PY
+
+  # ---- wire it into the frontend ----
+  python3 - "$CMAKE" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+
+if "OGA_GENESIS" in s:
+    print("     already wired; nothing to do")
+    sys.exit(0)
+
+NL = chr(10)
+
+# 1. build the Genesis subproject, before the core's add_subdirectory
+#    (the order sections 7/8 use; what matters is that it precedes the
+#    frontend target's link).
+anchor = "add_subdirectory(${CORE-LIB} ./melonDS-android-lib)"
+if anchor not in s:
+    print("     !! core add_subdirectory anchor not found"); sys.exit(1)
+intro = NL.join([
+    "# The Genesis core (Genesis Plus GX). Built from the audited source",
+    "# list, not upstream's libretro build -- see",
+    "# scripts/android-apply-overlay.sh section 10 for why.",
+    "add_subdirectory(genesis ./oga-genesis)",
+    "",
+])
+s = s.replace(anchor, intro + anchor, 1)
+
+# 2. link the archives, glue first (its genesis_* references resolve
+#    out of the core archive behind it). The link line's exact tail
+#    depends on which earlier sections ran (mGBA always; the PSP
+#    subset unless it was skipped on purpose), so the pair is hung on
+#    the line's closing paren rather than a fixed spelling.
+lines = s.split(NL)
+for i, line in enumerate(lines):
+    if line.startswith("target_link_libraries(melonDS-android-frontend"):
+        assert line.rstrip().endswith(")"), "frontend link line not recognised"
+        lines[i] = line.rstrip()[:-1] + " oga-genesis-glue oga-gpgx)"
+        break
+else:
+    print("     !! frontend link line not found"); sys.exit(1)
+s = NL.join(lines)
+
+# 3. the JNI surface rides the frontend target (section 9's shape for
+#    the DS host's JNI): it speaks only the poke_* C ABI, whose header
+#    section 9's include line already provides. 64-bit only, like the
+#    libraries themselves.
+block = NL.join([
+    "",
+    "# ---------------------------------------------------------------------------",
+    "# OGA_GENESIS -- the Genesis session's JNI surface (GenesisSessionJNI.cpp),",
+    "# appended by scripts/android-apply-overlay.sh section 10. It rides the",
+    "# frontend target like the DS host's JNI (section 9): the poke_* ABI it",
+    "# speaks is compiled into this same target by the DS glue. Skipped on",
+    "# armeabi-v7a, mirroring the libraries' own gating; the Kotlin",
+    "# availability probe reads the absence as 'not in this build'.",
+    'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
+    "    target_sources(melonDS-android-frontend PRIVATE",
+    "        ${ANDROID-CPP}/GenesisSessionJNI.cpp",
+    "    )",
+    "endif ()",
+    "",
+])
+s = s.rstrip("\n") + NL + block + NL
+open(p, "w", encoding="utf-8").write(s)
+print("     wired the Genesis core into the frontend (archives linked; JNI in the target)")
+PY
+
+fi
+# ---------------------------------------------------------------------------
+# 11. The MesenCE cores (NES / SNES) as a subproject, plus the session
 #     surface's wiring.
 #
 # WHAT THIS BUILDS. Core/pokecore.cpp — the shared multi-console host
@@ -1680,7 +2042,7 @@ assert "SevenZip/7zStream.c" in SEVENZIP_C, \
 assert "Utilities/spng.c" in MESEN_C, "spng.c missing from MESEN_C"
 
 L = []
-L.append("# Generated by scripts/android-apply-overlay.sh section 10 -- do not edit.")
+L.append("# Generated by scripts/android-apply-overlay.sh section 11 -- do not edit.")
 L.append("#")
 L.append("# The MesenCE cores for Android: the WHOLE Mesen core (the audited")
 L.append("# MESEN_CORE_ALL list from scripts/core-sources.sh — Mesen's own")
@@ -1728,7 +2090,7 @@ L.append("# The 7-Zip dedupe: localize in Mesen's 7zStream.o the extern")
 L.append("# symbols the OTHER vendored copies (mGBA's lzma, PPSSPP's")
 L.append("# lzma-sdk) also define, keeping LookToRead_* exported. Runs")
 L.append("# after every object it reads exists; the frontend target is")
-L.append("# made to depend on it by the wiring block section 10 appends")
+L.append("# made to depend on it by the wiring block section 11 appends")
 L.append("# to the frontend's CMakeLists, so the link sees the rewritten")
 L.append("# object. See scripts/android-mesen-7z-dedupe.sh.")
 L.append("add_custom_target(oga-mesen-7z-dedupe")
@@ -1795,7 +2157,7 @@ lines = [
     "",
     "# ---------------------------------------------------------------------------",
     "# OGA_MESEN -- the MesenCE cores (NES / SNES), appended by",
-    "# scripts/android-apply-overlay.sh section 10. A subproject library",
+    "# scripts/android-apply-overlay.sh section 11. A subproject library",
     "# (add_subdirectory), NOT frontend-target sources: the Mesen glue is a",
     "# self-contained C ABI over the Mesen tree and shares no C++ class ABI",
     "# with the melonDS core, so section 9's ride-the-frontend-target rule",

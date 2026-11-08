@@ -15,6 +15,7 @@
 #include "psp_core.h"
 #include "mesen_core.h"
 #include "snes_core.h"
+#include "genesis_core.h"
 
 // For POKE_BTN_* — the app's shared pad numbering, which the PSP's button
 // translation table below is indexed by. This header is stdlib-only and is on
@@ -355,6 +356,123 @@ OgaCore oga_snes_core(SnesCore* snes)
     return c;
 }
 
+/* --------------------------------------------------------------------- Genesis
+ *
+ * Genesis Plus GX. The shapes came from genesis_core.h, written from the
+ * backend contract like mesen_core.h before it, so this table is thin on
+ * purpose.
+ *
+ * ⛔ WHAT IS NULL HERE, AND WHY. No attach/on_frame (the Genesis has no
+ * adapter layer of its own — Core/genesis_adapter.cpp is a console row that
+ * refuses, and the Host path the adapters share is fed by pokecore, as on the
+ * NES). No tick, no analog, no touch. No reader_set and no set_script_dir:
+ * NO bundled Genesis reader exists, and inventing a set name would have the
+ * app go looking for files that are not in the bundle.
+ *
+ * THE PAD, SHARED INDEX → GENESIS. The registry row (Core/systems.cpp) lists
+ * six face buttons on the shared slots: A on BTN_A, B on BTN_B, C on BTN_X,
+ * then the 6-button row on the remaining slots — X on BTN_L, Y on BTN_Y, Z on
+ * BTN_R — which is the mapping the registry's own comment prescribes. This
+ * function is where those slots become the core's INPUT_* bits, with Mode on
+ * the shared Select slot (Mode is the pad's system key, as Select is on the
+ * Nintendo pads) and Start on Start.
+ */
+
+static bool GenesisStart(void* s) { return genesis_start((GenesisCore*) s); }
+static void GenesisStop(void* s)  { genesis_stop((GenesisCore*) s); }
+static bool GenesisFrame(void* s) { return genesis_frame((GenesisCore*) s); }
+
+static bool GenesisRead(void* s, uint32_t addr, int width, uint32_t* out)
+{
+    return genesis_read((GenesisCore*) s, addr, width, out);
+}
+
+static bool GenesisFramebuffer(void* s, int screen, int* w, int* h, const uint8_t** pixels)
+{
+    (void) screen;   /* one panel; top/bottom is an NDS idea */
+    GenesisCore* genesis = (GenesisCore*) s;
+    if (!genesis || !genesis_framebuffer(genesis, w, h)) return false;
+    *pixels = genesis_framebuffer_ptr(genesis);
+    return *pixels != NULL;
+}
+
+static void GenesisSetButton(void* s, int pad_button, bool down)
+{
+    /* The shared pad indices are positional: A=0 B=1 Select=2 Start=3
+     * Right=4 Left=5 Up=6 Down=7 R=8 L=9 X=10 Y=11. In the Genesis row's
+     * slots: X(10) is the pad's C, L(9) its X, Y(11) its Y, R(8) its Z. */
+    static const int kGenButton[12] = {
+        GEN_BTN_A,     /* 0: A      -> A */
+        GEN_BTN_B,     /* 1: B      -> B */
+        GEN_BTN_MODE,  /* 2: Select -> Mode */
+        GEN_BTN_START, /* 3: Start  -> Start */
+        GEN_BTN_RIGHT, /* 4 */
+        GEN_BTN_LEFT,  /* 5 */
+        GEN_BTN_UP,    /* 6 */
+        GEN_BTN_DOWN,  /* 7 */
+        GEN_BTN_Z,     /* 8: R      -> Z */
+        GEN_BTN_X,     /* 9: L      -> X */
+        GEN_BTN_C,     /* 10: X     -> C */
+        GEN_BTN_Y,     /* 11: Y     -> Y */
+    };
+    if (pad_button < 0 || pad_button >= 12) return;
+    genesis_set_button((GenesisCore*) s, kGenButton[pad_button], down);
+}
+
+static int GenesisReadAudio(void* s, int16_t* out, int max_frames)
+{
+    return genesis_read_audio((GenesisCore*) s, out, max_frames);
+}
+
+static bool GenesisSaveState(void* s, const char* path)
+{
+    return genesis_save_state((GenesisCore*) s, path);
+}
+static bool GenesisLoadState(void* s, const char* path)
+{
+    return genesis_load_state((GenesisCore*) s, path);
+}
+static unsigned long long GenesisFrames(void* s)
+{
+    return genesis_frames_completed((GenesisCore*) s);
+}
+static const char* GenesisLastError(void* s)
+{
+    GenesisCore* genesis = (GenesisCore*) s;
+    return genesis ? genesis_last_error(genesis) : "no core";
+}
+
+static const OgaCoreOps kGenesisOps = {
+    "genesis",                  /* id */
+    GenesisStart,
+    GenesisStop,
+    GenesisFrame,
+    NULL,                       /* tick: battery save flushes on stop */
+    GenesisRead,
+    NULL,                       /* attach: no adapter layer in the core */
+    NULL,                       /* on_frame */
+    GenesisFramebuffer,
+    GenesisSetButton,
+    NULL,                       /* set_analog: a Genesis pad has no stick */
+    NULL,                       /* set_touch: no touch screen */
+    NULL,                       /* set_hotkey: the native adapters are the only reader */
+    NULL,                       /* set_script_dir: no bundled Genesis reader set */
+    NULL,                       /* reader_set: no bundled Genesis reader set */
+    GenesisReadAudio,
+    GenesisSaveState,
+    GenesisLoadState,
+    GenesisFrames,
+    GenesisLastError,
+};
+
+OgaCore oga_genesis_core(GenesisCore* genesis)
+{
+    OgaCore c;
+    c.ops = &kGenesisOps;
+    c.state = genesis;
+    return c;
+}
+
 /* ------------------------------------------------------------------ resolver */
 
 /* Lower-cased extension INCLUDING the dot, or empty. Mirrors systems.cpp's
@@ -386,6 +504,7 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     static const OgaResolvedBackend kPsp = { "psp", false, true  };
     static const OgaResolvedBackend kNes = { "nes", false, false, true, false };
     static const OgaResolvedBackend kSnes = { "snes", false, false, false, true };
+    static const OgaResolvedBackend kGenesis = { "genesis", false, false, false, false, true };
 
     static const char* const kGb[]  = { ".gba", ".gb", ".gbc", NULL };
     static const char* const kPspE[] = { ".iso", ".cso", ".pbp", ".elf", ".prx", ".ppdmp", NULL };
@@ -401,6 +520,13 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
      * belong to the Game Boy backend here: the kGb check runs first, which is
      * the ordering that keeps a .gb from being handed to the SNES. */
     static const char* const kSnesE[] = { ".sfc", ".smc", ".fig", ".swc", NULL };
+    /* Genesis Plus GX. ⛔ .bin is claimed here ON PURPOSE: it is the raw-dump
+     * extension half the Genesis library uses, the system registry claims it
+     * for the Genesis ahead of the PlayStation for the same reason (see
+     * systems.cpp), and the Genesis is the only .bin claimant with a backend.
+     * A .bin that is not a Genesis ROM is refused in words by
+     * genesis_load_rom's content check — never played on the wrong console. */
+    static const char* const kGenesisE[] = { ".md", ".gen", ".smd", ".bin", NULL };
 
     char ext[8];
     ExtOf(rom_path, ext, (int) sizeof(ext));
@@ -411,5 +537,6 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     if (ExtIs(ext, kNdsE)) return &kNds;
     if (ExtIs(ext, kNesE)) return &kNes;
     if (ExtIs(ext, kSnesE)) return &kSnes;
+    if (ExtIs(ext, kGenesisE)) return &kGenesis;
     return NULL;
 }

@@ -70,6 +70,7 @@ int main()
     ExpectSys("/roms/sonic.md",           OGA_SYS_GENESIS, "a .md is a Genesis ROM");
     ExpectSys("/roms/sonic.gen",          OGA_SYS_GENESIS, "a .gen is a Genesis ROM");
     ExpectSys("/roms/sonic.smd",          OGA_SYS_GENESIS, "a .smd is a Genesis ROM");
+    ExpectSys("/roms/sonic.bin",          OGA_SYS_GENESIS, "a .bin is a Genesis ROM (the Genesis claims it ahead of the PlayStation: first match, and the only .bin backend)");
     ExpectSys("/roms/shenmue.cdi",        OGA_SYS_DREAMCAST, "a .cdi is a Dreamcast disc");
     ExpectSys("/roms/shenmue.gdi",        OGA_SYS_DREAMCAST, "a .gdi is a Dreamcast disc");
     ExpectSys("/roms/fe-awakening.3ds",   OGA_SYS_3DS, "a .3ds is a 3DS ROM");
@@ -218,8 +219,11 @@ int main()
          * core is linked in (Core/snes_core.cpp), a real ROM boots, and the row
          * now says READY. Leaving it here would make this test fail for the
          * right reason and block the change that fixed it. */
+        /* ⛔ GENESIS IS OUT OF THIS LIST FOR THE SAME REASON THE NES AND SNES
+         * ARE: the Genesis Plus GX core is linked in (Core/genesis_core.cpp),
+         * a real ROM boots, and the row now says READY. */
         const OgaSystemId planned[] = { OGA_SYS_N64,
-                                        OGA_SYS_PS1, OGA_SYS_GENESIS,
+                                        OGA_SYS_PS1,
                                         OGA_SYS_DREAMCAST, OGA_SYS_3DS,
                                         OGA_SYS_MASTER, OGA_SYS_PCE,
                                         OGA_SYS_WONDERSWAN };
@@ -235,9 +239,9 @@ int main()
                  "one claimed to be runnable");
 
         const OgaSystem* gen = oga_system_by_id(OGA_SYS_GENESIS);
-        if (gen && gen->faceButtonCount == 3 && !gen->hasShoulders)
-            ok("the Genesis has three face buttons and no shoulders");
-        else bad("the Genesis has three face buttons and no shoulders", "wrong");
+        if (gen && gen->faceButtonCount == 6 && !gen->hasShoulders)
+            ok("the Genesis has six face buttons and no shoulders");
+        else bad("the Genesis has six face buttons and no shoulders", "wrong");
 
         const OgaSystem* dc = oga_system_by_id(OGA_SYS_DREAMCAST);
         if (dc && dc->analogSticks == 1 && dc->faceButtonCount == 4)
@@ -271,6 +275,15 @@ int main()
             ok("the SNES reports its core present");
         else
             bad("the SNES reports its core present", "the row still says PLANNED");
+
+        /* The Genesis row is READY only because Core/genesis_core.cpp exists
+         * and the host proof (a synthetic ROM: frames, audio, states, SRAM
+         * round-trip) passes. No other console may borrow that. */
+        const OgaSystem* genesis = oga_system_by_id(OGA_SYS_GENESIS);
+        if (genesis && oga_system_is_runnable(genesis))
+            ok("the Genesis reports its core present");
+        else
+            bad("the Genesis reports its core present", "the row still says PLANNED");
 
         /* N64 must NOT claim to be runnable: no core for it exists here. */
         if (n64 && !oga_system_is_runnable(n64))

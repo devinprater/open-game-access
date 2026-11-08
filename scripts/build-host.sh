@@ -39,6 +39,14 @@ MESEN_SRC="${MESEN_SRC:-$HOME/src/mesen}"
 # -I$MESEN_SRC lets "Shared/..." and "Utilities/..." resolve; -I$MESEN_SRC/Core is where pch.h and
 # the "NES/..." includes live. The force-include path is the feasibility script's own line.
 MESEN_INC="-I$MESEN_SRC -I$MESEN_SRC/Core -I$MESEN_SRC/Utilities"
+
+# ---- Genesis Plus GX (Sega Genesis / Mega Drive) ----
+# Same include shape and defines as the app builds (build-core.sh's note
+# applies); a host harness compiling the core differently would be proving
+# something about a program the app does not ship.
+GPGX_SRC="${GPGX_SRC:-$HOME/src/genesis-plus-gx}"
+GPGX_INC="-I$ROOT/Core/gpgx -I$GPGX_SRC/core -I$GPGX_SRC/core/z80 -I$GPGX_SRC/core/m68k -I$GPGX_SRC/core/ntsc -I$GPGX_SRC/core/sound -I$GPGX_SRC/core/sound/minimp3 -I$GPGX_SRC/core/input_hw -I$GPGX_SRC/core/cd_hw -I$GPGX_SRC/core/cart_hw -I$GPGX_SRC/core/cart_hw/svp"
+GPGX_DEFS="-DLSB_FIRST -DBYTE_ORDER=LITTLE_ENDIAN -DUSE_32BPP_RENDERING"
 MESEN_DEFS=""
 MESEN_FORCE="-include $MESEN_SRC/Core/pch.h"
 # Host glibc has no <xlocale.h> (merged into <locale.h>); the audited DEFS
@@ -88,6 +96,13 @@ compile() {
     # $LUA_SRC/src, NOT $MESEN_SRC/Lua: the app hosts lua-5.4.7 and Mesen's Lua is a FORK whose
     # headers differ -- the same gap mesen_lua_extras.c exists to bridge. One interpreter.
     mesen) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src $MESEN_INC $MESEN_FORCE -std=c++17 -w"; cc=g++ ;;
+    # Genesis Plus GX core TUs: plain C, the core's native language (as
+    # C++ they lean on implicit conversions/declarations Apple clang
+    # refuses; see build-core.sh's gpgx case).
+    gpgx) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything $GPGX_INC $GPGX_DEFS -std=gnu11 -w"; cc=gcc ;;
+    # Our glue for it: C++, speaking to the C objects through the extern "C"
+    # declarations in genesis_core.cpp, with the same include roots.
+    gpgxglue) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src $GPGX_INC $GPGX_DEFS -std=c++17 -w"; cc=g++ ;;
   esac
   # Timestamp alone is not enough: flag changes (DEFS, includes) must rebuild.
   # The flags file records the exact command that produced $out.
@@ -165,12 +180,18 @@ compile() {
   printf '%s|mesen|mesen_core\n' "$ROOT/Core/mesen_core.cpp"
   # The SNES console: same Mesen include roots and forced pch as mesen_core.cpp.
   printf '%s|mesen|snes_core\n' "$ROOT/Core/snes_core.cpp"
+  # The Genesis console: Genesis Plus GX underneath (Core/genesis_core.cpp).
+  printf '%s|gpgxglue|genesis_core\n' "$ROOT/Core/genesis_core.cpp"
+  # ---- Genesis Plus GX. The measured list from core-sources.sh (the libretro
+  # wildcard set), same rule as the Mesen lists above: a subset cannot link.
+  for f in $GPGX_ALL; do printf '%s|gpgx|%s\n' "$GPGX_SRC/$f" "gpgx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
   printf '%s|cxx|dbzar_adapter\n'     "$ROOT/Core/dbzar_adapter.cpp"
   printf '%s|cxx|dq9_adapter\n'  "$ROOT/Core/dq9_adapter.cpp"
   printf '%s|cxx|mku_adapter\n'  "$ROOT/Core/mku_adapter.cpp"
   printf '%s|cxx|khbbs_adapter\n' "$ROOT/Core/khbbs_adapter.cpp"
+  printf '%s|cxx|genesis_adapter\n' "$ROOT/Core/genesis_adapter.cpp"
   # A Link to the Past. The same omission class as MKU above: adapters.o names
   # oga::kZeldaLinkToThePast, so the host set must carry the adapter and its
   # decoder and name table or every harness dies at the LINK.
@@ -204,6 +225,7 @@ export MGBA_DEFS MGBA_INC MGBA_GEN HOST_MGBA_DEFS
 # flag string failed exactly this way (MESEN_INC, then ROOT/LUA_SRC), so this line now
 # carries all of them rather than being extended one variable at a time.
 export MESEN_SRC MESEN_INC MESEN_FORCE ROOT LUA_SRC
+export GPGX_SRC GPGX_INC GPGX_DEFS
 export -f compile
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED — see the same line in build-core.sh.
 # Without it xargs reads STDIN (empty under a non-interactive shell), compiles
@@ -246,6 +268,11 @@ if [ -f "$OBJ/mesen7z_SevenZip_7zStream.o" ]; then
 fi
 bash "$ROOT/scripts/mesen-localize-twins.sh" "$OBJ" || {
   echo "!! Mesen twin symbol localization failed" >&2; touch "$OBJ/.failed"; }
+# GPGX's vendored blip_buf is the THIRD copy of that library in this link
+# (melonDS's and Mesen's are the other two); the Mesen pass above localizes
+# Mesen's side, this one localizes GPGX's. See gpgx-localize-twins.sh.
+bash "$ROOT/scripts/gpgx-localize-twins.sh" "$OBJ" || {
+  echo "!! GPGX twin symbol localization failed" >&2; touch "$OBJ/.failed"; }
 # ⛔ AN `A && B` AS THE LAST STATEMENT IS A TRAP: when A is false the whole script exits 1,
 # so a CLEAN build reported failure and every `build-host.sh || exit 1` caller aborted before
 # linking its probe. Use an explicit if, so the exit status reflects the dedupe and nothing else.

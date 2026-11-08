@@ -57,6 +57,17 @@ import me.magnum.melonds.accessibility.AccessibilityScript
  * (BUTTON_A is the bottom button, BUTTON_B the right one, whatever the
  * pad's brand), so the position mapping survives the platform change.
  *
+ * Genesis joins the funnel with the parity program's Genesis stage:
+ * the positions land on the Genesis pad the way the shared registry's
+ * table prescribes (west = A, south = B, east = C, north = Y; L1 = X,
+ * R1 = Z; Select = Mode), so one physical pad drives it like every
+ * other console. The DS session does NOT route here (it never joined
+ * this layer); Genesis does because its pad is the whole of its
+ * input — it has no reader hotkeys or touch surface to keep apart.
+ * Its reader chords resolve the honest way: with no Genesis reader,
+ * the ask/browse slots have nothing behind them and say so, while
+ * Stop speech and the Repeats are bridge-level and work as elsewhere.
+ *
  * The Activity is the single input funnel: MainActivity's
  * dispatchKeyEvent / onGenericMotionEvent hand gamepad-sourced events
  * here first, and only while a game session is running — at the launcher
@@ -77,6 +88,7 @@ object ControllerInput {
         data class Gb(val bit: Int) : EmuButton
         data class Psp(val button: Int) : EmuButton
         data class Mesen(val button: Int) : EmuButton
+        data class Genesis(val button: Int) : EmuButton
     }
 
     private enum class PadDir { UP, DOWN, LEFT, RIGHT }
@@ -179,7 +191,7 @@ object ControllerInput {
         }
 
     private val sessionActive: Boolean
-        get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning
+        get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning
 
     /**
      * Session-boundary reset. Events are only routed while a session
@@ -256,10 +268,10 @@ object ControllerInput {
             KeyEvent.KEYCODE_BUTTON_B -> { faceButton(Face.EAST, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_X -> { faceButton(Face.WEST, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_Y -> { faceButton(Face.NORTH, source, pressed); true }
-            KeyEvent.KEYCODE_BUTTON_L1 -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_R1 -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_START -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_SELECT -> { set(source, emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_L1 -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_R1 -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_START -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_SELECT -> { set(source, emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE), pressed); true }
             // The reader's modifiers. Never game input.
             KeyEvent.KEYCODE_BUTTON_L2 -> { setModifier(askHeld, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_R2 -> { setModifier(browseHeld, source, pressed); true }
@@ -332,10 +344,10 @@ object ControllerInput {
     private fun direction(dir: PadDir, source: String, pressed: Boolean) {
         if (routeChord(Input.Pad(dir), source, pressed)) return
         val button = when (dir) {
-            PadDir.UP -> emuButton(GbKeys.UP, PspKeys.UP, MesenKeys.UP)
-            PadDir.DOWN -> emuButton(GbKeys.DOWN, PspKeys.DOWN, MesenKeys.DOWN)
-            PadDir.LEFT -> emuButton(GbKeys.LEFT, PspKeys.LEFT, MesenKeys.LEFT)
-            PadDir.RIGHT -> emuButton(GbKeys.RIGHT, PspKeys.RIGHT, MesenKeys.RIGHT)
+            PadDir.UP -> emuButton(GbKeys.UP, PspKeys.UP, MesenKeys.UP, GenesisKeys.UP)
+            PadDir.DOWN -> emuButton(GbKeys.DOWN, PspKeys.DOWN, MesenKeys.DOWN, GenesisKeys.DOWN)
+            PadDir.LEFT -> emuButton(GbKeys.LEFT, PspKeys.LEFT, MesenKeys.LEFT, GenesisKeys.LEFT)
+            PadDir.RIGHT -> emuButton(GbKeys.RIGHT, PspKeys.RIGHT, MesenKeys.RIGHT, GenesisKeys.RIGHT)
         }
         set(source, button, pressed)
     }
@@ -364,9 +376,10 @@ object ControllerInput {
     }
 
     /** The emulated button for a position, in the running session's terms. */
-    private fun emuButton(gb: Int, psp: Int, mesen: Int): EmuButton? = when {
+    private fun emuButton(gb: Int, psp: Int, mesen: Int, genesis: Int): EmuButton? = when {
         PspGameSession.isRunning -> EmuButton.Psp(psp)
         MesenGameSession.isRunning -> EmuButton.Mesen(mesen)
+        GenesisGameSession.isRunning -> EmuButton.Genesis(genesis)
         GbGameSession.isRunning -> EmuButton.Gb(gb)
         else -> null
     }
@@ -399,6 +412,21 @@ object ControllerInput {
                     Face.EAST -> PspKeys.CIRCLE
                     Face.NORTH -> PspKeys.TRIANGLE
                     Face.WEST -> PspKeys.SQUARE
+                }
+            )
+        }
+        if (GenesisGameSession.isRunning) {
+            // The Genesis pad's own layout, by position: its bottom
+            // row is A (west), B (south), C (east), and the 6-button
+            // pad's Y sits at north — the slots the shared registry's
+            // Genesis table assigns (GenesisKeys), with L1/R1
+            // carrying X/Z (see the key routing above).
+            return EmuButton.Genesis(
+                when (face) {
+                    Face.WEST -> GenesisKeys.A
+                    Face.SOUTH -> GenesisKeys.B
+                    Face.EAST -> GenesisKeys.C
+                    Face.NORTH -> GenesisKeys.Y
                 }
             )
         }
@@ -439,6 +467,8 @@ object ControllerInput {
                 if (down) PspGameSession.pressButton(button.button) else PspGameSession.releaseButton(button.button)
             is EmuButton.Mesen ->
                 if (down) MesenGameSession.pressButton(button.button) else MesenGameSession.releaseButton(button.button)
+            is EmuButton.Genesis ->
+                if (down) GenesisGameSession.pressButton(button.button) else GenesisGameSession.releaseButton(button.button)
         }
     }
 
@@ -613,6 +643,10 @@ object ControllerInput {
                     PspGameSession.stopSpeech(context)
                 } else if (MesenGameSession.isRunning && context != null) {
                     MesenGameSession.stopSpeech(context)
+                } else if (GenesisGameSession.isRunning && context != null) {
+                    // The bridge stop is the whole of it (no reader
+                    // queue behind it — see GenesisGameSession).
+                    GenesisGameSession.stopSpeech(context)
                 } else {
                     GbGameSession.stopSpeech()
                 }

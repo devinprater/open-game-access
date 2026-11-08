@@ -153,9 +153,13 @@ jobs:
           # (a silent skip is how a core goes missing).
           PPSSPP_SRC: ${{ runner.temp }}/src/ppsspp
           # ⛔ REQUIRED since the MesenCE cores landed (overlay section
-          # 10): bootstrap-deps.sh already fetches the pinned tree here;
+          # 11): bootstrap-deps.sh already fetches the pinned tree here;
           # without the path the overlay exits on purpose.
           MESEN_SRC: ${{ runner.temp }}/src/mesen
+          # ⛔ REQUIRED since the Genesis core landed: without it the
+          # overlay's Genesis section cannot find the pinned tree and
+          # exits on purpose (a silent skip is how a core goes missing).
+          GPGX_SRC: ${{ runner.temp }}/src/genesis-plus-gx
           # Where the ffmpeg step above put the Android installs; the
           # overlay stages them into the frontend tree from here.
           FFMPEG_ANDROID_OUT: ${{ runner.temp }}/ffmpeg-android
@@ -230,6 +234,18 @@ jobs:
           else
             echo "note: no NES reader set in this APK (iOS-only today) -- not asserted"
           fi
+
+          # Genesis ships WITHOUT a reader in this build: no native
+          # adapter, no reader scripts -- the registry's Genesis row
+          # refuses to attach, and the session is pad, states, battery
+          # saves, audio and picture only. Assert the claim is not
+          # being made falsely: no Genesis reader asset path may
+          # appear until a real reader exists to fill it.
+          if grep -qi "assets/.*genesis" "$RUNNER_TEMP/apk-list.txt"; then
+            echo "!! a Genesis asset path exists, but this build has no Genesis reader" >&2
+            exit 1
+          fi
+          echo "ok: no Genesis reader set in this APK (none exists yet) -- asserted absent"
 
       - name: Confirm no game data is present
         run: |
