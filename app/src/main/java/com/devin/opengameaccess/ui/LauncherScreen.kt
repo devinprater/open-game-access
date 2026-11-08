@@ -697,11 +697,8 @@ fun LauncherScreen(
                     PspSystemButtons(PspGameSession)
                 }
                 PspReaderGroup(PspGameSession) { message -> say(message) }
-                PspSpeechGroup(
-                    PspGameSession,
-                    say = { message -> say(message) },
-                    sayControl = { message -> sayControl(message) },
-                )
+                PspSpeechGroup(PspGameSession, say = { message -> say(message) },
+                    sayControl = { message -> sayControl(message) })
                 PspStateGroup(PspGameSession) { message -> say(message) }
                 QuitPspGame(PspGameSession, { message -> say(message) }) { pspRunning = false }
             } else {
@@ -715,11 +712,8 @@ fun LauncherScreen(
                 }
                 PathFindingGroup(session)
                 ReadingGroup(session)
-                SpeechGroup(
-                    session,
-                    say = { message -> say(message) },
-                    sayControl = { message -> sayControl(message) },
-                )
+                SpeechGroup(session, say = { message -> say(message) },
+                    sayControl = { message -> sayControl(message) })
                 QuitGame(session) { running = false }
             }
         }

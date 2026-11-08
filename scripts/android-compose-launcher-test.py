@@ -663,7 +663,7 @@ wiring = {
         # the span section 9's note describes (the picker's MIME string
         # blinds the comment stripper to everything after it).
         "PspReaderGroup(PspGameSession)" in read(SCREEN_KT)
-        and "PspSpeechGroup(PspGameSession)" in read(SCREEN_KT),
+        and "PspSpeechGroup(PspGameSession," in read(SCREEN_KT),
 }
 for what, present in wiring.items():
     if present:
