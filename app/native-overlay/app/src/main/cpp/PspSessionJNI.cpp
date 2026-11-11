@@ -240,6 +240,12 @@ Java_me_magnum_melonds_accessibility_PspAccessibilityScript_nativePspGameCode(
 }
 
 extern "C" JNIEXPORT jstring JNICALL
+Java_me_magnum_melonds_accessibility_PspAccessibilityScript_nativePspCoreMode(
+    JNIEnv *env, jobject /*self*/) {
+  return env->NewStringUTF(g_core ? psp_core_mode(g_core) : "not booted");
+}
+
+extern "C" JNIEXPORT jstring JNICALL
 Java_me_magnum_melonds_accessibility_PspAccessibilityScript_nativePspLastError(
     JNIEnv *env, jobject /*self*/) {
   return env->NewStringUTF(g_last_error.c_str());

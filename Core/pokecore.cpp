@@ -1789,6 +1789,18 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
 
     core->nds = std::make_unique<NDS>(std::move(args));
 
+    // The session core-mode line: NDS::IsJITEnabled() reads the flag the
+    // constructor set from args.JIT, and in a build without the JIT
+    // compiled in the header answers false unconditionally -- so this
+    // one call witnesses both the request and the binary. Logged here,
+    // at construction, where the object that decides it exists.
+    if (core->logCb) {
+        core->logCb(core->nds->IsJITEnabled()
+                        ? "DS core: JIT (melonDS ARM JIT)"
+                        : "DS core: interpreter (melonDS JIT not engaged)",
+                    core->logUserdata);
+    }
+
     // ⛔ THE CONSOLE MUST BE RESET BEFORE THE CART IS INSERTED AND BOOTED, OR
     // EVERY FRAME RUNS FOREVER. NDS::Reset() is what fills ARM9MemTimings /
     // ARM7MemTimings, ARM9ClockShift and MainRAMMask. Constructing an NDS and

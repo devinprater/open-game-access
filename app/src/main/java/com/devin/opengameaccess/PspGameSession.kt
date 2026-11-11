@@ -244,6 +244,7 @@ object PspGameSession {
                 storedAnnouncementView?.let { AccessibilityScript.setAnnouncementView(it) }
                 startAudio()
                 Log.i(TAG, "PSP session running: $gameCode")
+                Log.i(TAG, "PSP core: ${PspAccessibilityScript.coreMode()}")
                 onResult(null)
             }
         }

@@ -324,22 +324,30 @@ class AccessibilitySpeech(private val context: Context)
             val view = announcementView
             if (view != null)
             {
-                view.accessibilityLiveRegion = if (interrupt)
-                    android.view.View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
-                else
-                    android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE
-                // Setting the text is what triggers the announcement; clearing it
-                // first restarts the region when the same line repeats, which is
-                // what the script's "repeat" key does. ⛔ THE CLEAR MUST ACTUALLY
-                // HAPPEN: assigning the identical description is no change, no
-                // content-change event fires, and a repeated line — above all a
-                // repeat-walk re-read of the line just spoken — is never heard.
-                if (view.contentDescription?.toString() == text)
+                // ⛔ THE REGION CHANGE MUST RUN ON THE MAIN THREAD, AS ONE
+                // STEP. speak() arrives from emulator threads (adapter
+                // announcements are made inside the frame loop), and a
+                // contentDescription set from a background thread is not
+                // guaranteed to reach the accessibility service at all:
+                // the property set and its content-change event are the
+                // view's main-thread business. Measured on device
+                // (2026-11-11): a game relaunched inside the running app
+                // logged every menu line as "[speech] say (screen
+                // reader)" and the player heard none of them -- the sets
+                // happened, off the main thread, and no announcement
+                // followed. Posting the whole change as one runnable
+                // keeps politeness, clear and text atomic and ordered,
+                // and the [speech] log line moves inside
+                // dispatchAnnouncement, so it now means the change
+                // actually landed on the view.
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper())
                 {
-                    view.contentDescription = null
+                    dispatchAnnouncement(view, text, interrupt)
                 }
-                view.contentDescription = text
-                Log.i(TAG, "[speech] ${if (interrupt) "say" else "queue"} (screen reader): $text")
+                else
+                {
+                    view.post { dispatchAnnouncement(view, text, interrupt) }
+                }
                 return
             }
             // No view yet (narration started before the layout inflated). Falling
@@ -358,6 +366,42 @@ class AccessibilitySpeech(private val context: Context)
             Log.e(TAG, "[pokemon-access] TTS speak failed: ${e.message}")
         }
         Log.i(TAG, "[speech] ${if (interrupt) "say" else "queue"}: $text")
+    }
+
+    /**
+     * Land one announcement on the live-region view: the politeness
+     * switch, the clear-for-repeat and the text set as one indivisible
+     * main-thread change, so the accessibility service can never observe
+     * a half-updated region. Main thread only -- see the posting at the
+     * call site in [speakImmediately].
+     *
+     * The detached-view warning is the diagnostic the silent 2026-11-11
+     * session lacked: it separates "dispatched to a live view the
+     * screen reader can announce" from "the view was not in a window",
+     * which the bare [speech] line could not tell apart.
+     */
+    private fun dispatchAnnouncement(view: android.view.View, text: String, interrupt: Boolean)
+    {
+        view.accessibilityLiveRegion = if (interrupt)
+            android.view.View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
+        else
+            android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE
+        // Setting the text is what triggers the announcement; clearing it
+        // first restarts the region when the same line repeats, which is
+        // what the script's "repeat" key does. ⛔ THE CLEAR MUST ACTUALLY
+        // HAPPEN: assigning the identical description is no change, no
+        // content-change event fires, and a repeated line — above all a
+        // repeat-walk re-read of the line just spoken — is never heard.
+        if (view.contentDescription?.toString() == text)
+        {
+            view.contentDescription = null
+        }
+        view.contentDescription = text
+        if (!view.isAttachedToWindow)
+        {
+            Log.w(TAG, "[speech] announcement reached a DETACHED view; no screen reader can announce it: $text")
+        }
+        Log.i(TAG, "[speech] ${if (interrupt) "say" else "queue"} (screen reader): $text")
     }
 
     /** The script's repeat key ("U") re-reads the last spoken line. */

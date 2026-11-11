@@ -42,7 +42,6 @@ object AccessibilityScript
     private external fun getScriptFrameCount(): Long
     private external fun stopScript()
     private external fun setHotkey(key: Char, down: Boolean)
-    private external fun speakNow(text: String, interrupt: Boolean)
 
     // The single speech bridge for the process. Held here so the native global
     // ref and this Kotlin object have the same lifetime.
@@ -222,17 +221,20 @@ object AccessibilityScript
     /** Speak a line from the app itself (not the script). */
     fun speak(text: String, interrupt: Boolean = true)
     {
-        try
-        {
-            speakNow(text, interrupt)
-        }
-        catch (e: UnsatisfiedLinkError)
-        {
-            // This object's natives are not linked (see
-            // registerSpeechBridge): the shared Kotlin bridge is the
-            // voice, so speak through it.
-            speech?.speak(text, interrupt)
-        }
+        // Straight to the shared Kotlin bridge -- the voice every host
+        // in this app converges on. This used to try the native
+        // speakNow() first (one of this object's own JNI natives,
+        // unlinked BY DESIGN: the script-only PokeScript host it
+        // belonged to is not in the build), so the catch's fallback was
+        // the only path that ever spoke. Measured on device
+        // (2026-11-11): EVERY app-level line -- "Game started.",
+        // reader-command answers, "Not ready yet." -- first threw an
+        // UnsatisfiedLinkError and logged ART's "No implementation
+        // found for AccessibilityScript.speakNow" error, and only then
+        // dispatched; had PokeScriptJNI ever been linked, the line
+        // would have spoken twice. The detour bought nothing, so it is
+        // gone, declaration and all.
+        speech?.speak(text, interrupt)
     }
 
     /**
