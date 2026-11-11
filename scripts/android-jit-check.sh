@@ -195,6 +195,9 @@ grep -qF 'Looper.getMainLooper()' "$ACCSPEECH" \
   && grep -qF 'fun dispatchAnnouncement' "$ACCSPEECH" \
   && ok "live-region announcements dispatch on the main thread as one step" \
   || bad "AccessibilitySpeech mutates the announcement view off the calling thread again: sets from the emulator thread are not guaranteed to be announced"
+grep -qF 'announceForAccessibility' "$ACCSPEECH" \
+  && ok "announcements dispatch as explicit TYPE_ANNOUNCEMENT events, not only as description changes" \
+  || bad "AccessibilitySpeech is back to description-only dispatch: a contentDescription set is not a promise an announcement event reaches the screen reader (the silent 13:04 session of 2026-11-11 landed every line and was heard as none)"
 
 echo
 echo "== pacing and the announcement lifecycle stay repaired"
@@ -208,6 +211,10 @@ grep -qF 'while (owed >= 1.0 && steps < 4)' "$PSPCLOCK" \
   && grep -qF '* 120.0' "$PSPCLOCK" \
   && ok "the PSP frame clock accumulates 120 steps per wall second, independent of the panel" \
   || bad "the PSP frame clock is back to one frame per vsync: at 60 Hz the audio starves again"
+grep -qF 'AUDIO_MAX_LEAD_FRAMES' "$PSPCLOCK" \
+  && grep -qF 'playbackHeadPosition' "$PSPCLOCK" \
+  && ok "the PSP audio drain bounds its lead over the track's playback head" \
+  || bad "the PSP audio drain writes ungated again: production runs ~3% ahead of consumption, every buffer fills, and a press's sound waits behind the standing audio (the late answers of 2026-11-11)"
 grep -qF 'Lifecycle.Event.ON_RESUME' "$MAINACT" \
   && ok "the announcement view is re-attached to every session on resume" \
   || bad "the announcement view is only attached on recomposition again: a relaunched session can announce into a stale view"

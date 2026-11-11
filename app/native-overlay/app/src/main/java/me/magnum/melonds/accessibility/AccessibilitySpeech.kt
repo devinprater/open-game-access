@@ -334,11 +334,11 @@ class AccessibilitySpeech(private val context: Context)
         // announcements to VoiceOver. Speaking through TextToSpeech as well would
         // put two voices on the same output, each interrupting the other.
         //
-        // The queue/interrupt contract still has to be honoured, and a live region
-        // expresses it directly: changing a polite region's text queues behind
-        // whatever is being read, while an assertive one interrupts. So a single
-        // view carries both cases by switching its polite-ness, rather than
-        // needing two mechanisms.
+        // The queue/interrupt contract still has to be honoured. It is
+        // carried by dispatchAnnouncement below: the view's live-region
+        // politeness (polite queues behind whatever is being read,
+        // assertive interrupts) plus an explicit announcement event
+        // per line, so a single view carries both cases.
         if (screenReaderRunning())
         {
             val view = announcementView
@@ -389,39 +389,75 @@ class AccessibilitySpeech(private val context: Context)
     }
 
     /**
-     * Land one announcement on the live-region view: the politeness
-     * switch, the clear-for-repeat and the text set as one indivisible
-     * main-thread change, so the accessibility service can never observe
-     * a half-updated region. Main thread only -- see the posting at the
-     * call site in [speakImmediately].
+     * Land one announcement on the announcement view: an explicit
+     * announcement event, with the view's live region and description
+     * kept current as the node's state, as one indivisible main-thread
+     * step. Main thread only -- see the posting at the call site in
+     * [speakImmediately].
      *
-     * The detached-view warning is the diagnostic the silent 2026-11-11
-     * session lacked: it separates "dispatched to a live view the
-     * screen reader can announce" from "the view was not in a window",
-     * which the bare [speech] line could not tell apart.
+     * ⛔ THE EVENT IS THE ANNOUNCEMENT; THE DESCRIPTION IS ONLY STATE.
+     * Until now this only mutated the view -- politeness flip,
+     * clear-for-repeat, the description set -- and relied on the
+     * resulting content-change event reaching the screen reader as a
+     * live-region update. On device that proved unreliable in exactly
+     * the sessions that matter: the 2026-11-11 13:04 session logged
+     * every line as landed, on the main thread, on an attached view,
+     * and the player heard none of them, while a build three merges
+     * earlier announcing the identical way WAS heard at 05:53.
+     * Whether a property set becomes an announcement a reader voices
+     * depends on node synthesis and content-change delivery this class
+     * cannot observe, and the bare [speech] line could not tell a
+     * landed announcement from a lost one.
+     * [android.view.View.announceForAccessibility] is the
+     * purpose-built route: it dispatches a TYPE_ANNOUNCEMENT event
+     * carrying the text itself, which a screen reader speaks from the
+     * event rather than by re-reading a node -- and a repeated line is
+     * a fresh event, so repeats announce on their own. The region and
+     * description still update (the region only when its mode actually
+     * changes, so the region the reader tracks is not churned on every
+     * line): they are the node's inspectable state, and they keep the
+     * node path available to anything that reads it. The log line now
+     * records the dispatch itself -- method, view, attached, shown,
+     * window focus, display -- so a silent session, if there is
+     * another, separates "no event was emitted here" from "the event
+     * was emitted and something downstream let it go".
+     *
+     * The detached-view warning stays: announceForAccessibility is a
+     * no-op on a view with no window, so a detached view is still
+     * called out by name rather than logged as dispatched.
      */
     private fun dispatchAnnouncement(view: android.view.View, text: String, interrupt: Boolean)
     {
-        view.accessibilityLiveRegion = if (interrupt)
+        val region = if (interrupt)
             android.view.View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
         else
             android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE
-        // Setting the text is what triggers the announcement; clearing it
-        // first restarts the region when the same line repeats, which is
-        // what the script's "repeat" key does. ⛔ THE CLEAR MUST ACTUALLY
-        // HAPPEN: assigning the identical description is no change, no
-        // content-change event fires, and a repeated line — above all a
-        // repeat-walk re-read of the line just spoken — is never heard.
+        if (view.accessibilityLiveRegion != region)
+        {
+            view.accessibilityLiveRegion = region
+        }
+        // The clear-for-repeat still applies on the node: assigning the
+        // identical description is no change at all there, and a
+        // repeated line should differ observably in the node's state
+        // even though the event no longer depends on it.
         if (view.contentDescription?.toString() == text)
         {
             view.contentDescription = null
         }
         view.contentDescription = text
-        if (!view.isAttachedToWindow)
+        val attached = view.isAttachedToWindow
+        if (attached)
+        {
+            view.announceForAccessibility(text)
+        }
+        else
         {
             Log.w(TAG, "[speech] announcement reached a DETACHED view; no screen reader can announce it: $text")
         }
-        Log.i(TAG, "[speech] ${if (interrupt) "say" else "queue"} (screen reader): $text")
+        Log.i(TAG, "[speech] ${if (interrupt) "say" else "queue"} (screen reader): $text" +
+            " [dispatch: announceForAccessibility ${if (attached) "sent" else "SKIPPED (detached)"}" +
+            ", view=${view.javaClass.simpleName}, attached=$attached, shown=${view.isShown}" +
+            ", windowFocus=${view.hasWindowFocus()}, display=${view.display?.displayId ?: -1}]")
     }
 
     /** The script's repeat key ("U") re-reads the last spoken line. */
