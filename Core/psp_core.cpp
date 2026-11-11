@@ -856,8 +856,10 @@ void WebServerSetRequireExactPort(bool) {}
 // so the factory returns the real backend. Upstream's factory
 // (Core/MIPS/JitCommon/JitCommon.cpp) is not compiled in -- it also
 // houses the disassemblers this subset excludes (the Disassemble* stubs
-// below) -- so the factory is the one piece re-homed here. This
-// embedding only ever requests the IR JIT; the classic JIT is not
+// below) -- so the factory is re-homed here, and JitAt with it: the
+// backend's fixed code (Arm64IRAsm) takes JitAt's address, and its
+// upstream body needs nothing beyond the jit pointer and currentMIPS.
+// This embedding only ever requests the IR JIT; the classic JIT is not
 // carried, so a classic request gets the same null every other
 // platform gets.
 #if defined(__ANDROID__) && defined(__aarch64__)
@@ -865,6 +867,13 @@ void WebServerSetRequireExactPort(bool) {}
 #endif
 namespace MIPSComp {
 JitInterface *jit = nullptr;
+// Verbatim upstream body from JitCommon.cpp (the file excluded above):
+// the JIT's fixed code calls here when it reaches an uncompiled block.
+void JitAt() {
+    // TODO: We could probably check for a bad pc here, and fire an exception. Could spare us from some crashes.
+    // Although, we just tried to load from this address to check for a JIT block, and if we're here, that succeeded..
+    jit->Compile(currentMIPS->pc);
+}
 #if defined(__ANDROID__) && defined(__aarch64__)
 JitInterface *CreateNativeJit(MIPSState *mipsState, bool useIR) {
     return useIR ? new Arm64IRJit(mipsState) : nullptr;
