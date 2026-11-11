@@ -134,6 +134,9 @@ if [ -f "$PSPCORE" ] && [ -f "$CORESRC" ]; then
   grep -qF 'new Arm64IRJit(mipsState)' "$PSPCORE" \
     && ok "the JIT factory returns the real Arm64IRJit on Android arm64" \
     || bad "CreateNativeJit still stubs the factory on Android: JIT_IR would get a null JIT"
+  grep -qF 'jit->Compile(currentMIPS->pc);' "$PSPCORE" \
+    && ok "JitAt is re-homed in psp_core.cpp (Arm64IRAsm takes its address)" \
+    || bad "JitAt is not defined in psp_core.cpp: the Android arm64 link misses MIPSComp::JitAt, which lives in the excluded JitCommon.cpp"
   grep -qF 'Core/MIPS/ARM64/Arm64IRJit.cpp' "$CORESRC" \
     && grep -qF 'Core/MIPS/IR/IRNativeCommon.cpp' "$CORESRC" \
     && ok "the AArch64 IR-JIT backend TUs are listed (PPSPP_ANDROID_ARM64_CPP)" \
