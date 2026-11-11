@@ -42,10 +42,11 @@ extern const Adapter kDragonBallZSaiyans;
 extern const Adapter kDissidiaFinalFantasy;
 
 // Implemented in dq9_adapter.cpp — Dragon Quest IX: Sentinels of the Starry
-// Skies (US, YDQE). A NATIVE scaffold over the mod's own documented addresses
-// (third-party/DQ9-Access): WhereAmI, party cycling and DumpState. Menus,
-// battles and travel stay mod (Lua) territory until a live-ROM pass confirms
-// them through this front.
+// Skies (US, YDQE). A NATIVE front over the mod's own documented addresses
+// (third-party/DQ9-Access): WhereAmI, party cycling, the nearby scan,
+// DumpState, and menu speech — queried and automatic — including the title
+// menus, character creation and the name-entry keyboard. Dialogue, shops
+// and travel stay mod (Lua) territory.
 extern const Adapter kDragonQuestIX;
 
 // Implemented in mku_adapter.cpp — Mortal Kombat: Unchained (PSP,
