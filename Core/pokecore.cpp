@@ -1720,11 +1720,12 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
     // this app wants: the finished 256x192 framebuffers are read straight out
     // of the core, so no GPU surface is ever needed.
     //
-    // ⛔ THE JIT MUST BE EXPLICITLY DISABLED, AND ASKING FOR IT IS A TRAP.
-    // This build is compiled WITHOUT JIT_ENABLED (the ARM64 JIT needs MAP_JIT
-    // and pthread_jit_write_protect_np, which iOS only grants to apps signed
-    // with the dynamic-codesigning entitlement — a free-account sideload has
-    // none). NDSArgs' default is `std::optional<JITArgs> JIT = JITArgs()`, i.e.
+    // ⛔ ON iOS, THE JIT MUST BE EXPLICITLY DISABLED, AND ASKING FOR IT IS
+    // A TRAP. The iOS build is compiled WITHOUT JIT_ENABLED (the ARM64 JIT
+    // needs MAP_JIT and pthread_jit_write_protect_np, which iOS only grants
+    // to apps signed with the dynamic-codesigning entitlement — a
+    // free-account sideload has none). Android compiles the JIT in; see
+    // the args below. NDSArgs' default is `std::optional<JITArgs> JIT = JITArgs()`, i.e.
     // JIT *requested*. With it requested, NDS::RunFrame() dispatches to
     // RunFrame<CPUExecuteMode::JIT>() — and in a build where JIT_ENABLED is
     // absent, that path never actually runs the CPUs. The console "boots" and
@@ -1734,7 +1735,15 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
     // which is the correct (and only) engine here.
     NDSArgs args;
     args.OutputSampleRate = 32768.0;
+#ifdef __ANDROID__
+    // Android is not the build the warning above describes: the overlay
+    // compiles melonDS WITH its JIT (ENABLE_JIT=ON is pinned for arm64
+    // and x86_64 -- scripts/android-jit-check.sh asserts it) and Android
+    // grants the executable pages the JIT needs, so leave args.JIT at
+    // its default (JIT requested) and the JIT actually runs.
+#else
     args.JIT = std::nullopt;   // interpreter: see the note above
+#endif
 
     // Real BIOS + firmware when the app has them. This is what decides whether
     // the console boots through the firmware/menu handshake or is forced into

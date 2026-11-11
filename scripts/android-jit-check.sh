@@ -124,6 +124,28 @@ if [ -f "$OVERLAY" ]; then
 fi
 
 echo
+echo "== PPSSPP on Android arm64 must select and link its IR JIT"
+PSPCORE="$ROOT/Core/psp_core.cpp"
+CORESRC="$ROOT/scripts/core-sources.sh"
+if [ -f "$PSPCORE" ] && [ -f "$CORESRC" ]; then
+  grep -qF 'param.cpuCore = CPUCore::JIT_IR;' "$PSPCORE" \
+    && ok "psp_boot selects the IR JIT (JIT_IR) under the Android arm64 guard" \
+    || bad "psp_core.cpp does not select JIT_IR: Android PSP would run the IR interpreter"
+  grep -qF 'new Arm64IRJit(mipsState)' "$PSPCORE" \
+    && ok "the JIT factory returns the real Arm64IRJit on Android arm64" \
+    || bad "CreateNativeJit still stubs the factory on Android: JIT_IR would get a null JIT"
+  grep -qF 'Core/MIPS/ARM64/Arm64IRJit.cpp' "$CORESRC" \
+    && grep -qF 'Core/MIPS/IR/IRNativeCommon.cpp' "$CORESRC" \
+    && ok "the AArch64 IR-JIT backend TUs are listed (PPSPP_ANDROID_ARM64_CPP)" \
+    || bad "the IR-JIT backend TUs are not in core-sources.sh: the Android link would miss Arm64IRJit"
+  grep -qF '${PPSPP_ANDROID_ARM64_CPP_SOURCES}' "$OVERLAY" \
+    && ok "the overlay compiles the JIT TUs into the arm64-v8a target only" \
+    || bad "the overlay does not emit PPSPP_ANDROID_ARM64_CPP_SOURCES into the arm64 target"
+else
+  bad "Core/psp_core.cpp or scripts/core-sources.sh is missing"
+fi
+
+echo
 echo "== negative control: removing a pin must FAIL this check"
 # Run only the pin assertions against a mutated copy of the overlay. Do NOT
 # recurse into this script (that re-runs the control and never terminates), and
