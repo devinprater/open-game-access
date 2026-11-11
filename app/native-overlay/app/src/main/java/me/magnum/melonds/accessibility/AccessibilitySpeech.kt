@@ -98,6 +98,26 @@ class AccessibilitySpeech(private val context: Context)
     }
 
     /**
+     * The announcement path's state in one line, for session logs:
+     * whether a view is held, whether it stands in a window, and
+     * whether a screen reader is the voice. The silent relaunched
+     * session of 2026-11-11 logged every line as dispatched and left
+     * no trace of which leg of this path was missing; a session that
+     * logs this line at start cannot go silent unexplained.
+     */
+    fun announcementState(): String
+    {
+        val view = announcementView
+        val viewState = when
+        {
+            view == null -> "view=none"
+            view.isAttachedToWindow -> "view=attached"
+            else -> "view=DETACHED"
+        }
+        return "$viewState screenReader=${if (screenReaderRunning()) "on" else "off"}"
+    }
+
+    /**
      * True when a screen reader is running, in which case it — not this class —
      * should be the voice.
      *

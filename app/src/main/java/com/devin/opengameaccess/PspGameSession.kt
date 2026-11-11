@@ -198,6 +198,7 @@ object PspGameSession {
                     return@post
                 }
                 running = true
+                lastHeartbeatFrame = 0L
                 lastError = ""
                 // The bridge exists now (built on demand, as the GB
                 // session builds it when its reader starts), so the
@@ -245,6 +246,7 @@ object PspGameSession {
                 startAudio()
                 Log.i(TAG, "PSP session running: $gameCode")
                 Log.i(TAG, "PSP core: ${PspAccessibilityScript.coreMode()}")
+                Log.i(TAG, "PSP speech: ${bridge.announcementState()}")
                 onResult(null)
             }
         }
@@ -818,20 +820,49 @@ object PspAdapterCommands {
 }
 
 /**
- * Drives one emulated PSP frame per Compose frame while a PSP game runs.
+ * Drives the PSP core while a PSP game runs: 120 emulated frames per
+ * wall-clock second, accumulated against the Compose frame signal.
  *
  * The twin of GbGameSession.kt's rememberFrameClock, kept beside its own
- * session for the same reason that one is beside its: the cadence is the
- * app's frame signal, so the core's per-frame work happens on the same
- * thread that produced it.
+ * session for the same reason that one is beside its, but NOT one frame
+ * per vsync like its twin: the PSP core's audio does not survive that.
+ * One runFrame() advances exactly one emulated frame (psp_frame runs
+ * 1/60 s chunks to the next vblank), and the core yields only ~280-306
+ * audio samples per frame at the app's 32768 Hz (measured on device,
+ * 2026-11-11, across builds and games states) -- so a 60 Hz vsync
+ * cadence produces ~17-18k samples a second against the 32768 the
+ * AudioTrack consumes, and the track starves into audible stutter for
+ * as long as the session runs. The same phone undocked ticked ~117
+ * times a second (120 Hz panel) and the identical build fed the track
+ * fully. The cadence is therefore owed by the clock, not by the panel:
+ * 120 steps per wall second, paid out in small batches per vsync tick
+ * (at a true 120 Hz panel, exactly one step per tick -- the old
+ * behaviour). MainActivity separately asks the display for its fastest
+ * mode; this accumulator is what makes the session independent of
+ * whether the panel honours it.
  */
 @Composable
 fun rememberPspFrameClock(running: Boolean) {
     if (!running) return
     androidx.compose.runtime.LaunchedEffect(Unit) {
+        var owed = 0.0
+        var lastNanos = 0L
         while (true) {
-            androidx.compose.runtime.withFrameNanos { }
-            PspGameSession.runFrame()
+            val now = androidx.compose.runtime.withFrameNanos { it }
+            if (lastNanos != 0L) {
+                owed += (now - lastNanos) / 1_000_000_000.0 * 120.0
+            }
+            lastNanos = now
+            var steps = 0
+            while (owed >= 1.0 && steps < 4) {
+                PspGameSession.runFrame()
+                owed -= 1.0
+                steps++
+            }
+            // A long stall (a backgrounded minute, a frozen frame) must
+            // not turn into a catch-up spiral: forgive the debt past
+            // the per-tick cap.
+            if (owed > 4.0) owed = 4.0
         }
     }
 }

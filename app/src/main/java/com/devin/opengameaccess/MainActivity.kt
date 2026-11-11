@@ -130,6 +130,59 @@ class MainActivity : ComponentActivity() {
             GenesisGameSession.attachAnnouncementView(view)
         }
 
+        // ⛔ RE-ATTACH ON RESUME, not only on recomposition. The SideEffect
+        // above refreshes the stored view when Launcher recomposes, but a
+        // background/foreground cycle does not guarantee a recomposition --
+        // and a session relaunched after one announces through whatever
+        // view was stored before it. Measured on device (2026-11-11): a
+        // game relaunched inside the warm app spoke every menu line into
+        // the stored view and the player heard none of them. Re-handing
+        // the CURRENT view to every session on every resume means the
+        // stored view is never older than the last foregrounding.
+        val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+        androidx.compose.runtime.DisposableEffect(lifecycleOwner, view) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                    GbGameSession.attachAnnouncementView(view)
+                    PspGameSession.attachAnnouncementView(view)
+                    DsGameSession.attachAnnouncementView(view)
+                    MesenGameSession.attachAnnouncementView(view)
+                    GenesisGameSession.attachAnnouncementView(view)
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+
+        // Ask the display for its fastest mode. Every host's frame clock
+        // in this app is vsync-driven, and a panel idling at 60 Hz
+        // starves the PSP core's audio outright (see
+        // rememberPspFrameClock for the measured math). Best-effort and
+        // guarded: a single-mode panel, or a device that refuses the
+        // request, simply changes nothing -- the PSP clock's accumulator
+        // does not depend on the panel honouring this.
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            try {
+                val window = (context as? android.app.Activity)?.window
+                val display = view.display
+                if (window != null && display != null) {
+                    val fastest = display.supportedModes
+                        .filter {
+                            it.physicalWidth == display.mode.physicalWidth &&
+                                it.physicalHeight == display.mode.physicalHeight
+                        }
+                        .maxByOrNull { it.refreshRate }
+                    if (fastest != null && fastest.modeId != display.mode.modeId) {
+                        val attrs = window.attributes
+                        attrs.preferredDisplayModeId = fastest.modeId
+                        window.attributes = attrs
+                    }
+                }
+            } catch (t: Throwable) {
+                // A refused display mode must never cost the launcher.
+            }
+        }
+
         // ⛔ THE APP'S VOICE FOR ITS OWN LINES, SHARED BY EVERY SCREEN.
         // The settings screens speak their changes through this too
         // (parity stage 3): iOS announces every settings and per-game

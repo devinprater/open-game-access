@@ -197,6 +197,26 @@ grep -qF 'Looper.getMainLooper()' "$ACCSPEECH" \
   || bad "AccessibilitySpeech mutates the announcement view off the calling thread again: sets from the emulator thread are not guaranteed to be announced"
 
 echo
+echo "== pacing and the announcement lifecycle stay repaired"
+PSPCLOCK="$ROOT/app/src/main/java/com/devin/opengameaccess/PspGameSession.kt"
+MAINACT="$ROOT/app/src/main/java/com/devin/opengameaccess/MainActivity.kt"
+# The PSP frame clock owes the core 120 steps per wall second (the
+# core yields ~280-306 audio samples per frame; at a 60 Hz vsync
+# cadence that is half what the AudioTrack consumes -- the 2026-11-11
+# docked-session stutter). One-frame-per-vsync must not come back.
+grep -qF 'while (owed >= 1.0 && steps < 4)' "$PSPCLOCK" \
+  && grep -qF '* 120.0' "$PSPCLOCK" \
+  && ok "the PSP frame clock accumulates 120 steps per wall second, independent of the panel" \
+  || bad "the PSP frame clock is back to one frame per vsync: at 60 Hz the audio starves again"
+grep -qF 'Lifecycle.Event.ON_RESUME' "$MAINACT" \
+  && ok "the announcement view is re-attached to every session on resume" \
+  || bad "the announcement view is only attached on recomposition again: a relaunched session can announce into a stale view"
+grep -qF 'fun announcementState()' "$ACCSPEECH" \
+  && grep -qF 'PSP speech: ${bridge.announcementState()}' "$PSPSESSION" \
+  && ok "every PSP session start logs the announcement path's state" \
+  || bad "the session-start speech-state line is gone: a silent session would be unexplained again"
+
+echo
 echo "== negative control: removing a pin must FAIL this check"
 # Run only the pin assertions against a mutated copy of the overlay. Do NOT
 # recurse into this script (that re-runs the control and never terminates), and
