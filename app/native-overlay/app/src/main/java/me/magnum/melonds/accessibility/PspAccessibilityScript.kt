@@ -58,6 +58,7 @@ object PspAccessibilityScript
     private external fun nativePspAvailable(): Boolean
     private external fun nativePspLoadRom(romPath: String, saveDir: String, assetDir: String): Boolean
     private external fun nativePspGameCode(): String
+    private external fun nativePspCoreMode(): String
     private external fun nativePspLastError(): String
     private external fun nativePspStart(): Boolean
     private external fun nativePspStop()
@@ -178,6 +179,23 @@ object PspAccessibilityScript
 
     /** The loaded game's DISC_ID (e.g. ULUS10437), or "" before a load. */
     fun gameCode(): String = nativePspGameCode()
+
+    /**
+     * The session's CPU core mode in the core's own plain terms
+     * ("JIT (Arm64 IR)" when the IR JIT backend object exists,
+     * "IR interpreter (JIT not engaged)", a BROKEN line when a JIT was
+     * requested but no backend was created). Guarded like every other
+     * call into this surface: on a build without the PSP core the
+     * native is absent and the honest answer is "unavailable".
+     */
+    fun coreMode(): String = try
+    {
+        nativePspCoreMode()
+    }
+    catch (t: Throwable)
+    {
+        "unavailable"
+    }
 
     /** The core's own words for the last failure, or "". */
     fun lastError(): String = nativePspLastError()

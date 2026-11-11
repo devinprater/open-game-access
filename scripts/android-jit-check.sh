@@ -149,6 +149,51 @@ else
 fi
 
 echo
+echo "== the session must REPORT its core mode, and CAN_JIT must not lie"
+PSPCOREH="$ROOT/Core/psp_core.h"
+POKECORE="$ROOT/Core/pokecore.cpp"
+PSPSESSION="$ROOT/app/src/main/java/com/devin/opengameaccess/PspGameSession.kt"
+ACCSCRIPT="$ROOT/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/AccessibilityScript.kt"
+ACCSPEECH="$ROOT/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/AccessibilitySpeech.kt"
+# The CAN_JIT landmine (2026-11-11): PPSSPP's Config::Load clamps a
+# requested JIT core to the IR interpreter whenever
+# System_GetPropertyBool(SYSPROP_CAN_JIT) is false, and the glue used
+# to answer false on every platform. The shipped boot never consulted
+# the config, so the Android JIT engaged anyway -- but the false
+# answer must not come back: any config-driven path would silently
+# lose the JIT again.
+if grep -qF 'if (prop == SYSPROP_CAN_JIT) return false;' "$PSPCORE"; then
+  bad "SYSPROP_CAN_JIT answers false unconditionally again: Config::Load would clamp the JIT away on any config-driven path"
+else
+  ok "SYSPROP_CAN_JIT no longer answers a blanket false"
+fi
+grep -qF 'SYSPROP_CAN_JIT' "$PSPCORE" \
+  && grep -A3 'if (prop == SYSPROP_CAN_JIT) {' "$PSPCORE" | grep -qF 'return true;' \
+  && ok "SYSPROP_CAN_JIT returns true under the Android guard" \
+  || bad "SYSPROP_CAN_JIT does not return true on Android"
+grep -qF 'const char *psp_core_mode(PspCore *core);' "$PSPCOREH" \
+  && grep -qF 'g_createdJitBackend' "$PSPCORE" \
+  && ok "psp_core_mode reports the created backend (factory witness recorded)" \
+  || bad "the PSP core-mode report (psp_core_mode + factory witness) is missing"
+grep -qF 'PSP core: ${PspAccessibilityScript.coreMode()}' "$PSPSESSION" \
+  && ok "every PSP session start logs its core mode" \
+  || bad "PspGameSession does not log the PSP core mode at session start"
+grep -qF 'core->nds->IsJITEnabled()' "$POKECORE" \
+  && ok "every DS session logs its core mode off the constructed NDS" \
+  || bad "pokecore does not log the DS core mode (IsJITEnabled)"
+echo
+echo "== speech must not detour through unlinked natives or off-thread views"
+if grep -qF 'speakNow(text' "$ACCSCRIPT" || grep -qF 'external fun speakNow' "$ACCSCRIPT"; then
+  bad "AccessibilityScript references speakNow again: its JNI is unlinked by design, so every app line would throw and log an ART error before speaking (and double-speak if it were ever linked)"
+else
+  ok "AccessibilityScript.speak goes straight to the Kotlin speech bridge"
+fi
+grep -qF 'Looper.getMainLooper()' "$ACCSPEECH" \
+  && grep -qF 'fun dispatchAnnouncement' "$ACCSPEECH" \
+  && ok "live-region announcements dispatch on the main thread as one step" \
+  || bad "AccessibilitySpeech mutates the announcement view off the calling thread again: sets from the emulator thread are not guaranteed to be announced"
+
+echo
 echo "== negative control: removing a pin must FAIL this check"
 # Run only the pin assertions against a mutated copy of the overlay. Do NOT
 # recurse into this script (that re-runs the control and never terminates), and
@@ -164,4 +209,4 @@ rm -rf "$TMP"
 
 echo
 [ "$fail" -eq 0 ] || exit 1
-echo "PASS: the Android build compiles the JIT in, and the overlay adds rather than replaces"
+echo "PASS: the Android build compiles the JIT in, sessions report their core mode, and speech stays on linked, main-thread paths"

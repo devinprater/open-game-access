@@ -110,6 +110,10 @@ struct PspCore {
     bool running = false;
     char error[512] = {0};
     char code[16] = {0};
+    // The session core-mode report, composed at boot from the backend
+    // object the run loop will dispatch through (see psp_load_rom) and
+    // served to the app by psp_core_mode().
+    char coreMode[128] = {0};
     std::string romPath;
     std::string saveRoot;
     std::string assetDir;
@@ -139,6 +143,13 @@ struct PspCore {
     // interpreter's memory ops bypass them). Used by scripts/psp-memtrace.
     bool traceClassicCpu = false;
 };
+
+// Session core-mode witness: the class name of the JIT backend the
+// MIPSComp factory most recently built (see CreateNativeJit below), or
+// nullptr when it built none. Declared ahead of psp_load_rom because the
+// boot reads it to compose PspCore::coreMode: the report states what
+// object MIPSState::Init created, not what the boot merely requested.
+static const char *g_createdJitBackend = nullptr;
 
 static void SetError(PspCore *core, const char *fmt, ...)
 {
@@ -273,10 +284,26 @@ int64_t System_GetPropertyInt(SystemProperty prop)
 float System_GetPropertyFloat(SystemProperty) { return 0.0f; }
 bool System_GetPropertyBool(SystemProperty prop)
 {
-    // No back button, no keyboard, no JIT: report the plain truth.
+    // No back button, no keyboard: report the plain truth.
     if (prop == SYSPROP_HAS_BACK_BUTTON) return false;
     if (prop == SYSPROP_HAS_KEYBOARD) return false;
-    if (prop == SYSPROP_CAN_JIT) return false;
+    // JIT: the platform answer differs, and it matters beyond honesty --
+    // PPSSPP's Config::Load clamps a requested JIT/JIT_IR core back to
+    // the IR interpreter whenever this says no ("Forcing JIT off due to
+    // unavailablility", Core/Config.cpp) and DefaultCpuCore() consults
+    // it too. The boot below dispatches on its CoreParameter, never on
+    // g_Config, so the clamp never gated the shipped Android JIT -- but
+    // the false answer was a live landmine for any config-driven path,
+    // and it flatly contradicted the JIT_IR the boot requests. Android
+    // grants executable pages, so its answer is yes; iOS keeps the
+    // honest no (a free-account sideload gets no executable pages).
+    if (prop == SYSPROP_CAN_JIT) {
+#if defined(__ANDROID__)
+        return true;
+#else
+        return false;
+#endif
+    }
     return false;
 }
 std::string System_GetProperty(SystemProperty) { return std::string(); }
@@ -498,6 +525,34 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
     strncpy(core->code, id.c_str(), sizeof(core->code) - 1);
     strncpy(code_out, core->code, 16);
 
+    // The session core-mode report. MIPSState::Init has run by now and
+    // created the CPU backend from param.cpuCore (PPSSPP dispatches
+    // RunLoopUntil on that same CoreParameter value), so state what the
+    // backend OBJECT is: a requested JIT with no backend behind it is a
+    // build defect, and the report says BROKEN rather than letting the
+    // session quietly run an interpreter nobody chose.
+    {
+        const char *mode = "interpreter (JIT not engaged)";
+        switch (param.cpuCore) {
+        case CPUCore::JIT_IR:
+            mode = MIPSComp::jit
+                ? (g_createdJitBackend ? "JIT (Arm64 IR)" : "JIT (IR native backend)")
+                : "BROKEN: JIT_IR requested but no JIT backend was created";
+            break;
+        case CPUCore::JIT:
+            mode = MIPSComp::jit ? "JIT (classic)"
+                : "BROKEN: classic JIT requested but this build carries no classic JIT backend";
+            break;
+        case CPUCore::IR_INTERPRETER:
+            mode = "IR interpreter (JIT not engaged)";
+            break;
+        case CPUCore::INTERPRETER:
+            mode = "classic interpreter (JIT not engaged)";
+            break;
+        }
+        std::snprintf(core->coreMode, sizeof(core->coreMode), "%s", mode);
+    }
+
     core->booted = true;
     return true;
 }
@@ -685,6 +740,12 @@ bool psp_load_state(PspCore *core, const char *path)
 unsigned long long psp_frames_completed(PspCore *core)
 {
     return core ? core->frames : 0;
+}
+
+const char *psp_core_mode(PspCore *core)
+{
+    if (!core || !core->coreMode[0]) return "not booted";
+    return core->coreMode;
 }
 
 const char *psp_last_error(PspCore *core)
@@ -876,6 +937,7 @@ void JitAt() {
 }
 #if defined(__ANDROID__) && defined(__aarch64__)
 JitInterface *CreateNativeJit(MIPSState *mipsState, bool useIR) {
+    g_createdJitBackend = useIR ? "Arm64IRJit" : nullptr;
     return useIR ? new Arm64IRJit(mipsState) : nullptr;
 }
 #else
