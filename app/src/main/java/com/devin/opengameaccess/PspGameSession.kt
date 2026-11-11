@@ -8,6 +8,7 @@ import android.media.AudioTrack
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import androidx.compose.runtime.Composable
@@ -97,6 +98,28 @@ object PspGameSession {
 
     /** One drain read, in frames (~31 ms): the lead bound's granularity. */
     private const val AUDIO_CHUNK_FRAMES = 1024
+
+    /**
+     * The cushion the drain writes into the track BEFORE anything
+     * plays it, in frames (~94 ms at [AUDIO_RATE]) — capped by the
+     * track's real capacity in [audioLoop]. A track set playing empty
+     * can underrun inside its startup window and be removed by
+     * AudioFlinger before the drain's first chunks land; that removal
+     * is half of the round-2 deadlock (see [audioLoop]). A cushion
+     * already in the buffer gives playback something to consume from
+     * the first instant.
+     */
+    private const val AUDIO_PRIME_FRAMES = 3072
+
+    /**
+     * How long the playback head may sit frozen while the lead gate
+     * is holding writes before the drain treats the track as wedged
+     * and revives it, in milliseconds. Keyed on TIME with a frozen
+     * head, never on lead size: the round-2 gate capped the lead
+     * itself, so a lead-keyed escape was unreachable by construction
+     * (see [audioLoop]).
+     */
+    private const val AUDIO_HEAD_STALL_MS = 250L
 
     /**
      * The application context, kept from [start] so the per-frame cue
@@ -389,7 +412,8 @@ object PspGameSession {
         }
         if (completed >= lastHeartbeatFrame + 600L) {
             lastHeartbeatFrame = completed
-            Log.i(TAG, "PSP running: frames=$completed audioFrames=$audioFramesWritten")
+            Log.i(TAG, "PSP running: frames=$completed audioFrames=$audioFramesWritten " +
+                "audioHead=$audioHeadPosition audioLead=${audioFramesWritten - audioHeadPosition}")
         }
     }
 
@@ -663,6 +687,10 @@ object PspGameSession {
     @Volatile
     private var audioFramesWritten = 0L
 
+    /** The track's playback head, as last read by the drain (heartbeat evidence). */
+    @Volatile
+    private var audioHeadPosition = 0L
+
     private fun startAudio() {
         val minBuffer = AudioTrack.getMinBufferSize(
             AUDIO_RATE,
@@ -704,8 +732,17 @@ object PspGameSession {
         }
         audioTrack = track
         audioFramesWritten = 0L
+        audioHeadPosition = 0L
         audioRunning = true
-        track.play()
+        // ⛔ NOT play()ed here. The drain primes a cushion of frames
+        // into the track first and plays it from inside [audioLoop]:
+        // a track set playing empty underran inside its startup
+        // window on device (2026-11-11, round 2's first session —
+        // removed by AudioFlinger 434 ms after start, head frozen at
+        // 411), and the lead gate then held writes forever waiting
+        // for that frozen head to move. Priming first removes the
+        // underrun; the gate's time-based escape (see [audioLoop])
+        // covers a removal that happens anyway.
         val thread = Thread { audioLoop(track) }
         thread.name = "psp-audio"
         audioThread = thread
@@ -733,61 +770,179 @@ object PspGameSession {
      * worst case), whatever the panel or the surplus do. The surplus
      * itself backs into the ring, whose push side already drops its
      * oldest samples at capacity -- the sink the core's audio contract
-     * built for exactly this (System_AudioPushSamples). A head counter
-     * that never advances (lead past a full second) is treated as
-     * broken and the gate opens rather than starving the track silent.
+     * built for exactly this (System_AudioPushSamples).
+     *
+     * ⛔ PRIME BEFORE PLAY, AND ESCAPE ON TIME, NEVER ON LEAD. Round 2
+     * shipped the bound above with a lead-based failsafe (a head past
+     * a full second of lead was treated as broken and the gate opened)
+     * and deadlocked in its first on-device session (pid 15235,
+     * 2026-11-11): play() was called on an empty track, which underran
+     * 434 ms in; AudioFlinger removed it (BUFFER TIMEOUT) and its
+     * playbackHeadPosition froze at 411. The drain had written 3,687
+     * frames, so the lead sat in the gate's sleep band -- and could
+     * never climb past it, because the gate itself caps the lead at
+     * the bound plus one chunk. The failsafe was unreachable by
+     * construction: the drain slept forever waiting for a head that
+     * only a write could revive, while the gate forbade the write.
+     * Sixteen heartbeats, audioFrames frozen at 3687, emulation and
+     * speech perfect, sound zero. So now the drain primes a cushion
+     * of frames into the track before anything plays it (each priming
+     * write capped by the room left to the target, so a pre-play
+     * write can never block on a full buffer), and while the gate
+     * holds, a head frozen for [AUDIO_HEAD_STALL_MS] is revived by
+     * force: one chunk written anyway -- a write is what reactivates
+     * a removed track -- and flush() + play() if even that does not
+     * move the head within another stall interval. The escape is
+     * keyed on elapsed time with a frozen head, never on lead size;
+     * the bound above governs untouched once the track is genuinely
+     * playing.
      */
     private fun audioLoop(track: AudioTrack) {
         val buffer = ShortArray(AUDIO_CHUNK_FRAMES * 2)
-        while (audioRunning) {
-            val head = try {
-                track.playbackHeadPosition.toLong() and 0xFFFF_FFFFL
-            } catch (t: Throwable) {
-                audioFramesWritten
-            }
-            val lead = audioFramesWritten - head
-            if (lead > AUDIO_MAX_LEAD_FRAMES && lead <= AUDIO_RATE) {
-                // Ahead of the bound: the track is still playing what
-                // was already written. Sleep briefly rather than read
-                // samples that would only deepen the queue.
-                try {
-                    Thread.sleep(4)
-                } catch (e: InterruptedException) {
-                    break
-                }
-                continue
-            }
+        // The track's real capacity can exceed the request (the
+        // platform minimum overrides upward -- 3,942 frames for a
+        // 2,048 request on device), so prime against the real number.
+        val bufferFrames = try {
+            track.bufferSizeInFrames
+        } catch (t: Throwable) {
+            AUDIO_BUFFER_FRAMES
+        }
+        val primeTarget = minOf(bufferFrames, AUDIO_PRIME_FRAMES).toLong()
+        var playing = false
+        var lastHead = -1L
+        var headAdvancedAtMs = SystemClock.uptimeMillis()
+        // The wedged-head revive state: stage 0 = no attempt yet this
+        // stall (a forced write is next), 1 = a write was forced (a
+        // flush + replay is next); the attempt's time bounds the next.
+        var reviveStage = 0
+        var reviveAtMs = 0L
+
+        fun readHead(): Long = try {
+            track.playbackHeadPosition.toLong() and 0xFFFF_FFFFL
+        } catch (t: Throwable) {
+            audioFramesWritten
+        }
+
+        // One ring read, handled exactly as every write is (silence
+        // for the sound switch, cue mix, blocking write), with at
+        // most [maxFrames] of it written. Returns the frames written;
+        // 0 when the ring is dry. Samples read past [maxFrames] are
+        // dropped — that overshoot exists only at the priming cap,
+        // during startup.
+        fun drainChunk(maxFrames: Int): Int {
             val frames = try {
                 PspAccessibilityScript.readAudio(buffer, AUDIO_CHUNK_FRAMES)
             } catch (t: Throwable) {
                 0
             }
-            if (frames > 0) {
-                // Game sound off: the game's samples are silenced
-                // BEFORE the cue mix, never instead of draining — the
-                // ring must keep emptying or the core's audio backs
-                // up, and the cues must keep sounding over a muted
-                // game (iOS's split between audioEnabled and the cue
-                // switch, honoured at the one place they meet).
-                if (!gameSoundOn) {
-                    java.util.Arrays.fill(buffer, 0, frames * 2, 0)
-                }
-                // The cue synth mixes into the game's own audio here,
-                // at the drain — the one output path, so cue and game
-                // can never drift apart (see PspCueSynth). Silent
-                // unless a frame poll armed a voice.
-                PspCueSynth.render(buffer, frames)
-                track.write(buffer, 0, frames * 2, AudioTrack.WRITE_BLOCKING)
-                audioFramesWritten += frames
-            } else {
-                // Dry: the ring refills as frames run. Sleep briefly
-                // rather than spin a processor on an empty queue.
-                try {
-                    Thread.sleep(4)
-                } catch (e: InterruptedException) {
-                    break
-                }
+            if (frames <= 0) return 0
+            // Game sound off: the game's samples are silenced BEFORE
+            // the cue mix, never instead of draining — the ring must
+            // keep emptying or the core's audio backs up, and the cues
+            // must keep sounding over a muted game (iOS's split
+            // between audioEnabled and the cue switch, honoured at the
+            // one place they meet).
+            if (!gameSoundOn) {
+                java.util.Arrays.fill(buffer, 0, frames * 2, 0)
             }
+            // The cue synth mixes into the game's own audio here, at
+            // the drain — the one output path, so cue and game can
+            // never drift apart (see PspCueSynth). Silent unless a
+            // frame poll armed a voice.
+            PspCueSynth.render(buffer, frames)
+            val toWrite = minOf(frames, maxFrames)
+            if (toWrite > 0) {
+                track.write(buffer, 0, toWrite * 2, AudioTrack.WRITE_BLOCKING)
+                audioFramesWritten += toWrite
+            }
+            return toWrite
+        }
+
+        // The loop's one pause: false when interrupted, which every
+        // caller treats as the session ending.
+        fun sleepBriefly(): Boolean = try {
+            Thread.sleep(4)
+            true
+        } catch (e: InterruptedException) {
+            false
+        }
+
+        while (audioRunning) {
+            val head = readHead()
+            audioHeadPosition = head
+            val now = SystemClock.uptimeMillis()
+            if (head != lastHead) {
+                lastHead = head
+                headAdvancedAtMs = now
+                reviveStage = 0
+            }
+
+            if (!playing) {
+                // Priming: nothing consumes yet, so the head is 0 and
+                // the frames written ARE the cushion. Each write is
+                // capped by the room left to the target, so a pre-play
+                // write can never block waiting for a drain nothing
+                // has started. A dry ring just delays play() until the
+                // cushion exists — the core produces from its first
+                // frames.
+                val room = primeTarget - audioFramesWritten
+                if (room <= 0L) {
+                    try {
+                        track.play()
+                    } catch (t: Throwable) {
+                        Log.w(TAG, "PSP audio: play after priming threw: ${t.message}")
+                    }
+                    playing = true
+                    headAdvancedAtMs = now
+                    Log.i(TAG, "PSP audio playing: primed $audioFramesWritten frames " +
+                        "into a $bufferFrames-frame track")
+                    continue
+                }
+                if (drainChunk(room.toInt()) == 0 && !sleepBriefly()) break
+                continue
+            }
+
+            val lead = audioFramesWritten - head
+            if (lead > AUDIO_MAX_LEAD_FRAMES) {
+                // Ahead of the bound: the track is still playing what
+                // was already written, so sleep briefly rather than
+                // read samples that would only deepen the queue —
+                // UNLESS the head has stopped moving. A head frozen
+                // past [AUDIO_HEAD_STALL_MS] while the gate holds
+                // means AudioFlinger has likely removed the track;
+                // only a write brings it back, so force one on time,
+                // and escalate to flush + replay if even that write
+                // does not move the head within another interval.
+                val frozenMs = now - headAdvancedAtMs
+                if (frozenMs > AUDIO_HEAD_STALL_MS && now - reviveAtMs > AUDIO_HEAD_STALL_MS) {
+                    if (reviveStage == 0) {
+                        Log.w(TAG, "PSP audio: head frozen at $head for $frozenMs ms " +
+                            "with lead $lead; forcing a write to revive the track")
+                        reviveStage = 1
+                    } else {
+                        Log.w(TAG, "PSP audio: head still frozen at $head after a " +
+                            "forced write; flushing and replaying the track")
+                        try {
+                            track.flush()
+                        } catch (t: Throwable) {
+                            // The replay below is the recovery either way.
+                        }
+                        try {
+                            track.play()
+                        } catch (t: Throwable) {
+                            Log.w(TAG, "PSP audio: replay after flush threw: ${t.message}")
+                        }
+                    }
+                    drainChunk(AUDIO_CHUNK_FRAMES)
+                    reviveAtMs = now
+                }
+                if (!sleepBriefly()) break
+                continue
+            }
+            // Under the bound: feed the track. A dry ring sleeps
+            // briefly rather than spinning a processor on an empty
+            // queue — it refills as frames run.
+            if (drainChunk(Int.MAX_VALUE) == 0 && !sleepBriefly()) break
         }
     }
 
