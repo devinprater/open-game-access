@@ -1263,6 +1263,22 @@ PPSPP_ANDROID_ARM64="
     ext/cpu_features/src/string_view.c ext/cpu_features/src/hwcaps.c
     ext/cpu_features/src/impl_aarch64_linux_or_android.c
 "
+# Android arm64 only: PPSSPP's AArch64 IR-JIT backend. psp_boot selects
+# CPUCore::JIT_IR on Android arm64 (Core/psp_core.cpp), so Arm64IRJit and
+# its IRNativeJit base (IRNativeCommon.cpp) must link there; everywhere
+# else the embedding runs the IR interpreter and the JIT factory is a
+# null stub, so no other list carries these. The classic A64 JIT is
+# deliberately not carried: the embedding never requests it.
+# ANDROID-ONLY: compiled solely by scripts/android-apply-overlay.sh's
+# generated oga-ppsspp subproject, and only into its arm64-v8a target.
+PPSPP_ANDROID_ARM64_CPP="
+    Core/MIPS/IR/IRNativeCommon.cpp
+    Core/MIPS/ARM64/Arm64IRJit.cpp Core/MIPS/ARM64/Arm64IRAsm.cpp
+    Core/MIPS/ARM64/Arm64IRRegCache.cpp Core/MIPS/ARM64/Arm64IRCompALU.cpp
+    Core/MIPS/ARM64/Arm64IRCompBranch.cpp Core/MIPS/ARM64/Arm64IRCompFPU.cpp
+    Core/MIPS/ARM64/Arm64IRCompLoadStore.cpp Core/MIPS/ARM64/Arm64IRCompSystem.cpp
+    Core/MIPS/ARM64/Arm64IRCompVec.cpp
+"
 
 # Android only, both ABIs: upstream's Android MemArena. PPSPP_CORE
 # carries the platform arena TUs as a set (Darwin/Horizon/Posix/Win32),

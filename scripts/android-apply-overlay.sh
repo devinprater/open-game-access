@@ -831,6 +831,7 @@ ARM    = _oga_list("PPSPP_ARM", (".c",))
 X86    = _oga_list("PPSPP_X86", (".c",))
 X86_ASM = _oga_list("PPSPP_X86_ASM", (".S",))
 AND_ARM64 = _oga_list("PPSPP_ANDROID_ARM64", (".c",))
+AND_ARM64_CPP = _oga_list("PPSPP_ANDROID_ARM64_CPP", (".cpp",))
 ANDROID = _oga_list("PPSPP_ANDROID", (".cpp",))
 GLUE   = _oga_list("PPSPP_GLUE", (".cpp",))
 assert GLUE == ["psp_core.cpp"], "PPSPP_GLUE is expected to be exactly psp_core.cpp"
@@ -838,7 +839,7 @@ assert GLUE == ["psp_core.cpp"], "PPSPP_GLUE is expected to be exactly psp_core.
 # Fail at generation time, not at some later link: every named file must
 # exist in the copied tree (the same guard ppsspp-subset-test.sh runs).
 tree = os.path.join(ppsspp_dir, "src")
-for f in CORE + EXT_CPP + EXT_C + ARM + X86 + X86_ASM + AND_ARM64 + ANDROID:
+for f in CORE + EXT_CPP + EXT_C + ARM + X86 + X86_ASM + AND_ARM64 + AND_ARM64_CPP + ANDROID:
     assert os.path.isfile(os.path.join(tree, f)), "missing from the PPSSPP tree: " + f
 
 # cpu_features TUs: build-core.sh compiles these with the ppsppx case,
@@ -860,13 +861,15 @@ with open(out_path, "w", encoding="utf-8") as fh:
 # (scripts/core-sources.sh). Upstream PPSSPP's CMake/Android build is not
 # used: it builds the full application (UI, Vulkan/GLES backends,
 # glslang). This subset is the host- and iOS-proven configuration: IR
-# interpreter + software GPU, headless platform hooks in the glue
+# interpreter (arm64-v8a: IR JIT) + software GPU, headless platform
+# hooks in the glue
 # (glue/psp_core.cpp, OGA's Core/psp_core.cpp copied in by the overlay).
 #
 # Per-ABI source gating, decided here because CMAKE_ANDROID_ARCH_ABI is
 # only known at configure time:
 #   arm64-v8a:  PPSPP_ARM (libpng NEON) + PPSPP_ANDROID_ARM64 (the
-#               cpu_features AArch64 impl; iOS never compiles one)
+#               cpu_features AArch64 impl; iOS never compiles one) +
+#               PPSPP_ANDROID_ARM64_CPP (the AArch64 IR-JIT backend)
 #   x86_64:     PPSPP_X86 (cpu_features) + PPSPP_X86_ASM (zstd asm)
 #   armeabi-v7a: EMPTY -- the lists were never audited for 32-bit ARM.
 
@@ -913,6 +916,7 @@ set(OGA_PPSPP_INC
     emit_list(fh, "PPSPP_X86_SOURCES", X86)
     emit_list(fh, "PPSPP_X86_ASM_SOURCES", X86_ASM)
     emit_list(fh, "PPSPP_ANDROID_ARM64_SOURCES", AND_ARM64)
+    emit_list(fh, "PPSPP_ANDROID_ARM64_CPP_SOURCES", AND_ARM64_CPP)
     emit_list(fh, "PPSPP_ANDROID_SOURCES", ANDROID)
     fh.write("""set(OGA_PPSPP_GLUE ${CMAKE_CURRENT_SOURCE_DIR}/glue/psp_core.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glue/PspAndroidShims.cpp
@@ -928,7 +932,7 @@ set(OGA_PPSPP_INC
 if (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
     set(OGA_PPSPP_SOURCES
         ${PPSPP_CORE_SOURCES} ${PPSPP_EXT_CPP_SOURCES} ${PPSPP_EXT_C_SOURCES}
-        ${PPSPP_ARM_SOURCES} ${PPSPP_ANDROID_ARM64_SOURCES} ${PPSPP_ANDROID_SOURCES})
+        ${PPSPP_ARM_SOURCES} ${PPSPP_ANDROID_ARM64_SOURCES} ${PPSPP_ANDROID_ARM64_CPP_SOURCES} ${PPSPP_ANDROID_SOURCES})
     set(OGA_PPSPP_HAVE_CORE ON)
 elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
     set(OGA_PPSPP_SOURCES

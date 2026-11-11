@@ -437,7 +437,17 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
     }
 
     CoreParameter param;
+#if defined(__ANDROID__) && defined(__aarch64__)
+    // Android arm64 carries PPSSPP's IR JIT (the backend TUs are in
+    // PPSPP_ANDROID_ARM64_CPP and the factory below returns the real
+    // Arm64IRJit there): executable pages are ordinary mmap on Android,
+    // so the iOS reason for the interpreter does not apply. The IR
+    // interpreter's frame cost was audible as choppy sound on device
+    // (first on-phone MK Unchained session, 2026-11-11).
+    param.cpuCore = CPUCore::JIT_IR;
+#else
     param.cpuCore = CPUCore::IR_INTERPRETER;   // no JIT pages on iOS
+#endif
     // Host trace override (scripts/psp-memtrace): the classic interpreter's
     // memory ops fire debugger MemChecks; the IR interpreter's do not.
     if (core->traceClassicCpu) param.cpuCore = CPUCore::INTERPRETER;
@@ -835,14 +845,33 @@ void System_RunOnMainThread(std::function<void()> f) { f(); }
 // (CmdLine parses the flag, nothing listens).
 void WebServerSetRequireExactPort(bool) {}
 
-// Native JIT selection: this embedding only ever runs
-// CPUCore::IR_INTERPRETER, so MIPS.cpp's JIT branches are never taken. The
-// null jit pointer is exactly what MemFault's guards expect, and
-// DoDummyJitState keeps the verbatim upstream section layout so savestates
-// stay well-formed (saves are embedding-local: same writer, same reader).
+// Native JIT selection: everywhere except Android arm64 this embedding
+// only ever runs CPUCore::IR_INTERPRETER, so MIPS.cpp's JIT branches are
+// never taken. The null jit pointer is exactly what MemFault's guards
+// expect, and DoDummyJitState keeps the verbatim upstream section layout
+// so savestates stay well-formed (saves are embedding-local: same writer,
+// same reader).
+//
+// Android arm64 is the exception: psp_boot selects CPUCore::JIT_IR there,
+// so the factory returns the real backend. Upstream's factory
+// (Core/MIPS/JitCommon/JitCommon.cpp) is not compiled in -- it also
+// houses the disassemblers this subset excludes (the Disassemble* stubs
+// below) -- so the factory is the one piece re-homed here. This
+// embedding only ever requests the IR JIT; the classic JIT is not
+// carried, so a classic request gets the same null every other
+// platform gets.
+#if defined(__ANDROID__) && defined(__aarch64__)
+#include "Core/MIPS/ARM64/Arm64IRJit.h"
+#endif
 namespace MIPSComp {
 JitInterface *jit = nullptr;
+#if defined(__ANDROID__) && defined(__aarch64__)
+JitInterface *CreateNativeJit(MIPSState *mipsState, bool useIR) {
+    return useIR ? new Arm64IRJit(mipsState) : nullptr;
+}
+#else
 JitInterface *CreateNativeJit(MIPSState *, bool) { return nullptr; }
+#endif
 void DoDummyJitState(PointerWrap &p) {
     auto sec = p.Section("Jit", 1, 2);
     if (!sec)

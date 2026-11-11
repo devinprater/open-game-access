@@ -8,8 +8,9 @@
  * routes PSP addresses to psp_debug_read here.
  *
  * Runtime configuration (fixed, not negotiable without re-proving):
- *   CPU = IR interpreter (no JIT: iOS has no MAP_JIT under a free sideload,
- *     same reason the DS core runs its interpreter).
+ *   CPU = IR interpreter on iOS (no JIT: iOS has no MAP_JIT under a free
+ *     sideload, same reason the DS core runs its interpreter). Android
+ *     arm64 runs PPSSPP's IR JIT instead -- see psp_core.cpp.
  *   GPU = software rasterizer, read back on CPU (no GL context on iOS here).
  */
 #ifndef PSP_CORE_H
