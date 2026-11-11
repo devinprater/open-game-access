@@ -283,7 +283,7 @@ class MainActivity : ComponentActivity() {
     }
 
     /**
-     * The single input funnel for game controllers (input parity,
+     * The single input funnel for controllers and keyboards (input parity,
      * stage 1): gamepad-sourced key and motion events are offered to
      * [ControllerInput] first, which consumes the ones a running session
      * maps and declines the rest — so volume keys, TalkBack's keys and

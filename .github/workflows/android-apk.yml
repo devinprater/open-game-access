@@ -73,6 +73,14 @@ jobs:
       - name: Assert the core is configured for the JIT
         run: bash scripts/android-jit-check.sh "$GITHUB_WORKSPACE"
 
+      # A physical keyboard is the docked player's controller. Its
+      # acceptance gate and mapping live in ControllerInput.kt, which no
+      # host test compiles — a dropped mapping row is a silently dead
+      # key in game, and nothing would report it. Assert every row
+      # before the build, in seconds (same style as the JIT pin above).
+      - name: Assert a physical keyboard can drive a session
+        run: bash scripts/android-keyboard-check.sh "$GITHUB_WORKSPACE"
+
       # The reader set is staged at build time from one canonical tree. This
       # fails in seconds if the staging source is incomplete or if a second,
       # hand-copied tree has reappeared -- both of which shipped broken before.

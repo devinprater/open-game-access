@@ -49,6 +49,41 @@ import me.magnum.melonds.accessibility.AccessibilityScript
  * parallel input system. While a controller is connected the on-screen
  * game pad is hidden (the launcher reads [connectedName]).
  *
+ * A physical keyboard plays too — the docked setup: the phone on a
+ * USB-C dock, a keyboard in front of the player. While a session runs
+ * its keys route through this same layer and the same bookkeeping (the
+ * source strings already name the device, so a keyboard unplugged
+ * mid-press releases exactly what it held, like a pad unplugged). The
+ * layout is the classic emulator one (the ZSNES/VBA convention):
+ *
+ *   Arrow keys           the D-pad
+ *   Z / X / A / S        the face diamond, BY POSITION: Z south,
+ *                        X east, A west, S north
+ *   Q / W                L1 / R1
+ *   Enter                Start
+ *   J / K / L            the reader's items: previous / current /
+ *                        next — the browse chords' commands on
+ *                        dedicated keys; with Shift held, J and L
+ *                        change category (the browse groups) instead
+ *   P                    Find path (the ask chord's command)
+ *   Shift                Select, fired on release: a tap only — once
+ *                        J or L has used the press as the category
+ *                        modifier, it is spent and no Select fires
+ *   Space / Tab          Where Am I / Menu status — the stick clicks'
+ *                        commands, press-only (Tab is consumed
+ *                        in-session, so focus never walks the screen
+ *                        mid-game)
+ *
+ * The keyboard gets no modifier keys of its own: of the pad's chords,
+ * the browse set's item and group commands and Find path have keys
+ * above. The rest — Stop speech, Repeat, the spoken-history walk,
+ * Tiles around you, and the browse face toggles — stay pad-only
+ * until keys are assigned to them.
+ *
+ * A keyboard is not a controller here: it never sets [connectedName],
+ * so the on-screen pad stays put and nothing calls it a pad. It is
+ * accepted on its own device test below — never through the pad's.
+ *
  * Face buttons map BY POSITION to the emulated console's layout, not by
  * the letter printed on the controller: on the Game Boy the right button
  * is A and the bottom one B (Nintendo's layout); on the PSP the four
@@ -190,6 +225,26 @@ object ControllerInput {
                 (source and InputDevice.SOURCE_DPAD) == InputDevice.SOURCE_DPAD
         }
 
+    /** A physical keyboard (the docked player's) is a play device too,
+     *  but it is NOT a controller: [isGameController] drives
+     *  [connectedName] and with it the on-screen pad, and a keyboard
+     *  must set neither. Its test follows the pad test's rule — the
+     *  complete source class or nothing (SOURCE_KEYBOARD is 0x101 and
+     *  shares bit 0 with the gamepad class, so a nonzero test misfiles
+     *  devices in both directions) — and the device must be real: the
+     *  software keyboard is virtual, and its keys are the screen
+     *  reader's business, never the game's. */
+    private fun InputDevice.isKeyboard(): Boolean =
+        !isVirtual &&
+            (sources and InputDevice.SOURCE_KEYBOARD) == InputDevice.SOURCE_KEYBOARD
+
+    /** A keyboard event is ours only when it arrives on a keyboard
+     *  device. There is no device-less keyboard path: nearly every key
+     *  event in Android claims the keyboard source class, so a source
+     *  test alone would swallow keys that were never a keyboard's. */
+    private fun isKeyboardEvent(device: InputDevice?): Boolean =
+        device != null && device.isKeyboard()
+
     private val sessionActive: Boolean
         get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning
 
@@ -226,12 +281,16 @@ object ControllerInput {
         consumedSources.removeAll(::owns)
         askHeld.removeAll(::owns)
         browseHeld.removeAll(::owns)
+        shiftHeld.removeAll(::owns)
+        if (shiftHeld.isEmpty()) shiftTapArmed = false
     }
 
     // ---- key events -------------------------------------------------------
 
     /**
-     * One gamepad key event from the Activity funnel. True when consumed.
+     * One key event from the Activity funnel: a gamepad's, routed by
+     * the when below, or a physical keyboard's, routed to
+     * [handleKeyboardKeyEvent]. True when consumed.
      * Key repeats are consumed silently: the holder model below already
      * tracks the held state, and a chord must fire once per physical
      * press, not per repeat.
@@ -253,7 +312,13 @@ object ControllerInput {
     fun handleKeyEvent(event: KeyEvent): Boolean {
         syncSessionLifecycle()
         if (!sessionActive) return false
-        if (!isGamepadEvent(event.device, event.source)) return false
+        if (!isGamepadEvent(event.device, event.source)) {
+            // Not a pad event. A physical keyboard plays too (docked
+            // play routes to its own handler); everything else — volume
+            // keys, TalkBack's keys, the launcher's — keeps its path.
+            if (isKeyboardEvent(event.device)) return handleKeyboardKeyEvent(event)
+            return false
+        }
         if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0) {
             return event.keyCode in handledKeyCodes
         }
@@ -282,6 +347,137 @@ object ControllerInput {
             KeyEvent.KEYCODE_BUTTON_THUMBR -> { if (pressed) perform(Slot.MENU_STATUS); true }
             else -> false
         }
+    }
+
+    /** The keycodes the keyboard when below actually maps — the pad's
+     *  [handledKeyCodes] counterpart. Repeats of anything else (a
+     *  keyboard's volume or brightness keys, say) fall through
+     *  unconsumed, exactly as a pad's do. */
+    private val keyboardKeyCodes = setOf(
+        // Directions: the arrow keys.
+        KeyEvent.KEYCODE_DPAD_UP, KeyEvent.KEYCODE_DPAD_DOWN,
+        KeyEvent.KEYCODE_DPAD_LEFT, KeyEvent.KEYCODE_DPAD_RIGHT,
+        // The face diamond, by position: Z/X/A/S = south/east/west/north.
+        KeyEvent.KEYCODE_Z, KeyEvent.KEYCODE_X,
+        KeyEvent.KEYCODE_A, KeyEvent.KEYCODE_S,
+        // Shoulders (Q/W) and Start (Enter). Select is Shift — it rides
+        // its own row: a tap is Select, with J/L it changes category.
+        KeyEvent.KEYCODE_Q, KeyEvent.KEYCODE_W,
+        KeyEvent.KEYCODE_ENTER,
+        KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT,
+        // The reader's item keys (J/K/L), path find (P) and outright
+        // commands (Space/Tab).
+        KeyEvent.KEYCODE_J, KeyEvent.KEYCODE_K,
+        KeyEvent.KEYCODE_L, KeyEvent.KEYCODE_P,
+        KeyEvent.KEYCODE_SPACE, KeyEvent.KEYCODE_TAB,
+    )
+
+    /**
+     * One keyboard key event from the Activity funnel, while a session
+     * runs. True when consumed. Game keys route through the pad's own
+     * helpers — [direction], [faceButton], [set] — so a modifier held
+     * on a connected pad chords a keyboard press exactly as it chords
+     * a pad press (the held sets are shared); the reader's own keys
+     * (J/K/L/P) perform their chord commands directly through
+     * [readerKey]. The source strings keep the "key:<device>:<code>"
+     * shape, so a release, a disconnect and the session-boundary reset
+     * all treat a keyboard press like any other. Key repeats are
+     * consumed silently, as on a pad.
+     */
+    private fun handleKeyboardKeyEvent(event: KeyEvent): Boolean {
+        if (event.action == KeyEvent.ACTION_DOWN && event.repeatCount > 0) {
+            return event.keyCode in keyboardKeyCodes
+        }
+        val pressed = event.action == KeyEvent.ACTION_DOWN
+        val source = "key:${event.deviceId}:${event.keyCode}"
+        return when (event.keyCode) {
+            KeyEvent.KEYCODE_DPAD_UP -> { direction(PadDir.UP, source, pressed); true }
+            KeyEvent.KEYCODE_DPAD_DOWN -> { direction(PadDir.DOWN, source, pressed); true }
+            KeyEvent.KEYCODE_DPAD_LEFT -> { direction(PadDir.LEFT, source, pressed); true }
+            KeyEvent.KEYCODE_DPAD_RIGHT -> { direction(PadDir.RIGHT, source, pressed); true }
+            KeyEvent.KEYCODE_Z -> { faceButton(Face.SOUTH, source, pressed); true }
+            KeyEvent.KEYCODE_X -> { faceButton(Face.EAST, source, pressed); true }
+            KeyEvent.KEYCODE_A -> { faceButton(Face.WEST, source, pressed); true }
+            KeyEvent.KEYCODE_S -> { faceButton(Face.NORTH, source, pressed); true }
+            KeyEvent.KEYCODE_Q -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X), pressed); true }
+            KeyEvent.KEYCODE_W -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z), pressed); true }
+            KeyEvent.KEYCODE_ENTER -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START), pressed); true }
+            // Shift is Select AND the item keys' category modifier;
+            // shiftKey decides which of the two the press was.
+            KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> { shiftKey(source, pressed); true }
+            // The reader's item keys and path find: the pad's chord
+            // commands, performed directly (see readerKey).
+            KeyEvent.KEYCODE_J -> { itemKey(previous = true, event, source, pressed); true }
+            KeyEvent.KEYCODE_L -> { itemKey(previous = false, event, source, pressed); true }
+            KeyEvent.KEYCODE_K -> { readerKey(Input.FaceBtn(Face.SOUTH), ask = false, source, pressed); true }
+            KeyEvent.KEYCODE_P -> { readerKey(Input.FaceBtn(Face.WEST), ask = true, source, pressed); true }
+            // The stick clicks' commands on the keyboard's own keys:
+            // press-only, like the clicks.
+            KeyEvent.KEYCODE_SPACE -> { if (pressed) perform(Slot.WHERE_AM_I); true }
+            KeyEvent.KEYCODE_TAB -> { if (pressed) perform(Slot.MENU_STATUS); true }
+            else -> false
+        }
+    }
+
+    /** Shift sources currently down, and whether the press is still a
+     *  tap candidate: Shift is Select when tapped alone, and the item
+     *  keys' category modifier while held — see [shiftKey]. */
+    private val shiftHeld = mutableSetOf<String>()
+    private var shiftTapArmed = false
+
+    /**
+     * Perform the reader command [input] means under one modifier —
+     * the command the pad reaches by holding the modifier and pressing.
+     * The hold is registered for the routing call only: [chord] reads
+     * the held sets, so the key means what the pad's chord means BY
+     * CONSTRUCTION, not by a second copy of the table. The release side
+     * never consults the modifiers (see [routeChord]), so removing the
+     * hold when the call returns cannot strand anything.
+     */
+    private fun readerKey(input: Input, ask: Boolean, source: String, pressed: Boolean): Boolean {
+        val held = if (ask) askHeld else browseHeld
+        held.add(source)
+        val consumed = routeChord(input, source, pressed)
+        held.remove(source)
+        return consumed
+    }
+
+    /**
+     * J and L: previous / next item — or, with Shift held, previous /
+     * next category (the pad's browse groups). Using Shift this way
+     * spends its press: the tap no longer means Select.
+     */
+    private fun itemKey(previous: Boolean, event: KeyEvent, source: String, pressed: Boolean) {
+        if (pressed && event.isShiftPressed) {
+            shiftTapArmed = false
+            readerKey(Input.Pad(if (previous) PadDir.UP else PadDir.DOWN), ask = false, source, pressed)
+        } else {
+            readerKey(Input.Pad(if (previous) PadDir.LEFT else PadDir.RIGHT), ask = false, source, pressed)
+        }
+    }
+
+    /**
+     * Shift's two jobs. As a modifier it must work while held; as
+     * Select it cannot fire on the way down — every Shift+J would also
+     * tap Select in the game. So a press dispatches nothing: if J or L
+     * uses it, the press is spent; if the last Shift comes back up
+     * unused, Select fires then, pressed and released at once. Select
+     * is a tap in every game this app runs; nothing holds it.
+     */
+    private fun shiftKey(source: String, pressed: Boolean): Boolean {
+        if (pressed) {
+            if (shiftHeld.isEmpty()) shiftTapArmed = true
+            shiftHeld.add(source)
+            return true
+        }
+        shiftHeld.remove(source)
+        if (shiftHeld.isEmpty() && shiftTapArmed) {
+            shiftTapArmed = false
+            val button = emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE)
+            set(source, button, true)
+            set(source, button, false)
+        }
+        return true
     }
 
     private fun setModifier(held: MutableSet<String>, source: String, pressed: Boolean) {
@@ -481,6 +677,8 @@ object ControllerInput {
         consumedSources.clear()
         askHeld.clear()
         browseHeld.clear()
+        shiftHeld.clear()
+        shiftTapArmed = false
     }
 
     // ---- reader chords ------------------------------------------------------
