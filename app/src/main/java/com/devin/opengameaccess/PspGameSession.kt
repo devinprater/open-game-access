@@ -77,6 +77,27 @@ object PspGameSession {
     /** The rate the core hands audio out at (Core/psp_core.h). */
     private const val AUDIO_RATE = 32768
 
+    /** Bytes in one stereo s16 frame at [AUDIO_RATE]. */
+    private const val AUDIO_FRAME_BYTES = 4
+
+    /**
+     * The AudioTrack's capacity, in frames (~62 ms at [AUDIO_RATE]).
+     * Small on purpose: whatever the track can hold is latency between
+     * a press and its sound (see [audioLoop]'s lead bound).
+     */
+    private const val AUDIO_BUFFER_FRAMES = 2048
+
+    /**
+     * The most the drain lets written audio run ahead of the track's
+     * playback head, in frames (~100 ms at [AUDIO_RATE]). The bound
+     * that keeps a press's sound a press's sound and not a late echo
+     * of it: see [audioLoop].
+     */
+    private const val AUDIO_MAX_LEAD_FRAMES = AUDIO_RATE / 10
+
+    /** One drain read, in frames (~31 ms): the lead bound's granularity. */
+    private const val AUDIO_CHUNK_FRAMES = 1024
+
     /**
      * The application context, kept from [start] so the per-frame cue
      * poll can read the battle-cues switch (see [pollCues]). An
@@ -667,8 +688,14 @@ object PspGameSession {
                         .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
                         .build()
                 )
-                // ~0.5 s of stereo s16, or the platform minimum if larger.
-                .setBufferSizeInBytes(maxOf(minBuffer, AUDIO_RATE * 2))
+                // [AUDIO_BUFFER_FRAMES] of stereo s16 (~62 ms), or the
+                // platform minimum if larger. This used to ask for
+                // ~0.5 s (AUDIO_RATE * 2 bytes): the track then stood
+                // full of already-written audio, and a sound the core
+                // made for a press waited behind all of it to be heard
+                // -- measured on device 2026-11-11 as presses answering
+                // late in an otherwise smooth session.
+                .setBufferSizeInBytes(maxOf(minBuffer, AUDIO_BUFFER_FRAMES * AUDIO_FRAME_BYTES))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
         } catch (t: Throwable) {
@@ -683,14 +710,55 @@ object PspGameSession {
         thread.name = "psp-audio"
         audioThread = thread
         thread.start()
-        Log.i(TAG, "PSP audio started: AudioTrack at $AUDIO_RATE Hz, stereo")
+        Log.i(TAG, "PSP audio started: AudioTrack at $AUDIO_RATE Hz, stereo, " +
+            "buffer ${track.bufferSizeInFrames} frames, lead bound $AUDIO_MAX_LEAD_FRAMES frames")
     }
 
+    /**
+     * The drain: ring -> cue mix -> AudioTrack, for the session's life.
+     *
+     * ⛔ THE LEAD OVER PLAYBACK IS BOUND, OR PRESSES ANSWER LATE. The
+     * core produces ~3% faster than the track consumes (the frame
+     * clock's 120 steps a second at ~282 samples a step), so an
+     * ungated drain fills every buffer it is given and stands there:
+     * before this bound, the native ring (371 ms at capacity) plus a
+     * ~0.5 s track buffer meant a cursor blip the core made on a press
+     * could wait the better part of a second behind older audio before
+     * being heard -- smooth sound, late answers, measured on device
+     * 2026-11-11 in the fixed build's first session. So before reading
+     * more, the loop compares what it has written with the track's own
+     * playback head and waits while the lead exceeds
+     * [AUDIO_MAX_LEAD_FRAMES]: written-minus-played can then never
+     * exceed that bound plus one [AUDIO_CHUNK_FRAMES] read (~131 ms
+     * worst case), whatever the panel or the surplus do. The surplus
+     * itself backs into the ring, whose push side already drops its
+     * oldest samples at capacity -- the sink the core's audio contract
+     * built for exactly this (System_AudioPushSamples). A head counter
+     * that never advances (lead past a full second) is treated as
+     * broken and the gate opens rather than starving the track silent.
+     */
     private fun audioLoop(track: AudioTrack) {
-        val buffer = ShortArray(2048 * 2)
+        val buffer = ShortArray(AUDIO_CHUNK_FRAMES * 2)
         while (audioRunning) {
+            val head = try {
+                track.playbackHeadPosition.toLong() and 0xFFFF_FFFFL
+            } catch (t: Throwable) {
+                audioFramesWritten
+            }
+            val lead = audioFramesWritten - head
+            if (lead > AUDIO_MAX_LEAD_FRAMES && lead <= AUDIO_RATE) {
+                // Ahead of the bound: the track is still playing what
+                // was already written. Sleep briefly rather than read
+                // samples that would only deepen the queue.
+                try {
+                    Thread.sleep(4)
+                } catch (e: InterruptedException) {
+                    break
+                }
+                continue
+            }
             val frames = try {
-                PspAccessibilityScript.readAudio(buffer, 2048)
+                PspAccessibilityScript.readAudio(buffer, AUDIO_CHUNK_FRAMES)
             } catch (t: Throwable) {
                 0
             }
