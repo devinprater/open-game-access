@@ -151,6 +151,15 @@ struct PspCore {
 // object MIPSState::Init created, not what the boot merely requested.
 static const char *g_createdJitBackend = nullptr;
 
+// What the CPU backend PPSSPP created for a requested core actually is,
+// in plain terms. Defined beside the JIT factory below -- the one place
+// this file is guaranteed to see MIPSComp's declarations (JitCommon.h
+// is included down there, not at the top; the boot code above must not
+// name MIPSComp itself, and in the Android glue build's include chain
+// nothing earlier declares it). Called at the end of a successful boot
+// to compose PspCore::coreMode.
+static const char *DescribeCreatedCore(CPUCore requested);
+
 static void SetError(PspCore *core, const char *fmt, ...)
 {
     if (!core) return;
@@ -532,24 +541,7 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
     // build defect, and the report says BROKEN rather than letting the
     // session quietly run an interpreter nobody chose.
     {
-        const char *mode = "interpreter (JIT not engaged)";
-        switch (param.cpuCore) {
-        case CPUCore::JIT_IR:
-            mode = MIPSComp::jit
-                ? (g_createdJitBackend ? "JIT (Arm64 IR)" : "JIT (IR native backend)")
-                : "BROKEN: JIT_IR requested but no JIT backend was created";
-            break;
-        case CPUCore::JIT:
-            mode = MIPSComp::jit ? "JIT (classic)"
-                : "BROKEN: classic JIT requested but this build carries no classic JIT backend";
-            break;
-        case CPUCore::IR_INTERPRETER:
-            mode = "IR interpreter (JIT not engaged)";
-            break;
-        case CPUCore::INTERPRETER:
-            mode = "classic interpreter (JIT not engaged)";
-            break;
-        }
+        const char *mode = DescribeCreatedCore(param.cpuCore);
         std::snprintf(core->coreMode, sizeof(core->coreMode), "%s", mode);
     }
 
@@ -926,6 +918,24 @@ void WebServerSetRequireExactPort(bool) {}
 #if defined(__ANDROID__) && defined(__aarch64__)
 #include "Core/MIPS/ARM64/Arm64IRJit.h"
 #endif
+
+static const char *DescribeCreatedCore(CPUCore requested)
+{
+    switch (requested) {
+    case CPUCore::JIT_IR:
+        if (!MIPSComp::jit) return "BROKEN: JIT_IR requested but no JIT backend was created";
+        return g_createdJitBackend ? "JIT (Arm64 IR)" : "JIT (IR native backend)";
+    case CPUCore::JIT:
+        return MIPSComp::jit ? "JIT (classic)"
+            : "BROKEN: classic JIT requested but this build carries no classic JIT backend";
+    case CPUCore::IR_INTERPRETER:
+        return "IR interpreter (JIT not engaged)";
+    case CPUCore::INTERPRETER:
+        return "classic interpreter (JIT not engaged)";
+    }
+    return "interpreter (JIT not engaged)";
+}
+
 namespace MIPSComp {
 JitInterface *jit = nullptr;
 // Verbatim upstream body from JitCommon.cpp (the file excluded above):

@@ -171,6 +171,9 @@ grep -qF 'SYSPROP_CAN_JIT' "$PSPCORE" \
   && grep -A3 'if (prop == SYSPROP_CAN_JIT) {' "$PSPCORE" | grep -qF 'return true;' \
   && ok "SYSPROP_CAN_JIT returns true under the Android guard" \
   || bad "SYSPROP_CAN_JIT does not return true on Android"
+grep -qF 'DescribeCreatedCore(param.cpuCore)' "$PSPCORE" \
+  && ok "the boot composes its core-mode report via the factory-side helper" \
+  || bad "the boot names MIPSComp itself again: JitCommon.h is only included beside the factory, and the Android glue build's include chain declares MIPSComp nowhere earlier (this exact shape failed the Android build once)"
 grep -qF 'const char *psp_core_mode(PspCore *core);' "$PSPCOREH" \
   && grep -qF 'g_createdJitBackend' "$PSPCORE" \
   && ok "psp_core_mode reports the created backend (factory witness recorded)" \
