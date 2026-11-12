@@ -2059,3 +2059,42 @@ controllable.
 it stayed 0 after walking back east to (-53.84, ..., 163.49) while the HUD still
 said B - 6. A streamed-cell index remains the standing guess, and the word must
 not be spoken.
+
+## The village quest chain, and why a 3 AM session finds nobody (2026-11-12, from the published guides)
+
+The 2026-11-12 bench session walked the village between 03:06 and 07:40 in-game
+and found no quest giver and no marker. That is not a mapping gap: the first
+mission is time-gated.
+
+**Mission 1, Meet Apep — B-6, available 8:00 AM to 7:00 PM.** Apep is the boy
+standing beside Bo' Rai Cho's dojo with a green pillar of light around him. He
+introduces the rest of the training and walks to the next dojo. Everything the
+session did before 8 AM was correctly silent.
+
+The chain after him, all from the guides and none of it measured here yet:
+
+- B-5: combos, power attacks, pop-ups and juggling. Talk to Apep again after.
+- D-5: defense (blocking, ducking, evading).
+- D-4: the bridge guard will not let anyone pass. Get ham from the butcher in
+  C-6 between 7:00 AM and 8:00 PM and give it to the guard.
+- C-4: fighting-style switching. A-3: counters and combo breakers.
+- B-2: Apep enrolls Shujinko in the fight school. A-1: style-branching combos.
+- D-1: Damashi recruits Shujinko, then Bo' Rai Cho must be beaten in a best of
+  three.
+- E-1: talk to Bo' Rai Cho to leave the village. ⛔ This auto-saves and there is
+  no way back into the village afterwards.
+
+**Village side quests** (the ones a blind player can actually complete, all
+inside the same 8 AM to 7 PM windows):
+
+- A-6: the old bald man with the toothache. Punch him once and he rewards 400
+  sapphire koins — the cheapest real quest to use as an end-to-end speech test.
+- B-5: the boy's lost key, found in the park at A-6; or rob his house instead.
+- B-6: the boy practising ninjitsu vanishes; find him at the fountain in A-6 for
+  a Mysterious Key.
+- B-5: the woman's missing son, at A-3 with the two boys play-fighting.
+- B-5: deliver the old woman's note to the blacksmith at B-4.
+- B-5: wake the lazy brother sleeping under the trees at D-4.
+
+Sources: the Kamidogu Konquest walkthrough, GameFAQs Konquest walkthroughs
+(Faceless21, Asternex), the MKKomplete mission list, and the GameSpy guide.
