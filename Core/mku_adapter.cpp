@@ -1327,14 +1327,33 @@ bool RoamFacing(float* dx, float* dz)
     return true;
 }
 
+// Whether the player has actually moved since free-roam began. The vec3 is
+// already populated while the post-lesson scripted camera is still handing the
+// player back (measured 2026-11-12: frozen at the dojo spawn for several
+// seconds, with input discarded), so a position spoken in that window is a
+// place the player cannot yet occupy. Speaking it is worse than saying nothing:
+// it reads as "you are here" while the hero is not under control.
+bool g_roamMoved = false;
+float g_roamPrevX = 0.0f, g_roamPrevZ = 0.0f;
+bool g_roamHavePrev = false;
+
+bool RoamPositionReady(void) { return g_roamMoved; }
+
 void RoamOnFrame(void)
 {
     float x, y, z;
     if (!InFreeRoam() || !KonquestPos(&x, &y, &z)) {
         g_roamHistCount = 0;
         g_roamFaceValid = false;
+        g_roamMoved = false;
+        g_roamHavePrev = false;
         return;
     }
+    if (g_roamHavePrev) {
+        float dx = x - g_roamPrevX, dz = z - g_roamPrevZ;
+        if (dx * dx + dz * dz > 0.0025f) g_roamMoved = true;   // 0.05 units
+    }
+    g_roamPrevX = x; g_roamPrevZ = z; g_roamHavePrev = true;
     g_roamHistX[g_roamHistHead] = x;
     g_roamHistZ[g_roamHistHead] = z;
     g_roamHistHead = (g_roamHistHead + 1) % kRoamHistLen;
@@ -1974,7 +1993,10 @@ void CmdWhereAmI(void)
         }
         if (InFreeRoam()) {
             char pos[64];
-            RoamPositionClause(pos, sizeof(pos));
+            if (!RoamPositionReady())
+                snprintf(pos, sizeof(pos), "Position not ready yet.");
+            else
+                RoamPositionClause(pos, sizeof(pos));
             char spoken[128];
             snprintf(spoken, sizeof(spoken), "Konquest. %s", pos);
             Say(spoken, "status", oga::Priority::High);

@@ -768,11 +768,33 @@ int main()
     put_f32b(0x08AED478, -53.85f);                   // Apep's post, as measured
     put_f32b(0x08AED47C, 0.87f);
     put_f32b(0x08AED480, 162.96f);
+    // The vec3 is populated before the scripted camera hands control back, so a
+    // position spoken that early is a place the hero cannot yet stand. Movement
+    // arms it; until then WhereAmI says so instead of reading a frozen pair.
+    put_u32(0x08AF69C8, 0); a->on_frame();           // leave free-roam: the gate resets
+    put_u32(0x08AF69C8, 1); a->on_frame();           // back in with a frozen vec3
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Konquest.") &&
+          strstr(SPOKEN[0], "not ready yet") &&
+          !strstr(SPOKEN[0], "Position -"),
+          "a frozen vec3 is not spoken as a position");
+    a->on_frame();                                   // seed the previous sample
+    put_f32b(0x08AED478, -53.82f);                   // 0.03 units of drift
+    a->on_frame();
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "not ready yet"),
+          "a nudge under the threshold does not arm the position");
+    put_f32b(0x08AED478, -52.00f);                   // a real step
+    a->on_frame();
+    put_f32b(0x08AED478, -53.85f);                   // back to Apep's post
+    a->on_frame();
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Konquest.") &&
           strstr(SPOKEN[0], "Position -54, 163."),
-          "free-roam WhereAmI speaks the position pair");
+          "free-roam WhereAmI speaks the position pair once moved");
     put_f32b(0x08AED478, -64.18f); put_f32b(0x08AED480, 140.84f);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);
