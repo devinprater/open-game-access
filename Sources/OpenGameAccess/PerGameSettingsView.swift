@@ -1,4 +1,5 @@
 import SwiftUI
+import UIKit
 
 /// The Per Game Settings panel: one game's overrides, reached from the
 /// "Per Game Settings" control at the top right of its library page
@@ -75,7 +76,15 @@ struct PerGameSettingsView: View {
             set: { newValue in
                 GameSettings.setOverride(newValue, setting, forGameID: game.id)
                 revision += 1
-                speech.announce("\(setting.title): \(newValue ? "on" : "off"), for \(game.name).")
+                // Not spoken while VoiceOver is running: VoiceOver
+                // announces a switch's new value itself when it is
+                // activated, so the panel saying it too would announce
+                // the same change twice. With VoiceOver off there is no
+                // native announcement, and the panel speaks — with no
+                // screen, an unspoken change is an invisible one.
+                if !UIAccessibility.isVoiceOverRunning {
+                    speech.announce("\(setting.title): \(newValue ? "on" : "off"), for \(game.name).")
+                }
             }
         )
     }
@@ -84,6 +93,9 @@ struct PerGameSettingsView: View {
         GameSettings.setOverride(nil, setting, forGameID: game.id)
         revision += 1
         let fallback = GameSettings.globalDefault(setting)
+        // A button press gets no native value announcement even with
+        // VoiceOver on — VoiceOver reads the button, not its effect —
+        // so this one is always spoken.
         speech.announce("\(setting.title) for \(game.name) now uses the app default: \(fallback ? "on" : "off").")
     }
 

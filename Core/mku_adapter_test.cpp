@@ -226,6 +226,54 @@ int main()
           "Practice character select follows the cursor");
     put_u32(0x08C1B3B0, 0); put_u32(0x09F9C1A8, 0);
 
+    // ---- Practice's OPPONENT grid (measured live 2026-11-07) --------------------
+    // After P1 locks Scorpion the holder points into a third table: index 7 (Sub-Zero,
+    // the opponent cursor's start) at 0x090E7850, index-0 object at 0x090E9840. The
+    // static cursor word still holds P1's pick. Each RIGHT is -0x490, a row is
+    // -10 * 0x490 (live: 0x090E73C0, 0x090E6F30, 0x090E4190, then LEFT 0x090E4620).
+    for (int k = 0; k < 30; k++) put_u32(0x090E9840 - k * 0x490 + 4, 0x4F424A20);
+    put_u32(0x08C1B3B0, 2);
+    put_u32(0x09F9C1A8, 0);
+    a->on_frame();                                   // no screen: the watch resets
+    put_u32(0x09F9C1A8, 0x090E05A0);                 // the P1 grid, Scorpion
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();                                   // the watch learns P1's table
+    CHECK(NSPOKEN >= 1 && strstr(SPOKEN[NSPOKEN - 1], "Character select") &&
+          strstr(SPOKEN[NSPOKEN - 1], "Scorpion"),
+          "opponent grid: the P1 grid still reads as character select");
+    put_u32(0x09F9C1A8, 0x090E7850);                 // opponent cursor on Sub-Zero
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN >= 1 &&
+          strstr(SPOKEN[NSPOKEN - 1], "Opponent: Sub-Zero, row 1, column 8"),
+          "opponent grid: entry names the opponent, not P1's pick");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Opponent select. Opponent: Sub-Zero"),
+          "opponent grid: WhereAmI says Opponent select");
+    put_u32(0x09F9C1A8, 0x090E73C0);                 // RIGHT -> Havik
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Opponent: Havik, row 1, column 9"),
+          "opponent grid: RIGHT speaks the new opponent");
+    put_u32(0x09F9C1A8, 0x090E4620);                 // two rows' travel -> index 18
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Opponent: Noob-Smoke, row 2, column 9"),
+          "opponent grid: DOWN speaks the opponent a row lower");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN == 0, "opponent grid: a resting cursor is not re-announced");
+    put_u32(0x09F9C1A8, 0x090E05A0);                 // back to P1's table
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN >= 1 && strstr(SPOKEN[NSPOKEN - 1], "Scorpion") &&
+          !strstr(SPOKEN[NSPOKEN - 1], "Opponent"),
+          "opponent grid: P1's own table is never read as the opponent's");
+    put_u32(0x08C1B3B0, 0); put_u32(0x09F9C1A8, 0);
+    for (int i = 0; i < 40; i++) a->on_frame();      // the grid is gone: base forgotten
+    for (int k = 0; k < 30; k++) put_u32(0x090E9840 - k * 0x490 + 4, 0);
+
     // ---- the Kombat submenu (verified structure, synthetic plant) ---------------
     // The front end keeps the parent index while the child screen is up: measured
     // on the game, the cursor reads 1 with the Kombat submenu open.
@@ -315,6 +363,50 @@ int main()
     CHECK(!a->ready(), "fight gate closes when nobody is standing");
     put_f32(0x08D929B8, 0.904f); put_f32(0x08D92A24, 0.333f);
     put_u32(0x08D92AF0, 0);                          // (leave a clean state)
+
+    // ---- the arcade tower: the next opponent (measured live 2026-11-07) -------
+    // After P1 locks, round and timer read 0, both HP words 1.0, and the P2 id
+    // is written while the tower pans up. Id 0 is Kenshi AND "not chosen yet",
+    // so it needs the slot flag at 0x08D92A1C (3 -> 1) to count.
+    put_u32(0x08D92AE0, 0);
+    put_f32(0x08D929B8, 1.0f); put_f32(0x08D92A24, 1.0f);
+    put_u32(0x08D92A2C, 0); put_u32(0x08D92A1C, 3);  // locked, opponent unset
+    CHECK(!a->ready(), "tower: silent until the opponent is chosen (id 0, flag 3)");
+    put_u32(0x08D92A2C, 4); put_u32(0x08D92A1C, 1);  // Goro written, flag flipped
+    CHECK(a->ready(), "tower: ready once the opponent is chosen");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Arcade tower") &&
+          strstr(SPOKEN[0], "Next opponent: Goro"),
+          "tower: WhereAmI names the next opponent");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN >= 1 && strstr(SPOKEN[NSPOKEN - 1], "Next opponent: Goro"),
+          "tower: the frame watch announces the opponent on entry");
+    int towerSpoken = NSPOKEN;
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == towerSpoken, "tower: announced once, not on every frame");
+    put_u32(0x08D92A2C, 0);                           // flag still 1: Kenshi chosen
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Next opponent: Kenshi"),
+          "tower: a Kenshi opponent is spoken once the slot flag has flipped");
+    put_u32(0x08D92A1C, 3);
+    CHECK(!a->ready(), "tower: id 0 with the flag unset stays silent");
+    put_u32(0x08D92A2C, 4); put_u32(0x08D92A1C, 1);
+    put_u32(0x08D92AE0, 1); put_u32(0x08D92AF0, 60);  // the fight begins
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Round 1") &&
+          !strstr(SPOKEN[0], "Next opponent"),
+          "tower: gives way to the fight once round 1 starts");
+    put_f32(0x08D929B8, 0.5f);
+    put_u32(0x08D92AE0, 0); put_u32(0x08D92AF0, 0);
+    CHECK(!a->ready(), "tower: a half-health fighter is not the tower");
+    // restore the plant the pause-menu block below expects
+    put_u32(0x08D92A1C, 0);
+    put_f32(0x08D929B8, 0.904f); put_f32(0x08D92A24, 0.333f);
+    put_u32(0x08D92AE0, 2); put_u32(0x08D92AF0, 0);
 
     // ---- the pause menu (relocation by signature + nav confirmation) ------------
     // Fight plant is still live from the block above; restore round/timer.

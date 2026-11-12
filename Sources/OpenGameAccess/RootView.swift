@@ -63,9 +63,13 @@ private struct GameLayout: View {
     }
 }
 
-/// The emulated DS screen. This is deliberately *not* an accessibility element:
-/// it is a picture of a game being described to the player by the script, and
-/// making it focusable just adds a "image" stop to every swipe.
+/// The emulated DS screen. It IS an accessibility element, deliberately:
+/// the picture itself says nothing (the script describes the game in
+/// speech, not from pixels), so the element carries the session status
+/// as its value — the copy of that state a dropped announcement can be
+/// re-read from, per SpeechEngine's note — and it is where VoiceOver's
+/// magic tap lands, which in a reader that answers Where Am I is how
+/// the player asks. One extra swipe stop is the price, paid on purpose.
 private struct ScreenView: View {
     @EnvironmentObject private var session: GameSession
 
@@ -537,19 +541,39 @@ private struct HoldButton: View {
     let button: () -> GamePadButton
 
     @State private var isDown = false
+    /// Held down through the Hold accessibility action (see body): a
+    /// second source of "down" beside the touch gesture's `isDown`, so
+    /// either can release without cancelling the other.
+    @State private var isHeld = false
 
     var body: some View {
         Label(title, systemImage: symbol)
             .labelStyle(.titleOnly)
             .font(.headline)
             .frame(maxWidth: .infinity, minHeight: 48)
-            .background(isDown ? Color.accentColor : Color(uiColor: .secondarySystemBackground))
-            .foregroundStyle(isDown ? Color.white : Color.primary)
+            .background((isDown || isHeld) ? Color.accentColor : Color(uiColor: .secondarySystemBackground))
+            .foregroundStyle((isDown || isHeld) ? Color.white : Color.primary)
             .clipShape(RoundedRectangle(cornerRadius: 10))
             .accessibilityAddTraits(.isButton)
             .accessibilityLabel(title)
             .accessibilityHint(hint)
             .accessibilityAction { tap() }
+            // HOLDING IS A NAMED ACTION, NOT JUST A TOUCH. A touch player
+            // holds by keeping a finger down, but VoiceOver activation is
+            // a tap — without this, a VoiceOver player could never hold a
+            // direction to walk or hold a button to run, only tap it in
+            // four-frame bursts. "Hold" presses through the same path as
+            // a finger and stays down until the same action, by then
+            // named "Release", is used; the value says "Held" meanwhile,
+            // so the state is spoken and not only shown lit. onDisappear
+            // releases: if the pad leaves the screen mid-hold (a
+            // controller connecting hides it), the button must not stay
+            // down in the core with nothing on screen to release it.
+            .accessibilityAction(named: Text(isHeld ? "Release" : "Hold")) {
+                if isHeld { releaseHold() } else { hold() }
+            }
+            .accessibilityValue(isHeld ? "Held" : "")
+            .onDisappear { releaseHold() }
             .gesture(
                 DragGesture(minimumDistance: 0)
                     .onChanged { _ in if !isDown { press() } }
@@ -581,7 +605,25 @@ private struct HoldButton: View {
     private func release() {
         guard isDown else { return }
         isDown = false
-        InputBridge.setButton(button(), down: false)
+        // Down stays the Hold action's state: a finger lifting must not
+        // cancel a hold it did not start (see releaseHold).
+        InputBridge.setButton(button(), down: isHeld)
+    }
+
+    /// The Hold accessibility action's press: the same input path as a
+    /// finger's press, but with no gesture to end it — it stays down
+    /// until releaseHold().
+    private func hold() {
+        isHeld = true
+        InputBridge.setButton(button(), down: true)
+    }
+
+    private func releaseHold() {
+        guard isHeld else { return }
+        isHeld = false
+        // A finger may still be down on the same button; only lift the
+        // input when nothing is holding it.
+        if !isDown { InputBridge.setButton(button(), down: false) }
     }
 }
 

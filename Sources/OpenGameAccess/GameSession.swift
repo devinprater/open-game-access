@@ -38,7 +38,20 @@ final class GameSession: ObservableObject {
     @Published var showDebugLog = false
     @Published private(set) var debugLines: [String] = []
     @Published var audioEnabled = true {
-        didSet { poke_set_audio_enabled(core, audioEnabled) }
+        didSet {
+            poke_set_audio_enabled(core, audioEnabled)
+            // Spoken like the switches below it — with no screen, an
+            // unspoken change is an invisible one — but not when
+            // VoiceOver is running: VoiceOver announces a switch's new
+            // value itself when it is activated, and app speech saying
+            // the same change would be the change announced twice.
+            // Every settings confirmation in this class follows that
+            // rule; game text is not a settings confirmation and is
+            // never suppressed.
+            if !UIAccessibility.isVoiceOverRunning {
+                speech?.announce(audioEnabled ? "Game sound on." : "Game sound off.")
+            }
+        }
     }
 
     /// The lock-on beacon cue (item 5). A separate switch from game sound on purpose: a
@@ -55,7 +68,13 @@ final class GameSession: ObservableObject {
     @Published var showPicture: Bool =
         UserDefaults.standard.object(forKey: "showPicture") as? Bool
             ?? !UIAccessibility.isVoiceOverRunning {
-        didSet { UserDefaults.standard.set(showPicture, forKey: "showPicture") }
+        didSet {
+            UserDefaults.standard.set(showPicture, forKey: "showPicture")
+            // Spoken under the same rule as Game sound above.
+            if !UIAccessibility.isVoiceOverRunning {
+                speech?.announce(showPicture ? "Show game picture on." : "Show game picture off.")
+            }
+        }
     }
 
     @Published var cueBeaconEnabled: Bool =
@@ -63,7 +82,10 @@ final class GameSession: ObservableObject {
         didSet {
             UserDefaults.standard.set(cueBeaconEnabled, forKey: "cueBeacon")
             if !cueBeaconEnabled { CueSynth.shared.silenceAll() }
-            speech?.announce(cueBeaconEnabled ? "Lock cue on." : "Lock cue off.")
+            // Suppressed while VoiceOver runs, per the rule at Game sound.
+            if !UIAccessibility.isVoiceOverRunning {
+                speech?.announce(cueBeaconEnabled ? "Lock cue on." : "Lock cue off.")
+            }
         }
     }
 
@@ -80,8 +102,11 @@ final class GameSession: ObservableObject {
         UserDefaults.standard.object(forKey: "hudGaugeCuesSound") as? Bool ?? true {
         didSet {
             UserDefaults.standard.set(hudGaugeCuesSound, forKey: "hudGaugeCuesSound")
-            speech?.announce(hudGaugeCuesSound
-                ? "Gauge-full cues: sounds." : "Gauge-full cues: spoken lines.")
+            // Suppressed while VoiceOver runs, per the rule at Game sound.
+            if !UIAccessibility.isVoiceOverRunning {
+                speech?.announce(hudGaugeCuesSound
+                    ? "Gauge-full cues: sounds." : "Gauge-full cues: spoken lines.")
+            }
         }
     }
 
@@ -494,6 +519,10 @@ final class GameSession: ObservableObject {
         status = .running(name: romName ?? "game")
         startDisplayLink()
         if audioEnabled { startAudio() }
+        // Success is spoken, not only failure: until now a start that
+        // worked said nothing, and the player inferred it from the
+        // screen changing — which a player who is listening cannot see.
+        speech?.announce("\(romName ?? "Game") started.")
     }
 
     func stop() {
@@ -703,7 +732,17 @@ final class GameSession: ObservableObject {
         }
 
         let ready = poke_adapter_ready(core)
-        if ready != adapterReady { adapterReady = ready }
+        if ready != adapterReady {
+            adapterReady = ready
+            // The reader controls appearing is invisible to a player who
+            // is listening: "reader loading…" is on-screen text only, so
+            // their arrival is spoken, once, on the transition. Not a
+            // settings confirmation — this goes through announce() as
+            // usual, VoiceOver or not.
+            if ready, let adapterName {
+                speech?.announce("\(adapterName) reader ready.")
+            }
+        }
     }
 
     /// The reader controls that make sense for the loaded game. Empty is the normal

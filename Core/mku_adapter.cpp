@@ -499,6 +499,43 @@ static bool CharObjectAt(uint32_t addr)
            (addr & 3) == 0 && u32(addr + 4) == kObjMagic;
 }
 
+// ---- Practice's SECOND-PLAYER select (MEASURED live 2026-11-07) -------------
+//
+// After P1 locks a fighter in Practice the opponent grid opens: P1's name stays
+// on the left, the opponent cursor starts on Sub-Zero (index 7), and
+// kCharCursorAddr still holds P1's pick. The CURRENT-OBJECT holder at
+// kCharHolderAddr now points into a THIRD fighter table (0x090E7850 at index 7)
+// whose index-0 object sat at 0x090E9840. Walked live from Sub-Zero:
+//   RIGHT -> holder 0x090E73C0 (-0x490), RIGHT -> 0x090E6F30 (-0x490),
+//   DOWN  -> 0x090E4190 (-10 * 0x490, a row), LEFT -> 0x090E4620 (+0x490)
+// so the holder steps exactly like the P1 tables, and the index is the number
+// of 0x490 strides from the holder UP to the table's first object: the object
+// one stride above index 0 is not a ` OBJ`, which ends the climb (checked: at
+// 0x090E9CD0 the +4 word read 0xFFFFFFFF). No word in the static image holds
+// the opponent's index (diffed across five cursor stops, nothing matched).
+//
+// Telling this grid from the P1 grid: the P1 heap table's index-0 object is
+// holder + P1 index * 0x490, and that base is remembered while the P1 grid is
+// up. On the opponent grid the same arithmetic lands somewhere else, because
+// the holder is in another table. If no P1 base was ever seen (the adapter
+// attached late) the screen reads as the P1 grid, as before.
+static uint32_t g_p1TableBase = 0;
+static int g_charGoneFrames = 0;
+
+// The index of a heap-table holder: climb in +stride steps while each step is
+// still a fighter object. -1 when the holder is not part of a plausible table.
+static int HeapTableIndex(uint32_t holder)
+{
+    if (!CharObjectAt(holder)) return -1;
+    int k = 0;
+    uint32_t a = holder;
+    while (k < kCharCount && CharObjectAt(a + kCharObjStride)) {
+        a += kCharObjStride;
+        k++;
+    }
+    return k < kCharCount ? k : -1;
+}
+
 bool OnCharSelect(void)
 {
     if (InKonquest()) return false;   // front-end state is stale there
@@ -522,12 +559,53 @@ bool OnCharSelect(void)
     uint32_t h = u32(kCharHolderAddr);
     if (h < 0x09000000u || h >= 0x09120000u) return false;
     if (!CharObjectAt(h)) return false;
-    return CharObjectAt(h + idx * kCharObjStride);
+    if (!CharObjectAt(h + idx * kCharObjStride)) return false;
+    // A holder in some other table than P1's is the opponent grid: it must
+    // yield an index, or the screen is unmapped rather than P1's name again.
+    if (g_p1TableBase && h + idx * kCharObjStride != g_p1TableBase &&
+        HeapTableIndex(h) < 0)
+        return false;
+    return true;
+}
+
+// True on Practice's opponent grid (see the block above).
+bool OnP2Select(void)
+{
+    if (!OnCharSelect()) return false;
+    uint32_t idx = u32(kCharCursorAddr);
+    uint32_t h = u32(kCharHolderAddr);
+    if (h == kCharObjBase - idx * kCharObjStride) return false;   // Arcade's table
+    return g_p1TableBase && h + idx * kCharObjStride != g_p1TableBase &&
+           HeapTableIndex(h) >= 0;
+}
+
+// Learns the P1 heap table while the P1 grid is up; forgets it once the grid
+// has been gone for half a second so the next visit may allocate elsewhere.
+static void TrackCharSlot(void)
+{
+    if (!OnCharSelect()) {
+        if (++g_charGoneFrames > 30) g_p1TableBase = 0;
+        return;
+    }
+    g_charGoneFrames = 0;
+    uint32_t idx = u32(kCharCursorAddr);
+    uint32_t h = u32(kCharHolderAddr);
+    if (h == kCharObjBase - idx * kCharObjStride) {   // Arcade: no P2 grid
+        g_p1TableBase = 0;
+        return;
+    }
+    if (!g_p1TableBase) g_p1TableBase = h + idx * kCharObjStride;
 }
 
 // "<name>, row R, column C" for the hovered fighter; on-grid only.
 void CharRow(char* out, size_t cap)
 {
+    if (OnP2Select()) {
+        int o = HeapTableIndex(u32(kCharHolderAddr));
+        snprintf(out, cap, "Opponent: %s, row %d, column %d", kCharNames[o],
+                 o / kCharCols + 1, o % kCharCols + 1);
+        return;
+    }
     uint32_t idx = u32(kCharCursorAddr);
     snprintf(out, cap, "%s, row %u, column %u", kCharNames[idx],
              idx / kCharCols + 1, idx % kCharCols + 1);
@@ -718,6 +796,41 @@ bool InFight(void)
     if (!(h1 >= 0.0f && h1 <= 1.0f) || !(h2 >= 0.0f && h2 <= 1.0f)) return false;
     if (h1 == 0.0f && h2 == 0.0f) return false;  // nobody standing: not a live match
     return true;
+}
+
+// ---- the arcade tower: who you fight next (MEASURED live 2026-11-07) ------
+//
+// After P1 locks a fighter, Arcade shows a camera pan up a tower of
+// portraits, a loading screen, then the fight. The opponent is already in
+// the fight struct while the tower is up. Sampled every 2 s from the lock:
+//   t=0-3 s   p1 id valid, p2 id 0 (not chosen yet), round 0, timer 0
+//   t=4 s     p2 id written (4 = Goro; the pan settles on Goro's portrait),
+//             and the word at kTowerSlotFlagAddr goes 3 -> 1 in the same
+//             frame (0x08D92A6C 0x31 -> 0x23 as well; not used)
+//   t=4-16 s  both HP words 1.0, round 0, timer 0 (tower, then LOADING)
+//   t=17 s    round 1, t=19 s timer 60: the fight, which InFight() owns.
+// Id 0 is Kenshi AND the unset value, so "chosen" needs the slot flag when
+// the id reads 0: a Kenshi opponent speaks only once the flag has flipped,
+// and stays silent if that proxy is wrong (fail closed).
+// A second match in one session may leave the round word non-zero until the
+// game clears it, in which case the tower stays silent rather than guess.
+constexpr uint32_t kTowerSlotFlagAddr = 0x08D92A1C;
+
+bool OnTower(void)
+{
+    if (InKonquest()) return false;
+    if (OnCharSelect()) return false;
+    if (FrontEndRow()) return false;
+    if (u32(kRoundAddr) != 0 || u32(kTimerAddr) != 0) return false;
+    uint32_t p1 = u32(kP1FighterIdAddr), p2 = u32(kP2FighterIdAddr);
+    if (p1 >= (uint32_t) kCharCount || p2 >= (uint32_t) kCharCount) return false;
+    if (f32(kP1HpAddr) != 1.0f || f32(kP2HpAddr) != 1.0f) return false;
+    return p2 != 0 || u32(kTowerSlotFlagAddr) == 1;
+}
+
+void TowerRow(char* out, size_t cap)
+{
+    snprintf(out, cap, "Next opponent: %s", kCharNames[u32(kP2FighterIdAddr)]);
 }
 
 // "Scorpion 90 percent, Goro 33 percent. 48 seconds left. You lead 1 to 0."
@@ -1652,6 +1765,7 @@ static void MenuWatch(void)
     row[0] = 0;
 
     TrackPauseCtx();
+    TrackCharSlot();
     if (OnMainMenu()) {
         screen = 1;
         MainMenuRow(row, sizeof(row));
@@ -1667,6 +1781,9 @@ static void MenuWatch(void)
     } else if (OnCharSelect()) {
         screen = 5;
         CharRow(row, sizeof(row));
+    } else if (OnTower()) {
+        screen = 8;
+        TowerRow(row, sizeof(row));
     } else if (OnQuitDialog()) {
         screen = 7;
         QuitDialogRow(row, sizeof(row));
@@ -1802,7 +1919,16 @@ void CmdWhereAmI(void)
         char line[128];
         char row[96];
         CharRow(row, sizeof(row));
-        snprintf(line, sizeof(line), "Character select. %s.", row);
+        snprintf(line, sizeof(line), "%s. %s.",
+                 OnP2Select() ? "Opponent select" : "Character select", row);
+        Say(line, "menu", oga::Priority::High);
+        return;
+    }
+    if (OnTower()) {
+        char line[128];
+        char row[96];
+        TowerRow(row, sizeof(row));
+        snprintf(line, sizeof(line), "Arcade tower. %s.", row);
         Say(line, "menu", oga::Priority::High);
         return;
     }
@@ -1885,6 +2011,11 @@ void CmdMenuState(void)
     }
     if (OnCharSelect()) {
         Log("[mku] MENU character select");
+        CmdWhereAmI();
+        return;
+    }
+    if (OnTower()) {
+        Log("[mku] MENU arcade tower");
         CmdWhereAmI();
         return;
     }
@@ -1973,7 +2104,7 @@ static bool mku_ready(void)
     // character select), in a live fight, and in Konquest, using the
     // same gates the speech uses.
     return OnMainMenu() || OnKombatSub() || OnOptionsTabs() ||
-           OnOptionsRows() || OnCharSelect() || InFight() || InKonquest();
+           OnOptionsRows() || OnCharSelect() || OnTower() || InFight() || InKonquest();
 }
 
 static void mku_detach(void) { SfReset(); g_host = nullptr; }
