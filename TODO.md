@@ -202,7 +202,11 @@
   it can only smooth jitter. Next: compare another PSP title (Dissidia, Birth by Sleep) in OGA and
   RetroArch, and re-test after an iOS or PPSSPP update. Do not call the remaining stutter an OGA bug
   until that comparison exists.
-- [ ] **MK Unchained: speak the tower/versus screen, so the next opponent is known (open; asked 2026-10-21).**
+- [~] **MK Unchained: speak the tower, so the next opponent is known (first-fight tower wired 2026-11-07, not yet run on a device; 'after a win' still open).**
+  2026-11-07: after P1 locks, the P2 id word 0x08D92A2C is already written while the tower pans
+  (see mortal-kombat-unchained.md, 'The arcade tower'). `OnTower()` speaks "Next opponent: <name>".
+  Still to do: sample the tower AFTER a won fight, and check the round word clears between matches.
+  Older note follows.
   After a win the game shows the next fighter on the tower before the match, and today the adapter
   says nothing there. Feasible, but not mapped: the opponent-select screen that precedes it already
   fails the same way (a third fighter table; holder 0x090E7850 with the static cursor still on P1),
@@ -218,7 +222,10 @@
   different mode and must not be reused here. Next: find P1 and P2 x/z in a fight, return state 2
   (enemy lock) with their distance while `InFight()`, tune near/far to the arena, and prove the rate
   tracks a walk-in on the host before it ships. Silent outside a fight, and only when Lock cue is on.
-- [ ] **MK Unchained's SECOND-PLAYER character select is not mapped (open; recorded 2026-10-21).**
+- [~] **MK Unchained's SECOND-PLAYER character select (Practice; wired 2026-11-07, host-tested, not yet run on a device).**
+  2026-11-07: the opponent grid's holder steps like the P1 tables and the index is recovered by
+  climbing the table (no static word exists). Speaks "Opponent: <name>, row, column". Check Versus too.
+  Older note follows.
   The first grid is read, but after P1 locks a fighter the opponent grid is a
   second screen with its own state. Measured live from the 9:34 recording: P1
   Shao Kahn versus P2 Tanya, while the static cursor still held 24 (P1's pick)

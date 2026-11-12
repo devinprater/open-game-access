@@ -1282,3 +1282,90 @@ input.**
 **They are game data and must never be committed or uploaded** — the project's rule is
 that players supply their own ROMs. The repo pre-commit hook (scripts/git-hooks) and
 `check-no-roms.sh` enforce this; nothing from these directories is staged.
+
+
+## 2026-11-04 — the text-BUILD hunt: the current line is built whole, at line start
+
+The open question from the backlog work — *when* a line lands in the log relative to its
+display, and where the engine first builds it — is now answered. Method: TWD doctrine
+(tricks catalog §27.4) — diff RAM across a single advance and find the region that gains
+the full line at once, instead of chasing the typewriter's rendered output.
+
+### ⭐ The two build buffers (fixed data-segment addresses)
+
+- **Buf A — `0x089B9558`**: the current **logical line's** full text in raw script
+  encoding (`\x81\x67` … `\x81\x68`), wrapped display records **joined**. Each new line
+  overwrites the same base; tails of previous logical lines remain beyond the current
+  line's end (a stream overwritten at a fixed base — read only up to the `\x81\x68`).
+- **Buf B — `0x089B9E60`**: the same stream pattern **per display record** — it ends
+  each line holding the newest 0xAC record's text (for a wrapped line, the last chunk).
+- Both are reached by **static addressing**: a full-RAM aligned-u32 scan found **no
+  pointer to either buffer** (the only pointers to logBase `0x09557C80` are the known
+  global `0x08978F14` and one heap word at `0x09D235E8`). Like the config pointer
+  global, these addresses are stable across sessions; heap addresses are not.
+- Upstream, a relocating heap block holds the script stream (upcoming records *with*
+  name plates `\x81\x6B`/`\x81\x6C` and `%K%P` breaks) — the engine's read-ahead.
+
+### ⭐ Build timing: atomic, at line start
+
+- The message-log **write head `0x089797E8` increments in the same instant** the
+  buffers are written. Discovery run: head moved **+0.16 s** after the advance press;
+  a RAM dump begun at +0.19 s held the new line complete in the log and both buffers.
+- Five tracked advances (120 ms region polling): the **complete** line appeared in
+  Buf A within one poll interval (~0.6 s after the press including the 12-frame hold),
+  no progressive fill — for lines of 13 to ~95 bytes, single- and multi-record.
+- **Consequence:** the live reader (`scripts/psp-sg-live.mjs`) already reads at build
+  time. Speaking on head-change speaks each line as it *starts* displaying. That was
+  the adapter blocker; it is gone.
+
+### Verification — five consecutive lines, buffer vs log
+
+Buf A captured at build time matched the log's records for the same slots exactly
+(after the known control-code decoding): "Oh... Okay..." (slot 34) · "By 'unknown',
+I refer to things I don't understand rather than those I'm unaware of..." (35–36) ·
+"Hey, what are you muttering about?" (37) · "Though I hold my cell phone by my right
+ear, nobody is on the other line. No noise emanates from the speaker. It's completely
+silent." (38–41) · "A stark contrast to the hustle and bustle filling the room."
+(42–43). A sixth ("Um, sure. I guess so.", slot 25) was captured in the discovery run
+with full-RAM dumps.
+
+### ⚠️ Segmentation warning for the adapter
+
+The engine's line unit is **one Buf A build = one advance press**. The reader's
+punctuation-based `joinLogical` over-merges: it glued the three lines at slots 37–43
+above into one because the narration records carry no name. Segment speech on build
+events (head deltas), take the speaker from the newest record's name field, and let
+head settle across two polls on multi-record lines (head can tick twice in <120 ms).
+
+### ⛔ Bench trap — the PPSSPP window surface can freeze while emulation runs
+
+This session's PrintWindow captures **froze at the first lab-scene frame**: two
+captures 3 s apart byte-identical, and every window capture from the lab scene onward
+shares one md5 (`1ebcb6a7de33698abfa9e0a0a34fffe8`) even as the log advanced eight
+lines. Title/movie captures earlier in the same session were live. PPSSPP's own F12
+screenshot (keybd_event and PostMessage alike) produced no file, and **emulated VRAM
+is not the current frame either** — `0x04000000`/`0x04088000` hold a stale prologue
+frame; this engine displays from a host-side buffer PPSSPP does not sync back. When
+the surface lies, verify display state from RAM witnesses (log/head/buffers), not
+pixels. (Same family as the frozen-CPU trap below: the tool can look dead or alive
+independently of the game.)
+
+### Ghidra
+
+Address translation is now verified empirically: **Ghidra = real - 0x08960000**
+(i.e. - LOAD_BASE - 0x15C000). Anchors: Buf A at Ghidra `0x59558`; the config-pointer
+global appears in decompiles as `iRam00055e34` (= real `0x089B5E34`). Four functions
+WRITE Buf A. The two decompiled in full (FUN_00058cf8, FUN_00058f34) are script-record
+handlers: they clear Buf A, then build the current string into it from the engine
+string table (Ghidra `DAT_01288b40`) using offsets carried in the byte-coded script
+records - the script VM's line-build step. FUN_0005bdfc resolves *indexed* text into
+the same buffer (choice/phone-style lookups), so Buf A is the engine's shared
+current-string scratch. FUN_00052564 also writes it (not yet decompiled; which of the
+four is the main dialogue builder is a refinement, not a gap). Buf B has no registered
+Ghidra references - its writes likely go through a copy helper with a computed
+destination. Query script: `SgTextBuild.java` in the Ghidra project dir.
+
+Bench note: headless Ghidra on this project must run in Devin's interactive session
+(scheduled task). From an SSH session it aborts with NotOwnerException (project owned
+by DevinPrater) and analyzeHeadless.bat then hangs on a "Press any key" pause - feed
+it `< NUL` and expect the pause regardless.

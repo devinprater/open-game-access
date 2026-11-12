@@ -1883,3 +1883,117 @@ Bench artifacts for this investigation: drivers and logs in
 mku-varprobe, mku-timeoutprobe, mku-pauseprobe, mku-reloadprobe;
 apep1-apep12 and probe run folders; working notes in
 ~/mku-scan/apep-decomp/NOTES.md). Nothing was pushed.
+
+
+## The arcade tower and Practice's opponent grid (2026-11-07, live on Windows PPSSPP 1.20.4)
+
+Bench: the Windows PPSSPP build with its debugger on ws://127.0.0.1:12345, driven from WSL by
+small scripts (`~/mku-bench/mk.py` tap/rd/dump/shot, `poll.py` change logger). Screenshots are
+only whole-window once the capture process is DPI aware (`SetProcessDPIAware`); before that
+they were cropped to the left 2/3. ⚠ Debugger traps found on the way: a killed client leaves the
+server wedged (restart PPSSPP); `cpu.stepping` makes every `memory.read` go unanswered; a full
+24 MB dump takes 4 s at the title but ten minutes at some screens, so it can never snapshot a
+timed screen. Poll small windows instead.
+
+### The tower (after P1 locks in Arcade)
+A camera pan up a tower of portraits (TIME 00:00, DIFFICULTY 25%), then a LOADING screen, then
+the fight. The portrait column is not labelled; the camera settles on the opponent. Sampled
+from the lock (cold boot, Scorpion):
+- t 0-3 s: p1 id 2, p2 id 0 (unset), round 0, timer 0, both HP 1.0.
+- t 4 s: **p2 id 0x08D92A2C written (4 = Goro)**; in the same frame 0x08D92A1C goes 3 -> 1 and
+  0x08D92A6C 0x31 -> 0x23. The pan was showing Goro's portrait.
+- t 4-16 s: tower, then LOADING. t 17 s: round 0x08D92AE0 = 1; t 19 s: timer 0x3C, fight.
+Wired: `OnTower()` (round 0, timer 0, both ids valid, both HP exactly 1.0, not char select, no
+front-end row, and p2 != 0 or the 0x08D92A1C flag == 1 so a real Kenshi opponent is not lost
+and an unset id is not read as Kenshi). It speaks "Next opponent: <name>" once on entry (screen
+8 in the menu watch) and WhereAmI says "Arcade tower. Next opponent: ...". 7 host checks.
+⚠ Unproven: (1) the 0x08D92A1C flag as the Kenshi proxy (fails closed); (2) a SECOND match in
+one session: the round word may stay non-zero after the first, which would keep the tower
+silent. The opponent was Goro in four of five cold boots and Blaze in one, so it is not fixed;
+the id-to-name check was the portrait the camera settled on (Goro) and the fight HUD (Blaze).
+Not done: "after a win", which needs a won fight to sample.
+
+### Practice's opponent grid
+After P1 locks, the grid reopens with P1's name on the left and the opponent cursor on
+Sub-Zero (index 7). kCharCursorAddr keeps P1's pick, and the holder 0x09F9C1A8 points into a
+THIRD table (0x090E7850 at index 7; index-0 object 0x090E9840). Holder steps, measured:
+RIGHT -0x490 (0x090E73C0, 0x090E6F30), DOWN -10 x 0x490 (0x090E4190), LEFT +0x490 (0x090E4620).
+No static word held the opponent index across five cursor stops (diffed 0x08B80000-0x08E20000).
+The index is recovered by climbing in +0x490 steps while each object carries ` OBJ`; the object
+one stride above index 0 is not one (0xFFFFFFFF at +4), which ends the climb.
+The P1 heap table's index-0 base is learned while the P1 grid is up (`TrackCharSlot`) and
+forgotten after 30 frames off the grid; a holder whose base differs is the opponent grid.
+Spoken: "Opponent: Havik, row 1, column 9"; WhereAmI "Opponent select. ...". 6 host checks.
+⚠ Unproven live end-to-end (no adapter-on-Windows harness here): the P1-base learning on real
+objects, and Versus (if it uses the same grid). Host tests: 161 passed, 0 failed.
+
+
+## Konquest from a cold boot on the Windows bench: where the tutorial stands (2026-11-07)
+
+`scripts/mku-konquest-drive.py` (one websocket connection from a fresh PPSSPP launch; the helpers
+`mku-bench-mk.py` / `mku-bench-poll.py` / `psp-shot.py` sit beside it) reproduces, with no
+savestates: title -> main menu -> `ltrigger` -> kode Cross, Circle, Triangle, Square, Cross, Circle
+(the stick profile "PLAYER 1" at ULUS10102MKU0000 accepts it) -> Konquest -> the opening cinematic
+-> Bo' Rai Cho's dojo. Flags 0x08AF69C8 / 0x08B123DC read 1. About 5 minutes end to end.
+
+- Drill 1 (steps toward / away: d-pad right x3 then left x3, 0.15 s holds, 0.6 s gaps) passes.
+- Drill 2 (three Backward Dashes: double tap LEFT, 45 ms down, 55 ms up) passes.
+- Drill 3 (strike Bo' Rai Cho once with four DIFFERENT basic attacks) is NOT passed yet. Measured:
+  the HUD counter reads "N / 4"; walking right x4-5 closes the gap; strikes do land (1/4 and 3/4
+  seen in screenshots). The exercise clock (about 60 s) RUNS UNDER the instruction boxes, which
+  re-pop and need Cross each time; waiting for them to settle used the whole clock (counter 3/4
+  with 04 s left). Failing shows TRY AGAIN (Cross) / RETURN TO MAP (Triangle); Cross retries.
+  Next: one screenshot per button with the counter, to see which of Square/Triangle/Cross/Circle
+  fails to register at that range; then fire all four as soon as the box is dismissed.
+- The box word 0x09178D30 (non-zero while a box is up) flickers and stayed non-zero for ~40 s in
+  one attempt, so it is not a clean "box is gone" signal.
+- Leaving the tutorial by the map lands in the Earthrealm village: HUD "SUNDAY 01.01.01 9:22 AM",
+  a compass and the grid square B - 6 (the clock text is drawn; its RAM word is not located).
+
+Bench hazards: the debugger degrades after many short connections or any killed client (replies
+arrive out of order, the listener goes FIN_WAIT); use ONE long-lived connection and restart PPSSPP
+when it degrades. A `game.reset` once crashed PPSSPP (Application Error at 7:13 AM); prefer a
+fresh launch.
+
+
+## The dojo lessons passed in one cold-boot session, and where free-roam stops responding (2026-11-07, later)
+
+Run with `scripts/mku-konquest-drive.py` (+ `mku-bench-nav.py`, `mku-bench-shotd.py`; a live
+`handlers.py` is re-read for every lesson the driver does not know). Clock per lesson: **25 s**, and
+it runs under the instruction boxes. A failed lesson shows TRY AGAIN (Cross) / RETURN TO MAP
+(Triangle); Cross retries at no cost, so retries are the cheap way to learn a lesson.
+
+Lesson order seen, with what worked:
+1. Steps toward / away (right x3, left x3). 2. Three Backward Dashes (double tap left).
+3. "Strike me ... four different basic attacks" (counter N / 4). Hit damage is readable at
+   0x08D92A24 (P2 HP) but Bo' Rai Cho's bar REFILLS after each counted hit, so a drop/refill pattern
+   is not a per-button verdict. Square and Cross counted in every logged attempt; Triangle and Circle
+   counted only sometimes (one run reached 3/4, the passing run got Circle to register on attempt 4).
+   Cause not pinned: range/spacing is the strongest suspect, not an input-mapping fault (all four
+   buttons do fire).
+4. "Strike me with each of your high punch attacks": the screen names each move and shows its inputs
+   (text on screen, NOT found in RAM near 0x09178568 - worth a hunt, it is exactly what a blind
+   player needs). Seen: LEANING FINGERS = Triangle; STONE COLUMN = Up + Triangle.
+5. "Strike me with each of your high and low attacks": CREATURE KICK = Cross; STING TAP = Left + Cross
+   (the arrow icons are absolute d-pad directions; Left is "away" with Bo' Rai Cho on the right).
+6. "Strike me with two high attacks and two low attacks": counter 0 / 4, no named cue. The driver's
+   spread (Square, Triangle, Down+Square, Down+Triangle, Cross, Circle, Down+Cross, Down+Circle)
+   was followed by free-roam, so it probably passed, but the counter was never seen at 4 / 4.
+
+**Free-roam afterwards: reached, but the hero does not move.** flags A=1, B=0, position
+(-54.8, 0.23, 152.4) at 0x08AED478, on the B - 6 grid square. The world is alive (NPCs walk, the clock
+runs - about one in-game day per 10-15 real seconds, the date counter reached 01.17.01 - and Start
+pauses to RESUME / SAVE AND QUIT / QUIT GAME). But: the camera sits at ground level between two
+gate pillars with no visible hero, and NONE of these moved the position by more than 0.4 units:
+`input.analog.send` left stick in 8 directions, the real keyboard analog keys I/J/K/L, the arrow keys,
+Q/W (L/R), and a Cross/Circle/Triangle/Square/Select/L/R sweep. A stale red objective line
+("Strike me with two high attacks and two low attacks.") stays in the dialogue buffer. This is not the
+healthy free-roam of the earlier savestate lineage. Hypotheses, untested: the hero is down or hidden
+after the last lesson (the failed-lesson path "move_hero_to_safe_loc_boraicho"), a post-lesson script
+is waiting on something, or the camera is stuck. Apep was therefore never approached and the talk
+trigger was not tested in this lineage.
+
+Bench findings: the tool shell may run in Windows session 0, which cannot see the PPSSPP window; run
+PPSSPP and the screenshot/key daemon through scheduled tasks with an Interactive principal, and
+talk to the daemon through request files. Debugger replies carry the request's `ticket`; match on it
+(unticketed matching returned garbage floats). Keep ONE long-lived connection.

@@ -29,7 +29,30 @@ import CPokeCore
 @MainActor
 final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegate {
     private let synth = AVSpeechSynthesizer()
-    private let voice: AVSpeechSynthesisVoice?
+    private var voice: AVSpeechSynthesisVoice?
+
+    /// The player's chosen voice for the app's own speech, by identifier
+    /// — nil means the automatic choice (see `resolveVoice`). Persisted
+    /// in UserDefaults, the way GameSession's settings persist. Only
+    /// heard when VoiceOver is off: with VoiceOver on, all speech goes
+    /// through VoiceOver's own voice instead.
+    @Published var voiceIdentifier: String? =
+        UserDefaults.standard.string(forKey: "speechVoiceIdentifier") {
+        didSet {
+            UserDefaults.standard.set(voiceIdentifier, forKey: "speechVoiceIdentifier")
+            voice = Self.resolveVoice(identifier: voiceIdentifier)
+        }
+    }
+
+    /// How fast the app's own speech runs, as a multiple of the system
+    /// default rate. 1.1 is the rate the app always used before this
+    /// became a setting, so an untouched install sounds as it did.
+    @Published var rateMultiplier: Float = {
+        let stored = UserDefaults.standard.float(forKey: "speechRateMultiplier")
+        return stored > 0 ? stored : 1.1
+    }() {
+        didSet { UserDefaults.standard.set(rateMultiplier, forKey: "speechRateMultiplier") }
+    }
 
     /// Mirror of the last thing spoken — the "repeat" command reads it back.
     @Published private(set) var lastSpoken: String = ""
@@ -76,12 +99,7 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
     }
 
     override init() {
-        // Prefer a compact voice: game dialogue arrives in short bursts and a
-        // slow voice makes the script feel like it is lagging behind the game.
-        let preferred = AVSpeechSynthesisVoice.speechVoices().first {
-            $0.language.hasPrefix("en") && $0.quality != .premium
-        }
-        voice = preferred ?? AVSpeechSynthesisVoice(language: "en-US")
+        voice = Self.resolveVoice(identifier: voiceIdentifier)
         super.init()
         synth.delegate = self
         // VoiceOver-side completion: when the platform voice finishes one of
@@ -96,6 +114,54 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
             let ok = (note.userInfo?[UIAccessibility.announcementWasSuccessfulUserInfoKey] as? Bool) ?? true
             Task { @MainActor [weak self] in self?.voiceOverFinished(text, success: ok) }
         }
+    }
+
+    // MARK: - Voice choice
+
+    /// The voice to speak with: the player's pick when it still exists
+    /// on the device, else a deterministic automatic choice.
+    ///
+    /// ⛔ NOT "FIRST IN THE LIST". The automatic pick used to be the
+    /// system list's first English non-premium entry, and that list's
+    /// order is not a preference — it could hand the app a poor compact
+    /// voice or an unexpected accent, and a different one after an OS
+    /// update. The automatic choice is a fixed ranking instead: en-US
+    /// before other English, enhanced quality before default before
+    /// premium, then by identifier, so the same device always picks the
+    /// same voice until the player chooses one in Settings.
+    private static func resolveVoice(identifier: String?) -> AVSpeechSynthesisVoice? {
+        let voices = AVSpeechSynthesisVoice.speechVoices()
+        if let identifier, let chosen = voices.first(where: { $0.identifier == identifier }) {
+            return chosen
+        }
+        let qualityRank: (AVSpeechSynthesisVoiceQuality) -> Int = { quality in
+            switch quality {
+            case .enhanced: return 0
+            case .default: return 1
+            case .premium: return 2
+            @unknown default: return 1
+            }
+        }
+        let automatic = voices.filter { $0.language.hasPrefix("en") }.sorted { a, b in
+            let aUS = a.language == "en-US", bUS = b.language == "en-US"
+            if aUS != bUS { return aUS }
+            let aq = qualityRank(a.quality), bq = qualityRank(b.quality)
+            if aq != bq { return aq < bq }
+            return a.identifier < b.identifier
+        }.first
+        return automatic ?? AVSpeechSynthesisVoice(language: "en-US")
+    }
+
+    /// The voices Settings offers: every English voice on the device,
+    /// en-US first, then by name.
+    static var englishVoices: [AVSpeechSynthesisVoice] {
+        AVSpeechSynthesisVoice.speechVoices()
+            .filter { $0.language.hasPrefix("en") }
+            .sorted { a, b in
+                let aUS = a.language == "en-US", bUS = b.language == "en-US"
+                if aUS != bUS { return aUS }
+                return a.name < b.name
+            }
     }
 
     // MARK: - Script bridge (speech.say / speech.stop / hermes_tts)
@@ -142,9 +208,12 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
         if interrupt { synth.stopSpeaking(at: .immediate) }
         let utterance = AVSpeechUtterance(string: trimmed)
         utterance.voice = voice
-        // The script already paces itself; a brisk rate keeps it in step with
-        // dialogue boxes that appear a few frames apart.
-        utterance.rate = AVSpeechUtteranceDefaultSpeechRate * 1.1
+        // The script already paces itself; the player's rate (Settings,
+        // default 1.1x) keeps it in step with dialogue boxes that appear
+        // a few frames apart. Clamped to the synthesizer's own range.
+        utterance.rate = min(AVSpeechUtteranceMaximumSpeechRate,
+                             max(AVSpeechUtteranceMinimumSpeechRate,
+                                 AVSpeechUtteranceDefaultSpeechRate * rateMultiplier))
         utterance.postUtteranceDelay = 0
         if id != 0 {
             let key = ObjectIdentifier(utterance)

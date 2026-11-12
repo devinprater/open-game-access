@@ -56,6 +56,31 @@ struct SettingsView: View {
                 Text("The lock cue plays only for games whose reader reports a locked target. It never changes what the game does. Both switches here are app defaults: a game can override them for itself from Per Game Settings on its library page.")
             }
 
+            // The app's own voice. Only heard with VoiceOver off — with
+            // VoiceOver on, everything goes through VoiceOver's voice —
+            // which is exactly why it needs a setting: a player who is
+            // not running VoiceOver has no other way to change it.
+            Section {
+                Picker("Voice", selection: $speech.voiceIdentifier) {
+                    Text("Automatic").tag(String?.none)
+                    ForEach(SpeechEngine.englishVoices, id: \.identifier) { voice in
+                        Text(voice.name).tag(String?.some(voice.identifier))
+                    }
+                }
+                .accessibilityHint("The voice the app itself speaks with when VoiceOver is off.")
+
+                HStack {
+                    Text("Speech rate")
+                    Slider(value: $speech.rateMultiplier, in: 0.5...2.0, step: 0.1)
+                        .accessibilityLabel("Speech rate")
+                        .accessibilityValue("\(Int((speech.rateMultiplier * 100).rounded())) percent of the system default speed")
+                }
+            } header: {
+                Text("Speech")
+            } footer: {
+                Text("These set the app's own speech, used when VoiceOver is off. With VoiceOver on, VoiceOver's voice speaks everything instead.")
+            }
+
             Section {
                 Button("Save state") { session.saveState() }
                 Button("Load state") { session.loadState() }

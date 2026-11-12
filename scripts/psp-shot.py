@@ -19,6 +19,10 @@ import sys
 from ctypes import wintypes
 
 user32 = ctypes.windll.user32
+try:
+    user32.SetProcessDPIAware()
+except Exception:
+    pass
 gdi32 = ctypes.windll.gdi32
 
 PW_RENDERFULLCONTENT = 0x00000002
