@@ -2036,19 +2036,26 @@ named high punches (Triangle, Up + Triangle), then Cross and Left + Cross, then 
 high and two low (Square, Triangle, Down + Square, Down + Triangle, with Circle
 filling the fourth when one whiffed).
 
-**The free-roam stall is real and reproducible.** Immediately after the last
-drill: flag A 1, flag B 0, vec3 (-56.41, 0.23, 154.45), HUD compass, sector B - 6,
-EARTHREALM, clock 10:12 AM. Start opens PAUSED (RESUME / SAVE AND QUIT / QUIT GAME),
-so buttons do reach the game; the world clock advanced to 5:33 PM over the session,
-so the simulation is live. Yet:
+**Free-roam control returns; the stall was a hand-off, not a lock.** Immediately
+after the last drill the vec3 sits at (-56.41, 0.23, 154.45), neither analog nor
+D-pad moves it, the sector word reads 1, and the screenshot shows the camera
+parked at the gate pillars with Shujinko standing at the fountain in the
+midground. That looks like a locked player, and it is not one. A few seconds and
+three Cross presses later the camera snapped behind the hero's eyes, the vec3
+settled to ground level (y 0.23 -> 0.87), and movement worked at once: analog
+left stick (0, 1) for 2 s took x from -56.35 to -63.47, about 3.5 units/s, and
+(0, -1) walked it back. So the post-lesson scripted camera owns the player until
+it finishes, and input during that window is discarded.
 
-- analog left stick (0,1) for 1.8 s: vec3 unchanged to 0.00;
-- analog left stick (-1,-1) for 1.8 s: unchanged;
-- D-pad RIGHT held 1.5 s: (-56.41 → -56.37), 0.04 units, which is not a walk.
+Consequences for the adapter: a player who starts walking the instant the dojo
+ends will think the game is broken, and a frozen vec3 is not a position worth
+speaking. The free-roam gate should require that the vec3 has moved, or that the
+camera has handed off, before WhereAmI reports a position — the current gate
+(flag A set, flag B clear, plausible vec3) is satisfied while nothing is yet
+controllable.
 
-The screenshot explains it: the camera is parked at the gate pillars while
-Shujinko stands at the fountain in the midground. Either the vec3 is not the
-controlled player in this state, or control was never handed back after the last
-drill. Distinguishing those two is the next test: load a free-roam save from a
-lineage where movement worked and re-read the same vec3, then compare camera and
-hero positions in one frame.
+⛔ **Sector word: still not the HUD column.** 0x08AED5B4 read 1 at (-56.35, ...,
+154.24) where the HUD said B - 6; it read 0 after crossing west to x -63.47; and
+it stayed 0 after walking back east to (-53.84, ..., 163.49) while the HUD still
+said B - 6. A streamed-cell index remains the standing guess, and the word must
+not be spoken.

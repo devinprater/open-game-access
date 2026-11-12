@@ -99,7 +99,11 @@ final class SpeechEngine: NSObject, ObservableObject, AVSpeechSynthesizerDelegat
     }
 
     override init() {
-        voice = Self.resolveVoice(identifier: voiceIdentifier)
+        // `voiceIdentifier` cannot be read here: the property has an observer,
+        // which makes the read a use of self before super.init (Swift rejects it,
+        // and the iOS build caught it). The persisted value is the same one.
+        let storedVoice = UserDefaults.standard.string(forKey: "speechVoiceIdentifier")
+        voice = Self.resolveVoice(identifier: storedVoice)
         super.init()
         synth.delegate = self
         // VoiceOver-side completion: when the platform voice finishes one of
