@@ -1997,3 +1997,58 @@ Bench findings: the tool shell may run in Windows session 0, which cannot see th
 PPSSPP and the screenshot/key daemon through scheduled tasks with an Interactive principal, and
 talk to the daemon through request files. Debugger replies carry the request's `ticket`; match on it
 (unticketed matching returned garbage floats). Keep ONE long-lived connection.
+
+## Tutorial counters confirmed live; the free-roam stall reproduced (2026-11-12, bench)
+
+A cold-boot session on the Windows bench (PPSSPP 1.20.4, `scripts/` drivers, one
+long-lived debugger connection) went from the title screen to Earthrealm free-roam
+in one run. What it measured, and what it did not.
+
+**Entry.** `ltrigger` opens ENTER KODE; Cross, Circle, Triangle, Square, Cross,
+Circle is accepted (the menu then shows PLAYER 1), three Downs put the cursor on
+KONQUEST, Cross enters. Flags 0x08AF69C8 / 0x08B123DC read 1/1 from the opening
+cinematic onward, and the dojo bout lineage shows pos (-58.00, 0.88, 170.00), the
+same frozen dojo spot recorded on 2026-10-23.
+
+**The step and dash counters are live.** Lesson 1 (steps toward / away): three
+D-pad RIGHT taps took 0x09179644 to 3, three LEFT taps took 0x09179654 to 3 — the
+first live confirmation that these two words track real play, not a stale scene.
+Lesson 2 (backward dashes): three double-taps of LEFT at 45 ms down / 55 ms up
+took 0x091796D4 to 1, then 2, then 3, and the block reset to 0 when the lesson
+advanced. Spacing matters as recorded: the same triple pressed 0.6 s apart moved
+the counter only once.
+
+⛔ **The block is per-scene, as suspected.** After lesson 2 gave way to lesson 3,
+0x09179574 (the Square landed flag) read 152540712 (0x0917_…, pointer-like) and
+the rest read 0, while the screen was still a live bout. So these words must be
+anchored or plausibility-checked before anything speaks them; a fixed address is
+correct only within one scene. That is what keeps them unwired in the adapter.
+
+**The lesson prompts are drawn text.** Lessons 3 to 5 show a move-name box and an
+input-glyph box (`STONE COLUMN`, `↑ + Triangle`; `CREATURE KICK`, `Left + Cross`)
+that are not in the dialogue buffer at 0x09178568 — the buffer there holds only
+the spoken advice lines. Those boxes are exactly what a blind player cannot read,
+and finding their source is the next hunt.
+
+**Drills 3 to 6 passed with real input.** Four different attacks (Square,
+Triangle, Cross, Circle — Circle took several attempts at close range), then the
+named high punches (Triangle, Up + Triangle), then Cross and Left + Cross, then two
+high and two low (Square, Triangle, Down + Square, Down + Triangle, with Circle
+filling the fourth when one whiffed).
+
+**The free-roam stall is real and reproducible.** Immediately after the last
+drill: flag A 1, flag B 0, vec3 (-56.41, 0.23, 154.45), HUD compass, sector B - 6,
+EARTHREALM, clock 10:12 AM. Start opens PAUSED (RESUME / SAVE AND QUIT / QUIT GAME),
+so buttons do reach the game; the world clock advanced to 5:33 PM over the session,
+so the simulation is live. Yet:
+
+- analog left stick (0,1) for 1.8 s: vec3 unchanged to 0.00;
+- analog left stick (-1,-1) for 1.8 s: unchanged;
+- D-pad RIGHT held 1.5 s: (-56.41 → -56.37), 0.04 units, which is not a walk.
+
+The screenshot explains it: the camera is parked at the gate pillars while
+Shujinko stands at the fountain in the midground. Either the vec3 is not the
+controlled player in this state, or control was never handed back after the last
+drill. Distinguishing those two is the next test: load a free-roam save from a
+lineage where movement worked and re-read the same vec3, then compare camera and
+hero positions in one frame.
