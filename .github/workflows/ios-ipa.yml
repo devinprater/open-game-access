@@ -100,6 +100,11 @@ jobs:
           MGBA_SRC: ${{ runner.temp }}/src/mgba
           PPSPP_SRC: ${{ runner.temp }}/src/ppsspp
           MESEN_SRC: ${{ runner.temp }}/src/mesen
+          # ⛔ GPGX_SRC IS REQUIRED for the same reason MESEN_SRC is:
+          # bootstrap-deps.sh fetches Genesis Plus GX there, and
+          # build-core.sh refuses to run without it because the Genesis
+          # backend is part of the app now.
+          GPGX_SRC: ${{ runner.temp }}/src/genesis-plus-gx
         run: |
           SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)" bash scripts/build-core.sh
 

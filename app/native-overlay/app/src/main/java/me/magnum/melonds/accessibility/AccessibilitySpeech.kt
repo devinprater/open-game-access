@@ -36,12 +36,47 @@ class AccessibilitySpeech(private val context: Context)
     {
         private const val TAG = "PokemonAccess"
         private const val UTTERANCE_PREFIX = "pokemon-access"
+
+        /** How many spoken lines are kept for the repeat walk and the
+         * reading log — iOS caps its reading log at the same 400. */
+        private const val HISTORY_MAX = 400
     }
 
     private var tts: TextToSpeech? = null
     private val ready = AtomicBoolean(false)
     private val pendingSpeech = ArrayDeque<Pair<String, Boolean>>()
-    private var lastSpoken = ""
+
+    /**
+     * Everything this bridge has spoken, in order, newest last: the
+     * repeat walk's ground and the reading log's content.
+     *
+     * iOS keeps its spoken history in the Core's announcement queue,
+     * because the queue is the only thing there that knows what
+     * actually reached the platform — a line suppressed as a duplicate
+     * is correctly not repeatable there. On Android this bridge is
+     * that thing: every script line and every app line converges on
+     * [speakImmediately], whichever console produced it, so the
+     * history lives here and nowhere else. Past the cap the oldest
+     * lines fall off, and a walk that reaches the end of what is kept
+     * refuses honestly rather than inventing an older line.
+     *
+     * Guarded by synchronizing on itself: lines arrive on the
+     * emulator thread, the repeats are asked for on the UI thread.
+     */
+    private val spokenHistory = ArrayDeque<String>()
+
+    /** Where the repeat walk is standing: an index into [spokenHistory]. */
+    private var historyWalkIndex = -1
+
+    /**
+     * True while the walk itself is speaking, so a re-read line is not
+     * recorded as a new line — the walk re-reads history, it does not
+     * add to it. (A repeat queued because the TTS engine was still
+     * starting flushes after this clears and does append; the walk
+     * index simply lands back on the newest line, which is where a
+     * flushed repeat leaves the player anyway.)
+     */
+    private var speakingFromHistory = false
 
     /**
      * The node game narration is announced through while a screen reader is
@@ -60,6 +95,26 @@ class AccessibilitySpeech(private val context: Context)
     fun setAnnouncementView(view: android.view.View?)
     {
         announcementView = view
+    }
+
+    /**
+     * The announcement path's state in one line, for session logs:
+     * whether a view is held, whether it stands in a window, and
+     * whether a screen reader is the voice. The silent relaunched
+     * session of 2026-11-11 logged every line as dispatched and left
+     * no trace of which leg of this path was missing; a session that
+     * logs this line at start cannot go silent unexplained.
+     */
+    fun announcementState(): String
+    {
+        val view = announcementView
+        val viewState = when
+        {
+            view == null -> "view=none"
+            view.isAttachedToWindow -> "view=attached"
+            else -> "view=DETACHED"
+        }
+        return "$viewState screenReader=${if (screenReaderRunning()) "on" else "off"}"
     }
 
     /**
@@ -265,31 +320,54 @@ class AccessibilitySpeech(private val context: Context)
 
     private fun speakImmediately(text: String, interrupt: Boolean)
     {
-        lastSpoken = text
+        if (!speakingFromHistory)
+        {
+            synchronized(spokenHistory)
+            {
+                spokenHistory.addLast(text)
+                while (spokenHistory.size > HISTORY_MAX) spokenHistory.removeFirst()
+                historyWalkIndex = spokenHistory.size - 1
+            }
+        }
 
         // A screen reader is running: let IT be the voice, exactly as iOS hands
         // announcements to VoiceOver. Speaking through TextToSpeech as well would
         // put two voices on the same output, each interrupting the other.
         //
-        // The queue/interrupt contract still has to be honoured, and a live region
-        // expresses it directly: changing a polite region's text queues behind
-        // whatever is being read, while an assertive one interrupts. So a single
-        // view carries both cases by switching its polite-ness, rather than
-        // needing two mechanisms.
+        // The queue/interrupt contract still has to be honoured. It is
+        // carried by dispatchAnnouncement below: the view's live-region
+        // politeness (polite queues behind whatever is being read,
+        // assertive interrupts) plus an explicit announcement event
+        // per line, so a single view carries both cases.
         if (screenReaderRunning())
         {
             val view = announcementView
             if (view != null)
             {
-                view.accessibilityLiveRegion = if (interrupt)
-                    android.view.View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
+                // ⛔ THE REGION CHANGE MUST RUN ON THE MAIN THREAD, AS ONE
+                // STEP. speak() arrives from emulator threads (adapter
+                // announcements are made inside the frame loop), and a
+                // contentDescription set from a background thread is not
+                // guaranteed to reach the accessibility service at all:
+                // the property set and its content-change event are the
+                // view's main-thread business. Measured on device
+                // (2026-11-11): a game relaunched inside the running app
+                // logged every menu line as "[speech] say (screen
+                // reader)" and the player heard none of them -- the sets
+                // happened, off the main thread, and no announcement
+                // followed. Posting the whole change as one runnable
+                // keeps politeness, clear and text atomic and ordered,
+                // and the [speech] log line moves inside
+                // dispatchAnnouncement, so it now means the change
+                // actually landed on the view.
+                if (android.os.Looper.myLooper() == android.os.Looper.getMainLooper())
+                {
+                    dispatchAnnouncement(view, text, interrupt)
+                }
                 else
-                    android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE
-                // Setting the text is what triggers the announcement; clearing it
-                // first restarts the region when the same line repeats, which is
-                // what the script's "repeat" key does.
-                view.contentDescription = text
-                Log.i(TAG, "[speech] ${if (interrupt) "say" else "queue"} (screen reader): $text")
+                {
+                    view.post { dispatchAnnouncement(view, text, interrupt) }
+                }
                 return
             }
             // No view yet (narration started before the layout inflated). Falling
@@ -310,10 +388,169 @@ class AccessibilitySpeech(private val context: Context)
         Log.i(TAG, "[speech] ${if (interrupt) "say" else "queue"}: $text")
     }
 
+    /**
+     * Land one announcement on the announcement view: an explicit
+     * announcement event, with the view's live region and description
+     * kept current as the node's state, as one indivisible main-thread
+     * step. Main thread only -- see the posting at the call site in
+     * [speakImmediately].
+     *
+     * ⛔ THE EVENT IS THE ANNOUNCEMENT; THE DESCRIPTION IS ONLY STATE.
+     * Until now this only mutated the view -- politeness flip,
+     * clear-for-repeat, the description set -- and relied on the
+     * resulting content-change event reaching the screen reader as a
+     * live-region update. On device that proved unreliable in exactly
+     * the sessions that matter: the 2026-11-11 13:04 session logged
+     * every line as landed, on the main thread, on an attached view,
+     * and the player heard none of them, while a build three merges
+     * earlier announcing the identical way WAS heard at 05:53.
+     * Whether a property set becomes an announcement a reader voices
+     * depends on node synthesis and content-change delivery this class
+     * cannot observe, and the bare [speech] line could not tell a
+     * landed announcement from a lost one.
+     * [android.view.View.announceForAccessibility] is the
+     * purpose-built route: it dispatches a TYPE_ANNOUNCEMENT event
+     * carrying the text itself, which a screen reader speaks from the
+     * event rather than by re-reading a node -- and a repeated line is
+     * a fresh event, so repeats announce on their own. The region and
+     * description still update (the region only when its mode actually
+     * changes, so the region the reader tracks is not churned on every
+     * line): they are the node's inspectable state, and they keep the
+     * node path available to anything that reads it. The log line now
+     * records the dispatch itself -- method, view, attached, shown,
+     * window focus, display -- so a silent session, if there is
+     * another, separates "no event was emitted here" from "the event
+     * was emitted and something downstream let it go".
+     *
+     * The detached-view warning stays: announceForAccessibility is a
+     * no-op on a view with no window, so a detached view is still
+     * called out by name rather than logged as dispatched.
+     */
+    private fun dispatchAnnouncement(view: android.view.View, text: String, interrupt: Boolean)
+    {
+        val region = if (interrupt)
+            android.view.View.ACCESSIBILITY_LIVE_REGION_ASSERTIVE
+        else
+            android.view.View.ACCESSIBILITY_LIVE_REGION_POLITE
+        if (view.accessibilityLiveRegion != region)
+        {
+            view.accessibilityLiveRegion = region
+        }
+        // The clear-for-repeat still applies on the node: assigning the
+        // identical description is no change at all there, and a
+        // repeated line should differ observably in the node's state
+        // even though the event no longer depends on it.
+        if (view.contentDescription?.toString() == text)
+        {
+            view.contentDescription = null
+        }
+        view.contentDescription = text
+        val attached = view.isAttachedToWindow
+        if (attached)
+        {
+            view.announceForAccessibility(text)
+        }
+        else
+        {
+            Log.w(TAG, "[speech] announcement reached a DETACHED view; no screen reader can announce it: $text")
+        }
+        Log.i(TAG, "[speech] ${if (interrupt) "say" else "queue"} (screen reader): $text" +
+            " [dispatch: announceForAccessibility ${if (attached) "sent" else "SKIPPED (detached)"}" +
+            ", view=${view.javaClass.simpleName}, attached=$attached, shown=${view.isShown}" +
+            ", windowFocus=${view.hasWindowFocus()}, display=${view.display?.displayId ?: -1}]")
+    }
+
     /** The script's repeat key ("U") re-reads the last spoken line. */
     fun repeatLast()
     {
-        if (lastSpoken.isNotEmpty()) speak(lastSpoken, true)
+        repeatNewest()
+    }
+
+    /** The most recent line this bridge spoke, or "" when it has said nothing yet. */
+    fun lastSpokenText(): String = synchronized(spokenHistory) { spokenHistory.lastOrNull() ?: "" }
+
+    /** Everything spoken, in order (oldest first): the reading log's lines. */
+    fun spokenHistory(): List<String> = synchronized(spokenHistory) { spokenHistory.toList() }
+
+    /**
+     * Re-read the newest line in the spoken history, and stand the
+     * walk back on it. True when there was a line to repeat.
+     *
+     * iOS's RepeatNewest (Core command 38) over its queue history.
+     * Silent on refusal by the same contract: the caller speaks
+     * "Nothing to repeat." itself, so a line from here as well would
+     * make the player hear it twice.
+     */
+    fun repeatNewest(): Boolean
+    {
+        val line = synchronized(spokenHistory)
+        {
+            if (spokenHistory.isEmpty()) return false
+            historyWalkIndex = spokenHistory.size - 1
+            spokenHistory[historyWalkIndex]
+        }
+        speakFromHistory(line)
+        return true
+    }
+
+    /**
+     * Step the walk one line further back and re-read that line
+     * (iOS's RepeatOlder, Core command 39). True when an older line
+     * existed; at the oldest recorded line the walk refuses — false,
+     * silently, for the reason [repeatNewest] gives.
+     */
+    fun repeatOlder(): Boolean
+    {
+        val line = synchronized(spokenHistory)
+        {
+            if (historyWalkIndex <= 0) return false
+            historyWalkIndex -= 1
+            spokenHistory[historyWalkIndex]
+        }
+        speakFromHistory(line)
+        return true
+    }
+
+    private fun speakFromHistory(line: String)
+    {
+        speakingFromHistory = true
+        try
+        {
+            speak(line, true)
+        }
+        finally
+        {
+            speakingFromHistory = false
+        }
+    }
+
+    /**
+     * Speak feedback ABOUT the speech feature itself — the repeat
+     * walk's refusals ("Nothing to repeat." / "Nothing older to
+     * repeat."), spoken by the app when [repeatNewest] /
+     * [repeatOlder] return false.
+     *
+     * ⛔ SUCH A LINE MUST NOT ENTER THE HISTORY. Recorded like any
+     * other line, a refusal would become the newest entry and stand
+     * the walk back on it (speakImmediately resets the walk index to
+     * the newest line), so one refused step backwards would undo the
+     * player's place in the walk — and the history and the reading
+     * log would fill with the refusals themselves. The walk re-reads
+     * history without adding to it ([speakFromHistory]); its
+     * refusals are control feedback of the same kind, so they ride
+     * the same suppression.
+     */
+    fun speakControl(text: String)
+    {
+        speakingFromHistory = true
+        try
+        {
+            speak(text, true)
+        }
+        finally
+        {
+            speakingFromHistory = false
+        }
     }
 
     fun shutdown()

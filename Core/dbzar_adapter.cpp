@@ -649,7 +649,7 @@ static void OnFrame(void)
             // latched — a city first seen at 40% has already passed the 80 and 50
             // lines and must not announce them as fresh crossings.
             g_lastRatio[i] = r; g_haveRatio[i] = true;
-            for (int b = 0; b < 3; b++) g_bandLatch[i][b] = (r <= kBands[b]);
+            for (int b = 0; b < 3; b++) g_bandLatch[i][b] = (r < kBands[b]);
             continue;
         }
         float was = g_lastRatio[i];

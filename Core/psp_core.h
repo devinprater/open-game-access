@@ -8,8 +8,9 @@
  * routes PSP addresses to psp_debug_read here.
  *
  * Runtime configuration (fixed, not negotiable without re-proving):
- *   CPU = IR interpreter (no JIT: iOS has no MAP_JIT under a free sideload,
- *     same reason the DS core runs its interpreter).
+ *   CPU = IR interpreter on iOS (no JIT: iOS has no MAP_JIT under a free
+ *     sideload, same reason the DS core runs its interpreter). Android
+ *     arm64 runs PPSSPP's IR JIT instead -- see psp_core.cpp.
  *   GPU = software rasterizer, read back on CPU (no GL context on iOS here).
  */
 #ifndef PSP_CORE_H
@@ -92,6 +93,13 @@ bool psp_load_state(PspCore *core, const char *path);
 
 unsigned long long psp_frames_completed(PspCore *core);
 const char *psp_last_error(PspCore *core);
+
+/* The session's CPU core mode in plain terms ("JIT (Arm64 IR)",
+ * "IR interpreter (JIT not engaged)", ...), composed at boot from the
+ * backend object PPSSPP created -- see psp_load_rom. The app logs it at
+ * every session start so a session's speed is never a matter of faith.
+ * "not booted" before a successful psp_load_rom. */
+const char *psp_core_mode(PspCore *core);
 
 /* Raw PSP memory read (user RAM 0x08000000..0x0A000000 and friends) for the
  * adapter Host path and binding verification. */

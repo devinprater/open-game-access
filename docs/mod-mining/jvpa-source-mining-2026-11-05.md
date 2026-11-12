@@ -489,3 +489,205 @@ speaking (the number a player actually plans with); multi-hit is a
 explicitly instead of printing zeros; the opponent's weapon name comes
 from the
 ...[truncated 8184 chars]
+<!-- RE-AUTHORED TAIL (2026-11-08): everything below this marker was
+re-authored; the original text was lost to a snapshot-push truncation. -->
+
+*Editorial note, 2026-11-08: the original ending of this note was lost
+when a snapshot push truncated the file — the missing tail (~8,200
+characters) is the rest of the Fire Emblem section and the Streets of
+Rage 1, Streets of Rage 2 and Bruce Lee sections. The text below was
+re-authored on 2026-11-08 at the owner's direction, reconstructed from
+the decoded Lua in `~/workspace/jvpa/decoded/` (the fire_emblem, sor1,
+sor2 and brucelee module trees) and from the distilled catalogue
+sections this note fed (§31.12–§31.14). It is a reconstruction, not
+the original wording.*
+
+forecast proc itself: `battle_forecast.GetItemNameB()` reads the text
+id stored at +0x48 in the battle-forecast (bksel) proc and resolves
+it through the game's text monitor, so the name spoken is the one the
+game itself is displaying, not one reconstructed from the opponent's
+inventory. The hit counts come from the same proc (GetHitCountA/B) —
+doubling and follow-up attacks enter the template as the game's own
+numbers, never as an inference from the speed stats.
+
+### Battle narration follows the animation's counters (gbafe_battle_scene.lua, 339 lines)
+
+The game pre-computes the whole fight into a hit array
+(BATTLE_HIT_MAX = **7** entries; each a u32 packing attribute bits —
+miss, crit — info bits — retaliation, end — and a signed HP change in
+the top byte). Narration does not speak the array when it appears; it
+follows the *animation's own progress*: in animated battles,
+`hits_shown()` sums the per-side already-shown counters
+(gEfxHpLutOff) plus any side whose HP gauge is currently moving
+(gEkrHitNow); in map animations it derives the count from
+gManimSt.pCurrentRound's offset into the array. Each newly shown hit
+is announced in order, with the module tracking HP itself ("{unit}:
+{N} HP left", defeats, and heals spoken as recovery). A summary line
+is available at battle start and re-readable on B mid-fight, built
+from the animated gauges when the battle is animated. Level-ups take
+their stat names from the game's own message tables (EkrLvupMsgsStr
+/ EkrLvupMsgsMag — the Str or Mag list chosen by the unit's class),
+with the changes read from the BattleUnit at fixed offsets in the
+same order.
+
+### Range display in words (fire_emblem_gba.lua `range_text`)
+
+The colour overlay is never read as a colour; its meaning is
+recomputed. The MoveLimitView proc's mode flags (at +0x4A:
+LIMITVIEW_RED = 0x02, LIMITVIEW_GREEN = 0x04) are combined with the
+game's own maps: gBmMapMovement (a cost below MAP_MOVEMENT_MAX = 120
+means reachable — and "occupied" when another unit stands on the
+square) and gBmMapRange. The cell under the cursor speaks one of five
+states: "can move here", "occupied", "in staff range", "in attack
+range", or "out of range".
+
+### Target cycling and cursor travel (fire_emblem_gba.lua)
+
+Three cycle keys — E (enemies), F (allies), D (places) — walk lists
+built from the unit-id ranges (allies $01–$7F, enemies $80–$BF;
+places come from the chapter event list). Lists are sorted by
+Manhattan distance from the active unit (or the cursor when no unit
+is active), ties by y then x, and each entry is spoken as name +
+relative offset + "**{index} of {total}**"; Shift cycles backwards,
+and an empty kind is named as empty ("No place to visit"), never
+silent. P sends the cursor to the chosen target: its position is
+re-read live first (units move — a target that has left the map is
+reported "Target gone"). The travel itself is a small state machine
+over joypad injection, **horizontal axis first, then vertical**; on
+arrival all buttons are released, the arrival line speaks, and the
+destination cell announces fresh — per-cell announcements are
+suspended for the whole transit. Failure is honest: cursor unmoved
+for **90 frames** (a menu opened, a map edge) or a
+**CURSOR_TRAVEL_TIMEOUT = 600** frames total, and the mod says "The
+cursor cannot get there."
+
+### Attack-position solver (fire_emblem_gba.lua, Shift+P)
+
+Weapon ranges are decoded from item data, not assumed: the unit's 5
+inventory slots, items carrying the weapon attribute bit (staves
+excluded by theirs); the range byte's nibbles are (min, max), with
+$FF meaning 1–99 ("total") and $10 meaning 1–2. The solver scans the
+whole map for a square that is reachable (movement cost < 120),
+unoccupied (or the unit's own), and at a distance to the target
+inside ANY of the unit's weapon ranges — then picks the **least
+movement cost, tie-break FARTHEST from the enemy** (an archer keeps
+his distance, per the code comment). If no square qualifies, the
+cursor still travels — to the nearest reachable square — under the
+honest line "{unit} is out of reach this turn, nearest square".
+
+---
+
+## Streets of Rage 1 — the source under §29.11
+
+### Enemy radar (radar_enemy.lua, 2,501 lines)
+
+The actor scan starts at $B900 specifically to skip the player slot
+at $B800: **32 slots × $80**, health at +0x32, with per-level
+enemy-type tables (the same type id is a different enemy — and a
+different boss — per stage). Two tracked voices only, the nearest
+enemy per side, inside a belt window (X ≤ **MAX_X_DISTANCE = 500**,
+Y ≤ 80); steps ride a global timer (STEP_REPEAT_FRAMES = **32**,
+≈0.53 s). The vertical axis is carried by **pitch**, leaving pan for
+the horizontal: direction-specific step files (up/down variants)
+span pitch **0.75–1.50** over 75 px for distance, with a general
+pitch of 0.90–1.12 inside a 10-px deadzone; **volume tracks
+Y-proximity** (0.30–0.90), not X. Per-type identity markers (the
+per-boss step sounds) are attenuated to **×0.30** — *except bosses,
+which stay at full volume* (user ruling); tracked voices are further
+scaled by rank factors 1.0 / 0.75 / 0.60. Pan reaches full at
+**PAN_FULL_DISTANCE = 160** — lowered from a higher value; at combat
+distance enemies used to stay nearly centred.
+
+### Alignment and range alerts, with hysteresis
+
+A lock-on target drives the belt-plane cue: |dy| ≤ **16 px** is
+aligned — the game's true belt band — and the per-side alignment
+sound repeats every **4 frames** while the player stays aligned.
+Range alerts use **separate enter and exit boxes** so they cannot
+flicker on the boundary: melee enters at 40×20 and exits at +12/+8;
+the jump kick enters at 110×26 and exits at +30/+20; re-arming needs
+**8 frames** outside. Per-weapon ranges are read from the game's ROM
+tables where they exist; melee and jump-kick are measured estimates.
+Four independent alert voices once summed in the mixer in enclosed
+stages ("it stacks and gets louder", user report) — there is now
+**one shared alert voice**.
+
+### The danger family and the satellite radars
+
+Around the core sits a shelf of single-purpose modules. Per-boss
+**danger modules** — Abadede's charge, Antonio's boomerang, Bongo's
+fire, Jack's projectile, Mr. X's gunfire, Signal's slide, Souther's
+charge, the Twins' jump and projection, Haku-Oh's jump — each watch
+one telegraphed attack and give it its own placed warning sound, on
+the §29.11 family shape (own sound, pan = clamp(dx/160, −1, 1),
+re-trigger at most every 15 frames, stopped when the threat clears).
+The **satellite radars** share one engine: walls, pits, breakables,
+items and the compressor, plus conveyor audio for the belt stages
+and the go-arrow cue; the object side keeps §29.11's discipline —
+silence inside the action zone except the "can take it" signal
+(can_take.lua). The remainder is platform furniture of the §29.15
+kind: character select, menus, continue and progression speech, a
+tutorial.
+
+---
+
+## Streets of Rage 2 — the source under §29.11
+
+The same grammar, re-implemented on SoR2's different actor layout —
+and leaner for it (radar_enemy.lua is 440 lines against SoR1's
+2,501). The scan is **6 slots × 0x100 from 0xF100** (Load_EnemyObj);
+an actor is alive when its ObjMode is nonzero and not 6 (dead), HP
+is positive, and the +0x49 bit 7 flag is set.
+
+The source-level deepening is **weapon-aware voices**. A held weapon
+is read from the actor itself (+0x32 bit 0 = holding, the id at
++0x38: knife 0x3C, pipe 0x3E, grenade 0x46), and the identity markers
+follow what the enemy is *carrying*: separate Galsia voices for knife
+and pipe, Donovan voices for knife and pipe, Fog's spawn voice
+changing with the pipe or grenade it is given at spawn — all at the
+family's ×0.30 marker volume. Knowing the nearest enemy on a side is
+armed, and with what, is information SoR1's radar never speaks. The
+object radar is the shared engine of §29.11 (sor2/object_radar.lua),
+and the danger family returns with a boss announcer
+(boss_announce.lua) beside the per-threat modules — the grenade on
+the ground (explosion_danger.lua), the bike (bike_danger.lua), Big
+Ben's fire, Electra's whip, Mr. X's gun. The music side is §29.12's:
+41 recorded tracks, plus the `voices_rom` / `sfx_rom` folders —
+recordings of the ROM's own voices and effects, replayed placed.
+
+---
+
+## Dragon: The Bruce Lee Story — the source under §29.11/§29.12
+
+The smallest package (21 modules) uses the brawler grammar at its
+most relaxed. **Enemy beacons** (enemy_beacon.lua, 60 lines):
+INTERVAL_FRAMES = **40** (≈1 s at SNES speed — the comment notes it
+was effectively faster before and was slowed), enemy1.mp3 /
+enemy2.mp3 per enemy, the second enemy **offset by 30 frames** so
+the two never mask each other; any change in the roster resets the
+timers. Modules gate on ROM-state validity words before trusting the
+actor slots at all.
+
+**The low-health heartbeat** (enemy_heart.lua, 66 lines) takes its
+threshold from the game's own code: at C0:5EC7–5EDB the game compares
+HP against max/4 and max/8 for its own low-HP flashing, and the mod
+warns at **max/8** — with one boss exception, found in the
+disassembly. The Demon (type $0100) does not die at zero HP:
+C0:A87A sets a flag bit (+$95 bit $0800) at zero HP while the fight
+is still active ($5398 == 0) — zero HP means "needs a finishing
+defeat", not death. For the Demon the warning therefore fires
+**only at zero HP, never at the 12.5% threshold**; applying the
+normal rule would cry wolf for the whole end of the fight.
+
+**Narration** (narration.lua, 136 lines) is state-synced, never
+timer-synced: the cinematic scripts (C0:55BD–5AAD) drive a
+direct-page pointer, and screens are fingerprinted by **probing the
+displayed text buffer itself** — the victory and licence screens
+share every video register, so only the text tells them apart. Each
+entry fires when the script's own remaining-duration counter falls
+inside the entry's window; nothing is scheduled from elapsed time.
+The music is §29.12's arrangement — a 741-byte IPS patch in the
+package, and music_patch.lua applying the same neutralisation at
+runtime where the bus is writable, with external_music following
+the game's native track-id register; the native_sfx modules give
+the game's own effects the same treatment.

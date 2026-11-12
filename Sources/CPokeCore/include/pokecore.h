@@ -103,6 +103,11 @@ const char *poke_reader_set(PokeCore *core);
 void poke_set_psp_asset_dir(PokeCore *core, const char *asset_dir);
 bool poke_start(PokeCore *core);
 void poke_stop(PokeCore *core);
+/* Write the battery save to its file NOW. The core flushes on its own
+ * once a second while running; a host shutting the core down must call
+ * this first, or a save made in the final second is lost — neither
+ * poke_stop nor poke_destroy flushes. */
+void poke_flush_save(PokeCore *core);
 bool poke_running(PokeCore *core);
 /* Non-zero once the emulated console stopped itself; see Platform::StopReason. */
 int poke_stop_reason(PokeCore *core);

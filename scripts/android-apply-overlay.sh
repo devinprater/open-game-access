@@ -72,6 +72,41 @@ rm -f "$GB_DST/host-sim-rom.lua" "$GB_DST/oga_capture.lua"
 echo "     staged $(find "$GB_DST" -type f | wc -l) files (sounds: $(find "$GB_DST/sounds" -type f 2>/dev/null | wc -l))"
 
 # ---------------------------------------------------------------------------
+# 1c. STAGE the NES reader sets from their SINGLE source of truth.
+#
+# The same rule as 1b, for the same reason: the NES readers (Dragon
+# Warrior Access, Zelda 1 Access) live canonically in
+# Sources/OpenGameAccess/Resources/nes-lua/ -- one directory per set,
+# each with its oga_nes_reader.lua entry -- and iOS copies that whole
+# tree into its bundle (Package.swift). A second tracked copy here
+# would drift the way the GB one did. The sets are gated the way
+# scripts/nes-reader-assets-test.sh gates them: every set directory
+# must carry its reader entry, and there must be at least the two
+# shipped sets. The Android session stages a WRITABLE copy of the set
+# the core names at load (the readers write into their own tree); the
+# APK only ever carries this read-only staging.
+# ---------------------------------------------------------------------------
+say "staging the NES reader sets from their canonical tree"
+NES_READERS="$ROOT/Sources/OpenGameAccess/Resources/nes-lua"
+[ -d "$NES_READERS" ] || { echo "!! no NES reader sets at $NES_READERS" >&2; exit 1; }
+NES_SET_COUNT=0
+for setdir in "$NES_READERS"/*/; do
+  [ -f "$setdir/oga_nes_reader.lua" ] || {
+    echo "!! NES reader set $setdir has no oga_nes_reader.lua -- refusing to stage a broken set" >&2
+    exit 1; }
+  NES_SET_COUNT=$((NES_SET_COUNT+1))
+done
+[ "$NES_SET_COUNT" -ge 2 ] || {
+  echo "!! only $NES_SET_COUNT NES reader set(s) staged -- the shipped readers are missing" >&2
+  exit 1; }
+
+NES_DST="$FRONTEND/app/src/main/assets/nes-lua"
+rm -rf "$NES_DST"
+mkdir -p "$NES_DST"
+cp -r "$NES_READERS/." "$NES_DST/"
+echo "     staged $NES_SET_COUNT NES reader sets ($(find "$NES_DST" -type f | wc -l) files)"
+
+# ---------------------------------------------------------------------------
 # 2. Resources: our app label gets its OWN key. Upstream already defines
 #    `app_name` for its own product, and overwriting it would break upstream
 #    code -- which is exactly the class of bug being fixed here.
@@ -796,6 +831,7 @@ ARM    = _oga_list("PPSPP_ARM", (".c",))
 X86    = _oga_list("PPSPP_X86", (".c",))
 X86_ASM = _oga_list("PPSPP_X86_ASM", (".S",))
 AND_ARM64 = _oga_list("PPSPP_ANDROID_ARM64", (".c",))
+AND_ARM64_CPP = _oga_list("PPSPP_ANDROID_ARM64_CPP", (".cpp",))
 ANDROID = _oga_list("PPSPP_ANDROID", (".cpp",))
 GLUE   = _oga_list("PPSPP_GLUE", (".cpp",))
 assert GLUE == ["psp_core.cpp"], "PPSPP_GLUE is expected to be exactly psp_core.cpp"
@@ -803,7 +839,7 @@ assert GLUE == ["psp_core.cpp"], "PPSPP_GLUE is expected to be exactly psp_core.
 # Fail at generation time, not at some later link: every named file must
 # exist in the copied tree (the same guard ppsspp-subset-test.sh runs).
 tree = os.path.join(ppsspp_dir, "src")
-for f in CORE + EXT_CPP + EXT_C + ARM + X86 + X86_ASM + AND_ARM64 + ANDROID:
+for f in CORE + EXT_CPP + EXT_C + ARM + X86 + X86_ASM + AND_ARM64 + AND_ARM64_CPP + ANDROID:
     assert os.path.isfile(os.path.join(tree, f)), "missing from the PPSSPP tree: " + f
 
 # cpu_features TUs: build-core.sh compiles these with the ppsppx case,
@@ -825,13 +861,15 @@ with open(out_path, "w", encoding="utf-8") as fh:
 # (scripts/core-sources.sh). Upstream PPSSPP's CMake/Android build is not
 # used: it builds the full application (UI, Vulkan/GLES backends,
 # glslang). This subset is the host- and iOS-proven configuration: IR
-# interpreter + software GPU, headless platform hooks in the glue
+# interpreter (arm64-v8a: IR JIT) + software GPU, headless platform
+# hooks in the glue
 # (glue/psp_core.cpp, OGA's Core/psp_core.cpp copied in by the overlay).
 #
 # Per-ABI source gating, decided here because CMAKE_ANDROID_ARCH_ABI is
 # only known at configure time:
 #   arm64-v8a:  PPSPP_ARM (libpng NEON) + PPSPP_ANDROID_ARM64 (the
-#               cpu_features AArch64 impl; iOS never compiles one)
+#               cpu_features AArch64 impl; iOS never compiles one) +
+#               PPSPP_ANDROID_ARM64_CPP (the AArch64 IR-JIT backend)
 #   x86_64:     PPSPP_X86 (cpu_features) + PPSPP_X86_ASM (zstd asm)
 #   armeabi-v7a: EMPTY -- the lists were never audited for 32-bit ARM.
 
@@ -878,6 +916,7 @@ set(OGA_PPSPP_INC
     emit_list(fh, "PPSPP_X86_SOURCES", X86)
     emit_list(fh, "PPSPP_X86_ASM_SOURCES", X86_ASM)
     emit_list(fh, "PPSPP_ANDROID_ARM64_SOURCES", AND_ARM64)
+    emit_list(fh, "PPSPP_ANDROID_ARM64_CPP_SOURCES", AND_ARM64_CPP)
     emit_list(fh, "PPSPP_ANDROID_SOURCES", ANDROID)
     fh.write("""set(OGA_PPSPP_GLUE ${CMAKE_CURRENT_SOURCE_DIR}/glue/psp_core.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glue/PspAndroidShims.cpp
@@ -893,7 +932,7 @@ set(OGA_PPSPP_INC
 if (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")
     set(OGA_PPSPP_SOURCES
         ${PPSPP_CORE_SOURCES} ${PPSPP_EXT_CPP_SOURCES} ${PPSPP_EXT_C_SOURCES}
-        ${PPSPP_ARM_SOURCES} ${PPSPP_ANDROID_ARM64_SOURCES} ${PPSPP_ANDROID_SOURCES})
+        ${PPSPP_ARM_SOURCES} ${PPSPP_ANDROID_ARM64_SOURCES} ${PPSPP_ANDROID_ARM64_CPP_SOURCES} ${PPSPP_ANDROID_SOURCES})
     set(OGA_PPSPP_HAVE_CORE ON)
 elseif (CMAKE_ANDROID_ARCH_ABI STREQUAL "x86_64")
     set(OGA_PPSPP_SOURCES
@@ -1290,6 +1329,864 @@ print("     achievement rows now read as one labelled item")
 PY
 else
   echo "     achievement rows: already labelled, or not found"
+fi
+
+
+# ---------------------------------------------------------------------------
+# 9. The Nintendo DS native path (pokecore, the shared Core DS host).
+#
+# The DS host is NOT a new slice: it is Core/pokecore.cpp, the same
+# translation unit the iOS app ships — it owns the melonDS::NDS instance,
+# the embedded Lua the Pokemon Black/White reader script runs in, the
+# native adapter attach (the shared registry's DS adapters), the
+# announcement queue and the battle-cue snapshots. The Android side adds
+# only a JNI surface over it (DsSessionJNI.cpp, riding the frontend
+# target like the other accessibility hosts) — see that file's header
+# for why the earlier DS starts in this tree (the MelonCore stub, the
+# script-only PokeScript) could not run a game.
+#
+# The glue list is the DS-relevant part of scripts/core-sources.sh's
+# OGA_GLUE, MINUS what Android already carries elsewhere:
+#   - dissidia/dbzar/mku/khbbs_adapter.cpp, announce.cpp, osk_echo.cpp
+#     already ride the oga-ppsspp-glue objects (section 8), and the
+#     registry TU references them from there — compiling them again
+#     here would duplicate their symbols.
+#   - poke_platform.cpp is deliberately NOT compiled: it implements
+#     melonDS::Platform file IO, which the frontend's PlatformAndroid
+#     already provides in this library. DsSessionJNI.cpp defines the one
+#     symbol pokecore needs from it (PokeSetLogForward).
+#   - gba_core is NOT compiled: GB has its own Android slice, and
+#     DsBackendStubs.cpp refuses its ABI (create() returns null, which
+#     pokecore's load path turns into a clean refusal) — the
+#     missing-symbol set was measured with nm over exactly the TUs
+#     staged below, not guessed. mesen_core/snes_core ARE compiled
+#     since section 10 (the MesenCE subproject below); their former
+#     stubs are gone from DsBackendStubs.cpp for exactly that reason.
+#
+# ⛔ THE GLUE RIDES THE FRONTEND TARGET, not a subproject library (the
+# PSP pattern does not transfer): pokecore shares melonDS C++ class
+# ABIs with the core (NDS/ARM/JIT headers), and only the frontend
+# target's exact compile definitions and include paths — the core's
+# PUBLIC JIT_ENABLED, its interface include dir, the Lua headers
+# section 7 added — are proven to match. A separate library compiled
+# with almost-the-same flags is how a core ABI silently skews.
+# ---------------------------------------------------------------------------
+say "building the Nintendo DS host (pokecore) into the frontend"
+
+if [ ! -f "$FRONTEND/app/mgba/lua/src/lua.h" ]; then
+  # ⛔ NOT a silent skip — the shape section 7 established: a DS build
+  # without the Lua headers section 7 staged would compile nothing and
+  # ship a DS page that lies. CI always stages them.
+  echo "   !! the staged Lua headers are missing (section 7 did not run?), so the DS host would NOT be built." >&2
+  echo "      This stage needs section 7's wiring (MGBA_SRC and LUA_SRC set)." >&2
+  exit 1
+fi
+
+DS_GLUE="$FRONTEND/app/ds-glue"
+mkdir -p "$DS_GLUE"
+for f in pokecore oga_core systems adapters fe_adapter fe_access \
+         dbz_adapter dq9_adapter gba_adapter nes_adapter alttp_adapter \
+         alttp_text alttp_names alttp_rooms n64_adapter; do
+  cp "$ROOT/Core/$f.cpp" "$DS_GLUE/$f.cpp" || { echo "   !! Core/$f.cpp missing" >&2; exit 1; }
+done
+cp "$ROOT"/Core/*.h "$DS_GLUE/"
+cp "$ROOT/Sources/CPokeCore/include/pokecore.h" "$DS_GLUE/"
+echo "     staged the DS host (15 Core translation units + headers)"
+
+CMAKE="$FRONTEND/app/CMakeLists.txt"
+if grep -q 'OGA_DS_GLUE' "$CMAKE"; then
+  echo "     already wired; nothing to do"
+else
+  python3 - "$CMAKE" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+NL = chr(10)
+tus = ["pokecore", "oga_core", "systems", "adapters", "fe_adapter",
+       "fe_access", "dbz_adapter", "dq9_adapter", "gba_adapter",
+       "nes_adapter", "alttp_adapter", "alttp_text", "alttp_names",
+       "alttp_rooms", "n64_adapter"]
+lines = [
+    "",
+    "# ---------------------------------------------------------------------------",
+    "# OGA_DS_GLUE -- the Nintendo DS host (Core/pokecore.cpp and its glue),",
+    "# appended by scripts/android-apply-overlay.sh section 9. The DS glue",
+    "# rides the frontend target itself, NOT a subproject library: pokecore",
+    "# shares melonDS C++ class ABIs with the core, and only this target's",
+    "# exact compile definitions and include paths are proven to match it.",
+    "# Skipped on armeabi-v7a, mirroring the PSP subset's stance (section 8);",
+    "# the Kotlin availability probe reads the absence as 'not in this build'.",
+    'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
+    "    target_sources(melonDS-android-frontend PRIVATE",
+    "        ${ANDROID-CPP}/DsSessionJNI.cpp",
+    "        ${ANDROID-CPP}/DsBackendStubs.cpp",
+]
+lines += ["        ${CMAKE_CURRENT_SOURCE_DIR}/ds-glue/%s.cpp" % t for t in tus]
+lines += [
+    "    )",
+    "    target_include_directories(melonDS-android-frontend PRIVATE",
+    "        ${CMAKE_CURRENT_SOURCE_DIR}/ds-glue)",
+    "endif ()",
+    "",
+]
+s = s.rstrip("\n") + NL + NL.join(lines) + NL
+open(p, "w", encoding="utf-8").write(s)
+print("     wired the DS host into the frontend target")
+PY
+fi
+
+# ---------------------------------------------------------------------------
+# 9b. PlatformAndroid guards for the DS host (pokecore).
+#
+# pokecore drives its melonDS::NDS directly; it never runs the
+# frontend's own emulator setup, so two of that setup's globals stay
+# empty for the DS host's whole life — and PlatformAndroid.cpp
+# dereferences both, and the NDS instance's userdata, without
+# checking:
+#   - Platform::SignalStop calls MelonDSAndroid::eventMessenger->
+#     onEmulatorStop(...). The core calls SignalStop from NDS::Stop,
+#     which pokecore's poke_stop reaches on EVERY DS quit or load —
+#     an empty-shared_ptr dereference, i.e. a crash on every stop.
+#   - The MP_*/Net_* callbacks (and WriteNDSSave / WriteGBASave /
+#     WriteFirmware) cast the instance userdata to MelonInstance*
+#     and dereference it; pokecore's NDS carries no such userdata,
+#     so a guest touching local Wi-Fi would crash the same way.
+#   - Addon_Rumble* and Camera_* dereference eventMessenger /
+#     cameraHandler the same way.
+# Core/poke_platform.cpp — the platform layer pokecore was built
+# against — shows the intended behaviour: SignalStop forwards to
+# pokecore's poke_internal_signal_stop, and every one of those
+# callbacks is a no-op for a hostless instance. This patch gives the
+# Android file the same behaviour: guards that change nothing when
+# the frontend's own emulator IS running (its messenger is set and
+# its userdata is a real instance), plus the SignalStop forward —
+# which is itself a no-op when no pokecore core exists. The forward
+# is declared weak so the armeabi-v7a build, which compiles no DS
+# glue (section 9), still links.
+#
+# ⛔ NOT a silent skip if the anchors move: the frontend is cloned
+# unpinned, and a guard patch that quietly stops applying would
+# ship the crash again. Missing anchors fail the build loudly.
+# ---------------------------------------------------------------------------
+say "guarding PlatformAndroid for the DS host"
+
+PLATFORM_ANDROID="$FRONTEND/app/src/main/cpp/PlatformAndroid.cpp"
+if [ ! -f "$PLATFORM_ANDROID" ]; then
+  echo "   !! $PLATFORM_ANDROID not found; the DS host would crash on stop." >&2
+  exit 1
+fi
+if grep -q 'OGA (section 9b)' "$PLATFORM_ANDROID"; then
+  echo "     PlatformAndroid guards: already applied"
+else
+  python3 - "$PLATFORM_ANDROID" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+fails = []
+
+def rep(old, new):
+    global s
+    if old in s:
+        s = s.replace(old, new, 1)
+    else:
+        fails.append(old.split("\n")[0].strip())
+
+# The stop sink's declaration, at global scope (weak: see the header note).
+rep("using namespace melonDS;",
+    "using namespace melonDS;\n\n"
+    "// OGA (section 9b): pokecore's stop sink, defined by the DS host\n"
+    "// glue (Core/pokecore.cpp) when that glue is compiled in. Weak,\n"
+    "// so builds without the DS host (armeabi-v7a) link with the\n"
+    "// symbol absent and SignalStop below skips the forward.\n"
+    "__attribute__((weak)) void poke_internal_signal_stop(int stopReason);")
+
+# SignalStop: guard the messenger; forward the stop to pokecore.
+rep("""    void SignalStop(StopReason reason, void* userdata)
+    {
+        MelonDSAndroid::eventMessenger->onEmulatorStop(reason);
+    }""",
+    """    void SignalStop(StopReason reason, void* userdata)
+    {
+        // OGA (section 9b): the messenger exists only when the
+        // frontend's own emulator set it up; the DS host never does.
+        // pokecore's sink is forwarded every stop and ignores the
+        // ones that are not its core's, so each host hears only its
+        // own console stopping.
+        if (MelonDSAndroid::eventMessenger)
+            MelonDSAndroid::eventMessenger->onEmulatorStop(reason);
+        if (&poke_internal_signal_stop)
+            poke_internal_signal_stop((int) reason);
+    }""")
+
+# Every MelonInstance userdata cast: a hostless instance (the DS
+# host's NDS) has no instance to serve it, and the reference
+# platform layer (Core/poke_platform.cpp) no-ops exactly these.
+# The guard's return spelling follows the enclosing function —
+# `return;` in a void function, `return {};` (zero) elsewhere;
+# one blanket spelling compiles in only one of the two worlds.
+import re
+cast = "        auto emulatorInstance = (MelonDSAndroid::MelonInstance*) userdata;"
+count = 0
+current_ret = None
+out_lines = []
+for line in s.split("\n"):
+    m = re.match(r"    (\w+) (\w+)\(", line)
+    if m:
+        current_ret = m.group(1)
+    out_lines.append(line)
+    if line == cast:
+        count += 1
+        if current_ret is None:
+            fails.append("MelonInstance userdata cast (no enclosing function)")
+        elif current_ret == "void":
+            out_lines.append("        if (!emulatorInstance) return; // OGA (section 9b)")
+        else:
+            out_lines.append("        if (!emulatorInstance) return {}; // OGA (section 9b)")
+if count == 0:
+    fails.append("MelonInstance userdata cast")
+s = "\n".join(out_lines)
+
+# Rumble and camera globals: same empty-global shape.
+rep("        MelonDSAndroid::eventMessenger->onRumbleStart(len);",
+    "        if (MelonDSAndroid::eventMessenger) MelonDSAndroid::eventMessenger->onRumbleStart(len); // OGA (section 9b)")
+rep("        MelonDSAndroid::eventMessenger->onRumbleStop();",
+    "        if (MelonDSAndroid::eventMessenger) MelonDSAndroid::eventMessenger->onRumbleStop(); // OGA (section 9b)")
+rep("        MelonDSAndroid::cameraHandler->startCamera(num);",
+    "        if (MelonDSAndroid::cameraHandler) MelonDSAndroid::cameraHandler->startCamera(num); // OGA (section 9b)")
+rep("        MelonDSAndroid::cameraHandler->stopCamera(num);",
+    "        if (MelonDSAndroid::cameraHandler) MelonDSAndroid::cameraHandler->stopCamera(num); // OGA (section 9b)")
+rep("        MelonDSAndroid::cameraHandler->captureFrame(num, frame, width, height, yuv);",
+    "        if (MelonDSAndroid::cameraHandler) MelonDSAndroid::cameraHandler->captureFrame(num, frame, width, height, yuv); // OGA (section 9b)")
+
+if fails:
+    print("   !! PlatformAndroid guard anchors not found: %s" % fails, file=sys.stderr)
+    sys.exit(1)
+open(p, "w", encoding="utf-8").write(s)
+print("     PlatformAndroid guards applied (incl. %d userdata casts)" % count)
+PY
+fi
+
+# ---------------------------------------------------------------------------
+# 10. The Sega Genesis native path (Genesis Plus GX).
+#
+# Mirrors section 8's generator shape: parse the AUDITED list out of
+# scripts/core-sources.sh (GPGX_ALL — the libretro wildcard set, the
+# same 54 core translation units iOS builds), copy the pinned
+# Genesis-Plus-GX tree in, and emit a CMake subproject building two
+# static libraries:
+#   oga-gpgx         the core itself, compiled AS C (its native
+#                    language — as C++ it leans on implicit void*
+#                    conversions and implicit declarations strict
+#                    clang refuses, and m68k.h's `#define uint`
+#                    poisons C++ standard headers; the iOS build
+#                    learned this first, see build-core.sh's gpgx case)
+#   oga-genesis-glue Core/genesis_core.cpp (the wrapper) and
+#                    Core/genesis_adapter.cpp (the registry's console
+#                    row), compiled as C++ against the core through
+#                    the extern "C" surface in genesis_core.h.
+#
+# ⛔ THE GLUE IS ITS OWN LIBRARY, NOT FRONTEND-TARGET SOURCES (the
+# section 9 shape does NOT transfer): the DS glue rides the frontend
+# target because pokecore shares melonDS C++ class ABIs with the
+# core. The Genesis glue shares nothing with melonDS — the backend
+# contract pokecore sees is a plain function-pointer struct, the
+# genesis_* surface is extern "C", and oga_genesis_core()'s mangled
+# name is produced by the same toolchain on both sides. What the glue
+# MUST NOT share is an include path: Genesis Plus GX's headers use
+# generic names (shared.h, system.h, state.h, genesis.h) that would
+# shadow — and be shadowed by — the frontend core's own headers if
+# the two include sets ever mixed. Its own library keeps the core's
+# include roots exactly as contained as the iOS build keeps them.
+# The one piece that DOES ride the frontend target is
+# GenesisSessionJNI.cpp (section 1 copied it there), listed below
+# beside the DS host's JNI: it speaks only the poke_* C ABI, whose
+# header the DS glue already puts on that target's include path.
+#
+# ⛔ THE TWIN RENAMES. Genesis Plus GX exports two aggressively
+# generic globals — `config` (its settings struct) and `crc32` (its
+# own implementation) — plus a vendored blip_buf, the third copy of
+# that library in this link (melonDS's core and mGBA vendor the other
+# two). On iOS the same three collided at app link (config with
+# PPSSPP's sceUsbCam, crc32 with mGBA's vendored copy) and are
+# renamed on the GPGX side by scripts/gpgx-localize-twins.sh to
+# oga_gpgx_config / oga_gpgx_crc32 / oga_gpgx_blip_*. The Android link
+# contains the same other parties (the frontend core lib, oga-mgba,
+# the PPSSPP subset), so the same renames run here, as POST_BUILD
+# steps over BOTH Genesis archives — the definitions live in the glue
+# (genesis_core.cpp defines config and crc32) while the core's own
+# translation units hold the references, so renaming only one side
+# would break the pair apart. The rename set is the iOS-measured one;
+# gen/oga_rename_gpgx_twins.py is its Android form.
+#
+# Per-ABI gating happens INSIDE the generated CMake, where
+# CMAKE_ANDROID_ARCH_ABI is known (section 8's shape): the 64-bit
+# ABIs build the real libraries; armeabi-v7a — whose Genesis build
+# was never measured — builds EMPTY ones, the frontend link line
+# stays unconditional, the JNI surface is not compiled, and the
+# Kotlin availability probe reads the absence as "not in this
+# build". Genesis is absent there, honestly, like PSP and DS.
+#
+# THE SESSION ITSELF. GenesisGameSession drives the backend through
+# pokecore (section 9's host routes .md/.gen/.smd/.bin loads to it),
+# so this section adds no host of its own — only the core, its glue,
+# and the JNI surface. There is NO Genesis reader: the registry row
+# refuses to attach, and the session ships pad, states, battery
+# saves, audio and the game picture only.
+# ---------------------------------------------------------------------------
+say "building the Genesis core (Genesis Plus GX) for Android"
+
+GPGX_SRC="${GPGX_SRC:-$HOME/src/genesis-plus-gx}"
+
+if [ ! -d "$GPGX_SRC/core" ]; then
+  # Same rule as sections 7/8: a silent skip is how a core goes missing.
+  if [ "${OGA_ALLOW_NO_GENESIS:-0}" = "1" ]; then
+    echo "   Genesis core SKIPPED (OGA_ALLOW_NO_GENESIS=1)"
+  else
+    echo "   !! no Genesis Plus GX source at $GPGX_SRC, so the Genesis core would NOT be built." >&2
+    echo "      Run scripts/bootstrap-deps.sh, or set GPGX_SRC, or set" >&2
+    echo "      OGA_ALLOW_NO_GENESIS=1 to build without Genesis on purpose." >&2
+    exit 1
+  fi
+else
+  mkdir -p "$FRONTEND/app/genesis"
+  rm -rf "$FRONTEND/app/genesis/src"
+  cp -r "$GPGX_SRC" "$FRONTEND/app/genesis/src"
+  # The checkout's .git is not build input (same rule as the mGBA copy).
+  rm -rf "$FRONTEND/app/genesis/src/.git"
+  if [ ! -f "$FRONTEND/app/genesis/src/core/genesis.c" ]; then
+    echo "   !! the copied Genesis Plus GX tree is not usable (no core/)" >&2; exit 1
+  fi
+  # ⛔ NO GAME IMAGES RIDE ALONG. The pinned tree ships none; if one
+  # ever appears in it, the build stops here rather than shipping a
+  # ROM inside the APK (the repo guard scans the build tree for the
+  # same extensions). .md is deliberately NOT in this list: it is the
+  # tree's documentation extension as much as a cartridge one, and a
+  # Genesis cartridge file in the tree would be caught by the .gen /
+  # .smd / .bin arms or the CI scan, not by eating the READMEs.
+  if find "$FRONTEND/app/genesis/src" -type f \( -iname '*.gen' -o -iname '*.smd' -o -iname '*.bin' -o -iname '*.sav' -o -iname '*.sms' -o -iname '*.gg' -o -iname '*.sg' \) 2>/dev/null | grep -q .; then
+    echo "   !! game image files survived in the copied Genesis Plus GX tree" >&2; exit 1
+  fi
+  echo "     Genesis Plus GX source copied (pinned $(git -C "$GPGX_SRC" rev-parse --short HEAD 2>/dev/null || echo unknown)); ROM check asserted"
+
+  # The glue: OGA code, copied in like section 8's psp_core glue.
+  # glue/gpgx holds ONLY Core/gpgx/osd.h — the frontend shim every
+  # core TU includes as "osd.h" — in its own directory, FIRST on the
+  # core's include path, exactly the iOS arrangement (build-core.sh's
+  # GPGX_INC): the shim must win over nothing and be found before
+  # anything else named osd.h could be.
+  mkdir -p "$FRONTEND/app/genesis/glue/gpgx" "$FRONTEND/app/genesis/gen"
+  cp "$ROOT/Core/genesis_core.cpp" "$ROOT/Core/genesis_adapter.cpp" \
+     "$FRONTEND/app/genesis/glue/"
+  cp "$ROOT/Core/gpgx/osd.h" "$FRONTEND/app/genesis/glue/gpgx/osd.h"
+  cp "$ROOT"/Core/*.h "$FRONTEND/app/genesis/glue/"
+  cp "$ROOT/Sources/CPokeCore/include/pokecore.h" "$FRONTEND/app/genesis/glue/"
+  echo "     added the genesis_core glue + the osd.h frontend shim"
+
+  # The v7a stub TU (see the header comment): a real file, so the
+  # generated CMake can name it unconditionally per-ABI.
+  printf '// Generated by scripts/android-apply-overlay.sh.\n// armeabi-v7a gets empty Genesis libraries: the Genesis Plus GX\n// Android build was never measured for 32-bit ARM. Genesis is\n// absent there, and the Kotlin probe says so.\n' \
+    > "$FRONTEND/app/genesis/gen/oga_genesis_empty.cpp"
+
+  # The twin rename script (see the generated CMakeLists): it runs as
+  # a POST_BUILD step on each Genesis archive.
+  cat > "$FRONTEND/app/genesis/gen/oga_rename_gpgx_twins.py" <<'PYEOF'
+#!/usr/bin/env python3
+# oga_rename_gpgx_twins.py -- generated by scripts/android-apply-overlay.sh.
+#
+# Rename the twin symbols in the Genesis archives:
+#
+#   * `config` -- Genesis Plus GX's settings struct, defined by the
+#     glue (genesis_core.cpp's frontend shim) and referenced by every
+#     core TU. PPSSPP's subset defines its own `config` (sceUsbCam).
+#   * `crc32` -- the shim's own implementation. mGBA vendors another.
+#   * `blip_*` -- the core's vendored blip_buf: the THIRD copy of
+#     that library in this .so (melonDS's core and mGBA vendor the
+#     other two).
+#
+# Every matching symbol in each file given -- definitions and
+# references alike -- gets the oga_gpgx_ prefix, so Genesis code
+# binds Genesis's copies and the other cores keep theirs. Runs as a
+# POST_BUILD step on each Genesis archive, each file self-contained,
+# so incremental rebuilds stay renamed. Idempotent: prefixed names
+# no longer match. The set is the one scripts/gpgx-localize-twins.sh
+# measured for the iOS link; the other first-wins twins inside the
+# core are its own upstream code and collide with nobody.
+import os
+import subprocess
+import sys
+
+EXACT = ("config", "crc32")
+PREFIXES = ("blip_",)
+
+
+def rename_in(path, objcopy, nm):
+    if not os.path.exists(path):
+        print("oga-genesis: rename target does not exist: %s" % path)
+        sys.exit(1)
+    proc = subprocess.run([nm, path], capture_output=True, text=True)
+    if proc.returncode != 0:
+        print("oga-genesis: nm failed on %s: %s" % (path, proc.stderr.strip()))
+        sys.exit(1)
+    names = set()
+    for line in proc.stdout.splitlines():
+        parts = line.split()
+        if parts and (parts[-1] in EXACT or parts[-1].startswith(PREFIXES)):
+            names.add(parts[-1])
+    if not names:
+        print("oga-genesis: no twin symbols in %s" % os.path.basename(path))
+        return
+    map_path = path + ".renames"
+    with open(map_path, "w", encoding="utf-8") as fh:
+        for n in sorted(names):
+            fh.write("%s oga_gpgx_%s\n" % (n, n))
+    subprocess.run([objcopy, "--redefine-syms", map_path, path], check=True)
+    print("oga-genesis: renamed %d twin symbols in %s"
+          % (len(names), os.path.basename(path)))
+
+
+def main():
+    objcopy, args = sys.argv[1], sys.argv[2:]
+    nm = os.path.join(os.path.dirname(objcopy), "llvm-nm")
+    for path in args:
+        rename_in(path, objcopy, nm)
+
+
+main()
+PYEOF
+  echo "     generated the twin-symbol rename script"
+
+  python3 - "$ROOT/scripts/core-sources.sh" "$FRONTEND/app/genesis/CMakeLists.txt" "$FRONTEND/app/genesis" <<'PY'
+import os, re, sys
+srcs = open(sys.argv[1], encoding="utf-8").read()
+out_path, genesis_dir = sys.argv[2], sys.argv[3]
+
+m = re.search(r'^GPGX_ALL="(.*?)"\n', srcs, re.S | re.M)
+assert m, "no GPGX_ALL list in " + sys.argv[1]
+files = [f for f in m.group(1).split() if f.endswith('.c')]
+assert files, "GPGX_ALL came back empty -- refusing to generate a broken CMakeLists"
+
+# Fail at generation time, not at some later link: every named file
+# must exist in the copied tree.
+tree = os.path.join(genesis_dir, "src")
+for f in files:
+    assert os.path.isfile(os.path.join(tree, f)), "missing from the Genesis Plus GX tree: " + f
+
+NL = chr(10)
+with open(out_path, "w", encoding="utf-8") as fh:
+    fh.write("""# Generated by scripts/android-apply-overlay.sh -- do not edit.
+#
+# Genesis Plus GX (the Sega Genesis / Mega Drive core) plus the OGA
+# glue for it, built from the AUDITED source list in
+# scripts/core-sources.sh (GPGX_ALL -- the libretro wildcard set, the
+# same 54 core translation units the iOS build compiles). Upstream's
+# own build files are not used: the libretro Makefile targets a
+# shared object with its own frontend, and this app needs the bare
+# core behind Core/genesis_core.cpp's wrapper.
+#
+# The core compiles AS C (its native language; see the overlay's
+# section 10 for what C++ does to it) with the defines the iOS build
+# uses. The glue compiles as C++ and speaks to the C objects through
+# genesis_core.h's extern "C" declarations, with the standard headers
+# included before the core's (m68k.h's `#define uint` poisons them
+# otherwise -- genesis_core.cpp already observes that order).
+#
+# Per-ABI gating (section 8's shape): armeabi-v7a builds EMPTY
+# libraries -- the Genesis Android build was never measured for
+# 32-bit ARM -- so the frontend link line stays unconditional and the
+# Kotlin availability probe answers "not in this build" there.
+
+cmake_minimum_required(VERSION 3.22)
+project(oga-genesis C CXX)
+
+if (CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")
+    add_library(oga-gpgx STATIC gen/oga_genesis_empty.cpp)
+    add_library(oga-genesis-glue STATIC gen/oga_genesis_empty.cpp)
+else ()
+    set(GPGX_SRC_DIR ${CMAKE_CURRENT_SOURCE_DIR}/src)
+
+    set(GPGX_SOURCES
+""")
+    for f in files:
+        fh.write("        ${GPGX_SRC_DIR}/%s\n" % f)
+    fh.write("""    )
+
+    # The include roots are the iOS build's (build-core.sh's GPGX_INC),
+    # with the glue's gpgx/ directory -- holding ONLY our osd.h, the
+    # frontend shim every core TU includes -- FIRST: no other header
+    # of ours may be visible to the core, and no core header may leak
+    # to the frontend target (the isolation section 10 exists for).
+    set(OGA_GPGX_INC
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue/gpgx
+        ${GPGX_SRC_DIR}/core
+        ${GPGX_SRC_DIR}/core/z80
+        ${GPGX_SRC_DIR}/core/m68k
+        ${GPGX_SRC_DIR}/core/ntsc
+        ${GPGX_SRC_DIR}/core/sound
+        ${GPGX_SRC_DIR}/core/sound/minimp3
+        ${GPGX_SRC_DIR}/core/input_hw
+        ${GPGX_SRC_DIR}/core/cd_hw
+        ${GPGX_SRC_DIR}/core/cart_hw
+        ${GPGX_SRC_DIR}/core/cart_hw/svp
+    )
+    set(OGA_GPGX_DEFS LSB_FIRST BYTE_ORDER=LITTLE_ENDIAN USE_32BPP_RENDERING)
+
+    add_library(oga-gpgx STATIC ${GPGX_SOURCES})
+    set_target_properties(oga-gpgx PROPERTIES C_STANDARD 11 C_STANDARD_REQUIRED ON)
+    target_include_directories(oga-gpgx PRIVATE ${OGA_GPGX_INC})
+    target_compile_definitions(oga-gpgx PRIVATE ${OGA_GPGX_DEFS})
+    target_compile_options(oga-gpgx PRIVATE -w)
+
+    add_library(oga-genesis-glue STATIC
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue/genesis_core.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue/genesis_adapter.cpp
+    )
+    target_include_directories(oga-genesis-glue PRIVATE
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue
+        ${OGA_GPGX_INC}
+    )
+    target_compile_definitions(oga-genesis-glue PRIVATE ${OGA_GPGX_DEFS})
+    target_compile_options(oga-genesis-glue PRIVATE -w)
+
+    # The twin renames (see gen/oga_rename_gpgx_twins.py): POST_BUILD
+    # on EACH archive -- the definitions live in the glue, the
+    # references in the core, so both sides move together.
+    add_custom_command(TARGET oga-gpgx POST_BUILD
+        COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/gen/oga_rename_gpgx_twins.py
+                ${CMAKE_OBJCOPY} $<TARGET_FILE:oga-gpgx>)
+    add_custom_command(TARGET oga-genesis-glue POST_BUILD
+        COMMAND python3 ${CMAKE_CURRENT_SOURCE_DIR}/gen/oga_rename_gpgx_twins.py
+                ${CMAKE_OBJCOPY} $<TARGET_FILE:oga-genesis-glue>)
+endif ()
+""")
+print("     generated the Genesis build (%d audited core sources + glue)" % len(files))
+PY
+
+  # ---- wire it into the frontend ----
+  python3 - "$CMAKE" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+
+if "OGA_GENESIS" in s:
+    print("     already wired; nothing to do")
+    sys.exit(0)
+
+NL = chr(10)
+
+# 1. build the Genesis subproject, before the core's add_subdirectory
+#    (the order sections 7/8 use; what matters is that it precedes the
+#    frontend target's link).
+anchor = "add_subdirectory(${CORE-LIB} ./melonDS-android-lib)"
+if anchor not in s:
+    print("     !! core add_subdirectory anchor not found"); sys.exit(1)
+intro = NL.join([
+    "# The Genesis core (Genesis Plus GX). Built from the audited source",
+    "# list, not upstream's libretro build -- see",
+    "# scripts/android-apply-overlay.sh section 10 for why.",
+    "add_subdirectory(genesis ./oga-genesis)",
+    "",
+])
+s = s.replace(anchor, intro + anchor, 1)
+
+# 2. link the archives, glue first (its genesis_* references resolve
+#    out of the core archive behind it). The link line's exact tail
+#    depends on which earlier sections ran (mGBA always; the PSP
+#    subset unless it was skipped on purpose), so the pair is hung on
+#    the line's closing paren rather than a fixed spelling.
+lines = s.split(NL)
+for i, line in enumerate(lines):
+    if line.startswith("target_link_libraries(melonDS-android-frontend"):
+        assert line.rstrip().endswith(")"), "frontend link line not recognised"
+        lines[i] = line.rstrip()[:-1] + " oga-genesis-glue oga-gpgx)"
+        break
+else:
+    print("     !! frontend link line not found"); sys.exit(1)
+s = NL.join(lines)
+
+# 3. the JNI surface rides the frontend target (section 9's shape for
+#    the DS host's JNI): it speaks only the poke_* C ABI, whose header
+#    section 9's include line already provides. 64-bit only, like the
+#    libraries themselves.
+block = NL.join([
+    "",
+    "# ---------------------------------------------------------------------------",
+    "# OGA_GENESIS -- the Genesis session's JNI surface (GenesisSessionJNI.cpp),",
+    "# appended by scripts/android-apply-overlay.sh section 10. It rides the",
+    "# frontend target like the DS host's JNI (section 9): the poke_* ABI it",
+    "# speaks is compiled into this same target by the DS glue. Skipped on",
+    "# armeabi-v7a, mirroring the libraries' own gating; the Kotlin",
+    "# availability probe reads the absence as 'not in this build'.",
+    'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
+    "    target_sources(melonDS-android-frontend PRIVATE",
+    "        ${ANDROID-CPP}/GenesisSessionJNI.cpp",
+    "    )",
+    "endif ()",
+    "",
+])
+s = s.rstrip("\n") + NL + block + NL
+open(p, "w", encoding="utf-8").write(s)
+print("     wired the Genesis core into the frontend (archives linked; JNI in the target)")
+PY
+
+fi
+# ---------------------------------------------------------------------------
+# 11. The MesenCE cores (NES / SNES) as a subproject, plus the session
+#     surface's wiring.
+#
+# WHAT THIS BUILDS. Core/pokecore.cpp — the shared multi-console host
+# the DS section compiles into the frontend target — routes NES and
+# SNES files to Core/mesen_core.cpp and Core/snes_core.cpp, the
+# MesenCE glue iOS ships. Until this section, Android linked those
+# branches against honest stubs (DsBackendStubs.cpp) because nothing
+# compiled the MesenCE tree; the stubs are gone now, and this section
+# builds the real thing:
+#
+#   - the WHOLE Mesen core (MESEN_CORE_ALL from scripts/core-sources.sh
+#     — Mesen's own Core.vcxproj list), because Shared/Emulator.cpp
+#     constructs every console Mesen supports with no per-console
+#     guard: a NES-only list cannot LINK, however cleanly it compiles
+#     (the core-sources.sh note tells the whole story). Plus
+#     MESEN_UTILS and MESEN_C (spng).
+#   - the glue (mesen_core.cpp, snes_core.cpp) with the host build's
+#     flags (scripts/build-core.sh's mesen case): the tree root, Core
+#     and Utilities on the include path, pch.h forced into every C++
+#     TU — Mesen builds every Core TU that way, so a build that omits
+#     it compiles a different program — and -fwrapv /
+#     -fno-strict-aliasing, which Mesen requires. NO melonDS include
+#     dirs: its src/CRC32.h would shadow Mesen's own CRC32.h (the host
+#     build's warning, kept).
+#   - the app's ONE Lua: Mesen's interpreter in this embedding is the
+#     shared lua-5.4.7 (its objects ride the oga-mgba archive), and
+#     Core/mesen_lua_extras.c satisfies the four symbols Mesen's Lua
+#     fork adds — compiled as its OWN object library because its
+#     include set is the exception: Mesen's fork headers must WIN
+#     there, so it carries exactly its includes and no others (the
+#     host build's mesenlua case, which likewise stands alone).
+#   - MESEN_SEVENZIP_C as an OBJECT library: the audited difference
+#     set of Mesen's 7-Zip SDK (the files the other vendored copies
+#     lack), whose 7zStream.o is post-processed before the link by
+#     scripts/android-mesen-7z-dedupe.sh — Android links TWO other
+#     vendored 7-Zip copies (mGBA's lzma, PPSSPP's lzma-sdk), and the
+#     dedupe localizes in Mesen's object exactly the extern symbols
+#     the union of the others defines, keeping LookToRead_* exported
+#     (SZReader's only source for them). See that script's header.
+#
+# A SUBPROJECT LIBRARY, NOT FRONTEND-TARGET SOURCES (the mGBA/PPSSPP
+# shape, not section 9's): unlike pokecore, the Mesen glue shares no
+# C++ class ABI with the melonDS core — it is a self-contained C ABI
+# over the Mesen tree — so it gets its own target with its own flags,
+# and the ABI-skew risk section 9 avoids does not arise. The wiring
+# block at the end links it into the frontend, compiles
+# MesenSessionJNI.cpp there (the JNI surface is a frontend-target
+# citizen like the other sessions'), and puts the glue headers on the
+# frontend's include path, where the DS-staged oga_core.cpp reaches
+# mesen_core.h / snes_core.h.
+#
+# Skipped on armeabi-v7a like sections 8 and 9; the Kotlin probe reads
+# the absence as "not in this build".
+# ---------------------------------------------------------------------------
+say "building the MesenCE cores (NES / SNES) for Android"
+
+MESEN_SRC="${MESEN_SRC:-}"
+if [ -z "$MESEN_SRC" ]; then
+  # ⛔ NOT a silent skip — the shape section 7 established: a build
+  # without the Mesen cores would ship NES/SNES pages that lie. CI
+  # always sets it (bootstrap-deps.sh fetches the pinned tree). Set
+  # OGA_ALLOW_NO_MESEN=1 to build without them deliberately.
+  if [ "${OGA_ALLOW_NO_MESEN:-0}" = "1" ]; then
+    echo "   MesenCE cores SKIPPED (OGA_ALLOW_NO_MESEN=1)"
+  else
+    echo "   !! MESEN_SRC not set, so the NES/SNES cores would NOT be built." >&2
+    echo "      Set MESEN_SRC (scripts/bootstrap-deps.sh fetches the pinned MesenCE tree)," >&2
+    echo "      or set OGA_ALLOW_NO_MESEN=1 to build without them on purpose." >&2
+    exit 1
+  fi
+else
+  [ -d "$MESEN_SRC/Core" ] || { echo "   !! no MesenCE source at $MESEN_SRC" >&2; exit 1; }
+
+  # The source tree must be reachable from the Gradle/CMake build, so
+  # copy it in, exactly as sections 7 and 8 copy theirs (minus .git).
+  mkdir -p "$FRONTEND/app/mesen"
+  rm -rf "$FRONTEND/app/mesen/src" "$FRONTEND/app/mesen/glue"
+  cp -r "$MESEN_SRC" "$FRONTEND/app/mesen/src"
+  rm -rf "$FRONTEND/app/mesen/src/.git"
+  # The glue and the Core headers it (and the frontend's DS-staged
+  # oga_core.cpp) include.
+  mkdir -p "$FRONTEND/app/mesen/glue"
+  cp "$ROOT/Core/mesen_core.cpp" "$ROOT/Core/snes_core.cpp" \
+     "$ROOT/Core/mesen_lua_extras.c" "$FRONTEND/app/mesen/glue/"
+  cp "$ROOT"/Core/*.h "$FRONTEND/app/mesen/glue/"
+  # The 7z dedupe rides along: the generated CMakeLists runs it at
+  # build time, and the frontend tree is all the build can see.
+  cp "$ROOT/scripts/android-mesen-7z-dedupe.sh" "$FRONTEND/app/mesen/"
+  echo "     MesenCE source copied; glue and headers staged"
+
+  python3 - "$ROOT/scripts/core-sources.sh" "$FRONTEND/app/mesen/CMakeLists.txt" <<'PY'
+import re, sys
+srcs = open(sys.argv[1], encoding="utf-8").read()
+
+# ⛔ THE MESEN LISTS ARE READ FROM scripts/core-sources.sh, NOT WRITTEN
+# HERE — the section 7 rule, for the section 7 reason: iOS builds these
+# exact lists, and a hand copy here would drift into a different
+# emulator (or, worse, a subset that compiles and cannot link — see
+# the MESEN_CORE_ALL note in core-sources.sh).
+def _oga_list(name, suffix):
+    m = re.search(r'^' + name + r'="(.*?)"\n', srcs, re.S | re.M)
+    assert m, "no " + name + " list in " + sys.argv[1]
+    return [f for f in m.group(1).split() if f.endswith(suffix)]
+
+CORE_CPP = _oga_list("MESEN_CORE_ALL", ".cpp")
+UTILS_CPP = _oga_list("MESEN_UTILS", ".cpp")
+MESEN_C = _oga_list("MESEN_C", ".c")
+SEVENZIP_C = _oga_list("MESEN_SEVENZIP_C", ".c")
+assert CORE_CPP and UTILS_CPP and MESEN_C and SEVENZIP_C, \
+    "a Mesen list came back empty -- refusing to generate a broken CMakeLists"
+assert "SevenZip/7zStream.c" in SEVENZIP_C, \
+    "7zStream.c missing from MESEN_SEVENZIP_C -- SZReader would lose LookToRead_*"
+assert "Utilities/spng.c" in MESEN_C, "spng.c missing from MESEN_C"
+
+L = []
+L.append("# Generated by scripts/android-apply-overlay.sh section 11 -- do not edit.")
+L.append("#")
+L.append("# The MesenCE cores for Android: the WHOLE Mesen core (the audited")
+L.append("# MESEN_CORE_ALL list from scripts/core-sources.sh — Mesen's own")
+L.append("# Core.vcxproj list, because Shared/Emulator.cpp constructs every")
+L.append("# console and a subset cannot link), its Utilities, spng, the 7-Zip")
+L.append("# difference set, and the OGA glue (Core/mesen_core.cpp,")
+L.append("# Core/snes_core.cpp, Core/mesen_lua_extras.c). The flags are the")
+L.append("# host build's (scripts/build-core.sh's mesen cases).")
+L.append("")
+L.append("cmake_minimum_required(VERSION 3.22)")
+L.append("project(oga-mesen C CXX)")
+L.append("")
+L.append("set(CMAKE_C_STANDARD 11)")
+L.append("set(CMAKE_CXX_STANDARD 17)")
+L.append("set(CMAKE_CXX_STANDARD_REQUIRED ON)")
+L.append("")
+L.append("set(MESEN_SRC ${CMAKE_CURRENT_SOURCE_DIR}/src)")
+L.append("set(MESEN_GLUE ${CMAKE_CURRENT_SOURCE_DIR}/glue)")
+L.append("# The app's ONE Lua (5.4.7), staged by section 7 beside the mGBA")
+L.append("# tree: Mesen's interpreter in this embedding IS that Lua — the")
+L.append("# glue links its symbols from the oga-mgba archive — and")
+L.append("# mesen_lua_extras.c satisfies the fork-only symbols. Mesen's own")
+L.append("# Lua fork contributes headers to exactly one object library")
+L.append("# (oga-mesen-lua-extras below).")
+L.append("set(OGA_LUA_SRC ${CMAKE_CURRENT_SOURCE_DIR}/../mgba/lua/src)")
+L.append("")
+L.append("if (NOT CMAKE_NM)")
+L.append("    find_program(CMAKE_NM llvm-nm)")
+L.append("endif ()")
+L.append("if (NOT CMAKE_OBJCOPY)")
+L.append("    find_program(CMAKE_OBJCOPY llvm-objcopy)")
+L.append("endif ()")
+L.append("")
+L.append("# Mesen's 7-Zip SDK difference set (MESEN_SEVENZIP_C). An OBJECT")
+L.append("# library, never archived: the dedupe step below rewrites its")
+L.append("# 7zStream.c.o in place before the frontend links.")
+L.append("add_library(oga-mesen-sevenzip OBJECT")
+for f in SEVENZIP_C:
+    L.append("    ${MESEN_SRC}/" + f)
+L.append(")")
+L.append("target_include_directories(oga-mesen-sevenzip PRIVATE")
+L.append("    ${MESEN_SRC} ${MESEN_SRC}/Utilities)")
+L.append("")
+L.append("# The 7-Zip dedupe: localize in Mesen's 7zStream.o the extern")
+L.append("# symbols the OTHER vendored copies (mGBA's lzma, PPSSPP's")
+L.append("# lzma-sdk) also define, keeping LookToRead_* exported. Runs")
+L.append("# after every object it reads exists; the frontend target is")
+L.append("# made to depend on it by the wiring block section 11 appends")
+L.append("# to the frontend's CMakeLists, so the link sees the rewritten")
+L.append("# object. See scripts/android-mesen-7z-dedupe.sh.")
+L.append("add_custom_target(oga-mesen-7z-dedupe")
+L.append("    COMMAND ${CMAKE_COMMAND} -E env \"OGA_NM=${CMAKE_NM}\" \"OGA_OBJCOPY=${CMAKE_OBJCOPY}\"")
+L.append("            bash ${CMAKE_CURRENT_SOURCE_DIR}/android-mesen-7z-dedupe.sh ${CMAKE_BINARY_DIR}")
+L.append("    DEPENDS oga-mesen-sevenzip")
+L.append("    VERBATIM)")
+L.append("if (TARGET oga-mgba)")
+L.append("    add_dependencies(oga-mesen-7z-dedupe oga-mgba)")
+L.append("endif ()")
+L.append("if (TARGET oga-ppsspp)")
+L.append("    add_dependencies(oga-mesen-7z-dedupe oga-ppsspp)")
+L.append("endif ()")
+L.append("")
+L.append("# The four symbols Mesen's Lua fork adds over the app's Lua,")
+L.append("# satisfied without a second interpreter (Core/mesen_lua_extras.c).")
+L.append("# Its OWN object library because its include set is the exception:")
+L.append("# Mesen's fork headers must WIN here (lua_WatchDogHook and the")
+L.append("# sandbox global live in the fork), so this target carries exactly")
+L.append("# its includes and no others — the host build's mesenlua case,")
+L.append("# which likewise gives it no shared include set.")
+L.append("add_library(oga-mesen-lua-extras OBJECT ${MESEN_GLUE}/mesen_lua_extras.c)")
+L.append("target_include_directories(oga-mesen-lua-extras PRIVATE")
+L.append("    ${MESEN_SRC}/Lua ${MESEN_SRC}/Core ${OGA_LUA_SRC} ${MESEN_GLUE})")
+L.append("target_compile_definitions(oga-mesen-lua-extras PRIVATE LUA_USE_POSIX)")
+L.append("")
+L.append("add_library(oga-mesen STATIC")
+for f in CORE_CPP + UTILS_CPP:
+    L.append("    ${MESEN_SRC}/" + f)
+for f in MESEN_C:
+    L.append("    ${MESEN_SRC}/" + f)
+L.append("    ${MESEN_GLUE}/mesen_core.cpp")
+L.append("    ${MESEN_GLUE}/snes_core.cpp")
+L.append(")")
+L.append("# Mesen's own build shape (the host build's mesen case): the tree")
+L.append("# root, Core and Utilities on the path, pch.h forced into every")
+L.append("# C++ TU, the app Lua's headers, and the -fwrapv /")
+L.append("# -fno-strict-aliasing Mesen requires. NO melonDS include dirs:")
+L.append("# its src/CRC32.h would shadow Mesen's own CRC32.h.")
+L.append("target_include_directories(oga-mesen PRIVATE")
+L.append("    ${MESEN_SRC} ${MESEN_SRC}/Core ${MESEN_SRC}/Utilities")
+L.append("    ${OGA_LUA_SRC} ${MESEN_GLUE})")
+L.append("target_compile_options(oga-mesen PRIVATE")
+L.append("    $<$<COMPILE_LANGUAGE:CXX>:-include${MESEN_SRC}/Core/pch.h>")
+L.append("    $<$<COMPILE_LANGUAGE:CXX>:-fwrapv>")
+L.append("    $<$<COMPILE_LANGUAGE:CXX>:-fno-strict-aliasing>)")
+L.append("target_link_libraries(oga-mesen PUBLIC oga-mesen-sevenzip oga-mesen-lua-extras)")
+L.append("")
+open(sys.argv[2], "w", encoding="utf-8").write("\n".join(L) + "\n")
+print("     generated the oga-mesen CMakeLists (%d core, %d utils, %d C, %d sevenzip)"
+      % (len(CORE_CPP), len(UTILS_CPP), len(MESEN_C), len(SEVENZIP_C)))
+PY
+
+  CMAKE="$FRONTEND/app/CMakeLists.txt"
+  if grep -q 'OGA_MESEN' "$CMAKE"; then
+    echo "     already wired; nothing to do"
+  else
+    python3 - "$CMAKE" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+NL = chr(10)
+lines = [
+    "",
+    "# ---------------------------------------------------------------------------",
+    "# OGA_MESEN -- the MesenCE cores (NES / SNES), appended by",
+    "# scripts/android-apply-overlay.sh section 11. A subproject library",
+    "# (add_subdirectory), NOT frontend-target sources: the Mesen glue is a",
+    "# self-contained C ABI over the Mesen tree and shares no C++ class ABI",
+    "# with the melonDS core, so section 9's ride-the-frontend-target rule",
+    "# does not apply. The JNI surface rides the frontend target like the",
+    "# other sessions' surfaces, and the glue headers go on its include",
+    "# path for the DS-staged oga_core.cpp. The frontend depends on the",
+    "# 7-Zip dedupe so the link sees the rewritten 7zStream object.",
+    "# Skipped on armeabi-v7a, mirroring sections 8 and 9; the Kotlin",
+    "# availability probe reads the absence as 'not in this build'.",
+    'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
+    "    add_subdirectory(mesen ./oga-mesen)",
+    "    target_link_libraries(melonDS-android-frontend oga-mesen)",
+    "    add_dependencies(melonDS-android-frontend oga-mesen-7z-dedupe)",
+    "    target_sources(melonDS-android-frontend PRIVATE",
+    "        ${ANDROID-CPP}/MesenSessionJNI.cpp)",
+    "    target_include_directories(melonDS-android-frontend PRIVATE",
+    "        ${CMAKE_CURRENT_SOURCE_DIR}/mesen/glue)",
+    "endif ()",
+    "",
+]
+s = s.rstrip("\n") + NL + NL.join(lines) + NL
+open(p, "w", encoding="utf-8").write(s)
+print("     wired the MesenCE cores into the frontend target")
+PY
+  fi
 fi
 
 say "overlay applied"

@@ -124,6 +124,106 @@ if [ -f "$OVERLAY" ]; then
 fi
 
 echo
+echo "== PPSSPP on Android arm64 must select and link its IR JIT"
+PSPCORE="$ROOT/Core/psp_core.cpp"
+CORESRC="$ROOT/scripts/core-sources.sh"
+if [ -f "$PSPCORE" ] && [ -f "$CORESRC" ]; then
+  grep -qF 'param.cpuCore = CPUCore::JIT_IR;' "$PSPCORE" \
+    && ok "psp_boot selects the IR JIT (JIT_IR) under the Android arm64 guard" \
+    || bad "psp_core.cpp does not select JIT_IR: Android PSP would run the IR interpreter"
+  grep -qF 'new Arm64IRJit(mipsState)' "$PSPCORE" \
+    && ok "the JIT factory returns the real Arm64IRJit on Android arm64" \
+    || bad "CreateNativeJit still stubs the factory on Android: JIT_IR would get a null JIT"
+  grep -qF 'jit->Compile(currentMIPS->pc);' "$PSPCORE" \
+    && ok "JitAt is re-homed in psp_core.cpp (Arm64IRAsm takes its address)" \
+    || bad "JitAt is not defined in psp_core.cpp: the Android arm64 link misses MIPSComp::JitAt, which lives in the excluded JitCommon.cpp"
+  grep -qF 'Core/MIPS/ARM64/Arm64IRJit.cpp' "$CORESRC" \
+    && grep -qF 'Core/MIPS/IR/IRNativeCommon.cpp' "$CORESRC" \
+    && ok "the AArch64 IR-JIT backend TUs are listed (PPSPP_ANDROID_ARM64_CPP)" \
+    || bad "the IR-JIT backend TUs are not in core-sources.sh: the Android link would miss Arm64IRJit"
+  grep -qF '${PPSPP_ANDROID_ARM64_CPP_SOURCES}' "$OVERLAY" \
+    && ok "the overlay compiles the JIT TUs into the arm64-v8a target only" \
+    || bad "the overlay does not emit PPSPP_ANDROID_ARM64_CPP_SOURCES into the arm64 target"
+else
+  bad "Core/psp_core.cpp or scripts/core-sources.sh is missing"
+fi
+
+echo
+echo "== the session must REPORT its core mode, and CAN_JIT must not lie"
+PSPCOREH="$ROOT/Core/psp_core.h"
+POKECORE="$ROOT/Core/pokecore.cpp"
+PSPSESSION="$ROOT/app/src/main/java/com/devin/opengameaccess/PspGameSession.kt"
+ACCSCRIPT="$ROOT/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/AccessibilityScript.kt"
+ACCSPEECH="$ROOT/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/AccessibilitySpeech.kt"
+# The CAN_JIT landmine (2026-11-11): PPSSPP's Config::Load clamps a
+# requested JIT core to the IR interpreter whenever
+# System_GetPropertyBool(SYSPROP_CAN_JIT) is false, and the glue used
+# to answer false on every platform. The shipped boot never consulted
+# the config, so the Android JIT engaged anyway -- but the false
+# answer must not come back: any config-driven path would silently
+# lose the JIT again.
+if grep -qF 'if (prop == SYSPROP_CAN_JIT) return false;' "$PSPCORE"; then
+  bad "SYSPROP_CAN_JIT answers false unconditionally again: Config::Load would clamp the JIT away on any config-driven path"
+else
+  ok "SYSPROP_CAN_JIT no longer answers a blanket false"
+fi
+grep -qF 'SYSPROP_CAN_JIT' "$PSPCORE" \
+  && grep -A3 'if (prop == SYSPROP_CAN_JIT) {' "$PSPCORE" | grep -qF 'return true;' \
+  && ok "SYSPROP_CAN_JIT returns true under the Android guard" \
+  || bad "SYSPROP_CAN_JIT does not return true on Android"
+grep -qF 'DescribeCreatedCore(param.cpuCore)' "$PSPCORE" \
+  && ok "the boot composes its core-mode report via the factory-side helper" \
+  || bad "the boot names MIPSComp itself again: JitCommon.h is only included beside the factory, and the Android glue build's include chain declares MIPSComp nowhere earlier (this exact shape failed the Android build once)"
+grep -qF 'const char *psp_core_mode(PspCore *core);' "$PSPCOREH" \
+  && grep -qF 'g_createdJitBackend' "$PSPCORE" \
+  && ok "psp_core_mode reports the created backend (factory witness recorded)" \
+  || bad "the PSP core-mode report (psp_core_mode + factory witness) is missing"
+grep -qF 'PSP core: ${PspAccessibilityScript.coreMode()}' "$PSPSESSION" \
+  && ok "every PSP session start logs its core mode" \
+  || bad "PspGameSession does not log the PSP core mode at session start"
+grep -qF 'core->nds->IsJITEnabled()' "$POKECORE" \
+  && ok "every DS session logs its core mode off the constructed NDS" \
+  || bad "pokecore does not log the DS core mode (IsJITEnabled)"
+echo
+echo "== speech must not detour through unlinked natives or off-thread views"
+if grep -qF 'speakNow(text' "$ACCSCRIPT" || grep -qF 'external fun speakNow' "$ACCSCRIPT"; then
+  bad "AccessibilityScript references speakNow again: its JNI is unlinked by design, so every app line would throw and log an ART error before speaking (and double-speak if it were ever linked)"
+else
+  ok "AccessibilityScript.speak goes straight to the Kotlin speech bridge"
+fi
+grep -qF 'Looper.getMainLooper()' "$ACCSPEECH" \
+  && grep -qF 'fun dispatchAnnouncement' "$ACCSPEECH" \
+  && ok "live-region announcements dispatch on the main thread as one step" \
+  || bad "AccessibilitySpeech mutates the announcement view off the calling thread again: sets from the emulator thread are not guaranteed to be announced"
+grep -qF 'announceForAccessibility' "$ACCSPEECH" \
+  && ok "announcements dispatch as explicit TYPE_ANNOUNCEMENT events, not only as description changes" \
+  || bad "AccessibilitySpeech is back to description-only dispatch: a contentDescription set is not a promise an announcement event reaches the screen reader (the silent 13:04 session of 2026-11-11 landed every line and was heard as none)"
+
+echo
+echo "== pacing and the announcement lifecycle stay repaired"
+PSPCLOCK="$ROOT/app/src/main/java/com/devin/opengameaccess/PspGameSession.kt"
+MAINACT="$ROOT/app/src/main/java/com/devin/opengameaccess/MainActivity.kt"
+# The PSP frame clock owes the core 120 steps per wall second (the
+# core yields ~280-306 audio samples per frame; at a 60 Hz vsync
+# cadence that is half what the AudioTrack consumes -- the 2026-11-11
+# docked-session stutter). One-frame-per-vsync must not come back.
+grep -qF 'while (owed >= 1.0 && steps < 4)' "$PSPCLOCK" \
+  && grep -qF '* 120.0' "$PSPCLOCK" \
+  && ok "the PSP frame clock accumulates 120 steps per wall second, independent of the panel" \
+  || bad "the PSP frame clock is back to one frame per vsync: at 60 Hz the audio starves again"
+grep -qF 'AUDIO_MAX_LEAD_FRAMES' "$PSPCLOCK" \
+  && grep -qF 'playbackHeadPosition' "$PSPCLOCK" \
+  && ok "the PSP audio drain bounds its lead over the track's playback head" \
+  || bad "the PSP audio drain writes ungated again: production runs ~3% ahead of consumption, every buffer fills, and a press's sound waits behind the standing audio (the late answers of 2026-11-11)"
+grep -qF 'Lifecycle.Event.ON_RESUME' "$MAINACT" \
+  && ok "the announcement view is re-attached to every session on resume" \
+  || bad "the announcement view is only attached on recomposition again: a relaunched session can announce into a stale view"
+grep -qF 'fun announcementState()' "$ACCSPEECH" \
+  && grep -qF 'PSP speech: ${bridge.announcementState()}' "$PSPSESSION" \
+  && ok "every PSP session start logs the announcement path's state" \
+  || bad "the session-start speech-state line is gone: a silent session would be unexplained again"
+
+echo
 echo "== negative control: removing a pin must FAIL this check"
 # Run only the pin assertions against a mutated copy of the overlay. Do NOT
 # recurse into this script (that re-runs the control and never terminates), and
@@ -139,4 +239,4 @@ rm -rf "$TMP"
 
 echo
 [ "$fail" -eq 0 ] || exit 1
-echo "PASS: the Android build compiles the JIT in, and the overlay adds rather than replaces"
+echo "PASS: the Android build compiles the JIT in, sessions report their core mode, and speech stays on linked, main-thread paths"

@@ -3,7 +3,8 @@
 # main.lua both apps ship.
 #
 # WHY: the apps concatenate (bizhawk_compat.lua + main.lua) into ONE Lua chunk
-# (see GameSession.bundledScript / LuaScriptRunner.loadScript). Ola's tree
+# (see GameSession.bundledScript on iOS / DsGameSession's script read on
+# Android). Ola's tree
 # (third-party/pokemon-ds/) is a loader + core/ + games/ that finds its parts
 # with relative loadfile()/io.open() — which resolve against BizHawk's
 # per-resume working directory and do not exist on a phone. So the tree

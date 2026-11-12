@@ -2,6 +2,7 @@ package com.devin.opengameaccess.ui
 
 import android.app.Activity
 import android.net.Uri
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -29,6 +30,7 @@ import androidx.compose.material.MaterialTheme
 import androidx.compose.material.OutlinedButton
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,8 +41,10 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.CustomAccessibilityAction
 import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.customActions
 import androidx.compose.ui.semantics.heading
 import androidx.compose.ui.semantics.isTraversalGroup
 import androidx.compose.ui.semantics.liveRegion
@@ -50,12 +54,28 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.devin.opengameaccess.AdapterCommandTitles
+import com.devin.opengameaccess.AdapterGameInfo
 import com.devin.opengameaccess.AdapterLibraryData
+import com.devin.opengameaccess.DsAdapterCommands
+import com.devin.opengameaccess.DsGameSession
+import com.devin.opengameaccess.DsKeys
+import com.devin.opengameaccess.MesenAdapterCommands
+import com.devin.opengameaccess.MesenGameSession
+import com.devin.opengameaccess.MesenKeys
+import com.devin.opengameaccess.ControllerInput
 import com.devin.opengameaccess.GbGameSession
 import com.devin.opengameaccess.GbKeys
+import com.devin.opengameaccess.GenesisGameSession
+import com.devin.opengameaccess.GenesisKeys
+import com.devin.opengameaccess.PspAdapterCommands
 import com.devin.opengameaccess.PspGameSession
 import com.devin.opengameaccess.PspKeys
+import com.devin.opengameaccess.rememberDsFrameClock
+import com.devin.opengameaccess.rememberMesenFrameClock
+import com.devin.opengameaccess.rememberFrameClock
+import com.devin.opengameaccess.rememberGenesisFrameClock
 import com.devin.opengameaccess.rememberPspFrameClock
+import me.magnum.melonds.accessibility.MesenAccessibilityScript
 
 /**
  * The launcher, mirroring the iOS RootView.
@@ -75,9 +95,15 @@ import com.devin.opengameaccess.rememberPspFrameClock
 @Composable
 fun LauncherScreen(
     session: GbGameSession,
+    dsLoadRequest: AdapterGameInfo?,
+    onDsLoadRequestConsumed: () -> Unit,
+    showPicture: Boolean,
     announce: (String, Boolean) -> Unit,
+    announceControl: (String) -> Unit,
     onOpenSettings: () -> Unit,
     onOpenGames: () -> Unit,
+    pendingRom: Uri?,
+    onPendingRomHandled: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -88,13 +114,41 @@ fun LauncherScreen(
     // fate (a build can carry the GB host without the PSP subset).
     val gbAvailable = remember { GbGameSession.coreAvailable(context) }
     val pspAvailable = remember { PspGameSession.coreAvailable(context) }
-    val available = gbAvailable || pspAvailable
+    val dsAvailable = remember { DsGameSession.coreAvailable(context) }
+    val mesenAvailable = remember { MesenGameSession.coreAvailable(context) }
+    val genesisAvailable = remember { GenesisGameSession.coreAvailable(context) }
+    val available = gbAvailable || pspAvailable || dsAvailable || mesenAvailable || genesisAvailable
 
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var pickedName by remember { mutableStateOf("") }
     var pickedIsPsp by remember { mutableStateOf(false) }
-    var running by remember { mutableStateOf(false) }
-    var pspRunning by remember { mutableStateOf(false) }
+    var pickedIsDs by remember { mutableStateOf(false) }
+    var pickedIsMesen by remember { mutableStateOf(false) }
+    var pickedIsGenesis by remember { mutableStateOf(false) }
+    // ⛔ SEEDED FROM THE SESSIONS, NOT FROM FALSE. This screen leaves the
+    // composition entirely when Settings or the games list opens, while
+    // the session objects (singletons) keep the game running. Starting
+    // these flags at false would resurrect the launcher as an idle
+    // screen over a live game — control groups gone, and the Back
+    // handlers below disabled, so the next Back would exit the Activity
+    // instead of quitting the game. The sessions are the source of
+    // truth; the flags below only track what THIS screen started.
+    var running by remember { mutableStateOf(GbGameSession.isRunning) }
+    var pspRunning by remember { mutableStateOf(PspGameSession.isRunning) }
+    // ⛔ THE DS FLAG IS NOT EVEN LOCAL: it is read from the session on
+    // every composition (DsGameSession's running state is Compose-
+    // observable), so a session that ends ITSELF — a frame failure
+    // stops it — takes its controls and its frame clock down with it,
+    // instead of leaving a live-looking screen over a dead core that
+    // only navigation would ever correct, in the wrong direction.
+    val dsRunning = DsGameSession.isRunning
+    // The Mesen flag is read from its session the same way, for the
+    // same reason: a session that ends itself takes its controls down
+    // with it.
+    val mesenRunning = MesenGameSession.isRunning
+    // The Genesis flag is read from its session the same way, for the
+    // same reason (see the DS note above).
+    val genesisRunning = GenesisGameSession.isRunning
     var starting by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var problem by remember { mutableStateOf("") }
@@ -103,17 +157,242 @@ fun LauncherScreen(
     // One running flag for the parts of the screen that only care THAT a
     // game is up (the header, the status line); the control groups below
     // still branch on which session it is.
-    val anyRunning = running || pspRunning
+    val anyRunning = running || pspRunning || dsRunning || mesenRunning || genesisRunning
 
-    // The PSP frame clock: one emulated frame per Compose frame while a
-    // PSP game runs. (GB's twin, rememberFrameClock, belongs to the GB
-    // session's own wiring.)
+    // The frame clocks: one emulated frame per Compose frame while a
+    // game runs, one clock per session. iOS drives its frames from a
+    // CADisplayLink the session starts in start() (GameSession's
+    // startDisplayLink); the Android shape composes the clock beside
+    // the session instead, which is what the PSP clock has always done
+    // here. The GB clock joins it (parity stage 3): without it
+    // GbGameSession.runFrame was never called, so the GB reader's
+    // per-frame resume never ran and frame-driven reader lines could
+    // not happen — only load-time and hotkey-driven speech could.
+    // Both clocks are composed HERE at the screen's top level —
+    // outside the game picture's switch gate, so turning the picture
+    // off never stops a game advancing.
     rememberPspFrameClock(pspRunning)
+    rememberFrameClock(running)
+
+    // ⛔ BACK IN A SESSION IS QUIT, NEVER AN EXIT (input parity, stage 1).
+    // iOS leaves a game through an explicit Quit with a VoiceOver escape
+    // action; the Android system Back is the same gesture wearing system
+    // clothes, so it performs the same leave-game flow the Quit buttons
+    // below perform — session stop, flag cleared, launcher state back —
+    // instead of Android's default, which finished the whole Activity
+    // mid-game. The two handlers are mutually exclusive (a GB and a PSP
+    // session never run at once). MainActivity's handler covers the
+    // Settings / games-list level; at the idle launcher nothing here is
+    // enabled, so Back still leaves the app from the front door.
+    BackHandler(enabled = running) {
+        session.stop()
+        running = false
+    }
+    BackHandler(enabled = pspRunning) {
+        PspGameSession.stop()
+        pspRunning = false
+    }
+    // The DS session joins the Back chain with the DS stage's merge:
+    // without it, Back during a DS game fell through every handler to
+    // the system default and finished the Activity mid-game — the
+    // exact failure stage 1 fixed for the other two sessions. No
+    // local flag to clear: the controls read the session directly.
+    BackHandler(enabled = dsRunning) {
+        DsGameSession.stop()
+    }
+    // The Mesen session joins the Back chain with this stage: Back
+    // during a NES or SNES game quits the game, the same flow the
+    // Quit button below performs — never the Activity default.
+    BackHandler(enabled = mesenRunning) {
+        MesenGameSession.stop()
+    }
+    // The Genesis session joins the Back chain the same way: Back
+    // during a Genesis game quits the game (the session's stop
+    // flushes the battery save on the way down), never the Activity.
+    BackHandler(enabled = genesisRunning) {
+        GenesisGameSession.stop()
+    }
+
+    // ⛔ CONTROLLER CONNECT / DISCONNECT IS SPOKEN (input parity, stage 1).
+    // iOS publishes the connected controller's name and the player hears
+    // the change; here the name lives on ControllerInput (Compose state,
+    // written by its InputManager listener) and this effect turns a
+    // CHANGE into a status line — which is the launcher's voice, live
+    // region and bridge fallback both. The remembered previous value
+    // starts at whatever is already connected, so a pad paired before
+    // the app opened is not "announced" at first composition; a pad
+    // that arrives or leaves mid-session is.
+    val controllerName = ControllerInput.connectedName
+    val controllerConnected = controllerName != null
+    var previousControllerName by remember { mutableStateOf(controllerName) }
+
+    // The DS frame clock, the PSP one's twin.
+    rememberDsFrameClock(dsRunning)
+
+    // The Mesen frame clock, paced to the NTSC consoles it drives.
+    rememberMesenFrameClock(mesenRunning)
+    // The Genesis frame clock, paced to the console like the others.
+    rememberGenesisFrameClock(genesisRunning)
 
     fun say(message: String, interrupt: Boolean = false) {
         status = message
         liveMode = if (interrupt) LiveRegionMode.Assertive else LiveRegionMode.Polite
         announce(message, interrupt)
+    }
+
+    // Repeat-walk refusals ("Nothing to repeat." and kin) are spoken
+    // through the bridge's control channel, NOT through say(): a
+    // refusal is feedback about the spoken history, and if it were
+    // recorded into that history it would stand the walk back on the
+    // newest line and leave the refusal itself in the reading log
+    // (see AccessibilitySpeech.speakControl). The status line still
+    // carries the line, the same fallback every say() keeps.
+    fun sayControl(message: String) {
+        status = message
+        liveMode = LiveRegionMode.Assertive
+        announceControl(message)
+    }
+
+    // A picked file becomes the pending game: the name the screen
+    // shows, and which session it belongs to. Shared by the Select
+    // Game picker below and by a library page's Load button (the
+    // pendingRom hand-off further down): one routing, one set of
+    // spoken answers, whichever door the file came through.
+    fun acceptPickedRom(uri: Uri) {
+        pickedUri = uri
+        // The provider's display name, not the URI's last segment:
+        // an opaque SAF id (msf:42) carries no extension to route
+        // by, so a PSP image behind one would fall through to the
+        // GB session and be refused there.
+        pickedName = displayName(context, uri)
+        problem = ""
+        // Routing is by extension, the Kotlin equivalent of the core's
+        // own backend resolution: a PSP disc image goes to the PSP
+        // session, a DS cartridge to the DS session, a Genesis
+        // cartridge to the Genesis session, everything else the
+        // launcher has ever handled goes to the GB session (which
+        // still refuses what it cannot run).
+        val extension = pickedName.substringAfterLast('.', "").lowercase()
+        pickedIsPsp = PspGameSession.handlesExtension(extension)
+        pickedIsDs = DsGameSession.handlesExtension(extension)
+        pickedIsMesen = MesenGameSession.handlesExtension(extension)
+        if (pickedIsMesen && !mesenAvailable) {
+            // Said at pick time, like the DS and PSP answers below: on
+            // a build without the Mesen cores (armeabi-v7a) this is
+            // the honest one. The console is named from the extension
+            // sets the core's own surface declares.
+            val consoleName = if (extension in MesenAccessibilityScript.NES_EXTENSIONS) {
+                "Nintendo Entertainment System"
+            } else {
+                "Super Nintendo"
+            }
+            say(
+                "$pickedName selected. That is a $consoleName game, " +
+                    "and this build has no NES or Super Nintendo core.",
+            )
+            return
+        }
+        pickedIsGenesis = GenesisGameSession.handlesExtension(extension)
+        if (pickedIsGenesis && !genesisAvailable) {
+            // Said at pick time, like the DS/PSP answers below: on a
+            // build without the Genesis glue (armeabi-v7a) this is
+            // the honest one.
+            say(
+                "$pickedName selected. That is a Sega Genesis game, and this build has no Genesis core.",
+            )
+            return
+        }
+        if (pickedIsDs && !dsAvailable) {
+            // Said at pick time, like the PSP answer below: on a build
+            // without the DS host (armeabi-v7a) this is the honest one.
+            say(
+                "$pickedName selected. That is a Nintendo DS game, and this build has no DS core.",
+            )
+            return
+        }
+        if (pickedIsPsp && !pspAvailable) {
+            // Said at pick time, not left for a disabled Start button to
+            // imply: on a build without the PSP core (armeabi-v7a) this
+            // is the honest answer.
+            say(
+                "$pickedName selected. That is a PSP game, and this build has no PSP core.",
+            )
+            return
+        }
+        say("$pickedName selected. Press Start Game.")
+    }
+
+    // The speaking half of the controller watch above (kept below say's
+    // declaration — a local fun is only visible from where it is
+    // declared, and the compiler enforces it).
+    LaunchedEffect(controllerName) {
+        val previous = previousControllerName
+        previousControllerName = controllerName
+        if (previous == controllerName) return@LaunchedEffect
+        if (controllerName != null) {
+            say("Controller connected: $controllerName")
+        } else {
+            say("Controller disconnected.")
+        }
+    }
+
+    // ⛔ THE MAGIC-TAP EQUIVALENT (input parity, stage 1). On iOS a
+    // VoiceOver magic tap on the game screen asks the reader where the
+    // player is (GameSession.performMagicTap, answered only by readers
+    // that support it). TalkBack has no magic tap, so the game-screen
+    // element below carries the same query as a custom action. It asks
+    // exactly what the on-screen routes ask: on PSP the adapter's Where
+    // am I, with the reader group's own refusal lines; on Game Boy the
+    // script hotkey this screen's own Where am I button taps. A game
+    // whose reader does not answer it says so, in the controller
+    // layer's line, rather than the action going silent.
+    fun whereAmI() {
+        when {
+            pspRunning -> {
+                val commands = AdapterLibraryData.games
+                    .firstOrNull { it.id == PspGameSession.adapterId }?.commands
+                    ?: emptyList()
+                if (PspAdapterCommands.WHERE_AM_I in commands) {
+                    if (!PspGameSession.sendAdapterCommand(PspAdapterCommands.WHERE_AM_I)) {
+                        say(
+                            if (PspGameSession.adapterName.isNotEmpty()) {
+                                "Not ready yet."
+                            } else {
+                                "No reader."
+                            }
+                        )
+                    }
+                } else {
+                    say("No reader command there for this game.")
+                }
+            }
+            mesenRunning -> {
+                val commands = AdapterLibraryData.games
+                    .firstOrNull { it.id == MesenGameSession.adapterId }?.commands
+                    ?: emptyList()
+                if (MesenAdapterCommands.WHERE_AM_I in commands) {
+                    if (!MesenGameSession.sendAdapterCommand(MesenAdapterCommands.WHERE_AM_I)) {
+                        say(
+                            if (MesenGameSession.adapterName.isNotEmpty()) {
+                                "Not ready yet."
+                            } else {
+                                "No reader."
+                            }
+                        )
+                    }
+                } else {
+                    say("No reader command there for this game.")
+                }
+            }
+            running -> session.tapHotkey('E')
+            genesisRunning -> {
+                // No Genesis reader exists to answer the query; the
+                // controller layer's honest line, said rather than
+                // the action going silent.
+                say("No reader command there for this game.")
+            }
+            else -> Unit
+        }
     }
 
     val pickRom = rememberLauncherForActivityResult(
@@ -125,31 +404,220 @@ fun LauncherScreen(
             say("No game selected.")
             return@rememberLauncherForActivityResult
         }
-        pickedUri = uri
-        pickedName = uri.lastPathSegment ?: uri.toString()
-        problem = ""
-        // Routing is by extension, the Kotlin equivalent of the core's
-        // own backend resolution: a PSP disc image goes to the PSP
-        // session, everything else the launcher has ever handled goes
-        // to the GB session (which still refuses what it cannot run).
-        val extension = pickedName.substringAfterLast('.', "").lowercase()
-        pickedIsPsp = PspGameSession.handlesExtension(extension)
-        if (pickedIsPsp && !pspAvailable) {
-            // Said at pick time, not left for a disabled Start button to
-            // imply: on a build without the PSP core (armeabi-v7a) this
-            // is the honest answer.
-            say(
-                "$pickedName selected. That is a PSP game, and this build has no PSP core.",
-            )
-            return@rememberLauncherForActivityResult
+        acceptPickedRom(uri)
+    }
+
+    // A DS library page's Load button (the DS half of the parity
+    // program's Stage 2 load flow): the page named the game, so open
+    // the picker for its ROM. The pick routes by extension like any
+    // other, which lands a .nds file in the DS session. The request is
+    // consumed the moment it is seen — it is a doorbell, not state.
+    LaunchedEffect(dsLoadRequest) {
+        val request = dsLoadRequest ?: return@LaunchedEffect
+        onDsLoadRequestConsumed()
+        say("Choose the game file for ${request.name}.")
+        pickRom.launch(arrayOf("*/*"))
+    }
+
+    // Start the pending game: the Start Game button's whole behaviour,
+    // extracted so a game loaded from its own library page starts
+    // exactly the way a game picked here starts — same routing, same
+    // spoken lines. The availability guards below duplicate the Start
+    // button's enabled state because the hand-off calls this directly;
+    // on the button's own path they can never fire (the button is
+    // disabled in those states), so nothing about it changes.
+    fun startPickedGame() {
+        val uri = pickedUri
+        if (uri == null) {
+            say("Select a game first.")
+            return
         }
-        say("$pickedName selected. Press Start Game.")
+        if (starting) {
+            // A load is already in flight (its button is disabled for
+            // the same reason); the session's generation counter would
+            // supersede it, but the in-flight load's own spoken result
+            // is the answer the player is waiting for.
+            return
+        }
+        val activity = context as? Activity
+        if (activity == null) {
+            say("That game could not be started.")
+            return
+        }
+        if (pickedIsMesen) {
+            if (!mesenAvailable) {
+                // acceptPickedRom already said this at pick time.
+                return
+            }
+            // ⛔ ASYNCHRONOUS, LIKE THE DS START BELOW: the resolver
+            // may copy a large ROM and the host's load parses it, so
+            // Start says so and the session calls back; `starting`
+            // keeps a second press from racing the first load. No
+            // flag is set on success: the session's own running state
+            // (read directly, see the declarations) brings the Mesen
+            // controls up.
+            starting = true
+            say("Loading $pickedName.")
+            MesenGameSession.start(activity, uri) { error ->
+                starting = false
+                if (error != null) {
+                    problem = error
+                    say(
+                        "That game could not be started. $error",
+                        interrupt = true,
+                    )
+                } else {
+                    problem = ""
+                    say("Game started.")
+                }
+            }
+            return
+        }
+        if (pickedIsDs) {
+            if (!dsAvailable) {
+                // acceptPickedRom already said this at pick time.
+                return
+            }
+            // ⛔ ASYNCHRONOUS, LIKE THE PSP START BELOW: a DS ROM can
+            // take a while to copy and load, so Start says so and the
+            // session calls back; `starting` keeps a second press from
+            // racing the first load. No flag is set on success: the
+            // session's own running state (read directly, see the
+            // declarations) brings the DS controls up.
+            starting = true
+            say(
+                "Loading $pickedName. A large DS game can " +
+                    "take a while to copy."
+            )
+            DsGameSession.start(activity, uri) { error ->
+                starting = false
+                if (error != null) {
+                    problem = error
+                    say(
+                        "That game could not be started. $error",
+                        interrupt = true,
+                    )
+                } else {
+                    problem = ""
+                    say("Game started.")
+                }
+            }
+            return
+        }
+        if (pickedIsGenesis) {
+            if (!genesisAvailable) {
+                // acceptPickedRom already said this at pick time.
+                return
+            }
+            // ⛔ ASYNCHRONOUS, LIKE THE DS START ABOVE: the resolver
+            // may have to copy the cartridge before the load can parse
+            // it, so Start says so and the session calls back;
+            // `starting` keeps a second press from racing the first
+            // load. No flag is set on success: the session's own
+            // running state (read directly, see the declarations)
+            // brings the Genesis controls up.
+            starting = true
+            say("Loading $pickedName.")
+            GenesisGameSession.start(activity, uri) { error ->
+                starting = false
+                if (error != null) {
+                    problem = error
+                    say(
+                        "That game could not be started. $error",
+                        interrupt = true,
+                    )
+                } else {
+                    problem = ""
+                    say("Game started.")
+                }
+            }
+            return
+        }
+        if (pickedIsPsp) {
+            if (!pspAvailable) {
+                // acceptPickedRom already said this at pick time.
+                return
+            }
+            // ⛔ ASYNCHRONOUS, UNLIKE THE GB START BELOW. A disc image
+            // can take a while to copy and load (PspGameSession's doc
+            // has the numbers), so Start says so and the session calls
+            // back; `starting` keeps a second press from racing the
+            // first load.
+            starting = true
+            say(
+                "Loading $pickedName. PSP games are large, " +
+                    "so this can take a while."
+            )
+            PspGameSession.start(activity, uri) { error ->
+                starting = false
+                if (error != null) {
+                    problem = error
+                    say(
+                        "That game could not be started. $error",
+                        interrupt = true,
+                    )
+                } else {
+                    pspRunning = true
+                    problem = ""
+                    say("Game started.")
+                }
+            }
+            return
+        }
+        if (!gbAvailable) {
+            say("That is a Game Boy game, and this build has no Game Boy core.")
+            return
+        }
+        val error = session.start(activity, uri)
+        if (error != null) {
+            problem = error
+            say("That game could not be started. $error", interrupt = true)
+            return
+        }
+        running = true
+        problem = ""
+        say(
+            "Game started. The reader will speak one startup line, " +
+                "then only game content."
+        )
+    }
+
+    // ⛔ A LIBRARY PAGE'S LOAD LANDS HERE. The game page's Load button
+    // opens its own console-filtered picker; a pick is handed up to
+    // the Activity (pendingRom) and the games screen closes, which
+    // composes this screen with the hand-off waiting. It is consumed
+    // once, then run through the SAME accept + start path as a file
+    // picked here — so the routing, the core checks and the spoken
+    // answers are this screen's own, and a game started from its page
+    // is indistinguishable from one started from this screen. While a
+    // game is already running the pick only becomes the pending
+    // selection (the player quits first, as on iOS, where the library
+    // sits behind the running game too); idle, it starts at once —
+    // that is the page's whole promise.
+    LaunchedEffect(pendingRom) {
+        val uri = pendingRom ?: return@LaunchedEffect
+        onPendingRomHandled()
+        acceptPickedRom(uri)
+        // ⛔ THE START DECISION ASKS THE SESSIONS, NOT THIS SCREEN'S
+        // FLAGS. The flags are seeded from the sessions at first
+        // composition, but the hand-off is consumed in that same
+        // first composition; the sessions are the source of truth, so
+        // a pick handed up while a game runs can never start a second
+        // session over the live one — it stays the pending selection
+        // until the player quits, exactly as the comment above says.
+        if (!GbGameSession.isRunning && !PspGameSession.isRunning && !DsGameSession.isRunning && !MesenGameSession.isRunning && !GenesisGameSession.isRunning) {
+            startPickedGame()
+        }
     }
 
     // The status line, said once when the screen comes up. iOS's StatusBar is read
-    // first on focus and always reflects state.
+    // first on focus and always reflects state. Returning from Settings
+    // or the games list mid-game recomposes this screen; the ready line
+    // is for the idle launcher only, never spoken over a running game.
     remember(available) {
-        if (available) {
+        if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning) {
+            // A game is already running (see the seeded flags above).
+        } else if (available) {
             say("Open Game Access ready. Press Select Game to choose a game.", interrupt = true)
         } else {
             say(
@@ -164,8 +632,12 @@ fun LauncherScreen(
         val parts = mutableListOf<String>()
         if (gbAvailable) parts += GbGameSession.romExtensions()
         if (pspAvailable) parts += PspGameSession.romExtensions()
+        if (dsAvailable) parts += DsGameSession.romExtensions()
+        if (mesenAvailable) parts += MesenGameSession.romExtensions()
+        if (genesisAvailable) parts += GenesisGameSession.romExtensions()
         if (parts.isEmpty()) {
-            "Game Boy, Game Boy Color, Game Boy Advance, PSP"
+            "Game Boy, Game Boy Color, Game Boy Advance, PSP, Nintendo DS, " +
+                "Nintendo Entertainment System, Super Nintendo, Sega Genesis"
         } else {
             parts.joinToString(", ") { it.uppercase() }
         }
@@ -198,6 +670,17 @@ fun LauncherScreen(
                 .padding(horizontal = 24.dp, vertical = 12.dp)
                 .semantics {
                     contentDescription = "Game screen. $statusLine"
+                    // The magic-tap equivalent (see whereAmI above):
+                    // offered only while a game runs, as on iOS, where
+                    // the gesture exists only on the game screen.
+                    if (anyRunning) {
+                        customActions = listOf(
+                            CustomAccessibilityAction(label = "Where am I") {
+                                whereAmI()
+                                true
+                            },
+                        )
+                    }
                 },
         )
 
@@ -215,6 +698,52 @@ fun LauncherScreen(
                     contentDescription = statusLine
                 },
         )
+
+        // The transient line: the last thing say() was given. The status
+        // line above only ever shows the derived session state, so a
+        // one-off message (a controller connecting at the idle launcher,
+        // where MainActivity's bridge fallback stays silent because no
+        // session is running) would otherwise be written to state and
+        // never heard. This region observes that state, so the message
+        // is announced when it lands.
+        if (status.isNotEmpty()) {
+            Text(
+                text = status,
+                fontSize = 14.sp,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.7f),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 24.dp, vertical = 4.dp)
+                    .semantics {
+                        liveRegion = liveMode
+                        contentDescription = status
+                    },
+            )
+        }
+
+        // The game picture: iOS's FrameImage, sitting where its ScreenView
+        // sits — under the screen's spoken description, above the controls.
+        // ⛔ COMPOSED ONLY WHILE A GAME RUNS AND THE SWITCH IS ON. Off, the
+        // composable does not exist, so no frame is ever copied: iOS keeps
+        // the picture out of its frame path the same way when its switch is
+        // off. The image itself is decorative (GamePicture says why); the
+        // "Game screen" element above remains the one spoken stop.
+        if (anyRunning && showPicture) {
+            GamePicture(
+                fetchFrame = {
+                    if (GenesisGameSession.isRunning) {
+                        GenesisGameSession.currentFrame()
+                    } else if (PspGameSession.isRunning) {
+                        PspGameSession.currentFrame()
+                    } else if (MesenGameSession.isRunning) {
+                        MesenGameSession.currentFrame()
+                    } else {
+                        GbGameSession.currentFrame()
+                    }
+                },
+                modifier = Modifier.padding(horizontal = 24.dp, vertical = 8.dp),
+            )
+        }
 
         Column(
             modifier = Modifier.padding(24.dp),
@@ -251,7 +780,7 @@ fun LauncherScreen(
                 Text("Games with readers", fontSize = 18.sp)
             }
 
-            if (!running && !pspRunning) {
+            if (!running && !pspRunning && !dsRunning && !mesenRunning && !genesisRunning) {
                 // Idle: pick, then start -- in the order they are needed.
                 Button(
                     onClick = {
@@ -265,60 +794,9 @@ fun LauncherScreen(
                 }
 
                 Button(
-                    onClick = {
-                        val uri = pickedUri
-                        if (uri == null) {
-                            say("Select a game first.")
-                            return@Button
-                        }
-                        val activity = context as? Activity
-                        if (activity == null) {
-                            say("That game could not be started.")
-                            return@Button
-                        }
-                        if (pickedIsPsp) {
-                            // ⛔ ASYNCHRONOUS, UNLIKE THE GB START BELOW.
-                            // A disc image can take a while to copy and
-                            // load (PspGameSession's doc has the numbers),
-                            // so Start says so and the session calls back;
-                            // `starting` keeps a second press from racing
-                            // the first load.
-                            starting = true
-                            say(
-                                "Loading $pickedName. PSP games are large, " +
-                                "so this can take a while."
-                            )
-                            PspGameSession.start(activity, uri) { error ->
-                                starting = false
-                                if (error != null) {
-                                    problem = error
-                                    say(
-                                        "That game could not be started. $error",
-                                        interrupt = true,
-                                    )
-                                } else {
-                                    pspRunning = true
-                                    problem = ""
-                                    say("Game started.")
-                                }
-                            }
-                            return@Button
-                        }
-                        val error = session.start(activity, uri)
-                        if (error != null) {
-                            problem = error
-                            say("That game could not be started. $error", interrupt = true)
-                            return@Button
-                        }
-                        running = true
-                        problem = ""
-                        say(
-                            "Game started. The reader will speak one startup line, " +
-                            "then only game content."
-                        )
-                    },
+                    onClick = { startPickedGame() },
                     enabled = available && pickedUri != null && !starting &&
-                        (if (pickedIsPsp) pspAvailable else gbAvailable),
+                        (if (pickedIsMesen) mesenAvailable else if (pickedIsGenesis) genesisAvailable else if (pickedIsDs) dsAvailable else if (pickedIsPsp) pspAvailable else gbAvailable),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Start Game", fontSize = 18.sp)
@@ -332,6 +810,69 @@ fun LauncherScreen(
                         modifier = Modifier.semantics { contentDescription = "Error: $problem" },
                     )
                 }
+            } else if (mesenRunning) {
+                // Running a NES or SNES game: the pad the RUNNING
+                // console actually has — the session's backend id
+                // decides, not the picked file (a NES pad has no X/Y
+                // and no shoulders; the SNES pad has both) — the
+                // reader commands the running game's adapter supports,
+                // speech controls, and, for SNES only, the whole-core
+                // savestates the core implements (the NES core refuses
+                // states out loud in the shared core itself, so it gets
+                // no buttons that would lie). The on-screen pad hides
+                // while a controller is connected, as on the other
+                // sessions; the reader, speech, state and quit groups
+                // stay.
+                if (!controllerConnected) {
+                    MesenDirectionalPad(MesenGameSession)
+                    MesenActionButtons(MesenGameSession)
+                    MesenSystemButtons(MesenGameSession)
+                }
+                MesenReaderGroup(MesenGameSession) { message -> say(message) }
+                MesenSpeechGroup(MesenGameSession)
+                if (MesenGameSession.backendId == "snes") {
+                    MesenStateGroup(MesenGameSession) { message -> say(message) }
+                }
+                QuitMesenGame(MesenGameSession)
+            } else if (dsRunning) {
+                // Running a DS game: the pad the console actually has
+                // (shoulders always, X/Y beside A/B), the reader
+                // commands the running game's adapter supports, and —
+                // for Pokémon Black/White only — the Lua script's own
+                // hotkey groups, the full DS set iOS shows (path,
+                // reading, speech), not the GB subset. The touch group
+                // offers coarse taps in the bottom screen's own
+                // coordinates; see DsGameSession's touch note for what
+                // that honestly is and is not.
+                DsDirectionalPad(DsGameSession)
+                DsActionButtons(DsGameSession)
+                DsSystemButtons(DsGameSession)
+                DsReaderGroup(DsGameSession) { message -> say(message) }
+                if (DsGameSession.isPokemonGame) {
+                    DsPathGroup(DsGameSession)
+                    DsReadingGroup(DsGameSession)
+                    DsScriptSpeechGroup(DsGameSession)
+                } else {
+                    DsSpeechGroup(DsGameSession)
+                }
+                DsTouchGroup(DsGameSession)
+                DsStateGroup(DsGameSession) { message -> say(message) }
+                QuitDsGame(DsGameSession)
+            } else if (genesisRunning) {
+                // Running a Genesis game: the pad (both layouts — the
+                // core picks the 3-button or 6-button pad per game,
+                // and a 3-button game simply never reads X/Y/Z/Mode),
+                // the speech controls, the whole-core savestates, and
+                // quit-with-save. NO reader group, deliberately:
+                // Genesis has no reader in this build, so there are
+                // no reader commands to offer (see GenesisGameSession).
+                GenesisDirectionalPad(GenesisGameSession)
+                GenesisActionButtons(GenesisGameSession)
+                GenesisSystemButtons(GenesisGameSession)
+                GenesisSpeechGroup(GenesisGameSession, say = { message -> say(message) },
+                    sayControl = { message -> sayControl(message) })
+                GenesisStateGroup(GenesisGameSession) { message -> say(message) }
+                QuitGenesisGame(GenesisGameSession, { message -> say(message) })
             } else if (pspRunning) {
                 // Running a PSP game: the pad the console actually has,
                 // the reader commands the running game's adapter
@@ -339,21 +880,32 @@ fun LauncherScreen(
                 // no adapter, or an adapter with an empty command set),
                 // speech controls, and the whole-core savestates the
                 // psp_* ABI exposes directly.
-                PspDirectionalPad(PspGameSession)
-                PspActionButtons(PspGameSession)
-                PspSystemButtons(PspGameSession)
+                // The on-screen pad hides while a controller is connected
+                // (iOS does the same): the physical pad replaces it, and
+                // the reader / speech / state / quit groups stay.
+                if (!controllerConnected) {
+                    PspDirectionalPad(PspGameSession)
+                    PspActionButtons(PspGameSession)
+                    PspSystemButtons(PspGameSession)
+                }
                 PspReaderGroup(PspGameSession) { message -> say(message) }
-                PspSpeechGroup(PspGameSession)
+                PspSpeechGroup(PspGameSession, say = { message -> say(message) },
+                    sayControl = { message -> sayControl(message) })
                 PspStateGroup(PspGameSession) { message -> say(message) }
-                QuitPspGame(PspGameSession) { pspRunning = false }
+                QuitPspGame(PspGameSession, { message -> say(message) }) { pspRunning = false }
             } else {
                 // Running: the controls, grouped by what the player is doing.
-                DirectionalPad(session)
-                ActionButtons(session, pickedName)
-                SystemButtons(session, pickedName)
+                // The pad groups hide while a controller is connected, as
+                // on iOS; the reader groups below are not the pad and stay.
+                if (!controllerConnected) {
+                    DirectionalPad(session)
+                    ActionButtons(session, pickedName)
+                    SystemButtons(session, pickedName)
+                }
                 PathFindingGroup(session)
                 ReadingGroup(session)
-                SpeechGroup(session)
+                SpeechGroup(session, say = { message -> say(message) },
+                    sayControl = { message -> sayControl(message) })
                 QuitGame(session) { running = false }
             }
         }
@@ -434,9 +986,20 @@ private fun ReadingGroup(session: GbGameSession) {
  * something. iOS makes exactly this distinction (`system.hasDirectSpeechStop`),
  * because a two-finger tap only ends the current utterance while the script keeps
  * producing lines.
+ *
+ * Repeat and Repeat older walk the shared bridge's spoken history
+ * (iOS's RepeatNewest / RepeatOlder). iOS reaches them from Settings
+ * and from controller chords; Android has neither surface in the
+ * session, so they live here beside Stop speech, and in Settings.
+ * A refused repeat is answered aloud -- "Nothing to repeat." is
+ * iOS's own line for it -- because a silent button reads as broken.
  */
 @Composable
-private fun SpeechGroup(session: GbGameSession) {
+private fun SpeechGroup(
+    session: GbGameSession,
+    say: (String) -> Unit,
+    sayControl: (String) -> Unit,
+) {
     GroupLabel("Speech controls")
     OutlinedButton(
         onClick = { session.stopSpeech() },
@@ -448,6 +1011,30 @@ private fun SpeechGroup(session: GbGameSession) {
             },
     ) {
         Text("Stop speech", fontSize = 16.sp)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatLastSpeech()) sayControl("Nothing to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat last speech" },
+        ) {
+            Text("Repeat", fontSize = 14.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatOlderSpeech()) sayControl("Nothing older to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat older speech" },
+        ) {
+            Text("Repeat older", fontSize = 14.sp)
+        }
     }
 }
 
@@ -619,9 +1206,17 @@ private fun PspReaderGroup(session: PspGameSession, say: (String) -> Unit) {
  * The controls that act on speech itself. PSP stops directly — the
  * bridge's stop plus the adapter queue's own stop (the session performs
  * both halves) — where the GB group above can only stop at its engine.
+ *
+ * Repeat and Repeat older are the GB group's twins over the same
+ * shared history — adapter lines and launcher lines alike, since the
+ * adapter host speaks through the same bridge.
  */
 @Composable
-private fun PspSpeechGroup(session: PspGameSession) {
+private fun PspSpeechGroup(
+    session: PspGameSession,
+    say: (String) -> Unit,
+    sayControl: (String) -> Unit,
+) {
     val context = LocalContext.current
     GroupLabel("Speech controls")
     OutlinedButton(
@@ -635,12 +1230,74 @@ private fun PspSpeechGroup(session: PspGameSession) {
     ) {
         Text("Stop speech", fontSize = 16.sp)
     }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatLastSpeech()) sayControl("Nothing to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat last speech" },
+        ) {
+            Text("Repeat", fontSize = 14.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatOlderSpeech()) sayControl("Nothing older to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat older speech" },
+        ) {
+            Text("Repeat older", fontSize = 14.sp)
+        }
+    }
 }
 
+/**
+ * Quit the PSP game — saving first, and saying so.
+ *
+ * iOS's quit (GameSession.quit) auto-saves a state to the same slot
+ * the manual Save state control uses and announces the outcome,
+ * because closing the game is one gesture away at all times and an
+ * unsaved quit would silently discard whatever the player just did.
+ * The save runs BEFORE stop: it is a whole-core state and needs the
+ * core alive. The two lines are iOS's own, combined into one
+ * announcement so the quit does not produce two overlapping ones.
+ *
+ * Game Boy's QuitGame above does NOT do this: the GB native surface
+ * (GbAccessibilityScript / MGBAScriptJNI.cpp) exports no save-state
+ * call at all, so there is nothing honest to call — see the stage 3
+ * notes in the PR. A GB game's own battery save is unaffected: mGBA
+ * writes it to the save path as the game itself saves.
+ */
 @Composable
-private fun QuitPspGame(session: PspGameSession, onQuit: () -> Unit) {
+private fun QuitPspGame(
+    session: PspGameSession,
+    say: (String) -> Unit,
+    onQuit: () -> Unit,
+) {
+    val context = LocalContext.current
     OutlinedButton(
         onClick = {
+            val saved = session.saveState(context)
+            // ⛔ THE LINE IS SPOKEN BEFORE THE STOP, NOT AFTER. The
+            // Activity's bridge only forwards while a session is
+            // running, so a say() after stop() — which clears the
+            // session's running flag — is dropped by the guard and
+            // the player hears nothing at all. Spoken first, the
+            // line is already in the bridge's hands; stop() does not
+            // cancel bridge speech (its speech stop is a separate,
+            // explicit control), so the line still lands.
+            say(
+                if (saved) {
+                    "Game closed. Progress saved."
+                } else {
+                    "Game closed. Could not save."
+                }
+            )
             session.stop()
             onQuit()
         },
@@ -733,9 +1390,17 @@ private fun HoldButton(
                     onPress = {
                         held = true
                         session.pressKey(bit)
-                        tryAwaitRelease()
-                        held = false
-                        session.releaseKey(bit)
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            // Finally, not sequence: if this composable
+                            // is removed mid-press (the pad hides when a
+                            // controller connects), the await is cancelled
+                            // and without the finally the emulated button
+                            // would stay down in the running game.
+                            held = false
+                            session.releaseKey(bit)
+                        }
                     },
                 )
             }
@@ -808,9 +1473,15 @@ private fun PspHoldButton(
                     onPress = {
                         held = true
                         session.pressButton(button)
-                        tryAwaitRelease()
-                        held = false
-                        session.releaseButton(button)
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            // Finally, not sequence — see HoldButton: a
+                            // mid-press removal cancels the await, and the
+                            // button must still come up in the game.
+                            held = false
+                            session.releaseButton(button)
+                        }
                     },
                 )
             }
@@ -845,5 +1516,878 @@ private fun HotkeyButton(
             .semantics { contentDescription = label },
     ) {
         Text(label, fontSize = 14.sp)
+    }
+}
+
+// ---- the DS pad --------------------------------------------------------------
+//
+// The same grouping-by-activity as the GB and PSP pads above, with the
+// buttons the Nintendo DS actually has: A/B/X/Y, shoulders that always
+// exist, and a touch screen. Two reader surfaces sit below the pad: the
+// native adapters' command group (the registry set, like PSP's), and —
+// for Pokémon Black/White only — the Lua script's hotkey groups, which
+// are the script's letters rather than the console's buttons.
+
+/** Move up / left / right / down. */
+@Composable
+private fun DsDirectionalPad(session: DsGameSession) {
+    GroupLabel("Directional pad")
+    DsHoldButton("Up", session, DsKeys.UP)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHoldButton("Left", session, DsKeys.LEFT, Modifier.weight(1f))
+        DsHoldButton("Right", session, DsKeys.RIGHT, Modifier.weight(1f))
+    }
+    DsHoldButton("Down", session, DsKeys.DOWN)
+}
+
+/** The face buttons, named as the console names them. */
+@Composable
+private fun DsActionButtons(session: DsGameSession) {
+    GroupLabel("Action buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHoldButton("A", session, DsKeys.A, Modifier.weight(1f))
+        DsHoldButton("B", session, DsKeys.B, Modifier.weight(1f))
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHoldButton("X", session, DsKeys.X, Modifier.weight(1f))
+        DsHoldButton("Y", session, DsKeys.Y, Modifier.weight(1f))
+    }
+}
+
+/** Start, Select, and the shoulders — the DS always has shoulders. */
+@Composable
+private fun DsSystemButtons(session: DsGameSession) {
+    GroupLabel("System buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHoldButton("Start", session, DsKeys.START, Modifier.weight(1f))
+        DsHoldButton("Select", session, DsKeys.SELECT, Modifier.weight(1f))
+        DsHoldButton("L", session, DsKeys.L, Modifier.weight(1f))
+        DsHoldButton("R", session, DsKeys.R, Modifier.weight(1f))
+    }
+}
+
+/**
+ * The reader's command buttons for the running DS game: exactly the
+ * commands its adapter supports on iOS (AdapterCommand.supported,
+ * carried into AdapterLibraryData by the library generator), titled as
+ * iOS titles them, and nothing else. A game with no adapter, or an
+ * adapter whose supported set is empty (Dragon Quest IX speaks on its
+ * own and answers through play), renders no group at all. A refused
+ * command speaks the refusal — iOS's two lines, chosen the way iOS
+ * chooses them. [PspReaderGroup]'s twin.
+ */
+@Composable
+private fun DsReaderGroup(session: DsGameSession, say: (String) -> Unit) {
+    val game = AdapterLibraryData.games.firstOrNull { it.id == session.adapterId }
+    val commands = game?.commands ?: emptyList()
+    if (commands.isEmpty()) return
+    GroupLabel("Reader")
+    commands.chunked(2).forEach { rowCommands ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (command in rowCommands) {
+                val title = AdapterCommandTitles.byId[command] ?: continue
+                Button(
+                    onClick = {
+                        if (!session.sendAdapterCommand(command)) {
+                            say(
+                                if (session.adapterName.isNotEmpty()) {
+                                    "Not ready yet."
+                                } else {
+                                    "No reader."
+                                }
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .semantics { contentDescription = title },
+                ) {
+                    Text(title, fontSize = 14.sp)
+                }
+            }
+            if (rowCommands.size == 1) {
+                Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/**
+ * Choosing a destination and being guided to it — the Pokémon script's
+ * path keys (GameSystem's DS set): P finds a path, C answers Where
+ * Am I, E shows the tiles. Shown only for the script's games.
+ */
+@Composable
+private fun DsPathGroup(session: DsGameSession) {
+    GroupLabel("Path finding and map")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHotkeyButton("Find path", 'P', session, Modifier.weight(1f))
+        DsHotkeyButton("Where am I", 'C', session, Modifier.weight(1f))
+        DsHotkeyButton("Tiles", 'E', session, Modifier.weight(1f))
+    }
+}
+
+/**
+ * Reading a list in the Pokémon script: K reads the current item, J/L
+ * step items, I/O step groups — the full DS reading set, not the GB
+ * subset (which has no groups and answers Where Am I with a path key).
+ */
+@Composable
+private fun DsReadingGroup(session: DsGameSession) {
+    GroupLabel("Reading items and lists")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHotkeyButton("Read item", 'K', session, Modifier.weight(1f))
+        DsHotkeyButton("Previous", 'J', session, Modifier.weight(1f))
+        DsHotkeyButton("Next", 'L', session, Modifier.weight(1f))
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHotkeyButton("Previous group", 'I', session, Modifier.weight(1f))
+        DsHotkeyButton("Next group", 'O', session, Modifier.weight(1f))
+    }
+}
+
+/**
+ * Speech in the Pokémon script is the script's own: R stops it (the DS
+ * has no direct engine stop for script speech — iOS marks
+ * hasDirectSpeechStop false for DS), U repeats the last line.
+ */
+@Composable
+private fun DsScriptSpeechGroup(session: DsGameSession) {
+    GroupLabel("Speech controls")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        DsHotkeyButton("Stop speech", 'R', session, Modifier.weight(1f))
+        DsHotkeyButton("Repeat", 'U', session, Modifier.weight(1f))
+    }
+}
+
+/**
+ * The controls that act on speech itself, for a native-adapter DS
+ * game: stop (the bridge stop plus the host queue's own — the session
+ * performs both halves), and repeat, which is the host's own command.
+ */
+@Composable
+private fun DsSpeechGroup(session: DsGameSession) {
+    val context = LocalContext.current
+    GroupLabel("Speech controls")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = { session.stopSpeech(context) },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics {
+                    contentDescription = "Stop speech"
+                },
+        ) {
+            Text("Stop speech", fontSize = 16.sp)
+        }
+        OutlinedButton(
+            onClick = { session.sendAdapterCommand(DsAdapterCommands.REPEAT_NEWEST) },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics {
+                    contentDescription = "Repeat last speech"
+                },
+        ) {
+            Text("Repeat", fontSize = 16.sp)
+        }
+    }
+}
+
+/**
+ * The bottom screen as nine coarse tap targets, in its own 256x192
+ * coordinates (the cell centres). ⛔ THIS IS NOT A PICTURE: there is no
+ * DS frame surface in the Android UI in this stage, so a blind player
+ * cannot explore the screen by finger — the grid answers "tap roughly
+ * here" for the menus and prompts that only need a tap somewhere
+ * sensible, and does not pretend to more. See DsGameSession's touch
+ * note.
+ */
+@Composable
+private fun DsTouchGroup(session: DsGameSession) {
+    GroupLabel("Touch screen")
+    val rows = listOf(
+        listOf("Top left" to (42 to 32), "Top centre" to (128 to 32), "Top right" to (213 to 32)),
+        listOf("Middle left" to (42 to 96), "Centre" to (128 to 96), "Middle right" to (213 to 96)),
+        listOf("Bottom left" to (42 to 160), "Bottom centre" to (128 to 160), "Bottom right" to (213 to 160)),
+    )
+    for (row in rows) {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for ((label, point) in row) {
+                Button(
+                    onClick = { session.tapTouch(point.first, point.second) },
+                    colors = ButtonDefaults.outlinedButtonColors(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .semantics { contentDescription = "Touch $label" },
+                ) {
+                    Text(label, fontSize = 14.sp)
+                }
+            }
+        }
+    }
+}
+
+/** Whole-core savestates, one slot per game. [PspStateGroup]'s twin. */
+@Composable
+private fun DsStateGroup(session: DsGameSession, say: (String) -> Unit) {
+    val context = LocalContext.current
+    GroupLabel("Save states")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = {
+                say(
+                    if (session.saveState(context)) {
+                        "State saved."
+                    } else {
+                        "That state could not be saved."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Save state" },
+        ) {
+            Text("Save state", fontSize = 14.sp)
+        }
+        Button(
+            onClick = {
+                say(
+                    if (session.loadState(context)) {
+                        "State loaded."
+                    } else {
+                        "There is no saved state for this game yet."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Load state" },
+        ) {
+            Text("Load state", fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun QuitDsGame(session: DsGameSession) {
+    OutlinedButton(
+        onClick = {
+            // No onQuit callback: the launcher reads the session's
+            // running state directly, so stopping is the whole job —
+            // the controls come down with the session.
+            session.stop()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = "Quit game" },
+    ) {
+        Text("Quit game", fontSize = 16.sp)
+    }
+}
+
+/**
+ * A DS game button: [PspHoldButton]'s twin, typed to the DS session —
+ * hold under a finger, short press on the screen-reader click, drawn
+ * by hand so the gesture detector owns the touch (see PspHoldButton's
+ * note for the defect that taught the shape).
+ */
+@Composable
+private fun DsHoldButton(
+    label: String,
+    session: DsGameSession,
+    button: Int,
+    modifier: Modifier = Modifier,
+) {
+    var held by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                1.dp,
+                MaterialTheme.colors.onSurface.copy(alpha = 0.12f),
+                RoundedCornerShape(4.dp),
+            )
+            .clip(RoundedCornerShape(4.dp))
+            .background(
+                if (held) MaterialTheme.colors.primary.copy(alpha = 0.12f)
+                else MaterialTheme.colors.surface
+            )
+            .pointerInput(button) {
+                detectTapGestures(
+                    onPress = {
+                        held = true
+                        session.pressButton(button)
+                        tryAwaitRelease()
+                        held = false
+                        session.releaseButton(button)
+                    },
+                )
+            }
+            .semantics {
+                contentDescription = label
+                onClick(label = "press") {
+                    // The core's own frame-counted tap (poke_tap_button
+                    // via the session): the press is held across frame
+                    // boundaries by the core, so the game samples it
+                    // however busy the device is — a press/release pair
+                    // timed by the wall clock can both land between two
+                    // frames and never be seen.
+                    session.tapButton(button)
+                    true
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(if (held) "$label (held)" else label, fontSize = 16.sp)
+    }
+}
+
+/** A DS script hotkey. Edge-triggered: the script wants the frame the key went down. */
+@Composable
+private fun DsHotkeyButton(
+    label: String,
+    key: Char,
+    session: DsGameSession,
+    modifier: Modifier = Modifier,
+) {
+    Button(
+        onClick = { session.tapHotkey(key) },
+        colors = ButtonDefaults.outlinedButtonColors(),
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = label },
+    ) {
+        Text(label, fontSize = 14.sp)
+    }
+}
+
+// ---- the NES / SNES pad ------------------------------------------------------
+//
+// The same grouping-by-activity as the DS pad above, with the buttons
+// the RUNNING console actually has: the session's backend id shapes the
+// groups (a NES pad is A/B, Start, Select and a D-pad — no X/Y, no
+// shoulders; the SNES pad is the full set), because buttons a console
+// does not have would be controls that do nothing. Two reader surfaces
+// sit below the pad: the native adapter's command group (the registry
+// set, like the DS and PSP groups) — which is how the SNES A Link to
+// the Past reader is driven, and which renders nothing for a NES game,
+// whose readers are autonomous Lua mods with no command list — and the
+// speech controls every adapter game gets.
+
+/** Move up / left / right / down. */
+@Composable
+private fun MesenDirectionalPad(session: MesenGameSession) {
+    GroupLabel("Directional pad")
+    MesenHoldButton("Up", session, MesenKeys.UP)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        MesenHoldButton("Left", session, MesenKeys.LEFT, Modifier.weight(1f))
+        MesenHoldButton("Right", session, MesenKeys.RIGHT, Modifier.weight(1f))
+    }
+    MesenHoldButton("Down", session, MesenKeys.DOWN)
+}
+
+/** The face buttons, shaped by the console: NES is A/B; SNES adds X/Y. */
+@Composable
+private fun MesenActionButtons(session: MesenGameSession) {
+    GroupLabel("Action buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        MesenHoldButton("A", session, MesenKeys.A, Modifier.weight(1f))
+        MesenHoldButton("B", session, MesenKeys.B, Modifier.weight(1f))
+    }
+    if (session.backendId == "snes") {
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            MesenHoldButton("X", session, MesenKeys.X, Modifier.weight(1f))
+            MesenHoldButton("Y", session, MesenKeys.Y, Modifier.weight(1f))
+        }
+    }
+}
+
+/** Start and Select; the shoulders exist only on the SNES pad. */
+@Composable
+private fun MesenSystemButtons(session: MesenGameSession) {
+    GroupLabel("System buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        MesenHoldButton("Start", session, MesenKeys.START, Modifier.weight(1f))
+        MesenHoldButton("Select", session, MesenKeys.SELECT, Modifier.weight(1f))
+        if (session.backendId == "snes") {
+            MesenHoldButton("L", session, MesenKeys.L, Modifier.weight(1f))
+            MesenHoldButton("R", session, MesenKeys.R, Modifier.weight(1f))
+        }
+    }
+}
+
+/**
+ * The reader's command buttons for the running game: exactly the
+ * commands its adapter supports on iOS (AdapterCommand.supported,
+ * carried into AdapterLibraryData by the library generator), titled as
+ * iOS titles them, and nothing else. A game with no adapter — every
+ * NES game, whose readers are Lua mods that speak on their own — or an
+ * adapter whose supported set is empty renders no group at all. A
+ * refused command speaks the refusal — iOS's two lines, chosen the way
+ * iOS chooses them. [DsReaderGroup]'s twin.
+ */
+@Composable
+private fun MesenReaderGroup(session: MesenGameSession, say: (String) -> Unit) {
+    val game = AdapterLibraryData.games.firstOrNull { it.id == session.adapterId }
+    val commands = game?.commands ?: emptyList()
+    if (commands.isEmpty()) return
+    GroupLabel("Reader")
+    commands.chunked(2).forEach { rowCommands ->
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            for (command in rowCommands) {
+                val title = AdapterCommandTitles.byId[command] ?: continue
+                Button(
+                    onClick = {
+                        if (!session.sendAdapterCommand(command)) {
+                            say(
+                                if (session.adapterName.isNotEmpty()) {
+                                    "Not ready yet."
+                                } else {
+                                    "No reader."
+                                }
+                            )
+                        }
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(),
+                    modifier = Modifier
+                        .weight(1f)
+                        .height(56.dp)
+                        .semantics { contentDescription = title },
+                ) {
+                    Text(title, fontSize = 14.sp)
+                }
+            }
+            if (rowCommands.size == 1) {
+                Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
+/**
+ * The controls that act on speech itself: stop (the bridge stop plus
+ * the host queue's own — the session performs both halves), and repeat,
+ * which is the host's own command. [DsSpeechGroup]'s twin.
+ */
+@Composable
+private fun MesenSpeechGroup(session: MesenGameSession) {
+    val context = LocalContext.current
+    GroupLabel("Speech controls")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = { session.stopSpeech(context) },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics {
+                    contentDescription = "Stop speech"
+                },
+        ) {
+            Text("Stop speech", fontSize = 16.sp)
+        }
+        OutlinedButton(
+            onClick = { session.sendAdapterCommand(MesenAdapterCommands.REPEAT_NEWEST) },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics {
+                    contentDescription = "Repeat last speech"
+                },
+        ) {
+            Text("Repeat", fontSize = 16.sp)
+        }
+    }
+}
+
+/**
+ * Whole-core savestates, one slot per game. [DsStateGroup]'s twin —
+ * shown only for SNES games (see the in-session branch): the NES core
+ * refuses states in the shared core itself, so a NES session gets no
+ * buttons that would fail every press.
+ */
+@Composable
+private fun MesenStateGroup(session: MesenGameSession, say: (String) -> Unit) {
+    val context = LocalContext.current
+    GroupLabel("Save states")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = {
+                say(
+                    if (session.saveState(context)) {
+                        "State saved."
+                    } else {
+                        "That state could not be saved."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Save state" },
+        ) {
+            Text("Save state", fontSize = 14.sp)
+        }
+        Button(
+            onClick = {
+                say(
+                    if (session.loadState(context)) {
+                        "State loaded."
+                    } else {
+                        "There is no saved state for this game yet."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Load state" },
+        ) {
+            Text("Load state", fontSize = 14.sp)
+        }
+    }
+}
+
+@Composable
+private fun QuitMesenGame(session: MesenGameSession) {
+    OutlinedButton(
+        onClick = {
+            // No onQuit callback: the launcher reads the session's
+            // running state directly, so stopping is the whole job —
+            // the controls come down with the session.
+            session.stop()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = "Quit game" },
+    ) {
+        Text("Quit game", fontSize = 16.sp)
+    }
+}
+
+/**
+ * A NES/SNES game button: [DsHoldButton]'s twin, typed to the Mesen
+ * session — hold under a finger, short press on the screen-reader
+ * click, drawn by hand so the gesture detector owns the touch (see
+ * PspHoldButton's note for the defect that taught the shape).
+ */
+@Composable
+private fun MesenHoldButton(
+    label: String,
+    session: MesenGameSession,
+    button: Int,
+    modifier: Modifier = Modifier,
+) {
+    var held by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                1.dp,
+                MaterialTheme.colors.onSurface.copy(alpha = 0.12f),
+                RoundedCornerShape(4.dp),
+            )
+            .clip(RoundedCornerShape(4.dp))
+            .background(
+                if (held) MaterialTheme.colors.primary.copy(alpha = 0.12f)
+                else MaterialTheme.colors.surface
+            )
+            .pointerInput(button) {
+                detectTapGestures(
+                    onPress = {
+                        held = true
+                        session.pressButton(button)
+                        tryAwaitRelease()
+                        held = false
+                        session.releaseButton(button)
+                    },
+                )
+            }
+            .semantics {
+                contentDescription = label
+                onClick(label = "press") {
+                    // The core's own frame-counted tap (poke_tap_button
+                    // via the session): the press is held across frame
+                    // boundaries by the core, so the game samples it
+                    // however busy the device is.
+                    session.tapButton(button)
+                    true
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(if (held) "$label (held)" else label, fontSize = 16.sp)
+    }
+}
+
+// ---- the Genesis pad ---------------------------------------------------------
+//
+// The same grouping-by-activity as the other pads above, with the
+// buttons the Genesis actually has — BOTH pads' worth: the core
+// auto-selects the 3-button or 6-button controller per game (the
+// cartridge's own peripheral flags), so the full set is always shown
+// and a 3-button game simply never reads X, Y, Z or Mode. There is no
+// reader group below the pad: Genesis has no reader in this build,
+// and inventing one would be a lie on the screen (see
+// GenesisGameSession's header). Speech, states and quit-with-save
+// are the PSP shapes, because they are the same operations.
+
+/** Move up / left / right / down. */
+@Composable
+private fun GenesisDirectionalPad(session: GenesisGameSession) {
+    GroupLabel("Directional pad")
+    GenesisHoldButton("Up", session, GenesisKeys.UP)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        GenesisHoldButton("Left", session, GenesisKeys.LEFT, Modifier.weight(1f))
+        GenesisHoldButton("Right", session, GenesisKeys.RIGHT, Modifier.weight(1f))
+    }
+    GenesisHoldButton("Down", session, GenesisKeys.DOWN)
+}
+
+/**
+ * The face buttons, named as the console names them: A/B/C (the
+ * 3-button pad), then X/Y/Z (the 6-button pad's second row).
+ */
+@Composable
+private fun GenesisActionButtons(session: GenesisGameSession) {
+    GroupLabel("Action buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        GenesisHoldButton("A", session, GenesisKeys.A, Modifier.weight(1f))
+        GenesisHoldButton("B", session, GenesisKeys.B, Modifier.weight(1f))
+        GenesisHoldButton("C", session, GenesisKeys.C, Modifier.weight(1f))
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        GenesisHoldButton("X", session, GenesisKeys.X, Modifier.weight(1f))
+        GenesisHoldButton("Y", session, GenesisKeys.Y, Modifier.weight(1f))
+        GenesisHoldButton("Z", session, GenesisKeys.Z, Modifier.weight(1f))
+    }
+}
+
+/** Start, and Mode — the 6-button pad's extra system button. */
+@Composable
+private fun GenesisSystemButtons(session: GenesisGameSession) {
+    GroupLabel("System buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        GenesisHoldButton("Start", session, GenesisKeys.START, Modifier.weight(1f))
+        GenesisHoldButton("Mode", session, GenesisKeys.MODE, Modifier.weight(1f))
+    }
+}
+
+/**
+ * The controls that act on speech itself. Stop speech stops the
+ * platform voice — the whole of it here, since Genesis has no reader
+ * queue behind the bridge (the DS/PSP groups' second half has no
+ * counterpart). Repeat and Repeat older walk the shared bridge's
+ * spoken history, the PSP group's twins; a refused repeat is
+ * answered aloud, iOS's lines, because a silent button reads as
+ * broken.
+ */
+@Composable
+private fun GenesisSpeechGroup(
+    session: GenesisGameSession,
+    say: (String) -> Unit,
+    sayControl: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    GroupLabel("Speech controls")
+    OutlinedButton(
+        onClick = { session.stopSpeech(context) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics {
+                contentDescription = "Stop speech"
+            },
+    ) {
+        Text("Stop speech", fontSize = 16.sp)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatLastSpeech()) sayControl("Nothing to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat last speech" },
+        ) {
+            Text("Repeat", fontSize = 14.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatOlderSpeech()) sayControl("Nothing older to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat older speech" },
+        ) {
+            Text("Repeat older", fontSize = 14.sp)
+        }
+    }
+}
+
+/** Whole-core savestates, one slot per game. [DsStateGroup]'s twin. */
+@Composable
+private fun GenesisStateGroup(session: GenesisGameSession, say: (String) -> Unit) {
+    val context = LocalContext.current
+    GroupLabel("Save states")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = {
+                say(
+                    if (session.saveState(context)) {
+                        "State saved."
+                    } else {
+                        "That state could not be saved."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Save state" },
+        ) {
+            Text("Save state", fontSize = 14.sp)
+        }
+        Button(
+            onClick = {
+                say(
+                    if (session.loadState(context)) {
+                        "State loaded."
+                    } else {
+                        "There is no saved state for this game yet."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Load state" },
+        ) {
+            Text("Load state", fontSize = 14.sp)
+        }
+    }
+}
+
+/**
+ * Quit the Genesis game — saving first, and saying so.
+ * [QuitPspGame]'s twin: the auto-save runs BEFORE stop (a whole-core
+ * state needs the core alive), and the line is spoken before the
+ * stop for the reason QuitPspGame's note gives — the Activity's
+ * bridge only forwards while a session is running. The battery save
+ * needs no line of its own: the session's stop flushes it to the
+ * game's .sav on the way down, whether the state save worked or not.
+ * No onQuit callback: the launcher reads the session's running state
+ * directly, so stopping is the whole job — the controls come down
+ * with the session (the DS quit's shape).
+ */
+@Composable
+private fun QuitGenesisGame(
+    session: GenesisGameSession,
+    say: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    OutlinedButton(
+        onClick = {
+            val saved = session.saveState(context)
+            say(
+                if (saved) {
+                    "Game closed. Progress saved."
+                } else {
+                    "Game closed. Could not save."
+                }
+            )
+            session.stop()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = "Quit game" },
+    ) {
+        Text("Quit game", fontSize = 16.sp)
+    }
+}
+
+/**
+ * A Genesis game button: [PspHoldButton]'s twin, typed to the Genesis
+ * session — hold under a finger, short press on the screen-reader
+ * click, drawn by hand so the gesture detector owns the touch (see
+ * PspHoldButton's note for the defect that taught the shape).
+ */
+@Composable
+private fun GenesisHoldButton(
+    label: String,
+    session: GenesisGameSession,
+    button: Int,
+    modifier: Modifier = Modifier,
+) {
+    var held by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                1.dp,
+                MaterialTheme.colors.onSurface.copy(alpha = 0.12f),
+                RoundedCornerShape(4.dp),
+            )
+            .clip(RoundedCornerShape(4.dp))
+            .background(
+                if (held) MaterialTheme.colors.primary.copy(alpha = 0.12f)
+                else MaterialTheme.colors.surface
+            )
+            .pointerInput(button) {
+                detectTapGestures(
+                    onPress = {
+                        held = true
+                        session.pressButton(button)
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            // Finally, not sequence — see HoldButton: a
+                            // mid-press removal cancels the await, and the
+                            // button must still come up in the game.
+                            held = false
+                            session.releaseButton(button)
+                        }
+                    },
+                )
+            }
+            .semantics {
+                contentDescription = label
+                onClick(label = "press") {
+                    // The core's own frame-counted tap (poke_tap_button
+                    // via the session), the DS button's reasoning: the
+                    // press is held across frame boundaries by the
+                    // core, so the game samples it however busy the
+                    // device is.
+                    session.tapButton(button)
+                    true
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(if (held) "$label (held)" else label, fontSize = 16.sp)
     }
 }

@@ -58,6 +58,7 @@ object PspAccessibilityScript
     private external fun nativePspAvailable(): Boolean
     private external fun nativePspLoadRom(romPath: String, saveDir: String, assetDir: String): Boolean
     private external fun nativePspGameCode(): String
+    private external fun nativePspCoreMode(): String
     private external fun nativePspLastError(): String
     private external fun nativePspStart(): Boolean
     private external fun nativePspStop()
@@ -66,6 +67,7 @@ object PspAccessibilityScript
     private external fun nativePspFramesCompleted(): Long
     private external fun nativePspSetButton(button: Int, down: Boolean)
     private external fun nativePspReadAudio(out: ShortArray, maxFrames: Int): Int
+    private external fun nativePspCopyFrame(out: IntArray, sizeOut: IntArray): Int
     private external fun nativePspSaveState(path: String): Boolean
     private external fun nativePspLoadState(path: String): Boolean
 
@@ -178,6 +180,23 @@ object PspAccessibilityScript
     /** The loaded game's DISC_ID (e.g. ULUS10437), or "" before a load. */
     fun gameCode(): String = nativePspGameCode()
 
+    /**
+     * The session's CPU core mode in the core's own plain terms
+     * ("JIT (Arm64 IR)" when the IR JIT backend object exists,
+     * "IR interpreter (JIT not engaged)", a BROKEN line when a JIT was
+     * requested but no backend was created). Guarded like every other
+     * call into this surface: on a build without the PSP core the
+     * native is absent and the honest answer is "unavailable".
+     */
+    fun coreMode(): String = try
+    {
+        nativePspCoreMode()
+    }
+    catch (t: Throwable)
+    {
+        "unavailable"
+    }
+
     /** The core's own words for the last failure, or "". */
     fun lastError(): String = nativePspLastError()
 
@@ -208,6 +227,25 @@ object PspAccessibilityScript
      * ring is dry.
      */
     fun readAudio(out: ShortArray, maxFrames: Int): Int = nativePspReadAudio(out, maxFrames)
+
+    /**
+     * The current frame as RGBA8888 ints, plus its size — the twin of
+     * GbAccessibilityScript.currentFrame, same contract: returns
+     * (pixels, width, height), or null when nothing is loaded or the
+     * core cannot hand a frame back. The pixels come from the psp_*
+     * ABI's own framebuffer staging (psp_framebuffer fills it,
+     * psp_framebuffer_ptr hands it back — the stage-2 boot proof in
+     * PspSessionJNI.cpp reads the same buffer), so this is a copy of a
+     * frame the core already produced, never a second render.
+     */
+    fun currentFrame(): Triple<IntArray, Int, Int>?
+    {
+        val pixels = IntArray(480 * 272)
+        val size = IntArray(2)
+        val count = nativePspCopyFrame(pixels, size)
+        if (count <= 0) return null
+        return Triple(pixels, size[0], size[1])
+    }
 
     fun saveState(path: String): Boolean = nativePspSaveState(path)
 

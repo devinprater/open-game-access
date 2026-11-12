@@ -33,6 +33,7 @@ export PATH="$JAVA_HOME/bin:$ANDROID_HOME/platform-tools:$PATH"
 FRONTEND="${OGA_FRONTEND:-$HOME/frontend}"
 MGBA_SRC="${MGBA_SRC:-$HOME/src/mgba}"
 LUA_SRC="${LUA_SRC:-$HOME/src/lua-5.4.7}"
+MESEN_SRC="${MESEN_SRC:-$HOME/src/mesen}"
 
 echo "================= OGA Android local build ================="
 echo "repo      : $ROOT"
@@ -41,6 +42,7 @@ echo "JAVA_HOME : $JAVA_HOME"
 echo "ANDROID_HOME: $ANDROID_HOME"
 echo "MGBA_SRC  : $MGBA_SRC"
 echo "LUA_SRC   : $LUA_SRC"
+echo "MESEN_SRC : $MESEN_SRC"
 echo
 
 fail() { echo; echo "!! $1" >&2; exit 1; }
@@ -92,7 +94,7 @@ cp -r "$MELONDS_LUA" "$FRONTEND/melonDS-android-lib" || fail "core swap failed"
 
 # ---- step 5: the overlay ---------------------------------------------------
 echo "== step 5: applying the Open Game Access overlay"
-MGBA_SRC="$MGBA_SRC" LUA_SRC="$LUA_SRC" \
+MGBA_SRC="$MGBA_SRC" LUA_SRC="$LUA_SRC" MESEN_SRC="$MESEN_SRC" \
   bash scripts/android-apply-overlay.sh "$FRONTEND" "$ROOT" || fail "overlay failed"
 
 # ---- step 6: retarget the shell to our core's API --------------------------

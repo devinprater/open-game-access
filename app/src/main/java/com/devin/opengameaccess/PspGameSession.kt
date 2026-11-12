@@ -8,6 +8,7 @@ import android.media.AudioTrack
 import android.net.Uri
 import android.os.Handler
 import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.View
 import androidx.compose.runtime.Composable
@@ -64,9 +65,11 @@ import java.io.File
  * core. Game Boy has no audio path on Android today (a standing TODO in
  * the GB session's world); PSP ships with one because the core already
  * mixes the game's sound and leaving it unplayed would make every PSP
- * game a silent movie. There is no Android audio setting to gate the
- * drain behind — SettingsScreen says so itself — so it runs whenever a
- * PSP game does.
+ * game a silent movie. The drain is gated by Settings' Game sound
+ * switch ([GameSoundSettings], parity stage 3 — iOS's audioEnabled):
+ * with it off the drain still runs and the cue synth still mixes in,
+ * but the game's own samples are silenced first, so the cues keep
+ * sounding over a muted game exactly as they do on iOS.
  */
 object PspGameSession {
 
@@ -74,6 +77,49 @@ object PspGameSession {
 
     /** The rate the core hands audio out at (Core/psp_core.h). */
     private const val AUDIO_RATE = 32768
+
+    /** Bytes in one stereo s16 frame at [AUDIO_RATE]. */
+    private const val AUDIO_FRAME_BYTES = 4
+
+    /**
+     * The AudioTrack's capacity, in frames (~62 ms at [AUDIO_RATE]).
+     * Small on purpose: whatever the track can hold is latency between
+     * a press and its sound (see [audioLoop]'s lead bound).
+     */
+    private const val AUDIO_BUFFER_FRAMES = 2048
+
+    /**
+     * The most the drain lets written audio run ahead of the track's
+     * playback head, in frames (~100 ms at [AUDIO_RATE]). The bound
+     * that keeps a press's sound a press's sound and not a late echo
+     * of it: see [audioLoop].
+     */
+    private const val AUDIO_MAX_LEAD_FRAMES = AUDIO_RATE / 10
+
+    /** One drain read, in frames (~31 ms): the lead bound's granularity. */
+    private const val AUDIO_CHUNK_FRAMES = 1024
+
+    /**
+     * The cushion the drain writes into the track BEFORE anything
+     * plays it, in frames (~94 ms at [AUDIO_RATE]) — capped by the
+     * track's real capacity in [audioLoop]. A track set playing empty
+     * can underrun inside its startup window and be removed by
+     * AudioFlinger before the drain's first chunks land; that removal
+     * is half of the round-2 deadlock (see [audioLoop]). A cushion
+     * already in the buffer gives playback something to consume from
+     * the first instant.
+     */
+    private const val AUDIO_PRIME_FRAMES = 3072
+
+    /**
+     * How long the playback head may sit frozen while the lead gate
+     * is holding writes before the drain treats the track as wedged
+     * and revives it, in milliseconds. Keyed on TIME with a frozen
+     * head, never on lead size: the round-2 gate capped the lead
+     * itself, so a lead-keyed escape was unreachable by construction
+     * (see [audioLoop]).
+     */
+    private const val AUDIO_HEAD_STALL_MS = 250L
 
     /**
      * The application context, kept from [start] so the per-frame cue
@@ -196,6 +242,7 @@ object PspGameSession {
                     return@post
                 }
                 running = true
+                lastHeartbeatFrame = 0L
                 lastError = ""
                 // The bridge exists now (built on demand, as the GB
                 // session builds it when its reader starts), so the
@@ -242,6 +289,8 @@ object PspGameSession {
                 storedAnnouncementView?.let { AccessibilityScript.setAnnouncementView(it) }
                 startAudio()
                 Log.i(TAG, "PSP session running: $gameCode")
+                Log.i(TAG, "PSP core: ${PspAccessibilityScript.coreMode()}")
+                Log.i(TAG, "PSP speech: ${bridge.announcementState()}")
                 onResult(null)
             }
         }
@@ -352,6 +401,9 @@ object PspGameSession {
         } catch (t: Throwable) {
             false
         }
+        // The Game sound gate, resolved per frame like the cue gate
+        // in pollCues: a flip in Settings lands on the next frame.
+        appContext?.let { gameSoundOn = GameSoundSettings.gameSoundEnabled(it) }
         pollCues()
         val completed = try {
             PspAccessibilityScript.framesCompleted
@@ -360,7 +412,8 @@ object PspGameSession {
         }
         if (completed >= lastHeartbeatFrame + 600L) {
             lastHeartbeatFrame = completed
-            Log.i(TAG, "PSP running: frames=$completed audioFrames=$audioFramesWritten")
+            Log.i(TAG, "PSP running: frames=$completed audioFrames=$audioFramesWritten " +
+                "audioHead=$audioHeadPosition audioLead=${audioFramesWritten - audioHeadPosition}")
         }
     }
 
@@ -485,6 +538,35 @@ object PspGameSession {
         }
     }
 
+    /**
+     * True when a saved state exists for the loaded game. Settings'
+     * Load state button picks its spoken answer from this — "No
+     * saved state yet." versus a load that failed — the distinction
+     * iOS's loadState makes the same way.
+     */
+    fun hasSavedState(context: Context): Boolean = stateFile(context).isFile
+    // ---- the picture ---------------------------------------------------------
+    //
+    // The session screen's game picture (the iOS app's FrameImage): the
+    // core's current frame as RGBA8888 ints plus its size, or null when
+    // no frame can be had. Guarded like every native call in this
+    // session — on a build without the PSP surface the picture is
+    // simply absent, never a crash in a UI poll. The caller confines
+    // this to its picture composable's own cadence, NOT the frame
+    // clock: the readback is a copy of a staged frame, and the player
+    // who has the picture switched off never pays for it at all (the
+    // composable is not composed then — see LauncherScreen).
+
+    /** The current frame (pixels, width, height), or null. */
+    fun currentFrame(): Triple<IntArray, Int, Int>? {
+        if (!running) return null
+        return try {
+            PspAccessibilityScript.currentFrame()
+        } catch (t: Throwable) {
+            null
+        }
+    }
+
     // ---- the reader (stage 4) ----------------------------------------------
     //
     // The command surface the launcher's PSP screen drives. It mirrors
@@ -537,6 +619,20 @@ object PspGameSession {
     }
 
     /**
+     * Re-read the newest spoken line, or step one line further back
+     * through what was spoken — the shared bridge's spoken-history
+     * walk (see AccessibilitySpeech), iOS's RepeatNewest /
+     * RepeatOlder pair. The bridge is where PSP speech converges
+     * too (the adapter host speaks through it), so one walk covers
+     * both consoles' lines. False when there is nothing (older) to
+     * repeat; speaking the refusal is the screen's job, as it is for
+     * iOS's callers.
+     */
+    fun repeatLastSpeech(): Boolean = AccessibilityScript.repeatLastSpeech()
+
+    fun repeatOlderSpeech(): Boolean = AccessibilityScript.repeatOlderSpeech()
+
+    /**
      * Forward one pad press to the adapter as its echo command — the
      * adapter.h echo contract, in this pad's own button names: face
      * buttons are the on-screen keyboard's keys while a text entry is
@@ -570,6 +666,18 @@ object PspGameSession {
 
     // ---- audio --------------------------------------------------------------
 
+    /**
+     * The Game sound switch's current value, refreshed once a frame
+     * by [runFrame] from the store (the same per-frame resolution
+     * [pollCues] gives the battle-cues gate, so a flip in Settings
+     * takes hold on the next frame) and read by the drain thread.
+     * True until the first frame says otherwise: sound on is both
+     * the setting's default and the behaviour this session shipped
+     * with before the switch existed.
+     */
+    @Volatile
+    private var gameSoundOn = true
+
     @Volatile
     private var audioRunning = false
 
@@ -578,6 +686,10 @@ object PspGameSession {
 
     @Volatile
     private var audioFramesWritten = 0L
+
+    /** The track's playback head, as last read by the drain (heartbeat evidence). */
+    @Volatile
+    private var audioHeadPosition = 0L
 
     private fun startAudio() {
         val minBuffer = AudioTrack.getMinBufferSize(
@@ -604,8 +716,14 @@ object PspGameSession {
                         .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
                         .build()
                 )
-                // ~0.5 s of stereo s16, or the platform minimum if larger.
-                .setBufferSizeInBytes(maxOf(minBuffer, AUDIO_RATE * 2))
+                // [AUDIO_BUFFER_FRAMES] of stereo s16 (~62 ms), or the
+                // platform minimum if larger. This used to ask for
+                // ~0.5 s (AUDIO_RATE * 2 bytes): the track then stood
+                // full of already-written audio, and a sound the core
+                // made for a press waited behind all of it to be heard
+                // -- measured on device 2026-11-11 as presses answering
+                // late in an otherwise smooth session.
+                .setBufferSizeInBytes(maxOf(minBuffer, AUDIO_BUFFER_FRAMES * AUDIO_FRAME_BYTES))
                 .setTransferMode(AudioTrack.MODE_STREAM)
                 .build()
         } catch (t: Throwable) {
@@ -614,40 +732,217 @@ object PspGameSession {
         }
         audioTrack = track
         audioFramesWritten = 0L
+        audioHeadPosition = 0L
         audioRunning = true
-        track.play()
+        // ⛔ NOT play()ed here. The drain primes a cushion of frames
+        // into the track first and plays it from inside [audioLoop]:
+        // a track set playing empty underran inside its startup
+        // window on device (2026-11-11, round 2's first session —
+        // removed by AudioFlinger 434 ms after start, head frozen at
+        // 411), and the lead gate then held writes forever waiting
+        // for that frozen head to move. Priming first removes the
+        // underrun; the gate's time-based escape (see [audioLoop])
+        // covers a removal that happens anyway.
         val thread = Thread { audioLoop(track) }
         thread.name = "psp-audio"
         audioThread = thread
         thread.start()
-        Log.i(TAG, "PSP audio started: AudioTrack at $AUDIO_RATE Hz, stereo")
+        Log.i(TAG, "PSP audio started: AudioTrack at $AUDIO_RATE Hz, stereo, " +
+            "buffer ${track.bufferSizeInFrames} frames, lead bound $AUDIO_MAX_LEAD_FRAMES frames")
     }
 
+    /**
+     * The drain: ring -> cue mix -> AudioTrack, for the session's life.
+     *
+     * ⛔ THE LEAD OVER PLAYBACK IS BOUND, OR PRESSES ANSWER LATE. The
+     * core produces ~3% faster than the track consumes (the frame
+     * clock's 120 steps a second at ~282 samples a step), so an
+     * ungated drain fills every buffer it is given and stands there:
+     * before this bound, the native ring (371 ms at capacity) plus a
+     * ~0.5 s track buffer meant a cursor blip the core made on a press
+     * could wait the better part of a second behind older audio before
+     * being heard -- smooth sound, late answers, measured on device
+     * 2026-11-11 in the fixed build's first session. So before reading
+     * more, the loop compares what it has written with the track's own
+     * playback head and waits while the lead exceeds
+     * [AUDIO_MAX_LEAD_FRAMES]: written-minus-played can then never
+     * exceed that bound plus one [AUDIO_CHUNK_FRAMES] read (~131 ms
+     * worst case), whatever the panel or the surplus do. The surplus
+     * itself backs into the ring, whose push side already drops its
+     * oldest samples at capacity -- the sink the core's audio contract
+     * built for exactly this (System_AudioPushSamples).
+     *
+     * ⛔ PRIME BEFORE PLAY, AND ESCAPE ON TIME, NEVER ON LEAD. Round 2
+     * shipped the bound above with a lead-based failsafe (a head past
+     * a full second of lead was treated as broken and the gate opened)
+     * and deadlocked in its first on-device session (pid 15235,
+     * 2026-11-11): play() was called on an empty track, which underran
+     * 434 ms in; AudioFlinger removed it (BUFFER TIMEOUT) and its
+     * playbackHeadPosition froze at 411. The drain had written 3,687
+     * frames, so the lead sat in the gate's sleep band -- and could
+     * never climb past it, because the gate itself caps the lead at
+     * the bound plus one chunk. The failsafe was unreachable by
+     * construction: the drain slept forever waiting for a head that
+     * only a write could revive, while the gate forbade the write.
+     * Sixteen heartbeats, audioFrames frozen at 3687, emulation and
+     * speech perfect, sound zero. So now the drain primes a cushion
+     * of frames into the track before anything plays it (each priming
+     * write capped by the room left to the target, so a pre-play
+     * write can never block on a full buffer), and while the gate
+     * holds, a head frozen for [AUDIO_HEAD_STALL_MS] is revived by
+     * force: one chunk written anyway -- a write is what reactivates
+     * a removed track -- and flush() + play() if even that does not
+     * move the head within another stall interval. The escape is
+     * keyed on elapsed time with a frozen head, never on lead size;
+     * the bound above governs untouched once the track is genuinely
+     * playing.
+     */
     private fun audioLoop(track: AudioTrack) {
-        val buffer = ShortArray(2048 * 2)
-        while (audioRunning) {
+        val buffer = ShortArray(AUDIO_CHUNK_FRAMES * 2)
+        // The track's real capacity can exceed the request (the
+        // platform minimum overrides upward -- 3,942 frames for a
+        // 2,048 request on device), so prime against the real number.
+        val bufferFrames = try {
+            track.bufferSizeInFrames
+        } catch (t: Throwable) {
+            AUDIO_BUFFER_FRAMES
+        }
+        val primeTarget = minOf(bufferFrames, AUDIO_PRIME_FRAMES).toLong()
+        var playing = false
+        var lastHead = -1L
+        var headAdvancedAtMs = SystemClock.uptimeMillis()
+        // The wedged-head revive state: stage 0 = no attempt yet this
+        // stall (a forced write is next), 1 = a write was forced (a
+        // flush + replay is next); the attempt's time bounds the next.
+        var reviveStage = 0
+        var reviveAtMs = 0L
+
+        fun readHead(): Long = try {
+            track.playbackHeadPosition.toLong() and 0xFFFF_FFFFL
+        } catch (t: Throwable) {
+            audioFramesWritten
+        }
+
+        // One ring read, handled exactly as every write is (silence
+        // for the sound switch, cue mix, blocking write), with at
+        // most [maxFrames] of it written. Returns the frames written;
+        // 0 when the ring is dry. Samples read past [maxFrames] are
+        // dropped — that overshoot exists only at the priming cap,
+        // during startup.
+        fun drainChunk(maxFrames: Int): Int {
             val frames = try {
-                PspAccessibilityScript.readAudio(buffer, 2048)
+                PspAccessibilityScript.readAudio(buffer, AUDIO_CHUNK_FRAMES)
             } catch (t: Throwable) {
                 0
             }
-            if (frames > 0) {
-                // The cue synth mixes into the game's own audio here,
-                // at the drain — the one output path, so cue and game
-                // can never drift apart (see PspCueSynth). Silent
-                // unless a frame poll armed a voice.
-                PspCueSynth.render(buffer, frames)
-                track.write(buffer, 0, frames * 2, AudioTrack.WRITE_BLOCKING)
-                audioFramesWritten += frames
-            } else {
-                // Dry: the ring refills as frames run. Sleep briefly
-                // rather than spin a processor on an empty queue.
-                try {
-                    Thread.sleep(4)
-                } catch (e: InterruptedException) {
-                    break
-                }
+            if (frames <= 0) return 0
+            // Game sound off: the game's samples are silenced BEFORE
+            // the cue mix, never instead of draining — the ring must
+            // keep emptying or the core's audio backs up, and the cues
+            // must keep sounding over a muted game (iOS's split
+            // between audioEnabled and the cue switch, honoured at the
+            // one place they meet).
+            if (!gameSoundOn) {
+                java.util.Arrays.fill(buffer, 0, frames * 2, 0)
             }
+            // The cue synth mixes into the game's own audio here, at
+            // the drain — the one output path, so cue and game can
+            // never drift apart (see PspCueSynth). Silent unless a
+            // frame poll armed a voice.
+            PspCueSynth.render(buffer, frames)
+            val toWrite = minOf(frames, maxFrames)
+            if (toWrite > 0) {
+                track.write(buffer, 0, toWrite * 2, AudioTrack.WRITE_BLOCKING)
+                audioFramesWritten += toWrite
+            }
+            return toWrite
+        }
+
+        // The loop's one pause: false when interrupted, which every
+        // caller treats as the session ending.
+        fun sleepBriefly(): Boolean = try {
+            Thread.sleep(4)
+            true
+        } catch (e: InterruptedException) {
+            false
+        }
+
+        while (audioRunning) {
+            val head = readHead()
+            audioHeadPosition = head
+            val now = SystemClock.uptimeMillis()
+            if (head != lastHead) {
+                lastHead = head
+                headAdvancedAtMs = now
+                reviveStage = 0
+            }
+
+            if (!playing) {
+                // Priming: nothing consumes yet, so the head is 0 and
+                // the frames written ARE the cushion. Each write is
+                // capped by the room left to the target, so a pre-play
+                // write can never block waiting for a drain nothing
+                // has started. A dry ring just delays play() until the
+                // cushion exists — the core produces from its first
+                // frames.
+                val room = primeTarget - audioFramesWritten
+                if (room <= 0L) {
+                    try {
+                        track.play()
+                    } catch (t: Throwable) {
+                        Log.w(TAG, "PSP audio: play after priming threw: ${t.message}")
+                    }
+                    playing = true
+                    headAdvancedAtMs = now
+                    Log.i(TAG, "PSP audio playing: primed $audioFramesWritten frames " +
+                        "into a $bufferFrames-frame track")
+                    continue
+                }
+                if (drainChunk(room.toInt()) == 0 && !sleepBriefly()) break
+                continue
+            }
+
+            val lead = audioFramesWritten - head
+            if (lead > AUDIO_MAX_LEAD_FRAMES) {
+                // Ahead of the bound: the track is still playing what
+                // was already written, so sleep briefly rather than
+                // read samples that would only deepen the queue —
+                // UNLESS the head has stopped moving. A head frozen
+                // past [AUDIO_HEAD_STALL_MS] while the gate holds
+                // means AudioFlinger has likely removed the track;
+                // only a write brings it back, so force one on time,
+                // and escalate to flush + replay if even that write
+                // does not move the head within another interval.
+                val frozenMs = now - headAdvancedAtMs
+                if (frozenMs > AUDIO_HEAD_STALL_MS && now - reviveAtMs > AUDIO_HEAD_STALL_MS) {
+                    if (reviveStage == 0) {
+                        Log.w(TAG, "PSP audio: head frozen at $head for $frozenMs ms " +
+                            "with lead $lead; forcing a write to revive the track")
+                        reviveStage = 1
+                    } else {
+                        Log.w(TAG, "PSP audio: head still frozen at $head after a " +
+                            "forced write; flushing and replaying the track")
+                        try {
+                            track.flush()
+                        } catch (t: Throwable) {
+                            // The replay below is the recovery either way.
+                        }
+                        try {
+                            track.play()
+                        } catch (t: Throwable) {
+                            Log.w(TAG, "PSP audio: replay after flush threw: ${t.message}")
+                        }
+                    }
+                    drainChunk(AUDIO_CHUNK_FRAMES)
+                    reviveAtMs = now
+                }
+                if (!sleepBriefly()) break
+                continue
+            }
+            // Under the bound: feed the track. A dry ring sleeps
+            // briefly rather than spinning a processor on an empty
+            // queue — it refills as frames run.
+            if (drainChunk(Int.MAX_VALUE) == 0 && !sleepBriefly()) break
         }
     }
 
@@ -748,20 +1043,49 @@ object PspAdapterCommands {
 }
 
 /**
- * Drives one emulated PSP frame per Compose frame while a PSP game runs.
+ * Drives the PSP core while a PSP game runs: 120 emulated frames per
+ * wall-clock second, accumulated against the Compose frame signal.
  *
  * The twin of GbGameSession.kt's rememberFrameClock, kept beside its own
- * session for the same reason that one is beside its: the cadence is the
- * app's frame signal, so the core's per-frame work happens on the same
- * thread that produced it.
+ * session for the same reason that one is beside its, but NOT one frame
+ * per vsync like its twin: the PSP core's audio does not survive that.
+ * One runFrame() advances exactly one emulated frame (psp_frame runs
+ * 1/60 s chunks to the next vblank), and the core yields only ~280-306
+ * audio samples per frame at the app's 32768 Hz (measured on device,
+ * 2026-11-11, across builds and games states) -- so a 60 Hz vsync
+ * cadence produces ~17-18k samples a second against the 32768 the
+ * AudioTrack consumes, and the track starves into audible stutter for
+ * as long as the session runs. The same phone undocked ticked ~117
+ * times a second (120 Hz panel) and the identical build fed the track
+ * fully. The cadence is therefore owed by the clock, not by the panel:
+ * 120 steps per wall second, paid out in small batches per vsync tick
+ * (at a true 120 Hz panel, exactly one step per tick -- the old
+ * behaviour). MainActivity separately asks the display for its fastest
+ * mode; this accumulator is what makes the session independent of
+ * whether the panel honours it.
  */
 @Composable
 fun rememberPspFrameClock(running: Boolean) {
     if (!running) return
     androidx.compose.runtime.LaunchedEffect(Unit) {
+        var owed = 0.0
+        var lastNanos = 0L
         while (true) {
-            androidx.compose.runtime.withFrameNanos { }
-            PspGameSession.runFrame()
+            val now = androidx.compose.runtime.withFrameNanos { it }
+            if (lastNanos != 0L) {
+                owed += (now - lastNanos) / 1_000_000_000.0 * 120.0
+            }
+            lastNanos = now
+            var steps = 0
+            while (owed >= 1.0 && steps < 4) {
+                PspGameSession.runFrame()
+                owed -= 1.0
+                steps++
+            }
+            // A long stall (a backgrounded minute, a frozen frame) must
+            // not turn into a catch-up spiral: forgive the debt past
+            // the per-tick cap.
+            if (owed > 4.0) owed = 4.0
         }
     }
 }

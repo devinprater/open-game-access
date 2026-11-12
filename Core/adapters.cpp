@@ -42,10 +42,11 @@ extern const Adapter kDragonBallZSaiyans;
 extern const Adapter kDissidiaFinalFantasy;
 
 // Implemented in dq9_adapter.cpp — Dragon Quest IX: Sentinels of the Starry
-// Skies (US, YDQE). A NATIVE scaffold over the mod's own documented addresses
-// (third-party/DQ9-Access): WhereAmI, party cycling and DumpState. Menus,
-// battles and travel stay mod (Lua) territory until a live-ROM pass confirms
-// them through this front.
+// Skies (US, YDQE). A NATIVE front over the mod's own documented addresses
+// (third-party/DQ9-Access): WhereAmI, party cycling, the nearby scan,
+// DumpState, and menu speech — queried and automatic — including the title
+// menus, character creation and the name-entry keyboard. Dialogue, shops
+// and travel stay mod (Lua) territory.
 extern const Adapter kDragonQuestIX;
 
 // Implemented in mku_adapter.cpp — Mortal Kombat: Unchained (PSP,
@@ -99,6 +100,7 @@ extern const Adapter kNintendoEntertainmentSystem;
 //      read even with a core. See docs/research/accessibility-mods-survey.md.
 // A StarFox reader for this app would be a NEW N64 Lua reader, gated on blocker 1.
 extern const Adapter kNintendo64;
+extern const Adapter kSegaGenesis;
 
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
@@ -112,6 +114,7 @@ static const Adapter* const kAdapters[] = {
     &kZeldaLinkToThePast,
     &kNintendoEntertainmentSystem,
     &kNintendo64,
+    &kSegaGenesis,
 };
 
 const Adapter* const* all_adapters(int* count)

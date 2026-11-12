@@ -248,8 +248,8 @@ else:
 # ---- 7. THE GAME LIBRARY DATA MATCHES THE REGISTRY -------------------------
 # AdapterLibraryData.kt is generated from the registry but checked in, so it
 # can go stale. What is asserted here is the identity a regeneration cannot
-# fake: one library entry per registered adapter, minus the two console-only
-# placeholders (the NES and N64 rows) that Core's LibraryAdapter filter
+# fake: one library entry per registered adapter, minus the console-only
+# placeholders (the NES, N64 and Genesis rows) that Core's LibraryAdapter filter
 # excludes — if a tenth adapter is registered and the data is not
 # regenerated, the counts diverge and this fails. The screen must also exist
 # and be wired from the Activity, or the data is a list nobody can reach.
@@ -263,7 +263,8 @@ else:
     block = re.search(r"kAdapters\[\]\s*=\s*\{(.*?)\};", registry, re.S)
     entries = re.findall(r"&(k\w+)", block.group(1)) if block else []
     placeholders = [e for e in entries
-                    if e in ("kNintendoEntertainmentSystem", "kNintendo64")]
+                    if e in ("kNintendoEntertainmentSystem", "kNintendo64",
+                             "kSegaGenesis")]
     want_count = len(entries) - len(placeholders)
     data = read(LIBRARY_KT)
     # One match is the data class declaration; the rest are list entries.
@@ -532,12 +533,20 @@ else:
         "ULUS adapters",
         "host has %s, the registry's PSP set is %s"
         % (sorted(host_set), sorted(expected_psp)))
-if "AdapterNoteSpoken" in psp_host and "AdapterSpeechReset" in psp_host:
-    ok("the host carries the adapters' spoken-line dedup helpers")
+# The dedup helpers live in the registry TU ONLY. The PSP host used to
+# carry copies (the registry could not link here then); the DS stage
+# links adapters.cpp, copies and originals collided at link time, and
+# the copies were removed — a second definition anywhere is the
+# duplicate-symbol defect returning.
+if ("bool AdapterNoteSpoken(const char* s)" in registry
+        and "void AdapterSpeechReset(void)" in registry
+        and "bool AdapterNoteSpoken(const char* s) {" not in psp_host
+        and "void AdapterSpeechReset(void) {" not in psp_host):
+    ok("the spoken-line dedup helpers live in the registry TU only")
 else:
-    bad("the host carries the adapters' spoken-line dedup helpers",
+    bad("the spoken-line dedup helpers live in the registry TU only",
         "the adapters call oga::AdapterNoteSpoken/AdapterSpeechReset; "
-        "without definitions in the host TU the glue cannot link")
+        "they must be defined exactly once, by Core/adapters.cpp")
 
 # The Kotlin command mirror, checked value by value against the enum.
 def snake(name):
@@ -655,7 +664,7 @@ wiring = {
         # the span section 9's note describes (the picker's MIME string
         # blinds the comment stripper to everything after it).
         "PspReaderGroup(PspGameSession)" in read(SCREEN_KT)
-        and "PspSpeechGroup(PspGameSession)" in read(SCREEN_KT),
+        and "PspSpeechGroup(PspGameSession," in read(SCREEN_KT),
 }
 for what, present in wiring.items():
     if present:
@@ -663,6 +672,503 @@ for what, present in wiring.items():
     else:
         bad(what, "the stage-4 surface was edited away")
 
+
+# ---- 11. THE DS SESSION: BUTTON IDS, JNI, ROUTING, THE HONEST PAGE --------
+# Parity stage 4 (DS half) adds a third session beside GB and PSP, over the
+# shared Core DS host (Core/pokecore.cpp) rather than a new slice. The same
+# defect classes apply, with DS twists:
+#  * The button ids index the shared pad table, so they are checked against
+#    pokecore.h's POKE_BTN_* defines — not against PspKeys (a different
+#    core's order) and not against a Kotlin convention.
+#  * The host shares the frontend .so with both other cores, so presence is
+#    a JNI question: every external the Kotlin declares must resolve to an
+#    exact symbol in DsSessionJNI.cpp, and availability must be the guarded
+#    native probe.
+#  * The command integers are the same C ABI as PSP's (adapter.h's enum),
+#    mirrored in DsAdapterCommands and checked the same way (section 10's
+#    enum parse and snake() are reused).
+#  * The overlay must actually stage and wire the host (its section 9): a
+#    DS page over an unwired host is the defect sections 7-8 exist to catch
+#    — files present, nothing compiled — wearing a DS badge.
+#  * The library page must stop saying the DS reader "is not in the Android
+#    build yet", and its Load button (the DS half of the Stage 2 load flow)
+#    must exist.
+DS_SESSION_KT = "app/src/main/java/com/devin/opengameaccess/DsGameSession.kt"
+DS_SCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+                "accessibility/DsAccessibilityScript.kt")
+DS_JNI_CPP = "app/native-overlay/app/src/main/cpp/DsSessionJNI.cpp"
+POKE_HEADER = "Sources/CPokeCore/include/pokecore.h"
+for rel in (DS_SESSION_KT, DS_SCRIPT_KT, DS_JNI_CPP, POKE_HEADER):
+    if not os.path.exists(rel):
+        print("!! %s is missing; refusing to report a pass" % rel)
+        sys.exit(1)
+
+ds_session = strip_kt(read(DS_SESSION_KT))
+poke_header = read(POKE_HEADER)
+want_ds = {k: int(v) for k, v in
+           re.findall(r"#define\s+POKE_BTN_(\w+)\s+(\d+)", poke_header)}
+want_ds.pop("COUNT", None)  # a count, not a button; DsKeys holds buttons
+block = re.search(r"object\s+DsKeys\s*\{(.*?)\n\}", ds_session, re.S)
+if not block:
+    bad("DsKeys is defined", "no `object DsKeys {` found")
+else:
+    got_ds = {k: int(v) for k, v in
+              re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)", block.group(1))}
+    if got_ds == want_ds and len(want_ds) == 12:
+        ok("the DS button ids match pokecore.h exactly (%d buttons)"
+           % len(want_ds))
+    else:
+        diff = {k: (got_ds.get(k), v) for k, v in want_ds.items()
+                if got_ds.get(k) != v}
+        bad("the DS button ids match pokecore.h exactly",
+            "differs: %s" % diff)
+
+ds_kt = read(DS_SCRIPT_KT)
+ds_jni = read(DS_JNI_CPP)
+ds_jni_symbols = set(re.findall(r"Java_[A-Za-z0-9_]+", ds_jni))
+ds_externals = re.findall(r"external\s+fun\s+(\w+)\s*\(", ds_kt)
+unbound = []
+for name in ds_externals:
+    simple = ("Java_me_magnum_melonds_accessibility_"
+              "DsAccessibilityScript_" + name)
+    if simple not in ds_jni_symbols:
+        unbound.append(name)
+if ds_externals and not unbound:
+    ok("every DS external fun has its exact JNI symbol (%d)"
+       % len(ds_externals))
+else:
+    bad("every DS external fun has its exact JNI symbol",
+        "unbound: %s" % unbound)
+
+if ("coreAvailable" in ds_session and "isCoreLinked" in ds_session
+        and "UnsatisfiedLinkError" in ds_session):
+    ok("DS availability is the guarded native probe "
+       "(the cores share one .so)")
+else:
+    bad("DS availability is the guarded native probe",
+        "the probe must reach the JNI existence check behind an "
+        "UnsatisfiedLinkError catch; the package cannot tell the "
+        "cores apart")
+
+# The raw screen, like section 9's routing check (the stripped screen
+# loses the span after the picker's MIME string).
+if "DsGameSession.start(" in read(SCREEN_KT) and '"nds"' in ds_kt:
+    ok("the launcher routes DS cartridges (.nds) to the DS session")
+else:
+    bad("the launcher routes DS cartridges (.nds) to the DS session",
+        "no DsGameSession.start in the screen, or the DS extension "
+        "set lost nds")
+
+cmd_block = re.search(r"object\s+DsAdapterCommands\s*\{(.*?)\n\}",
+                      ds_session, re.S)
+if not cmd_block:
+    bad("DsAdapterCommands is defined",
+        "no `object DsAdapterCommands {` found")
+else:
+    got_cmds = {k: int(v) for k, v in
+                re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)",
+                           cmd_block.group(1))}
+    wrong = {}
+    for k, v in got_cmds.items():
+        match = [n for n in enum_names if snake(n) == k]
+        if not match or enum_value[match[0]] != v:
+            wrong[k] = (v, enum_value.get(match[0]) if match else None)
+    if got_cmds and not wrong and got_cmds.get("STOP_SPEECH") == 37:
+        ok("every DsAdapterCommands value matches adapter.h's enum "
+           "(%d commands)" % len(got_cmds))
+    else:
+        bad("every DsAdapterCommands value matches adapter.h's enum",
+            "wrong: %s" % wrong)
+
+if ("OGA_DS_GLUE" in overlay_sh and "DsSessionJNI" in overlay_sh
+        and "ds-glue" in overlay_sh):
+    ok("the overlay stages the DS host and wires it into the frontend target")
+else:
+    bad("the overlay stages the DS host and wires it into the frontend target",
+        "section 9's staging/CMake wiring is missing from "
+        "android-apply-overlay.sh")
+
+if ("not in the Android build yet" not in games_screen
+        and "Nintendo DS games run in this Android build" in games_screen
+        and "Load this game" in games_screen):
+    ok("the game library's DS page says DS games run in this build "
+       "and offers Load")
+else:
+    bad("the game library's DS page says DS games run in this build "
+        "and offers Load",
+        "the platform line is stale, or the DS Load button is missing")
+
+activity_raw = read(ACTIVITY_KT)
+if ("AccessibilityScript.speechBridge(app)" in ds_session
+        and "storedAnnouncementView" in ds_session
+        and "DsGameSession.attachAnnouncementView" in activity_raw
+        and "DsGameSession.isRunning" in activity_raw):
+    ok("the DS session builds the shared speech bridge and the "
+       "launcher guard covers it")
+else:
+    bad("the DS session builds the shared speech bridge and the "
+        "launcher guard covers it",
+        "without the bridge built at DS start, the view re-forward and "
+        "the widened announce guard, launcher lines during DS play "
+        "reach no voice")
+
+# ---- 12. THE GENESIS SESSION: BUTTON SLOTS, JNI, ROUTING, THE HONEST PAGE ---
+# Parity stage 6 (Genesis half) adds a fourth session beside GB, PSP and
+# DS, over the same shared Core host: pokecore routes the cartridge to
+# the Genesis Plus GX backend (Core/genesis_core.cpp). The defect
+# classes are the DS ones, with Genesis twists:
+#  * The button ids are the shared pad's POKE_BTN_* slots carrying
+#    GENESIS names (Mode rides Select, X rides L, Z rides R, C rides
+#    X), so they are checked against pokecore.h AND against the core's
+#    own translation table (Core/oga_core.cpp's kGenButton) and the
+#    wrapper's GEN_BTN_* defines: the three must agree, or a name on
+#    the screen is a different button in the game.
+#  * Availability is the guarded native probe, as ever.
+#  * The overlay must actually stage and wire the core (its section
+#    10): a Genesis page over an unwired core is sections 7-8's defect
+#    wearing a Genesis badge.
+#  * The page must stay HONEST: Genesis has no reader, so there is no
+#    reader group to render, the library carries no Genesis entry
+#    (section 7's count, with kSegaGenesis among the excluded console
+#    rows), and Where Am I answers with the no-reader line.
+GEN_SESSION_KT = "app/src/main/java/com/devin/opengameaccess/GenesisGameSession.kt"
+GEN_SCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+                 "accessibility/GenesisAccessibilityScript.kt")
+GEN_JNI_CPP = "app/native-overlay/app/src/main/cpp/GenesisSessionJNI.cpp"
+GEN_CORE_H = "Core/genesis_core.h"
+OGA_CORE_CPP = "Core/oga_core.cpp"
+CONTROLLER_KT = "app/src/main/java/com/devin/opengameaccess/ControllerInput.kt"
+for rel in (GEN_SESSION_KT, GEN_SCRIPT_KT, GEN_JNI_CPP, GEN_CORE_H,
+            OGA_CORE_CPP, CONTROLLER_KT):
+    if not os.path.exists(rel):
+        print("!! %s is missing; refusing to report a pass" % rel)
+        sys.exit(1)
+
+gen_session = strip_kt(read(GEN_SESSION_KT))
+# The Genesis names and the shared slots they ride (Core/systems.cpp's
+# Genesis table, Core/oga_core.cpp's translation comments).
+GEN_SLOTS = {"A": "A", "B": "B", "MODE": "SELECT", "START": "START",
+             "RIGHT": "RIGHT", "LEFT": "LEFT", "UP": "UP", "DOWN": "DOWN",
+             "Z": "R", "X": "L", "C": "X", "Y": "Y"}
+block = re.search(r"object\s+GenesisKeys\s*\{(.*?)\n\}", gen_session, re.S)
+if not block:
+    bad("GenesisKeys is defined", "no `object GenesisKeys {` found")
+else:
+    got_gen = {k: int(v) for k, v in
+               re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)", block.group(1))}
+    wrong = {k: (got_gen.get(k), want_ds[slot])
+             for k, slot in GEN_SLOTS.items()
+             if got_gen.get(k) != want_ds[slot]}
+    if not wrong and len(got_gen) == 12:
+        ok("the Genesis button ids are the shared slots their names "
+           "ride (%d buttons)" % len(got_gen))
+    else:
+        bad("the Genesis button ids are the shared slots their names ride",
+            "differs: %s" % wrong)
+
+# The core's own translation (oga_core.cpp's kGenButton, indexed by the
+# shared slot) must land every GenesisKeys slot on the GEN_BTN_* of the
+# same name, and that define must exist in genesis_core.h.
+gen_core_h = read(GEN_CORE_H)
+gen_btns = {k: int(v) for k, v in
+            re.findall(r"#define\s+GEN_BTN_(\w+)\s+(\d+)", gen_core_h)}
+table = re.search(r"kGenButton\[12\]\s*=\s*\{(.*?)\};",
+                  read(OGA_CORE_CPP), re.S)
+table_names = re.findall(r"GEN_BTN_(\w+)", table.group(1)) if table else []
+wrong = {}
+if len(table_names) != 12:
+    wrong["table"] = table_names
+else:
+    for name, slot in GEN_SLOTS.items():
+        idx = want_ds[slot]
+        if table_names[idx] != name or name not in gen_btns:
+            wrong[name] = (table_names[idx], gen_btns.get(name))
+if not wrong:
+    ok("the core's Genesis translation table lands every slot on the "
+       "same-named GEN_BTN_*")
+else:
+    bad("the core's Genesis translation table lands every slot on the "
+        "same-named GEN_BTN_*", "differs: %s" % wrong)
+
+gen_kt = read(GEN_SCRIPT_KT)
+gen_jni = read(GEN_JNI_CPP)
+gen_jni_symbols = set(re.findall(r"Java_[A-Za-z0-9_]+", gen_jni))
+gen_externals = re.findall(r"external\s+fun\s+(\w+)\s*\(", gen_kt)
+unbound = []
+for name in gen_externals:
+    simple = ("Java_me_magnum_melonds_accessibility_"
+              "GenesisAccessibilityScript_" + name)
+    if simple not in gen_jni_symbols:
+        unbound.append(name)
+if gen_externals and not unbound:
+    ok("every Genesis external fun has its exact JNI symbol (%d)"
+       % len(gen_externals))
+else:
+    bad("every Genesis external fun has its exact JNI symbol",
+        "unbound: %s" % unbound)
+
+if ("coreAvailable" in gen_session and "isCoreLinked" in gen_session
+        and "UnsatisfiedLinkError" in gen_session):
+    ok("Genesis availability is the guarded native probe "
+       "(the cores share one .so)")
+else:
+    bad("Genesis availability is the guarded native probe",
+        "the probe must reach the JNI existence check behind an "
+        "UnsatisfiedLinkError catch; the package cannot tell the "
+        "cores apart")
+
+screen_raw = read(SCREEN_KT)
+if "GenesisGameSession.start(" in screen_raw and '"md"' in gen_kt:
+    ok("the launcher routes Genesis cartridges (.md) to the Genesis "
+       "session")
+else:
+    bad("the launcher routes Genesis cartridges (.md) to the Genesis "
+        "session",
+        "no GenesisGameSession.start in the screen, or the Genesis "
+        "extension set lost md")
+
+if ("oga-gpgx" in overlay_sh and "oga-genesis-glue" in overlay_sh
+        and "GenesisSessionJNI" in overlay_sh):
+    ok("the overlay stages the Genesis core and wires it into the "
+       "frontend")
+else:
+    bad("the overlay stages the Genesis core and wires it into the "
+        "frontend",
+        "section 10's staging/CMake wiring is missing from "
+        "android-apply-overlay.sh")
+
+if ("GenesisGameSession.attachAnnouncementView" in activity_raw
+        and "GenesisGameSession.isRunning" in activity_raw):
+    ok("the Genesis session builds the shared speech bridge and the "
+       "launcher guard covers it")
+else:
+    bad("the Genesis session builds the shared speech bridge and the "
+        "launcher guard covers it",
+        "without the bridge built at Genesis start, the view "
+        "re-forward and the widened announce guard, launcher lines "
+        "during Genesis play reach no voice")
+
+screen_kt = strip_kt(read(SCREEN_KT))
+# The picture branch is checked against the RAW screen, like section
+# 11's routing check: the stripped screen loses the span after the
+# picker's MIME string ("*/*" reads as a comment opener to the naive
+# stripper), and the GamePicture block sits inside that span.
+if ("BackHandler(enabled = genesisRunning)" in screen_kt
+        and "GenesisGameSession.currentFrame()" in screen_raw
+        and "QuitGenesisGame(GenesisGameSession" in screen_kt):
+    ok("the Genesis page quits on Back, shows the game picture and "
+       "quits with a save first")
+else:
+    bad("the Genesis page quits on Back, shows the game picture and "
+        "quits with a save first",
+        "the Back handler, the GamePicture Genesis branch or the "
+        "quit-with-save control is missing")
+
+# ⛔ THE HONEST PAGE: no Genesis reader exists, so no reader group may
+# be rendered for it. If a real Genesis reader lands one day, this
+# check is removed in the same commit that adds its group — the
+# deliberate second step, not a silent deletion.
+if "GenesisReaderGroup" not in screen_kt and "genesisRunning ->" in screen_kt:
+    ok("the Genesis page offers no reader group and answers Where "
+       "Am I honestly")
+else:
+    bad("the Genesis page offers no reader group and answers Where "
+        "Am I honestly",
+        "a GenesisReaderGroup appeared (no Genesis reader exists), "
+        "or the Where Am I arm lost its honest line")
+
+controller_kt = strip_kt(read(CONTROLLER_KT))
+if ("EmuButton.Genesis" in controller_kt
+        and "GenesisKeys.MODE" in controller_kt
+        and "GenesisKeys.X" in controller_kt
+        and "GenesisKeys.Z" in controller_kt
+        and "GenesisGameSession.pressButton" in controller_kt):
+    ok("the controller layer drives Genesis (Mode on Select, X on "
+       "L1, Z on R1)")
+else:
+    bad("the controller layer drives Genesis (Mode on Select, X on "
+        "L1, Z on R1)",
+        "the Genesis arm of ControllerInput is missing or its "
+        "shoulder/Select mapping moved")
+
+
+# ---- 13. THE MESEN SESSION: BUTTON IDS, JNI, READER SETS, THE PAGES -----
+# Parity stage 5 adds a fourth session beside GB, PSP and DS, over the
+# SAME shared Core host (Core/pokecore.cpp): its NES and SNES branches,
+# driving the MesenCE glue (Core/mesen_core.cpp / Core/snes_core.cpp)
+# that the overlay's section 11 now builds. The same defect classes
+# apply, with Mesen twists:
+#  * The button ids index the shared pad table, so they are checked
+#    against pokecore.h's POKE_BTN_* defines, exactly as the DS ids
+#    are (section 11) — the SNES and NES button orders live in the
+#    glue, reached through these shared indices.
+#  * Presence is a JNI question again: every external the Kotlin
+#    declares must resolve to an exact symbol in MesenSessionJNI.cpp,
+#    and availability must be the guarded native probe.
+#  * The command integers are the same C ABI (adapter.h's enum),
+#    mirrored in MesenAdapterCommands and checked the same way
+#    (section 10's enum parse and snake() are reused).
+#  * The stubs must have let go: DsBackendStubs.cpp used to refuse the
+#    NES/SNES ABIs; with the real glue linked into the same .so, a
+#    leftover nes_create/snes_create there is a duplicate symbol, and
+#    a removed gba_create is a missing refusal. Both directions are
+#    checked.
+#  * The Lua readers must be wired, not just present: the session
+#    stages the reader set the core names (stageReaderSet) and hands
+#    its directory over (setScriptDir) between load and start, and
+#    the overlay stages the sets from the canonical tree (its
+#    section 1c) and builds the cores (its section 11).
+#  * The library pages must stop saying NES/SNES "cannot run in this
+#    Android build yet": the platform lines claim the build runs
+#    them, and canRun lets their Load buttons open the picker.
+MESEN_SESSION_KT = "app/src/main/java/com/devin/opengameaccess/MesenGameSession.kt"
+MESEN_SCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+                   "accessibility/MesenAccessibilityScript.kt")
+MESEN_JNI_CPP = "app/native-overlay/app/src/main/cpp/MesenSessionJNI.cpp"
+STUBS_CPP = "app/native-overlay/app/src/main/cpp/DsBackendStubs.cpp"
+for rel in (MESEN_SESSION_KT, MESEN_SCRIPT_KT, MESEN_JNI_CPP, STUBS_CPP):
+    if not os.path.exists(rel):
+        print("!! %s is missing; refusing to report a pass" % rel)
+        sys.exit(1)
+
+mesen_session = strip_kt(read(MESEN_SESSION_KT))
+block = re.search(r"object\s+MesenKeys\s*\{(.*?)\n\}", mesen_session, re.S)
+if not block:
+    bad("MesenKeys is defined", "no `object MesenKeys {` found")
+else:
+    got_mesen = {k: int(v) for k, v in
+                 re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)",
+                            block.group(1))}
+    if got_mesen == want_ds and len(want_ds) == 12:
+        ok("the Mesen button ids match pokecore.h exactly (%d buttons)"
+           % len(want_ds))
+    else:
+        diff = {k: (got_mesen.get(k), v) for k, v in want_ds.items()
+                if got_mesen.get(k) != v}
+        bad("the Mesen button ids match pokecore.h exactly",
+            "differs: %s" % diff)
+
+mesen_kt = read(MESEN_SCRIPT_KT)
+mesen_jni = read(MESEN_JNI_CPP)
+mesen_jni_symbols = set(re.findall(r"Java_[A-Za-z0-9_]+", mesen_jni))
+mesen_externals = re.findall(r"external\s+fun\s+(\w+)\s*\(", mesen_kt)
+unbound = []
+for name in mesen_externals:
+    simple = ("Java_me_magnum_melonds_accessibility_"
+              "MesenAccessibilityScript_" + name)
+    if simple not in mesen_jni_symbols:
+        unbound.append(name)
+if mesen_externals and not unbound:
+    ok("every Mesen external fun has its exact JNI symbol (%d)"
+       % len(mesen_externals))
+else:
+    bad("every Mesen external fun has its exact JNI symbol",
+        "unbound: %s" % unbound)
+
+if ("coreAvailable" in mesen_session and "isCoreLinked" in mesen_session
+        and "UnsatisfiedLinkError" in mesen_session):
+    ok("Mesen availability is the guarded native probe "
+       "(the cores share one .so)")
+else:
+    bad("Mesen availability is the guarded native probe",
+        "the probe must reach the JNI existence check behind an "
+        "UnsatisfiedLinkError catch; the package cannot tell the "
+        "cores apart")
+
+if ("MesenGameSession.start(" in read(SCREEN_KT)
+        and '"nes"' in mesen_kt and '"sfc"' in mesen_kt):
+    ok("the launcher routes NES and SNES cartridges to the Mesen session")
+else:
+    bad("the launcher routes NES and SNES cartridges to the Mesen session",
+        "no MesenGameSession.start in the screen, or the Mesen "
+        "extension sets lost nes/sfc")
+
+cmd_block = re.search(r"object\s+MesenAdapterCommands\s*\{(.*?)\n\}",
+                      mesen_session, re.S)
+if not cmd_block:
+    bad("MesenAdapterCommands is defined",
+        "no `object MesenAdapterCommands {` found")
+else:
+    got_cmds = {k: int(v) for k, v in
+                re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)",
+                           cmd_block.group(1))}
+    wrong = {}
+    for k, v in got_cmds.items():
+        match = [n for n in enum_names if snake(n) == k]
+        if not match or enum_value[match[0]] != v:
+            wrong[k] = (v, enum_value.get(match[0]) if match else None)
+    if got_cmds and not wrong and got_cmds.get("STOP_SPEECH") == 37:
+        ok("every MesenAdapterCommands value matches adapter.h's enum "
+           "(%d commands)" % len(got_cmds))
+    else:
+        bad("every MesenAdapterCommands value matches adapter.h's enum",
+            "wrong: %s" % wrong)
+
+stubs = read(STUBS_CPP)
+if ("nes_create" not in stubs and "snes_create" not in stubs
+        and "gba_create" in stubs):
+    ok("the backend stubs refuse only GBA now (the Mesen glue is real)")
+else:
+    bad("the backend stubs refuse only GBA now (the Mesen glue is real)",
+        "a leftover nes_create/snes_create stub would duplicate the "
+        "real symbol in the frontend .so; a missing gba_create drops "
+        "the GBA refusal the DS host links against")
+
+if ("OGA_MESEN" in overlay_sh and "MesenSessionJNI" in overlay_sh
+        and "mesen/glue" in overlay_sh and "assets/nes-lua" in overlay_sh):
+    ok("the overlay builds the MesenCE cores, stages the NES reader "
+       "sets and wires the session into the frontend target")
+else:
+    bad("the overlay builds the MesenCE cores, stages the NES reader "
+        "sets and wires the session into the frontend target",
+        "section 11's subproject/wiring or section 1c's asset "
+        "staging is missing from android-apply-overlay.sh")
+
+if ("stageReaderSet" in mesen_session and "setScriptDir" in mesen_session
+        and "readerSet" in mesen_session):
+    ok("the Mesen session stages the reader set the core names and "
+       "hands its directory over before the start")
+else:
+    bad("the Mesen session stages the reader set the core names and "
+        "hands its directory over before the start",
+        "without the staged writable copy and the setScriptDir call "
+        "between load and start, the NES Lua readers never load")
+
+games_raw = read(GAMES_SCREEN_KT)
+pline_at = games_raw.find("private fun platformLine")
+pline_span = games_raw[pline_at:] if pline_at >= 0 else ""
+snes_m = re.search(r'"snes"\s*->\s*(.*?)\n\s*"nes"', pline_span, re.S)
+nes_m = re.search(r'"nes"\s*->\s*(.*?)\n\s*else', pline_span, re.S)
+snes_line = "".join(re.findall(r'"([^"]*)"', snes_m.group(1))) if snes_m else ""
+nes_line = "".join(re.findall(r'"([^"]*)"', nes_m.group(1))) if nes_m else ""
+can_run_at = games_screen.find("val canRun")
+can_run = games_screen[can_run_at:can_run_at + 300] if can_run_at >= 0 else ""
+if ("run in this Android build" in snes_line
+        and "cannot run" not in snes_line
+        and "run in this Android build" in nes_line
+        and "cannot run" not in nes_line
+        and 'game.console == "nes"' in can_run
+        and 'game.console == "snes"' in can_run):
+    ok("the game library's NES and SNES pages say their games run in "
+       "this build, and their Load buttons open the picker")
+else:
+    bad("the game library's NES and SNES pages say their games run in "
+        "this build, and their Load buttons open the picker",
+        "a platform line is stale or canRun excludes them: "
+        "snes=%r nes=%r canRun=%r" % (snes_line, nes_line, can_run))
+
+if ("AccessibilityScript.speechBridge(app)" in mesen_session
+        and "storedAnnouncementView" in mesen_session
+        and "MesenGameSession.attachAnnouncementView" in activity_raw
+        and "MesenGameSession.isRunning" in activity_raw):
+    ok("the Mesen session builds the shared speech bridge and the "
+       "launcher guard covers it")
+else:
+    bad("the Mesen session builds the shared speech bridge and the "
+        "launcher guard covers it",
+        "without the bridge built at Mesen start, the view "
+        "re-forward and the widened announce guard, launcher lines "
+        "during NES/SNES play reach no voice")
 print()
 if fails:
     print("FAIL: the Compose launcher contract is broken:")
