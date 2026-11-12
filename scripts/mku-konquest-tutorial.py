@@ -113,6 +113,9 @@ def walk_in(secs=0.7):
     time.sleep(0.3)
 
 
+_variant = [0]
+
+
 def do_lesson(text):
     """Fire the input set for the lesson this objective line belongs to."""
     if 'step toward me three times' in text or 'step away from me three times' in text:
@@ -126,10 +129,22 @@ def do_lesson(text):
             dtap('left')
         return 'dashes'
     if 'four different basic attacks' in text:
-        walk_in()
-        for b in ('square', 'triangle', 'cross', 'circle'):
+        # Which attack whiffs changes between attempts, so cycle the order and
+        # the approach distance instead of repeating one set forever.
+        _variant[0] += 1
+        v = _variant[0] % 3
+        if v == 0:
+            walk_in(0.6)
+            order = ('square', 'triangle', 'cross', 'circle')
+        elif v == 1:
+            walk_in(1.1)
+            order = ('triangle', 'square', 'circle', 'cross')
+        else:
+            walk_in(0.8)
+            order = ('cross', 'circle', 'square', 'triangle')
+        for b in order:
             tap(b, 0.1, 0.9)
-        return 'four attacks'
+        return 'four attacks v%d' % v
     if 'high punch attacks' in text:
         walk_in(0.6)
         tap('triangle', 0.1, 0.9)
@@ -171,9 +186,11 @@ while time.time() < deadline:
         continue
     quiet_free = 0
 
-    if ptr and col == 0xC8C8C8FF:
-        # a dialogue box: the TRY AGAIN prompt and the lesson preambles both
-        # sit behind Cross, and Cross is never an attack outside a bout
+    if ptr:
+        # A box is up whenever the scene pointer is non-zero, whatever colour
+        # word it carries: the objective tint also appears with a box on screen,
+        # and keying on the colour alone left the driver firing into a paused
+        # dialogue forever.
         if 'Try again' in txt:
             print('%6.1f retry prompt: %s' % (time.time() - t0, txt[:60]), flush=True)
         tap('cross', 0.1, 0.8)
