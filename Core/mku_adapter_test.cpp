@@ -61,6 +61,11 @@ static bool logged_has(const char* needle)
     for (int i = 0; i < NLOGGED; i++) if (strstr(LOGGED[i], needle)) return true;
     return false;
 }
+static bool spoken_has(const char* needle)
+{
+    for (int i = 0; i < NSPOKEN; i++) if (strstr(SPOKEN[i], needle)) return true;
+    return false;
+}
 
 int main()
 {
@@ -663,6 +668,111 @@ int main()
     CHECK(NSPOKEN == 1 && !strstr(SPOKEN[0], "Objective.") &&
           strstr(SPOKEN[0], "Well done"),
           "a dialogue line stays on the dialogue channel");
+    put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
+
+    // ---- Konquest dojo training prompt (measured 2026-11-12, live bench) -----
+    // The named-move boxes are DRAWN text: the dialogue buffer never sees them.
+    // The move name and input glyph are ASCII strings in the resident training
+    // table at 0x09DDA000, and the live pair is pointed at from the script
+    // workspace (name 0x09179814, input 0x09179818). The drill counter is one
+    // packed word at 0x09179808: (required << 8) | done. Every input this
+    // table named was fired from the RAM value alone and the lesson passed.
+    put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 1);
+    {
+        const uint32_t base = 0x09178568 - 48;
+        const uint32_t sig[12] = {0x30, 0xE9, 0x24, 0x180, 0x2A, 0x11,
+                                  0xFFFFFFFF, 0xC8C8C8FF, 0x6, 0x0,
+                                  0x08AFD1C0, 0x0};
+        for (int i = 0; i < 12; i++) put_u32(base + (uint32_t) i * 4, sig[i]);
+    }
+    put_u32(0x09178D30, 0x091782A0);
+    put_u32(0x09178554, 0xFF4848FF);
+    put_ascii(0x09178568, "Now, Shujinko, strike me with each of your high punch attacks.");
+    put_ascii(0x09DDA0DC, "LEANING FINGERS");
+    put_ascii(0x09DDA0EC, "A");
+    put_ascii(0x09DDA0F0, "STONE COLUMN");
+    put_ascii(0x09DDA100, "(+A");
+    put_ascii(0x09DDA10C, "CREATURE KICK");
+    put_ascii(0x09DDA11C, "X");
+    put_ascii(0x09DDA120, "STING TAP");
+    put_ascii(0x09DDA12C, ":+X");
+    put_u32(0x09179814, 0x09DDA0DC);
+    put_u32(0x09179818, 0x09DDA0EC);
+    put_u32(0x09179808, 0x0200);                     // 0 of 2
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 45; i++) a->on_frame();
+    CHECK(spoken_has("Move, Leaning Fingers. Triangle. 0 of 2."),
+          "the drawn move name and glyph speak as a move line");
+    CHECK(spoken_has("Objective."),
+          "the drill objective still speaks alongside the move line");
+
+    put_u32(0x09179808, 0x0201);                     // 1 of 2, name unchanged
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("1 of 2."), "the drill counter speaks as it advances");
+
+    put_u32(0x09179814, 0x09DDA0F0);                 // the sequence's second move
+    put_u32(0x09179818, 0x09DDA100);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Move, Stone Column. Up plus Triangle. 1 of 2."),
+          "the next move speaks when the prompt switches");
+
+    // ⛔ The workspace outlives the drill (free-roam still read 0x404 with a
+    // garbage pointer). Only the red drill line may arm it.
+    put_u32(0x09178554, 0xC8C8C8FF);
+    put_ascii(0x09178568, "Well done, Shujinko.");
+    put_u32(0x09179808, 0x0202);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 45; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Well done") &&
+          !strstr(SPOKEN[0], "Move,"),
+          "a stale training workspace stays silent outside a drill line");
+
+    put_u32(0x09178554, 0xFF4848FF);
+    put_ascii(0x09178568, "Strike me with each of your high and low attacks.");
+    put_ascii(0x09DDA0EC, "Q");                      // an unmeasured glyph code
+    put_u32(0x09179814, 0x09DDA0DC);
+    put_u32(0x09179818, 0x09DDA0EC);
+    put_u32(0x09179808, 0x0200);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Move, Leaning Fingers. 0 of 2."),
+          "an unknown glyph names the move without inventing a button");
+
+    put_u32(0x09179814, 0x09179700);                 // stale heap pointer
+    put_ascii(0x09178568, "Strike me with two high attacks and two low attacks.");
+    put_u32(0x09179808, 0x0401);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(!spoken_has("Move,"),
+          "a pointer outside the training table never reads as a move name");
+
+    put_u32(0x09179808, 0x0105);                     // done > total: implausible
+    put_u32(0x09179814, 0x09DDA0DC);
+    put_u32(0x09179818, 0x09DDA10C);                 // and 'X' here
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(!spoken_has("of 1"), "an implausible counter is never spoken");
+
+    put_ascii(0x09DDA0EC, "A");
+    put_u32(0x09179814, 0x09DDA0DC);
+    put_u32(0x09179818, 0x09DDA0EC);
+    put_u32(0x09179808, 0x0201);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(spoken_has("Move, Leaning Fingers. Triangle. 1 of 2."),
+          "WhereAmI repeats the live move and drill count");
+    // Leave the dialogue/drill channels as the next block expects them: a red
+    // objective line and a plausible counter left behind would speak into the
+    // bout tests, which count speech exactly.
+    put_u32(0x09178D30, 0);
+    put_u32(0x09178554, 0);
+    put_ascii(0x09178568, "Cleared.");
+    put_u32(0x09179814, 0);
+    put_u32(0x09179818, 0);
+    put_u32(0x09179808, 0);
+    a->on_frame();                                   // drop the training watch
     put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
 
     // ---- Konquest bout speech (measured 2026-10-23, bout hunts) -------------
