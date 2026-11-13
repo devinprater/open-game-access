@@ -915,10 +915,19 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   driver that played the whole dojo from those words alone (all named lessons
   2/2, four-attacks drill 4/4). The adapter speaks `Move, Leaning Fingers.
   Triangle. 0 of 2.`, speaks the count as it advances, and repeats the current
-  move on WhereAmI. Still open: the QUIT GAME dialog's selection (decomp
-  route), free-roam position/sector/clock (the HUD draws a compass + grid
-  coordinate; their RAM values are unlocated), and Apep's talk trigger
-  (script-VM decomp is the next route, not more blind navigation). Detail:
+  move on WhereAmI. **2026-11-12, same day: village conversation text is
+  spoken.** Village talk is not a button — walking near a villager starts a
+  letterboxed cutscene, and the line is drawn as a subtitle. The live line sits
+  at `0x09106354` (whole) and `0x09105F6C` (word split); the workspace is never
+  cleared, so speech rides on change and the first line seen is swallowed. Also
+  corrected the old "no proximity trigger" note, which was measured at 3-7 AM
+  when the quest NPCs are despawned. The live NPC table is at `0x09151098`,
+  stride `0x810` (name, position, state), read by `scripts/mku-npcs.py`, and
+  `Circle` meditation fast-forwards the clock to a quest window. Host tests:
+  178. Still open: finishing a quest end to end (Apep's own cutscene was never
+  triggered on the bench), the QUIT GAME dialog's selection (decomp route), and
+  free-roam position/sector/clock (the HUD draws a compass + grid coordinate;
+  their RAM values are unlocated). Detail:
   docs/reverse-engineering/mortal-kombat-unchained.md.
 
 - [~] **Kingdom Hearts: Birth by Sleep (PSP, ULUS10505) adapter:** local only,
