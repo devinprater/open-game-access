@@ -2681,3 +2681,21 @@ Next attempt should stand at the gate at about 10:30 AM with the elder's
 transform address already known (match his record to a transform while he is
 still visible), then poll that one word-pair at 10 Hz and punch the instant the
 distance falls under 1.5 — no screenshot in the loop, no walking.
+
+### Proximity parking: one scan, then punch on approach (2026-11-13)
+
+`scripts/mku-park.py` dumps once, uses numpy to collect every draw transform at
+NPC height (translation y 0.6 to 1.3) within a chosen radius, then polls those
+twelve-byte positions at about 10 Hz and punches four ways the moment one comes
+inside 1.6 units. No screenshot and no walking in the loop, so a passer-by can be
+hit while still there.
+
+⛔ The scan also returns **the player's own transform**, twice, 0x40 apart at
+distance 0.00. Without a filter the loop treats that as a permanent close
+encounter and punches at nothing: the first run logged 59 "close" rounds against
+`0x09E51510` / `0x09E514D0`. Skip anything under 2 units at scan time.
+
+Measured at the gate on a Tuesday morning, 8 to 11 AM: 71 NPC-height transforms
+inside 30 units, the nearest 3.9 away and stationary; a close punch at 1.29
+produced no line. So the parking loop works, but the villagers near that spot
+are not the elder and do not walk through it.
