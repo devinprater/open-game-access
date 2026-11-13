@@ -2562,3 +2562,46 @@ The adapter now uses it: in free roam, WhereAmI appends the nearest named NPC
 within 60 units as `Apep is 10 units north.` Names verified in play are spoken;
 an unseen name reports as `Someone` rather than inventing one. Two host checks
 added (180 passing).
+
+### First quest completed: the old woman's hut key (2026-11-13)
+
+The mechanical loop worked. At 8 AM the record-to-transform match named the
+villagers standing at their posts; a greedy four-direction navigator
+(`scripts/mku-greedy4.py`) closed 17 units to 0.90 at the old woman's post
+without a calibration table, and four Square punches in four facings landed.
+The character was knocked flat on the road (white hair, brown robe).
+
+Opening the inventory (D-pad left) showed slot 1 holding **Hut Key — "This key
+will open an old woman's hut."** The inventory had been twelve empty slots
+before, so the punch produced the quest reward. Koins were unchanged
+(0, 10, 0, 150, 0, 0), which fits a quest that pays in an item.
+
+This is the `LS_OLDWOMAN` / `LS_OLDLADY` quest from the script catalogue: punch
+the old woman, take the key to her hut. One quest end to end, with an item in
+hand.
+
+**The item table.** Every item's name and description are 8-byte records of two
+string pointers, starting at `0x09D7F4F0`:
+
+| # | name | description |
+|---|---|---|
+| 0 | Bottle of Medicine | a bottle said to cure stomach... |
+| 1 | Medallion | an adornment indicating great skill |
+| 2 | Artifact | Hmmm.... very mysterious... |
+| 3 | Ham | a tender slab, loved by guards |
+| 4 | Hut Key | this key will open an old woman's hut |
+| 5 | Key | key found in the park |
+| 6 | Ninja Star | this throwing star might be useful |
+| 7 | Important Note | deliver this note to the blacksmith |
+| 8 | Bucket | use this bucket to carry water |
+| 9 | Mysterious Key | unknown what this key will unlock |
+| 10 | Ring | a beautiful wedding ring |
+| 11 | Sack of Flour | flour used to make baked goods |
+| 12 | Vase | a rare vase that seems priceless |
+| 13 | Kamidogu | a strange item of untold power |
+
+The inventory's own twelve-slot id array was not located: a diff between a dump
+before the punch and one with the key open found no aligned twelve-word array
+whose only change was a single small id, so the slots are either not held in
+this image or store something other than the table index. Announcing gained
+items in the adapter needs that array, and it is the next wiring task.
