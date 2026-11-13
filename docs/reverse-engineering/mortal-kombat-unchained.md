@@ -2279,3 +2279,80 @@ script resource behind strings like `apep: Talk to apep after dojo 2` /
 defines the condition that plays each beat. Finding that resource in
 `ARCHIVE.IMP` and reading its event clause is the next step, not another
 RAM sweep.
+
+## The world's named trigger table (2026-11-12, static + live)
+
+The static route worked. `ARCHIVE.BIN` is an `iMp0` index (header: `0x40`,
+version `2`; entries are SIGN `0xcdab0df0`, type, then name/path/offset/
+compressed-size/compression elements, with Directory entries holding exactly
+Name + Path and no terminator). It lists 167 entries, all stored uncompressed.
+The string `apep: Talk to apep after dojo 2` is at `0x81927b0`, inside
+`kon_earthrealm_1.ssf` (archive offset `0x07CDE810`, 9,717,760 bytes).
+
+That SSF's section table starts at `0x1C`: 30 sections of 16 bytes
+(`type`, `offset`, `size`, `0x7C801A4F`), and section 5 (type 2, `0x492000`,
+746,976 bytes) holds a 9,377-string script bank. It includes the trigger
+table: `trigger_table_header`, `trigger_dojo_1..4`, `trigger_last_dojo`,
+`nightwolf_trigger`, `boraicho_trigger`, `trigger_park_tease_1/2`,
+`trigger_school_entrance`, the `trigger_door_*` set, and
+`trigger_table_footer`.
+
+**The same table is live in RAM**, so no further static parsing is needed:
+
+| What | How |
+|---|---|
+| name bank | `trigger_dojo_1` string, one occurrence |
+| record | the one word that points at that name, minus `0x1C` |
+| record stride | `0x90`; `+0x00` previous, `+0x04` next, `+0x18` data pointer, `+0x1C` name pointer |
+| data record | `+0x08` x, `+0x0C` y, `+0x10` z, `+0x14` radius |
+
+`scripts/mku-triggers.py` dumps RAM, finds the name, walks the list and prints
+every trigger. Measured in the village:
+
+- `dojo_0` (-53.95, 154.98) r 3 — the tutorial dojo, and the re-arm zone.
+- `trigger_park_tease_1` (-87.63, 156.50) r 10, `trigger_park_tease_2`
+  (-62.16, 156.29) r 3 — the park beats by the students.
+- `nightwolf_trigger` (-44.37, 169.68) r 12, `ermac_trigger` (-63.10, 156.53)
+  r 6.5, `boraicho_trigger` (91.78, -119.59) r 10.
+- `trigger_dojo_1..4` at (-21.02, 113.91), (70.77, 72.75), (7.92, 11.59) and
+  (-67.23, -15.35), all r 3 — the four classroom doors Bo' Rai Cho's lessons
+  are held behind.
+
+⛔ The classroom triggers are the important correction to the quest story:
+after the first lesson Apep does not stay at the tutorial dojo. The condition
+strings name the next beats "Talk to apep after dojo 2/3/4/5", and dojo_1 sits
+at (-21, 114) in B-5, some 59 units from his recorded post at (-54.8, 151.4).
+Walking into dojo_1's 3-unit trigger on this save (9:12 PM, night) produced no
+cutscene, so the trigger is not unconditional either, but his recorded post is
+now known to be the tutorial dojo, not his current position.
+
+Next: enter a classroom trigger during the day (8 AM to 7 PM) and watch the
+subtitle buffer, and check whether Apep's beat follows the dojo_1 trigger
+rather than his record.
+
+### The face buttons do not talk to villagers (tested 2026-11-12)
+
+Tested twice, standing at arm's length from a villager and facing him, with the
+subtitle buffer watched after every press:
+
+- 6:44 PM next to a quest-flagged NPC (`npc_sam`, state `0x00020008`) and an
+  elderly woman: `square`, `cross`, `triangle` and `circle` all left the
+  subtitle buffer empty.
+- 9:41 AM next to the bald monk by the path: `cross`, `square`, `triangle` again
+  produced nothing.
+
+`circle` starts meditation and blocks every other input until it is toggled
+off, which also poisons any test that presses it — the player sits at
+y = 0.23 instead of the standing 0.87, and the "no reaction" that follows is
+not about the NPC.
+
+So the village talk input is closed as "not a face button". Conversations are
+triggered by the named trigger volumes or by script conditions, and the guides'
+"talk to X" means walking into the right beat, not pressing a key. The
+toothache quest therefore needs the punch to land, and the punch is the piece
+still unproven: no press so far has made a villager react.
+
+What would settle it: find the player's attack state (the animation flag that
+Square sets) and confirm a press reaches it, then check the villager's PUNCHED
+handler fires. Without that, "punch the old man" is still a guide's sentence,
+not a measured mechanic.
