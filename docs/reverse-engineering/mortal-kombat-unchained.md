@@ -2722,3 +2722,30 @@ in bursts and strafes when the distance stops falling ran the wrong way and
 wedged the player at the fighting kids' area (-64.2, 172.7), 73 units away,
 so a controller that turns toward the target before walking is required; this
 one never did.
+
+### `npc_oldman` is a post, and it was empty when reached (2026-11-13)
+
+Getting to the toothache man's post did not produce him. Three visits:
+
+- 9:25 AM Friday: stood 0.10 units from (-16.2, 117.4), punched four facings, no
+  line.
+- 11:53 AM: stood 0.10 units again, four facings, no line, and a 25-unit
+  transform scan found only the player's own nodes, the ground markers and the
+  stone lantern within four units.
+- A dawn patrol at the post (22 rounds, a punch in four facings every second)
+  also produced nothing.
+
+So the record at `0x09143EF8` is a post, not his current position: he is not
+standing there at those hours, and his name is not the guarantee of presence.
+This is the same lesson as Apep's record, now measured for the quest NPC that
+matters.
+
+Two script names point at how he moves: `old_man_walk_path` sits in the string
+bank at section offset `0x019C58`, and `npc_oldman_timed_events` beside the
+other NPC names. Neither is referenced by a pointer in the 24 MB image (the same
+load-time resolution as the model table), so the path's waypoints cannot be read
+by following a pointer.
+
+Next: park on the path and let him come. The path's geometry is not in a pointer
+chain, so the practical way to find it is the mover scan at his height near
+(-16, 117) during the morning, then a proximity loop on that transform.
