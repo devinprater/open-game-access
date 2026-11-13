@@ -905,13 +905,18 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   2026-10-16 scaffold this entry originally described. Live-verified and spoken:
   main menu, Kombat submenu, character select, fight state (health, round wins,
   timer), pause menu, and Konquest dialogue (auto-speaks each new line). Host
-  tests: 56 checks, all passing locally (2026-10-21). On GitHub main since
+  tests: 172 checks, all passing locally (2026-11-12). On GitHub main since
   2026-10-17 (commit 96746ce), with Hermes's 2026-10-19 commits wiring the
-  red objective line's speech and gating Konquest on flag A alone (71 host
-  checks). The missing test-strength baseline row for mku (71) was pushed
-  2026-10-21 (commit cec2048). Still open: the QUIT GAME dialog's selection (decomp
-  route), Konquest bout speech (gate + opponent naming), the objective
-  counters, free-roam position/sector/clock (the HUD draws a compass + grid
+  red objective line's speech and gating Konquest on flag A alone. **2026-11-12:
+  the dojo lesson prompts are spoken.** The drawn move-name and input boxes are
+  backed by ASCII in the resident training table: name pointer `0x09179814`,
+  input glyph `0x09179818`, drill counter `0x09179808` as
+  `(required << 8) OR done`. Measured live against screenshots, then proved by a
+  driver that played the whole dojo from those words alone (all named lessons
+  2/2, four-attacks drill 4/4). The adapter speaks `Move, Leaning Fingers.
+  Triangle. 0 of 2.`, speaks the count as it advances, and repeats the current
+  move on WhereAmI. Still open: the QUIT GAME dialog's selection (decomp
+  route), free-roam position/sector/clock (the HUD draws a compass + grid
   coordinate; their RAM values are unlocated), and Apep's talk trigger
   (script-VM decomp is the next route, not more blind navigation). Detail:
   docs/reverse-engineering/mortal-kombat-unchained.md.

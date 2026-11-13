@@ -734,6 +734,187 @@ void DlgOnFrame(void)
     }
 }
 
+// ---- Konquest dojo training prompt (VERIFIED 2026-11-12, live bench) ---------
+//
+// The named-move lessons draw two more boxes the dialogue buffer never sees:
+// a move name ("LEANING FINGERS") and its input glyph ("A", "(+A", ":+X").
+// Both are plain ASCII strings that stay resident in the training table at
+// 0x09DDA000, and the LIVE pair is pointed at from the script workspace:
+//
+//   0x09179814 -> move name      0x09179818 -> input glyph
+//   0x09179808 -> (required << 8) | done   — the box's "0 / 2"
+//
+// Measured 2026-11-12 in one boot. Four-attacks drill: 0x400 (0/4), then
+// 0x401, 0x402, 0x403, 0x404 as the attacks landed, and the drill completed
+// at 0x404. Named lessons, each with a screenshot taken on the announcement:
+//   LEANING FINGERS / 'A'    -> Triangle       counter 0x200, then 0x201
+//   STONE COLUMN   / '(+A'   -> Up + Triangle  counter 0x201 (the box switched)
+//   CREATURE KICK  / 'X'     -> Cross          counter 0x200, then 0x201
+//   STING TAP      / ':+X'   -> Left + Cross   counter 0x201
+// Every one of those inputs was then fired from the RAM value alone and the
+// lesson passed (2/2 each), so the glyph table is proved, not guessed.
+//
+// ⛔ The workspace OUTLIVES the drill: free-roam still read 0x404 and a garbage
+// prompt pointer. Speech is therefore gated on the red objective line AND one
+// of the dojo's own drill phrasings, never on the workspace alone.
+constexpr uint32_t kTrainPromptNameAddr = 0x09179814;
+constexpr uint32_t kTrainPromptInputAddr = 0x09179818;
+constexpr uint32_t kTrainCounterAddr = 0x09179808;
+constexpr uint32_t kTrainTableLo = 0x09DDA000;   // training move-name strings
+constexpr uint32_t kTrainTableHi = 0x09DDB000;
+constexpr int kTrainStableFrames = 12;
+
+char g_trainKey[96] = "";
+int g_trainLastDone = -1;
+char g_trainPendKey[96] = "";
+int g_trainPendDone = -1;
+int g_trainStable = 0;
+
+// Read a NUL-terminated printable string from the training table; fails closed
+// outside the table so a stale heap pointer is never read as a move name.
+bool TrainReadString(uint32_t addr, char* out, size_t cap)
+{
+    if (addr < kTrainTableLo || addr >= kTrainTableHi || cap < 2) return false;
+    size_t n = 0;
+    while (n + 1 < cap) {
+        uint8_t c = u8(addr + (uint32_t) n);
+        if (c == 0) break;
+        if (c < 32 || c > 126) return false;
+        out[n++] = (char) c;
+    }
+    if (n == 0 || u8(addr + (uint32_t) n) != 0) return false;
+    out[n] = 0;
+    return true;
+}
+
+// The game's move names are stored in capitals. Speak them in sentence case:
+// a screen reader spells a fully capitalised word letter by letter.
+void TrainTitleCase(const char* in, char* out, size_t cap)
+{
+    size_t i = 0;
+    bool start = true;
+    for (; in[i] && i + 1 < cap; i++) {
+        char c = in[i];
+        if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+        if (start && c >= 'a' && c <= 'z') c = (char)(c - 'a' + 'A');
+        out[i] = c;
+        start = (c == ' ' || c == '-');
+    }
+    out[i] = 0;
+}
+
+// The four glyph strings the dojo's named lessons use, each mapped to what the
+// player must press. Measured off screenshots (see above); unknown codes speak
+// the move name without inventing an input.
+const char* TrainInputSpoken(const char* glyph)
+{
+    if (strcmp(glyph, "A") == 0) return "Triangle";
+    if (strcmp(glyph, "X") == 0) return "Cross";
+    if (strcmp(glyph, "(+A") == 0) return "Up plus Triangle";
+    if (strcmp(glyph, ":+X") == 0) return "Left plus Cross";
+    return nullptr;
+}
+
+// True only while a dojo drill is live: the red objective channel, with one of
+// the phrasings the tutorial actually uses. Free-roam and the "Try again" box
+// both fail this, which is what keeps the stale workspace silent.
+bool TrainDrillActive(void)
+{
+    if (!InKonquest() || !DlgStructOk()) return false;
+    if (u32(kDlgColorAddr) != kDlgColorObjective) return false;
+    char line[224];
+    if (!DlgReadLine(line, sizeof(line))) return false;
+    return strstr(line, "step toward") || strstr(line, "step away") ||
+           strstr(line, "Backward Dash") || strstr(line, "strike me") ||
+           strstr(line, "high attacks") || strstr(line, "low attacks");
+}
+
+bool TrainCounter(int* done, int* total)
+{
+    uint32_t w = u32(kTrainCounterAddr);
+    int t = (int)(w >> 8), d = (int)(w & 0xFF);
+    if (t < 1 || t > 20 || d < 0 || d > t) return false;
+    *done = d;
+    *total = t;
+    return true;
+}
+
+// The one-line answer WhereAmI gives: "Move, Leaning Fingers. Triangle. 0 of 2."
+bool TrainClause(char* out, size_t cap)
+{
+    if (!TrainDrillActive()) return false;
+    int done = 0, total = 0;
+    if (!TrainCounter(&done, &total)) return false;
+    char name[40], glyph[12];
+    bool named = TrainReadString(u32(kTrainPromptNameAddr), name, sizeof(name)) &&
+                 TrainReadString(u32(kTrainPromptInputAddr), glyph, sizeof(glyph));
+    char pretty[40];
+    TrainTitleCase(name, pretty, sizeof(pretty));
+    const char* input = named ? TrainInputSpoken(glyph) : nullptr;
+    if (named && input)
+        snprintf(out, cap, "Move, %s. %s. %d of %d.", pretty, input, done, total);
+    else if (named)
+        snprintf(out, cap, "Move, %s. %d of %d.", pretty, done, total);
+    else
+        snprintf(out, cap, "%d of %d.", done, total);
+    return true;
+}
+
+void TrainOnFrame(void)
+{
+    if (!TrainDrillActive()) {
+        g_trainKey[0] = 0;
+        g_trainLastDone = -1;
+        g_trainPendKey[0] = 0;
+        g_trainPendDone = -1;
+        g_trainStable = 0;
+        return;
+    }
+    int done = 0, total = 0;
+    if (!TrainCounter(&done, &total)) return;
+    char name[40], glyph[12];
+    bool named = TrainReadString(u32(kTrainPromptNameAddr), name, sizeof(name)) &&
+                 TrainReadString(u32(kTrainPromptInputAddr), glyph, sizeof(glyph));
+    char pretty[40];
+    TrainTitleCase(name, pretty, sizeof(pretty));
+    char key[96];
+    if (named)
+        snprintf(key, sizeof(key), "%s|%s|%d", name, glyph, total);
+    else
+        snprintf(key, sizeof(key), "|%d", total);
+    if (strcmp(key, g_trainPendKey) != 0 || done != g_trainPendDone) {
+        snprintf(g_trainPendKey, sizeof(g_trainPendKey), "%s", key);
+        g_trainPendDone = done;
+        g_trainStable = 0;
+        return;
+    }
+    if (++g_trainStable < kTrainStableFrames) return;
+    if (strcmp(key, g_trainKey) != 0) {
+        // A new move (or a new drill): name it, then say where the drill sits.
+        char spoken[192];
+        const char* input = named ? TrainInputSpoken(glyph) : nullptr;
+        if (named && input)
+            snprintf(spoken, sizeof(spoken), "Move, %s. %s. %d of %d.",
+                     pretty, input, done, total);
+        else if (named)
+            snprintf(spoken, sizeof(spoken), "Move, %s. %d of %d.", pretty, done, total);
+        else
+            snprintf(spoken, sizeof(spoken), "%d of %d.", done, total);
+        // A plain drill at zero adds nothing the objective line did not say.
+        if (named || done > 0)
+            Say(spoken, "objective", oga::Priority::Normal);
+        snprintf(g_trainKey, sizeof(g_trainKey), "%s", key);
+        g_trainLastDone = done;
+    } else if (done != g_trainLastDone) {
+        if (done > 0) {
+            char spoken[64];
+            snprintf(spoken, sizeof(spoken), "%d of %d.", done, total);
+            Say(spoken, "objective", oga::Priority::Normal);
+        }
+        g_trainLastDone = done;
+    }
+}
+
 // ---- fight state (VERIFIED 2026-10-16 night, hunt11) ------------------------
 //
 // One BSS fight struct holds the whole match. The two fighter blocks sit
@@ -1858,6 +2039,7 @@ void MkuOnFrame(void)
 {
     g_frameNo++;
     DlgOnFrame();
+    TrainOnFrame();
     BoutOnFrame();
     WatchMkuHealthCues();
     RoamOnFrame();
@@ -1975,6 +2157,18 @@ void CmdWhereAmI(void)
             BoutLine(bout, sizeof(bout));
             snprintf(spoken, sizeof(spoken), "Fight. %s", bout);
             Say(spoken, "fight", oga::Priority::High);
+            return;
+        }
+        if (TrainDrillActive() && DlgReadLine(line, sizeof(line))) {
+            char clause[160];
+            char spoken[400];
+            if (TrainClause(clause, sizeof(clause)))
+                snprintf(spoken, sizeof(spoken), "Objective. %s %s", line, clause);
+            else
+                snprintf(spoken, sizeof(spoken), "Objective. %s", line);
+            Say(spoken, "objective", oga::Priority::High);
+            strncpy(g_dlgLast, line, sizeof(g_dlgLast) - 1);
+            g_dlgLast[sizeof(g_dlgLast) - 1] = 0;
             return;
         }
         if (ObjectiveUp() && DlgReadLine(line, sizeof(line))) {

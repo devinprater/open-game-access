@@ -2098,3 +2098,50 @@ inside the same 8 AM to 7 PM windows):
 
 Sources: the Kamidogu Konquest walkthrough, GameFAQs Konquest walkthroughs
 (Faceless21, Asternex), the MKKomplete mission list, and the GameSpy guide.
+
+## The dojo lesson prompts are ASCII in RAM, not just drawn (2026-11-12, bench)
+
+The move-name and input boxes that block a blind player from the dojo are
+DRAWN, but the text behind them is resident ASCII. Both strings live in the
+training table at `0x09DDA000` onward, and the live pair is pointed at from
+the script workspace:
+
+| What | Address | Notes |
+|---|---|---|
+| move name | `0x09179814` | pointer into the training table, 0 when no named move |
+| input glyph | `0x09179818` | pointer, same table; `A`, `X`, `(+A`, `:+X` |
+| drill counter | `0x09179808` | `(required << 8) OR done` — the box's `0 / 2` |
+
+Measured in one boot, against screenshots where noted:
+
+- four-attacks drill: `0x400` at `0 / 4`, then `0x401`, `0x402`, `0x403`,
+  `0x404` as the attacks landed, and the drill completed at `0x404`.
+- `LEANING FINGERS` / `A` on screen read back as exactly those strings with
+  the counter at `0x200`; the glyph box showed **Triangle**.
+- `CREATURE KICK` / `X` read back the same way; the glyph box showed **Cross**.
+- after the first move landed the pointer switched to `STONE COLUMN` / `(+A`
+  and to `STING TAP` / `:+X`, with the counter at `0x201` in both cases.
+- the glyph vocabulary is fixed by the lessons that passed: the high-punch
+  lesson completes with `Triangle` then `Up + Triangle`, and the high-and-low
+  lesson with `Cross` then `Left + Cross`, matching
+  `A` then `(+A` and `X` then `:+X`. So `A` = Triangle, `X` = Cross,
+  `(+` = up, `:` = left.
+
+Then the proof that the values are sufficient, not just present: a driver that
+read ONLY these words played the whole dojo. It fired `Triangle` for
+`LEANING FINGERS`, `Up + Triangle` for `STONE COLUMN`, `Cross` for
+`CREATURE KICK` and `Left + Cross` for `STING TAP`, and each lesson reached
+`2 / 2`; the four-attacks drill was driven to `4 / 4` by looping on the
+counter's low byte. No screenshot was consulted while playing.
+
+⛔ **The workspace outlives the drill.** Free-roam still read `0x404` with a
+garbage prompt pointer (`0x09179700`), so the adapter gates the training
+channel on the red objective line AND one of the dojo's own phrasings
+("step toward", "step away", "Backward Dash", "strike me", "high attacks",
+"low attacks"). Outside a drill it says nothing, even though the words are
+still there.
+
+The adapter now speaks `Move, Leaning Fingers. Triangle. 0 of 2.` when a named
+move appears, `1 of 2.` as the counter advances, and repeats the current move
+plus count on WhereAmI. An unknown glyph speaks the move name and no button,
+and a pointer outside the training table fails closed.
