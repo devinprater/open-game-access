@@ -2749,3 +2749,30 @@ by following a pointer.
 Next: park on the path and let him come. The path's geometry is not in a pointer
 chain, so the practical way to find it is the mover scan at his height near
 (-16, 117) during the morning, then a proximity loop on that transform.
+
+### Correction: `npc_oldman` is a kid, not the toothache man (2026-11-13)
+
+The record's `+0x04` word points at a model record whose first word is the model
+name, so every NPC can be labelled. Reading the whole table that way:
+
+| record | model |
+|---|---|
+| `npc_apep` | KON_APEP_ULTRA |
+| `npc_sarah` | KON_GIRL_ULTRA |
+| `npc_old_lady_1`, `npc_vender2`, `npc_jack` | KON_FAT_ULTRA |
+| `npc_butcher`, `npc_blacksmith` | KON_OCC |
+| **`npc_oldman`** | **KON_KID_ULTRA** |
+| `npc_ermac`, `npc_scorpion`, `npc_subzero` | KON_ERMAC, KON_SCORPION, KON_SUBZERO |
+| most villagers (`steve`, `tommy`, `tao1`, `teacher`, venders, guards) | KON_VILL |
+
+So `npc_oldman` is a child model — the name is a red herring, and punching at his
+record (which moves, from (-16.2, 117.4) to (-4.8, 125.1) and later) says
+nothing about the toothache quest. The old man is a KON_VILL or KON_OCC adult,
+and the only KON_OCC records are the butcher, the blacksmith and one bouncer.
+
+Punched at close range this pass, with no subtitle line from any: `npc_vender3`
+(0.14 units), `npc_teacher` (0.93), `npc_oldman` (1.57 after following his live
+record). `npc_steve` and `npc_vender1` were not reached (8.3 and 19.3 units).
+
+That leaves about twenty KON_VILL adults to test, which is a sweep of two or
+three in-game days, not one.
