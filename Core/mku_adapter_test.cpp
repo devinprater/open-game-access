@@ -729,6 +729,24 @@ int main()
           !strstr(SPOKEN[0], "Move,"),
           "a stale training workspace stays silent outside a drill line");
 
+    // ⛔ Free-roam keeps the red colour, the dojo's last line and a plausible
+    // counter (measured live 2026-11-12: A=1, B=0, colour 0xFF4848FF, buffer
+    // "Strike me with two high attacks and two low attacks.", counter 0x404).
+    // The fight-engine flag is what separates the village from a running drill.
+    put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 0);
+    put_u32(0x09178554, 0xFF4848FF);
+    put_u32(0x09178D30, 0);                          // no box, as in free-roam
+    put_ascii(0x09178568, "Strike me with two high attacks and two low attacks.");
+    put_u32(0x09179814, 0);
+    put_u32(0x09179818, 0);
+    put_u32(0x09179808, 0x0404);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 45; i++) a->on_frame();
+    CHECK(NSPOKEN == 0,
+          "free-roam keeps the red drill line and counter; flag B keeps it silent");
+    put_u32(0x08B123DC, 1);                          // back to a live drill
+    put_u32(0x09178D30, 0x091782A0);
+
     put_u32(0x09178554, 0xFF4848FF);
     put_ascii(0x09178568, "Strike me with each of your high and low attacks.");
     put_ascii(0x09DDA0EC, "Q");                      // an unmeasured glyph code

@@ -2136,10 +2136,14 @@ counter's low byte. No screenshot was consulted while playing.
 
 ⛔ **The workspace outlives the drill.** Free-roam still read `0x404` with a
 garbage prompt pointer (`0x09179700`), so the adapter gates the training
-channel on the red objective line AND one of the dojo's own phrasings
+channel on the red objective line, one of the dojo's own phrasings
 ("step toward", "step away", "Backward Dash", "strike me", "high attacks",
-"low attacks"). Outside a drill it says nothing, even though the words are
-still there.
+"low attacks"), and the fight-engine flag B. The flag is the one that catches
+the village: measured live on 2026-11-12, free-roam keeps the red colour word
+and the buffer still holds the dojo's last line ("Strike me with two high
+attacks and two low attacks.") with a plausible `0x404`, so colour and phrase
+alone would have announced a finished lesson while the player walked around.
+Outside a drill it says nothing, even though the words are still there.
 
 The adapter now speaks `Move, Leaning Fingers. Triangle. 0 of 2.` when a named
 move appears, `1 of 2.` as the counter advances, and repeats the current move

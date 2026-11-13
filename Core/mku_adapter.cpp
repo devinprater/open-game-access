@@ -815,12 +815,20 @@ const char* TrainInputSpoken(const char* glyph)
     return nullptr;
 }
 
-// True only while a dojo drill is live: the red objective channel, with one of
-// the phrasings the tutorial actually uses. Free-roam and the "Try again" box
-// both fail this, which is what keeps the stale workspace silent.
+// True only while a dojo drill is live: the mode, the fight engine (flag B),
+// the red objective channel, and one of the phrasings the tutorial uses.
+//
+// ⛔ Flag B is the one that catches free-roam. Measured live 2026-11-12: in the
+// village flag A=1, B=0, the colour word STILL reads 0xFF4848FF and the buffer
+// STILL holds the dojo's last line ("Strike me with two high attacks and two
+// low attacks."), which contains a drill phrase and a plausible stale counter
+// (0x404). Without the B test the adapter would have announced a finished
+// lesson while the player walked the village. Drills run on the fight engine,
+// so B is 1 throughout them.
 bool TrainDrillActive(void)
 {
     if (!InKonquest() || !DlgStructOk()) return false;
+    if (u32(kKonquestFlagBAddr) != 1) return false;
     if (u32(kDlgColorAddr) != kDlgColorObjective) return false;
     char line[224];
     if (!DlgReadLine(line, sizeof(line))) return false;
