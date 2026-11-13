@@ -2224,3 +2224,14 @@ line until it changes.
 The adapter now speaks every village subtitle as it appears: quest dialogue,
 the "Apep is waiting for you" hint, and the rest of the village prose, none of
 which reached speech before.
+
+⛔ **The NPC table is script state, not the render list.** Checked on a clean
+cold boot (SUNDAY 01.01.01): after playing the tutorial to free roam, Apep's
+record read state `0x0002000C` at (-54.8, 0.86, 151.4) and the player stood
+0.8 units away, yet he was not drawn and no cutscene fired — Cross, a walk-in
+from nine units, and a camera sweep all produced nothing, and the subtitle
+buffer stayed empty. Other records do move (Sarah walks, the children's y
+changes), so the table tracks scripted actors, but a record's position is not
+proof that the character is on screen or triggerable. For "where is he now",
+the next route is the rendered-actor list, not this table; for "where is his
+post", it is accurate.
