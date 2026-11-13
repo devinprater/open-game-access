@@ -2193,3 +2193,34 @@ player kept moving. `Circle` freezes the player (meditation), `R` freezes him
 from a conversation. The next attempt should approach Apep from the south
 without crossing the dojo trigger, watch the rendered screen for the game's
 own prompt icon, and only then trust a button.
+
+## Village conversations are cutscenes, and their text is in RAM (2026-11-12)
+
+The talk trigger is not a button. Walking close to a villager starts a
+cutscene: letterboxed, subtitled, with a "Press X to skip" prompt. Measured
+live at 12:53 PM next to the students by the wall — the first line was
+"Hello, Shujinko. I think Apep is waiting for you.", Cross advanced it to
+"Did you want something from me?", then "I really need to practice. You will
+have to excuse ...". The earlier "no proximity trigger" result was taken at
+3 to 7 AM, when the quest NPCs are despawned; it was a time-of-day fact, not
+an engine fact.
+
+| What | Address | Notes |
+|---|---|---|
+| current subtitle line | `0x09106354` | NUL-terminated ASCII, padded with a trailing space |
+| same line, split into words | `0x09105F6C` | each word NUL-terminated, composed as it is spoken |
+
+While the cutscene is up the dialogue buffer `0x09178568` still holds the
+dojo's stale line and its scene pointer reads 0, which is exactly why the
+village looked silent to the adapter.
+
+⛔ **The subtitle workspace is not cleared when the conversation ends.** A
+free-roam read after the benchmark still held the last line, and the words
+around it (including the `0x08B7AC24` and `0x091CF840` pointers) were identical
+to the in-cutscene pattern, so there is no flag to test. The adapter therefore
+speaks on change only, swallows the first line it ever sees, and keeps a
+line until it changes.
+
+The adapter now speaks every village subtitle as it appears: quest dialogue,
+the "Apep is waiting for you" hint, and the rest of the village prose, none of
+which reached speech before.

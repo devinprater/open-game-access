@@ -734,6 +734,77 @@ void DlgOnFrame(void)
     }
 }
 
+// ---- Konquest cutscene subtitles (VERIFIED 2026-11-12, village bench) --------
+//
+// Village conversations are CUTSCENES with drawn subtitles, not the dialogue
+// box. Walking near an NPC starts one — measured live: walking past the
+// students by the wall produced "Hello, Shujinko. I think Apep is waiting for
+// you.", and Cross advanced it to "Did you want something from me?" and then
+// "I really need to practice. You...". At that moment the dialogue buffer still
+// held the dojo's stale line and its scene pointer was 0, which is why the
+// village looked silent to the adapter.
+//
+// The live line is copied to a fixed subtitle workspace:
+//   0x09106354  the whole current line, NUL-terminated ASCII
+//   0x09105F6C  the same line split into words, each NUL-terminated
+// A cutscene's line is spoken when it changes and settles for a few frames.
+// ⛔ The workspace is NOT cleared when the conversation ends: a free-roam read
+// after the benchmark still held "I really need to practice...", and the words
+// around it were identical to the in-cutscene pattern, so there is no flag to
+// test. Speech therefore rides on change alone, and the very first frame the
+// adapter ever sees is swallowed so a stale line at startup is never spoken.
+constexpr uint32_t kSubtitleAddr = 0x09106354;
+constexpr int kSubtitleStableFrames = 10;
+
+char g_subLast[192] = "";
+char g_subPending[192] = "";
+int g_subStable = 0;
+bool g_subStarted = false;
+
+bool SubtitleReadLine(char* out, size_t cap)
+{
+    size_t n = 0;
+    while (n + 1 < cap) {
+        uint8_t c = u8(kSubtitleAddr + (uint32_t) n);
+        if (c == 0) break;
+        if (c < 32 || c > 126) return false;
+        out[n++] = (char) c;
+    }
+    if (n == 0 || u8(kSubtitleAddr + (uint32_t) n) != 0) return false;
+    while (n > 0 && out[n - 1] == ' ') n--;      // the game pads with a space
+    out[n] = 0;
+    return n > 0;
+}
+
+void SubtitleOnFrame(void)
+{
+    char line[192];
+    bool has = SubtitleReadLine(line, sizeof(line));
+    if (!g_subStarted) {
+        // First frame since the app started: record a line left over from a
+        // finished conversation instead of speaking it.
+        g_subStarted = true;
+        if (has) snprintf(g_subLast, sizeof(g_subLast), "%s", line);
+        return;
+    }
+    if (!has) {
+        g_subPending[0] = 0;
+        g_subStable = 0;
+        g_subLast[0] = 0;   // cutscene over: the next line speaks again
+        return;
+    }
+    if (strcmp(line, g_subPending) != 0) {
+        snprintf(g_subPending, sizeof(g_subPending), "%s", line);
+        g_subStable = 0;
+        return;
+    }
+    if (++g_subStable < kSubtitleStableFrames) return;
+    if (strcmp(line, g_subLast) != 0) {
+        Say(line, "dialogue", oga::Priority::Normal);
+        snprintf(g_subLast, sizeof(g_subLast), "%s", line);
+    }
+}
+
 // ---- Konquest dojo training prompt (VERIFIED 2026-11-12, live bench) ---------
 //
 // The named-move lessons draw two more boxes the dialogue buffer never sees:
@@ -2047,6 +2118,7 @@ void MkuOnFrame(void)
 {
     g_frameNo++;
     DlgOnFrame();
+    SubtitleOnFrame();
     TrainOnFrame();
     BoutOnFrame();
     WatchMkuHealthCues();

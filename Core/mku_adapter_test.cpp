@@ -670,6 +670,41 @@ int main()
           "a dialogue line stays on the dialogue channel");
     put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
 
+    // ---- Konquest cutscene subtitles (measured 2026-11-12, village bench) ----
+    // Village conversations are cutscenes, not the dialogue box: walking near
+    // an NPC starts one and the line lands at 0x09106354. The whole workspace
+    // reads zero outside a cutscene, so a printable line is its own gate.
+    put_ascii(0x09106354, "Hello, Shujinko. I think Apep is waiting for you. ");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Hello, Shujinko. I think Apep is waiting for you."),
+          "a village cutscene subtitle speaks");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(NSPOKEN == 0, "the same subtitle does not repeat while it stays up");
+
+    put_ascii(0x09106354, "Did you want something from me? ");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Did you want something from me?"),
+          "Cross advancing the cutscene speaks the next subtitle");
+
+    RAM[OFF(0x09106354)] = 0;                        // cutscene ends
+    for (int i = 0; i < 5; i++) a->on_frame();
+    put_ascii(0x09106354, "Did you want something from me? ");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Did you want something from me?"),
+          "a subtitle shown again after the cutscene speaks again");
+
+    RAM[OFF(0x09106354)] = 1;                        // not printable
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(NSPOKEN == 0, "a non-printable subtitle fails closed");
+    RAM[OFF(0x09106354)] = 0;
+    for (int i = 0; i < 5; i++) a->on_frame();
+
     // ---- Konquest dojo training prompt (measured 2026-11-12, live bench) -----
     // The named-move boxes are DRAWN text: the dialogue buffer never sees them.
     // The move name and input glyph are ASCII strings in the resident training
