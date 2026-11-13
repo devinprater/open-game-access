@@ -2149,3 +2149,47 @@ The adapter now speaks `Move, Leaning Fingers. Triangle. 0 of 2.` when a named
 move appears, `1 of 2.` as the counter advances, and repeats the current move
 plus count on WhereAmI. An unknown glyph speaks the move name and no button,
 and a pointer outside the training table fails closed.
+
+## Free-roam: the NPC table, meditation, and the dojo trap (2026-11-12, bench)
+
+**The village's NPCs are a live table in RAM.** Every Konquest NPC has a
+record with a name pointer and a world position; the table is anchored at
+Apep and strides downward:
+
+| What | Address | Notes |
+|---|---|---|
+| `npc_apep` record | `0x09151098` | first record of the table |
+| stride | `0x810` | each following NPC sits one stride lower |
+| name pointer | `+0x00` | into the entity-name table at `0x09D9D6F0` |
+| position | `+0x1C`, `+0x20`, `+0x24` | x, y, z floats; y is 0 when the NPC is not spawned |
+| second position | `+0x40`, `+0x44`, `+0x48` | a copy, not always equal |
+| radius | `+0x4C` | 5.66 for Apep, 1.38 for ordinary villagers |
+| state word | `+0x14` | `4`, `0x850`, or `0x0002000C`; changes as NPCs spawn |
+
+Measured the same session: `npc_apep` at (-54.82, 0.87, 151.35) beside the
+dojo, `npc_sarah` walking, `npc_teacher` at (-48.7, 170.4), `npc_old_lady_1`
+at (-57.8, 159.8), and so on — 22 records read out by name in one pass.
+
+**Meditation is the clock control.** `Circle` sits Shujinko down and the
+in-game clock jumps: measured Tuesday 3:54 AM to Thursday 4:29 PM in 25 real
+seconds. That is the way to reach a quest's time window (most village quests
+open 8 AM to 7 PM) without waiting on the normal cycle. While meditating, the
+player cannot move, so the adapter must say so rather than let a player think
+the game has frozen.
+
+⛔ **The dojo re-arms training, and it sits on the approach to Apep.** Walking
+into the hall area around (-54, 156) starts Bo' Rai Cho's opening dialogue
+again, sets flag B, and locks the player into the tutorial. Apep's post is at
+z 151.35, so the straight approach from the north crosses the trigger; a
+walk that reports "no calibration" is usually this, not a broken harness.
+Approach him from the south, or expect the tutorial.
+
+**Still not solved: the village talk trigger.** Cross advances dialogue and
+confirms menus, and it is the documented Konquest action button, but pressing
+it beside a spawned Apep did not open a conversation: the dialogue buffer,
+the scene pointer and the NPC record's state word all stayed put, and the
+player kept moving. `Circle` freezes the player (meditation), `R` freezes him
+(block), and `Start` opens the pause menu, so the freeze test separates those
+from a conversation. The next attempt should approach Apep from the south
+without crossing the dojo trigger, watch the rendered screen for the game's
+own prompt icon, and only then trust a button.
