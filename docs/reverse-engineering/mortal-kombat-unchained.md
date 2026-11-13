@@ -2624,3 +2624,28 @@ The item table itself is solid: `0x09D7F4F0`, 8-byte records, name then
 description, ids 0..13 (Bottle of Medicine, Medallion, Artifact, Ham, Hut Key,
 Key, Ninja Star, Important Note, Bucket, Mysterious Key, Ring, Sack of Flour,
 Vase, Kamidogu).
+
+### The candidate loop is steering-limited, not knowledge-limited (2026-11-13)
+
+Face-and-walk steering works. It measures the forward world bearing from a short
+forward push and the turn rate from a short sideways push, then alternates
+turning and walking, re-measuring after every push. Measured: 4.1 units closed
+to 0.94 at a villager post, and 10.4 units closed to 0.70 at Apep's post.
+
+What it cannot do yet is run a candidate sweep fast enough. Nine named villagers
+were walked to and punched in two batches; none answered with a subtitle line,
+but five of the nine were still 6 to 30 units away when the punches fell, so
+those are untested rather than negative. Two things cause that:
+
+- Walkers move 4 to 6 units per 1.5 s, so a record position is a post, not a
+  current position; only villagers standing at their posts match a transform.
+- The in-game clock runs about 13 real minutes to a day, so a 90-second analysis
+  pass costs two in-game hours and a candidate has often walked off before the
+  punch.
+
+A sweep needs roughly two seconds per candidate, or the target picked before the
+in-game morning starts. `scripts/mku-turnwalk.py` is the steering and
+`scripts/mku-punchwalk.py` follows a live transform with it and punches.
+
+The toothache man has not answered yet. Every punched candidate either had no
+`PUNCHED` line (generic villagers carry none) or was not in reach.
