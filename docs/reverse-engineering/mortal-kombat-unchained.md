@@ -2404,3 +2404,48 @@ call a punch is most likely the shove path, or a bout the NPC starts.
 
 Next: find what starts a shove, and read the Konquest free-roam bindings the
 same way the Options page was read (the page only describes fights).
+
+### Deeper into the Konquest code (2026-11-12)
+
+Section 5 of `kon_earthrealm_1.ssf` is the entire Konquest vocabulary, and it
+shows where a punch would have to come from:
+
+- **Trigger table**: `trigger_dojo_1..4`, `dojo_0`, the park teases, the doors,
+  the school gates (positions live in RAM, see the trigger section above).
+- **NPC names and schedules**: `npc_apep`, `npc_old_lady_1`, `npc_fighting_kid`,
+  each with a `<name>_timed_events` companion table.
+- **Quest scripts**: `LS_<QUEST>_<STATE>_<n>` for every villager, with the
+  states `GREETING`, `BOTHER`, `PUNCHED`, `HIT_ONCE`, `PUNCHED_INTO_NIS`,
+  `AFTER`, `WAITING`, `GOTRING`, `GIVE`, `NOTE_QUEST`.
+- **Reaction and effect names**: `punch_reaction_standard`,
+  `punch_reaction_stay_down`, `punch_reaction_stumble`,
+  `punch_reaction_stumble_safe`, `shove_reaction_standard`,
+  `shove_reaction_with_blood_into_talk`, `npc_shoved_from_front/back/left/right`,
+  `npc_been_shoved_standard`, and the `npc_block_*` set.
+- **Items and rewards**: `toothman_reward`, `ringman_ring`, `old_lady_key`,
+  `sickkid_reward`, `lost_key`, `ninja_star`, the koin caches.
+
+So the punch is real and the script side is complete: every villager has a
+`PUNCHED` handler, and the toothache quest's whole completion path is
+`LS_LOOSETOOTH_PUNCHED_0..2` plus the `toothman_reward` object. What is **not**
+in the data is a control label, a `disable`/`enable` gate, or a `can_attack`
+flag. The EBOOT has no plain `punch`, `shove`, `konq` or `konquest` strings at
+all, so the gate is engine-side and reached through hashed names.
+
+**The input does reach the game.** In free roam the fight input bitfield at
+`0x08D92A90` (twin at `0x08D92A94`) takes the button bits as they are pressed:
+Square `0x80000000`, Triangle `0x10000000`, Cross `0x40000000`, Circle
+`0x20000000`. So the press is seen. What does not follow is the attack: no
+animation appears in a capture taken 80 ms after the press, and nothing around
+the player (`0x08AED000..0x08AEDFFF`) or in the player model object
+(`0x09EACC20`) changes.
+
+**The decisive experiment is differential**: run the same scan inside a dojo
+drill, where attacks demonstrably work (flag B = 1), and diff the words that
+react against the free-roam result (B = 0). The difference is the attack-enable
+condition and the attack state itself. That scan has not been run yet.
+
+⛔ Note on the Controls page: it is a **rebinding** UI. Selecting a slot and
+pressing a face button assigns that button to the action immediately — one
+Triangle press moved ATTACK 1 from Square to Triangle. Leave it with RESET, and
+check the mapping again after any visit.
