@@ -2801,3 +2801,29 @@ target. With the facing known, turning becomes deterministic instead of a
 guess, and the sweep can run at a few seconds per candidate.
 
 Until then the sweep stands at three adults tested, all silent.
+
+### Facing solved, steering still open, and one more adult tested (2026-11-13)
+
+**Facing is readable.** The player's draw transform at `0x09E51510` holds a 3x3
+rotation whose first row, taken as (x, z), matches a forward push: dot 0.93 with
+the measured movement vector, while the other rows score 0.00 and 0.37. So the
+facing vector no longer has to be guessed.
+
+**But there is no fixed stick-to-world map.** Measured in one second at one spot:
+stick (0,1) moved (-1.56, 0.00), stick (1,0) moved (+1.57, 0.00), stick (0,-1)
+moved (0.00, +2.46), and stick (-1,0) moved (-1.38, +3.54). The last two are not
+opposites, because a sideways push makes the character *face* that way and the
+camera swings behind, so the next push is relative to a new heading. A walker
+that solved a linear map from stick to world (`scripts/mku-dirwalk.py`) therefore
+stalled: it pushed into a direction that no longer meant what the map said.
+
+The correct controller is turn-then-walk against the read facing: push sideways
+briefly, re-read row0, repeat until the facing is within about ten degrees of the
+bearing, then walk forward. The first attempt at that
+(`scripts/mku-facewalk.py`) did not converge — the turn pushes are twitchy, about
+90 degrees per 0.2 s — so it needs smaller fixed pushes with a re-read after
+each one.
+
+**One more adult tested.** `npc_steve` was reached at 0.71 units and punched: no
+line. Adults tested at punch range so far: `npc_vender3` (1.09), `npc_teacher`
+(0.93), `npc_tao1` (1.05), `npc_steve` (0.71). All silent.
