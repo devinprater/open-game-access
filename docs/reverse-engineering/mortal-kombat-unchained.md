@@ -2235,3 +2235,30 @@ changes), so the table tracks scripted actors, but a record's position is not
 proof that the character is on screen or triggerable. For "where is he now",
 the next route is the rendered-actor list, not this table; for "where is his
 post", it is accurate.
+
+### Chasing the render list (2026-11-12, same bench session)
+
+- **Nothing points at the NPC records.** A full 24 MB scan for words equal to
+  any record address found zero references, so the table is a script-side
+  array indexed by the script, not a pointer-linked actor list.
+- **`y` in a record is not a spawn flag.** Correcting the earlier guess: many
+  NPCs that are plainly drawn read `y = 0.00` (the teacher stood 0.4 units from
+  the player at y 0.00), while Apep on the raised dojo step read 0.87. Treat
+  the triple as a ground position, not as presence.
+- **Apep owns a trigger volume.** His position appears in a node at
+  `0x0920FAC0` holding two positions (-54.925, 0.104, 151.244 and -54.821,
+  0.864, 151.351) and a radius of **5.76** at `+0x54`, and a pointer to that
+  node sits at `0x090D69F4` in a mixed list of scene objects. No other NPC has
+  such a node: it is the green aura, not a generic actor record.
+- ⛔ **Standing inside that 5.76-unit radius did not start his conversation**,
+  from a clean entry nine units away, on a fresh boot whose state word read
+  `0x0002000C`. The aura is a marker, not the talk trigger, so the trigger is
+  still unknown.
+- The visible actor list itself was not identified. The region around
+  `0x090D69E8` holds a mixed pointer list (scene objects, handles like
+  `0xEFFFEA2F`), but its entries do not line up with the drawn characters, so
+  it is not yet a reader.
+
+Next experiment: compare a trigger that DID fire (the students' "Hello,
+Shujinko" beat by the wall) with Apep's unfired volume and diff their state
+words, rather than looking for a render list.
