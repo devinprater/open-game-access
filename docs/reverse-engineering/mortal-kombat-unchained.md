@@ -2649,3 +2649,35 @@ in-game morning starts. `scripts/mku-turnwalk.py` is the steering and
 
 The toothache man has not answered yet. Every punched candidate either had no
 `PUNCHED` line (generic villagers carry none) or was not in reach.
+
+### The toothache lead, and why the loop keeps missing it (2026-11-13)
+
+At 11:10 AM the path by the village gate held a **brown-robed elder with white
+hair tied up, walking away from the player** — the first figure in this hunt
+that matches the guide's "old, bald man with the white beard" description. By
+the time the player closed the distance (one screenshot to see him, one 0.6 s
+walk, two punches) he was out of reach and the subtitle buffer stayed empty.
+
+That is the shape of the remaining problem: the loop is slower than the
+villagers walk. A screenshot costs about two seconds of wall time, which is
+nearly four in-game minutes; a walk to a post costs seconds to tens of seconds,
+which is in-game hours. The elder was visible, identified and gone inside one
+iteration.
+
+What was tried in this pass:
+
+- Face-and-walk steering to every named post (Apep 0.70, villager post 0.94) and
+  punches in four facings at each: no line, and several approaches never closed.
+- An ambush that polls known draw transforms and punches when one comes within
+  1.8 units: the transforms that move at NPC height are rare, and the one
+  close encounter was a prop at y 1.58.
+- A 100-second patrol at the gate punching in four facings every 1.3 s: 32
+  rounds, no line.
+
+Tools kept: `scripts/mku-turnwalk.py`, `scripts/mku-punchwalk.py`,
+`scripts/mku-ambush.py`, `scripts/mku-patrol.py`.
+
+Next attempt should stand at the gate at about 10:30 AM with the elder's
+transform address already known (match his record to a transform while he is
+still visible), then poll that one word-pair at 10 Hz and punch the instant the
+distance falls under 1.5 — no screenshot in the loop, no walking.
