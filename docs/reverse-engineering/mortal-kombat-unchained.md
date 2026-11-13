@@ -2699,3 +2699,26 @@ Measured at the gate on a Tuesday morning, 8 to 11 AM: 71 NPC-height transforms
 inside 30 units, the nearest 3.9 away and stationary; a close punch at 1.29
 produced no line. So the parking loop works, but the villagers near that spot
 are not the elder and do not walk through it.
+
+### The table is longer than 40: `npc_oldman` exists (2026-11-13)
+
+The NPC record table was being read only 40 entries down from `npc_apep`. It
+continues well past that: scanning 90 entries found, among others,
+
+| record | address | post |
+|---|---|---|
+| `npc_old_lady_1` | `0x0914D828` | (-62.0, 157.5) |
+| **`npc_oldman`** | **`0x09143EF8`** | **(-16.2, 117.4)** |
+| `npc_ring_man` | `0x0913B5E8` | (67.5, 109.1) |
+| `npc_dojo_man` | `0x0913ADD8` | (54.2, 65.3) |
+| `npc_raceman` | `0x09128388` | (0, 0) |
+
+`npc_oldman` is the toothache man: the old man the guides place in the park.
+His post is at (-16.2, 117.4), in B-5, about 50 units east of the fountain —
+which is why every sweep of A-6 and the gate kept punching the wrong villagers.
+
+Reaching him is now the only problem. A pursuit controller that walks forward
+in bursts and strafes when the distance stops falling ran the wrong way and
+wedged the player at the fighting kids' area (-64.2, 172.7), 73 units away,
+so a controller that turns toward the target before walking is required; this
+one never did.
