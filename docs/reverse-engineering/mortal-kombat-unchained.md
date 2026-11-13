@@ -2776,3 +2776,28 @@ record). `npc_steve` and `npc_vender1` were not reached (8.3 and 19.3 units).
 
 That leaves about twenty KON_VILL adults to test, which is a sweep of two or
 three in-game days, not one.
+
+### Adult sweep, and why it keeps missing (2026-11-13)
+
+Three KON_VILL adults were reached and punched in these batches:
+
+| target | closest approach | result |
+|---|---|---|
+| `npc_vender3` | 1.09 | no line |
+| `npc_teacher` | 0.93 | no line |
+| `npc_tao1` | 1.05 | no line |
+
+The other candidates were never reached. The steering is the problem, not the
+targets: in one batch `npc_billy` went from 3.5 units to **46.55**, and
+`npc_steve` from 6.3 to 39.55, as the controller pushed the player away. Both
+the long-burst controller and the micro-step controller have runs like this when
+the camera has swung, because neither knows which way the character is actually
+facing.
+
+The fix is to stop inferring facing from movement: the player's own draw
+transform holds a 3x3 rotation, so the facing vector can be read directly and
+the stick only needs to turn until that vector matches the bearing to the
+target. With the facing known, turning becomes deterministic instead of a
+guess, and the sweep can run at a few seconds per candidate.
+
+Until then the sweep stands at three adults tested, all silent.
