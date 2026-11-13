@@ -2605,3 +2605,22 @@ before the punch and one with the key open found no aligned twelve-word array
 whose only change was a single small id, so the slots are either not held in
 this image or store something other than the table index. Announcing gained
 items in the adapter needs that array, and it is the next wiring task.
+
+### Item announcements: the changed word was UI, not storage (2026-11-13)
+
+The only word that appeared with the hut key in hand was `0x08AFD570` (u16 `4`,
+the Hut Key's index in the table). With the inventory closed it reads `0` again,
+so it is the screen's selected-slot field, not the inventory itself. A dump taken
+with the screen open and one taken before the punch differ by that field alone:
+no twelve-slot array of ids, in u8, u16 or u32, changed by the key anywhere in
+the 24 MB image.
+
+So the inventory is either re-read from the save when the screen opens, or held
+in a structure that was not resident during the dump. Announcing gained items in
+the adapter needs the save/profile structure, not a UI field; `0x08AFD570` must
+not be wired as inventory state.
+
+The item table itself is solid: `0x09D7F4F0`, 8-byte records, name then
+description, ids 0..13 (Bottle of Medicine, Medallion, Artifact, Ham, Hut Key,
+Key, Ninja Star, Important Note, Bucket, Mysterious Key, Ring, Sack of Flour,
+Vase, Kamidogu).
