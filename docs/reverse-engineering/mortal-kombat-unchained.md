@@ -2488,3 +2488,43 @@ What this leaves open, honestly:
   target". The test that settles it needs a villager measurably adjacent, which
   means locating a drawn actor by its rendered position rather than by the NPC
   table.
+
+### The punch works in free roam (2026-11-13) — the earlier tests had no target
+
+Located drawn actors by their render transform instead of the NPC table, then
+followed one until it was measurably adjacent, then pressed Square.
+
+**Finding the drawn actors.** Scan the 24 MB for 12-float structures whose three
+rows are unit vectors (stride 4 words) with the translation at `+0x30` inside the
+village bounds (x -200..200, y 0..4, z 90..200), dump twice a couple of seconds
+apart, and keep the ones that moved. That yields about 290 candidate transforms
+and 8 that move between dumps, in mirrored pairs 0x40 apart (for example
+`0x09051710`/`0x09051830`, `0x09D08BD0`/`0x09D08C10`). Tracking them against the
+player confirmed they are real: one walked west 17 units across the village and
+the player, following its live position, arrived 0.79 units away.
+`scripts/mku-actorscan.py` is the tool.
+
+**The punch.** Adjacent (0.81 units), pressing Square once:
+
+- The frame 150 ms after the press shows Shujinko in a full punch pose (legs
+  spread, right arm driven at the villager) and a dense burst of dark blue
+  spheres at the point of impact.
+- The villager is knocked back, torso tilted away, one foot off the ground.
+- The measured distance went from 0.81 to 3.60 after one press, 2.15 after the
+  second and 4.40 after the third, with 30 words changing in the actor block each
+  time.
+- Neither the subtitle buffer (`0x09106354`) nor the dialogue buffer stayed
+  changed: this villager had no quest reaction line.
+
+**What this overturns.** Every earlier "Square does nothing in free roam" result
+(the 4 KB player scan, the full-RAM differential, the forced-B test) was taken
+with no villager in reach, so there was nothing for the attack to hit and nothing
+visible to change. The attack is not gated to fights. Square is ATTACK 1 in
+free roam, and the engine-side gate I inferred does not exist.
+
+Also corrected: at night the quest villagers are simply not drawn. The same
+spot that showed an empty plaza at 3 AM held two or three walkers by 9 AM, which
+is the real reason the village looked deserted in every night capture.
+
+Next: identify the toothache man among the tracked actors and punch him, then
+watch for `LS_LOOSETOOTH_PUNCHED_*` in the subtitle buffer.
