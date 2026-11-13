@@ -2374,3 +2374,33 @@ build, which is why every punch test failed. The next probe should read the
 game's own control mapping from the main-menu Options > Controls page, or take
 a press in a state where fighting is definitely live (a village bout), and only
 then retry the toothache quest.
+
+### The game's own button mapping (read 2026-11-12)
+
+The Options > Controls page is a live map, not a list: it draws a PSP and a
+six-slot grid, and selecting a slot lights the matching button on the diagram.
+Read off the screen:
+
+| Button | Action |
+|---|---|
+| Square | ATTACK 1 |
+| Triangle | ATTACK 2 |
+| L | CHANGE STYLE |
+| Cross | ATTACK 3 |
+| Circle | ATTACK 4 |
+| R | BLOCK |
+
+That is the **fighting** map. Konquest free-roam remaps some of it, measured
+directly: Circle meditates (y drops to 0.23 and input is ignored), R blocks,
+Cross confirms menus and advances dialogue, and Square changes nothing in RAM.
+
+⭐ This resolves the punch question. Attacks are live during the dojo drills,
+which run on the fight engine (flag B = 1), but free-roam has B = 0 and the
+4 KB scan around the player showed no attack state at all. So "punch the old
+man" cannot be a free-roam ATTACK 1. The string bank has separate
+`shove_reaction_standard`, `shove_reaction_stumble` and
+`shove_reaction_with_blood_into_talk` entries, so the interaction the guides
+call a punch is most likely the shove path, or a bout the NPC starts.
+
+Next: find what starts a shove, and read the Konquest free-roam bindings the
+same way the Options page was read (the page only describes fights).
