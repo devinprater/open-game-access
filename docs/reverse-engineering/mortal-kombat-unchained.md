@@ -2356,3 +2356,21 @@ What would settle it: find the player's attack state (the animation flag that
 Square sets) and confirm a press reaches it, then check the villager's PUNCHED
 handler fires. Without that, "punch the old man" is still a guide's sentence,
 not a measured mechanic.
+
+**That scan is done, and Square sets nothing.** Sampled 4 KB around the player
+(`0x08AED000..0x08AEDFFF`) at about 15 Hz for half a second before and one
+second after a press, in free roam on the village street:
+
+- `square`: one word changed, `0x08AEDC90`, and it turned out to be a free
+  running counter (it climbs every sample, `0x002B2EE0`, `0x002B32A0`, ...),
+  not a reaction to the press.
+- `cross` and `circle`: no word changed at all.
+- The `0 -> 1` flag at `0x08AED5B0` flips on its own before any press arrives,
+  so it is not an input flag either.
+
+So the press produces no observable state change near the player in free roam.
+Attacks are either disabled in this state or bound to something else on this
+build, which is why every punch test failed. The next probe should read the
+game's own control mapping from the main-menu Options > Controls page, or take
+a press in a state where fighting is definitely live (a village bout), and only
+then retry the toothache quest.
