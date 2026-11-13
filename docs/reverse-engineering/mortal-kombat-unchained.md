@@ -2449,3 +2449,42 @@ condition and the attack state itself. That scan has not been run yet.
 pressing a face button assigns that button to the action immediately — one
 Triangle press moved ATTACK 1 from Square to Triangle. Leave it with RESET, and
 check the mapping again after any visit.
+
+### The press differential, run (2026-11-13)
+
+Full 24 MB dumps, taken idle, idle again, with Square held, and after release;
+only words that are stable while idle, change under the hold, and return to
+baseline after release count as a reaction.
+
+- Free roam (B = 0): 216 words reacted.
+- Dojo drill (B = 1): 180 words reacted.
+- Common to both: 17. They are the fight input bitfield (`0x08D92A90` and its
+  twin `0x08D92A94`, both `0x80000000` for Square) and a 16-word block at
+  `0x09F9C55C..0x09F9C5F0`.
+- Drill only: 163 words, clustered at `0x08BB3E00..0x08BB4A00` and
+  `0x08BE5800..0x08BE6200`. Their content is animation-curve data (floats and
+  keyframe indices), so these are the fight scene's per-frame pose buffers, not
+  an attack flag.
+
+**Forcing the flag does not unlock the attack.** `memory.write` works on this
+debugger (write, read back, restore all verified). With `0x08B123DC` forced to 1
+in free roam and Square pressed, the drill-only words did not react: 1 of 163
+reacted, versus 8 moving with no press at all. Flag B is a symptom of being in a
+fight scene, not the switch that allows an attack.
+
+**The differential is confounded.** A drill loads a different arena, a different
+camera and the fight engine's whole pose pipeline, so almost everything that
+reacts there is the scene, not the permission. A cleaner differential is needed:
+the same free-roam scene, with and without a villager in reach.
+
+What this leaves open, honestly:
+
+- Square is the documented Konquest attack and Cross is the documented action
+  button (talk), so both buttons should work in free roam. Every press so far was
+  made with no villager confirmed on screen within reach: the NPC table's
+  positions did not match the drawn actors, and the screenshots showed the
+  player alone or the NPCs several steps away.
+- So "the press does nothing" is not yet separable from "the press had no
+  target". The test that settles it needs a villager measurably adjacent, which
+  means locating a drawn actor by its rendered position rather than by the NPC
+  table.
