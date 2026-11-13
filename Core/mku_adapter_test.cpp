@@ -963,6 +963,28 @@ int main()
     a->command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Position -64, 141."),
           "the spoken position tracks the vec3 (and rounds)");
+
+    // ---- named Konquest NPCs (measured 2026-11-13) ---------------------------
+    // Record positions match the drawn actor when the villager stands at his
+    // post, so WhereAmI can point at the nearest one. Unknown names say
+    // "Someone" rather than inventing a name.
+    put_ascii(0x09F00000, "npc_apep");
+    put_u32(0x09151098, 0x09F00000);
+    put_f32b(0x09151098 + 0x1C, -64.18f);            // 10 units north of the player
+    put_f32b(0x09151098 + 0x20, 0.87f);
+    put_f32b(0x09151098 + 0x24, 150.84f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(spoken_has("Apep is 10 units north."),
+          "WhereAmI points at the nearest named NPC");
+
+    put_ascii(0x09F00000, "npc_unseen_person");      // a name never seen in play
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(spoken_has("Someone is 10 units north.") && !spoken_has("unseen"),
+          "an unknown NPC name stays unnamed");
+
+    put_u32(0x09151098, 0);                           // clear the record
     put_u32(0x08B123DC, 1);                          // a bout owns the mode
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);

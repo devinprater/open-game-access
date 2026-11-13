@@ -2528,3 +2528,37 @@ is the real reason the village looked deserted in every night capture.
 
 Next: identify the toothache man among the tracked actors and punch him, then
 watch for `LS_LOOSETOOTH_PUNCHED_*` in the subtitle buffer.
+
+### Naming the actors (2026-11-13)
+
+The NPC script records and the draw transforms are the same world: when a
+villager stands at his post, the record position equals the drawn actor's
+position to within a few centimetres. Measured in one dump by matching all 40
+records against every draw transform within 1 unit:
+
+| record | record position | draw transform | error |
+|---|---|---|---|
+| `npc_apep` | (-54.82, 0.86, 151.35) | `0x09CF97C0` | 0.00 |
+| `npc_ermac` | (-67.08, 0.86, 152.83) | `0x09C91840` | 0.00 |
+| `npc_adam` | (-53.74, 0.00, 115.53) | `0x09CB07E0` | 0.01 |
+| `npc_billy` | (-63.14, 0.00, 172.94) | `0x09CAECE0` | 0.01 |
+| `npc_tao1` | (-64.27, 0.00, 161.00) | `0x09CB5110` | 0.06 |
+| `npc_vender2` | (10.44, 0.00, 127.09) | `0x09D362F0` | 0.24 |
+| `npc_old_lady_1` | (-57.35, 0.84, 151.37) | `0x091179B0` | 0.30 |
+
+So a record names the villager standing there, and `scripts/mku-npcs.py` plus
+this match is how an actor becomes "Apep" or "the old lady" rather than a
+transform address. Villagers who walk away from their posts stop matching;
+their records move with them (Sarah's does), which is why the table is still
+the cheaper source than a 24 MB transform scan.
+
+**The model-name table does not name an actor.** The table at `0x0954BE28`
+(0x10-byte records, name pointer first: `KON_VILL`, `KON_APEP_ULTRA`,
+`KON_KID_ULTRA`, ...) is live, but a full-RAM scan found **no pointer to any of
+its 286 slots**, so the actor -> model -> name chain is resolved at load time
+and is not walkable in RAM. Record matching is the identity route that works.
+
+The adapter now uses it: in free roam, WhereAmI appends the nearest named NPC
+within 60 units as `Apep is 10 units north.` Names verified in play are spoken;
+an unseen name reports as `Someone` rather than inventing one. Two host checks
+added (180 passing).

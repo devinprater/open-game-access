@@ -1560,6 +1560,97 @@ void RoamPositionClause(char* out, size_t cap)
     snprintf(out, cap, "Position %d, %d.", ix, iz);
 }
 
+// ---- named Konquest NPCs (VERIFIED 2026-11-13) --------------------------------
+//
+// Every village NPC has a 0x810-byte script record, anchored at npc_apep's
+// record: the name pointer at +0 and the world position at +0x1C/+0x20/+0x24.
+// When a villager stands at his post the record position matches the drawn
+// actor exactly (measured against the draw transforms: npc_apep d=0.00,
+// npc_adam d=0.01, npc_tao1 d=0.06, npc_vender2 d=0.24), so this answers "where
+// is he" without scanning 24 MB of draw transforms.
+//
+// Names not yet seen in play report as "Someone" rather than inventing one.
+constexpr uint32_t kNpcTopAddr = 0x09151098;   // npc_apep's record
+constexpr uint32_t kNpcStride = 0x810;
+constexpr int kNpcRecords = 40;
+constexpr float kNpcRange = 60.0f;
+
+const char* NpcSpokenName(const char* raw)
+{
+    static const struct { const char* key; const char* spoken; } kMap[] = {
+        {"npc_apep", "Apep"},
+        {"npc_sarah", "Sarah"},
+        {"npc_old_lady_1", "the old lady"},
+        {"npc_teacher", "the teacher"},
+        {"npc_butcher", "the butcher"},
+        {"npc_vender1", "a vendor"},
+        {"npc_vender2", "a vendor"},
+        {"npc_vender3", "a vendor"},
+        {"npc_ermac", "Ermac"},
+    };
+    for (size_t i = 0; i < sizeof(kMap) / sizeof(kMap[0]); i++)
+        if (strcmp(raw, kMap[i].key) == 0) return kMap[i].spoken;
+    return nullptr;
+}
+
+bool NpcRecordName(uint32_t base, char* out, size_t cap)
+{
+    uint32_t p = u32(base);
+    if (p < 0x08800000 || p >= 0x0A000000) return false;
+    size_t n = 0;
+    while (n + 1 < cap) {
+        uint8_t c = u8(p + (uint32_t) n);
+        if (c == 0) break;
+        if (c < 32 || c > 126) return false;
+        out[n++] = (char) c;
+    }
+    if (n == 0 || u8(p + (uint32_t) n) != 0) return false;
+    out[n] = 0;
+    return strncmp(out, "npc_", 4) == 0;
+}
+
+// The HUD compass reads north as +z and east as +x (measured on the village).
+const char* NpcCompassWord(float dx, float dz)
+{
+    float deg = atan2f(dx, dz) * 57.29578f;
+    if (deg < 0.0f) deg += 360.0f;
+    if (deg < 22.5f || deg >= 337.5f) return "north";
+    if (deg < 67.5f) return "north east";
+    if (deg < 112.5f) return "east";
+    if (deg < 157.5f) return "south east";
+    if (deg < 202.5f) return "south";
+    if (deg < 247.5f) return "south west";
+    if (deg < 292.5f) return "west";
+    return "north west";
+}
+
+bool NpcNearestClause(char* out, size_t cap)
+{
+    float px, py, pz;
+    if (!KonquestPos(&px, &py, &pz)) return false;
+    int best = -1;
+    float bestD2 = kNpcRange * kNpcRange, bx = 0.0f, bz = 0.0f;
+    for (int i = 0; i < kNpcRecords; i++) {
+        uint32_t base = kNpcTopAddr - (uint32_t) i * kNpcStride;
+        float x = f32(base + 0x1C), y = f32(base + 0x20), z = f32(base + 0x24);
+        if (!(x > -300.0f && x < 300.0f)) continue;
+        if (!(z > -300.0f && z < 300.0f)) continue;
+        if (!(y > -2.0f && y < 6.0f)) continue;
+        float dx = x - px, dz = z - pz, d2 = dx * dx + dz * dz;
+        if (d2 < 0.01f || d2 >= bestD2) continue;
+        bestD2 = d2; best = i; bx = dx; bz = dz;
+    }
+    if (best < 0) return false;
+    char raw[40];
+    uint32_t base = kNpcTopAddr - (uint32_t) best * kNpcStride;
+    if (!NpcRecordName(base, raw, sizeof(raw))) return false;
+    const char* who = NpcSpokenName(raw);
+    if (!who) who = "Someone";
+    snprintf(out, cap, "%s is %d units %s.", who, (int) (sqrtf(bestD2) + 0.5f),
+             NpcCompassWord(bx, bz));
+    return true;
+}
+
 // Movement-derived facing: a short window of recent positions (the
 // last ~2 s) is kept while in free-roam; whenever the player has
 // covered >= 0.5 units across that window, the facing is the window's
@@ -2271,8 +2362,12 @@ void CmdWhereAmI(void)
                 snprintf(pos, sizeof(pos), "Position not ready yet.");
             else
                 RoamPositionClause(pos, sizeof(pos));
-            char spoken[128];
-            snprintf(spoken, sizeof(spoken), "Konquest. %s", pos);
+            char npc[96];
+            char spoken[224];
+            if (NpcNearestClause(npc, sizeof(npc)))
+                snprintf(spoken, sizeof(spoken), "Konquest. %s %s", pos, npc);
+            else
+                snprintf(spoken, sizeof(spoken), "Konquest. %s", pos);
             Say(spoken, "status", oga::Priority::High);
             return;
         }
