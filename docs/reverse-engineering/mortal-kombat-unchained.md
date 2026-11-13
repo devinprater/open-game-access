@@ -2262,3 +2262,20 @@ post", it is accurate.
 Next experiment: compare a trigger that DID fire (the students' "Hello,
 Shujinko" beat by the wall) with Apep's unfired volume and diff their state
 words, rather than looking for a render list.
+
+**That comparison (same session) came back negative.** The students' beat
+fired with the player at (-50.46, 0.87, 169.27), and the only structures at
+that spot in a dump taken while the cutscene was up are the effect nodes at
+`0x08CC8xxx` / `0x08CE8xxx`, all carrying the shared pointer `0x08AE6EAC` —
+the same particle-looking region seen earlier, and not a trigger volume at all.
+No volume sits near them. So the students' beat is script-conditioned rather
+than volume-driven, and Apep's 5.76-unit volume is not the mechanism for his
+conversation either. There is no consumed-trigger flag to read in the volumes
+that were found.
+
+The route that can answer this is static, not more walking: the Konquest
+script resource behind strings like `apep: Talk to apep after dojo 2` /
+`apep: I haven't talked to apep |AND| I haven't finished the first dojo`
+defines the condition that plays each beat. Finding that resource in
+`ARCHIVE.IMP` and reading its event clause is the next step, not another
+RAM sweep.
