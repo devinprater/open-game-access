@@ -3077,3 +3077,27 @@ the channel those lines arrive on — exactly what the adapter already speaks.
 
 The bridge toll quest (`LS_BRIDGE`, 15 lines in the script bank) is therefore
 live and reachable. Route, punch and line, in that order, all work now.
+
+### The bridge chain: meat, and who gives it (2026-11-13)
+
+Reading the script bank around the bridge quest shows the chain:
+
+- `LS_BUTCHER_GREETING_*`, `LS_BUTCHER_INSTRUCT_*`, `LS_BUTCHER_GIVE_MEAT_*`,
+  `LS_BUTCHER_HIT_ONCE_*`, `LS_BUTCHER_PUNCHED_INTO_NIS_*`
+- `LS_BRIDGE_GUARD_GREETING_0`, `LS_BRIDGE_GUARD_NO_PASS_0..2`,
+  `LS_BRIDGE_GUARD_BOTHER_0..1`, **`LS_BRIDGE_GUARD_THANKS_FOR_MEAT_0`**
+- `LS_BRIDGE_KID_MEAT_0..2`, `LS_DOG_WOMAN_GOTMEAT_0..4`
+- items `butchers_meat`, `dog_meat`, `meat_reward`, and the table entry **Ham —
+  "A tender slab of ham, loved by guards in…"**
+
+So the bridge opens when the guard is given meat, and the meat comes from the
+butcher (or the dog quest). Measured in play this pass:
+
+- the guard answers a PUNCH with "You shall not pass." and then "Move along.
+  This bridge is off limits."
+- Cross on the guard retypes the same line; it does not open a conversation box.
+- the butcher (balding, dark beard, apron) does not answer Cross, a bump, or a
+  punch at his counter.
+
+The butcher's conversation is therefore gated behind another quest state — most
+likely the dog woman's meat request — and that is the next link to find.
