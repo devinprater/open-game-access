@@ -2991,3 +2991,27 @@ target stayed 34 units away.
 So the control problem is now solved twice over — heading, and camera steering —
 and what remains is map knowledge: a route around the pocket. That needs either a
 probed walkable grid (a long, mechanical session) or a hand-driven traversal.
+
+### Camera wall-follower: the best controller so far (2026-11-13)
+
+`scripts/mku-rotwalk.py` steers entirely with the camera: walk a burst, measure
+which way the burst actually went, rotate the camera toward the bearing, and on a
+blocked burst rotate 45 degrees in a committed direction, flipping that direction
+every fourth block so it does not lock into one side; also backs up and re-tries
+when every orientation is blocked.
+
+Measured runs:
+
+| start | goal | best distance reached |
+|---|---|---|
+| 34.1 units out | (-54, 130) | **18.96** (moved east from x -87 to -71 along z 137) |
+| 16 units out | (-60, 145) detour | 13.83 |
+
+That is the furthest any controller has carried the player toward either point,
+and it is the first one that recovered from a wedge without being restarted. It
+still plateaus at barriers: the direct line to (-54, 130) stops about 19 units
+out, and the detour about 14 units out.
+
+So: camera steering plus a committed 45-degree wall-follow is a real, working
+control loop; what it lacks is knowledge of where the gap in each barrier is.
+That is the map problem, still open.
