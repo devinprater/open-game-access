@@ -2827,3 +2827,29 @@ each one.
 **One more adult tested.** `npc_steve` was reached at 0.71 units and punched: no
 line. Adults tested at punch range so far: `npc_vender3` (1.09), `npc_teacher`
 (0.93), `npc_tao1` (1.05), `npc_steve` (0.71). All silent.
+
+### Correction: the player transform's rotation is not the facing (2026-11-13)
+
+The node at `0x09E51510` has a translation exactly equal to the free-roam vec3,
+which made it look like the player node. Its rotation is not the character's
+heading, though. Measured twice in a row in free roam:
+
+- forward stick `(0,1)` moved the player **west** (-1.00, 0.00) and (-1.00, -0.01)
+- the node's row0 stayed `(0.00, +1.00)` through both pushes
+- dot(movement, row0) = **0.02** and **-0.01**
+
+So row0 does not predict movement, and the earlier 0.93 reading was a
+coincidence of that moment's heading. `mku-facewalk2.py` steered on that false
+signal, which is why it walked away from its targets.
+
+Two useful facts came out of the same test, though:
+
+1. Two consecutive forward pushes moved in the same world direction, so the
+   stick-to-world map is **stable while the heading does not change**.
+2. The map only rotates when a push makes the character turn, which is why the
+   four-direction probe gave non-opposite results for (1,0) and (-1,0) earlier.
+
+That leaves the empirical four-direction probe (`scripts/mku-greedy4.py`) as
+the only control that actually works, and the real heading somewhere else —
+most likely in the actor object behind the NPC-style record chain rather than in
+this transform.
