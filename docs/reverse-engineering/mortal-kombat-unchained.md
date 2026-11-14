@@ -2920,3 +2920,27 @@ So the state is: heading known and readable, turning measurable, stuck recovery
 working, and path-finding still impossible without a map of the obstacles. The
 trigger table gives named points but not walls; a usable route planner would need
 either a walkable-area probe or a hand-driven first traversal.
+
+### Pathfinding attempt: reactive wall-following did not converge (2026-11-13)
+
+`scripts/mku-bugwalk.py` implements bug2 on top of the heading vector: head for
+the target, probe forward (a 0.28 s push that must move the player 0.08 units or
+more), and on a block commit to a wall direction — perpendicular to the blocked
+bearing — following it with a fixed side until the direct line reopens or 70
+steps pass.
+
+Measured result: the walker did not converge. From (-62, 175) toward (-54, 130)
+it ended at (-114, 143) with the distance rising from 35.8 to 68.8 units, and
+repeated the pattern across the map. Two limits cause it:
+
+- **Turn granularity.** A 0.08 s sideways push rotates the heading about 9
+  degrees and sometimes not at all when the character is against geometry, so
+  "turn to this bearing" is a loop that often gives up or overshoots.
+- **Blocked-probe noise.** A short push into a wall and a short push that is
+  merely slow are not clearly distinguishable at 0.28 s, so wall-following
+  re-enters and leaves the wall at random.
+
+Tuning the reactive controller further is not paying off. The viable alternative
+is a one-off walkable map: probe a grid of cells once (push across each cell
+boundary and record whether the position changed), then plan on the grid with
+A*, where a single bad probe does not derail the route.
