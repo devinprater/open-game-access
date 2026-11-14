@@ -3015,3 +3015,25 @@ out, and the detour about 14 units out.
 So: camera steering plus a committed 45-degree wall-follow is a real, working
 control loop; what it lacks is knowledge of where the gap in each barrier is.
 That is the map problem, still open.
+
+### Measured stick matrix: 50 units closed (2026-11-13)
+
+`scripts/mku-mapsteer.py` measures the two stick axes once — push (1,0), record
+the world displacement; push (0,1), record it — builds the 2x2 matrix
+M = [right | forward], and inverts it so any world bearing B becomes
+stick = M^-1 B. No heading vector, no camera yaw, no turning: the matrix is the
+movement model, measured rather than assumed.
+
+First run, from (-103, 174) toward (-54, 130):
+
+```
+65.7 -> 63.1 -> 53.3 -> 45.6 -> 33.8 -> 25.1 -> 17.8 -> 17.0 -> 16.1
+```
+
+Fifty units closed in about two minutes, with the stick values staying steady
+around (-0.95, -0.30) — the sign of a correct model. It then circled between 16
+and 18 units, which is the same wall the other controllers hit.
+
+This is the first controller that both closes distance reliably and holds a
+stable heading solution. The remaining problem is now purely the obstruction at
+about 16 units out.
