@@ -2944,3 +2944,27 @@ Tuning the reactive controller further is not paying off. The viable alternative
 is a one-off walkable map: probe a grid of cells once (push across each cell
 boundary and record whether the position changed), then plan on the grid with
 A*, where a single bad probe does not derail the route.
+
+### Pathfinding, second attempt: stick-from-heading works, walls still win (2026-11-13)
+
+Two attempts in this pass.
+
+**Stick from heading (`scripts/mku-dirwalk2.py`).** With the real heading vector,
+the stick is solved directly: push (B·right, B·forward) where forward is the
+heading and right is its perpendicular. No turning required. It moved the player
+steadily from 54.9 units out to 34.2 — the best sustained progress of any
+controller so far — then stalled at (-87.4, 137.3) for twenty iterations,
+pushing without moving. A wall, again.
+
+**Local map with A* (`scripts/mku-mapwalk.py`).** Cast eight probe rays, mark the
+cells they walk through as free, plan with A* over free cells only, follow five
+waypoints, replan. The rays produced only 2, 25 and 3 free cells across three
+plans, because turning to each bearing fails often enough that most rays never
+start. One plan did cut 61.9 to 19.7 units, so the idea has merit, but the
+sensor is too weak.
+
+The common root is turning. The character turns only by moving, at roughly nine
+degrees per 0.08 s push, and not at all when pressed against geometry, so every
+scheme that needs an aimed probe or an aimed walk degrades. The next thing worth
+trying is camera-relative control: if the camera yaw can be read and the camera
+rotated independently, the character can be aimed without the push-turn coupling.
