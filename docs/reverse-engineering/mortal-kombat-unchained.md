@@ -2968,3 +2968,26 @@ degrees per 0.08 s push, and not at all when pressed against geometry, so every
 scheme that needs an aimed probe or an aimed walk degrades. The next thing worth
 trying is camera-relative control: if the camera yaw can be read and the camera
 rotated independently, the character can be aimed without the push-turn coupling.
+
+### Camera-relative control confirmed; the pocket still wins (2026-11-13)
+
+The camera is the steering wheel. Measured directly: a forward push moved
+(0.72, -0.69), then a one-second right-stick rotation, then the same forward push
+moved (1.00, 0.00) while the character's heading vector at `0x09E5C180` stayed at
+(0.02, -1.00). So the right stick rotates the camera independently of the
+character, and movement follows the camera, not the facing.
+
+That makes a clean controller possible without push-turning:
+`scripts/mku-camwalk.py` calibrates degrees-per-second of camera rotation, then
+loops: walk a 0.4 s burst, read the direction that burst actually took, rotate
+the camera by the error to the bearing, repeat. It also backs out and rotates
+90 degrees after five stalled iterations.
+
+It steers correctly and never gets stuck in the old way, but it cannot leave a
+pocket: around (-87, 137) it circles between -91 and -87 and 137 and 139, with
+the escape manoeuvre moving it out and the next correction bringing it back. The
+target stayed 34 units away.
+
+So the control problem is now solved twice over — heading, and camera steering —
+and what remains is map knowledge: a route around the pocket. That needs either a
+probed walkable grid (a long, mechanical session) or a hand-driven traversal.
