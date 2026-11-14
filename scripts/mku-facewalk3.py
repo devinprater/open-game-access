@@ -64,18 +64,34 @@ tx, tz = float(sys.argv[1]), float(sys.argv[2])
 stop = float(sys.argv[3]) if len(sys.argv) > 3 else 1.2
 maxit = int(sys.argv[4]) if len(sys.argv) > 4 else 220
 sign = 1.0
+stall = 0
+lastp = None
 for i in range(maxit):
     p = pos()
     dd = math.hypot(tx - p[0], tz - p[1])
     if dd <= stop:
         print('arrived %.2f at (%.1f, %.1f)' % (dd, p[0], p[1]), flush=True)
         break
+    # stuck recovery: back out along the reversed heading, sidestep, replan
+    if lastp is not None and math.hypot(p[0] - lastp[0], p[1] - lastp[1]) < 0.06:
+        stall += 1
+    else:
+        stall = 0
+    lastp = p
+    if stall >= 8:
+        print('  stuck at (%.1f, %.1f); backing out' % (p[0], p[1]), flush=True)
+        push(0, -1, 0.45)
+        push(sign, 0, 1.20)      # slide along the wall, not just a nudge
+        sign = -sign
+        stall = 0
+        lastp = None
+        continue
     h = head()
     want = math.atan2(tx - p[0], tz - p[1])
     err = adiff(want, math.atan2(h[0], h[1]))
-    if abs(err) > math.radians(10):
+    if abs(err) > math.radians(22):
         before = abs(err)
-        push(sign, 0, 0.12)
+        push(sign, 0, 0.08)
         h2 = head()
         after = abs(adiff(want, math.atan2(h2[0], h2[1])))
         if after > before + 0.25:

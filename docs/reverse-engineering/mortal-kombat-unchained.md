@@ -2902,3 +2902,21 @@ between two spots for a hundred iterations, and never recovered. That is a
 stuck-recovery problem, not a heading problem.
 
 So: heading solved, controller still needs obstacle handling.
+
+### Stuck recovery added; a wall still stops the run (2026-11-13)
+
+`mku-facewalk3.py` now reacts to being stuck: after eight iterations without
+position change it backs off along the reversed heading, slides sideways for
+1.2 s alternating direction, and re-plans. It also walks with up to 22 degrees of
+heading error instead of 10, because a 0.08 s turn push rotates about 9 degrees
+and the tight threshold made it oscillate forever without ever walking.
+
+That fixed the oscillation, but not the wall. From (-47, 172) toward (-54, 130)
+the player slid along x between -62 and -36 while z stayed pinned at 167 to 174,
+never getting south. Whatever sits there is a barrier the blind navigator cannot
+see, and sliding along it does not find the gap.
+
+So the state is: heading known and readable, turning measurable, stuck recovery
+working, and path-finding still impossible without a map of the obstacles. The
+trigger table gives named points but not walls; a usable route planner would need
+either a walkable-area probe or a hand-driven first traversal.
