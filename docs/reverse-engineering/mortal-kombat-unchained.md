@@ -3061,3 +3061,19 @@ ARRIVED (-56.4, 139.7) in 2.3 min, d=1.5
 It walked around the obstruction on its own and finished 1.5 units from the
 target. That is the first end-to-end success in the whole navigation hunt, and it
 means a villager can now be reached on purpose instead of by luck.
+
+### First NPC reaction captured (2026-11-13)
+
+With `mku-routeslam.py` steering, the bridge guard at (30.3, 120) —
+`npc_bridge_guard_1`, model KON_VILL — was reached and punched. He answers:
+
+- immediately on the hit: **"You shall not pass."**
+- settling a second later: **"Move along. This bridge is off limits."**
+
+That is the first NPC reaction line this hunt has produced. Generic villagers
+stay silent when punched; this guard speaks, which confirms two things at once:
+the punch really is the interaction, and the subtitle buffer at `0x09106354` is
+the channel those lines arrive on — exactly what the adapter already speaks.
+
+The bridge toll quest (`LS_BRIDGE`, 15 lines in the script bank) is therefore
+live and reachable. Route, punch and line, in that order, all work now.
