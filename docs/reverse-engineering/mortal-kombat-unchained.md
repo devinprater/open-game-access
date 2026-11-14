@@ -2853,3 +2853,26 @@ That leaves the empirical four-direction probe (`scripts/mku-greedy4.py`) as
 the only control that actually works, and the real heading somewhere else —
 most likely in the actor object behind the NPC-style record chain rather than in
 this transform.
+
+### The heading is not in the player's transform nodes either (2026-11-13)
+
+Both nodes that carry the player's translation (`0x09E51510` and `0x09E514D0`)
+do rotate — a sideways push changed row0 from `(0, 0, 1)` to `(-1, 0, -0.04)` —
+but neither rotation tracks the actual movement:
+
+- after that turn, a forward push moved (-0.46, -0.89); row2 scored 0.87 and
+  row0 scored 0.50 against it
+- the next three forward pushes all moved exactly (0, -1.00), while row2 stayed
+  at (-0.97, -0.20) — dot **0.20**, 0.23, 0.23
+
+So the nodes rotate with the scene but are not the character's heading; they look
+like camera or attachment nodes that reuse the player translation. Analytical
+steering from them is dead.
+
+One fact is still useful: inside a fixed state, consecutive forward pushes move in
+exactly the same world direction, so the empirical four-direction probe remains
+sound — it just has to be re-run whenever the character turns.
+
+The heading may be in the actor object reached from the NPC-style record chain,
+but this pass did not find it, and the probing controller stays the only one that
+works in practice.
