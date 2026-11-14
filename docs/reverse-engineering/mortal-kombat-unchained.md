@@ -3037,3 +3037,27 @@ and 18 units, which is the same wall the other controllers hit.
 This is the first controller that both closes distance reliably and holds a
 stable heading solution. The remaining problem is now purely the obstruction at
 about 16 units out.
+
+### Pathfinding solved: matrix steering plus a recorded map (2026-11-13)
+
+`scripts/mku-routeslam.py` combines the two working pieces:
+
+1. **Measured stick matrix.** Push (1,0) and (0,1) once, record the world
+   displacements, invert the 2x2, and solve stick = M^-1 B for any bearing. No
+   heading vector and no camera yaw involved.
+2. **Recorded cells.** Every burst records the cells it crosses as free; a stall
+   strafes, flips sides, recalibrates and clears the plan.
+
+Measured run toward (-55, 140), starting 30 units out and behind a wall that had
+stopped every previous controller:
+
+```
+1s   d=30.6  cells=1
+60s  d=29.5  cells=40
+planned 1 waypoint over 69 cells
+ARRIVED (-56.4, 139.7) in 2.3 min, d=1.5
+```
+
+It walked around the obstruction on its own and finished 1.5 units from the
+target. That is the first end-to-end success in the whole navigation hunt, and it
+means a villager can now be reached on purpose instead of by luck.
