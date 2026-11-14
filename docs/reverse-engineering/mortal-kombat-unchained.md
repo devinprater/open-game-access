@@ -2876,3 +2876,29 @@ sound — it just has to be re-run whenever the character turns.
 The heading may be in the actor object reached from the NPC-style record chain,
 but this pass did not find it, and the probing controller stays the only one that
 works in practice.
+
+### The heading vector is at 0x09E5C180 (2026-11-13)
+
+Found by differencing: dump RAM, keep every consecutive float pair (x, z) whose
+length is 1 and whose angle matches the direction a forward push just produced,
+then turn the character and dump again. Of 925 bearing-matching pairs, 13 changed
+on the turn. Two were real:
+
+| address | before | after | dot with movement |
+|---|---|---|---|
+| **`0x09E5C180`** | (0.05, -1.00) | (-0.07, -0.90) | **1.00** |
+| `0x09D06CD0` | (0.22, -0.95) | (0.10, -0.83) | 0.97 |
+
+`0x09E5C180` is the answer: a unit (x, z) heading vector that matches the actual
+movement direction exactly. It is not a transform row — the transform nodes rotate
+but do not track movement, which is why every earlier attempt failed.
+
+Turning is measurable too: a 0.12 s sideways push changed the heading by about
+14 degrees, read back after each push.
+
+The controller built on it (`scripts/mku-facewalk3.py`) still fails in practice,
+but for a different reason: the character got wedged at (-62.5, 175.5), oscillated
+between two spots for a hundred iterations, and never recovered. That is a
+stuck-recovery problem, not a heading problem.
+
+So: heading solved, controller still needs obstacle handling.
