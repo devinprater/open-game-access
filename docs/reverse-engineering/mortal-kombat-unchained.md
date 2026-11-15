@@ -3101,3 +3101,29 @@ butcher (or the dog quest). Measured in play this pass:
 
 The butcher's conversation is therefore gated behind another quest state — most
 likely the dog woman's meat request — and that is the next link to find.
+
+### Cross IS the talk button — and punching first spoils the NPC (2026-11-13)
+
+Correcting the earlier conclusion that no face button talks to villagers.
+
+After reloading the save (so the butcher was untouched by the punches of the
+previous session), walking up to him and pressing Cross produced a real
+conversation:
+
+- **"Hello there young man. Would you l…"** (the greeting, cut off as it typed)
+- pressing Cross again, before whatever step he wanted: **"You seem confused.
+  Why do you continue to …"** and **"I should really just ignore you. Then
+  perhaps you …"** — his BOTHER lines.
+
+So Cross is the action/talk button, exactly as the Konquest control listing says.
+The earlier failure was self-inflicted: every villager we had punched first now
+answers with a PUNCHED/HIT_ONCE line or refuses to help, which is why Cross
+"did nothing" in those tests.
+
+The butcher's greeting does not hand over meat by itself; the inventory stayed
+empty and the koins unchanged (0, 150, 0, 0, 0, 10). His GIVE_MEAT state must be
+reached through the quest step that precedes it — most likely the dog woman's
+request, which is where the chain goes next.
+
+Practical rule for the rest of this hunt: **talk first, never punch** unless the
+quest asks for it, because one punch closes the polite branch for good.
