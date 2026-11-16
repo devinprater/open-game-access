@@ -52,3 +52,11 @@ RAM region 0x0969D688: [95,95,338] then at 0x0969D6DC [408,408,1000]. Both BRV p
 The HP next to each BRV is the OTHER fighter's HUD value, so either the records hold HP in a different slot or the
 screenshot reading is swapped. Do not wire a fighter reader until a fight with changing HP settles it.
 The original's layout (S+0x0E brv, S+8 max, S+2 dmg) did NOT hold: 012's fighter struct was reworked.
+
+## Battle HUD pairing SETTLED (one boot, tutorial fight, three snapshots vs screenshots)
+Two records 0x54 apart. Each holds its OWN Bravery twice (cur, cur) and the OPPONENT's HP:
+- 0x0969D688 Lightning BRV (95, 115, 82); 0x0969D690 Manikin HP (338, 179, 0); 0x0969D694 flips 0 -> 2 at HP 0 (defeat flag, one sample)
+- 0x0969D6DC Manikin BRV (408, 419, 407); 0x0969D6E4 Lightning HP (1000, 1000, 1000)
+HUD matched RAM at the 115/179/419/1000 snapshot. NOT yet wired: heap addresses, one boot only; needs a second-boot check
+and a chain from a static holder. The original's S+0x0E/S+8/S+2 layout does not apply.
+Flow: after the confirm YES the game runs the tutorial fight; victory screen follows.
