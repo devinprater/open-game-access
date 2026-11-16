@@ -8,6 +8,14 @@
 #include "psp_core.h"
 static PspCore *c;
 static void run(int n){ for(int i=0;i<n;i++) psp_frame(c); }
+static uint32_t bp_next=0; static int bp_printed=0;
+static void bp_drain(){ uint32_t hits=0,pc=0,regs[32];
+  while(psp_break_poll(c,bp_next,&pc,regs,&hits)){ bp_next++;
+    if(bp_printed<24){ bp_printed++;
+      printf("bp hit=%u pc=%08x v0=%08x v1=%08x a0=%08x a1=%08x a2=%08x a3=%08x t9=%08x ra=%08x sp=%08x s0=%08x s1=%08x\n",
+        bp_next-1,pc,regs[2],regs[3],regs[4],regs[5],regs[6],regs[7],regs[25],regs[31],regs[29],regs[16],regs[17]); }
+    psp_break_resume(c); }
+  fflush(stdout); }
 int main(int argc,char**argv){
   c=psp_create(); if(getenv("CLASSIC")) psp_set_classic_interpreter(c); char code[16]={0};
   if(!psp_load_rom(c,argv[1],argv[2],code)){fprintf(stderr,"load fail\n");return 1;}
@@ -51,6 +59,11 @@ int main(int argc,char**argv){
     else if(!strcmp(a,"blue")){ int w=0,h=0; if(psp_framebuffer(c,&w,&h)){ const unsigned char*fb=psp_framebuffer_ptr(c); long n=0,sx=0,sy=0;
         for(int y=0;y<h;y++)for(int x=0;x<w;x++){ const unsigned char*q=fb+(y*w+x)*4; if(q[2]>140 && q[0]<110 && q[1]<160 && (int)q[2]-q[0]>60){ n++; sx+=x; sy+=y; } }
         if(n>0) printf("blue n=%ld cx=%ld cy=%ld\n",n,sx/n,sy/n); else printf("blue n=0\n"); } else printf("blue n=0\n"); }
+    else if(!strcmp(a,"wr")){ uint32_t ad=0,val=0; int wd=4; sscanf(line,"%*s %x %x %d",&ad,&val,&wd); if(!wd) wd=4; psp_debug_write(c,ad,val,wd); printf("wr %08x %08x %d\n",ad,val,wd); }
+    else if(!strcmp(a,"wrf")){ uint32_t ad=0; float fv=0; sscanf(line,"%*s %x %f",&ad,&fv); uint32_t bits; memcpy(&bits,&fv,4); psp_debug_write(c,ad,bits,4); printf("wrf %08x %f\n",ad,fv); }
+    else if(!strcmp(a,"bp")){ uint32_t ad=strtoul(b,0,16); psp_break_set(c,ad); printf("bp %08x\n",ad); }
+    else if(!strcmp(a,"bppoll")){ bp_drain(); printf("bppoll next=%u printed=%d\n",bp_next,bp_printed); }
+    else if(!strcmp(a,"runbp")){ int N=atoi(b); for(int i=0;i<N;i++){ psp_frame(c); bp_drain(); } printf("runbp %d done next=%u\n",N,bp_next); }
     else if(!strcmp(a,"rd")){ uint32_t ad=strtoul(b,0,16); printf("%08x: %u\n",ad,psp_debug_read(c,ad,4)); }
     fflush(stdout);
   }
