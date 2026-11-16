@@ -499,3 +499,13 @@ Saved states for continuing: ~/d12s/save100.state (main menu), save100b.state (c
 STATUS: the prologue then plays a long chain of in-engine cutscenes (narration, then Tifa/Vaan, then Laguna/Lightning/Kain, then
 Vaan/Laguna/Yuna/Tifa...). Cross advances them (the scene changes), but 150 presses at 45-frame runs did not reach the world map, and
 Start does not skip. The world map, and therefore the gateway, is past that chain.
+
+## 100% SAVE REACHES THE PROLOGUE WORLD MAP (and the same wall)
+Skipping the prologue cutscene chain: CROSS x243 at 25-frame runs reached the field. Saved as ~/d12s/field100.state.
+The save is live and rich: Lv 100, HP 10644, Gil 1,569,231, KP 9938, and the Skill list now has five entries
+(Assist Charge, EX Charge, BRV Charge, BRV Zero, Soundwave) — so the Square skill menu is no longer empty on this save.
+SCENE: the party stands under a large stone archway whose cut-through reveals a distant stone gateway with a glowing purple-and-white
+portal, with two manikins wandering between. Walking forward-left from (114.6,-24.2) reached (113.0,-32.9) and stalled at the same
+coastal edge as the old save; controller+0x7B0 stayed -1 and the state stayed 2 the whole way, and no conditions panel appeared.
+So the richer save does not change the geometry: the prologue's gateway sits across water from the reachable strip, and blind navigation
+still cannot park the party in its trigger zone.
