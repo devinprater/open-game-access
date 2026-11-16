@@ -626,3 +626,13 @@ BEST REMAINING EXPLANATION: the archway seen in every approach has been a BARRED
 world-map enemies (purple/red manikin figures) stand right beside the portal in several of these shots. The gateway is most likely locked
 until those manikins are fought, which is the one interaction this save has never performed. Walking into a manikin is the next thing to
 try: it should start a battle, and clearing it may unlock the portal.
+
+## World-map manikins cannot be engaged by walking into them or hitting them
+Nearest records around the party at own_free.state (155.0,32.8): kind 13 id 71 (152,54) d=21.4; kind 12 id 70 (128,37) d=27.3;
+kind 15 id 823 (154,70) d=37.2; kind 3 id 17 (112,49) d=45.9; kind 1 id 9 (107,24) d=48.8; kind 2 id 12 (98,46) d=58.5 (the chest).
+Walked to the kind-3 record at (112,49) and stood on it: (112.5,49.7), state stayed 2, no battle. Four Circle attacks there only dashed the
+party ((110.5,54.5) then (107.8,56.0)), state 2, gate -1. Cross behaves the same way.
+So the manikin-looking objects do not start battles by contact or by attack, and the gateway is still not entered.
+FINAL STATE OF THIS LINE: portals are not entered by any input I can produce at any position I can reach on this map. Everything about
+the map, the party, the point records and the gateway records is documented above; the missing piece is the game's own trigger volume,
+which never registers (controller+0x7B0 stays -1 everywhere the party has stood).
