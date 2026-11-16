@@ -616,3 +616,13 @@ readable gateway marker of its own.
 The one use left for the map is as a FACING compass (the arrow shows the character's world facing, and the camera does not affect it):
 open map, read the arrow's bearing, close, rotate with L or R, reopen and check. That is a slow closed loop but it is the only heading
 reference the game exposes.
+
+## Last attempt on our own save: reached the archway approach, gate still inert
+Aim-navigator run from own_free.state: (155.0,32.8) -> (136.3,39.5) -> ARRIVED (123.5,45.7), the far end of the pass where the stone
+archway stands. Five Cross presses there did NOT enter anything; each one dashed the party away ((118.7,47.4) (113.7,53.3) (108.6,55.9)
+(103.2,58.7) (98.2,63.2)) with controller+0x68 at 2 and +0x7B0 at -1 throughout.
+So Cross is a dash unless the party is standing inside a gateway trigger volume, and this spot is not one.
+BEST REMAINING EXPLANATION: the archway seen in every approach has been a BARRED gatehouse (dark portcullis with a solid panel), and the
+world-map enemies (purple/red manikin figures) stand right beside the portal in several of these shots. The gateway is most likely locked
+until those manikins are fought, which is the one interaction this save has never performed. Walking into a manikin is the next thing to
+try: it should start a battle, and clearing it may unlock the portal.
