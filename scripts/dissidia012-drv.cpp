@@ -21,6 +21,8 @@ int main(int argc,char**argv){
       psp_set_button(c,k,true); run(n); psp_set_button(c,k,false); run(30); }
     else if(!strcmp(a,"ram")){ FILE*f=fopen(b,"wb"); for(uint32_t ad=0x08800000;ad<0x0A000000;ad+=4){uint32_t v=psp_debug_read(c,ad,4);fwrite(&v,4,1,f);} fclose(f); printf("ram %s\n",b);}
     else if(!strcmp(a,"shot")){ int w,h; if(psp_framebuffer(c,&w,&h)){ FILE*f=fopen(b,"wb"); fprintf(f,"P6\n%d %d\n255\n",w,h); const uint8_t*p=psp_framebuffer_ptr(c); for(int i=0;i<w*h;i++){fwrite(p+i*4,1,3,f);} fclose(f); printf("shot %s %dx%d\n",b,w,h);} }
+    else if(!strcmp(a,"savestate")){ printf("savestate %d\n",(int)psp_save_state(c,b)); }
+    else if(!strcmp(a,"loadstate")){ printf("loadstate %d\n",(int)psp_load_state(c,b)); }
     else if(!strcmp(a,"rd")){ uint32_t ad=strtoul(b,0,16); printf("%08x: %u\n",ad,psp_debug_read(c,ad,4)); }
     fflush(stdout);
   }
