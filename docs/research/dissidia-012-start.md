@@ -353,3 +353,14 @@ MEASURED: at the arch, Cross / Circle / Square all leave the position unchanged 
  not open on a button press. So the gateway is LOCKED and something else unlocks it.
 NEXT HYPOTHESIS (untested): the purple-and-gold manikin standing on the map near the second orb is a world enemy; defeating it is the
  obvious candidate for opening the first gateway.
+
+## CHESTS WORK BY CONTACT (state 16) — first interactive object reached
+Walking into the object at (98,46) (pint record kind 2, id 12) raised the controller state from 2 to 16 and produced the banner
+"Obtained 50 gil from chest!" (screenshot s_enc2.png). So:
+  - KIND 2 in the point list = treasure chest, and contact is the interaction (no button needed).
+  - CONTROLLER STATE 16 = the item-notification state. Cross dismisses it back to 2.
+  - State captures saved: ~/d12s/encounter.state (standing at the chest, notification up) and ~/d12s/bat.ppm/bat2.ppm.
+Screenshot also shows, beyond the chest: a purple-armoured manikin on the path and the stone tower with a glowing pink-and-white portal
+behind it -- i.e. the chest sits directly on the approach to the gateway.
+BLOCKED: from the chest the party cannot advance north past (98.4,45.8) (repeated walks move <1 unit and oscillate). The barrier is on
+the narrow path between the chest and the manikin; dashes and all four stick directions were tried.
