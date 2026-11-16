@@ -583,3 +583,11 @@ From the post-dialogue state (~/d12s/free.state):
   across that gap, reached by the long way round: south-west into the central network, east/south-east around the lower loop, then north
   up the eastern spine and back to the upper-right clearing.
 So entering the portal requires following that long path, not a straight line, and blind forward-walking cannot do it.
+
+## The pocket is real: the party cannot leave it by stick input
+From free.state (130.7,-36.9): ten backward pushes moved her 1.1 units TOTAL ((130.7,-36.9) -> (130.0,-35.8)) and then stopped; eight left
+pushes cycled between (129.5,-31.8) and (130.9,-36.2) and came back to the start. Every direction returns to the same two or three points,
+so the character is clamped to a small ledge. Earlier "8.5 units in one push" readings were taken while the camera was at a different
+angle and are the exception, not the rule.
+Verdict for this save state: no stick input leaves the ledge, so the gateway across the bay cannot be walked to from here. The walk-in
+needs a different starting point or a scripted path, not more input attempts.
