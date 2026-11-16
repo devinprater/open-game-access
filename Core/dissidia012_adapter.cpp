@@ -206,9 +206,10 @@ static void SayField(bool high)
         SayLine("Not on the field.", high ? oga::Priority::High : oga::Priority::Normal);
         return;
     }
-    char b[96];
-    snprintf(b, sizeof b, "Cell %d, %d.", cx, cy);
-    SayLine(b, high ? oga::Priority::High : oga::Priority::Normal);
+    char line[96];
+    snprintf(line, sizeof line, "On the field. Position %d, %d.", (int) x, (int) z);
+    SayLine(line, high ? oga::Priority::High : oga::Priority::Normal);
+    (void) cx; (void) cy;   // +0x38/+0x40 are NOT map cells (never changed over a wide roam) - not spoken
 }
 
 static int g_lastTitle = -1;
@@ -226,19 +227,7 @@ static void SayTitle(int i, oga::Priority pri)
 
 static void OnFrame(void)
 {
-    {
-        float x, y, z; int cx, cy;
-        if (FieldPose(&x, &y, &z, &cx, &cy)) {
-            if (cx != g_lastCellX || cy != g_lastCellY) {
-                g_lastCellX = cx; g_lastCellY = cy;
-                char b[64];
-                snprintf(b, sizeof b, "Cell %d, %d.", cx, cy);
-                SayLine(b, oga::Priority::Normal);
-            }
-            return;                      // on the field nothing else applies
-        }
-        g_lastCellX = INT32_MIN; g_lastCellY = INT32_MIN;
-    }
+    if (FieldPlayer()) return;        // on the field no menu watch applies
     int t = TitleIndex();
     if (t != g_lastTitle) {
         g_lastTitle = t;

@@ -64,9 +64,7 @@ int main(){
   ram[0x08b83714+0x38]=8; ram[0x08b83714+0x40]=0xffffffffu;   // cell (8,-1)
   ram[0x0976b250+0x30]=0x42680000u; ram[0x0976b250+0x34]=0xbf333333u; ram[0x0976b250+0x38]=0x41a00000u;
   CHECK(oga::dissidia012::FieldLiveForTest(),"field live via chain");
-  a->command(oga::Command::WhereAmI); CHECK(said.back()=="Cell 8, -1.","field cell spoken");
-  k=said.size(); a->on_frame(); CHECK(said.back()=="Cell 8, -1.","cell announced once");
-  size_t k2=said.size(); a->on_frame(); CHECK(said.size()==k2,"cell not repeated");
-  ram[0x08b83714+0x38]=9; a->on_frame(); CHECK(said.back()=="Cell 9, -1.","cell change announced");
+  a->command(oga::Command::WhereAmI); CHECK(said.back()=="On the field. Position 58, 20.","field position spoken");
+  k=said.size(); a->on_frame(); CHECK(said.size()==k,"field stays quiet on frame");
   ram[0x08b83714+0x6d0]=0; CHECK(!oga::dissidia012::FieldLiveForTest(),"player gone -> not live");
   printf("dissidia012 adapter: %d passed, %d failed\n",n-fails,fails); return fails?1:0; }

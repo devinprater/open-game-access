@@ -257,3 +257,13 @@ The Square branch asks the skill UI object (controller+0x570) whether a skill is
 FUN_08916380 (state 0xE + sound) when it is not. Dumping the skill UI object at 0x0975CBB0 shows three child pointers
 (0x099FB5C0, 0x09AD0918, 0x09ACF69C) and a block of static UI/child slots; no skill entries are present because the save has none.
 So there is nothing to read as a "skill list" in this save. Orb interaction stays gated behind unlocking a world-map skill.
+
+## Field reader shipped; two retractions from the portal attempt
+Adapter now speaks the field from the static chain: 0x089D83D8 -> controller -> +0x6D0 player, position at player+0x30/+0x38.
+WhereAmI on the field says "On the field. Position X, Z." and refuses ("Not on the field.") when +0x6D0 == 0 (cutscene/menu).
+Quiet per frame: no menu watch applies while a player object exists. 40 host checks cover the chain, refusal and silence.
+RETRACTED 1: controller+0x38/+0x40 is NOT a map cell. Two roam runs (field start and field2) moved the player from (58,20) to
+(83,13) and (83,5) while BOTH words stayed (8,-1). The adapter no longer calls them cells.
+RETRACTED 2: no gate/portal transition was reached. Controller+0x68 stayed 2 (normal walk) for 22 bursts of forward motion on both
+maps, and no HUD change or prompt appeared. The earlier "HUD disappeared near a purple portal" was almost certainly the camera pan,
+not a gate. The portal is still unreached by locomotion.
