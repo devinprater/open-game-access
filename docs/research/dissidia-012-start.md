@@ -312,3 +312,19 @@ Cross inside them did nothing. So these are not the portal either.
 STATUS: the portal is still unreached. Three layers are now mapped (pint objects, gate records, field events) and none of them fires
 when the party walks over the visible pillar. The remaining unknown is the game's own gate-collision import, which is the only code
 that can say "the player is standing on a gate".
+
+## FIXED: the field can now be navigated (shoulder buttons rotate the camera)
+L and R rotate the CAMERA without moving the character, in about 90 degrees per 30 frames (1 frame ~ 3 degrees). Measured: press L for 30
+frames and the forward vector goes from (0.98,-0.17) to (-0.05,-1.00) with 0.00 units of movement; R rotates it back to (0.95,-0.32).
+That is the missing control: the stick's up/down move along the camera's forward axis, left/right strafe, and diagonals do nothing, so a
+heading can only be held by aiming the camera with L/R. scripts/dissidia012-nav3.py does exactly that: probe forward (6 frames), compute
+the signed error to the bearing, press L or R for |error|/3 frames, else walk 22 frames.
+MEASURED: reached (88.2,9.2) from (58.0,19.0), a 33-unit run, in ~22 iterations. Reached (99.1,5.4) heading for (103,0).
+
+## The portal is across water
+The island's walkable extent measured: x 58..100, z ~5..21. Gate cells from the gate list include (101,0) (103,0) (105,0) (105,1) (107,0)
+(109,0/1) (111,0) (112,0) (115,0/1) (117,0) (118,0) (122,0/1) (124,0) (125,0) -- all east of x=100, i.e. across the water, which matches the
+glowing pillar seen on a distant peninsula. Pushing east stops at x ~100/101. Also tried (58,1) and (59,1): the walk stalls at z ~9, so those
+cells are not walkable either.
+Cross is a dodge, not an interact: pressing it moved the party from (99.1,5.4) to (92.4,1.1) then (86.0,-4.2) with no state change.
+CONCLUSION: crossing to the pillar needs the world-map TRAVEL mechanic (or the gate-collision import), not locomotion.
