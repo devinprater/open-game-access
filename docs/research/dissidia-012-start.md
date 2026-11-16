@@ -525,3 +525,17 @@ or 3 (dialogue), so no gateway trigger zone was ever entered.
 CONCLUSION: on the prologue map the reachable plateau holds no active portal. Either the prologue's gateway is across the gap (and this
 save has already cleared/broken whatever crosses it), or the entry needs the conditions panel that only appears in the trigger zone —
 which this geometry does not let me reach.
+
+## GATEWAY ENTERED (goal reached)
+Reproduction that works, all headless with the 100% save (fp-save-100):
+ title -> LOAD GAME (cursor 0x096AE20C == 1) -> save slot -> main menu -> Story Mode (Cross) -> chapter carousel
+ -> press RIGHT to Chapter 1 "A New Threat" -> Cross -> Cross -> then Cross x250 at 25-frame runs.
+That lands INSIDE the gateway board: ~/d12s/board.state, screenshot s_board.png.
+WHAT THE BOARD IS: floating stone pillars over a void joined by glowing grid lines, Lightning on the leftmost pillar, three blue
+manikin pieces on pillars to the right, a gold chest on a lower-right pillar, HUD showing gateway KP -98, total KP 9938, Gil 1569231,
+Lv 100 / HP 10644, and the five world-map skills listed top-right. This is the Crescent Lake Gateway from Chapter 1.
+STATE: on the board the controller state reads 21 and controller+0x6D0 is 0 (the board piece is NOT the field player object), which is
+why "state 2 + player pointer" is the wrong liveness test inside a gateway.
+BOARD CONTROLS, measured: the ANALOG STICK moves the CAMERA only (no piece movement); the D-PAD moves the selection cursor between
+adjacent pillars; moving the cursor onto an enemy piece raises "Win battle", the enemy name/level ("Fleeting Flash Lv 7"), the battle
+stage ("Old Chaos Shrine") and "Engage [X] / Cancel [O]"; CROSS engages.
