@@ -392,3 +392,15 @@ The gate VOLUME is 3D collision implemented behind an import (the same call the 
 collision layer, not to the record data. Standing on the cell coordinates does not put the party in it.
 NEXT: find the collision volume for the current map (the import's implementation in the resident/battle overlay), i.e. the same class
 of work as the earlier import-resolution attempts, or load a save where a gate is already open.
+
+## Gate search, last round: no gate volume found anywhere walkable
+Route through the east side then west (the walkable corridor plus dashes):
+ (94,17) (102.7,17.4) (119.1,27.3) (129.2,32.7) (140.5,41.7) (133.3,43.7) (117.4,47.6) (113.2,49.4).
+At EVERY stop controller+0x7B0 (the gate index the whole enter path depends on) read 0xFFFFFFFF. So the party never entered a gate volume
+anywhere on this map, including at the manikin's own coordinates (112,49) and inside the stone archway at (146,46).
+Map screen check: opened Select at two different positions; the map shows terrain plus the blue player arrow only, with NO gate or
+objective icons (the two circular features are terrain), so the map cannot be used to locate a gateway.
+Gate-entity search by model id was inconclusive: the model-name table yields 35 gate model strings and 36 ids, but an id-based scan
+matched 1,330 structs (far too many to distinguish real gate entities), so that route found nothing trustworthy.
+CONCLUSION: within this save there is no reachable gate volume. The unlock path needs either a later save state or the collision import's
+implementation. Everything else in the story-mode chain (objects, events, gates, chests, states, navigation) is mapped and documented.
