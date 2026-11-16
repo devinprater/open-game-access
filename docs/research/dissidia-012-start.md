@@ -186,3 +186,11 @@ and the sky/clouds (n in the thousands, box covering the screen). The first auto
 Refinement needed: mask the player's screen region (centre-bottom) and the HUD, require the cluster to GROW as distance closes, and
 use the growth as the approach test instead of a fixed pixel count.
 scripts/dissidia012-autonav.py is the current loop; scripts/dissidia012-nav.py (coordinate steering) still works for known targets.
+
+## Brightness probe, iteration 2: masking added, still no approach
+Driver `blob`: brightest 12x12 tile with near-white pixels, masking the player (centre-bottom box) and the HUD. It reports n, x, y.
+Finding: the locked blob sits at y ~ 118-130, i.e. ABOVE the horizon line. The orb sparkle measured earlier sat at cy ~ 181, below it.
+So the probe is locking onto a bright cloud edge or distant light, NOT the orb; that is why "n" never grows when she walks.
+Also measured: walking forward swings the camera hard (a blob at x=278 jumped to x=86 in one 30-frame walk), so an approach loop has to
+re-acquire after every step. Smaller walks (8 frames) plus re-centre still did not converge in 60 iterations.
+CONCLUSION: screen-space brightness is the wrong instrument for this. The orb has to be found in RAM, not by eye.

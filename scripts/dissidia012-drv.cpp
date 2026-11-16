@@ -31,6 +31,13 @@ int main(int argc,char**argv){
           if(lum>720){ n++; sx+=x; sy+=y; if(x<x0)x0=x; if(x>x1)x1=x; if(y<y0)y0=y; if(y>y1)y1=y; } }
         if(n>0) printf("bright n=%ld cx=%ld cy=%ld box=%d,%d,%d,%d\n",n,sx/n,sy/n,x0,y0,x1,y1);
         else printf("bright n=0\n"); } else printf("bright n=0\n"); }
+    else if(!strcmp(a,"blob")){ int w=0,h=0; if(psp_framebuffer(c,&w,&h)){ const unsigned char*fb=psp_framebuffer_ptr(c); int TW=12,best=-1,bx=0,by=0;
+        for(int ty=40; ty+TW<h-48; ty+=TW) for(int tx=56; tx+TW<w-20; tx+=TW){
+          if(tx+TW>168 && tx<296 && ty+TW>140) continue;   /* mask the player, centre-bottom */
+          int cnt=0;
+          for(int y=ty;y<ty+TW;y++) for(int x=tx;x<tx+TW;x++){ const unsigned char*q=fb+(y*w+x)*4; if((int)q[0]+q[1]+q[2]>720) cnt++; }
+          if(cnt>best){best=cnt;bx=tx;by=ty;} }
+        printf("blob n=%d x=%d y=%d\n",best,bx+TW/2,by+TW/2); } else printf("blob n=-1 x=0 y=0\n"); }
     else if(!strcmp(a,"rd")){ uint32_t ad=strtoul(b,0,16); printf("%08x: %u\n",ad,psp_debug_read(c,ad,4)); }
     fflush(stdout);
   }
