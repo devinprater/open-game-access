@@ -6,6 +6,7 @@
 #include <string>
 #include <vector>
 namespace oga { extern const Adapter kDissidia012; }
+namespace oga { namespace dissidia012 { bool FieldLiveForTest(void); } }
 namespace oga {
 static bool NoAttach(const Host*){return false;} static void NoFrame(){} static void NoCmd(Command){} static bool NoReady(){return false;} static void NoDetach(){}
 extern const Adapter kFireEmblemShadowDragon, kGameBoyAdvance, kDragonBallZSaiyans;
@@ -53,4 +54,19 @@ int main(){
   ram[0x096aebec]=6; ram[0x096aec14]=6; a->on_frame(); CHECK(said.back()=="Options","main row 6");
   k=said.size(); ram[0x096aec14]=2; a->on_frame(); CHECK(said.size()==k,"mirror mismatch silent");
   ram[0x096aec14]=6; ram[0x096aebec]=6; a->command(oga::Command::WhereAmI); CHECK(said.back()=="Options","main query");
+  // Field reader (static chain 0x089D83D8 -> controller -> +0x6D0)
+  ram[0x096aebe8]=0; ram[0x096aebec]=0; ram[0x096aec14]=0; ram[0x096aec1c]=0; ram[0x096aea6c]=0; ram[0x096aea78]=0;
+  ram[0x089d83d8]=0; k=said.size();
+  a->command(oga::Command::WhereAmI); CHECK(said.size()>k && said.back()=="Not on the field.","no field: refuses");
+  ram[0x089d83d8]=0x08b83714u; ram[0x08b83714+0x6d0]=0;   // controller, no player (cutscene)
+  CHECK(!oga::dissidia012::FieldLiveForTest(),"cutscene not live");
+  ram[0x08b83714+0x6d0]=0x0976b250u;
+  ram[0x08b83714+0x38]=8; ram[0x08b83714+0x40]=0xffffffffu;   // cell (8,-1)
+  ram[0x0976b250+0x30]=0x42680000u; ram[0x0976b250+0x34]=0xbf333333u; ram[0x0976b250+0x38]=0x41a00000u;
+  CHECK(oga::dissidia012::FieldLiveForTest(),"field live via chain");
+  a->command(oga::Command::WhereAmI); CHECK(said.back()=="Cell 8, -1.","field cell spoken");
+  k=said.size(); a->on_frame(); CHECK(said.back()=="Cell 8, -1.","cell announced once");
+  size_t k2=said.size(); a->on_frame(); CHECK(said.size()==k2,"cell not repeated");
+  ram[0x08b83714+0x38]=9; a->on_frame(); CHECK(said.back()=="Cell 9, -1.","cell change announced");
+  ram[0x08b83714+0x6d0]=0; CHECK(!oga::dissidia012::FieldLiveForTest(),"player gone -> not live");
   printf("dissidia012 adapter: %d passed, %d failed\n",n-fails,fails); return fails?1:0; }

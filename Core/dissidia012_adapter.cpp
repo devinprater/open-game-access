@@ -21,6 +21,7 @@
  */
 #include "adapter.h"
 #include <stdint.h>
+#include <stdio.h>
 
 namespace oga {
 namespace dissidia012 {
@@ -153,6 +154,63 @@ static int g_lastMain = -1;
 // cursor still lands on it; the flag that enables it is NOT found yet, so it stays silent. Fail quiet.
 static bool MainShowing(int row) { return row != 3; }
 
+
+// ---- Field (world map) reader: STATIC chain, runtime-verified on four snapshots ----
+// 0x089D83D8 (fixed global) -> controller at a FIXED 0x08B83714 -> +0x6D0 = player character object.
+// In cutscenes the controller still exists but +0x6D0 reads 0, so that is the refuse-to-speak test.
+// Player position: floats at +0x30 (x), +0x34 (y), +0x38 (z). Current CELL: s32 at controller+0x38 / +0x40.
+// FUN_08916fa0 in the game is exactly "return *(0x089d83d8 + 0x6d0)", which is why this is safe to trust.
+static const uint32_t FIELD_CTRL_HOLDER = 0x089D83D8u;
+static const uint32_t CTRL_PLAYER = 0x6D0u, CTRL_CELL_X = 0x38u, CTRL_CELL_Y = 0x40u;
+static const uint32_t PL_OFF_X = 0x30u, PL_OFF_Y = 0x34u, PL_OFF_Z = 0x38u;
+
+static uint32_t FieldPlayer(void)
+{
+    if (!g_host) return 0;
+    uint32_t ctrl = u32(FIELD_CTRL_HOLDER);
+    if (ctrl < 0x08800000u || ctrl >= 0x0A000000u) return 0;
+    uint32_t pl = u32(ctrl + CTRL_PLAYER);
+    if (pl < 0x08800000u || pl >= 0x0A000000u) return 0;
+    return pl;
+}
+
+static float f32at(uint32_t a)
+{
+    uint32_t w = u32(a);
+    float f;
+    __builtin_memcpy(&f, &w, sizeof f);
+    return f;
+}
+
+static bool FieldPose(float* x, float* y, float* z, int* cx, int* cy)
+{
+    uint32_t pl = FieldPlayer();
+    if (!pl) return false;
+    float fx = f32at(pl + PL_OFF_X), fy = f32at(pl + PL_OFF_Y), fz = f32at(pl + PL_OFF_Z);
+    // Refuse garbage: NaN or absurd magnitudes mean we are not on the field.
+    if (!(fx == fx && fy == fy && fz == fz)) return false;
+    if (fx < -20000.0f || fx > 20000.0f || fz < -20000.0f || fz > 20000.0f) return false;
+    uint32_t ctrl = u32(FIELD_CTRL_HOLDER);
+    *x = fx; *y = fy; *z = fz;
+    *cx = (int) u32(ctrl + CTRL_CELL_X);
+    *cy = (int) u32(ctrl + CTRL_CELL_Y);
+    return true;
+}
+
+static int g_lastCellX = INT32_MIN, g_lastCellY = INT32_MIN;
+
+static void SayField(bool high)
+{
+    float x, y, z; int cx, cy;
+    if (!FieldPose(&x, &y, &z, &cx, &cy)) {
+        SayLine("Not on the field.", high ? oga::Priority::High : oga::Priority::Normal);
+        return;
+    }
+    char b[96];
+    snprintf(b, sizeof b, "Cell %d, %d.", cx, cy);
+    SayLine(b, high ? oga::Priority::High : oga::Priority::Normal);
+}
+
 static int g_lastTitle = -1;
 static int g_lastSetupId = -1, g_lastSetupIdx = -1;
 static int g_lastCfg = -1;
@@ -168,6 +226,19 @@ static void SayTitle(int i, oga::Priority pri)
 
 static void OnFrame(void)
 {
+    {
+        float x, y, z; int cx, cy;
+        if (FieldPose(&x, &y, &z, &cx, &cy)) {
+            if (cx != g_lastCellX || cy != g_lastCellY) {
+                g_lastCellX = cx; g_lastCellY = cy;
+                char b[64];
+                snprintf(b, sizeof b, "Cell %d, %d.", cx, cy);
+                SayLine(b, oga::Priority::Normal);
+            }
+            return;                      // on the field nothing else applies
+        }
+        g_lastCellX = INT32_MIN; g_lastCellY = INT32_MIN;
+    }
     int t = TitleIndex();
     if (t != g_lastTitle) {
         g_lastTitle = t;
@@ -200,13 +271,16 @@ static void Command(oga::Command cmd)
         int si = -1;
         const SetupScreen* sc = SetupNow(&si);
         if (sc) { SayLine(sc->rows[si], oga::Priority::High); return; }
+        if (FieldPlayer()) { SayField(true); return; }
         int m = MainIndex();
         if (m >= 0) { if (MainShowing(m)) SayLine(kMainEntries[m], oga::Priority::High); return; }
         int c = ConfigIndex();
-        if (c >= 0) SayLine(kCfgEntries[c], oga::Priority::High);
+        if (c >= 0) { SayLine(kCfgEntries[c], oga::Priority::High); return; }
+        SayLine("Not on the field.", oga::Priority::High);
     }
 }
 static bool Ready(void) { return g_host && BuildOk(); }
+bool FieldLiveForTest(void) { return FieldPlayer() != 0; }
 int TitleIndexForTest(void) { return TitleIndex(); }
 static void Detach(void) { g_host = nullptr; g_lastTitle = -1; g_lastCfg = -1; g_lastSetupId = -1; g_lastSetupIdx = -1; g_lastMain = -1; }
 
