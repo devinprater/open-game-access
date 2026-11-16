@@ -38,6 +38,13 @@ int main(int argc,char**argv){
           for(int y=ty;y<ty+TW;y++) for(int x=tx;x<tx+TW;x++){ const unsigned char*q=fb+(y*w+x)*4; if((int)q[0]+q[1]+q[2]>720) cnt++; }
           if(cnt>best){best=cnt;bx=tx;by=ty;} }
         printf("blob n=%d x=%d y=%d\n",best,bx+TW/2,by+TW/2); } else printf("blob n=-1 x=0 y=0\n"); }
+    else if(!strcmp(a,"pillar")){ int w=0,h=0; if(psp_framebuffer(c,&w,&h)){ const unsigned char*fb=psp_framebuffer_ptr(c);
+        int bestrun=0,bx=0,btop=0;
+        for(int x=20;x<w-20;x++){ int run=0,top=0;
+          for(int y=30;y<h-50;y++){ const unsigned char*q=fb+(y*w+x)*4;
+            if((int)q[0]+q[1]+q[2]>700){ if(run==0) top=y; run++; if(run>bestrun){bestrun=run;bx=x;btop=top;} }
+            else run=0; } }
+        printf("pillar run=%d x=%d top=%d\n",bestrun,bx,btop); } else printf("pillar run=0 x=0 top=0\n"); }
     else if(!strcmp(a,"rd")){ uint32_t ad=strtoul(b,0,16); printf("%08x: %u\n",ad,psp_debug_read(c,ad,4)); }
     fflush(stdout);
   }

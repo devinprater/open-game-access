@@ -280,3 +280,16 @@ GATE MODELS on the current map: RAM holds 70 name strings "DES_N_gate<map><nn>_<
  name table alone does not give positions.
 STILL OPEN: the link from a gate record (cell) to a world position, and therefore the walk to the portal. Walking the field never changed the
  controller state (stayed 2) across 22 bursts on two maps, so gate entry is not simple proximity to the visible pillar.
+
+## Portal hunt, round 3 (both approaches failed, recorded so they are not retried blindly)
+GATE MANAGER: controller+0x88 -> object 0x095D75C0 with u32 count 8 at +0, then 8 entries of 0x14 bytes
+{every 0x04: ptr A (0x095D20E0..), ptr B (0x095D2A28.. stride 0x14), 0, small int, float}. Ptr B walks list 0x095D2A20 (count 11),
+whose records read as packed s16 pairs, NOT the gate-record layout (id/enterable/type/flags/cell), so this structure is gateway
+PROGRESS, not the gate table. Not usable for positions.
+PILLAR DETECTOR: new driver command `pillar` finds the longest vertical run of near-white pixels per column. On the field the longest
+run is 4-7 px, so the visible portal is NOT a tall white column and shape detection cannot lock onto it. Vision steering is dead for
+this target.
+Runtime import probe: the address Ghidra renders as func_0x08b43a3c holds 0x68031b07 at runtime, which is not a valid stub, so the
+gate-collision call is not resolvable that way either.
+CONCLUSION: the one place the game decides "the player is on a gate" is that collision import; to reach the portal we need either a
+save state taken while standing on it, or the overlay that implements the import.
