@@ -509,3 +509,19 @@ portal, with two manikins wandering between. Walking forward-left from (114.6,-2
 coastal edge as the old save; controller+0x7B0 stayed -1 and the state stayed 2 the whole way, and no conditions panel appeared.
 So the richer save does not change the geometry: the prologue's gateway sits across water from the reachable strip, and blind navigation
 still cannot park the party in its trigger zone.
+
+## CONTROLS CONFIRMED (Meristation guide, Spanish): X enters portals, Circle attacks
+The guide's control list for the world map: Select opens the map, the stick moves, **Circle attacks orbs, enemies and rocks**, and
+**X (Cross) enters portals and opens chests**. That matches the manual's "press the [s] button to enter" once the button glyph is restored,
+and it explains the chest opening on contact earlier.
+MEASURED with the 100% save at (114.6,-24.2): pressing Cross raised controller state 2 -> 3, and state 3 turned out to be Yuna's ORB
+DIALOGUE ("This light... I feel a gentle strength from it"), i.e. Cross is also the dialogue advance, and it held at 3 for 900 frames
+until Cross was pressed again.
+SEARCH: a 20-stop camera-and-walk sweep produced a contact sheet with NO gateway conditions panel in any frame. Lightning stands under an
+EMPTY stone archway on a cliff plateau; every glowing gateway portal is across the water to the left, and there is no light bridge or
+walkable connection to them from this plateau.
+An 80-step random walk with Cross pressed at every stop covered (59,14) to (130,-30) and never produced a state other than 2 (walking)
+or 3 (dialogue), so no gateway trigger zone was ever entered.
+CONCLUSION: on the prologue map the reachable plateau holds no active portal. Either the prologue's gateway is across the gap (and this
+save has already cleared/broken whatever crosses it), or the entry needs the conditions panel that only appears in the trigger zone —
+which this geometry does not let me reach.
