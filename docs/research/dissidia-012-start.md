@@ -136,3 +136,18 @@ recalibration. Blind walking to a target stalled at ~5 of 34 units.
 - Pressing Square at the field start (no orb in view) changed 16,646 words, all animation/camera; no clean orb or counter delta.
 BLOCKER: no orb located, and no reliable way to walk to one. Next: find the gameplay root position with a WRITE watch while moving
 (the read watch only shows render users), then find the proximity check that consumes it; or re-derive the pint consumer FUN_08911fec.
+
+## pint point list: STRUCTURE FOUND by decompiling (not yet proven to be the orbs)
+Accessors (EBOOT): FUN_08912164 find-by-id, FUN_089120a4 find-by-id from an offset, FUN_08912060 clear,
+FUN_08911fec fill/copy, wrappers FUN_089121a8 / FUN_089121d0 / FUN_08912424. All take DAT_089d83b0.
+Layout: *DAT_089d83b0 -> a vector of lists; each element is {list*, list*, count}. Live on the field:
+  [0] 0x095D2B20 count 160   [1] 0x095D2A20 count 11   [2] 0x095D1E80 count 147
+  [3] 0x095CF700 count 120   [4] 0x095CD0C0 count 74
+List header: +4 count, records start at +8, stride 0x2C, signed 16-bit id at +0 (so +0 is a u32 with the id in its low half),
+a second small id/kind in the low half of +4, floats at +0x10 (x) and +0x14 (z), a third float at +0x18.
+344 records carry coordinates. Player (58.0, 20.0): nearest record is id 1173 at (59.0, 19.4), 1.2 units away.
+⛔ NOT CONFIRMED: pressing Square next to that record left every field unchanged, and watching the vector for 2 frames gave
+ZERO reads. So this list is not the field's live interaction set; it is most likely per-map data for a different map, or
+menu/world-map layer data. Do NOT wire it as orbs.
+Next: the field's live set is probably the gate/wene lists (DAT_089d4788 for wfri read live as a list too). Watch each list
+header for reads with the player standing on orbs, and confirm by a real change on pickup.
