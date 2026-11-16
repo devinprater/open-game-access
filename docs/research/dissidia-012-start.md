@@ -88,3 +88,12 @@ Float diff (up, up, rest, down) leaves two families, one boot, NOT yet matched t
 - large floats 1158.9 -> 970.4 -> 774.0, rest 774.0, back 955.5 (0x0978FF0C, 0x097ADA2C)
 Neither is proven to be position (the small family may be a camera or a copy that animation also writes).
 Next: tie one to the player by walking left/right too (a second axis) and checking the HUD-visible position change.
+
+## Field position: most likely a joint array (one boot, savestate; NOT yet a wired reader)
+Two-axis walk (up, right, left, down, 20-frame pushes) leaves 26 float triples that move and reverse correctly on both axes.
+They are records of (x, y, z, 1.0), stride 0x10, with x ~58, y 0..1, z ~20 at rest, clustered within about 0.5 of each other:
+e.g. 0x0976D020, 0x0976D030, 0x0976D040, 0x0976D050 ... 0x0976D090. That is a skeleton of world-space joints for the player model,
+not a single root position. Walking up moved x +1.8 and z -2.0; the camera is not world-aligned, so axes are camera-relative.
+Node headers sit just before it (0x0976CFC0 points at 0x0976D010). Heap addresses: they will move per boot.
+OPEN: the owning character object (root position, facing, HP) and a fixed holder that reaches it. Next step is to follow the
+pointers that reference 0x0976CFC0/0x0976D010 back to a static holder, then confirm on a second boot.
