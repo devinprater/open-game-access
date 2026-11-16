@@ -685,3 +685,13 @@ the world map never advances it while walking. So +0x58 is not the map area inde
 that is only meaningful when the game itself sets it on entering a gateway.
 That closes the "walk to an area that has a gateway" plan: there is no reachable position that changes the index, in any save, because
 the index is not driven by position at all.
+
+## Why following the beat to the portal has stopped here
+The last route was: complete the Chapter 1 gateway board (which the 100% save can enter), leave via the Stigma, and then the world map has
+live gateways. That route requires winning a battle.
+Measured: on the board the D-pad can only select INTERACTABLE tiles (enemy pieces, chests), never empty pillars, so the player piece is
+moved some other way; selecting the enemy shows "KP Win battle / Fleeting Flash Lv 7 / BATTLE STAGE Old Chaos Shrine / Engage X Cancel O"
+and Cross starts the battle transition. My engagement attempt ran the transition but returned to the board rather than into a fight, and
+45 rounds of Square+Circle produced no battle, no HP change and no victory screen.
+So the remaining path needs autonomous combat (a fighting-game input loop that can actually win), which is a separate project from the
+world-map work, not another walking attempt.
