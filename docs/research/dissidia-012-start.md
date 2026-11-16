@@ -553,3 +553,20 @@ stage ("Old Chaos Shrine") and "Engage [X] / Cancel [O]"; CROSS engages.
   "Engage [X] / Cancel [O]". Empty-tile dashing was not demonstrated: repeated (D-pad right, Cross) left the piece on its starting
   pillar, so the exact piece-move input is still open.
 STATE NOTE: on the board controller+0x68 reads 21 and controller+0x6D0 is 0, so field-style liveness tests fail inside a gateway.
+
+## ROUTE CONFIRMED FROM A PLAYTHROUGH VIDEO (and how far it got)
+Video: "Final Fantasy Dissidia Duodecim 012 Prologue Path to Sanctuary" (YouTube hH74q5elghI), frames pulled with yt-dlp + ffmpeg and
+read as contact sheets. The video shows the exact world-map route:
+ 1. Cutscene at the cliff (Lightning, Kain, Laguna) facing the dark rift.
+ 2. Control resumes UNDER the large stone archway. Dialogue: "Everyone made it out alright... I can see Sanctuary in the distance."
+ 3. Walk FORWARD down the path away from the camera.
+ 4. A glowing white star-shaped ORB sits on the path with a figure beside it. Dialogue ("This light... I feel a gentle strength from
+    it...") then the orb is struck: white flash, party stands, lights ascend, narration "The three powers became a frail radiance."
+ 5. Then the player runs toward a glowing purple-and-blue swirling GATEWAY PORTAL on the LEFT side of the terrain and steps in; the
+    screen flashes blue-white. That is the gateway entry.
+REPRODUCED with the 100% save, headless: seven Cross presses cleared the arch dialogue, two forward bursts reached the orb, three Circle
+presses struck it (flash, aura, "A frail power of the dead dwells.", and a Cross prompt appeared over Yuna), sixty Cross presses played
+out the Yuna/Lightning conversation, and free movement returned with the full HUD at (130.7,-36.9). State saved as ~/d12s/free.state.
+STILL NOT ENTERED: from free.state, a 16-step walk LEFT and a 30-step rotating sweep with Cross pressed at every step moved the party
+across (98..130, -37..-17) with controller+0x7B0 at -1 and state at 2 throughout. No gateway zone was touched, and no conditions panel
+ever appeared. The portal is on this plateau somewhere; the search simply has not crossed it.
