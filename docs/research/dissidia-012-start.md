@@ -79,3 +79,12 @@ Lv, HP, Gil, KP, Skill (Square), Map (Select), Customization (Triangle). No pill
 The grid board seen in the original appears to be gone from the prologue; this explains why the original's board functions found
 no match. A grid may still return later via gateways (not confirmed). So the story-mode adapter must read a field: player position,
 orbs, enemies, gateways, dialogue boxes, and the Select map. Savestate ~/d12s/prologue_end.state sits on the field.
+
+## Field position hunt (headless, savestate prologue_end.state): CANDIDATES ONLY
+Driver gained `analog X Y FRAMES` (stick push, then release). Pushing the stick up for ~90 frames twice walks Lightning
+into a scripted trigger: the HUD disappears and a figure near a glowing purple portal appears. Use 25-frame pushes.
+Float diff (up, up, rest, down) leaves two families, one boot, NOT yet matched to the player:
+- small floats 58.0 -> 60.4 -> 63.6, rest 63.6, back 60.2 (many copies, e.g. 0x0976B280, 0x0991842C0, 0x0999C338)
+- large floats 1158.9 -> 970.4 -> 774.0, rest 774.0, back 955.5 (0x0978FF0C, 0x097ADA2C)
+Neither is proven to be position (the small family may be a camera or a copy that animation also writes).
+Next: tie one to the player by walking left/right too (a second axis) and checking the HUD-visible position change.
