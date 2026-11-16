@@ -450,3 +450,13 @@ guide describes ("Lightning comes across Yuna standing beside a bright sphere of
 count (still 160/11/147/120/74). They are runtime entities, which is why every record-based search for them failed.
 Boulder test at the blocked spot north of the chest: eight Circle presses moved her only 2.5 units (45.1 -> 47.6) and walking pushed her
 back; no boulder broke there. The barrier is either a different obstacle or needs the attack while facing it from the right angle.
+
+## Gate hunt after the guides: the prologue path ends at water, the gateway is across it
+Walked the prologue path from the field start with Circle mashing (orbs absorbed on the way) to the end: the promontory at
+(112,-33). A 9-frame contact sheet of that walk shows a dead end there: cliff drop to the sea ahead, a raised grassy ledge to the
+right, and, in two frames, a bright glowing white portal on a distant sandy peninsula ACROSS THE WATER with a figure standing next to
+it. That portal is the prologue's gateway, and it is not reachable on foot from this promontory.
+No black red-cracked boulder is visible at the dead end (asked directly of the frame), so the boulder-launched crossing the guide
+describes is not this spot. The guide places boulders in the chapter that follows Laguna, not the prologue.
+Gate-id sweep: 70 aimed walks with random turns while polling controller+0x7B0 and +0x68 stayed inside the starting basin
+(58..80, 8..19) and never saw a gate id or a state change, so nothing on that side of the map is a gate volume either.
