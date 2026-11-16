@@ -60,3 +60,14 @@ Two records 0x54 apart. Each holds its OWN Bravery twice (cur, cur) and the OPPO
 HUD matched RAM at the 115/179/419/1000 snapshot. NOT yet wired: heap addresses, one boot only; needs a second-boot check
 and a chain from a static holder. The original's S+0x0E/S+8/S+2 layout does not apply.
 Flow: after the confirm YES the game runs the tutorial fight; victory screen follows.
+
+## Main menu and Story Mode entry (headless, from savestate ~/d12s/mainmenu.state; labels by screenshot)
+- Reaching the main menu: the opening is a chain of tutorial fights (Moogle coaching between them). Scripted mashing of
+  square/circle/cross clears them (scripts/dissidia012-tutorial-gen.py). A "Welcome" pop-up and an "Introduction" pop-up follow.
+- Main menu rows: Story Mode, Battle Mode, Communications Mode, PP Catalog (greyed on a fresh save), Collection, Data Config, Options.
+  Cursor 0x096AEBEC (mirror 0x096AEC14), ONE boot. Adapter speaks only rows that are showing: PP Catalog is silent until its
+  enable flag is found. Circle on the main menu opens "Save and return to the title screen?" Yes/No (cursor not read yet).
+- Triangle = Customization, Square = Calendar shortcuts. Story Mode opens a scenario banner "Main Scenario 012: Treachery of the Gods",
+  then a chapter row. Fresh save shows ONE chapter: "Prologue - Path to Sanctuary", Lightning Lv 1, CHAPTER 0 card, synopsis line,
+  then "Play this story?" Yes/No (Circle there opens Customization).
+- Story board (world map) code still unfound; not reached yet.
