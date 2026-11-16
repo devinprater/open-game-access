@@ -603,3 +603,16 @@ needs a different starting point or a scripted path, not more input attempts.
   a scale exists.
 STATUS: the walk-in is still not done. Every attempt founders on the same thing: the character's heading drifts with the camera and
 several key spots clamp movement to a few units, so a long walk curves and reverses instead of crossing the map.
+
+## Map scale measured (partial calibration)
+Two map screenshots at known world positions, arrow centres read from the images:
+  N1 at world (155.00, 32.85): arrow centre (284, 141)
+  N2 at world (149.31, 40.79): arrow centre (281, 144)
+World delta (-5.69, +7.94); pixel delta (-3, +3). So per-axis scale is 0.527 px per world X and 0.378 px per world Z, i.e. roughly
+0.45 px per world unit, and the map is north-up with +X east and +Z south on screen.
+CONSEQUENCE: one map pixel is about 2.2 world units and the arrow icon itself is ~12 px wide, so a map reading locates the party to only
+about plus or minus 5 world units. That is too coarse to place a character inside a gateway trigger zone, and the map carries no
+readable gateway marker of its own.
+The one use left for the map is as a FACING compass (the arrow shows the character's world facing, and the camera does not affect it):
+open map, read the arrow's bearing, close, rotate with L or R, reopen and check. That is a slow closed loop but it is the only heading
+reference the game exposes.
