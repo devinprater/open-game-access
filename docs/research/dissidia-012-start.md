@@ -364,3 +364,14 @@ Screenshot also shows, beyond the chest: a purple-armoured manikin on the path a
 behind it -- i.e. the chest sits directly on the approach to the gateway.
 BLOCKED: from the chest the party cannot advance north past (98.4,45.8) (repeated walks move <1 unit and oscillate). The barrier is on
 the narrow path between the chest and the manikin; dashes and all four stick directions were tried.
+
+## Gate reachable, not enterable (final state of this line of work)
+Reached the archway again and pushed into the portcullis for 12 long walks: the party simply circles the arch —
+ (146.4,43.8) (147.4,39.8) (145.4,36.2) (141.4,34.9) (137.7,36.7) (136.1,40.5) (137.6,43.4) (141.3,43.3) (145.2,42.1) (147.3,38.5)
+ (146.4,34.5) (143.0,32.2) — with the controller state at 2 the whole time. Contact, Cross, Circle, Square and Select were all tried at
+ point-blank range; none changes the state or opens the gate.
+The northern route to the manikin at (112,49) is impassable from the corridor too: staged at (118.9,27.6), twelve aimed walks never
+ got past z~29, and from the chest side the party is boxed into (96..98, 41..50).
+CONCLUSION for this save: the prologue's world map has one closed gateway. The point list, the event list, the gate list and the
+controller state are all mapped, and the chest proves contact-interaction works, so the reader side is ready. Entering a gateway needs
+the story flag that unlocks it, which this save does not have.
