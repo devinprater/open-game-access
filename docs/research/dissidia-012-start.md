@@ -118,3 +118,21 @@ pointers that reference 0x0976CFC0/0x0976D010 back to a static holder, then conf
 - Verified on: savestate run, replay in a separate process, and a perturbed-timing run (different press hold/gaps). All three: holder -> P, row tracks the stick.
   Still all derived from the same mainmenu.state start, so it is a different heap timeline, not a cold boot from the title.
 - Holder table nearby: 0x08B83E18/1C/20 -> three more objects with the same (x,y,z,1) row at +0x30: likely party members (other three warriors). Not yet checked.
+
+## Orbs: investigation so far (NOT found)
+Movement model (measured, field2.state): analog only. Pure-axis pushes move ~1.6 units per 12 frames; DIAGONAL stick input produces
+ZERO movement; the D-pad does nothing at all. Axis directions are camera-relative and the mapping rotates as the camera follows
+("up" read (1.61,-0.47) early, then the same vector appeared for "right" later), so closed-loop navigation needs per-step
+recalibration. Blind walking to a target stalled at ~5 of 34 units.
+- Select map screen: terrain plus a player arrow only. No orb/objective markers, no legend.
+- worldmap.bin is a tagged container. Sections and consumers (EBOOT):
+  gate->FUN_08910668, gtbg->FUN_089107f0, pint->FUN_089123dc, frtk->FUN_089103e0 (loader FUN_0890ecfc);
+  wene->FUN_0891314c, wfri->FUN_08810dd8, frnd->FUN_0890f41c, wtlp->FUN_08912fc8, not_->FUN_0891094c (loader FUN_0890ef38).
+- pint (interaction points, the best orb candidate) lands in DAT_089d83b0. Live value 0x08B8357C, an INLINE array of
+  {ptr,ptr,1} records, 6 entries. Only two carry plausible coordinates: (75.0, 100.0) and (114.56, -24.22, -31.07).
+  Watching reads of that array for 2 frames on the field gave ZERO hits, so it is not the per-frame point list on this map.
+- Reading the player's position row (P+0x30) is done by matrix/render code (0x089A3EFC, sceVfpuMatrix4Transform), so P+0x30 is a
+  render transform, not necessarily the gameplay root.
+- Pressing Square at the field start (no orb in view) changed 16,646 words, all animation/camera; no clean orb or counter delta.
+BLOCKER: no orb located, and no reliable way to walk to one. Next: find the gameplay root position with a WRITE watch while moving
+(the read watch only shows render users), then find the proximity check that consumes it; or re-derive the pint consumer FUN_08911fec.
