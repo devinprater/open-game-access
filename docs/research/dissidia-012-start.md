@@ -223,3 +223,21 @@ Consequence: the pint/point list is a PER-MAP table; the player's own (x,y) live
 same coordinate space until matched to the current map id. That match has not been done.
 Interaction attempt at the field start: pressing Square three times beside the tutorial spot changed NOTHING in the point lists
 (0 changed records, no count change, checked field-by-field for every record in all five lists).
+
+## MATCH FOUND — and a retraction of the previous "correction"
+The previous section claimed +0x18 was the second coordinate. That was WRONG. Verified layout for pint records:
+  +0x10 float X, +0x14 float Y (second map coordinate), +0x18 float height/offset (0 for most records).
+Evidence: list 0 record id 1173 reads (59.0, 19.4) while the player object reads (58.0, 20.0) — 1.2 units apart, same space.
+No other list has any record within 30 units of the player (they are other maps' tables, mostly all-zero).
+=> THE MATCH IS: list 0 (0x095D2B20, 160 records) is the CURRENT map's point table. Distances computed with +0x10/+0x14 are valid.
+Record id 1173 sits at the player's feet and has KIND 0, which is NOT one of the drawn kinds (1 and 5 are drawn by FUN_089121f4),
+so it is an invisible trigger/region marker, not a visible orb.
+
+## Square on the world map = the SKILL action, and it is inert at Lv 1
+Button ids recovered from the constants FUN_08919A14 queries with: DAT_089ce5d8 = 0x1000 TRIANGLE, DAT_089ce5e8 = 0x8000 SQUARE,
+0x080000 (L-ish), 0x010000 / 0x020000 = camera yaw left/right. That confirms the earlier model: stick left/right rotates the camera,
+only forward moves the character.
+The SQUARE branch calls the skill UI (imports at 0x08B49E80 / 0x08B49CA4 with controller+0x570) and, when nothing is available,
+falls through to FUN_08916380 (state 0xE + a sound). Screenshot test at the field start: pressing Square changes NOTHING on screen
+(no menu, no effect), and Cross hides the HUD while she steps forward. So at Lv 1 with 0 KP there is no skill to use, and that is why
+no orb has reacted: the world-map orb interaction needs an unlocked skill.
