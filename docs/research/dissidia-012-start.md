@@ -404,3 +404,18 @@ Gate-entity search by model id was inconclusive: the model-name table yields 35 
 matched 1,330 structs (far too many to distinguish real gate entities), so that route found nothing trustworthy.
 CONCLUSION: within this save there is no reachable gate volume. The unlock path needs either a later save state or the collision import's
 implementation. Everything else in the story-mode chain (objects, events, gates, chests, states, navigation) is mapped and documented.
+
+## Controls as Devin described them, and what they measured
+Devin's mapping: Cross = jump/dash, Square or Circle = punch/attack, and orbs are absorbed by punching them.
+MEASURED headless:
+- CROSS dashes/lunges: from (99.1,5.4) it moved her to (92.4,1.1) then (86.0,-4.2), about 6-7 units per press.
+- CIRCLE also dashes/lunges: (111.3,26.0) -> (104.0,23.0), then (104.5,22.4) -> (108.9,25.1). So both face buttons move her; neither
+  produced an attack on its own.
+- SQUARE opens the skill UI and is inert at Lv 1 with 0 KP (already established).
+Dash-through test: a dash aimed at the point record at (107,24) (pint id 9, kind 1) passed straight through its coordinates
+((111.3,26.0) -> (104.0,23.0)) and changed NOTHING in any point record and no list count. So that record is not the visible orb.
+What the screenshots show at (105.4,17.2): one glowing white orb about 10-15 paces to the left, and a second orb far up the valley pass
+beside a dark gateway with a red manikin standing next to it. The visible orbs are therefore NOT adjacent to the records tested so far.
+Not yet done: land a dash on a VISIBLE orb (needs visual aiming between dashes), and find the KP/Gil HUD block in memory so absorption
+can be confirmed by a counter change instead of by eye (a search for Gil 50 with HP 1000 nearby in the chest dump found nothing, so the
+status block is still unlocated).
