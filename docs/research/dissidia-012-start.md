@@ -485,3 +485,17 @@ inside the map, and the map palette itself carries blue), not a coarse colour th
 STATUS: the gateway is still not entered. Everything else about gateways is now documented (trigger zone -> conditions panel -> press to
 enter; red mandatory, blue optional), so the moment the party stands in a zone the panel will be the confirmation. Blocked on precisely
 placing the party in that zone.
+
+## 100% SAVE FILE INSTALLED AND WORKING (this is the unlock for gateway testing)
+Source: bucanero/apollo-saves on GitHub, path PSP/ULUS10566/00000145.zip (the zfreeman 100% save: story, labyrinth, catalog, museum,
+summons, all characters Lv100/SSS, all equipment). No login needed; downloaded with `gh api ... --jq .content | base64 -d`.
+INSTALL PATH THAT WORKS: the driver's save argument is a PPSSPP root, and the game looks in <root>/ppsspp-memstick/PSP/SAVEDATA/.
+Putting the folder at <root>/PSP/SAVEDATA made the load screen say "There is no data"; at the ppsspp-memstick level it loads.
+VERIFIED: title -> LOAD GAME (cursor value at 0x096AE20C, 1 = Load Game, and the title list WRAPS so blind presses misland) ->
+save slot "DISSIDIA 012 FINAL FANTASY, PLAYER Cerulean, 304:51:41, 276 KB" -> "Load completed" -> MAIN MENU with PLAY TIME 304:51:52,
+Story Mode highlighted, all seven rows present -> STORY MODE -> scenario banner "Main Scenario 012: Treachery of the Gods" -> chapter
+carousel with CHAPTER 0 "Prologue - Path to Sanctuary", Lightning Lv 100 and a bonus line of Lv 2 -> "Play this story?" YES.
+Saved states for continuing: ~/d12s/save100.state (main menu), save100b.state (chapter confirm), map100.state (prologue opening).
+STATUS: the prologue then plays a long chain of in-engine cutscenes (narration, then Tifa/Vaan, then Laguna/Lightning/Kain, then
+Vaan/Laguna/Yuna/Tifa...). Cross advances them (the scene changes), but 150 presses at 45-frame runs did not reach the world map, and
+Start does not skip. The world map, and therefore the gateway, is past that chain.
