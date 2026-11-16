@@ -149,6 +149,9 @@ static int MainIndex(void)
     return (int) i;
 }
 static int g_lastMain = -1;
+// Only speak a row that is actually available. PP Catalog (row 3) is greyed out on a fresh save and the
+// cursor still lands on it; the flag that enables it is NOT found yet, so it stays silent. Fail quiet.
+static bool MainShowing(int row) { return row != 3; }
 
 static int g_lastTitle = -1;
 static int g_lastSetupId = -1, g_lastSetupIdx = -1;
@@ -180,7 +183,7 @@ static void OnFrame(void)
     int m = sc ? -1 : MainIndex();
     if (m != g_lastMain) {
         g_lastMain = m;
-        if (m >= 0) SayLine(kMainEntries[m], oga::Priority::Normal);
+        if (m >= 0 && MainShowing(m)) SayLine(kMainEntries[m], oga::Priority::Normal);
     }
     int c = (sc || m >= 0) ? -1 : ConfigIndex();
     if (c != g_lastCfg) {
@@ -198,7 +201,7 @@ static void Command(oga::Command cmd)
         const SetupScreen* sc = SetupNow(&si);
         if (sc) { SayLine(sc->rows[si], oga::Priority::High); return; }
         int m = MainIndex();
-        if (m >= 0) { SayLine(kMainEntries[m], oga::Priority::High); return; }
+        if (m >= 0) { if (MainShowing(m)) SayLine(kMainEntries[m], oga::Priority::High); return; }
         int c = ConfigIndex();
         if (c >= 0) SayLine(kCfgEntries[c], oga::Priority::High);
     }
