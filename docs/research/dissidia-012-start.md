@@ -798,3 +798,61 @@ volume unarmed: in this map state no gate is switched on. Entry waits on whateve
 into a gate record -- Claude's story-flag hunt, now with a precise target (writers of gateMgr rec+0x10, e.g. under a
 write watch during the orb/talk events from an earlier state). The other open path is unchanged: win a Chapter 1
 board battle (autonomous combat), clear the gateway, and let the story advance the map itself.
+
+
+## Sarah's session 3 (2026-11-16 evening): write-watch tooling built; the chapter-start capture is walled off by the cores
+
+Devin's word for this session: find the story switch -- "look at the decomp if you can't, or gamefaq guides."
+
+0. GUIDES FIRST (per the standing rule). Squall_of_SeeD's Game Script (GameFAQs faqs/62288), Chapter 0: the
+   prologue field sequence is only: walk the path -> Yuna + orb tutorial (Circle, up to 4 orbs -> Chain Skill)
+   -> optional talks with Yuna and Laguna -> Kain in front of the gateway entrance ("Enter the gateway ahead
+   of us. We shall follow shortly.") + the message "Red gateways covered in thick fog must be passed to head
+   towards your destination." -> Lightning enters -> Gateway to Departure board. NO battle and NO other story
+   event sits between the conversations and the gateway. (Earlier work already showed all three party talks
+   are one-time flavour and do not create the gateway.)
+1. GATE ANCHOR DUMP (new drv `vec` variant planting a bp at 0x08B43F88, just after the tester builds its two
+   anchor vectors; vecA = the gate's world position): gate 11 (66.98,0.05,126.21), 12 (76.50,0,72.00),
+   13 (145.50,0,48.00) = the stone archway = Gateway to Departure, 14 (113.43,0.20,-22.21), 15 (207.00,0,37.50),
+   16 (249.11,-1.03,79.25), 17 (270.65,0.82,93.78), 18 (0.35,1.11,31.41), 19 (307.50,0,-9.00),
+   20 (220.44,-0.49,110.99), 21 (331.46,2.23,125.99). The gate manager's region is far bigger than the
+   prologue plateau (gates out to x 331, z 126). vecB was ~(0, small y, 0) in every row -- a direction/offset,
+   not a second corner. Gate states are IDENTICAL in prologue_end.state, own_free.state and field100.state:
+   all 0 except gate 14 = 5, already finished at field start.
+2. WRITE-WATCH TOOLING (committed this session). Glue: psp_watch_write / _onchange (MEMCHECK_WRITE,
+   BREAK_ACTION_NONE), _log variants, and _pause variants; the breakpoint-hit shim now also records
+   BreakpointKind::Memory hits (pc, addr, size, write, full GPRs) into a second 512-entry ring drained by
+   psp_memwatch_poll. Driver: wwatch / wwatchc / wwatchl / wwatchcl / wwatchp / wwatchcp / mpoll.
+   Two dead ends worth remembering: (a) psp_watch_poll's pc/addr are ALWAYS 0 -- PPSSPP's MemCheck::Apply
+   only bumps numHits and never fills lastPC/lastAddr; (b) BREAK_ACTION_LOG prints nothing in this harness
+   even though MemCheck::Action -> Log() should emit NOTICE_LOG lines. The PAUSE + shim-ring route is the
+   one that works, and it is exact for exec breakpoints. Caution: for STORE memchecks under the classic
+   interpreter the reported pc/regs are not instruction-exact (see 4).
+3. THE WALL: memchecks change which core effectively runs, and the interpreter path cannot finish this
+   game's chapter start. Isolation runs from map100.state, identical input (press cross + run 25) x243:
+   - pure JIT, no watches: chain completes -- ctrl+0x68 = 3 (field dialogue) by f14640.
+   - CLASSIC=1, no watches: ctrl+0x68 pinned at 21 for all 14,640 frames.
+   - JIT + wwatchcp planted (minimal other traffic): pinned at 21, byte-identical values to the classic run.
+   So planting any memcheck reproduces the stall; live write-capture during a fresh chapter start is not
+   possible with this harness. (First version of the watch script also deadlocked outright: the drv's
+   `press` prints no response line, so a blind readline after it blocked forever at 0% CPU -- the scripts
+   now use select-based reads with timeouts throughout.)
+4. BRACKET + REPLAY. JIT run savestating every 10 chunks: the gate table AND gate 14's arming all happen in
+   the final window, chunks 229 -> 239 (f14030 -> f14640). At c229 the gate addresses still hold cutscene
+   heap garbage; at c239 ptrA = 0x095D20E0 (valid), g13 = 0, g14 = 2 (state 1 was written and the tester
+   already incremented it). States kept: ~/d12s/brk_c*.state, brk_f0..f2.state. Replaying that window from
+   brk_c229 under CLASSIC + pause watches DIVERGES: one write to gate 13's word is captured at f463
+   (reported pc 0x08B43700), then ctrl+0x68 falls to 0 and the load aborts -- a JIT savestate's load tail
+   does not survive the interpreter. The captured write is NOT the gate writer: a RAM dump taken at the
+   pause shows the code there is a generic field-object updater (the function at ~0x08B43680 adds a constant
+   to a float at obj+0x20, gated on ctrl+0x68 == 2 and an object-type check); before the table exists, the
+   gate addresses are ordinary heap and this updater walks over them. RAM dumps: ~/d12s/ram_f0.bin (field),
+   ram_hit0.bin (at the pause).
+CONCLUSION: gate 13's state word is only ever heap noise or 0 in every reachable state, and its record has
+no position test configured, so the scan can never enter it; the "arm gate 13" framing is now very likely
+wrong -- the Gateway to Departure is probably not a gate-manager gate in the prologue at all, and entry is
+a map/script transition the field's event system fires (or a different map variant loads). The story-switch
+hunt should move to Claude's plan items 2/3, which need no chapter replay: find the save block via
+sceUtilitySavedataInitStart, and FLAG-DIFF around the one-time conversations (idle-masked snapshot, talk,
+snapshot) to locate the event-flag array; the gateway's bit is likely a neighbour. Tooling for both exists
+now (exec bp with GPR snapshots for the savedata break; ram dumps + diffing for the flag hunt).

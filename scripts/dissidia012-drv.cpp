@@ -4,6 +4,7 @@
 #include <cstdlib>
 #include <cstring>
 #include <string>
+#include <cstring>
 #include <vector>
 #include "psp_core.h"
 static PspCore *c;
@@ -14,6 +15,21 @@ static void bp_drain(){ uint32_t hits=0,pc=0,regs[32];
     if(bp_printed<24){ bp_printed++;
       printf("bp hit=%u pc=%08x v0=%08x v1=%08x a0=%08x a1=%08x a2=%08x a3=%08x t9=%08x ra=%08x sp=%08x s0=%08x s1=%08x\n",
         bp_next-1,pc,regs[2],regs[3],regs[4],regs[5],regs[6],regs[7],regs[25],regs[31],regs[29],regs[16],regs[17]); }
+    psp_break_resume(c); }
+  fflush(stdout); }
+static int vec_printed=0;
+static void vec_drain(){ uint32_t hits=0,pc=0,regs[32];
+  while(psp_break_poll(c,bp_next,&pc,regs,&hits)){ bp_next++;
+    if(vec_printed<40){ vec_printed++;
+      uint32_t sp=regs[29], s0=regs[16];
+      uint32_t ptrA=psp_debug_read(c,s0,4);
+      uint32_t ptrB=psp_debug_read(c,s0+4,4);
+      int id=(int)(int16_t)(psp_debug_read(c,ptrA,4)&0xffff);
+      int bid=(int)(int16_t)((psp_debug_read(c,ptrB,4)>>16)&0xffff);
+      uint32_t state=psp_debug_read(c,s0+0xc,4);
+      float v[8]; for(int i=0;i<8;i++){ uint32_t u=psp_debug_read(c,sp+4*i,4); memcpy(&v[i],&u,4); }
+      printf("vec gate=%d bid=%d state=%u A=(%.2f,%.2f,%.2f) B=(%.2f,%.2f,%.2f)\n",
+        id,bid,state,v[0],v[1],v[2],v[4],v[5],v[6]); }
     psp_break_resume(c); }
   fflush(stdout); }
 int main(int argc,char**argv){
@@ -33,6 +49,13 @@ int main(int argc,char**argv){
     else if(!strcmp(a,"loadstate")){ printf("loadstate %d\n",(int)psp_load_state(c,b)); }
     else if(!strcmp(a,"analog")){ float x=0,y=0; sscanf(line,"%*s %f %f %d",&x,&y,&n); if(!n)n=60; psp_set_analog(c,x,y); run(n); psp_set_analog(c,0,0); run(20); }
     else if(!strcmp(a,"watch")){ uint32_t s0=strtoul(b,0,16); uint32_t e0=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); if(getenv("WLOG")) psp_watch_read_log(c,s0,e0); else psp_watch_read(c,s0,e0); printf("watch %08x %08x\n",s0,e0); }
+    else if(!strcmp(a,"wwatch")){ uint32_t s0=strtoul(b,0,16); uint32_t e0=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); psp_watch_write(c,s0,e0); printf("wwatch %08x %08x\n",s0,e0); }
+    else if(!strcmp(a,"wwatchc")){ uint32_t s0=strtoul(b,0,16); uint32_t e0=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); psp_watch_write_onchange(c,s0,e0); printf("wwatchc %08x %08x\n",s0,e0); }
+    else if(!strcmp(a,"wwatchl")){ uint32_t s0=strtoul(b,0,16); uint32_t e0=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); psp_watch_write_log(c,s0,e0); printf("wwatchl %08x %08x\n",s0,e0); }
+    else if(!strcmp(a,"wwatchcl")){ uint32_t s0=strtoul(b,0,16); uint32_t e0=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); psp_watch_write_onchange_log(c,s0,e0); printf("wwatchcl %08x %08x\n",s0,e0); }
+    else if(!strcmp(a,"wwatchp")){ uint32_t s0=strtoul(b,0,16); uint32_t e0=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); psp_watch_write_pause(c,s0,e0); printf("wwatchp %08x %08x\n",s0,e0); }
+    else if(!strcmp(a,"wwatchcp")){ uint32_t s0=strtoul(b,0,16); uint32_t e0=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); psp_watch_write_onchange_pause(c,s0,e0); printf("wwatchcp %08x %08x\n",s0,e0); }
+    else if(!strcmp(a,"mpoll")){ uint32_t idx=strtoul(b,0,10); uint32_t pc=0,ad=0,ht=0; int sz=0,wr=0; uint32_t rr[32]={0}; int ok=psp_memwatch_poll(c,idx,&pc,&ad,&sz,&wr,rr,&ht); printf("mpoll ok=%d hits=%u pc=%08x addr=%08x size=%d write=%d v0=%08x a0=%08x a1=%08x a2=%08x a3=%08x s0=%08x s1=%08x s2=%08x s3=%08x sp=%08x ra=%08x\n",ok,ht,pc,ad,sz,wr,rr[2],rr[4],rr[5],rr[6],rr[7],rr[16],rr[17],rr[18],rr[19],rr[29],rr[31]); }
     else if(!strcmp(a,"poll")){ uint32_t s0=strtoul(b,0,16),e0=0,h=0,pc=0,ad=0; int sz=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); psp_watch_poll(c,s0,e0,&h,&pc,&ad,&sz); printf("poll hits=%u pc=%08x addr=%08x size=%d\n",h,pc,ad,sz); }
     else if(!strcmp(a,"bright")){ int w=0,h=0; if(psp_framebuffer(c,&w,&h)){ const unsigned char*fb=psp_framebuffer_ptr(c); long n=0,sx=0,sy=0; int x0=w,y0=h,x1=-1,y1=-1;
         for(int y=0;y<h;y++)for(int x=0;x<w;x++){ const unsigned char*p=fb+(y*w+x)*4; int lum=p[0]+p[1]+p[2];
@@ -62,6 +85,7 @@ int main(int argc,char**argv){
     else if(!strcmp(a,"wr")){ uint32_t ad=0,val=0; int wd=4; sscanf(line,"%*s %x %x %d",&ad,&val,&wd); if(!wd) wd=4; psp_debug_write(c,ad,val,wd); printf("wr %08x %08x %d\n",ad,val,wd); }
     else if(!strcmp(a,"wrf")){ uint32_t ad=0; float fv=0; sscanf(line,"%*s %x %f",&ad,&fv); uint32_t bits; memcpy(&bits,&fv,4); psp_debug_write(c,ad,bits,4); printf("wrf %08x %f\n",ad,fv); }
     else if(!strcmp(a,"bp")){ uint32_t ad=strtoul(b,0,16); psp_break_set(c,ad); printf("bp %08x\n",ad); }
+    else if(!strcmp(a,"vec")){ int N=atoi(b); psp_break_set(c,0x08b43f88); for(int i=0;i<N;i++){ psp_frame(c); vec_drain(); } printf("vec %d done next=%u\n",N,bp_next); }
     else if(!strcmp(a,"bppoll")){ bp_drain(); printf("bppoll next=%u printed=%d\n",bp_next,bp_printed); }
     else if(!strcmp(a,"runbp")){ int N=atoi(b); for(int i=0;i<N;i++){ psp_frame(c); bp_drain(); } printf("runbp %d done next=%u\n",N,bp_next); }
     else if(!strcmp(a,"rd")){ uint32_t ad=strtoul(b,0,16); printf("%08x: %u\n",ad,psp_debug_read(c,ad,4)); }

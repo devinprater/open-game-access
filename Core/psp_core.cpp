@@ -98,7 +98,19 @@ bool WebSocketDebuggerHasClients() { return false; }
 struct PspBreakSnap { uint32_t pc; uint32_t r[32]; };
 static PspBreakSnap s_breakSnaps[512];
 static uint32_t s_breakHits = 0;
+struct PspMemSnap { uint32_t pc; uint32_t addr; int size; int write; uint32_t r[32]; };
+static PspMemSnap s_memSnaps[512];
+static uint32_t s_memHits = 0;
 void WebSocketNotifyBreakpointHit(const BreakpointHit &hit) {
+    if (hit.kind == BreakpointKind::Memory && currentMIPS) {
+        PspMemSnap &s = s_memSnaps[s_memHits % 512];
+        s.pc = hit.pc;
+        s.addr = hit.address;
+        s.size = hit.size;
+        s.write = hit.write ? 1 : 0;
+        for (int i = 0; i < 32; i++) s.r[i] = currentMIPS->r[i];
+        ++s_memHits;
+    }
     if (hit.kind == BreakpointKind::Exec && currentMIPS) {
         PspBreakSnap &s = s_breakSnaps[s_breakHits % 512];
         s.pc = hit.pc;
@@ -817,6 +829,65 @@ void psp_watch_read_log(PspCore *core, uint32_t start, uint32_t end)
 {
     if (!core || end <= start) return;
     g_breakpoints.AddMemCheck(start, end, MEMCHECK_READ, BREAK_ACTION_LOG);
+}
+
+void psp_watch_write(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end, MEMCHECK_WRITE, BREAK_ACTION_NONE);
+}
+
+void psp_watch_write_onchange(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end,
+        (MemCheckCondition)(MEMCHECK_WRITE | MEMCHECK_WRITE_ONCHANGE),
+        BREAK_ACTION_NONE);
+}
+
+void psp_watch_write_log(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end, MEMCHECK_WRITE, BREAK_ACTION_LOG);
+}
+
+void psp_watch_write_onchange_log(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end,
+        (MemCheckCondition)(MEMCHECK_WRITE | MEMCHECK_WRITE_ONCHANGE),
+        BREAK_ACTION_LOG);
+}
+
+void psp_watch_write_pause(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end, MEMCHECK_WRITE, BREAK_ACTION_PAUSE);
+}
+
+void psp_watch_write_onchange_pause(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end,
+        (MemCheckCondition)(MEMCHECK_WRITE | MEMCHECK_WRITE_ONCHANGE),
+        BREAK_ACTION_PAUSE);
+}
+
+int psp_memwatch_poll(PspCore *core, uint32_t index, uint32_t *pc_out,
+                      uint32_t *addr_out, int *size_out, int *write_out,
+                      uint32_t regs_out[32], uint32_t *hits_out)
+{
+    if (!core) return 0;
+    if (hits_out) *hits_out = s_memHits;
+    if (index >= s_memHits) return 0;
+    if (s_memHits - index > 512) return 0;
+    const PspMemSnap &s = s_memSnaps[index % 512];
+    if (pc_out) *pc_out = s.pc;
+    if (addr_out) *addr_out = s.addr;
+    if (size_out) *size_out = s.size;
+    if (write_out) *write_out = s.write;
+    if (regs_out) for (int i = 0; i < 32; i++) regs_out[i] = s.r[i];
+    return 1;
 }
 
 int psp_watch_poll(PspCore *core, uint32_t start, uint32_t end,

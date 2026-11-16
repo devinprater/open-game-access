@@ -120,6 +120,20 @@ void psp_set_classic_interpreter(PspCore *core);
  * only the picture is thinned. For a screen-reader player that is free speed. */
 void psp_set_frame_skip(PspCore *core, int skip);
 void psp_watch_read(PspCore *core, uint32_t start, uint32_t end);
+/* Write-side companions: MEMCHECK_WRITE, optionally ONCHANGE so only
+ * value-changing stores fire. Poll with psp_watch_poll on the same range. */
+void psp_watch_write(PspCore *core, uint32_t start, uint32_t end);
+void psp_watch_write_onchange(PspCore *core, uint32_t start, uint32_t end);
+/* LOG variants: every hit prints a CHK line (addr + PC) to the core log,
+ * because MemCheck::Apply never fills lastPC/lastAddr for poll. */
+void psp_watch_write_log(PspCore *core, uint32_t start, uint32_t end);
+void psp_watch_write_onchange_log(PspCore *core, uint32_t start, uint32_t end);
+void psp_watch_write_pause(PspCore *core, uint32_t start, uint32_t end);
+void psp_watch_write_onchange_pause(PspCore *core, uint32_t start, uint32_t end);
+/* Drain the memory-hit snapshot ring filled by the breakpoint-hit shim. */
+int psp_memwatch_poll(PspCore *core, uint32_t index, uint32_t *pc_out,
+                      uint32_t *addr_out, int *size_out, int *write_out,
+                      uint32_t regs_out[32], uint32_t *hits_out);
 /* Same, but each hit also emits a log line with (pc, addr, size) through the
  * core log callback path. Use sparingly on hot ranges: every watched read
  * prints. */
