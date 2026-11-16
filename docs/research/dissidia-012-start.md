@@ -37,3 +37,18 @@ NO match (rewritten, or moved with edits): board constructor/avail-dir/tick, DP 
 - Word 0 is NOT usable: PPSSPP rewrites the first word of a function (pad read read 1744860755 live vs 666763184 static).
 - It speaks nothing yet. Seven adapter suites still pass (dissidia, dbz, mku, dq9, khbbs, alttp, gba).
 - Live-read tool: ~/fp-run <img> <savedir> <frames> <hexaddr>... (source scripts/dissidia012-fp-main.cpp).
+
+## Menu flow measured headless (ULUS10566, single boots unless noted)
+- Title cursor 0x096AE20C (two boots). Data Config cursor 0x096AEA70 (two boots). Setup screens share 0x096AEA70,
+  screen id u32 at 0x096AEC1C: 10 Play Plan, 12 Bonus Day, 14 Battle Mode, 16 Story Mode, 18 confirm. Confirm YES/NO
+  is driven by Left/Right on the same cursor (0 YES, 1 NO); Up/Down do nothing there.
+- After YES: Subtitle Language screen, then the PSP Save utility (NEW DATA), then straight into a tutorial battle
+  (Lightning vs a Terra manikin), not the main menu. The main menu and story mode are behind that battle: NOT reached yet.
+- Nickname is PPSSPP by default; the OSK is PPSSPP's own. Not wired.
+
+## Battle HUD values in RAM: OPEN
+Tutorial battle, HUD read by screenshot: left fighter BRV 95 / HP 1000, right BRV 408 / HP 338, pool 133.
+RAM region 0x0969D688: [95,95,338] then at 0x0969D6DC [408,408,1000]. Both BRV pairs change live (95->79, 408->424).
+The HP next to each BRV is the OTHER fighter's HUD value, so either the records hold HP in a different slot or the
+screenshot reading is swapped. Do not wire a fighter reader until a fight with changing HP settles it.
+The original's layout (S+0x0E brv, S+8 max, S+2 dmg) did NOT hold: 012's fighter struct was reworked.

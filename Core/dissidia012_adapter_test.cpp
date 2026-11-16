@@ -42,9 +42,8 @@ int main(){
   ram[0x096aea78]=1; ram[0x096aea70]=1; a->command(oga::Command::WhereAmI); CHECK(said.back()=="Transfer save data","config query");
   // Setup screens
   ram[0x096aeaa0]=0;
-  struct T{uint32_t id,mx;const char*r0;const char*r1;} ts[]={{10,2,"Casual","Average"},{12,6,"Mon","Tue"},{14,1,"Action-style","RPG Mode"},{16,2,"Standard","Strong"}};
+  struct T{uint32_t id,mx;const char*r0;const char*r1;} ts[]={{10,2,"Casual","Average"},{12,6,"Mon","Tue"},{14,1,"Action-style","RPG Mode"},{16,2,"Standard","Strong"},{18,1,"Yes","No"}};
   for (auto&t:ts){ ram[0x096aec1c]=t.id; ram[0x096aea78]=t.mx; ram[0x096aea70]=0; a->on_frame(); CHECK(said.back()==t.r0,t.r0);
     ram[0x096aea70]=1; a->on_frame(); CHECK(said.back()==t.r1,t.r1); }
-  ram[0x096aec1c]=18; ram[0x096aea78]=1; k=said.size(); ram[0x096aea70]=0; a->on_frame(); CHECK(said.size()>=k,"confirm no crash");
   ram[0x096aec1c]=16; ram[0x096aea78]=6; k=said.size(); ram[0x096aea70]=2; a->on_frame(); CHECK(said.size()==k,"id/max mismatch silent");
   printf("dissidia012 adapter: %d passed, %d failed\n",n-fails,fails); return fails?1:0; }

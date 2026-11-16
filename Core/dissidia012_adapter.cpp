@@ -107,13 +107,15 @@ static void SayLine(const char* s, oga::Priority pri)
 // All share the cursor at 0x096AEA70 (max index at +8). Screen id u32 at 0x096AEC1C:
 // 10 Play Plan (max 2), 12 Bonus Day (6), 14 Battle Mode (1), 16 Story Mode (2), 18 confirm (1).
 // Cursor sequences measured: Plan 0,1,2,1,0; Bonus 0,1,2,1,0; Battle 0,1,0,1,0; Story 0,1,2,1,0.
-// The confirm screen's YES/NO did not move this cursor, so it is not read yet.
+// Confirm screen (id 18): same cursor, driven by Left/Right.
 struct SetupScreen { uint32_t id, maxIdx; int n; const char* rows[7]; };
-static const SetupScreen kSetup[4] = {
+static const SetupScreen kSetup[5] = {
     { 10, 2, 3, { "Casual", "Average", "Hardcore" } },
     { 12, 6, 7, { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" } },
     { 14, 1, 2, { "Action-style", "RPG Mode" } },
     { 16, 2, 3, { "Standard", "Strong", "Moderate" } },
+    // Confirm "Proceed with these settings?": moves with Left/Right (Up/Down do nothing). 0 YES, 1 NO.
+    { 18, 1, 2, { "Yes", "No" } },
 };
 
 static const SetupScreen* SetupNow(int* idx)
