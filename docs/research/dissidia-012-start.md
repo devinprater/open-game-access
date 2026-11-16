@@ -341,3 +341,15 @@ MEASURED: 4x Cross at the orb -> record unchanged, list counts unchanged (party 
 CONCLUSION: the orb is real, located, and reachable, but interaction needs the world-map SKILL that the tutorial refers to; this save has
  none (Square opens an empty skill UI, Lv 1, 0 KP). To interact, the save needs a skill first, or the orb's interaction path must be found
  in the overlay code rather than by button probing.
+
+## PORTAL REACHED (point-blank) — and it is LOCKED
+With L/R aiming plus Cross dashes for the blocked stretches, the party walked from the prologue start to the stone archway:
+ route (95,16) -> (105,17) -> (118,27) -> (128,36), then the dash-assisted walk to the arch. Final position (146.0,46.2).
+Screenshot s_portal_go.png: Lightning stands INSIDE the arch's front walls, facing the closed gate; the arch is barred by a dark iron
+ portcullis with a solid panel in the curve, plus a thin translucent blue arc beside her (the gateway's aura). No prompt appears.
+Records at that spot: kind 13 id 71 at (152,54) ~9.9 units beyond the gate, kind 12 id 70 at (128,37) behind, kind 3 id 17 at (112,49),
+ kind 1 id 9 (the orb) at (107,24).
+MEASURED: at the arch, Cross / Circle / Square all leave the position unchanged (146.0,46.2) and the controller state at 2. The gate does
+ not open on a button press. So the gateway is LOCKED and something else unlocks it.
+NEXT HYPOTHESIS (untested): the purple-and-gold manikin standing on the map near the second orb is a world enemy; defeating it is the
+ obvious candidate for opening the first gateway.
