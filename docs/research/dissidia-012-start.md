@@ -375,3 +375,20 @@ The northern route to the manikin at (112,49) is impassable from the corridor to
 CONCLUSION for this save: the prologue's world map has one closed gateway. The point list, the event list, the gate list and the
 controller state are all mapped, and the chest proves contact-interaction works, so the reader side is ready. Entering a gateway needs
 the story flag that unlocks it, which this save does not have.
+
+## WHY THE GATE WILL NOT OPEN (decomp answer)
+The gate handler FUN_08913e10 only runs its two entry branches when the game's own collision call returns a gate index. That index is
+stored in controller+0x7B0. Branch A fires when (gate_record.flags & 4) != 0 AND s16 at +0x10 >= 0 -> controller state 6 (enter);
+branch B when s16 at +4 >= 0 -> state 5.
+MEASURED LIVE: controller+0x7B0 = 0xFFFFFFFF (no gate) at the stone archway at (146,46) AND while standing exactly on the gate cell
+coords, walking to (104.5,0.2) which is gate (105,0)/(103,0). So the game never considers the party to be at a gate, and neither entry
+branch can run. That is the reason the portcullis never lifts: it is not a button or flag we failed to press, the party is not inside a
+gate volume at all.
+=> The archway at (146,46) is scenery, not one of the gate records: its gate id would otherwise have been non -1.
+=> Gate RECORDS that would open (flags bit 2 set, 0x5) are ids 933..1019 with cells (101,0) (103,0) (105,0) (105,1) (107,0) (109,0/1)
+   (111,0) (112,0) (115,0/1) (117,0) (118,0) (122,0/1) (124,0) (125,0), plus (10,1) (37,0) (49,1) (50,1) (51,1) (56,1) (57,1) (58,1)
+   (59,1). Records with flags 0x1 or 0x3 lack the bit and would take branch B instead.
+The gate VOLUME is 3D collision implemented behind an import (the same call the handler makes), so the volume belongs to the overlay /
+collision layer, not to the record data. Standing on the cell coordinates does not put the party in it.
+NEXT: find the collision volume for the current map (the import's implementation in the resident/battle overlay), i.e. the same class
+of work as the earlier import-resolution attempts, or load a save where a gate is already open.
