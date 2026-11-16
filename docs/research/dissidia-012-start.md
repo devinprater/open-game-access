@@ -675,3 +675,13 @@ nothing for the 0x7B0 writer to store.
 CONTRAST, and it matters: a gateway IS enterable in this same harness. With the 100% save, choosing Chapter 1 loads a gateway board
 (state 21) with pillars, pieces, Scan Mode and Customization, which only exists after a successful entry. So the entry path and the
 controls are fine; it is the prologue's map state that lacks a gateway.
+
+## Area check across every saved state: the same negative
+Reading controller+0x58, DAT_089d712c and the area record's +0x240 from five separate RAM dumps (the 100% save post-orb, our own save
+post-orb, the chapter-1 map after exiting a gateway, and the gateway board) gives IDENTICAL results every time:
+  base 0x08BAED38, index 1, object 0x08BED880, gate id -1, flags260 0x00000001 (bit 3 clear).
+Even the board dump reports index 1 with -1, which means this "current point" structure is not per-map: the pointer and index are fixed and
+the world map never advances it while walking. So +0x58 is not the map area index; FUN_0891705C(-1) is returning a default/point object
+that is only meaningful when the game itself sets it on entering a gateway.
+That closes the "walk to an area that has a gateway" plan: there is no reachable position that changes the index, in any save, because
+the index is not driven by position at all.
