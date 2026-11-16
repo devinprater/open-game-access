@@ -128,6 +128,18 @@ int psp_watch_poll(PspCore *core, uint32_t start, uint32_t end,
                    uint32_t *hits_out, uint32_t *pc_out,
                    uint32_t *addr_out, int *size_out);
 
+/* Host-trace exec breakpoints (scripts only, never on device).
+ * psp_break_set plants a pausing exec breakpoint at addr; each hit snapshots
+ * the GPR file in the glue (see the WebSocketNotifyBreakpointHit shim in
+ * psp_core.cpp). psp_break_poll copies out the snapshot for absolute hit
+ * index (0-based) and the total hit count; it returns 0 when that hit has
+ * not happened yet or has already fallen out of the snapshot ring. The CPU
+ * stays paused after a hit until psp_break_resume. */
+void psp_break_set(PspCore *core, uint32_t addr);
+int psp_break_poll(PspCore *core, uint32_t index, uint32_t *pc_out,
+                   uint32_t regs_out[32], uint32_t *hits_out);
+void psp_break_resume(PspCore *core);
+
 #ifdef __cplusplus
 }
 #endif

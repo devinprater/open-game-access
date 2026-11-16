@@ -86,10 +86,26 @@ void GPU_Shutdown()
 // this shape for builds without it (see the __LIBRETRO__ branch of
 // Core/Debugger/WebSocket.h): the tick/notify calls in the run loop resolve
 // to harmless no-ops instead of dragging the whole subscriber tree in.
+#include "Core/MIPS/MIPS.h"
 #include "Core/Debugger/WebSocket.h"
 void WebSocketDebuggerTick() {}
 bool WebSocketDebuggerHasClients() { return false; }
-void WebSocketNotifyBreakpointHit(const BreakpointHit &) {}
+
+// Host-trace exec-breakpoint snapshots (scripts only, never on device): a
+// pausing exec breakpoint's notify lands here on the CPU thread before
+// Core_Break parks it, so currentMIPS still holds the pre-instruction
+// register file. psp_break_poll (near the watch APIs below) drains the ring.
+struct PspBreakSnap { uint32_t pc; uint32_t r[32]; };
+static PspBreakSnap s_breakSnaps[512];
+static uint32_t s_breakHits = 0;
+void WebSocketNotifyBreakpointHit(const BreakpointHit &hit) {
+    if (hit.kind == BreakpointKind::Exec && currentMIPS) {
+        PspBreakSnap &s = s_breakSnaps[s_breakHits % 512];
+        s.pc = hit.pc;
+        for (int i = 0; i < 32; i++) s.r[i] = currentMIPS->r[i];
+        ++s_breakHits;
+    }
+}
 
 const char *RasterChannelToString(RasterChannel channel)
 {
@@ -815,6 +831,32 @@ int psp_watch_poll(PspCore *core, uint32_t start, uint32_t end,
     if (addr_out) *addr_out = mc.lastAddr;
     if (size_out) *size_out = mc.lastSize;
     return 1;
+}
+
+void psp_break_set(PspCore *core, uint32_t addr)
+{
+    if (!core) return;
+    g_breakpoints.AddBreakPoint(addr);
+    g_breakpoints.ChangeBreakPoint(addr, BREAK_ACTION_PAUSE);
+}
+
+int psp_break_poll(PspCore *core, uint32_t index, uint32_t *pc_out,
+                   uint32_t regs_out[32], uint32_t *hits_out)
+{
+    if (!core) return 0;
+    if (hits_out) *hits_out = s_breakHits;
+    if (index >= s_breakHits) return 0;
+    if (s_breakHits - index > 512) return 0;  // fell out of the ring
+    const PspBreakSnap &s = s_breakSnaps[index % 512];
+    if (pc_out) *pc_out = s.pc;
+    if (regs_out) for (int i = 0; i < 32; i++) regs_out[i] = s.r[i];
+    return 1;
+}
+
+void psp_break_resume(PspCore *core)
+{
+    if (!core) return;
+    if (Core_IsStepping()) Core_Resume();
 }
 
 // ---- embedding-disabled service shims -------------------------------------
