@@ -293,3 +293,22 @@ Runtime import probe: the address Ghidra renders as func_0x08b43a3c holds 0x6803
 gate-collision call is not resolvable that way either.
 CONCLUSION: the one place the game decides "the player is on a gate" is that collision import; to reach the portal we need either a
 save state taken while standing on it, or the overlay that implements the import.
+
+## FIELD EVENT SYSTEM found by decomp (the missing layer between the map and the player)
+FUN_0890f668 (big world-map function) walks an EVENT linked list with the iterator FUN_0890f544/FUN_089103bc and collects, into a
+32-slot array, every event whose test passes. EVENT RECORD: id u16 +0, id2 u16 +2, KIND byte +4, +5/+6/+7 sub-ids (filtered against
+controller+0x54), u16 +8, u16 +0xa, u16 +0xc (bit-index into a seen-table at obj+0x130), FLAGS u16 +0xe (bit 0 = active), then per-kind
+fields. Asset/name strings follow some records ("upper_w_2d/T_UP0...", i.e. 2D UI prompts).
+KIND SWITCH (so this list IS the map's interaction set):
+  1 = party character by id; 2/3 = party proximity (radius s16 at +0x12); 4/5 = object via func_0x08b4571c(id) then radius test;
+  6 = object, radius from a call; 7/8 = a PINT record by id (FUN_089121d0(s16 at +0x10)) compared against controller+0x768;
+  9 = enemy by id against the 4 party slots; 10 = RAW COORDINATE test: player (x,z) minus (s16 at +0x10, s16 at +0x12), compared
+  to radius s16 at +0x14.
+KIND-10 EVENTS LIVE ON THE PROLOGUE MAP (integer coords, all with flags bit0 set):
+  (100,25) r10   (98,-6) r10   (86,4) r10   (88,14) r15   (108,-14) r10
+The last one found carries a 2D "upper_w_2d/T_UP0" asset, so kind 10 is a PROMPT/MESSAGE trigger, not a gateway.
+Measured: the party walked through the radii of (86,4), (88,14) and (98,-6) during the island sweep and the controller state stayed 2;
+Cross inside them did nothing. So these are not the portal either.
+STATUS: the portal is still unreached. Three layers are now mapped (pint objects, gate records, field events) and none of them fires
+when the party walks over the visible pillar. The remaining unknown is the game's own gate-collision import, which is the only code
+that can say "the player is standing on a gate".
