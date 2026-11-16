@@ -760,3 +760,41 @@ Pitfalls noted: bit order may be 1<<(n&7) or 0x80>>(n&7), PSP is little-endian s
 than bits, a flag may be mirrored in a cache, and a gateway can open while later setup is missing and softlock progress.
 NEXT CONCRETE ACTION for a future session: add an execute-breakpoint with register dump to the harness driver (the core already builds
 against PPSSPP's debugger) and break at 0x08913E84 to see what the import returns and why.
+
+## Sarah's session (2026-11-16, picking up from Hermes): the "import" is plain code, the scan is a state machine, the prologue gates are dormant
+
+1. BREAKPOINTS NOW EXIST in the host driver. Core/psp_core.{h,cpp} gained host-trace exec-breakpoint APIs in the same
+   scripts-only family as psp_watch_read: psp_break_set plants a PAUSE breakpoint; the glue's WebSocketNotifyBreakpointHit
+   shim snapshots the GPR file pre-instruction into a ring; psp_break_poll drains it; psp_break_resume calls Core_Resume.
+   scripts/dissidia012-drv.cpp gained bp / runbp / bppoll commands (and keeps the wr/wrf RAM-write commands Hermes had
+   just added). Build: scripts/dissidia012-drv-build.sh -> ~/drv-bp (fresh glue + driver main linked against the existing
+   PPSSPP object set, same shape as psp-memtrace-build.sh). Run with CLASSIC=1 so the classic interpreter's breakpoint
+   checks fire.
+2. THE "IMPORT" IS ORDINARY MIPS. Breakpoint proof on free.state over 300 frames: the jal at 0x08913E84 fires about
+   every 4 frames, always with a0 = 0x095D75C0 (the gate manager), and the return site at 0x08913E8C always sees
+   $v0 = -1. Read under the classic interpreter, the callee at 0x08B43A3C is a plain prologue (addiu sp,-0x20;
+   sw s0..s4,ra; move s1,a0) -- a real function in the live overlay, FUN_08B43A3C. The 0x68xxxxxx words recorded earlier
+   at that address appear only under the JIT (emuhack words); there is no HLE stub and no module table to resolve.
+   Calling convention, from a second caller at 0x089143B0 whose delay slot loads a1: scan(gateMgr, playerObj), with
+   a1 = controller+0x6D0; the tester reads the position rows at playerObj+0x80 and +0x90.
+3. THE SCAN IS A PER-GATE STATE MACHINE. FUN_08B43A3C walks up to 32 records of 0x14 bytes in the gate manager
+   (11 populated here; gate ids 11..21 in the ptrA table) and calls the tester FUN_08B43ED4(&rec+4, playerObj, gateMgr)
+   on each whose ptrA word is nonzero. The tester builds two anchor vectors from the record's ptrB ids
+   (FUN_08897DEC / FUN_08897E48), then runs whichever position tests the record qualifies for: an object-volume
+   containment (FUN_08870C94) for records with ptrB+0xE >= 0 (gates 18-21), a facing-cone test for the one record
+   with ptrA+4 >= 0 (gate 12, ptrA+4 = 2), a transform test needing ptrA+0x10 >= 0 (none here). It ends in a
+   lifecycle switch on the record's state word at rec+0x10: state 1 spawns the portal object (FUN_088A9DE8,
+   obj+0xDC |= 0x100), state 2 runs a 120-unit timer, state 3 arms the trigger via FUN_08B43B8C, state 4 waits,
+   state 5 is finished. State 0 is read but never advanced by this code -- something outside the scan must write
+   the 1. In free.state every gate's state is 0 except gate 14's, which is 5, its timer float past the threshold
+   at 122.0: a gate that already lived its lifecycle before this map state.
+4. EXHAUSTIVE POSITION CHECK: teleporting the player (all five position copies, readback-verified at +0x30/+0x80)
+   over a 4-unit grid, x 56..168, z -44..76 (899 points, 10 frames each), plus nine heights at the archway (146,46),
+   the manikin (112,49) and the gate cell (103,0), never moved the actor's gate id (actor+0x240) or controller+0x7B0
+   off -1. Control reads: own_gate.state stands at the chest (98.3,46.2) with -1; gate100.state and chapmap.state are
+   board states (controller state 21, no field player), so they say nothing about field gates.
+CONCLUSION: the prologue gateway is not hidden and not a steering problem. Its record sits in the table with the
+volume unarmed: in this map state no gate is switched on. Entry waits on whatever external event writes state 1
+into a gate record -- Claude's story-flag hunt, now with a precise target (writers of gateMgr rec+0x10, e.g. under a
+write watch during the orb/talk events from an earlier state). The other open path is unchanged: win a Chapter 1
+board battle (autonomous combat), clear the gateway, and let the story advance the map itself.
