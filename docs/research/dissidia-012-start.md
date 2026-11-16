@@ -474,3 +474,14 @@ Square Enix's Dissidia 012 manual (support.na.square-enix.com, upp_manual PDF, p
 WHY I AM BLOCKED: the map is fully connected (the Select map shows one continuous landmass with narrow paths; no water crossing is
 needed), but my steering cannot reliably walk to a specific visible object, so I cannot park the party in a trigger zone. The gate id
 (controller+0x7B0) and the controller state stayed at -1 / 2 through every sweep, confirming no gateway zone was ever entered.
+
+## Map-based navigation attempt: marker detection failed
+Added a `blue` command (centroid of strongly blue framebuffer pixels) to locate the Select-map player marker for calibration.
+Measured: at world (58.0,20.0) the blue centroid was (249,135) n=63; after walking to (69.3,17.6) it was (251,134) n=53. Eleven world
+units moved the detected cluster by TWO pixels, which cannot be the player marker on a map spanning ~100 units in 480 px. The simple
+blue filter is locking onto a static UI element (a border flourish), so the calibration yields no usable pixel-to-world transform.
+That closes the map-navigation route as attempted here: it needs a better marker signature (the arrow is a faceted cyan diamond drawn
+inside the map, and the map palette itself carries blue), not a coarse colour threshold.
+STATUS: the gateway is still not entered. Everything else about gateways is now documented (trigger zone -> conditions panel -> press to
+enter; red mandatory, blue optional), so the moment the party stands in a zone the panel will be the confirmation. Blocked on precisely
+placing the party in that zone.

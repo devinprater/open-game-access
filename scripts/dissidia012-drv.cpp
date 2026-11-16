@@ -48,6 +48,9 @@ int main(int argc,char**argv){
     else if(!strcmp(a,"chord")){ char b2[64]={0}; int n2=0; sscanf(line,"%*s %63s %63s %d",b,b2,&n2); int k1=-1,k2=-1;
         for(int i=0;i<12;i++){ if(!strcmp(b,names[i])) k1=i; if(!strcmp(b2,names[i])) k2=i; }
         if(k1>=0&&k2>=0){ if(!n2)n2=6; psp_set_button(c,k1,true); psp_set_button(c,k2,true); run(n2); psp_set_button(c,k2,false); psp_set_button(c,k1,false); run(24); printf("chord %s+%s\n",b,b2); } }
+    else if(!strcmp(a,"blue")){ int w=0,h=0; if(psp_framebuffer(c,&w,&h)){ const unsigned char*fb=psp_framebuffer_ptr(c); long n=0,sx=0,sy=0;
+        for(int y=0;y<h;y++)for(int x=0;x<w;x++){ const unsigned char*q=fb+(y*w+x)*4; if(q[2]>140 && q[0]<110 && q[1]<160 && (int)q[2]-q[0]>60){ n++; sx+=x; sy+=y; } }
+        if(n>0) printf("blue n=%ld cx=%ld cy=%ld\n",n,sx/n,sy/n); else printf("blue n=0\n"); } else printf("blue n=0\n"); }
     else if(!strcmp(a,"rd")){ uint32_t ad=strtoul(b,0,16); printf("%08x: %u\n",ad,psp_debug_read(c,ad,4)); }
     fflush(stdout);
   }
