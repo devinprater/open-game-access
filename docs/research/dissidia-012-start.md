@@ -740,3 +740,23 @@ Claude's suggested tests settled it:
 - After all three conversations, the actor's gate id (+0x240) is still -1: conversations do not create the gateway.
 TECHNIQUE THAT WORKED, worth reusing: to talk to an otherwise unreachable character, teleport to a cell within about 1 unit on the side
 that works, then press Cross. Talking is a distance-and-side check, not an area trigger, so no walking is needed.
+
+## Third Claude consult: how to find the story flag, if there is one
+Claude's plan, in priority order, now that conversations are exhausted:
+1. START WITH THE -1 ITSELF (its Q3): break at the import call inside FUN_08913E10 (jal 0x08B43A3C at 0x08913E84), record $a0-$a3,
+   resolve the stub, then in the callee find the branch that returns -1 and trace every load feeding it. Two shapes are expected:
+   a flag test (`lbu`/`lw` from a fixed address plus a bit mask -> that address and bit are the flag) or a table search that fails.
+   If an argument is a position/cell, -1 may simply mean "not standing on a gateway cell", not "locked", and an edge-triggered walk onto
+   the archway is the fix.
+2. FIND THE SAVE BLOCK by breaking on sceUtilitySavedataInitStart and reading dataBuf/dataBufSize out of SceUtilitySavedataParam, then
+   searching RAM for a distinctive 32-64 byte run of that buffer; confirm the live copy with a read watch during a save.
+3. FLAG DIFF: mask noise first (two idle snapshots), then use the one-time conversations as known flag writes -- snapshot, talk, snapshot,
+   and the single-bit change locates the event-flag array and its bit order. The gateway bit is likely in the same array.
+4. SAFE ORDER: load savestate, set the bit in RAM, make the game re-evaluate WITHOUT loading a savestate (loading one restores all RAM and
+   wipes the edit), check the archway, and only then save to the copied memory stick and reload from the title to confirm.
+5. FLAG OR MAP VARIANT: if the lookup reads a heap region filled at map load rather than a fixed array, the gateway is data-driven and the
+   flag picks a different map variant; sceIoOpen logging on map entry tells them apart.
+Pitfalls noted: bit order may be 1<<(n&7) or 0x80>>(n&7), PSP is little-endian so bit 9 lives in byte 1, some "flags" are counters rather
+than bits, a flag may be mirrored in a cache, and a gateway can open while later setup is missing and softlock progress.
+NEXT CONCRETE ACTION for a future session: add an execute-breakpoint with register dump to the harness driver (the core already builds
+against PPSSPP's debugger) and break at 0x08913E84 to see what the import returns and why.
