@@ -695,3 +695,26 @@ and Cross starts the battle transition. My engagement attempt ran the transition
 45 rounds of Square+Circle produced no battle, no HP change and no victory screen.
 So the remaining path needs autonomous combat (a fighting-game input loop that can actually win), which is a separate project from the
 world-map work, not another walking attempt.
+
+## Complete gate chain, from static analysis (second Claude consult)
+Claude's second read reframed the 0x280 table: it is an ACTOR table, controller+0x58 is the controlled actor's slot (hence always 1, on the
+board too), and +0x240/+0x260 are that actor's momentary gate-contact state. That predicts no snapshot would ever show a gate id, which
+matches every measurement. It also suggested a static search for the writers, which paid off immediately.
+STATIC SEARCH: `sh rt,0x240(base)` appears exactly THREE times in the EBOOT (0x08912548, 0x08912680, 0x089127D4) — all world-map code:
+ - FUN_08912498 is the struct reset (fills 5 shorts with 0xffff).
+ - FUN_089127C4 resets +0x240/+0x242 to 0xffff.
+ - FUN_08912674(actor, gateId) is the assignment: it writes s16 +0x240 = gateId, copies the gate's index to +0x242, copies two vectors
+   from FUN_08897DEC/FUN_08897E48 into +0x244/+0x250, and sets/clears flag bits from the gate record's flags (&2, &8).
+FUN_08912674 has EXACTLY ONE CALLER: FUN_08913E10, the gateway handler.
+DISASSEMBLED CHAIN in FUN_08913E10 (0x08913E10):
+ - returns immediately unless controller+0x7D8, +0x7E1, +0x7E2 and +0x7E3 are all zero
+ - calls FUN_08920244(DAT_089d712c, 0x3F548); a non-zero result short-circuits the whole handler
+ - calls the import at 0x08B43A3C with controller+0x88; its return in $18 is the GATE INDEX
+ - FUN_08910644(index) fetches the gate record; flags bit 2 and s16 +0x10 (or s16 +4 for the second branch) then set controller state 5/6
+ - FUN_08912674(actor, index) writes the actor's +0x240, which FUN_08915048 later turns into controller+0x7B0
+So the ONLY source of a gate index is that one import call, and it returns -1 in every map state we have.
+The import stubs at runtime (0x08B43A3C = 0x68001BC0, 0x08B4511C = 0x680019BF) decode to opcode 26, i.e. not MIPS code, so they are
+relocated/HLE entries rather than plain trampolines; resolving them needs the module table, not a raw read.
+TALKING TO THE PARTY (as instructed): all three party objects were found through the actor table — (111.9,21.0), (92.8,47.0), (93.0,-2.0).
+Walking to each and pressing Cross started a conversation every time (state 3 each), dialogues played to the end, and the actor's gate id
+returned to -1 afterwards in every case. Conversations are flavour at this point and do not create the gateway.
