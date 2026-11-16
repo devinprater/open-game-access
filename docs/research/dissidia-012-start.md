@@ -211,3 +211,15 @@ index) whose s16 CELL COORDS sit at +0x10/+0x12; the controller then stores them
 So gate records are CELL-based, not float world positions — the map is a cell grid with gates, like the original game's board.
 ⛔ Navigation limit measured: the nearest drawn object sits across water. The coordinate navigator oscillated at (59,19.6), never
 closer than 28 units, because the terrain is a path network. World-object work needs PATH data (gate/cell grid), not straight lines.
+
+## CORRECTION to the pint record layout (and the consequence for every distance I quoted)
+Records of list 0 read as (X at +0x10, SECOND COORD at +0x14, HEIGHT/OFFSET at +0x18), all floats holding whole numbers:
+  948 (75,100,0)   949 (243,78,0)   1084 (66,129,-22)   1085 (108,-14,-154)   1086 (171,114,0)
+Every distance figure quoted earlier in this file used +0x18 as the second coordinate, which is WRONG: +0x18 is 0 for most records.
+Recomputed against the player at (58,20), the nearest list-0 record is ~20 map units away (id 19 at (59,0), id 841 at (62,0)),
+NOT 1.2 units. So no pint record is adjacent to the player anywhere measured, and the "record 1.2 units from the player" claim
+(and the Square test built on it) was measuring the wrong field.
+Consequence: the pint/point list is a PER-MAP table; the player's own (x,y) lives in the character object, and the two are not in the
+same coordinate space until matched to the current map id. That match has not been done.
+Interaction attempt at the field start: pressing Square three times beside the tutorial spot changed NOTHING in the point lists
+(0 changed records, no count change, checked field-by-field for every record in all five lists).
