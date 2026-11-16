@@ -133,6 +133,23 @@ static const SetupScreen* SetupNow(int* idx)
     return nullptr;
 }
 
+// ---- Main menu (RUNTIME-CONFIRMED headless from a savestate, ONE boot; labels by screenshot) ----
+// Cursor u32 0..6 at 0x096AEBEC, mirrored at 0x096AEC14; tag word 8 at 0x096AEBE8. Seven rows, PP Catalog
+// (greyed out on screen) still takes a cursor step: Down x7 read 0..6 then 0, Up read 6.
+// Silent unless the setup screen id is 0 and the mirror agrees.
+static const uint32_t MAIN_CURSOR = 0x096AEBECu, MAIN_MIRROR = 0x096AEC14u;
+static const char* kMainEntries[7] = { "Story Mode", "Battle Mode", "Communications Mode",
+                                       "PP Catalog", "Collection", "Data Config", "Options" };
+static int MainIndex(void)
+{
+    if (!g_host || TitleIndex() >= 0) return -1;
+    if (u32(MAIN_CURSOR - 4) != 8u || u32(SETUP_ID) != 0u) return -1;
+    uint32_t i = u32(MAIN_CURSOR);
+    if (i > 6 || u32(MAIN_MIRROR) != i) return -1;
+    return (int) i;
+}
+static int g_lastMain = -1;
+
 static int g_lastTitle = -1;
 static int g_lastSetupId = -1, g_lastSetupIdx = -1;
 static int g_lastCfg = -1;
@@ -160,7 +177,12 @@ static void OnFrame(void)
         g_lastSetupId = sid; g_lastSetupIdx = si;
         if (sc) SayLine(sc->rows[si], oga::Priority::Normal);
     }
-    int c = sc ? -1 : ConfigIndex();
+    int m = sc ? -1 : MainIndex();
+    if (m != g_lastMain) {
+        g_lastMain = m;
+        if (m >= 0) SayLine(kMainEntries[m], oga::Priority::Normal);
+    }
+    int c = (sc || m >= 0) ? -1 : ConfigIndex();
     if (c != g_lastCfg) {
         g_lastCfg = c;
         if (c >= 0) SayLine(kCfgEntries[c], oga::Priority::Normal);
@@ -175,13 +197,15 @@ static void Command(oga::Command cmd)
         int si = -1;
         const SetupScreen* sc = SetupNow(&si);
         if (sc) { SayLine(sc->rows[si], oga::Priority::High); return; }
+        int m = MainIndex();
+        if (m >= 0) { SayLine(kMainEntries[m], oga::Priority::High); return; }
         int c = ConfigIndex();
         if (c >= 0) SayLine(kCfgEntries[c], oga::Priority::High);
     }
 }
 static bool Ready(void) { return g_host && BuildOk(); }
 int TitleIndexForTest(void) { return TitleIndex(); }
-static void Detach(void) { g_host = nullptr; g_lastTitle = -1; g_lastCfg = -1; g_lastSetupId = -1; g_lastSetupIdx = -1; }
+static void Detach(void) { g_host = nullptr; g_lastTitle = -1; g_lastCfg = -1; g_lastSetupId = -1; g_lastSetupIdx = -1; g_lastMain = -1; }
 
 } // namespace dissidia012
 
