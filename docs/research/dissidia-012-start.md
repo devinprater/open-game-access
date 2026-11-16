@@ -151,3 +151,16 @@ ZERO reads. So this list is not the field's live interaction set; it is most lik
 menu/world-map layer data. Do NOT wire it as orbs.
 Next: the field's live set is probably the gate/wene lists (DAT_089d4788 for wfri read live as a list too). Watch each list
 header for reads with the player standing on orbs, and confirm by a real change on pickup.
+
+## Field navigation now works (adaptive axis steering)
+scripts/dissidia012-nav.py: probes the stick ("up" 8 frames, "right" 8 frames), derives the camera-relative basis, picks the single
+axis whose measured direction best matches the bearing to the target, pushes 12 frames, and recalibrates when the actual movement
+misaligns. Measured: reached (68.0, 17.0) from (58.0, 18.95) in 5 iterations, arriving at (65.98, 17.0). Straight-line closed-loop
+steering with a FIXED basis stalls because the camera rotates; recalibration is what fixes it.
+⛔ Movement constraints (measured, re-confirmed): analog only; diagonals produce ZERO movement; D-pad ignored.
+
+## Field objects as actually seen (screenshots at ~(67.6, 17.3))
+Visible on this map: a distant bright white glowing pillar/portal standing on a peninsula, a purple-and-white figure beside it,
+and a stone archway ruin behind. In another frame a four-pointed white sparkle sits next to the distant figure. No chests.
+Standing exactly on pint record 821's coordinates (68, 17) and pressing Square four times changed ZERO fields in the pint list,
+so that list is still not the interactable set. The nearest candidates for the next probe are the glowing pillar and the figure.
