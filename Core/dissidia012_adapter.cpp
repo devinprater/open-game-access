@@ -83,12 +83,14 @@ static int TitleIndex(void)
 // read 1, 0, 1. Fingerprint: word -4 == 8 and word +8 == 1 (the max index). Heap address,
 // fails closed on mismatch. Names are the on-screen labels (screenshot-verified).
 static const uint32_t CFG_CURSOR = 0x096AEA70u;
+static const uint32_t SETUP_ID = 0x096AEC1Cu;
 static const char* kCfgEntries[2] = { "Create New Data", "Transfer save data" };
 
 static int ConfigIndex(void)
 {
     if (!g_host || TitleIndex() >= 0) return -1;
     if (u32(CFG_CURSOR - 4) != 8u || u32(CFG_CURSOR + 8) != 1u) return -1;
+    { uint32_t id = u32(SETUP_ID); if (id >= 10 && id <= 18) return -1; }
     uint32_t i = u32(CFG_CURSOR);
     return i <= 1 ? (int) i : -1;
 }
@@ -101,7 +103,36 @@ static void SayLine(const char* s, oga::Priority pri)
         g_host->speak(g_host->ctx, s, pri == oga::Priority::High);
 }
 
+// ---- Setup screens after the nickname (RUNTIME-CONFIRMED headless, one boot, labels by screenshot) ----
+// All share the cursor at 0x096AEA70 (max index at +8). Screen id u32 at 0x096AEC1C:
+// 10 Play Plan (max 2), 12 Bonus Day (6), 14 Battle Mode (1), 16 Story Mode (2), 18 confirm (1).
+// Cursor sequences measured: Plan 0,1,2,1,0; Bonus 0,1,2,1,0; Battle 0,1,0,1,0; Story 0,1,2,1,0.
+// The confirm screen's YES/NO did not move this cursor, so it is not read yet.
+struct SetupScreen { uint32_t id, maxIdx; int n; const char* rows[7]; };
+static const SetupScreen kSetup[4] = {
+    { 10, 2, 3, { "Casual", "Average", "Hardcore" } },
+    { 12, 6, 7, { "Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun" } },
+    { 14, 1, 2, { "Action-style", "RPG Mode" } },
+    { 16, 2, 3, { "Standard", "Strong", "Moderate" } },
+};
+
+static const SetupScreen* SetupNow(int* idx)
+{
+    if (!g_host || TitleIndex() >= 0) return nullptr;
+    if (u32(CFG_CURSOR - 4) != 8u) return nullptr;
+    uint32_t id = u32(SETUP_ID);
+    for (const SetupScreen& sc : kSetup) {
+        if (sc.id != id || u32(CFG_CURSOR + 8) != sc.maxIdx) continue;
+        uint32_t i = u32(CFG_CURSOR);
+        if (i >= (uint32_t) sc.n) return nullptr;
+        *idx = (int) i;
+        return &sc;
+    }
+    return nullptr;
+}
+
 static int g_lastTitle = -1;
+static int g_lastSetupId = -1, g_lastSetupIdx = -1;
 static int g_lastCfg = -1;
 
 static void SayTitle(int i, oga::Priority pri)
@@ -120,7 +151,14 @@ static void OnFrame(void)
         g_lastTitle = t;
         if (t >= 0) SayTitle(t, oga::Priority::Normal);
     }
-    int c = ConfigIndex();
+    int si = -1;
+    const SetupScreen* sc = SetupNow(&si);
+    int sid = sc ? (int) sc->id : -1;
+    if (sid != g_lastSetupId || si != g_lastSetupIdx) {
+        g_lastSetupId = sid; g_lastSetupIdx = si;
+        if (sc) SayLine(sc->rows[si], oga::Priority::Normal);
+    }
+    int c = sc ? -1 : ConfigIndex();
     if (c != g_lastCfg) {
         g_lastCfg = c;
         if (c >= 0) SayLine(kCfgEntries[c], oga::Priority::Normal);
@@ -132,13 +170,16 @@ static void Command(oga::Command cmd)
     if (cmd == oga::Command::WhereAmI || cmd == oga::Command::MenuState) {
         int t = TitleIndex();
         if (t >= 0) { SayTitle(t, oga::Priority::High); return; }
+        int si = -1;
+        const SetupScreen* sc = SetupNow(&si);
+        if (sc) { SayLine(sc->rows[si], oga::Priority::High); return; }
         int c = ConfigIndex();
         if (c >= 0) SayLine(kCfgEntries[c], oga::Priority::High);
     }
 }
 static bool Ready(void) { return g_host && BuildOk(); }
 int TitleIndexForTest(void) { return TitleIndex(); }
-static void Detach(void) { g_host = nullptr; g_lastTitle = -1; g_lastCfg = -1; }
+static void Detach(void) { g_host = nullptr; g_lastTitle = -1; g_lastCfg = -1; g_lastSetupId = -1; g_lastSetupIdx = -1; }
 
 } // namespace dissidia012
 
