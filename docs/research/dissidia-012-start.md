@@ -241,3 +241,19 @@ The SQUARE branch calls the skill UI (imports at 0x08B49E80 / 0x08B49CA4 with co
 falls through to FUN_08916380 (state 0xE + a sound). Screenshot test at the field start: pressing Square changes NOTHING on screen
 (no menu, no effect), and Cross hides the HUD while she steps forward. So at Lv 1 with 0 KP there is no skill to use, and that is why
 no orb has reacted: the world-map orb interaction needs an unlocked skill.
+
+## STATIC CHAIN FOR THE FIELD (better than the earlier entity-table holder)
+0x089D83D8 (static global) -> CONTROLLER at FIXED 0x08B83714 -> +0x6d0 = player/character object.
+Verified on four RAM snapshots (field start, field after walk, battle-free fields, cutscene):
+  sq0 / b0 / b4 all give controller 0x08B83714 and player 0x0976B250 with position rows (58.0,-0.7,20.0);
+  in the cutscene snapshot (s0) the controller still exists but +0x6d0 = 0, which is exactly the "no player" state a reader
+  should refuse to speak on.
+Controller offsets: +0x38 / +0x40 = current CELL coords (8,-1 on this map), +0x570 = skill UI object (0x0975CBB0), +0x6d0 = player.
+FUN_08916fa0 is the accessor: `return *(DAT_089d83d8 + 0x6d0)`.
+=> A field reader can be built with NO scan: read 0x089D83D8, take +0x6d0, and speak position/cell; refuse when +0x6d0 == 0.
+
+## Skill list: empty at Lv 1, not a usable data table yet
+The Square branch asks the skill UI object (controller+0x570) whether a skill is available (import at 0x08B49E80) and falls through to
+FUN_08916380 (state 0xE + sound) when it is not. Dumping the skill UI object at 0x0975CBB0 shows three child pointers
+(0x099FB5C0, 0x09AD0918, 0x09ACF69C) and a block of static UI/child slots; no skill entries are present because the save has none.
+So there is nothing to read as a "skill list" in this save. Orb interaction stays gated behind unlocking a world-map skill.
