@@ -194,3 +194,20 @@ So the probe is locking onto a bright cloud edge or distant light, NOT the orb; 
 Also measured: walking forward swings the camera hard (a blob at x=278 jumped to x=86 in one 30-frame walk), so an approach loop has to
 re-acquire after every step. Smaller walks (8 frames) plus re-centre still did not converge in 60 iterations.
 CONCLUSION: screen-space brightness is the wrong instrument for this. The orb has to be found in RAM, not by eye.
+
+## DECOMP BREAKTHROUGH: the pint list IS the world-object list (drawn), layout known
+Draw registration: FUN_089121f4 (add) and FUN_08912304 (remove) walk the pint list with the by-id iterator FUN_089121a8 and, for
+records whose KIND (s16 at record+6) is 1 or 5, add/remove a model in the render list DAT_089d4960 (model created via FUN_0884417c
+with tag 0x264000; kind 1 resolves its model through FUN_088bbd8c(*(record+0x1c)) and FUN_08847108, kind 5 uses the s16 at record+0x1e).
+So pint records are world objects with 3D models. Their zero read-hit count earlier only means the add/remove pass runs on map load,
+not per frame.
+RECORD LAYOUT (stride 0x2C, list header +4 = count, records at +8):
+  +0x00 s16 id        +0x02 s16 sub       +0x04 s16 kind2/id      +0x06 s16 KIND (1 and 5 are drawn)
+  +0x08 flags         +0x10 float X       +0x18 float Z          +0x1c u32 model/object pointer   +0x1e s16 model id (kind 5)
+Live census near the field: kind 0 x123, 2 x52, 3 x30, 5 x29, 6 x12, 1 x10, -1 x21 (plus junk rows from other lists).
+Nearest DRAWN (kind 5) records: (74,45) x4 at 29.7 units, (66,-22) at 42.8, (110,0) x4 at 55.7, (73,95) at 76.5.
+GATE HANDLER: FUN_08913e10 resolves the gate the player occupies via an imported call and reads the gate record (FUN_089105d8 by
+index) whose s16 CELL COORDS sit at +0x10/+0x12; the controller then stores them at +0x38/+0x40 and switches state 5 (enter) or 6.
+So gate records are CELL-based, not float world positions — the map is a cell grid with gates, like the original game's board.
+⛔ Navigation limit measured: the nearest drawn object sits across water. The coordinate navigator oscillated at (59,19.6), never
+closer than 28 units, because the terrain is a path network. World-object work needs PATH data (gate/cell grid), not straight lines.
