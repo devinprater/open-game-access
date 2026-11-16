@@ -728,3 +728,15 @@ never talked to.
 Also recorded: the first Claude call in this round exited 1 with "Reached max turns (4)" because it tried to use tools. Re-running it with
 --tools "" --max-turns 1 returned the actor-table analysis that led to the full gate chain, so the failure cost nothing but is worth
 remembering as the working invocation for pure-reasoning questions.
+
+## All three party conversations done; talks are ONE-TIME; still no gateway
+Claude's suggested tests settled it:
+- Teleporting 1 unit from the third member at (93,-2) and pressing Cross from the WEST side (92,-2) started a conversation (state 2 -> 3).
+  From the east, north and south sides it stayed 2. So that member does talk, and the approach side matters.
+- Revisiting the FIRST member at (111.9,21) after its conversation had run gave states [2,2,2]: no second conversation. Party talks on this
+  map are one-time events, which is why the third member seemed silent at first: its talk had already fired earlier in the run.
+- At the third member, Square and Circle give state 2 (nothing) and Triangle gives state 11 (the customization menu), so Cross is the only
+  talk button and the others are accounted for.
+- After all three conversations, the actor's gate id (+0x240) is still -1: conversations do not create the gateway.
+TECHNIQUE THAT WORKED, worth reusing: to talk to an otherwise unreachable character, teleport to a cell within about 1 unit on the side
+that works, then press Cross. Talking is a distance-and-side check, not an area trigger, so no walking is needed.
