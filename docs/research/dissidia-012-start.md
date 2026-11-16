@@ -718,3 +718,13 @@ relocated/HLE entries rather than plain trampolines; resolving them needs the mo
 TALKING TO THE PARTY (as instructed): all three party objects were found through the actor table — (111.9,21.0), (92.8,47.0), (93.0,-2.0).
 Walking to each and pressing Cross started a conversation every time (state 3 each), dialogues played to the end, and the actor's gate id
 returned to -1 afterwards in every case. Conversations are flavour at this point and do not create the gateway.
+
+## Correction: only TWO of the three party members were talked to
+The earlier note said all three party conversations ran. That was wrong. Re-running the third target, reaching (93.0,-2.0) is blocked: a
+45-step aimed walk stopped 21 units short and oscillated around (111.7..114.6, 6..11) no matter the approach angle. Standing at
+(114.6,6.2) and pressing Cross eight times gave state 2 every time, so no conversation ran and the actor's gate id stayed -1.
+So: party member at (111.9,21.0) talked, party member at (92.8,47.0) talked, party member at (93.0,-2.0) unreachable from this side and
+never talked to.
+Also recorded: the first Claude call in this round exited 1 with "Reached max turns (4)" because it tried to use tools. Re-running it with
+--tools "" --max-turns 1 returned the actor-table analysis that led to the full gate chain, so the failure cost nothing but is worth
+remembering as the working invocation for pure-reasoning questions.
