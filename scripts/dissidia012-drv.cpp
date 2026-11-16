@@ -9,7 +9,7 @@
 static PspCore *c;
 static void run(int n){ for(int i=0;i<n;i++) psp_frame(c); }
 int main(int argc,char**argv){
-  c=psp_create(); char code[16]={0};
+  c=psp_create(); if(getenv("CLASSIC")) psp_set_classic_interpreter(c); char code[16]={0};
   if(!psp_load_rom(c,argv[1],argv[2],code)){fprintf(stderr,"load fail\n");return 1;}
   printf("gameid=%s\n",code); if(!psp_start(c))return 1;
   const char*names[]={"select","start","up","right","down","left","triangle","circle","cross","square","l","r"};
@@ -24,6 +24,8 @@ int main(int argc,char**argv){
     else if(!strcmp(a,"savestate")){ printf("savestate %d\n",(int)psp_save_state(c,b)); }
     else if(!strcmp(a,"loadstate")){ printf("loadstate %d\n",(int)psp_load_state(c,b)); }
     else if(!strcmp(a,"analog")){ float x=0,y=0; sscanf(line,"%*s %f %f %d",&x,&y,&n); if(!n)n=60; psp_set_analog(c,x,y); run(n); psp_set_analog(c,0,0); run(20); }
+    else if(!strcmp(a,"watch")){ uint32_t s0=strtoul(b,0,16); uint32_t e0=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); if(getenv("WLOG")) psp_watch_read_log(c,s0,e0); else psp_watch_read(c,s0,e0); printf("watch %08x %08x\n",s0,e0); }
+    else if(!strcmp(a,"poll")){ uint32_t s0=strtoul(b,0,16),e0=0,h=0,pc=0,ad=0; int sz=0; char t[64]; sscanf(line,"%*s %*s %63s",t); e0=strtoul(t,0,16); psp_watch_poll(c,s0,e0,&h,&pc,&ad,&sz); printf("poll hits=%u pc=%08x addr=%08x size=%d\n",h,pc,ad,sz); }
     else if(!strcmp(a,"rd")){ uint32_t ad=strtoul(b,0,16); printf("%08x: %u\n",ad,psp_debug_read(c,ad,4)); }
     fflush(stdout);
   }
