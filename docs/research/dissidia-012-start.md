@@ -71,3 +71,11 @@ Flow: after the confirm YES the game runs the tutorial fight; victory screen fol
   then a chapter row. Fresh save shows ONE chapter: "Prologue - Path to Sanctuary", Lightning Lv 1, CHAPTER 0 card, synopsis line,
   then "Play this story?" Yes/No (Circle there opens Customization).
 - Story board (world map) code still unfound; not reached yet.
+
+## Story Mode is a 3D field in 012 (headless, 24-frame contact sheet, labels by screenshot)
+Prologue flow: Yes at "Play this story?" -> narration cutscene -> in-engine character cutscene (Vaan, Laguna, Lightning, Kain)
+-> field dialogue box (Lightning) -> tutorial prompt "attack these orbs with Square" -> free-roam 3D field. HUD on the field:
+Lv, HP, Gil, KP, Skill (Square), Map (Select), Customization (Triangle). No pillar grid, no Destiny Points seen so far.
+The grid board seen in the original appears to be gone from the prologue; this explains why the original's board functions found
+no match. A grid may still return later via gateways (not confirmed). So the story-mode adapter must read a field: player position,
+orbs, enemies, gateways, dialogue boxes, and the Select map. Savestate ~/d12s/prologue_end.state sits on the field.
