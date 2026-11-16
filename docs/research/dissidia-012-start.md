@@ -431,3 +431,22 @@ unfound (Gil 50 with HP 1000 nearby does not exist anywhere in the chest dump), 
 WHAT WOULD UNBLOCK IT: a PPSSPP save state taken with the party standing against a glowing orb. From that state the orb's record can be
 identified by diffing around one absorption, and the same state settles the gate question. Alternatively, the exact world-map attack
 input (button or chord) removes the guessing.
+
+## ORBS ABSORBED — confirmed, and the guides explain the world map
+SOURCE (the game's own script, GameFAQs "Game Script" by Squall_of_SeeD, and finalfantasy.fandom Light Orb):
+- The in-game tutorial text is "You can attack these orbs with Circle. It seems that we gain powers from them." So the orb button is
+  CIRCLE, not Square. That is why every earlier Square press did nothing.
+- Breaking an orb splits it into fragments that converge on the character and are absorbed; an aura appears. Four orbs give a Chain
+  Skill, and the aura colour decides which: blue Round, green Jump, yellow Straight, red Cross, white Multichain.
+- Prologue: the area has one chest (50 gil) and one gateway, with the Light Orbs decorating the path.
+- GATEWAYS: a gateway "may be entered from the world map by pressing when standing next to it"; red fog gateways are mandatory, blue are
+  optional. Inside, the Stigma of Chaos unlocks the exit.
+- BOULDERS: new on this world map, black with red cracks; they take up to three hits depending on the character's world-map attack combo
+  (Lightning's combos once, so two hits). Breaking one opens a quickmove line of light across a gap, usually to a chest or manikin.
+MEASURED HERE, and it works: walking the prologue path from the field start while mashing CIRCLE produced the absorption — the screenshot
+shows a bright pink-white aura around Lightning with energy fragments streaming into her, and Yuna standing beside the orb exactly as the
+guide describes ("Lightning comes across Yuna standing beside a bright sphere of light").
+⛔ The light orbs are NOT in the point list: diffing every record before and after the absorption run changed ZERO records and no list
+count (still 160/11/147/120/74). They are runtime entities, which is why every record-based search for them failed.
+Boulder test at the blocked spot north of the chest: eight Circle presses moved her only 2.5 units (45.1 -> 47.6) and walking pushed her
+back; no boulder broke there. The barrier is either a different obstacle or needs the attack while facing it from the right angle.
