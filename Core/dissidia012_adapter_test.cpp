@@ -34,4 +34,10 @@ int main(){
   size_t k=said.size(); ram[0x096ae214]=0; a->on_frame(); CHECK(said.size()==k,"stale struct silent");
   ram[0x096ae214]=0xFFFFFFFFu; ram[0x096ae20c]=7; a->on_frame(); CHECK(said.size()==k,"out of range silent");
   ram[0x096ae20c]=1; a->command(oga::Command::WhereAmI); CHECK(said.back()=="Load Game","query speaks");
+  // Data Config
+  ram[0x096ae20c]=9; a->on_frame();  // title cursor out of range: title off
+  ram[0x096aea6c]=8; ram[0x096aea78]=1; ram[0x096aea70]=0; a->on_frame(); CHECK(said.back()=="Create New Data","config row 0");
+  ram[0x096aea70]=1; a->on_frame(); CHECK(said.back()=="Transfer save data","config row 1");
+  k=said.size(); ram[0x096aea78]=0; ram[0x096aea70]=0; a->on_frame(); CHECK(said.size()==k,"config stale silent");
+  ram[0x096aea78]=1; ram[0x096aea70]=1; a->command(oga::Command::WhereAmI); CHECK(said.back()=="Transfer save data","config query");
   printf("dissidia012 adapter: %d passed, %d failed\n",n-fails,fails); return fails?1:0; }

@@ -78,7 +78,31 @@ static int TitleIndex(void)
     return i <= 2 ? (int) i : -1;
 }
 
+// ---- Data Config (New Game > first screen), RUNTIME-CONFIRMED headless on two boots ----
+// "Create New Data" / "Transfer save data". Cursor u32 0..1 at 0x096AEA70; Down, Down, Up
+// read 1, 0, 1. Fingerprint: word -4 == 8 and word +8 == 1 (the max index). Heap address,
+// fails closed on mismatch. Names are the on-screen labels (screenshot-verified).
+static const uint32_t CFG_CURSOR = 0x096AEA70u;
+static const char* kCfgEntries[2] = { "Create New Data", "Transfer save data" };
+
+static int ConfigIndex(void)
+{
+    if (!g_host || TitleIndex() >= 0) return -1;
+    if (u32(CFG_CURSOR - 4) != 8u || u32(CFG_CURSOR + 8) != 1u) return -1;
+    uint32_t i = u32(CFG_CURSOR);
+    return i <= 1 ? (int) i : -1;
+}
+
+static void SayLine(const char* s, oga::Priority pri)
+{
+    if (g_host->announce_q)
+        oga::announce(g_host->announce_q, oga::Announcement{s, pri, "menu", nullptr, 0, 0, -1}, g_host->now_ms);
+    else if (g_host->speak)
+        g_host->speak(g_host->ctx, s, pri == oga::Priority::High);
+}
+
 static int g_lastTitle = -1;
+static int g_lastCfg = -1;
 
 static void SayTitle(int i, oga::Priority pri)
 {
@@ -96,18 +120,25 @@ static void OnFrame(void)
         g_lastTitle = t;
         if (t >= 0) SayTitle(t, oga::Priority::Normal);
     }
+    int c = ConfigIndex();
+    if (c != g_lastCfg) {
+        g_lastCfg = c;
+        if (c >= 0) SayLine(kCfgEntries[c], oga::Priority::Normal);
+    }
 }
 
 static void Command(oga::Command cmd)
 {
     if (cmd == oga::Command::WhereAmI || cmd == oga::Command::MenuState) {
         int t = TitleIndex();
-        if (t >= 0) SayTitle(t, oga::Priority::High);
+        if (t >= 0) { SayTitle(t, oga::Priority::High); return; }
+        int c = ConfigIndex();
+        if (c >= 0) SayLine(kCfgEntries[c], oga::Priority::High);
     }
 }
 static bool Ready(void) { return g_host && BuildOk(); }
 int TitleIndexForTest(void) { return TitleIndex(); }
-static void Detach(void) { g_host = nullptr; g_lastTitle = -1; }
+static void Detach(void) { g_host = nullptr; g_lastTitle = -1; g_lastCfg = -1; }
 
 } // namespace dissidia012
 
