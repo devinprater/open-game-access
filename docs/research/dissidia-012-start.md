@@ -570,3 +570,16 @@ out the Yuna/Lightning conversation, and free movement returned with the full HU
 STILL NOT ENTERED: from free.state, a 16-step walk LEFT and a 30-step rotating sweep with Cross pressed at every step moved the party
 across (98..130, -37..-17) with controller+0x7B0 at -1 and state at 2 throughout. No gateway zone was touched, and no conditions panel
 ever appeared. The portal is on this plateau somewhere; the search simply has not crossed it.
+
+## Where the walk-into-a-portal attempt actually stands (blocked, not done)
+From the post-dialogue state (~/d12s/free.state):
+- The 360 turn shows a glowing purple GATEWAY across the bay to the north-east, a tall white spire (the map's Teleport Stone) beside it,
+  and a ruined stone archway inland on this side.
+- Movement works: 25-frame stick pushes move 8-9 units (fwd (130.7,-36.9) -> (129.0,-28.6), back 7.3, right 9.4, left 8.9).
+- BUT the party is boxed into a pocket: 24 northward pushes with Cross cycling only between (130.7,-36.9) and (131.0,-33.3). Ten Circle
+  hits on the large grey boulder beside the ledge did nothing (it is not a breakable red-cracked boulder).
+- The SELECT map confirms it: the blue player arrow sits at the tip of a peninsula pointing north-east, walkable land continues only
+  SOUTH-WEST behind the arrow, and there is an EMPTY GAP straight ahead between this spur and the upper-right clearing. The gateway is
+  across that gap, reached by the long way round: south-west into the central network, east/south-east around the lower loop, then north
+  up the eastern spine and back to the upper-right clearing.
+So entering the portal requires following that long path, not a straight line, and blind forward-walking cannot do it.
