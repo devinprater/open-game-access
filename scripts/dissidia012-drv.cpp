@@ -45,6 +45,9 @@ int main(int argc,char**argv){
             if((int)q[0]+q[1]+q[2]>700){ if(run==0) top=y; run++; if(run>bestrun){bestrun=run;bx=x;btop=top;} }
             else run=0; } }
         printf("pillar run=%d x=%d top=%d\n",bestrun,bx,btop); } else printf("pillar run=0 x=0 top=0\n"); }
+    else if(!strcmp(a,"chord")){ char b2[64]={0}; int n2=0; sscanf(line,"%*s %63s %63s %d",b,b2,&n2); int k1=-1,k2=-1;
+        for(int i=0;i<12;i++){ if(!strcmp(b,names[i])) k1=i; if(!strcmp(b2,names[i])) k2=i; }
+        if(k1>=0&&k2>=0){ if(!n2)n2=6; psp_set_button(c,k1,true); psp_set_button(c,k2,true); run(n2); psp_set_button(c,k2,false); psp_set_button(c,k1,false); run(24); printf("chord %s+%s\n",b,b2); } }
     else if(!strcmp(a,"rd")){ uint32_t ad=strtoul(b,0,16); printf("%08x: %u\n",ad,psp_debug_read(c,ad,4)); }
     fflush(stdout);
   }

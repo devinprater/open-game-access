@@ -419,3 +419,15 @@ beside a dark gateway with a red manikin standing next to it. The visible orbs a
 Not yet done: land a dash on a VISIBLE orb (needs visual aiming between dashes), and find the KP/Gil HUD block in memory so absorption
 can be confirmed by a counter change instead of by eye (a search for Gil 50 with HP 1000 nearby in the chest dump found nothing, so the
 status block is still unlocated).
+
+## Chord attempts and the current blocker
+Added a `chord` command to the driver (two buttons held together) and tried L+Circle, L+Square, R+Circle and L+Cross on the field.
+Result: none changed any point record and all list counts stayed [160, 11, 147, 120, 74].
+Caveat, and it matters: those chords were pressed at the field start (58,20), where no orb is within reach, so this is not a fair
+test of the attack button. It only proves the chords do not disturb the point data on their own.
+BLOCKER (needs Devin): the visible orbs cannot be located in memory. Every nearby point record was dashed through or stood on with no
+change, and the dash-through at (107,24) went straight through that record's own coordinates. The status block holding Gil/KP is also
+unfound (Gil 50 with HP 1000 nearby does not exist anywhere in the chest dump), so absorption cannot be detected by a counter yet.
+WHAT WOULD UNBLOCK IT: a PPSSPP save state taken with the party standing against a glowing orb. From that state the orb's record can be
+identified by diffing around one absorption, and the same state settles the gate question. Alternatively, the exact world-map attack
+input (button or chord) removes the guessing.
