@@ -164,3 +164,15 @@ Visible on this map: a distant bright white glowing pillar/portal standing on a 
 and a stone archway ruin behind. In another frame a four-pointed white sparkle sits next to the distant figure. No chests.
 Standing exactly on pint record 821's coordinates (68, 17) and pressing Square four times changed ZERO fields in the pint list,
 so that list is still not the interactable set. The nearest candidates for the next probe are the glowing pillar and the figure.
+
+## Reaching the orb: camera coupling blocks dead-reckoning
+Measured on the field: pushing the stick LEFT/RIGHT rotates the camera rather than walking (the character stays put while the view
+orbits); walking FORWARD also swings the view, so a heading cannot be held open-loop. A visually-guided walk therefore loses the
+target: the glowing orb was seen at the upper right on a peninsula, then left frame within two bursts.
+The orb itself IS visible in renders (a white four-pointed sparkle beside a purple-and-white figure on the peninsula), so it exists
+as a rendered world entity; it has not been matched to a RAM record yet.
+Field controller found: FUN_08919A14 (1760 B) is the player state machine for this map — movement, camera yaw (it adds a delta to
+the yaw via the object's vtable +0x3c), and the button branches. It queries input through the SAME function-pointer API shape as the
+original game (obj+0x34 -> vtable +0x14), which is the seam to hook to find the Square/skill action.
+Next: read the Square branch of FUN_08919A14 (or its callees FUN_0891600C / FUN_08916380 / FUN_08914B64) to find the skill action,
+which must reference the orb it collects.
