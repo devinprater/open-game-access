@@ -591,3 +591,15 @@ so the character is clamped to a small ledge. Earlier "8.5 units in one push" re
 angle and are the exception, not the rule.
 Verdict for this save state: no stick input leaves the ledge, so the gateway across the bay cannot be walked to from here. The walk-in
 needs a different starting point or a scripted path, not more input attempts.
+
+## Map-as-compass and map-scale calibration: tried, both dead ends
+- The Select map is FIXED north-up and does NOT rotate with the camera: three shots with 90-degree camera turns between them were pixel
+  identical, and the blue player arrow stayed pointing west-south-west the whole time. So the map shows the character's WORLD facing, not
+  the camera's, and cannot be used to aim the stick.
+- Calibrating map pixels to world units needs two map shots at two known positions. From own_free.state the 8 walks moved only 3.8 units
+  (-3.04, +2.32) because that spot is clamped, so no usable scale came out of it. A calibration run has to start from a state where
+  movement actually works (e.g. the old save's field, or right after the orb event before wandering).
+- The map DOES show a small white arched marker on the upper-right plateau edge, which is worth treating as a candidate gateway marker once
+  a scale exists.
+STATUS: the walk-in is still not done. Every attempt founders on the same thing: the character's heading drifts with the camera and
+several key spots clamp movement to a few units, so a long walk curves and reverses instead of crossing the map.
