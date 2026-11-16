@@ -636,3 +636,30 @@ So the manikin-looking objects do not start battles by contact or by attack, and
 FINAL STATE OF THIS LINE: portals are not entered by any input I can produce at any position I can reach on this map. Everything about
 the map, the party, the point records and the gateway records is documented above; the missing piece is the game's own trigger volume,
 which never registers (controller+0x7B0 stays -1 everywhere the party has stood).
+
+## ROOT CAUSE FOUND (after consulting Claude Opus on the evidence)
+Asked Claude Code (opus, high effort) for hypotheses; it proposed checking whether 0x7B0 is the right signal at all, checking the
+harness input, and teleporting instead of walking. All three paid off.
+
+1. WRITERS OF 0x7B0 (static scan for stores with imm 0x7B0): the real struct stores are `sw $s1, 0x7B0($s0)` at 0x08878B30, 0x08915080
+   and 0x089180E0 (the rest are stack frames). FUN_08915048 is the world-map one:
+     iVar2 = FUN_0891705C(-1);              // current "point"/area object
+     sVar1 = *(short*)(iVar2 + 0x240);      // the gate id for that area
+     *(u32*)(param_1 + 0x7B0) = 0xFFFFFFFF; // reset every call
+     if (sVar1 >= 0) { ... if ((uVar3 & DAT_089ce354) || (*(u32*)(iVar2+0x260) & DAT_089ce350)) {
+         *(int*)(param_1 + 0x7B0) = sVar1; ... } }
+   DAT_089ce354 = 0x00000000, DAT_089ce350 = 0x00000008, DAT_089ce35C = 0x0, DAT_089ce358 = 0x00000010. So the only way the gate id is
+   stored is: the current area's +0x240 is a valid gate id AND that area's +0x260 has bit 3 (0x8) set.
+2. FUN_0891705C:
+     if (param_1 < 0) param_1 = *(int*)(DAT_089d83d8 + 0x58);
+     return DAT_089d712c + param_1 * 0x280 + 0x3E8C8;
+   So the current area index lives at controller+0x58, and the area table base is DAT_089d712c.
+3. LIVE READ at own_free.state: controller+0x58 = 1, area object = 0x08BED880, its +0x240 = -1, +0x260 = 0x00000001 (bit 3 clear).
+   => The party is in an area with NO gateway. That is why 0x7B0 is -1 and why no button does anything at the archway: the archway is
+   scenery in a non-gateway area, and the enter path never even gets a candidate.
+4. TELEPORTING (new capability, after Claude's suggestion): writing the position to all FIVE copies in the player object (offsets 0x30,
+   0x80, 0x100, 0x2E0, 0x360) makes it stick; writing only +0x30 is undone within 1 frame.
+5. GRID SWEEP with teleporting (x 90..170 step 10, z -20..80 step 10): controller+0x58 stayed 1 at EVERY position and the area's gate
+   id stayed -1. So no walkable spot on this world-map instance makes a gateway area current.
+CONCLUSION: this map has no gateway registered at all. The gateway seen in playthroughs exists only after the preceding story beats are
+completed. That is consistent with every failed attempt: the trigger was never missing an input, it was absent.
