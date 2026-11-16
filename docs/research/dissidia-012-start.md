@@ -176,3 +176,13 @@ the yaw via the object's vtable +0x3c), and the button branches. It queries inpu
 original game (obj+0x34 -> vtable +0x14), which is the seam to hook to find the Square/skill action.
 Next: read the Square branch of FUN_08919A14 (or its callees FUN_0891600C / FUN_08916380 / FUN_08914B64) to find the skill action,
 which must reference the orb it collects.
+
+## Framebuffer steering probe (new direction, partially working)
+The driver now has `bright`: it scans the 480x272 framebuffer for near-white pixels (channel sum > 720) and prints count, centroid and
+bounding box. That gives a vision-free way to find bright world objects.
+Result: it DOES see the orb — at one camera angle it reported n=19, box 32x40 at cx=237,cy=181, exactly where the sparkle sits.
+But two things defeat the simple steer: the bright cluster is also LIGHTNING HERSELF (centre screen, ~n=20, box 38x36 at cx=225)
+and the sky/clouds (n in the thousands, box covering the screen). The first auto-steer loop oscillated on the character.
+Refinement needed: mask the player's screen region (centre-bottom) and the HUD, require the cluster to GROW as distance closes, and
+use the growth as the approach test instead of a fixed pixel count.
+scripts/dissidia012-autonav.py is the current loop; scripts/dissidia012-nav.py (coordinate steering) still works for known targets.
