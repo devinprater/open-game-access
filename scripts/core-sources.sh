@@ -80,6 +80,7 @@ genesis_core.cpp
 genesis_adapter.cpp
 dbz_adapter.cpp
 dissidia_adapter.cpp
+dissidia012_adapter.cpp
 dbzar_adapter.cpp
 dq9_adapter.cpp
 mku_adapter.cpp

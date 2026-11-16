@@ -40,6 +40,8 @@ extern const Adapter kDragonBallZSaiyans;
 // name entry and story-dialogue speakers. Status and open RE are in TODO.md and
 // docs/reverse-engineering/dissidia-final-fantasy.md.
 extern const Adapter kDissidiaFinalFantasy;
+// Implemented in dissidia012_adapter.cpp — Dissidia 012 (PSP, ULUS10566). Skeleton.
+extern const Adapter kDissidia012;
 
 // Implemented in dq9_adapter.cpp — Dragon Quest IX: Sentinels of the Starry
 // Skies (US, YDQE). A NATIVE front over the mod's own documented addresses
@@ -107,6 +109,7 @@ static const Adapter* const kAdapters[] = {
     &kGameBoyAdvance,
     &kDragonBallZSaiyans,
     &kDissidiaFinalFantasy,
+    &kDissidia012,
     &kDragonBallZAnotherRoad,
     &kDragonQuestIX,
     &kMortalKombatUnchained,
