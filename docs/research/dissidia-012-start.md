@@ -663,3 +663,15 @@ harness input, and teleporting instead of walking. All three paid off.
    id stayed -1. So no walkable spot on this world-map instance makes a gateway area current.
 CONCLUSION: this map has no gateway registered at all. The gateway seen in playthroughs exists only after the preceding story beats are
 completed. That is consistent with every failed attempt: the trigger was never missing an input, it was absent.
+
+## Following the beat: the prologue map has ONE area and it has no gateway
+Clean replay from prologue_end.state, walking into triggers instead of mashing Circle: the party moves 59.9 -> 72.4 on the path and clamps
+at (72,17.5) with controller+0x58 = 1 the whole way. Reading that area object's +0x240 gives -1 and +0x260 bit 3 clear, i.e. no gateway.
+Earlier runs reached the archway approach at (122.6,46.6) by other routes and the SAME area index 1 with gate id -1 was reported there.
+A 45-step walk over (139..155, 21..40) never changed the area index either.
+So on this prologue map instance there is exactly one area, and its gateway id is -1 everywhere reachable, including at the archway.
+That is the mechanical reason nothing ever entered: the gateway does not exist in this map state, so there is no trigger to stand in and
+nothing for the 0x7B0 writer to store.
+CONTRAST, and it matters: a gateway IS enterable in this same harness. With the 100% save, choosing Chapter 1 loads a gateway board
+(state 21) with pillars, pieces, Scan Mode and Customization, which only exists after a successful entry. So the entry path and the
+controls are fine; it is the prologue's map state that lacks a gateway.
