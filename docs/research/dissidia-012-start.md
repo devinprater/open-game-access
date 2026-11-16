@@ -328,3 +328,16 @@ glowing pillar seen on a distant peninsula. Pushing east stops at x ~100/101. Al
 cells are not walkable either.
 Cross is a dodge, not an interact: pressing it moved the party from (99.1,5.4) to (92.4,1.1) then (86.0,-4.2) with no state change.
 CONCLUSION: crossing to the pillar needs the world-map TRAVEL mechanic (or the gate-collision import), not locomotion.
+
+## REACHED AN ORB (first time) — and it does not react to Cross or Square
+Navigator with L/R aiming (scripts/dissidia012-nav3.py) now walks the map properly. Route that works east from the start:
+ waypoint (95,16) then (105,17): the party crosses the water barrier that stopped straight-line walks at x~100 (earlier attempts stalled
+ because they aimed at (103,0), which is in the water; the corridor is at z~16-17).
+Standing at (107.7,23.5) the party is beside a hovering white orb (screenshot s_orb0.png): the orb is directly in front, no prompt.
+ The orb is pint record id 9, kind 1, at (107,24), record 0x095D3100. Nearby drawn records: id 10 (97,30) d=15.6, id 8 (97,-4) d=22.8.
+MEASURED: 4x Cross at the orb -> record unchanged, list counts unchanged (party just dashes away to (114.6,28.2) etc.).
+ MEASURED: 4x Square at the orb (party stays put) -> record unchanged, counts unchanged, and a whole-RAM diff shows only animation
+ counters moving (0x0918FCxx decreasing byte counts). So neither button interacts with the orb.
+CONCLUSION: the orb is real, located, and reachable, but interaction needs the world-map SKILL that the tutorial refers to; this save has
+ none (Square opens an empty skill UI, Lv 1, 0 KP). To interact, the save needs a skill first, or the orb's interaction path must be found
+ in the overlay code rather than by button probing.
