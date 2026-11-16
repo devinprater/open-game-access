@@ -97,3 +97,14 @@ not a single root position. Walking up moved x +1.8 and z -2.0; the camera is no
 Node headers sit just before it (0x0976CFC0 points at 0x0976D010). Heap addresses: they will move per boot.
 OPEN: the owning character object (root position, facing, HP) and a fixed holder that reaches it. Next step is to follow the
 pointers that reference 0x0976CFC0/0x0976D010 back to a static holder, then confirm on a second boot.
+
+## Field position verification (replay 2)
+- Reaching the field reproducibly: mainmenu.state + circle, cross x3, then 22 chunks of (6 x cross, run 90) reaches the field by
+  chunk ~20 (contact sheet frames 20-30 show Lv 1 / HP 1000 / Gil 0 / KP 0). A different cadence lands in a cutscene instead.
+  A separate fresh process with a different cadence did NOT show the block (that run was in a cutscene), so that is not a failure.
+- Replay 2 (same savestate, same script, separate process, fresh walk up/right/left/down): the 26-ish joint hits reappear at the
+  SAME addresses (0x0976D020/30/50/90, 0x0976B360, 0x09FFECA0...). This is a deterministic replay, NOT an independent heap:
+  it proves the addresses are stable for this input path, not across arbitrary play orders.
+- Pointer walk back from 0x0976D020: reaches only its own header chain (0x0976CFC0, 0x0976D010...), no static holder. No fixed holder
+  found, so a field position reader is NOT wired. Static 1000s near 0x0976C2E8 ([330, 95, 1000, 11, 12]) look like a stale battle
+  record, not field HP.
