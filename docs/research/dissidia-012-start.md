@@ -539,3 +539,17 @@ why "state 2 + player pointer" is the wrong liveness test inside a gateway.
 BOARD CONTROLS, measured: the ANALOG STICK moves the CAMERA only (no piece movement); the D-PAD moves the selection cursor between
 adjacent pillars; moving the cursor onto an enemy piece raises "Win battle", the enemy name/level ("Fleeting Flash Lv 7"), the battle
 stage ("Old Chaos Shrine") and "Engage [X] / Cancel [O]"; CROSS engages.
+
+## Gateway board controls, measured (goal: enter a portal — done)
+- STAR opens the PAUSE menu: Return to Game / Quicksave / Exit Gateway / Help Manual. Exit Gateway warns "*KP gained in gateway will be
+  lost" and then shows "Exit gateway? YES / NO" with NO preselected; choosing YES drops to the chapter's story cutscenes.
+- SELECT toggles SCAN MODE (HUD changes to "SCAN MODE" top-centre and "Normal Mode [SELECT]" bottom-right). Scan Mode moves a glowing
+  blue-white square CURSOR freely over the board and shows tile contents, including the red-orange highlighted Stigma tile at the far
+  side. ⛔ Scan Mode is INSPECTION ONLY: pressing Cross with the cursor over another tile does not move the piece.
+- TRIANGLE opens Customization from the board: Abilities / Equipment / Accessories / Summons / Assist / Adjust Level (greyed) / Shop,
+  with HP 10644/10644, CP 450/450, BRV 1036, ATK 177, LUK 60, DEF 184, EXP total 1964655, plus the LUCKY! bonus panel.
+- The analog stick on the board moves only the camera.
+- Normal-mode D-pad moves a selection cursor onto an ADJACENT tile; an enemy tile raises "Win battle", the enemy and stage names, and
+  "Engage [X] / Cancel [O]". Empty-tile dashing was not demonstrated: repeated (D-pad right, Cross) left the piece on its starting
+  pillar, so the exact piece-move input is still open.
+STATE NOTE: on the board controller+0x68 reads 21 and controller+0x6D0 is 0, so field-style liveness tests fail inside a gateway.
