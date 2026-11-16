@@ -460,3 +460,17 @@ No black red-cracked boulder is visible at the dead end (asked directly of the f
 describes is not this spot. The guide places boulders in the chapter that follows Laguna, not the prologue.
 Gate-id sweep: 70 aimed walks with random turns while polling controller+0x7B0 and +0x68 stayed inside the starting basin
 (58..80, 8..19) and never saw a gate id or a state change, so nothing on that side of the map is a gate volume either.
+
+## OFFICIAL MANUAL: how a gateway is actually entered
+Square Enix's Dissidia 012 manual (support.na.square-enix.com, upp_manual PDF, p.12 "Enter a Gateway"):
+- "Stand in front of an entry to see the gateway's name and conditions." So standing in the gateway's trigger zone raises a PANEL with the
+  gateway name and its conditions (KP Chance, Original Rules, enabled/disabled skills).
+- "Press the [button] button after reviewing the conditions to enter the gateway."
+- Two kinds: red entries MUST be entered to progress the story, blue ones do not affect story progression (and can be re-entered).
+- Inside: move the piece to the Stigma of Chaos to clear it; move next to a chest to take it; move adjacent to a battle piece to fight.
+  START then "Exit Gateway" leaves at any time.
+=> THE DETECTOR IS THE CONDITIONS PANEL. I have never seen it on screen in any of the walks, which means the party has never stood inside
+   a gateway trigger zone, so no button press could ever have worked at the archway.
+WHY I AM BLOCKED: the map is fully connected (the Select map shows one continuous landmass with narrow paths; no water crossing is
+needed), but my steering cannot reliably walk to a specific visible object, so I cannot park the party in a trigger zone. The gate id
+(controller+0x7B0) and the controller state stayed at -1 / 2 through every sweep, confirming no gateway zone was ever entered.
