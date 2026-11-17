@@ -1799,3 +1799,16 @@ ch1_s16_unk2_fight / ch1_s16_unk3_fight (attempt segments),
 ch1_s16_unk_fled (post-Flee, on disc 6). RAM dumps: s16_board_entry,
 s16_tifa_prompt, s16_prompt_pirate, s16_postflash, s16_chest_prompt,
 s16_unknown_prompt, s16_unk_fled (all .bin).
+
+### Session 16 addendum — build and merge
+
+- scripts/build-core.sh on dissidia-012-sagespath @ b50a792: exit 0 — 1,322
+  TUs compiled, Vendor/libpokecore.a written (664,599,608 bytes); log at
+  /home/devin/build-core-s16.log on the Legion.
+- scripts/dissidia012-adapter-test.sh: 95 passed, 0 failed on the branch,
+  and re-run 95/95 on main after the merge.
+- Merge gates (session 12's): working tree clean; local main == origin/main
+  (e7b1a08); merge-base == e7b1a08 (main a strict ancestor, branch 1 ahead /
+  0 behind). Pure fast-forward e7b1a08..b50a792, pushed via the clone's git
+  credentials, git ls-remote verified in-session: origin/main = b50a792.
+  This addendum commit follows on main.
