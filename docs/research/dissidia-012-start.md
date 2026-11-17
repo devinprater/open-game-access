@@ -1680,3 +1680,16 @@ board is unmapped pending the point-table resolution above.
   known boards (14 / 19 / 22 discs). Adding the Sage's Path table to the
   reader is the follow-up session's work; this session's Part B merges
   sessions 13-14's reader as-is.
+
+### Part B — build and merge (session 15)
+
+- scripts/build-core.sh on dissidia-012-ch1 @ 8ca7d02: exit 0 — 1,322 TUs
+  compiled, Vendor/libpokecore.a written (664,598,240 bytes); log at
+  /home/devin/build-core-s15.log on the Legion.
+- scripts/dissidia012-adapter-test.sh: 82 passed, 0 failed on the branch,
+  and re-run 82/82 on main after the merge.
+- Merge gates (session 12's): working tree clean; local main == origin/main
+  (bdc1164); merge-base == bdc1164 (main a strict ancestor, branch 3 ahead /
+  0 behind). Pure fast-forward bdc1164..8ca7d02, pushed via the clone's git
+  credentials, git ls-remote verified in-session: origin/main = 8ca7d02.
+  This addendum commit follows on main.
