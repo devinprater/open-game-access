@@ -2355,3 +2355,14 @@ s19_kuj_<tag>_poll*/_start/_end. Screenshots s19_*. Scripts:
 s19_grind1.py, s19_chain.py, s19_chest42*.py, s19_repath*.py,
 s19_kuja.py (the parametrized v2 runner), s19_probe_kuja.py; run
 logs s19_kuja_<tag>.log, s19_repath2.log.
+
+### Session 19 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test gates
+  applied): the Session 19 section was committed on dissidia-012-kuja3
+  (1d6233d) and merged here. Merge gates (session 12's): working tree
+  clean; local main == origin/main (1b60493); merge-base == 1b60493
+  (main a strict ancestor, branch 1 ahead / 0 behind). Pure
+  fast-forward 1b60493..1d6233d, pushed via the clone's git
+  credentials, git ls-remote verified in-session: origin/main =
+  1d6233d. This addendum commit follows on main.
