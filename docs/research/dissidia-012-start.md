@@ -1555,3 +1555,128 @@ Carried forward: piece-presence cells are still unknown (consumed pieces are
 still named in arrival/scan lines on known boards); board HP is still not in a
 cell (the field/board HUD HP was read from screenshots only); the Sage's Path
 board is unmapped pending the point-table resolution above.
+
+## Session 15 — Sage's Path entered; the entry recipe corrected; Crescent Lake re-entry refused (2026-11-17)
+
+### The point-table chain, resolved (session 14's loose end)
+
+- FUN_088992B0 disassembled: it returns the static manager struct at
+  0x09AEF8D8. The word at 0x09AEF8D4 that session 14 read as a broken pointer
+  slot is the lazy-init DONE flag (the function sets it to 1 and runs two
+  init calls on first use). There is no missing hop — the manager was never
+  behind a pointer.
+- FUN_08899300 (the tester's world-object getter): idx = *(mgr+0x210); on
+  this map idx = 0xFFFFFFFF (-1), and the branches resolve to worldObj = mgr
+  itself (0x09AEF8D8). (idx == 0 would give mgr+0x108.)
+- Accessors confirmed against the binary: FUN_08897DEC returns the float
+  pointer *(worldObj+0x6C) + i*0x3C + 0x24; FUN_08897E48 the one at +0x30.
+  But the tester loads the point's POSITION as the three floats at
+  +0x24/+0x28/+0x2C (X, Y, Z) — the +0x30 triple is a second vector (mostly
+  (0, small, 0); an aux/slope value), not the Z. Session 14's pairing was
+  half wrong: X at +0x24 yes, Z at +0x2C (not +0x30).
+- Live read on the Chapter 1 field (from ch1_s14_field_start.state): table
+  at 0x095E61C0, count 18. Gate -> point (B[0] high half): 11->7, 12->13,
+  13->14, 14->9, 15->4, 16->5, 17->6, 18->8, 19->10, 20->11, 21->12.
+  Validation: gate 13's point 14 = (315.09, 0.68, 270.40), ~1.3 units from
+  where the Crescent Lake Stigma exit deposited her (314.20, 0.19, 269.40)
+  — the table is the gateway anchor table.
+- The five tester-reachable gates on this map are the ones with
+  lh(ptrA+4) >= 0: 11 (pt 7: 305.04, 0.81, 166.59), 12 (pt 13: 319.33, 0.94,
+  193.64), 15 (pt 4: 220.44, -0.49, 110.99), 16 (pt 5: 210.56, 2.63, 152.92),
+  19 (pt 10: 154.08, 6.72, 229.42). The other family (lh(A+4) = -1: gates
+  13, 14, 17, 18, 20, 21) can only be tested via phase B, which additionally
+  requires lh(ptrA+0x10) >= 0 — it is -1 for every record on this map, so
+  that family is inert to the tester here.
+
+### The entry recipe, corrected (the session 8/14 model revised)
+
+- The tester (FUN_08B43ED4) phase A runs only while the player is near a
+  candidate: evaluations arrive in bursts after movement/teleports, and a
+  perfectly still player stops being evaluated within ~100 frames.
+  Reaching the virtual call (bp 0x08B440D8, s0 = the gate's record) proves
+  distance < 4.0, ctrl state 2, and the facing test all pass.
+- The virtual call's predicate is (*(0x08C15C50+8) & 4) != 0 (masks at
+  0x08B444F0/F4 = 4/0, via FUN_08871D18; busy bit via FUN_08873084). That
+  flag word read 0 in EVERY sample this session — including throughout a
+  faithful reproduction of session 8's prologue entry — yet the prologue
+  gate still opened. The vcall-true path is therefore NOT how either entry
+  happened; session 8's "real-time-cycled flag" reading is superseded.
+- What actually fires entry: Cross, pressed while the tester has a live
+  candidate. Prologue reproduction (genuine_postkain.state, session 8's
+  sequence): teleport (76.5, 0, 70), stick-up tap -> threshold (76.53, 0,
+  70.17), 17 evaluations, press Cross -> state 5 -> state 20. On the
+  Chapter 1 field the same shape worked twice from ch1_s15_pregate.state:
+  settle in pose (evaluations flowing), Cross, Cross -> state 5 -> board.
+  The first Cross appears to be absorbed (candidate registration, or the
+  press landing between evaluation bursts); the second fires. Budget two.
+- Practical recipe: teleport to ~2-3.5 units from the anchor on the
+  approach side, write facing toward the anchor (player+0x90/+0x98) or walk
+  in head-on, let evaluations flow ~60-90 frames (the camera-settle wait
+  doubles as this), then Cross up to a few times. Standing exactly on the
+  anchor still fails (session 8); ~1.8-3.4 units out works (3.40 measured
+  here — the teleport landed on the collision apron's edge and taps did not
+  move her closer). Stick directions are camera-relative and the camera
+  swings behind the written facing with a lag — write facing, wait, then
+  tap "forward" if walking is needed.
+
+### Sage's Path Gateway — ENTERED (gate 12, point 13)
+
+- From ch1_s15_pregate.state (saved in pose at (319.49, 0.70, 197.04), 3.40
+  units north of the anchor, facing written south): Cross x2 -> state 5 ->
+  state 20, banner "Sage's Path Gateway" (screenshot-verified). Board
+  entry: Lightning on disc 20, Lv 1 HP 1000, Gil 78, banked KP 2
+  (bottom-right readout), gateway KP gauge 0.
+- The board opens with an auto-played party scene a few hundred frames
+  after the banner (Laguna: "This is really annoying! How ya doing,
+  Light?" + a few more lines; ~5 Cross advances). It is NOT disc-triggered:
+  it fired during a pure wait in one run and mid-walk in another (session
+  15's first scan attempt walked into it blind — the walk's later
+  screenshots are all the dialogue banner). Board control is live only
+  after it.
+- States: ch1_s15_pregate.state (field, in pose), ch1_s15_board.state
+  (board entry, scene pending), ch1_s15_board_clear.state (scene done,
+  control live). RAM dump s15_board.bin; scan screenshots s15_sc_<grid>.png.
+
+### The Sage's Path board — 22 discs (full Scan Mode pass, every disc cursor-verified)
+
+- 20: (-18,-4) ENTRY; 21: (-14,-4) -; 22: (-10,-4) -;
+  32: (-10,0) Fleeting Flash Lv 6 (Order's Sanctuary);
+  12: (-10,-8) Idle Sky Pirate Lv 6 (Order's Sanctuary);
+  2: (-10,-12) Treasure Chest; 42: (-10,4) Treasure Chest;
+  23: (-6,-4) -; 33: (-6,0) -;
+  3: (-6,-12) Delusory Dragoon Lv 6 (Order's Sanctuary);
+  13: (-6,-8) -; 24: (-2,-4) -; 34: (-2,0) -; 44: (-2,4) -;
+  14: (-2,-8) -; 4: (-2,-12) -;
+  25: (2,-4) Delusory Dragoon Lv 2 (Lunar Subterrane);
+  35: (2,0) Tifa (Assist Character);
+  26: (6,-4) Fleeting Flash Lv 2 (Lunar Subterrane);
+  16: (6,-8) Treasure Chest; 6: (6,-12) -;
+  7: (10,-12) ??? — "Engage this piece to find its true form."
+- Links are the coordinate-adjacent pairs (the session-11 rule reproduces
+  them); the scan cursor walked every link chain from the entry.
+- NO Stigma of Chaos is on the board as entered. The ??? piece on 7 (the
+  board's NE dead end) is the presumptive boss gate — the FAQ puts a Kuja
+  battle in this gateway, and the Stigma presumably appears after it. Not
+  engaged this session (brief: map only, no battles).
+
+### Crescent Lake chest — re-entry refused by the tester (guide data stands)
+
+- Gate 13 / pt 14 (315.09, 0.68, 270.40) with the proven recipe (pose 1.90
+  units north, facing written, 5 Crosses): ZERO tester evaluations reached
+  the virtual call. Gate 13's record belongs to the inert family
+  (lh(A+4) = -1 closes phase A; lh(A+0x10) = -1 closes phase B), so a
+  finished gateway does not re-open from the field in this lineage. Per
+  the brief, not pursued further (a chapter-select route, if one exists,
+  is a different mechanism). The chest's contents remain GUIDE DATA ONLY:
+  a Buckler (link3895), still unverified in play.
+
+### Adapter note
+
+- Sage's Path is a third board fingerprint: 22 discs, state 20
+  (field-entered), entry disc 20 at (-18,-4) — the same entry coords as
+  Crescent Lake but a different disc set, so the session-14 fingerprint
+  rule (exists-set + entry/Stigma live coords) needs care for boards whose
+  Stigma is not yet present; the exists-set alone separates all three
+  known boards (14 / 19 / 22 discs). Adding the Sage's Path table to the
+  reader is the follow-up session's work; this session's Part B merges
+  sessions 13-14's reader as-is.
