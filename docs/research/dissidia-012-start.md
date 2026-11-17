@@ -1257,3 +1257,23 @@ Goal: implement session 9's board announceables in Core/dissidia012_adapter.cpp 
 - The changed TU also compiles clean under the device toolchain with build-core.sh's own flags (clang++ -target arm64-apple-ios17.0, iPhoneOS SDK, -stdlib=libc++, -Werror=infinite-recursion).
 - scripts/swift-check.sh PASSES: AdapterCommand.swift is really type-checked by swiftc on Linux, and the C ABI mirror (C++ Command enum vs the Swift copy) agrees case-for-case.
 - The full device archive (scripts/build-core.sh) is BLOCKED on this machine before compiling anything: "no Genesis Plus GX source at /home/devin/src/genesis-plus-gx" — that source tree is not checked out here. Pre-existing environment gap, unrelated to this change; the archive build needs it restored (bootstrap-deps) before it can run end to end.
+
+## Session 12 — full device build green; branch merged to main (2026-11-17)
+
+Goal: clear session 11's only blocker — restore the missing Genesis Plus GX source tree the way the repo intends, run the full device archive build (scripts/build-core.sh) on this branch, and merge to main if green (Devin's standing merge posture, 2026-11-11).
+
+### Environment restoration
+
+- ~/src held every bootstrap dep except genesis-plus-gx. Restored exactly as scripts/bootstrap-deps.sh's fetch() does for this dep: cloned https://github.com/ekeeke/Genesis-Plus-GX.git into ~/src/genesis-plus-gx and checked out the pinned revision a5834b3df455c49bb97bfaa328c20845831f576b (detached HEAD, as the script leaves it). The full bootstrap script was NOT re-run: the other trees were already present, and its melonds-lua step tracks master — re-running it would have moved an existing checkout for no reason.
+- Script modes checked against the standing exec-bit trap: scripts/bootstrap-deps.sh is 100755 in git and on disk. scripts/build-core.sh is 100644 in git, the same as its sourced siblings (core-sources.sh, build-sim.sh); it is invoked through bash / wsl.sh, so no mode repair was needed or made.
+
+### Full device archive build — GREEN
+
+- scripts/build-core.sh on dissidia-012-adapter @ d18c21f exited 0: 1,322 translation units compiled (the GPGX TUs among them, from the restored tree), Mesen 7-Zip symbol localisation, frontend-contract renames in 55 GPGX-side objects, 31 GPGX twin symbols localised against melonDS/Mesen/PPSSPP with no global defined twice, and the archive written: Vendor/libpokecore.a (664,576,000 bytes). The script's closing poke-symbol count reads 57. Full log: /home/devin/build-core-s12.log on the Legion.
+- Session 11's TU-level and test evidence stands as recorded there (adapter suite 57/57, swift-check passes); this build adds the whole-archive proof that was blocked.
+
+### Merge gates, as measured before merging
+
+- Clone working tree clean on dissidia-012-adapter; nothing uncommitted to trample.
+- Local main == origin/main (bdf8b0b), and main is a strict ancestor of this branch: rev-list main...dissidia-012-adapter = 0 / 76, so the merge is a fast-forward.
+- The merge itself, the on-main adapter test run, and the push are recorded in the addendum commit that follows this section on main.
