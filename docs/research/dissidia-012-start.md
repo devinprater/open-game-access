@@ -2152,3 +2152,14 @@ ch1_s18_kuj_e1_fled / e2_fled / e3_fled / e4_fled / e5_fled.state.
 Dumps: s18_drg_poll0..11, s18_drg_start/r15/r25/r35/end;
 s18_kuj_e{1..5}_poll*, _start, _end; screenshots s18_*.
 Scripts: s18lib.py (the nudge-sync drv client) in ~/d12s.
+
+### Session 18 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test gates
+  applied): the Session 18 section was committed on dissidia-012-kuja2
+  (bb8f860) and merged here. Merge gates (session 12's): working tree
+  clean; local main == origin/main (62ff913); merge-base == 62ff913
+  (main a strict ancestor, branch 1 ahead / 0 behind). Pure
+  fast-forward 62ff913..bb8f860, pushed via the clone's git
+  credentials, git ls-remote verified in-session: origin/main =
+  bb8f860. This addendum commit follows on main.
