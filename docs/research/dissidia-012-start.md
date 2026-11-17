@@ -2574,3 +2574,14 @@ Screenshots s20_*. Scripts: s20_helm.py, s20_farm.py +
 s20_farm_resume*.py + s20_farm_finish.py, s20_doorstep.py,
 s20_kuja.py (the parametrized runner), s20_winproto*.py,
 s20_wp4.py (the patient scene ride). Logs s20_*.log.
+
+### Session 20 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test gates
+  applied): the Session 20 section was committed on dissidia-012-kuja4
+  (a3aad2c) and merged here. Merge gates (session 12's): working tree
+  clean; local main == origin/main (138a62c); merge-base == 138a62c
+  (main a strict ancestor, branch 1 ahead / 0 behind). Pure
+  fast-forward 138a62c..a3aad2c, pushed via the clone's git
+  credentials, git ls-remote verified in-session: origin/main =
+  a3aad2c. This addendum commit follows on main.
