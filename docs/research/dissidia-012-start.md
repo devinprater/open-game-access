@@ -1812,3 +1812,166 @@ s16_unknown_prompt, s16_unk_fled (all .bin).
   0 behind). Pure fast-forward e7b1a08..b50a792, pushed via the clone's git
   credentials, git ls-remote verified in-session: origin/main = b50a792.
   This addendum commit follows on main.
+
+## Session 17 — battle cells found; Kuja holds through four engagements (2026-11-17)
+
+### Recovery note
+
+The first session-17 worker ended mid-task without a report: it
+backgrounded engagement 1's driver and ended its turn waiting for a
+delivery that had in fact already completed, and never picked the work
+back up. This session recovered its trail from the worker's transcript,
+its /tmp scripts (s17_*.py), and its ~/d12s dumps; every load-bearing
+claim below was re-verified from the dumps directly before being
+written here. The clone's tree was clean and the branch had no commits
+— nothing of the first worker's work existed except the dumps, the
+scripts, and ch1_s17_prekuja.state.
+
+### Part A — battle instrumentation: block A found and live-verified
+
+- BLOCK A: both fighters' live battle numbers sit in one heap struct,
+  found by the offline diff protocol on the controlled instrumentation
+  fight against the disc-3 Dragoon (dumps s17_drg_b0..b5: known BRV
+  before/after a single BRV attack, known HP after a single HP attack).
+  Layout (offsets from the struct base; most values are stored as
+  adjacent duplicate pairs): +0x00/+0x04 Lightning BRV, +0x08 foe HP,
+  +0x54/+0x58 foe BRV, +0x5C Lightning HP, +0xA8/+0xAC stage bravery
+  pool. The doubled storage is the calibration signature: pattern-search
+  a start-of-battle RAM dump for (BRV pair in 20..400, foe-BRV pair in
+  0..3000, her HP in 100..1061, foe HP in 100..20000) and the struct is
+  the first hit.
+- THE BASE MOVES. It is a heap address and depends on the boot's
+  allocation history: 0x0969D688 in boots that go straight from
+  loadstate to a board engage, 0x096D5A38 in boots that pass through
+  the Customization equip first (the prekuja lineage). Within one boot
+  path it is deterministic — three separate prekuja boots reproduced
+  0x096D5A38 exactly, and the direct-engage boots reproduced
+  0x0969D688. A fixed battle address is wrong by construction; the
+  reader design (below) has to locate the struct per battle.
+- LIVE VERIFICATION: the cells were read live in five separate fights
+  (validation + four Kuja engagements) and matched the game's own
+  numbers at every battle start: Dragoon HP 1303, Kuja HP 1766 /
+  BRV 274 / pool 282, Lightning HP 778 (the board engagement snapshot)
+  / BRV 101. Max-HP fields were not separately identified — foe max is
+  the start-of-battle foe-HP value (cross-checked against the Opponent
+  Info card where one exists); Lightning's stat-screen max is 1061
+  while battles snapshot her at the engagement value.
+- ASSIST AND EX GAUGES: NOT FOUND — a recorded negative result. Three
+  independent dump sequences (instrumentation b0–b5, the validation
+  fight, Kuja engagement 1) were scanned for cells that start at 0 and
+  rise monotonically outside block A: no credible candidate (the
+  survivors are hit counters, coordinates/angles, and end-of-fight
+  allocations that only move in the final dump). Block A's own
+  neighborhood (±0x400) holds no gauge-shaped words. Both carried leads
+  are dead: the 0x090B5E9C cluster (100 at instrumentation start, 0
+  after one BRV attack, 110–140 in the validation end dump, unrelated
+  pointer data at those addresses in the Kuja boot — a scratch/stat
+  area, not a gauge) and 0x0969E10C (a float that sits at 1.0 early in
+  a fight and 0.0 later — a flag or blend weight, not a rising gauge).
+  Every fight this session ended within 12 action cycles, too short
+  for gauges to move far; a future hunt wants a long fight with dense
+  dumps. Until then the policies call the Tifa assist and attempt EX
+  on a blind cadence, and no activation was confirmed in any
+  engagement — the gauges' fill state is simply unknown.
+- HARNESS LESSON (the expensive one): polling a FIXED block-A address
+  to detect "fighters live" is a trap. When the base has moved, the
+  poll never fires and the battle runs unobserved — engagement 1 lost
+  566 of her 778 HP exactly this way (40 polls × 240 frames against
+  the stale 0x0969D688 while Kuja fought; the policy finally started
+  at 212 HP after a dump-based pattern search). The fix, used for
+  engagements 2–4: poll with periodic RAM dumps + the pattern search
+  (foe HP == 1766 as the signature). Block A was found at poll 3 in
+  all three boots and the policy started at the full 778 HP every
+  time.
+- SECOND HARNESS LESSON: the card phase is live battle time. The
+  validation fight's fixed card-crossing sequence (Crosses + ~1,800
+  frames of waits) cost 414 HP before control — she entered the policy
+  at 364 of 778 while the Dragoon attacked freely. Poll-and-start-at-
+  once (above) is the fix.
+
+### The policies and the validation fight
+
+- v1/v2 (measured, cell-driven): BRV attacks until BRV ≥
+  min(1.2 × foe HP, cap 700–999) or a kill/survival condition, then an
+  HP attack; assist and EX on cadence chords. VALIDATION vs the
+  Delusory Dragoon Lv 6 (disc 3, HP 1303): LOSS — entered at 364 HP
+  (card-phase cost, above), her BRV peaked at 159, the foe's HP never
+  moved (1303 in the end dump), KO at iteration 12; Flee returned her
+  to disc 4 with KP 2 / Gil 106 intact. Per the brief, no second
+  attempt on the Lv 6; the cells — the actual Part A deliverable —
+  were verified live by this fight.
+
+### Part B — Kuja: equipment, four engagements, no win
+
+- EQUIPMENT: the Soul of Destruction was equipped in Customization →
+  Accessories, slot 1, before engagement 1 — screenshot-verified twice
+  (the highlighted item: "ATK=55, Accessory Breakability: 100%"; then
+  the slot screen showing it equipped; her total ATK 15 → 55). The
+  equip is baked into ch1_s17_prekuja.state, from which engagements
+  2–4 all booted. Whether a loss can break it was not measured.
+- All four engagements start from disc 6 with the prompt focus on disc
+  7's record, at the full engagement snapshot (HP 778, BRV 101; Kuja
+  HP 1766, BRV 274, pool 282), and every loss Fled back to disc 6 with
+  KP 2 / Gil 106 untouched and the ??? still standing:
+  1. (first worker) policy v2, started at 212 HP after the
+     stale-address poll burned 566 HP pre-control; LOSS in 3
+     iterations; Kuja 1766/1766 (start and end dumps agree).
+  2. policy v2 at the full 778; LOSS in 9 iterations; Kuja 1766/1766
+     (end dump). Her dash+BRV attacks never connected on the
+     keep-away mage at this pacing (~110 frames per action cycle);
+     Kuja HP-attacked every ~3 cycles for ~275 (his base BRV):
+     778 → 499 → 225 → 0.
+  3. rotation v4 (the session-13 dumb block □ □ × △ under cell
+     surveillance, BRV-build rotations, cadence chords): LOSS at
+     rotation 12 — the only engagement that damaged him. End dump:
+     **Kuja 1564 of 1766 (202 dealt, ~two landed HP attacks at base
+     BRV) — the session's best measured attempt.**
+  4. aerial v5 (jump + air dash + aerial HP attacks): LOSS at
+     rotation 8; Kuja 1766/1766. The decisive event is in the cells:
+     at rotation 6 her BRV read 3, his 697, pool 0 — he BROKE her,
+     took the 282 pool, and his next HP attack (~700) one-shot her
+     from 499.
+- KUJA'S CLOCK, measured: an HP attack roughly every 3 action cycles
+  at ~275 damage (his base BRV), ~700 after a BREAK. 778 HP is three
+  ordinary hits. Session 16's attempt-1 estimate (his bar at ~half
+  over 630 presses) could not be reproduced under instrumentation —
+  in four measured fights she died within 8–12 cycles each time. The
+  discrepancy is recorded, not explained away: that driver pressed
+  with different pacing and the bar reading was visual; the cell
+  numbers here are exact.
+- VERDICT: at Lv 2 with this loadout, blind play does not beat Kuja
+  Lv 8 in four instrumented attempts. The win, the Stigma's
+  appearance, and the chapter exit remain UNMEASURED. The gateway
+  stands open at ch1_s17_prekuja.state (disc 6, Soul of Destruction
+  equipped, engagement HP 778). Open routes unchanged from session
+  16: a level grind (the board's Lv 6 pieces are the remaining EXP)
+  or dodge-aware play — the cells now exist to build the latter: his
+  BRV cell is the tell (a foe-BRV at or above base with hers falling
+  is the loaded HP attack), and BREAK is pool-witnessed both ways.
+
+### Battle-reader design notes (design only — no adapter code this session)
+
+- Announceable from block A, all verified live this session: foe HP
+  against its battle-start value gives the foe-health milestone rule
+  directly (speak at three-quarters, half, a quarter, nearly gone;
+  exact number on demand); Lightning's HP likewise for the own-health
+  milestones (75/50/25 + "Low health."); BREAK events both ways (a
+  fighter's BRV forced to 0 with the pool cell dropping to 0 and the
+  breaker gaining it — the pool cell is the witness); foe BRV as a
+  danger signal (at ~2× base, his next HP attack one-shots from mid
+  HP); battle end (either HP cell hits 0), after which the board
+  reader's existing gates take over on the return.
+- Not announceable: Assist/EX gauge state (cells not found), foe
+  intent beyond the BRV heuristic, positions/distances (no cells
+  hunted).
+- Integration shape: the reader arms on the board reader's
+  battle-launch transition and disarms on the return, fail-closed
+  like the rest; block A must be located per battle (the doubled-pair
+  pattern search on a start-of-battle dump, or a pointer chase not
+  yet found) — never a fixed address.
+
+States (~/d12s): ch1_s17_prekuja.state (disc 6, Soul of Destruction
+equipped — the session's Kuja doorstep). No post-Kuja or post-exit
+states exist (no win). RAM dumps: s17_drg_b0..b5, s17_val_*,
+s17_kuj_e1_* (first worker); s17r_e2/e3/e4 start+end dumps, prompts,
+HUD and defeat screenshots (this session).
