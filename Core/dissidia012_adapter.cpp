@@ -239,7 +239,7 @@ static void SayField(bool high)
 //     never level-triggered.
 //   Scan Mode cursor: record pointer at 0x095CD41C, 0xFFFFFFFF when not scanning.
 // A board whose fingerprint matches a known table (the prologue's Gateway to
-// Departure, Chapter 1's Crescent Lake) is announced from that table. An unknown
+// Departure, Chapter 1's Crescent Lake and Sage's Path) is announced from it. An unknown
 // board is announced GENERICALLY from the live disc data -- current disc and
 // coordinate-adjacent neighbours by grid id, no piece names, no prompts -- because
 // piece presence is not in a cell and an unverified name would be an invention.
@@ -273,9 +273,11 @@ static const uint32_t GIL_A = 0x08BBFA00u;
 static const uint32_t GIL_B = 0x08BBFA28u;
 
 enum BoardPiece : int { kPieceNone = 0, kPieceChest, kPieceKain, kPieceManikin, kPieceStigma,
-                        kPieceReaper, kPieceFlash, kPieceLaguna, kPieceDragoon };
+                        kPieceReaper, kPieceFlash, kPieceLaguna, kPieceDragoon,
+                        kPieceDragoon2, kPieceFlash6, kPieceFlashLunar, kPieceSkyPirate,
+                        kPieceTifa, kPieceUnknown };
 struct BoardPieceInfo { const char* name; const char* clause; const char* desc; const char* promptDesc; bool prompt; };
-static const BoardPieceInfo kBoardPieces[9] = {
+static const BoardPieceInfo kBoardPieces[15] = {
     { "", "", "", nullptr, false },
     { "Treasure Chest", "chest", "Contains helpful items", nullptr, true },
     { "Kain", "Kain", "Assist Character", nullptr, true },
@@ -290,6 +292,18 @@ static const BoardPieceInfo kBoardPieces[9] = {
     { "Laguna", "Laguna", "Assist Character", nullptr, true },
     { "Delusory Dragoon", "Delusory Dragoon", "Lv 6. Battle stage: Order's Sanctuary",
       "Lv 6. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    // Sage's Path pieces (session 15's verified Scan pass; the battle prompts'
+    // KP chance line is the one every measured battle prompt has shown).
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 2. Battle stage: Lunar Subterrane",
+      "Lv 2. Battle stage: Lunar Subterrane. KP chance: Win battle", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 6. Battle stage: Order's Sanctuary",
+      "Lv 6. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 2. Battle stage: Lunar Subterrane",
+      "Lv 2. Battle stage: Lunar Subterrane. KP chance: Win battle", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 6. Battle stage: Order's Sanctuary",
+      "Lv 6. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Tifa", "Tifa", "Assist Character", nullptr, true },
+    { "???", "???", "Engage this piece to find its true form", nullptr, true },
 };
 struct BoardDisc { int grid; const char* name; int x, z; int piece; };
 // x/z are the disc objects' board coordinates (session 10): 4.0 per step, +x east
@@ -339,10 +353,42 @@ static const BoardDisc kLakeDiscs[19] = {
     { 52, nullptr, -10, 8,   kPieceDragoon },
     { 55, nullptr, 2,   8,   kPieceStigma },
 };
+// Chapter 1's Sage's Path Gateway (session 15, full Scan pass; coordinates are
+// the live disc objects'). Entry disc is 20. There is NO Stigma of Chaos on this
+// board as entered -- the ??? piece on disc 7 is the presumptive boss gate -- so
+// the definition's stigmaGrid is -1 and identification rests on the disc set plus
+// the entry disc's coordinates. Chests stand on 2, 16 and 42; discs 2 and 42 sit
+// behind Lv 6 battle pieces (12/3 and 32) and cannot be reached without fighting
+// them, while 16 is on the open path.
+static const BoardDisc kSagesDiscs[22] = {
+    { 2,  nullptr, -10, -12, kPieceChest },
+    { 3,  nullptr, -6,  -12, kPieceDragoon },
+    { 4,  nullptr, -2,  -12, kPieceNone },
+    { 6,  nullptr, 6,   -12, kPieceNone },
+    { 7,  nullptr, 10,  -12, kPieceUnknown },
+    { 12, nullptr, -10, -8,  kPieceSkyPirate },
+    { 13, nullptr, -6,  -8,  kPieceNone },
+    { 14, nullptr, -2,  -8,  kPieceNone },
+    { 16, nullptr, 6,   -8,  kPieceChest },
+    { 20, nullptr, -18, -4,  kPieceNone },
+    { 21, nullptr, -14, -4,  kPieceNone },
+    { 22, nullptr, -10, -4,  kPieceNone },
+    { 23, nullptr, -6,  -4,  kPieceNone },
+    { 24, nullptr, -2,  -4,  kPieceNone },
+    { 25, nullptr, 2,   -4,  kPieceDragoon2 },
+    { 26, nullptr, 6,   -4,  kPieceFlashLunar },
+    { 32, nullptr, -10, 0,   kPieceFlash6 },
+    { 33, nullptr, -6,  0,   kPieceNone },
+    { 34, nullptr, -2,  0,   kPieceNone },
+    { 35, nullptr, 2,   0,   kPieceTifa },
+    { 42, nullptr, -10, 4,   kPieceChest },
+    { 44, nullptr, -2,  4,   kPieceNone },
+};
 struct BoardDef { const BoardDisc* discs; int nDiscs; int entryGrid; int stigmaGrid; };
 static const BoardDef kPrologueDef = { kBoardDiscs, 14, 21, 27 };
 static const BoardDef kLakeDef = { kLakeDiscs, 19, 20, 55 };
-static const BoardDef* const kKnownBoards[2] = { &kPrologueDef, &kLakeDef };
+static const BoardDef kSagesDef = { kSagesDiscs, 22, 20, -1 };
+static const BoardDef* const kKnownBoards[3] = { &kPrologueDef, &kLakeDef, &kSagesDef };
 // Generic fallback for an unrecognised board: position from the live disc data,
 // no table, no pieces.
 static const BoardDef kGenericDef = { nullptr, 0, -1, -1 };
@@ -388,9 +434,10 @@ static bool DiscCoords(int grid, int* x, int* z)
     return true;
 }
 // Identify the loaded board by its disc-table fingerprint: the set of existing
-// grids must equal a known board's disc set exactly, and the entry and Stigma
-// discs' live coordinates must match the table (a same-shaped later board with
-// different geometry must not inherit this board's piece names).
+// grids must equal a known board's disc set exactly, and the entry disc's live
+// coordinates must match the table -- and the Stigma disc's too, on boards that
+// have one (a same-shaped later board with different geometry must not inherit
+// this board's piece names).
 static const BoardDef* IdentifyBoard(void)
 {
     int existCount = 0;
@@ -402,10 +449,15 @@ static const BoardDef* IdentifyBoard(void)
         if (!ok) continue;
         int x, z;
         const BoardDisc* e = DiscForGrid(def, def->entryGrid);
-        const BoardDisc* s = DiscForGrid(def, def->stigmaGrid);
-        if (!e || !s) continue;
+        if (!e) continue;
         if (!DiscCoords(e->grid, &x, &z) || x != e->x || z != e->z) continue;
-        if (!DiscCoords(s->grid, &x, &z) || x != s->x || z != s->z) continue;
+        // A board whose Stigma is not on it yet (Sage's Path at entry) carries
+        // stigmaGrid -1: no Stigma coordinate check applies to it.
+        if (def->stigmaGrid >= 0) {
+            const BoardDisc* s = DiscForGrid(def, def->stigmaGrid);
+            if (!s) continue;
+            if (!DiscCoords(s->grid, &x, &z) || x != s->x || z != s->z) continue;
+        }
         return def;
     }
     return nullptr;

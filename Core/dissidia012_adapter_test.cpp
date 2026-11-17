@@ -152,4 +152,32 @@ int main(){
   ram[0x095cd41c]=0xFFFFFFFFu; ram[0x095cd410]=0x08b82a30u+8u*41u;
   k=said.size(); a->on_frame(); CHECK(said.size()==k,"generic prompt silent");
   ram[0x08b83714+0x68]=2; a->on_frame(); CHECK(said.back()=="Exited the gateway.","generic exit");
+  // Session 16: Chapter 1's Sage's Path board (state 20, field-entered). Its
+  // fingerprint must NOT require a Stigma: none is on the board at entry.
+  for (int g=0;g<60;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {2,3,4,6,7,12,13,14,16,20,21,22,23,24,25,26,32,33,34,35,42,44}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*20]=0xC1900000u; ram[0x095cd570+0x40*20+8]=0xC0800000u;   // entry disc 20 at (-18,-4)
+  ram[0x08b82a24]=20; ram[0x095d123c]=0x08b82a30u+8u*20u; ram[0x095cd410]=0x08b82a30u+8u*20u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 20, the entry disc. Left: nothing. Right: disc 21, empty. Up: nothing. Down: nothing.","sages entry disc 20");
+  ram[0x08b82a24]=22; ram[0x095d123c]=0x08b82a30u+8u*22u; ram[0x095cd410]=0x08b82a30u+8u*22u;
+  a->on_frame(); CHECK(said.back()=="On disc 22. Left: disc 21, empty. Right: disc 23, empty. Up: Idle Sky Pirate on disc 12. Down: Fleeting Flash on disc 32.","sages disc 22");
+  ram[0x095cd410]=0x08b82a30u+8u*12u; a->on_frame(); CHECK(said.back()=="Idle Sky Pirate \u2014 Lv 6. Battle stage: Order's Sanctuary. KP chance: Win battle. Engage / Cancel","sky pirate prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*22u; a->on_frame();
+  ram[0x08b82a24]=24; ram[0x095d123c]=0x08b82a30u+8u*24u; ram[0x095cd410]=0x08b82a30u+8u*24u;
+  a->on_frame(); CHECK(said.back()=="On disc 24. Left: disc 23, empty. Right: Delusory Dragoon on disc 25. Up: disc 14, empty. Down: disc 34, empty.","sages disc 24");
+  ram[0x095cd410]=0x08b82a30u+8u*25u; a->on_frame(); CHECK(said.back()=="Delusory Dragoon \u2014 Lv 2. Battle stage: Lunar Subterrane. KP chance: Win battle. Engage / Cancel","dragoon lv2 prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*24u; a->on_frame();
+  ram[0x08b82a24]=34; ram[0x095d123c]=0x08b82a30u+8u*34u; ram[0x095cd410]=0x08b82a30u+8u*34u;
+  a->on_frame(); CHECK(said.back()=="On disc 34. Left: disc 33, empty. Right: Tifa on disc 35. Up: disc 24, empty. Down: disc 44, empty.","sages disc 34");
+  ram[0x095cd410]=0x08b82a30u+8u*35u; a->on_frame(); CHECK(said.back()=="Tifa \u2014 Assist Character. Engage / Cancel","tifa prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*34u; a->on_frame();
+  ram[0x095cd41c]=0x08b82a30u+8u*35u; a->on_frame(); CHECK(said.back()=="Scan: disc 35. Tifa \u2014 Assist Character.","scan tifa");
+  ram[0x095cd41c]=0x08b82a30u+8u*7u; a->on_frame(); CHECK(said.back()=="Scan: disc 7. ??? \u2014 Engage this piece to find its true form.","scan unknown");
+  ram[0x095cd41c]=0x08b82a30u+8u*16u; a->on_frame(); CHECK(said.back()=="Scan: disc 16. Treasure Chest \u2014 Contains helpful items.","scan sages chest");
+  ram[0x095cd41c]=0x08b82a30u+8u*32u; a->on_frame(); CHECK(said.back()=="Scan: disc 32. Fleeting Flash \u2014 Lv 6. Battle stage: Order's Sanctuary.","scan flash lv6");
+  ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x095cd410]=0x08b82a30u+8u*7u; a->on_frame(); CHECK(said.back()=="??? \u2014 Engage this piece to find its true form. Engage / Cancel","unknown prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*34u; a->on_frame();
+  ram[0x08b82a24]=14; ram[0x095d123c]=0x08b82a30u+8u*14u; ram[0x095cd410]=0x08b82a30u+8u*14u;
+  a->on_frame(); CHECK(said.back()=="On disc 14. Left: disc 13, empty. Right: nothing. Up: disc 4, empty. Down: disc 24, empty.","sages disc 14");
   printf("dissidia012 adapter: %d passed, %d failed\n",n-fails,fails); return fails?1:0; }

@@ -1693,3 +1693,109 @@ board is unmapped pending the point-table resolution above.
   0 behind). Pure fast-forward bdc1164..8ca7d02, pushed via the clone's git
   credentials, git ls-remote verified in-session: origin/main = 8ca7d02.
   This addendum commit follows on main.
+
+## Session 16 — the reader learns Sage's Path; Tifa recruited; the ??? is Kuja, Lv 8, and he holds (2026-11-17)
+
+### Part A — Sage's Path in the reader (Core/dissidia012_adapter.cpp, this branch)
+
+- THIRD FINGERPRINT: kSagesDiscs (22 discs, session 15's verified Scan map) and
+  kSagesDef { entry 20, stigmaGrid -1 }. IdentifyBoard applies the Stigma
+  coordinate check only when stigmaGrid >= 0 — this board has no Stigma at
+  entry, so identification rests on the disc set plus the entry disc's
+  coordinates, exactly session 15's care point. Unknown-board generic fallback
+  and every fail-closed gate are unchanged.
+- New piece entries: Delusory Dragoon Lv 2 and Fleeting Flash Lv 2 (Lunar
+  Subterrane), Fleeting Flash Lv 6 and Idle Sky Pirate Lv 6 (Order's
+  Sanctuary), Tifa (Assist Character), and ??? ("Engage this piece to find its
+  true form"). The Lv 6 Dragoon entry is shared with Crescent Lake's.
+- Tests: scripts/dissidia012-adapter-test.sh — 95 passed, 0 failed (the 82
+  shipped checks all green + 13 new Sage's Path checks: entry, arrivals,
+  prompts, scans). The TU compiles clean under the device flags (clang++
+  arm64-apple-ios17.0, iPhoneOS SDK).
+- LIVE PROOF (harness ~/d12s/oga-dissidia012-proof-s16 rebuilt from this
+  branch; real dumps fed in sequence): s16_board_entry.bin -> the disc-20
+  entry line; s16_prompt_pirate.bin -> disc-22 arrival + the Pirate prompt;
+  s16_tifa_prompt.bin -> disc-34 arrival + "Tifa — Assist Character. Engage /
+  Cancel"; s16_postflash.bin -> disc-25 arrival + "KP: 2." / "Gil: 106.";
+  s16_chest_prompt.bin -> disc-26 arrival + the chest prompt;
+  s16_unknown_prompt.bin -> disc-6 arrival + "??? — Engage this piece to find
+  its true form. Engage / Cancel"; s16_unk_fled.bin (after the lost boss
+  fight) -> disc-6 arrival, the board still identified. Session 15's
+  s15_board.bin is a mid-load dump (manager 0, 59 exists flags set) and the
+  reader correctly stays silent on it.
+- Every Sage's Path prompt was also screenshot-verified against the game's
+  own text during Part B: all six battle pieces show "KP: Win battle" at the
+  prompt, as the reader's prompt lines say.
+
+### The board's true shape — the NE wing hangs off the two Lv 2 manikins
+
+- NO long links: pressing toward disc 16 from 14, and toward disc 6 from 4,
+  does nothing at all (no prompt, no hop). The reader's ±4 coordinate
+  adjacency is the game's own rule on this board.
+- Consequence: discs 16, 6 and 7 connect to the rest of the board only
+  through 26, and 26 only through 25 (or 16). The two Lv 2 manikins — the
+  Dragoon on 25 and the Flash on 26 — are the gate to the ???; they are path
+  fights, not optional ones. Chests 2 and 42 sit behind Lv 6 pieces (12/3
+  guard 2 on both sides; 32 guards 42) and were not opened — the brief's "no
+  unnecessary Lv 6 fights" — so their contents remain unmeasured.
+
+### Part B — play (genuine lineage, from ch1_s15_board_clear.state: Lv 1, HP 1000, Gil 78, gauge KP 0, banked KP 2)
+
+- ENTRY SCENE TIMING (harness lesson): the Laguna banter scene fires a few
+  hundred frames after entry and eats d-pad input until advanced (~3–5
+  Crosses). In the board_clear lineage it had NOT yet fired when session 15
+  saved the state, so it ambushed this session's first walks mid-route.
+  Burning Crosses until a test hop answers is the reliable clear.
+- TIFA (35): engaging plays her warning ("I have a bad feeling, Light. That
+  Chaos insignia...") and RECRUITS her — Customization → Assist afterwards
+  shows Tifa Lockhart as the set assist (BRV: Beat Rush, Falcon's Dive; HP:
+  Meteodrive, Rolling Blaze), replacing Laguna, who was the chapter-start
+  default. The piece is not consumed; the prompt reopens on re-approach,
+  exactly Laguna's pattern on Crescent Lake.
+- DELUSORY DRAGOON Lv 2 (25): WON with the session-13 dumb block. Deltas:
+  KP gauge 0 -> 1, Gil 78 -> 92 (+14), and Lightning LEVELED UP (Lv 1 -> 2;
+  the Abilities screen then reads CP 225/331). A post-battle scene plays —
+  Kuja, watching: "This isn't the time for pleasantries! If you don't dodge
+  correctly, you're a goner!" No chain was offered after this win (the scene
+  took precedence and the KP paid at once — contrast session 13's held KP).
+  Her HP afterwards: 863.
+- FLEETING FLASH Lv 2 (26): WON (payment at ~press 150: KP 1 -> 2, Gil
+  92 -> 106, +14 again). HP afterwards: 778. No scene followed.
+- CHEST (16), reached from 26 once the Flash fell: the contents are MEASURED
+  from the game's own text — the **Soul of Destruction** accessory ("'Soul of
+  Destruction' is a breakable accessory, but boosts your starting ATK";
+  Lightning: "An accessory... Guess I'll wear it."). The chest is consumed;
+  16 and 6 become ordinary hop-through discs.
+- THE ??? (7) IS KUJA, Lv 8 (stage: Lunar Subterrane). A pre-battle scene
+  has Kefka gloating ("You still have more manikins waiting for a chance to
+  play!"), and the VS card NAMES him — "Lv 2 Lightning VS Kuja, Lv 8" —
+  unlike the manikins, whose names the VS card hides. In battle he is a
+  keep-away mage (Seraphic Star among his HP attacks). Attempt 1 (dumb
+  block, 630 presses) ground his HP bar to roughly half while he built BRV
+  past 1,700 and broke her repeatedly; the fight was then idled to the KO to
+  map the loss cleanly. Defeat menu: Retry / Flee (footers as session 13);
+  FLEE -> back on disc 6 with HP restored to 778 (the engagement value), KP
+  and Gil untouched, the ??? still standing. Attempt 2 (a BRV-cycle rotation
+  ○○○□) never entered the arena — the rotation has no Cross to advance the
+  tip/VS cards (operator error, recorded). Attempt 3 entered with that
+  rotation and was KO'd inside 90 presses. Verdict: at Lv 2, blind block
+  play does not beat Kuja Lv 8 this session. The win, the Stigma's
+  appearance, and the chapter exit are therefore UNMEASURED; the gateway
+  stands open at ch1_s16_unk_fled.state (on disc 6, engagement HP 778) for a
+  future session — a level grind or guard-aware play are the open routes.
+- Reader note (unmeasured, deliberately not coded): if Kuja falls in a later
+  session and a Stigma appears as a piece on an existing disc (the Crescent
+  Lake Dragoon pattern), identification holds — the disc set is unchanged —
+  but the arrival line would still name that disc's table piece, and with
+  stigmaGrid -1 no "Level finished." would speak on the exit. Both are the
+  known static-table limitation; they get fixed from that session's dumps,
+  not guessed now.
+
+States (~/d12s): ch1_s16_pretifa, ch1_s16_tifa, ch1_s16_predragoon2,
+ch1_s16_clean_board, ch1_s16_preflash, ch1_s16_postflash, ch1_s16_prechest16,
+ch1_s16_chest16, ch1_s16_pre_unknown, ch1_s16_pre_unknown_prompt,
+ch1_s16_post_unknown_battle (mid-fight, attempt 1), ch1_s16_unk_fight /
+ch1_s16_unk2_fight / ch1_s16_unk3_fight (attempt segments),
+ch1_s16_unk_fled (post-Flee, on disc 6). RAM dumps: s16_board_entry,
+s16_tifa_prompt, s16_prompt_pirate, s16_postflash, s16_chest_prompt,
+s16_unknown_prompt, s16_unk_fled (all .bin).
