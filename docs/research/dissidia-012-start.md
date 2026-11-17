@@ -938,3 +938,42 @@ SCRATCH: ~/d12s/blocktest.py, refire.py, diff5.py (cluster analysis), diff6.py (
 slot 1 has exactly ONE persistent changed byte per talk: +0x132), flagdiff_m2.py, probe16.py, m2b.py,
 combo.py, orb2.py. Dumps: fd2_idle0/idle1/talk1/idle2 (the (95,31) talk), fd2_ev0/ev1 (state-16 popup),
 fd2_combo.bin (all-talks end state, still in/after the long talk), fd2_orbclean.bin.
+
+
+## Sarah's session 6 (2026-11-16 night): every field-event combination tried -- the gateway answers to none of them
+
+Devin's word: "When you have a next step, try it." All remaining combinations were run.
+
+1. THE LONG TALK'S SECRET: the (93,-2) dialogue does not end by Cross advances alone -- not in 150
+   (session 4), not in 300 (orb6 run), not in 120 (freecombo run). It ends within ~3-5 advances AFTER
+   the player is moved mid-dialogue to the (98,46) area (proven three times: combo, orb6, freecombo).
+   The scene is a walk-to-the-orb scene: its progression is tied to the player reaching that spot, and
+   teleporting there completes it. Whether that completion is the "real" one or an abort is still
+   unknown -- the mirror byte cannot distinguish (its bit is set at talk start).
+2. THE (98.0, 0.03, 46.0) OBJECT: Cross at contact = state 16 popup (~180 frames, no flags), Circle at
+   contact = nothing, standing on it = nothing, walking through it = nothing. AND: the object is ABSENT
+   from ram_free.bin (0 position hits) while all three members are present at their usual spots. In the
+   post-orb lineage the object is gone -- consistent with it being the orb, consumed in that lineage.
+   How it is consumed from prologue_end is still not reproduced: neither button does it, before or after
+   the long talk's scene completes.
+3. FREE.STATE COMBINATION (the last untested one): post-orb lineage + talks. (111.9,21) fired (bit 3);
+   the long talk fired and completed via the teleport recipe (bit 0); the (95,31) talk would NOT fire
+   in this lineage (nor in orb6 after the long talk -- it only fires in a fresh prologue_end; possibly
+   consumed by the orb event in post-orb lineage, or the member relocates). Archway probe afterwards:
+   gate 13 state 0, gate id -1, no entry. NOTHING.
+4. HARNESS LESSON: the analog stick PERSISTS after an analog command until re-centered -- several
+   "mystery movements" (players wandering after presses, the orb2 'push-out') were the leftover stick.
+   All later scripts center the stick (analog 0,0) after every move. Stick directions are camera-relative
+   and the camera zone at (98,46) maps (-1,0) to +x (toward the object from the west).
+CONCLUSION: across sessions 4-6, every field-event combination reachable in these states has been tried
+-- talks alone (mirror byte 0x4D), talks + orb-scene completion, post-orb lineage + talks -- and the
+archway never responds. Combined with session 3 (gate 13 has no position test and is never armed), the
+prologue gateway is not a field-event consequence in this map state at all. The remaining route is
+Claude plan item 2: find the master event-flag block via the save block (break on
+sceUtilitySavedataInitStart), read the story flags directly, and identify/set the one the field script
+checks for the gateway transition. The mirror byte (0x08BED9B2) proves the master block exists and gives
+its bit semantics for the talks (bit 0/3/6), which is the cross-check for whatever block the save route
+finds.
+SCRATCH: ~/d12s/orb3.py, orb4.py (wrong stick sign for that camera zone -- invalid), orb5.py, orb6.py,
+freecombo.py. Dumps: fd2_orb3.bin, fd2_orb4_pre/post.bin, fd2_orb5_pre/post.bin, fd2_orb6.bin,
+fd2_freecombo.bin.
