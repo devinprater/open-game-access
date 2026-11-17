@@ -856,3 +856,45 @@ hunt should move to Claude's plan items 2/3, which need no chapter replay: find 
 sceUtilitySavedataInitStart, and FLAG-DIFF around the one-time conversations (idle-masked snapshot, talk,
 snapshot) to locate the event-flag array; the gateway's bit is likely a neighbour. Tooling for both exists
 now (exec bp with GPR snapshots for the savedata break; ram dumps + diffing for the flag hunt).
+
+
+## Sarah's session 4 (2026-11-16 night): flag-diff works -- the talk-flag byte is found; the gateway switch is not in it
+
+Devin's word: run Claude's flag-diff (plan item 3). Protocol, all from prologue_end.state under CLASSIC
+(field states are classic-safe): RAM dump, 600 idle frames, dump (noise pair); teleport next to a party
+member, Cross, advance the dialogue to its end; dump; 600 idle frames, dump (post pair). Persistent =
+changed across the event and stable afterwards, minus anything that moved in either idle pair.
+
+1. TALK MECHANICS, refined: the first attempt (all 4 sides x 3 members at the PLAYER's height) fired
+   nothing. The members stand at their own heights (found by scanning the idle dump for their documented
+   (x,z) as float pairs: member at (111.9,21.0) has y=-1.62, member at (93.0,-2.0) has y=-2.54). Winning
+   recipe: teleport to ~1 unit WEST of the member AT THE MEMBER'S Y, tap the stick (-1,0) for 6 frames,
+   Cross. Member 1's dialogue ends after 15 Cross advances. Member 3's dialogue did NOT settle back to
+   state 2 within 150 Cross advances (longer chain, or it holds a choice/tutorial) -- its post dumps are
+   mid-dialogue, which still served the diff.
+2. THE DIFF IS LOUD: one conversation persistently changes ~217K bytes (dialogue/script machinery, the
+   0x08B88xxx record tables with a bit-3 flag byte per 8-byte record, entity poses, stack). Two talks
+   intersect at ~184K bytes -- the shared machinery, not the flags. The discriminator that worked:
+   single-bit flips in BOTH talks with a >=85%-zero neighbourhood, looking for DIFFERENT bits in the
+   SAME byte.
+3. FOUND: byte 0x08BED9B2 (controlled actor +0x132; actor table base 0x08BAED38, self slot 1) is a
+   prologue event-flag byte. Idle value 0x04 (bit 2 pre-set before field start). Talk with the member at
+   (111.9,21.0) sets bit 3 (0x04 -> 0x0C). Talk with the member at (93.0,-2.0) sets bit 0 (0x04 -> 0x05).
+   The byte sits in an otherwise all-zero span (97% zero neighbourhood) and the bits persist after the
+   dialogue ends. In ram_free.bin (own save, post-orb) the byte is 0x04 -- that lineage never ran these
+   two talks. NOT yet block-tested (set the bit, confirm the talk no longer fires) -- that is the clean
+   final proof and the first step next session.
+4. NEGATIVE: the gateway switch is NOT in this byte. Fresh load, byte forced to 0xFF, 120 frames, then
+   teleports stepping through the archway (140,47) -> (152,49): gate 13 state stays 0, actor gate id and
+   ctrl+0x7B0 stay -1, state stays 2. So the talks tracked here are the optional ones; the gateway's own
+   flag lives elsewhere.
+NEXT, in order: (a) block-test 0x08BED9B2 bits 0 and 3 to seal the finding; (b) talk to the third member
+(92.8,47.0 -- its exact position needs a looser float scan; possibly Kain, whose dialogue is the story
+event) and diff for ITS flag byte/bit; (c) orb-event flag: same protocol around the orb tutorial (script
+order is orbs first, then talks, then Kain/gateway -- entry may require the orb flag too); (d) if a
+candidate gateway bit emerges, Claude plan item 4: set it in RAM in a live field state (no savestate
+reload after the edit) and probe the archway.
+SCRATCH: ~/d12s/flagdiff.py (v1, height bug), flagdiff2.py (member 1, works), flagdiff3.py (member 3),
+diff.py/diff2.py (raw + single-bit), diff3.py (two-talk intersection), diff4.py (sparse single-bit --
+the one that found the byte), verify.py (0xFF archway probe). Dumps: fd_*.bin (member 1), fd3_*.bin
+(member 3).
