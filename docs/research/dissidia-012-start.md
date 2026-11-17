@@ -1017,3 +1017,29 @@ Plan: find the master event-flag block via the savedata buffer (Claude plan item
 - The master-block hypothesis is dead in both forms: the save buffer is not mirrored live in the field, and the talks demonstrably write no per-talk flag anywhere in RAM besides the mirror byte. Field-event progress lives in the script entities' state.
 - The archway question is settled a stronger way: gate 13 has no trigger to enable. The prologue's real gateway entry, when the story arms it, is gate 12 at (76.50, 0, 72.00) via the handler's state-5 branch — or a pure script transition at the Kain beat (the entity system behind FUN_089767FC), which the gate data cannot rule out.
 - Next untried routes: (1) the arm path — find who calls FUN_08B43AE8 / FUN_08B43704 from the field script system, and play the opening cutscene chain end-to-end in the harness with exec breakpoints only (memchecks forbidden) to capture a genuine post-Kain state and re-read the gate manager there; (2) the field script system itself — the Kain entity at (76.5, 70) is now a concrete anchor for the entity behind FUN_089767FC; (3) closed-loop walking (steer by camera yaw) to physically walk through gate 12's anchor segment and into the vol-0 jump tag at (−3.76, 0, 31.66) and watch the tester/handler fire.
+
+## Session 8 — the genuine-state route (2026-11-17)
+
+Devin's directive for this session: continue until the gate is ENTERED, through whatever routes the evidence favors.
+
+Plan: play the opening chain genuinely (no state surgery, no flag writes) with exec breakpoints only — bp on the arming function FUN_08B43AE8 and on the panel-open call FUN_08912674 — then re-read the gate manager in the genuine post-Kain state and test gate 12 there.
+
+### The genuine chain (fresh save, title → field)
+
+- Harness IO fix first: the Python client must use blocking readline (the freecombo pattern). select()+readline deadlocks — Python's buffered reader holds lines the fd-level select cannot see. Two calibration runs died on this before it was diagnosed.
+- Fresh-boot flow: autosave notice (Cross) → copyright (Cross) → title. Title cursor defaults to NEW GAME with no save, to LOAD GAME when a save exists (one Down from LOAD GAME lands on EXTRAS — that cost one run). NEW GAME → PSP name-entry OSK (Start = Finish; the default name is the emulator nickname) → Data Config creates GameData00 (276 KB) → "Save completed" (Circle = Back).
+- From LOAD GAME on that fresh data, the genuine opening chain is: intro movie → Moogle tutorial ("Have you ever fought DISSIDIA battles?" — "I have played before.") → two tutorial battles (won by a dumb battle block: Square, Square, Cross, Triangle on rotation; enemy HP 338 → 114 → dead) → Customization/Abilities menus (escaped Circle-heavy) → Moogle farewell → chapter intro text cards (ctrl state 21 throughout the intro shell) → parapet cutscene (Lightning meets Kain) → field loads.
+- Menu-navigation lessons: bright-screen heuristic alone misfires (the Moogle's snow scene reads as "menu-bright"); Cross advances dialogue, Circle escapes menus, and the ratio between them has to match the situation. Milestone savestates every 60 iterations made each fix cheap to retry.
+
+### The arming function fired — once, for gate 14
+
+- Exactly one FUN_08B43AE8 hit in the whole chain (frame ~11820 of the intro stage, during the parapet-cutscene segment): a0 = 0x095D75C0 (gateMgr), a1 = 3, ra = 0x08913D68 — the call site is the jal at 0x08913D60, one of only two static call sites in the field RAM dump (the other is 0x0891518C). The caller is in the handler's own module, not a distant story script.
+- a1 = 3 is the record whose B[0] == 3 = gate 14. In the genuine field-start table gate 14 is already STATE 5 with timer 122.0: it was armed during the intro and its whole lifecycle (spawn → 120-timer → bind → finalise) ran before field control began. This matches the hand-built lineages, where gate 14 was also 5 — that part was never a lineage artifact.
+- Gate 12's B[0] is 1: arming gate 12 means a call FUN_08B43AE8(mgr, 1) that has not happened yet at field start. Gate ids by B[0]: gate 11→0, 12→1, 13→2, 14→3, 15→4, 16→5, 17→6, 18→7, 19→8, 20→9, 21→10.
+
+### Genuine field start vs the hand-built lineages
+
+- Genuine spawn: field loads in dialogue (ctrl state 3) at (114.56, −0.29, −24.22), beside gate 14's anchor; after the 12-advance opening dialogue Lightning stands at (92.00, −2.45, −2.60), next to the long-talk member at (93, −2). The hand-built lineage spawned at (130.66, 0.98, −36.88) — a respawn point, not the genuine entry.
+- Gate table at genuine field start (gateMgr 0x095D75C0, records at gateMgr+4+k*0x14): every gate STATE 0 except gate 14 = 5 (timer 122.0). Gate 12: A = [(12,1),(2,1),(11,0),(−1,31),(−1,−1)], B = [(1,6),(28,−1),(29,30),(31,−1),(−1,0)] — same A/B data as the hand-built states; only the lifecycle history differs.
+- Mirror byte 0x08BED9B2 = 0x00 at genuine field start. The hand-built lineage had bit 2 pre-set (0x04) — a lineage artifact, not a story fact.
+- Genuine states saved: ~/d12s/genuine_field.state (field start, post-dialogue), ~/d12s/genuine_board.state (chapter-intro text card; misnamed, kept), ~/d12s/s8_title.state, ~/d12s/s8_mile.state (rolling milestone).
