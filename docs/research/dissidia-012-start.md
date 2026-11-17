@@ -1166,3 +1166,63 @@ empty START empty CHEST ENEMY empty empty STIGMA (exit)
 
 - The Gateway to Departure board is fully mapped and was completed end to end in the genuine lineage: 14 discs, free link movement, a joke chest (Broadsword), Kain recruited as assist, a decorative manikin, a story scene on first approach to the exit disc, and a Stigma engagement that finishes the level at zero cost and lands on the Story Mode chapter select with Chapter 1 unlocked.
 - Unanswered, with boundaries stated: (1) the manikin's battle — exhaustively non-interactive in this visit (above); whether it activates on a later re-entry is untried; (2) a live battle's launch/return path from a board piece — no battle exists on this board, so battle transition states remain for the first gateway that has one (Chapter 1's); (3) the board cursor's RAM address for the adapter reader — the Scan Mode screenshot oracle works but is slow; a state cell is the follow-up.
+
+## Session 10 — the board's RAM state cells (2026-11-17)
+
+Goal: find stable RAM cells for the board state the adapter must announce, so the board reader needs no screenshot oracle. Method, fixing session 9's churn problem: OFFLINE diffing over labeled dump sets — (a) reloads of the session 8/9 states with known discs, two dumps 30–45 frames apart per state (a cell must be bit-stable within a state to count); (b) a fresh single-boot labeled walk from genuine_board4.state (stops B, C, B, T1, T2, T1, B, A, B, C, plus the chest prompt from C), Scan Mode screenshots confirming the stops the detector could read (B, T1, T2, A; the C stops are confirmed by construction — the chest prompt opened from them, which only happens from C). All addresses below are in the 0x08800000-based RAM image (dump offset = address − 0x08800000) and held at the SAME addresses across the session-8 boot, the session-9 boot, and this session's loads.
+
+### (1) Lightning's current disc — FOUND, two encodings
+
+- **Grid id (u32) at 0x08B82A24.** The value is the disc's grid id = 10*(row+2) + col on the board's virtual 10-wide grid (rows: T-spur −2/−1, main row 0, I-spur +1/+2/+3; cols: A=0 … H=7, T=1, I=3, J=4). It tracks her piece exactly: verified live across the walk (A=20, B=21, C=22, T1=11, T2=1), across reloads (D=23, I1=33, G=26), in session 9's own dumps (mvBase=21 → mvR1=22 after one Right hop; s9_board=21), and it does NOT move in Scan Mode or when a prompt opens. This is the adapter's primary cell.
+- **Current-record pointer at 0x095D123C** (the board manager at 0x095D1230, +0x0C; the table object at 0x08B82A2C points back to the manager): holds 0x08B82A30 + 8*grid — the address of the current disc's record (below). 0 before the board loads. Manager +0x10 (0x095D1240) holds the PREVIOUS disc's record pointer (the disc she hopped from; reads A's record at entry).
+- Caveat from the panel state: in genuine_panel.state (the entry transition) the grid byte already reads 20 (A's id — its init value) while the manager pointer is still 0 and the focus cell (below) is −1. Read the board cells only once ctrl state is 20 and the manager pointer is non-null.
+
+### The disc table — full layout (adapter's board map for this gateway)
+
+Record array at **0x08B82A30**: 60 records × 8 bytes, indexed by grid id: {u32 exists (1 for the 14 real discs, 0 for empty grid cells), u32 pointer to the disc object}. Disc objects at **0x095CD570 + 0x40*grid**, 0x40 bytes each: +0x00 = board X (float), +0x08 = board Z (float) — 4.0 units per disc step; +0x0C = 0xFFFF0000 | (0x100 + grid); +0x30/+0x34 = linked-list threading to the next/previous grid objects. The objects are STATIC: byte-identical before and after the chest was consumed and Kain recruited — piece presence/consumption state is NOT stored here (see (4)).
+
+| grid | disc | record @ | object @ | X | Z |
+|---|---|---|---|---|---|
+| 1 | T2 | 0x08B82A38 | 0x095CD5B0 | −14 | −12 |
+| 11 | T1 | 0x08B82A88 | 0x095CD830 | −14 | −8 |
+| 20 | A | 0x08B82AD0 | 0x095CDA70 | −18 | −4 |
+| 21 | B (entry) | 0x08B82AD8 | 0x095CDAB0 | −14 | −4 |
+| 22 | C | 0x08B82AE0 | 0x095CDAF0 | −10 | −4 |
+| 23 | D (chest) | 0x08B82AE8 | 0x095CDB30 | −6 | −4 |
+| 24 | E (manikin) | 0x08B82AF0 | 0x095CDB70 | −2 | −4 |
+| 25 | F | 0x08B82AF8 | 0x095CDBB0 | 2 | −4 |
+| 26 | G | 0x08B82B00 | 0x095CDBF0 | 6 | −4 |
+| 27 | H (Stigma) | 0x08B82B08 | 0x095CDC30 | 10 | −4 |
+| 33 | I1 | 0x08B82B38 | 0x095CDDB0 | −6 | 0 |
+| 34 | J (Kain) | 0x08B82B40 | 0x095CDDF0 | −2 | 0 |
+| 43 | I2 | 0x08B82B88 | 0x095CE030 | −6 | 4 |
+| 53 | I3 | 0x08B82BD8 | 0x095CE2B0 | −6 | 8 |
+
+### (2) Scan Mode cursor — FOUND, and cleanly separate from the piece
+
+- **Cursor record pointer at 0x095CD41C**: the address of the disc record under the Scan Mode cursor; **0xFFFFFFFF when not scanning**. Verified by a live scan walk (B→C→D→I1): it was the ONLY u32 cell in RAM matching the cursor's record pattern across the four dumps, while the grid byte, the manager pointer, and the focus pointer all stayed on B — the cursor is a separate cell from the piece position, as the adapter needs (announce the piece from (1); announce the scan cursor from here only while scanning).
+- Neighbors in the same small struct (base 0x095CD410): +0x08 (0x095CD418) read 1 while the scan cursor sat on D (a prompt-piece disc, info box up) and 0 on empty discs — a candidate "cursor is on an info/piece disc" flag, single observation. +0x10 (0x095CD420) pointed at 0x08B82C60 only in the scan-on-D dump — a candidate pointer to the piece object under the scan cursor (the structure just past the record array, base 0x08B82C10+, is the piece-actor area); also single observation. Both are leads, not confirmed cells.
+
+### (4) Engage prompt target — FOUND (the focus pointer)
+
+- **Interaction-focus pointer at 0x095CD410** (the struct base above): at rest it holds her own disc's record; **while an Engage prompt is open it holds the TARGET disc's record** — the chest prompt from C read 0x08B82AE8 (D's record) in two independent datasets (this session's walk and the s9_chest.state reload). The adapter reads the prompt's target disc from this cell while a prompt is up and names the piece from the board's disc table.
+- Caveat: it is the interaction system's "addressed disc", not a prompt-only flag — in the s9_kain2.state reload (just after the Kain engagement scene) it still pointed at J's record while Lightning stood on I1. Read it as the prompt target only while a prompt is actually up; at rest it can lag one engagement behind.
+- The piece's own name/description text was NOT found in a cell (the prompt text is presumably rendered from the piece's data at draw time); the adapter's disc→piece table covers this gateway. Piece presence/consumption state (chest gone after looting, Kain gone after recruiting) is not in the disc objects and was not located; the piece-actor area past the record array (0x08B82C10+) is the lead for a future session.
+
+### (3) KP and Gil — NOT FOUND
+
+- KP read 0 and Gil 50 in every genuine-lineage state, so no genuine pair differs in either value. Cross-lineage diffing against the 100% save failed both ways tried: no u32/u16 cell holds 50 in all genuine field+board dumps and a different, plausible value in the 100% field dump (the few matches are texture/render data), and the narrow scan of the board-structures page (0x095C0000–0x095E0000) found no stable 50 at all. Two attempts to manufacture a 100%-lineage board state for a same-scene diff also failed: teleporting to Kain's spot in the 100% field opens his (long) dialogue, and after advancing it out (27 Crosses, ctrl state back to 2) analog taps from (76.5, 0, 70) produced no movement at all within the session-8 recipe — the post-dialogue 100% field does not answer the stick the way the genuine field did. Whether the 100% save's Gil is even nonzero is unverified (its Customization screen was never read), so the diff premise itself is shaky.
+- Next routes for a future session: (a) two genuine-lineage board states that differ in Gil/KP by play (win a Chapter 1 gateway battle, then diff); (b) diff a Customization-menu-open dump against the settled board (the header draws GIL from somewhere); (c) read the 100% save's Gil off its Customization screen first to fix the diff target.
+
+### (5) Board identity — NOT FOUND
+
+- Only one gateway board is reachable in the genuine lineage, and no second board state exists in any lineage (the old board.state is a state-21 story-shell state, not a board), so there is nothing to diff an identity cell against. Constant-but-unverifiable leads in the board structures: table header words 0x08B82A1C = 1 and 0x08B82A28 = 31, manager +0x00 (0x095D1230) = 596. Chapter 1's first gateway board is the future test: if one of these words changes there while the structures sit at the same addresses, it's the identity cell.
+
+### Corrections to earlier records (from this session's measurements)
+
+- **s9_kain.state / s9_kain.bin are NOT "at the Kain prompt on I1"**: the grid byte reads 22 and the focus pointer C's record in both — Lightning is on **C** (the near-black screenshot fits the chest sequence's Kain banner scene). Session 9's Kain findings rest on its screenshots and stand; the state file must not be reused as an I1/Kain-prompt state.
+- **Session 9's s9_sc0..sc5 dumps were not a scan-cursor walk**: grid byte, focus, and manager pointer all read B in all six dumps. Whatever they were capturing, the scan cursor never moved in them — which is why they couldn't separate cursor from piece.
+
+### Verdict
+
+- The board reader is unblocked: current disc (grid byte 0x08B82A24, or the manager's record pointer 0x095D123C), the full disc table with coordinates, the Scan Mode cursor (0x095CD41C, −1 when off), and the Engage prompt's target disc (focus pointer 0x095CD410 while a prompt is up) are all stable, address-fixed cells, verified live and across lineages. KP, Gil, and board identity remain open with their blockers and next routes stated above.
