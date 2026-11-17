@@ -1986,3 +1986,169 @@ HUD and defeat screenshots (this session).
   fast-forward f01b93f..efcb457, pushed via the clone's git
   credentials, git ls-remote verified in-session: origin/main =
   efcb457. This addendum commit follows on main.
+
+## Session 18 — the grind pays; dodge-aware policy v2 vs Kuja; he holds through five more (2026-11-17)
+
+### Harness notes (drv client, learned the hard way)
+
+- drv-bp block-buffers its stdout on a pipe; only runbp's bp_drain
+  fflushes. A client that readlines before sending deadlocks: this
+  session's first boot hung ~7 minutes with the driver idle in fgets
+  (diagnosed via /proc — main thread in anon_pipe_read, ~0 CPU, while
+  the CSO itself reads at 277 MB/s sequential / 0.2 ms random, so the
+  disc was never the problem). The fix, in ~/d12s/s18lib.py: every
+  reply-expecting command is followed by a "runbp 1" nudge before
+  reading. Boot sync takes ~2 s afterwards.
+- WSL /tmp does not persist across ssh sessions in this setup —
+  screenshots and dumps live in ~/d12s, never /tmp.
+- The battle is DETERMINISTIC (proven in Part C below): same savestate
+  + same input stream = the same fight, cell for cell. Every claim in
+  this section was measured under that rule.
+
+### Part B — the grind: Delusory Dragoon Lv 6 (disc 3), one attempt, WON
+
+- Route from disc 6: down, down, left, left, up, up to disc 4, then
+  press left — the prompt opens (focus = disc 3's record 0x08B82A48).
+  Doorstep saved as ch1_s18_predragoon6.state.
+- Fixed entry (session 17's protocol): block A found at poll 11, base
+  0x0969D688 (the loadstate-to-direct-engage lineage base); the policy
+  started at the full 778 HP — the card phase cost nothing this time.
+- WIN in 42 rotations of the plain session-13 rotation, with ZERO HP
+  damage taken. The Dragoon's BRV never moved off 173 and the pool
+  never off 236 — it never mounted an HP attack at all; it only
+  BRV-attacked (her BRV dipped as low as 4, at rotation 18). Her HP
+  attacks landed ~13 times in ~101-damage chunks (1303 -> 0; two
+  partials at low BRV: 25 at rotation 18, 14 at rotation 32).
+- MID-BATTLE LEVEL-UP: at rotation 19 her HP cell rose 778 -> 838
+  (+60) and at rotation 21 her base BRV rose 101 -> 107 — the level-up
+  applied inside the fight. The results screen confirms it verbatim:
+  "Level increased by 1! (2->3)", "Basic stats up!", "Learned Auto
+  Assist!", "Learned Launch!", "Received 10 PP."
+- Rewards: Gil 106 -> 172 (+66), KP gauge 2 -> 3 (paid at once; no
+  chain — no battle piece neighbours disc 4). ch1_s18_postgrind.state.
+- CHEST 2 (disc 2; its path opened with the Dragoon's fall): prompt
+  from disc 3 ("Treasure Chest — Contains helpful items"), contents
+  measured by the Gil cell: +200 Gil (172 -> 372), chest consumed.
+  (The banner text scrolled past between screenshots; the delta is
+  exact.) ch1_s18_chest2.state.
+- New Kuja doorstep: ch1_s18_doorstep.state — disc 6, Lightning Lv 3,
+  HP 838, Gil 372, KP gauge 3. All Part C engagements boot from it
+  (strictly better than session 17's 778 doorstep; the substitution is
+  recorded here).
+
+### Parts A + C — policy v2 and the five Kuja engagements
+
+- Engagement values, identical in all five boots: her HP 838 / BRV
+  107; Kuja HP 1766 / BRV 261, stage pool 288. (Session 17 read his
+  opening BRV/pool as 274/282 against her Lv 2 — his opening numbers
+  moved slightly with her level.) Block A at 0x096D5A38 (the prekuja
+  lineage base), found at poll 11 in all five boots; the policy
+  started at the full 838 HP every time.
+- Policy v2 as briefed: the session-13 rotation (square, square,
+  cross, triangle) under cell surveillance; Tifa assist (L+circle) on
+  a 6-rotation cadence; survival — dodge chord (R+direction), guard
+  hold, analog reposition — when foe BRV >= her current HP (a lethal
+  HP attack is loaded), or foe BRV >= 450 and rising fast; press the
+  offense when the pool transfers to her on a BREAK.
+- All five engagements were lost; every loss Fled back to disc 6 with
+  KP 3 / Gil 372 untouched and the ??? still standing:
+  1. v2 as briefed — LOSS at rotation 20; Kuja 1323/1766 (443 dealt,
+     the best measured attempt of either session). The cadence-assist
+     window at rotation 6 coincided with the fight's only BREAK (pool
+     288 -> her BRV 155 -> 443), and her one landed HP attack — at
+     rotation 12, as he returned to cast at full BRV — dealt exactly
+     443. Mid-fight level-up at rotation 13 (+61 HP, base BRV 107 ->
+     113; reverted by the Flee, per its footer). Defense: the lethal
+     trigger armed at 92 HP and the survival window nullified his
+     spend (foe BRV 279 -> 2, 0 damage); she died inside the NEXT
+     survival action to an unsigned hit (his BRV unmoved at 261 — an
+     attack already in flight, or a spend whose BRV cost reset inside
+     the sampling window).
+  2. v2.1 + dash-in (R+triangle) whenever his HP had not moved — LOSS
+     at rotation 9; Kuja 1748 (18 dealt). The dash is measured
+     harmful: his hits landed at rotations 3/5/8 for 261/277/279.
+     Deliberate assist-break attempts at foe BRV 0 and 2 produced no
+     break (pool unmoved). Both additions were dropped.
+  3. v2.1 + pacing (a 120-frame wait every 3rd rotation) — LOSS at
+     rotation 12; Kuja 1586 (180 dealt: hits of 47 and 133 — the best
+     landing rate). Level-up at ~rotation 11 (+61 again). Death by
+     the break path: during rotation 12 he BRV-broke her (the pool
+     went to him; his BRV read 594) and one-shot her from 340 — a
+     kill the BRV tell cannot see coming, since his BRV sat at its
+     261 base when the sequence started.
+  4. v2 exactly as engagement 1 (control) — a frame-exact duplicate
+     of engagement 1: every cell value at every action identical,
+     same outcome. Determinism proven (above).
+  5. Paced rotation, no dash, no assist attempts — LOSS at rotation
+     10; Kuja 1728 (38 dealt). Survival nullified a signed spend
+     again (305 -> 6, 0 damage); unsigned in-rotation hits (305 at
+     rotation 6, 270 at rotation 10) killed her.
+- What the cells say about the policy, in aggregate:
+  - THE SURVIVAL SEQUENCE WORKS WHEN IT FIRES. Across the five
+    engagements his HP attack spent inside a survival window twice
+    (engagement 1's first survival, engagement 5's) and dealt 0 both
+    times. The dodge/guard/reposition mix nullifies the signed spend.
+  - THE TRIGGER IS THE DEFENSE-SIDE FAILURE. Kuja spends at base BRV
+    (~261, up to ~305 with steals), so "foe BRV >= her HP" is false
+    until she is already under ~305 HP, and the >= 450 rising trigger
+    never fired in five fights. Three of the five deaths were
+    unsigned: the spend's BRV cost resets inside a single rotation's
+    sampling window (his BRV reads base on both sides of the rotation
+    that killed her), and engagement 3's was a break combo launched
+    from base BRV. Per-action BRV polling sees none of those coming.
+  - THE OFFENSE IS THE PRIMARY FAILURE. In the best stream she
+    landed 1 HP attack in 20 rotations. His teleport cycle makes the
+    fixed-cadence rotation connect only as he returns to cast, and
+    the one heavy hit needed the break's pool behind it. The
+    deliberate low-BRV assist-break attempts never reproduced
+    engagement 1's break — in that deterministic stream the break
+    follows the exact cadence-chord timing, and disturbing the stream
+    (dash, waits, extra chords) removes it.
+  - His clock, updated: an HP attack every ~3–5 rotations for his
+    current BRV (261–305), ~594 after he breaks her. 838 HP is still
+    only ~3 ordinary hits.
+- VERDICT: at Lv 3 with this loadout and policy family, Kuja holds
+  through five more engagements (nine across sessions 17–18). The
+  win, the Stigma's appearance, and the chapter exit remain
+  UNMEASURED; the gateway stands open at ch1_s18_doorstep.state.
+  Open routes, in the order the evidence supports: (1) a deeper
+  grind — the board's two remaining Lv 6 pieces (Fleeting Flash on
+  disc 32, Idle Sky Pirate on disc 12) are the recipe that just paid
+  a level, +66 Gil and 10 PP for zero damage taken, and each level
+  is ~+60 HP / ~+6 base BRV of headroom with in-fight level-up heals;
+  (2) input-stream search on the proven engagement-1 backbone —
+  determinism makes this a search problem: vary one input at a time
+  around the stream that produced the break and the 443 hit, and
+  keep what the cells reward; (3) identify the Assist/EX gauge cells
+  (below) and weaponize EX mode.
+
+### Gauge hunt (secondary — the long Dragoon fight's dump sequence)
+
+- The 42-rotation Dragoon fight gave dumps at rotations 0/15/25/35
+  and at the end (s18_drg_*). A scan for u32 cells outside block A
+  that start at 0 and rise monotonically leaves 28 candidates; two
+  families are identified arithmetically and are NOT gauges:
+  0x09766D28 / 0x09766D40 (a duplicate pair tracing 0/404/845/1180/
+  1394) is a cumulative damage-dealt counter — it matches the foe-HP
+  deltas exactly, overkill included; 0x0977596C (0/888/1857/2592/
+  6443, with a jump in the end dump) behaves as an EXP / win-bonus
+  counter.
+- One candidate is gauge-shaped: 0x0976288 traces 0 -> 433 -> 800 ->
+  800 -> 800 — it filled by rotation 25 and HELD at 800 while she
+  never called an assist or attempted EX. No other candidate
+  plateaus. It is carried as a LEAD, not a finding: the address is
+  heap (this boot's), and no spend test was possible — the Kuja
+  fights ended before their own dump sequences could run (a two-point
+  start/end scan of engagement 1 leaves 557 candidates, mostly
+  results-screen allocations). A future long fight should re-find
+  the plateau pattern in its own boot and spend it (triangle, or
+  L+circle) under dump surveillance.
+
+### States and dumps (~/d12s)
+
+ch1_s18_predragoon6.state, ch1_s18_postgrind.state,
+ch1_s18_chest2.state, ch1_s18_doorstep.state (the Kuja doorstep),
+ch1_s18_kuj_e1_fled / e2_fled / e3_fled / e4_fled / e5_fled.state.
+Dumps: s18_drg_poll0..11, s18_drg_start/r15/r25/r35/end;
+s18_kuj_e{1..5}_poll*, _start, _end; screenshots s18_*.
+Scripts: s18lib.py (the nudge-sync drv client) in ~/d12s.
