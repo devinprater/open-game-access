@@ -1277,3 +1277,9 @@ Goal: clear session 11's only blocker — restore the missing Genesis Plus GX so
 - Clone working tree clean on dissidia-012-adapter; nothing uncommitted to trample.
 - Local main == origin/main (bdf8b0b), and main is a strict ancestor of this branch: rev-list main...dissidia-012-adapter = 0 / 76, so the merge is a fast-forward.
 - The merge itself, the on-main adapter test run, and the push are recorded in the addendum commit that follows this section on main.
+
+### Session 12 addendum — merge, on-main tests, push
+
+- Merged the same day: main fast-forwarded bdf8b0b..52a8899 (the branch's 77 commits, sessions 1–12 of this document, the dissidia012 adapter, its tests, and the AdapterCommand registration). No merge commit, no conflicts, nothing else in the clone was touched.
+- Adapter tests re-run on main after the merge (scripts/dissidia012-adapter-test.sh): 57 passed, 0 failed — the only compiler warnings are the pre-existing ones in other adapters (dq9, alttp, mku, khbbs). Log: /home/devin/dissidia-test-s12.log on the Legion.
+- Pushed via the clone's git credentials: origin main verified at 52a889915020dbf2958f29e7aaa441e7e98ba399 by ls-remote. This addendum is the only commit after it.
