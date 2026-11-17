@@ -2163,3 +2163,195 @@ Scripts: s18lib.py (the nudge-sync drv client) in ~/d12s.
   fast-forward 62ff913..bb8f860, pushed via the clone's git
   credentials, git ls-remote verified in-session: origin/main =
   bb8f860. This addendum commit follows on main.
+
+## Session 19 — the grind pays three levels; the deterministic search's best leaves Kuja at 761 (2026-11-17)
+
+### Harness notes
+
+- The session-18 policy was recovered verbatim from the session-18
+  worker's transcript (its /tmp scripts did not survive): the Kuja
+  runs below execute session 18's engagement-1 policy v2 exactly
+  (same press/chord/read structure), with session-18's entry fix.
+- drv poll dumps are 24 MB each; a 90-poll entry search is ~2 GB of
+  dumps. Entry polls from failed attempts were deleted mid-session.
+- Two infrastructure bites, both recovered: the Legion tunnel proxy
+  dropped for ~10 minutes (a tee transfer died with it; the field
+  state was already saved), and a VM/exec service restart killed a
+  run's stdout pipe mid-fight (the Dragoon Lv 2 rematch's win state
+  and end dump survived; its outcome was re-derived from the dumps).
+  From then on every script redirected its own log to a file in
+  ~/d12s — a broken pipe can no longer kill a fight or eat its log.
+
+### Part A — the grind: both Lv 6 manikins beaten, chest 42 opened
+
+From ch1_s18_doorstep.state (disc 6, Lv 3, HP 838, Gil 372, gauge 3).
+Route to disc 22: down, down, left, left, left, left. Both fights use
+the plain session-13 rotation at full-HP entry; block A found by the
+HP-keyed pattern search (her HP exact), base 0x0969D688 both times
+(the direct-engage lineage base).
+
+- IDLE SKY PIRATE Lv 6 (disc 12; HP 1303, BRV 161, pool 242): WIN in
+  59 rotations — nothing like the Dragoon's passivity. It landed
+  161-damage HP attacks from rotation 29 on (five landed: 899 -> 738
+  -> 566 -> 405 -> 229 -> 55, plus chip), and her HP attacks stopped
+  landing entirely for rotations 44-58 with the Pirate at 35 HP; the
+  killing blow landed at rotation 59 with her at 55 HP. Two in-fight
+  level-ups (HP 838 -> 899 at rotation 5, 55 -> 115 at the kill).
+  Results screens, verbatim: "Level increased by 2! (3->5)", "Basic
+  stats up!", "Learned Auto Assist Lock On!", "Learned Auto
+  Recovery!", "Received 1 AP.", "Obtained 66 gil.", "Received 10 PP."
+  Gil 372 -> 438. The win's KP was HELD — a chain offered.
+- THE CHAIN WAS THE OTHER TARGET. The results-crossing Crosses
+  carried through the chain prompt and the cards, so the post-win
+  savestate sat on the chained fight's VS card: Lv 5 Lightning vs the
+  Fleeting Flash Lv 6 (disc 32), at her post-Pirate board HP of 115.
+  Fought as it stood, plain rotation: WIN in 40 rotations with ZERO
+  HP damage taken — the Flash's BRV fell to 92 early and it never
+  mounted an HP attack; her HP attacks landed for 118 like a
+  metronome. In-fight level-up at the kill (115 -> 176). Results:
+  "Level increased by 1! (5->6)", "Learned Speed Boost!", "Learned
+  Ruin!", "Obtained 66 gil.", "Received 10 PP." Gil 438 -> 504. The
+  chain then closed and paid both wins' KP at once: gauge 3 -> 7
+  (+4 = 2 chances x 2 enemies, the manual's chain formula).
+- CHEST 42 (disc 42, guarded by the Flash): prompt from disc 32 after
+  the Flash fell; contents from the game's own banner, caught on a
+  15-frame screenshot cadence after two wider cadences scrolled it
+  past: **"Obtained Bronze Helm from chest!"** (an item — the Gil
+  cell correctly did not move).
+- Board-clear state: ch1_s19_boardclear.state — disc 6, Lv 6,
+  HP 176, Gil 504, KP gauge 7, banked KP 2.
+
+### The heal problem — exit, re-enter, and the board resets
+
+Part B needs a doorstep she can survive from; 176 HP is one Kuja
+hit. No in-gateway heal exists, so: Pause -> Exit Gateway. The game
+warns verbatim on both the menu footer and the confirm (cursor
+starts on NO): "KP gained in gateway will be lost." The 7 gauge KP
+were spent as the price. On the field she stood at the gateway with
+its conditions panel already up and **HP fully restored — Lv 6 max
+is 1303** (field HUD, screenshot). One Cross re-entered (state 5 ->
+20, entry disc 20, gauge 0, banked KP 2 kept, Gil 504 kept).
+
+The re-entry probe then proved the cost beyond KP: pressing toward
+disc 12 from 22 reopened the Idle Sky Pirate's prompt (focus =
+disc 12's record). **Leaving a gateway resets its board** — pieces
+and chests restore; EXP, levels, Gil and items persist. (The first
+probe presses were eaten by the re-entry banter scene and read as a
+false negative; the scene-clear protocol — burn Crosses until a test
+hop answers — settled it.)
+
+Re-path on the reset board, plain rotation:
+- Delusory Dragoon Lv 2 (25): WIN, zero damage taken. Its numbers at
+  her Lv 6: HP 1061, BRV 73, pool 236 (session 16 read a Lv 2
+  manikin at 399 HP against her Lv 1-2 — manikin HP scales with her
+  level). +14 Gil (504 -> 518), gauge 0 -> 1. Block A 0x096D5A38.
+- Fleeting Flash Lv 2 (26): WIN in 27 rotations, one 146 hit taken
+  (1303 -> 1157). Same foe numbers (1061 / 73 / 236). +14 Gil
+  (518 -> 532), gauge 1 -> 2.
+- NEW DOORSTEP: **ch1_s19_doorstep.state — disc 6, Lightning Lv 6,
+  HP 1157, Gil 532, KP gauge 2, banked KP 2** (board HUD verified).
+  Her Lv 6 base BRV is 124 in the Kuja snapshot (the Lv 2 fights
+  snapshotted 173 — the battle-start BRV varies by fight; both are
+  cell readings, recorded as measured). This doorstep substitutes
+  for the brief's post-grind doorstep exactly as session 18's did:
+  the grind's own doorstep (boardclear, HP 176) could not host the
+  search, and the substitution is recorded here.
+
+### Part B — the deterministic search vs Kuja (7 runs)
+
+Entry on the reset board replays the Kuja reveal cutscene, which
+AUTO-PLAYS (probe screenshots changed lines with zero Crosses) and
+runs ~16 poll-chunks (~10,000 frames) before the cards. The entry
+protocol is now: engage, wait 600-frame chunks with a dump per chunk
+(crossing every 300 frames after chunk 12), pattern-search each dump.
+Block A was found at poll 16, base 0x096D5A38, in ALL SEVEN runs —
+the entry stream is stable, and every run started the policy at the
+full 1157 HP. Kuja at her Lv 6: **HP 1766 (unchanged), BRV 220
+(session 17-18: 261-274), pool 306**; her BRV 124. Every loss Fled
+back to disc 6 with Gil 532 / gauge 2 untouched.
+
+- R0 — BACKBONE REPLAY (session-18 v2 unmodified): LOSS at rotation
+  39; **Kuja 910/1766 (856 dealt)**. The shape changed completely at
+  Lv 6: no BREAK either way in 39 rotations (pool never moved off
+  306), but her plain HP attacks landed steadily (~110-155 each:
+  1766 -> 1658 -> 1534 -> 1410 -> 1244 -> 1089 -> 910). In-fight
+  level-up at rotation 29 (+61 HP, BRV 124 -> 130; reverted by the
+  Flee). Death: at 233 HP the lethal trigger fired, three survival
+  actions changed nothing (his BRV sat at 254), and the fourth
+  survival window ended at 0 HP with his BRV still 254 — an attack
+  already in flight when the trigger armed.
+- V1 — +30 frames before every rotation: LOSS at rotation 32;
+  **Kuja 761/1766 (1005 dealt) — the best attempt of either
+  session.** She was BROKEN at rotation 19 (pool to him, his BRV
+  567) yet the spend did not come until rotation 30 (588 -> 1, 592
+  damage); level-up at rotation 25. Died at 181 HP inside the second
+  survival action, his BRV unmoved at 250 — the in-flight pattern
+  again.
+- V2 — +60 frames before every rotation: LOSS at rotation 11; Kuja
+  1456 (310 dealt). The bigger drift inverts the fight: his BRV
+  attacks connected (her BRV pinned at 0, his up to 937), he broke
+  her and one-shot her inside the first survival action.
+- V3 — +15 frames before every rotation: LOSS at rotation 23; Kuja
+  1169 (597 dealt). Broken during rotation 23 (his BRV 527); the
+  survival action could not stop the 545 spend.
+- V4 — +45 frames before only the Triangle (HP) beat: LOSS at
+  rotation 10; Kuja 1748 (18 dealt). Delaying the HP beat desyncs
+  the rotation entirely — her HP attacks whiffed for ten straight
+  rotations while he spent four times. The axis is dead.
+- V5 — pacing, +120 frames every 3rd rotation: LOSS at rotation 12;
+  Kuja 1611 (155 dealt). Broken at rotation 6; a 407 spend followed;
+  died in the survival loop at 230 HP.
+- V6 — +30 frames every 2nd rotation: LOSS at rotation 27; Kuja
+  1187 (579 dealt). One clean data point for the defense: at 26 HP
+  the survival sequence NULLIFIED a signed spend (220 -> 1, 0
+  damage) — the trigger works when it fires with the spend still
+  incoming; the next window's unsigned hit killed her.
+
+What the search says, in aggregate:
+- THE MOST PROMISING AXIS IS THE UNIFORM +30-FRAME DRIFT (V1). It
+  produced the best damage (1005), the best damage rate (~31 per
+  rotation vs R0's ~22), and the deepest cut (761 left). The
+  response to drift is jagged, not smooth (+15 and +60 are both
+  much worse) — determinism makes each offset a different fight,
+  so neighbouring offsets are new lottery tickets, not refinements.
+- OFFENSE IS NO LONGER THE PRIMARY FAILURE. At Lv 6 the backbone
+  lands steadily with no break needed; V1's rate wins in ~57
+  rotations. She lives ~32. The gap is ~4 more survived spends
+  (~900 HP of headroom), i.e. roughly two more levels, or a defense
+  that sees the killing attack.
+- THE DEFENSE FAILURE IS NOW FULLY CHARACTERIZED: in all seven runs
+  she died either to a post-break spend (V2/V3/V5) or to an HP
+  attack that landed inside a survival window with his BRV unmoved
+  across it (R0/V1/V6) — the attack is already in flight when the
+  foe-BRV trigger arms. Per-action BRV polling cannot see it
+  coming (session 18's conclusion, now 7/7). The one nullification
+  (V6) fired when the spend was still incoming at trigger time.
+  A trigger on his BRV RISING THROUGH a low threshold (~200, his
+  base) rather than >= her HP would arm a full cycle earlier; that
+  is a policy change, outside this session's one-window search.
+- VERDICT: Kuja holds through seven more engagements (sixteen
+  across sessions 17-19). The win, the Stigma's appearance, and the
+  chapter exit remain UNMEASURED; the gateway stands open at
+  ch1_s19_doorstep.state. Open routes, in the order the evidence
+  supports: (1) two more levels — the reset board's Lv 6 pair is
+  re-fightable only via another exit/re-entry cycle, and each
+  level is ~+61 HP / ~+6 BRV with in-fight level-up heals; a Lv 8
+  attempt also re-rolls the entire deterministic stream; (2) the
+  early-arming survival trigger (above) on the V1 stream; (3) the
+  Assist/EX gauge cells (session 18's lead: 0x0976288 plateaued at
+  800 in its boot) — EX mode remains the untested weapon.
+
+### States and dumps (~/d12s)
+
+ch1_s19_prepirate.state, ch1_s19_postpirate.state (on the chain's VS
+card), ch1_s19_postflash.state, ch1_s19_chest42.state,
+ch1_s19_boardclear.state (grind doorstep, HP 176), ch1_s19_exited.state
+(the exit confirm, cursor on NO), ch1_s19_field.state,
+ch1_s19_reentry.state, ch1_s19_reentry22.state, ch1_s19_re_predragoon2 /
+re_preflash2.state, ch1_s19_rp_drg2_win / rp_fla2_win.state,
+ch1_s19_doorstep.state (the search doorstep), ch1_s19_kuj_r0_fled /
+kuj_v1..v6_fled.state. Dumps: s19_pir_*, s19_chf_*, s19_rp_*,
+s19_kuj_<tag>_poll*/_start/_end. Screenshots s19_*. Scripts:
+s19_grind1.py, s19_chain.py, s19_chest42*.py, s19_repath*.py,
+s19_kuja.py (the parametrized v2 runner), s19_probe_kuja.py; run
+logs s19_kuja_<tag>.log, s19_repath2.log.
