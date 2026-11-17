@@ -1070,3 +1070,64 @@ From genuine_postkain.state, the working sequence was: teleport to (76.5, 0, 70)
 Reproduction note (honest caveat): the identical input sequence WITHOUT the virtual-call breakpoint planted did not open the gate, and the gateway object's flag word (obj+8) read 0 at every sampled frame boundary in that run. The flag appears to be real-time-cycled: the harness runs frames as fast as possible, and the breakpoint pauses were what let the tester's evaluations land inside the flag's open window (the successful runs' trajectories were bit-identical, including the hit pattern at frames 210–230). At real play speed a player standing at the threshold gets that window naturally — nothing about the entry needs frame tricks, but a fast-running test harness can starve it. Worth remembering for adapter testing: gateway interactions are real-time-sensitive in this engine.
 
 Adapter notes from the entry: the announceable events are (a) reaching the threshold wall in front of a gateway (z ≈ 70.2 here — the "you are at the gate" moment), (b) the state-5 transition (conditions/entry), (c) board entry with KP/Gil/level readout, and (d) board contents (chest and enemy pieces visible from the entry disc). The board's cursor/move system (D-pad + Cross, KP-gated) is the next mapping target. Gate 12's record state stayed 0 throughout — the adapter should key gateway detection on the tester/threshold geometry, not on record state.
+## Session 9 — the Gateway to Departure board, mapped end to end (2026-11-17)
+
+Goal: map the board (ctrl state 20, entered in session 8) as a playable, announceable space — movement, pieces, menus, and the exit. Method: systematic exploration from genuine_board4.state with a position instrument built from Scan Mode (below): enter scan, screenshot, and locate the glowing selection square by visual grounding — the square always frames Lightning's current disc, which made every move verifiable. All movement/piece claims below were traversal-verified this way, not inferred from single screenshots. Board states saved: ~/d12s/s9_chest.state (at the chest prompt), ~/d12s/s9_postkain_board.state (chest consumed, on the chest disc), ~/d12s/s9_kain2.state (chest done + Kain recruited, Lightning on I1), ~/d12s/s9_postscene.state (on G, after the approach scene).
+
+### The board graph — 14 discs
+
+```
+            [T2] empty
+              |
+            [T1] empty
+              |
+[A]—[B]—[C]—[D]—[E]—[F]—[G]—[H]
+empty START empty CHEST ENEMY empty empty STIGMA (exit)
+              | |
+             [I1] [J] = Kain, assist
+              |
+             [I2] empty
+              |
+             [I3] empty
+```
+
+- Links (all bidirectional, cursor- and traversal-verified): A-B, B-C, C-D, D-E, E-F, F-G, G-H along the main row; B-T1, T1-T2 (a two-disc spur north of B); D-I1, I1-I2, I2-I3 (a three-disc spur south of D); I1-J and E-J (J hangs between I1 and E). Confirmed non-links (pressing that way is a silent no-op): Right from H, Down from H, Up from A, Right from T2, Left from I1, Right from J, Down from J, Right from I3, Down from C.
+- Scan-view disc centres (480x272 screenshot px, ±10 px render jitter): A(124,122), B(164,127), C(213,124), D(249,123), E(287,124), F(324,124), G(361,123), H(393,121); T1 ≈(149,97), T2 ≈(157,75); J ≈(252,152); the I-column renders at x ≈237 with I1/I2/I3 at y ≈171/205/242 in enlarged crops. Lightning enters the board on B (the second disc from the west), not on A.
+- The T-spur and I-spur discs are all empty in this gateway — they exist for board geometry (and, in later gateways, for chains/skills), not for content here.
+
+### Movement and KP
+
+- Both the d-pad and the analog stick move the piece (the game's Help Manual confirms: "You can move around using either the directional buttons or the analog stick"). One input = one hop to a linked disc. There is no free roaming and no diagonal/off-link movement.
+- **Movement is FREE.** KP read 0 at board entry and stayed 0 through every hop, engagement, and the exit. This corrects session 8's closing guess that board movement might be KP-gated. KP is a battle currency only (see "KP economy" in part 2 of this section).
+- Pressing toward a disc holding a prompt piece (chest, assist, Stigma) does not move Lightning: it raises that piece's Engage prompt (below). Pressing toward an empty disc hops immediately. Pressing toward the manikin's disc hops onto it (see "The manikin").
+
+### Piece interaction model — two kinds of pieces
+
+- **Prompt pieces** (chest, assist, Stigma): pressing toward the piece from an adjacent disc opens a prompt box — piece name, one-line description, "Engage ⓧ / Cancel ◯" — the same text Scan Mode shows for that piece. Cross = Engage: the piece's event fires and **Lightning stays on her own disc** (oracle-verified for the chest and for Kain). Circle = Cancel: nothing happens, she stays. The piece does not move or animate toward her; engagement is entirely through the prompt.
+- **The manikin** (E): no prompt, ever — see its own subsection.
+
+### The chest (D) — a booby-trap joke and a Broadsword
+
+- Engage from C fires a short on-board portrait-banner scene: Kain — "Kaboom!!!" / Lightning — "..." / Kain — "What if it exploded like that?" / Lightning — "...Okay, it won't... Sorry." (the chest was his idea of a trap demonstration). Then a banner: "**Obtained Broadsword from chest!**", then a tutorial tip box: "Items you obtain can be equipped within the customization menu."
+- Flow cost: ~3 dialogue Cross advances + the obtained banner + tip dismissal. Afterwards board control returns with Lightning still on C. The chest piece is consumed (D becomes an ordinary empty disc; she can then hop onto it). KP 0, Gil 50 — unchanged. The chest grants an equippable weapon, not currency.
+
+### Kain, assist character (J)
+
+- Prompt from I1: "Kain / Assist Character / Engage ⓧ Cancel ◯". Engage fires a two-line scene on the board — Kain: "I'll trust you to lead our way, Lightning. Don't fret if you lose your way." / Lightning: "Don't lump me in with Laguna! Like I'll get lost that easily." Kain's piece is then consumed (J becomes empty) and Lightning stays on I1.
+- Recruiting unlocks Kain as her assist; the Customization header's Assist slot still read empty immediately after the scene — the assist is set through the Customization menu's Assist entry, not automatically by the recruit.
+
+### The manikin (E) — an exhaustive negative
+
+- The piece is a full character model (a dark spearman, visually a Kain copy) — the same presentation as Kain's assist piece, not one of the small floating icons the manual lists for battle pieces. Scan Mode shows **no info box** for it (chest, Kain, and the Stigma all show one).
+- Stepping onto its disc is allowed from every side and nothing fires: approached from D (west), F (east), and J (south), before and after the approach scene; stood on the disc for 900+ frames; Cross pressed on the disc with long waits; the piece never raised a prompt, never launched a battle, and ctrl state never left 20. Lightning can also simply pass through E to F.
+- Best-supported reading, with the manual's taxonomy (part 2): this is a Chaos/event piece whose battle is not on offer in the prologue visit — the manual warns that "battle pieces triggering events or boss battles cannot be chained", and the only event this board's east side actually triggers is the scripted approach scene (below). Untried: approaching with the analog stick instead of the d-pad, shoulder buttons while on the disc, and re-entering this gateway after Chapter 1 is unlocked. For the adapter, treat E as a pass-through disc with a decorative piece in this gateway, and do not promise a battle here.
+
+### The approach scene — stepping onto G the first time
+
+- The first time Lightning steps onto G (the disc adjacent to the Stigma), a scripted party scene interrupts before the Stigma prompt can appear (~5 Cross advances; speakers Lightning, Kain, Laguna — the board's party is the trio, though only Lightning's piece is on the board). The mechanically important line is Lightning's: "Those "gateways" obstruct our path. We can unlock them by touching the insignia..." Laguna's opener confirms the board is otherwise cleared ("Looks like there's nothing else here. Let's unlock this "gateway" and go."). The rest is banter about Laguna having entered the locked gateways first.
+- After the scene, the Stigma prompts normally. Adapter consequence: the first approach to any gateway's exit disc may be gated by a story scene; the exit prompt is only reachable once it has played.
+
+### The exit — Stigma of Chaos (H): reached, and it cost nothing
+
+- Prompt from G: "Stigma of Chaos / Engaging this piece finishes the level. / Engage ⓧ Cancel ◯" (identical in Scan Mode). Cross to engage: white flash (the same transition flash as gateway entry), black load, ctrl state 20 → **21** (the story shell), a post-gateway story scene (Laguna and Vaan), and then the **Story Mode chapter select with "Chapter 1 - A New Threat" unlocked (marked NEW) and a "Play this story? YES / NO" prompt** (△ opens Customization from there).
+- **No battle, no KP cost, no threshold.** KP was 0 and Gil 50 at engagement and the level finished anyway. The manual's general rule — "you need to engage the Stigma of Chaos battle piece to unlock a gateway" — in this prologue gateway resolves to a touch-and-finish: the Stigma is a battle piece in later gateways, but here engaging it simply ends the level. **Session success condition met: the Gateway to Departure is completed end to end, and the landing (Story Mode, Chapter 1 unlocked) is identified.**
