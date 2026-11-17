@@ -2366,3 +2366,211 @@ logs s19_kuja_<tag>.log, s19_repath2.log.
   fast-forward 1b60493..1d6233d, pushed via the clone's git
   credentials, git ls-remote verified in-session: origin/main =
   1d6233d. This addendum commit follows on main.
+
+## Session 20 — the farm overshoots to Lv 10; the +15-frame stream kills Kuja (2026-11-17)
+
+### Harness notes
+
+- POST-WIN BOARD SCENES EAT THE D-PAD. After the Flash Lv 6 win the
+  board sat in a pending scene: single direction presses did nothing
+  (grid/focus frozen) until ~6 Crosses had burned through it. A
+  savestate taken inside that window boots with dead input. Fix,
+  used for all post-fight navigation this session: the fused go() —
+  Cross, run 40, press direction, run 25, check the grid cell,
+  repeat (the scene-clear protocol of session 15, mechanized). The
+  older hop() failed three times this session by wandering during
+  its opposite-direction fallback while input was still dead.
+- A CUSTOMIZATION HEADER CAN HIDE A STACK. The pass-1 doorstep
+  state was saved with the Customization menu still open, and
+  behind it were queued notification banners ("New prizes creatable
+  through Battlegen!", "The chocobo found a treasure chest!") plus
+  a queued Battlegen tutorial dialog (Fang). Each banner eats a
+  press; the stack took 24 mixed Circle/Cross presses to clear to
+  the board (ch1_s20_dismiss_e.state). Verify menu-closed by
+  screenshot before saving any doorstep state.
+- THE KP READER READS THE GAUGE. The holder-chain cell
+  (0x089D65A8 + 0x260) is the top-left gauge dial; the board/field
+  HUD's "KP" number is the BANKED total. Both are reported as such
+  below (session 19's doorstep was gauge 2 / banked 2; this
+  session's win paid banked 2 -> 4).
+- ONE CORRUPT STATE: ch1_s20_wp2_notlive.state, saved mid-scene
+  transition, fails to load (loadstate 0; the emulator fell back to
+  the title screen). Do not use it. Every other state this session
+  loads. All scripts logged to files in ~/d12s per session 19's
+  rule; no fight was lost to a broken pipe.
+
+### Part A — the helm check, and the Soul of Destruction is gone
+
+From ch1_s19_doorstep.state (disc 6, Lv 6, HP 1157/1303, Gil 532).
+
+- BRONZE HELM: EQUIPPED. The head slot was empty; the helm's footer
+  reads BRV+38, DEF+2 (verbatim), strictly better than nothing.
+  Post-equip totals at Lv 6: BRV 162, DEF 19, ATK 19.
+- THE SOUL OF DESTRUCTION IS GONE. The Accessories screen shows all
+  three slots empty, and the accessory inventory holds only a
+  "Level 1-9" booster x1 ("When your level is 9 or under, Effect:
+  1.5 times") — not equipped, left as-is. Her total ATK is 19
+  (base 15 + Broadsword 4) against session 18's verified 55 with
+  the Soul equipped. The breakable Soul broke during the session
+  18/19 fights; the break itself was not witnessed (session 17
+  flagged its breakability as unmeasured — now measured, the hard
+  way). Saved ch1_s20_start.state (disc 6, Lv 6, HP 1157, Gil 532,
+  gauge 2, helm on).
+
+### Part B — the farm: one pass, Lv 6 -> Lv 9 (the Lv 8 target overshot)
+
+Exit the gateway (the 2 gauge KP forfeited), re-enter Sage's Path
+(board reset, session 19), re-beat the manikins with the plain
+session-13 rotation. Battle block A found per fight by the loose
+pattern search (both known bases appeared: 0x0969D688 and
+0x096D5A38).
+
+- IDLE SKY PIRATE Lv 6 (disc 12; HP 1303, BRV 124, pool 266):
+  first attempt LOSS in 70 rotations + idle (Pirate left at 118
+  HP; it ground her down late, 744 -> 413 -> 140 -> 16 -> 0).
+  In-fight level-up at ~rotation 50 (her BRV 162 -> 168). THE FLEE
+  DID NOT REVERT THE LEVEL-UP: the retry engaged at HP 1364, the
+  Lv 7 maximum. Session 18's "(reverted by the Flee)" was an
+  inference from savestate boots; live measurement corrects it —
+  level-ups persist through a Flee, and the Flee restores HP to
+  the CURRENT (post-level) max. (The retry's first entry search,
+  keyed on the stale 1303, found no block A; the loose-search
+  diagnostic exposed the 1364.) Retry: WIN in 43 rotations at
+  Lv 7, ending at 561 HP — the Pirate sat at 24 HP for 23
+  rotations while her finishers whiffed. +66 Gil.
+- FLEETING FLASH Lv 6 (disc 32): WIN in 60 rotations, engaged at
+  561 HP, ended at 365 (the Flash sat at 1 HP for ~15 rotations
+  before the kill). +66 Gil.
+- DELUSORY DRAGOON Lv 6 (disc 3): WIN in 26 rotations with ZERO
+  HP damage taken (session 18's passivity held; its BRV never
+  moved off 124). In-fight level-up (HP 365 -> 425, the +60 heal)
+  -> Lv 8. +66 Gil.
+- DELUSORY DRAGOON Lv 2 (disc 25): WIN in 20 rotations, one
+  100-damage hit taken (425 -> 325). Its numbers at her Lv 8:
+  HP 1061, BRV 73, pool 248. +14 Gil.
+- FLEETING FLASH Lv 2 (disc 26): WIN in 18 rotations, zero damage;
+  in-fight level-up (325 -> 386, +61) -> Lv 9. +14 Gil.
+- PASS TOTALS: EXP TOTAL 33496 -> 62098 (+28602); THREE level-ups
+  (7 in the lost Pirate fight, 8 in Dragoon 6, 9 in Flash 2);
+  Gil 532 -> 758; gauge KP 0 -> 7 across the pass. Header
+  verified: Lv 9, HP 386/1485, BRV 179, ATK 22, DEF 22, LUK 14,
+  CP 225/339, LUCKY! 20%, BATTLES 10. (Per-fight Gil/KP reads lag
+  one fight behind the results screens; the pass totals above are
+  the reconciled numbers.)
+- NO SECOND PASS: the ~Lv 8 target was passed inside pass 1 —
+  level-ups land mid-fight, and the pass's fights were already
+  committed. Pass 1's doorstep: ch1_s20_pass1.state (disc 6,
+  HP 386 — see the harness note: saved with the menu open).
+
+### The Kuja doorstep — exit, toll, park (and one more level)
+
+The pass-1 doorstep's 386 HP cannot host Kuja, so the heal cycle
+ran once more: exit (gauge 7 forfeited), re-enter, pay the Lv 2
+toll on the fresh board at full 1485 HP.
+
+- Delusory Dragoon Lv 2: WIN in 11 rotations, zero damage taken.
+- Fleeting Flash Lv 2: WIN in 13 rotations, zero damage, with
+  ANOTHER in-fight level-up (1485 -> 1545, +60) -> Lv 10.
+- Both +14 Gil (758 -> 786); gauge 0 -> 2.
+- NEW DOORSTEP: **ch1_s20_doorstep.state — disc 6, Lightning
+  Lv 10, HP 1545/1545 (full), Gil 786, KP gauge 2, banked KP 2.**
+  Header: BRV 185, ATK 23, DEF 23, CP 225/341, EXP NEXT 6469 /
+  TOTAL 67166, LUCKY! 22%.
+- Kuja at her Lv 10 (r1 entry snapshot): **HP 1766 (unchanged at
+  every one of her levels), BRV 193 — DOWN from 220 at her Lv 6 —
+  pool 331 (up from 306)**; her battle-start BRV 214.
+
+### Part C — Kuja: three engagements, and he falls on the third
+
+Entry per session 19 (the reveal cutscene auto-plays; block A at
+poll 16, base 0x096D5A38, in all three runs; the policy starts at
+the full 1545 HP). Runner: s20_kuja.py (TAG WAIT WAIT_EVERY
+THRESH STATE; THRESH >= 9000 disables the defense entirely).
+
+- r1 — THE BRIEF'S POLICY (session-19 V1 backbone, +30 frames per
+  rotation; dodge trigger foeBRV >= 200 OR >= 60% of her current
+  HP, whichever arms first; survival streak cap 3): LOSS at
+  21 rotations / 37 actions (16 of them survival); **Kuja
+  1505/1766 — 261 dealt, the worst offense of the search.** The
+  trigger design failed on this lineage's numbers, measured:
+  (1) his resting BRV at her Lv 10 is 193, BELOW the 200 arm, so
+  the threshold half was inert until he had already gained
+  bravery; (2) the 60%-of-HP half became a death spiral — below
+  ~320 HP it arms on nearly every poll (any foeBRV >= 13 at
+  21 HP), starving offense 3-to-1 while protecting against
+  nothing: both spends that landed during survival windows
+  (453 post-break, 58) landed anyway; (3) the survival insertions
+  desynced the drift stream — exactly ONE HP-damage event in 21
+  rotations (261, on the rotation-6 assist-chord beat). Death at
+  21 HP inside a survival action with his BRV unmoved: session
+  19's in-flight pattern, again.
+- r2 — DRIFT PROBE, WAIT=0, defense disabled: LOSS at 49
+  rotations; **Kuja 425/1766 (1341 dealt, ~27 per rotation).**
+  The clean backbone is strong in this lineage, and the offense
+  movement itself dodged half his logged spends (3 of 6 spends
+  lost 0 HP). She ran out of HP roughly 16 rotations short.
+- r3 — DRIFT PROBE, WAIT=+15, defense disabled: **WIN in 42
+  rotations; Lightning ends at 777 HP.** 1766 dealt at ~42 per
+  rotation — the best rate of sessions 17-20 (session 19's best
+  was ~31). Timeline: 1552 at rotation 6; she was BROKEN once
+  early (his BRV to 575; the post-break spend whiffed for 0);
+  1285 at rotation 10, 1085 at 19, 657 at 24, 443 at 29, one
+  193 spend landed at ~rotation 34 (970 -> 777), 229 at 38, 0
+  at 42. Only two logged spends landed all fight (193 total).
+  Rewards, from the game's own text and the cells: "Obtained
+  104 gil." (Gil 786 -> 890); win quote "That wasn't too bad of
+  a fight."; banked KP 2 -> 4 (field HUD after the exit). No
+  level-up (still Lv 10).
+- The brief's THRESH=260 fallback was NOT run: r1's log made it
+  moot before the win — four of his five damaging spends came at
+  BRV 193-198, below any 200+ arm, and the survival sequence
+  nullified 0 of the spends it faced in this lineage. The
+  winning axis was the one session 19 identified — the drift
+  stream — re-searched in the new lineage, and the response
+  stayed jagged, exactly as session 19 warned: 0f -> ~27 per
+  rotation, +15f -> ~42, +30f-with-defense -> ~12 polluted.
+  Kuja's total across sessions 17-20: nineteen engagements; he
+  fell on the nineteenth.
+
+### The exit — no Stigma; the gateway completes itself
+
+- The win returns to disc 6, and a story scene auto-plays (Kefka:
+  "Oh, what kind of deliciously depraved memories should I fill
+  you up with this time around?" — Lightning: "You'd let your
+  friend die? You're not very different from the manikins.").
+  **There is no Stigma piece on Sage's Path, before or after:
+  beating the ??? WAS the gateway's completion condition.** The
+  scene carries her off the board to the Chapter 1 field, where
+  a Moogle-shop introduction scene plays ("...A shop?" —
+  Moogle: "You're a warrior of Cosmos, Thunder Lady? I know
+  everything about all of you warriors.").
+- SCENE PROTOCOL: the post-win scenes need ~10,000 frames of
+  Cross with LONG runs (240 frames). A 150-iteration run that
+  test-pressed Down every 6 iterations stalled on the Moogle
+  line for 60+ iterations; crosses-only at 240 frames cleared
+  in 42 iterations (state flickering 2 <-> 3 at the end as
+  control returned). Do not poke scenes while they run.
+- LANDING: **the Chapter 1 field, under the stone arch by the
+  Sage's Path entrance — Lv 10, HP 1545/1545 (fully restored by
+  the completion), Gil 890, banked KP 4** — with the Moogle shop
+  NPC at her elbow (talk prompt up) and the field running ahead
+  through the arch. State: ch1_s20_after_scene.state. Chapter
+  1's second gateway stands complete. The field segment toward
+  the next gateway is unexplored; it is the next frontier.
+
+### States and dumps (~/d12s)
+
+ch1_s20_start.state (helm equipped, Lv 6), ch1_s20_pass1.state
+(post-pass doorstep, HP 386 — saved with the Customization menu
+open; see harness notes), ch1_s20_dismiss_e.state (the same
+moment with the menu/dialog stack cleared), ch1_s20_doorstep.state
+(the Kuja doorstep, Lv 10, full HP), ch1_s20_kuj_r1_fled.state,
+ch1_s20_kuj_r2_fled.state, ch1_s20_kuj_win.state (on the win,
+pre-scene), ch1_s20_after_scene.state (the field landing),
+ch1_s20_wp2_notlive.state (CORRUPT — do not use). Per-fight
+pre/win/fled states under ch1_s20_p1*/p1r/p1s/p1t/p1u/ds_*.
+Dumps: s20_kuj_<tag>_start/_end.bin, farm *_start/_end.bin.
+Screenshots s20_*. Scripts: s20_helm.py, s20_farm.py +
+s20_farm_resume*.py + s20_farm_finish.py, s20_doorstep.py,
+s20_kuja.py (the parametrized runner), s20_winproto*.py,
+s20_wp4.py (the patient scene ride). Logs s20_*.log.
