@@ -1226,3 +1226,34 @@ Record array at **0x08B82A30**: 60 records × 8 bytes, indexed by grid id: {u32 
 ### Verdict
 
 - The board reader is unblocked: current disc (grid byte 0x08B82A24, or the manager's record pointer 0x095D123C), the full disc table with coordinates, the Scan Mode cursor (0x095CD41C, −1 when off), and the Engage prompt's target disc (focus pointer 0x095CD410 while a prompt is up) are all stable, address-fixed cells, verified live and across lineages. KP, Gil, and board identity remain open with their blockers and next routes stated above.
+## Session 11 — the board reader ships in the adapter (2026-11-17)
+
+Goal: implement session 9's board announceables in Core/dissidia012_adapter.cpp on the session-10 cells, and register the adapter in the app. The field reader and the menu watches are untouched; board mode is a new watch at the head of OnFrame that owns its frames while active.
+
+### App registration
+
+- Sources/OpenGameAccess/AdapterCommand.swift gains a "dissidia012" case in supported(adapterID:): [.whereAmI, .menuState] — exactly what the adapter's Command handler answers (the board branch answers both with the arrival line). Without this case the app returned an empty command list and hid the reader (the khbbs/mku lesson).
+
+### What the board mode announces (announcement group "board", Normal priority; High when answering a query)
+
+- Activation gate, fail-closed three ways: ctrl state (controller+0x68, same chain as the field) == 20 AND the board manager's current-record pointer (0x095D123C) equals the record address implied by the grid byte (0x08B82A24: pointer == 0x08B82A30 + 8*grid) AND the grid is one of the 14 known discs. The pointer/grid agreement is what keeps the entry transition (pointer still 0, grid byte at its init value) and any mid-hop disagreement silent instead of wrong; an unknown board (a later gateway) stays silent rather than wearing this gateway's names.
+- Disc change — and board entry, which lands on B: the arrival line, current disc plus all four directions with what each linked disc holds, from a static session-9 table (grid, letter, board X/Z from the disc objects; neighbours are the coordinate-adjacent discs, which reproduces the verified link list exactly, including I1-J and E-J). E.g. "On C. Left: B, the entry disc. Right: chest on D. Up: nothing. Down: nothing." Standing on the manikin's disc adds "Enemy manikin here."
+- Engage prompt: announced on the CHANGE of the focus pointer (0x095CD410) to a prompt disc's record — never level-triggered, because at rest the pointer can lag one engagement behind (session 10 caveat). The text is the prompt's own, verbatim: "Treasure Chest — Contains helpful items. Engage / Cancel" (likewise "Kain — Assist Character. Engage / Cancel" and the Stigma). A consumed piece raises no prompt, so it can never be prompt-announced.
+- Scan Mode: while the cursor pointer (0x095CD41C) is not 0xFFFFFFFF, the disc under the cursor is announced as it moves, with the same name/description Scan Mode shows for prompt pieces ("Scan: D. Treasure Chest — Contains helpful items."); the manikin is named (the game shows no info box for it); an empty disc is just its letter ("Scan: C.").
+- Board exit (state 20 -> 21): "Level finished. Story Mode chapter select." when the Stigma prompt was the last prompt announced and she has not hopped since, otherwise "Exited the gateway. Story Mode chapter select." (Pause -> Exit Gateway lands in the same shell without finishing the level). The newly unlocked chapter's name ("Chapter 1 - A New Threat") is NOT in a known cell, so the landing is announced generically — no invented text. The exit line keys on the direct 20 -> 21 edge session 9 measured.
+- Where Am I / Menu State on the board answer with the arrival line at High priority.
+
+### What it deliberately does not announce, and why
+
+- KP, Gil, gateway name, leader Lv/HP at entry: session 10 found no cells for KP/Gil or board identity, so the entry line omits them rather than inventing values.
+- Hop/step sounds, the transition flash sound, menu cursor blips: the game already cues those with sound (the sound-first rule, session 9).
+- The board's Customization / Skill / Pause surfaces: not wired here — session 9 mapped their contents by screenshot only; no cursor cells were measured for them.
+- Piece consumption: presence is not in a known cell (session 10; the piece-actor area past 0x08B82C10 is the lead). Arrival and Scan lines use the static table, so a looted chest or a recruited Kain is still named there until a presence cell is found. Prompt announcements are unaffected (above).
+- Event-result banners (the obtained-item line, "Kain joined as assist") and the first-approach story scene: session 9 lists them as announceables, but no cell marks them; they are not detectable from the session-10 cells and are left for a future session rather than guessed at.
+
+### Build
+
+- scripts/dissidia012-adapter-test.sh (g++ -std=c++17 over the full adapter set + announce.cpp): builds clean — the only warnings are pre-existing ones in other adapters — and the synthetic-RAM suite passes 57/57, including 19 new board checks: entry-transition silence, entry on B, hop to C, board Where Am I, chest prompt open / no-repeat / re-open after cancel, Scan cursor lines (C, chest, manikin, off), standing on the manikin disc, the Stigma prompt, the level-finished exit with no repeat, and fail-closed silence for an unknown grid and for a grid/manager disagreement.
+- The changed TU also compiles clean under the device toolchain with build-core.sh's own flags (clang++ -target arm64-apple-ios17.0, iPhoneOS SDK, -stdlib=libc++, -Werror=infinite-recursion).
+- scripts/swift-check.sh PASSES: AdapterCommand.swift is really type-checked by swiftc on Linux, and the C ABI mirror (C++ Command enum vs the Swift copy) agrees case-for-case.
+- The full device archive (scripts/build-core.sh) is BLOCKED on this machine before compiling anything: "no Genesis Plus GX source at /home/devin/src/genesis-plus-gx" — that source tree is not checked out here. Pre-existing environment gap, unrelated to this change; the archive build needs it restored (bootstrap-deps) before it can run end to end.

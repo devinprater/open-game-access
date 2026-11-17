@@ -358,6 +358,13 @@ enum AdapterCommand: Int32, CaseIterable {
             // are not mapped.
             return [.whereAmI, .menuState, .guide, .dumpState]
 
+        case "dissidia012":
+            // Dissidia 012: title, setup and main menus speak automatically;
+            // Where Am I is the on-demand read -- field position on the world
+            // map, current disc and its neighbours on a gateway board.
+            // menuState is host-programmatic, as with the original Dissidia.
+            return [.whereAmI, .menuState]
+
         default:
             return []
         }

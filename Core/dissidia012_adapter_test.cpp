@@ -67,4 +67,37 @@ int main(){
   a->command(oga::Command::WhereAmI); CHECK(said.back()=="On the field. Position 58, 20.","field position spoken");
   k=said.size(); a->on_frame(); CHECK(said.size()==k,"field stays quiet on frame");
   ram[0x08b83714+0x6d0]=0; CHECK(!oga::dissidia012::FieldLiveForTest(),"player gone -> not live");
+  // Gateway board (ctrl state 20; cells per session 10). Controller chain as the field.
+  ram[0x089d83d8]=0x08b83714u; ram[0x08b83714+0x6d0]=0;   // no field player object on the board
+  ram[0x08b83714+0x68]=20;
+  ram[0x08b82a24]=21; ram[0x095d123c]=0;                  // entry transition: manager still null
+  ram[0x095cd410]=0xFFFFFFFFu; ram[0x095cd41c]=0xFFFFFFFFu;
+  k=said.size(); a->on_frame(); CHECK(said.size()==k,"board transition silent");
+  ram[0x095d123c]=0x08b82ad8u; ram[0x095cd410]=0x08b82ad8u;   // settled on B, focus at rest
+  a->on_frame(); CHECK(said.back()=="On B, the entry disc. Left: A, empty. Right: C, empty. Up: T1, empty. Down: nothing.","board entry B");
+  k=said.size(); a->on_frame(); CHECK(said.size()==k,"board steady silent");
+  ram[0x08b82a24]=22; ram[0x095d123c]=0x08b82ae0u; ram[0x095cd410]=0x08b82ae0u;
+  a->on_frame(); CHECK(said.back()=="On C. Left: B, the entry disc. Right: chest on D. Up: nothing. Down: nothing.","hop to C");
+  a->command(oga::Command::WhereAmI); CHECK(said.back()=="On C. Left: B, the entry disc. Right: chest on D. Up: nothing. Down: nothing.","board query");
+  ram[0x095cd410]=0x08b82ae8u;                            // chest prompt opens (target D)
+  a->on_frame(); CHECK(said.back()=="Treasure Chest — Contains helpful items. Engage / Cancel","chest prompt");
+  k=said.size(); a->on_frame(); CHECK(said.size()==k,"prompt no repeat");
+  ram[0x095cd410]=0x08b82ae0u; a->on_frame();             // cancel: focus back to her disc
+  ram[0x095cd410]=0x08b82ae8u; a->on_frame(); CHECK(said.back()=="Treasure Chest — Contains helpful items. Engage / Cancel","chest prompt again");
+  ram[0x095cd410]=0x08b82ae0u; a->on_frame();
+  ram[0x095cd41c]=0x08b82ae0u; a->on_frame(); CHECK(said.back()=="Scan: C.","scan on C");
+  ram[0x095cd41c]=0x08b82ae8u; a->on_frame(); CHECK(said.back()=="Scan: D. Treasure Chest — Contains helpful items.","scan chest");
+  ram[0x095cd41c]=0x08b82af0u; a->on_frame(); CHECK(said.back()=="Scan: E. Enemy manikin.","scan manikin");
+  ram[0x095cd41c]=0xFFFFFFFFu; k=said.size(); a->on_frame(); CHECK(said.size()==k,"scan off silent");
+  ram[0x08b82a24]=24; ram[0x095d123c]=0x08b82af0u; ram[0x095cd410]=0x08b82af0u;
+  a->on_frame(); CHECK(said.back()=="On E. Enemy manikin here. Left: chest on D. Right: F, empty. Up: nothing. Down: Kain on J.","on manikin disc");
+  ram[0x08b82a24]=26; ram[0x095d123c]=0x08b82b00u; ram[0x095cd410]=0x08b82b00u;
+  a->on_frame(); CHECK(said.back()=="On G. Left: F, empty. Right: Stigma of Chaos on H. Up: nothing. Down: nothing.","hop to G");
+  ram[0x095cd410]=0x08b82b08u; a->on_frame(); CHECK(said.back()=="Stigma of Chaos — Engaging this piece finishes the level. Engage / Cancel","stigma prompt");
+  ram[0x08b83714+0x68]=21; a->on_frame(); CHECK(said.back()=="Level finished. Story Mode chapter select.","stigma exit");
+  k=said.size(); a->on_frame(); CHECK(said.size()==k,"exit no repeat");
+  ram[0x08b83714+0x68]=20; ram[0x08b82a24]=30; ram[0x095d123c]=0x08b82a30u+8u*30u;  // unknown board
+  k=said.size(); a->on_frame(); CHECK(said.size()==k,"unknown grid silent");
+  ram[0x08b82a24]=22; ram[0x095d123c]=0x08b82ad8u;        // grid/manager disagreement
+  a->on_frame(); CHECK(said.size()==k,"disagreement silent");
   printf("dissidia012 adapter: %d passed, %d failed\n",n-fails,fails); return fails?1:0; }
