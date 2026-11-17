@@ -977,3 +977,43 @@ finds.
 SCRATCH: ~/d12s/orb3.py, orb4.py (wrong stick sign for that camera zone -- invalid), orb5.py, orb6.py,
 freecombo.py. Dumps: fd2_orb3.bin, fd2_orb4_pre/post.bin, fd2_orb5_pre/post.bin, fd2_orb6.bin,
 fd2_freecombo.bin.
+
+## Session 7 — the save-block route (2026-11-17)
+
+Plan: find the master event-flag block via the savedata buffer (Claude plan item 2), map the talk/orb bits in it, and set-test a gateway-flag candidate at the archway.
+
+### Savedata route — executed; the buffer is not a live field block
+
+- Stub found by ELF import parse: sceUtilitySavedataInitStart (NID 0x50C4CD57) stub at 0x089C5858; five EBOOT call sites (0x088AC100, 0x088AE4C4, 0x088AF1F0, 0x088AF964, 0x088B0214). An exec breakpoint on the stub fires 4x during boot: two EBOOT callers with param a0=0x08BAEF18, two menu-overlay callers with a0=0x096AE23C.
+- SceUtilitySavedataParam layout in this game is shifted +0x10 vs the pspsdk header: mode at +0x30 (8 for the EBOOT param, 0 for the menu param), gameName at +0x3C ("ULUS10566"), saveName at +0x4C ("GameData00"; the EBOOT param uses the "GameData*" list pattern), fileName at +0x64 ("DISSIDIA.BIN"), dataBuf/dataBufSize/dataSize at +0x74/+0x78/+0x7C = 257,224 bytes (the disk DISSIDIA.BIN is 257,240 = buffer + 16). Buffers: EBOOT param 0x08BAFC40, menu param 0x096AEF90; they differ in 21,926 bytes (extracted to ~/d12s/s7_savebuf.bin and s7_savebuf2.bin; boot RAM dump ~/d12s/s7_load.bin).
+- Chunk-matching the buffer's dense region against field RAM dumps matches only repeated record templates shared with live tables: **the game does not keep the save data as a contiguous live block in the field** — it parses it into structures at load. There is no live master block at a single address to set-test.
+
+### Talk flags — exhaustive negative: no master flag block for the talks exists in RAM
+
+- Re-ran the session-4 persistent-flip protocol over the session-4/5 dumps with numpy (per-talk flip sets saved to ~/d12s/s7_flips.json). Each talk leaves 13k–22k persistent single-bit flips (dialogue/text/graphics churn). **The only byte in the entire 32 MB flipped by all three talks, each with a different bit, is the known mirror 0x08BED9B2** (bit 3 = talk at (111.9,-1.62,21.0), bit 0 = long talk at (93.0,-2.54,-2.0), bit 6 = talk at (95.0,-0.14,31.0)). Restricting to cold neighbourhoods (0x08B80000–0x08C20000, 0x09760000–0x09780000) gives the same answer. The talks' one-time gating therefore does not live in a RAM flag block — it lives in the script entities' own state, which byte-diffing cannot see.
+- The orb likewise has no flag byte: its only trace is the orb object's absence from the actor table in the post-orb lineage.
+- NEW EVENT: a fourth one-time talk at (76.5, 0.0, 70.0) — Kain, standing 2 units south of gate 12's anchor — sets mirror bit 5 (0x04 → 0x24), completes in 3 advances, and fires in BOTH lineages regardless of the other talks or the orb. (In the prologue_end lineage the three member talks do NOT fire at their free-lineage spots.)
+
+### Gate system — corrected mechanics; gate 13 is inert by construction
+
+- Gate record layout corrected: gateMgr = *(ctrl+0x88) = 0x095D75C0 in every state; records at gateMgr+4+k*0x14 for gates 11–21, layout {ptrA, ptrB, handle, STATE, float timer}. ptrA → array at 0x095D20E0+(N−11)*0x14, ptrB → array at 0x095D2A28+(N−11)*0x14; read both as little-endian s16s. (Gate 13's state word is at 0x095D75F8; gate 12's at 0x095D75E4; gate 14's at 0x095D760C.)
+- The scan FUN_08B43A3C is a pure finder (this corrects session 3's reading): it returns the first record id whose tester passes, else −1, and has no state machine of its own. In a 600-frame window after a state load the handler fired only in the first ~120 frames — it is not called per frame.
+- The tester FUN_08B43ED4 has three position phases plus a state machine:
+  - Phase 1: if the B s16 at +0xE >= 0, an ellipsoid-containment test (FUN_08870C94) against that volume of the volume table (16 records x 0x60 at 0x095E66F8 in this state; named objects OBJ_jump_tag_*, OBJ_mes_gate_*, OBJ_cpu_*; dump ~/d12s/s7_ctx.bin). Only gates 18–21 qualify, via jump-tag volumes 0/3/1/2 centred at (−3.76, 0.00, 31.66), (306.07, 0.34, −15.04), (220.24, 0.34, 114.45), (330.67, 3.16, 130.43).
+  - Phase 2: if the A s16 at +4 >= 0, an anchor distance/angle test (radius constant 4.0 at 0x08B444EC) against the point vectors from FUN_08897DEC/FUN_08897E48(ctx, B s16 at +2). Only gate 12 qualifies; its anchor is (76.50, 0, 72.00).
+  - Phase 3: requires (A word at +8) & 4 AND the A s16 at +0x10 >= 0. Gates 11/12/14 have the bit but A+0x10 = −1 for every gate, so phase 3 never passes on this map.
+  - The state machine (record STATE 0–5) never returns "found" and never advances state 0: state 1 spawns the portal visual and zeroes the timer, state 2 is a 120-unit timer, state 3 binds the object, state 4 finalises, state 5 is terminal. Arming (0→1) is done by FUN_08B43AE8(mgr, idx), which finds the record whose B[0] == idx and sets its state to 1 — that is the story script's lever.
+- Gate 13's data: A s16 at +4 = −1 (no phase 2), B s16 at +0xE = −1 (no phase 1), A word at +8 = 1 (bit 2 clear, no phase 3). **Every tester phase fails by construction: the stone archway at (145.50, 0, 48.00) is a scenery node on the world point graph (its OBJ_cpu_CtoD marker volume is a 0.75-unit cube at the anchor), and no flag, state, or position can make it respond.** Sessions 3–6 were probing a trigger that does not exist.
+- The handler FUN_08913E10, decoded: if the scan returns an id, it fetches the record via FUN_08910644; if (A+8)&4 and A+0x10 >= 0 it sets ctrl state 6, else if A+4 >= 0 it calls FUN_08912674(actor, id) and sets ctrl state 5 (the conditions panel). Gate 12 is therefore the only handler-reachable gateway on this map; the jump-tag ids (18–21) are returned by the scan but ignored by the handler.
+- Gate 14 (anchor (113.43, 0.20, −22.21), on the spawn plateau) sits at state 5 in both lineages — its lifecycle already ran — but standing, walking, and Cross at its anchor in prologue_end changes nothing, consistent with it having no passable tester phase.
+
+### Live tests this session
+
+- Genuine open-loop walking (free.state, dump ~/d12s/s7_freewalk.bin): cannot steer — the stick is camera-relative with no compass. Walking off the plateau edge respawns the player at the field entry point (130.66, 0.98, −36.88); the fall/respawn triggered around (128, −27). The archway was never reached on foot, so the walk hypothesis is inconclusive, not falsified.
+- Gate 12's anchor: coarse grid (±6 at 2-unit steps), fine grid (±3 at 1-unit steps, 49 spots, after Kain's talk), facing taps, and walk-throughs — no FUN_08912674 hit, no panel, gate 12's state stayed 0. The phase-2 test needs more than standing in the disc (a facing/movement vector through the anchor segment, or the opaque virtual-call condition at 0x8B440B8). Kain's talk neither arms gate 12 nor opens the panel by itself.
+
+### Verdict
+
+- The master-block hypothesis is dead in both forms: the save buffer is not mirrored live in the field, and the talks demonstrably write no per-talk flag anywhere in RAM besides the mirror byte. Field-event progress lives in the script entities' state.
+- The archway question is settled a stronger way: gate 13 has no trigger to enable. The prologue's real gateway entry, when the story arms it, is gate 12 at (76.50, 0, 72.00) via the handler's state-5 branch — or a pure script transition at the Kain beat (the entity system behind FUN_089767FC), which the gate data cannot rule out.
+- Next untried routes: (1) the arm path — find who calls FUN_08B43AE8 / FUN_08B43704 from the field script system, and play the opening cutscene chain end-to-end in the harness with exec breakpoints only (memchecks forbidden) to capture a genuine post-Kain state and re-read the gate manager there; (2) the field script system itself — the Kain entity at (76.5, 70) is now a concrete anchor for the entity behind FUN_089767FC; (3) closed-loop walking (steer by camera yaw) to physically walk through gate 12's anchor segment and into the vol-0 jump tag at (−3.76, 0, 31.66) and watch the tester/handler fire.
