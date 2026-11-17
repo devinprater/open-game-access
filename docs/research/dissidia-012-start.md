@@ -1283,3 +1283,75 @@ Goal: clear session 11's only blocker — restore the missing Genesis Plus GX so
 - Merged the same day: main fast-forwarded bdf8b0b..52a8899 (the branch's 77 commits, sessions 1–12 of this document, the dissidia012 adapter, its tests, and the AdapterCommand registration). No merge commit, no conflicts, nothing else in the clone was touched.
 - Adapter tests re-run on main after the merge (scripts/dissidia012-adapter-test.sh): 57 passed, 0 failed — the only compiler warnings are the pre-existing ones in other adapters (dq9, alttp, mku, khbbs). Log: /home/devin/dissidia-test-s12.log on the Legion.
 - Pushed via the clone's git credentials: origin main verified at 52a889915020dbf2958f29e7aaa441e7e98ba399 by ls-remote. This addendum is the only commit after it.
+
+## Session 13 — Chapter 1: the first real gateway battle (2026-11-17)
+
+Goal: from session 9's exit, start Chapter 1, reach its first gateway board, trigger its first real battle, and map the launch and return; then take session 10's leftovers (KP, Gil, board identity) with the genuine pre/post-battle pairs a Chapter 1 battle finally provides. Work on branch dissidia-012-ch1 (cut from main bdc1164). Script consulted first (Squall_of_SeeD, faqs/62288, [6.1Ch]): Chapter 1 opens with the Cosmos CG and narration, then goes straight INSIDE the Crescent Lake Gateway — party banter, a Lightning manikin, a couple more manikins (chain tutorial), a chest guarded by a different-looking manikin, a Laguna talk, the Stigma; the world-map field segment and the Sage's Path Gateway (Kuja) come after. The play below matched that order beat for beat.
+
+### Route in — the chapter opens on the board, not the field
+
+- From s9_postscene.state (prologue board, on G): Right raises the Stigma prompt (focus = H's record), Cross engages, state 20 -> 21 after ~2,100 frames. Checkpoint ch1_postexit.state.
+- The post-gateway scene and the chapter select were crossed with blind Cross advances; one of them answered YES at session 9's "Play this story?" prompt (no clean chapter-select savestate exists — ch1_adv.state is the Cosmos quote card, "You must defeat the god of discord...", inside Chapter 1's opening).
+- The opening (CG + Sanctuary narration) runs long in the shell: ~25,000 frames of waits/advances before the board took input, and the hand-over is silent — the board renders with full HUD while the scene finishes. First proof of control was Start opening the Pause menu; d-pad movement worked from then on. Long-wait lesson restated: a rendered board is not yet a controllable board.
+- **ctrl state anomaly (adapter-relevant): this board plays at state68 = 21, not 20.** The prologue board (entered from the field) was 20; Chapter 1's board, entered from the chapter shell, keeps 21 through board play, prompts, battles, and menus. The board cells (grid byte, manager pointer, focus, scan cursor) are all live at the session-10 addresses regardless. The shipped board reader gates on state 20 and so stays silent here — its fail-closed design doing its job; a chapter-board signature (state 21 + grid/manager agreement) is the follow-up if chapter boards should be read.
+
+### The Crescent Lake Gateway board — 19 discs
+
+Same addresses as the prologue board (record array 0x08B82A30, objects 0x095CD570 + 0x40*grid, manager 0x095D1230). Lightning enters on grid 20 (-18,-4). Discs (grid: X,Z): 2:(-10,-12), 12:(-10,-8), 16:(6,-8), 20:(-18,-4), 22:(-10,-4), 23:(-6,-4), 25:(2,-4), 26:(6,-4), 30:(-18,0), 31:(-14,0), 32:(-10,0), 33:(-6,0), 34:(-2,0), 35:(2,0), 36:(6,0), 42:(-10,4), 45:(2,4), 52:(-10,8), 55:(2,8). Links are the coordinate-adjacent pairs (the session-11 rule reproduces them exactly): a west column 20-30, the Z=0 row 30-31-32-33-34-35-36, north spurs 32-22-12-2 and 26-16, south spurs 32-42-52 and 35-45-55, and 22-23-33 / 25-35 / 26-36 closing the middle. Movement verified live (20->30->31->32 and back; 32->42 and back).
+
+Pieces (Scan Mode info boxes, cursor cell 0x095CD41C tracking exactly as on the prologue board):
+- **22: Capricious Reaper, Lv 2** (battle piece; BATTLE STAGE: Old Chaos Shrine) — the red-glowing piece.
+- **31: Fleeting Flash, Lv 2** and **33: Fleeting Flash, Lv 2** (Lightning manikins; same stage).
+- **36: Laguna, Assist Character** (prompt piece, not engaged this session).
+- **52: Delusory Dragoon, Lv 6** (BATTLE STAGE: Order's Sanctuary) — the chest's guard; it appears on 52 during the chest scene (below). The chest shares its disc; no separate chest info shows while the guard stands.
+- **55: Stigma of Chaos** ("Engaging this piece finishes the level.").
+- 42 is an empty disc that is a scene trigger: stepping onto it (adjacent to the chest disc) fires the scripted chest scene (Vaan: "Is that...a treasure!? Come on, Light. Let's take it!" — the FAQ's beat verbatim), at the end of which the Dragoon stands on 52. Cross on 42 does nothing; the chest itself was not opened this session.
+- Empty: 2, 12, 16, 20, 23, 25, 26, 30, 34, 35, 45 (no info box).
+
+### The battle launch — prompt, tip card, VS card, arena
+
+- Pressing toward a battle piece from an adjacent disc raises its Engage prompt (focus pointer = the piece's record; Lightning stays on her own disc). The prompt shows the piece's name, Lv, and BATTLE STAGE, and the board's top-left shows the KP chance for the battle ("KP: Win battle" for all three pieces tried) — the chance is readable BEFORE engaging.
+- Cross (Engage): white flash, then a **tip card** ("Get close to opponents with Free Air Dash! Press R + Triangle..." — Cross = Next), then a **VS card** ("Lv 1 Lightning VS ? Lv 2 — STAGE Old Chaos Shrine — JUDGMENT (blank)" — Cross = Next). The enemy's NAME is hidden on the VS card ("?"); only its Lv and the stage are shown. The name is known from the board prompt/scan, and is revealed in the battle itself.
+- state68 stayed 21 through prompt, cards, battle, results, and return — no ctrl-state edge marks the launch in this lineage. The reliable launch markers are the focus pointer leaving the board structs and the board heap being freed/rebuilt (the tutorial-boot HUD addresses at 0x0969D688+ are heap and were garbage in this boot — battle HP/BRV cells are still unbanked, same status as the doc's early "Battle HUD pairing" note).
+- In-battle HUD (screenshot, Reaper fight): Lightning BRV 86 / HP ~0 at the killing blow; the Reaper BRV 92 / HP 399 (a Lv 2 manikin's HP pool).
+
+### Battle 1 — Fleeting Flash (31), engaged from 30: WIN
+
+- Fought with the session-8 dumb block (Square, Square, Cross, Triangle on rotation). Won in ~23 rounds of the block. (The block's later presses, after the return, wandered into Customization via the board's Triangle — a mashing artifact, backed out with Circle; the return itself is clean.)
+- Return: Lightning back on disc 30 (the disc she engaged from — she never occupied 31), the defeated piece gone (31 is an ordinary hop-through disc afterwards, verified by stepping onto it).
+- Deltas: HP 1000 -> 441, Gil 50 -> 64 (+14), KP gauge 0 -> 1 (the "Win battle" chance met: 1 chance x 1 enemy). No chain offered from 31 (the other Flash on 33 is two discs away).
+
+### Battle 2 — Fleeting Flash (33), engaged from 32: WIN, and the chain
+
+- Won in ~20 rounds of the same block. HP 441 -> 48, Gil 64 -> 78 (+14 again).
+- **The win's KP was HELD, not paid**: the gauge stayed 1 while a chain was on offer. Sequence on return: the chain tutorial message ("Entering a battle with multiple enemies near you creates a chain leading to more battles.") — then the chained enemy presents itself: the Reaper's Engage prompt auto-opened (focus = 22's record) without any movement input.
+- Cancelling: Circle at the chain prompt opens "**Cancel chain? YES / NO**" with the cursor on **NO** (the safe default — a Cross mash would have fought at 48 HP). Left + Cross (YES) closed the chain and **the held KP paid out: gauge 1 -> 2**. Model: a win's KP is held while a chain offer is open and banks when the chain closes (cancel or completion); the manual's (Chances Met) x (Enemies Defeated) is the chain-total formula, applied at close.
+
+### The loss — Capricious Reaper (22), engaged from 32 at HP 48, idled: DEFEAT
+
+- The Reaper killed her quickly (within ~2,600 idle frames). Landing: a defeat menu over her fallen figure — **Retry / Flee** (cursor starts on Retry).
+  - Retry footer: "Start over from status at beginning of battle. Resets Summonstone status and EXP."
+  - Flee footer: "Quit battle and return to gateway. Start over from status at beginning of battle except KO."
+- Flee chosen: back on the board on disc 32 (the engagement disc), **HP restored to 48** (her HP at engagement — the KO is undone, damage from before the battle is kept), KP gauge still 2, Gil still 78, the Reaper still on 22. A loss in an unchained battle costs nothing banked; Retry (restart the battle at its opening state) was identified but not exercised.
+
+### Session 10's leftovers — KP and Gil FOUND; board identity excluded
+
+- **Gil: FOUND.** The battle-1 diff (pre pair on 30 vs post pair on 30) left exactly three u32 cells at 50 -> 64 in the whole image; all three tracked the second win in lockstep (64 -> 78, read live): **0x08BBFA00** and **0x08BBFA28** (0x28 apart, same record family in the static region — the adapter's cells) and a heap copy at 0x09E50D80.
+- **KP (the gateway gauge): FOUND.** The four-state signature — pre-battle-1 = 0, post-battle-1 = 1, post-battle-2 = 1 (held), post-chain-cancel = 2 — leaves exactly three cells in the image: **0x0972B8B8, 0x0972B94C, 0x09AE3D64**, verified live at 2 after the cancel. Caveats: all three are heap addresses in this lineage (a static holder chain is still owed before the adapter can read KP on a fresh boot), and the two 0x0972Bxxx cells sit in a structure battles reuse (garbage mid-battle; they read correctly on the board). The earlier 0->1-only candidate set (0x08B82278 etc.) is a different counter that stayed 1 through the second win and the cancel — not the gauge. The bottom-right KP readout (banked KP, still 0) is a different value from the gauge and was not hunted; it only moves when a gateway is finished.
+- **Board identity: NOT a cell in the board structures.** All three session-10 constant leads are identical on the second board (header 0x08B82A1C = 1, 0x08B82A28 = 31, manager +0x00 = 596), and the table header (0x08B82A00-0x08B82A30) has ZERO stable diffs between the two boards. Cross-board diffs in the manager/structs pages are the disc sets and per-board content (asset/sound tables), not an ID word. Boards are told apart by their disc-table fingerprint (the exists pattern + disc coordinates), which the adapter's per-board tables already amount to.
+- Board HP: the 1000 -> 441 transition matched NO stable u32/u16 cell across the pairs — the board's HP readout is presumably recomputed from the character record at draw time. Not found; the Gil record's neighbourhood (0x08BBFA28's record also moved a word 0 -> 10 across battle 1 — an EXP-total candidate, single observation) is the lead.
+
+### Adapter announceables (design notes; battle reading itself is a later session)
+
+- **At the prompt** (the adapter's richest moment): enemy name + Lv + battle stage + the KP chance line, verbatim ("Fleeting Flash, Lv 2. Battle stage: Old Chaos Shrine. KP chance: Win battle. Engage / Cancel"). All silent text in-game.
+- **At launch**: two Cross-gated cards — announce "tip card" then the VS card as "Unknown opponent, Lv 2. Stage: Old Chaos Shrine" (the name is genuinely hidden until the battle; do not invent it — the prompt already named it).
+- **At return from a win**: the deltas (KP gauge, Gil, HP) — the results are otherwise sound-cued. When a chain offers, announce the chained enemy's name/Lv and that the KP is held until the chain closes; at the Cancel-chain dialog, announce that NO is the default.
+- **At a loss**: the Retry/Flee menu with both footers verbatim, and on Flee the landing (disc, restored HP).
+- **Not to speak**: the hop sounds, the white-flash transition sound, battle-internal cues (the sound-first rule).
+
+### Verdict
+
+- Chapter 1's first gateway (Crescent Lake) is reached and its board mapped to the first enemy and beyond: 19 discs, five pieces identified, the Stigma located. The battle launch (prompt -> tip card -> VS card -> arena) and both returns are mapped: a win (piece consumed, deltas paid, possible chain offer with held KP) and a loss (Retry/Flee; Flee restores the engagement state except the KO).
+- Session 10's leftovers: Gil and the KP gauge are found (cells above); board identity is excluded from the board structures (use the disc-table fingerprint); board HP remains unfound with the Gil-record neighbourhood as its lead.
+- Left in Chapter 1 (next session): the Delusory Dragoon (Lv 6) and its chest on 52, the Laguna assist on 36, the Stigma exit at 55, then the field segment and the Sage's Path Gateway with the Kuja battle (per the FAQ).
+- States (all ~/d12s): ch1_postexit, ch1_adv, ch1_board_start, ch1_ctrl, ch1_scan, ch1_pre2 (prompt on 33), ch1_postbattle, ch1_postbattle2b, ch1_chaincancelled, ch1_chestscene, ch1_prereaper, ch1_lossbattle, ch1_loss (Retry/Flee menu), ch1_fled. Dump pairs: s13_prebattle_a/b, s13_postbattle_a/b, s13_post2c_a/b, s13_cc_a/b, plus s13_board_a/b and the prologue pair s13_pre_a/b used for the identity diff.
