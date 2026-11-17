@@ -1355,3 +1355,203 @@ Pieces (Scan Mode info boxes, cursor cell 0x095CD41C tracking exactly as on the 
 - Session 10's leftovers: Gil and the KP gauge are found (cells above); board identity is excluded from the board structures (use the disc-table fingerprint); board HP remains unfound with the Gil-record neighbourhood as its lead.
 - Left in Chapter 1 (next session): the Delusory Dragoon (Lv 6) and its chest on 52, the Laguna assist on 36, the Stigma exit at 55, then the field segment and the Sage's Path Gateway with the Kuja battle (per the FAQ).
 - States (all ~/d12s): ch1_postexit, ch1_adv, ch1_board_start, ch1_ctrl, ch1_scan, ch1_pre2 (prompt on 33), ch1_postbattle, ch1_postbattle2b, ch1_chaincancelled, ch1_chestscene, ch1_prereaper, ch1_lossbattle, ch1_loss (Retry/Flee menu), ch1_fled. Dump pairs: s13_prebattle_a/b, s13_postbattle_a/b, s13_post2c_a/b, s13_cc_a/b, plus s13_board_a/b and the prologue pair s13_pre_a/b used for the identity diff.
+
+## Session 14 — state-21 boards and KP/Gil in the reader; Crescent Lake finished (2026-11-17)
+
+### Part A — the KP holder chain is found (offline sweep + live proof)
+
+Session 13 left the KP gateway gauge at three heap cells (0x0972B8B8, 0x0972B94C,
+0x09AE3D64) with no static route to them. A sweep over all 124 RAM dumps in ~/d12s
+settles it:
+
+  KP CHAIN: base = u32 at 0x089D65A8 (a slot in the game's static pointer table);
+  the gauge is the u32 at base + 0x260. In every dump the slot holds 0x09AE3B04,
+  and base+0x260 IS session 13's third cell (0x09AE3D64). The twin slot 0x089D85BC
+  holds the same base in every dump. (The struct at base+0x228 is a sub-struct
+  whose +0x38 lands on the same cell — that is why session 13's chain candidates
+  kept pointing near it.)
+  Verified against the gauge signature everywhere: prologue boards 0; Chapter 1
+  pre-battle 0, post-battle-1 1, post-battle-2 held 1, post-chain-cancel 2,
+  post-Flee 2; the independent 100%-clear lineage dumps also resolve (read 0).
+  Battle dumps read sanely too (0/1/2 as appropriate). Gil's pair 0x08BBFA00 /
+  0x08BBFA28 agree in every board-live dump.
+  REJECTED: *(0x08B41CC0)+0x38 (the slot holds garbage 0x90840005 in the 100%
+  lineage — a one-lineage coincidence); *(0x08B8C2EC) -> 0x0972B89C (those slots
+  hold float data in most dumps — transient).
+  KNOWN GARBAGE CASE: the s10_boardstate dumps (a mid-rebuild snapshot) read
+  KP 0xFFFFFF9E through the chain and disagreeing Gil cells, so the reader
+  sanity-gates both: KP value <= 9999 with the twin slot agreeing (or zero),
+  Gil only when both cells agree. Insane readings never move a baseline.
+  LIVE (fresh drv, fp-save-s8): ch1_fled.state -> state 21, grid 32, manager
+  agrees, 19 discs, Gil 78/78, KP via chain = 2. ch1_postexit.state (chapter
+  shell) -> state 21 but manager 0xFFFFFFFF: the gates fail, reader silent.
+
+### Part A — reader changes (Core/dissidia012_adapter.cpp, this branch)
+
+- BOARD IDENTIFICATION BY FINGERPRINT (session 13's prescription): the set of
+  existing disc records (u32 at 0x08B82A30 + 8*grid == 1) must equal a known
+  board's disc set exactly, and the entry and Stigma discs' live object
+  coordinates (objects at 0x095CD570 + 0x40*grid, X float +0x00, Z +0x08) must
+  match the table — a same-shaped later board with different geometry cannot
+  inherit piece names. Known boards: the prologue's Gateway to Departure (14
+  discs, state 20) and Chapter 1's Crescent Lake Gateway (19 discs, state 21;
+  table below). The current grid must also be one of the board's discs.
+- UNKNOWN BOARDS GO GENERIC, never prologue-flavoured: arrival/scan lines name
+  discs by grid id ("On disc 40. ... Right: disc 41, empty.") with neighbours
+  computed from the live disc objects' coordinates; piece names and prompts are
+  not spoken (piece presence is not in a cell, so a name would be invented).
+- ACTIVATION is state 20 OR 21 with the same agreement gates as before
+  (manager pointer == record implied by the grid byte). The chapter-select
+  shell (state 21, manager 0xFFFFFFFF, stale grid byte) stays silent — proven
+  below. Battles inside a state-21 board break the cells while the state holds
+  at 21: the reader stays silent and KEEPS its baselines, so the battle's
+  KP/Gil deltas announce when board play resumes.
+- EXITS: a board that went live at 20 still exits on the 20 -> 21 edge with the
+  shipped lines ("Level finished. Story Mode chapter select." / "Exited the
+  gateway. Story Mode chapter select."). A board live at 21 exits when the
+  state leaves 20/21 (measured landing sequence 21 -> 0 -> 3): "Level
+  finished." if the Stigma prompt was last, else "Exited the gateway." —
+  the landing (the chapter's field segment) is not named, as its name is not
+  in a cell. Pause -> Exit Gateway from a state-21 board keeps state 21 in the
+  shell and is NOT detected; it stays silent (documented limitation).
+- KP/GIL ANNOUNCEMENTS: change-triggered only, Normal priority, group "board":
+  "KP: <n>." / "Gil: <n>." Baselines are taken silently when a board is
+  identified. Neither value has a game sound cue, so speaking changes follows
+  the sound-first rule; nothing is spoken per-frame or on entry.
+- Crescent Lake table (grid: coords, piece): 2:(-10,-12) -; 12:(-10,-8) -;
+  16:(6,-8) -; 20:(-18,-4) ENTRY; 22:(-10,-4) Capricious Reaper Lv 2 (Old Chaos
+  Shrine); 23:(-6,-4) -; 25:(2,-4) -; 26:(6,-4) -; 30:(-18,0) -; 31:(-14,0)
+  Fleeting Flash Lv 2 (Old Chaos Shrine); 32:(-10,0) -; 33:(-6,0) Fleeting
+  Flash Lv 2; 34:(-2,0) -; 35:(2,0) -; 36:(6,0) Laguna (Assist Character);
+  42:(-10,4) - (the chest-scene trigger disc); 45:(2,4) -; 52:(-10,8) Delusory
+  Dragoon Lv 6 (Order's Sanctuary — the piece appears only after the scene on
+  42; the table names it because it is the piece the prompt raises there);
+  55:(2,8) Stigma of Chaos. Battle prompts add the board's own KP-chance line
+  ("KP chance: Win battle", shown at the prompt's top-left); scan lines carry
+  name/Lv/stage only, as Scan Mode shows.
+
+### Part A — tests and live proof
+
+- scripts/dissidia012-adapter-test.sh: 82 passed, 0 failed (the 57 shipped
+  checks all green + 25 new: KP/Gil changes and their garbage/mismatch
+  silences, the state-21 Crescent Lake board end to end — entry, neighbours,
+  Flash prompt, battle break with deltas on return, Laguna scan, Stigma exit
+  to "Level finished." — and a generic unknown board). Two test-model
+  corrections, both toward the measurements: the board section now sets the
+  prologue disc-exists fingerprint the identifier requires, and the shell
+  frame after the prologue exit now carries the shell's measured manager
+  value 0xFFFFFFFF instead of leaving the board's cells agreeing.
+- The changed TU compiles clean under the device toolchain with build-core.sh's
+  own flags (clang++ -target arm64-apple-ios17.0, iPhoneOS SDK, -stdlib=libc++,
+  -Werror=infinite-recursion). The full build-core was not run (not needed on
+  this branch yet).
+- LIVE PROOF over real RAM dumps (harness ~/d12s/oga-dissidia012-proof, source
+  ~/d12s/dissidia012_live_proof_main.cpp; dumps fed in sequence, 3 frames each):
+  s13_ctrl_a.bin (Crescent Lake entry, genuine lineage) -> "On disc 20, the
+  entry disc. Left: nothing. Right: nothing. Up: nothing. Down: disc 30,
+  empty." s13_cc_a.bin (post-chain, disc 32) -> the disc-32 arrival line, the
+  Capricious Reaper prompt (its chain-offer prompt was up in that dump), then
+  "KP: 2." and "Gil: 78." — the exact session-13 deltas, spoken on change.
+  s14_shell.bin (chapter-select shell: state 21, manager 0xFFFFFFFF, grid byte
+  stale at 26) -> 0 lines. genuine_board3.bin (prologue board, state 20) ->
+  "On A. Left: nothing. Right: B, the entry disc. Up: nothing. Down:
+  nothing."; feeding the Chapter 1 dump after it closes the state-20 visit
+  with "Exited the gateway. Story Mode chapter select." and then announces
+  the Crescent Lake entry — the cross-board sequence behaves as designed.
+
+### Part B — Crescent Lake finished (genuine lineage, from ch1_fled.state)
+
+Prep, measured on the Customization screens: the Moogle Shop is CLOSED in this
+gateway ("The shop is not open yet."), so no healing exists here. Header: EXP
+TOTAL 3789 / NEXT 1211, HP 48/1000, CP 225/330, BRV 95, ATK 10, DEF 12, LUK 10,
+LUCKY! 5%, BATTLES 10. The prologue chest's Broadsword was equipped via
+Equipment -> Optimize (ATK 10 -> 14, preview and result screenshot-verified).
+The Assist was ALREADY Laguna Loire before any board engage (BRV: Machine Gun,
+Shotgun; HP: Satellite Laser, Ragnarok Blade) — the game set him at the
+chapter's start.
+
+(a) THE CHEST AND ITS GUARD — fought three times, chest not opened. Stepping
+on 42 fires the scripted chest scene; the Delusory Dragoon then stands on 52.
+Its prompt (focus = 52's record): "Delusory Dragoon, Lv 6 — BATTLE STAGE:
+Order's Sanctuary — Engage / Cancel", KP chance "Win battle". The launch has
+THREE Cross-gated cards on this board: tip card, VS card, and an Opponent Info
+card (new this session): HP 641, CP 336, BRV 158 (124+34), ATK 16, DEF 10
+(17-7), LUK 13; equipment Cracked Shield / Charred Helm / Rusted Armor (Shield
+DEF-8, Equip Level 1); "Bravery Bonus: Lv +5". At 48 HP with the session-8
+dumb block rotation she was KO'd in ~8 rounds; a mashed Cross on the defeat
+menu fired RETRY (the cursor starts on Retry). RETRY RESET, VERIFIED at the
+next attempt's arena start: her HP back to 48 (the engagement value), BRV back
+to base (hers 95, the Dragoon's 158), the Dragoon's HP full at 641. The Retry
+footer reads verbatim: "Start over from status at beginning of battle. Resets
+Summonstone status and EXP." Attempt 2 (block alternating in Circle for HP
+attacks): KO in ~9 rounds. Attempt 3 (a Cross-free rotation so the menu could
+not be mash-confirmed): KO within 2 rounds. Then a deliberate Flee (Down, Cross;
+footer verbatim: "Quit battle and return to gateway. Start over from status at
+beginning of battle except KO.") -> back on disc 42, HP 48, KP gauge 2, Gil 78,
+the Dragoon still on 52. Verdict: at 48 HP, with no healing in this gateway,
+the Lv 6 guard (641 HP; a single HP attack deals far more than 48) is not
+beatable by blind block play, and the chest's contents were not recorded from
+play. GUIDE DATA (not play): link3895's FAQ/Walkthrough (GameFAQs archive)
+labels the board's chest "C- Buckler" — the chest holds a Buckler; the same
+guide confirms the Dragoon appears only after stepping on the square above it
+(disc 42), matching session 13.
+
+(b) LAGUNA (36) — engaged; there is no recruitment event to record. The prompt
+(from 35; focus = 36's record): "Laguna — Assist Character — Engage / Cancel".
+Engaging plays a two-line banter scene — Laguna: "It's not that I have a bad
+sense of direction. I'm just interested in all directions." / Lightning:
+"Taking an interest is fine, but how do you explain getting lost after looking
+around?" — and the piece is NOT consumed: he still stands on 36 and the prompt
+reopens on re-approach. He was already the set assist before the engage (see
+Prep), so the recruitment belongs to the chapter's story setup, not the board.
+
+(c) STIGMA EXIT (55) — done. Prompt from 45 (focus = 55's record) -> Engage ->
+measured transition: state 21 with the manager still on 45's record for ~300
+frames, then state 0 with the manager at 0xFFFFFFFF (board unloaded), then
+state 3 (field dialogue) with the player object live at (314.20, 0.19, 269.40)
+— Chapter 1's field segment, in its opening dialogue. This sequence is what
+the reader's state-21 exit rule keys on.
+
+(d) THE FIELD SEGMENT — entered and surveyed; the Sage's Path Gateway was NOT
+entered. The opening dialogue took 5 Cross advances to reach state 2; the
+scene's tail auto-walked her to (323.54, -2.15, 280.03). Saved as
+ch1_s14_field_start.state. OBSERVED: the field HUD shows HP restored to 1000
+and KP 2 — leaving the gateway restored her HP and banked the gauge (a Dragoon
+rematch at full HP would mean re-entering the finished gateway; not attempted —
+the level was already finished and banked). The Map screen is ctrl state 14
+(new value for the notes). This map's gate table (gateMgr 0x095D7110): gate 13
+is STATE 5 with timer 122 — the Crescent Lake gate just exited, spent, the same
+pattern as the prologue's gate 14; five gates carry interaction points
+(B-word high half): 11 -> 7, 12 -> 13, 15 -> 4, 16 -> 5, 19 -> 10. Those point
+indices do NOT resolve through the pint list (no records carry those ids on
+this map; list 0 at 0x095D2F40 holds 196 records, the drawn ones are scenery —
+the two stacked kind-5 clusters at (320,158) and (236,184) are mountain and
+grassland dressing, screenshot-checked). The point accessor is decoded from
+the binary: FUN_08897DEC(worldObj, i) returns the float at
+*(worldObj+0x6C) + i*0x3C + 0x24 (X), FUN_08897E48 the one at +0x30 (Z), with
+the count at *(*(worldObj+0x58)); worldObj = *(FUN_088992B0() + 0x210). But
+the chain did not resolve live: the manager slot behind FUN_088992B0
+(0x09AEF8D4) holds 1 in the field state, not a pointer — the function is a
+lazy-init with one more hop than the decode followed. A teleport survey of the
+ten most plausible drawn-record sites, four facing taps + Cross at each,
+produced no gate reaction (state stayed 2 throughout). NEXT ROUTE for the
+Sage's Path entry: resolve FUN_088992B0's return properly (or breakpoint the
+scan's point fetch live) and read points 4/5/7/10/13 directly, then repeat the
+session-8 threshold pose at the Sage's Path point. Pre-gateway and on-board
+states for Sage's Path are therefore NOT saved this session; the field-start
+state is.
+
+States saved this session (~/d12s): ch1_s14_shop.state, ch1_s14_equip.state,
+ch1_s14_opt.state, ch1_s14_equipdone.state, ch1_s14_assist.state,
+ch1_s14_on42.state, ch1_s14_predragoon.state, ch1_s14_battle.state (at the VS
+card), ch1_s14_fight.state, ch1_s14_fight2.state, ch1_s14_arena2.state (the
+Retry-reset proof), ch1_s14_a2.state, ch1_s14_a3.state, ch1_s14_fled2.state
+(post-Flee on 42), ch1_s14_prelaguna.state, ch1_s14_laguna.state,
+ch1_s14_laguna2.state, ch1_s14_prestigma.state, ch1_s14_exit_land.state (field,
+in the opening dialogue), ch1_s14_field_start.state (field control). RAM dump
+s14_field.bin (field state) and s14_shell.bin (chapter shell) alongside.
+
+Carried forward: piece-presence cells are still unknown (consumed pieces are
+still named in arrival/scan lines on known boards); board HP is still not in a
+cell (the field/board HUD HP was read from screenshots only); the Sage's Path
+board is unmapped pending the point-table resolution above.
