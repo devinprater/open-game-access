@@ -1975,3 +1975,14 @@ equipped — the session's Kuja doorstep). No post-Kuja or post-exit
 states exist (no win). RAM dumps: s17_drg_b0..b5, s17_val_*,
 s17_kuj_e1_* (first worker); s17r_e2/e3/e4 start+end dumps, prompts,
 HUD and defeat screenshots (this session).
+
+### Session 17 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test gates
+  applied): the Session 17 section was committed on dissidia-012-kuja
+  (efcb457) and merged here. Merge gates (session 12's): working tree
+  clean; local main == origin/main (f01b93f); merge-base == f01b93f
+  (main a strict ancestor, branch 1 ahead / 0 behind). Pure
+  fast-forward f01b93f..efcb457, pushed via the clone's git
+  credentials, git ls-remote verified in-session: origin/main =
+  efcb457. This addendum commit follows on main.
