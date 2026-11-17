@@ -898,3 +898,43 @@ SCRATCH: ~/d12s/flagdiff.py (v1, height bug), flagdiff2.py (member 1, works), fl
 diff.py/diff2.py (raw + single-bit), diff3.py (two-talk intersection), diff4.py (sparse single-bit --
 the one that found the byte), verify.py (0xFF archway probe). Dumps: fd_*.bin (member 1), fd3_*.bin
 (member 3).
+
+
+## Sarah's session 5 (2026-11-16 late): the flag byte is a mirror, not the gate; third member found; all-talks combo still no gateway
+
+Devin's word: continue. Four experiments, all from prologue_end.state under CLASSIC.
+
+1. BLOCK TEST -- the session-4 byte is NOT the one-time gate. Fresh load, byte 0x08BED9B2 forced to 0x0C
+   (bit 3 pre-set): the (111.9,21) talk STILL fired. Fresh load, byte forced to 0x05 (bit 0 pre-set):
+   the (93,-2) talk STILL fired. But the talks ARE one-time: refire test -- complete the (111.9,21) talk
+   naturally (byte goes to 0x0C), try again: no fire; the (93,-2) control talk fires fine. Conclusion:
+   0x08BED9B2 is a downstream record the game writes when a talk completes (a mirror/cache), while the
+   gate that blocks refiring lives in a master flag block elsewhere. Pre-setting the mirror fools
+   nothing. The master block is now the target (Claude plan item 2, the save block, is the principled
+   route: the mirror proves a master exists).
+2. THIRD MEMBER FOUND at (95.0, -0.14, 31.0) -- an entity-heap position cluster (x8 copies), NOT at
+   Hermes's documented (92.8, 47.0), where no entity stands in this state. Its talk is short (5-6 Cross
+   advances) and sets BIT 6 of the same mirror byte. Byte map now: bit 0 = talk (93,-2), bit 3 = talk
+   (111.9,21), bit 6 = talk (95,31), bit 2 pre-set at field start. Talks script-reposition the player
+   afterwards; the (95,31) talk leaves Lightning standing at (98.37, 0.06, 44.49), right beside the
+   object below.
+3. THE (93,-2) TALK IS VERY LONG. It does not end within 150 Cross advances (session 4), nor within
+   1800 idle frames + 80 advances; in the combo run it finally ended during a later advance loop
+   (~85+ total advances). Budget 300 advances to complete it in-protocol. Likely the long tutorial talk.
+4. COMBINATION RUN: all three talks in one session (mirror byte 0x04 -> 0x44 -> 0x4C -> 0x4D), then the
+   archway probe (teleport steps (140,47)->(152,49) + walk-in): gate 13 state stays 0, gate id stays -1,
+   no entry. ALL TALKS TOGETHER DO NOT OPEN THE GATEWAY.
+5. OBJECT AT (98.0, 0.03, 46.0) (entity-heap cluster x6): Cross approached from the west gives state 16
+   for ~180 frames, self-resolving, no flag changes (a popup/examine). Standing exactly on it: nothing.
+   Circle pressed while standing on it: nothing. The (95,31) talk deliberately leaves the player beside
+   it, so it is meant to be used after that talk -- probably the orb. Still owed: an in-range Circle/Cross
+   test from the post-talk position without teleporting (teleporting on top seems to push the player out
+   of interaction range over the following frames).
+NEXT, in order: (a) free.state combination -- that lineage is post-orb with mirror byte 0x04 (talks never
+done there); post-orb + all three talks + archway has NEVER been tested in one lineage. (b) In-range orb
+interaction after the (95,31) talk. (c) The master flag block via the save-block route (plan item 2).
+(d) Complete the (93,-2) talk in-protocol (300-advance budget) for a clean post-talk dump and diff.
+SCRATCH: ~/d12s/blocktest.py, refire.py, diff5.py (cluster analysis), diff6.py (per-slot/entity diffs --
+slot 1 has exactly ONE persistent changed byte per talk: +0x132), flagdiff_m2.py, probe16.py, m2b.py,
+combo.py, orb2.py. Dumps: fd2_idle0/idle1/talk1/idle2 (the (95,31) talk), fd2_ev0/ev1 (state-16 popup),
+fd2_combo.bin (all-talks end state, still in/after the long talk), fd2_orbclean.bin.
