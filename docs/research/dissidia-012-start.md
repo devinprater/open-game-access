@@ -6054,3 +6054,135 @@ s34_*.py in ~/d12s.
   exit unfought, farm Gateway to the Shrine
   loops to ~Lv 12 (guides' recommendation),
   then play the Shrine.
+
+### Southern Shrine — first visit (measured)
+
+- Census (24 discs; entry D6 = grid 53). Wiki
+  squares verified: A1 Counterfeit Wraith
+  (Strange) Lv 12 HP 1; B1 Carbuncle (AUTO)
+  summonstone; B2 Counterfeit Wraith (Hard)
+  Lv 12 HP 1,667; C2 Idle Sky Pirate (Hard)
+  Lv 12 HP 1,667; D4 Transient Gunner Lv 9
+  HP 1,485; E4 Idle Sky Pirate Lv 9 HP 1,485
+  (the boss trigger); E5 Transient Gunner
+  (Hard) Lv 12 HP 1,667; G4 Vaan assist piece;
+  H4 Cloud of Darkness Lv 12 HP 2,446.
+- Real movement links are again a subset of
+  the scan graph (51->31, 22->20, 20->22,
+  3->5, 42->44 are scan-only here). The
+  {A1, B1, A2} sub-cluster is reachable only
+  through B2's disc. Verified route in:
+  53-52-42-32-31-30-20-10, prompt right to 11.
+- Wraith (Hard): WIN in 68 rotations, zero
+  damage; Laguna Lv 11 -> 12 mid-fight.
+  Wraith (Strange): WIN in 1 rotation (the
+  liveness-checked finder picked the live
+  block at 0x096D01D8). Carbuncle scene
+  played ("My name is Carbuncle, a stone
+  harboring the rainbow light") — summonstone
+  granted in this visit's chain. Pirate
+  (Hard): WIN in 43 rotations, zero damage,
+  Lv 12 -> 13. Gunner Lv 9: WIN in 7
+  rotations, zero damage. Pirate Lv 9: WIN
+  in 24 rotations, zero damage, Lv 13 -> 14.
+  Stepping on E4 fired the boss scene (Vaan's
+  assist vanishes; the Cloud of Darkness
+  piece kindles at H4; the G4 assist piece
+  vanishes with him — disc 36 is empty).
+- Gunner (Hard): the visit's only real fight.
+  Drift 0 LOSS at 53 rotations (foe at 304),
+  drift +10 LOSS at 40 (foe at 166), drift
+  +5 WIN at 62 rotations — Laguna survived
+  at 286 HP (the foe sat at 1 HP from
+  rotation 51 while its bravery peaked at
+  1,204). Lv 14 -> 15 on the win.
+- Cloud of Darkness attempt at 286 HP: LOSS
+  in 6 rotations, foe untouched (her HP
+  attacks land immediately; ~285 damage per
+  hit). The board was exited via the Start
+  menu (which needs a clean, prompt-free
+  board state or the Start press is eaten).
+
+### Southern Shrine — second visit and the
+### end of Chapter 3 (measured)
+
+- Re-entered at Lv 15, full HP. The Gunner
+  (Hard) was SKIPPED this visit (it guards
+  nothing; E5's disc is only a doorstep to
+  E4, reachable from D4's side as well).
+- Wraith (Hard): WIN in 27 rotations, zero
+  damage, Lv 15 -> 16. Wraith (Strange): the
+  finder locked onto the frozen template
+  block again and the fight ran blind — WON
+  (Gil/gauge tallies prove it) but the HP-1
+  Wraith landed ~968 damage first (Laguna
+  2337 -> 1369). Lesson: for HP-1 foes, key
+  the candidate filter on her CURRENT HP —
+  the template carries a stale one (1324).
+  Carbuncle was not re-collected this visit
+  (its scene queues skill prompts that block
+  movement; see below).
+- Skill-prompt queue, final form of the
+  lesson: after battles AND scenes the game
+  queues one prompt per equipped skill, and
+  the queue can hold several at once. They
+  block ALL board input and do not always
+  render in a given screenshot. Working
+  protocol: THREE Circle presses (150 frames
+  apart) after every fight or scene before
+  navigating; verify with the first hop.
+- Pirate (Hard): WIN in 67 rotations, zero
+  damage (it regenerates ~23 HP/rotation
+  while out of reach — a mid-fight standoff
+  — then connects normally). Gunner Lv 9:
+  WIN in 7, zero damage, level tick.
+  Pirate Lv 9: WIN in 21, zero damage,
+  level tick. E4 trigger scene played again.
+- CLOUD OF DARKNESS: WIN in 25 rotations,
+  drift 0. She hit hard early (Laguna 1510
+  -> 279 by rotation 16) but his offense
+  outpaced her: 2446 -> 1881 -> 1738 ->
+  1153 -> 978 -> 1 (rotation 24) -> 0.
+  Laguna standing at 279 HP, +61 level tick
+  on the kill (340 HP in the final read).
+- The defeat scene plays out in ctrl state
+  20 on the board (CoD's valediction on
+  manikins and the balance; Laguna's
+  ripostes), then the gauge pays out
+  (7 -> 0; banked KP 51 -> 58) and the game
+  presents the CHAPTER 4 opening board: a
+  new lead (Lv 1, HP 1000 — the woman with
+  long brown hair), Gil 3582 shared.
+  CHAPTER 3 IS COMPLETE. Chapter-end state
+  (which is the Chapter 4 opening board,
+  unplayed): ch3_s34_chapter3_end.state.
+- Laguna's end standing: Lv 19 by level-tick
+  accounting (last direct HUD read Lv 16
+  after the Wraith (Strange); +61/+60 HP
+  level-up ticks — the measured level-up
+  heal — in the Gunner Lv 9, Pirate Lv 9
+  and Cloud of Darkness wins). Gil 570 ->
+  3582 across the session; banked KP 38 ->
+  58; Pink Tail, Rosetta Stone, Gargoyle
+  Pebble and the Carbuncle summonstone
+  (first visit) collected; Ifrit AUTO still
+  equipped; Ricochet Shot still unslotted.
+
+### Session 34 — what the crossing was
+
+- No boulder, no boat, no line: a walkable
+  sand spit south of the beach, missed since
+  session 30 because the survey walker of
+  that era steered by a fixed basis that
+  could not hold a southward line. The two
+  gateway identifications were swapped in
+  the session-32 record (gate04_03 is the
+  Gateway to the Shrine; gate04_04 is the
+  Southern Shrine). The four-chest detour of
+  the guides (BRV Zero / EX Charge / Soul of
+  Unrivaled Valor / the False Stalwart) was
+  NOT done — the light columns along the
+  southern shore were never resolved, and
+  the False Stalwart was never met in the
+  field; they remain open colour for a
+  future session, not chapter requirements.
