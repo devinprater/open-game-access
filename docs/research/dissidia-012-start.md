@@ -4400,3 +4400,280 @@ ch3_s28_final. Scripts s28_*.py in ~/d12s.
   only the doc change, +205 lines). Pushed via the clone's
   git credentials; origin/main verified with gh api after
   the push. This addendum commit follows on main.
+## Session 29 — Chapter 3 continues: the mountain voice, Gateway To Decay
+
+Branch dissidia-012-ch3b from main 78c28cd. Start state
+ch3_s28_final.state (Laguna on the mountain peak, field).
+Scripts s29_*.py in ~/d12s (copies of the s28 set,
+prefixes renamed; saved states carry the ch3_s29_
+prefix).
+
+### Start standing (measured at boot)
+
+- Laguna Loire, Lv 4: HP 1610/1610, Gil 150, banked
+  KP 30 (field HUD readout). Gear: Iron Sword / Buckler /
+  Iron Helm / Leather Armor; Ifrit AUTO set; Cross Chain
+  board skill; no assist. (The s18lib gauge() cell read 5
+  at field boot — it does not track the banked total;
+  the HUD's 30 is authoritative.)
+
+### Field census (measured, this chapter's population)
+
+Gate records 11-20 populated (21-26 empty this boot);
+gate -> landing point: 11->5, 12->7, 13->2, 14->3,
+15->4, 16->6, 17->8, 18->9, 19->10, 20->11. Gate 14's
+record showed state=5, timer=122 (the Omen of
+Destruction arch Laguna had just exited; its point 3
+anchor at (-85.81, 0.19, 241.49), ~37 units ESE of the
+landing pose (-118.62, 0.30, 254.96)).
+
+Point table (24 points): 0 (-12.10, 0.50, 32.00),
+1 (-35.00, 0.93, 284.28), 2 (-34.00, 0.42, 295.01),
+3 (-85.81, 0.19, 241.49), 4 (-36.05, 0.00, 257.95),
+5 (-56.71, -0.43, 79.74), 6 (-24.44, 0.87, 9.07),
+7 (0.35, 1.11, 31.41), 8 (-123.64, -1.57, 63.87),
+9 (-243.05, -1.28, 134.92), 10 (-187.89, -1.57, 182.34),
+11 (-274.40, -1.39, 165.23), 12 (-21.21, -2.47, 35.38),
+13 (-132.36, -1.92, 97.51), 14 (-103.31, -1.50, 201.88),
+15 (-31.29, -2.12, 213.59), 16 (-215.80, -4.00, 167.68),
+17 (-100.82, 3.00, 34.45), 18 (-136.88, 3.00, 29.24),
+19 (-121.69, 3.00, 58.70), 20 (-146.34, 3.00, 82.49),
+21 (-142.84, 3.00, 111.91), 22 (-176.98, 3.00, 81.86),
+23 (-171.11, 3.00, 116.96). Points 17-23 sit at y=3.00
+(an elevated western shelf); the point set differs from
+Chapter 2's population of the same map.
+
+### Guide data for this segment (labeled, unverified)
+
+- GameSpy/IGN walkthrough (page 10): from the peak,
+  "head for the rock in front of you and break it to
+  cross the bridge and grab an Assist Charge skill from
+  the chest"; then "after the Reaper, browse the moogle
+  shop", take a Rosetta Stone from "the chest in the
+  grass in front of the gateway", trade it for an
+  accessory slot in Customization, then enter the
+  Gateway To Decay. Inside: "begin by taking down both
+  Transient Gunners... There's no boss battle here, so
+  once the enemies are defeated, engage the Stigma of
+  Chaos to end the level."
+- FF Wiki (Treachery of the Gods/Chapter 3): the second
+  gateway is the Gateway To Decay. Its board: entry A2;
+  Vaan assist piece at B1; Fleeting Flash Lv 5 (HP 1242)
+  at B4; a Potion at B5; Transient Gunner Lv 1 (HP 1000)
+  at C3 and E3; Counterfeit Wraith Lv 5 (HP 1242) at E1;
+  Delusory Dragoon Lv 4 (HP 1, BRV 597) at E2; Fleeting
+  Flash Lv 1 (HP 1000) at F4; chest at G2 (Power
+  Armlet); Stigma of Chaos at G4. KP Chance: Win within
+  90 seconds. Field wandering enemies for the chapter:
+  Phantasmal Harlequin Lv 7, Capricious Reaper Lv 7,
+  Counterfeit Wraith Lv 9, False Stalwart Lv 11.
+- The session-28 doc's forward note named second-
+  gateway pieces "Ephemeral Vision Lv 1, Transient
+  Gunner Lv 1, Transient Marionette Lv 5" — that does
+  not match the wiki's Gateway To Decay list; treated
+  as unresolved guide disagreement, settled by the
+  in-game census below.
+
+### Field segment — the voice, the crystal, the Reaper
+
+- Descent: the peak's east rim is walled; the walker
+  descended the southern slope (probing along the
+  ledge) to a valley floor at (-100.14, -0.13, 215.97).
+  There, ANY step tripped ctrl state 3 — a scripted
+  scene zone.
+- THE VOICE (measured, dialogue from game text): the
+  "mysterious voice" is Vaan. Scene lines, in order —
+  Vaan: "Laguna! You're still wandering around here?
+  You got lost again, huh?" / Laguna: "Hey now, you're
+  in the same boat yourself. We both got lost, and here
+  we are now." / Vaan: "I had a little errand to take
+  care of. Anyway, do you know the way back?" / Laguna:
+  "Of course I do! I won't get lost this time. Alright,
+  Vaan, just follow me!" After the scene Vaan is
+  visible standing with Laguna on the field, and the
+  next battle's VS card showed an Assist portrait —
+  Vaan is Laguna's assist from here (measured in the
+  Reaper fight below; the assist chord produced his
+  call-in).
+- The crystal (kaname_03): point 14's anchor holds a
+  giant dark crystal with orange fissures. Point-record
+  names decoded from the census dump: points 2-11 are
+  "POS_gate" anchors (gate_0306, gate_0400..0408);
+  points 0-1 are "POS_jump_tag" anchors; points 12-16
+  are "POS_kaname_01..05"; points 17-23 are
+  "POS_fog_01..07" (y=3.00, a visual layer). The
+  kaname_03 crystal did NOT respond to the gateway
+  entry recipe (burst Crosses beside it), to dashing
+  into it, or to contact; Square opened state 4 and
+  Triangle state 11 (field menus) beside it. It is
+  not this segment's breakable rock under any verb
+  tried; left standing, nature unresolved. (The
+  guide's "break the rock" step was never needed on
+  the route the walker took down the slope.)
+- FIELD BATTLE (measured): descending south-east from
+  the crystal, a tester zone at (-87.46, -0.23, 172.01)
+  fired state 5 and the entry flow landed on a VS
+  card: Laguna Lv 4 vs "?" Lv 7, stage World of
+  Darkness, condition JUDGMENT — the roaming
+  Capricious Reaper (guide data: Lv 7, HP 1364, arena
+  World of Darkness — all three matched measurement).
+  Won in 18 rotations, drift 0, assist chord every 6
+  (Vaan). Laguna took zero HP damage; he leveled
+  4 -> 5 mid-fight (HP 1610 -> 1670; the chocobo
+  LUCKY x2 EXP bonus from session 28 was still
+  active). Battle block base this boot: 0x096BBF98.
+  Rewards: +84 Gil (150 -> 234). No KP (field battle).
+- The post-battle result flow self-advanced on frames;
+  the postwin walker's field Crosses (dashes) carried
+  Laguna SE to (-52.71, -0.90, 153.55) on a sandy point
+  above the lake. HUD there: Lv 5, HP 1670, Gil 234,
+  KP 30.
+
+- Route south: from the Reaper site the walker hugged
+  the lake shore south (16 stuck-probes on the shore
+  path) to the arch at point 5 (gate_0402). The arch's
+  info panel (game text): "Gateway to Decay — KP
+  Chance: Win within 90 seconds; Rules: Disabled;
+  Skills: Enabled". NOT found on this route: the
+  guide's moogle shop and the Rosetta Stone chest
+  ("in the grass in front of the gateway") — GameSpy's
+  route approaches from the west across a bridge; our
+  slope/shore route never passed them. Both remain
+  unvisited (guide data only).
+
+### Gateway To Decay — census (measured)
+
+Entry banner (game text): "Gateway to Decay". Board
+plays at ctrl state 20. Entry scene on entry (game
+text): Vaan: "Hey Laguna, I'll give ya a hand, so lay
+back like you're on an airship." / Laguna: "Thanks
+Vaan, you're a great help. Don't go crashing and
+burning, though."
+
+18 discs: 11, 14, 20, 21, 22, 23, 24, 25, 26, 32, 33,
+34, 41, 42, 44, 45, 46, 51. Entry disc 20. Contents,
+matched one-for-one against the FF Wiki board (guide
+letters in brackets): 11 = Vaan assist piece [B1];
+14 = Counterfeit Wraith Lv 5 [E1]; 24 = Delusory
+Dragoon Lv 4 (gold) [E2]; 26 = chest [G2]; 32 =
+Transient Gunner Lv 1 [C3]; 34 = Transient Gunner
+Lv 1 [E3]; 41 = Fleeting Flash Lv 5 [B4]; 45 =
+Fleeting Flash Lv 1 [F4]; 46 = Stigma of Chaos [G4];
+51 = Potion [B5]. Empty: 21, 22, 23, 25, 33, 42, 44.
+
+REAL gameplay adjacency (single row/column steps;
+Scan links spanning missing discs are not links —
+the scan's 21-down->41, 42-right->44, 25-down->45 and
+26-down->46 edges are scan-only): 20-21, 21-22,
+21-11(engage only), 22-23, 22-32, 23-24, 23-33,
+24-25, 24-14, 24-34, 25-26, 32-33, 32-42, 33-34,
+34-44, 41-42, 41-51, 44-45, 45-46. The board is one
+winding path; 25 and 26 (the chest) are reachable
+only through 24, and 14 only from 24 or 11 — and 11
+cannot be stood on even after Vaan's recruitment
+(hop 21->11 failed 30/30 tries), so the Dragoon at
+24 gates both the chest and the Wraith.
+
+### Play — Gateway To Decay
+
+All fights: standard rotation, drift 0, assist chord
+(Vaan) every 6 rotations unless noted. KP Chance
+(Win within 90 seconds) PAID on every win — gauge
+rose exactly 1 per win (session-26 calibration holds:
+wins up to ~21 rotations still paid).
+
+- Vaan piece (11), engaged from 21: scene (game
+  text) — Vaan: "What's it now? Get lost again?" /
+  Laguna: "Ah! Th-that's not it! You should trust me
+  some more, Vaan." Piece left the board; Laguna's
+  assist inside the gateway set to Vaan (he was
+  already the field assist from the mountain scene).
+- Transient Gunner Lv 1 (32), from 22: WIN, 21
+  rotations, 91 damage taken (1670 -> 1579). Foe HP
+  1000 measured. +6 Gil. Gauge 0 -> 1.
+- Transient Gunner Lv 1 (34), from 33: WIN, 7
+  rotations, no damage. Laguna leveled 5 -> 6
+  mid-fight (+61 HP heal; 1579 -> 1640). +6 Gil.
+  Gauge 1 -> 2.
+- Fleeting Flash Lv 5 (41), from 42: WIN, 15
+  rotations, 147 damage taken (1640 -> 1493). Foe
+  HP 1242 measured (matches guide). The Flash sat
+  at 1 HP for 8 rotations before the killing hit.
+  +50 Gil. Gauge 2 -> 3.
+- Potion (51), from 41: engaged and consumed — HP
+  restored to the Lv 6 full 1731 (and per the guide
+  it also refills EX; see the Dragoon note — EX
+  does not appear to carry into a later battle).
+- Fleeting Flash Lv 1 (45), from 44: WIN, 10
+  rotations, no damage. Foe HP 1000 measured.
+  +6 Gil. Gauge 3 -> 4.
+- Stigma of Chaos (46), from 45: engaged; exit
+  banter (game text) — Laguna: "Every gateway's
+  filled with those imposters. They just multiply..."
+  / Vaan: "I've gotten used to their looks now,
+  though. Their Laguna seems smarter than you." /
+  Laguna: "Vaan... Well, I guess you're right. I
+  don't think they'd get lost..." Payout banked:
+  KP 30 -> 34. Landed on the lakeshore field south
+  of the arch with Vaan beside him; HP full.
+
+- LEFT STANDING: Delusory Dragoon Lv 4 (24) and,
+  behind it, Counterfeit Wraith Lv 5 (14) and the
+  chest at 26 (Power Armlet, guide data — contents
+  unverified). The Dragoon is a gold glass cannon:
+  HP 1, BRV 597 (both measured on its VS/arena
+  cards), arena Order's Sanctuary, JUDGMENT. Its
+  Jump opener deals ~746; later hits ~250. SIX
+  attempts from the doorstep state, five policies —
+  standard rotation (drift 0 and +10), cross-spam,
+  forward-advance, spaced dodge-counter, and a
+  potion-primed EX-mode opener (triangle + cross on
+  rotation 1; no EX activation visible — EX gauge
+  evidently does not carry from the potion into a
+  new battle) — produced ZERO connecting attacks by
+  Laguna in ~35 rotations: the gold piece's evasion
+  defeats the blind rotation outright (normal pieces
+  connect fine — see the other fights, same build).
+  Every loss was fled cleanly (Retry/Flee), HP
+  restored, nothing else lost. Known levers for a
+  future session: a reset-board farm loop to Lv 9-10
+  (more HP = more rotations of lottery tickets; the
+  Flash above shows connections do land eventually),
+  or a movement-aimed policy once foe position can
+  be read. The gateway itself is complete without
+  it (Stigma finish, as in session 24's precedent).
+
+### Standing at session end
+
+ch3_s29_final.state: field (lakeshore south of the
+Gateway To Decay arch), ctrl state 2, pos
+(-41.73, -2.83, 52.25), saved clean and idle.
+Laguna Lv 6, HP 1731/1731 (Lv 6 max measured via
+the potion refill; initial BRV 240 measured
+in-fight), gear unchanged (Iron Sword / Buckler /
+Iron Helm / Leather Armor), Ifrit AUTO, Cross Chain
+skill, assist Vaan. Gil 302, banked KP 34, gauge
+paid out. Session totals: 5 wins (1 field, 4 board),
+6 losses (all the Dragoon, all fled), Laguna Lv 4 ->
+6, Gil 150 -> 302, KP 30 -> 34. Ricochet Shot still
+unslotted (no menu stop was needed; the rotation
+never wanted it). Next per guide: through the empty
+gateway north of the landing and left — a field
+segment with a Counterfeit Wraith fight and four
+chests (BRV Zero, EX Charge, Soul of Unrivaled
+Valor, Pink Tail), then the chapter's final board,
+the Southern Shrine Gateway (Cloud of Darkness
+Lv 12; guides recommend Lv 12+).
+
+States (~/d12s): ch3_s29_w2.state (valley floor,
+scene trigger), ch3_s29_scene1.state (after the
+Vaan scene), ch3_s29_gw2.state (Reaper VS),
+ch3_s29_reaper_done.state, ch3_s29_decay_census
+.state, ch3_s29_drag_vs.state / ch3_s29_drag2_vs
+.state (Dragoon doorsteps), per-fight *_vs /
+*_winraw / *_done states (gun1, gun2, flash5,
+flash1), ch3_s29_potion_vs.state,
+ch3_s29_stigma_vs.state, ch3_s29_final.state.
+Variant fight scripts: s29_fightx.py (cross-spam),
+s29_fightz.py (advance), s29_fightq.py (spaced
+dodge-counter), s29_fighte.py (EX opener).
