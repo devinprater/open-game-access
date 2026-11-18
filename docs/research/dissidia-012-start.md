@@ -5302,3 +5302,44 @@ workers, reconstructed)
   states: ch3_s32_tableland1.state (plateau east,
   by the jump anchor) and ch3_s32r_break_chan
   .state (plateau east channel stall).
+
+## Session 32c — the attack button found; Chapter 3
+route work continues
+
+### Square is not the attack (measured, corrects
+sessions 29/32/32R)
+
+- Frame-stepped test from a clean field state
+  (ch3_s32r_break_chan.state): one Square press
+  moves ctrl state 2→4 and HOLDS it — a screenshot
+  at +20 frames shows the equipped-skill
+  description popup (Cross Chain) open over the
+  field. State 4 on this field is the skill-popup
+  state; Square opens and closes it. Every earlier
+  "Square attack" test — session 29 beside
+  kaname_03, 32R at the beach choke and the
+  plateau channel stall, and 32c's own first
+  40-press sweep — only toggled that popup and
+  never fired a shot. Those negatives are void.
+- **Circle is the world-map attack** (measured):
+  one Circle press from the same spot produced a
+  muzzle flash and an orange tracer streaking
+  across the ground in the +6-frame screenshot
+  (s32c_circ_c1_a.png); ctrl state stays 2, and
+  Laguna steps ~1 unit per volley. This matches
+  the series' control tables (Circle = bravery
+  attack; Square = skill/HP attack). Boulder
+  protocol from here: face the target, press
+  Circle repeatedly (up to 4–5), screenshot after.
+
+### Test (a): the plateau channel stall (measured
+negative)
+
+- At ch3_s32r_break_chan.state (−6.7, −0.1,
+  255.5): 32 Circle presses across 8 facings, on
+  top of the earlier 40 Square presses — no
+  break, no light line, no state change.
+  Screenshots show open grass slope against the
+  rock face; there is no boulder at this stall.
+  The plateau's east channel is a terrain dead
+  end, not a boulder plug.
