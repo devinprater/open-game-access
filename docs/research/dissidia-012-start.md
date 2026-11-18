@@ -2988,3 +2988,15 @@ atslots, atitems, kunai). Scripts s22_*.py; logs
 s22_*.log; screenshots s22_*.png. (One state file,
 "ch1_s22 tabs.state", has a space in its name — avoid
 loading it; the drv command line splits on spaces.)
+
+### Session 22 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test
+  gates applied): the Session 22 section was committed on
+  dissidia-012-fools (a0ae421) and merged here. Merge gates
+  (session 12's): working tree clean; local main == origin/main
+  (18739e6); merge-base == 18739e6 (main a strict ancestor,
+  branch 1 ahead / 0 behind). Pure fast-forward
+  18739e6..a0ae421, pushed via the clone's git credentials,
+  git ls-remote verified in-session: origin/main = a0ae421.
+  This addendum commit follows on main.
