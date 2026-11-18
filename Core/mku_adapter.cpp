@@ -1744,10 +1744,38 @@ bool g_roamHavePrev = false;
 
 bool RoamPositionReady(void) { return g_roamMoved; }
 
+// Meditation (Circle in free-roam). Measured on the bench 2026-11-12: the
+// player sits down, input is ignored and the in-game clock races ahead
+// (Tuesday 3:54 AM to Thursday 4:29 PM in 25 real seconds), and the
+// position vec3's y drops from the standing 0.87 to 0.23. Nothing on
+// screen says so to a blind player, who would think the game froze, so the
+// edge is spoken. The signal is that one measured height, so it is gated
+// to the village box the heights were measured in, to a player already
+// under control, and debounced.
+constexpr float kSitBelowY = 0.5f, kStandAboveY = 0.7f;
+constexpr int kMeditateDebounce = 10;
+bool g_meditating = false;
+int g_medFrames = 0;
+
+void MeditationOnFrame(float x, float y, float z)
+{
+    bool inVillage = x >= -75.0f && x <= -40.0f && z >= 130.0f && z <= 190.0f;
+    if (!inVillage || !g_roamMoved) { g_meditating = false; g_medFrames = 0; return; }
+    bool flip = g_meditating ? (y > kStandAboveY) : (y < kSitBelowY);
+    if (!flip) { g_medFrames = 0; return; }
+    if (++g_medFrames < kMeditateDebounce) return;
+    g_medFrames = 0;
+    g_meditating = !g_meditating;
+    if (DialogueUp() || ObjectiveUp()) return;      // those channels win
+    Say(g_meditating ? "Meditating. The clock is running fast."
+                     : "Standing again.", "status", oga::Priority::High);
+}
+
 void RoamOnFrame(void)
 {
     float x, y, z;
     if (!InFreeRoam() || !KonquestPos(&x, &y, &z)) {
+        g_meditating = false; g_medFrames = 0;
         g_roamHistCount = 0;
         g_roamFaceValid = false;
         g_roamMoved = false;
@@ -1759,6 +1787,7 @@ void RoamOnFrame(void)
         if (dx * dx + dz * dz > 0.0025f) g_roamMoved = true;   // 0.05 units
     }
     g_roamPrevX = x; g_roamPrevZ = z; g_roamHavePrev = true;
+    MeditationOnFrame(x, y, z);
     g_roamHistX[g_roamHistHead] = x;
     g_roamHistZ[g_roamHistHead] = z;
     g_roamHistHead = (g_roamHistHead + 1) % kRoamHistLen;
@@ -2642,7 +2671,7 @@ const Adapter kMortalKombatUnchained = {
     "bearing relative to the way you last travelled; before you "
     "have moved it gives distances only. After the landmarks it "
     "reads the three nearest villagers the same way (names not yet "
-    "seen in play are called Someone). Compass headings are "
+    "seen in play are called Someone). Meditating (Circle) is announced, and standing again. Compass headings are "
     "not read. In Konquest bouts the round, timer and "
     "win words are not read (they are per-phase machinery), and only "
     "Bo' Rai Cho is named among Konquest opponents — others are "

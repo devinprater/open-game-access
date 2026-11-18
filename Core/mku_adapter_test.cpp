@@ -1124,6 +1124,30 @@ int main()
         for (int i = 0; i < 6; i++) put_u32(T - (uint32_t) i * S, 0);
         roam_arrive_plusz(-53.49f, 154.20f);              // back where the later checks expect
     }
+    // Meditation: height 0.87 standing, 0.23 seated (bench 2026-11-12).
+    {
+        auto at_y = [&](float yy, int frames) {
+            put_f32b(0x08AED47C, yy);
+            for (int i = 0; i < frames; i++) a->on_frame();
+        };
+        at_y(0.87f, 15);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        at_y(0.23f, 5);                                   // a dip, not a sit
+        at_y(0.87f, 15);
+        CHECK(NSPOKEN == 0, "meditation: a brief height dip is not announced");
+        at_y(0.23f, 15);
+        CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Meditating."),
+              "meditation: sitting down is announced once");
+        at_y(0.23f, 30);
+        CHECK(NSPOKEN == 1, "meditation: staying seated does not repeat");
+        at_y(0.87f, 15);
+        CHECK(NSPOKEN == 2 && strstr(SPOKEN[1], "Standing again."),
+              "meditation: standing up is announced once");
+        put_u32(0x08B123DC, 1); at_y(0.23f, 20); put_u32(0x08B123DC, 0);
+        at_y(0.87f, 20);
+        CHECK(NSPOKEN == 2, "meditation: silent when a bout or cinematic owns the screen");
+        roam_arrive_plusz(-53.49f, 154.20f);              // back where the later checks expect
+    }
     // Gating: the guide is free-roam only, and dialogue outranks it.
     put_u32(0x08B123DC, 1);                          // a bout/cinematic owns it
     NSPOKEN = 0; oga::AdapterSpeechReset();
