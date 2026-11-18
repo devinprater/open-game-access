@@ -37,6 +37,14 @@ jobs:
         run: |
           python3 scripts/test-strength-check.py
           python3 scripts/test-strength-check.py --self-test
+      # Every registered adapter must be compiled by every build that links the registry:
+      # OGA_GLUE (iOS), the Android overlay's glue lists, and build-host.sh. A miss is an
+      # undefined symbol at the end of a 15-minute APK build (oga::kDissidia012 was one);
+      # this catches it here in seconds. The test half proves the gate can fail.
+      - name: Every adapter is in every build's source list (gate + mutation test)
+        run: |
+          python3 scripts/adapter-sources-check.py
+          bash scripts/adapter-sources-test.sh
       - name: Run standalone adapter tests
         run: bash scripts/adapter-tests.sh
       - name: Announcement queue (tests + sabotage verification)

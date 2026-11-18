@@ -762,7 +762,8 @@ PYEOF
      "$OVERLAY/app/src/main/cpp/PspAdapterHost.h" "$FRONTEND/app/ppsspp/glue/"
   cp "$ROOT/Core/adapter.h" "$ROOT/Core/announce.h" "$ROOT/Core/announce.cpp" \
      "$ROOT/Core/osk_echo.h" "$ROOT/Core/osk_echo.cpp" \
-     "$ROOT/Core/dissidia_adapter.cpp" "$ROOT/Core/dbzar_adapter.cpp" \
+     "$ROOT/Core/dissidia_adapter.cpp" "$ROOT/Core/dissidia012_adapter.cpp" \
+     "$ROOT/Core/dbzar_adapter.cpp" \
      "$ROOT/Core/mku_adapter.cpp" "$ROOT/Core/khbbs_adapter.cpp" \
      "$FRONTEND/app/ppsspp/glue/"
   cp -r "$ROOT/Core/story" "$FRONTEND/app/ppsspp/glue/"
@@ -925,6 +926,7 @@ set(OGA_PPSPP_INC
     ${CMAKE_CURRENT_SOURCE_DIR}/glue/announce.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glue/osk_echo.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glue/dissidia_adapter.cpp
+    ${CMAKE_CURRENT_SOURCE_DIR}/glue/dissidia012_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glue/dbzar_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glue/mku_adapter.cpp
     ${CMAKE_CURRENT_SOURCE_DIR}/glue/khbbs_adapter.cpp)
@@ -1347,7 +1349,7 @@ fi
 #
 # The glue list is the DS-relevant part of scripts/core-sources.sh's
 # OGA_GLUE, MINUS what Android already carries elsewhere:
-#   - dissidia/dbzar/mku/khbbs_adapter.cpp, announce.cpp, osk_echo.cpp
+#   - dissidia/dissidia012/dbzar/mku/khbbs_adapter.cpp, announce.cpp, osk_echo.cpp
 #     already ride the oga-ppsspp-glue objects (section 8), and the
 #     registry TU references them from there — compiling them again
 #     here would duplicate their symbols.

@@ -65,6 +65,7 @@
 // below, which would name different (unresolvable) entities.
 namespace oga {
 extern const Adapter kDissidiaFinalFantasy;
+extern const Adapter kDissidia012;
 extern const Adapter kDragonBallZAnotherRoad;
 extern const Adapter kMortalKombatUnchained;
 extern const Adapter kKingdomHeartsBirthBySleep;
@@ -198,6 +199,7 @@ void CoreSpeech(const char* text, bool interrupt, void* /*user*/) {
 const oga::Adapter* FindPspAdapter(const char* game_code) {
   static const oga::Adapter* const kPspAdapters[] = {
       &oga::kDissidiaFinalFantasy,
+      &oga::kDissidia012,
       &oga::kDragonBallZAnotherRoad,
       &oga::kMortalKombatUnchained,
       &oga::kKingdomHeartsBirthBySleep,

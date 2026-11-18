@@ -11,6 +11,14 @@ WHAT IT CHECKS: for every `extern const Adapter kXxx;` in adapters.cpp, the Core
 DEFINES that symbol must appear in OGA_GLUE in scripts/core-sources.sh. That is the one list
 the simulator and device builds share, so a miss there is an undefined symbol at the very end
 of a long build.
+
+⛔ THE SAME BUG, ON ANDROID: the APK link died with `undefined symbol: oga::kDissidia012`.
+The adapter was in OGA_GLUE, so the iOS builds linked, but Android does not read OGA_GLUE: it
+stages Core TUs by hand in scripts/android-apply-overlay.sh (the DS glue loop, plus per-core
+glue lists such as the PSP's OGA_PPSPP_GLUE), and the file was in none of them. The host diagnostic build
+(scripts/build-host.sh) has its own hand list too. So the check covers all three: every
+registered adapter's source must be in OGA_GLUE, in one of the two Android lists, and in the
+host list.
 """
 import pathlib
 import re
@@ -20,6 +28,8 @@ ROOT = pathlib.Path(__file__).resolve().parent.parent
 ADAPTERS = ROOT / "Core" / "adapters.cpp"
 SOURCES = ROOT / "scripts" / "core-sources.sh"
 CORE = ROOT / "Core"
+OVERLAY = ROOT / "scripts" / "android-apply-overlay.sh"
+HOST = ROOT / "scripts" / "build-host.sh"
 
 
 def glue_names():
@@ -36,11 +46,38 @@ def glue_names():
     return names
 
 
+def android_names():
+    """Core TUs the Android overlay compiles: the DS glue `for f in ...; do` loop and the
+    subproject glue lists it writes into CMake (glue/<name>.cpp lines)."""
+    txt = OVERLAY.read_text()
+    names = set()
+    m = re.search(r'DS_GLUE="\$FRONTEND/app/ds-glue".*?\nfor f in (.*?); do', txt, re.S)
+    if not m:
+        return None
+    for tok in m.group(1).replace("\\", " ").split():
+        names.add(tok + ".cpp")
+    # The subproject glue libraries (PSP's OGA_PPSPP_GLUE, oga-genesis-glue, ...) name each
+    # TU as ${CMAKE_CURRENT_SOURCE_DIR}/glue/<name>.cpp in the CMake text the overlay writes.
+    names.update(re.findall(r"\$\{CMAKE_CURRENT_SOURCE_DIR\}/glue/(\w+\.cpp)", txt))
+    return names
+
+
+def host_names():
+    """Core TUs the host diagnostic build (build-host.sh) compiles."""
+    return set(re.findall(r'"\$ROOT/Core/(\w+\.cpp)"', HOST.read_text()))
+
+
 def main():
     glue = glue_names()
     if glue is None:
         print("adapter-sources: FAIL -- could not find OGA_GLUE in scripts/core-sources.sh")
         return 1
+    android = android_names()
+    if android is None:
+        print("adapter-sources: FAIL -- could not find the DS glue loop "
+              "in scripts/android-apply-overlay.sh (pattern drift?)")
+        return 1
+    host = host_names()
 
     # every adapter symbol registered
     reg = re.findall(r"extern\s+const\s+Adapter\s+(k\w+)\s*;", ADAPTERS.read_text())
@@ -65,17 +102,24 @@ def main():
         src = defines.get(sym)
         if src is None:
             problems.append("%s: no Core/*.cpp defines it (renamed? moved?)" % sym)
-        elif src not in glue:
-            problems.append("%s: defined in %s, which is NOT in OGA_GLUE" % (sym, src))
+        else:
+            if src not in glue:
+                problems.append("%s: defined in %s, which is NOT in OGA_GLUE" % (sym, src))
+            if src not in android:
+                problems.append("%s: defined in %s, which the Android overlay does NOT compile "
+                                "(add it to the DS glue loop or a glue list such as "
+                                "OGA_PPSPP_GLUE in android-apply-overlay.sh)" % (sym, src))
+            if src not in host:
+                problems.append("%s: defined in %s, which is NOT in build-host.sh" % (sym, src))
 
     if problems:
         print("adapter-sources: FAIL (%d problem(s))" % len(problems))
         for p in problems:
             print("   x " + p)
-        print("   -> the simulator/device build omits these; the app link will fail with")
-        print("      'Undefined symbols' at the end of a long build.")
+        print("   -> a build that omits these fails its link ('Undefined symbols' on iOS,")
+        print("      'undefined symbol' on Android) at the very end of a long build.")
         return 1
-    print("adapter-sources: PASS (%d adapter(s), all present in OGA_GLUE)" % len(reg))
+    print("adapter-sources: PASS (%d adapter(s), all in OGA_GLUE, the Android overlay and build-host.sh)" % len(reg))
     return 0
 
 

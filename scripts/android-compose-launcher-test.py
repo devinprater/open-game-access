@@ -474,15 +474,16 @@ overlay_sh = read(OVERLAY_SH)
 # into the frontend's glue dir AND name them in the generated glue list,
 # or the stage builds a session with no host behind its JNI forwards.
 glue_names = ("PspAdapterHost.cpp", "announce.cpp", "osk_echo.cpp",
-              "dissidia_adapter.cpp", "dbzar_adapter.cpp",
+              "dissidia_adapter.cpp", "dissidia012_adapter.cpp",
+              "dbzar_adapter.cpp",
               "mku_adapter.cpp", "khbbs_adapter.cpp")
 missing_glue = [g for g in glue_names if "glue/" + g not in overlay_sh]
 if (not missing_glue and "PspAdapterHost.cpp" in overlay_sh
         and "Core/story" in overlay_sh):
-    ok("the overlay wires the adapter host and the four PSP adapter TUs "
+    ok("the overlay wires the adapter host and the PSP adapter TUs "
        "into the PSP glue")
 else:
-    bad("the overlay wires the adapter host and the four PSP adapter TUs "
+    bad("the overlay wires the adapter host and the PSP adapter TUs "
         "into the PSP glue",
         "missing from the generated glue list: %s" % missing_glue)
 
@@ -525,7 +526,7 @@ for struct in registered:
                 expected_psp.add(struct)
             break
 host_set = set(re.findall(r"&oga::(k\w+)", psp_host))
-if host_set == expected_psp and len(expected_psp) == 4:
+if host_set == expected_psp and len(expected_psp) == 5:
     ok("the host's PSP dispatch table names exactly the registry's "
        "ULUS adapters (%s)" % ", ".join(sorted(expected_psp)))
 else:

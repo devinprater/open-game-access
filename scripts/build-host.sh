@@ -187,6 +187,7 @@ compile() {
   for f in $GPGX_ALL; do printf '%s|gpgx|%s\n' "$GPGX_SRC/$f" "gpgx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
+  printf '%s|cxx|dissidia012_adapter\n' "$ROOT/Core/dissidia012_adapter.cpp"
   printf '%s|cxx|dbzar_adapter\n'     "$ROOT/Core/dbzar_adapter.cpp"
   printf '%s|cxx|dq9_adapter\n'  "$ROOT/Core/dq9_adapter.cpp"
   printf '%s|cxx|mku_adapter\n'  "$ROOT/Core/mku_adapter.cpp"

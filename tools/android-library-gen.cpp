@@ -125,6 +125,7 @@ static const int kSupportedKhbbs[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(NextAlly), CMD(NextEnemy), CMD(Enemies), CMD(Guide), CMD(DumpState)};
 static const int kSupportedMku[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(Guide), CMD(DumpState)};
+static const int kSupportedDissidia012[] = {CMD(WhereAmI), CMD(MenuState)};
 static const SupportedRow kSupported[] = {
     {"fe11", kSupportedFe11, 7},
     {"dbz-saiyans", kSupportedDbzSaiyans, 4},
@@ -133,6 +134,7 @@ static const SupportedRow kSupported[] = {
     {"dissidia", kSupportedDissidia, 9},
     {"khbbs", kSupportedKhbbs, 7},
     {"mku", kSupportedMku, 4},
+    {"dissidia012", kSupportedDissidia012, 2},
 };
 #undef CMD
 
