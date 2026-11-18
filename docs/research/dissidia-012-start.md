@@ -3217,3 +3217,204 @@ s23_*.png (scan set s23_sc2_<grid>.png x18).
   fast-forward b9fff11..62f71cc, pushed via the clone's git
   credentials, git ls-remote verified in-session:
   origin/main = 62f71cc. This addendum commit follows on main.
+
+## Session 24 — Hidden Darkness Gateway cleared: Vaan geared, three manikins beaten, Stigma engaged
+
+Branch dissidia-012-darkness from main 2140699. Start
+state ch2_s23_final.state (Vaan on disc 23 of the
+Hidden Darkness Gateway, Lv 1, unequipped, Gil 820,
+banked KP 8, gauge 0). All fight numbers below are
+battle-cell measurements (session-17 block A pattern
+search per boot); all rewards, names and lines are
+the game's own screens/text.
+
+### Part A — exit, shop, re-entry
+
+- Exit flow (nothing fought yet, so the reset cost
+  nothing): Start -> Pause menu; its footer reads
+  "Save EXP/rewards gained and escape gateway. *KP
+  gained in gateway will be lost." Down x2 -> Exit
+  Gateway -> confirm "Exit gateway?" (cursor starts
+  on NO) -> Left -> Cross (YES). Landed on the field
+  at the gateway arch, state 2, conditions panel up,
+  Gil 820 intact (gauge was 0, nothing to lose).
+  State ch2_s24_field.state.
+- Shop (field Triangle -> Customization, state 11 ->
+  Shop, 7th menu item; header "Vaan Lv 1 — GIL 820 —
+  INVENT 3%"; the shop trades in Gil, session 21).
+  Stock read live for Vaan — Weapons: Broadsword 500
+  (Sword, ATK+4), Knife 500 (Dagger, ATK+2 DEF+2),
+  Longsword 500 (Greatsword, ATK+6 DEF-2), Katana
+  450 (BRV+9 ATK+4 DEF-2), Spear 1140, Axe 1300,
+  Rod 450, Staff 450, Leather Gloves 400, Oaken Pole
+  450 (below the fold). Headgear: Leather Hat 500
+  (BRV+48), Bronze Helm 300 (BRV+38 DEF+2), Headband
+  300.
+- Bought (weapon first, then headgear; each purchase
+  runs Cross -> quantity prompt "TOTAL n GIL /
+  REMAINING GIL m" -> Cross -> "Will you equip this
+  now?" YES -> "Gear equipped."): **Longsword, 500
+  Gil**, then **Bronze Helm, 300 Gil**. Gil 820 ->
+  320 -> **20**. Verified worn on the Equipment
+  screen (weapon + head slots; off-hand and body
+  still empty). Vaan's geared Lv 1 totals: HP 1000,
+  CP 330, **BRV 133** (95 + 38 helm), **ATK 16**
+  (10 + 6 sword), **DEF 13** (13 - 2 sword + 2
+  helm), LUK 10.
+- Harness lesson: leaving a submenu resets the
+  Customization list cursor to the top (Abilities).
+  An Up x5 from an assumed Shop position overshot
+  into **Adjust Level** ("Change Lv 001"); backed
+  out with Circle without confirming — Lv 1 and all
+  stats verified unchanged. Rule: screenshot-verify
+  the menu cursor before any Cross.
+- Re-entry: one Cross at the arch re-entered the
+  gateway; the entry banter re-played and was
+  cleared by the scene protocol. Clean doorstep
+  saved: ch2_s24_entry.state (disc 23, gauge 0,
+  Gil 20).
+
+### Part B — the board clear
+
+Route lesson first: **there is no 22-33 link.** A
+nav loop pressing Down from 22 kept raising the
+Idle Sky Pirate prompt (disc 32 is adjacent below
+22) and its Crosses engaged that fight blind; Vaan
+was found mid-battle at ~316 HP when the script
+died unsaved — discarded, no harm. The prompt from
+22 IS the route to the Pirate. A second discarded
+attempt: fight 1's first run crossed blindly after
+the win and engaged the auto-opened chain battle;
+the fight was re-run from its VS state with the
+stop-at-win runner and came out cell-for-cell
+identical (the board fights are deterministic).
+Rule reconfirmed: never blind-Cross a post-win
+return — inch with waits and watch the focus cell.
+
+- **Fight 1 — Delusory Dragoon Lv 2 (disc 21,**
+  engaged from 22; stage World of Darkness; prompt
+  line "KP: Win battle"): foe HP 1061 / BRV 83 /
+  pool 206 (block A 0x096BBF98 this boot). **WIN in
+  20 rotations**; Vaan 1000 -> 814 (two 83 hits, one
+  20 hit). +14 Gil (20 -> 34). The win auto-opened
+  a chain offer (Idle Sky Pirate, disc 32);
+  identified by focus + screenshot and **cancelled**
+  (Circle -> "Cancel chain?" cursor starts on NO ->
+  Left -> Cross YES) — held KP paid into the gauge:
+  **gauge 0 -> 1**. End state ch2_s24_f1_done.state
+  (disc 22, HP 814, Gil 34).
+- **Onion Knight piece (disc 11,** prompt from 21:
+  "Onion Knight — Assist Character"): engaging
+  played a one-line board-overlay scene — Onion
+  Knight: **"Guess it can't be helped. I'll lend a
+  hand. But I'll only help in this gateway."** One
+  Cross ended it. Meaning: he is the active assist
+  **within this gateway** (he was already the set
+  Assist in Customization). State
+  ch2_s24_ok_done.state.
+- **Chest on disc 0** (route 21 -> 20 -> 10, prompt
+  from 10): **"Obtained 200 gil from chest!"** Gil
+  34 -> **234**. State ch2_s24_chest0_open.state.
+  Discs 20 and 10 are EMPTY (plain hops, no prompt).
+- **Fight 2 — Idle Sky Pirate Lv 2 (disc 32,**
+  engaged from 22; World of Darkness): foe HP 1061
+  / BRV 83 / pool 206 — both Lv 2 manikins on this
+  board share the stat line at Vaan Lv 1. **WIN in
+  21 rotations** at engagement HP 814; took one 116
+  hit (814 -> 698); Vaan BROKE the Pirate at
+  rotation 20 (pool 206 -> 0, his BRV climbed to
+  319) and finished at rotation 21. +14 Gil
+  (234 -> 248). Chain offer (**Phantasmal Harlequin
+  Lv 5**, disc 12, stage Lunar Subterrane)
+  identified and **cancelled -> gauge 1 -> 2**. End
+  state ch2_s24_f2_done.state (disc 22, HP 698,
+  Gil 248). Discs 33 and 34, traversed next, are
+  both EMPTY; disc 13 was likewise landed on
+  cleanly during the entry test hop.
+- **Fight 3 — Fleeting Flash Lv 5 (disc 35,**
+  engaged from 34; stage Lunar Subterrane; the
+  prompt carries a red "hard" icon; the Flash is
+  the only path to chest 36). This fight broke the
+  standard runner twice before it was understood:
+  (1) this boot's block A sits at the session-17
+  alternate base **0x096D5A38** (the shop-heavy boot
+  path), not 0x096BBF98; (2) a Lv 5 engagement
+  inserts an **Opponent Info page** between the VS
+  card and the arena; (3) during the foe's opening
+  summon cinematic the foe-HP cell reads junk (1,
+  then 17) while its BRV climbs; (4) left idle, the
+  Flash kills Vaan in ~1,200 frames — a diagnostic
+  run's final blow dealt **944 damage**. The
+  Opponent Info page gives the foe's full record:
+  **HP TOTAL 1** (BASE 1242 under a large negative
+  modifier), CP 335, **BRV 251**, ATK 14, DEF 10,
+  LUK 12; equipment Cracked Shield, Mythril Helm,
+  Rusted Armor; **Bravery Bonus: Lv +4**. A glass
+  cannon: 1 HP behind a truck of bravery. With the
+  policy started the moment the battle commenced:
+  **WIN in 1 rotation** (foe BRV had already
+  powered up 251 -> 350 behind its summon "Aura";
+  pool 158). Rewards: **+50 Gil** (248 -> 298),
+  **+1 KP straight into the gauge (2 -> 3)** — no
+  chain offer materialized this time — **10 PP**,
+  and the victory screen's own lines: **"Level
+  increased by 1! (1->2) / Basic stats up! /
+  Learned Crossbow (ground)!"** The level-up
+  delta-healed him on the board: HP 698 -> **759**
+  (new max 1061). States ch2_s24_f3_vs /
+  _f3_winraw / _f3_inch.
+- **Chest on disc 36** (hop 35, prompt from 35):
+  **"Obtained Blue Drop from chest!"** — an item,
+  not Gil (Gil unchanged at 298); the end-of-session
+  Customization banner "New prizes creatable
+  through Battlegen!" hangs on it. State
+  ch2_s24_chest36_open.state.
+- **Disc 24** (34 -> up): landed on clean — EMPTY.
+  With that, every no-Scan-info disc except disc 4
+  (10, 13, 20, 24, 33, 34) has now been landed on
+  and proved empty.
+- **Disc 4 — verdict: empty, by pattern.** Disc 4
+  showed no Scan info in the session-23 census and
+  none in a dedicated Scan Mode pass this session
+  (cursor walked the top row; no info panel). A
+  focus-prompt probe is physically impossible: its
+  only neighbors are disc 3 (the Lv 5 Dragoon's
+  battle disc) and disc 14 (the Stigma — prompt
+  only, cannot be stood on). It blocks nothing
+  (both chests open, Stigma reachable) and matches
+  the board's six other no-info discs, all proved
+  empty on landing. Recorded as empty; the Lv 5
+  Dragoon fight that alone could prove it directly
+  was not bought for a disc that gates nothing.
+- **Stigma of Chaos (disc 14)** — prompt from 24,
+  the game's text: "Stigma of Chaos — Engaging
+  this piece finishes the level." Engaged with
+  Cross. No scene or report page held for input:
+  the finish auto-flowed (state68 20 -> 2) and
+  Vaan landed **on the field in front of the
+  gateway arch**, HP fully restored. **Banked KP
+  8 -> 11** — the gauge's 3 KP paid into the bank
+  on completion, exactly. Gil unchanged (298).
+  **Hidden Darkness Gateway complete.** Left
+  standing, optional per the brief: Delusory
+  Dragoon Lv 5 (disc 3) and Phantasmal Harlequin
+  Lv 5 (disc 12).
+
+### End state
+
+Vaan stands on the Chapter 2 field at the Hidden
+Darkness Gateway arch, gateway complete: **Lv 2,
+HP 1061/1061, CP 265/331, BRV 139, ATK 17, DEF 14,
+LUK 11; EXP NEXT 1087 / TOTAL 9218; Gil 298;
+banked KP 11**; gear Longsword + Bronze Helm;
+Crossbow (ground) learned; Blue Drop in inventory;
+Onion Knight assist. Final Customization read also
+shows BATTLES 10 and an Accessories menu entry now
+present. States (~/d12s): ch2_s24_field,
+ch2_s24_entry, ch2_s24_f1_vs / _f1_done,
+ch2_s24_ok_done, ch2_s24_chest0_open, ch2_s24_f2_vs
+/ _f2_done, ch2_s24_f3_prompt / _f3_vs / _f3_winraw
+/ _f3_inch, ch2_s24_chest36_open,
+ch2_s24_stigma_prompt, ch2_s24_stigma_inch,
+ch2_s24_final (field, gateway complete). Scripts
+s24_*.py; logs s24_*.log; screenshots s24_*.png.
