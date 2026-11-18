@@ -3431,3 +3431,259 @@ s24_*.py; logs s24_*.log; screenshots s24_*.png.
   credentials, git ls-remote verified in-session:
   origin/main = 753087b (gh api agreed). This addendum commit
   follows on main.
+
+## Session 25 — Encounters and Treason cleared: the drift search finds Terra's stream at +10 (2026-11-17)
+
+Branch dissidia-012-encounters from main 59c07d9
+(verified via gh api before the branch was cut;
+ls-remote over the tunnel hung once this session,
+gh api is the accepted fallback). Start state
+ch2_s24_final.state (Vaan on the Chapter 2 field at
+the Hidden Darkness arch, Lv 2, HP 1061/1061,
+Gil 298, banked KP 11, Longsword + Bronze Helm,
+Onion Knight assist). All fight numbers below are
+battle-cell measurements (session-17 block A
+pattern search per boot); all rewards, names and
+lines are the game's own screens/text. Guide-derived
+claims are labeled guide data.
+
+Guides first (standing rule): the FF Wiki's
+"Treachery of the Gods/Chapter 2" page, Suih's
+GameFAQs guide, and the GameSpy/IGN walkthrough
+(p.9). Chapter 2's intended gateway order (guide
+data): **Hidden Darkness (session 24, done) ->
+Encounters and Treason -> a field segment
+(Phantasmal Harlequin Lv 8, False Stalwart Lv 6)
+-> Gulg Gateway (boss: Kefka Lv 10) -> Snow of
+Sorrow (optional, blue) -> Seasonless Gateway
+(final).** GameSpy recommends Lv 5-7 before the
+red (Encounters and Treason) gateway. The wiki on
+that gateway (guide data): KP Chance "Win Battle";
+its boss is a Cosmos piece, **Terra Branford,
+Lv 7** — she starts in EX Mode (Trance), casts
+Tornado repeatedly (Dualcast can double it), has
+no bravery attacks and never uses EX Burst; there
+is **no Stigma on the board — beating Terra is
+the finish** ("Defeat to exit gateway").
+
+### Part A — field walk, entry, census
+
+- Gate census from the start state (script
+  s25_census.py): **the gate->point map is
+  UNCHANGED from session 23** — clearing Hidden
+  Darkness did not reshuffle it. Live gates:
+  11 -> pt 10 (154.08, 6.72, 229.42), lh 8;
+  12 -> pt 11 (222.00, 3.75, 193.50), lh 7;
+  15 -> pt 6 (253.93, 2.72, 181.66), lh 11
+  (the blue/repeatable one). All other gates
+  lh -1. Point table unchanged at 0x095E61C0
+  (18 real points). Vaan's field position at
+  start: (257.85, 2.19, 181.73).
+- The walk to the pt-11 anchor took two walkers:
+  the direct line west died in a walled bowl at
+  (247.4, 183.2); a southern swing via (254, 192),
+  (244, 200), (232, 198) arrived at (224.50, 3.75,
+  193.48), ~2.5 units from the anchor, after 16
+  stuck-probes — this terrain is rough and slidey.
+  State ch2_s25_walk2.state.
+- **Entry: the first Cross fired it** (state
+  2 -> 5 -> 20, budget-two-Crosses rule kept but
+  unneeded), entry disc **53**. The banner
+  screenshot was missed (first shot caught the
+  "Now Loading" screen); the gateway's identity
+  rests on the census below, whose contents match
+  the wiki's Encounters and Treason piece list
+  one-for-one — **this is the Encounters and
+  Treason gateway** (gate 12 -> pt 11).
+- **Census** (full Scan DFS, zero backtrack
+  warnings; s25_scan.py): **24 discs** — 0, 11,
+  12, 13, 14, 15, 20, 21, 25, 30, 31, 33, 34, 35,
+  36, 37, 40, 43, 50, 51, 52, 53, 63, 64. Entry
+  53 (-6, 8). Contents, from Scan info boxes:
+  - 51 (-14, 8): **Phantasmal Girl Lv 2**
+    (Order's Sanctuary)
+  - 50 (-18, 8): **Treasure Chest**
+  - 34 (-2, 0): **Fleeting Flash Lv 2**
+    (World of Darkness)
+  - 36 (6, 0): **Delusory Dragoon Lv 2**
+    (Order's Sanctuary)
+  - 15 (2, -8): **Idle Sky Pirate Lv 2**
+    (World of Darkness)
+  - 30 (-18, 0): **Phantasmal Harlequin Lv 5**
+    (Order's Sanctuary)
+  - 31 (-14, 0): **"???" piece** — "Engage this
+    piece to find its true form." (= Terra, per
+    the guide data above.)
+  - No info box (empty as presented): 0, 11, 12,
+    13, 14, 20, 21, 25, 33, 35, 37, 40, 43, 52,
+    63, 64.
+  - **No Stigma and no assist piece on this
+    board** — the finish is the Terra fight.
+- **Movement lesson (measured, s25_diag52*.py):
+  scan links are NOT gameplay links across long
+  gaps.** The scan edge 52-up->12 spans four
+  empty rows; in normal mode neither d-pad Up
+  nor analog Up moves Vaan there (focus stays on
+  his own record, grid never changes, long holds
+  fail). The same failure hit 25-left->21 (four
+  empty columns). Every one-disc-step link tried
+  worked first try or nearly, and beaten pieces'
+  discs are standable (the Pirate's disc 15 was
+  stood on after its fight). Practical rule:
+  route on one-step links; treat multi-row/column
+  scan edges as scan-only until proven.
+
+### Part B — the board clear
+
+Vaan entered at Lv 2, HP 1061 (board HP), Gil 298,
+gauge 0. All four Lv 2 manikins beaten; every
+chain offer — none appeared this session.
+
+- **Phantasmal Girl Lv 2 (disc 51**, prompt from
+  52; prompt verified by screenshot: "KP: Win
+  battle", stage Order's Sanctuary): block A at
+  the alternate base 0x096D5A38 this boot; foe
+  HP 1061 / BRV 73 / pool 218. **WIN in 65
+  rotations** — far harder than Hidden Darkness's
+  Lv 2s (20-21 rotations): her Tornado (midair)
+  HP attack landed repeatedly, Vaan 1061 -> **479**.
+  Rewards from the result screens: **+14 Gil
+  (298 -> 312)**, gauge 0 -> 1 (no chain offer),
+  **"Level increased by 1! (2->3) / Basic stats
+  up! / Learned Auto Assist!"** No visible
+  delta-heal this time (board HUD: Lv 3, HP 479).
+- **Chest (disc 50**, prompt from 51): **"Obtained
+  Orange Drop from chest!"** (game text; Gil
+  unchanged at 312 — an item, matching the wiki's
+  listed first contents for this gateway, guide
+  data). State ch2_s25_chest_open.state.
+- **Fleeting Flash Lv 2 (disc 34**, prompt from
+  33 via the one-step route 51->52->53->43->33):
+  **WIN in 16 rotations, zero damage taken**
+  (479 -> 479). +14 Gil (312 -> 326), gauge
+  1 -> 2, no level-up.
+- **Delusory Dragoon Lv 2 (disc 36**, prompt from
+  35): **WIN in 17 rotations**; the level-up
+  landed mid-fight (HP 479 -> 540, the delta
+  heal). Rewards: +14 Gil (326 -> 340), gauge
+  2 -> 3, 10 PP, **"Level increased by 1! (3->4)
+  / Basic stats up! / Learned Crossbow
+  (midair)!"**
+- **Idle Sky Pirate Lv 2 (disc 15**, prompt from
+  25): **WIN in 21 rotations**, HP 540 -> 488.
+  Rewards: +14 Gil (340 -> 354), gauge 3 -> 4,
+  **"Level increased by 1! (4->5) / Basic stats
+  up! / Learned Auto Assist Lock On! / Learned
+  Auto Recovery!"**
+- **Phantasmal Harlequin Lv 5 (disc 30**, prompt
+  from 20; optional — it blocks nothing, Terra
+  is reachable via 33/21): **LOSS in 21
+  rotations.** Vaan dealt 436 of its 1242 HP
+  before its bravery (Hyperdrive) climbed to
+  432 and finished him. Fled clean: back on
+  disc 20 at the full engagement HP 488, Gil
+  and gauge untouched. Left standing.
+- **Terra Branford, Lv 7 (disc 31, the "???"
+  piece**; prompt from 21). Engaging opened a
+  board scene first — Vaan: "Someone's over
+  there—"; Terra, entranced: "Destroy... Must
+  destroy all foes..." Measured fight cells
+  (block A 0x096BBF98): **foe HP 702** (the
+  wiki's figure exactly), starting foe BRV 137,
+  pool 194; Vaan 488 HP / 156 BRV. Measured
+  behaviors: Tornado is her only offense; her
+  bravery resets after an HP attack and rebuilds
+  fast in Trance; **she regenerates +10 HP per
+  rotation while not being hit** (three +10
+  ticks logged in both losing runs) — idle time
+  refunds her; and the fight turns on break
+  cycles (whoever breaks takes the stage pool).
+  The standard rotation (drift 0) lost in 14
+  rotations having dealt only 94. The session
+  19-20 method — same VS state, vary one stream
+  parameter — ran as a search (all losses fled
+  clean to 488 HP):
+  - drift +15: LOSS in 16 rotations, **430
+    dealt** (Terra to 272) — he broke her once
+    (a 324 HP attack) but died to her second
+    break cycle at 161 HP.
+  - drift +30: LOSS in 11, 0 dealt.
+  - drift +15, assist every 4: LOSS in 13, 94
+    dealt (the extra chords wreck the phase).
+  - drift +20: LOSS in 16, 276 dealt.
+  - **drift +10, assist every 6: WIN in 20
+    rotations, Vaan standing at 319 HP.**
+  Rewards (screens + cells): **+84 Gil
+  (354 -> 438)**; Battlegen: **"Girl's Dream
+  x1 created!"**; post-fight scene on the
+  board (Vaan: "Stop it already. I don't plan
+  to be beat—", then Terra flees — the wiki's
+  story beat, guide data); the gauge paid out:
+  **"Received 4 KP!" — banked KP 11 -> 15.**
+  No level-up (still Lv 5).
+- **Finish:** no Stigma — beating Terra was the
+  finish condition, as the guide data said. A
+  white fade took Vaan to a **new field segment**
+  (snowy mountains, a shining spire in the
+  distance) and a closing line from Vaan: "I
+  think there's a gateway leading to the other
+  side beyond that large snowy mountain." Field
+  landing restored HP to full. **Encounters and
+  Treason complete.** (Whether this gateway can
+  be re-entered, e.g. for the Harlequin rematch,
+  was not tested.)
+
+### Part C — shop record (no purchase)
+
+The Customization banner announced "New
+inventory in the shop!" At the natural menu stop
+after landing, the Weapons list was read live for
+Vaan (Gil 438): Broadsword 500 (Sword, ATK+4 —
+for Vaan ATK 20 -> 18, DEF 17 -> 19: a
+sidegrade), Knife 500, Longsword 500 (owned,
+Held 1), **Zweihander — TRADE** (marked NEW;
+materials, not Gil), Katana 450, Spear 1140
+(HP-86 ATK+8 DEF-2 — ATK 20 -> 22), Axe 1300,
+Rod 450, Staff 450. **Nothing is a straight
+upgrade he can afford; no purchase** (the
+brief's rule). Menu lesson reconfirmed the hard
+way once more: an unverified six-Down walk from
+a post-submenu cursor landed on **Adjust Level**
+— backed out with Circle unconfirmed, level and
+stats verified unchanged; the successful walk
+screenshot-verified the cursor at every step
+(session 24's rule).
+
+### End state
+
+Vaan stands on the new Chapter 2 field segment
+by the snowy mountain, Encounters and Treason
+complete: **Lv 5, HP 1242/1242, CP 265/335,
+BRV 156, ATK 20, DEF 17, LUK 12; EXP NEXT 648 /
+TOTAL 27382; Gil 438; banked KP 15**; gear
+Longsword + Bronze Helm (unchanged); assist
+Onion Knight. Learned this session: Auto Assist,
+Crossbow (midair), Auto Assist Lock On, Auto
+Recovery. Items: Orange Drop (new, chest),
+Blue Drop (session 24), Girl's Dream x1
+(Battlegen-created). The status panel's BATTLES
+counter reads 4. Left standing, optional:
+Phantasmal Harlequin Lv 5 (disc 30). Next per
+the guide order (guide data): the field segment
+battles, then the Gulg Gateway and Kefka.
+States (~/d12s): ch2_s25_walk2, ch2_s25_entered,
+ch2_s25_board, ch2_s25_girl_prompt / _girl_vs /
+_girl_winraw / _girl_inch, ch2_s25_chest_open,
+ch2_s25_flash_prompt / _flash_vs / _flash_winraw
+/ _flash_inch, ch2_s25_dragoon_prompt /
+_dragoon_vs / _dragoon_winraw / _dragoon_inch,
+ch2_s25_pirate_prompt / _pirate_vs /
+_pirate_winraw / _pirate_inch,
+ch2_s25_harlequin_prompt / _harlequin_vs /
+_harlequin_fled, ch2_s25_terra_prompt /
+_terra_vs, ch2_s25_terra10_winraw,
+ch2_s25_terra_inch, ch2_s25_final (field, gateway
+complete). Scripts s25_*.py (incl. the generic
+s25_nav.py / s25_fight.py / s25_fight2.py /
+s25_inch.py); logs s25_*.log; screenshots
+s25_*.png.
