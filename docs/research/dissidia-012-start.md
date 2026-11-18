@@ -5796,3 +5796,98 @@ s34_*.py in ~/d12s.
   as a gate-liveness change; the crossing to the
   SE landmass is still a line/boulder problem.
   Checkpoint state: ch3_s34_start.state.
+
+### The pocket grid, properly probed (measured
+### negative)
+
+- Session 33's spot protocol used a fixed-basis
+  walker whose steering is camera-relative; this
+  session caught it failing (it drifted 23 units
+  east during one "sweep"). All spot tests were
+  re-done with an empirical goto (snapshot-probe
+  navigation, s34_navprobe.py). Northern lake
+  south-shore pocket (-88.2, 147.5), west shore
+  (-91.1, 151.3), (-93.1, 152.5), shore west end
+  (-94.6, 155.0), north pocket shore (-89.8,
+  155.2): Circle sweep + Triangle at every spot —
+  all Customization, no line, no break. The
+  mid-lake islet chest ~(-103, 155) has NO line
+  base on this shore. Lead (1) is closed.
+- The lake's south-shore shelf (z ~146-155) IS
+  walkable east from the pocket to x ~-52, where
+  the shore turns north to a headland at
+  (-47, 162-167) — a dead end (dashnav probes:
+  water east/north, land only back west/south).
+  No line or boulder found on the shelf either
+  (sweep + Triangle at x -52..-66 all negative).
+
+### The field object table (measured from RAM)
+
+- A scene-object list at 0x097d1410+ (linked
+  list, stride ~0x330, each entry carrying two
+  transform matrices) holds exactly 18 unique
+  positions, IDENTICAL across two dumps taken at
+  different field positions — the list is global
+  and static (no wandering figure in it; the
+  False Stalwart is not here). Members: the five
+  kaname crystals (01 (-21.21, 0.93, 35.38),
+  02 (-132.36, 1.30, 97.51), 03 (-103.31, 1.66,
+  201.88), 04 (-31.29, 1.21, 213.59), 05
+  (-215.80, -0.74, 167.68)); a null at origin;
+  and twelve others: (-68.00, -1.02, 56.00),
+  (-70.00, 0.69, 24.00), (-54.00, 2.09, 18.00),
+  (-19.00, 0.76, 26.00), (-75.00, -0.50, 101.00),
+  (-40.00, -0.95, 197.00), (-35.00, -0.19,
+  289.00), (-110.00, -0.41, 183.00), (-16.00,
+  -0.68, 53.00), (-119.00, -0.70, 48.00),
+  (-105.00, -0.34, 40.00), (-44.90, -0.59, 31.80).
+  Opened chests leave the list (no entry at the
+  Rosetta Stone chest (-76.81, 77.64), opened in
+  session 30), so the twelve are unopened field
+  objects: the two islet chests ((-40, 197) =
+  Pink Tail islet in pre-33 state time; (-110,
+  183) = kaname_03 islet chest) plus ten more
+  whose nature was probed next.
+- The beach object (-68.00, -1.02, 56.00) was
+  stood on, swept, Triangle'd and Cross'd: it is
+  a vertical white-blue light column with
+  sparkles, hovering ~1 unit up (screenshots
+  s34_look2_beachobj_*). It does not interact
+  with Circle, Triangle, Cross or contact.
+  Nature unresolved (a marker of some kind);
+  the same kind of column presumably accounts
+  for the other round-coordinate objects ringing
+  the southern waters: (-70, 24), (-54, 18),
+  (-44.90, 31.80), (-19, 26), (-16, 53),
+  (-105, 40), (-119, 48), (-75, 101),
+  (-35, 289).
+
+### Guide route, re-read in full (GameSpy p.10)
+
+- Post-Decay, GameSpy's order is: through the
+  empty gateway, head left, Wraith, ignore both
+  gateways, four-chest detour (BRV Zero across a
+  rock-bridge; EX Charge to the left; False
+  Stalwart guarding Soul of Unrivaled Valor;
+  Pink Tail around the bend), backtrack, grind
+  in the blue gateway, then "head to the right
+  and hop into the Southern Shrine Gateway."
+  No guide describes a crossing puzzle for the
+  shrine itself — the only bridge in the segment
+  is the BRV Zero rock-bridge. FF Wiki confirms
+  the segment's map enemies (Harlequin Lv 7,
+  Reaper Lv 7, Wraith Lv 9, False Stalwart
+  Lv 11) and its two remaining boards: Gateway
+  to the Shrine (repeatable; Dragoon Lv 6 +
+  Lv 12 HP-1, Flash Lv 6, Witch Lv 12; chest
+  Gargoyle Pebble; Jump Chain at entry chains
+  all four) and Southern Shrine (entry D6;
+  Carbuncle AUTO summonstone; Wraith Strange
+  Lv 12 HP 1; Wraith Hard Lv 12; Pirate Hard
+  Lv 12; Gunner Lv 9; Pirate Lv 9 at E4 —
+  stepping there vanishes Vaan and raises the
+  boss; Gunner Hard Lv 12; Cloud of Darkness
+  Lv 12, HP 2,446, at H4). Guides recommend
+  Lv 12+ for the final board; Laguna is Lv 8,
+  so farm loops in the repeatable gateway are
+  the plan once it is reached.
