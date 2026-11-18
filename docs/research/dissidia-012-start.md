@@ -2585,3 +2585,186 @@ s20_wp4.py (the patient scene ride). Logs s20_*.log.
   fast-forward 138a62c..a3aad2c, pushed via the clone's git
   credentials, git ls-remote verified in-session: origin/main =
   a3aad2c. This addendum commit follows on main.
+
+## Session 21 — the Moogle shop (Gil, not KP); Leather Armor bought and worn; the Gateway of Fools and Hope censused (2026-11-17)
+
+### Part A — the shop is the Customization menu's Shop entry, and it trades in Gil
+
+- Boot from ch1_s20_after_scene.state: field state 2 at
+  (319.08, 0.44, 195.18) by the Sage's Path arch; Gil 890, field
+  HUD KP 4 (banked). The field KP-gauge cell (holder chain
+  base+0x260) reads 2 here — the gauge, not the bank (session
+  20's distinction, reconfirmed).
+- THE FIELD MOOGLE IS NOT THE SHOP. Its talk prompt opens a
+  single-page greeting ("You're a warrior of Cosmos, Thunder
+  Lady? I know everything about all of you warriors.") — Cross
+  opens (state 3), the page waits indefinitely, one more Cross
+  closes it. Measured twice; no menu, no choice.
+- THE SHOP IS Customization -> Shop (this doc's older paraphrase
+  said KP; the live screen's header currency is GIL — the screen
+  wins). Route: Triangle on the field -> Customization (state
+  11) -> Shop (7th menu item: Abilities, Equipment, Accessories,
+  Summons, Assist, Adjust Level, Shop; cursor starts on
+  Abilities). First entry fires a Wakka "Shops" tutorial dialog
+  (Circle/Cross closes it); a "New inventory in the shop!"
+  banner also eats a press. The gateway completion is what
+  stocked it.
+- Shop header: "Lightning Lv 10 — GIL 890 — INVENT 3%". Menu
+  Buy / Sell, cursor starts on Buy; cursor positions (menu,
+  Buy/Sell, category, per-category item cursor) persist across
+  visits. Categories cycle with R: Weapons -> Parrying ->
+  Headgear -> Body -> Accessories -> etc -> (wrap) Weapons.
+  Lists wrap. Sell prices are half of buy (Broadsword 250,
+  Leather Armor 250).
+- FULL INVENTORY (every item flagged NEW, all Equip Level 1;
+  currency Gil except Accessories, which are TRADE):
+  - Weapons (11): Broadsword 500 (Sword, ATK+4; EQUIPPED,
+    Held 1); Knife 500 (Dagger, ATK+2 DEF+2); Longsword 500
+    (Greatsword, ATK+6 DEF-2); Katana 450 (Katana, BRV+9 ATK+4
+    DEF-2); Tanegashima 400 (Gun, HP-86 BRV+19 ATK+4 DEF-2);
+    Spear 1140 (Spear, HP-86 ATK+8 DEF-2, Can't Equip); Axe
+    1300 (Axe, BRV+20 ATK+8, Can't Equip); Rod 450 (Rod, HP+95
+    BRV-20 ATK+4 DEF+2, Can't Equip); Staff 450 (Staff, BRV+9
+    ATK+2, Can't Equip); Leather Gloves 400 (Grappling, HP-150
+    BRV+19 ATK+4, Can't Equip); Oaken Pole 450 (Pole, HP-86
+    BRV+19 ATK+2, Can't Equip). No weapon is a no-downside
+    upgrade over the Broadsword — every equippable alternative
+    trades stats.
+  - Parrying / off-hand (4; her off-hand slot was EMPTY, so all
+    four are pure gains): Kunai 400 (ATK+2 DEF+1); Buckler 450
+    (Shield, DEF+3); Bronze Bangle 500 (Bangle, HP+85 DEF+1);
+    Hide Armlet 450 (Gauntlet, BRV+9 DEF+1).
+  - Headgear (3; she wears Bronze Helm, BRV+38 DEF+2): Leather
+    Hat 500 (Hat, BRV+48 — net +10 BRV / -2 DEF, a trade);
+    Bronze Helm 300 (same as worn); Headband 300 (HP+85 BRV+38
+    — net +85 HP / -2 DEF, a trade).
+  - Body (5; her body slot was EMPTY): Leather Clothing 950
+    (Clothing, HP+428 BRV+9 DEF-2 — a trade, and unaffordable
+    at 890); Leather Armor 500 (Light Armor, HP+428, NO other
+    modifier — the one pure straight upgrade in the shop);
+    Leather Chest Plate 500 (HP+342 BRV+19 DEF-2 — a trade,
+    dominated by Leather Armor); Robe 400 (HP+342 BRV+9, Can't
+    Equip); Bronze Armor 1100 (HP+513 BRV-10, Can't Equip,
+    unaffordable).
+  - Accessories (3; TRADE only — cost shown in place when the
+    item is selected; no separate confirm screen on select):
+    Power Ring (Damage +3%; Flash's Desire x3 [held 1] + 100
+    Gil — not obtainable); Block Ring (Wall Rush Defense +10%;
+    Sky Pirate's Hopes x3 [0], Flash's Desire x3 [1], Time
+    Warp x3 [0] + 2600 Gil — not obtainable); Decoy (Wall Rush
+    HP Defense +10%; Hero's Dream x3 [0], Flash's Desire x3
+    [1], False Husk x3 [0] + 1500 Gil — not obtainable).
+  - etc category: EMPTY. **There are no consumable or healing
+    items in this shop at all.**
+- PURCHASE: **Leather Armor, 500 Gil** — Buy -> Body -> Leather
+  Armor -> Cross -> quantity prompt ("x01, TOTAL 500 GIL,
+  REMAINING GIL 390") -> Cross. Gil 890 -> 390, verified in the
+  Gil cell and the shop header. The Kunai (400) missed fitting
+  the remaining 390 by 10 Gil — the near-miss, recorded.
+  Nothing sold; no second purchase.
+- EQUIPPED the same visit: Customization -> Equipment -> Equip
+  -> body slot -> Leather Armor. Verified on the Equipment
+  screen: HP total 1545 -> **1973 (1545 + 428)**, and her
+  current HP filled to the new max (Customization header and
+  field HUD both read 1973 afterward). Final worn set:
+  Broadsword / (off-hand empty) / Bronze Helm / Leather Armor;
+  totals BRV 185 (147+38), ATK 23 (19+4), DEF 23 (21+2),
+  LUK 15, CP 225/341.
+- HARNESS NOTES (menus): (1) an exploratory Down x5 in the
+  Customization menu overshot into Adjust Level ("Change Lv
+  010"); Up/Down do NOT change the value there (Left/Right
+  do); backed out with Circle WITHOUT confirming — Lv 10 and
+  all stats verified unchanged. (2) A blind Up x3 in the
+  Equipment action list landed on **Remove All**, and Cross
+  opened its "Remove all equipment?" confirm (cursor defaults
+  to NO; Yes/No is horizontal, so Down does nothing); the
+  dialog was cancelled with Circle and the equipment verified
+  intact. Menu cursors persist between visits and wrap —
+  verify the cursor by screenshot before any Cross in these
+  menus. (3) Post-shop state saved at field control:
+  ch1_s21_postshop.state (state 2, (319.08, 0.44, 195.18),
+  HP 1973, Gil 390, KP 4).
+
+### Part B — the road to the next gateway: 32 units, no scenes, no fights
+
+- Gate survey at the post-shop boot (GateMgr via ctrl+0x88;
+  heap base varies per boot — this boot 0x095D7110, count 10;
+  point table re-read at 0x095E61C0, 18 points).
+  Tester-reachable points (lh(A+4) >= 0): **7 (305.04, 0.81,
+  166.59), 4 (220.44, -0.49, 110.99), 5 (210.56, 2.63, 152.92),
+  10 (154.08, 6.72, 229.42)**. Point 13 (Sage's Path) now
+  reads lh = -1 — **a finished gateway's gate goes inert**,
+  matching Crescent Lake (14). Points 6, 8, 9, 11 sit in the
+  inert family this boot. (lh values for the unspent four:
+  pt 7 = 6; pts 4/5/10 = 238/239/240 — noted, meaning
+  unproven.)
+- The field Map (Select, state 14) shows the whole
+  two-continent region with her position glowing on the
+  southern continent's east side; it carries no destination
+  marker and no place names, so it does not choose the gate.
+  Point 7 is 32 units away, by far the closest unspent gate;
+  the walk went there.
+- THE WALK (closed-loop stick walker, s21_walk1.py; the stick
+  PERSISTS after an analog command, so every push ends with
+  analog 0 0 2): (319.08, 195.18) -> (307.95, 167.00) in 38
+  pushes, state 2 throughout — **no scenes, no field
+  encounters, no prompts**. She passed within 0.9 units of the
+  spent Sage's Path anchor (point 13) without incident.
+- ENTRY: posed 2.9 units from the point-7 anchor, **the FIRST
+  Cross entered** (state 2 -> 5 -> 20). Banner: **"Gateway of
+  Fools and Hope"** — Chapter 1's third gateway. Entry disc
+  20, Gil 390 carried in, board HUD HP 1973, banked KP 4,
+  gauge 0. No entry scene fired in the first ~1,500 frames
+  (the Sage's Path banter pattern did not repeat here).
+
+### The Gateway of Fools and Hope — first census (no fights; nothing engaged)
+
+- **13 discs**: {1, 2, 4, 12, 14, 15, 20, 21, 24, 32, 33, 34,
+  43} (the disc-table fingerprint that identifies this board).
+  Entry disc **20** (-18, -4). Board manager pointer agrees
+  (0x095D123C -> record of grid 20).
+- Full Scan pass (Select; DFS over the scan cursor, every hop
+  verified by the cursor cell 0x095CD41C; all 13 discs
+  visited, zero backtrack warnings). Pieces as the game
+  presents them:
+  - **21 (-14, -4): Fleeting Flash, Lv 2** — Battle Stage:
+    World of Darkness. It stands on the ONLY disc linked to
+    the entry (20-21): this board's toll piece — nothing else
+    on the board is reachable without engaging it.
+  - **1 (-14, -12): Treasure Chest** ("Contains helpful
+    items.")
+  - **24 (-2, -4): Treasure Chest** ("Contains helpful
+    items.")
+  - **15 (2, -8): "???"** — "Engage this piece to find its
+    true form."
+  - Empty transit discs: 2, 4, 12, 14, 32, 33, 34, 43.
+  - **No Stigma of Chaos on the board as entered** — the
+    Sage's Path pattern again: completion presumably rides on
+    the ??? piece.
+- Link graph (undirected, from the scan DFS): 20-21, 21-1,
+  21-24, 1-2, 2-4, 2-12, 4-14, 12-14, 12-32, 14-15, 14-24,
+  24-34, 34-33, 33-32, 33-43.
+- OPEN QUESTION: a small blue figure stands on a middle disc
+  (most consistent with disc 12 by the entry-view geometry).
+  Its disc produced NO Scan info box, and the disc-object dump
+  (0x095CD570 + 0x40 x grid, all 16 words) shows no field that
+  cleanly separates piece discs from empty ones — Scan Mode
+  presents nothing for it. Identity unresolved; traversal past
+  the Flash (next session) should settle it. Harness note:
+  pressing Right toward the Flash from disc 20 set the engage
+  focus pointer (0x095CD410) to 21's record without hopping —
+  battle-piece addressing as in sessions 13-19.
+- Her position at census end: on disc 20 of the Gateway of
+  Fools and Hope, Lv 10, HP 1973/1973, Gil 390, banked KP 4,
+  gauge 0. State: ch1_s21_scanned.state.
+
+### States and dumps (~/d12s)
+
+ch1_s21_postshop.state (field, post-purchase, armor worn),
+ch1_s21_walk1.state (posed at point 7), ch1_s21_enter1.state
+(on the board, just entered), ch1_s21_board.state (board
+settled), ch1_s21_scanned.state (post-census). Shop
+intermediates ch1_s21_shop_open / inshop* / inbuy* / buy_a /
+equip_*.state. Screenshots s21_*.png (shop series, map, walk,
+entry v-series, board w-series, scan s21_sc_<grid>.png x13).
+Scripts s21_*.py; logs s21_*.log.
