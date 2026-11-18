@@ -3000,3 +3000,208 @@ loading it; the drv command line splits on spaces.)
   18739e6..a0ae421, pushed via the clone's git credentials,
   git ls-remote verified in-session: origin/main = a0ae421.
   This addendum commit follows on main.
+
+## Session 23 — Chapter 2 opened: Vaan, the fleeing gauntlet, Hidden Darkness Gateway censused
+
+Branch dissidia-012-ch2 from main b9fff11. Start state
+ch1_s22_kunai.state — the TRUE session-22 end (Gil 800,
+Kunai worn). The s22 shell state predates the Kunai
+purchase (Gil 1200 there) and was NOT used; the lineage
+was re-based by backing out of Customization from the
+kunai state to a clean main menu (ch2_s23_menu.state,
+Gil 800 verified). All fight numbers below are
+battle-cell measurements (session-17 block A pattern
+search per boot); all rewards, names and lines are the
+game's own screens/text.
+
+### Entering Chapter 2 — menus and lead
+
+- Main menu -> Story Mode -> scenario banner "Main
+  Scenario 012: Treachery of the Gods — The Twelfth
+  Cycle" -> chapter carousel. The ring holds the three
+  unlocked chapters: Prologue (card "CHAPTER 0 —
+  Prologue - Path to Sanctuary", header shows Lightning
+  Lv 13), Chapter 1 (checked, complete), Chapter 2.
+  Left from the Prologue wraps to Chapter 2.
+- Chapter 2 card: "Chapter 2 - Stern Eyes", header lead
+  **Vaan, Lv 1**; synopsis line: "Vaan successfully
+  flees from the hordes of manikins..." Cross opens
+  "Play this story?" (YES/NO; hint: Triangle opens
+  Customization). YES starts the chapter.
+- **Chapter 2's lead is Vaan, a fresh Lv 1** — Lightning
+  does not carry over as lead. His full starting record
+  (Customization, read on the board after entry): Lv 1;
+  HP 1000/1000; CP 330 (abilities use 265); BRV 95;
+  ATK 10; DEF 13; LUK 10; EXP NEXT 4194 / TOTAL 806;
+  **no equipment in any slot** (every gear bonus +0);
+  bravery abilities Spear (ground), Greatsword
+  (ground), Spear (midair), Greatsword (midair), CP 30
+  each; **Assist already set: Onion Knight** (BRV:
+  Blizzard, Turbo-Hit; HP: Blade Torrent, Comet).
+  Shared pools carry over: Gil 800, banked KP 8 (s22
+  ended banked 4 + gauge 4 — the gauge paid out at
+  chapter completion, the session-13/14 pattern).
+
+### The opening and the field
+
+- Opening: narration card over the world map ("While
+  retreating after parting ways with Lightning, Vaan
+  strays from his friends." — map marker in the
+  southeast), then an in-engine solo scene (state 3):
+  "And I've lost sight of the others, too. Guess I
+  better find a way back..." Control on the field at
+  (307.52, -2.13, 295.72), HUD Lv 1 / HP 1000 / Gil 800
+  / KP 8.
+- A glowing dark rock stands ~2.85 units away at point
+  17 (304.79, -3.02, 296.54). No gate maps to point 17
+  this boot and six Crosses around it drew no tester
+  response — scenery/story dressing, not an enterable
+  anchor. **Cross on this field is a forward DASH**
+  (~4-7 units per press), not a neutral interact: it
+  moved him during the opening ride and later dashed
+  him into the gateway (below).
+- Field survey (this boot): GateMgr via ctrl+0x88 =
+  0x095D7110, count 12 (gates 11-22); point table
+  unchanged at 0x095E61C0, 18 points, same coordinates
+  as Chapter 1. **Gate->point is reshuffled for
+  Chapter 2**: 11->10, 12->11, 13->4, 14->5, 15->6,
+  16->7, 17->8, 18->9, 19->12, 20->13, 21->14, 22->15.
+  Chapter 1's gateway anchors (pts 7, 13, 14) sit in
+  the inert family now (finished). Tester-reachable
+  (lh(A+4) >= 0): gate 11 (lh 8) -> pt 10 (154.08,
+  6.72, 229.42); gate 12 (lh 7) -> pt 11 (222.00,
+  3.75, 193.50); gate 15 (lh 11) -> pt 6 (253.93,
+  2.72, 181.66).
+- Terrain: ridge-and-canyon country — straight-line
+  and cardinal steering wall constantly (a cliff over
+  the sea bounds the start plateau's south edge at
+  Z~272; an east-west wall runs at Z~234-235). The
+  walker that worked: vector steering with an 8-way
+  probe on stuck (probe from a savestate, best-gain
+  direction becomes a temporary bias). Route actually
+  walked: start -> north coast corridor -> AMBUSH 1 ->
+  relocated east (344.75, 250.28) -> southwest along
+  the cliff tops -> inner corridor via (318, 266) and
+  (308, 276) -> north via (300, 262), (298, 244),
+  (292, 228) -> AMBUSH 2 on the high shelf at (281.1,
+  7.63, 219.7) -> relocated to (268.57, 1.67, 253.34)
+  -> north through the canyon notches (probe-found at
+  (277.4, 241.4) and (269.2, 217.9)) -> gateway
+  approach scene at (257.55, 2.41, 189.18).
+
+### The fleeing gauntlet — two scripted field ambushes
+
+Both fired on plain movement (no Cross), state 2 -> 5
+-> 20, landing on a VS card: "Lv 1 Vaan VS ? Lv N",
+foe name hidden, "JUDGMENT" under the foe, "Next" on
+Cross. The standard rotation fought both.
+
+- **Ambush 1** at (305.61, 251.35) walking north:
+  ? Lv 1, stage **Order's Sanctuary**. Cells (block A
+  0x0969E588): foe HP 338 / BRV 95 / pool 133; Vaan
+  BRV 95. **WIN in 16 rotations, zero HP damage** —
+  his HP attacks landed in 95-chunks (338 -> 243 ->
+  148 -> 53 -> 0). Reward (game text): "Obtained
+  6 gil." Gil 800 -> 806. The win RELOCATED him to
+  (344.75, 250.28), +39 X east across the ridge.
+- **Ambush 2** at (281.07, 219.73): ? Lv 2, stage
+  **Lunar Subterrane**. Cells (block A 0x096D6938):
+  foe HP 399 / BRV 111 / pool 139. **WIN in 17
+  rotations**; took two 111 hits (1000 -> 889 -> 778).
+  Reward: "Obtained 14 gil." Gil 806 -> 820. Landing
+  (268.57, 1.67, 253.34). Field HUD afterwards reads
+  HP 1000 — **field-battle damage does not persist**
+  to the field.
+- Neither field battle showed an EXP/level screen;
+  Vaan is still Lv 1. As measured, these pay Gil only.
+
+### Hidden Darkness Gateway — entry and census
+
+- Approach scene (state 3) in front of a stone arch
+  with a glowing seal, ~8.6 units NE of the pt-6
+  anchor: Vaan: "Hm? This gateway seems different
+  from the others. What's the deal?" / "Think I'll
+  take a little peek inside, then I wouldn't be
+  taking a detour."
+- Entry: the post-scene Cross dashed him (257.55,
+  189.18) -> (257.85, 181.73), inside the tester
+  radius; by the next sample the game was on the
+  board loading screen (state 20). Banner: **"Hidden
+  Darkness Gateway"** — gate 15 -> point 6, Chapter
+  2's first gateway.
+- Board entry: state 20, **entry disc 23** (board
+  manager pointer 0x095D123C -> record of 23 agrees);
+  Vaan Lv 1, HP 1000, Gil 820, banked KP 8, gauge 0.
+  An entry banter plays as board-overlay dialogue
+  (ctrl stays 20; it eats input until crossed
+  through — the Sage's Path pattern): Vaan: "I wish
+  we had an airship. It'd make getting to Chaos so
+  much easier..." / Onion Knight: "How can you have
+  a carefree daydream at a time like this?" / Vaan:
+  "What the—! How long have you been there? Don't
+  scare me like that!"
+- **Census** (full Scan DFS from the entry disc,
+  every hop cursor-verified, zero backtrack warnings;
+  coordinates (x, z) = (4*col - 18, 4*row - 4)):
+  **18 discs** {0, 3, 4, 10, 11, 12, 13, 14, 20, 21,
+  22, 23, 24, 32, 33, 34, 35, 36}:
+  - 23 (-6, -4): ENTRY (Vaan)
+  - 0 (-18, -12): **Treasure Chest**
+  - 3 (-6, -12): **Delusory Dragoon, Lv 5** (Lunar
+    Subterrane)
+  - 4 (-2, -12): no Scan info box
+  - 10 (-18, -8): no Scan info box
+  - 11 (-14, -8): **Onion Knight (Assist Character)**
+  - 12 (-10, -8): **Phantasmal Harlequin, Lv 5**
+    (Lunar Subterrane)
+  - 13 (-6, -8): no Scan info box
+  - 14 (-2, -8): **Stigma of Chaos** — "Engaging
+    this piece finishes the level."
+  - 20 (-18, -4): no Scan info box
+  - 21 (-14, -4): **Delusory Dragoon, Lv 2** (World
+    of Darkness)
+  - 22 (-10, -4): no Scan info box
+  - 24 (-2, -4): no Scan info box
+  - 32 (-10, 0): **Idle Sky Pirate, Lv 2** (World of
+    Darkness)
+  - 33 (-6, 0): no Scan info box
+  - 34 (-2, 0): no Scan info box
+  - 35 (2, 0): **Fleeting Flash, Lv 5** (Lunar
+    Subterrane)
+  - 36 (6, 0): **Treasure Chest**
+- Link graph (undirected, from the scan DFS): 23-13,
+  23-22, 23-24, 23-33, 13-3, 13-12, 13-14, 3-0, 3-4,
+  4-14, 14-24, 24-34, 34-33, 34-35, 35-36, 33-32,
+  32-22, 22-12, 22-21, 12-11, 11-10, 11-21, 10-0,
+  10-20, 20-21.
+- Two structural notes: (1) **this board's Stigma is
+  present from entry** — Chapter 1's gateways had
+  none as entered (theirs rode on the hidden boss);
+  Vaan's own line flags the difference ("seems
+  different from the others"). (2) "No Scan info box"
+  means empty AS PRESENTED — session 22 proved Scan
+  can miss pieces (Fools and Hope missed three), so
+  presence is not excluded for the no-box discs;
+  disc 4 sits in the manikin row and is the prime
+  suspect. Nothing was fought on the board this
+  session (brief: census only).
+
+### End state
+
+Vaan stands on disc 23 of the Hidden Darkness
+Gateway: **Lv 1, HP 1000/1000, Gil 820, banked KP 8,
+gauge 0**, no equipment, Onion Knight assisting.
+States (~/d12s): ch2_s23_menu (clean main menu,
+correct lineage), ch2_s23_open (field control after
+the opening), ch2_s23_transition / _post_transition
+(ambush 1 trigger / VS card), ch2_s23_fight1_win,
+ch2_s23_transition2 (ambush 2 VS card),
+ch2_s23_fight2_win, ch2_s23_walk9_end (approach
+scene), ch2_s23_scene_end (entry loading),
+ch2_s23_board (banter pending), ch2_s23_board_clear
+(banter done), ch2_s23_scanned, ch2_s23_final (on
+the board, post-Customization read). Dumps:
+s23_field.bin, s23_board.bin, s23_f_start.bin,
+s23_f_end.bin, s23_f2_start.bin, s23_f2_end.bin.
+Scripts s23_*.py; logs s23_*.log; screenshots
+s23_*.png (scan set s23_sc2_<grid>.png x18).
