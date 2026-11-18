@@ -5106,3 +5106,199 @@ re-probed the post-Decay pocket's east side:
   (065c049..d7ddb95 plus this addendum). Doc-only
   session; no adapter code changed, so no new test
   gates applied.
+
+## Session 32 — Chapter 3: the peak climbed, Great
+Forest cleared, and the boulder mechanic (two
+workers, reconstructed)
+
+- Reconstruction note: session 32 ran as two workers
+  (32, then recovery 32R); both ended without filing
+  a report. This section was written by session 32c
+  from their save states, logs, and screenshots in
+  ~/d12s and committed before any further play, so
+  the record can no longer be lost with a worker.
+  Claims below were verified against those artifacts
+  by 32R or 32c unless labeled guide data.
+
+### The climb (worker 32, measured)
+
+- From ch3_s31_final.state (valley at (−98.6, −0.2,
+  214.2)), the climbable line up the peak's south
+  slope is session 29's descent line at x≈−100
+  (states ch3_s32_slope1/slope2), reaching the
+  plateau (y≈0..0.9, z 240–295; states
+  ch3_s32_plat1/plat2). Session 31's west line at
+  x≈−118 stays descend-only.
+
+### Great Forest entry (measured)
+
+- Gate 15 → point 4 (gate04_01). Entry recipe
+  refined: pose within ~0.5 units of the anchor and
+  let ~600 frames settle for the tester burst; the
+  earlier failures were distance (2.4 units), not
+  flags. The board plays at ctrl state 20.
+- Entry scene: Laguna — "Am I lost again? It can't
+  be that I actually want to be alone, right?" —
+  and Squall appears: "My...apologies..."; Laguna:
+  "Squall! Perfect timing!..."
+
+### Great Forest census (measured, Scan pass)
+
+- 18 discs, entry disc 34. Pieces: 4 = chest;
+  10 = Transient Gunner Lv 1; 14 = Delusory
+  Dragoon Lv 4; 36 = Stigma of Chaos; 41 =
+  Fleeting Flash Lv 5; 50 = Squall (Assist
+  Character); 54 = Ephemeral Vision Lv 5 (the
+  guide's "Transient Vision" name is wrong);
+  64 = chest. Disc 24 showed figures in its Scan
+  shot but no info box — unresolved; nothing was
+  identified or engaged there. Discs 31, 32, 33,
+  35 showed no info box (empty).
+- Chest 4 = **Chocobo Down** (game text: the
+  "Obtained Chocobo Down" banner read in the
+  Customization menu by the playing worker; the
+  guide's Soul of Valor for this square is
+  superseded). Chest 64's contents were NOT
+  captured — the banner expired before the menu
+  read (guide lists Fish Scale for that square:
+  guide data, unverified).
+- Adjacency rule reconfirmed: moves and engages
+  only between truly adjacent discs (grid ±1 or
+  ±10 among existing discs); Scan links spanning
+  gaps are not move links.
+
+### Great Forest play (measured)
+
+- Dragoon (14) WIN: +36 Gil (428→464), gauge 0→1.
+  Gunner (10) WIN: +6 Gil (464→470), gauge 1→2.
+  Squall's piece engaged from disc 40: a scene
+  plays and he assists inside this gateway (the
+  board's assist piece; HUD at his prompt: Lv 8,
+  HP 1852/1852, gauge 3, Gil 520). Flash (41)
+  WIN. Vision (54) WIN. Chest 64 opened (by then
+  gauge 4; Laguna at 1238 HP after the fights).
+  The board's Moogle Shop was browsed only — Gil
+  and banked KP are unchanged across the visit
+  (verified by 32R).
+- Laguna leveled 7→8 on the board (EXP total
+  38,768 at chest 4 → 44,305; one fight paid at
+  the ×1.5 LUCKY rate); max HP 1792→1852.
+- Stigma (36) finish: "Received 4 KP!" — banked
+  KP 34→38. Pass totals: +142 Gil (428→570),
+  +4 KP. Exit landing: field at (−10.92, −0.15,
+  255.55) beside the Great Forest arch, HP full.
+  Gate census after exit: gates 12/15/16 still
+  live (lh(A+4) 15/16/17) — Great Forest is blue/
+  repeatable and stays enterable after finishing,
+  so it remains the farm board.
+
+### After Great Forest (worker 32, measured)
+
+- Dash navigation east across the plateau arrived
+  at (−33.7, −0.2, 286.4), beside point 1
+  (POS_jump_gate03_06 at (−35.00, 0.93, 284.28))
+  — state ch3_s32_tableland1.state. The worker
+  ended there without reporting.
+
+### Session 32R verification (measured)
+
+- 32R re-read the surviving prompt screenshots:
+  "Squall / Assist Character" at his engage
+  prompt; "Stigma of Chaos — Engaging this piece
+  finishes the level." at the Stigma prompt; the
+  HUD figures above check out against them.
+  Piece names and levels verified against the
+  guide list, with the Vision's name corrected
+  to Ephemeral Vision.
+- Jump-anchor test at point 1: Laguna stood 1.2
+  units from POS_jump_gate03_06 — proximity alone
+  fired nothing, and Cross on this field is a
+  dash, not an interact. Walk-in tests at the
+  barred gate03_06 arch also fired nothing; the
+  barred gateway stays inert (gate 13 lh(A+4)
+  =−1), consistent with session 31.
+- Shop/inventory work from the tableland state:
+  the Customization shop's Buy/Sell screens were
+  read (Gil 570); nothing was bought or sold by
+  either worker.
+
+### Session 32R geography (measured)
+
+- Plateau east channel: from (−13.0, 269.5) a
+  channel runs southeast down to a stall at
+  (−6.1, −0.1, 254.6) (states ch3_s32r_east1–4);
+  probe navigation reads the stall as a wall in
+  every direction.
+- kaname_04 pocket: descending southeast from
+  (−47.6, −1.1, 231.7) reaches a low basin at
+  (−38.1, −1.5, 214.6), 4.3 units west of
+  kaname_04 (−31.29, −2.12, 213.59) — the first
+  ground at valley height east of the escarpment.
+  The basin is a dead end: south wall at z≈210;
+  its east side rises to a dead-end knoll at
+  (−29.4, −0.7, 211.2).
+- Decay terrace east views (screenshot study,
+  s32r_look_te*): from the terrace's east edge a
+  flat-topped mesa sits ~15–20 units east across
+  water at terrace height; a red manikin figure
+  stands on or just past its far side, and the
+  burning gateway arch is visible beyond it. The
+  floating X marker tracks the nearest wandering
+  manikin (the same marker as the Wraith's); the
+  red figure may be the False Stalwart standing
+  on the far shore.
+- Attack tests: at the beach choke (−75.8, −2.9,
+  56.3), Square opens the field attack state
+  (ctrl state 4) but there is no boulder there —
+  the choke is simply the beach ending at water.
+  At the plateau channel stall, one Square per
+  direction (N/E/S/W) produced no break — an
+  insufficient test against a boulder that may
+  need up to three aimed hits (see below). 32R's
+  last state: ch3_s32r_break_chan.state at
+  (−6.7, −0.1, 255.5), mid-test.
+
+### The boulder mechanic (guide data, banked by 32R)
+
+- Suih's FAQ (L476–490): "Boulders are a new thing
+  with the new World Map, depending on what
+  character you're using, they can take up to
+  three hits to destroy... Now when you destroy a
+  boulder a little quickmove line of light will
+  appear to take you over some sort of a gap,
+  usually to an island, where a chest and/or
+  manikin will be at." Hits vary by character
+  (Kain 1, Lightning 2, Tifa 3 — combo counts).
+  The FAQ elsewhere (L2020) describes them as a
+  "black boulder with red cracks". GameSpy adds
+  that the Pink Tail chest sits "across the
+  boulder path" behind the Omen exit — boulders
+  also BLOCK PATHS, and probe-based navigation
+  reads a blocking boulder as a wall.
+- Suspicion (32R): the kaname crystals — giant
+  dark crystals with orange fissures (points
+  12–16) — match the boulder description closely
+  enough to test as boulders or kin. Session 29's
+  single Square beside kaname_03 opened the
+  attack state but may simply have been too few
+  hits, or not connecting. Laguna's hit count is
+  unknown; his machine-gun world-map attack may
+  combo.
+- Standing test protocol (from 32c): at any
+  stall or gap edge, face the suspected boulder
+  and press Square repeatedly (up to 4–5 times),
+  re-aiming between presses; watch for a break
+  and a light line; ride the line by moving or
+  dashing into it.
+
+### End standing (measured, end of 32R)
+
+- Laguna Lv 8, HP 1852/1852 on the field, Gil
+  570, banked KP 38. Gear unchanged (Iron Sword /
+  Buckler / Iron Helm / Leather Armor, Ifrit
+  AUTO). Inventory gained: Chocobo Down; chest
+  64's item unrecorded. Vaan remains the field
+  assist. Chapter 3 NOT finished. Furthest
+  states: ch3_s32_tableland1.state (plateau east,
+  by the jump anchor) and ch3_s32r_break_chan
+  .state (plateau east channel stall).
