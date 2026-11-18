@@ -3205,3 +3205,15 @@ s23_field.bin, s23_board.bin, s23_f_start.bin,
 s23_f_end.bin, s23_f2_start.bin, s23_f2_end.bin.
 Scripts s23_*.py; logs s23_*.log; screenshots
 s23_*.png (scan set s23_sc2_<grid>.png x18).
+
+### Session 23 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test
+  gates applied): the Session 23 section was committed on
+  dissidia-012-ch2 (62f71cc) and merged here. Merge gates
+  (session 12's): working tree clean except the doc; local
+  main == origin/main (b9fff11); merge-base == b9fff11 (main
+  a strict ancestor, branch 1 ahead / 0 behind). Pure
+  fast-forward b9fff11..62f71cc, pushed via the clone's git
+  credentials, git ls-remote verified in-session:
+  origin/main = 62f71cc. This addendum commit follows on main.
