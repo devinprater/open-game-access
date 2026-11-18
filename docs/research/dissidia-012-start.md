@@ -4677,3 +4677,13 @@ ch3_s29_stigma_vs.state, ch3_s29_final.state.
 Variant fight scripts: s29_fightx.py (cross-spam),
 s29_fightz.py (advance), s29_fightq.py (spaced
 dodge-counter), s29_fighte.py (EX opener).
+
+### Session 29 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test
+  gates applied): the Session 29 section was committed on
+  dissidia-012-ch3b (2231032) and fast-forwarded here
+  (main was still at the branch base 78c28cd; the merge took
+  only the doc change, +277 lines). Pushed via the clone's
+  git credentials; origin/main verified with gh api after
+  the push. This addendum commit follows on main.
