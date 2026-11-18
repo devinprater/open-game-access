@@ -1,4 +1,5 @@
-exec(open("/home/devin/bench.py").read())
+import pathlib
+exec(open(pathlib.Path(__file__).resolve().parent / "mku-bench-lib.py").read())
 import math, sys
 SUB = 0x09106354
 OLD = 0x09151098 - 26 * 0x810 + 0x1C
