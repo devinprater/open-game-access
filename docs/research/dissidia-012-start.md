@@ -5599,3 +5599,27 @@ Scripts s33_*.py in ~/d12s.
   east-shore pocket, across the channel that would
   not cross on foot. The channel crossing is the
   kaname_04 line.
+
+### The landing islet and its chest (measured):
+### Pink Tail
+
+- The landing point (-38.2, -1.0, 194.6) is a small
+  flat-topped islet: walkable extent about x
+  -41..-36, z 190..197 (probe-walked; its south
+  shore stalls at (-36.7, -1.3, 191.7)). It is NOT
+  the peninsula — open water still separates it
+  from the shore to the east.
+- The golden chest stands at the islet's north
+  side, about (-38.8, 197.4) (opened from that
+  spot). Two earlier attempts missed it because
+  they searched the islet's south half and because
+  Cross only interacts when the tester has the
+  chest as a live candidate: after a 200-frame
+  settle at (-38.8, -0.7, 197.4), ONE Cross fired
+  the state-16 popup: "Obtained Pink Tail from
+  chest!" (screenshot s33_nchest_a_x0.png). This is
+  the Pink Tail the guides put across the boulder
+  path / around the bend. Gil unchanged (570).
+- Lineage state: ch3_s33_nchest_end.state (on the
+  islet, Pink Tail in inventory). Laguna Lv 8,
+  HP 1852/1852, Gil 570, banked KP 38.
