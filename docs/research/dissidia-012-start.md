@@ -5418,3 +5418,94 @@ kaname_03 anchor (-103.31, -1.50, 201.88).
   this shared world map. NO chest record exists in
   this table: field chests live in a different object
   list, still unlocated in RAM.
+
+### Session 32c (continued) — the long way around the
+### lake; the south-east landmass still unreached
+
+The true lineage (Laguna Lv 8, Gil 570, KP 38) was
+walked from ch3_s32r_break_chan.state (popup dismissed
+first: the state had been saved in ctrl state 4;
+Circle closed it — clean start saved as
+ch3_s32c_start.state). Full route, all dashnav/walker
+legs verified by log: plateau west to (-63.8, 247.0)
+and (-91.2, 240.8); down the x=-100 climb line in
+reverse to the valley (-99.7, 215.2); south past the
+kaname_03 crystal shore to the causeway north end
+(-86.5, 166.9); the causeway south to the rim
+(-83.6, 85.0); east to the Decay terrace (-54.7,
+79.3) and its east point (-40.3, 75.8).
+
+- Terrace east point (test (c) area): look shots show
+  a wide water gap east to a shore with a tall beacon
+  tower; a Circle sweep (32 volleys) at the edge
+  broke nothing, spawned no line. No boulder there.
+- Beach choke (-80.3, 58.8): the beach's west wall.
+  Two Circle sweeps from two positions (64+ volleys
+  total) broke nothing. The choke is terrain, not a
+  boulder — GameSpy's "break the rock" is not here,
+  or not breakable from the beach side.
+- Landing cove (-43.2, 51.2): due south across a
+  narrow strait stands a burning gateway arch with a
+  black orange-fissured rock at its foot (screenshot
+  s32c_qm_cove_before.png) — that far shore is the
+  south-east landmass (the shrine pair's anchors,
+  gate04_03 (-24.44, 9.07) and gate04_04 (0.35,
+  31.41), plot just east-south-east of the cove).
+  The cove itself is a ~2-unit pocket: no line
+  boards there (Triangle opens Customization), no
+  boulder, and every dash/walk direction south or
+  east fails at once (deep water).
+- The world map (Select, state 14) was read at three
+  positions (cove, north shore strip, bowl) to fix
+  the geography. The map is stylized and NOT globally
+  linear (session 30's calibration is a western-lobe
+  fit only); trust it topologically, not metrically.
+- North-east route: valley east along the highland
+  corridor (z 198-216) to the promontory (-53.1,
+  205.9). The promontory descends SOUTH to a small
+  shore pocket at (-53.7, -2.8, 192.5) on the lake's
+  east shore. Across a ~13-unit channel east of the
+  pocket: a flat-topped islet with a golden chest
+  (about (-42, 198)) and, just beyond, a shore point
+  with a manikin (False Stalwart?) and open plain
+  behind it — the eastern peninsula that runs south
+  to the south-east landmass. THE CHANNEL DOES NOT
+  CROSS by walking or dashing (fine-walker probes
+  fail in all 8 directions), no line boards at the
+  pocket (Triangle = Customization), and Circle
+  sweeps at the pocket and at the promontory broke
+  nothing. The crossing mechanism for this channel
+  is still unfound.
+- The pocket's shore runs WEST instead: a beach
+  strip (z 181-192) to (-82.0, 181.7), then a valley
+  SOUTH along x about -75 (z 156 -> 75) to a bowl at
+  (-63.4, -0.4, 74.6) — a ruined stone gate stands
+  just east of the bowl — and the bowl's shore runs
+  EAST back to the Decay terrace east point
+  (-40.0, 75.0). So the promontory pocket, the north
+  shore strip, the x=-75 valley, the bowl, and the
+  terrace form one connected loop around the lake's
+  south-west; none of it touches the south-east
+  landmass.
+- RAM string search (full dump from the shore strip)
+  found object families beyond the POS_ point table:
+  OBB_jump_gate03_06, OBB_jump_gate04_04,
+  OBB_mes_gate03_06, OBB_mes_gate04_04, N_gate04xx
+  nodes, P_kaname_01..05, DES_N_ descriptions, and
+  one cleanly-read OBB record: 'OBB_cpu_BtoC' at
+  (-123.75, -2.05, 63.79), beside POS_gate04_05.
+  The OBB array's stride is not the POS table's
+  0x3C, so OBB_mes positions are not yet read.
+  Working guess: the OBB_jump/OBB_mes objects are
+  the quickmove-line triggers bound to gate04_04
+  and the barred gate03_06.
+
+End standing (true lineage, unchanged): Laguna
+Lv 8, HP 1852/1852, Gil 570, banked KP 38. Latest
+lineage states: ch3_s32c_s15.state (Decay terrace
+east point) and the loop states ch3_s32c_n*/e*/s*
+in ~/d12s. Chapter 3 is NOT finished: the two live
+south-east gateways (gate 12 -> Gateway to the
+Shrine, gate 16 -> Southern Shrine) are still
+unreached, and the pocket-channel crossing is the
+open problem.
