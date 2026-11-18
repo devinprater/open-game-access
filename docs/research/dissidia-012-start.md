@@ -5891,3 +5891,87 @@ s34_*.py in ~/d12s.
   Lv 12+ for the final board; Laguna is Lv 8,
   so farm loops in the repeatable gateway are
   the plan once it is reached.
+
+### The cove, aimed (measured negative); the OBB
+### table (measured)
+
+- A feedback facing tool (s34_cove.py) turns
+  Laguna by pulse-walking and reading the facing
+  vector (player struct +0x08/+0x00) until the
+  dot product with the wanted direction exceeds
+  0.92 — facing is now aimable, which the fixed
+  face() helpers never guaranteed. From the cove
+  (-43.7, -2.8, 50.9) and (-46.0, -2.8, 49.8),
+  facing due south (fz -0.92..-0.97): 3 rounds
+  of 5 volleys each per spot, Triangle after
+  every round — nothing broke, no line boarded.
+  The strait does not open by shooting south
+  from the cove.
+- The OBB array (stride 0x60, positions at
+  +0x24 like the POS table) holds exactly ten
+  records in this segment: the two jump lines'
+  far ends (gate04_04 (4.66, 0.00, 31.39);
+  gate03_06 (-33.48, 0.00, 299.17)), two "mes"
+  sign objects beside them, and six OBB_cpu
+  links sitting on gateway anchors (AtoB at
+  gate04_04, BtoC at gate04_05, BtoD at
+  gate04_02, DtoE at gate04_00, EtoF at the
+  plateau, CtoH at gate04_06) — the wandering
+  manikins' hop graph, most likely. There is no
+  OBB record for any kaname line or light
+  column: the only scripted crossings in data
+  are the two jump lines, both internal to
+  their own landmasses. The kaname lines are
+  run by the map-unique objects themselves.
+- Cautionary harness note: in the session-29
+  fork state, volleys at the cove walked Laguna
+  into the (there still living) Counterfeit
+  Wraith's zone and a field battle loaded —
+  ctrl state read 20 during the load, which is
+  NOT exclusive to board entry.
+
+### THE CROSSING (measured — the route problem
+### is solved)
+
+- The strait is crossed ON FOOT. Session 30's
+  survey (run with the since-discredited fixed-
+  basis walker) missed a walkable spit south of
+  the beach. Measured route, true lineage, all
+  in ctrl state 2, no battles: landing cove
+  (-41.8, -2.8, 51.8) -> beach -> south at
+  x ~-60 to (-59.3, -2.2, 41.0) -> west along
+  the spit to (-69.8, -2.8, 41.1) -> south to
+  (-70.7, -1.1, 31.1) -> (-70.8, -0.8, 26.8)
+  -> east along the southern shore: (-61.5,
+  -0.1, 23.3), (-53.9, 0.7, 20.9), (-47.5, 0.0,
+  22.4), (-43.9, -0.5, 30.8), (-35.8, 0.0,
+  25.5), (-27.8, -0.1, 20.1) — the south-east
+  landmass, reached. The cove's own south edge
+  is a wall (wade probes stall at (-46.1, 49.7));
+  the crossing is the beach's southern spit,
+  ~20 units west of the cove. No boulder, no
+  line, no boat: the "crossing" was a shore the
+  old walker never probed southward.
+- The light-column objects at (-70, 24),
+  (-54, 18), (-44.90, 31.80) stand along this
+  shore (passed on the walk; not probed).
+
+### Gateway to the Shrine ENTERED (measured)
+
+- gate04_03 (gate 16, point 6, anchor (-24.44,
+  0.87, 9.07)) is the GATEWAY TO THE SHRINE —
+  banner screenshot s34_south_south1_
+  gategate0403_board.png. Session 32's working
+  identification was swapped: gate04_04 (gate
+  12, point 7, anchor (0.35, 1.11, 31.41)) is
+  therefore the Southern Shrine Gateway.
+- Entry: the tester zone sits ~3 units NORTH
+  of the anchor. Crosses at the anchor and at
+  +3E/-3W spots only dashed (no candidate);
+  at (-24.6, 0.2, 11.4) the first Cross fired
+  the conditions transition (ctrl state 5) and
+  the board settled at ctrl state 20, entry
+  grid 13. Board state: ch3_s34_gate_
+  gate0403.state (= ch3_s34_south_end.state).
+  True lineage on the board: Laguna Lv 8,
+  HP 1852/1852, Gil 570, banked KP 38.
