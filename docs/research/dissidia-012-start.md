@@ -4867,3 +4867,11 @@ despite an extensive route survey (all measured):
   some order (blue repeatable first for farm loops
   to ~Lv 12, then the final board per the census
   plan above).
+
+### Session 30 addendum - merge
+
+- Session 30 doc committed on branch dissidia-012-ch3c
+  (2a8e65d) and merged to main by fast-forward
+  (5a6d8cf..2a8e65d plus this addendum). Doc-only
+  session; no adapter code changed, so no new test
+  gates applied.
