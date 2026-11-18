@@ -5509,3 +5509,28 @@ south-east gateways (gate 12 -> Gateway to the
 Shrine, gate 16 -> Southern Shrine) are still
 unreached, and the pocket-channel crossing is the
 open problem.
+
+### Session 32c — closing note and next first test
+
+Chapter 3 did not finish this session. The record
+above is complete through the lake loop and is
+pushed on dissidia-012-ch3e (not merged — the
+chapter record is incomplete).
+
+Next session's first test (hypothesis, untried):
+kaname_04 (-31.29, -2.12, 213.59). Session 32R
+reached its basin from the plateau side (descend
+south-east from (-47.6, -1.1, 231.7) to the basin
+floor (-38.1, -1.5, 214.6)) and stopped 4.3 units
+short of the crystal, testing only Square (void —
+Square is the skill popup). The corridor side is
+walled by the escarpment (walker stalls at
+(-52.72, -2.71, 211.20)). At the crystal's face,
+test Triangle for a quickmove line (kaname_03's
+line was found exactly this way) and a Circle
+sweep. If a line exists there it may jump the
+escarpment's east side toward the tableland and
+the eastern peninsula's north end. Second open
+problem: the pocket channel at (-53.7, 192.5) —
+the OBB_mes_gate04_04 object's position (array
+stride still unread) may name its trigger.
