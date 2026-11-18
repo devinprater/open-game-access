@@ -1290,6 +1290,58 @@ int main()
     sf3();
     CHECK(NSPOKEN == 0 && a->cue_snapshot(&vsnap) && !vsnap.foe_beep,
           "sound-first: the killing blow raises nothing (the game owns the KO)");
+    // ---- Fight proximity beacon (live-verified 2026-11-17) ------------------
+    // Actor pointers at the fighters' blocks; position vec3 at actor+0x20.
+    // Numbers are the bench's own: idle gap ~2.0, walked in to ~0.85,
+    // walked out to ~5.3.
+    {
+        const uint32_t A1 = 0x090FCA00, A2 = 0x090A5A10;
+        put_u32(0x08D929C4, A1); put_u32(0x08D92A30, A2);
+        put_f32b(A1 + 0x20, -11.38f); put_f32b(A1 + 0x28, 9.40f);
+        put_f32b(A2 + 0x20, -10.95f); put_f32b(A2 + 0x28, 7.41f);
+        sf3();
+        oga::CueSnapshot ps{};
+        CHECK(a->cue_snapshot(&ps) && ps.battle && ps.locked && ps.dist > 4.0f && ps.dist < 45.0f,
+              "proximity: a live fight with readable positions locks the beacon");
+        float mid = ps.dist;
+        put_f32b(A1 + 0x20, -10.85f); put_f32b(A1 + 0x28, 3.60f);   // walked in
+        put_f32b(A2 + 0x20, -10.04f); put_f32b(A2 + 0x28, 3.60f);
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked && ps.dist == 4.0f,
+              "proximity: closer than the near bound pins to the synth's fastest pulse");
+        put_f32b(A1 + 0x28, 9.20f); put_f32b(A2 + 0x28, 4.59f);     // walked out
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked && ps.dist > mid,
+              "proximity: backing away raises the distance (slower pulse)");
+        put_f32b(A1 + 0x28, 300.0f);                                 // beyond any arena
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked && ps.dist == 45.0f,
+              "proximity: past the far bound pins to the slowest pulse");
+        put_f32b(A1 + 0x20, -11.38f); put_f32b(A1 + 0x28, 9.40f);
+        put_u32(0x08D929C4, 0);                                      // pointer not set yet
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.battle && !ps.locked,
+              "proximity: an unset actor pointer gives no lock (never a guessed distance)");
+        put_u32(0x08D929C4, 0x08D929C5);                             // misaligned
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && !ps.locked, "proximity: a misaligned pointer is refused");
+        put_u32(0x08D929C4, A1);
+        put_f32b(A1 + 0x20, 1.0e30f);                                // garbage coordinate
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && !ps.locked, "proximity: an out-of-range coordinate is refused");
+        put_f32b(A1 + 0x20, -11.38f);
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked, "proximity: recovers when the words are sane again");
+        // Pause: the round timer holding still for 240+ frames.
+        for (int i = 0; i < 260; i++) a->on_frame();
+        CHECK(a->cue_snapshot(&ps) && ps.battle && !ps.locked,
+              "proximity: silent while the game is paused (timer frozen)");
+        put_u32(0x08D92AF0, 59);                                     // the clock moves again
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked, "proximity: resumes when the timer ticks");
+        put_u32(0x08D929C4, 0); put_u32(0x08D92A30, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+    }
     put_u32(0x08D92AE0, 2);                           // round 2: fresh bars
     put_f32b(0x08D929B8, 1.0f); put_f32b(0x08D92A24, 1.0f);
     NSPOKEN = 0; oga::AdapterSpeechReset();
