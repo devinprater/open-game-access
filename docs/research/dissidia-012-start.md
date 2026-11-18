@@ -5769,3 +5769,30 @@ not risked on forks.
   session's scripts live in ~/d12s on WSL
   (s33_pock.py, s33_isl.py, s33_terr.py,
   s33_map.py, s33_findpocket.py added).
+
+## Session 34 — gate liveness re-run: nothing woke;
+the crossing hunt continues
+
+Branch dissidia-012-ch3f (continued). Scripts
+s34_*.py in ~/d12s.
+
+### Gate liveness re-run (measured, current lineage)
+
+- Session 31's liveness scan was taken BEFORE
+  Great Forest was cleared. Re-run from the true
+  lineage state ch3_s33_ese1.state (Laguna Lv 8,
+  HP 1852/1852, Gil 570, banked KP 38, Pink Tail
+  held; pos (-18.05, -0.38, 212.01), ctrl state 2):
+  gate 12 lh(A+4)=15 -> point 7; gate 15
+  lh(A+4)=16 -> point 4; gate 16 lh(A+4)=17 ->
+  point 6; every other gate -1 or empty — IDENTICAL
+  to session 31's scan. No previously inert gate
+  has woken now that both red gateways (Omen,
+  Decay) and Great Forest are cleared. Note gate
+  15 (Great Forest, cleared) still reads 16, so
+  lh is a segment-membership marker, not a
+  cleared/uncleared flag. The guide line "red
+  gateways unlock further areas" does not show up
+  as a gate-liveness change; the crossing to the
+  SE landmass is still a line/boulder problem.
+  Checkpoint state: ch3_s34_start.state.
