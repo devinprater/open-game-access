@@ -5102,6 +5102,7 @@ re-probed the post-Decay pocket's east side:
 ### Session 31 addendum - merge
 
 - Session 31 doc committed on branch dissidia-012-ch3d
-  and merged to main (see merge commit). Doc-only
+  (d7ddb95) and merged to main by fast-forward
+  (065c049..d7ddb95 plus this addendum). Doc-only
   session; no adapter code changed, so no new test
   gates applied.
