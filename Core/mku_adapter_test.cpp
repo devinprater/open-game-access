@@ -1093,6 +1093,37 @@ int main()
     a->command(oga::Command::Guide);
     CHECK(NSPOKEN == 4 && strstr(SPOKEN[0], "Apep's post, 9 away, straight ahead."),
           "a landmark dead ahead reads straight ahead, not 12 o'clock");
+    // The Guide also reads the nearest spawned villagers after the
+    // landmarks: nearest first, at most three, same clock bearings,
+    // unseen names as "Someone", unspawned (y 0) records skipped.
+    {
+        const uint32_t T = 0x09151098, S = 0x810;
+        auto npc = [&](int i, const char* nm, uint32_t strAddr, float x, float y, float z) {
+            put_ascii(strAddr, nm);
+            put_u32(T - (uint32_t) i * S, strAddr);
+            put_f32b(T - (uint32_t) i * S + 0x1C, x);
+            put_f32b(T - (uint32_t) i * S + 0x20, y);
+            put_f32b(T - (uint32_t) i * S + 0x24, z);
+        };
+        roam_arrive_plusz(-53.49f, 160.0f);               // facing +z
+        npc(0, "npc_apep",      0x09F10000, -53.49f, 0.87f, 170.0f);   // 10 ahead
+        npc(1, "npc_butcher",   0x09F10040, -42.49f, 0.87f, 160.0f);   // 11 right
+        npc(2, "npc_mystery_x", 0x09F10080, -53.49f, 0.87f, 155.0f);   // 5 behind
+        npc(3, "npc_sarah",     0x09F100C0, -53.49f, 0.87f, 163.0f);   // 3 ahead (4th: nearer than Apep)
+        npc(4, "npc_ermac",     0x09F10100, -20.00f, 0.87f, 160.0f);   // out of range
+        npc(5, "npc_teacher",   0x09F10140, -53.49f, 9.0f,  161.0f);   // y out of range: skipped
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        a->command(oga::Command::Guide);
+        CHECK(NSPOKEN == 4 + 3, "guide: four landmarks then the three nearest villagers");
+        CHECK(strstr(SPOKEN[4], "Sarah, 3 away, straight ahead."),
+              "guide NPCs: nearest first, with the facing-relative bearing");
+        CHECK(strstr(SPOKEN[5], "Someone, 5 away, 6 o'clock."),
+              "guide NPCs: an unseen name stays Someone, never invented");
+        CHECK(strstr(SPOKEN[6], "Apep, 10 away, straight ahead."),
+              "guide NPCs: the cap keeps the nearest three; the 11-away butcher is cut");
+        for (int i = 0; i < 6; i++) put_u32(T - (uint32_t) i * S, 0);
+        roam_arrive_plusz(-53.49f, 154.20f);              // back where the later checks expect
+    }
     // Gating: the guide is free-roam only, and dialogue outranks it.
     put_u32(0x08B123DC, 1);                          // a bout/cinematic owns it
     NSPOKEN = 0; oga::AdapterSpeechReset();
