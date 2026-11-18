@@ -3955,3 +3955,19 @@ postwin/flee/exit/move/menu/diag/status/tar); finders patched
 in-session (s18lib BRV cap 400 -> 900; s26_ffight loose finder
 BRV cap widened, pool floor 50 added, single-sighting accept).
 Logs s26_*.log; screenshots s26_*.png.
+
+### Session 26 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test
+  gates applied): the Session 26 section was committed on
+  dissidia-012-gulg (45b388b) and merged here. Note on gates:
+  origin/main advanced past the branch base during the session
+  (2b99d3f -> d4b75bf, PR #36 MKU proximity + the adapter build
+  wiring), so this was a true merge, not a fast-forward. The
+  research doc was verified untouched between 2b99d3f and
+  d4b75bf (empty diff), the working tree was clean except the
+  doc, and the merge (5f71c42) took only the doc change
+  (+255 lines). Pushed via the clone's git credentials and
+  verified with gh api:
+  origin/main = 5f71c4280ee6c6bca83e79ec96228038dbb174ba.
+  This addendum commit follows on main.
