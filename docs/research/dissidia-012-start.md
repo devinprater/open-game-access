@@ -2768,3 +2768,15 @@ intermediates ch1_s21_shop_open / inshop* / inbuy* / buy_a /
 equip_*.state. Screenshots s21_*.png (shop series, map, walk,
 entry v-series, board w-series, scan s21_sc_<grid>.png x13).
 Scripts s21_*.py; logs s21_*.log.
+
+### Session 21 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test
+  gates applied): the Session 21 section was committed on
+  dissidia-012-ch1field (c8e4ae1) and merged here. Merge gates
+  (session 12's): working tree clean; local main == origin/main
+  (b29b163); merge-base == b29b163 (main a strict ancestor,
+  branch 1 ahead / 0 behind). Pure fast-forward
+  b29b163..c8e4ae1, pushed via the clone's git credentials,
+  git ls-remote verified in-session: origin/main = c8e4ae1.
+  This addendum commit follows on main.
