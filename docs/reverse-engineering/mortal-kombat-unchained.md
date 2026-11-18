@@ -3149,3 +3149,132 @@ request, which is where the chain goes next.
 
 Practical rule for the rest of this hunt: **talk first, never punch** unless the
 quest asks for it, because one punch closes the polite branch for good.
+
+## Bench session 2026-11-17: cold boot to the village, meditation confirmed, what blocked the quests
+
+Windows PPSSPP 1.20.4 from the retail CSO, one websocket client. Not a quest
+completion: it reached the village and measured five things.
+
+- **Clean boot to free-roam takes about 4 minutes and reproduces.** Answer the
+  autosave CAUTION prompt with **Triangle (No)**, tap Start to the main menu,
+  L then the kode (Cross, Circle, Triangle, Square, Cross, Circle), Down x3 and
+  Cross for Konquest, then `scripts/mku-konquest-tutorial.py` plays the dojo
+  lessons (22 inputs, FREE ROAM at (-56.0, 0.9, 154.2)). The clock reads
+  SUNDAY 7:13 AM on arrival and runs about 12 game minutes per real minute.
+- **Meditation confirmed live.** Height at 0x08AED47C reads **0.229 seated and
+  0.87 standing**; Circle toggles it (stable to three decimals over 8 samples
+  each way). This is the signal the adapter announces.
+- **Square opens an Inventory screen in free-roam**: a 12-slot grid (empty here)
+  and a KOINS column (0, 0, 150, 0, 0, 0 on this profile), closed with Triangle,
+  flag B stays 0. The adapter says nothing there yet. D-pad holds do not walk;
+  movement is the analog stick.
+- **The NPC table is longer than the adapter reads.** It runs past 90 records
+  (index 40 `npc_bouncer`, 42 `npc_meditate_mom`, 43 `npc_ring_man`, 78
+  `npc_blacksmith`, 80 `npc_pickpocket`, 89 `npc_vase_thief`, 90 `npc_er1_oni`,
+  and a block of `npc_NN_walk` records), against `kNpcRecords = 40`. Home
+  positions span x -67..74, z 0..170, far wider than the Guide box around the
+  dojo. A record is a scripted position, not presence: `npc_oldman` read
+  (-19.7, 125), then (21.3, 117), then (-4.3, 125) over one game day (he
+  wanders), with y 0 until he was beside the player. (This repeats the earlier
+  note that y is not a spawn flag; the Guide lists villagers by table position.)
+- **Free-roam attack is still not found.** Beside `npc_oldman` (bald, arms
+  crossed): Cross, Square (inventory), Triangle and L did nothing visible; R
+  blocks (height 0.82). Walking up to him did fire a cutscene (the subtitle
+  buffer built "The Lin Kuei are masters of many deadly fighting..." and "Have
+  you f..." word by word), but the toothache lines were not captured, so the
+  toothache quest is NOT confirmed to belong to him. Not attempted: the bridge
+  chain, and the tower after a win.
+
+
+### Addendum, same day: the old man is gossip, not the toothache quest
+
+A second cold boot, with the subtitle buffer read every 50 ms and a closed-loop
+approach (`approach.py`: analog-stick search toward the NPC record, Cross every
+2 s once inside 2.5 units, and Cross to advance only once a line has sat for
+1.6 s).
+
+- `npc_oldman` (bald, arms crossed) stands at about (-4.5, 124.7) for stretches,
+  then walks east along z 117 and back. His record moved 20 to 30 units in a few
+  real seconds, so chase him only after reading his record.
+- At 6.8 units away nothing fired in 150 s. Inside about 1 unit, Cross pressed
+  every 2 s produced one line after about 95 s: **"The Lin Kuei have been
+  recruiting again. I think"**. That is generic village gossip (the same Lin
+  Kuei thread as the first session's lines), not toothache dialogue, so
+  `npc_oldman` is NOT the toothache man. The bald man by the park in A-6 is
+  still unidentified, and he may be one of the `npc_NN_walk` records.
+- A conversation is therefore not an instant on approach: it took roughly a
+  minute and a half of repeated Cross at under 1 unit, and the same spot gave
+  nothing in earlier minutes. Whatever gates it (a schedule, a facing test, a
+  cooldown) is still unknown.
+- Lines arrive in pages: the buffer showed the sentence cut after "I think", so
+  a speech layer that waits for a stable line (the adapter does, 10 frames) is
+  right, and the page boundary is part of the line, not a bug.
+
+Still not done: the free-roam attack button, the bridge chain, and the tower
+after a win.
+
+### Static pass on the village script blob: who the toothache man is NOT (2026-11-18)
+
+A full RAM dump in free-roam (village, after the dojo) searched for the quest's
+own names. The script blob resolves names by load-time offset, so no pointer in
+RAM refers to any of them (checked for `npc_lose_tooth_interact`,
+`talk_anim_tooth_man_0`, `toothman_reward`); the strings themselves are the
+evidence.
+
+- **The toothache man has script names but no NPC record.** Names present:
+  `npc_lose_tooth_interact` and `tooth_punched` (interact table, 0x09DA3EAC and
+  0x09DA3EC4, right after `npc_penny_man_interact` and before
+  `lin_kuei_kid_talk_interact`), `talk_anim_tooth_man_0..6` (his talk animations,
+  0x09D9EAF0), the reward `toothman_reward` (0x09D9198C), the objective
+  "Help this villager cure his toothache." (0x09D7BF70), and the voice sets
+  `loosetooth_*.at3`. His lines are real text in the bank: "My tooth is causing me
+  so much pain!", "Ooohh... My aching tooth!", "Please do not bother me. I need to
+  find someone to remove this rotten tooth of mine.", "My... My tooth! You
+  knocked my tooth out!", plus "The local dentist is nowhere to be found." The
+  84 names ending `_timed_events` (the NPC roster) contain nothing tooth-related,
+  so he is not one of the 91 table records and has no `npc_*_timed_events` entry;
+  `tooth.sec` (0x08AC92AC) is the item, not the man.
+- **Whose line it was.** "The Lin Kuei have been recruiting again. I think my son
+  has been initiated." is the **Lin Kuei mother's** quest text (the
+  `LS_LIN_KUEI_*` group), not the toothache set, so what spoke on 2026-11-17 was
+  a different quest-giver standing near the old man.
+- **The script bank is in key order, not NPC order.** The `LS_*` keys at
+  0x09D9xxxx are alphabetical (`LS_LIN_KUEI_*`, `LS_LOOSETOOTH_*`,
+  `LS_LOST_KEY_KID_*`...) and the text lines follow the same order, so a line's
+  key is recoverable by position, but the key-to-NPC binding is not in the blob.
+  Interact names (`npc_*_interact`, `*_talk_interact`) are attached by name in the
+  script VM, which is decomp work, not a RAM search.
+- **More names than records.** 633 distinct `npc_*` strings exist, including
+  NPCs absent from the 91-record table (`npc_baker`, `npc_bucket_lady`,
+  `npc_auction_guy2..4`, `npc_lost_dog_girl`/`_man`, `npc_peeping_girl`,
+  `npc_ringman_wife`, interior sets such as `npc_interior_auction_house`). Those
+  are spawned by scripts, interiors or events, which fits a toothache man who
+  has no standing record.
+
+### Sector A and the clock, measured (2026-11-18)
+
+- Sector word 0x08AED5B4 read 1 at the dojo spawn and **0 from x = -62.8** on,
+  and the HUD letter changed from B to A at the same line. A-6 is the strip west
+  of the fence, x -64 to at least -95, z about 133 to 175.
+- Records are filled in as you approach. Walking from the dojo to (-64, 171)
+  placed or moved 20+ records (several went from y 0.0 to 0.8..1.0 and their
+  positions jumped by 20 to 40 units), while the 31 `npc_NN_walk` records and
+  `npc_blacksmith` / `npc_pickpocket` / `npc_littlegirl` went from (0, 0, 0)
+  to their posts. So a record at y 0.0 is "not streamed in yet", whatever the
+  earlier note said about y; and positions are only meaningful near the
+  player.
+- `npc_jack` (KON_FAT_ULTRA, state 0x00020008 by day) walks the A-6 park at
+  about (-84..-96, 147) and back to (-62, 144). Cross at 1.8 units for about
+  65 s gave no subtitle, so he is not confirmed.
+- Meditation fast-forwards the clock: 5 s seated moved Sunday 8:06 PM to Monday
+  2:06 AM, another 5.5 s to 8:24 AM. Sleep through the night to reach a quest
+  window instead of waiting about 70 minutes.
+- A bald old man in a brown and orange robe was walking the A-6 path at 8:24 AM
+  Monday with an old woman behind him, a better match for the guide's "old bald
+  man" than any record read so far. His record is still unidentified.
+
+Next: identify that walker by taking an NPC-height draw-transform scan while he
+is on screen and matching his transform to a record (or finding that he has none),
+then Cross at about 1 to 2 units for 90 s. The VM-side binding of
+`npc_lose_tooth_interact` needs the decomp: look for the interact-table loader
+that consumes the name list at 0x09DA3xxx.

@@ -1010,4 +1010,5 @@ against the running ROM.
   `0x020CC794` count word mean, and what `0x020CC770` (four bytes before the array, referenced 70
   times) holds. ⛔ Never narrate from the 8-record character-definition array: it includes two
   entities the player cannot field.
-
+- [ ] **MK Unchained Konquest: say something on the Inventory screen (found 2026-11-17).** Square opens it in free-roam (12-slot grid plus a six-colour KOINS column), Triangle closes it, nothing is spoken. Next: find the cursor and slot words, and the koin counts, with a live diff; see the 2026-11-17 bench section of mortal-kombat-unchained.md.
+- [ ] **MK Unchained Konquest: the NPC table has 90+ records, the adapter reads 40 (2026-11-17).** Names such as npc_blacksmith, npc_pickpocket and npc_vase_thief sit past the cut. Widen kNpcRecords after checking the real end of the table, and note a record is a scripted position, not proof the villager is present.
