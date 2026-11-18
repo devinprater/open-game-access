@@ -5975,3 +5975,82 @@ s34_*.py in ~/d12s.
   gate0403.state (= ch3_s34_south_end.state).
   True lineage on the board: Laguna Lv 8,
   HP 1852/1852, Gil 570, banked KP 38.
+
+### Gateway to the Shrine — first clear
+### (measured)
+
+- Census (17 discs; entry D2 = grid 13). Wiki
+  squares verified one-for-one against the FF
+  Wiki list by the grid decode id =
+  10*(row-1)+(col-1): B1 Delusory Dragoon
+  Lv 12 (Strange, HP 1, BRV 783), D1 Delusory
+  Dragoon Lv 6 (HP 1,303), E2 Stigma, F3
+  Transient Witch Lv 12 (Hard, HP 1,667), G3
+  chest, B4 Vaan assist piece, E4 Fleeting
+  Flash Lv 6 (HP 1,303). Entry banter plays in
+  ctrl state 20 (advance with Cross; scan only
+  engages afterwards).
+- Board movement, corrected: a direction press
+  alone highlights/prompts but does not reliably
+  move her after a battle; the working verb is
+  the (Cross, direction) pair repeated until
+  the grid changes (first pairs are absorbed).
+  Scan edges are a SUPERSET of movement links:
+  13->33 (down) and 22->24 (right) are
+  scan-only on this board; the real graph used:
+  13-12-22-32-33-34, 12-2-3, 13-14 (Stigma).
+- Vaan piece engaged at B4 (one-line scene;
+  he is the active assist inside the gateway;
+  the piece stays on the board).
+- Delusory Dragoon Lv 6 (D1): WIN in 29
+  rotations, drift 0, Laguna 1852 -> 1239 HP;
+  +66 Gil, KP gauge 0 -> 1 (the "Win within
+  90 seconds" chance paid).
+- The chain accident: the reward walk's blind
+  Crosses accepted the chain offer toward B1
+  (the postwin chain guard compares the focus
+  cell against record pointers, but after a
+  battle the cell holds slot addresses/garbage
+  — the guard cannot match; chain offers must
+  be declined MANUALLY: Circle, Left, Cross).
+  The HP-1 Dragoon Lv 12 ground Laguna from
+  1239 to 24 HP against blind HP attacks
+  (battle block this boot 0x096D01D8; foe
+  bravery peaked 972) and a scripted duel from
+  24 HP was lost by a hair. Recovered from the
+  pre-chain winraw state; the chain was then
+  fought properly with the standard rotation
+  and WON (the monitoring locked onto a frozen
+  template block — 0x0968DFF0, values never
+  moved — while the real battle played out
+  blind; result read from the board after):
+  Laguna Lv 8 -> 9, +204 Gil (636 -> 840),
+  gauge to 4.
+- Skill prompts: after a win the game queues
+  one prompt per equipped board skill (KP
+  Gambler: Use Cross / Cancel Circle; Cross
+  Chain: Cancel Circle). They block board
+  input until all are answered. KP Gambler
+  was spent somewhere in the chain/postwin
+  handling: the next win paid TRIPLE KP
+  (Fleeting Flash, gauge 4 -> 7) and the skill
+  left the equipped list.
+- Fleeting Flash Lv 6 (E4): WIN in 32
+  rotations, drift 0 — but it cost 1233 HP
+  (Laguna 1300 -> 67). +66 Gil (840 -> 906).
+  At 67 HP the Witch (Lv 12, Hard) was not
+  attempted; the board's Stigma was engaged
+  instead: gauge 7 paid out, banked KP
+  38 -> 45. Laguna on disc 13 for the finish;
+  Witch and the G3 chest (Gargoyle Pebble,
+  guide claim) remain for the farm loops.
+- The finish flow's trailing Crosses re-entered
+  a gateway from the exit landing: the SOUTHERN
+  SHRINE GATEWAY (banner measured; entry disc
+  grid 53 = D6, matching the wiki). Laguna
+  stands on it at full HP 1913/1913, Lv 9,
+  Gil 906, banked KP 45 — the final board,
+  entered earlier than planned. Plan: census,
+  exit unfought, farm Gateway to the Shrine
+  loops to ~Lv 12 (guides' recommendation),
+  then play the Shrine.
