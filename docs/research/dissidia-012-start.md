@@ -3418,3 +3418,16 @@ ch2_s24_ok_done, ch2_s24_chest0_open, ch2_s24_f2_vs
 ch2_s24_stigma_prompt, ch2_s24_stigma_inch,
 ch2_s24_final (field, gateway complete). Scripts
 s24_*.py; logs s24_*.log; screenshots s24_*.png.
+
+### Session 24 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test
+  gates applied): the Session 24 section was committed on
+  dissidia-012-darkness (753087b) and merged here. Merge gates
+  (session 12's): working tree clean except the doc; local
+  main == origin/main (2140699); merge-base == 2140699 (main
+  a strict ancestor, branch 1 ahead / 0 behind). Pure
+  fast-forward 2140699..753087b, pushed via the clone's git
+  credentials, git ls-remote verified in-session:
+  origin/main = 753087b (gh api agreed). This addendum commit
+  follows on main.
