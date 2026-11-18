@@ -4687,3 +4687,183 @@ dodge-counter), s29_fighte.py (EX opener).
   only the doc change, +277 lines). Pushed via the clone's
   git credentials; origin/main verified with gh api after
   the push. This addendum commit follows on main.
+
+## Session 30 — Chapter 3's final stretch: the Wraith, a Rosetta Stone, and the long shore (gateway NOT reached)
+
+Branch dissidia-012-ch3c from main 5a6d8cf. Start state
+ch3_s29_final.state (Laguna on the lakeshore, field).
+Scripts s30_*.py in ~/d12s (copies of the s29 set,
+prefixes renamed) plus new s30_field.py (field-battle
+postwin walkback), s30_hop.py, s30_comb.py, s30_nav2/3/4.py,
+s30_compass.py, s30_dash.py, s30_face.py, s30_look.py,
+s30_inter.py, s30_map.py (navigation experiments, see
+below).
+
+### Start standing (measured at boot)
+
+- Laguna Loire, Lv 6: HP 1731/1731, initial BRV 240,
+  Gil 302, banked KP 34. Gear: Iron Sword / Buckler /
+  Iron Helm / Leather Armor; Ifrit AUTO set; Cross Chain
+  board skill; assist Vaan. Ricochet Shot still learned
+  but unslotted (third-slot picker unmapped; no natural
+  menu stop made it cheap this session either).
+
+### Field battle (measured): Counterfeit Wraith Lv 9
+
+- The Wraith roamed just west of the landing. A short
+  west walk tripped ctrl state 5 at (-41.84, -2.85,
+  51.89). Won with the field-fight script in 19
+  rotations, drift 0, assist chord every 6: foe HP
+  1,485 measured (matches the FF Wiki's field Wraith
+  Lv 9). Battle block base this boot: 0x0969D688.
+- Laguna leveled 6 -> 7 mid-fight (max HP 1731 ->
+  1792); he took one 516-damage hit (arena HP ended
+  1276). Postwin walkback: Gil 302 -> 428 (+126). On
+  the field his HP reads full 1792/1792 — field-battle
+  damage does not stick (consistent with Ch. 2/3
+  findings).
+
+### Field chest (measured): Rosetta Stone
+
+- A golden chest at (-76.81, -0.11, 77.64), at the
+  snowy massif's base on the north terrace west of the
+  Gateway To Decay arch. Cross beside it fired the
+  state-16 popup; game text: "Obtained Rosetta Stone
+  from chest!" The chest stays open afterward.
+- Correspondence (labeled): GameSpy's Ch. 3 route puts
+  a Rosetta Stone chest "in the grass in front of the
+  gateway" (Decay) with a moogle shop west across a
+  bridge; this chest matches the "in front of the
+  gateway" position. Suih's guide assigns the Rosetta
+  Stone to the pre-Decay segment as well. A small
+  red-pommed figure (moogle, presumably the guide's
+  shop) was visible up-slope north-west of the chest
+  but was not reached or spoken to.
+
+### The final gateway was NOT reached (honest result)
+
+The session's main objective — enter Chapter 3's last
+gateway and fight the Cloud of Darkness (guide data) —
+was not achieved. Both remaining arch areas proved
+unreachable with this session's navigation tooling,
+despite an extensive route survey (all measured):
+
+- The landing cove exits only west (beach) and
+  north-west (slope). South-east probes from the
+  landing found no moving direction at all (water and
+  rock); the eastern arches (gate04_03 at (-24.44,
+  0.87, 9.07) and gate04_04 at (0.35, 1.11, 31.41),
+  with kaname_01 at (-21.21, -2.47, 35.38)) sit on a
+  south-eastern landmass cut off by the lake on every
+  side tried.
+- West: the beach strip ends at a choke near
+  (-80, 58); the mid terrace (z ~59-62) ends at a
+  promontory at (-75.24, -1.96, 62.07) with water
+  north and west. gate04_05 at (-123.64, -1.57,
+  63.87) is across that water; no ford or shallows
+  found (no wading anywhere: deep water always blocks
+  movement outright).
+- The traversable network that WAS mapped end to end:
+  landing -> west beach -> ledge (-52.16, -1.63,
+  56.26) -> diagonal ramp (found by comb sweep) ->
+  bluff (-44.70, -1.10, 60.56) -> tower-plateau
+  pocket (-59.11, -0.47, 67.48) -> Decay terrace
+  (z ~77-80, y ~-0.1..-0.5) running west to
+  (-74.08, -0.11, 76.55) -> gap crossing to the rim
+  (-82.40, -0.82, 85.00) -> the north-south strip /
+  causeway (x ~-79..-88) past a reef bend at
+  z ~124-131 -> the northern lake's south shore
+  pocket (-88.75, -0.60, 149.37) and its east shore
+  shelf (z ~151-154, x -94..-55, y ~-0.6) -> shore
+  north end (-88.16, -1.35, 164.60). The western
+  shore of the northern lake and the southern lake's
+  east shore were never reached; a golden chest on a
+  lake islet at about (-103, 155) was seen but is
+  across open water. A beacon tower (light column)
+  stands on the far western shore (bearings only).
+- Session 29's doc explains the artery: its walker
+  hugged this same shore south from the Reaper site
+  (-87.46, -0.23, 172.01) to Decay. The strip is the
+  chapter's west-side artery; it does not continue
+  to either remaining arch area.
+
+### Navigation findings (banked for the next session)
+
+- Player facing vector is readable: player object
+  (ptr at 0x08B83DE4) +0x08 = facing X, +0x00 =
+  facing Z (unit pair with +0x20/+0x28/+0x90/+0x98
+  copies). Stick-to-world response is REFLECTED in
+  atan2(z, x) space: rotating the stick by +t turns
+  the converged facing by about -t (measured from
+  the s30_face.py turn experiment).
+- DASH traversal (new): holding the stick and
+  pressing Cross repeatedly moves Laguna ~10 units
+  per dash cycle (about 6x walk speed) and the dash
+  run follows terrain channels (it turned at a
+  shelf's end and descended a valley unaided). It
+  does not cross water or climb banks. Found late;
+  the long treks next session should be dash-first.
+- The walker's probe gives up ("probe found no
+  moving direction") when every direction's gain
+  toward the waypoint is negative — it cannot route
+  around a bay whose first step loses ground. Its
+  fixed-basis steering converges only while the
+  camera basis stays put; recalibrating from a
+  standstill against a wall poisons the basis.
+- s30_nav4.py (aim-by-facing walker) has the sign
+  fix applied but its aim phase drifts too much in
+  tight terrain; not trusted yet.
+- The world map (Select, ctrl state 14) is a fixed
+  full-world view; arrow centroid calibration near
+  the western lobe: px = 230.5 + 0.391 * wx,
+  py = 131.6 + 0.345 * wz (fits four measured
+  positions within ~2 px).
+
+### Guide data for the unreached segment (labeled, unverified)
+
+- FF Wiki Southern Shrine Gateway: entry D6; KP
+  Chance "Win Battle"; A1 Counterfeit Wraith
+  (Strange) Lv 12 HP 1; B1 Carbuncle (AUTO)
+  summonstone; B2 Counterfeit Wraith (Hard) Lv 12
+  HP 1,667; C2 Idle Sky Pirate (Hard) Lv 12 HP
+  1,667; D4 Transient Gunner Lv 9 HP 1,485; E4 Idle
+  Sky Pirate Lv 9 HP 1,485 (stepping on E4 triggers
+  the scene where Vaan vanishes as Assist and the
+  boss appears); E5 Transient Gunner (Hard) Lv 12
+  HP 1,667; G4 Vaan assist piece; H4 Cloud of
+  Darkness Lv 12, HP 2,446, arena World of Darkness,
+  summon Iron Giant. Order implied: B2/C2 and the
+  summonstone first (Vaan still available), then
+  D4/E5, E4 last.
+- Gateway to the Shrine (repeatable, guide): Fleeting
+  Flash Lv 6, Delusory Dragoon Lv 6, Transient Witch
+  Lv 12, Delusory Dragoon Lv 12 (HP 1); chest
+  Gargoyle Pebble; KP Chance "Win within 90 seconds".
+  Guides recommend Lv 12+ before the final board;
+  Laguna is Lv 7 — farm loops in the repeatable
+  gateway remain the plan once it is reached.
+- Field segment (Suih, guide): False Stalwart Lv 11
+  wanders west of the Wraith (not encountered; two
+  distant red figures sighted, neither confirmed);
+  segment chests Soul of Unrivaled Valor, Pink Tail,
+  EX Charge, BRV Zero (none collected; the Rosetta
+  Stone above is a different, pre-Decay chest).
+
+### End standing (measured)
+
+- Laguna Lv 7, HP 1792/1792 on the field, Gil 428,
+  banked KP 34 (unchanged — no gateway entered).
+  Rosetta Stone added to inventory. Chapter 3 NOT
+  finished. End state: ~/d12s/ch3_s30_final.state
+  (Laguna standing at the opened Rosetta Stone chest
+  on the north terrace, ctrl state 2).
+- Next session's first moves: (1) try the moogle
+  up-slope from the end state (shop + maybe the
+  bridge route west of Decay per GameSpy); (2)
+  dash-first trek around the lake's east side via
+  the highlands (points 14/15) toward gate04_04 /
+  gate04_03; (3) if the eastern landmass is reached,
+  its arches are the chapter's last two gateways in
+  some order (blue repeatable first for farm loops
+  to ~Lv 12, then the final board per the census
+  plan above).
