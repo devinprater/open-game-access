@@ -3700,3 +3700,258 @@ s25_*.png.
   credentials and verified with gh api:
   origin/main = d49d44f6c0f005cdeacc173a95a29a4504bf48d0.
   This addendum commit follows on main.
+
+## Session 26 — Gulg Gateway cleared: Ifrit gained and equipped, the Leather Clothing upgrade, and Kefka beaten at drift +10 (2026-11-17)
+
+Start state ch2_s25_final.state: Vaan Lv 5, HP 1242/1242, Gil 438,
+banked KP 15, Longsword + Bronze Helm, Onion Knight assist, Orange
+Drop + Blue Drop + Girl's Dream in inventory.
+
+### The field segment and entry
+
+Field census from the save: GateMgr count 13 (gates 11-23); gate 11
+was the only unspent live gate, pointing at point-table record 10
+(154.08, 6.72, 229.42), lh 8. The field is a snowy mountain path
+under a shining spire; flavor text on entry: "A frail power of the
+dead dwells." Walked waypoints (200,214) -> (186,224) -> (168,230)
+-> the gate anchor; rough terrain, ten stuck probes. NO field
+ambush fired anywhere on this route — the guide's Phantasmal
+Harlequin Lv 8 and False Stalwart Lv 6 ambushes (guide data) did
+not occur on the path taken; recorded as a measured absence for
+this route, not a claim they do not exist. At (159.2, 7.41, 231.2)
+the approach scene triggered (ctrl state 2 -> 3); its dialogue was
+not captured (the screenshot after it ended shows only the stone
+arch with its glowing seal), so no lines are reconstructed here.
+Entry recipe: Cross (dash to (155.90, 6.86, 229.23)), Cross again
+-> states 5 -> 19 -> 20, entry disc 11. The banner screenshot
+confirms "Gulg Gateway" (gate 11 -> pt 10, matching the guide
+order). The field conditions panel for this gateway: KP Chance
+"Win within 90 seconds"; Rules: Disabled; Skills: Enabled. No
+entry banter on the board.
+
+### Board census (full Scan DFS, zero backtrack warnings)
+
+19 discs: 0, 2, 3, 4, 11, 12, 13, 20, 21, 23, 25, 30, 31, 33, 34,
+35, 41, 43, 51. Contents from the Scan info boxes:
+
+- disc 3: Idle Sky Pirate Lv 5 (stage Lunar Subterrane)
+- disc 4: Summonstone — "An unknown summon is sealed within."
+- disc 25: "???" piece — "Engage this piece to find its true form."
+- disc 30: Delusory Dragoon Lv 5 (Lunar Subterrane)
+- disc 31: Capricious Reaper Lv 15 (Order's Sanctuary)
+- disc 34: Phantasmal Harlequin Lv 2 (World of Darkness)
+- disc 43: Fleeting Flash Lv 2 (World of Darkness)
+- disc 51: Treasure Chest — "Contains helpful items."
+- No info box (empty as presented): 0, 2, 11 (entry), 12, 13, 20,
+  21, 23, 33, 35.
+
+No Stigma on the board and no assist piece: the finish condition
+is beating the "???" piece (the Encounters and Treason pattern).
+One-step gameplay graph (only delta-row/col = 1 links move; Scan
+links across gaps are not gameplay links, session 25's lesson,
+re-proven below): 11:12,21 · 12:11,2,13 · 2:12,3 · 3:2,4,13 ·
+4:3 · 13:12,3,23 · 20:21,30 · 21:11,20,31 · 23:13,33 · 25:35 ·
+30:20,31 · 31:21,30,41 · 33:23,34,43 · 34:33,35 · 35:34,25 ·
+41:31,51 · 43:33 · 51:41 · 0: no one-step links. Scan-only
+suspects: 0-2, 0-20, 4-34, 21-23, 23-25, 31-33, 41-43.
+
+### First pass, the Ifrit scene, and the KP-chance calibration
+
+Idle Sky Pirate Lv 5 beaten from disc 2's prompt (45 rotations,
+drift 0, assist every 6; foe HP 1242; Vaan 1242 -> 196; +50 Gil;
+leveled 5 -> 6 with NO delta-heal — HP stayed 196). The 45-rotation
+win earned no gauge KP: this gateway's KP Chance is the 90-second
+window, not the win itself.
+
+Summonstone (disc 4, prompt from 3) opened a board scene, game
+text: a voice — "Flames of hell? I've heard that before... I don't
+know you, but will you help me?" -> "…I am Ifrit. I shall lend my
+strength to champions of Cosmos." -> Vaan: "Hm... Okay. Well, nice
+to meet ya, Ifrit!" -> tutorial: "Equip Summonstones to borrow an
+Esper's power. Open the customization menu with △." -> banner:
+"Obtained Ifrit AUTO!" Deliberately not equipped yet at this point
+(unverified menus). Re-check on a later re-entry: the stone is a
+one-time grant — disc 4 becomes inert and standable.
+
+Phantasmal Harlequin Lv 2 at board HP 196: LOSS in 10 rotations
+(foe HP 1061 measured; dealt 422; Vaan died at rotation 10 after
+reaching 50 HP at rotation 7). Fled cleanly (engagement HP 196
+restored, Gil/KP untouched), then exited the gateway at gauge 0 —
+the exit costs nothing when the gauge is empty; levels and Gil
+persist, the board resets. This became the session's working
+pattern: clear what the current HP bar allows, exit, re-enter
+full.
+
+KP-chance calibration, measured across the whole session: wins in
+12-30 rotations of the standard stream paid 1 KP each; wins in
+33-59 rotations paid none. The 90-second boundary sits between 30
+and 33 rotations of this input stream. After Harlequin wins a
+chain offer repeatedly auto-opened offering the Fleeting Flash
+(disc 43); declined every time (circle -> "Cancel chain?" -> left
+-> cross YES), and the win's held KP then paid into the gauge.
+
+### The Dragoon search and the farm loops
+
+Delusory Dragoon Lv 5 (foe HP 1242) resisted at low HP; the
+deterministic drift search from its VS state (Lv 7, 218 HP at
+policy start on the winning line): drift +10 dealt 941 (died
+rotation 17, foe at 301), +15 dealt 945 (died rotation 16), +5
+WON in 17 rotations with 71 HP left. The Harlequin is the board's
+HP toll: its cost swung 365-1314 damage depending on pass and
+stream (two different drifts in one pass both ended at exactly
+962 HP left — its big hits land on a schedule). Fleeting Flash
+Lv 2 stayed cheap all session (12-19 rotations, ~30-190 damage).
+Level curve across the session's loops: Lv 5 at entry; Lv 6
+(Pirate), 7 (Harlequin), 8 (mid-fight level-up vs Flash, HP rose
+157 -> 218 in-fight), 9 (Dragoon), 12 (read on the board HUD
+after the next pass's Dragoon), 13 (Customization screen), 14
+(mid-fight vs Pirate), 15 (field read), 17 (farm pass: Pirate,
+Harlequin, Flash, Dragoon). Max HP by level (field/HUD reads):
+Lv 6: 1303, Lv 7: 1364, Lv 9: 1485, Lv 12: 1667, Lv 13: 1727,
+Lv 15 with Leather Clothing: 2375, Lv 17: 2058 was a partial-HP
+field read, max not re-read.
+
+### Shop and equipment (Customization opens from the board)
+
+The Moogle shop is reachable mid-gateway: board △ ->
+Customization -> Shop (a Moogle tutorial on equipping summons
+intercepts the first visit after obtaining a stone; START in the
+Summons menu shows summon details). Full stock with measured
+stat previews against the Longsword loadout (ATK 28 at the time):
+Broadsword 500 (ATK+4: net ATK -2, DEF +2), Knife 500 (ATK+2
+DEF+2: net ATK -4), Longsword 500 (equipped; Equipment screen:
+class "Greatsword", ATK+6), Zweihander TRADE, Katana 450 (BRV+9
+ATK+4 DEF-2: net ATK -2), Spear 1140 (HP-86 ATK+8 DEF-2: net
+ATK +2 only), Axe 1300 (BRV-20 ATK+6: net ATK +2), Rod 450,
+Staff 450. Shields: Kunai 400 (equipped; "Parrying ATK+2 DEF+1"),
+Buckler 450, Bronze Bangle 500, Hide Armlet 450. Hats: Leather
+Hat 500 (BRV up, DEF -2 net), Bronze Helm 300 (equipped),
+Headband 300. Clothing: Leather Clothing 950 (HP+428 BRV+9
+DEF-2), Leather Armor 500 (equipped), Mythril Vest TRADE,
+Leather Chest Plate 500, Robe 400, Bronze Armor 1100 (preview
+not read). CONCLUSION: no Gil weapon is a straight upgrade —
+the Longsword is already the best ATK weapon the shop sells;
+the Spear/Axe net +2 ATK at high cost with real downsides. The
+one straight upgrade was survivability: Leather Clothing
+950 Gil for +428 max HP. Farmed to exactly 950 (886 on hand +
+14 Flash + 50 Pirate across an exit/re-entry), bought it, and
+equipped at the shop's "Will you equip this now?" prompt.
+Measured effect: max HP 1788 -> 2216 at Lv 14; current HP does
+NOT rise on equip (stayed 1788) — the gain lands at the next
+full restore. Ifrit AUTO equipped in the same menu session
+(Summons -> Equip): game text "Bravery boosted to 150%. Auto
+when stage bravery gained.", 3 uses on the stone. Also noted:
+a "The chocobo found a treasure chest!" banner fired once on
+opening Customization (banner text only; contents not verified).
+Vaan's measured Lv 14 stats (Equipment screen): HP 1788,
+CP 345, BRV 203 (170 + 33), ATK 29 (23 + 6), DEF 26, LUK 17;
+after the clothing: BRV 217, DEF 24.
+
+Engaging a piece first shows an Opponent Info screen (foe
+stats and equipment, cross = NEXT through its pages) — e.g. the
+Harlequin: Lv 2, HP 1061, CP 351, BRV 101, ATK 13, DEF 12,
+LUK 11; Cracked Shield, Charred Helm. A future reader surface:
+foe stats are readable pre-battle from this screen.
+
+### Harness lesson: the battle-block finders went blind at Lv 14
+
+Both finders capped her BRV at 400 (s18lib find_block_a's
+20 <= her_brv <= 400, and the loose structural finder's same
+cap). Vaan's battle-start BRV passed the cap as he leveled:
+421 measured at Lv 14, 451 at Lv 15 — every poll returned zero
+candidates and two fights "could not be found". Widened both
+caps to 900; the foe-HP-exact finder + widened cap is the
+reliable combination. Two failure modes also recorded: (1) an
+exact-current-HP anchor is too brittle — the true block appeared
+exactly once (poll 2, base 0x096BCE98) and never again because
+any poll-phase hit breaks the equality; (2) loosening the BRV
+floor to 0 produced one false positive (base 0x096A9028, values
+1024/768/0) whose cells degenerated into text bytes mid-fight —
+a policy-start sanity read (her HP and foe HP must match the
+known values) is the guard. Battle block A bases seen this
+session: 0x096D5A38, 0x096BCE98, 0x096BBF98, 0x09692538 (boss),
+plus the 0x096A9028 false positive. Separately, one exit attempt
+from a just-fled defeat state failed silently (the pause menu
+never opened — a UI overlay was still up); exiting from a
+postwin-clean board state worked. Flee states are not clean
+menu bases.
+
+### The boss: Kefka
+
+The "???" piece (disc 25) opens a story scene, not a bare VS
+card. Captured lines: Kefka, to Terra: "Listen, you're a vicious
+beast. With vicious power, meant for mayhem and destruction!"
+and "Now tell me, how is a person like that going to decide she
+'doesn't want to fight'?" Terra, earlier: "I didn't... I don't..."
+Vaan (watching): "Oh, you crack me up! 'Don't want to fight...'
+she says!" and "...beating the pulp out of people?" The fight
+is against Kefka himself (visually confirmed in the arena and
+on the final-blow frame; HP 2072 measured; Lv 10 is guide
+data). His arena card shows an AP Chance: "First □ attack over
+600: +1". Attempts (standard rotation, assist every 6):
+
+- Lv 13, 306 HP, drift 0: dealt 252, died rotation 6 (stage
+  pool ran 379 -> 758 for the boss).
+- Lv 14, 397 HP, drift 0: dealt 46 in 20 rotations — a whiff
+  stream; his bravery never built (285 start to finish).
+- Lv 14, 397 HP, drift +10: dealt 650, died rotation 18.
+- Lv 15, 962 HP, drift +10: dealt 754, died rotation 25.
+- Lv 15, 962 HP, drift +5: dealt 684, died rotation 45 — all
+  damage landed by rotation 31, then the stream stalled.
+- Lv 15, 962 HP, drift +20: dealt 622, died rotation 18 (boss
+  bravery snowballed to 1328).
+- Lv 17, 1530 HP, drift +5: dealt 964, stalled at foe 1108
+  from rotation 32, died rotation 40.
+- Lv 17, 1530 HP, drift +10: WIN in 31 rotations, Vaan 714 HP
+  left. The finish ran through Ifrit: final BRV 1876 (a pool
+  capture boosted to 150%), and the killing blow was a BREAK
+  (final-blow frame: foe HP 0000, "BREAK", Vaan BRV 1876).
+
+Rewards: +150 Gil (206 -> 356); the gateway finish banked the
+gauge (4 KP) into his total: banked KP 15 -> 19. Beating the
+boss completes the gateway (no Stigma needed): the game
+returned Vaan to a field — a new aurora-lit snowfield where
+Terra now stands with him (screenshot-verified).
+
+### The one unclaimed item: the disc-51 chest
+
+The chest was never opened, measured unreachable at gateway
+levels: disc 51's only one-step neighbor is 41, whose only
+one-step neighbors are 31 and 51. The 43->41 hop was probed
+directly (two presses: no movement, focus fell to his own
+disc's record) and the 31<->33 link is likewise scan-only, so
+the only route in is standing on disc 31 — and disc 31 is
+blocked by the Capricious Reaper Lv 15's engage prompt
+(screenshot-verified from disc 21: "Capricious Reaper Lv 15 /
+Order's Sanctuary / Engage / Cancel"). Passing a piece's disc
+requires beating it; at Lv 5-9 (the clear passes) a Lv 15 was
+out of reach, and by the time Vaan outleveled it the gateway
+was finished. Recorded as the board's single unclaimed item,
+with the route fully mapped for any future revisit.
+
+### End state
+
+ch2_s26_final.state (field, gateway complete): Vaan Lv 17,
+HP 2058 (field read; max not re-read, ~2497 by the level
+curve), Gil 356, banked KP 19. Equipment: Longsword, Kunai,
+Bronze Helm, Leather Clothing. Ifrit AUTO equipped (it fired
+in the boss fight; remaining uses not re-read). Onion Knight
+assist. Items: Orange Drop, Blue Drop, Girl's Dream. Terra
+accompanies him on the new field segment. Next per the guide
+order (guide data): Snow of Sorrow (optional) -> Seasonless
+Gateway (Chapter 2 final).
+
+States (~/d12s): ch2_s26_fwd / _walk1 (field), ch2_s26_entered
+.. entered8 (per-pass entries), ch2_s26_scanned (post-census),
+per-fight prompt/vs/winraw/fled/done states under pirate,
+pirate2-6, pirate8, stone, harlequin, harlequin2-8, flash,
+flash3-5, flash8, dragoon, dragoon3, dragoon4, dragoon6,
+dragoon8, drag5/drag15 (Dragoon search), boss, boss2-4 and
+bossd5/bossd10/bossd20/boss4d10 (boss attempts; boss4d10 is
+the win), ch2_s26_field1..field7 (exit landings),
+ch2_s26_boss4d10_done, ch2_s26_final. Scripts s26_*.py
+(census/explore/walk/enter/scan/nav/fight/ffight/inch/open/
+postwin/flee/exit/move/menu/diag/status/tar); finders patched
+in-session (s18lib BRV cap 400 -> 900; s26_ffight loose finder
+BRV cap widened, pool floor 50 added, single-sighting accept).
+Logs s26_*.log; screenshots s26_*.png.
