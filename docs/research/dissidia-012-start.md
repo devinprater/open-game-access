@@ -4390,3 +4390,13 @@ states under chest31, gunner, wraith2, flash14b, chest4,
 vision, flash54, stigma (saved with the ch2_s28_ prefix
 noted above), ch2_s28_stigma_open (the field landing),
 ch3_s28_final. Scripts s28_*.py in ~/d12s.
+
+### Session 28 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test
+  gates applied): the Session 28 section was committed on
+  dissidia-012-ch3 (4dfb817) and fast-forwarded here
+  (main was still at the branch base dcb86f2; the merge took
+  only the doc change, +205 lines). Pushed via the clone's
+  git credentials; origin/main verified with gh api after
+  the push. This addendum commit follows on main.
