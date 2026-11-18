@@ -2780,3 +2780,211 @@ Scripts s21_*.py; logs s21_*.log.
   b29b163..c8e4ae1, pushed via the clone's git credentials,
   git ls-remote verified in-session: origin/main = c8e4ae1.
   This addendum commit follows on main.
+
+## Session 22 — Gateway of Fools and Hope cleared; Kain; Chapter 1 complete; the Kunai bought
+
+Branch dissidia-012-fools from main 18739e6. Start state
+ch1_s21_scanned.state: Lightning Lv 10, HP 1973/1973,
+Gil 390, banked KP 4, on the entry disc (20) of Chapter 1's
+third gateway. All fight numbers below are battle-cell
+measurements (session-17 block A pattern search per boot);
+all rewards and contents are the game's own screens/text.
+
+### Board geometry — corrections to the session-21 census
+
+- The player steps cell-by-cell (grid ±1 / ±10) across
+  PLATFORM cells, and the platform set is not the census's
+  registered-disc set: **disc 22 IS a platform** (not in the
+  census set); **discs 23 and 13 are NOT platforms**. Engage
+  and chest prompts open only from a grid-adjacent disc.
+- Session 21's scan-DFS "links" 21-1, 21-24 and 12-32 are
+  scan-cursor jumps, not player traversals. Neutral engage
+  focus on a disc is its own record; focus 0x000000FF = none.
+- The Scan census also MISSED THREE PIECES (below): Scan
+  Mode presentation is not exhaustive for this board.
+
+### The toll fight — Fleeting Flash Lv 2 (disc 21)
+
+Prompt verified on screen: "Fleeting Flash, Lv 2 — BATTLE
+STAGE: World of Darkness — KP: Win battle". Cells: foe HP
+1061 / BRV 101 / pool 303 (block A base this boot
+0x096BBF98). **Won in 12 rotations** of the plain
+session-13 rotation. She took one 109 hit (1973 -> 1864)
+and **leveled 10 -> 11 mid-fight** (+61 heal -> ended
+1925). Results text: "Level increased by 1! (10->11)",
+"Basic stats up!", "Learned Lightning Strike!",
+"Received 1 AP." **Gil 390 -> 404 (+14), KP gauge 0 -> 1,
+no chain offered.** A post-win story fragment played
+during the results crossing ("This is bad. Doubt they
+could've gotten past this many." + a crystalline figure).
+State: ch1_s22_toll_win.state.
+
+### The blue figure — Idle Sky Pirate Lv 6 (disc 2)
+
+Session 21's unidentified blue figure is the **Idle Sky
+Pirate Lv 6 on disc 2** (prompt from disc 12: "Idle Sky
+Pirate, Lv 6 — BATTLE STAGE: Old Chaos Shrine — KP: Win
+battle"). Disc 2 is also chest 1's ONLY platform neighbor,
+so the Pirate gated the chest. Fight: **won in 63
+rotations** — foe HP 1303 / BRV 96 / pool 333 (block A
+0x09691388); long passive stretches (its BRV never left 96
+for most of the fight); one 267 hit taken (1925 -> 1658).
+**Gil 404 -> 470 (+66), gauge 1 -> 2.** State:
+ch1_s22_pirate_win.state.
+
+**Chest 1** (disc 1, prompted from disc 2): **"Obtained
+500 gil from chest!"** — **Gil 470 -> 970.** State:
+ch1_s22_chest1.state.
+
+### The southern wing — two more census misses
+
+- **Delusory Dragoon Lv 2 on disc 33** (prompt from disc
+  32; stage World of Darkness): **won in 9 rotations** —
+  foe HP 1061 / BRV 101 / pool 309 (block A 0x096BBF98);
+  one 127 hit taken; **leveled 11 -> 12 mid-fight** (+61
+  -> 1592). Results: "Level increased by 1! (11->12)",
+  "Received 1 AP." **Gil 970 -> 984 (+14), gauge 2 -> 3.**
+  State: ch1_s22_dragoon_win.state.
+- **A second Idle Sky Pirate Lv 6 on disc 34** (prompt
+  from disc 33; stage Old Chaos Shrine) — the grey winged
+  statue in the board screenshots is this manikin's board
+  model. It blocks the last step to chest 24; the northern
+  detour is impossible (13 not a platform; 4 reachable
+  only via 14). Fight: **won in 30 rotations, ZERO HP
+  damage taken** — foe HP 1303 / BRV 96 / pool 339 (block
+  A 0x09691388); her HP attacks landed 292 x5. **Gil
+  984 -> 1050 (+66), gauge 3 -> 4.** State:
+  ch1_s22_pirate2_win.state.
+
+**Chest 24** (prompted from disc 34): **"Obtained Red
+Drop from chest!"** — no Gil change; the Red Drop is in
+inventory, not auto-used. State: ch1_s22_chest24.state.
+
+??? doorstep (ch1_s22_pre_unknown.state, disc 14):
+Lightning Lv 12, HP 1592 (max 2095), Gil 1050, KP gauge
+4, banked KP 4.
+
+### The ??? piece — Kain Highwind, Lv 10
+
+The disc-15 prompt reads "??? — Engage this piece to find
+its true form." Reveal scene: Lightning kneeling over a
+fallen Bartz ("Bartz, stay with us!"), Kain standing by in
+dragoon armor. VS card: "Lv 12 Lightning VS Kain Highwind
+Lv 10" (stage Old Chaos Shrine). Kain's cells: **HP 1459,
+BRV 185, pool 355** (attempt-1 boot; pool read 361 in the
+attempt 2/3 boots).
+
+- **Attempt 1 (plain rotation, Lv 12, 1592 HP): LOSS at
+  rotation 32 — Kain left at 139/1459 (1320 dealt).** Five
+  clean 228 hits in the first 7 rotations (1459 -> 319),
+  then her attacks whiffed for ~23 rotations while he
+  chipped her down; she **leveled to 13 mid-fight** (+60
+  heal at rotation 10 -> 1652), was BROKEN at the end
+  (pool to him, his BRV 600) and killed. Fled cleanly to
+  disc 14. **Fled-state HUD: Lv 13, HP 1652** — flee
+  restored the engagement HP (1592) PLUS the level-up
+  max-delta earned mid-fight (60), and the level
+  persisted. (Refines the session-20 flee note: the
+  restore is engagement snapshot + mid-fight level-up
+  delta, not automatically the full new max.)
+- **Attempt 2 (+15f drift, Lv 13, 1652 HP): LOSS at
+  rotation 29 — Kain at 640 (819 dealt).** The drift hurt
+  against Kain: he built BRV to 802 and landed a 1002
+  spend (1652 -> 650 at rotation 13), then a 649 hit
+  (-> 1 HP at rotation 27); she died at rotation 29.
+  Fled; doorstep values unchanged (Lv 13, 1652, Gil
+  1050, gauge 4).
+- **Attempt 3 (plain rotation, same lineage): WIN in 27
+  rotations — Lightning standing at 575 HP.** Her HP
+  attacks landed steadily (252/192 chunks); she took
+  hits of 245/185/231/231/185 but was never broken (the
+  pool never moved off 361). Reward from game text:
+  **"Obtained 150 gil." — Gil 1050 -> 1200.** KP gauge
+  stayed 4.
+
+### Completion — Report shell, Chapter 1 done
+
+The post-win scene ride (50 x Cross with 240-frame runs,
+the session-20 protocol) carried ctrl state 20 -> **21**,
+landing in the **Story Mode Report shell**: "Report 01,
+1/4 — World: A — Place: Town on the Hawk's Wing —
+Inherited Memories -01-", progress bar 1 of ~21 squares
+filled. **Beating the ??? completed the gateway — no
+Stigma, no field landing** (the Sage's Path pattern).
+With Crescent Lake and Sage's Path, **Chapter 1's gateway
+chain is complete**; entering Customization afterwards
+showed the accomplishment banner "Successfully
+accomplished 012 - Chapter 1!". In the shell her HP reads
+full again (2155/2155 at Lv 13 — the completion restored
+her, as at Sage's Path).
+
+Shell controls (measured; state68 stayed 21 throughout):
+Start opens the Story Mode help menu ("What is Story
+Mode? / Difficulty Settings / Skills [NEW] / Reports
+[NEW]", o Close) — Start does NOT forward from the report
+despite the "FORWARD START" corner label. Circle steps
+back: help -> report detail -> Reports index ("Report /
+Reports" over a coastal-town backdrop); Cross at the
+index reopens the report detail; a third Circle from the
+index exits to the game's **main menu** (Story Mode /
+Battle Mode / Communications Mode / PP Catalog /
+Collection / Data Config / Options; header offers
+Triangle = Customization, R = Calendar; PLAY TIME
+3:11:52). States: ch1_s22_boss_win.state,
+ch1_s22_after_report{,2,3}.state, ch1_s22_shell.state
+(main menu).
+
+### Part C — the Kunai (bought and equipped)
+
+The landing was the main menu, not the field; the brief's
+skip conditions (Gil < 400, or the gateway not
+completing) did not hold — Gil was 1200 — and
+Customization is reachable from the main menu, so the
+purchase was carried out there: Triangle -> Character
+Select (Lightning Lv 13) -> "Check abilities and
+equipment?" YES -> Customization -> Shop -> Buy ->
+Parrying: **Kunai, 400 Gil** (Equip Level 1+, ATK+2
+DEF+1). **Bought: Gil 1200 -> 800.** Equipped in the
+off-hand (empty since the start): **ATK total 26 -> 28,
+DEF total 26 -> 27** (stat panel format TOTAL (BASE +
+GEAR): ATK 22 base, gear 4 -> 6; DEF 24 base, gear 2 ->
+3; HP 2155 (1727 + 428), BRV 203 (165 + 38), LUK 16
+unchanged; totals re-read from enlarged crops — the
+panel's small font is easy to misread at native size).
+
+Harness notes from the menu work: entering Customization
+the first time after the chapter completion stacks
+notification banners ("New accomplishments added!",
+"Successfully accomplished 012 - Chapter 1!", "The
+chocobo found a treasure chest!") that eat D-pad presses
+— ~2,100 frames of plain waiting burns the stack before
+navigating. The Customization top LIST is the only route
+to Shop / Assist / Adjust Level; L/R cycle only the
+Abilities -> Equipment -> Accessories -> Summons ring.
+Circle steps focus back one layer at a time (rows ->
+categories -> list); Start opens context help in menus;
+leaving the shop took one Circle more than the screens
+suggest (a press is absorbed by the buy-list -> front
+transition). Battle block A bases this session:
+0x096BBF98 / 0x09691388. Her battle-start BRV ran 267-328
+at Lv 11-13.
+
+### End state
+
+Lightning **Lv 13, HP 2155/2155, Gil 800, banked KP 4,
+KP gauge 4**; gear Broadsword / **Kunai** / Bronze Helm /
+Leather Armor; Tifa assist; Red Drop in inventory.
+Chapter 1 complete — the story continues from Story Mode
+on the main menu. Final states: ch1_s22_kunai.state
+(inside Customization > Equipment, Kunai equipped) and
+ch1_s22_shell.state (clean main menu). Milestone states
+this session (all ~/d12s): ch1_s22_start, toll_win, on12,
+at2prompt, pirate_win, chest1, probe_end, nav2d_stop,
+dragoon_win, at34prompt, pirate2_win, chest24,
+pre_unknown, boss_fled, boss_win, after_report{,2,3},
+shell, plus menu intermediates (incust, atshop*,
+list_cursor, atkunai, kunai_bought, backtolist, atequip,
+atslots, atitems, kunai). Scripts s22_*.py; logs
+s22_*.log; screenshots s22_*.png. (One state file,
+"ch1_s22 tabs.state", has a space in its name — avoid
+loading it; the drv command line splits on spaces.)
