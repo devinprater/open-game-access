@@ -4185,3 +4185,208 @@ lives in WSL ~/d12s).
   only the doc change, +204 lines). Pushed via the clone's
   git credentials; origin/main verified with gh api after
   the push. This addendum commit follows on main.
+
+## Session 28 — Chapter 3 opens: Laguna, first gateway cleared
+
+Branch dissidia-012-ch3 from main dcb86f2. Start state
+ch2_s27_final.state (Chapter 3 opening board). Scripts
+s28_*.py in ~/d12s (copies of the s27 set, prefixes
+renamed; their saved states carry a ch2_s28_ prefix from
+the rename order — cosmetic only).
+
+### The new lead — Laguna Loire (guide claim corrected)
+
+The brief's guide guess named Bartz Klauser as Chapter 3's
+lead. The GameSpy/IGN walkthrough (page 10, read this
+session) instead says Chapter 3 opens playing as Laguna,
+and the game itself confirms it: the VS card and the
+Customization header both read "Laguna Loire". The Bartz
+claim is wrong for the chapter opening (guide data,
+superseded by measurement).
+
+Starting standing (all from the game's Customization
+screens at board entry):
+
+- Laguna Loire, Lv 1. HP 1000/1000, CP 265/330 used,
+  BRV 95, ATK 12, DEF 11, LUK 10. EXP total 0, next 5000.
+  Gil 2402, banked KP 25, gauge 0 (shared pools carried
+  over from Chapter 2).
+- Bravery attacks: LAND Machine Gun (circle neutral),
+  Grenade Bomb (circle + away); AIR Shotgun (circle
+  neutral), Missile Barrage (midair) (circle + towards).
+  HP attacks: LAND Satellite Laser (square neutral, wall
+  rush) plus one empty land square+towards slot; AIR
+  Ragnarok Blade (square neutral).
+- Equipment: all four slots EMPTY. Accessories: 3 slots,
+  all empty. Assist: NONE — the Assist menu item is
+  disabled and the footer reads "No assist character
+  selected." Summons: none set at start.
+- Accessory pool (shared, from the Equip picker): Near
+  Death, Near Opponent, Level 1-9, Red Drop, Orange Drop,
+  Blue Drop, Iifa Leaf, Chocobo Down x5, Soul of
+  Destruction. None equipped: Soul of Destruction is
+  breakable (it broke on Lightning in sessions 18/19);
+  saved for a boss that needs it.
+- Equipment pool: Broadsword and Longsword both offered
+  to Laguna; Kunai = "Can't Equip" (Parrying class);
+  Bronze Helm x2 in pool.
+
+### Gearing (pre-board natural stop; the shop trades in Gil)
+
+From the pool, no Gil spent: Broadsword (ATK+4), Bronze
+Helm (BRV+38, DEF+2), Leather Armor (HP+428, no penalties
+— picked over Leather Clothing's HP+428 / BRV+9 / DEF-2).
+Shop purchases, each a straight upgrade, each equipped on
+the spot: Iron Sword 1300 (ATK+9), Iron Helm 620 (BRV+54,
+DEF+2), Buckler 450 (fills the empty hand slot, DEF+3).
+Gil 2402 -> 32. Ifrit AUTO summonstone equipped to Laguna
+from the Summons page (clean equip, no transfer prompt;
+3 uses left).
+
+Geared standing: Lv 1, HP 1000 current / 1428 max,
+BRV 149, ATK 21, DEF 16, LUK 10.
+
+Shop stock noted and passed: Tanegashima 400 (Gun:
+HP-86, BRV+19, ATK+4, DEF-2 — a sidegrade, not bought;
+the board's chest later gave one free anyway), Leather
+Hat 500 (BRV+48 but DEF-2 net vs the helm — a trade,
+skipped), Chainmail 1000 (stats unchecked; Gil was
+committed), Zweihander and Capella trade-only.
+
+Menu-navigation lessons (measured): the Customization top
+screen cycles notification banners and each Cross
+dismisses one (about 9 crosses before a selection lands);
+L/R switch pages in a ring (Abilities -> Equipment ->
+Accessories -> Summons); in the Abilities list, left/right
+are page up/down, not column switches — the category
+column is two-level (Cross expands "Offensive Abilities"
+into the Bravery/HP radios); the Equipment slot cursor
+remembers the last-used slot; START and SELECT both open
+the context manual; Circle exits to the board only from
+an unpolluted state.
+
+### Census — Chapter 3's first gateway (17 discs)
+
+Full Scan pass from the entry disc. Discs: 4, 12, 13, 14,
+21, 23, 30 (entry), 31, 32, 33, 41, 43, 44, 52, 53, 54,
+62.
+
+- 31: Treasure Chest. 23: Counterfeit Wraith Lv 1
+  (Order's Sanctuary). 14: Fleeting Flash Lv 5 (World of
+  Darkness). 4: Treasure Chest. 44: Stigma of Chaos.
+  54: Fleeting Flash Lv 5 (World of Darkness).
+  43: Ephemeral Vision Lv 1 (Order's Sanctuary).
+  33: Transient Gunner Lv 1 (Order's Sanctuary).
+  No-info discs: 30 (entry), 21, 13, 53, 32, 12, 52, 62,
+  41 — all later traversed or stood beside, with no
+  Scan-missed piece found on this board.
+- The IGN/GameSpy piece list for this gateway matches the
+  census one-for-one (guide data, now measured). Its
+  chest claims (31 = Cross Chain skill, 4 = Tanegashima)
+  were both confirmed from game text below.
+- MOVEMENT LESSON (measured; cost two failed approaches):
+  Scan links that jump a missing disc are NOT gameplay
+  links — 21->23, 32->12, 32->52 and 14->44 are
+  scan-only. Gameplay adjacency is single row/column
+  steps only.
+
+### Play — gateway cleared: five wins, no damage taken
+
+Standard rotation policy, drift 0 throughout, no assist
+(Laguna has none):
+
+1. Chest 31 (prompted from 30): "Obtained Cross Chain
+   from chest!" — the skill auto-set into the board's
+   Skill slot. Laguna's line: "I'll use this chain skill
+   to clean house of these spunky imposters!"
+2. Transient Gunner Lv 1 (33, from 32): HP 1000, BRV 67.
+   WIN in 5 rotations. +6 Gil, gauge 0->1. Laguna
+   Lv 1->2.
+3. Counterfeit Wraith Lv 1 (23, from 33): HP 1000,
+   BRV 67. WIN in 4 rotations. +6 Gil, gauge 1->2. A
+   chain offer toward the Vision (43) appeared in the
+   result flow and was declined (focus rested on the
+   piece's record — the session-27 false-fire pattern
+   can't be ruled out; declined either way, per
+   practice).
+4. Fleeting Flash Lv 5 (14, from 13): info card —
+   HP 1242, BRV 153 (118+35), ATK 14, DEF 8, Cracked
+   Shield (DEF-8), Bravery Bonus Lv+3. WIN in 13
+   rotations. +50 Gil, gauge 2->3. Laguna Lv 2->3.
+   Harness note: the first attempt at this fight failed
+   with BLOCK A NOT FOUND — the inch had overshot the
+   info card into the live arena (foe already attacking)
+   and the foe-HP key had been misread from the arena
+   HUD as 1212 (the info card's 1242 is authoritative).
+   Re-inching 2 steps from the VS state lands exactly on
+   the Opponent Info card; fought from there, clean.
+   Battle-block bases seen this session: 0x0969D688 and
+   0x096BBF98.
+5. Chest 4 (prompted from 14): "Obtained Tanegashima
+   from chest!" Laguna: "Hey, what do you know? A 'Seed
+   Shooter'! I've been wanting one of these bad." The
+   Tanegashima was NOT equipped: measured against the
+   Iron Sword it is ATK -5, DEF -2, HP -86 for BRV +19 —
+   a downgrade for this build.
+6. Ephemeral Vision Lv 1 (43, from 33): info card —
+   HP 1000, BRV 67 (95-28), ATK 11, DEF 5, Cracked
+   Shield + Charred Helm. WIN in 9 rotations. +6 Gil,
+   gauge 3->4.
+7. Fleeting Flash Lv 5 (54, from 53): info card —
+   HP 1242, BRV 141 (118+23), ATK 14, DEF 8, Cracked
+   Shield, Bravery Bonus Lv+2. WIN in 20 rotations (the
+   foe's bravery reached 223 mid-fight; the plain
+   rotation still shut it out). +50 Gil, gauge 4->5.
+   Laguna Lv 3->4.
+8. Stigma of Chaos (44, prompted from 54): engaged last.
+   Finish flow: "Received 5 KP!" — banked KP 25 -> 30;
+   out through a short dialogue state to a FIELD: a
+   rocky mountain peak above the sea at dusk. Leaving
+   the gateway restored Laguna to full HP (1610).
+
+Every win paid exactly 1 KP to the gauge (the first
+fight's VS card named the condition family JUDGMENT; no
+timer was observed). Laguna took zero HP damage in all
+five fights; each level-up healed +61 HP mid-fight.
+
+Also learned on the way: Ricochet Shot (new ground
+bravery attack, CP 30) appeared in Laguna's ability list
+by Lv 4, marked NEW. It is learned but not slotted — the
+land bravery list shows only two rows (Machine Gun,
+Grenade Bomb) and the third slot's picker behavior was
+not fully mapped; left as a micro-task for a later
+session. It does not affect the fight policy (neutral
+circle only).
+
+### Standing at session end
+
+End state: ch3_s28_final.state — Chapter 3 field segment
+(mountain peak above the sea), first gateway complete,
+state 2, idle.
+
+Laguna Loire, Lv 4: HP 1610/1610, CP 265/333, BRV 167,
+ATK 24, DEF 19, LUK 13 (the bottom stat rows were partly
+covered by a rotating banner; values as read). EXP total
+20030, next 1790; BATTLES 6; a chocobo "LUCKY! — next
+battle EXP x2" bonus is active (84%). Gear: Iron Sword /
+Buckler / Iron Helm / Leather Armor; Ifrit AUTO set;
+Cross Chain board skill; no assist. Gil 150, banked
+KP 30, gauge 0.
+
+Session totals: Laguna Lv 1 -> 4; Gil 2402 -> 150 (2370
+spent gearing up; +118 won and opened on the board);
+banked KP 25 -> 30; 5 battles won, 0 lost, 0 HP damage
+taken.
+
+Next per the guide (guide data, unverified): a scene on
+the mountain with a mysterious voice, then south and east
+to the second gateway (Ephemeral Vision Lv 1, Transient
+Gunner Lv 1, Transient Marionette Lv 5 among its pieces).
+
+States (~/d12s): ch3_s28_board (pre-gear top menu),
+ch3_s28_geared, ch3_s28_board2 (clean board, geared),
+ch3_s28_census, per-piece prompt/vs/info/winraw/done
+states under chest31, gunner, wraith2, flash14b, chest4,
+vision, flash54, stigma (saved with the ch2_s28_ prefix
+noted above), ch2_s28_stigma_open (the field landing),
+ch3_s28_final. Scripts s28_*.py in ~/d12s.
