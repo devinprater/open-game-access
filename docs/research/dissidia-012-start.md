@@ -5534,3 +5534,68 @@ the eastern peninsula's north end. Second open
 problem: the pocket channel at (-53.7, 192.5) —
 the OBB_mes_gate04_04 object's position (array
 stride still unread) may name its trigger.
+
+## Session 33 — kaname_04's line ridden; the channel
+crossed (Chapter 3 continues)
+
+Branch dissidia-012-ch3f from main 89b5426 (the
+session 32/32R/32c record was merged to main first:
+ff 2427bb3..89b5426, push verified via gh api).
+Scripts s33_*.py in ~/d12s.
+
+### Start standing (measured at boot)
+
+- Start state ch3_s32c_start.state (true lineage on
+  the plateau at the east-channel stall): ctrl state
+  2, pos (-6.68, -0.07, 255.52), Gil 570. The HUD on
+  the landing screenshot below reads Laguna Lv 8,
+  HP 1852, Gil 570, banked KP 38 — the true lineage
+  confirmed on screen.
+
+### Route to kaname_04 (measured)
+
+- dashnav leg 1: plateau (-6.7, 255.5) -> (-50.4,
+  -1.3, 233.9) in 6 cycles (state
+  ch3_s33_platsw.state) — the plateau's south-west
+  edge, at the head of 32R's descent line.
+- Leg 2: -> (-38.6, -1.9, 210.7) in 3 cycles (state
+  ch3_s33_basin.state), the basin's south lip.
+  Probes from (-37.5, 219.4) moved east freely past
+  the crystal's x — the basin's east side is open
+  ground, not walled.
+- Leg 3: one dash cycle -> (-31.4, -0.7, 211.0),
+  2.6 units south of the kaname_04 anchor (-31.29,
+  -2.12, 213.59), on the knoll 32R mapped (state
+  ch3_s33_kn04near.state).
+
+### kaname_04 face test (measured): a line, ridden
+### after a Circle sweep
+
+- First Triangle at the knoll (from (-30.9, -0.6,
+  211.0) after the look shots): ctrl state 11
+  (Customization) — no line boarded.
+- Circle sweep (8 facings x 4 volleys, the csweep
+  pattern): no break observed; Laguna drifted about
+  a unit per volley east across the knoll to
+  (-29.1, -0.8, 211.5). (The first volley likely
+  closed the state-11 menu.)
+- Second Triangle at (-29.1, -0.8, 211.5): RODE A
+  QUICKMOVE LINE. Laguna slid ~19 units SSW over
+  the water — the mid-ride screenshot
+  (s33_kn04_a_tri2.png) shows the light line
+  streaming behind him — and landed at (-38.2,
+  -1.0, 194.6), ctrl state 2 (state
+  ch3_s33_kn04_end.state).
+- Whether the line pre-existed at the knoll's edge
+  or the sweep broke an unseen boulder and spawned
+  it is UNRESOLVED (the same ambiguity as
+  kaname_03). What is measured: from 2 units west,
+  Triangle before the sweep did not board; from the
+  knoll's east side, Triangle after the sweep did.
+- The landing is a sandy point with a GOLDEN CHEST
+  beside the landing spot (screenshot
+  s33_kn04_a_tri2b.png) — the chest 32c
+  bearing-estimated at about (-42, 198) from the
+  east-shore pocket, across the channel that would
+  not cross on foot. The channel crossing is the
+  kaname_04 line.
