@@ -3971,3 +3971,207 @@ Logs s26_*.log; screenshots s26_*.png.
   verified with gh api:
   origin/main = 5f71c4280ee6c6bca83e79ec96228038dbb174ba.
   This addendum commit follows on main.
+
+## Session 27 — Snow of Sorrow + Seasonless Gateway: Chapter 2 complete
+
+Branch dissidia-012-seasonless from main fa3ae1a. Start state
+ch2_s26_final.state: Vaan Lv 17, HP 2058, Gil 356, banked KP 19;
+Longsword / Kunai / Bronze Helm / Leather Clothing; Ifrit AUTO;
+Onion Knight assist; Orange Drop, Blue Drop, Girl's Dream.
+Guide order (FF Wiki Ch. 2 / Suih): Snow of Sorrow (optional per
+guide), then Seasonless Gateway, Chapter 2's last.
+
+### Field: gate census and a scripted field battle
+
+Gate census (GateMgr via ctrl+0x88) from the s26 final state:
+count 14 (gates 11-24). Tester-reachable (lh(ptrA+4) >= 0):
+gate 12 -> point 13 (-34.00, 0.42, 295.01) and gate 18 ->
+point 12 (48.33, -0.81, 262.18). Gate 11 (Gulg) is inert/spent.
+Gate 21 reads lh 238 with point 16 all-zeros (anomalous;
+not pursued).
+
+Walking west toward gate 18, a scripted JUDGMENT field battle
+fired at (39.50, 235.55) (ctrl state 5 -> 20) vs Phantasmal
+Harlequin Lv 10, stage Old Chaos Shrine. Opponent Info:
+HP 1545, BRV 147. Won in 13 rotations of the standard stream,
+zero HP attacks weathered; +150 Gil (356 -> 506); Vaan leveled
+17 -> 18 mid-fight. Post-battle the game placed Vaan at
+(-40.46, 0.40, 302.88) on the west cliffs — a teleport whose
+mechanism is unexplained (recorded, not explained). Battle HP
+(2398 at Lv 18) is not the field HUD HP (2058 at Lv 17):
+the two pools are read at different moments; do not conflate.
+
+Harness lessons (field fights): an exact-HP-keyed block finder
+fails when the hero takes damage before the first dump; a
+purely structural finder can lock onto a frozen template block
+(HP/BRV values present but never moving). A candidate block is
+only live if its values MOVE between dumps. This boot's battle
+block base: 0x09692288.
+
+Seasonless (gate 12) was scouted before Snow: entered via the
+gentle-entry recipe (small analog nudges + Cross; entry fired
+~2.5 units from the anchor), an entry scene with Terra played,
+full Scan census taken (19 discs; see below), and the board was
+exited cleanly via Start -> Exit Gateway with nothing fought.
+The unfinished visit left no progress; on the later re-entry
+the entry scene replayed in full.
+
+### Snow of Sorrow (gate 18)
+
+Entry disc 22; board live immediately (no entry scene).
+Census (16 discs): 0 chest, 2 Phantasmal Harlequin Lv 7
+(Lunar Subterrane), 3 chest, 11 Idle Sky Pirate Lv 11
+(Old Chaos Shrine), 20 Idle Sky Pirate Lv 7 (World of
+Darkness), 31 Fleeting Flash Lv 11 (Old Chaos Shrine),
+42 Stigma of Chaos, 53 Terra (Assist Character); no-info
+discs 1, 21, 22 (entry), 23, 24, 32, 33, 43 — matches
+Suih's piece list for this gateway (guide data, confirmed
+by the census). KP Chance shown on the prompt screen:
+"Win within 90 seconds" (game text).
+
+Movement, measured: scan links that span a missing disc
+(2 -> 22 and 0 -> 20 here, a two-row gap) are NOT gameplay
+links — 30 hop attempts and direction probes never moved;
+the board is a loop and the south half is reached around the
+sides. Gameplay graph: 0:1 · 1:0,2,11 · 2:1,3 · 3:2,23 ·
+11:1,21 · 20:21 · 21:11,20,22,31 · 22:21,23,32 ·
+23:3,22,24,33 · 24:23 · 31:21,32 · 32:22,31,33,42 ·
+33:23,32,43 · 42:32,43 · 43:33,42,53 · 53:43.
+
+Fights (standard stream, drift 0):
+- Idle Sky Pirate Lv 7 (disc 20): HP 1364, BRV 102, ATK 16,
+  DEF 12, LUK 13 (Cracked Shield, Charred Helm). WIN,
+  26 rotations, zero damage. +84 Gil (506 -> 590); gauge
+  0 -> 1 (26 rotations paid, inside the 90 s chance).
+  A chain offer followed ("Chain 1: Idle Sky Pirate Lv 11,
+  Bonus +2 KP") — declined per standing practice.
+- Idle Sky Pirate Lv 11 (disc 11): HP 1606. WIN,
+  30 rotations. +176 Gil (590 -> 766); gauge unchanged —
+  so the sub-90-second payment boundary for this stream on
+  this board sits between 26 and 30 rotations, or the held
+  KP was lost in the chain-cancel (unresolved; gauge total
+  was correct at the gateway finish either way).
+- Phantasmal Harlequin Lv 7 (disc 2): HP 1364, BRV 102,
+  ATK 18, DEF 10, LUK 13. WIN, 47 rotations, took 102
+  damage. +84 Gil (766 -> 850); no KP (47 rotations).
+- Fleeting Flash Lv 11 (disc 31): HP 1606, BRV 153,
+  ATK 20, DEF 22, LUK 15 (Cursed Ring). WIN, 56 rotations;
+  Vaan leveled 18 -> 19 mid-fight. +176 Gil (850 -> 1026).
+
+Chests (game text): disc 0 = Iifa Leaf; disc 3 = Delicious
+Fish Scale. Terra assist piece (disc 53) engaged: her line
+"I'll help you..." (one-line overlay scene, the assist-piece
+pattern). Stigma (disc 42) engaged last: finish flowed
+straight to the field at gate 18's arch (50.04, -1.27,
+262.72); HP restored to full (Lv 19 max 2619); the gauge's
+1 KP banked — banked KP 19 -> 20. Gil 1026.
+
+Postwin lesson for this board: at board idle the focus
+pointer rests on piece records, so s27_postwin's chain guard
+false-fired repeatedly (harmless circle/left/cross bumps; no
+chain was ever accepted and held KP paid correctly). The
+reliable decline is manual: circle -> left -> cross, then
+verify by screenshot. Script copy kept at
+~/workspace/s27_decline.py (VM side).
+
+### Seasonless Gateway (gate 12) — Chapter 2's last
+
+Re-entered from the field (walk west along the road, gentle
+entry). The entry scene replayed; dialogue captured across
+both entries (game text): Terra — "I don't want to hurt
+people, or destroy things anymore. So please!"; Vaan —
+"People are people aren't they? It doesn't matter what
+'side' you're on." / "But that doesn't mean I'm just gonna
+throw away what I believe in." (first entry also caught:
+"I mean, that's gotta be better than the alternative." /
+"Okay. Sure, we were summoned here to fight.")
+
+Measured anomaly: Vaan entered at HP 2519 although he had
+left Snow of Sorrow at full 2619 and fought nothing between
+(field walk only). The -100 is unexplained.
+
+Census (19 discs, entry 31): 0 chest, 10 Phantasmal Girl
+Lv 15, 24 Terra (Assist Character), 33 Idle Sky Pirate
+Lv 11, 43 Phantasmal Harlequin Lv 15, 50 Fleeting Flash
+Lv 15, 54 Idle Sky Pirate Lv 15, 55 Stigma of Chaos,
+60 chest; no-info discs 20, 23, 25, 30, 31 (entry), 32,
+34, 35, 40, 53.
+
+KP Chance here is untimed (guide says "Win battle"; measured
+consistent: all five wins paid exactly 1 KP each, including
+44- and 49-rotation wins; gauge 0 -> 5 across the board).
+
+Fights:
+- Phantasmal Girl Lv 15 (disc 10): HP 1848, BRV 176,
+  ATK 26, DEF 25, LUK 17 (Cursed Ring). WIN, 44 rotations,
+  zero damage. +300 Gil (1026 -> 1326).
+- Fleeting Flash Lv 15 (disc 50): HP total 1 — a glass
+  cannon (base 1848 - 962 gear; BRV 324, ATK 24, DEF 18;
+  Cracked Shield, Beret, Rusted Armor). WIN, 23 rotations,
+  but it converted its boosted bravery first: Vaan took
+  1300 damage (2519 -> 1219). +300 Gil (1326 -> 1626).
+  Same lesson as session 24's Lv 5 Flash: fight it the
+  moment it is engaged; do not idle near it.
+- Idle Sky Pirate Lv 11 (disc 33): HP 1606, BRV 125,
+  ATK 20, DEF 16, LUK 15. WIN, 14 rotations; Vaan leveled
+  19 -> 20 mid-fight. +176 Gil (1626 -> 1802).
+- Phantasmal Harlequin Lv 15 (disc 43): HP 1848
+  (Opponent Info page was skipped by the inch crosses;
+  HP read live in the arena). WIN, 49 rotations, zero
+  damage. +300 Gil (1802 -> 2102).
+- Idle Sky Pirate Lv 15 (disc 54): HP 2481 (1848 + 633
+  gear), BRV 265, ATK 44, DEF 33, LUK 17 (Mythril Sword,
+  Wakizashi, Iron Helm, Bronze Chest Plate) — the
+  strongest manikin of the chapter. Drift 0: LOSS in
+  59 rotations with the foe at 261 HP (2220 dealt).
+  Drift +5: WIN, 48 rotations; Vaan leveled 20 -> 21
+  mid-fight. +300 Gil (2102 -> 2402).
+
+Chests (game text): disc 0 = Pink Tail; disc 60 = Soul of
+Destruction. (Both match Suih's claims for this gateway —
+guide data until measured; now measured.)
+
+Terra assist piece (disc 24) scene (game text): Vaan —
+"Don't push yourself. I can handle these guys on my own.";
+Terra — "I'm alright, I can fight, too..."
+
+Stigma (disc 55) engaged last: the finish flow ran through
+the chapter-end sequence to state 21 — Chapter 3 opens
+directly on a new board (floating rock islands in rain),
+a new lead character at Lv 1, HP 1000, with tutorial text:
+"He also possesses many special attacks. Check his
+abilities in the customization menu." Chapter 2 is
+complete. The new board's HUD reads the shared pools:
+Gil 2402, banked KP 25 (20 + the gauge's 5, which left
+the gauge at the finish), gauge 0.
+
+### Standing at session end
+
+End state: ch2_s27_final.state — Chapter 3's opening
+board, tutorial text dismissed, board idle.
+
+Vaan's final Chapter 2 standing: Lv 21, Gil 2402, banked
+KP 25. Gear unchanged: Longsword / Kunai / Bronze Helm /
+Leather Clothing; Ifrit AUTO equipped; Onion Knight the
+set assist. Inventory gains this session: Iifa Leaf,
+Delicious Fish Scale, Pink Tail, Soul of Destruction
+(plus Orange Drop, Blue Drop, Girl's Dream carried in).
+No shop visit was needed: nothing on the route beat the
+Longsword for Gil, and Leather Clothing's HP carried the
+chapter. Session totals: Vaan Lv 17 -> 21, Gil 356 ->
+2402, banked KP 19 -> 25; 10 battles won, 1 lost (the
+Pirate Lv 15 drift-0 attempt, fled and re-won at +5).
+
+States (~/d12s): ch2_s27_census_in, ch2_s27_g12scene_inch,
+ch2_s27_exit (Seasonless scout), ch2_s27_g18in,
+ch2_s27_snow_done, per-fight prompt/vs/info/winraw/done
+states under harf, pir7, pir11, har7, flash, terra,
+stigma (Snow) and sgirl, sflash, spir33, shar43, spir54,
+sterra, sstigma (Seasonless), ch2_s27_final. Scripts
+s27_*.py in ~/d12s (copies of the s26 set, prefixes
+renamed); s27_enter2.py / s27_decline.py also kept on the
+VM at ~/workspace. Note: the VM-side s27_enter2.py takes
+argv in the order start, out, TAG, tx, tz and logs to
+s27_enter2_<tag>.log. Two VM service restarts interrupted
+tool calls mid-session; no progress was lost (all state
+lives in WSL ~/d12s).
