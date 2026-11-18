@@ -5343,3 +5343,78 @@ negative)
   rock face; there is no boulder at this stall.
   The plateau's east channel is a terrain dead
   end, not a boulder plug.
+
+### Session 32c (continued) — kaname_03: a quickmove line
+### ridden; an islet chest that will not open
+
+Test (b) ran in the session-31 lineage state
+(ch3_s31_final.state; Laguna Lv 7, Gil 428, KP 34) as a
+test only. The walker took him down the valley to
+(-101.5, -0.6, 204.7), then south to the crystal's face
+at (-104.1, -0.1, 198.4), about 3.6 units north of the
+kaname_03 anchor (-103.31, -1.50, 201.88).
+
+- Circle sweep 1 (32 volleys, 8 facings, from the
+  northern approach, positions z 203-206): no break,
+  no state change.
+- At the crystal's face a QUICKMOVE LIGHT LINE is
+  present: a bright green-yellow beam running along
+  the cliff edge with the floating triangle marker
+  (screenshots s32c_csweep_kn03b_start.png and
+  s32c_csweep_kn03b_S.png). Whether the line was
+  already there or the first sweep's volleys broke an
+  unseen boulder and spawned it is UNRESOLVED — the
+  approach screenshots were not checked for the line
+  before the sweep.
+- Circle sweep 2 (32 more volleys at point-blank
+  range around the crystal base): the crystal itself
+  does not react as a boulder. The kaname crystals do
+  not break under 64 aimed volleys total.
+- One Triangle press at (-104.1, -0.1, 198.4) RODE
+  THE LINE: in ~30 frames Laguna slid ~16 units SSW
+  along the western cliff to (-109.9, -0.4, 183.5),
+  a small rocky islet (state ch3_s32c_qm_kn03.state).
+  The line's return end glows at the islet's north
+  edge; Vaan waits on the far shore.
+- The islet holds A GOLDEN CHEST (screenshot
+  s32c_qm_kn03_tri1b.png), triangulated from three
+  camera views to about (-111.8, 187.3), the islet's
+  south-west side. IT HAS NOT BEEN OPENED. Ruled out
+  by direct test: contact at ~1-unit grid resolution
+  over the whole islet (s32c_mow.py, 11 targets,
+  11-frame steps, state checked at every stop);
+  contact on a tight ring around the triangulated
+  spot ((-111.57, 187.02), (-111.06, 187.46),
+  (-111.90, 186.74), (-110.80, 186.84)); Cross beside
+  it after a 300-frame settle (the session-30 Rosetta
+  recipe — Cross dashed him away instead); Circle
+  beside it. Contents unknown. (Session 30's lake
+  islet chest was bearing-estimated at about
+  (-103, 155); this islet is at z about 183, so they
+  may be different chests.)
+- Point-table dump (from ch3_s32c_qm_kn03.state;
+  manager 0x09AEF8D8, table at rd(mgr+0x6C), records
+  0x3C bytes, name string at +0x00, position floats
+  at +0x24/+0x28/+0x2C): 30 records. New information:
+  jump anchors come in PAIRS — rec 0
+  POS_jump_gate04_04 (-12.10, 0.50, 32.00) and rec 29
+  (name prefix garbled in the dump, reads
+  "..._jump_gate04_04") at (4.66, 0.00, 31.39), the
+  two ends of one line inside the south-east cluster.
+  Gate anchors: gate04_00 (-85.81, 0.19, 241.49),
+  gate04_01 (-36.05, 0.00, 257.95), gate04_02
+  (-56.71, -0.43, 79.74), gate04_03 (-24.44, 0.87,
+  9.07), gate04_04 (0.35, 1.11, 31.41), gate04_05
+  (-123.64, -1.57, 63.87), gate04_06 (-243.05, -1.28,
+  134.92), gate04_07 (-187.89, -1.57, 182.34),
+  gate04_08 (-274.40, -1.39, 165.23). Kaname points:
+  01 (-21.21, -2.47, 35.38), 02 (-132.36, -1.92,
+  97.51), 03 (-103.31, -1.50, 201.88), 04 (-31.29,
+  -2.12, 213.59), 05 (-215.80, -4.00, 167.68). Twelve
+  POS_fog points (01-12) at y=3.00 spread over
+  x -100..-251, z 29..126 — a far-west region with
+  gates 04_06/07/08 and kaname_02/05 that no session
+  has visited; presumably a later chapter's ground on
+  this shared world map. NO chest record exists in
+  this table: field chests live in a different object
+  list, still unlocated in RAM.
