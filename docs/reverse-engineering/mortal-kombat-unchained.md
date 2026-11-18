@@ -3149,3 +3149,39 @@ request, which is where the chain goes next.
 
 Practical rule for the rest of this hunt: **talk first, never punch** unless the
 quest asks for it, because one punch closes the polite branch for good.
+
+## Bench session 2026-11-17: cold boot to the village, meditation confirmed, what blocked the quests
+
+Windows PPSSPP 1.20.4 from the retail CSO, one websocket client. Not a quest
+completion: it reached the village and measured five things.
+
+- **Clean boot to free-roam takes about 4 minutes and reproduces.** Answer the
+  autosave CAUTION prompt with **Triangle (No)**, tap Start to the main menu,
+  L then the kode (Cross, Circle, Triangle, Square, Cross, Circle), Down x3 and
+  Cross for Konquest, then `scripts/mku-konquest-tutorial.py` plays the dojo
+  lessons (22 inputs, FREE ROAM at (-56.0, 0.9, 154.2)). The clock reads
+  SUNDAY 7:13 AM on arrival and runs about 12 game minutes per real minute.
+- **Meditation confirmed live.** Height at 0x08AED47C reads **0.229 seated and
+  0.87 standing**; Circle toggles it (stable to three decimals over 8 samples
+  each way). This is the signal the adapter announces.
+- **Square opens an Inventory screen in free-roam**: a 12-slot grid (empty here)
+  and a KOINS column (0, 0, 150, 0, 0, 0 on this profile), closed with Triangle,
+  flag B stays 0. The adapter says nothing there yet. D-pad holds do not walk;
+  movement is the analog stick.
+- **The NPC table is longer than the adapter reads.** It runs past 90 records
+  (index 40 `npc_bouncer`, 42 `npc_meditate_mom`, 43 `npc_ring_man`, 78
+  `npc_blacksmith`, 80 `npc_pickpocket`, 89 `npc_vase_thief`, 90 `npc_er1_oni`,
+  and a block of `npc_NN_walk` records), against `kNpcRecords = 40`. Home
+  positions span x -67..74, z 0..170, far wider than the Guide box around the
+  dojo. A record is a scripted position, not presence: `npc_oldman` read
+  (-19.7, 125), then (21.3, 117), then (-4.3, 125) over one game day (he
+  wanders), with y 0 until he was beside the player. (This repeats the earlier
+  note that y is not a spawn flag; the Guide lists villagers by table position.)
+- **Free-roam attack is still not found.** Beside `npc_oldman` (bald, arms
+  crossed): Cross, Square (inventory), Triangle and L did nothing visible; R
+  blocks (height 0.82). Walking up to him did fire a cutscene (the subtitle
+  buffer built "The Lin Kuei are masters of many deadly fighting..." and "Have
+  you f..." word by word), but the toothache lines were not captured, so the
+  toothache quest is NOT confirmed to belong to him. Not attempted: the bridge
+  chain, and the tower after a win.
+
