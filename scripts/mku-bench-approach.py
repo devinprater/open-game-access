@@ -2,7 +2,8 @@ import pathlib
 exec(open(pathlib.Path(__file__).resolve().parent / "mku-bench-lib.py").read())
 import math, sys
 SUB = 0x09106354
-OLD = 0x09151098 - 26 * 0x810 + 0x1C
+import os
+OLD = 0x09151098 - int(os.environ.get("MKU_NPC_INDEX", "26")) * 0x810 + 0x1C
 
 def stick(x, y, secs):
     d.ws.send(json.dumps({"event": "input.analog.send", "stick": "left", "x": x, "y": y}))
