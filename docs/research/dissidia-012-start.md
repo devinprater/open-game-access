@@ -4175,3 +4175,13 @@ argv in the order start, out, TAG, tx, tz and logs to
 s27_enter2_<tag>.log. Two VM service restarts interrupted
 tool calls mid-session; no progress was lost (all state
 lives in WSL ~/d12s).
+
+### Session 27 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test
+  gates applied): the Session 27 section was committed on
+  dissidia-012-seasonless (6b3b0cd) and fast-forwarded here
+  (main was still at the branch base fa3ae1a; the merge took
+  only the doc change, +204 lines). Pushed via the clone's
+  git credentials; origin/main verified with gh api after
+  the push. This addendum commit follows on main.
