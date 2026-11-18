@@ -1447,12 +1447,57 @@ void SfReset(void)
 
 // The cue feed (adapter.h CueSnapshot): silent, read-only, polled
 // every frame by the host's cue synth. This game has no lock-on,
-// so the beacon fields stay empty (battle with no lock = the
-// synth's quiet state); the sound-first one-shot health events
+// so the beacon carries FIGHT PROXIMITY instead (FightGap above;
+// locked = in a live fight with readable positions); the sound-first one-shot health events
 // ride the trailing fields exactly as BBS's do — the watches stash
 // them during on_frame, and the first poll inside a live fight
 // copies them out and clears them, so each hit sounds exactly
 // once. A poll outside a fight is refused and consumes nothing.
+// ---- Fight proximity (VERIFIED LIVE 2026-11-17, Windows PPSSPP bench) ------
+//
+// Each fighter's block in the fight struct holds a heap pointer to its
+// engine actor at +0x10 (P1 0x08D929C4, P2 0x08D92A30; the heap addresses
+// move per boot, so the pointer is followed every poll and never cached).
+// The actor's world position is a float vec3 at +0x20 (x), +0x24 (y,
+// height) and +0x28 (z). Bench: Scorpion vs Blaze, P1 walked toward and
+// away from the CPU while both positions were sampled every 0.3 s; the
+// ground distance hypot(dx, dz) fell 5.3 -> 0.85 on the walk-in and rose
+// again on the walk-out, and an idle stretch held both positions steady.
+// The arena is a corridor along z (about 1.8 to 11.5 on the bench stage),
+// with the fighters about 1 unit apart when they trade blows and up to
+// ~10 apart at the far ends. y is left out so a jump does not read as
+// distance. A throwaway diff of whole-RAM dumps taken while P1 walked
+// found the same three floats among noise from animation bone matrices;
+// the pointer chain above is what makes them stable.
+constexpr uint32_t kP1ActorPtrAddr = 0x08D929C4;
+constexpr uint32_t kP2ActorPtrAddr = 0x08D92A30;
+constexpr uint32_t kActorPosOffset = 0x20;
+// The cue synth's beacon was tuned on Dissidia's scale (pulse fastest at
+// 4 units, slowest at 45). A fight arena is ~10 units deep, so the real
+// distance is mapped linearly from [kProxNear, kProxFar] onto that band
+// here rather than teaching the synth a second scale.
+constexpr float kProxNear = 1.0f, kProxFar = 10.0f;
+constexpr float kSynthNear = 4.0f, kSynthFar = 45.0f;
+
+bool PauseFrozen(void);
+
+bool FightGap(float* out)
+{
+    uint32_t pp[2] = { u32(kP1ActorPtrAddr), u32(kP2ActorPtrAddr) };
+    float xz[2][2];
+    for (int i = 0; i < 2; i++) {
+        uint32_t p = pp[i];
+        if (p < 0x08800000 || p > 0x09FFFF00 || (p & 3)) return false;
+        float x = f32(p + kActorPosOffset);
+        float z = f32(p + kActorPosOffset + 8);
+        if (!(x > -500.0f && x < 500.0f && z > -500.0f && z < 500.0f)) return false;
+        xz[i][0] = x; xz[i][1] = z;
+    }
+    float dx = xz[0][0] - xz[1][0], dz = xz[0][1] - xz[1][1];
+    *out = sqrtf(dx * dx + dz * dz);
+    return true;
+}
+
 static bool mku_cue_snapshot(CueSnapshot* out)
 {
     if (!out) return false;
@@ -1467,6 +1512,15 @@ static bool mku_cue_snapshot(CueSnapshot* out)
     if (!g_host) return false;
     if (!InFight() && !g_boutLive) return false;
     out->battle = true;
+    // Proximity beacon: only in a live arcade/versus fight (not a Konquest
+    // bout, whose actors are not mapped) and not while the game is paused.
+    float gap;
+    if (InFight() && !PauseFrozen() && FightGap(&gap)) {
+        float t = (gap - kProxNear) / (kProxFar - kProxNear);
+        t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+        out->locked = true;
+        out->dist = kSynthNear + t * (kSynthFar - kSynthNear);
+    }
     out->foe_beep = g_sfPendFoeBeep;
     out->foe_beep_hz = g_sfPendFoeHz;
     out->foe_beep_pan = g_sfPendFoeBeep ? kSfFoePan : 0.0f;
@@ -1882,6 +1936,7 @@ uint32_t g_candAtNav[kMaxPauseCand];     // value at the previous nav command
 int g_candChangeFrame[kMaxPauseCand];    // frame g_candVal last changed
 int g_candCount = -1;         // -1: not scanned yet this freeze
 int g_frozenFrames = 0;
+bool PauseFrozen(void) { return g_frozenFrames >= kPauseFreezeFrames; }
 uint32_t g_lastTimer = 0xFFFFFFFF;
 int g_frameNo = 0;
 int g_lastNavFrame = -1;

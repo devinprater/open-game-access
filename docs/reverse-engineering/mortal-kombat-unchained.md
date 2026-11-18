@@ -512,6 +512,28 @@ while damage is fresh (early estimates said Goro 0.875/0.413 where the
 true word said 0.741/0.333). Never calibrate a RAM word against a
 fresh-damage bar; give the bar time to settle, or bracket single hits.
 
+## Fight positions and the proximity beacon (2026-11-17) — MAPPED, HOST-TESTED
+
+Bench: Windows PPSSPP 1.20.4 booted from the retail CSO, debugger on 12345,
+Arcade, Scorpion vs Blaze. Whole-RAM diffs while P1 walked were swamped by
+animation matrices, so the chain was followed from the fight struct instead:
+
+| word | address | form |
+|---|---|---|
+| P1 actor pointer | 0x08D929C4 | heap pointer (block +0x10), moves per boot |
+| P2 actor pointer | 0x08D92A30 | same, P2 block |
+| actor position | actor+0x20 / +0x24 / +0x28 | float x, y (height), z |
+
+Verified by sampling both positions every 0.3 s while holding D-pad right
+then left: the ground gap hypot(dx, dz) went 2.0 -> 0.85 walking in and
+5.3 on the way out; the pointers did not change between samples. The stage
+is a corridor along z (about 1.8 to 11.5), so gaps run ~1 (trading blows)
+to ~10. `mku_cue_snapshot` reports `locked` with that gap mapped onto the
+synth's 4..45 band; it is silent when paused, in Konquest, or when a
+pointer/coordinate fails its range check. Not yet checked: other stages,
+whether the pointers survive a rematch without a re-read (the adapter
+re-reads them every poll), and how it sounds on a device.
+
 ## Pause menu speech (2026-10-17, hunts 12-13) — MAPPED AND SPOKEN
 
 The pause block is **per-boot**: a cold-booted second session put the

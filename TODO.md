@@ -214,14 +214,12 @@
   Next: a live capture on the tower — screenshot plus a state dump at the moment the next portrait
   is shown — then find a word that matches the roster index and changes when the opponent changes.
   Speak it once on entry as "Next: <name>", and keep it silent if no index is proven.
-- [ ] **MK Unchained: a proximity click that quickens as you close on the opponent (MK1 2023 style).**
-  The adapter has no `cue_snapshot` today (it is `nullptr` in the registry), so the app's Lock cue
-  toggle does nothing in this game. The cue side is ready: `CueSynth.updateBeacon(state:distance:)`
-  already maps distance to pulse rate, fast near and slow far, with a centred tone. What is missing
-  is the two fighters' world positions in the fight struct. The Konquest position/compass hunt is a
-  different mode and must not be reused here. Next: find P1 and P2 x/z in a fight, return state 2
-  (enemy lock) with their distance while `InFight()`, tune near/far to the arena, and prove the rate
-  tracks a walk-in on the host before it ships. Silent outside a fight, and only when Lock cue is on.
+- [x] **MK Unchained: a proximity click that quickens as you close on the opponent (MK1 2023 style) (2026-11-17, host-tested; positions measured live in PPSSPP, not yet heard on a device).**
+  Each fighter block holds a pointer to its actor (P1 0x08D929C4, P2 0x08D92A30); the actor's
+  x/y/z floats sit at +0x20. `mku_cue_snapshot` now returns a lock (state 2) with the x/z gap,
+  rescaled from the arena's ~1..10 units onto the synth's 4..45 band so `CueSynth` is unchanged.
+  Silent outside arcade/versus fights, while paused, and whenever a pointer or coordinate fails
+  its range check. Still to do: hear it on a device; Konquest bouts have no mapped actors.
 - [~] **MK Unchained's SECOND-PLAYER character select (Practice; wired 2026-11-07, host-tested, not yet run on a device).**
   2026-11-07: the opponent grid's holder steps like the P1 tables and the index is recovered by
   climbing the table (no static word exists). Speaks "Opponent: <name>, row, column". Check Versus too.
