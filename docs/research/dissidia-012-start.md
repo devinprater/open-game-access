@@ -4875,3 +4875,233 @@ despite an extensive route survey (all measured):
   (5a6d8cf..2a8e65d plus this addendum). Doc-only
   session; no adapter code changed, so no new test
   gates applied.
+
+## Session 31 — Chapter 3 route survey: the escarpment,
+the sealed pocket, and the one-way ledge (gateway NOT
+reached)
+
+Branch dissidia-012-ch3d from main 065c049. Start state
+~/d12s/ch3_s30_final.state (Laguna at the Rosetta Stone
+chest, Lv 7, HP 1792/1792, Gil 428, banked KP 34).
+Mission: the moogle lead, then the trek east to Chapter
+3's last gateways. Verdict up front: the final gateway
+was NOT reached and Chapter 3 is NOT finished — but the
+map's remaining unknowns shrank a lot. No battles were
+fought this session; Laguna's standing is unchanged
+(Gil read 428 in every state check along the way).
+
+### Guides read first (all labeled guide data)
+
+- GameSpy/IGN walkthrough, Chapter 3 pages: post-Decay
+  order is "go through the empty gateway and head to
+  your left", beat the Counterfeit Wraith, ignore both
+  gateways, detour for four chests (BRV Zero across a
+  broken-rock bridge gap, EX Charge, Soul of Unrivaled
+  Valor past the False Stalwart, Pink Tail around the
+  bend), then farm the blue gateway to Lv 12+, then
+  the Southern Shrine (engage the boss statue after
+  the Stigma vanishes; use EX Charge first; dodge
+  Cloud of Darkness's [Wide-Angle] Particle Beam by
+  jumping; Break her, then spam Satellite Laser).
+- link3895's GameFAQs FAQ: Chapter 3 has FIVE gateways
+  — 1.3.1 Omen of Destruction, 1.3.A Great Forest
+  Gateway (blue, repeatable), 1.3.2 Gateway to Decay,
+  1.3.B Gateway to the Shrine (blue, repeatable),
+  1.3.3 Southern Shrine Gateway. FAQ 1.3.B board:
+  Fleeting Flash Lv 6, Transient Witch Lv 12, Delusory
+  Dragoon Lv 12, Delusory Dragoon Lv 6; chest Gargoyle
+  Pebble; KP Chance "Win within 90 seconds"; tip: use
+  Jump Chain without moving after Laguna's opening
+  line. FAQ 1.3.3: KP Chance "Win Battle", Bonus Line
+  Lv 11; the [=] path square at F4 appears only after
+  stepping where piece 5 (Idle Sky Pirate Lv 9, E4)
+  stood AND after the dialogue there. FAQ 1.3.A board:
+  Transient Gunner Lv 1, Fleeting Flash Lv 5, Transient
+  Vision Lv 5, Delusory Dragoon Lv 4; chests Fish Scale
+  (E7), Soul of Valor (E1). FAQ world-map notes: a
+  Phantasmal Harlequin Lv 7 prances around the blue
+  gateway in the Great Forest area; the Mount Duergar
+  Mogshop floats "swimming in the air" just before the
+  Decay (red) gateway; the Rosetta chest sits "to the
+  left between the forest and mountain" before it.
+  Mogshop stock (FAQ 9.2.4): accessories "BRV = 0"
+  (20 KP), "No BRV Damage" (15 KP); summonstones Magus
+  Sisters, Demon Wall, Magic Pot (trades), Calcabrina
+  (120 KP) — nothing the finish depends on.
+
+### Census re-run and gate liveness (measured)
+
+- From the start state, the gate census reproduces
+  session 29/30 exactly: gates 11–20 populated, 21+
+  empty; gate→point and the 24-point table unchanged.
+- NEW: the gate record's lh(A+4) field separates live
+  gateways from spent ones. Gates 12, 15, 16 read 15,
+  16, 17 (live); every other gate reads −1 — including
+  Decay (11) and Omen (14), both completed. So Chapter
+  3 has exactly THREE live gateways left: gate 15 →
+  point 4, gate 16 → point 6, gate 12 → point 7.
+- Anchor names decoded from the RAM dump's strings:
+  point 0 = POS_jump_gate04_04, point 1 =
+  POS_jump_gate03_06 — JUMP anchors bound to specific
+  gateways (gate04_04 = gate 12's arch, gate03_06 =
+  gate 13's arch). Points 2–11 = POS_gate03_06 /
+  POS_gate04_00..08; points 12–16 = POS_kaname_01..05;
+  points 17–23 = POS_fog_01..07 (the full fog set in
+  the dump runs to POS_fog_12); POS_replay_camera%02d
+  also present. Working identifications: point 4 =
+  gate04_01 = Great Forest Gateway (blue, live);
+  point 6 = gate04_03 and point 7 = gate04_04 = the
+  south-east pair (Shrine blue + Southern Shrine;
+  point 7 east of point 6 matches GameSpy's "head to
+  the right" for the final gateway); point 2 =
+  gate03_06, the FAQ's "barred-off gateway" with the
+  KP Gambler chest (gate 13, inert this chapter).
+
+### New harness tools
+
+- s31_dashnav.py: greedy dash navigator — from a
+  checkpoint loadstate, probes all 8 stick directions
+  (dash cycles), commits the best-gain one, repeats;
+  clears state-3 field dialogue with Cross presses
+  until state 2. s31_wprobe.py: 8-direction walking
+  probes (6 × 20-frame pushes) from a checkpoint.
+- Upload lesson: a bare stdin data stream does NOT
+  arrive through the ssh/wsl pipe (a script uploaded
+  that way landed 0 bytes); embedding the script as
+  base64 inside the executing program text works.
+
+### The moogle lead (brief step 1): not found
+
+- The chest pocket is walled west; its exits are north
+  up the slope to the rim (−81.0, −0.8, 85.0). Every
+  "small red-pommed figure" sighting from session 30
+  and this one (terrace, rim, reef bend, strip north
+  end) has bearings consistent with ONE object: the
+  kaname_03 fissured crystal at (−103.31, −1.50,
+  201.88), whose orange fissures glow at distance; it
+  was identified up close this session (jagged dark
+  crystal, orange cracks). No moogle was found
+  anywhere on the surveyed shore. The FAQ's Mogshop
+  (floating just before the Decay gateway) remains
+  unlocated — possibly on the unreached landmasses;
+  its stock is non-essential (above), so the hunt is
+  deprioritized, not closed.
+
+### The northern trek (measured, states in ~/d12s/)
+
+- Rim → dashnav north up the causeway strip: (−77.7,
+  94.4) → (−78.7, 104.2) → reef bend (−78.7, 123.2) →
+  (−76.2, 129.3) → (−78.9, 138.9) → (−81.7, 148.6) →
+  (−84.4, 158.2) → north end (−86.4, −1.1, 167.1).
+- Ambient field banter fires on the strip around
+  z≈122–124 (ctrl state 3; advance with Cross). Vaan,
+  verbatim from game text: "Cosmos is a goddess,
+  right? Couldn't she just make 'em disappear if we
+  asked?" (Laguna's reply was not captured.)
+- North end → crystal (−103.4, −0.1, 198.8) → valley
+  (−98.6, −0.2, 214.2) (session 29's scene valley) →
+  east along a traversable highland corridor at
+  z≈198–216, y≈−2: (−94.2, 205.4) → (−88.0, 198.4) →
+  (−79.7, 204.1) → (−71.5, 209.8) → (−63.2, −2.2,
+  215.5) → (−54.0, 212.3) → promontory (−51.8, −1.8,
+  205.7) overlooking the lake (lighthouse islet,
+  golden-chest plateau, and arch ruins visible across
+  the water).
+
+### The escarpment (measured): the corridor is a dead end
+
+- A north–south ridge at x≈−52 blocks eastward
+  progress at EVERY latitude tried, z 195–218, by
+  dashing and by walking. Walk probes at (−51.8,
+  205.7), (−53.7, 213.0) and (−52.6, −2.75, 211.4):
+  east gives zero or negative displacement; all
+  moving directions slide back west into the corridor.
+  The ridge's foot basin runs z≈195–212 and closes at
+  both ends (probes at (−53.0, −2.8, 211.9): every
+  direction ≤1.8 units). The corridor floor slopes
+  DOWN eastward into the basin (y −1.6 west → −2.8 at
+  the foot): a cul-de-sac against an escarpment.
+- The land east of the ridge is a raised tableland:
+  the SE anchors sit at y≈+0.5..1.1 (points 6, 7, 0)
+  and the northern anchors at y≈0..0.9 (points 4, 2,
+  1), versus y≈−2 in the corridor and the western
+  lowlands. kaname_04 (point 15, (−31.29, −2.12,
+  213.59)) is the odd one out — tableland latitude,
+  valley-floor height; it may mark a pass or a low
+  pocket on the far side. No ramp up the escarpment
+  was found at z 195–218.
+
+### The western pocket is sealed on the east (measured)
+
+Returned via the rim checkpoint (same lineage) and
+re-probed the post-Decay pocket's east side:
+
+- Landing cove (−41.8, 51.8): all dashes toward the
+  forest have negative gain (session 30's "exits only
+  W and WNW" holds).
+- Bluff (−43.65, −0.50, 63.23), 8-direction walk
+  probes: no direction gains more than +1.8 x (the
+  landing descent); east is walled.
+- Decay terrace extended EAST beyond session 30's
+  map: (−57.1, 80.4) → (−47.8, 76.7) → (−40.0, −0.5,
+  75.0), a new segment. At its east end every dash and
+  walk probe bumps (disp ≤2) or slides back west; the
+  south face descends only ~6 units to the bluff
+  shelf (a walker grind down it lands on the same
+  sealed pocket). From the terrace's east end a
+  BURNING RED GATEWAY ARCH is visible across the lake
+  (screenshot s31_look_teast.png) — a SE-cluster
+  gateway seen from afar, across open water.
+- Rim → terrace on foot works (walker via (−75.7,
+  79.1)); the rim → chest dash does not (too coarse
+  for the gap crossing).
+
+### The peak climb (measured): a one-way ledge
+
+- From the valley state, the walker climbed the peak's
+  southern slope to (−117.8, −0.46, 238.7), 16 units
+  short of the Omen landing (−118.62, 254.96), then
+  found no moving direction; dashnav from the same
+  spot also made no progress. The ledge at z≈239,
+  x≈−118 is descend-only on this line. Session 29's
+  descent reached the valley at its EAST end (x≈−99),
+  so the climbable line is east of the line tried;
+  finding it is the next session's first search.
+- World-map caution: the session-30 linear arrow
+  calibration (px = 230.5 + 0.391·wx, py = 131.6 +
+  0.345·wz) is a WESTERN-LOBE fit only. Projected
+  east, it puts the SE cluster in open water — the
+  map is schematic beyond the lobe and cannot be used
+  to route the eastern landmasses.
+
+### End standing (measured)
+
+- Laguna Lv 7, HP 1792/1792, Gil 428, banked KP 34 —
+  unchanged; no battles, no gateway entered, no items
+  gained or lost. Ricochet Shot still unslotted (no
+  natural menu stop occurred). Chapter 3 NOT
+  finished. End state: ~/d12s/ch3_s31_final.state
+  (copy of the valley state: Laguna in the highland
+  valley at (−98.6, −0.2, 214.2), ctrl state 2 — the
+  furthest-advanced lineage point; the Vaan banter
+  flag on the strip is set in this line).
+- Next session's first moves: (1) from the end state,
+  find the climbable line up the peak's south slope —
+  probe the slope foot east of x≈−118 (z 225–240,
+  x −110..−95), where session 29's descent actually
+  ran; (2) from the peak, cross the plateau east to
+  points 4/1/2 (Great Forest Gateway + the barred
+  gate03_06 + its jump anchor); (3) if the plateau
+  joins the eastern tableland, ride it south to the
+  SE pair (points 6/7), testing the POS_jump_gate04_04
+  anchor (point 0) with Cross when reached; (4) then
+  the standing plan: Shrine blue gateway farm loops
+  to ~Lv 12, then Southern Shrine in the wiki order
+  (B2/C2 + Carbuncle, D4/E5, E4 last).
+
+### Session 31 addendum - merge
+
+- Session 31 doc committed on branch dissidia-012-ch3d
+  and merged to main (see merge commit). Doc-only
+  session; no adapter code changed, so no new test
+  gates applied.
