@@ -24,7 +24,7 @@ stage() {
   cp Core/adapter.h "$TMP/t/Core/"
   cp Core/genesis_core.h "$TMP/t/Core/"
   cp Core/oga_core.cpp "$TMP/t/Core/"
-  cp Core/dissidia_adapter.cpp Core/dbzar_adapter.cpp Core/mku_adapter.cpp \
+  cp Core/dissidia_adapter.cpp Core/dissidia012_adapter.cpp Core/dbzar_adapter.cpp Core/mku_adapter.cpp \
      Core/khbbs_adapter.cpp "$TMP/t/Core/"
   cp Sources/OpenGameAccess/AdapterCommand.swift "$TMP/t/Sources/OpenGameAccess/"
   cp Sources/CPokeCore/include/pokecore.h "$TMP/t/Sources/CPokeCore/include/"

@@ -65,6 +65,7 @@ extern const Adapter kFireEmblemShadowDragon;
 extern const Adapter kGameBoyAdvance;
 extern const Adapter kDragonBallZSaiyans;
 extern const Adapter kDissidiaFinalFantasy;
+extern const Adapter kDissidia012;
 extern const Adapter kDragonQuestIX;
 extern const Adapter kNintendoEntertainmentSystem;
 extern const Adapter kNintendo64;
@@ -72,6 +73,7 @@ const Adapter kFireEmblemShadowDragon = { "fe11", "stub", "B2FE", NoAttach, NoFr
 const Adapter kGameBoyAdvance = { "gba", "stub", "AGB", NoAttach, NoFrame, NoCommand, NoReady, NoDetach };
 const Adapter kDragonBallZSaiyans = { "dbz", "stub", "BRPE", NoAttach, NoFrame, NoCommand, NoReady, NoDetach };
 const Adapter kDissidiaFinalFantasy = { "dissidia", "stub", "ULUS10437", NoAttach, NoFrame, NoCommand, NoReady, NoDetach };
+const Adapter kDissidia012 = { "dissidia012", "stub", "ULUS10566", NoAttach, NoFrame, NoCommand, NoReady, NoDetach };
 const Adapter kDragonQuestIX = { "dq9", "stub", "YDQE", NoAttach, NoFrame, NoCommand, NoReady, NoDetach };
 const Adapter kNintendoEntertainmentSystem = { "nes", "stub", "", NoAttach, NoFrame, NoCommand, NoReady, NoDetach };
 const Adapter kNintendo64 = { "n64", "stub", "", NoAttach, NoFrame, NoCommand, NoReady, NoDetach };
