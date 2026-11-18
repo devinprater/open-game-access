@@ -3185,3 +3185,30 @@ completion: it reached the village and measured five things.
   toothache quest is NOT confirmed to belong to him. Not attempted: the bridge
   chain, and the tower after a win.
 
+
+### Addendum, same day: the old man is gossip, not the toothache quest
+
+A second cold boot, with the subtitle buffer read every 50 ms and a closed-loop
+approach (`approach.py`: analog-stick search toward the NPC record, Cross every
+2 s once inside 2.5 units, and Cross to advance only once a line has sat for
+1.6 s).
+
+- `npc_oldman` (bald, arms crossed) stands at about (-4.5, 124.7) for stretches,
+  then walks east along z 117 and back. His record moved 20 to 30 units in a few
+  real seconds, so chase him only after reading his record.
+- At 6.8 units away nothing fired in 150 s. Inside about 1 unit, Cross pressed
+  every 2 s produced one line after about 95 s: **"The Lin Kuei have been
+  recruiting again. I think"**. That is generic village gossip (the same Lin
+  Kuei thread as the first session's lines), not toothache dialogue, so
+  `npc_oldman` is NOT the toothache man. The bald man by the park in A-6 is
+  still unidentified, and he may be one of the `npc_NN_walk` records.
+- A conversation is therefore not an instant on approach: it took roughly a
+  minute and a half of repeated Cross at under 1 unit, and the same spot gave
+  nothing in earlier minutes. Whatever gates it (a schedule, a facing test, a
+  cooldown) is still unknown.
+- Lines arrive in pages: the buffer showed the sentence cut after "I think", so
+  a speech layer that waits for a stable line (the adapter does, 10 frames) is
+  right, and the page boundary is part of the line, not a bug.
+
+Still not done: the free-roam attack button, the bridge chain, and the tower
+after a win.
