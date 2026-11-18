@@ -5623,3 +5623,37 @@ Scripts s33_*.py in ~/d12s.
 - Lineage state: ch3_s33_nchest_end.state (on the
   islet, Pink Tail in inventory). Laguna Lv 8,
   HP 1852/1852, Gil 570, banked KP 38.
+
+### OBB array read (measured from the 32c RAM dump)
+
+- OBB records share the POS layout (name at +0x00,
+  position floats at +0x24). Full OBB map from
+  s32c_field.bin: OBB_jump_gate04_04 (4.66, 0.00,
+  31.39); OBB_mes_gate04_04 (5.38, 0.00, 33.00);
+  OBB_cpu_AtoB (0.38, 0.83, 31.47);
+  OBB_jump_gate03_06 (-33.48, 0.00, 299.17);
+  OBB_mes_gate03_06 (-33.20, 0.00, 302.18); plus
+  OBB_cpu pathing nodes at the other gate anchors.
+- So a jump line's two ends are the POS_jump record
+  and the OBB_jump record: gate04_04's line runs
+  (-12.10, 0.50, 32.00) <-> (4.66, 0.00, 31.39) —
+  BOTH ends on the south-east landmass. No jump
+  line crosses from the western side; the OBB lead
+  names no near-side trigger. The crossing to the
+  SE landmass must be a kaname line or nothing.
+
+### East of the basin (measured negative)
+
+- The Triangle on the islet (at the chest spot)
+  rides BACK to the knoll: (-38.8, 197.4) ->
+  (-29.9, -0.6, 215.4). At the islet's east edge
+  (-36.3, 194.2), Triangle opens Customization —
+  the islet has exactly one line.
+- From the knoll return point, dashnav south
+  stalls at the z~211 wall (best southward probe
+  slides east along it). The basin's east shelf
+  (x -36..-14, z 211..225) is walkable but walled
+  on the south at z~211-212 along its whole length
+  (probed to x=-14): a closed highland shelf, no
+  descent to the peninsula. Lineage state on the
+  shelf: ch3_s33_ese1.state (-18.1, -0.4, 212.0).
