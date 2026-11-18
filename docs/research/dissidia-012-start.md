@@ -5657,3 +5657,115 @@ Scripts s33_*.py in ~/d12s.
   (probed to x=-14): a closed highland shelf, no
   descent to the peninsula. Lineage state on the
   shelf: ch3_s33_ese1.state (-18.1, -0.4, 212.0).
+
+### The crossing hunt, second half (all measured negatives)
+
+Protocol for the spot tests below: arrive, Circle
+sweep (8 facings x 4 volleys), then Triangle at 6
+spots; a ride = ctrl state leaves 2/11 or a move
+of more than 3 units. Test forks ran from
+ch3_s32c_s15.state (terrace east point, Lv 8, no
+Pink Tail) unless noted; the true lineage was
+not risked on forks.
+
+- Landing cove (-44.6..-46.1, 50.4..51.8): all 6
+  Triangle spots opened Customization. The cove
+  screenshot shows the far shore across a strait:
+  a burning gateway arch with a black
+  orange-fissured rock at its foot (kaname_01's
+  shore, ~27 units SE).
+- Beach choke (-79.5, -2.8, 58.3): all 6 spots
+  Customization. Screenshot: a sealed ravine
+  ford, shallow stream between rock walls; no
+  boulder. (With 32c's 64+ volleys there, the
+  choke boulder theory is dead.)
+- Plateau east channel stall (-6.7, 255.5): all
+  6 spots Customization. No line boards at the
+  stall; east of it is walled (walks toward
+  (-3.5, 256.5) and (-5.0, 253.0) both fail).
+- Decay terrace east point (-40.3, 75.8): sweep
+  + 6 spots along the east edge, all
+  Customization.
+- kaname_04 islet, second line: a full sweep ON
+  the islet broke nothing. Triangle at the NE
+  shore (-38.0, -0.8, 196.3) boards the SAME
+  return line to the knoll (lands (-30.8, 0.6,
+  213.8)). The islet has exactly one line.
+- East-shore pocket (-53.7, -2.8, 192.5), run
+  from its own loop state ch3_s32c_s1.state:
+  sweep + Triangle at 6 spots, all
+  Customization. The pocket's east edge is
+  x ~ -53.7; the channel east of it does not
+  cross on foot and boards no line.
+- Cove strait: dashnav from the cove toward
+  kaname_01 stalls at (-41.9, -2.8, 51.8) — the
+  strait is deep water, no reef path.
+- Basin shelf east: dashnav from ch3_s33_ese1
+  toward (5, 195) makes NO progress in any of
+  the 8 probe directions — the shelf's east end
+  is walled; no land link to any eastern strip.
+- Plateau north-east: from the tableland point
+  (-33.4, -0.2, 287.4, beside POS_gate03_06),
+  dashnav toward (0, 295) stalls — east is
+  walled along the plateau's north edge at
+  z ~ 293.
+
+### World map and guides, re-checked
+
+- The Select world map (ctrl state 14) was
+  screenshotted and studied (s33_map_a.png). It
+  is schematic and NOT to scale: a land strip
+  seems to run down the map's east side to the
+  SE landmass, but both candidate land links
+  (plateau NE, shelf east) measured walled.
+  Treat the map as suggestive only.
+- link3895 FAQ, this segment: the chest list is
+  Soul of Unrivaled Valor, Pink Tail, (EX
+  Charge), (BRV Zero); "Heading back towards
+  the next gateways, theres a chest next to a
+  forest and small mountain with EX Charge, and
+  the BRV Zero is across the boulder gap." The
+  FAQ's mechanics section adds that red
+  gateways "unlock further areas in the
+  chapter". Both red gateways before the SE
+  pair (Omen of Destruction, Gateway to Decay)
+  are cleared; no measured crossing opened.
+- GameSpy page 10: "break the rock in front of
+  you to jump across the bridge and take a BRV
+  Zero skill from chest number one... head to
+  the right and hop into the Southern Shrine
+  Gateway." The rock's location is still not
+  identified; it is NOT at the choke, cove,
+  stall, terrace, pocket, or islet.
+
+### Session 33 end standing
+
+- Chapter 3 is NOT finished. Gates 12
+  (gate04_04) and 16 (gate04_03) on the SE
+  landmass remain unreached; the crossing is
+  the open problem, now with a complete
+  negative map of every candidate shore.
+- True lineage: Laguna Lv 8, HP 1852/1852,
+  Gil 570, banked KP 38, Ifrit AUTO, Vaan
+  assist, Pink Tail held (opened this session).
+  Latest lineage state: ch3_s33_ese1.state
+  (basin east shelf, -18.1, -0.4, 212.0).
+- Session 34 leads, ranked: (1) the mid-lake
+  islet chest ~(-103, 155) — unreached; test
+  sweep + Triangle grid at the northern lake's
+  south-shore pocket (-88.75, -0.60, 149.37)
+  for its line base. (2) kaname_02's face
+  (-132.36, -1.92, 97.51) — never tested with
+  the correct buttons. (3) Find the False
+  Stalwart's actor in RAM: its patrol ground
+  identifies the landmass it walks. (4) The
+  unexplored quadrant x -20..0, z 60..160 (the
+  lake's east arm, the tower shore) — no shore
+  of ours touches it; a line base for it is
+  unlocated. (5) kaname_05 (-215.80, -4.00,
+  167.68) — far west, likely a later segment.
+- Harness note: the VM's /tmp was wiped
+  mid-session (restart). Durable copies of this
+  session's scripts live in ~/d12s on WSL
+  (s33_pock.py, s33_isl.py, s33_terr.py,
+  s33_map.py, s33_findpocket.py added).
