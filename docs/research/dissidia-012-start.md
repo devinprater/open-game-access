@@ -3687,3 +3687,16 @@ complete). Scripts s25_*.py (incl. the generic
 s25_nav.py / s25_fight.py / s25_fight2.py /
 s25_inch.py); logs s25_*.log; screenshots
 s25_*.png.
+
+### Session 25 addendum — merge
+
+- Doc-only session (no adapter code changed, so no build/test
+  gates applied): the Session 25 section was committed on
+  dissidia-012-encounters (d49d44f) and merged here. Merge gates
+  (session 12's): working tree clean except the doc; local
+  main == origin/main (59c07d9); merge-base == 59c07d9 (main
+  a strict ancestor, branch 1 ahead / 0 behind). Pure
+  fast-forward 59c07d9..d49d44f, pushed via the clone's git
+  credentials and verified with gh api:
+  origin/main = d49d44f6c0f005cdeacc173a95a29a4504bf48d0.
+  This addendum commit follows on main.
