@@ -6561,3 +6561,26 @@ empty: 2, 3, 12, 22, 24, 31, 32, 33, 42. Scan edges in
 `s35_census_blue.log`; shots `s35_blue_g<grid>.png`; state
 `ch4_s35_blue_census.state`.
 
+### S35 Gateway to the Shrine (Blue) — play (part 1)
+
+Movement graph (BFS-measured, `s35_bfs_blu.json`, states
+`ch4_s35_blu_on<grid>.state`): 13 up 3 / left 12 / right PROMPT 14
+(Stigma); 3 down 13 / left 2; 2 down 12 / left PROMPT 1 / right 3;
+12 up 2 / down 22 / right 13; 22 up 12 / down 32; 32 up 22 / down 42 /
+left 31 / right 33; 42 up 32; 31 right 32; 33 left 32 / right PROMPT
+34. Scan-only edges that do NOT exist in normal mode: 13 -down-> 33,
+22 -left-> 20 (Wraith prompt untested — retest with nav p-op),
+24 reachable only via 34 once the Flash falls, 25/5 beyond it.
+
+- **Fleeting Flash Lv 6** (disc 34; card: HP 1303, CP 336, BRV 124,
+  ATK 15, DEF 9, LUK 13, Cracked Shield): standard rotation STALLED —
+  the script's 70-rotation cap hit with the foe at 155 HP (her 853;
+  the Flash's evasion stalls the rotation for long stretches; a
+  "STALLED" outcome saves a `_loss` state but she is NOT dead).
+  **Drift +5 WON in 28 rotations** (her HP 1288). Rewards: **LEVEL UP
+  6 -> 7**, **Learned Reverse Air Dash**, **Learned Air Dash**,
+  **Flash's Dream x1 created**, 1 AP, +66 Gil (972). Gauge 0 (win came
+  after the stalled attempt). States: `ch4_s35_blue_prompt34`,
+  `ch4_s35_blueflash_loss` (stall), `ch4_s35_blueflash5_winraw`,
+  `ch4_s35_blue_flash_down`.
+
