@@ -8470,3 +8470,50 @@ pockets; cardinals still moved.
 
 NEXT: bench-following probes E and W from the stall pocket
 (ch6_s43_nav.state) before falling back to the road.
+
+
+### Session 43 addendum 17 - THE ROAD EAST: an arc over the ridge, a face at x~207.7, no boulder; a rift portal sighted north (2026-11-19)
+
+THE ROAD EAST FROM THE SCOUT POINT (canonical lineage,
+ch6_s42_scout.state): waypoint walker reached (200, 227.5)
+at (198.8, 228.3) [ch6_s43_road.state lineage], but NOT by
+the direct line - the walkable ground arcs NORTH to
+(190.4, 235.9) then descends SE through (195.9, 231.3).
+The straight z~227-228 line from x 170 to 199 is cut by
+terrain; the over-the-shoulder arc is the walked route.
+
+THE FACE AT X~207.7: east of (198.8, 228.3) the road runs
+to (207.5, 227.4) and stops. At (207.70, 228.04) 20-frame
+pushes east measure ZERO displacement; the walker
+oscillates in a z 227.4-228.8 band and a (214, 222)
+waypoint probe never moved him at all - a notch in a
+rock face, not a road gap. A z-line probe south (target
+(214, 222)) failed from the same notch.
+
+BOULDER PROTOCOL AT THE STALL (brief fallback (a),
+applied early): facing east (local mapping: stick S =
++x here), FOUR Circle presses - Kain's field Circle is a
+leaping spear animation (screenshot s43_block_circle1:
+airborne, spear levelled) - produced no break, no light
+line, no state change, and the east test stayed zero.
+No boulder within reach of the stall point. (The
+screenshot also shows open slope only at the first stall;
+no boulder, no tree.)
+
+PORTAL SIGHTED: the post-Circle screenshot from
+(207.70, 228.04) shows a dark rift portal (twin spires,
+red glow) beyond the snow ridge to the north - the same
+sighting s41 recorded from the shelf (235.7, 229.0). A
+gateway sphere stands north of the ridge at z~228-229's
+latitude band; the ridge crossing is still unfound.
+
+DIAGONAL ANALOG PUSHES (0.707, 0.707) measure ZERO
+displacement at every Ch.6 field spot probed this session
+(bench, road stall) while cardinals move normally.
+Walkers here are effectively cardinal-only; sessions'
+earlier "8-direction" trials were carried by cardinals.
+
+NEXT: jumpgate pt2 stand-test (163.1, 230.6 - never stood
+on; s42's manikin fired first), then the shelf boulder
+protocol + east-of-shelf probes via the junction if the
+face opens, or via the ruins north road if it does not.
