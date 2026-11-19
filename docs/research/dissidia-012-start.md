@@ -6361,3 +6361,43 @@ instead, and board movement then silently stalls
 - Standing at the Stigma: Yuna Lv 4, board HP
   1071, Gil 822, gauge 4 KP, banked 58. All four
   manikins beaten, all three chests looted.
+
+### S35 field segment 1 (post-West Melmond) — survey in progress
+
+After the Stigma: cutscene (Yuna separated from Jecht, whistles for him,
+meets Tidus), field control at spawn **(-242.96, -1.67, 128.24)**; HP
+restored to full **1939** (Lv 4 max with gear); gauge paid out: banked KP
+58 -> **62**; Gil **822**. States: `ch4_s35_field1_start` (mid-cutscene),
+`ch4_s35_field1_b` (field control at spawn).
+
+Survey so far (positions = player-object floats via ptr 0x08B83DE4
++0x30/+0x34/+0x38): the spawn shore is a peninsula. South coast runs ESE:
+(-183, 110) -> (-157, 101) -> a dark lava-cracked Chaos-crystal islet,
+dead end at (-130..-134, 98-100) (dashes wedge into its collision pocket;
+walk steps extract; Cross at its base does nothing; no eastward progress
+from it). NW from (-183, 110): beach (-209, 128) -> (-226, 121) loops SW
+back to spawn. West of spawn a raised grassy plateau with a small ruin
+stands across a cliff (shore base ~(-250, 130)); no quickmove-line ride
+found at its base (8-direction dash probe, all deltas <= 10, y unchanged).
+North from (-194, 105): muddy tidal flats to a land spit ending at
+(-185, 76) facing deep sea — not a crossing. The in-game field Map
+(Select) shows the whole world; Yuna's marker sits on the SW peninsula of
+the southern continent, which sprawls EAST — the onward land route is
+east along the continent (guide, link3895 1.4.1 World Map note: "go
+through the now empty gateway and turn right to get into a big open area.
+To the left is the Wraith and first chest. Further along you'll see a
+moogle floating upside down and a boulder in the ruins of Melmond, the
+Rosetta Stone is just beyond that." Segment contents per guides:
+wandering Counterfeit Wraith Lv 4; chests EX Charge + Rosetta Stone;
+Mogshop 9.2.5 in the Melmond ruins — buy a Round Chain there if none held
+[we hold Cross Chain], optionally a Jump SKILL).
+
+Field-nav lessons: dashnav (s33) costs ~90 s/cycle (state reload per
+trial) and ssh `timeout` kills it unpredictably — verify by log + pgrep
+before rerunning; single-cycle/short twalk hops (~15-25 s) are the
+reliable mover. Stick directions are camera-relative; the heading
+estimate in twalk corrupts against walls (oscillation at barriers is the
+tell). DES_N_ table at 0x095DCBC8 (stride 0x28) is (name, id) pairs only
+— gate0306_* = Ch3, gate04XX_* = Ch4 — no positions. GateMgr table
+0x095D75C0 is a link/id registry, not positions.
+
