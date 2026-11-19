@@ -7072,3 +7072,88 @@ entry mechanism still unknown
   (110.3, -12.5); the memstick save in fp-save-s8
   now holds Chapter 5 in progress at the blue
   gateway.
+
+## Session 37 — Chapter 5: the gateway was never
+locked; its entry zone is a small volume at the
+POS_ anchor on the arch's SOUTH face
+
+Branch dissidia-012-ch5 from main cba6530. Start
+state ch5_s36_fresh2.state (game-managed Continue
+resume at the blue portal). Scripts s37_*.py in
+~/workspace/d12s37, run in WSL via stdin stream
+against s18lib.
+
+### Guide + manual ground truth (re-read)
+
+- GameSpy Ch. 5: from spawn "turn around and follow
+  the water to a blue gateway on a peninsula. Walk
+  past the blue gateway and open the treasure chest
+  for a BRV Charge skill... use the blue gateway to
+  earn some levels and KP" — then orbs -> moogle ->
+  Reaper -> "step forward and enter this chapter's
+  only gateway, Forsaken Kingdom" by the moogle.
+- link3895 1.5.0: "to the right is a blue gateway,
+  and around the small mountains behind it is the
+  first chest... Before tackling this blue gateway,
+  go further along to the giant white pillar, you'll
+  get the Light Orbs and there's a moogle in the
+  ruins of Cornelia." After the blue gateway: "head
+  back to the moogle and hang a right. You'll see
+  the Reaper... Back to the moogle again and head
+  into the gateway."
+- Official manual (already in this doc, s-prologue):
+  entry = stand in the trigger zone -> a PANEL shows
+  the gateway's name and conditions -> press the
+  button to enter. The panel is the detector.
+
+### RAM corrections to session 36's model (measured
+from the s36 boot dump, offline)
+
+- The point table (tab 0x095e62c0) holds POS_
+  anchors for gates 01_00..06, 02_00, 02_05, 04_04,
+  05_00 and OBB records ONLY for gates 02_00,
+  02_05, 04_04, 05_00 (OBB_jump_* + OBB_mes_*) and
+  OBB_cpu_* pathing. Per session 32c's own working
+  guess, OBB_jump/OBB_mes are QUICKMOVE-LINE
+  triggers, not gateway-entry triggers — the lack
+  of OBBs at gate01_* says nothing about entry.
+- Pint list 0 decoded fully: KIND 2 = Light Orb
+  spawn points (set 12 = spawn-area trail incl.
+  (128,37); set 13 = eastern trail (152,54),
+  (191,79), (180,82), (194,40); set 8 = the
+  gate05_00 cluster). KIND 5 = arch/portal shells.
+  KIND 6 at (75,100) and (243,78) in the five
+  chapter-variant sets 138-142 are the two MOOGLE
+  SHOPS (model ids step per chapter = shop
+  inventories), not gateway objects — session 36's
+  "gateway-object variant" reading was wrong.
+- POS_gate01_03 anchor = (113.43, 0.20, -22.21);
+  the sphere visual (kind 5) sits at (110,-12).
+  Session 36's probe lines stopped at z=-18 and
+  its idles stood on the kind-5 points — the
+  anchor, 4+ units further south, was never
+  occupied.
+
+### THE BLOCKER BREAKS (measured, photographed)
+
+Fine-walked from fresh2 (110.9,-12.2) to the
+anchor: at (113.7,-21.8), 0.5 units from
+POS_gate01_03, the screenshot shows the CONDITIONS
+PANEL UP: "North Sanctuary Gateway / KP Chance:
+Win within 90 seconds / Rules: Disabled / Skills:
+Enabled", the blue sphere framed in the arch
+ahead (north). The entry zone is a small volume
+at the anchor on the arch's SOUTH face — the
+side a player reaches walking the coast south
+from spawn, opposite the west-shore approach
+session 36 used. DETECTOR LESSON: the panel does
+NOT change ctrl state (stayed 2 through 600 idle
+frames on the spot) and the gate-id cell
+(ctrl+0x7B0) stayed -1; only the screenshot (or a
+panel-flag cell not yet identified) proves zone
+entry. Session 36's "inert portal" verdict was a
+detector failure plus a 4-unit miss, not a lock.
+State: ch5_s37_anchor.state (panel up, at the
+anchor). Gil 2398, banked KP 74, Lightning Lv 13
+HP 2155 — all as at chapter start.
+
