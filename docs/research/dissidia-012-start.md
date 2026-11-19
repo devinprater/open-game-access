@@ -6482,3 +6482,34 @@ done), census shots `s35_nm_g<grid>.png`, log `s35_census_nm.log`.
   Anomalies to retest at need: 43 -right-> (Zidane 45) probed none;
   54 -up-> (Phantom 34) probed none (Phantom was prompted from 33).
 
+### S35 North Melmond — play (part 3)
+
+- **Summonstone 35 = Ramuh AUTO** (scene: "Pray for the clouds. Then I
+  shall deal judgment to your foes." / "I will not answer your call. I
+  shall come when crisis befalls you..." — an AUTO summon, crisis-
+  triggered). Stone disc became standable once consumed. States:
+  `ch4_s35_nm_prompt35`, `ch4_s35_nm_ramuh`.
+- **Zidane (45)**: talk scene only ("Yuna, what's wrong? You seem
+  depressed."); no swap prompt seen; whether the active assist changed
+  from Jecht is UNVERIFIED. State: `ch4_s35_nm_zidane`.
+- **Fleeting Flash Lv 3** (disc 22; card: HP 1121, CP 332, BRV 107,
+  ATK 12, DEF 14, LUK 11, Cursed Ring x2, Defense -50%): standard
+  rotation LOST at 27 rotations with the foe at **19 HP**; **drift +5
+  WON in 16 rotations**. **Auto Recovery is live** — her HP rose
+  155 -> 216 during the winning fight. Rewards: **LEVEL UP 5 -> 6**,
+  **Learned Speed Boost**, 1 AP, +24 Gil (900). Gauge stayed 2.
+  States: `ch4_s35_nm_prompt22`, `ch4_s35_nmflash_loss`,
+  `ch4_s35_nmflash5_winraw`, `ch4_s35_nm_flash_down`.
+- **Ephemeral Summoner Lv 1** (disc 13; card: HP 1000, CP 330, BRV 95,
+  ATK 11, DEF 3, LUK 10, Cracked Shield): standard rotation WIN, 12
+  rotations, no damage. Rewards: 1 AP, 10 PP, +6 Gil (906). **Gauge
+  jumped 2 -> 6 at this settle (+4).** States: `ch4_s35_nm_prompt13`,
+  `ch4_s35_nmsummoner_winraw`, `ch4_s35_nm_summoner_down`.
+- **KP gauge model (open question)**: per-settle gauge this board:
+  Despot 0 (32-rot win after a loss), Hero 1 (24-rot first-try),
+  Phantom 2 (18-rot first-try), Flash 2 (16-rot win after a loss),
+  Summoner 6 (12-rot first-try). The +4 is unexplained by a flat +1 —
+  possibly piece KP values, a board-completion bonus, or a Bonus-Line
+  multiplier (she is Lv 6 vs Bonus Line 3). Recorded as measured; the
+  payout at Stigma will bank whatever the gauge holds.
+
