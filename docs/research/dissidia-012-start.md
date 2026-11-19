@@ -8663,3 +8663,114 @@ standing.
   lies 3.4 SOUTH of the anchor — behind the
   gatehouse; whether the basin wraps around the
   gatehouse's east side to it is the live test.
+
+### Session 43 addendum 21 — gate 11's basin closed;
+### KANAME_01'S LINE RIDDEN, Maser Eye chest claimed;
+### session 43 wrap-up and the session-44 brief
+### (session 43)
+
+- Gate 11's basin (completed): the basin floor runs
+  along the gate face at z~114-115 from x~213.4
+  (west wall) east to x~238 (the east rim at
+  (237.99, 115.00)); turning south is blocked along
+  the whole rim — the pt18 OBB behind the gatehouse
+  is unreachable from the basin. No chest on the
+  face's east half either (walked at z~115). Gate
+  11 is RESOLVED: a barred gatehouse in a closed
+  hop-in pocket, like gate 17. (Its purpose is
+  plausibly Ch.7's, which reuses this map.)
+- KANAME_01 REACHED (measured): from the lowland
+  (jg0 state), the gully threads from the south
+  too: (202.6, 140.5) at the arch -> west of the
+  arch (200.0, 146.6) -> (195.8, 157.3) -> the
+  crystal's apron (194.52, 163.06). The crystal is
+  a giant dark monolith with orange fissures
+  (screenshot s43_kaname.png), Firion's model
+  standing by as the field assist visual.
+- KANAME_01'S LINE RIDDEN (measured): protocol per
+  Ch.3 session 33 — a full Circle sweep around the
+  crystal (4 facings x 3 volleys, re-approaching
+  between facings; the sweep's attack-steps carry
+  Kain around the crystal), then stand 1.21 from
+  the point at (194.03, 163.89) and press TRIANGLE:
+  the ride ran ENE (194.03, 163.89) -> (201.42,
+  168.37) -> (207.08, 170.97) -> hard stop
+  (209.74, 172.09): +15.71/+8.20, ~17.7 units over
+  the channel. WITHOUT the sweep, Triangle at 1.91
+  from the point opened Customization (state 11)
+  — the sweep is part of the trigger (it presumably
+  breaks an unseen boulder / arms the line; the
+  Ch.3 ambiguity stands). NOTE: one Circle press
+  does NOT close the state-11 menu inside a single
+  10-frame window — the kaname2 run's sweep was
+  invalidated that way; always verify state 2
+  before sweeping. States: ch6_s43_kaname.state
+  (apron), ch6_s43_kaname_stand.state,
+  ch6_s43_kaname4.state (landing).
+- The landing is a one-chest point (measured +
+  seen): a sandy point above the channel with a
+  GOLDEN CHEST beside the landing spot — Cross
+  opened it (state 16): "Obtained Maser Eye from
+  chest!" (screenshot s43_chest.png). Exits: NE is
+  cliff (stalls (212.8, 171.8)); W narrows to a
+  dead tip (205.9, 172.3). The return is presumably
+  the line again (Triangle at the landing) —
+  untested; the point is a loot detour, not a
+  through-route. The Maser Eye is held in the
+  s41/gil-9630 fork (states ch6_s43_chest.state,
+  ch6_s43_chest2.state); the CANONICAL lineage
+  (gil 9,666, Rosetta Stone) does not hold it. To
+  claim it canonically, walk scout -> pass west ->
+  bowl -> terrace -> ruins -> gully (all documented
+  in-lineage) and repeat the sweep+Triangle.
+- SESSION 43 SUMMARY. Standing UNCHANGED:
+  canonical = ch6_s42_scout.state; Kain Lv 9,
+  HP 1432/1791 (standing; field HUD shows the 1791
+  max), Firion assist, gil 9,666, banked KP 103,
+  Rosetta Stone held. Chapter 6 still owes:
+  Gateway of True Intent, Ryukahn, Exdeath Lv 18,
+  the farm arc.
+- What session 43 closed: the pass road east (trap
+  vertex at (207.70, 228.04) — never resume from
+  ch6_s43_stallE.state or the notch checkpoints);
+  the basin ledge pocket (pt2's ride; bare-rock
+  end, sweep+Triangle negative); the shelf pocket
+  (boulder test negative); west of gate 17 (boxed);
+  gate 11 (barred, basin closed); jump pads
+  (Cross-activated line launchers, ~8.3 units,
+  fixed landings — pt0 and pt2 both ridden);
+  kaname_01 (line ridden, Maser Eye claimed in the
+  side fork).
+- SESSION 44 BRIEF — the far north (gates 21/22,
+  kaname_02 (304.8, 296.5), pt3 (292.7, 301.0)) is
+  still unreached, and every land route measured
+  in sessions 41-43 is closed EXCEPT:
+  (1) THE SE BASIN: the X~290 ridge is crossable
+      at z~138-139 (addendum 14 route 1 crossed
+      x=290 there); east of the crossing is the
+      least-walked ground left — the shore road to
+      gate 16 (331.5, 126.0; volume-live,
+      lh(ptrB+0xE)=1) and its pad pt1 (331.1,
+      136.0), whose ride is untested. If gate 16
+      is an open portal it is a gateway (True
+      Intent or Ryukahn — the board census will
+      say); if it is another barred gatehouse,
+      pt1's landing may still open the basin's
+      interior or the east coast toward gate 15
+      (366.0, 151.9) and the north coast.
+  (2) The guide's Tree/boulder segment is still
+      unfound; the SE shore road is the last
+      un walked "road" and the guide's geography
+      is loose (the Rosetta chest belonged to the
+      Sunken Lake segment on paper). Watch for a
+      field ambush (state 2 -> 5 -> 20) anywhere
+      on it: the pass manikin fired off-table.
+  (3) If gate 16 also proves barred/sealed, the
+      remaining untested verbs are: Triangle at
+      pt3's and kaname_02's points (needs the
+      north), a Cross ride FROM a pad's landing
+      (return rides — untested at pt0/pt2
+      landings), and the moogle at (196, 144)
+      re-checked in the canonical lineage (the
+      point was empty in s41's fork; Ch.5's
+      gateway armed at a moogle).
