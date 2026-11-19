@@ -8588,3 +8588,78 @@ If the way north opens in this fork, the Rosetta Stone
 chest and the pass manikin are re-taken in-fork before
 any gateway entry, restoring parity with the canonical
 standing.
+
+### Session 43 addendum 20 — the shelf boulder test
+### (negative), the ledge sweep (negative), west of
+### gate 17 (boxed), the FULL point table, pt0's line
+### RIDDEN into gate 11's basin, gate 11 = a BARRED
+### gatehouse (session 43)
+
+- Shelf boulder protocol (measured): at the shelf's
+  east face (233.83, 232.57), four Circle volleys
+  facing +z (the face): the first stepped Kain +0.66
+  (the attack step); no break, no line, no state
+  change; a 20-frame push after: zero. The shelf's
+  NE face is plain terrain. The shelf is a dead-end
+  overlook, now with the attack verb tested.
+- Basin ledge east end (measured + seen): a Circle
+  sweep (4 facings x 3 volleys) at (197.57, 244.64)
+  broke nothing (the sweep wanders ~1 unit per
+  volley in the facing direction — a sweep is also a
+  slow walk); Triangle at the sweep's end opened
+  Customization (state 11) — no line boarded. The
+  ledge-end screenshot shows bare rock crest and
+  snow peaks: no boulder, no trees, no line. The
+  basin pocket is closed for real.
+- West of gate 17 (measured): from the Rosetta chest
+  apron (156.63, 229.77), west is boxed in place
+  (155.93, 230.25) — the gatehouse wall. The pass
+  road's west end IS gate 17's gatehouse; the road
+  does not continue west on the south side.
+- The FULL point table (measured, ramdump of the
+  shelf state; base *(0x09AEF944) = 0x095E61C0,
+  records 0x3C): pt0 POS_jump_gate02_00 (213.0,
+  120.8); pt1 POS_jump_gate02_05 (331.1, 136.0);
+  pt2 POS_jump_gate02_06 (163.1, 230.6); pt3
+  POS_jump_gate03_00 (292.7, 301.0); pt4-15 the
+  gates (gate02_00..10, gate03_00); pt16
+  POS_kaname_01 (194.0, 165.1); pt17 POS_kaname_02
+  (304.8, 296.5) — KANAME crystals, not manikin
+  spawns (correcting addendum 12's label); pt18
+  OBB_jump_gate02_00 (220.7, 107.6); pt26
+  OBB_mes_gate02_05 (332.2, 123.5); a further
+  record carries OBB_mes_gate03_00; pt34
+  OBB_cpu_BtoH (218.7, 193.5). No other named
+  points exist. Jump pads are named for their
+  gateway: jump_gate02_00 <-> gate 11,
+  jump_gate02_05 <-> gate 16, jump_gate02_06 <->
+  gate 17, jump_gate03_00 <-> gate 22.
+- Kaname mechanics (Ch.3, session 33, re-read):
+  near a kaname, after a Circle sweep, TRIANGLE
+  boards the crystal's quickmove line (~19 units
+  over the channel). Ch.6's kaname_01 (194.0,
+  165.1) is untested; kaname_02 (304.8, 296.5) is
+  in the far north.
+- pt0 RIDDEN (measured): the fine stand on pt0
+  (213.04, 120.44; state ch6_s43_pt0.state) + one
+  Cross press rode a line EAST: post-press
+  (219.34, 119.86), hard stop (221.27, 119.72) —
+  (+8.23, -0.72), the same ~8.3-unit ride as pt2.
+  Session 41's "pt0 inert" verdict is RETRACTED:
+  the pad fires; the dash-looking displacement was
+  the ride. State ch6_s43_pt0ride.state.
+- Gate 11's basin (measured + seen): from the
+  landing, south is open to the gate face: the
+  walk reached (219.44, 114.07), the fine stand
+  stalled 2.09 out at (221.43, 112.82) — the
+  anchor (220.4, 111.0) is INSIDE a stone
+  gatehouse whose arch is closed by an IRON
+  PORTCULLIS (screenshot s43_gate11.png) — gate
+  11 is a BARRED gateway like gate 17. Cross at
+  its face: a plain dash, no entry. The basin
+  floor runs along the face at z~114-115, west to
+  x~213.4 (boxed); no chest triggered on the west
+  half of the face. The pt18 OBB (220.7, 107.6)
+  lies 3.4 SOUTH of the anchor — behind the
+  gatehouse; whether the basin wraps around the
+  gatehouse's east side to it is the live test.
