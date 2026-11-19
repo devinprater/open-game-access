@@ -6615,3 +6615,35 @@ left 31 / right 33; 42 up 32; 31 right 32; 33 left 32 / right PROMPT
   cleared gateways do not reopen, so they are likely lost for this
   playthrough; recorded as measured, not assumed.
 
+### S35 Southern Shrine Gateway — census + movement analysis
+
+Entry **53**; Bonus Line 12 per link3895; KP Chance not yet read from
+a banner (no banner fired on entry — the board loaded straight from
+the transition). **26 discs**: 0 **Ephemeral Vision Lv 11** (Lunar
+Subterrane), 1 **Treasure Chest**, 10 empty, 11 **Ephemeral Phantom
+Lv 11** (Lunar Subterrane), 12 empty, 14 **False Hero Lv 11** (Lunar
+Subterrane), 15 **Treasure Chest**, 20 empty, 22 empty, 24 empty,
+30 empty, 31 **Ephemeral Vision Lv 11** (Lunar Subterrane), 32 empty,
+33 **Imitation Despot Lv 6** (Dream's End), 34 **Ephemeral Summoner
+Lv 11** (Lunar Subterrane), 35/36 empty, 37 **??? — "Engage this piece
+to find its true form"** (the boss; guide: **The Emperor Lv 18**),
+40 **Potion** (restores HP and EX Gauge to 100%), 42 empty,
+44 **Ephemeral Phantom Lv 6** (Dream's End), 51/52/54 empty,
+60 **False Hero Lv 6** (World of Darkness). **No Stigma disc** — the
+??? piece is the clear condition. Guide chests: Pink Tail + Soul of
+Valor (discs 1 and 15, order TBD by opening them).
+
+Movement (BFS `s35_bfs_shr.json` + scan edges + lattice coords): the
+board opens progressively as pieces fall. Entry cluster {51,52,53,54,
+42,32,22,12} prompts: Phantom Lv 6 (44, from 54-up), Despot Lv 6 (33,
+from 32-right), Vision Lv 11 (31, from 32-left), Phantom Lv 11 (11,
+from 12-left). Beaten discs become standable bridges: 44 -> up 34
+(Summoner) -> up 24 -> up 14 (Hero Lv 11) -> right 15 (chest); 34 ->
+right 35 -> 36 -> right 37 (boss). 31 beaten -> left 30 -> up 20 ->
+up 10 -> up 0 (Vision) -> right 1 (chest); 30 -> down 40 (Potion) ->
+down 60 (Hero Lv 6). Scan-only long edges (53-up->33, 51-up->31,
+40<->42, 14-left->12) are NOT normal-mode moves — same lesson as the
+Blue board's Jump gaps, except here every region has a piece-bridge
+route, so no Jump skill is needed. States: `ch4_s35_ss_board`,
+`ch4_s35_ss_census.state`, `ch4_s35_shr_on<grid>.state`.
+
