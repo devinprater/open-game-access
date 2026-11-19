@@ -7660,3 +7660,62 @@ Idle Sky Pirate WIN 3 rots (Torrent ambush in the search window:
 **Banked: KP 84 -> 91, Gil 8,064, full heal. Lightning Lv 23,
 HP 2,761** — the guides' ideal level for Forsaken Kingdom.
 Chest A1/A5 not re-checked; E1 not re-claimed this run.
+
+
+### Session 37 addendum 17 (recovered by session 38) — Forsaken Kingdom run #3: the Warrior of Light FALLS; post-boss scene still playing when session 37 died
+
+Session 37's context overflowed after addendum 16 was pushed. Its
+final ~40 minutes survive only as state files and fight logs in
+~/d12s; session 38 reconstructed the run from those artifacts and
+verified the endpoint live. Nothing below was replayed — it is a
+record recovery, cross-checked against the logs' own numbers.
+
+**Entry (03:44):** from `ch5_s37_fkreturn3.state` (field, at the FK
+portal), walked in on foot (edge trigger), board up at grid 20.
+Gil 8,064, gateway KP gauge 0, banked KP 91 (addendum 16 standing).
+
+**Board work, in order:**
+- False Hero (grid 10, HP 1,727): fight3 WAIT 0, WIN 15 rots, her
+  HP 2,596 -> 2,492 (the search window let it land hits pre-policy,
+  the known ambush effect). Settle: Gil 8,064 -> 8,298.
+- Chest cell 22 re-opened: no gil (repeat-board chest, as run #2).
+- Summoner (grid 21, HP 1,568): fight3 WAIT +10, WIN 17 rots, her
+  HP 2,222 -> 1,723. Settle: Gil 8,298 -> 8,532, gauge 1 -> 2.
+- Odin chest (grid 11) re-opened; Potion chest (grid 23) re-claimed
+  — "HP recovered 100%".
+- **Level: she ticked Lv 24 somewhere in the Hero/Summoner EXP.**
+  Proof: boss-probe her HP reads 2,822 at full, and the level curve
+  steps +61 (Lv 22 max 2,700 -> Lv 23 max 2,761 -> 2,822).
+
+**Boss (grid 24/25) — foe HP 2,762 = the Warrior of Light** (the
+addenda 15-16 measurement), base stable 0x0969D688, all attempts
+from `ch5_s37_fk3_bosslive.state` (her HP 2,822, gauge 2):
+1. fight5 WAIT 2: LOSS 34 rots, dealt 393.
+2. fight5 WAIT 0: LOSS 62 rots, dealt 1,196.
+3. fight5 WAIT 1: LOSS 40 rots, dealt 1,069.
+4. fight6 WAIT 0: LOSS 60 rots, dealt 1,196 (identical line to #2).
+- Detour (03:59): walked to grid 33 and probed the **Ephemeral
+  Phantom: HP 3,247, pool 606** (the guides' Blazefire Saber chest
+  guard). One attempt, WAIT 0: LOSS 12 rots, dealt 0. Left standing.
+5. fight7 WAIT 0: LOSS 60 rots, dealt 1,373 — the closest yet.
+6. **WIN — 51 rotations, her HP 2,822 -> 728, foe 2,762 -> 0**
+  (`s37_fight_fk3boss6.log`, drift 0; saved
+  `ch5_s37_fk3boss6_winraw.state` 04:05).
+
+**Aftermath (04:08-04:10):** post-boss settle banked the boss gil:
+8,532 -> **8,946** (+414). The gateway gauge still reads 2 (the
+board was never exited via a Stigma — the boss WAS the board's end).
+She stepped 24 -> 25 and a story scene began; two talk scripts
+advanced it 24 + 24 times. Session 38 booted the last state
+(`ch5_s37_fk3_scene2.state`) and screenshot-verified what the talk
+logs could not show: **a post-boss cutscene is still mid-play — the
+Warrior of Light on screen, line: "I've sworn an oath to Kain."**
+(state68 reads 20 and pos (0,0,0) throughout because the board layer
+lingers under the scene; the Gil pair disagrees — 8,946 vs 16,786 —
+the known mid-transition garbage case, so Gil is taken from the
+primary cell and the settle log.)
+
+**Standing at recovery: Lightning Lv 24, Gil 8,946, banked KP 91
+(+2 unbanked gateway KP), Warrior of Light beaten, Chapter 5 NOT
+yet complete — its closing scene is still on screen.** Session 38
+continues from `ch5_s37_fk3_scene2.state`.
