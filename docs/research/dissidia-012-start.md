@@ -7157,3 +7157,64 @@ State: ch5_s37_anchor.state (panel up, at the
 anchor). Gil 2398, banked KP 74, Lightning Lv 13
 HP 2155 — all as at chapter start.
 
+
+
+### Session 37 addendum 2 — North Sanctuary board: map, two wins, KP banking measured
+
+Board entry plays a short Lightning monologue ("Seems no
+one's been through here... Did Kain get to them?"); board
+inputs are eaten until it ends (14 Cross advances; ctrl
+state stays 20 throughout). Clean board state:
+ch5_s37_board2.state (grid 52 = start disc).
+
+BOARD MAP (measured by BFS, s37_bfs.py; disc index =
+row*10+col, row 0 at the north; wiki cell = letter col,
+row+1): start 52 (C6); spine 42 (C5), 32 (C4), 22 (C3),
+12 (C2); east 33 (D4), 43 (D5), 34 (E4), 24 (E3), 23 (D3);
+west 21 (B3), 20 (A3). Prompts (pieces): 2 (C1) STIGMA
+from 12 up; 21 Delusory Dragoon Lv 8 from 22 left; 23
+Fleeting Flash Lv 8 from 22 right / 33 up / 24 left; 14
+Idle Sky Pirate Lv 13 from 24 up; 10 False Hero Lv 13
+from 20 up; 30 Imitation Despot Lv 13 from 20 down.
+Unreached until their guards fall: 0 (A1 chest), 40 (A5
+chest), 4 (E1 chest). The live map matches the FF Wiki
+grid cell-for-cell.
+
+CROSS CHAIN probe (from disc 32): Square opens the skill
+targeting view (top-down), Cross opens the description
+popup ("Engage opponents in four directions, diagonally
+in a chain. Use X / Cancel O"). From 32 the diagonals
+hold both Lv 8 manikins (21, 23) — chainable — but the
+session plan fights singles per the house banking rule;
+the probe popup was cancelled unused.
+
+FIGHTS (dumb-block rotation square,square,cross,triangle;
+L+Circle chord every 6th rotation):
+- Delusory Dragoon Lv 8 (HP 1424) from 22: WIN in 30
+  rotations, ZERO damage taken; final-blow clock read
+  00:08:13 remaining of the 1:30 KP-chance clock.
+- Fleeting Flash Lv 8 (HP 1424) from the prompt card the
+  post-fight presses happened to raise: WIN in 16
+  rotations, zero damage; MID-BATTLE LEVEL-UP — her HP
+  cell rose 2155 -> 2216 during the fight; Lightning is
+  now Lv 14, HP 2216.
+
+KP BANKING (measured, IMPORTANT): after a win, rewards
+flush AUTOMATICALLY over ~1200+ idle frames — gil landed
+first (+104 per Lv 8 win: 2398 -> 2502 -> 2606), then the
+gauge jumped 0 -> 4 after both wins (2 KP per win with
+the chance met: 1 for the win + 1 for the chance, by the
+count). Mashing Cross through the results DELAYS banking
+(the first win's KP had still not landed after the whole
+cancel-chain ritual; it flushed during the second fight's
+idle observation). New ritual: on WIN, idle ~1500 frames
+in chunks until gauge/gil are stable across 3 checks
+(s37_settle.py), THEN save. The Left+Cross cancel-chain
+ritual is only for an actual chain prompt.
+
+Standing after two fights: board disc 22, Lightning
+Lv 14 HP 2216, Gil 2606, gateway KP 4, banked KP 74.
+States: ch5_s37_flash8_slow.state (settled board),
+per-disc states ch5_s37_ns_on*.state (pre-fight board)
+and ch5_s37_ns2_on*.state (post-two-wins board).
+
