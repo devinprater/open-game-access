@@ -7243,3 +7243,25 @@ BRV attack builds from range, Square spends at >= ~480
 BRV) — s37_fight2.py, plus the deterministic drift
 search as fallback.
 
+
+
+### Session 37 addendum 4 — BRV-cycle at range does nothing; Cross is the approach
+
+Second False Hero attempt (s37_fight2.py: Circle-build
+to >=480 BRV, then Square-spend): clean LOSS in 73
+rotations — his HP never moved off 1727. Her Circle BRV
+attacks whiffed at range for the entire fight; her BRV
+only decayed under his ranged BRV attacks (his BRV
+repeatedly climbed to ~900 and his HP attacks took her
+2216 -> 1256 -> 1020 -> 132 -> 0). Lesson: in battle,
+CROSS is the approach (jump/dash toward the foe) — the
+dumb block works at all only because its Cross presses
+keep closing distance so the Square HP attacks connect
+at melee. Any build phase without Cross starves. The
+house answer is the session-19 Kuja policy (s37_fight3.py):
+dumb-block offense + DEFENSE triggers (foe BRV lethal or
+rising >=450/+80 -> R+direction dodge chord, R hold,
+analog sidestep, alternating sides) + break-window extra
+offense rotations, with a WAIT timing knob as the drift
+search dimension.
+
