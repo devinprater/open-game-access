@@ -6779,3 +6779,159 @@ expect to raise it again as she levels.
   "Emperor Lv 18" is the story's puppet-master; the fought boss was
   Jecht's emptied body (HP 3270 measured).
 
+
+## Session 36 — Chapter 5 (Decision): Lightning returns;
+North Sanctuary survey under way
+
+Branch dissidia-012-ch5 from main d4d7ed6. Start state
+ch5_s35_chapter5_start.state (Chapter 5 opening, saved
+unplayed by session 35). Scripts s36_*.py staged in
+~/workspace/d12s36, run in WSL via stdin stream against
+s18lib, as in session 35.
+
+### Boot + verification (measured from the game)
+
+- Boot: ctrl state 2 (free field control), Gil 2398,
+  banked KP 74 (field HUD), Lightning Lv 13, HP
+  2155/2155. Position (130.19, -0.85, 43.68) on the
+  Cornelia Plains coast, facing NE across a bay; a red
+  portal on the far headland, Sanctuary's light pillar
+  far NW. Held board skill: Cross Chain.
+- Customization (Triangle): EXP next 3715 / total
+  84920, CP 225/344, BRV 203, ATK 28, DEF 27, LUK 16.
+  Equipment — her Chapter 1 kit is intact: Broadsword,
+  Kunai, Bronze Helm, Leather Armor (base Lv 13:
+  HP 1727, BRV 165, ATK 22, DEF 24, LUK 16; the gear
+  adds HP+428, BRV+38, ATK+6, DEF+3). Assist page not
+  re-read; Tifa was her set assist at Chapter 1's end.
+- Summons pool: Ifrit AUTO 3 uses, Ramuh AUTO 3,
+  Carbuncle AUTO 3 — none was equipped for Lightning;
+  Ifrit AUTO equipped this session ("Bravery boosted
+  to 150%. Auto when stage bravery gained.").
+- MENU LESSON: opening Customization after a chapter
+  break queues a stack of notification banners ("New
+  inventory in the shop!", "New prizes creatable
+  through Battlegen!", "New accomplishments added!");
+  every button press is consumed dismissing one banner
+  until the stack clears — only then does the cursor
+  move. Budget ~6 sacrificial presses after opening
+  menus in a fresh chapter.
+
+### Field census (RAM point table, measured)
+
+Point table (mgr 0x09AEF8D8, tab rd(+0x6C), 0x3C
+stride) holds exactly one Chapter 5 gate anchor:
+POS_gate05_00 @ (307.50, 0.00, -9.00), with
+POS_jump_gate05_00 @ (309.27, -0.34, 2.18) — the
+Forsaken Kingdom, far ESE (guide data). Other named
+points in the region are earlier chapters' anchors
+(gate01_00..06, gate02_00/05, gate04_04) and three
+kaname crystals on the eastern route: kaname_01
+(197.53, -1.62, 56.70), kaname_02 (276.09, -1.37,
+10.89), kaname_03 (304.80, -3.32, 39.24). The North
+Sanctuary Gateway (blue, repeatable — guides) has no
+gate05 point; it must reuse an existing portal in
+the Sanctuary area NW of spawn.
+
+Guide ground truth for the chapter (FF Wiki Ch. 5;
+link3895 1.5.0; GameSpy p.12): field treasures BRV
+Charge (chest past the blue gateway) and 1500 Gil
+(chest by the wandering Capricious Reaper Lv 15,
+HP 1848, in the grass right of the Cornelia-ruins
+moogle); the moogle is Moglin with a special shop
+(9.2.X, may not be unlocked yet). North Sanctuary
+board (7 discs used of the grid): False Hero Lv 13,
+Imitation Despot Lv 13, Idle Sky Pirate Lv 13
+(HP 1 glass cannon), Delusory Dragoon Lv 8, Fleeting
+Flash Lv 8; chests Iifa Leaf, Zombie Rag, Soul of
+Patience; KP Chance: Win within 90 seconds.
+Forsaken Kingdom: False Hero Lv 13, Ephemeral
+Summoner Lv 13, Ephemeral Phantom Lv 23 (Expert
+piece, Jecht manikin, guards the lower chests),
+Odin AUTO summonstone, Potion, chests 2000 Gil,
+Blazefire Saber, Mythril; the Cosmos Piece is the
+boss — Warrior of Light Lv 18. KP Chance: Win
+battle. GameSpy recommends Lv 18+ (23 ideal) for
+the Forsaken Kingdom battles; Lightning starts
+at Lv 13, so North Sanctuary farming comes first.
+
+### Field survey (in progress)
+
+- gate01_02 (145.50, 48.00), 16 units NE of spawn:
+  a stone ruin tower on the shore — inert, no portal
+  (a Chapter 1 shell).
+- South coast from the tower runs S along a cliff
+  top (z ~ 46 -> 7) then W along the cliff edge to
+  (111.7, 8.1); south of the edge is a tidal flat
+  (no descent found along the walked stretch) and
+  gate01_03's red portal shows across the flat SW —
+  scenery for this chapter.
+- The west shore is cut by a bay: from gate01_01's
+  ruin (76.5, 72.0) all westward probes fail (water).
+  The land route runs NORTH along the bay's east
+  shore through the Cornelia ruins field (broken
+  walls around (80-90, 90-110)) to gate01_00
+  (66.98, 126.21).
+- gate01_00's arch holds a bright white-pink portal.
+  MEASURED: it does NOT trigger on walk-in — fine
+  probes stood her at (67.1, 124.3), (67.9, 124.6),
+  (69.1, 125.0), inside the arch pocket (the pocket
+  tops out ~z 125; the anchor z 126 is inside the
+  masonry) with state68 = 2 throughout — and Cross
+  there is just her field jump (it carried her NE
+  along the shore). Status: not enterable by either
+  method; possibly a lit shell, possibly gated by a
+  story flag not yet set. NOT yet resolved which
+  gateway this is for Chapter 5 (if any).
+- Ruins field: a Light Orb sparkle photographed in
+  the ruins ~(75, 108) area, and a small red-pom
+  figure (moogle?) at the grass edge WNW of
+  (81.5, 100) — approach under way.
+- PINT LIST DECODED for this map (list 0 at
+  0x095D2B20 via the descriptor array at
+  0x089D83B0 — the same addresses as the prologue
+  boot; the layout is deterministic). 160 records,
+  stride 0x2C: +0x00 id, +0x02 sub, +0x04 set (k2),
+  +0x06 KIND, +0x08 flags (all 0x0000FFFF here),
+  +0x10/+0x14 float X/Z, +0x18 yaw, +0x1C packed
+  model id. The table holds EVERY chapter's objects
+  for this shared map, grouped by the set field:
+  e.g. set 1 = the prologue's orb cluster
+  (97,-4)/(107,24)/(97,30)/(97,60); set 3's path
+  (112,49)/(92,55)/(59,80)/(75,108) matches the orb
+  photographed live at (75, 108). Gateway shells:
+  kind 5 at (66,129)/(74,122) = gate01_00's arch,
+  (108,-14)/(110,-12) = gate01_03's, (171,114) = an
+  eastern arch; kind 6 at (75,100) and (243,78) in
+  sets 138-142 with model ids stepping 0x1A/0x27/
+  0x34/0x41/0x4E — one gateway-object variant per
+  chapter-set. Which set is live in Chapter 5 is
+  decided by the game at runtime, not by the table.
+- MOOGLE FOUND (photographed): floating among the
+  ruin walls around (67, 107), NW of the ruins
+  centre — a speech bubble (x-mark) over its head.
+  This is the Cornelia-ruins moogle of the guides
+  (Moglin). Talk attempt under way.
+- gate01_00 VERDICT (measured): sealed in Ch. 5 —
+  behaves exactly like the prologue's locked arch
+  (aura lit, no prompt, no walk-in, no Cross entry
+  from the south pocket at point-blank range).
+- SE headland (145-155, 30-46) is a cul-de-sac
+  (the prologue's boxed area); the coast east from
+  spawn dead-ends at (154.5, 34.4) and inland NE
+  from there is walled. The eastern route does NOT
+  leave from the south coast here.
+- TOOLING LESSONS: (1) never pipe a streamed drv
+  script through `head` — SIGPIPE kills the remote
+  python mid-run (it may still commit later steps;
+  check the WSL log + dash_step state before
+  assuming where she is). (2) The spin script's
+  camera rotations TRANSLATE her ~10 units (the
+  stick arcs her as the camera swings) — a spin
+  state's position is not the pre-spin position.
+  (3) shot() EOF'd twice after Cross-jump sequences
+  (drv died); spin's shots are the reliable visual
+  route. (4) s18lib's Drv has state68()/gil() but
+  no pos()/state() — position is read from the
+  player object (ptr 0x08B83DE4, floats +0x30/34/38,
+  facing +0x08/+0x00) as in the s35 scripts.
