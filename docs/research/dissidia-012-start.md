@@ -8313,3 +8313,134 @@ inert to stand+Cross in s41 - they may be one-way landing
 pads or flag-gated).
 
 NEXT: gate 16 (331.5, 126.0), the SE cluster.
+
+
+---
+
+## Session 42 addendum 14 — Gate 16: every measured approach fails; the band's east face (2026-11-19)
+
+Gate 16's anchor (331.5, 126.0) sits in the SE cluster (with POS_mes_gate
+pt26 (332.2, 123.5) and the X~290 ridge west of it). Four distinct
+approaches were measured this session; all fail:
+
+1. **Northern shore (from the corridor-mouth postfight state (273.11,
+   149.69), gil-9,714 lineage):** the shore descends SE to (285.69, 143.97)
+   [state ch6_s42_wpt0.state]. The walker **crossed x=290 at z~138-139**
+   (the ridge does not reach this latitude as a wall at its top), then met
+   a face at **z~134 around x 287-290** — oscillation band (287-290,
+   134-141), closest z 134.24 at (288.05, 134.24). The face is the
+   headland's north rim above the SE basin.
+2. **Headland band (new geography):** from the corridor mouth a smooth
+   ramp descends SW->SE south of the headland: (262.61, 138.53)
+   [ch6_s42_band0.state] -> (276.48, 128.05) [ch6_s42_band1.state] ->
+   min z 125.35 at (283.8, 125.35). The X~290 ridge face blocks eastward
+   travel across the whole band z 125-141.
+3. **Ridge southern tip:** the ramp bottoms at **z~123.3 around x 281-282**
+   into a shallow bowl (x 280-284, z 123-126.5); south and east rims rise;
+   the probe toward (292, 118) never came closer than ~10.6 units.
+4. **Gate-14 shelf pocket** (ch6_s41_g14test.state, (303.16, 166.54)):
+   sealed S/E/N (bounce band x 299.7-303.2, z 165.2-168.4); its only exit
+   is west back along the shelf. No descent from the pocket to the SE
+   cluster.
+
+**Ruins-anchor band walked east:** from ch6_s41_ruins3.state (222.40,
+194.00) the band (z~193-197) runs east to **(239.17, 193.25)**
+[ch6_s42_leg_BAND-E1.state], then a face at x~242 blocks (walker slid S
+then NE along it to (241.49, 189.29)/(241.21, 189.77)). Session 41's
+flagged unexplored strip is now walked; its east face is untested with
+any boulder protocol.
+
+**Verdict for gate 16:** land approach from N/W is closed by measured
+walls on every side tried. Remaining untried entries: (a) a boulder plug
+somewhere on the ridge/band faces (the Ch.3 boulder protocol — face the
+plug, world-map attack — has never been applied in Ch.6; neither s41 nor
+s42 pressed an attack button at any Ch.6 stall), (b) a jumpgate pad
+arrival, (c) the possibility that 16 is a Ch.7 gateway (see addendum 15's
+guide note: Ch.7 reuses this exact map area).
+
+---
+
+## Session 42 addendum 15 — The west road, gate 17's barred gate + Rosetta Stone, the pass manikin, and the hunt reframed (2026-11-19)
+
+**THE WEST ROAD IS OPEN.** From Firion's ruins (222.40, 194.00) a terrace
+runs west and curves NW as a smooth diagonal ramp through a mountain pass
+— (213.6, 196.0) -> (205.80, 203.60) [ch6_s42_g17pinch.state] -> (195.53,
+211.86) -> (184.63, 217.16) -> west along z~217-218 -> (169.02, 219.57) ->
+NW to **(156.03, 230.28)**, 2.13 from gate 17's anchor. (An early coarse-
+grid walker oscillated at the (205-208, 202-206) bend and faked a pinch;
+screenshots show a wide-open valley — no boulder, no plug. Lesson
+reaffirmed: verify "sealed" with eyes before believing a walker.)
+Square presses at the bend opened the field skill panel (ctrl state 4 =
+the Cross Chain skill-info popup) — Square on the field is the SKILL
+button here, not an attack; the Ch.3 boulder-attack input remains
+unreplicated in Ch.6 and no Ch.6 boulder has been sighted yet.
+
+**Gate 17 (154.1, 229.4) = a BARRED gateway with a chest.** The anchor
+stands in a snowy mountain pass before an iron portcullis (screenshot
+s42_g17_before). At its foot: a golden chest — Cross at (156.63, 229.77)
+opened it (state 16 popup): **"Obtained Rosetta Stone from chest!"**
+[post-chest state ch6_s42_g17chest.state]. The gate itself, tested from
+(156.60, 229.53), 1.85 from the anchor: Cross = dash only, no reaction —
+**inert/barred**, like gate 18 and Ch.1's barred gates. (The Rosetta
+Stone is one of the four chests link3895 lists for the Sunken Lake
+segment; the guide's segment geography is looser than the game's.)
+
+**THE PASS MANIKIN — False Stalwart Lv 4, beaten.** Walking east from
+the chest toward jumpgate pad pt2 (163.1, 230.6), a field manikin
+ambushed at ~(160, 232): VS card "? Lv 4", stage **World of Darkness**,
+Judgment ruleset; Opponent Info: **False Stalwart, HP 520** (BRV 113,
+ATK 15, DEF 8, LUK 12; Cracked Shield + Rusted Armor). Ctrl state went
+2 -> 5 -> 20 — **state 20 is the battle shell generally, not only
+"board from field"**; the field player object is null for the whole
+battle. Battle lessons, all measured:
+- **Use s18lib.find_block_a on the ramdump** (DUMP_BASE = 0x08800000;
+  cells are DOUBLED pairs: her BRV at +0x00/+0x04, foe BRV +0x54/+0x58,
+  pool +0xA8/+0xAC). This boot's block: **0x096BBF98**. (Two hand-rolled
+  scans burned time on wrong dump-base arithmetic — 0x08000000 and a
+  mis-added 0x096EBF98; the helper exists precisely to prevent that.)
+- **Cross is DASH in battle too** — a 90-press Cross/Triangle spam dealt
+  ZERO damage while the Stalwart's ranged HP attacks cut Kain
+  1791 -> 791. **Square is the HP attack**: measured hits 520 -> 185
+  (335 dmg) and 185 -> 0. Triangle spends all BRV on a whiff-prone HP
+  attack; Circle did nothing measurable. (Contrast s34's duel, where
+  Cross+Triangle won a close-spawn board duel — button semantics are
+  range/context sensitive; probe per fight, watch the cells.)
+- Winning line (from ch6_s42_fight_nobase3.state, the pristine live
+  battle): drift (-1,0) briefly, Square when BRV >= ~120, wait out BRV
+  regen after each HP hit. Kain took one 359-dmg HP hit mid-fight.
+  **WIN: Kain 1432/1791 HP, +36 gil (9630 -> 9666).** Post-win results
+  cleared with Cross x6 through a state-0 transition back to the field
+  at (157.63, 230.19) [ch6_s42_passfield.state].
+
+**The pass continues east.** Scout from the post-fight spot walked ESE
+along z~227-230 to **(170.27, 227.04)** [ch6_s42_scout.state] with no
+wall and no second manikin — a through-road heading east, presumably
+curving north into the snowfields toward the gate 21/22 quadrant. pt2's
+pad point itself was never stood on (the manikin fired first); pads
+remain unproven as transport (pt0 inert, pt18 untested, pt2 untested).
+
+**The hunt, reframed.** All four of session 41's live candidates are now
+resolved or cornered: **11** = volume-live but basin-sealed, inert from
+the lip (addendum 13); **17** = barred gateway + chest, gate inert
+(this addendum); **16** = sealed from N/W on every measured approach
+(addendum 14); **22** (292.5, 312.0) = **untested**, the only candidate
+left, and the only gate besides Legendary Lake's two entrances in the
+facing-cone family. Guide context (link3895, read this session): after
+Legendary Lake the walkthrough's own route goes "around to the left...
+chest near a barred gateway... Tree blocking the road... Wraith in the
+trees to the right of the boulder and gateway" — boulders and a
+Fallacious Tree Lv 11 belong to the True Intent approach; the segment
+also unlocks **Mogshop 9.2.6**. Ryukahn's board (per Suih) matches the
+guide's 1.6.4 exactly. And Ch.7 (Tifa) reuses "the same exact area you
+were just at with Kain" — so some of these live-but-sealed gates are
+plausibly Ch.7's, not Kain's.
+
+**Standing after session 42:** Kain Lv 9, HP 1432/1791 (post-manikin),
+Firion assist, banked KP 103, **gil 9666** (survey lineage; the 9714
+postfight lineage is superseded — story flags were identical and this
+lineage now holds the Rosetta Stone + the pass scout). Chapter 6 still
+owes: Gateway of True Intent, Ryukahn, Exdeath Lv 18, the farm arc.
+**Session 43 opens at ch6_s42_scout.state** (170.27, 227.04), following
+the pass road east/north toward gate 22 (292.5, 312.0); fallbacks:
+boulder-protocol checks at the band's east face (x~242) and the shelf
+ridge, and a pt18/pt2 pad stand-test if a route passes one.
