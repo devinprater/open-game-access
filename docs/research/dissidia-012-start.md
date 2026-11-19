@@ -7598,3 +7598,37 @@ anchor (113.0,-21.2). Bowl exit reverse: (69.7,89.9) -> (71.3,86.2) ->
 One clear = +3 levels (17 -> 20). Heading back to Forsaken Kingdom
 for the Warrior of Light at Lv 20; a second farm clear is the fallback
 if he still walls her.
+
+
+### Session 37 addendum 15 — Forsaken Kingdom run #2 (Lv 20-21); boss cadence search
+
+**Run #2 redo (board resets on exit; EXP/gil/items kept):** False
+Hero WIN 12 rots (Lv 20 — was 29 at Lv 15-16). Chest cell 22 claimed
+by MOVE-ONTO this time (the aim+Cross walked her onto the disc; in
+run #1 the same script opened it from 21 — both work; NOTE run #2's
+C3 chest gave NO gil and the chest is gone — repeat-board chest
+rewards differ). Summoner (this instance HP 1,568) WIN 43 rots at
+WAIT +10, her HP 2,310 -> 939 (still her worst matchup). Odin stone
+claimed by move-onto (its prompt at 11-up is gone afterwards =
+claimed). Potion: "HP recovered 100%" -> Lv 21, HP 2,640. Hero win's
+EXP took her 20 -> 21 mid-board.
+
+**Boss attempts at Lv 21 (HP 2,640, WoL HP fixed 2,762):**
+- fight3 (with block search) WAIT +5: policy started with her BRV
+  already 1 (foe 560) — **the block-search polls let WoL break her
+  before the policy starts.** WAIT +10: dead in 9 rots, 0 dealt.
+- **s37_fight5.py = fight3 with the search DELETED** (base is stable
+  at 0x0969D688; a wait-for-live guard reads cells until foe_hp ==
+  expected). Policy now starts clean (herBRV 312, foeBRV 249).
+  WAIT ladder on fight5: 0 -> dealt 171; **2 -> dealt 877 (best)**;
+  1 -> 390; 3 -> 312; 5 -> 47. The WAIT knob shifts her attack
+  cadence against WoL's guard cycle; WAIT 2 is the resonant one.
+- fight6 (fight5 + tuned defense triggers 300/+40 + danger 55%) at
+  WAIT 2: IDENTICAL outcome to fight5 WAIT 2 (foe 1,885, 37 rots) —
+  the tuned triggers never fire differently in that line. The WAIT-2
+  line is deterministic and capped: ~877 damage, she dies to his
+  third HP attack around rot 37.
+
+**Decision: farm clear #2** (target Lv 23-24, the guides' ideal).
+Exited FK again (EXP kept; `ch5_s37_field4.state` at the portal).
+After the farm: re-enter FK, redo, boss with fight5 WAIT 2.
