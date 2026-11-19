@@ -9175,3 +9175,90 @@ pt0's return ride; moogle point (196, 144) re-check in the canonical lineage.
 Primary resume: ch6_s45_g13stand.state (on gate 13's anchor; Cross re-enters
 Hidden Darkness, or ride/walk away). Also ch6_s45_south_cur.state (central-field
 hub (208.25, 189.32)) and ch6_s45_adv.state (Firion's ledge, scene done).
+
+### Session 46 addendum 29 - STEP 0 RECONCILIATION: GATE 13 IS HIDDEN DARKNESS IN EVERY LINEAGE; S40'S "LEGENDARY LAKE" WAS A MISIDENTIFICATION; GATE 19 IS THE REAL LEGENDARY LAKE, NEVER CLEARED (2026-11-19)
+
+THE FLAG: s45 entered gate 13 (253.93, 181.66), read the title
+card "Hidden Darkness Gateway", and censused (visually) a board
+that did not match s40's "Legendary Lake" census of the board
+entered at the same anchor (253.9, 181.7) and cleared 3x.
+
+MEASUREMENTS THIS SESSION:
+1. s45's title card re-read directly (s45_board13.png):
+   "Hidden Darkness Gateway", unambiguous.
+2. ADV LINEAGE, fresh boot: loadstate ch6_s45_g13stand.state
+   (state 2, (253.71, 181.71), gil 9666) -> Cross -> state 5 ->
+   state 20, ENTRY DISC 23, gauge 0. Title card shot this boot
+   (s46_g13_board.png): "Hidden Darkness Gateway". Prompt
+   probes (s34_board pattern, screenshots s34_board_s46hd_
+   prompt{35,11,14}.png): disc 35 = Phantasmal Girl Lv 7,
+   stage World of Darkness, KP chance "Win within 90 seconds";
+   disc 11 = "Firion - Assist Character"; disc 14 = "Stigma of
+   Chaos - Engaging this piece finishes the level." Hops
+   23->33->34, 23->22->21, 23->13 all land (empty), exactly
+   s40's measured map, disc for disc.
+3. S40 LINEAGE, fresh boot: loadstate ch6_s40_ll3_cleared.state
+   (gil 9630; loads at (257.51, 174.92), off-anchor), walked on
+   foot to (253.89, 181.58), 0.09 from the anchor -> Cross ->
+   state 5 -> 20. Title card (s46_ll_title_2/3.png): "Hidden
+   Darkness Gateway". The destination did NOT change with
+   story progress or lineage: the banner was Hidden Darkness
+   in s40's own lineage all along. s40 never banner-checked
+   the south entry (addendum 8 records no banner; addendum
+   10's banner verification was for gate 19 only). The board
+   is watery and the gate stands on a lakeshore - the name
+   was assumed from geography and guide order.
+
+CORROBORATION FROM THE RECORD: this board's disc set
+{0,3,4,10,11,12,13,14,20,21,22,23,24,32,33,34,35,36}, entry
+disc 23, assist at 11, stigma at 14 is IDENTICAL to Chapter
+2's banner-verified Hidden Darkness Gateway census (session
+23). The guide's Ch.6 Hidden Darkness piece list (Imitation
+Despot Lv7, Capricious Reaper Lv3, Idle Sky Pirate Lv7,
+Fleeting Flash Lv3, Phantasmal Girl Lv7) contains BOTH named
+pieces s40 measured (Phantasmal Girl Lv7 at 35, Idle Sky
+Pirate Lv7 at 3); the guide's Legendary Lake list (Delusory
+Dragoon Lv7, Fallacious Tree Lv7, Fleeting Flash Lv7,
+Imitation Despot Lv17, Fleeting Flash Lv3) contains NEITHER.
+s40's remark that "the guide's Legendary Lake list appears
+to conflate boards" is explained: s40 was comparing Hidden
+Darkness's contents against Legendary Lake's guide entry.
+The guide was right; the board identification was wrong.
+
+CONSEQUENCES (chapter state re-baselined):
+- Hidden Darkness Gateway: CLEARED (as "Legendary Lake",
+  s40 runs 1-3): all five battle pieces beaten (12: foe HP
+  1,121; 32: 1,121; 10: 1,205; 35 Phantasmal Girl Lv7 1,364;
+  3 Idle Sky Pirate Lv7 1,522), Firion assist met, stigma
+  engaged 3x, disc-36 chest opened (item banner uncaptured;
+  guide HD chests are 500 gil + Soul of Valor - the 36 chest
+  was one of those, NOT the Black Dragon Spear). Disc 0 was
+  never probed in Ch.6 (Ch.2's instance held the second
+  chest there); the other HD chest may still be unclaimed -
+  probing it requires standing on 3 or 10, both battle discs.
+- Legendary Lake Gateway = GATE 19 (268.42, 220.73),
+  banner-verified s41, entered once and exited immediately
+  (ch6_s41_ti_entry.state is that board, misnamed). NEVER
+  CLEARED. Disc set 17 {1,2,3,4,5,10,12,13,14,20,21,22,23,24,
+  30,32,34}, deploy disc 32 - a DIFFERENT layout from Hidden
+  Darkness. Outstanding there (guide): Delusory Dragoon Lv7,
+  Fallacious Tree Lv7, Fleeting Flash Lv7, Imitation Despot
+  Lv17, Fleeting Flash Lv3; Firion assist piece; Shiva AUTO
+  summonstone; Black Dragon Spear chest; "reach panel K and
+  execute a Multichain" note.
+- Chapter 6 completion state: Sunken Lake done, Hidden
+  Darkness done (optional), Legendary Lake OPEN (guide order
+  #3, before True Intent #4 and Ryukahn #5). The True Intent
+  hunt's null results at the other gates are consistent with
+  story order: Legendary Lake likely must be cleared first.
+- KP/gil bookkeeping unaffected (the KP banked in s40-41
+  came from this board whatever its name). Standing (adv
+  lineage): Kain Lv 9, HP 1791/1791, gil 9,666, banked KP 103.
+
+NEXT: gate 19 from the adv lineage (nearest approach state
+ch6_s45_chainE.state (255.80, 204.06); s41's on-foot ridge
+route from the lake anchor also exists). Census the real
+Legendary Lake BEFORE fighting; the Imitation Despot Lv 17
+is boss-class for a Lv 9 party - probe levels first, take
+the Lv 7/3 pieces, Firion, Shiva and the chest; the Despot
+and the panel-K Multichain may need the farm arc first.
