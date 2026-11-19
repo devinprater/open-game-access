@@ -7719,3 +7719,49 @@ primary cell and the settle log.)
 (+2 unbanked gateway KP), Warrior of Light beaten, Chapter 5 NOT
 yet complete — its closing scene is still on screen.** Session 38
 continues from `ch5_s37_fk3_scene2.state`.
+
+
+### Session 38 — Chapter 5 closing scene finished: CHAPTER 5 COMPLETE
+
+Continuing from `ch5_s37_fk3_scene2.state` (addendum 17): the
+post-boss scene is TIME-driven, not press-driven. 60 Cross presses
+at ~36 frames each changed nothing; running frames did. The scene
+plays out in segments — Warrior of Light ("I've sworn an oath to
+Kain."), then a cut to Yuna and Tidus ("I can't just sleep here
+while you're all out fighting...") — and after ~24 x 600-frame
+chunks interleaved with Cross, state68 flipped 20 -> 21.
+
+At the shell, a moogle mail popup waited: "**The Story Continues**
+— I hope you have enjoyed your journey. I have disclosed all I
+know to you. Skills, difficulty settings, Moogle Shop, breakable
+accessories, and items..." Closed with Circle. Behind it, the
+Story Mode chapter select (screenshot-verified): **Chapter 6 -
+Indiscernible Truth is flagged NEW (Kain Highwind Lv 1)** and
+Chapter 5's card is cleared. Chapter 5 is complete.
+
+**Chapter 5 end standing:**
+- Lightning **Lv 24** (HP max 2,822, measured across all six boss
+  attempts; the +61 curve step from Lv 23's 2,761).
+- **Gil 8,946** (primary cell; the twin cell reads garbage at the
+  shell — the known case — and 8,946 matches the post-boss settle
+  log exactly).
+- **Banked KP 91** (confirmed at Forsaken Kingdom entry) **+ 2 KP**
+  earned in the final gateway (Hero + Summoner); the gauge chain
+  still reads 2 at the shell, so whether the chapter-clear swept
+  them into the banked total is not confirmable from the chain —
+  reported as 91 banked + 2 in the gauge.
+- Kit from the chapter: Odin summonstone, Blazefire Saber NOT
+  claimed — the Ephemeral Phantom (HP 3,247) still guards its
+  chest on the Forsaken Kingdom board (one attempt, dealt 0).
+  Ifrit AUTO remains the equipped summon.
+- End state: `ch5_s38_chapter5_end.state` (chapter select,
+  Chapter 6 NEW). Resume for Chapter 6 from there.
+
+**Chapter 5, the whole arc (sessions 36-38):** the gateway-entry
+blocker that ate session 36 was an un-triggered conditions panel —
+the moogle at the Cornelia ruins had to be reached at true
+point-blank, and gateway panels are EDGE-TRIGGERED (addendum 16).
+North Sanctuary farmed twice (Lv 17 -> 20 -> 23), Forsaken Kingdom
+run three times; the Warrior of Light (2,762 HP) fell on the sixth
+attempt of run #3, at Lv 24, after the WAIT-cadence ladder and the
+fight5 no-search policy removed the block-search ambush window.
