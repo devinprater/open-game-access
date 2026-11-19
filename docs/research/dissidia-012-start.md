@@ -7013,3 +7013,62 @@ entry problem (measured, unresolved)
   structural remedy is an in-game Save and Quit,
   then re-enter Chapter 5 from the memstick save
   through the chapter select. NOT yet tried.
+
+
+### Session 36 close — state integrity VERIFIED,
+entry mechanism still unknown
+
+- STRUCTURAL TEST DONE: from the field pause at the
+  blue gateway, "Save and Quit" (confirm defaults
+  NO; Left+Cross = YES) wrote the memstick save and
+  returned to the Start Menu (play time 13:05:53).
+  Story Mode -> Main Scenario 012 -> "There is a
+  story in progress" -> Continue -> "Chapter 5 -
+  Decision, Chapter: 12-5-1, Stage: Cornelia
+  Plains — Continue this story?" YES resumed the
+  chapter FROM THE GAME'S OWN SAVE with Lightning
+  standing at (110.9, -12.2), exactly where the
+  save was taken. In that fresh, game-managed
+  state she walked the blue sphere's whole
+  neighbourhood again — state stayed 2. THE
+  SAVESTATE WAS NOT THE PROBLEM; the field script
+  is armed (position, Gil, KP all persisted).
+- IDLE TESTS (negative): 1,200 frames standing at
+  (108.4, -12.8) and 1,200 at (110.3, -12.5) — the
+  two pint-record points of the arch — no trigger.
+- BUTTON LEDGER at the sphere: Cross = jump/dash
+  (no prompt at any tested range/facing), Circle =
+  lunging slash-step, Square = skill-description
+  overlay (state 4), Triangle = Customization menu
+  (state 11), Start = field pause (Return / Save
+  and Quit / Help Manual — no Enter option).
+- SESSION 36 VERDICT: Chapter 5's field is fully
+  surveyed on the west half (spawn, both ruins
+  gateways, Cornelia ruins, moogle photographed,
+  west-shore route both ways), Lightning is geared
+  (Ifrit AUTO) and the pools verified (Gil 2,398,
+  banked KP 74), but NO GATEWAY WAS ENTERED and the
+  chapter is NOT finished. The blue gateway on the
+  gate01_03 peninsula — the guides' first gateway
+  (North Sanctuary) — resisted every entry method
+  that worked in Chapters 1-4.
+- LEADS FOR SESSION 37, cheapest first:
+  (1) a video/walkthrough reference of an actual
+  Chapter 5 gateway entry, watched for the exact
+  mechanic (the guides' text does not specify one
+  beyond walking in); (2) the moogle at true
+  point-blank (its perch inside the ruins wall
+  cluster was never reached closer than ~5 units;
+  the x-bubble may clear after a story beat — or
+  talking may BE the beat); (3) the NE arch at
+  (171, 114) — untested, no route found yet; the
+  shallows SE of spawn and the coast S of the tip
+  are the open route leads; (4) verify the
+  (128, 37) orb's collection state via the pint
+  record flags before/after standing on it.
+- States left in ~/d12s: ch5_s36_fresh2.state is
+  the game-managed Continue resume (at the blue
+  portal); ch5_s36_idle2.state idles at
+  (110.3, -12.5); the memstick save in fp-save-s8
+  now holds Chapter 5 in progress at the blue
+  gateway.
