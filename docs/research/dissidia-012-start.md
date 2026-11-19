@@ -7812,3 +7812,103 @@ BRV attack is a special dash. Boss plan: farm repeat boards until
 Kain is near the boss's level (the Ch.5 pattern), then the
 WAIT-ladder drift search with the no-search wait-for-live fight
 policy (session 37's s37_fight5 pattern).
+
+### Session 39 addendum 1 - Sunken Lake Gateway CLEARED (2026-11-19)
+
+Boot from ch5_s38_chapter5_end.state verified (state 21, Gil
+8,946). Chapter 6 selected ("Kain Highwind Lv 1"); intro cards are
+PRESS-driven (Cross advances; raw frame-running does nothing).
+Chapter opens DIRECTLY on the Sunken Lake board (no field segment
+first). Banked KP 93 on entry (Ch.5's final +2 swept in). Kain
+holds the Cross Chain board skill. Resume states: ch6_s39_open2
+(board), ch6_s39_sl_nochain (clean mid-board), ch6_s39_field1
+(field after the clear).
+
+BOARD CENSUS (Sunken Lake, measured): 15 discs. Grid -> (X,Z):
+1:(-14,-12), 3:(-6,-12), 12:(-10,-8), 13:(-6,-8), 20:(-18,-4)
+deploy, 21:(-14,-4), 22:(-10,-4), 23:(-6,-4), 24:(-2,-4),
+25:(2,-4), 26:(6,-4) Stigma, 32:(-10,0), 34:(-2,0), 42:(-10,4),
+44:(-2,4). Pieces: 23 Delusory Dragoon Lv3, 25 Transient Gunner
+Lv3, 32 Imitation Despot Lv7, 34 Fleeting Flash Lv7, 42 chest
+(Javelin), 44 chest (Pink Tail). A battle TIP BOX ("The opening
+after an opponent attacks...") intercepts inputs when approaching
+disc 23 - dismiss with ~4 Cross presses before aiming. A Kain
+tutorial tip ("skilled in aerial combat...") also fires on board
+entry in fresh lineages. Harness: nav scripts must dismiss tips,
+then POLL grid()/focus() after each hop/aim - grid reads lag the
+hop animation by up to ~700 frames on resumed-entry states.
+
+FIGHTS (battle block bases this boot: 0x0969D688 and 0x09691388,
+found per fight with the range finder; foe ranges must be WIDE,
+800-2000 - see the Despot note):
+- Delusory Dragoon Lv3 (23): HP 1,121. WIN, 34 rots, Kain
+  1000 -> 618. Battlegen: Order of Emptiness created. +24 gil.
+- Transient Gunner Lv3 (25): HP 1,121. At 618 HP: LOSS three
+  ways (W0 foe left at 121 HP; W5 worse; a Circle-heavy Kain
+  rotation much worse - his BRV attacks whiff at range; the
+  house Square rotation is correct for him too).
+- Imitation Despot Lv7 (32), DIRECT engage: HP 1,205. WIN, 35
+  rots, ZERO damage taken during the policy (973 -> 973; the
+  only damage was 330 lost fumbling the VS transition). +84 gil.
+- Fleeting Flash Lv7 (34): HP 1,364. LOSS at drifts 0/5/10/15
+  starting from 730 HP unequipped - then see addendum 2.
+
+CHAIN LESSON (measured, costly): after a win, the Cross Chain
+skill auto-targets an adjacent-diagonal piece behind a normal
+Engage/Cancel prompt (focus RAM = that piece's record). Blind
+Cross presses ENGAGE it. The chained Despot measured HP 1,522
+vs 1,205 direct - CHAINED FOES GET ~+26% HP. Forced chain fight
+at 618 HP was a LOSS. Correct handling, verified end to end:
+at the piece prompt press Circle -> "Cancel chain?" (defaults
+NO) -> Left + Cross (YES) cancels and banks the KP. Every win
+in this chapter is followed by a focus check for exactly this.
+"Win battle" KP chance pays +1 per piece into the gauge (HUD
+banner + gauge are authoritative; the RAM gauge cell reads 0
+on state-21 boards here).
+
+EXIT / CONTINUE FARM LOOP (measured): Pause -> Exit Gateway
+warns "KP gained in gateway will be lost" (gauge KP only; gil
+and EXP are kept). Exit lands on the scenario splash; Cross ->
+"There is a story in progress" -> Continue returns to the
+board start with the board fully reset and the lead at FULL
+HP. (The splash's START button opens the Story Mode HELP index,
+not the chapter select.) Farmed the Dragoon this way: Kain
+Lv 1 -> 6 over five cycles (+24 gil each). Max HP grows ~+61
+per level (1000 at Lv1, 1364 at Lv7). Mid-fight HP can RISE -
+the rotation's Triangle enters EX Mode, whose Regen ticks HP.
+
+### Session 39 addendum 2 - the gear fix, both chests, Stigma (2026-11-19)
+
+THE FLASH WALL WAS EQUIPMENT, NOT LEVELS. Opening Customization
+(Triangle on the board; ~6 sacrificial Crosses clear the banner
+stack first - battlegen banners like "Obtained Chocobo Down"
+queue here) showed Kain Highwind Lv 7 with ALL FOUR EQUIPMENT
+SLOTS EMPTY: HP 730/1364, CP 275/337, BRV 130, ATK 17, DEF 18,
+LUK 13, EXP next 6,550 / total 34,815. Chapter leads start
+UNARMED in this playthrough's save lineage - check gear FIRST
+for every new lead. The shared inventory (all chapters' loot)
+held his kit: Javelin (Spear, HP-122 ATK+13 DEF-2 - the Sunken
+Lake chest), Buckler (DEF+3), Bronze Helm (BRV+38 DEF+2),
+Leather Armor (HP+428). Equipped totals: HP max 1,670, BRV 168,
+ATK 30, DEF 21. Equipment screen tabs: L/R shoulders switch
+Abilities / Equipment / Accessories. His HP attack is Spiral
+Blow (Square, [Close] charge, wall rush).
+RETRY: Fleeting Flash Lv7 WIN in 16 rots, ZERO damage taken
+(730 -> 730). The four-drift wall was a naked character.
+Also from the Gunner retest at Lv 6: WIN, 39 rots, 973 -> 730.
+
+CHESTS are aim + Cross prompts ("Treasure Chest - Contains
+helpful items. Engage/Cancel"), opened from the disc ABOVE:
+Javelin from 32 (after the Despot), Pink Tail from 34 (after
+the Flash). Gauge reached 4 KP (all four pieces paid).
+STIGMA (26, from 25): prompt "Stigma of Chaos - Engaging this
+piece finishes the level." Clear cutscene: Kain ("I see the
+manikins have begun to take their toll"), Golbez dialogue,
+monochrome memory text cards ("As the fight wears on, our old
+memories return") - press-driven with slow beats; the end is a
+white fade through state 0 into a FIELD dialogue (state 3).
+FIELD LANDING: Kain at the Sunken Lake arch, HP FULLY RESTORED
+(1,670), KP BANKED 97, Gil 9,282, Lv 7. Field encounters per
+the guide remain here (Imitation Despot Lv7, False Stalwart
+Lv4). A moogle waits west across the water; the red gateway
+sphere glows through the arch. Resume: ch6_s39_field1.state.
