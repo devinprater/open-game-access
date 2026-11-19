@@ -6935,3 +6935,81 @@ at Lv 13, so North Sanctuary farming comes first.
   no pos()/state() — position is read from the
   player object (ptr 0x08B83DE4, floats +0x30/34/38,
   facing +0x08/+0x00) as in the s35 scripts.
+
+
+### Field survey (continued) — the two portals, and an
+entry problem (measured, unresolved)
+
+- WEST SHORE ROUTE FOUND: from gate01_01's ruin the
+  shore runs SOUTH along the bay's west side —
+  (76, 71.5) -> (93.5, 48) -> (97.8, 28.1) ->
+  (91.9, 21.7) -> (105, -15.2) — reaching gate01_03's
+  peninsula. (The east ledge over the tidal flat at
+  (136.3, 7.3) is a dead shelf; all probes fail.)
+- gate01_03 (113.43, -22.21 anchor; objects at
+  (108, -14)/(110, -12)): a stone arch on the point
+  holding a BLUE-WHITE CRACKLING SPHERE portal,
+  floating in the opening above the path. This
+  matches the guides' "blue gateway on a peninsula"
+  (GameSpy: turn around from spawn, follow the
+  water; link3895: the blue gateway with the BRV
+  Charge chest around the small mountains behind
+  it). The path runs under the sphere to the
+  peninsula tip (she has stood on the tip at
+  (115.5, -9.8)).
+- ENTRY TESTS ON THE BLUE SPHERE (all measured,
+  all negative): fine-probe crossings through the
+  arch at z -10..-18 from both faces; a continuous
+  closed-loop walk (s35 twalk2) across its north
+  side; six Cross-dash/jump crossings through its
+  x-range (dash paths passing within ~0.6-3 units
+  of (109, -13.5)); Cross at 4.3 units facing it;
+  Circle (a lunging slash-step); the field pause
+  menu at its base (Return / Save and Quit / Help
+  Manual only). State68 stayed 2 throughout.
+- SQUARE on the field = the skill-description
+  overlay (ctrl state 4): shows the equipped board
+  skill ("Cross Chain — Engage opponents in four
+  directions, diagonally in a chain"). Not an entry.
+- gate01_00's white portal received the same test
+  battery from its north apron as well (fine-nav
+  west along the apron to (66.8, 128.1), then south
+  probes): its face is walled from the north too.
+  Both portals are inert to every method that
+  entered gateways in Chapters 1-4 (walk/dash into
+  the mouth per S35's Southern Shrine note, Cross
+  at the arch per S24).
+- Also measured this session: the SE headland
+  (145-155, 30-46) is a cul-de-sac; the coast east
+  from spawn dead-ends at (154.5, 34.4); inland NE
+  from (150, 40) is walled; the tower hill at
+  (146, 46) blocks the direct line to (152, 54);
+  the north-coast route east from gate01_00's apron
+  descends to (94.9, 98.6) and stops at a cliff
+  above the ruins' NE side. A Light Orb sparkle
+  photographed at the (128, 37) pint record by the
+  spawn rocks; after she stood on the spot the
+  sparkle no longer showed in later views
+  (collection NOT confirmed — no banner, no
+  counter read).
+- The moogle (photographed among the ruins walls,
+  ~(67, 107) area, x-mark speech bubble) has not
+  been reached at talk range: wall blocks stop her
+  at (70.9, 103.9), 4.9 units S of it, and spins
+  from (66.8, 109.2) and (67.6, 113.5) did not show
+  it again — it may drift, or its perch is inside
+  the wall cluster's pocket. The guides' wandering
+  Capricious Reaper has NOT been seen anywhere in
+  the west (guide order puts it after the blue
+  gateway, so it may not spawn before that clear).
+- OPEN QUESTION for the next session: why no field
+  trigger fires. Candidates: (a) the sphere must be
+  touched AIRBORNE at its centre height (jump apex
+  tests crossed under/around it); (b) a trigger
+  needs the chapter's first orb collected (the
+  (128, 37) orb may not have registered); (c) the
+  savestate's field script is unarmed despite the
+  clean chapter-select entry S35 documented — the
+  structural remedy is an in-game Save and Quit,
+  then re-enter Chapter 5 from the memstick save
+  through the chapter select. NOT yet tried.
