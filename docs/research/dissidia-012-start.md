@@ -9773,3 +9773,92 @@ NEXT: the shelf (228-235, 229-233) NE of the junction, then
 its north face; the pass road west past the trap face to
 gate 17 (re-test the portcullis post-LL); gate 11 the same
 if 17 stays barred.
+
+### Session 48 addendum 37 - SHELF NORTH FACE WALLED; GATE 17 STILL BARRED POST-LL; FIRION'S REPEAT TALK IS FLAVOR; THE BENCH/LEDGE SYSTEM CLOSES AT THE JUNCTION MESH (2026-11-19)
+
+SHELF (from ch6_s48_nroad1_final.state at the road junction
+(219.33, 224.17)): the road bends NE up a smooth ramp to the
+shelf at (228.53, 230.08) [ch6_s48_nroad2_final.state]. The
+north-face probe crept east along the shelf to (233.83,
+232.57) - the exact spot of s43's boulder protocol - and
+STALLED: every stick <= 0.00. The shelf's north/east face is
+a hard wall; the overlook is closed (boulder protocol was
+already negative here in s43).
+
+JUNCTION WEST: from the shelf back down to the junction
+pocket (219.63, 226.75), west STALLS at (219.19, 224.01).
+The junction pocket's only exits are the north road (south)
+and the shelf ramp (NE); the pass road's east segment is NOT
+reachable from it (the trap face is two-way at ground
+level).
+
+GATE 17 RE-TEST (post-LL, adv lineage): the WEST ROAD from
+Firion's ruins was walked end to end (feedback walker, no
+pinch at the (205-208, 202-206) bend that fooled s42's
+coarse walker): (219.83, 194.00) -> (207.49, 201.44) ->
+(198.46, 211.27) -> (186.55, 215.59) -> (171.28, 219.34) ->
+face stand (157.26, 228.63) [ch6_s48_wroad1..4_final,
+ch6_s48_g17app_final]. SCREENSHOT (s48_g17_look.png): the
+iron portcullis is STILL DOWN. Cross at the face: plain
+dash to (159.35, 234.01), state stays 2, no popup, no
+entry. Gate 17 remains barred after Legendary Lake. No
+Rosetta chest visible at the foot from the face stand and
+no chest popup fired (the adv lineage's chest state here
+is unresolved - the stand may simply be off the chest's
+trigger; s42's chest spot was (156.63, 229.77)).
+
+FIRION'S RUINS TALK (the state-3 dialogue that fired on
+gate 18's anchor): a 4-line repeatable chat, read in full:
+"have you come across any of the others?" / "I met one by
+chance and discussed our situation, but I have yet to meet
+anyone else." / "...You see, I've heard some bad rumors.
+Rumors that some of our friends have fallen." / "I don't
+intend to trust the words of a foe, but I'm concerned..."
+Flavor only - no directions, no trigger (5 Crosses to
+close; end state ch6_s48_talkdone.state).
+
+THE PASS EAST + THE BENCH (adv lineage): from gate 17's
+face the pass road east was walked to the scout point
+(168.16, 227.31) [ch6_s48_passe1_final] - NO False Stalwart
+ambush on the road line (s42's fired walking toward pt2 at
+Z~232; the road at Z~228 does not trigger it). The NE climb
+reached the bench at (189.30, 245.99) [ch6_s48_bench1_
+final.state]. THE BENCH EAST: the ledge runs ESE -
+(199.65, 243.34) -> (201.74, 241.25) - and DIES at a face
+at (203.61, 238.00), ~1.4 from junction mesh node 7
+(203.17, 239.34): the bench/ledge system drains into the
+junction mesh and has NO northern exit. (Two tunnel drops
+hit this stretch; both times the walk resumed from the
+committed scratch state with no progress lost.)
+
+SESSION 48 NET: the brief's gate-20 premise is dead
+(addendum 36); every land route to the far north is now
+measured closed (X~290 ridge at five latitudes, the shelf
+cluster, the east band, gate 19's pocket, the north road +
+shelf faces, the junction, the bench/ledge, the frozen
+basin). Gate 22 (both tester families) is the only live
+main-line gate and remains unreached. Standing UNCHANGED:
+Kain Lv 10, field HP full 1,851/1,851, gil 9,774, KP 104,
+Shiva held, Firion assist, Rosetta Stone held.
+
+SESSION 49 LEADS (untested, in order):
+(1) GATE 11 re-test post-LL - the only volume-family gate
+    not re-tested since LL; reach its face via pt0's ride
+    from the start field (213.0, 120.8) into its basin,
+    photograph the portcullis, Cross at the face.
+(2) MOOGLE POINT (196, 144) re-check in the adv lineage
+    (owed since s41; the True Intent segment unlocks
+    Mogshop 9.2.6 per the guide - a moogle interaction may
+    be part of the segment's flow).
+(3) pt18 (220.7, 107.6) OBB_jump_gate02_00 stand-test -
+    never stood on; in the start field near pt0.
+(4) EYES NORTH from the bench (189.30, 245.99): a screenshot
+    facing north to fix the rift portal's position and look
+    for a structure/bridge no walker has seen.
+(5) A fresh pint (field-object) census in the adv lineage:
+    list every field object with a position; look for
+    unvisited triggers (NPCs, a second moogle, a portal
+    object) anywhere on the map.
+RESUME: ch6_s48_bench1_final.state (bench, adv lineage,
+state 2, gil 9,774); alternates ch6_s48_g17app_final.state
+(gate 17 face), ch6_s48_trek1_hop6.state (Firion's ruins).
