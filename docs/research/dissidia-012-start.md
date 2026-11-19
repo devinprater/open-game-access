@@ -8281,3 +8281,35 @@ jumpgate pt2), gate 22 (292.5, 312.0; both families).
 Also unexplored: the ruins<->anchor band (X 223-254,
 Z~188-196) the guide's route may use, and the barred
 gateway / Pink Tail chest geography west of the lake.
+
+### Session 42 addendum 13 - GATE 11: CROSS FROM THE LIP = DASH; BASIN UNREACHABLE ON FOOT FROM N/E (2026-11-19)
+
+RESUME VERIFIED: ch6_s41_g11.state -> ctrl state 2, Kain at
+(219.64, 112.82), gil 9,630, HP full - exactly s41's record.
+
+CROSS TEST (the test s41 lost to a tunnel drop): slid east
+along the lip contour to (220.40, 112.82) - x dead-on gate
+11's anchor (220.4, 111.0), 1.82 short - and pressed Cross:
+NO reaction. State stays 2; Cross just dashes Kain east
+along the lip to (222.09, 112.82). Unlike gate 19 (facing-
+cone family; its tester fired from 1.79 short), gate 11's
+volume tester does NOT reach the lip. Test-point state:
+ch6_s42_g11lip.state (pre-Cross).
+
+BASIN SURVEY: from jumpgate pt0 (ch6_s41_jg0.state,
+(212.09, 120.29)) the south shore descends SE smoothly to
+the lip z=112.82 at x~219-222. Minimum z over the whole
+survey: 112.82, reached only ON the lip itself. East of
+the lip the ground rises to a bench at z~115.0-115.7
+running x 224 -> 239, walled at x~239 (walker boxed at
+(237-239, 115-117)); no dip below 112.8 east of the lip
+either. With s41's west-side data, the basin holding the
+anchor and jumpgate pt18 (220.7, 107.6) has NO foot
+approach from the north or east. Gate 11 is INERT from
+every measured approach this session. If gate 11 is True
+Intent, its entry is not on foot from the north; the
+jumpgate pads remain the only untested mechanism (pt0 was
+inert to stand+Cross in s41 - they may be one-way landing
+pads or flag-gated).
+
+NEXT: gate 16 (331.5, 126.0), the SE cluster.
