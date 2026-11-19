@@ -7926,3 +7926,99 @@ Standing after Sunken Lake: Kain Lv 7 (geared, HP max 1,670), Gil 9,282, KP BANK
   2. WEST HILLS: from the field start, west then NE over the hills is OPEN all the way to Firion's ruins (213, 190) - but a continuous N-S ridge at X~240-244 seals the lake's west shore: stalls at (244, 197) north, (239, 180) mid, (241.6, 189.4). The anchor cannot be entered from the west either.
   3. DIRECT from the Sunken Lake arch north: walled at Z~161-163 (the pint cluster at (211, 171) is scenery behind the wall); point 16 (194.0, 165.1) is bare mountainside, NOT a gateway.
   NEXT SESSION: try the northern loop - from Firion's ruins continue north/east toward gate 19's point (268.4, 220.7) and approach the lake's north shore from Z > 200 heading south; also re-survey the gate states there (recruiting Firion may have armed gate 13 - its state word should be re-read from a northern state before assuming it is still dormant), and check the volume-family gates (pt4 south (220.4, 111.0) is on the way back). The moogle at ~(196, 144) west of the Sunken Lake arch (kind-44 object id 250) is also still unvisited.
+
+### Session 40 addendum 8 - LEGENDARY LAKE REACHED AND CLEARED (2026-11-19)
+
+THE APPROACH (the s39 blocker, solved): the ridge pass at
+Z~200-201 east of Firion's ruins is OPEN all the way. Route:
+ruins (223.3, 194.0) -> east along Z~200 to (252, 201) -> south
+to the anchor. The s39 ridge stalls were a greedy-walker
+artifact (12-frame pushes + camera-swing recalibration); s40's
+scan-navigator (below) walked it without a single stall. The
+NE rim (279.5, 185.1) is a DEAD-END spur: the X~265 corridor
+from the south shore reaches it, but every push off the rim
+tip slides back down the corridor. The south shore itself
+dips to Z~140 around the headland at X~246-261 before turning
+north into that corridor.
+
+ENTRY MECHANIC (new): gate 13's state word reads 0 even when
+the gate is enterable - it is NOT a dormant flag (finished
+gate 12 also read 0 in a later boot). Gate 13 is a facing-cone
+tester: stand ON the anchor point (253.9, 181.7) and press
+Cross -> state 5 -> board. Being PLACED at the anchor (the
+post-clear landing) does not arm it; walk off and back on
+first (the edge-trigger rule again).
+
+SCAN-NAVIGATOR (new field tool, s40_nav3.py): per step, save a
+scratch state, trial all four cardinal pushes (10 frames) from
+it, score by progress toward the target minus 0.45 per visit
+to the landing 2-unit cell, commit the best. The visited-cell
+penalty is what kills the wall-oscillation that defeated both
+earlier walkers. Trial pushes that change the controller
+state (a panel firing, a manikin touch) stop the run and save
+- that is the discovery signal. Diagonals are useless (the
+game ignores sub-threshold stick diagonals: 0.7,0.7 moved
+nothing in the probe).
+
+BOARD CENSUS (Legendary Lake, measured): 18 discs, deploy 23
+(-6,-4). Discs: 0:(-18,-12), 3:(-6,-12), 4:(-2,-12),
+10:(-18,-8), 11:(-14,-8), 12:(-10,-8), 13:(-6,-8), 14:(-2,-8),
+20:(-18,-4), 21:(-14,-4), 22:(-10,-4), 23:(-6,-4), 24:(-2,-4),
+32:(-10,0), 33:(-6,0), 34:(-2,0), 35:(2,0), 36:(6,0). Links
+are the coordinate-adjacent pairs. PIECE MAP: 12 = battle,
+foe HP 1,121; 32 = battle, foe HP 1,121; 10 = battle, foe HP
+1,205 (+84 gil); 11 = FIRION ASSIST piece (prompt-verified by
+screenshot: "Firion - Assist Character"); 14 = STIGMA OF
+CHAOS (prompt-verified by screenshot); 3 = battle (aimed,
+unfought); 24/33/34/35/36 and corners 0/4 unexplored - the
+Black Dragon Spear chest is still unfound. Aim model
+confirmed: cross+direction HOPS onto an empty adjacent disc
+but only FOCUSES a piece disc (no hop) - that asymmetry is
+the piece detector.
+
+RUN 1 - AN ACCIDENTAL CLEAR: beat 12 (17 rots, Kain 1670 ->
+1556) and 32 (8 rots, no damage), then engaged 14 expecting
+a battle piece (the range finder found no block, exactly the
+stigma's signature, misread as a finder failure). The stigma
+finished the level: banked KP 97 -> 99, gil kept, Kain landed
+on the field at the anchor. LESSON: screenshot a prompt
+before engaging any disc whose battle block is not found -
+"BLOCK NOT FOUND" means prompt piece (stigma/chest/assist)
+at least as often as it means a finder miss.
+
+THE PROBEN INCIDENT (a warning): an aim at disc 10 from disc
+20 in a mapping probe ENGAGED the piece - a battle was live
+for the rest of that probe and the next one, and blind
+follow-up inputs let the foe beat Kain from 1,670 to 254 HP
+before the state was saved mid-battle (state68 reads 20
+during battle entry, so the probes never noticed). The
+salvage fight was lost at 254 HP. LESSON: after any aim,
+verify no battle is live (battle-block presence, not
+state68) before saving or sending more inputs. Contaminated
+states: ch6_s40_ll_probeN.state, ch6_s40_ll_probeS.state -
+do not resume from them.
+
+RUN 2 - THE DELIBERATE CLEAR: fresh board from the anchor.
+12 re-beaten (36 rots, WAIT 0; Kain 1670 -> 1191; chain
+prompt at 32 cancelled). 32 re-beaten (31 rots, no damage).
+Kain reached Lv 8. Firion engaged at 11: his dialogue ("Do
+you think the manikins feel pain when they are struck, as we
+do?") plays ON the board (controller state stays 20; advance
+with Cross) - the piece remains on the board afterwards.
+Piece 10 (foe HP 1,205): LOSS at WAIT 0 - the foe froze at
+454 HP for 34 straight rotations while Kain bled out (the
+ranged-whiff pattern: Kain's circle rotation cannot connect
+once the foe holds distance). WIN at WAIT 5 (31 rots, Kain
+1191 -> 488): the drift change breaks the freeze. Stigma
+engaged from 13 (aim right): white fade (state 0) straight
+to the field, no long scene. End standing: Kain Lv 8, Gil
+9,462, banked KP 99 + this run's gauge (2 by the stale field
+read; sweep to be verified at next entry). Resume state:
+ch6_s40_ll2_cleared.state (field at the anchor).
+
+STILL OPEN on this board: the Black Dragon Spear chest
+(south discs 24/33/34/35/36 unprobed), piece 3 unfought, the
+guide's Imitation Despot Lv17 and the Shiva summonstone not
+yet located, and the guide's "panel K Multichain" note
+unexplored. The gateway itself is complete (twice); a fresh
+re-entry at full HP is the chest-hunt vehicle.
