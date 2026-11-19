@@ -6684,3 +6684,41 @@ expect to raise it again as she levels.
   dialog is actually pending (screenshot/focus check first). Current
   clean state: `ch4_s35_ss_phantom_nc.state` (on 53, gauge 2).
 
+### S35 Southern Shrine — play (part 3) + the Ephemeral Vision problem
+
+- **Ephemeral Summoner Lv 11** (disc 34; card: HP 1606, CP 342,
+  BRV 183 (153+30), ATK 21, DEF 21, LUK 15, Bravery Bonus: Lv +2):
+  standard rotation WIN 40 rot (she ended at 2134 — Auto Recovery
+  outpaced its damage). **LEVEL UP 9 -> 10**, **Learned Auto EX
+  Burst**, **Learned Auto Chase**, 1 AP, +176 Gil (1632). Gauge 3.
+- **False Hero Lv 11** (disc 14; card: HP 1606, CP 342, BRV 168
+  (153+15), ATK 21, DEF 24, LUK 15, Bravery Bonus: Lv +1): standard
+  rotation WIN 38 rot but it hits HARD (her HP 2130 -> 576).
+  **LEVEL UP 10 -> 12** (two levels), **Learned Sonic Wings**,
+  **Hero's Dream x1 created**, 1 AP, +176 Gil (1808). Gauge 4.
+- **Ephemeral Vision Lv 11 (disc 31) — UNSOLVED, parked.** Card:
+  **HP 1**, CP 342, **BRV 3213 (153 + 3060, "Initial BRV +2000%")**,
+  ATK 21, DEF 22, LUK 15; accessories **Soul of the Destroyer** and
+  **The Rotten**. In the arena it appears as a giant Odin figure; the
+  game tip reads "A square attack can win it!" and its AP Chance is
+  "First square attack over 400: +2". Measured behavior: with zero
+  input she dies **~390 frames after the battle block appears**
+  (BRV drift ticks -9/+9, then HP 576 -> 0 — Odin's Zantetsuken).
+  Standard rotation, drift +5/+30, triangle spam (triangle is NOT her
+  HP attack — **circle is**; triangle did nothing), assist-first, and
+  two R+stick dodge timings (strike ~390-430 frames post-block) all
+  lost at rotation 2. Circle (Energy Ray) spam changed the fight:
+  periodic **+/-87 BRV transfers** (her BRV up, foe's down — as if the
+  ray interacts with the summon) and death delayed to rotation 7-9,
+  but still a loss. The block-search itself eats the race window
+  (block appears at poll 3; inputs may be locked during the intro).
+  The piece gates ONLY the optional west cluster (discs 30/20/10/0
+  Vision, chest 1, Potion 40, Hero Lv 6 at 60) — the boss route via
+  34 -> 35 -> 36 -> 37 is open without it, so it is parked, not
+  blocking. Tools left for a future attempt: `s35_fight2.py`
+  (exact-BRV block finder), `s35_watch.py` (kill-timing probe),
+  `s35_fight5/6.py` (dodge attempts), prompt state
+  `ch4_s35_ss_prompt31.state` (her HP 576 on entry — a Potion or a
+  level-up first would widen the margin only slightly; the kill is
+  BRV-based, ~3200, so HP is nearly irrelevant).
+
