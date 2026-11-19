@@ -9129,3 +9129,49 @@ NEXT: gate 13 (253.93, 181.66) — live in the FACING tester family — via the 
 then gate 19 (268.42, 220.73, also facing-live). Gate 22 remains open via pt3/kaname_02
 if a far-north route ever opens; the network so far is a closed basin+junction system
 plus this south line into the central field grid.
+
+
+## Session 45 addendum 28 — GATE 13 ENTERED: it is the HIDDEN DARKNESS GATEWAY (optional board)
+
+East chain from gate 18's anchor (plain Cross, deterministic — re-derived exactly):
+(221.97, 193.63) -> (225.18, 193.00) -> (228.95, 186.55) -> (232.91, 181.07) ->
+(238.29, 176.96) [ch6_s45_chainE.state lineage]. The chain then wanders a mesh around
+(238-240, 177-184) and, left running, rode NE to (255.80, 204.06) [current
+ch6_s45_chainE.state]. On-foot walking in the central field is unreliable with a
+fixed basis: the camera basis rotates as Kain travels (measured bases 90+ degrees
+apart between nearby spots) and 2-frame analog holds crawl at ~0.24/push (analog's
+n argument is the drv-side hold time — use analog(x, y, fr) with the full frame
+count, ~1.2/10-frame push). The grid is the reliable transport; walkers only for
+the last ~3 units (the micro-probe fine stander converged at both gates 18 and 13).
+
+Gate 13 approach: hub (252.26, 198.44) [ch6_s45_g13w.state] full fan — E (260.75, 198.86),
+N (254.02, 204.80), SE (256.55, 194.46), W (243.89, 198.75), NE (257.99, 204.71),
+SE-far (258.64, 192.85), W (247.15, 198.75), NW (246.96, 200.17). Targeted rider:
+(256.55, 194.46) -stick(0,+1)-> (257.20, 186.06) -stick(-1,+1)-> (251.90, 179.64),
+2.86 SW of the anchor [ch6_s45_g13_cur.state]. Fine stander reached (253.71, 181.71),
+0.22 from gate 13's anchor (253.93, 181.66) [ch6_s45_g13stand.state]; Cross ->
+ctrl state 20, pos (0,0): GATE 13 ENTERED. Title card: "Hidden Darkness Gateway"
+(s45_board13.png). Gate 13 is the optional Blue/Hidden Darkness board, NOT True
+Intent or Ryukahn.
+
+Board census (visual, s45_census2/5 + s45_probe.png; no battle started, levels NOT
+probed — scan-mode info needs the cursor exactly on a piece): dark rocky board;
+visible pieces: at least 5 grey manikins, 1 purple character manikin (spearwoman),
+1 red/black boss-class piece standing on a glowing red panel (top-right), 1 gold
+piece at the east edge. Kain starts top-left. Board resume inside (no battle):
+ch6_s45_hd_board.state. HUD on board: Lv 9, HP 1791, Gil 9666, KP 103.
+CORRECTION to addendum 26: the post-scene KP is 103, not 109 (screenshot misread;
+103 confirmed on three later HUD shots). Standing (adv lineage, Firion scene done):
+Kain Lv 9, HP 1791/1791, gil 9666, banked KP 103.
+
+SESSION 46 LEADS: (1) Gate 19 (268.42, 220.73; live in the FACING family) — nearest
+saved approach ch6_s45_chainE.state (255.80, 204.06), ~20 NNE; grid-ride NE and
+stand-test the anchor exactly as done for gates 18/13. (2) Hidden Darkness clear
+(optional; probe piece levels first via scan cursor; historically high-level —
+do not engage blind). (3) Gate 22 far-north route still unsolved: only remaining
+far-north evidence is the CUR record's ground points (306.33, 296.81),
+(310.23, 298.00), (313.00, 298.88) from addendum 24. (4) Untested leftovers:
+pt0's return ride; moogle point (196, 144) re-check in the canonical lineage.
+Primary resume: ch6_s45_g13stand.state (on gate 13's anchor; Cross re-enters
+Hidden Darkness, or ride/walk away). Also ch6_s45_south_cur.state (central-field
+hub (208.25, 189.32)) and ch6_s45_adv.state (Firion's ledge, scene done).
