@@ -7265,3 +7265,25 @@ analog sidestep, alternating sides) + break-window extra
 offense rotations, with a WAIT timing knob as the drift
 search dimension.
 
+
+
+### Session 37 addendum 5 — Kuja policy nearly kills the False Hero; the cap did it
+
+Third attempt (s37_fight3.py, session-19 policy, WAIT 0):
+she took ZERO damage across all 70 rotations — the
+defense triggers + Triangle blocks neutralized him
+completely (his BRV climbed to 1179 unspent) — and his
+HP fell steadily 1727 -> 324 (her ~225-BRV HP attacks
+landing every couple of rotations; his regen ticks only
++5..+24). Then the script hit its inherited 70-rotation
+cap and IDLED to conclusion, and during the idle he
+charged to 2652 BRV and one-shot her. The idle was the
+only mistake: the battle clock had NOT expired at 70
+rotations of this slower loop. Fix for attempt 4: cap
+raised to 120 rotations, no idle-to-conclusion (a stall
+now saves a midbattle state instead). Note for the
+chapter: at her current damage rate the Lv 13s are
+killable but slow (~90+ rotations); the 90-second KP
+chance is out of reach for them with this rotation —
+acceptable; KP is farmable on gateway repeats.
+
