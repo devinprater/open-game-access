@@ -7435,3 +7435,37 @@ ruins' north end, and a bright portal glow at the bowl's east shore
 ~(95,103)); then the Capricious Reaper Lv 15 + 1,500 gil chest in the
 grass east of the moogle (guide order puts the Reaper/chest detour
 before entering).
+
+
+### Session 37 addendum 10 — FORSAKEN KINGDOM gateway found (panel photographed)
+
+From the ruins bowl (69.8,98.8), the north ruins open to the portal
+pocket: (73.5,103.9) -> (66.4,120.4) -> fine approach to (67.5,124.5),
+1.7 units south of POS_gate01_00 (66.98,126.21). The screenshot
+(s37_w2_north2_0.png) shows the CONDITIONS PANEL UP: "Forsaken Kingdom /
+KP Chance: Win battle / Rules: Disabled / Skills: Enabled" — a tall
+stone arch with a blazing white portal, the sea directly behind it.
+Same entry pattern as North Sanctuary: zone = the POS_ anchor's
+reachable face, panel only visible on screenshot, state stays 2,
+gate-id stays -1. `ch5_s37_north2.state` is saved standing in the zone
+with the panel up — Cross from there should enter (state 2 -> 5 -> 20).
+So gate01_00 IS Forsaken Kingdom; the eastern gate05_00 anchor belongs
+to a later field segment. Per the guides, the Reaper + 1,500 gil chest
+detour (grass east of the moogle) comes before entering.
+
+
+### Session 37 addendum 11 — Reaper sweeps negative (optional extra unlocated)
+
+The wandering Capricious Reaper Lv 15 + 1,500 gil chest (both guides
+place it in a grass field "right of the moogle") was swept three times
+with the greedy walker, which stops on any state change (an attack
+would surface): (1) lake-shore grass east of the bowl (80,110) ->
+(87.7,102.1) -> (94.8,100.2); (2) the north terrace (89.6,111.7) ->
+terrace ends at a cliff z~116-117, (91.8,114.3); (3) the south-west
+plains via the gully: (77.0,85.2) -> (82.7,64.2), west legs then
+bounced off the plateau's SW cliff corner (71.8,67.6) — the plains
+west of x~72 at z 55-68 are NOT reachable from the bowl side. No
+attack, no chest, no Reaper sighting in any sweep screenshot. It
+remains unlocated — possibly east-field content, possibly gated on a
+later story beat. NOT blocking: the guides' critical path is the
+gateway. States: ch5_s37_reaper1/2/3.state.
