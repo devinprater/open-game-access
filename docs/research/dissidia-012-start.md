@@ -6530,3 +6530,34 @@ chest **(Cure)** by a boulder near the two next gateways; Mogshop 9.2.5
 in the segment. Guide order ahead: **Gateway to the Shrine (Blue)**,
 then **Southern Shrine Gateway** (boss The Emperor Lv 18).
 
+### S35 Gateway to the Shrine (Blue) — census + segment-2 route notes
+
+Segment-2 route (measured): Southern Shrine's red portal arch stands
+at field **(-1.5, 30.7)** sealing the shore narrows (its trigger fires
+when she walks/dashes INTO the portal mouth; standing on its disc is
+inert, and exiting via the pause menu deposits her on the disc — exit
+and walk away in the SAME drv session or a fresh load re-triggers it).
+The Blue gateway's white-blue portal stands on the NORTH shore of the
+inlet at ~(-25, 5): wade north from the south shore at (-35, 35) across
+the shallows to (-25.7, 11). She entered Southern Shrine first by
+accident (banner state `ch4_s35_f2_x`), exited via pause menu (Exit
+Gateway confirm defaults to NO — press Left for YES; gauge was 0, no
+loss), then entered the Blue gateway in guide order. States:
+`ch4_s35_f2_out`, `ch4_s35_f2_away`, `ch4_s35_f2_n1`,
+`ch4_s35_blue_board`. NOT yet collected in segment 2: False Stalwart
+Lv 10 (wandering, never encountered), chests Oerba Beads + (Cure),
+Mogshop 9.2.5. Segment 1's field chests (EX Charge, Rosetta Stone) and
+its Counterfeit Wraith Lv 4 were also skipped — the ford route bypassed
+them; outstanding if a backtrack ever happens.
+
+**Blue board census** (17 discs, entry **13**, KP Chance: Win within
+90 seconds): 14 **Stigma of Chaos** (immediately right of entry);
+1 **Ephemeral Phantom Lv 11** (World of Darkness); 5 **Idle Sky Pirate
+Lv 11** (Lunar Subterrane); 25 **Idle Sky Pirate Lv 11** (Old Chaos
+Shrine) — TWO Sky Pirates (link3895's duplicated "3" was real);
+20 **Counterfeit Wraith Lv 11** (Lunar Subterrane); 34 **Fleeting
+Flash Lv 6** (Dream's End); 26 **Treasure Chest** (guide: Guard Stick);
+empty: 2, 3, 12, 22, 24, 31, 32, 33, 42. Scan edges in
+`s35_census_blue.log`; shots `s35_blue_g<grid>.png`; state
+`ch4_s35_blue_census.state`.
+
