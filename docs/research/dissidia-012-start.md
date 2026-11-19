@@ -9074,3 +9074,58 @@ REMAINING NETWORK UNKNOWNS: node 6/7/10 sticks (0,+1), (-1,0) and diagonals unte
 non-(+1,0) sticks untested (its NNE segment to C and any pt2 return ride); on-foot exits from
 the Firion ledge (east toward the junction (219.5, 226.7) / shelf (228-235, 229-233), south
 toward the pass road) untested.
+
+
+## Session 45 addendum 27 — junction fans; the SOUTH LINE to the central field; GATE 18 TESTED INERT on its anchor
+
+Mesh/junction fans (addendum 26's unknowns, all from fresh loads; sticks are raw, camera-relative):
+- Node 6 (206.77, 232.95): (0,+1) -> (206.59, 224.81) S; (1,1) -> (207.53, 227.57) the vertex;
+  (-1,1) -> (201.24, 226.50); (-1,0) -> (198.31, 232.11); (-1,-1) -> (200.08, 238.19);
+  (1,-1) -> 1.53 smear.
+- Node 10 (206.43, 233.92): (0,+1) -> (207.00, 226.11) road junction; (1,1) -> (207.51, 228.72);
+  (-1,0)/(-1,-1) only dash inside the Firion scene trigger (state 3 refires in the pre-scene
+  lineage; the trigger zone covers the whole junction, mesh (206, 234) to vertex (207.6, 228.3)).
+- Node 7 (203.17, 239.34): (0,-1) -> (198.57, 244.02) ledge line; (0,+1) -> (204.52, 230.94);
+  (-1,0) -> (194.77, 237.98).
+- Walking east from Firion's ledge on foot: creeps 0.09/push decaying to 0.02 — walled pocket;
+  the nodes are the only transport there.
+- VERTEX (207.52, 227.55) full fan: (+1,0) none; (0,-1) -> (205.19, 235.30); (0,+1) ->
+  (205.09, 221.17); (-1,0) -> (199.19, 225.87); (1,-1) -> (206.73, 233.58); (1,1) ->
+  (206.85, 225.70); (-1,1) -> (202.79, 220.49); (-1,-1) -> (200.42, 232.22). NO EAST EXIT —
+  the vertex is a cul-de-sac hub in the network too (matches session 43's on-foot trap).
+- Segment selection is position-sensitive within a node zone: from road junction landing
+  (207.07, 226.31) stick (+1,0) ran SW to (204.75, 220.73) (the SOUTH POCKET), while from
+  (207.00, 226.11) the same stick hopped 2.06 to the vertex.
+
+SOUTH LINE (the breakthrough): south pocket (204.75, 220.73) fan: (0,-1) -> (203.90, 229.19);
+(0,+1) -> (203.26, 213.46); (-1,0) -> (196.29, 219.89); (1,-1) -> (207.69, 228.01); (1,1) dash.
+Far node (203.26, 213.46) fan: (0,+1) -> (204.75, 205.29); (1,1) -> (208.91, 207.53);
+(-1,0) -> (194.80, 212.61); (-1,1) -> (197.19, 210.11); (0,-1)/(1,-1)/(-1,-1) north returns;
+(+1,0) dash. Southbound rider (stick (0,+1) throughout): (204.75, 205.29) -> (207.40, 197.78)
+-> (208.25, 189.32) [ch6_s45_south_cur.state]. The line passes the BtoI route-graph point
+(203.99, 210.02) and reaches the CENTRAL FIELD's west band, south of gate 18's latitude.
+
+CENTRAL FIELD GRID: node (208.25, 189.32) is a full 8-way hub: E (216.71, 190.17), N
+(207.47, 197.68), S (208.34, 183.58), W (199.79, 188.48), NE (213.66, 195.88), SE
+(214.76, 184.40), SW (202.84, 182.77), NW (205.08, 191.72). Node (216.71, 190.17) fan:
+(0,-1) -> (215.44, 198.57); (0,+1) -> (215.61, 184.58); (-1,0) -> (208.30, 188.90);
+(1,-1) -> (221.11, 194.00) ACROSS the water; (1,1) -> (217.29, 186.12); (-1,1) ->
+(211.63, 184.00); (-1,-1) -> (209.85, 195.18); (+1,0) dash only. On-foot approach to gate 18
+from the SW pins on the lakeshore/structure face at x~217.3-218.2 (creeps N) — the (1,-1)
+segment is the crossing. A purple field manikin stands on the shore near (218-220, 192-195)
+(visible in s45_g18.png; not engaged).
+
+GATE 18 (222.00, 193.50) TESTED: fine stander from (221.11, 194.00) reached (221.97, 193.63),
+0.13 from the anchor [ch6_s45_g18stand2.state]. Cross there did NOT enter — it fired an east
+segment to (225.18, 193.00): the anchor spot is itself a network node. GATE 18 IS INERT for
+Chapter 6 (consistent with both tester families); presumably another chapter's gateway on
+this shared map. Plain Cross (no stick) DOES fire segments at some nodes (the anchor chain:
+(225.18, 193.00) -> (228.95, 186.55) -> (232.91, 181.07) -> (238.29, 176.96), ESE toward
+gate 13) — refining addendum 25: plain Cross fires the node's default-direction segment
+when one exists, else dashes. The (238.29, 176.96) stand was NOT saved (script closed);
+re-derive by 4 plain Crosses from ch6_s45_g18stand2.state.
+
+NEXT: gate 13 (253.93, 181.66) — live in the FACING tester family — via the ESE chain;
+then gate 19 (268.42, 220.73, also facing-live). Gate 22 remains open via pt3/kaname_02
+if a far-north route ever opens; the network so far is a closed basin+junction system
+plus this south line into the central field grid.
