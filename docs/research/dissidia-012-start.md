@@ -7218,3 +7218,28 @@ States: ch5_s37_flash8_slow.state (settled board),
 per-disc states ch5_s37_ns_on*.state (pre-fight board)
 and ch5_s37_ns2_on*.state (post-two-wins board).
 
+
+
+### Session 37 addendum 3 — False Hero stalls the dumb block
+
+False Hero Lv 13 (Warrior of Light manikin, HP 1727,
+Demon Wall summon) from disc 20 up: the Ch4 dumb block
+(square,square,cross,triangle) STALLED — 70 rotations,
+only 172 net damage. Measured dynamics: her BRV kept
+draining to 0 (broken at rotation ~15, pool dumped to
+0), his BRV sat at 870-980, he landed one 1004-damage HP
+attack at rotation ~36 (her HP 2216 -> 1212), and his HP
+ticked UP +48 twice (1558 -> 1606 -> 1654: a regen
+effect). The battle clock expired during the stall; the
+decision went to him (90% HP vs her 55%) and she was
+returned to board disc 20 (post-loss state
+ch5_s37_hero13_loss.state; fights are therefore restarted
+from the pre-fight disc state at full HP, not continued
+from the loss state). Lesson restated from Ch1: the dumb
+block is repeated HP attacks at base BRV and only works
+when the foe closes distance and doesn't block; a
+defensive Lv 13 needs a BRV-build/spend cycle (Circle =
+BRV attack builds from range, Square spends at >= ~480
+BRV) — s37_fight2.py, plus the deterministic drift
+search as fallback.
+
