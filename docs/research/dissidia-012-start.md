@@ -7319,3 +7319,42 @@ unknowable until the chain resolves; and a chain LOSS
 risks the pending KP — savestates before a chained
 engagement are the insurance.
 
+
+
+### Session 37 addendum 7 — NORTH SANCTUARY GATEWAY CLEARED
+
+Remaining board work, in order (all from settled states,
+s37_settle2 banking after every win):
+
+- Imitation Despot Lv 13 (HP measured 1568) engaged
+  THROUGH the chain from ch5_s37_peek.state (Cross = NO
+  on "Cancel chain?", poll Crosses hit Engage): WIN in
+  40 rotations of the policy, zero HP damage; she was
+  broken once early, irrelevantly. MID-BATTLE LEVEL-UP
+  #2: her HP cell 2216 -> 2276 (Lv 15). Reward +234 gil.
+  The chain then ended (nothing in range of disc 20) and
+  banked NOTHING — both Lv 13 wins missed the 90-second
+  KP chance. KP RULE SETTLED: a win pays 1 KP only if
+  the chance is met, times the chain multiplier; gil is
+  always paid (+104 per Lv 8 win, +234 per Lv 13 win).
+- Chest A1 (from 10, aim up): Iifa Leaf. Chest A5 (from
+  30, aim down): Soul of Patience. (Both match the wiki.)
+- Idle Sky Pirate Lv 13 (HP 1) from 24 up: WIN in 8
+  rotations, +1 KP (chance met, no chain), +234 gil —
+  BUT the block search took 7 polls and he acted first:
+  the battle opened with her HP already at 658 (Torrent
+  landed during the search, ~1618 damage from 2276).
+  WARNING: against the HP-1 pirate class, the foe moves
+  during the block-search polls; he nearly one-shot her
+  (the guides' warning is real). Faster block acquisition
+  matters for this fight shape.
+- Chest E1 (from 14, aim up): Zombie Rag.
+- Stigma (from 12, aim up): gateway cleared — state
+  20 -> 2, landing at the gate01_03 anchor (113.7, -21.8).
+
+FIELD STANDING after North Sanctuary: Lightning Lv 15,
+HP 2276/2276 (CLEARING A GATEWAY FULLY HEALS), Gil 3308,
+banked KP 79 (74 + 5). State ch5_s37_field1.state,
+standing before the cleared (re-enterable) blue gateway.
+Loot: Iifa Leaf, Soul of Patience, Zombie Rag.
+
