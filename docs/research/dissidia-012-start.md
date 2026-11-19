@@ -6429,3 +6429,26 @@ Ramuh summonstone, Zidane assist). States: `ch4_s35_nm_board` (board
 control), `ch4_s35_nm_census.state` (scan cursor back on 63, census
 done), census shots `s35_nm_g<grid>.png`, log `s35_census_nm.log`.
 
+### S35 North Melmond — play (part 1)
+
+- **Imitation Despot Lv 3** (disc 52; Opponent Info measured: HP 1121,
+  CP 332, BRV 107, ATK 13, DEF 15, LUK 11, Cursed Ring x2, Defense
+  -50%): standard rotation LOST (23 rot; she took the full 1939 — this
+  Despot hits far harder than West Melmond's Lv 3s). **Drift +5 WON**,
+  32 rotations, her HP 227 left. Rewards: 1 AP, +24 Gil (846). No
+  level-up (still Lv 4), no battlegen seen. **Gauge stayed 0 — the win
+  missed the "Win within 90 seconds" KP Chance.** Board HP persists
+  between fights (she continues at 227/1939). States:
+  `ch4_s35_nm_prompt52`, `ch4_s35_nmdespot_loss`,
+  `ch4_s35_nmdespot5_winraw`, `ch4_s35_nm_despot_down`.
+- **Chest 51 = Oak Staff** (matches guide). States:
+  `ch4_s35_nm_chest51_open`.
+- Harness fix: s35_nav's scan-exit range capped at grid 59; North
+  Melmond's entry is grid 63, so the boot check never left Scan Mode.
+  `s35_nav2.py` widens it to 80 discs. (Lesson: board id ranges vary;
+  gate scan-exit on the pointer being ANY record slot, not a fixed cap.)
+- Pre-battle flow note: engaging a piece may show a one-page tip
+  carousel ("Team Up! -Wall Rush Combo-") before the Opponent Info
+  card; Cross advances tip -> card -> battle. s35_adv.py (cross x8 with
+  shots) reads the card reliably at press ~4.
+
