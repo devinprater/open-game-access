@@ -8190,3 +8190,94 @@ ch6_s41_postfight.state (field, corridor mouth, HP 1525).
 NEXT: north up the corridor to (272, 166.6), then probe
 east to gate 14's anchor (305.0, 166.6) for True Intent;
 gate 20 (319.3, 193.6) after that.
+
+### Session 41 addendum 12 - GATE HUNT: gate 14 inert from the west, the X~290 ridge, corrected gate table, live families, north road (2026-11-19)
+
+GATE 14 (305.0, 166.6): approached from the west along the
+Z~166-175 shelf (corridor top east). The anchor is inside
+a wall; the standable edge is (303.2, 166.6), 1.79 short,
+and Cross there gives NO reaction (unlike gate 19, whose
+tester fired from 1.79). The pocket has no east/north exit
+(NE probe stuck at once). Gate 14 is not enterable from
+the west in this story state.
+
+THE X~290 RIDGE: a N-S barrier at X~290-292 confirmed at
+four latitudes: shore Z~141-152 (pinch at (289.9, 147.6);
+manual pushes: NE/SE zero displacement, E slides down to
+(290.6, 141.4) and stops), rim Z~182-186 (terrace ends at
+(292, 184); north is a slide slope), plateau Z~194-201
+(ends (290.5, 198.1)). The ONE crossing is the gate-14
+shelf itself at Z~166-175 (walked X 273 -> 303 freely).
+The shore strip east of the corridor mouth runs Z~147-152
+to X~290.6 and dead-ends; a SE slope from the corridor top
+(272.4, 168.2) descends to (280.8, 158.7), joining shelf
+to strip. The corridor-mouth manikin (Lv 7 ?, HP 702,
+Ultimecia's Castle) RE-ARMS: beaten a second time from the
+pre-fight state, flawless (HP 1791 throughout), +84 gil;
+that lineage's state is ch6_s41_postfight.state (gil
+9,714).
+
+GATE 20 (319.3, 193.6): NOT reached by any route. The
+Legendary Lake pass (defile at X~260-264) DOES open east
+at Z~194-201 onto a high plateau (walked to (284.2, 199.0)
+then east to the ridge at (290.5, 198.1)) - a dead end.
+Gate 19's pocket is boxed N/E/W (only the south pass).
+
+GATE TABLE CORRECTED (the session brief's coordinates for
+gates 15-17, 21, 22 came from another chapter's reshuffle;
+this map is shared across chapters and gate->point is
+re-dealt per chapter). Ch.6 gate -> point: 11 -> (220.4,
+111.0); 12 -> (210.6, 152.9) Sunken Lake; 13 -> (253.9,
+181.7) Legendary Lake; 14 -> (305.0, 166.6); 15 -> (366.0,
+151.9); 16 -> (331.5, 126.0); 17 -> (154.1, 229.4);
+18 -> (222.0, 193.5) (the empty gateway at Firion's
+ruins); 19 -> (268.4, 220.7) Legendary Lake north;
+20 -> (319.3, 193.6); 21 -> (315.1, 270.4); 22 -> (292.5,
+312.0). Point table (base *(0x09AEF944) = 0x095E61C0, rec
+0x3C, pos floats +0x24/+0x2C) names: pt0/1/2/3/18 =
+POS_jumpgate (teleport pads) at (213.0, 120.8), (331.1,
+136.0), (163.1, 230.6), (292.7, 301.0), (220.7, 107.6);
+pt16/17 = POS_emekano (manikin spawns) (194.0, 165.1),
+(304.8, 296.5); pt26 = POS_mes_gate (332.2, 123.5);
+pt34 = POS_cpuHotB (218.7, 193.5) = Firion's CPU point.
+
+GATE FAMILIES re-read AFTER the Legendary Lake clear -
+IDENTICAL to session 39's pre-clear read, so the markers
+are segment membership, not story progress. Facing-cone
+(tester) family lh(ptrA+4) >= 0: gates 19 (25), 22 (26),
+13 (28). Volume family lh(ptrB+0xE) >= 0: gates 22 (3),
+11 (0), 16 (1), 17 (2). Gates 14/15/18/20/21 are inert in
+both families - other chapters' segments on this map.
+LIVE candidates for True Intent / Ryukahn: {22, 11, 16,
+17}.
+
+THE NORTH ROAD (the guide's Crescent Lake route): from
+Firion's ruins (222.4, 194.0) west, then NORTH at X~213-219
+to (219.5, 226.7), bending NE along the mountain foot to a
+shelf at (228-235, 229-233) - a dead end under the
+mountains (a dark rift portal shows beyond the ridge from
+(235.7, 229.0)). West from the bend and NW from the shelf
+are walled. As walked, the road does not reach gate 17.
+
+JUMP GATE pt0 (213.0, 120.8): reached down the open south
+shore from the moogle lowland (X~198-213, Z 144 -> 120).
+Standing on it + Cross: NO reaction (Cross just dashes).
+Inert for now, or one-way landing pads.
+
+GATE 11 (220.4, 111.0): approached to 1.83 (contour at
+Z~112.8; the anchor sits 1.8 south past a slope break).
+The stand-and-Cross test was cut off by a Legion tunnel
+drop (two drops this session, both ~20 min into quiet
+runs; the fine walker's scratch state recovered Kain both
+times). UNRESOLVED. Resume state: ch6_s41_g11.state
+(219.6, 112.8), gil 9,630 lineage, HP full.
+
+NEXT (session 42): finish gate 11 (approach the anchor
+from below - the basin around jumpgate pt18 (220.7,
+107.6)); then the remaining live candidates in order:
+gate 16 (331.5, 126.0; SE cluster with jumpgate pt1 and
+mes_gate pt26), gate 17 (154.1, 229.4; W cluster with
+jumpgate pt2), gate 22 (292.5, 312.0; both families).
+Also unexplored: the ruins<->anchor band (X 223-254,
+Z~188-196) the guide's route may use, and the barred
+gateway / Pink Tail chest geography west of the lake.
