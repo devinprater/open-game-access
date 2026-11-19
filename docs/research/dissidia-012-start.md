@@ -7469,3 +7469,55 @@ attack, no chest, no Reaper sighting in any sweep screenshot. It
 remains unlocated — possibly east-field content, possibly gated on a
 later story beat. NOT blocking: the guides' critical path is the
 gateway. States: ch5_s37_reaper1/2/3.state.
+
+
+### Session 37 addendum 12 — Forsaken Kingdom: both Lv 13s down, Odin + Potion claimed
+
+**Entry:** from `ch5_s37_north2.state` (panel up), Cross: state 2 -> 5
+-> 20, start disc 20 = A3 (matches the wiki). No blocking entry
+dialogue. West-half BFS: prompts 11 (False Hero) from 10 right / 21 up;
+31 (Ephemeral Summoner) from 30 right / 21 down; chest prompt 22 from
+21 right. Disc 40 (A5) is a dead end.
+
+**C3 chest (22) = 2,000 gil** (wiki match), claimed from 21 aim right.
+NOTE: the first claim was on a BFS branch; after the Hero fight (which
+started from the pre-chest on10 state) the chest was re-claimed on the
+fight timeline — check which timeline a state belongs to before
+building on it.
+
+**False Hero Lv 13 (HP 1,727)** from 10 aim right, fight3 policy:
+WIN in 29 rotations, her HP 2276 -> 2087 (she took one hit early,
+during the 4-poll block search; a +61 HP tick mid-fight, seen again
+below — likely a level/regen effect). Settled: gil 3,542, gateway KP 1
+(the "Win battle" chance pays 1 KP per win). She reached Lv 16 from
+this win's EXP (board HUD after the next fight).
+
+**Ephemeral Summoner Lv 13 (HP 1,568)** from 21 aim down: FIRST
+ATTEMPT LOST. The block search took 20 polls (vs 4 for the Hero) and
+the Summoner free-fired through it (her HP 2,087 -> 1,817 before the
+policy started); its damage barely moves its own BRV cell, so the
+policy's BRV-based defense triggers fired too late; she was broken at
+rot 18 and killed at rot 23 (foe left at 952). Board loss = attempt
+reset: she keeps her fight-ENTRY HP (2,087), piece restored.
+RETRY WITH WAIT=+10 DRIFT: WIN in 24 rotations, her HP -> 790.
+Settled: gil 5,776, gateway KP 2. Lv 17 from this win.
+
+**Full board map (fk2 BFS after both pieces fell):** spine 21-22-23-24;
+11 up = prompt 1 (Odin stone); 23 up = prompt 13 (Potion); 33 down =
+prompt 43 (Ephemeral Phantom Lv 23 — NOT engaged; it guards only the
+two row-5 chests, Blazefire Saber + Mythril); 24 right = prompt 25 =
+WARRIOR OF LIGHT boss (F3). No C2/C4/E4 discs (11 right, 31 right,
+33 left/right all self-loops).
+
+**Odin AUTO summonstone claimed** from 11 aim up (his line: "Seeking
+assistance? Then I shall split your enemies in two."). Claiming it
+plays a short board dialogue (Lightning: "Fine. Then let's go.") that
+eats movement inputs until advanced through — summonstone claims can
+carry dialogue; advance ~16 Crosses before moving.
+
+**Potion (13) claimed** from 23 aim up: "HP recovered 100%" — full
+heal to 2,398 (Lv 17 max). Standing: `ch5_s37_fk_potion.state`, disc
+23, Lv 17, HP 2398/2398, Gil 5,776, gateway KP 2, banked KP 79.
+NEXT: the Warrior of Light (disc 25 from 24 aim right). The Phantom
+and its two chests are optional and stay untouched unless the boss
+route changes.
