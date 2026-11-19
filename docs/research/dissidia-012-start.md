@@ -9620,3 +9620,89 @@ held. Chapter 6: Sunken Lake done, Hidden Darkness done
 Intent, Ryukahn, Exdeath Lv 18, the farm arc. Canonical
 resume: ch6_s47_ll_finished.state (field at gate 19's
 exit). Branch NOT merged - chapter incomplete.
+
+## Addendum 35 - Session 48 (2026-11-19): the shelf cluster is a CLOSED mesh; the Firion scene is proximity-triggered; gate 20 not reachable from the shelf
+
+Resume verified: ch6_s47_ll_finished.state -> (268.50,
+219.40), state 2, gil 9,774 (adv lineage). Session 48
+toolkit in WSL ~/d12s: s48_fight.py (rot4, s48
+prefixes), s48_probe.py (on-foot fan), s48_walk.py v2
+(feedback walker: tests all 8 sticks from a scratch
+state each step, commits the best real displacement),
+s48_ride1.py (single stick+Cross ride with save).
+
+SCOUT of the shelf -> gate 20 leg, run from
+ch6_s44_shelf.state (canonical lineage, throwaway;
+(297.42, 173.33), gil 9,750):
+
+- The shelf point IS a network node. Cross fan:
+  N -> (290.89, 179.13); NE -> (296.25, 181.08) [face
+  base]; E -> (298.34, 178.04) 4.80; SE dash 2.11;
+  S -> (302.95, 167.00) [gate-14 pocket bench];
+  SW -> (298.74, 165.71); W dash 3.11;
+  NW -> (288.88, 172.81).
+- Knoll node (290.89, 179.13): full 8-way fan (all
+  segments): N (284.56, 185.50), NE (290.27, 184.66)
+  [lane midpoint], E (294.84, 182.08), SE (298.21,
+  178.29), S (296.85, 172.42), SW (289.56, 172.54),
+  W (284.17, 173.17), NW (281.92, 179.62).
+- Node (294.84, 182.08): E = 0.16 (pinch, no segment);
+  N (287.09, 185.29), NE (290.33, 184.66), SE (297.82,
+  179.05), S (299.00, 175.82), NW (285.96, 180.73).
+- Face base (296.25, 181.08): E = 0.61 (wall); N
+  (288.73, 184.88), NE (291.63, 184.05), SE (298.34,
+  178.03), NW (287.31, 180.17). On-foot v2 walker from
+  here toward gate 20 stalls in 3 steps (best SE
+  +0.43, then all <= 0): the face base is a pocket.
+- Pocket bench (302.95, 167.00): NE -> (299.24,
+  172.79) is the only segment; E/SE = bench centre
+  (303.25, 167.25), no east exit (network confirms
+  addendum 25's on-foot seal). N/NW nudges give
+  state68=16 (brief popup) toward gate 14's anchor.
+- Lane midpoint (290.27, 184.66): E = 0.87 (pinch);
+  N (283.03, 185.62), NE (287.07, 185.30), SE (295.84,
+  181.37), W (285.25, 177.21), NW (281.48, 182.82).
+  This closes addendum 25's one gap (no N-probe from
+  the lane midpoint) at network level too.
+- Plain Crosses at the knoll ride a default chain SW:
+  (294.55, 181.70) -> (289.50, 175.16) -> (285.44,
+  172.65) -> (279.50, 169.92) -> (274.30, 163.54) ->
+  (269.26, 156.99) -> (264.21, 150.45) (the corridor's
+  west shore band).
+
+VERDICT: the shelf / knoll / lane / face / pocket
+cluster is a CLOSED mesh - every landing sits inside
+X 264-303, Z 150-186, and east is pinched at network
+level (0.16 / 0.61 / 0.87) as well as on foot.
+Addendum 24's "untested continuation" E/NE of
+(297.42, 173.33) toward gate 20 is now TESTED AND
+CLOSED. Gate 20's area is NOT entered from the shelf
+cluster (area D's reachable ground).
+
+THE STATE-3 FAN READINGS ARE FIRION TALKS. Firion
+stands beside Kain on the field (visible in field
+shots); a held-stick Cross with no segment talks to
+him. In the canonical (pre-scene) lineage the full
+4-line scene fired at the face base (296.25, 181.08):
+Firion "Honestly, I've been having a hard time
+fighting off the manikins." / Kain "We are
+outnumbered." / Firion "I was thinking on how to buy
+us some time to get our crystals..." / Firion
+"There's no way we can continue to just fight
+endlessly..." - the SAME scene session 45 fired at
+the junction mesh (206.29, 234.08). The scene trigger
+is Firion-proximity, not a unique junction position.
+In the adv lineage the scene is done (his talks give
+the repeat line). A golden chest stands on the path
+at the face base, unclaimed in the canonical line.
+
+chainE fan (ch6_s45_chainE.state, adv lineage):
+N (256.19, 209.25), NE (259.72, 210.95), E (263.72,
+207.74), SE (264.06, 201.21), W (248.11, 200.08),
+NW (251.98, 202.70); S/SW = Firion talk. All local
+to the gate 13 hub <-> gate 19 mesh (X 248-264,
+Z 200-211).
+
+NEXT: on-foot east from chainE toward gate 20's
+anchor across the unexplored band X 264-319,
+Z 194-220 (v2 walker, adv lineage).
