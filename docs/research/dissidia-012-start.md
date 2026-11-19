@@ -9706,3 +9706,70 @@ Z 200-211).
 NEXT: on-foot east from chainE toward gate 20's
 anchor across the unexplored band X 264-319,
 Z 194-220 (v2 walker, adv lineage).
+
+### Session 48 addendum 36 - THE EAST BAND ENDS AT THE X~290 RIDGE; GATE TABLE RE-READ: GATE 22 IS THE ONLY LIVE MAIN-LINE GATE; GATE 18 STILL INERT; NORTH ROAD RE-WALKED CLEAN (2026-11-19)
+
+RESUME VERIFIED: ch6_s47_ll_finished.state -> (268.50, 219.40),
+state 2, gil 9,774 (Kain Lv 10, HP full, KP 104).
+
+THE EAST BAND (on foot, feedback walker s48_walk.py, from
+chainE (255.80, 204.06)): the Z~198-204 band east of the
+lake's north shore is open ground all the way to X~290.4:
+walked (255.80, 204.06) -> (270.27, 200.34) -> (280.83,
+199.99) -> (289.22, 200.44), then the band bends south along
+a face and STALLS at (290.43, 197.99) - every stick <= +0.07
+progress. This is the same X~290-292 ridge s41 measured at
+four latitudes (addendum 12); the band is a fifth latitude
+and it is closed here too. (One leg's ssh tunnel timed out
+mid-walk; the scratch state had committed step 7 at (270.27,
+200.34) and the walk resumed from it - no progress lost.)
+Scout states: ch6_s48_scout4_final.state (280.83, 199.99),
+ch6_s48_scout5_step10.state (290.43, 198.29).
+
+GATE 19'S EXIT, ON FOOT EAST: stalls - the walker slid from
+(268.50, 219.40) down the face to (270.09, 212.98) (net
++1.6 X) and stopped; the exit stand is a mesh pocket on a
+slope, no on-foot east exit (consistent with addendum 12's
+"Gate 19's pocket is boxed N/E/W").
+
+GATE TABLE RE-READ (GateMgr = *(ctrl+0x88) = 0x095D7110,
+from ll_finished): gate 19 now reads lifecycle state 5,
+timer 122.0, facing tester A+4 = -1: the FINISHED signature
+(compare gate 12 in s39). Clearing Legendary Lake via gate
+19 closed its facing tester. Gate 13 (Hidden Darkness)
+keeps A+4 = 28 (the repeatable farm board stays live).
+GATE 22 (292.50, 312.00) reads A+4 = 26 AND B+E = 3 - live
+in both families, the ONLY main-line gate still live.
+GATE 20 reads -1/-1 - it was in NEITHER tester family in
+s39's read either; the session brief's "gate 20 = Gateway
+of True Intent" was an assumption from the area graph, and
+the tester evidence says gate 20 belongs to another
+segment (like 14/15/18/21, inert in both families). TRUE
+INTENT / RYUKAHN must be gate 22 and/or the volume-family
+gates {11, 16, 17} (s41 addendum 12's candidate set) - the
+barred gates were only ever tested BEFORE Legendary Lake
+was finished.
+
+THE REAL TREK WEST (rider s47_ride.py from ll_finished):
+7 hops - (264.40, 212.58) -> (256.84, 209.50) -> (252.59,
+201.70) -> (244.48, 198.45) -> (236.98, 193.51) -> (228.07,
+194.70) -> (219.83, 194.00) = Firion's ruins (state
+ch6_s48_trek1_hop6.state, gil 9,774 - adv lineage intact).
+
+GATE 18 RE-TEST (post-LL): fine stand at (221.78, 193.56),
+0.23 from the anchor (222.00, 193.50); Cross fired a FIRION
+TALK ("Kain, have you come across any of the others?") - he
+stands at the ruins within talk range of the anchor. No
+entry, no state 5. Gate 18 remains inert.
+
+NORTH ROAD RE-WALK (post-LL, on foot from the ruins):
+(219.83, 194.00) -> north along X~215-219 -> (219.33,
+224.17) at the road junction (state ch6_s48_nroad1_final.
+state). NO Fallacious Tree, NO boulder, NO manikin - the
+road is exactly as s41 walked it pre-LL. The guide's
+tree/boulder are not on this road in this story state.
+
+NEXT: the shelf (228-235, 229-233) NE of the junction, then
+its north face; the pass road west past the trap face to
+gate 17 (re-test the portcullis post-LL); gate 11 the same
+if 17 stays barred.
