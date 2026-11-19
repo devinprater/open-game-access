@@ -8994,3 +8994,46 @@ load ch6_s44_shelf.state (canonical), probe N/NE/E,
 waypoint-walk to gate 20, stand+Cross its anchor,
 then north past gate 21 (stand+Cross), pt3 ride,
 kaname_02, gate 22 stand+Cross at (292.50, 312.00).
+
+### Session 45 addendum 25 - PADS ARE A QUICKMOVE NETWORK: pt2's LANDING IS A NODE, CHAIN RUNS NNE INTO THE BASIN; GATE 14 INERT AT CLOSEST APPROACH; SHELF-EAST KNOLL CLOSED (2026-11-19)
+
+GATE 14 ANCHOR TEST (from ch6_s44_shelf.state via the
+SE chute, re-descended: (299.20, 172.98) -> (302.14,
+167.74) [ch6_s45_pocket.state]): the fine stand stalls
+at (303.22, 166.81), 1.83 from the anchor (305.04,
+166.59) - the pocket's east wall at X~303.2 confirmed
+at 8-frame resolution; the anchor cannot be stood on
+from the pocket. Two Cross presses at 1.96: no entry,
+no state change (state 2 throughout). Gate 14 is
+INERT from the only reachable side.
+
+SHELF-EAST HIGH GROUND = A CLOSED KNOLL: north of the
+shelf strip a ramp climbs NNW from (297.6, 177.3) to a
+lane at Z~185-186 (X 284-288) [ch6_s45_e3/e4.state];
+north from the lane's west end is a hard wall (0.00 x
+2); east along the lane pinches (due-E 0.00 at
+(286.45, 185.56)); NE travel descends ESE along the
+contour back to the face base (296.30, 181.04). East
+from the face base is walled at X~299.0. No exit
+north or east - another scenic pocket. (One gap: no
+N-probe from the lane's midpoint ~(290, 184.7).)
+
+PAD MODEL REWRITTEN - NODES AND SEGMENTS: Cross at
+pt2's LANDING (165.45, 238.38) [ch6_s43_pt2ride.state]
+does NOT ride back to pt2. It fires a SECOND segment
+NNE: +7.77 to (167.88, 245.76), complete within ~25
+frames (trajectory-sampled). A further Cross there
+fires a THIRD segment ENE: +4.04 to (171.31, 247.89)
+on the frozen-basin ledge. At (171.31, 247.89) plain
+Cross = 0.33 dashes only (no segment in the arrival
+facing). So jump pads are nodes in a quickmove
+network; each Cross rides one segment, and the
+segment taken appears facing-dependent. The pt2
+chain so far: pt2 (163.14, 230.55) -> (165.45,
+238.38) -> (167.88, 245.76) -> (171.31, 247.89).
+Session 43's "hard stop" landings were nodes awaiting
+the next Cross. NEXT: facing-keyed Cross tests at
+(171.31, 247.89) (N/E/S/W), then follow the chain
+east/north across the basin; return-segment tests at
+each node (face the previous node + Cross); pt0's
+landing tested the same way.
