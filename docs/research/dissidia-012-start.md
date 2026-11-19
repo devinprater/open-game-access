@@ -6722,3 +6722,60 @@ expect to raise it again as she levels.
   level-up first would widen the margin only slightly; the kill is
   BRV-based, ~3200, so HP is nearly irrelevant).
 
+### S35 Southern Shrine — play (part 4): boss + CHAPTER 4 COMPLETE
+
+- **Chest 15 = Soul of Valor** (matches the guide pair with chest 1,
+  which was never opened — it sits in the Vision-gated west cluster).
+- **Ephemeral Phantom Lv 11** (disc 11; card: HP 1606, CP 342,
+  BRV 153, ATK 23, DEF 22, LUK 15, Cursed Ring, Defense -50%):
+  standard rotation WIN 25 rot (her HP 576 -> 414). **Phantom's
+  Desire x1 AND Phantom's Dream x1 created**, 1 AP, +176 Gil (1984).
+  Gauge 5.
+- **The ??? piece (37)** opens with a long cutscene, not a card:
+  Tidus confronts Jecht ("Taking you down, old man"), Yuna insists on
+  fighting herself ("I'm not moving. I know you won't hurt me."), the
+  Emperor appears. The battle that follows is against **Jecht's body**
+  — the Emperor explains afterwards: "He has given his own strength
+  to his son. The man's body is now but an empty vessel." Measured
+  battle block (via `s35_bossprobe2.py`, a her-HP-wildcard scanner —
+  the cutscene runs ~44 advance polls before the block exists):
+  **foe HP 3270, foe BRV 414, stage pool 569**, block base 096c6508,
+  her HP 414 carried in (no story heal). **Standard rotation WIN in
+  49 rotations** — the foe's BRV stayed pinned at 414 all fight and
+  Auto Recovery outpaced its damage (her HP 414 -> 535). Rewards:
+  **LEVEL UP 12 -> 14**, **Learned Reverse Ground Dash**, **Learned
+  Ground Dash**, **Despot's Dream x1 created** (battlegen as shown),
+  1 AP, +414 Gil (2398). NOTE: an earlier pass through this sequence
+  with scene-script crosses let the battle start unobserved and she
+  DIED (414 HP, no inputs) — the Retry/Flee menu and a 10 PP loss
+  consolation were the tells; the clean run went through
+  `ch4_s35_ss_prompt37.state` with the long-poll fight script
+  (`s35_fight9.py`, poll cap 60).
+- Post-battle scenes: the Emperor's exposition, Jecht's body
+  dissolves, Laguna and Vaan regroup with Tidus and Yuna, narration
+  ("So resolute was his will, the crystal could have been revealed at
+  any moment."), then the game returns to the **main menu — CHAPTER 4
+  COMPLETE**. The Southern Shrine gauge (5) paid out at chapter end:
+  **banked KP 69 -> 74**.
+- **Chapter 5 opening state saved UNPLAYED**: main menu -> Story Mode
+  -> Main Scenario 012 -> Chapter 5 - Decision (lead **Lightning
+  Lv 13**, "Lightning arrives at the Cornelia Plains, where Sanctuary
+  is located"). Opening narration ("Kefka's enigmatic words— Kain's
+  betrayal—") and a short field dialogue end with the hand-over
+  message ("The character in your control has changed."). State
+  **`ch5_s35_chapter5_start.state`**: Lightning Lv 13, HP 2155, free
+  field control on a coastal cliff, Gil 2398, KP 74, a gateway portal
+  visible across the water. No Ch5 play was done.
+- Left unfinished on the Southern Shrine board (documented, optional):
+  the Vision-gated west cluster — Ephemeral Vision Lv 11 (disc 0),
+  chest 1 (guide pair: Pink Tail), Potion (40), False Hero Lv 6 (60).
+  Also unvisited in Ch4's field segments: segment 1's chests (EX
+  Charge, Rosetta Stone) + Counterfeit Wraith Lv 4; segment 2's False
+  Stalwart Lv 10, Oerba Beads, (Cure), Mogshop 9.2.5; and the Blue
+  gateway's two Jump-gated pieces. Cleared gateways do not reopen, so
+  these stand as measured-and-missed for this playthrough.
+- **Yuna at chapter end: Lv 14, Gil 2398, banked KP 74** (shared
+  pools). Chapter 4 boss order note for the record: the guide's
+  "Emperor Lv 18" is the story's puppet-master; the fought boss was
+  Jecht's emptied body (HP 3270 measured).
+
