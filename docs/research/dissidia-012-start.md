@@ -8553,3 +8553,38 @@ field display. True current HP to be taken from the
 battle block at the next fight.
 
 NEXT: explore the frozen basin E/N from the landing.
+
+
+### Session 43 addendum 19 - THE X~207.7 FACE IS A TRAP VERTEX; basin ledge mapped; the junction must be approached from the south (2026-11-19)
+
+THE NOTCH (207.70, 228.04) IS A ONE-WAY TRAP: three
+walkers (greedy, s40-faithful scan-nav with scratch-state
+trials + 0.45 visit penalty, and a 6-frame fine walker)
+all net ZERO progress from this exact point - position
+holds (207.7, 228.0) to two decimals over 20-30 steps.
+Short trial pushes move Kain within the notch, but every
+committed push returns him to the vertex (a concave
+collision corner). Do not resume from ch6_s43_stallE /
+the notch checkpoints in ch6_s43_road.state. The road
+walker's own oscillation slid him in. Canonical resume
+remains ch6_s42_scout.state.
+
+BASIN LEDGE (from the pt2 landing, addendum 18): walked
+E along z 243-248 to x~199; north capped at z~248.7 at
+every longitude tried (186, 191, 197); NE climb from
+(199.3, 243.6) stalls; west from the landing drains back
+SW to (159.3, 233.9) at the gatehouse. The ledge is a
+pocket system of its own - scenic, gated by the ridge on
+all sides tried. No continuation to gate 22 found there.
+
+DECISION: the junction (219.5, 226.7) and the shelf
+(228-235, 229-233) are approached from the SOUTH on the
+documented north road out of Firion's ruins, starting
+from ch6_s41_ruins3.state (222.40, 194.00) - an ancestor
+of the canonical lineage (s42's west-road walk started
+there). At the shelf: boulder protocol toward the ridge/
+portal, east-of-shelf probes, shelf north-face scan-nav.
+If the way north opens in this fork, the Rosetta Stone
+chest and the pass manikin are re-taken in-fork before
+any gateway entry, restoring parity with the canonical
+standing.
