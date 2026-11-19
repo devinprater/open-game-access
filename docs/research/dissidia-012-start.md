@@ -9483,3 +9483,88 @@ do NOT contest the ranged game: Kain's BRV attacks whiff at
 range exactly like his Squares. Damage remains possible
 only in the foe's spend window (s46 fight6: foe surged,
 closed, and Kain traded 1,024 before dying to the finisher).
+
+
+## Addendum 33 - Session 47 (2026-11-19): rot4 breaks the board open; Legendary Lake FINISHED
+
+Disc 13 attempt 9 (dumb block, WAIT 0, from the pre-state):
+the foe closed on its own schedule at rotation 21 and Kain
+dealt 276 (1364 -> 1088) with his HP untouched - then the
+foe went passive at range for 60+ rotations (BRV 112, pool
+static) and neither Cross dashes nor rotating drift closed
+the distance; rotating drifts cancel out and net ~zero
+displacement. Run killed at rotation 80. Disc 13 PARKED
+after 9 total attempts, per the brief, pending the farm.
+
+BOARD MAP (direction-press probes, all measured this
+session; the board is a pillar grid):
+- 23: up=PROMPT 13, left=22, right=24, down=none.
+- 22 (hub): up=12, down=32 (deploy), left=21, right=23.
+- 21: left=PROMPT 20, right=22.
+- 20 (post-clear): up=10, down=PROMPT 30, right=21.
+- 10: down=20 only (empty spur).
+- 12: up=PROMPT 2, down=22.
+- 24 (post-clear): up=14, down=PROMPT 34, left=23.
+- 14: down=24 (empty standable).
+
+DISC 20 (Delusory Dragoon Lv 7, HP 1,364) - BEATEN.
+Two single-press policies stalled at range first (dumb v1:
+no drift while BRV >= 120; dumb v2 drift-always: foe broke
+Kain at rotation 50, zero damage dealt). The winner is the
+canonical s13/s19 rotation, here called rot4: every
+rotation = rotating analog drift + presses SQUARE, SQUARE,
+CROSS, TRIANGLE, with the L+Circle assist chord every 6th
+rotation, cells read once per rotation (~150 frames),
+WAIT 2. It is the TRIANGLE in the sequence that connects
+where lone Squares whiff (compare s13 vs Kuja: the
+square-square-cross-triangle block was the only one that
+damaged the keep-away mage). Fight: foe 1364 -> 832 by
+rotation 10, -> 730 (rot 20), Kain broken at rot 25 (foe
+took the 560 pool, BRV 808) and again at rot 40 (Kain
+1035 -> 580, foe 266), foe at 1 HP at rot 45, WIN at
+rotation 45, Kain 640. Settle: gil 9690 -> 9774 (+84); no
+chain prompt appeared. Kain LEVELED to 10 on this win.
+Post state ch6_s47_f20c_post.state.
+
+DISC 30 = SHIVA AUTO SUMMONSTONE - CLAIMED, no battle.
+Prompt card reads "Summonstone: An unknown summon is
+sealed within." Engage starts her joining cutscene
+("Allow me to lend you my powers. Trust my northerly
+winds..."), advanced with Cross; the crystal vanishes and
+play resumes. A fight-script run against it correctly
+found NO_BLOCK - there is no guardian fight. State
+ch6_s47_shiva.state.
+
+DISC 2 (Fallacious Tree Lv 7, HP 1,364) - rot4 attempt
+from board HP 640: foe -> 528 by rotation 15 (Kain broken
+once, HP intact), then the foe spent its 603 BRV at
+rotation 25 (Kain 640 -> 37) and finished him at rotation
+26. LOSS, foe left at 528. The 640 HP start was the
+handicap (the Dragoon dealt ~530 total from a 1170 start);
+from full HP this is a winnable fight. Pre-state kept:
+ch6_s47_f2_pre.state.
+
+DISC 34 = THE STIGMA OF CHAOS. Prompt card: "Stigma of
+Chaos - Engaging this piece finishes the level." It was
+reachable all along from disc 24 (down); session 46's
+flawed probe script (bad position tracking) is why it was
+never found. LEGENDARY LAKE FINISHED: engaged from
+ch6_s47_stigma_pre.state; state ran 20 -> 0 -> 3
+(dialogue) -> 2 (field). Post-finish field state
+ch6_s47_ll_finished.state: Kain Lv 10, field HP FULL
+1,851/1,851 (Lv 10 max), Gil 9,774, BANKED KP 104
+(gauge 1 converted +1). Firion visible as field companion.
+
+Still owed on Legendary Lake (reset-visit sweep): disc 13
+rematch (rot4 is the untried lever there), disc 2 rematch
+at full HP, discs 1/3/4/5 (behind 13 and 2), Imitation
+Despot Lv 17, Firion assist piece, Black Dragon Spear
+chest, panel-K Multichain. None block the chapter: the
+stigma path never ran through them.
+
+Harness additions (durable in ~/d12s/): s47_fight.py
+(policies dumb/circle/fight6/rot4, foe-HP discovery,
+tolerant mid-battle finder, her-HP range args),
+s47_board.py (explore/go prober), s47_shot.py. NOTE: the
+VM's /tmp was wiped mid-session (restart) - keep master
+scripts in ~/d12s/, not /tmp.
