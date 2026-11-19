@@ -6584,3 +6584,34 @@ left 31 / right 33; 42 up 32; 31 right 32; 33 left 32 / right PROMPT
   `ch4_s35_blueflash_loss` (stall), `ch4_s35_blueflash5_winraw`,
   `ch4_s35_blue_flash_down`.
 
+### S35 Gateway to the Shrine (Blue) — play (part 2) + CLEAR
+
+- **Ephemeral Phantom Lv 11** (disc 1; card: HP 1606, CP 342, BRV 214
+  (153+61, Bravery Bonus: Lv +4), ATK 23, DEF 22, LUK 15): standard
+  rotation WIN 29 rot, NO damage taken (she entered at 1288 HP).
+  **Phantom's Dream x1 created**, 1 AP, +176 Gil (1148). **Gauge +1**.
+- **Idle Sky Pirate Lv 11** (disc 25; card: HP 1606, CP 342, BRV 214
+  (153+61), ATK 20, DEF 23, LUK 15, Bravery Bonus: Lv +4): standard
+  rotation WIN 43 rot, her HP 1288 -> 630 (this one hits back).
+  **Sky Pirate's Dream x1 created**, 1 AP, +176 Gil (1324). Gauge 1.
+- **Chest 26 = Guard Stick** (duplicate of her equipped weapon; pool).
+- **TWO PIECES ARE JUMP-GATED** (measured, spatial): **Counterfeit
+  Wraith Lv 11** (disc 20 at (-18,-4)) and **Idle Sky Pirate Lv 11**
+  (disc 5 at (2,-12)) each sit TWO cells from every standable disc
+  (the intervening lattice cells 21 and 15/4 have no discs). Scan-mode
+  edges to them exist; normal-mode prompts never fire across the gap
+  (nav p-op x30 and BFS single-pair probes and bare-direction probes
+  all negative). They need a Jump skill (Mogshop) — OPTIONAL content,
+  left standing; the gateway clears without them.
+- **Stigma (14) engaged -> GATEWAY CLEAR.** Gauge 1 banked: KP 68 ->
+  **69**. Field re-entry (-21.12, -1.23, 37.98) on the south shore;
+  HP restored. **Yuna: Lv 7, Gil 1324, banked KP 69.** State
+  `ch4_s35_blue_clear.state`. Remaining in Chapter 4: the Southern
+  Shrine Gateway (portal at field (-1.5, 30.7)) — manikins Lv 6-11 and
+  the boss, **The Emperor Lv 18**; Bonus Line 12; guide chests Pink
+  Tail + Soul of Valor. Segment 2's field content (False Stalwart
+  Lv 10, Oerba Beads, (Cure), Mogshop 9.2.5) still unvisited — the
+  Mogshop may sell the Jump skill for the two gated pieces above, but
+  cleared gateways do not reopen, so they are likely lost for this
+  playthrough; recorded as measured, not assumed.
+
