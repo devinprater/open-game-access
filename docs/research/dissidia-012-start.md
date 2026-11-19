@@ -9262,3 +9262,156 @@ Legendary Lake BEFORE fighting; the Imitation Despot Lv 17
 is boss-class for a Lv 9 party - probe levels first, take
 the Lv 7/3 pieces, Firion, Shiva and the chest; the Despot
 and the panel-K Multichain may need the farm arc first.
+
+
+## Addendum 30 - Session 46 (2026-11-19, continued): Legendary Lake board work
+
+Gate 19 anchor (268.42, 220.73) reached on foot from
+ch6_s45_chainE.state (255.80, 204.06) via waypoints (262, 212)
+-> (268.88, 218.73) with the feedback walker; stand state
+ch6_s46_g19stand.state. Banner shot s46_ll19_title_2.png reads
+"Legendary Lake Gateway" firsthand. Deploy disc 32; entry
+Firion/Kain dialogue advanced through; clean board state
+ch6_s46_ll_clean.state: Kain Lv 9, HP 1,791, Gil 9,666,
+banked KP 103. KP chance on this board: "Win within 90
+seconds".
+
+Census (direction-press probes only; standable so far:
+{32 deploy, 22, 12, 21, 23, 24 after its piece fell, 14}):
+- disc 2 = Fallacious Tree Lv 7 (stage World of Darkness),
+  probed from disc 12, PDIR up.
+- disc 13 = Fleeting Flash Lv 7 (stage Crystal World),
+  foe HP 1,364 measured in battle.
+- disc 20 = Delusory Dragoon Lv 7 (stage Crystal World),
+  probed from disc 21, PDIR left.
+- disc 24 = Fleeting Flash Lv 3 (stage Ultimecia's Castle),
+  foe HP 1,121. BEATEN (below).
+- disc 14 = EMPTY standable disc (not a stigma here).
+Unexplored discs: 1, 3, 4, 5, 10, 30, 34 - all behind battle
+pieces. Disc 34 probe still owed: from disc 24 press down
+(an earlier probe script's position tracking was flawed -
+after landing on 14 its "down" test actually moved 14->24,
+so 34 was never truly tested). Still owed per the guide:
+Imitation Despot Lv 17, Firion assist piece, Shiva AUTO
+summonstone, Black Dragon Spear chest, "reach panel K and
+execute a Multichain".
+
+Disc 24 beaten: fight5 (drift policy), foe 1,121 -> 0 in 22
+rotations, Kain 1,791 -> 1,170. Settle: gil 9,666 -> 9,690
+(+24); a chain prompt targeting disc 13 appeared and was
+DECLINED (Circle -> Left+Cross); KP gauge 0 -> 1. Disc 24
+now empty. Clean board resume state: ch6_s46_ll_probe2.state
+(disc 23, Kain HP 1,170, gil 9,690, banked KP 103, gauge 1).
+
+Disc 13 (Fleeting Flash Lv 7, HP 1,364) - five attempts, all
+from ch6_s46_fight_f13_pre.state (prompt focused on disc 13,
+Kain HP 1,170; this boot family's block base 0x096D6CA8).
+Scripts were VM /tmp/s46_fight5.py .. s46_fight9.py
+(ephemeral; policies fully described here):
+1. fight5, drift-only: Squares whiffed at range; aborted
+   spuriously at rotation 49 by a frozen-cells guard
+   (foe 879, Kain 964). LESSON: natural cell freezes of 5+
+   rotations occur during long foe animations - never abort
+   on a tight frozen guard. Mid-battle state kept:
+   ch6_s46_fight_f13_dbg.state (foe 879, Kain 964).
+2. fight6, Cross-approach + Square at BRV >= 120, WAIT 2,
+   no defense: LOSS at rotation 47. Best trade of any
+   attempt: foe 1,364 -> 340 inside the melee window
+   (rotations ~26-32) after the foe's BRV surge; Kain died
+   to a 721-BR HP attack (863 -> 142) plus a finisher.
+3. fight7 = fight6 + defense triggers (foe BRV >= 400, or
+   >= 250 and >= 80% of Kain's HP, or rising >= +80 to
+   >= 300 -> R+direction dodge chord alternating sides,
+   R-hold 40f, analog sidestep) + L+Circle assist chord
+   every 6 rotations: LOSS at rotation 48, only 166 damage
+   dealt. Defense rotations fired rotations 28-40 but the
+   foe's HP attacks still landed in full (1,170 -> 446 vs
+   foe BRV 724; 446 -> 2 vs foe BRV 444). Dodge/guard as
+   scripted did NOT reduce those hits.
+4. fight8, WAIT 5 as a full idle opening (no inputs), then
+   fight6 offense: LOSS at rotation 66; one Square landed
+   (-237). The idle opening did not change the geometry;
+   the foe's ranged BRV fire drained Kain 190 -> 9 and his
+   BRV never rebuilt.
+5. fight9, canonical dumb block (Cross approach + rotating
+   analog drift + Square at BRV >= 120, WAIT 2): best
+   opening of the five - Square landed at rotation 3
+   (-191; foe 1,173 by rotation 4, Kain untouched) - then
+   the run HUNG: the WSL-side python/drv processes vanished
+   (the day's recurring tunnel-drop pattern) while the local
+   ssh hung; attempt abandoned at rotation 4. Nothing lost;
+   the pre-state is on disk.
+Pattern across attempts: this foe wins the ranged game
+outright - its BRV attacks land from range and drain Kain's
+BRV (200 -> ~0 over ~25 rotations) while his Squares whiff;
+damage happens only in the melee trade window after the foe
+surges BRV and closes to spend it. Untried levers for
+session 47: re-run fight9 (best opening); resume mid-battle
+from ch6_s46_fight_f13_dbg.state with the Cross-approach
+policy; other WAIT values (0/1/3/5/10/15 all behaved
+differently per foe in earlier chapters); Circle BRV-attack
+builds to contest the ranged BRV drain; or clear discs
+20/2 first for EXP and come back.
+
+Harness lessons (session 46):
+(a) Battle-block layout: her HP is at word offset i+21
+    relative to the foe-HP word index (b+23 from the block
+    base). Two hand-rolled finders used i+23 and missed a
+    live block for three runs - s18lib.find_block_a is
+    correct.
+(b) Intro-freeze block signature (the working finder): all
+    three pairs equal, her_hp exactly equal to Kain's
+    current HP, her_brv 50-1200, foe_brv 0-3000, pool
+    50-5000, foe_hp 300-3000. The block is populated but
+    FROZEN during the battle intro - accept the candidate,
+    then wait-for-live (cells change) before fighting.
+    Decoy structures exist (e.g. herHP 1220 / foeHP 1160 /
+    BRV 0 / pool 0) and are excluded by the nonzero
+    pool/BRV + exact-HP filters.
+(c) Use a unique RAM-dump filename per dump; repeated dumps
+    to one path appeared to go stale.
+(d) Block base varies per boot: 0x09695798 (twice),
+    0x096D6CA8, 0x096BBF98 seen.
+(e) Cross is the approach in battle; drift-only starves vs
+    ranged foes and Cross-only stalls - the full dumb block
+    is Cross + drift + Square.
+(f) The VS screen advances with Cross ("Next").
+(g) Post-win: results advance with Cross (~10 presses);
+    gil/gauge update late; chain-prompt detection = focus
+    becomes a valid RECORDS slot address != current disc's
+    slot; cancel = Circle -> dialog -> Left+Cross (banks
+    the KP into the gauge).
+(h) Feedback walkers (probe the stick basis, re-probe on
+    drift, no savestates) are the reliable field transport;
+    savestate-trial walkers cost ~5 loadstates/step and one
+    hung 5+ minutes when the tunnel dropped.
+(i) FOCUS_ADDR is a sticky last-focused pointer, not a
+    modal flag; after a prompt, Circle dismisses it and the
+    next single press moves - without Circle, the first
+    direction press is eaten dismissing the prompt.
+
+Standing at session 46 wrap (adv lineage): Kain Lv 9, board
+HP 1,170/1,791, Gil 9,690, banked KP 103, gauge 1, Firion
+assist, Rosetta Stone held. Resume state for session 47:
+ch6_s46_ll_probe2.state (Legendary Lake board, disc 23,
+disc 24 cleared). Next: disc 13 retry (fight9 re-run or the
+dbg-state resume), then disc 20 (from disc 21, PDIR left),
+then disc 2 (from disc 12, PDIR up); probe newly opened
+discs after each fall (34 from 24 down; the 3/14 side from
+13; 10/30 from 20; 1/3 from 2); take Firion assist, Shiva,
+the Black Dragon Spear chest; Imitation Despot Lv 17
+(farm arc first if needed - Exit Gateway -> Continue resets
+a cleared board at full HP keeping gil/EXP; board HP
+persists between fights within one board visit, and Hidden
+Darkness is the proven farm board); engage the stigma to
+finish Legendary Lake. Then the True Intent hunt reopens:
+gate 20's anchor (319.33, 193.64) has never been
+stand-tested in any session; session 45's area graph says
+gate 22's area is reached F->K from gate 20's area, and
+gate 21 (315.09, 270.40) sits on that corridor. Still owed
+from the brief: pt0 return ride test; moogle point
+(196, 144) re-check in the adv lineage; Hidden Darkness
+disc-0 chest probe (needs standing on disc 3 or 10, both
+battle discs; guide HD chests are 500 gil + Soul of Valor,
+and the disc-36 chest claimed in session 40 was one of
+them, NOT the Black Dragon Spear).
