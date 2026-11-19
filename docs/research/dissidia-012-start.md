@@ -6299,3 +6299,35 @@ hanging off its top, the long row-2 chain
 20-21-22-23-24-25-26, and a south-east spur
 24-34-35-45 with 34-31 closing a loop. The gateway's
 KP Chance (Suih): Win battle. Bonus Line Lv 2.
+
+### West Melmond play (part 1)
+
+Harness lesson first: the Scan cursor pointer
+(0x095CD41C) holds 0x00000000 when Scan has never
+been opened on this board visit, a record address
+while scanning, 0xFFFFFFFF in some other states.
+Gate any Select press on the value being a record
+address (RECORDS..RECORDS+480); a Select pressed
+"to exit" while the value is 0 ENTERS Scan Mode
+instead, and board movement then silently stalls
+(cost one nav run here).
+
+- Board mechanics as before: engage prompts rise
+  from the adjacent disc; after a win she stays on
+  her own disc and the piece is consumed. The KP
+  Chance "Win battle" pays +1 gauge KP per win.
+- Imitation Despot Lv 1 (disc 22; info card: HP
+  1000, BRV 95, ATK 11, DEF 5, LUK 10, Cracked
+  Shield): standard rotation, WIN in 23 rotations,
+  no damage taken. Rewards: Lv 1->2, 1 AP, +6 Gil
+  (768), Despot's Desire x1 created (battlegen),
+  gauge 0->1.
+- Chest on 23: Guard Ring (accessory) — one of
+  Suih's three contents for this board.
+- Ephemeral Summoner Lv 1 (disc 24; HP 1000, BRV
+  95, ATK 11, DEF 3, LUK 10; Cracked Shield and
+  Cursed Ring x3): WIN in 18 rotations, no damage.
+  Rewards: Lv 2->3, learned Auto Assist, 1 AP, +6
+  Gil (774), gauge 1->2.
+- Standing: Yuna Lv 3, board HP 1121, Gil 774,
+  gauge 2 KP, banked 58.
