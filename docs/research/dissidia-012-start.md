@@ -6647,3 +6647,28 @@ Blue board's Jump gaps, except here every region has a piece-bridge
 route, so no Jump skill is needed. States: `ch4_s35_ss_board`,
 `ch4_s35_ss_census.state`, `ch4_s35_shr_on<grid>.state`.
 
+### S35 Southern Shrine — play (part 1) + the chain-dialog KP lesson
+
+Harness fix first: the first Despot attempt returned BLOCK NOT FOUND —
+`s18lib.find_block_a`'s her-HP ceiling (the fight script passed 1800)
+is below Lv 7 Yuna's 2121 HP. Raised the fight script's cap to 3000;
+expect to raise it again as she levels.
+
+- **Imitation Despot Lv 6** (disc 33; card: HP 1303, CP 336, BRV 124,
+  ATK 16, DEF 10, LUK 13, Cracked Shield): standard rotation WIN
+  19 rot, no damage (Auto Recovery + the level-up left her at 2181).
+  **LEVEL UP 7 -> 8**, **Learned Hellfire**, **Despot's Dream x1
+  created**, 1 AP, +66 Gil (1390). This board's KP Chance (banner
+  text): **Win battle**.
+- **CHAIN/KP LESSON (important)**: beating the Despot offered a chain
+  to the Ephemeral Vision (31). The settle's three Circles only opened
+  a **"Cancel chain?" confirm dialog (defaults to NO)** — the fight's
+  KP stayed PENDING (gauge 0) behind it, and the dialog silently
+  blocked the next nav run (garbage focus, a fade-corrupted state).
+  Pressing **Left + Cross (YES)** canceled the chain and the gauge
+  banked immediately (0 -> 1). New settle discipline on chain-offering
+  boards: after the circles, run a cancel pass (Left, Cross, circles)
+  and verify gauge/screen before navigating. Script:
+  `s35_cancelchain.py`; clean state `ch4_s35_ss_nochain.state`
+  (on 32, gauge 1, Yuna Lv 8, HP 2181, Gil 1390, banked KP 69).
+
