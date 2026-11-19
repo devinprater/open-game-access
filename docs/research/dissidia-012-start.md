@@ -9415,3 +9415,26 @@ disc-0 chest probe (needs standing on disc 3 or 10, both
 battle discs; guide HD chests are 500 gil + Soul of Valor,
 and the disc-36 chest claimed in session 40 was one of
 them, NOT the Black Dragon Spear).
+
+
+## Addendum 31 - Session 46 (2026-11-19, postscript): disc 13 attempt 6
+
+The fight9 re-run listed as untried in addendum 30 was run
+after all: LOSS at rotation 36, foe left at 1,159/1,364.
+Same pre-state and policy as the interrupted run, but the
+fight diverged from rotation 2 (Kain took a 212-BR HP hit
+at rotation 2 and a second at rotation 6: 1,170 -> 958 ->
+721; the foe surged to BRV 695 at rotations 15-17; Kain
+landed one Square in the trade window, rotation 20, -205;
+the 695 hit landed at rotation 22, 721 -> 26; death at
+rotation 36 to a 160-BR HP attack). Note the divergence
+itself: the two fight9 runs differed only in the
+polls-to-live count at combat start (7 vs 5), which shifted
+every later timing - fights from a savestate are only
+approximately deterministic across boots, so a policy's
+single observed outcome is a sample, not a proof. Disc 13
+stands unbeaten after six attempts; the levers listed in
+addendum 30 remain session 47's menu, with the
+dbg-state resume (foe 879, Kain 964) and Circle BRV builds
+the least-tried. Session 46 wraps here: branch tip carries
+addenda 29-31; resume state ch6_s46_ll_probe2.state.
