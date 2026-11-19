@@ -6331,3 +6331,33 @@ instead, and board movement then silently stalls
   Gil (774), gauge 1->2.
 - Standing: Yuna Lv 3, board HP 1121, Gil 774,
   gauge 2 KP, banked 58.
+
+### West Melmond play (part 2) — board cleared
+
+- Jecht (disc 12): his prompt is a repeatable talk
+  prompt, not a consumable recruit — Engage replays
+  his line ("Let's take care of these pests quick!
+  We still have a ways back to Sanctuary anyway.")
+  and the piece stays. Disc 12 can never be stood
+  on, so chest 2 is reachable only from disc 1.
+- Ephemeral Phantom Lv 3 (disc 1; info card: HP
+  1121, BRV 107, ATK 15, DEF 14, LUK 11, Cursed
+  Ring x2; battlegen Phantom's Desire 17.5%): WIN
+  in 31 rotations, one hit taken (HP 1121 -> 1010).
+  Rewards: Phantom's Desire x1 created, 1 AP, +24
+  Gil (798), gauge 2->3. No level-up (the EXP x3
+  bonus was spent on the first battle).
+- Chest on 2: Cotton Robes. (Suih's three contents
+  for this board were Halbred, Guard Ring,
+  Hairband; measured contents are Guard Ring,
+  Cotton Robes, Hairband — two of three match.)
+- Delusory Dragoon Lv 3 (disc 41; HP 1121, BRV
+  107, ATK 13, DEF 14, LUK 11, Cursed Ring x2;
+  battlegen Desire 17.5%, Dream 9.6%, Hopes 8.9%):
+  WIN in 35 rotations, no damage. Rewards:
+  Dragoon's Desire x1 and Dragoon's Hopes x1 both
+  created, Lv 3->4, +24 Gil (822), gauge 3->4.
+- Chest on 51: Hairband.
+- Standing at the Stigma: Yuna Lv 4, board HP
+  1071, Gil 822, gauge 4 KP, banked 58. All four
+  manikins beaten, all three chests looted.
