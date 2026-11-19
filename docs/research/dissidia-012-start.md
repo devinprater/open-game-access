@@ -6513,3 +6513,20 @@ done), census shots `s35_nm_g<grid>.png`, log `s35_census_nm.log`.
   multiplier (she is Lv 6 vs Bonus Line 3). Recorded as measured; the
   payout at Stigma will bank whatever the gauge holds.
 
+### S35 North Melmond Gateway — CLEAR
+
+Stigma engaged from disc 13 (state `ch4_s35_nm_prompt03`); short field
+dialogue; **GATEWAY CLEAR**. Payout: banked KP 62 + gauge 6 = **68**.
+Field re-entry at **(-100.43, -0.28, 55.32)** — a mountain ridge area
+NE of the North Melmond disc; HP restored to full **2060** (Lv 6 max).
+Yuna now: **Lv 6, HP 2060, Gil 906, banked KP 68.** State:
+`ch4_s35_nm_clear`.
+
+Segment 2 survey (spin shots `s35_f2_*`): the path runs EAST along the
+ridge toward a glowing gateway portal on a rise. Per link3895 1.4.2
+World Map note: wandering **False Stalwart Lv 10** straight ahead
+(roams right), chest **Oerba Beads** behind it to the right, second
+chest **(Cure)** by a boulder near the two next gateways; Mogshop 9.2.5
+in the segment. Guide order ahead: **Gateway to the Shrine (Blue)**,
+then **Southern Shrine Gateway** (boss The Emperor Lv 18).
+
