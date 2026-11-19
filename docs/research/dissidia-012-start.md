@@ -8022,3 +8022,75 @@ guide's Imitation Despot Lv17 and the Shiva summonstone not
 yet located, and the guide's "panel K Multichain" note
 unexplored. The gateway itself is complete (twice); a fresh
 re-entry at full HP is the chest-hunt vehicle.
+
+### Session 40 addendum 9 - LEGENDARY LAKE LOOT RUN: board fully mapped (2026-11-19)
+
+RUN 3 (entered from ch6_s40_ll2_cleared.state via the usual
+walk-off/walk-on + Cross): Kain Lv 8 at FULL HP 1,730, and
+the board HUD verified banked KP 101 - run 2's gauge 2 did
+sweep (99 + 2). The addendum-8 open question is closed.
+
+SOUTH DISCS: 24 and 34 are empty standable discs. 35 =
+PHANTASMAL GIRL Lv 7 (prompt + Opponent Info card verified:
+HP 1,364, BRV 714, CP 337, gear Cracked Shield / Wizard's
+Hat / Rusted Armor; BATTLE STAGE World of Darkness). 36 =
+the TREASURE CHEST (prompt-verified), reachable only by
+aiming right from 35 after beating the Girl. Chest opened;
+the item banner was advanced through uncaptured - the
+guide names this board's only chest as the Black Dragon
+Spear, so the spear is guide-attributed, not yet verified
+in the inventory.
+
+THE GIRL FIGHT - A FINDER FAILURE, ROOT-CAUSED: the mapping
+probe's save sat on the Opponent Info card (an aim's hop
+attempt had confirmed the engagement). The battle then ran
+through a summon sequence ("Lunar Ray") while later scripts
+dumped RAM: the battle block's paired cells read
+frozen/unequal and the pattern finder missed on 24 straight
+dumps across two scripts. A direct read at the lineage's
+known block base (0x096bbf98 - block bases recur across the
+whole save lineage, since every state descends from one RAM
+image) found the foe already at 1 HP, the summon having done
+the work; three circle/circle/square rotations finished it.
+WIN, +84 gil, Kain to Lv 9 (HP max 1,791). LESSON: when the
+range finder fails during a known-live battle, read the
+lineage's known block base directly - do not conclude the
+battle is absent.
+
+PIECE 3 = IDLE SKY PIRATE Lv 7 (prompt-verified), foe HP
+1,522 - beaten at WAIT 0 in 25 rots (Kain 1791 -> 1518),
++84 gil; the post-win chain prompt targeted disc 12 and was
+cancelled (Circle -> Left+Cross). Then the stigma from 13:
+fade -> field, gil 9,630. Resume state:
+ch6_s40_ll3_cleared.state (field at the lake anchor).
+
+LEGENDARY LAKE - FINAL MAP (all measured): battle pieces
+12 (foe HP 1,121), 32 (1,121), 10 (1,205, +84 gil),
+35 Phantasmal Girl Lv 7 (1,364, +84 gil), 3 Idle Sky Pirate
+Lv 7 (1,522, +84 gil); 11 Firion assist; 36 chest (guide:
+Black Dragon Spear); 14 stigma; empty standable 20, 21, 22,
+23 (deploy), 24, 33, 34; corners 0 and 4 cannot be aimed at
+from any standable disc (presumed decorative). Every battle
+piece has now been beaten at least once across the three
+runs. The guide's Imitation Despot Lv 17 and Shiva
+summonstone do NOT appear on this board as mapped - the
+guide's Legendary Lake list appears to conflate boards. Its
+"reach panel K and execute a Multichain" note is still
+unexplored and is the remaining candidate source for the
+Shiva/bonus rewards.
+
+END STANDING (Chapter 6, after Legendary Lake): Kain Lv 9,
+Gil 9,630, banked KP 101 + gauge 2 (sweep verified at the
+next entry by the same HUD read that confirmed 101).
+
+NEXT (session 41): the story should now arm the Gateway of
+True Intent. From ch6_s40_ll3_cleared.state: re-read the
+gate table, then stand-and-Cross test the eastern/northern
+anchors - gate 14 pt7 (305.0, 166.6), gate 20 pt13
+(319.3, 193.6), gate 19 pt12 (268.4, 220.7) - and if none
+reacts, finally visit the unvisited moogle at (196, 144)
+west of the Sunken Lake arch. The scan-navigator
+(s40_nav3.py) is the field vehicle; prompt-screenshot any
+new board before engaging unknown discs. Ryukahn's Exdeath
+is Lv 18 against Kain's Lv 9 - expect a farm arc on the
+Legendary Lake / Sunken Lake Exit-Continue loop first.
