@@ -9037,3 +9037,40 @@ the next Cross. NEXT: facing-keyed Cross tests at
 east/north across the basin; return-segment tests at
 each node (face the previous node + Cross); pt0's
 landing tested the same way.
+
+
+## Session 45 addendum 26 — DFS network map; the FIRION SCENE at the mesh junction (story progress)
+
+The fan-rider (addendum 25) oscillated in the SE-slope cluster (no visited-memory), so it was
+replaced by a proper DFS explorer (per-node savestates ch6_s45_node0..10.state, 8-stick fan,
+backtracking on visited keys). DFS from pt2's landing B (165.45, 238.38), gil-9,666 lineage:
+
+NEW LOWER LINE (all segments fired by stick (+1,0) unless noted):
+- B (165.45, 238.38) -> (173.27, 235.06) 8.50 -> (177.69, 235.85) 4.49 -> (183.73, 237.61) 6.29
+  -> (191.99, 236.04) 8.41 -> (200.33, 234.35) 8.50 -> (206.77, 232.95) 6.60 [node 6].
+- Node 6 stick (0,-1) -> (203.17, 239.34) 7.34 [node 7] = the SE-slope cluster of addendum 25:
+  the lower line and the ledge line (addendum 25) are ONE connected network.
+- Cluster mesh: node 7 stick (+1,0) -> (203.60, 238.04) 1.37 -> (204.01, 236.82) 1.29
+  -> (206.43, 233.92) 3.78 [node 10]; nodes 6 and 10 stand ~1.0 apart (one junction, landing
+  smear). Short 1.3-class hops in the mesh may be long dashes rather than true segments.
+
+STORY EVENT: at node 10, stick (0,-1) changed ctrl state 2 -> 3 (dialogue) at (206.29, 234.08)
+- the position itself is a scene trigger. FIRION scene (screenshots s45_event0/s45_talk.png):
+  Firion: "Honestly, I've been having a hard time fighting off the manikins." Four Cross presses
+  resolve the scene back to field (state 2). Firion then stands at the spot as a talk NPC
+  (x marker; Cross toggles his repeatable line): "I hope everyone's alright. I'm a little
+  worried since I haven't seen anyone." NO battle attached. Post-scene standing in this line:
+  Kain Lv 9, HP 1791/1791 (full), gil 9666, KP 109 (HUD). Saved: ch6_s45_adv.state
+  (post-scene, canonical-descent resume candidate).
+
+LINEAGE NOTE: the scene fired in the gil-9,666 descent from ch6_s43_pt2ride.state (the line
+that did NOT fight session 44's corridor manikin; gil 9750 line in ch6_s44_postfight.state).
+Story flags are identical between the lines (the corridor fight was a non-story field manikin,
++84 gil). The scene trigger is positional, so it is reachable identically in either line via
+the pt2 network. ch6_s45_adv.state is ahead on story (scene done), HP (full) and KP (109 vs
+103); it trails only the corridor fight's 84 gil.
+
+REMAINING NETWORK UNKNOWNS: node 6/7/10 sticks (0,+1), (-1,0) and diagonals untested; node 0's
+non-(+1,0) sticks untested (its NNE segment to C and any pt2 return ride); on-foot exits from
+the Firion ledge (east toward the junction (219.5, 226.7) / shelf (228-235, 229-233), south
+toward the pass road) untested.
