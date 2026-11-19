@@ -7287,3 +7287,35 @@ killable but slow (~90+ rotations); the 90-second KP
 chance is out of reach for them with this rotation —
 acceptable; KP is farmable on gateway repeats.
 
+
+
+### Session 37 addendum 6 — False Hero DOWN (policy, 79 rotations, no damage); the chain mechanic decoded
+
+Attempt 4 (cap 120, no idle): WIN in 79 rotations, her
+HP 2216 untouched end to end — the deterministic line
+(324 HP left at rotation 70) finished 324 -> 142 -> 0.
+Reward: +234 gil (2606 -> 2840), banked after ~1200 idle
+frames as usual. But the gateway gauge did NOT move —
+because of the CHAIN rule, now fully decoded:
+
+After a board win, if another piece is in range of her
+disc, the game AUTO-PRESENTS that piece's card (Engage /
+Cancel) — she is in a CHAIN. KP from chained wins stays
+PENDING (gauge frozen) until the chain ends: Cancel on
+the card raises "Cancel chain?" (cursor defaults to NO;
+Left+Cross = YES banks the pending KP), or the chain
+ends when no piece is in range. The multiplier is the
+chain length: the two Lv 8 wins banked 4 KP total
+(2 wins x chain 2) once the Flash's win left nothing in
+range of disc 22. The False Hero's win auto-presented
+the Imitation Despot card (adjacent at disc 30), so its
+KP is pending in a live chain of 1 — the settled board
+state ch5_s37_ns3_base.state boots with that card up,
+and ch5_s37_peek.state holds the "Cancel chain?" dialog
+itself (cursor on NO), the safe point from which either
+banking (Left+Cross) or engaging is one input away.
+Corollary: whether the Hero met the 90-second chance is
+unknowable until the chain resolves; and a chain LOSS
+risks the pending KP — savestates before a chained
+engagement are the insurance.
+
