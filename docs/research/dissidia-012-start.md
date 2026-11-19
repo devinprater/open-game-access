@@ -9438,3 +9438,48 @@ addendum 30 remain session 47's menu, with the
 dbg-state resume (foe 879, Kain 964) and Circle BRV builds
 the least-tried. Session 46 wraps here: branch tip carries
 addenda 29-31; resume state ch6_s46_ll_probe2.state.
+
+
+## Addendum 32 - Session 47 (2026-11-19): disc 13 attempts 7-8, finder lessons
+
+Session 47 opened on the disc 13 menu from addendum 30/31.
+
+Attempt 7 (lever a, dbg-state resume): loadstate
+ch6_s46_fight_f13_dbg.state in a fresh boot. The battle
+block was at the SAME base as the saving boot (0x096D6CA8 -
+a savestate restores the RAM layout), but both strict
+finders missed it: at the dump instant the her-BRV pair read
+8/7, not equal. LESSON: mid-battle, the doubled cell pairs
+can sit 1-2 counts apart; pair-equality is an intro-freeze
+signature, not a live-battle one. A tolerant finder (HP words
+exact, BRV/pool pairs within 16) found exactly one candidate.
+Second lesson: the wait-for-live poll cost real blood - it
+keyed on foe_hp/her_brv/foe_brv only, and while it polled
+(~600 frames) the live foe drained Kain 964 -> 538. Include
+her_hp in the liveness signature, and poll briefly on
+mid-battle resumes. The resumed battle then stalled hard:
+foe BRV plateaued at 215, pool crept 691 -> 770, and from
+rotation ~32 every cell froze for 30+ rotations under
+Cross-approach (fight6 policy, WAIT 2). RESULT: STUCK,
+abandoned at rotation 62, foe untouched at 879. The dbg
+state's saved moment was itself the stall fight5 aborted on
+- lever (a) is exhausted; the state is a dead end.
+
+Attempt 8 (lever b, Circle BRV builds, from the pre-state,
+WAIT 2): zero damage in 110 rotations. Shape of the loss:
+Kain's opening BRV (185) was spent on whiffed Squares at
+range (the >=120 rule fires before any approach); the foe
+then held range for ~24 rotations of total stillness
+(rotations 7-30, every cell static) before a single HP
+attack landed (1170 -> 893 at rotation 31; its BRV reset at
+rotation 34). Circle presses at range also whiffed, and the
+foe's ranged BRV fire drained Kain 144 -> 4 by rotation 90.
+At ~rotation 95 the foe surged to BRV 721 (pool 433 -> 316)
+and held it; Kain, broken, regenned +11/rotation to 207 by
+the 110-rotation cap. LESSON: this foe's stillness cadence
+is ~25 rotations, longer than the old 30-rotation frozen
+guard allows for - the guard is now 45. And Circle builds
+do NOT contest the ranged game: Kain's BRV attacks whiff at
+range exactly like his Squares. Damage remains possible
+only in the foe's spend window (s46 fight6: foe surged,
+closed, and Kain traded 1,024 before dying to the finisher).
