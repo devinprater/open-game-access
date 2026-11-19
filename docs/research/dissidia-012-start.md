@@ -6186,3 +6186,75 @@ s34_*.py in ~/d12s.
   the False Stalwart was never met in the
   field; they remain open colour for a
   future session, not chapter requirements.
+
+## Session 35 — Chapter 4 opens: Yuna identified,
+geared; West Melmond next
+
+Branch dissidia-012-ch4 from main 9b2911b. Start state
+ch3_s34_chapter3_end.state (the Chapter 4 opening
+board, unplayed). Scripts s35_*.py in ~/d12s.
+
+### The new lead — Yuna (measured from the game)
+
+- The board boots at ctrl state 21, entry grid 20,
+  Gil 3582, banked KP 58, gauge 0. A queued tutorial
+  popup ("The character in your control has changed.
+  Check equipment in the customization menu.") had to
+  be dismissed before board input went live; Triangle
+  then opens Customization.
+- The Customization header reads "Yuna", Lv 1 — the
+  woman with long brown hair of session 34's closing
+  note. The guides agree (Suih; FF Wiki): Chapter 4
+  is "Where Memories Wait", Yuna lead, travelling
+  with Jecht.
+- Starting standing (Customization, before gearing):
+  HP 1000/1000, CP 265/330 used, BRV 95, ATK 11,
+  DEF 11, LUK 10, EXP total 0, next 5000. Chocobo
+  LUCKY 100% and NEXT BATTLE EXP x3 still active.
+- Bravery attacks (aeon summons): LAND Meteor Strike
+  (circle neutral; "[Close] Summon Ifrit. Sends foe
+  flying. Wall rush"), Energy Blast (circle+towards);
+  AIR Heavenly Strike (circle neutral), Impulse
+  (circle+towards). HP attacks: LAND Energy Ray
+  (square neutral; "[Long] Summon Valefor. Invokes
+  vertically long columns of fire") plus one empty
+  land slot; AIR Thor's Hammer (square neutral) plus
+  one empty air slot.
+- Equipment: all four slots EMPTY. Class checks from
+  the pool pickers: swords Can't Equip; Bronze/Iron
+  Helms Can't Equip; Kunai and Buckler (hand) Can't
+  Equip; Hide/Iron Armlets are Gauntlets, Can't
+  Equip. Her classes: Rod/Staff/Gun weapons, Bangle
+  hand, Hat head, Clothing body.
+- Assist: Jecht, set by the game (BRV: Jecht Rush,
+  Jecht Stream; HP: Jecht Blade (ground), Triumphant
+  Grasp).
+- Summons: Ifrit AUTO remaining usage 0 (exhausted
+  across Chapters 2–3); Carbuncle AUTO in the pool
+  with 3 uses.
+
+### Gearing (pool + shop; the shop trades in Gil)
+
+- From the pool, free: Leather Clothing (body;
+  HP+428, BRV+9, DEF-2). Leather Armor is Can't
+  Equip for her.
+- Shop purchases, each equipped on the spot (the
+  equip prompt's cursor starts on YES): Power Armlet
+  1300 (hand, Bangle; HP+122, DEF+6), Guard Stick
+  1220 (weapon, Rod class; HP+122, BRV-28, ATK+9,
+  DEF+2), Headband 300 (head, Hat; HP+85, BRV+38).
+  Gil 3582 -> 762.
+- Carbuncle AUTO equipped from the Summons page.
+- Geared standing: Lv 1, HP 1000 current / 1757 max
+  (equipping HP gear does not fill current HP),
+  BRV 114, ATK 20, DEF 17, LUK 10, CP 265/330.
+- Shop stock noted, not bought: Rod 450 (HP+85,
+  BRV-20, ATK+4, DEF+2), Staff 450 (BRV+9, ATK+2),
+  Oak Staff 1220 (stats not read; a North Melmond
+  chest holds one per the guides), Tanegashima 400
+  (already held; she can equip Guns but it stays a
+  sidegrade), Capella gun trade-only (HP-231,
+  BRV+51, ATK+22, DEF-2, Assist Gauge Duration+15%),
+  Bronze Bangle 500 (HP+85, DEF+1), Leather Hat 500
+  (BRV+48), Plumed Hat 700 (not read), Robe 400 and
+  Cotton Robes 900 (body alternatives, not read).
