@@ -7765,3 +7765,50 @@ North Sanctuary farmed twice (Lv 17 -> 20 -> 23), Forsaken Kingdom
 run three times; the Warrior of Light (2,762 HP) fell on the sixth
 attempt of run #3, at Lv 24, after the WAIT-cadence ladder and the
 fight5 no-search policy removed the block-search ambush window.
+
+
+## Session 39 — Chapter 6 (Indiscernible Truth): Kain leads
+
+Resume: `ch5_s38_chapter5_end.state` — Story Mode chapter select,
+Chapter 6 flagged NEW. Carried standing: Lightning Lv 24, Gil
+8,946, banked KP 91 (+2 in the final gateway's gauge, sweep
+unconfirmed), Odin summonstone owned, Ifrit AUTO equipped (shared
+pool). Kain starts at Lv 1 (chapter select card, session 38).
+
+### Chapter plan (all GUIDE DATA — Suih's Move List and Guide,
+GameFAQs faqs/62070, the same source as prior chapters' piece
+lists; unverified until measured in play)
+
+Character: Kain Highwind. Five gateways in guide order:
+
+1. **Sunken Lake Gateway** — KP Chance: Win battle. Bonus Line 2.
+   Pieces: Imitation Despot Lv7, Delusory Dragoon Lv3, Fleeting
+   Flash Lv7, Transient Gunner Lv3. Chests: Javelin (left), Pink
+   Tail (right). Field encounters around it: Imitation Despot Lv7,
+   False Stalwart Lv4.
+2. **Hidden Darkness Gateway (Blue)** — OPTIONAL (blue = enter and
+   exit freely). KP Chance: Win within 90 seconds. Board shares
+   the Forsaken Kingdom layout. Pieces: Imitation Despot Lv7,
+   Capricious Reaper Lv3, Idle Sky Pirate Lv7, Fleeting Flash Lv3,
+   Phantasmal Girl Lv7. Chests: 500 gil, Soul of Valor.
+3. **Legendary Lake Gateway** — KP Chance: Win within 90 seconds.
+   Bonus Line 6. Firion assist piece; Shiva AUTO summonstone;
+   chest: Black Dragon Spear. Pieces: Delusory Dragoon Lv7,
+   Fallacious Tree Lv7, Fleeting Flash Lv7, Imitation Despot Lv17,
+   Fleeting Flash Lv3. Guide note: reach panel K and execute a
+   Multichain. Field: Counterfeit Wraith Lv7.
+4. **Gateway of True Intent** — KP Chance: Win within 90 seconds.
+   Bonus Line 10. Firion assist. Chests: Pebble, 500 gil. Pieces:
+   Transient Gunner Lv6, Idle Sky Pirate Lv13, Fallacious Tree
+   Lv13, Fleeting Flash Lv13.
+5. **Ryukahn Gateway** — KP Chance: Win battle. Bonus Line 12.
+   Firion assist. Chest: Yellow Drop. Pieces: Delusory Dragoon
+   Lv6, Phantasmal Girl Lv13, Transient Gunner Lv13, Idle Sky
+   Pirate Lv13. **B = Exdeath Lv18 — the chapter boss.**
+
+Kain notes (guide data): Jump is his key attack; his BRV attacks
+branch by stick direction (neutral / up / down); Triangle after a
+BRV attack is a special dash. Boss plan: farm repeat boards until
+Kain is near the boss's level (the Ch.5 pattern), then the
+WAIT-ladder drift search with the no-search wait-for-live fight
+policy (session 37's s37_fight5 pattern).
