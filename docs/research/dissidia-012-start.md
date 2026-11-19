@@ -9568,3 +9568,55 @@ tolerant mid-battle finder, her-HP range args),
 s47_board.py (explore/go prober), s47_shot.py. NOTE: the
 VM's /tmp was wiped mid-session (restart) - keep master
 scripts in ~/d12s/, not /tmp.
+
+
+## Addendum 34 - Session 47 (2026-11-19): gate 19 exit fan; the gate 20 ride stalls in the north mesh
+
+FIELD FAN at gate 19's exit (Kain at (268.50, 219.40),
+1.34 from the anchor; stick held + Cross, fresh load per
+direction): N -> (268.77, 210.66); NE -> (264.40, 212.58);
+NW -> (270.08, 212.65); SW -> (272.23, 225.76); E/W =
+dash only; S/SE = ~0.5 and a state-3 dialogue trigger
+(the gateway's threshold). A greedy grid rider
+(s47_ride.py, fans every node, picks the landing closest
+to the target) then walked: (268.50, 219.40) -> NW ->
+(270.08, 212.65) -> NW -> (269.16, 207.43) -> hop2 pick
+saved [ch6_s47_g20_hop0/1/2.state]. Hop 2's full fan:
+E -> (260.37, 209.27), NE -> (261.62, 202.55),
+N -> (265.30, 200.76), plus returns - EVERY segment at
+this latitude runs W/NW/S. The lake's north-shore mesh
+does not extend east; distance-to-target stalled at
+~52 (from 56.98) over three hops. The ride was stopped:
+the east transport is the CENTRAL FIELD grid at
+z ~177-198 (addenda 27-28), reached from this basin only
+via the junction + SOUTH LINE, and gate 20's area is
+entered D->F from gate 14's area (addendum 24) - i.e.
+the long way around, an expedition of s45 scale.
+
+SESSION 48 OPENS with the gate 20 stand test as its
+first job, route: from ch6_s47_ll_finished.state ride
+the mesh back S/SW into the basin, junction (206, 233),
+south line to the central-field hub (208.25, 189.32),
+ESE Cross-chain past gate 18's anchor node to gate 13's
+hub (252.26, 198.44), then the shelf strip E/NE toward
+(297.42, 173.33) -> (319.33, 193.64) per addendum 24's
+untested continuation; fine-stand <= 0.25 on gate 20's
+anchor (319.33, 193.64) and Cross. If gate 20 is inert,
+the corridor north past gate 21 (315.09, 270.40) to
+gate 22 (292.50, 312.00) is the remaining candidate set,
+and the guide's boulder + Fallacious Tree Lv 11 approach
+(addendum 15) belongs to that corridor. Also still owed:
+the Legendary Lake reset-visit sweep (disc 13 rematch
+with rot4, disc 2 at full HP, discs 1/3/4/5, Imitation
+Despot Lv 17 - farm to ~Lv 13-15 first on Hidden
+Darkness), pt0 return ride, moogle point (196, 144)
+re-check, Hidden Darkness disc-0 chest probe.
+
+Standing at session 47 wrap (adv lineage): Kain Lv 10,
+field HP 1,851/1,851, Gil 9,774, banked KP 104, Shiva
+AUTO summonstone held, Firion assist, Rosetta Stone
+held. Chapter 6: Sunken Lake done, Hidden Darkness done
+(optional), Legendary Lake DONE. Owed: Gateway of True
+Intent, Ryukahn, Exdeath Lv 18, the farm arc. Canonical
+resume: ch6_s47_ll_finished.state (field at gate 19's
+exit). Branch NOT merged - chapter incomplete.
