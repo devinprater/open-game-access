@@ -6672,3 +6672,15 @@ expect to raise it again as she levels.
   `s35_cancelchain.py`; clean state `ch4_s35_ss_nochain.state`
   (on 32, gauge 1, Yuna Lv 8, HP 2181, Gil 1390, banked KP 69).
 
+### S35 Southern Shrine — play (part 2)
+
+- **Ephemeral Phantom Lv 6** (disc 44; card: HP 1303, CP 336, BRV 124,
+  ATK 18, DEF 9, LUK 13, Cracked Shield): standard rotation WIN 17 rot
+  (her HP 2181 -> 2074). **LEVEL UP 8 -> 9**, **Learned Wall Jump**,
+  **Phantom's Desire x1 AND Phantom's Dream x1 created**, 1 AP,
+  +66 Gil (1456). Gauge 1 -> 2 at settle (no chain dialog this time).
+  Note: the cancel-chain pass is NOT harmless when no dialog is open —
+  its Left+Cross acts as a movement hop (54 -> 53); run it only when a
+  dialog is actually pending (screenshot/focus check first). Current
+  clean state: `ch4_s35_ss_phantom_nc.state` (on 53, gauge 2).
+
