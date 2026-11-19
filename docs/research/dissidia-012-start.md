@@ -7521,3 +7521,36 @@ heal to 2,398 (Lv 17 max). Standing: `ch5_s37_fk_potion.state`, disc
 NEXT: the Warrior of Light (disc 25 from 24 aim right). The Phantom
 and its two chests are optional and stay untouched unless the boss
 route changes.
+
+
+### Session 37 addendum 13 — Warrior of Light: SEVEN losses; farming levels
+
+**Boss measured:** disc 25 from 24 aim right. The pre-battle intro
+runs ~30 probe polls (240f each, Cross pressed between) before the
+battle block exists — `s37_bossprobe.py` (wide finder 1000-4000)
+caught it at base 0x0969D688: **Warrior of Light HP 2,762**, her HP
+2,398, pool 516. Live state: `ch5_s37_fk_bosslive.state` (mid-intro;
+fight scripts run from it with MOVE_DIR=none and exact FOE_HP=2762).
+
+**Attempts (all from bosslive, Lightning Lv 17, HP 2,398):**
+fight3 policy WAIT 0: LOSS 39 rots, dealt 226. WAIT +5: LOSS 35,
+dealt 692 (best). WAIT +10: LOSS 34, dealt 452. WAIT +15: LOSS 18,
+dealt 584. WAIT +20: LOSS 57, dealt 452. Dumb block WAIT 0: LOSS 36,
+dealt 0 (every attack whiffed/blocked). Tuned policy (s37_fight4.py:
+rising threshold 300/+40, plus a danger trigger at foeBRV >= 55% of
+her HP) WAIT +5: LOSS 31, dealt 692.
+Pattern: WoL builds BRV in small steps under the old triggers, breaks
+her (foeBRV jumps by the pool bonus), and HP-attacks for 1,000-1,426 —
+two hits kill her from full. Her own BRV attacks connect too rarely at
+Lv 17 to race him. The guides' warning is the story: Lv 18 minimum,
+23 ideal; she is 17.
+
+**Decision: FARM.** Exit Gateway (board pause menu: Start -> Exit
+Gateway -> confirm defaults to NO; Left+Cross = YES) KEEPS EXP and
+rewards — its own description: "Save EXP/rewards gained and escape
+gateway. *KP gained in gateway will be lost." Only the 2 unbanked FK
+gateway KP were lost; gil 5,776 and the Odin stone kept. Plan: clear
+North Sanctuary (full clear via Stigma banks its KP and fully heals)
+one or two times for levels, then re-run Forsaken Kingdom (Hero,
+Summoner, Odin, Potion all measured) and take the boss at Lv ~20+.
+Exited to `ch5_s37_field3.state` at the FK portal (67.5,124.5).
