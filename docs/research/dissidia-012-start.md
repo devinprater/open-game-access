@@ -7632,3 +7632,31 @@ EXP took her 20 -> 21 mid-board.
 **Decision: farm clear #2** (target Lv 23-24, the guides' ideal).
 Exited FK again (EXP kept; `ch5_s37_field4.state` at the portal).
 After the farm: re-enter FK, redo, boss with fight5 WAIT 2.
+
+
+### Session 37 addendum 16 — gateway panels are EDGE-TRIGGERED; farm clear #2: Lv 23
+
+**⚠️ ENTRY LESSON (cost ~40 min): the conditions panel fires on
+ENTERING the trigger volume on foot — it is an edge trigger, not a
+level trigger.** A savestate saved standing inside the zone (or a
+loadstate that places her inside) NEVER re-fires the panel: three
+entry attempts at the North Sanctuary anchor failed exactly this way
+(panel absent in screenshots at (113.7,-22.2), dead center). Walking
+OUT of the zone and back IN fired the panel instantly (screenshot:
+panel up at (113.8,-22.5) after re-entry from the north). Rule for
+future sessions: to enter a gateway, approach the anchor ON FOOT from
+outside the zone and save entry states OUTSIDE it; the Cross-dash
+from a nearby outside state also works (it carries her across the
+boundary — that is why the Forsaken Kingdom entries from (67,122.8)
+fired from loadstates: that spot is outside FK's volume).
+
+**Farm clear #2 (North Sanctuary, third clear overall):** Dragoon
+WIN 13 rots; Flash (chain) WIN 19 — mid-fight tick to Lv 22 (HP max
+2,700); False Hero WIN 34 rots, zero damage; Imitation Despot via
+the chain-card -> VS-screen -> range-finder flow, this instance HP
+1,885 again, WIN 18 rots, zero damage, tick to Lv 23 (HP max 2,761);
+Idle Sky Pirate WIN 3 rots (Torrent ambush in the search window:
+2,761 -> 1,191 at policy start, ended 851). Stigma -> field.
+**Banked: KP 84 -> 91, Gil 8,064, full heal. Lightning Lv 23,
+HP 2,761** — the guides' ideal level for Forsaken Kingdom.
+Chest A1/A5 not re-checked; E1 not re-claimed this run.
