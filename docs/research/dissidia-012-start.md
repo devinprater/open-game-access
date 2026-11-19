@@ -6452,3 +6452,33 @@ done), census shots `s35_nm_g<grid>.png`, log `s35_census_nm.log`.
   card; Cross advances tip -> card -> battle. s35_adv.py (cross x8 with
   shots) reads the card reliably at press ~4.
 
+### S35 North Melmond — play (part 2) + movement-graph lesson
+
+- **False Hero Lv 1** (disc 33; HUD-measured HP 1000, BRV 95): standard
+  rotation WIN, 24 rotations, her HP 227 -> 155. Rewards: **LEVEL UP
+  4 -> 5**, **Learned Auto Assist Lock On**, **Learned Auto Recovery**,
+  1 AP, 10 PP, +6 Gil (852). **Gauge +1 (=1)** — 24 rotations met the
+  90-second chance. States: `ch4_s35_nm_prompt33`,
+  `ch4_s35_nmhero_winraw`, `ch4_s35_nm_hero_down`.
+- **Ephemeral Phantom Lv 3** (disc 34; card measured: HP 1121, CP 332,
+  BRV 107, ATK 15, DEF 14, LUK 11, Cursed Ring x2, Defense -50%):
+  standard rotation WIN, 18 rotations, NO damage taken. Rewards:
+  **Phantom's Dream x1 created** (battlegen), 1 AP, +24 Gil (876).
+  **Gauge +1 (=2)**. States: `ch4_s35_nm_prompt34`,
+  `ch4_s35_nmphantom_winraw`, `ch4_s35_nm_phantom_down`.
+- **Battle clock**: the in-battle timer counts DOWN from 1:30.00 — the
+  "Win within 90 seconds" KP Chance = kill before it expires. Rough
+  guide from today: 18-24 rotation wins pay; the 32-rotation Despot win
+  did not.
+- **Normal-mode movement graph != Scan graph** (measured by BFS probe
+  `s35_bfs2.py`, states `ch4_s35_nm_on<grid>.state`): piece/character/
+  chest/stigma discs are PROMPT-ONLY (you never stand on them; focus =
+  their slot while grid stays yours). Scan-mode edges can be one-way or
+  absent in normal mode (51 -up-> 31 and 52 -up-> 22 do not exist;
+  22 -down-> 52 is a scan-only drop). Standable-disc graph so far:
+  63 -up-> 53; 53 up 43 / down 63 / left 52 / right 54; 43 up PROMPT 33
+  / down 53; 52 left 51 / right 53; 51 right 52; 54 left 53. Winning a
+  fight consumes the piece and its disc becomes standable (33 did).
+  Anomalies to retest at need: 43 -right-> (Zidane 45) probed none;
+  54 -up-> (Phantom 34) probed none (Phantom was prompted from 33).
+
