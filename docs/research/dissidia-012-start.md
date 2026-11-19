@@ -6401,3 +6401,31 @@ tell). DES_N_ table at 0x095DCBC8 (stride 0x28) is (name, id) pairs only
 — gate0306_* = Ch3, gate04XX_* = Ch4 — no positions. GateMgr table
 0x095D75C0 is a link/id registry, not positions.
 
+### S35 North Melmond Gateway — census (measured, Scan pass)
+
+Field route found: from the flats' north edge (z~76-81) a ford gap near
+x~-133 lets her cross NE; the North Melmond disc sits at field
+(-123.5, 67) — walking onto it fired the gateway banner directly (the
+wandering Counterfeit Wraith Lv 4 was NOT encountered; it roams west of
+the ford per GameSpy). Opening cutscene on the board: Tidus checks on
+Yuna ("Are you travelling alone? You alright?"). Entry grid **63**;
+gauge 0; Yuna Lv 4, HP 1939, Gil 822, banked KP 62. KP Chance: **Win
+within 90 seconds**. Bonus Line 3. Board = 15 discs (id = 10*row + col):
+
+- 63 ENTRY; 53 empty; 43 empty; 33 **False Hero Lv 1** (The Rift);
+  23 empty; 13 **Ephemeral Summoner Lv 1** (The Rift); 3 **Stigma of
+  Chaos** (entry column runs 63-53-43-33-23-13-3 straight up).
+- West branch: 53 -left-> 52 **Imitation Despot Lv 3** (Old Chaos
+  Shrine); 52 -left-> 51 **Treasure Chest** (guide: Oak Staff);
+  51 -up-> 31 empty; 31 -right-> 33. (22 -down-> 52 is a drop edge.)
+- 23 -left-> 22 **Fleeting Flash Lv 3** (Dream's End).
+- East branch: 33 -right-> 34 **Ephemeral Phantom Lv 3** (Dream's End);
+  34 -right-> 35 **Summonstone** (guide: Ramuh AUTO); 35 -down-> 45
+  **Zidane (Assist Character)**; 34 -down-> 54 empty; 53 -right-> 54;
+  43 -right-> 45.
+
+Contents match link3895 1.4.2 exactly (5 manikins, Oak Staff chest,
+Ramuh summonstone, Zidane assist). States: `ch4_s35_nm_board` (board
+control), `ch4_s35_nm_census.state` (scan cursor back on 63, census
+done), census shots `s35_nm_g<grid>.png`, log `s35_census_nm.log`.
+
