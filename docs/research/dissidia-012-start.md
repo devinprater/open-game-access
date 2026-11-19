@@ -8142,3 +8142,51 @@ Intent), ch6_s41_field_g19.state (field at gate 19, current).
 NEXT: stand-and-Cross gate 14 (305.0, 166.6), then gate 20
 (319.3, 193.6); if neither is True Intent, the unvisited
 moogle west of the Sunken Lake arch at (196, 144).
+
+### Session 41 addendum 11 - FIELD SURVEY: the ruins-to-arch gully route, the empty moogle point, corridor-mouth manikin (2026-11-19)
+
+THE LAKE'S SOUTH SHORE IS A POCKET from the anchor: two
+scan-nav attempts to walk south from (256.5, 184.7) boxed
+at (253.7, 174.4) and (249.5, 174.9) - slope slides, no
+south exit. The Z~150 shore is NOT reachable directly from
+the Legendary Lake anchor; the headland dip belongs to the
+shore path walked from the west.
+
+RUINS -> ARCH (the missing link): south from Firion's ruins
+boxes at (227.8, 185.4). West along the terrace (Z~190-193)
+is open to (206.6, 191.0); the SW descent enters a hanging
+bowl (scan-nav boxed at (193.3, 178.1) and (203.2, 181.5)),
+but the bowl's west side DRAINS: a gully at X~187-188 runs
+from the terrace (Z~181) down to (194.6, 160.7) - the fine
+walker (no visit penalty, 14-frame pushes) threaded it in
+25 steps where the scan-nav could not. From the gully foot
+the lowland is open: moogle point in 12 steps, the Sunken
+Lake arch (211.5, 152) in 13 more. States: ch6_s41_ruins,
+ch6_s41_moogle (bowl), ch6_s41_drain, ch6_s41_fine1 (gully
+foot), ch6_s41_moogle2, ch6_s41_arch2.
+
+THE MOOGLE POINT (196, 144): REACHED - and EMPTY. No NPC
+stands there in this story phase; Cross at point-blank is a
+no-op (state stays 2; the screenshot shows only Kain and
+Firion). The Chapter 5 moogle pattern does not apply here.
+
+EAST SHORE: arch -> east is open along Z~151, dipping
+around the headland (Z 139.7 at X~252-258, as s40 noted).
+The scan-nav boxed on the headland's face at (240.0, 145.4)
+- the visit-penalty artifact again; the fine walker rounded
+it at Z~140-144. A slide zone at (262, 144-145) oscillates
+the fine walker; cross it heading NE. Corridor mouth
+reached: (270.8, 151.4) (ch6_s41_corr.state).
+
+FIELD MANIKIN at the corridor mouth: the first step north
+touched a field manikin - VS card "Lv 7 ? - STAGE
+Ultimecia's Castle - JUDGMENT", the same encounter s39 met
+on the SE shore. Foe HP 702; battle block base this boot
+0x09695798 (found by the wide-range finder, single hit).
+WIN in 21 rotations (fight5 policy, WAIT 0): Kain 1791 ->
+1525, +84 gil (9,630 -> 9,714). Post-fight state:
+ch6_s41_postfight.state (field, corridor mouth, HP 1525).
+
+NEXT: north up the corridor to (272, 166.6), then probe
+east to gate 14's anchor (305.0, 166.6) for True Intent;
+gate 20 (319.3, 193.6) after that.
