@@ -8094,3 +8094,51 @@ west of the Sunken Lake arch. The scan-navigator
 new board before engaging unknown discs. Ryukahn's Exdeath
 is Lv 18 against Kain's Lv 9 - expect a farm arc on the
 Legendary Lake / Sunken Lake Exit-Continue loop first.
+
+### Session 41 addendum 10 - GATE 19 = LEGENDARY LAKE'S NORTH ENTRANCE; KP SWEEP CONFIRMED (2026-11-19)
+
+GATE TABLE re-read this boot: GateMgr 0x095D7110 (same as
+s39's boot - one RAM lineage), 12 records (ids 11-22), every
+lifecycle state word 0. The state word stays useless for
+entry decisions, as established.
+
+THE WALK: from the Legendary Lake anchor, the scan-navigator
+(s41_nav.py, the s40_nav3 pattern) walked the Z~200 ridge
+pass north then NE to gate 19's anchor (268.4, 220.7) in 55
+steps without a stall (state ch6_s41_g19a.state). The anchor
+POINT itself is inside a wall: the fine approach stalls at
+Z=218.91, 1.79 south of the point, X centred on 268.4. Cross
+pressed there fired state 5 -> board anyway - the tester
+volume extends south to the standable ground.
+
+THE BOARD IS LEGENDARY LAKE GATEWAY (banner-verified on the
+entry screenshot), entered from the north: Kain deploys on
+disc 32. NOT True Intent. Banked KP on the board HUD: 103 -
+run 3's gauge 2 DID sweep (101 + 2); addendum 9's open
+question is CLOSED. A Firion dialogue plays on the board at
+entry ("So their numbers grow... I'm glad to have met up
+with you before I got into trouble.") and eats the first
+Start presses; advance it with Cross (controller state
+stays 20). Census of this instance: 17 discs {1,2,3,4,5,10,
+12,13,14,20,21,22,23,24,30,32,34} on the usual grid formula
+- a different disc set than the south instance's map (which
+had 0,11,33,35,36 and lacked 1,2,5,13,30). Two board
+variants by entrance, or the record test is phase-dependent;
+unresolved, noted only.
+
+EXIT (fresh LL board, gauge 0): Start -> pause menu (Return
+to Game / Quicksave / Exit Gateway / Help Manual) -> Down x2
+-> Exit Gateway -> "KP gained in gateway will be lost"
+dialog (defaults NO; Left+Cross = YES) -> FIELD at
+(268.4, 218.9), the gate 19 standable point. Unlike the s39
+farm loop (exit mid-clear splashes back to the board start),
+exiting an already-cleared gateway lands on the field.
+
+Resume states: ch6_s41_g19a.state (field, approach),
+ch6_s41_ti_entry.state (the LL-north board entry - saved
+under a wrong guess name; it is Legendary Lake, not True
+Intent), ch6_s41_field_g19.state (field at gate 19, current).
+
+NEXT: stand-and-Cross gate 14 (305.0, 166.6), then gate 20
+(319.3, 193.6); if neither is True Intent, the unvisited
+moogle west of the Sunken Lake arch at (196, 144).
