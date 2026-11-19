@@ -7382,3 +7382,56 @@ use. The cleared North Sanctuary shows its conditions
 panel again on approach (re-enterable for KP farming,
 as the guides say).
 
+
+
+### Session 37 addendum 9 — the moogle reached; first Moogle Shop is EMPTY; field controls measured
+
+**Ruins approach (from `ch5_s37_field1.state`).** The Cornelia ruins
+plateau's SOUTH wall is solid along z~66-68 for x 72-88 (greedy-walker
+probes, `s37_walk2.py` runs mog/mog2): the gatehouse arch visible beside
+the wall base at ~(80,68) is barred decoration, same lesson as Ch.1's
+archway. The ledge along the wall base ends at x~72 (all probes ~0
+displacement at (71.8,67.6)). ENTRY IS A GULLY AT x~74-75: a northward
+walker leg from the wall base climbed through the cliff into the bowl,
+reaching (77.0,85.2) (`ch5_s37_moogle4.state`). An INNER ruins wall at
+z~86 (the wall cluster s36 hit) is passed along its WEST side:
+(68.7,86.7) -> (61.7,91.8) -> (60.8,100.3) all walkable.
+
+**Moogle intro (lead 2 of the brief: RESOLVED).** Walking NE from
+(60.8,100.3), a probe step into (66.6,102.9) fired state 3 — a proximity
+story trigger, no button press. Dialogue (screenshots s37_talk_mog7_*):
+Moogle: "Oh! It's the Thunder Lady! Remember me?" / "I've opened my own
+shop! You're my first customer!!!" — Lightning: "It doesn't look like
+you have a great stock..." — Moogle: "Well, it's... Um..." — Lightning:
+"—Fine. Let me see what you've got." Then back to field at the same
+spot (`ch5_s37_moogle7.state`). NOTE the moogle's live position was
+~(70,103), ~5 units NW of its kind-6 anchor (75,100) — it wanders.
+
+**FIELD CONTROLS, measured this session (new).** Plain CROSS with no
+stick = an ~8-unit DASH in her facing direction (three identical
+(+8.2,-0.8) steps east from the bowl; idle 300 frames = no drift).
+CIRCLE = attack lunge (one test: (+3.2,-4.1)) — the orb-absorb/object
+break move. SQUARE and TRIANGLE at standstill = no-ops. TALK = hold the
+stick TOWARD the NPC and press Cross at close range: from (69.8,98.8),
+stick-N + Cross fired state 3. Plain proximity does NOT re-trigger a
+talk (walker arrival at (72.7,101.8), 2.3 units from the anchor, was
+silent), and a bare Cross beside the moogle only dashes away.
+
+**First Moogle Shop (state 13).** Second talk = one line ("I'm truly
+sorry, this is all I have now. It'd be great if you'd equip one of my
+items...") then state 13, the MOOGLE SHOP (`ch5_s37_shop3.state` saved
+with it open). Categories cycle with R/L (drv names "r"/"l"; "r1"/"l1"
+are no-ops). EVERY category list is EMPTY — nine blank rows, Cross on a
+row does nothing, gil unchanged at 3,308 across all shop experiments.
+The first shop genuinely has no stock yet, exactly the FAQ 9.2.X caveat
+("might not actually be unlocked"). Exit = one Circle -> field.
+Nothing bought; nothing needed from it for the guide sequence.
+
+**Standing:** `ch5_s37_field2.state`, ruins bowl (69.8,98.8), Lightning
+Lv 15, HP 2276/2276, Gil 3,308, banked KP 79. NEXT: the Forsaken Kingdom
+gateway (guides: "back to the moogle and gateway; step forward and
+enter" — candidates: the white portal POS_gate01_00 (67,126) at the
+ruins' north end, and a bright portal glow at the bowl's east shore
+~(95,103)); then the Capricious Reaper Lv 15 + 1,500 gil chest in the
+grass east of the moogle (guide order puts the Reaper/chest detour
+before entering).
