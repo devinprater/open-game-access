@@ -8931,3 +8931,66 @@ point (196, 144) re-checked in the canonical lineage
 (it was empty in session 41's fork; Ch.5's gateway
 armed at a moogle). (4) Only after a new gateway opens:
 farm arc, then Ryukahn / Exdeath Lv 18 per the guide.
+
+### Session 45 addendum 24 - THE AREA GRAPH: cpu_XtoY ROUTE EDGES SAY GATE 22 IS REACHED FROM GATE 20'S AREA; mes03 SITS ON GATE 22 (2026-11-19)
+
+RESUME VERIFIED: ch6_s44_postfight.state -> state 2,
+(273.48, 147.11), gil 9,750 (canonical lineage).
+
+POINT TABLE RE-DUMPED from this boot (base *(0x09AEF944)
+= 0x095E61C0, records 0x3C, name inline at +0x00,
+coords f32 at +0x24): pt0-3 jump pads (213.0, 120.8),
+(331.1, 136.0), (163.1, 230.6), (292.7, 301.0); pt4-15
+gates 11-22 (gate 21 = (315.09, 270.40), gate 22 =
+(292.50, 312.00)); pt16/17 kaname (194.0, 165.1),
+(304.8, 296.5); pt18 OBB_jump_gate02_00 (220.7, 107.6).
+Past the POS records the table continues as 0x60-stride
+OBB entries (name at entry+0x01, center f32 at
+name+0x24, facing vector at name+0x30):
+
+- OBB_mes_gate02_05 center (332.18, 3.16, 123.53) -
+  at gate 16.
+- OBB_mes_gate02_06 center (151.37, 5.27, 228.87) -
+  at gate 17.
+- OBB_mes_gate03_00 center (293.19, 0.59, 315.32) -
+  3.4 NE of gate 22's anchor: the "mes" volumes are
+  per-gate story-message triggers sitting ON their
+  gates. mes03 is not a separate portal; the rift
+  portal sighted from the shelf / trap vertex is most
+  plausibly gate 22's own gateway visual at range.
+  No other named far-north object exists in the table.
+
+- THE cpu_XtoY ENTRIES ARE AN AREA ROUTE GRAPH. Each
+  edge's OBB center sits at the DESTINATION node's
+  location: AtoB (220.50, 111.00) = gate 11; BtoC
+  (210.56, 152.95) = gate 12; BtoH (218.71, 193.50)
+  and GtoH (225.57, 193.50) flank gate 18 (222.00,
+  193.50); BtoI (203.99, 210.02) - open country SW of
+  the junction; CtoD (305.04, 166.59) = gate 14; DtoE
+  (331.45, 125.99) = gate 16; DtoF (319.37, 193.65) =
+  gate 20; FtoG (268.45, 220.73) = gate 19; ItoJ
+  (154.09, 229.43) = gate 17; FtoK (292.50, 309.00) -
+  3.0 SOUTH of gate 22's anchor; KtoL (292.50,
+  315.00) - 3.0 NORTH of it. Edges: A->B, B->C, B->H,
+  B->I, C->D, D->E, D->F, F->G, F->K, G->H, I->J,
+  K->L. (Letters are area ids; K/L are gate 22's
+  near/far side.) A CUR curve record near the table's
+  end carries far-north ground points (306.33,
+  296.81), (310.23, 298.00), (313.00, 298.88) -
+  walkable ground exists around kaname_02 / gate 22.
+
+SESSION 45 ROUTE, REVISED BY THE GRAPH: the only edge
+into gate 22's area is F->K - from GATE 20's area
+(319.33, 193.64) north along the east side, past gate
+21 (315.09, 270.40) which sits on that corridor. Gate
+20's area is reached D->F from gate 14's area. No edge
+enters K from the west: the pt2 ledge / bench / shelf-
+north leads have no graph support. The untested ground
+is the shelf strip's continuation EAST/NORTH-EAST of
+(297.42, 173.33) toward (319.33, 193.64) - sessions
+41-44 probed that strip's SOUTH rim and the pocket
+below it, never its north/east continuation. Plan:
+load ch6_s44_shelf.state (canonical), probe N/NE/E,
+waypoint-walk to gate 20, stand+Cross its anchor,
+then north past gate 21 (stand+Cross), pt3 ride,
+kaname_02, gate 22 stand+Cross at (292.50, 312.00).
