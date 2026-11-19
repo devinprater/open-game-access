@@ -7358,3 +7358,27 @@ banked KP 79 (74 + 5). State ch5_s37_field1.state,
 standing before the cleared (re-enterable) blue gateway.
 Loot: Iifa Leaf, Soul of Patience, Zombie Rag.
 
+
+
+### Session 37 addendum 8 — field: peninsula swept, BRV Charge chest not found
+
+Two full circuits of the gateway headland (greedy
+waypoint walker s37_walk2.py, screenshots at every
+waypoint): anchor (112.8,-22.1), far side (117.1,-27.1),
+east shore (122.8,-20.5), tip (116.7,-3.6), west shore
+(109.4,-7.9), west flank (103.5,-25.1), (107.8,-29.4),
+(113.8,-29.6). The headland's east side is walled at
+~(119,-7.4). NO chest anywhere on the headland — the
+guides' "chest past the blue gateway / around the small
+mountains" (BRV Charge skill) was not located in this
+pass; it is optional loot and the search is parked
+(revisit with a working object-table read). Warning:
+the pint object table's base address from the session-36
+boot does NOT hold in this boot — a full rd() scan at
+0x095D2B20 returned misaligned garbage (float-bit-pattern
+"models", repeating ids), so object-table addresses are
+boot-dependent and must be re-derived per boot before
+use. The cleared North Sanctuary shows its conditions
+panel again on approach (re-enterable for KP farming,
+as the guides say).
+
