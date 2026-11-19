@@ -6258,3 +6258,44 @@ board, unplayed). Scripts s35_*.py in ~/d12s.
   Bronze Bangle 500 (HP+85, DEF+1), Leather Hat 500
   (BRV+48), Plumed Hat 700 (not read), Robe 400 and
   Cotton Robes 900 (body alternatives, not read).
+
+### West Melmond Gateway — Scan census (full pass)
+
+17 discs, matching Suih's count. Decoded grid id =
+10*row + col on this board (row from z: -12, -8, -4,
+0, 4, 8; col from x: -18, -14, -10, -6, -2, 2, 6).
+Entry disc 20 (-18, -4). Contents by Scan panel:
+
+- 1 (-14, -12): Ephemeral Phantom Lv 3, stage Old
+  Chaos Shrine
+- 2 (-10, -12): Treasure Chest
+- 11 (-14, -8): empty
+- 12 (-10, -8): Jecht, Assist Character
+- 20 (-18, -4): ENTRY
+- 21 (-14, -4): empty
+- 22 (-10, -4): Imitation Despot Lv 1, stage Order's
+  Sanctuary
+- 23 (-6, -4): Treasure Chest
+- 24 (-2, -4): Ephemeral Summoner Lv 1, stage
+  Order's Sanctuary
+- 25 (2, -4): empty
+- 26 (6, -4): Stigma of Chaos
+- 31 (-14, 0): empty
+- 34 (-2, 0): empty
+- 35 (2, 0): empty
+- 41 (-14, 4): Delusory Dragoon Lv 3, stage Old
+  Chaos Shrine
+- 45 (2, 4): empty
+- 51 (-14, 8): Treasure Chest
+
+All four manikins, all three chests and the Jecht
+assist piece match Suih's West Melmond list exactly
+(his chest contents — Halbred, Guard Ring, Hairband
+— get verified on opening). Movement edges were
+walked and recorded in full (s35_census2.py DFS;
+s35_census.log): the board is one connected web —
+a west column (1-11-21-31-41-51) with the 12/2 pair
+hanging off its top, the long row-2 chain
+20-21-22-23-24-25-26, and a south-east spur
+24-34-35-45 with 34-31 closing a loop. The gateway's
+KP Chance (Suih): Win battle. Bonus Line Lv 2.
