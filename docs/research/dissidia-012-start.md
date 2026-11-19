@@ -7554,3 +7554,47 @@ North Sanctuary (full clear via Stigma banks its KP and fully heals)
 one or two times for levels, then re-run Forsaken Kingdom (Hero,
 Summoner, Odin, Potion all measured) and take the boss at Lv ~20+.
 Exited to `ch5_s37_field3.state` at the FK portal (67.5,124.5).
+
+
+### Session 37 addendum 14 — North Sanctuary farm clear #1: Lv 17 -> 20
+
+**⚠️ BFS STATE POISONING (lesson).** Re-running s37_bfs.py with a new
+prefix (ns2) silently REUSED clear-#1 per-disc state files: its
+"ns2_on20.state" peeks as Lv 14 / HP 2216 / Gil 2,608 — a clear-#1
+artifact. The EDGES it reported were still the true board geometry,
+but every per-disc STATE from that run was discarded. Navigate by
+s37_walk.py from a verified state instead, and peek-verify any state
+before fighting from it. (The entry state ns2_board.state was clean:
+Lv 17 / HP 2398 / Gil 5,776 / KP 79.)
+
+**Route back to the gateway (for the record):** the peninsula's east
+and west shore descents are BOTH walled at z~6 (pocket at (114.6,6.2)
+recurs). The working descent is at x~93: (94.7,7.7) -> (93.5,-0.6) ->
+(97.1,-8.3) -> (105.2,-11.2) -> (107.6,-14.4) -> (111.6,-19.5) ->
+anchor (113.0,-21.2). Bowl exit reverse: (69.7,89.9) -> (71.3,86.2) ->
+(77.1,83.9) -> gully (76.0,74.3) -> (74.0,66.9) -> (84.1,64.2).
+
+**Farm clear (repeat board; all pieces respawn, chests respawn):**
+- Delusory Dragoon Lv 8: dumb block, WIN 11 rots, no damage.
+- Fleeting Flash Lv 8: chain card from disc 22, dumb block, WIN 20
+  rots. Chain banked 4 KP (both inside 90 s). **Mid-fight level-up:
+  Lv 18 (HP max 2,458).**
+- False Hero Lv 13 (1727): policy, WIN 63 rots, her HP -> 1,773.
+- Imitation Despot Lv 13: **HP VARIES PER INSTANCE — this roll was
+  1,885 (the wiki's high end), clear #1's was 1,568.** Exact-HP
+  searches failed twice (BLOCK NOT FOUND) before the range finder
+  (1400-2100) caught it. WIN 38 rots. NOTE: chained fights present a
+  VS screen ("✕ Next") after the card's Engage — a fight script's
+  first Cross can be eaten by the card->fade->VS sequence; starting
+  the script from a state saved ON the VS screen works.
+- Idle Sky Pirate Lv 13 (HP 1): WIN 3 rots, +1 KP — but its Torrent
+  landed during the block search again: her HP 1,834 -> 223 at policy
+  start. It is the most dangerous "easy" fight on the board.
+- E1 chest re-claimed (grid became 4 — NS chest cells are move-onto
+  pickups, unlike FK's aim-open chest). A1/A5 chests skipped.
+- Stigma from 12 up -> field. **Clear rewards banked: KP 79 -> 84,
+  Gil 6,686, FULL HEAL. Lightning Lv 20, HP 2,578.**
+
+One clear = +3 levels (17 -> 20). Heading back to Forsaken Kingdom
+for the Warrior of Light at Lv 20; a second farm clear is the fallback
+if he still walls her.
