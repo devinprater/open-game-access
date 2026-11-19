@@ -8444,3 +8444,29 @@ owes: Gateway of True Intent, Ryukahn, Exdeath Lv 18, the farm arc.
 the pass road east/north toward gate 22 (292.5, 312.0); fallbacks:
 boulder-protocol checks at the band's east face (x~242) and the shelf
 ridge, and a pt18/pt2 pad stand-test if a route passes one.
+
+
+### Session 43 addendum 16 - RESUME VERIFIED; the cross-country cut stalls on a bench at (191.3, 248.2) (2026-11-19)
+
+RESUME VERIFIED: ch6_s42_scout.state -> ctrl state 2, Kain at
+(170.27, 227.04), gil 9,666 - exactly s42's record.
+
+FIRST NAV (greedy scan-walker, target gate 22's anchor
+(292.5, 312.0)): the walker left the pass road heading NE
+cross-country and climbed steadily - (174.2, 232.1) ->
+(184.6, 244.7) -> (189.5, 248.8) - then stalled in a small
+pocket around (191.3-192.5, 247.3-248.8), distance to the
+anchor stuck at ~119.5 for 30+ steps. The slope up from the
+road IS walkable to z~248 at x~185-192; the ground there is
+a bench against a face, not a through-route as walked.
+
+CAMERA MAPPING at the bench (14-frame pushes, measured):
+stick N -> world (-0.60, -1.57); stick E -> (-1.68, +0.03);
+stick S -> (-0.50, +1.60); stick W -> (+1.59, +0.33). The
+camera sits ~180-flipped here (stick E moves -x). Diagonal
+pushes from the pocket's inner corner measured 0.00 four
+times running - treat diagonals as unreliable in tight
+pockets; cardinals still moved.
+
+NEXT: bench-following probes E and W from the stall pocket
+(ch6_s43_nav.state) before falling back to the road.
