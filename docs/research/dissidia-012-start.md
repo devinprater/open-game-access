@@ -8774,3 +8774,92 @@ standing.
       re-checked in the canonical lineage (the
       point was empty in s41's fork; Ch.5's
       gateway armed at a moogle).
+
+### Session 44 addendum 22 - THE LONG WALK EAST; CORRIDOR-MOUTH MANIKIN BEATEN; SE BASIN SEALED FROM THE WEST (2026-11-19)
+
+RESUME VERIFIED: ch6_s42_scout.state loads to state 2 at
+(170.27, 227.04), gil 9,666 (canonical lineage).
+
+WALKER ENGINEERING (durable): the scan-navigator pattern
+(6 loadstates per step) degrades to ~50 s/step on long
+legs - do not use it for distance. The greedy calibrated
+walker (14-frame pushes, camera calibration, scratch
+probes only when stuck) crossed the whole map; its FINE
+variant (8-frame pushes, bias 6) threads gullies and
+rounds faces the coarse pushes overshoot; a 20-frame
+variant ferries open slopes. Legs walked: scout -> west
+road reversed -> Firion's ruins (220.73, 193.00)
+[ch6_s44_ruins.state]; ruins -> terrace west -> bowl ->
+the gully (fine walker only) -> lowland -> Sunken Lake
+arch: Kain halts at the arch's north face (211.03,
+156.65); the gap passes with 20-frame pushes routed SW
+then E along Z~151. East shore: the headland face zone
+(X 232-240, Z 136-147) defeats 20-frame pushes (bias
+overshoot and slides); the fine walker rounds it at
+Z~140-144.
+
+CORRIDOR-MOUTH MANIKIN - BEATEN IN THE CANONICAL
+LINEAGE: heading NE through the slide zone toward the
+corridor mouth, the field manikin fired at (273.96,
+147.40) (state 2 -> 5). VS card: Kain Lv 9 + Firion
+assist vs "?" Lv 7, stage Ultimecia's Castle, Judgment
+ruleset - the same manikin as sessions 41/42. FIGHT
+SCRIPT LESSONS: (1) ctrl state 20 covers the VS screen
+as well as battle and board - a fight script must press
+Cross while state==20 until the battle block appears, or
+it waits forever on the VS card; (2) key the
+live-battle guard on the FOE's HP (702), never Kain's -
+his HP at block-appear time varies with damage taken.
+Block base this boot 0x09695798 (same as session 41's
+boot). HP CORRECTION TO THE STANDING: Kain entered this
+battle at FULL HP 1,791 - the brief's "1,432/1,791" was
+session 42's in-battle end read, not the field standing;
+an ambush battle starts him full. Square hits of exactly
+258 (702 -> 444 -> 186 -> 0); several Square whiffs
+interleaved; Kain took two 130-damage hits. WIN in 12
+rotations, Kain ended 1,531/1,791. Post-fight: 13 Cross
+presses cleared the results chain (through a state-0
+transit) back to field state 2 at (273.48, 147.11) -
+the corridor mouth. Gil 9,666 -> 9,750 (+84, matching
+session 41's reward for this manikin). States:
+ch6_s44_fight0.state (pristine, on the VS card),
+ch6_s44_fight_end.state, ch6_s44_postfight.state
+(canonical resume).
+
+SE BASIN APPROACH - MEASURED NEGATIVE FROM THE WEST
+(addendum 21's lead): the northern shore walks fine to
+(285.69, 143.97), but the X~290 ridge is a CONTINUOUS
+wall at X~290.6 from Z~147 south: at (290.0, 137.9)
+eastward probes displace <= 0.8 while the south slide
+along the face stays open. A dedicated face-hug slide
+(southward stick recalibrated from scratch probes every
+10 pushes, 16-frame pushes) descended the face's west
+base from (289.8, 138.4) to session 42's bowl in 11
+pushes, ending (282.37, 126.87) [ch6_s44_hug.state].
+The ridge face plus the bowl's east rim seal the basin
+at every latitude 123-147. Gate 16's anchor was NOT
+reached; barred-vs-open remains UNRESOLVED - it is
+unreachable from the west, which is a different fact.
+
+GATE TABLE NOTE: the manager-record print (s8lib
+gate_table) does not expose addendum 12's tester family
+fields (facing-cone / volume markers were read off the
+in-world gate entities in session 41); the families
+stand as recorded there - volume {22, 11, 16, 17},
+facing {19, 22, 13}, gates 14/15/18/20/21 inert in
+both. Do not re-derive families from the manager print.
+
+NEXT (session 44 continues): the shelf-east south
+descent (X 295-303, Z 150-165) - the pocket's sealing
+was measured only in a ~3-unit bounce band at gate 14's
+anchor (addendum 14 route 4); the shelf strip's south
+edge east of the ridge was never probed. If a descent
+opens, run the coast SE to pt1 (331.1, 136.0) and gate
+16 (331.5, 126.0). If it is sealed too, the stop
+conditions of the session-44 brief are met on the land
+side: gate 16 unreachable (not proven barred), pt1
+unridden, east coast unreachable - and the chapter's
+remaining live candidate is gate 22 (both families),
+whose approach (the far-north country past the frozen
+basin and the rift-portal ridge) is session 45's
+problem.
