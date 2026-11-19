@@ -8863,3 +8863,71 @@ remaining live candidate is gate 22 (both families),
 whose approach (the far-north country past the frozen
 basin and the rift-portal ridge) is session 45's
 problem.
+
+### Session 44 addendum 23 - SHELF-EAST DESCENT TESTED: A CHUTE INTO GATE 14'S POCKET, NOT A THROUGH-ROUTE; SE BASIN LAND ROUTES EXHAUSTED (2026-11-19)
+
+ROUTE: from ch6_s44_postfight.state (273.48, 147.11) up
+the corridor to its top (270.90, 164.25), east along the
+shelf strip past the ridge crossing to (297.42, 173.33)
+[ch6_s44_shelf.state]. The shelf's south rim at X~292.5
+is a lip (best southward probe -1.6 Z over two 20-frame
+pushes, sliding east), but at X~297-300 the rim OPENS
+into a slope chute: from (296.90, 172.69) the SE probes
+descend freely ((0,-1) -> (298.3, 168.5); (-1,-1) ->
+(299.3, 168.9)). The chute runs SE to a bench at
+(303.25, 167.25) - the gate-14 pocket's own floor,
+entered from its north rim this time.
+
+THE BENCH IS SEALED, re-measured from inside: at
+(303.25, 167.25) east probes (1,0) and (1,1) displace
+0.0; SE (1,-1) displaces 0.7; south (0,1) steps only to
+(303.2, 165.8), still inside the pocket band of
+addendum 14 (X 299.7-303.2, Z 165.2-168.4); all other
+probes lead back along the bench or up the chute. The
+chute is the pocket's north-rim slope, not a descent to
+the basin: there is no ground between the pocket
+(Z~165-168) and the basin rim (Z~140s) east of the
+ridge.
+
+SESSION 44 VERDICT ON THE SE BASIN (all measured this
+session and sessions 41-43): gate 16 (331.5, 126.0) is
+UNREACHABLE on foot from every reachable direction -
+west (ridge face continuous Z 147 -> 123, bowl east
+rim), northwest (shore dead-ends at X~290.6), north
+(shelf crossing -> gate-14 pocket, sealed E/S), and the
+east coast cannot be reached either (gate 15 (366.0,
+151.9) is inert in both tester families - another
+chapter's segment - and no route east of the ridge
+extends past the pocket). pt1 (331.1, 136.0) cannot be
+stood on from outside, so its ride is untestable.
+Whether gate 16 is barred or open is UNRESOLVED; the
+measured fact is unreachability. Per the session brief,
+no new theory is invented here.
+
+STANDING AT SESSION 44 CLOSE: Kain Lv 9, HP 1,531/1,791
+(post-fight read; ambushes start him full), Firion
+assist, geared, Rosetta Stone held, gil 9,750, banked
+KP 103. Chapter 6 cleared: Sunken Lake, Legendary Lake
+(3x). RESUME STATE for session 45: ch6_s44_postfight
+.state (corridor mouth (273.48, 147.11), gil 9,750,
+canonical lineage). Also saved: ch6_s44_hug.state (the
+bowl (282.37, 126.87)), ch6_s44_shelf.state (shelf east
+(297.42, 173.33)).
+
+SESSION 45 LEADS, in order: (1) GATE 22 (292.5, 312.0)
+- the only remaining gate live in BOTH tester families
+(volume 3, facing-cone 26); its cluster mirrors gate
+16's: jumpgate pt3 (292.7, 301.0) and kaname_02 /
+POS_emekano pt17 (304.8, 296.5). Its approach is the
+far-north problem: the north road ends at the shelf
+(228-235, 229-233) with a dark rift portal sighted
+beyond the ridge (sessions 41/43), and pt2's frozen
+basin ledge caps north at Z~248.7 - the ridge north of
+the shelf and any crossing east of it are unwalked.
+(2) The untested pad RETURN rides (stand on pt0's /
+pt2's landing point + Cross) - cheap, and a return ride
+that fires would rewrite the pad model. (3) The moogle
+point (196, 144) re-checked in the canonical lineage
+(it was empty in session 41's fork; Ch.5's gateway
+armed at a moogle). (4) Only after a new gateway opens:
+farm arc, then Ryukahn / Exdeath Lv 18 per the guide.
