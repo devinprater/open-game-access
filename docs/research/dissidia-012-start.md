@@ -8517,3 +8517,39 @@ NEXT: jumpgate pt2 stand-test (163.1, 230.6 - never stood
 on; s42's manikin fired first), then the shelf boulder
 protocol + east-of-shelf probes via the junction if the
 face opens, or via the ruins north road if it does not.
+
+
+### Session 43 addendum 18 - JUMPGATE pt2 IS A LAUNCH PAD: Cross rides a line north to (165.45, 238.38); a frozen basin opens (2026-11-19)
+
+PT2 STAND-TEST (163.1, 230.6; never stood on before -
+s42's manikin fired first): fine approach put Kain ON the
+point at (163.17, 230.44), 0.18 from the record point
+[ch6_s43_pt2.state]. Three walk-on/walk-off cycles: NO
+trigger - the pad does not edge-fire.
+
+CROSS ON THE PAD: one press produced a deterministic
+~8.3-unit launch NNW: post-press read (165.00, 237.15),
+one drift chunk (+0.44, +1.23), then a HARD STOP at
+(165.45, 238.38) - stationary for 285 further frames.
+Identical endpoint (to 3 decimals) on both trials. A
+field dash is ~1.7 units; this is a scripted quickmove
+line ride, pad-triggered by Cross. Landing state:
+ch6_s43_pt2ride.state. (pt0's s41 stand+Cross negative
+may mean pt0 launches somewhere unobserved, or pairs
+differently - untested either way; pads are NOT inert.)
+
+THE LANDING (screenshot s43_pt2_end): a slope above a
+FROZEN BASIN (ice field to the east). West: a stone
+gatehouse with a barred portcullis - gate 17's structure
+seen from its NORTH side (the landing is (11.3, 9.0) NE
+of gate 17's anchor) - and a tall white tower beyond it.
+The pad hops the gate-17 ridge into country no session
+has walked: the basin north of the pass.
+
+FIELD HP NOTE: the field HUD reads "HP 1791" in every
+s43 screenshot although the post-manikin standing was
+1432/1791 - the HUD number appears to be MAX HP on the
+field display. True current HP to be taken from the
+battle block at the next fight.
+
+NEXT: explore the frozen basin E/N from the landing.
