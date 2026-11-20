@@ -12988,3 +12988,95 @@ s60_leg3_event.state.
 
 FINDINGS:
 (to be filled as the session runs)
+
+A. THE SEAM + THE ROAD SOUTH (from
+s60_leg3_event.state):
+- The s60 event bank loads (0,0)/state68=0
+  under the marcher's 60-frame settle but
+  SETTLES at 120 frames: field control at
+  (292.67, 301.01), gil 14,850 - just south
+  of the Z~=310 seam (s61_probe_settled).
+  HARNESS NOTE: post-seam banks need >= 120
+  frames before the first position read.
+- The road runs clean S from (292.67, 301.01)
+  to a shelf at Z~=286-287 (march gains
+  +1.66/step): stand (288.34, 286.77) banked
+  as s61_m2_final.state.
+
+B. THE SHELF WALL (Z~=286) - NOT A BOULDER:
+- Due-S from (288.34, 286.77) creeps down a
+  slope to a hard face at (288.08, 285.99)
+  and stops. Three Circle spear lunges at
+  the face base + post-attack S probes:
+  NO break, no movement (s61_b2_atk /
+  s61_b2_after). A facing-S Cross dash also
+  stops at the face (~0.8 travel).
+- BUT a long SE hold from the same stand
+  DESCENDS: (290.47, 284.67) - the face is a
+  contour; the slope runs diagonally SE.
+
+C. THE SE VALLEY + BASIN FLOOR:
+- Marching the SE descent: (293.03, 282.45)
+  [s61_m3_final]. The marcher's 14-frame
+  probes read ~0 there (a lip hides the
+  slide) but 28-frame holds DESCEND: S ->
+  (295.32, 279.99), SW -> (294.32, 280.38).
+  LESSON: on this leg, short probes lie;
+  survey with 28-frame holds (s61_survey28).
+- Valley floor reached (297.41, 276.31)
+  [s61_m5_final]: floor runs E-W at Z~=273-
+  276 (S hold -> (298.95, 273.32); W hold ->
+  (295.95, 276.45) then a WALL at X~=295.5:
+  march probes W ~= 0 from (295.77, 276.96);
+  a facing-W Cross dash crosses only ~1.2 -
+  the wall stops dashes too (s61_dash_B).
+- Stall-protocol dash from (295.78, 276.94)
+  jumped SE-down into a N-S TRENCH at
+  (299.23, 269.60) [s61_m6_scratch].
+
+D. THE TRENCH (X~=299-302, Z 261-279+):
+- Runs N-S: marched S to (298.99, 265.16)
+  [s61_m7_final]; SE stick reaches Z=261.85.
+  WEST WALL SOLID at every latitude probed
+  (best -X in 28-holds: -0.22). E/NE open
+  ((302.30, 265.38)) toward gate 21 country.
+- A facing-SW dash from the trench landing
+  climbs BACK to the mid shelf (295.87,
+  277.31) - the trench and shelf connect
+  only via that lip/dash point.
+
+E. THE SHELF WEST END + KNOB:
+- The shelf runs W from (288, 287) at
+  Z~=287-289 to a knob at (277.02, 291.26)
+  (shelf RISES westward). A stall dash from
+  (285.56, 286.73) crossed W to (278.98,
+  289.47); a facing-S dash from the knob
+  stand (276.63, 289.78) went map-WEST to
+  (269.10, 288.63) [s61_dash_A] - the shelf
+  top extends to X~=269.
+- From (269.10, 288.63) a SW slope descends
+  to a DEAD-END pocket at (260.73, 283.87)
+  [s61_m9_scratch]: stall protocol attacked
+  (3 Circles) - nothing broke; RESULT
+  STALL_ATTACKED. Not the way in.
+
+F. MOOGLE SHOP (280, 273) - STATUS:
+- NOT reached. Ringed on every side tried
+  this session: N shelf face (attacks do
+  not break it), NW knob + SW pocket (dead
+  end), E trench (west wall solid, dashes
+  stopped), SE valley floor (wall X~=295.5).
+- Session 56 had already found it ringed
+  from three sides pre-clear. Remaining
+  untried approaches: (1) from GATE 21's
+  stand (315.09, 270.40) heading W along
+  Z~=270 at the east ground level; (2) the
+  trench's south end (below Z=261) bending
+  W; (3) gate 21 itself may now be LIVE
+  post-clear (it was inert in s56, tested
+  BEFORE True Intent fell) - if Ryukahn is
+  gate 21, the shop may be sequenced after
+  or beside it, not before.
+- NEXT: march the trench E/NE to gate 21's
+  anchor, test entry (stand + Cross, READ
+  THE TITLE CARD), survey W from its stand.
