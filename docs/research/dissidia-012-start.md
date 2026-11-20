@@ -10796,3 +10796,16 @@ X~211. Both chest candidates sit on that shelf. The
 way in is up at the arch's longitude, then east along
 the shelf - NOT across the strip. Test running as
 walk s53_d1: arch state -> (227, 167) direct.
+
+E. SHELF TEST 1 (walk s53_d1, arch -> (227, 167)):
+FAILED. The "lane" east from the arch at Z~152-153
+is the strip itself; Kain stalled in a notch at
+~(217.7, 152.7) (cycle 2: all eight headings ~0.00),
+then slid east along the Z~151.5 edge to (225.37,
+151.84), dist 15.25, MAXCYCLES. No ramp up at
+X 211-218. The shelf's south face is continuous from
+X~211 to at least X~231 at Z~151.5-152.
+TEST 2 RUNNING (walk s53_d2): gully foot (192.77,
+160.07) -> (227, 167) - the Z~160 line east from the
+foot has never been walked; the foot already stands
+at shelf latitude.
