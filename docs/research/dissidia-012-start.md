@@ -10078,3 +10078,25 @@ numbers cross-checked by tester VALUES only
 stored in gate order).
 
 FINDINGS BELOW AS THEY LAND.
+RESUME VERIFIED (with a lineage correction):
+ch6_s45_south_cur.state reads (208.25, 189.32) but
+gil 9,666 and gate-table k1 = A 25 (Legendary Lake
+still LIVE) - it is a PRE-LL state, fine for terrain
+work but INVALID for the post-LL gate 11 re-test.
+Session 50 therefore runs from ch6_s48_trek1_hop6.
+state (Firion's ruins (219.83, 194.00), adv lineage):
+gil 9,774 verified, state 2.
+
+GATE TABLE (this boot, GateMgr 0x095D7110; values
+cross-checked vs s41/s49): k0 -1/-1; k1 life 5,
+timer 122.0, -1/-1 = Legendary Lake FINISHED; k2
+A 26 / B 3 = the gate at (292.5, 312.0) (live in
+BOTH families); k3 B 0 = gate 11; k4 A 28 = Hidden
+Darkness (farm board, stays live); k7 B 1 = gate
+16; k8 B 2 = gate 17; k5/k6/k9/k10/k11 inert in
+both families. Value-matching is stable across
+boots and lineages.
+
+ROUTE SOUTH: ruins -> central-field hub by rider,
+then fan every node south of the hub toward the
+moogle point (196, 144) and pt0 (213.0, 120.8).
