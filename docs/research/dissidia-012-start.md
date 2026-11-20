@@ -11782,3 +11782,35 @@ the board's back-center, beside cell 23)
 and the Fleeting Flash Lv 13 (back-right),
 plus two gold chests (cells ~21 and ~28:
 Pebble + 500 gil per Suih).
+
+### Session 57 addendum 46 - FINISHING TRUE INTENT (2026-11-20)
+
+PLAN (from addendum 45's close): resume on the
+Gateway of True Intent board at s56_ti_resume.state
+(Kain at cell 23, HP 1,651, gil 9,840, banked KP 104,
+board KP 0; Transient Gunner Lv 6 beaten). Work the
+board: Idle Sky Pirate Lv 13 (cell 22) first, then
+Fallacious Tree Lv 13 (back-center), then Fleeting
+Flash Lv 13 (back-right); take both gold chests
+(cells ~21/~28: Pebble + 500 gil per Suih); then the
+Stigma of Chaos to finish the board. Read each foe's
+Opponent Info card before engaging; bank a fresh
+savestate before EVERY fight (never overwrite
+s56_ti_resume.state). KP chance is "Win within 90
+seconds" - rot4 missed it on the Gunner; a won fight
+at 0 KP beats a lost fight at speed (banked KP is
+already 104). On board finish: bank KP (decline any
+chain), record standing, then scout leg 3 (two more
+boulders, moogle country at (280, 273), toward
+Ryukahn / Exdeath Lv 18 - probe only).
+
+Harness: s47_board.py for board navigation,
+s47_fight.py (rot4, WAIT 2) for fights, s55_march.py
+for any field walking. All runs in HELD FOREGROUND
+exec calls. Standing at open: Kain Lv 10, HP 1,651/
+1,851, gil 9,840, banked KP 104, Shiva + Rosetta
+Stone held, Firion assist. Branch verified at
+53cbbbb, clean.
+
+FINDINGS:
+(to be filled as the session runs)
