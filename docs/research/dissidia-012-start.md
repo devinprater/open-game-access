@@ -10720,7 +10720,23 @@ volleys -> re-probe; exit codes 0 ARRIVED / 3 EVENT /
 4 STALL_ATTACKED). All walks in the adv lineage.
 
 FINDINGS:
-(to be filled as the session walks)
+Transit SOLVED and banked: bench -> mesh -> ruins
+-> gully foot -> arch -> strip east all march-walked
+clean (states s53_b2/c1/c2/c3_final). The bay's south
+shore is a SHELF at Z~160-167 holding both kind-0
+chest candidates (227, 167) and (231, 162); it was
+NOT reached this session. Measured closed: strip
+crossings at X=222 and X~228-231 (face at Z~151.5),
+the arch lane east (same face, notch stall at
+(217.7, 152.7)), and the high lane from the gully
+foot, which runs east at Z~158-163 for ~18 units and
+dead-ends against a face at X~211 (walk s53_d2).
+Untested: the shelf's NORTH side - the direct descent
+from Firion's ruins boxes (227.8, 185.4) south to
+(227, 167). That is session 54's lead. Red object and
+chests still unidentified; no fights, no events,
+standing unchanged (Kain Lv 10, HP 1851, gil 9,774,
+KP 104).
 
 A. APPROACH A - DEAD (measured, not assumed). Walk
 s53_a1 from s52_bay_scratch.state (238.75, 176.37)
@@ -10809,3 +10825,26 @@ TEST 2 RUNNING (walk s53_d2): gully foot (192.77,
 160.07) -> (227, 167) - the Z~160 line east from the
 foot has never been walked; the foot already stands
 at shelf latitude.
+
+F. SHELF TEST 2 (walk s53_d2, gully foot -> (227,
+167)): FAILED at the last face, but it mapped the
+high lane. Cycles 0-3 walked a clean descending lane
+at Z~158-163 east from the foot: (198.47, 162.03) ->
+(201.50, 162.86) -> (204.83, 161.42) -> (207.36,
+160.81) -> (208.60, 160.37) -> (210.88, 158.08). At
+X~211 the lane ends against a face (cycle 4 best
++0.01; stall volleys negative; cycles 5-14 pinned at
+~(211.0, 157.9)). RESULT MAXCYCLES (209.99, 156.55),
+dist 19.97. So the shelf segment holding the chest
+candidates is boxed on its south face (Z~151.5, X
+211-231+) and its west face (X~211, Z~158). Its
+north side - from the ruins boxes - is the one side
+never walked. SESSION 54 LEAD: from the ruins
+approach (s53_b2_final.state (217.06, 195.70)) or
+Firion's ruins boxes (227.8, 185.4), walk due south
+to (227, 167); if a descent exists it lands on the
+shelf between the two candidates. Secondary leads:
+the shelf's SE corner from the east coast at
+(243.29, 142.93); a constant-Z~170 westward probe
+from the pocket terminus (238.75, 176.37).
+Standing unchanged; gil 9,774 at every boot.
