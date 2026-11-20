@@ -14054,3 +14054,42 @@ EXDEATH PROBED (board NOT finished):
   state (Stigma prompt open, HP 761),
   s63_g01_base.state (field anchor stand),
   s63_g01_board2.state (fresh board entry).
+
+E. EXIT-HEAL DONE; RE-ENTRY DONE; RE-CLEAR
+INTERRUPTED BY A SERVICE RESTART:
+- Exit from s63_postdrag.state (s60_exit2
+  flow): landed on the field at the
+  gate03_01 anchor stand (279.80, 329.38),
+  gil 15,618 kept, HP FULLY HEALED
+  [s63_field_healed.state].
+- Re-entry: Cross at the stand -> board;
+  the scene press-loop (115 Cross presses,
+  150f apart) cleared the entry dialogue;
+  control test moved 42 -> 32 -> 42: LIVE
+  [s63_re_board_live.state]. Kain Lv 25,
+  full HP (~2,763).
+- Re-clear begun: nav 42 -> 32 -> 33 -> 34,
+  Pirate prompt banked [s63_re_pir_pre.
+  state]; the re-fight (foe 1,921, rot4z)
+  was launched but the VM service restarted
+  mid-run; the orphaned process was seen
+  alive once (poll dumps 0-11 written) and
+  later died WITHOUT banking post states.
+  No result either way - the fight simply
+  needs re-running from s63_re_pir_pre.
+  state. Nothing else was touched.
+- RESUME (next session): from
+  s63_re_pir_pre.state re-run the Pirate
+  (s60_fight_nc, foe 1921, rot4z, her
+  2600-2800), then chest (35 -R-> prompt 36,
+  Cross), Girl (33 -U-> prompt 23; engage,
+  ramdump-scan her_hp 2763-ish for foe_hp=1,
+  finish ENGAGE=mid), 23 -U-> 13, re-read
+  the tip pages (Cross x~10), Dragoon
+  (13 -L-> prompt 12, foe 1,303), Gunner
+  (13 -R-> prompt 14, foe 1,727, idle-900
+  bank is the proven trace family), then
+  12 -U-> prompt 2 and EXDEATH (foe 2,725)
+  at full HP with idle-rolls in reserve.
+  Chapter 6 completes when the Stigma
+  falls and the post-clear dialogue plays.
