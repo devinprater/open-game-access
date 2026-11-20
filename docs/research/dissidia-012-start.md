@@ -13825,3 +13825,59 @@ CANDIDATE MECHANISMS (written before testing):
 
 FINDINGS:
 (to be filled as the session runs)
+
+A. THE NORTHERN CENSUS (pint dump from
+s62_menu_exit3.state; list0 0x095D2A00, 135
+records this boot): A WHOLE NORTHERN FIELD
+SEGMENT EXISTS PAST GATE 22 - no session had
+ever dumped it. In the box X 255-345,
+Z 315-375: kind-2 Light Orb chains in three
+variant sets - set 47: (291,340), (271,350),
+(261,345), (271,336); set 52: (283,346),
+(297,327), (321,351), (311,360); set 60:
+(273,345), (288,345), (321,348), (295,330).
+kind-5 arch shells at (271,329) in MANY sets
+(the segment's gateway arch, one per chapter
+variant). kind-0/1 scenery at (264,321),
+(268,321), (305,363), (326,355), (327,357),
+(308,362). Which set is live for Kain is
+again a measurement question, not a table
+question.
+
+B. THE NORTHERN MARCH (C1's first test,
+s61_march28 from s62_menu_exit3.state):
+- Clean walk N from the exit stand: (292.61,
+  321.54) -> (294.07, 323.67) -> (295.16,
+  326.63) -> (295.78, 329.88) -> STALL at
+  (295.59, 330.87) [s63_n1_final]. 12.6 units
+  of new ground; no event, state68 2
+  throughout.
+- At the stall: 8-direction survey - the
+  face blocks map-NE; walks W/E along it move
+  freely. BOULDER PROTOCOL: facing the face,
+  Circle volley 1 LUNGED him over it
+  (+4.6 units to (298.78, 334.43)); volley 3
+  lunged again to (300.32, 340.01)
+  [s63_stall_after]. Whether a boulder broke
+  or the lunge simply vaults the lip is
+  UNRESOLVED - the post-attack probe started
+  from the landing, not the stall base. The
+  guide's "jump across the bridge" may be
+  exactly this: spear-lunge hops between
+  platforms ("move from platform to
+  platform" - GameSpy on the Tree fight).
+- The country past the face is a PLATFORM
+  FIELD (X 290-302, Z 334-343 by survey):
+  small stands joined by lunges. From
+  (296.3, 341.79) every lunge funnels W to
+  ~(290.5, 341.2) - the set-47 orb's platform
+  at (291, 340). A march W reached (290.53,
+  342.4) [s63_n3_bank] before a TUNNEL DROP
+  killed the run (recovered per protocol:
+  pgrep clean, no orphan, resume from the
+  bank - no ground lost).
+- The roaming Fallacious Tree Lv11 has NOT
+  been met yet; the BRV Charge chest is not
+  yet found. C1 is ALIVE: the northern
+  segment is real, walkable, and un walked
+  by any prior session.
