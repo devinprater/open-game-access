@@ -11452,3 +11452,24 @@ breakable orb post-Legendary-Lake. The guide's
 orb is a route LANDMARK; nothing on the route
 is gated by an orb strike. THE ROUTE IS THE
 GROUND. Lead 1 closed.
+
+B. THE TERRACE DOES NOT WALK EAST INTO THE
+STRIP: from s55_clus_final.state (284.93,
+252.62) marching E toward the strip's known
+stand (297.65, 251.96), the terrace's walkable
+ground ends at ~(286.8, 252.8): cycle 0 gained
++1.6 E along Z~252.6, then every probe read
+~0.00 for five straight cycles. Stall protocol
+at (286.76, 252.81): Cross probe NO dash (no
+movement); Circle volleys crept him +Z to the
+terrace N edge (286.91, 254.21) - no boulder,
+no event, state68=2 throughout. RESULT STALL
+at (286.80, 253.21), dist 10.92. So the high
+strip is NOT walk-connected to the Z~250
+terrace at this latitude: the gap between
+X~287 and X~291 stands. The strip was reached
+in s55 from the LEDGE POCKET below (284.03,
+243.27) by stall-dashes - the approach runs
+from s55_n250_final.state instead. Banked:
+s56_strip_scratch.state = the terrace E-end
+stand (286.80, 253.21).
