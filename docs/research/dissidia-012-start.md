@@ -11508,3 +11508,50 @@ s56_strip2_final.state (296.61, 251.56),
 s56_e1_final.state (314.28, 269.12),
 s56_g21f_final.state (anchor stand),
 s56_g21x_final.state (317.91, 284.44).
+
+D. THE ROAD TO GATE 22, AND FIRION AT ITS END:
+the march from gate 21's dashes (317.91,
+284.44) toward gate 22's anchor (292.5, 312.0)
+walked W along Z~285-286.6, then turned N up a
+LONG CLEAN ROAD - (308.73, 292.27), (307.18,
+296.90), (303.25, 301.69) - bent W along
+Z~307.4 and stalled at (297.09, 307.50), 6.43
+from the anchor, every probe ~0.00 (the local
+exec was SIGTERM'd mid-stall-protocol; the
+march's scratch commits made the work
+recoverable - killed cleanly, no strays). At
+that stand, a Cross probe did NOT dash: it
+opened a DIALOGUE (state68 2->3, position
+unchanged). Screenshot read firsthand: FIRION
+stands here, beside a stone gatehouse (W) with
+mountains behind (N) and a glowing crystal
+point on open ground (E). His chat, all five
+pages read from screenshots: Firion: "Kain,
+have you come across any of the others?" /
+Kain: "I met one by chance and discussed our
+situation, but I have yet to meet anyone
+else." / Firion: "...You see, I've heard some
+bad rumors. Rumors that some of our friends
+have fallen." / Kain: "I don't intend to trust
+the words of a foe, but I'm concerned, what
+with this situation..." / Kain: "That is
+true." Sixth Cross closed it (state68 back to
+2). It is the SAME five-page chat session 50
+recorded at the pt0 ledge - a repeatable
+companion talk node, present at this second
+stand. Post-chat gate table (this boot,
+GateMgr 0x095D7110, by value): IDENTICAL to
+s55's - k2 A26/B3 = gate 22 still live; the
+chat changes nothing. CAUTION: any march
+stalling at this stand fires the chat via its
+stall-protocol Cross (s56_w1 ended
+CROSS_EVENT, saved s56_w1_xevent.state) - the
+pt0-ledge trap, second instance. The stand
+itself is a walk pocket: all eight probes
+~0.00 except back E along the Z~307.4 band.
+The gatehouse walls the direct NW approach to
+the anchor; the anchor must be come at from
+N or E. States: s56_g22_scratch.state =
+s56_w1_scratch.state = the Firion stand
+(297.09, 307.50); s56_p6_check.state = the
+stand post-chat, field-clean.
