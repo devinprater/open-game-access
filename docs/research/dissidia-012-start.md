@@ -14266,3 +14266,38 @@ re-entry as sec B, bank s64_re3_board_live):
   next, from a banked prompt at disc 2;
   idle-rolls in reserve, FORFEIT-flee and
   re-roll on a guard-family trace.
+
+### Addendum 54 - ADAPTER CONSOLIDATION (2026-11-20, sonix clone)
+
+The board knowledge from sessions 21-64 is now consolidated into
+Core/dissidia012_adapter.cpp on this branch (commits cc7192a,
+3767142, d02b6a7, 94f02db, 0f7c9f9, 61ea3c6; NOT merged to main -
+Chapter 6 is unfinished). Changes:
+
+- The board-record scan now runs to grid 70 (live records at
+  60-64 were measured in sessions 25/35) and IdentifyBoard's
+  set-equality is per-definition.
+- 17 more gateway boards tabled in the shipped idiom: Fools and
+  Hope, Encounters and Treason, Gulg, Snow of Sorrow, Seasonless,
+  Chapter 3's first gateway, Gateway To Decay, West Melmond,
+  North Melmond, Gateway to the Shrine (Blue), Southern Shrine,
+  North Sanctuary, Forsaken Kingdom, Sunken Lake, Legendary
+  Lake, Gateway of True Intent, Ryukahn. The piece table grew
+  from 15 to 96 entries (KP chance is per-board; the 90-second
+  boards carry distinct entries). Adapter tests: 95 -> 121
+  checks, all passing on sonix (nix-shell gcc).
+- Hidden Darkness is deliberately NOT tabled: its Chapter 2 and
+  Chapter 6 instances share one disc fingerprint with different
+  pieces and KP chances (addendum 29), so it stays generic until
+  a measurement distinguishes the instances.
+- Marked gaps, tabled as presented: Legendary Lake discs 1/3/4/5
+  (never reached), True Intent nodes 30/55 (no cardinal path;
+  one may hold the Pebble chest), Forsaken Kingdom's two
+  guide-only chests behind the Phantom, Ryukahn's tip disc 13.
+  Great Forest, Gateway to the Shrine (Ch.3) and Southern Shrine
+  (Ch.3) stay research-only: their full disc sets were never
+  recorded.
+- No field/gate layer exists in the adapter, so the settled gate
+  identities (13 = Hidden Darkness, 19 = Legendary Lake, 22 =
+  True Intent, POS_gate03_01 = Ryukahn) were not encoded; gate
+  tables are segment-scoped in any case.
