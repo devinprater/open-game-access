@@ -12518,3 +12518,88 @@ F. VISIT 4-5 SAMPLES AND LV 19 (t4/t5 lineages):
   up from the hub) VIA PROMPT AT FULL HP:
   never fought; read its card, measure HP.
   Then Pirate -> Tree chain with idle-rolls.
+
+G. VISIT 6 - THE FLASH MEASURED; SESSION CLOSE:
+- GUNNER at Lv 19: WIN 9 rots (one 167 hit;
+  entry HP 2,230). Gil -> 12,240.
+- FLEETING FLASH (disc 13, up from the hub;
+  card read firsthand: Lv 13, stage Ultimecia's
+  Castle, KP chance win-in-90s) FOUGHT FOR THE
+  FIRST TIME at Lv 19 / 2,230 HP, rot4z: HP =
+  1,727. LOSS r42, foe at 990 (737 dealt). Its
+  shape: an early trade window (258 by rot 10),
+  then a ~1,233 BRV bank cashed for 1,541
+  (1,932 -> 391, rot ~17 - BRV + pool/break
+  bonus; the biggest single hit on this board),
+  then a KEEP-AWAY phase (zero damage rots
+  20-35 - the s46 Legendary Lake Flash pattern:
+  it wins the ranged game; damage only in the
+  melee trade window), a second window at rots
+  35-40 (479 dealt), and the second bank
+  (1,430) killed Kain at r42. The Flash is a
+  two-cash-in endurance fight like the Tree,
+  with a bigger cash-in and dead zones.
+- BOARD SKILLS CHECKED: Square on the board
+  shows the held skill - Cross Chain ONLY
+  (held since the Ch.2 chest). NO Recovery
+  skill is held; the (Cure) chest was a Ch.3
+  field loose end, never picked up, and skills
+  are held per chapter lead, so it would not
+  be Kain's anyway. No in-visit healing
+  exists: a board finish must be ONE visit on
+  one HP pool (2,397 + level-up heals).
+- PIRATE at Lv 19, two samples: idle-900 LOSS
+  r30 (foe 923; early flow 691 by rot 5, then
+  a 15-rotation stall at 923 while two hits
+  landed); idle-450 LOSS r24 (foe 907; foe
+  cashed ~977 by rot 10 untouched).
+- ONE-VISIT ARITHMETIC (why the board still
+  stands): Pirate costs ~500-1,900 depending
+  on trace; the Tree needs entry >= ~1,200
+  AND a flowing trace (its guard phase, when
+  it appears, costs ~2,200 at full HP); the
+  Flash needs near-full entry (its first
+  cash-in is 1,541) or a kill inside its
+  first trade window. At Lv 19 the three
+  costs do not yet fit one 2,397 pool except
+  on an aligned set of traces. THE RATCHET IS
+  THE PLAN: every visit banks EXP/gil even
+  when it fails (levels persist through
+  exits); Kain went Lv 14 -> 19 THIS SESSION
+  (five levels: Gunner kills tipped 15 and
+  18, Pirate kills tipped 16, 17, 19). At
+  Lv 20-22 the same traces cost less and the
+  damage windows widen; the finish is a
+  matter of visits, and every mechanism it
+  needs (chain entry, idle re-rolls of both
+  prompt banks and post-win banks, forfeit/
+  flee, the decline flow) is now proven and
+  tooled (s59_nav / s59_enter / s59_forfeit2 /
+  s59_fight / s59_fight_nc).
+- CHESTS / STIGMA: not reached this session.
+  Both chests are visible on the board (west
+  rock + east rock); the Stigma presumably
+  follows the last manikin.
+STANDING AT CLOSE (active t6 lineage): Kain
+Lv 19, max HP 2,397, gil 12,240, banked KP
+104, board KP 0, Shiva + Rosetta Stone held,
+Firion assist, Cross Chain board skill.
+RESUME: s59_t6_start.state (fresh board, full
+HP) or s59_s59t6gun_post2.state (this visit,
+Gunner beaten, HP 2,230, at grid 43). Other
+live banks: s59_s59t5pir_post2.state (Lv 19,
+HP 833, Tree chain VS open - idle-roll
+samples), s59_t5_field.state / s59_t6_field.
+state (field pocket). PROTECTED, untouched:
+s56_ti_resume.state. SESSION 60 LEAD: keep
+ratcheting - Gunner + Pirate per visit (each
+kill ~a level in this range), Tree via the
+Pirate chain with idle-rolled post banks at
+entry >= 1,200; take the Flash in the same
+visit only if the Tree falls cheap; expect
+the finish around Lv 20-22. If a visit's
+Pirate win leaves >= 1,700, skip the Tree
+chain sample and go straight for the full
+clear: Tree (chain) -> Flash (prompt, up
+from hub) -> chests (west/east rocks) ->
+Stigma.
