@@ -9881,3 +9881,61 @@ point (196, 144) re-check. (4) pt18 stand-test.
 pint census.
 
 FINDINGS BELOW AS THEY LAND.
+
+RESUME VERIFIED: ch6_s48_bench1_final.state -> (189.30,
+245.99), state 2, gil 9,774. GateMgr this boot =
+*(ctrl+0x88) = 0x095D7110; point table 0x095E61C0.
+
+POINT TABLE (fresh, this boot; X, height, Z): pt0 jump_
+gate02_00 (213.0, 120.8); pt1 jump_gate02_05 (331.1,
+136.0); pt2 jump_gate02_06 (163.1, 230.6); pt3 jump_
+gate03_00 (292.7, 301.0); pt4 gate02_00 (220.4, 111.0);
+pt5 gate02_01 (210.6, 152.9); pt6 gate02_02 (253.9,
+181.7); pt7 gate02_03 (305.0, 166.6); pt8 gate02_04
+(366.0, 151.9); pt9 gate02_05 (331.5, 126.0); pt10
+gate02_06 (154.1, 229.4); pt11 gate02_07 (222.0, 193.5);
+pt12 gate02_08 (268.4, 220.7); pt13 gate02_09 (319.3,
+193.6); pt14 gate02_10 (315.1, 270.4); pt15 gate03_00
+(292.5, 312.0); pt16 kaname_01 (194.0, 165.1); pt17
+kaname_02 (304.8, 296.5); pt18 OBB_jump_gate02_00
+(220.7, 107.6); pt26 OBB_mes_gate02_05 (332.2, 123.5);
+OBB_mes_gate03_00 present (name garbled in record 29);
+pt34 OBB_cpu_BtoH (218.7, 193.5); pt42 OBB_cpu_FtoG
+(268.5, 220.7).
+
+GATE TABLE RE-READ (records at gateMgr+4+k*0x14, k=0..11;
+record = ptrA, ptrB, life at +0xC, timer float at +0x10;
+testers A = s16 at *(ptrA)+4, B = s16 at *(ptrB)+0xE):
+k0: life 0, A -1, B -1. k1: life 5, timer 122.0, A -1,
+B -1. k2: life 0, A 26, B 3. k3: A -1, B 0. k4: A 28,
+B -1. k5: A -1, B -1. k6: A -1, B -1. k7: A -1, B 1.
+k8: A -1, B 2. k9: A -1, B -1. k10: A -1, B -1.
+k11: A -1, B -1.
+INDEXING CAUTION: if k = gate-11 (the natural read),
+then gate 12 holds the life-5/timer-122 FINISHED record,
+gate 13 reads A 26 / B 3, gate 15 reads A 28, gate 19
+reads A -1 / B 2, gate 22 reads -1/-1. Addendum 36's
+labels (gate 19 = life 5/122, gate 22 = A 26/B 3,
+gate 13 = A 28) match records k1, k2, k4 - i.e. s48's
+gate numbers sit +1/+9/+20 records off the natural
+indexing, so s48's NUMBERING cannot be reconciled with
+a constant shift; at least one of the two reads is
+mis-indexed. The board identities banner-verified in
+s46/s47 (Hidden Darkness at pt6 (253.93, 181.66),
+Legendary Lake at pt12 (268.42, 220.73)) are NOT in
+doubt - only the record-to-gate-number mapping is.
+Session 49 treats the TITLE CARD as the only authority
+for what gate 22's anchor (pt15) holds, and reports
+this table raw.
+
+PINT CENSUS (list 0 at 0x095D2F40, count 196, adv
+lineage): the far north is populated - a loose corridor
+of kind-2 objects (h=0) climbs X~278-336 from Z 245 to
+Z 303: (299,245), (278,250), (285,253), (305,256),
+(310,268), (299,270), (330,270), (303,271), (312,283),
+(304,286), (292,297), (294,303); kind-1 drawn models at
+(302,245), (307,260), (289,295); a kind-6 cluster x5 at
+(280,273). West-north (X<250, Z>250) is nearly empty:
+kind-1 at (250,276) and (263,292) only. The northern
+region exists and is dressed; it is the approaches that
+are unmeasured, not the destination.
