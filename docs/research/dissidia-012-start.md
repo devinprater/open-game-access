@@ -10053,3 +10053,28 @@ north road; ch6_s49_e10_scratch.state (east band end,
 ch6_s48_bench1_final.state (bench). Do NOT resume
 from ch6_s49_portal.state - it sits in the dash-ledge
 pocket (235.60, 222.65), exit unproven.
+
+### Session 50 addendum 39 - QUICKMOVE RE-RIDE SOUTH; GATE 11 RE-TEST POST-LL; MOOGLE POINT; pt18 STAND-TEST (2026-11-20)
+
+RESUME PLAN: adv lineage from ch6_s45_south_cur.state
+(central-field hub (208.25, 189.32)). Standing at open:
+Kain Lv 10, HP 1,851/1,851, gil 9,774, banked KP 104,
+Shiva + Rosetta Stone held, Firion assist. Boards done:
+Sunken Lake, Hidden Darkness (gate 13), Legendary Lake
+(gate 19, FINISHED). Owed: Gateway of True Intent /
+Ryukahn, Exdeath Lv 18.
+
+PLAN (brief order): (1) quickmove-network re-ride -
+fan every node on the south line below the central-
+field hub (unmapped in s45) hunting any segment
+landing east/north of the X~290 ridge (pt3 (292.7,
+301.0) / pt1 (331.1, 136.0) class landings); fan pt0's
+landing as a node when reached. (2) Gate 11 re-test
+post-LL via pt0's ride: portcullis photo + Cross at
+the face. (3) Moogle point (196, 144) re-check in the
+adv lineage. (4) pt18 (220.7, 107.6) stand-test. Gate
+numbers cross-checked by tester VALUES only
+(addendum 38 reconciliation: the gate table is not
+stored in gate order).
+
+FINDINGS BELOW AS THEY LAND.
