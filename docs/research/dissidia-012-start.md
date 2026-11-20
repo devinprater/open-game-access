@@ -12603,3 +12603,35 @@ chain sample and go straight for the full
 clear: Tree (chain) -> Flash (prompt, up
 from hub) -> chests (west/east rocks) ->
 Stigma.
+
+### Session 60 addendum 49 - TRUE INTENT: THE RATCHET, THEN THE CLEAR (2026-11-20)
+
+PLAN (from addendum 48 G): keep ratcheting - Gunner +
+Pirate per visit (each kill ~a level in this range),
+Tree via the Pirate chain with idle-rolled post banks
+at entry >= 1,200; if a Pirate win leaves >= 1,700 go
+straight for the full clear: Tree (chain) -> Flash
+(prompt, up from hub) -> chests (west/east rocks) ->
+Stigma. Expect the finish around Lv 20-22.
+Standing at start: Kain Lv 19 (max HP 2,397), gil
+12,174 (bank s59_t6_start.state, fresh board, grid 53,
+state68=20 - verified firsthand this session; the
+brief's 12,240 was the post-Gunner figure of visit 6),
+banked KP 104, board KP 0, Shiva + Rosetta Stone held,
+Firion assist, Cross Chain the only board skill (NO
+in-visit healing: a finish is ONE visit on one HP pool
+of 2,397 + level-up heals).
+Policy: rot4z (rot4 base; no-drift Triangle x2 /
+Square x2 race from foe <= 700 HP). Levers: race
+threshold, idle-rolls (0/450/900/1800/2700) of prompt
+banks AND post-win banks, entry HP, LEVELS.
+Harness: s60_fight.py / s60_fight_nc.py (s59 builds
+with s60_ save prefix), s59_nav.py, s59_forfeit2.py,
+s58_press.py, s60_status.py. All runs in HELD
+FOREGROUND exec calls. Branch verified at 3d8504f,
+clean. Protected: s56_ti_resume.state.
+NOTE: wsl -e runs binaries directly (no shell) - file
+globs do NOT expand; use find -name for listings.
+
+FINDINGS:
+(to be filled as the session runs)
