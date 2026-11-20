@@ -12010,3 +12010,53 @@ s57_run2_start.state / s57_wedged.state (mid-fade).
 
 FINDINGS:
 (to be filled as the session runs)
+
+A. RUN 2 (from s57_e13.state; Kain Lv 12, HP
+1,973 full, gil 10,074, banked KP 104):
+- GUNNER (disc 33, HP 1,303), rot4x: WIN in 33
+  rotations. Kain 1,973 -> 1,677 (foe sat at 1 HP
+  from rot 25; the endgame race took 8 rotations
+  to land). Gil +66 -> 10,140. No chain prompt.
+  Post: ch6_s47_s58gun_post.state (grid 43).
+- PIRATE (disc 22, HP 1,727), rot4x from 1,677 HP:
+  WIN in 16 rotations (vs 28 at Lv 10). Kain ->
+  981 at rot 15, ended 1,041 (the endgame +60
+  recovery again). Gil +234 -> 10,374. Win handler
+  declined 3 chain prompts. Post: ch6_s47_
+  s58pir_post.state (grid 22).
+- The Pirate kill LEVELED Kain 12 -> 13 (board
+  card: Lv 13, HP 1,041) and the 16-rotation win
+  MET the KP chance: board KP = 1 (screenshot).
+  So the 90-second chance is a pace threshold
+  between 16 and 28 rotations.
+- TREE (disc 24) test at Lv 13-from-12 lineage,
+  HP 1,041, rot4x: LOSS at rotation 5, foe
+  UNTOUCHED (1,727). An early ~1,040 cash-in
+  ended it before rot4's offense connected - an
+  HP-limited sample, not a damage curve point.
+  The full-HP test is owed (run 3).
+- Cell 21 is EMPTY ground (stood on it; the
+  disc-21 "prompt" at cell 22 was just focus
+  resting on the adjacent cell record). Suih's
+  ~21 chest is not at 21. A GOLD CHEST is visible
+  on the board's east side (screenshot) - the
+  ~28 chest, past the Tree's cell on row 2.
+- EXIT with board KP 1: the KP was lost on exit
+  (as the dialog warns); gil/levels kept. Field
+  card at gate 22 (read firsthand): Kain Lv 13,
+  HP 2,033/2,033 FULL (max HP 1,973 -> 2,033,
+  +60 for Lv 13). Banked: s58_field_r3.state.
+
+B. RE-ENTRY LESSON (repeat of s57 G, relearned):
+my first enter script broke its loop the moment
+state68 read 20 + grid 53 - but that was still
+the TITLE CARD (screenshot proof), and the state
+it saved (s58_r3_start.state) is a mid-card dead
+state - DO NOT USE s58_r3_start.state or
+s58_r3_at43.state. The working protocol
+(s58_enter2.py): press Cross at state68 2/3/20
+with 180-frame spacing (~14 presses), then PROVE
+control with a real move (53 -> 43) before
+saving. Run 3 start banked live: s58_r3_start2.
+state (fresh board, Lv 13, HP 2,033 full, gil
+10,374, at cell 53, control proven).
