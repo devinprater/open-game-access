@@ -13246,3 +13246,122 @@ O. MESA GEOMETRY (synthesis of sections F-K +
    approach, if any, is S/E; (3) a dash S from the
    gate-20 bowl rim (309.56, 196.8) into the
    pocket country below.
+
+### Q. DASH TESTS, THE "RIDES" CORRECTION, FIRION'S TALK, KANAME_02, AND THE MENU (all s61, measured)
+
+- Rim dash S from (284.55, 287.41): dash stopped by the
+  lip at (285.44, 286.77); a second dash moved nothing.
+  Bowl dash SW from (309.56, 196.8): two dashes carried
+  him W along the wall foot to (306.41, 195.44), no
+  drop. Neither dash lead reaches new ground.
+- The stick+Cross "rides" tested around the shelf
+  (landings (275.36, 291.55), (279.61, 296.9),
+  (281.43, 289.10), (288.07, 285.99), (294.49, 280.26),
+  (298.07, 272.87)) were WALK+DASHES, not pad rides:
+  the full point-table dump (base 0x095E61C0) holds
+  only pt3 (292.7, 301.0), pt14 gate 21, pt15 gate 22,
+  pt17 kaname_02 (304.8, 296.5) in the northern box —
+  no pad nodes exist at the landings. Displacements
+  8.2-11.7 = walk (~3.3) + dash (~8.4). RETRACT any
+  "northern pad network" reading.
+- pt3 = POS_jump_gate03_00, the jump pad bound to
+  gate 22 (per the s43 point-name table, re-read this
+  session). A plain Cross on pt0/pt2 in earlier
+  chapters rode ~8.3 units — the pads' hop is
+  dash-like by design, which is what made the
+  walk+dash artifact plausible.
+- FIRION'S TALK: at the shelf (288.87, 285.9), Cross
+  opens his field talk (state68 3): "Our chances may
+  yet improve if we just keep fighting. Let's not
+  give up!" (screenshot s61_dlg2.png). Repeatable
+  flavor. HARNESS CAVEAT: Cross near Firion TALKS
+  instead of dashing/entering — gate tests must be
+  read with his position in mind.
+- KANAME_02 (pt17, (304.8, 296.5), on the shelf top
+  E of the road; marched there from s61_m2_final via
+  (303.01, 294.08) = s61_m32_final.state): the fine
+  stander stalls 1.90 W of the anchor at
+  (303.07, 295.74) (the crystal's own collision).
+  Circle lunges him PAST the anchor to
+  (307.06, 297.55); Triangle then BOARDS THE LINE:
+  ride to (320.1, 301.34), state68 2 throughout,
+  banked s61_kan_after.state. The landing is a small
+  cliff ledge (marches stall within ~3 units S at
+  (320.22, 298.09) = s61_m33_final.state); a GOLDEN
+  CHEST is visible W across the channel from it on
+  another unstood ledge, and floating rock ledges
+  stand across the void. RETURN: a plain Triangle at
+  the exact landing point (NO Circle prime — the
+  lunge moves him off the end point and Triangle
+  falls through to the menu) rides back W to
+  (303.42, 296.19), beside the crystal. The line is
+  two-way and reaches nothing else: a scenic
+  shortcut, not the shop route.
+- state68 = 11 IS THE CUSTOMIZATION MENU (Triangle
+  on the field, away from prompts): Kain Highwind
+  Lv 23, Assist Firion, GIL 14,850, EXP NEXT 2,037 /
+  TOTAL 188,618, HP 2,639/2,639, CP 245/356, BRV 260,
+  ATK 46, DEF 37 (screenshot s61_kan_state11.png).
+  Menu entries: Abilities, Equipment, Accessories,
+  Summons, Assist, Adjust Level, SHOP. Ticker lines
+  seen: "New inventory in the shop!", "New prizes
+  creatable through Battlegen!", "New accomplishments
+  added!", "Obtained Off Assists Locked", "Obtained
+  Staggering", "Successfully accomplished Productive
+  Battling!". Status widget: LUCKY! 40%, BATTLES 5,
+  NEXT BATTLE EXP x3. BLOCKER: the menu takes NO drv
+  input in state 11 — dpad presses (hold 6 and 20),
+  analog pulses (10-25f), Cross, Circle, Start all
+  inert, fresh-opened and restored alike, while the
+  ticker animates. The Shop's stock could NOT be
+  read this session. The menu Shop is very likely
+  the moogle-shop network (the field moogles' stock);
+  reading it needs an input-path fix or the field
+  moogle itself.
+
+### R. SESSION 61 CLOSE
+
+- Standing UNCHANGED all session (no fights, no
+  purchases, state68 2 at every stand): Kain Lv 23,
+  HP 2,639/2,641, gil 14,850, banked KP 109, Firion
+  assist, Shiva + Rosetta Stone held.
+- HEADLINE: leg 3's moogle shop and the Ryukahn
+  Gateway were NOT reached. Gate 21 is an inert
+  pass-through post-clear; gate 20 is barred by an
+  iron portcullis; the full gate table (ids 11-22)
+  shows NO unentered gate reading live — Ryukahn is
+  not a standard enterable field gate on this map by
+  tester signature. The moogle mesa (280, 273) was
+  ringed completely (N shelf face, NW knob + SW
+  pocket, E lane/pocket/trench, S canyon rim) and
+  never stood on; its S face does not descend at
+  X 270-285 and its rim does not dash.
+- The southern continent is now mapped end to end:
+  orb-chain road, basin, the Z~196 corridor E to
+  gate 20's barred front yard, the tower bowl.
+- Resume banks: s61_m13_final.state (basin
+  (299.24, 246.32)); s61_m30_final.state (gate 20
+  front yard (318.21, 195.4)); s61_m32_final.state
+  (kaname approach (303.01, 294.08));
+  s61_kan_after.state (line landing (320.1, 301.34));
+  lineage head remains s60_fin3.state. PROTECTED
+  s56_ti_resume.state untouched.
+- NEXT SESSION'S LEADS, in order: (1) the DEEP SOUTH
+  — central field to the Z~166-175 ridge shelf,
+  gate 14's pocket (302.27, 167.59), and its
+  UNMEASURED S/W exits, toward gates 15 (366.0,
+  151.9) and 16 (331.5, 126.0; sealed from N/W, so
+  its live approach is S/E; its jump pad
+  jump_gate02_05 sits at (331.1, 136.0)); (2)
+  KANAME_01 (194.0, 165.1) — the west crystal's line
+  is untested; (3) the golden chest on the ledge W
+  of the kaname landing; (4) the state-11 menu input
+  blocker (the Shop read); (5) the moogle mesa
+  itself — if it stays unstood after the deep-south
+  pass, record it as a documented loose end rather
+  than blocking the chapter. Exdeath Lv 18 and the
+  Ryukahn board (Suih census: Delusory Dragoon Lv 6,
+  Phantasmal Girl Lv 13, Transient Gunner Lv 13,
+  Idle Sky Pirate Lv 13, chest Yellow Drop, Firion
+  assist, Bonus Line 12, KP chance "Win battle";
+  B = Exdeath Lv 18) wait on a route in.
