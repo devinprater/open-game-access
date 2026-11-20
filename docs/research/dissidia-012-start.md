@@ -11885,3 +11885,61 @@ s57pirate3_post.state; Kain back at grid 23,
 state68=20. Whether the 90-second KP chance was
 met is read off the board next (board KP was 0
 after the Gunner's 34 rotations; this took 28).
+
+D. FIGHT 2 (MEASUREMENT) - FALLACIOUS TREE Lv 13
+(disc 24) AT FULL HP, Lv 10 LINEAGE (s57_card24_
+check.state), rot4x: LOSS at rotation 18, foe at
+1,471/1,727. The Tree's HP is also 1,727 (all
+three Lv 13s share the template). Kain took -857
+by rot 10 and died at rot 18 having dealt only
+~256: the Tree (a guarding, Exdeath-type manikin)
+shrugs off rot4's offense - this is a STAT wall,
+not a policy wall. The policy lab backs this up:
+every deviation from rot4's exact sequence vs the
+Pirate collapsed (tri: LOSS rot 16, foe untouched,
+Kain -1,191 by rot 5; rot6 assist-every-rotation:
+LOSS rot 9, foe untouched - the extra chord inputs
+break the dodge rhythm; rot5 Circle-swap: LOSS
+rot 12, foe untouched; rot4x4 cadence-4: defense
+held to rot 15 but damage lagged and a single
+1,596-BRv cash-in killed at rot 23). rot4 remains
+the machine; rot4x's endgame is its only safe
+mod. CONCLUSION: Kain needs LEVELS for this board.
+The Pirate (softest Lv 13) cost 94% of his HP at
+Lv 10; the Tree is not beatable at Lv 10-12 stats
+with the proven policies.
+
+E. THE CHAIN PROMPT, SOLVED: ch6_s47_s57pirate3_
+post.state holds the Tree's card open - it is a
+CHAIN offer (this gateway's skill is Cross Chain),
+not a stuck dialog. One Circle on the card opens
+"Cancel chain?" (YES/NO, cursor on NO); a second
+Circle backs out to the card. Decline = Circle,
+Left, Cross (YES) - board control returns (walked
+23 -> 33 -> 43 -> 53 cleanly after). s47_fight's
+win handler misses this prompt when it is already
+the resting state (declined=0); after future wins,
+check for a resting chain prompt and decline it
+before navigating. (The 100-HP Tree "fight" from
+this state was void: Cross engaged the chain card
+and the block finder latched a stale/remnant
+block, herHP read 0 - no real battle sample.)
+
+F. EXIT MECHANICS + THE HP RULE (major): Pause
+(Start) -> Exit Gateway -> "Exit gateway? *KP
+gained in gateway will be lost." YES/NO (cursor
+starts on NO; Left+Cross = YES). Board KP was 0,
+nothing lost. Landing: the FIELD at gate 22's
+pocket (292.70, 310.17), state68 2, gil 10,074
+kept, levels kept - and KAIN AT FULL HP: the
+field card for True Intent (read firsthand)
+shows Lv 12, HP 1,973/1,973. HP IS PER-GATEWAY-
+VISIT: exiting restores full HP; an unfinished
+board resets on re-entry. The grind is therefore
+IN PLACE: re-enter True Intent at full HP, clear
+deeper each run (Gunner ~200, Pirate = big EXP),
+exit when HP runs low, repeat until the Tree and
+Flash are stat-beatable. Banked: s57_field_
+afterexit.state (field, at the TI entrance card).
+Also banked en route: s57_ticlean.state (chain
+declined, at 23), s57_at53.state.
