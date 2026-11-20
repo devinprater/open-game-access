@@ -9958,3 +9958,51 @@ must be approached from the EAST side (the s45 plan
 that never ran): shelf strip -> gate 20's anchor ->
 gate 21's anchor -> pt3/pt15. Resume state for the
 trek: ch6_s49_n1_scratch.state at (199.12, 243.67).
+
+EASTERN TREK (bench -> junction mesh -> Firion's ruins
+-> chainE -> east band): all walked with the feedback
+walker, no fights, gil unchanged 9,774. Waypoints:
+bench (189.30, 245.99) -> mesh (204.80, 235.73) ->
+pass road S (205.35, 221.51) -> SE descent (208.27,
+208.15) -> ruins approach (218.12, 194.18) -> shore E
+(233.56, 197.40) -> chainE passed (255.80, 204.06) ->
+band E (285.30, 200.52) -> ARRIVED band end (288.83,
+199.37). South from the band end: descent to (287.62,
+192.98) then TOTAL STALL (all 8 sticks <= +0.02; the
+SE-slide retest stalled again at (288.57, 194.14)).
+The band's south face at X~288 is the pocket wall s41
+measured (plateau segment of the X~290 ridge). The
+only ridge crossing is the Z~166-175 shelf (s41), and
+gate 14's pocket at its east end is boxed N/E (s41) -
+the far north is NOT reachable by the eastern land
+route. Gate 20 (319.3, 193.6) stays unreached, as in
+every prior session.
+
+GATE-FAMILY RECONCILIATION (s41 addendum 12 vs the
+s49 raw table): s41's family values - facing A: gate
+19 = 25, gate 22 = 26, gate 13 = 28; volume B: gate
+22 = 3, gate 11 = 0, gate 16 = 1, gate 17 = 2 - match
+s49 records k2 (A 26, B 3), k4 (A 28), k3 (B 0), k7
+(B 1), k8 (B 2) value-for-value, and s41's read was
+taken BEFORE Legendary Lake was finished. Post-finish,
+gate 19's record changed to life 5 / timer 122.0 /
+A -1 (s48's read; s49's k1) - the FINISHED signature.
+So the tester VALUES are stable and thrice-confirmed;
+only the record-index-to-gate-number permutation is
+unsettled (the table is not stored in gate order).
+What the mission needs is settled: the gate at pt15
+(292.5, 312.0) is live in BOTH families (26/3), the
+only main-line gate that is; pt6's board is Hidden
+Darkness and pt12's is Legendary Lake (banner-proven,
+s46/s47), whatever numbers the table assigns them.
+
+NEXT LEAD (was s41's sighting, never tested): the
+north road from Firion's ruins (W, then N at X~213-219
+to (219.5, 226.7), NE along the mountain foot) ends at
+a shelf (228-235, 229-233) with a DARK RIFT PORTAL
+visible beyond the ridge (sighting from (235.7,
+229.0)). Nobody has stood at that shelf edge and
+pressed Cross. If the portal is an interactable
+teleport, it is the likeliest door into the far north.
+Trek state: ch6_s49_e11_scratch.state at the stall
+(287.62, 192.98); band-end state ch6_s49_e10_scratch.
