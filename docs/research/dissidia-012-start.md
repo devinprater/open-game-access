@@ -9862,3 +9862,22 @@ SESSION 49 LEADS (untested, in order):
 RESUME: ch6_s48_bench1_final.state (bench, adv lineage,
 state 2, gil 9,774); alternates ch6_s48_g17app_final.state
 (gate 17 face), ch6_s48_trek1_hop6.state (Firion's ruins).
+
+### Session 49 addendum 38 - GATE 22 FIRST: THE TREK TO (292.50, 312.00) (2026-11-19)
+
+RESUME: ch6_s48_bench1_final.state (bench (189.30, 245.99),
+adv lineage). Standing at open: Kain Lv 10, HP full
+1,851/1,851, gil 9,774, banked KP 104, Shiva held, Firion
+assist, Rosetta Stone held. Boards done: Sunken Lake,
+Hidden Darkness (gate 13), Legendary Lake (gate 19).
+Chapter goals left: Gateway of True Intent / Ryukahn,
+Exdeath Lv 18.
+
+PLAN (brief order): (1) gate 22 - travel to (292.50,
+312.00), stand on the anchor, Cross, READ THE TITLE CARD.
+(2) Gate 11 re-test post-LL via pt0's ride. (3) Moogle
+point (196, 144) re-check. (4) pt18 stand-test.
+(5) Screenshot facing north from the bench. (6) Fresh
+pint census.
+
+FINDINGS BELOW AS THEY LAND.
