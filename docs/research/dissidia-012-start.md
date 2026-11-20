@@ -11199,3 +11199,33 @@ id=120 (set=21) is not a live breakable orb in
 this lineage - a dead variant or a spawn point
 whose orb is not up. The orb hunt continues on
 the north corridor's ground.
+
+G. THE NORTH CORRIDOR RUNS, AND DASHES CROSS IT
+(s55_n250, from s55_orb120_final.state (272.51,
+232.72) toward (280.0, 250.0), tol 2.0, 16 cycles,
+MAXCYCLES at (278.58, 241.29)): the corridor
+continues N cleanly to (273.09, 239.18), then the
+ground bends E along a ledge system (279-284,
+240-243) and ends at a pocket (284.03, 243.27)
+where all eight probes read ~0.00. At that stall
+the stall protocol's Cross probe DASHED him
++7.0/+3.7 to (291.07, 246.96) - a dash crossing
+onto a separate HIGH STRIP; a second stall there
+dashed again to (297.65, 251.96). The strip runs
+E-W at Z~247-252 (walked X 291-298). The walker
+then contoured W back to (278.58, 241.29) without
+reaching the target: the (284-285, 253-254)
+cluster (kind=2 id=231 (285, 253); kind=0 id=1063
+(285, 254) + id=222 (284, 253)) still stands ~8
+units N of the ledge pocket, its own ground not
+yet stood on. Two facts banked: (1) Cross DASHES
+cross real gaps here - the high strip is reached
+by dashing, not walking; (2) this whole country
+(N corridor + ledges + high strip, Z 230-255) is
+the ground the mirrored-compass verdicts had
+written off - it is the north-road shelf system
+extended E, walked today for the first time.
+CAUTION: s55_n250_step10.state is CORRUPT (loads
+to (0.00, 0.00), state68=0 - the cycle-10 step
+save caught a transient). Do not use it.
+s55_n250_final.state (278.58, 241.29) is sound.
