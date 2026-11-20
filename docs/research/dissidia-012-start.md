@@ -14093,3 +14093,32 @@ INTERRUPTED BY A SERVICE RESTART:
   at full HP with idle-rolls in reserve.
   Chapter 6 completes when the Stigma
   falls and the post-clear dialogue plays.
+
+### Session 64 addendum 53 - THE FINISH: RYUKAHN
+RE-CLEAR AT FULL HP AND EXDEATH (2026-11-20)
+
+PLAN (from addendum 52 E): Kain stands on the
+RESET Ryukahn board at FULL HP (Lv 25, 2,763),
+gil 15,618, banked KP 109, after the
+exit-heal. Re-clear the board and finish
+Chapter 6: (1) Pirate from
+s63_re_pir_pre.state (s60_fight_nc, foe
+1,921, rot4z, her 2600-2800). (2) Chest 36
+(35 -R-> prompt 36, Cross; contents may
+re-roll per visit). (3) Girl (33 -U-> prompt
+23; engage manually, ramdump-scan for
+foe_hp=1, finish ENGAGE=mid). (4) 23 -U-> 13;
+re-read the TIP pages (Cross x~10, >=120f
+apart) so the 12/14 prompts answer.
+(5) Dragoon (13 -L-> prompt 12, foe 1,303).
+(6) Gunner (13 -R-> prompt 14, foe 1,727,
+idle-900 family first). (7) BANK at the
+Stigma prompt (12 -U-> prompt 2), then
+EXDEATH Lv 18 (foe 2,725) with idle-rolls
+(0/450/900/1800/2700) in reserve; FLEE and
+re-roll rather than grind a losing trace.
+(8) Post-clear dialogue through; record the
+chapter-end standing; bank a
+chapter-complete state. Chapter 6 completes
+when the Stigma falls and the post-clear
+dialogue plays.
