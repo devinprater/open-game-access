@@ -10721,3 +10721,16 @@ volleys -> re-probe; exit codes 0 ARRIVED / 3 EVENT /
 
 FINDINGS:
 (to be filled as the session walks)
+
+A. APPROACH A - DEAD (measured, not assumed). Walk
+s53_a1 from s52_bay_scratch.state (238.75, 176.37)
+toward (231, 162): step 0 probed all 8 headings - the
+three target-side headings gave ZERO displacement
+(walled), every other heading moved him AWAY from the
+target (back up the pocket N). Best progress +0.00.
+The pocket terminus cannot round the bay's SE corner
+toward the south shore; with session 52's
+attack-negative at the same terminus, approach A is
+closed from this point. (Walk stopped after step 0;
+the stall protocol would only have re-measured
+session 52's negative.)
