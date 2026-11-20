@@ -12060,3 +12060,33 @@ control with a real move (53 -> 43) before
 saving. Run 3 start banked live: s58_r3_start2.
 state (fresh board, Lv 13, HP 2,033 full, gil
 10,374, at cell 53, control proven).
+
+C. RUN 3 (from s58_r3_start2.state; Kain Lv 13,
+HP 2,033 full, gil 10,374): the plan was a clean
+full-HP Tree test, but the Gunner (33) guards the
+only column to the hub 23 - from 43, left is dead
+and right prompts disc 44. DISC 44 = FIRION'S
+ASSIST PIECE (card read firsthand: "Firion -
+Assist Character - Engage/Cancel") - promptable,
+not a foe; left alone. Two gold chests are
+visible on the board (west rock + east rock).
+- GUNNER (disc 33, HP 1,303), rot4x at FULL HP:
+  WIN in 58 rotations, Kain UNTOUCHED (2,033
+  throughout). Odd trace: foe HP fell steadily
+  to 107 by rot 25, then the endgame race whiffed
+  for ~30 rotations (cells frozen, foe BRV 464)
+  before connecting at rot ~56-58. The win is
+  safe but the endgame race is unreliable vs the
+  Gunner. Gil +66 -> 10,440. VERIFIED TWICE: two
+  independent runs from s58_r3_gunner_prompt.
+  state produced the byte-identical trace (the
+  determinism of s57 again). NOTE: an interim
+  background delivery briefly suggested a
+  different trace (25 rotations, HP 1,868) -
+  that was a garbled partial read; the doubled
+  full trace above is the ground truth. The
+  first "corrupt post state" scare was the same
+  artifact: the post file was loaded while its
+  fight was still running. Post states (both
+  valid): ch6_s47_s58gun3_post.state, ch6_s47_
+  s58gun3b_post.state, s58_s58gun3b_post2.state.
