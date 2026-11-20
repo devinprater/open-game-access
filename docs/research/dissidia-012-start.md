@@ -10980,3 +10980,30 @@ s53_c3_final.state ARRIVED (242.01, 143.56),
 142.93) - the coast line E is march-clean (state
 s54_ct_final.state). SE-corner test running as
 walk s54_se: coast -> (231, 162).
+
+SE (coast -> (231, 162)): the march routed along
+the coast and back W along the strip to stall at
+(227.44, 151.48) - the SAME Z~151.5 south face
+session 53 measured (stall (227.8, 151.4)), met
+this time from the coast side. No SE-corner ramp:
+the coast's north edge westward is just the strip
+and its face.
+SHELF VERDICT - ALL FOUR SIDES NOW MEASURED:
+south face continuous Z~151.5, X 211-231+ (s53,
+re-confirmed s54 from the coast); west face at
+X~211, Z~158 (s53 d2); north face from the ruins
+approach closed at Z~184.6, X 210-217 (s54 scans)
+and from the boxes the ground descends only to
+the bay's north shore (Z~181.5) whose eastward
+face drops into the pocket - a terminus with no
+exit (s54 es + pk); east side is the pocket/coast
+cul-de-sac (s52, s54). The shelf holding both
+chest candidates and the red object has NO
+walkable entry on any side. Whatever opens it is
+not walking: candidates for a future session -
+the kind=5 pint clusters as trigger objects, the
+orb landmarks of the guide's leg 2 (the route
+threads "past the orb" - no orb has been found on
+any walked ground), or a story-state change.
+Standing unchanged (gil 9,774 at every boot; no
+fights, no events, state68 = 2 throughout).
