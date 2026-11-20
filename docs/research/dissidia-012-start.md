@@ -11425,7 +11425,38 @@ Shiva + Rosetta Stone held, Firion assist.
 Branch verified at ca4b3a4, clean.
 
 FINDINGS:
-(pending)
+Session 56 closes the orb question (id=224
+inert; A), walks the terrace/strip system
+end-to-end (B, C), tests gate 21's anchor -
+inert (C), finds FIRION's second chat stand
+on the gate 22 road and reads all five pages
+(D), proves the Z~307.4 band seals gate 22's
+plateau from the S and E (E, F), shows the
+moogle country is ringed by faces on every
+side tried (G, H), and then walks the W side
+up the kind=2 chain and ENTERS GATE 22 -
+which is the GATEWAY OF TRUE INTENT, title
+card read firsthand (I). On the board: the
+Transient Gunner Lv 6 is beaten (rot4, 34
+rotations, Kain 1851 -> 1651 HP, +66 gil);
+the Idle Sky Pirate Lv 13 is identified at
+cell 22 and NOT engaged; play is banked
+mid-board at s56_ti_resume.state (J).
+Standing at close: Kain Lv 10, HP 1,651,
+gil 9,840, banked KP 104, board KP 0.
+Next leads: finish True Intent (Sky Pirate
+Lv 13, Fallacious Tree Lv 13, Fleeting Flash
+Lv 13, two gold chests = Pebble + 500 gil;
+the board's KP chance is "Win within 90
+seconds" - rot4's pace missed it on the
+Gunner, so board KP here may need faster
+fights); exiting True Intent should put
+Kain on leg 3 (two more boulders + the
+moogle country at (280, 273), whose five
+kind=6 records are censused but unreached -
+ringed by faces from every side tried);
+gate 20's anchor (319.33, 193.64) in the F
+country far SE is still untested on foot.
 
 A. ORB TEST AT kind=1 id=224 (280.0, 234.0) -
 NEGATIVE; THE ORB QUESTION IS CLOSED (lead 1):
@@ -11721,3 +11752,33 @@ state (board control, nothing moved - the
 clean resume). The gate table is NOT
 readable from inside the board shell
 (GateMgr ptr reads 0 in board context).
+
+J. ON THE BOARD - FIRST BLOOD: Kain starts
+at grid 53; Firion's piece stands at 54
+(unpromptable - the assist piece). Up the
+middle: 53 -> 43 -> prompt on 33. The piece
+card (screenshot) reads TRANSIENT GUNNER
+Lv 6, KP chance "Win within 90 seconds",
+stage Crystal World. Engaged with s47_fight
+(rot4, WAIT 2): foe HP 1,303; WIN in 34
+rotations; Kain 1,851 -> 1,651 HP; gil
+9,774 -> 9,840 (+66); no chain prompt;
+post state ch6_s47_s56gun_post.state. Board
+KP stayed 0 - the 90-second chance was
+missed at rot4's pace (or KP pays only on
+the chance here). Kain then walked 43 -> 33
+(the Gunner's emptied cell) -> 23; targeting
+W (cell 22) prompts the IDLE SKY PIRATE
+Lv 13 (card read; same KP chance/stage).
+NOT engaged - Kain at 1,651 HP vs a Lv 13
+is session 57's fresh start, not this
+session's last throw. Prompt cancelled;
+s56_ti_resume.state banks board control at
+cell 23, HP 1,651, gil 9,840, banked KP 104.
+By the guide census the remaining pieces
+are the Fallacious Tree Lv 13 (the flame-
+wreathed figure on the glowing pedestal at
+the board's back-center, beside cell 23)
+and the Fleeting Flash Lv 13 (back-right),
+plus two gold chests (cells ~21 and ~28:
+Pebble + 500 gil per Suih).
