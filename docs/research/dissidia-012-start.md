@@ -14152,3 +14152,78 @@ key a finder to a prior visit's value.
   the banks are siblings, not a chain). The
   line continues from the idle-1800 bank
   s60_s64pir18_post2.state (Kain HP 2,006).
+
+B. VISIT 2 - THE GIRL POLICY TRAP, AN
+EXIT-HEAL, AND A BOARD CLEARED AT 20 HP:
+- THE GIRL (visit 1 banks, Kain 2,006):
+  rot4z LOSS 54 rots - the endgame race runs
+  from rotation 0 against a 1-HP foe (she is
+  always <=700), so the drift that closes
+  distance never runs; she kept away, farmed
+  BRV and cashed Kain to 0 without ever being
+  hit. Plain rot4 WIN 47 rots but cost 1,650
+  (Kain -> 356). At 356 the line cannot
+  continue: EXIT-HEAL (gil 16,106 kept; field
+  bank s64_field_healed2.state at the anchor
+  (279.80, 329.38)). Her kill LEVELED Kain
+  25 -> 26 (max HP 2,760 -> 2,821).
+- RE-ENTRY: Cross at the stand, then the
+  scene press-loop (140 Crosses, 150f apart);
+  control test 42 -> 32 -> 42 LIVE (the
+  focus-sanity check misleads mid-scene -
+  trust the control test). Bank
+  s64_re_board_live.state.
+- PIRATE visit 2 (foe 1,727 again; Kain full
+  2,821): idle-1800 WIN 38 rots -> 1,038
+  (cost 1,783); idle-0 WIN -> 721 (cost
+  2,100; result recovered from the banked
+  post states + HUD after the exec channel
+  lost the fight log - post states exist
+  only on a WIN); idle-900 WIN 14 rots ->
+  2,508 (cost 313). Lineage: idle-900,
+  s60_s64pir29_post2.state. Gil 16,340.
+- CHEST 36 visit 2: stepping onto the cell
+  consumed it with NO prompt and NO gil
+  change (visit 1 lineage 2 paid 20 gil at a
+  prompt; s63 paid a Yellow Drop). Contents
+  this visit unobserved - item or nothing;
+  the cell is verified consumed.
+- GIRL visit 2 (idle-0 engagement, mid bank
+  s64_girl_mid_i0.state, block 0x0969D688):
+  rot4z WIN 9 rots, cost NEGATIVE - the kill
+  LEVELED Kain 26 -> 27 mid-fight (+61
+  level-up heal): 2,508 -> 2,568. Gil
+  16,574. She engaged close and died before
+  any cash-in; the same foe, the opposite
+  trace family from visit 1.
+- TIP pages re-read at 13 (6 Crosses);
+  prompts 12/14 answer again.
+- DRAGOON: measured 1,303 (block
+  0x096D6CA8); rot4z WIN 9 rots, cost 493 ->
+  2,075; gil 16,640. Post-win the
+  s60_fight_nc handler LEFT A CHAIN PROMPT
+  OPEN toward disc 14; from the reloaded
+  bank the state settled onto the Gunner's
+  VS SCREEN (focus 006e0045) - Circle does
+  not back out of a VS screen, and the chain
+  stood committed. LESSON: use s60_fight.py
+  (declines chains in-flow) whenever a chain
+  offer is possible; the nc build's
+  left-open prompt is a trap from a cold
+  bank.
+- GUNNER (chained, from the VS screen; mid
+  bank s64_gun_mid.state, block 0x096C6508):
+  measured foe 1,727 - NO chain HP buff
+  (confirms s63). rot4z WIN 17 rots but cost
+  2,055 -> Kain at **20 HP**. Gil 16,874.
+  The board is otherwise CLEAR (Pirate,
+  Girl, Dragoon, Gunner, chest, tips).
+- DECISION: at 20 HP the Stigma is
+  impossible - any hit kills. EXIT-HEAL
+  again; third pass with sampling discipline
+  on EVERY foe (Pirate idle ladder, Girl
+  engagement idles, Dragoon via s60_fight.py
+  for its in-flow decline, Gunner from a
+  banked prompt at idle-900 - s63's
+  zero-damage family - never via a chain).
+  The ratchet holds: Lv 27, gil 16,874.
