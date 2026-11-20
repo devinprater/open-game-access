@@ -13157,3 +13157,92 @@ K. SHOP APPROACH - THE UNTRIED SIDE: every failed
    orbs (278,250) and (285,253) sit. Next move:
    from the (299,245) basin, march NW to (282,256)
    then N toward the shop's south face.
+L. GATE TABLE, CURRENT LINEAGE (measured from
+   s61_m13_final.state; s55_gates layout + gate id
+   and point index from ptrB's first word; points
+   from *(0x09AEF944), +0x24/+0x2C floats):
+   gateMgr 0x095D7110, 12 records:
+   12 pt5 (210.6,152.9) A=-1 B=-1 Sunken Lake
+   19 pt12 (268.4,220.7) A=-1 B=-1 Legendary Lake
+   22 pt15 (292.5,312.0) A=-1 B=3 True Intent
+   11 pt4 (220.4,111.0) A=-1 B=0
+   13 pt6 (253.9,181.7) A=28 B=-1 Hidden Darkness
+   14 pt7 (305.0,166.6) A=-1 B=-1
+   15 pt8 (366.0,151.9) A=-1 B=-1
+   16 pt9 (331.5,126.0) A=-1 B=1
+   17 pt10 (154.1,229.4) A=-1 B=2
+   18 pt11 (222.0,193.5) A=-1 B=-1
+   20 pt13 (319.3,193.6) A=-1 B=-1
+   21 pt14 (315.1,270.4) A=-1 B=-1
+   Against session 41/48: gate 19's A fell 25 -> -1
+   when Legendary Lake finished (s48's "finished
+   signature"); gate 22's A fell 26 -> -1 with True
+   Intent's clear this session's lineage. Gate 13
+   still reads A=28 - it is the replayable farm
+   board. NO unentered gate reads live on the
+   facing tester. The volume family {11:0, 16:1,
+   17:2, 22:3} is unchanged by clears.
+M. THE SOUTHERN CORRIDOR (measured): from the
+   (299,245) basin the ground drains SW down a
+   slope (pocket base (295.07, 233.17),
+   s61_pocket_base.state; Circle attacks there
+   broke nothing) to the set-27 orb (290,225) at
+   (289.55, 224.21) (s61_m15_final.state), then a
+   clean N-S road runs SOUTH: (290.12, 220.9),
+   (291.17, 214.26), (294.55, 209.68), (298.34,
+   201.88), bending E at its south end (S probes
+   dead at (298.44, 196.19)) along Z~196 to a bowl
+   at (309.56, 196.8) (s61_m28_final.state), then
+   NE up to (315.11, 198.99) and SE down to gate
+   20's front yard. SCREENSHOTS (this session):
+   the field map (Select, state68 14) shows two
+   continents joined by an east land bridge; Kain
+   on the southern continent's east arm. From
+   (285.78, 244.3) a deep river canyon cuts E-W
+   between the basin country and the moogle mesa,
+   a gold chest visible on the far rim. From the
+   pocket (295.76, 276.99) the MOOGLE is VISIBLE,
+   standing on the mesa top across the river, with
+   a stone ARCH at the mesa's north end. From the
+   bowl (309.56, 196.8) a ruined TOWER stands on
+   the ridge NE. FIRION now WALKS THE FIELD WITH
+   KAIN (seen beside him in three screenshots) -
+   an ally follower since his field scenes, not a
+   manikin: no contact battle in 360+ frames.
+N. GATE 20 = BARRED (measured + photographed):
+   marched the corridor to (318.21, 195.4); the
+   fine stander crept to (319.18, 195.46), 1.87
+   from the anchor (319.3, 193.6) - the last 1.86
+   of Z would not close (a lip). Cross DASHED E to
+   (320.32, 195.54); state68 stayed 2 (s61_g20_
+   stand.state, s61_g20_after.state). Screenshot
+   from the stand: a stone arch with an IRON
+   PORTCULLIS, closed - gate 20 is a barred
+   gateway like 11 and 17. Its ledge is a dead-end
+   spur (S walled from the stand). NOT Ryukahn.
+O. MESA GEOMETRY (synthesis of sections F-K +
+   this session's screenshots): the moogle mesa
+   is bounded by river on E (channel at X~290-295,
+   the lane/pocket side) and S (the E-W canyon at
+   Z~245-265), and opens N to gate 22's road
+   country. Mesa-top stands: knob strip Z~289-291
+   (276.82, 289.77), dash landing (269.10, 288.63),
+   NW pocket (260.73, 283.87), rim (284.55,
+   287.41). The knob strip's south face does not
+   descend on foot at X 270-285 (m23/m25 slides
+   run E or W along Z~289); the rim at (284.55,
+   287.41) lips S (+0.48/-0.34). The moogle shelf
+   at (280, 273) is still unstood. Kain's field
+   skill list holds ONLY Cross Chain (skill panel
+   read firsthand, state68 4) - no Jump skill was
+   ever collected; the guide's "jump across the
+   bridge" cannot mean a Jump skill for this
+   lineage. Remaining leads: (1) a dash/leap SOUTH
+   from the mesa rim onto the shop shelf; (2) the
+   deep south (gates 14/15/16) via the Z~166-175
+   ridge shelf into gate 14's pocket (boxed N/E
+   in s41 - its S/W exits unmeasured), gate 16
+   having been "sealed from N/W" (s42) - its live
+   approach, if any, is S/E; (3) a dash S from the
+   gate-20 bowl rim (309.56, 196.8) into the
+   pocket country below.
