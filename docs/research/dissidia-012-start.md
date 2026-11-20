@@ -11555,3 +11555,21 @@ N or E. States: s56_g22_scratch.state =
 s56_w1_scratch.state = the Firion stand
 (297.09, 307.50); s56_p6_check.state = the
 stand post-chat, field-clean.
+
+E. THE Z~307.4 BAND IS A CEILING (the N-lane
+test): marching from gate 21's dashes toward
+(305.0, 316.0) - aiming to pass E of the
+gatehouse - re-walked the long N road and bent
+W onto the same Z~307.4 band, stalling at
+(297.43, 307.42), 13.99 short. Stall protocol:
+Cross probe NO dash and NO chat (this stand is
+~0.34 E of Firion's exact spot - his trigger
+radius is tight); Circle volleys crept +0.1 W,
+no break, no event. So the country N of
+Legendary Lake tops out at the Z~307.4 band
+from at least X~297 to X~307: the road up ends
+there, and gate 22's anchor (292.5, 312.0)
+sits ~4.6 N of the band behind the gatehouse.
+Untried: the NE corner (stay E until Z~312,
+then W along the top) and the far-W plateau.
+States: s56_n1_scratch.state (297.43, 307.42).
