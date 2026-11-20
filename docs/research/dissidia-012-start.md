@@ -13881,3 +13881,71 @@ s61_march28 from s62_menu_exit3.state):
   yet found. C1 is ALIVE: the northern
   segment is real, walkable, and un walked
   by any prior session.
+
+C. RYUKAHN GATEWAY - REACHED AND ENTERED
+(title card read firsthand, s63_tc_25.png:
+"Ryukahn Gateway"):
+- From the arch stand (272.12, 333.05)
+  [s63_n4_bank] the march closed on
+  POS_gate03_01's anchor (280.7, 327.6) and
+  stalled at (279.8, 329.38), 1.99 from the
+  anchor [s63_g01_bank] - the gate's own
+  collision, as at the kaname crystals.
+- ENTRY TEST: one Cross press at that stand:
+  state68 2 -> 5 -> 19 -> 20. ON THE BOARD.
+  Banked: s63_g01_entered.state,
+  s63_g01_board.state, s63_g01_board2.state.
+  Board HUD (from the title frame): Kain
+  Lv 23, HP 2639, Gil 14850, KP 109; grid 42;
+  focus 0xffffffff (cursor unsummoned).
+- THE GATE TABLE IS SEGMENT-SCOPED (the
+  correction this session owes the record):
+  GateMgr records and the point table are
+  rebuilt per field segment; record ORDER,
+  point indices and tester families are only
+  comparable WITHIN one segment/boot state.
+  Read from the northern segment (this boot,
+  GateMgr 0x095D5C20 - same address as s62's
+  southern read, different table): k=2 reads
+  A=27 (the live-board signature) and its
+  point is POS_gate03_01 (280.7, 327.6) =
+  RYUKAHN. The southern reads never lied -
+  Ryukahn was never IN the southern table.
+  Also in this table: k=10 reads A=238 with
+  point POS_gate03_99 (0.0, 0.0) - a special
+  record, unexplained; and POS_gate03_08
+  (325.4, 364.0) far NE reads A=-1 (another
+  segment's gate, presumably a later
+  chapter's - Ch.7 reuses this map).
+- THE ROUTE, END TO END (all measured this
+  session): exit True Intent at (292.50,
+  318.26) -> march N to the stall (295.59,
+  330.87) -> Circle-lunge the face NE to the
+  platform field (300.3, 340.0) -> lunge/
+  march W to (290.53, 342.4) -> clean WSW
+  road down to the arch stand (272.12,
+  333.05) -> E to gate03_01's anchor ->
+  Cross -> RYUKAHN. C1 VERIFIED in its first
+  steps and its conclusion: the boulder/
+  bridge details differ in mechanism (the
+  face is lunge-vaulted, not broken - or the
+  "bridge" is the lunge gap itself), but the
+  guides' shape - forward from the exit,
+  platforms, orbs, a gateway past the shop
+  country - is the shape of the ground.
+  NOTE: the northern kaname points exist
+  too (POS_kaname_01 (300.4, 338.7) - the
+  platform stand (300.29, 340.03) sits on
+  it; POS_kaname_02 (301.4, 357.9)) - the
+  segment mirrors the southern one.
+- SUPERSEDED LEADS: the brief's leads (2)
+  Firion-scene and (3) mesa-arch were
+  fallbacks for finding this route; the
+  guides (lead 1) produced the route first,
+  so neither was run. The moogle mesa /
+  chest ledge / east-bay shelf family stands
+  as DOCUMENTED LOOSE ENDS (addenda 50-51):
+  floating scenery off the chapter's route,
+  not blocking completion. The state-11
+  menu Shop (addendum 51 F) already covers
+  the mesa's only function.
