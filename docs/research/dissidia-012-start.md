@@ -11814,3 +11814,40 @@ Stone held, Firion assist. Branch verified at
 
 FINDINGS:
 (to be filled as the session runs)
+
+A. RESUME VERIFIED; THE LOCAL GRAPH FROM CELL 23:
+booted s56_ti_resume.state (never overwritten; my
+working bank is s57_start.state). Board view read
+firsthand: Kain Lv 10 HP 1,651, gil 9,840, KP
+(banked) 104, board KP 0 - standing exactly as
+addendum 45 closed it. Explored from cell 23 with
+s47_board.py (explore mode):
+  up    -> PROMPT disc 13 (piece)
+  down  -> MOVE to cell 33 (the Gunner's emptied
+           cell; standing), returned up to 23
+  left  -> PROMPT disc 22 (piece)
+  right -> PROMPT disc 24 (piece)
+All three remaining foes ring cell 23.
+
+B. THE THREE CARDS, READ FIRSTHAND (s57_card.py
+targets + screenshots; the card shows name/level/
+stage/chance but NO numeric HP - foe HP is
+discovered from the battle block at engagement):
+  disc 22 (left)  IDLE SKY PIRATE Lv 13, stage
+                  Crystal World
+  disc 13 (up)    FLEETING FLASH Lv 13, stage
+                  Ultimecia's Castle
+  disc 24 (right) FALLACIOUS TREE Lv 13, stage
+                  World of Darkness
+KP chance on every card: "Win within 90 seconds".
+Correction to addendum 45 J's guess: the piece up
+from 23 is the FLASH, the piece right is the TREE
+(the flame-wreathed visual sits over the back
+islands; the cards are authoritative). Pre-fight
+banks with each prompt held open: s57_card22_
+check.state, s57_card13_check.state, s57_card24_
+check.state. Fight order per the brief: Pirate
+(22), Tree (24), Flash (13). Chests (~21/~28)
+presumably lie past the Pirate (21 = left of 22)
+and elsewhere on the graph; the graph opens as
+pieces fall.
