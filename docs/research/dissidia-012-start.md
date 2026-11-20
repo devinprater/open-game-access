@@ -13463,3 +13463,44 @@ verified at (302.27, 167.59), state68 2):
   (331.5, 126.0) lie E-SE of it. The pocket's
   only exits are the chute (N) and the shelf
   (W). Per-direction banks: s62_g14_*.state.
+
+C. THE Z~=166-175 SHELF - A THROUGH-ROUTE WITH
+A PINCH (scouted from the s55 lineage; terrain
+facts):
+- From the pocket's west lip (298.27, 165.95)
+  the shelf runs clean W: the marcher climbed
+  to the shelf top (Z~=170-173), ran it W, and
+  dropped to (270.11, 164.42) - ARRIVED
+  (s62_shelfW_final.state). The pocket and the
+  shelf's east segment are one through-route.
+- The lane then pinches out at X~=264: the S
+  lane stalls at (264.0, 165.0) and a second
+  march aimed at the top lane (240, 172)
+  funnels to the same pinch (264.09, 164.76) -
+  no 28f hold in any direction gains W.
+- So the chest-candidate segment (X~=211-238;
+  pint candidates (227, 167) / (231, 162))
+  stays islanded: s54's four-sided verdict
+  stands, and s62 adds the E side - the east
+  shelf ends ~26 units short of it.
+
+D. GATE 20'S YARD - THE CORRIDOR'S EAST END
+(live lineage, from s61_m30_final.state
+(318.21, 195.4), gil 14,850):
+- A march E toward (345, 192) gains 2 units to
+  (320.51, 196.65) and stalls at (320.32,
+  195.54) - the yard's east lip.
+- 8-direction hold survey (map coordinates):
+  exits run W only - three stick directions
+  ride the corridor back W at lanes Z~=195-205
+  (endpoints (304.47, 197.31), (302.85,
+  201.27), (304.38, 204.6), all MAXP). Map-N
+  stalls at a face at (318.15, 200.91), 5.5
+  units. Map-E closes at the lip (~2 units);
+  no hold produces a map-S endpoint at all.
+- VERDICT: the Z~=196 corridor is a dead-end
+  E-W road - basin at its W end, gate 20's
+  barred yard at its E end. There is NO
+  east-coast route S from gate 20 toward
+  gates 15/16. Per-direction banks:
+  s62_g20_*.state.
