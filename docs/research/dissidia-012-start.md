@@ -12679,3 +12679,63 @@ pool 2,397, gil 12,174):
   winning band; its trace families cap at
   ~930 dealt. Ratchet on: exit (gil 12,474
   banked) and re-enter for visit 2.
+
+B. VISIT 2 (t2; re-entered from s60_t1_field,
+gil 12,474):
+- GUNNER via s60_t2_nav1, rot4z: WIN 8 rots -
+  and the final read showed herHP 2,290 =
+  2,230 + 60: THE GUNNER KILL LEVELED KAIN
+  19 -> 20 (visit 1's banked EXP tipped it).
+  Lv 20 max HP 2,458. Gil -> 12,540.
+- PIRATE via prompt bank s60_t2_nav2 (entry
+  HP 2,290; foe 1,727; all rot4z):
+  idle-0: LOSS r25, foe 323 (early flow, a
+  1,354 hit ~r20, race stalled at 323). NOTE:
+  the first attempt at this bank HUNG (live=
+  False, no rotation output for 6+ min) and
+  was killed; the retry on a fresh boot ran
+  normally - a transient frozen block, the
+  s47 lesson in reverse.
+  idle-2700: LOSS r56, foe 646 (Kain pinned
+  at 215 from r20 while the foe rebuilt BRV
+  to 1,930 without cashing; the race could
+  not finish the last 646).
+  idle-450: WIN r34, left 498 (cost 1,792 -
+  the most expensive win yet).
+  idle-900: WIN r30, left 1,004 (fast flow -
+  foe at 14 by r20 - but the race whiffed
+  ~10 rots on the last 14 HP). Chain open.
+  idle-1800: LOSS r24, foe 1,269 (a ~1,338
+  cash-in ~r22).
+- TREE VIA CHAIN from s60_t2pir900_post2
+  (entry HP 1,004; foe 1,727):
+  idle-0: LOSS r28, 241 dealt (stall trace -
+  nothing dealt after r10).
+  idle-2700: **WIN r34** - THE TREE FALLS.
+  One hit taken before r30 (503, ~r8: 1,004
+  -> 501), steady flow (1,727 -> 1,446 ->
+  1,095 -> 446 -> 40 -> 0), and a 303 parting
+  hit in the killing rotation: Kain ends at
+  198 HP. Gil -> 13,028. No level-up (Lv 20
+  stands). The win handler declined chains
+  to disc 13, disc 22 and disc 21 (chains can
+  target the west chest's record). Post bank
+  s60_t2tree2700_post2: Kain at grid 22, HP
+  198, Tree DEAD in this lineage.
+  Winning shape, for the record: Lv 20, entry
+  ~1,000, idle-2700 trace family - the entry
+  floor is trace-dependent, not a hard 1,200.
+- BOARD STATE: Gunner, Pirate and Tree are
+  dead in this visit; the Flash (disc 13)
+  still stands; both chests untaken. Per the
+  s47 Legendary Lake precedent the Stigma of
+  Chaos was a reachable board piece (disc 34,
+  from disc 24 down) and that board FINISHED
+  with two manikins unbeaten - so the TI
+  Stigma may be reachable NOW, at 198 HP,
+  without fighting the Flash. The post bank
+  is a persistent file: probing costs nothing
+  but time. NEXT: map the back rows from grid
+  22 (the Tree's cell 24 -> up is the first
+  candidate), find the Stigma's prompt, and
+  probe what engaging it does.
