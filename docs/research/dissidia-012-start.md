@@ -10934,3 +10934,29 @@ stalls (state s54_bx_final.state). The ruins'
 east side has a clean descending lane the
 due-south line never touches. The due-south test
 from the boxes is running as walk s54_bs.
+
+BS (due south from the boxes): cycle 0 marched S
+cleanly down the ruins' south slope - (227.50,
+185.87) -> (228.40, 184.56) -> (229.33, 183.37)
+-> (230.37, 182.41) -> (231.38, 181.52) - then
+ALL probes ~0: a second face at Z~181.5, X~231.4
+(the bay's north shore edge). The march then
+oscillated on the probe-desync pattern (phantom
++1.0 readings alternating with true 0.00) and was
+killed at cycle 8, stand ~(232.23, 181.27). So
+the due-south line from the boxes ends at the
+bay's north shore; no walkable continuation S at
+X~231.
+ES (scan3 east along the shore face from
+(232.23, 181.27)): the face is a gentle slope
+running E, anchors (233.21, 180.99), (234.30,
+180.67), (235.20, 180.33), (236.39, 180.16),
+(237.35, 180.25); S probes slide SE, no opening
+until X~237. At anchor (237.35, 180.25) a SW
+probe dropped to (237.75, 178.62) and the
+confirm push dropped again to (238.06, 177.26) -
+CONFIRMED DESCENT (state s54_es_descent.state),
+landing on session 52's shore pocket from its
+NW side. The pocket is now reachable from the
+ruins/boxes line. March to the shelf candidate
+(231, 162) running as walk s54_pk.
