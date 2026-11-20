@@ -13504,3 +13504,31 @@ D. GATE 20'S YARD - THE CORRIDOR'S EAST END
   east-coast route S from gate 20 toward
   gates 15/16. Per-direction banks:
   s62_g20_*.state.
+
+E. KANAME_01 (194.0, 165.1) - RODE (scouted
+from the s53 lineage; mechanics + terrain
+facts):
+- Approach: from s53_b2_final.state (ruins
+  approach (217.06, 195.70)) the greedy march
+  ran W/S through the gully country. NOTE: the
+  march outlived a VM-side timeout kill - the
+  orphaned walker was found by pgrep on the
+  Legion, killed, and resumed from its own
+  bank at (202.39, 181.30) with no ground
+  lost (the documented recovery works). The
+  final approach stalls at (192.62, 166.79),
+  2.18 from the anchor - the crystal's own
+  collision, exactly as at kaname_02.
+- Fine stand (192.23, 166.01), 1.99 from the
+  anchor (banked s62_kan01_fine.state). Circle
+  lunges past the anchor ESE to (196.34,
+  163.99); Triangle BOARDS THE LINE: it rides
+  ENE and stops at (209.79, 172.26), state68 2
+  throughout (banked s62_kan01_after.state).
+- The landing is a small dead-end ledge: an
+  8-direction hold survey wanders a pocket
+  ~8x5 units around (205-213, 169-173) and
+  breaks out in no direction. Like kaname_02,
+  kaname_01's line is a scenic two-way ride
+  that reaches nothing else - not a route to
+  new country, and not a way south.
