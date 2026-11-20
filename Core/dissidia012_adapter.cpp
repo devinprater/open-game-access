@@ -1182,8 +1182,12 @@ static void BoardPromptLine(const BoardDef* def, int grid, char* buf, size_t n)
     buf[0] = 0;
     if (!d || !IsPromptDisc(def, grid)) return;
     // The prompt's own text: name, description, Engage / Cancel (sessions 9/13/14).
+    // A piece whose description was never measured (the Potion, the Warrior of
+    // Light) speaks its name alone rather than an empty description.
     const BoardPieceInfo& p = kBoardPieces[d->piece];
-    snprintf(buf, n, "%s — %s. Engage / Cancel", p.name, p.promptDesc ? p.promptDesc : p.desc);
+    const char* desc = p.promptDesc ? p.promptDesc : p.desc;
+    if (desc[0]) snprintf(buf, n, "%s — %s. Engage / Cancel", p.name, desc);
+    else snprintf(buf, n, "%s. Engage / Cancel", p.name);
 }
 
 static void BoardScanLine(const BoardDef* def, int grid, char* buf, size_t n)
