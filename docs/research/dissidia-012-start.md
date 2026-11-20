@@ -10960,3 +10960,23 @@ landing on session 52's shore pocket from its
 NW side. The pocket is now reachable from the
 ruins/boxes line. March to the shelf candidate
 (231, 162) running as walk s54_pk.
+
+PK (pocket march, descent state -> (231, 162)):
+one S step landed exactly on session 52's pocket
+terminus (238.75, 176.37) - the two routes meet
+to the centimeter - and there EVERY heading reads
+0.00 real movement. The pocket is a true terminus,
+boxed on all sides at ground level. Secondary (b)
+is therefore answered from inside the pocket
+itself: it has no westward exit at all. (The
+march then oscillated on phantom readings and
+was killed; its Legion-side process survived the
+local kill and had to be pkill'ed - noted for the
+harness lesson: after killing a walker, verify
+with ps and pkill -f <prefix>.)
+CT (strip east -> coast): march from
+s53_c3_final.state ARRIVED (242.01, 143.56),
+1.43 from the s53 xprobe death point (243.29,
+142.93) - the coast line E is march-clean (state
+s54_ct_final.state). SE-corner test running as
+walk s54_se: coast -> (231, 162).
