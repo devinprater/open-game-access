@@ -12955,3 +12955,36 @@ G. SESSION 60 CLOSE:
   Lv 23 is five levels up on him; probe
   with the standard fight harness at full
   HP from a fresh bank.
+
+
+### Session 61 addendum 50 - LEG 3: MOOGLE SHOP, RYUKAHN GATEWAY, EXDEATH (2026-11-20)
+
+PLAN (from addendum 49 G): march leg 3 from
+s60_leg3_event.state (settled just south of the
+Z~=310 segment seam) to the moogle shop (280, 273);
+read the shop, buy only what clearly helps (keep
+gil reserve >= ~5,000); continue to the Ryukahn
+Gateway, enter, READ THE TITLE CARD firsthand,
+census the board (guides: Delusory Dragoon Lv6,
+Phantasmal Girl Lv13, Transient Gunner Lv13, Idle
+Sky Pirate Lv13, chest Yellow Drop, Firion assist,
+Bonus Line 12, KP chance "Win battle"); work the
+board (rot4z, idle-rolls, bank before every
+fight, chests, Stigma, bank KP at the end); then
+EXDEATH Lv 18 - probe from a fresh full-HP bank
+(card + HP), then commit with rot4z.
+Standing at start: Kain Lv 23 (max HP 2,641), HP
+2,639/2,641, gil 14,850, banked KP 109, Shiva +
+Rosetta Stone held, Firion assist.
+Policy: rot4z (rot4 base; no-drift Triangle x2 /
+Square x2 race from foe <= 700 HP). Levers: race
+threshold, idle-rolls (0/450/900/1800/2700), entry
+HP, LEVELS. Field walker: s55_march.py (desync
+fix in). Branch verified at f5a34d7, clean.
+Protected: s56_ti_resume.state.
+Lineage head: s60_fin3.state (field (292.50,
+318.26), full HP). March bank:
+s60_leg3_event.state.
+
+FINDINGS:
+(to be filled as the session runs)
