@@ -11298,3 +11298,18 @@ MAXCYCLES / STALL, never EVENT; state68 = 2 in
 every probe. Interception method going forward:
 walk the "follow the water" ground and watch
 state68; the pint-diff method is closed.
+
+K. GATE 14 (lead 3), ATTEMPT 1 - THE TERRACE
+LINE: from s52_tc1_final.state (236.73, 185.15)
+marching E/SE toward the corridor top (268.0,
+166.0): the walker slid S along the shore pocket
+((239.00, 180.80), (239.46, 179.33)) and stalled
+at the pocket terminus (238.72, 176.41) - stall
+protocol Cross + 3 Circle volleys, zero
+displacement, RESULT STALL_ATTACKED, dist 31.07.
+The pocket is a terminus in the adv lineage too
+(third confirmation, s52/s54/s55); there is no
+terrace-to-shelf crossing. The corridor must be
+entered from its MOUTH on the strip (273.48,
+147.11) - attempt 2 runs from the coast state
+s54_ct_final.state eastward along the strip.
