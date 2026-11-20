@@ -242,8 +242,8 @@ static void SayField(bool high)
 //     behind (session 10), so prompts are announced on the CHANGE to a prompt disc,
 //     never level-triggered.
 //   Scan Mode cursor: record pointer at 0x095CD41C, 0xFFFFFFFF when not scanning.
-// A board whose fingerprint matches a known table (the prologue's Gateway to
-// Departure, Chapter 1's Crescent Lake and Sage's Path) is announced from it. An unknown
+// A board whose fingerprint matches a known table (the gateways tabled
+// below, Chapters 1-6) is announced from it. An unknown
 // board is announced GENERICALLY from the live disc data -- current disc and
 // coordinate-adjacent neighbours by grid id, no piece names, no prompts -- because
 // piece presence is not in a cell and an unverified name would be an invention.
@@ -566,7 +566,419 @@ struct BoardDef { const BoardDisc* discs; int nDiscs; int entryGrid; int stigmaG
 static const BoardDef kPrologueDef = { kBoardDiscs, 14, 21, 27 };
 static const BoardDef kLakeDef = { kLakeDiscs, 19, 20, 55 };
 static const BoardDef kSagesDef = { kSagesDiscs, 22, 20, -1 };
-static const BoardDef* const kKnownBoards[3] = { &kPrologueDef, &kLakeDef, &kSagesDef };
+// Chapter 2's Hidden Darkness Gateway is deliberately NOT tabled: its
+// Chapter 6 instance shares the identical disc fingerprint (same set,
+// entry and Stigma discs) with a different piece population and a
+// different KP chance (session 46, addendum 29), so either table would
+// misname the other chapter's pieces. It stays generic until a
+// measurement distinguishes the two instances.
+// Chapter 1's Gateway of Fools and Hope (sessions 21-22). The session-21 Scan
+// pass showed nothing on discs 2, 33 and 34; the pieces there were named by
+// their engage prompts in session 22, and the table follows the prompts.
+// No Stigma on the board: the ??? piece on 15 is the finish. Disc 22 is a
+// platform but not a registered disc (session 22), so it is not in the set.
+static const BoardDisc kFoolsDiscs[13] = {
+    { 1, nullptr, -14, -12, kPieceChest },
+    { 2, nullptr, -10, -12, kPiecePirate6Ocs },
+    { 4, nullptr, -2, -12, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceNone },
+    { 15, nullptr, 2, -8, kPieceUnknown },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceFlash2Wod },
+    { 24, nullptr, -2, -4, kPieceChest },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceDragoon2Wod },
+    { 34, nullptr, -2, 0, kPiecePirate6Ocs },
+    { 43, nullptr, -6, 4, kPieceNone },
+};
+static const BoardDef kFoolsDef = { kFoolsDiscs, 13, 20, -1 };
+// Chapter 2's Encounters and Treason (session 25, full Scan census). No Stigma
+// and no assist piece: the ??? piece on 31 (Terra) is the finish. Discs 63
+// and 64 are registered discs past the old 60-record scan range.
+static const BoardDisc kEncountersDiscs[24] = {
+    { 0, nullptr, -18, -12, kPieceNone },
+    { 11, nullptr, -14, -8, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceNone },
+    { 15, nullptr, 2, -8, kPiecePirate2Wod },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPieceNone },
+    { 30, nullptr, -18, 0, kPieceHarlequin5Os },
+    { 31, nullptr, -14, 0, kPieceUnknown },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceFlash2Wod },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 36, nullptr, 6, 0, kPieceDragoon2Os },
+    { 37, nullptr, 10, 0, kPieceNone },
+    { 40, nullptr, -18, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 50, nullptr, -18, 8, kPieceChest },
+    { 51, nullptr, -14, 8, kPieceGirl2Os },
+    { 52, nullptr, -10, 8, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 63, nullptr, -6, 12, kPieceNone },
+    { 64, nullptr, -2, 12, kPieceNone },
+};
+static const BoardDef kEncountersDef = { kEncountersDiscs, 24, 53, -1 };
+// Chapter 2's Gulg Gateway (session 26). No Stigma and no assist piece: the
+// ??? piece on 25 (Kefka) is the finish. The chest on 51 was never claimed
+// in play (it stands behind the Reaper on 31); it is tabled as presented.
+static const BoardDisc kGulgDiscs[19] = {
+    { 0, nullptr, -18, -12, kPieceNone },
+    { 2, nullptr, -10, -12, kPieceNone },
+    { 3, nullptr, -6, -12, kPiecePirate5Lunar90 },
+    { 4, nullptr, -2, -12, kPieceSummonstone },
+    { 11, nullptr, -14, -8, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPieceUnknown },
+    { 30, nullptr, -18, 0, kPieceDragoon5Lunar90 },
+    { 31, nullptr, -14, 0, kPieceReaper15Os90 },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceHarlequin2Wod90 },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 41, nullptr, -14, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceFlash2Wod90 },
+    { 51, nullptr, -14, 8, kPieceChest },
+};
+static const BoardDef kGulgDef = { kGulgDiscs, 19, 11, -1 };
+// Chapter 2's Snow of Sorrow (session 27, full Scan census).
+static const BoardDisc kSnowDiscs[16] = {
+    { 0, nullptr, -18, -12, kPieceChest },
+    { 1, nullptr, -14, -12, kPieceNone },
+    { 2, nullptr, -10, -12, kPieceHarlequin7Lunar90 },
+    { 3, nullptr, -6, -12, kPieceChest },
+    { 11, nullptr, -14, -8, kPiecePirate11Ocs90 },
+    { 20, nullptr, -18, -4, kPiecePirate7Wod90 },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceFlash11Ocs90 },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 42, nullptr, -10, 4, kPieceStigma },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceTerra },
+};
+static const BoardDef kSnowDef = { kSnowDiscs, 16, 22, 42 };
+// Chapter 2's Seasonless Gateway (session 27, full Scan census). The census
+// stated no battle stages on this board, so its pieces carry level only.
+static const BoardDisc kSeasonlessDiscs[19] = {
+    { 0, nullptr, -18, -12, kPieceChest },
+    { 10, nullptr, -18, -8, kPieceGirl15 },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceTerra },
+    { 25, nullptr, 2, -4, kPieceNone },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPiecePirate11 },
+    { 34, nullptr, -2, 0, kPieceNone },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 40, nullptr, -18, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceHarlequin15 },
+    { 50, nullptr, -18, 8, kPieceFlash15 },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 54, nullptr, -2, 8, kPiecePirate15 },
+    { 55, nullptr, 2, 8, kPieceStigma },
+    { 60, nullptr, -18, 12, kPieceChest },
+};
+static const BoardDef kSeasonlessDef = { kSeasonlessDiscs, 19, 31, 55 };
+// Chapter 3's first gateway (session 28, full Scan census). The record never
+// captured this gateway's banner name, so no name is tabled for it.
+static const BoardDisc kCh3FirstDiscs[17] = {
+    { 4, nullptr, -2, -12, kPieceChest },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceFlash5Wod },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceWraith1Os },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceChest },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceGunner1Os },
+    { 41, nullptr, -14, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceVision1Os },
+    { 44, nullptr, -2, 4, kPieceStigma },
+    { 52, nullptr, -10, 8, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 54, nullptr, -2, 8, kPieceFlash5Wod },
+    { 62, nullptr, -10, 12, kPieceNone },
+};
+static const BoardDef kCh3FirstDef = { kCh3FirstDiscs, 17, 30, 44 };
+// Chapter 3's Gateway To Decay (session 29). The board census stated no
+// battle stages, so its pieces carry level only. The Dragoon on 24 is the
+// gold variant (HP 1, a glass cannon) as measured in play.
+static const BoardDisc kDecayDiscs[18] = {
+    { 11, nullptr, -14, -8, kPieceVaan },
+    { 14, nullptr, -2, -8, kPieceWraith5_90 },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceDragoon4_90 },
+    { 25, nullptr, 2, -4, kPieceNone },
+    { 26, nullptr, 6, -4, kPieceChest },
+    { 32, nullptr, -10, 0, kPieceGunner1_90 },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceGunner1_90 },
+    { 41, nullptr, -14, 4, kPieceFlash5_90 },
+    { 42, nullptr, -10, 4, kPieceNone },
+    { 44, nullptr, -2, 4, kPieceNone },
+    { 45, nullptr, 2, 4, kPieceFlash1_90 },
+    { 46, nullptr, 6, 4, kPieceStigma },
+    { 51, nullptr, -14, 8, kPiecePotion },
+};
+static const BoardDef kDecayDef = { kDecayDiscs, 18, 20, 46 };
+// Chapter 4's West Melmond Gateway (session 35, full Scan census). Chapter 4
+// opens directly on this board.
+static const BoardDisc kWestMelmondDiscs[17] = {
+    { 1, nullptr, -14, -12, kPiecePhantom3Ocs },
+    { 2, nullptr, -10, -12, kPieceChest },
+    { 11, nullptr, -14, -8, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceJecht },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceDespot1Os },
+    { 23, nullptr, -6, -4, kPieceChest },
+    { 24, nullptr, -2, -4, kPieceSummoner1Os },
+    { 25, nullptr, 2, -4, kPieceNone },
+    { 26, nullptr, 6, -4, kPieceStigma },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceNone },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 41, nullptr, -14, 4, kPieceDragoon3Ocs },
+    { 45, nullptr, 2, 4, kPieceNone },
+    { 51, nullptr, -14, 8, kPieceChest },
+};
+static const BoardDef kWestMelmondDef = { kWestMelmondDiscs, 17, 20, 26 };
+// Chapter 4's North Melmond Gateway (session 35, full Scan census). The entry
+// disc is 63, past the old 60-record scan range.
+static const BoardDisc kNorthMelmondDiscs[15] = {
+    { 3, nullptr, -6, -12, kPieceStigma },
+    { 13, nullptr, -6, -8, kPieceSummoner1Rift90 },
+    { 22, nullptr, -10, -4, kPieceFlash3Dreams90 },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceHero1Rift90 },
+    { 34, nullptr, -2, 0, kPiecePhantom3Dreams90 },
+    { 35, nullptr, 2, 0, kPieceSummonstone },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 45, nullptr, 2, 4, kPieceZidane },
+    { 51, nullptr, -14, 8, kPieceChest },
+    { 52, nullptr, -10, 8, kPieceDespot3Ocs90 },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 54, nullptr, -2, 8, kPieceNone },
+    { 63, nullptr, -6, 12, kPieceNone },
+};
+static const BoardDef kNorthMelmondDef = { kNorthMelmondDiscs, 15, 63, 3 };
+// Chapter 4's Gateway to the Shrine (session 35's "Blue board", full Scan
+// census). Two battle pieces stand behind Jump and were never fought; they
+// are tabled as the census presented them.
+static const BoardDisc kBlueShrineDiscs[17] = {
+    { 1, nullptr, -14, -12, kPiecePhantom11Wod90 },
+    { 2, nullptr, -10, -12, kPieceNone },
+    { 3, nullptr, -6, -12, kPieceNone },
+    { 5, nullptr, 2, -12, kPiecePirate11Lunar90 },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceStigma },
+    { 20, nullptr, -18, -4, kPieceWraith11Lunar90 },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPiecePirate11Ocs90 },
+    { 26, nullptr, 6, -4, kPieceChest },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceFlash6Dreams90 },
+    { 42, nullptr, -10, 4, kPieceNone },
+};
+static const BoardDef kBlueShrineDef = { kBlueShrineDiscs, 17, 13, 14 };
+// Chapter 4's Southern Shrine Gateway (session 35, full Scan census). No
+// Stigma disc: the ??? piece on 37 (The Emperor) is the clear condition.
+static const BoardDisc kSouthShrineDiscs[26] = {
+    { 0, nullptr, -18, -12, kPieceVision11Lunar },
+    { 1, nullptr, -14, -12, kPieceChest },
+    { 10, nullptr, -18, -8, kPieceNone },
+    { 11, nullptr, -14, -8, kPiecePhantom11Lunar },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceHero11Lunar },
+    { 15, nullptr, 2, -8, kPieceChest },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceVision11Lunar },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceDespot6Dreams },
+    { 34, nullptr, -2, 0, kPieceSummoner11Lunar },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 36, nullptr, 6, 0, kPieceNone },
+    { 37, nullptr, 10, 0, kPieceUnknown },
+    { 40, nullptr, -18, 4, kPiecePotion },
+    { 42, nullptr, -10, 4, kPieceNone },
+    { 44, nullptr, -2, 4, kPiecePhantom6Dreams },
+    { 51, nullptr, -14, 8, kPieceNone },
+    { 52, nullptr, -10, 8, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 54, nullptr, -2, 8, kPieceNone },
+    { 60, nullptr, -18, 12, kPieceHero6Wod },
+};
+static const BoardDef kSouthShrineDef = { kSouthShrineDiscs, 26, 53, -1 };
+// Chapter 5's North Sanctuary Gateway (session 37). The record stated no
+// battle stages on this board, so its pieces carry level only.
+static const BoardDisc kNorthSanctuaryDiscs[19] = {
+    { 0, nullptr, -18, -12, kPieceChest },
+    { 2, nullptr, -10, -12, kPieceStigma },
+    { 4, nullptr, -2, -12, kPieceChest },
+    { 10, nullptr, -18, -8, kPieceHero13_90 },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPiecePirate13_90 },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceDragoon8_90 },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceFlash8_90 },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 30, nullptr, -18, 0, kPieceDespot13_90 },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceNone },
+    { 40, nullptr, -18, 4, kPieceChest },
+    { 42, nullptr, -10, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 52, nullptr, -10, 8, kPieceNone },
+};
+static const BoardDef kNorthSanctuaryDef = { kNorthSanctuaryDiscs, 19, 52, 2 };
+// Chapter 5's Forsaken Kingdom (session 37). No Stigma: the Warrior of Light
+// on 25 is the finish (his level was never read from his card in play; the
+// guides say 18). GAPS: the guides name two further chests (Blazefire Saber,
+// Mythril) behind the Phantom on 43, but their discs were never measured,
+// so they are not tabled.
+static const BoardDisc kForsakenDiscs[15] = {
+    { 1, nullptr, -14, -12, kPieceSummonstone },
+    { 10, nullptr, -18, -8, kPieceNone },
+    { 11, nullptr, -14, -8, kPieceHero13 },
+    { 13, nullptr, -6, -8, kPiecePotion },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceChest },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPieceWarriorOfLight },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceSummoner13 },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 40, nullptr, -18, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPiecePhantom23 },
+};
+static const BoardDef kForsakenDef = { kForsakenDiscs, 15, 20, -1 };
+// Chapter 6's Sunken Lake Gateway (session 39, measured census). Chapter 6
+// opens directly on this board. The census stated no battle stages, so its
+// pieces carry level only.
+static const BoardDisc kSunkenDiscs[15] = {
+    { 1, nullptr, -14, -12, kPieceNone },
+    { 3, nullptr, -6, -12, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceDragoon3 },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPieceGunner3 },
+    { 26, nullptr, 6, -4, kPieceStigma },
+    { 32, nullptr, -10, 0, kPieceDespot7 },
+    { 34, nullptr, -2, 0, kPieceFlash7 },
+    { 42, nullptr, -10, 4, kPieceChest },
+    { 44, nullptr, -2, 4, kPieceChest },
+};
+static const BoardDef kSunkenDef = { kSunkenDiscs, 15, 20, 26 };
+// Chapter 6's Legendary Lake Gateway (sessions 46-47, direction-press probe
+// map). GAPS: discs 1, 3, 4 and 5 were never reached (they sit behind the
+// battle pieces), so their contents are unmeasured and they are tabled
+// empty as presented; the guides' Imitation Despot Lv 17, Firion assist
+// piece and Black Dragon Spear chest were never located on this board.
+static const BoardDisc kLegendaryDiscs[17] = {
+    { 1, nullptr, -14, -12, kPieceNone },
+    { 2, nullptr, -10, -12, kPieceTree7Wod90 },
+    { 3, nullptr, -6, -12, kPieceNone },
+    { 4, nullptr, -2, -12, kPieceNone },
+    { 5, nullptr, 2, -12, kPieceNone },
+    { 10, nullptr, -18, -8, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceFlash7Crystal90 },
+    { 14, nullptr, -2, -8, kPieceNone },
+    { 20, nullptr, -18, -4, kPieceDragoon7Crystal90 },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceFlash3Ultimecia90 },
+    { 30, nullptr, -18, 0, kPieceSummonstone },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceStigma },
+};
+static const BoardDef kLegendaryDef = { kLegendaryDiscs, 17, 32, 34 };
+// Chapter 6's Gateway of True Intent (sessions 56-60; node set from the
+// session-60 record scan, pieces from firsthand prompt cards). GAPS: nodes
+// 30 and 55 exist but no cardinal path reaches them and their contents were
+// never read (one may hold the west chest, the Pebble); tabled empty as
+// presented. Session 56's note puts Firion's piece at 54, but the record
+// scan shows no node 54; the assist at 44 was confirmed by screenshot.
+static const BoardDisc kTrueIntentDiscs[15] = {
+    { 3, nullptr, -6, -12, kPieceStigma },
+    { 13, nullptr, -6, -8, kPieceFlash13Ultimecia90 },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPiecePirate13_90 },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceTree13Wod90 },
+    { 25, nullptr, 2, -4, kPieceChest },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceGunner6Crystal90 },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 44, nullptr, -2, 4, kPieceFirion },
+    { 51, nullptr, -14, 8, kPieceNone },
+    { 52, nullptr, -10, 8, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 55, nullptr, 2, 8, kPieceNone },
+};
+static const BoardDef kTrueIntentDef = { kTrueIntentDiscs, 15, 53, 3 };
+// Chapter 6's Ryukahn Gateway (sessions 63-64, walked map, all cards read
+// firsthand). The Stigma disc (2) presents as a ??? piece -- it is Exdeath
+// in disguise -- so the table names what the game presents; stigmaGrid
+// still marks the disc so a board exit after its prompt speaks "Level
+// finished.". GAPS: disc 13 holds the battle-tips signpost, whose prompt
+// text was never quoted (tabled empty), and disc 10 is a spare node that
+// was never accounted for. Firion on 11 is a talk piece here.
+static const BoardDisc kRyukahnDiscs[16] = {
+    { 2, nullptr, -10, -12, kPieceUnknown },
+    { 10, nullptr, -18, -8, kPieceNone },
+    { 11, nullptr, -14, -8, kPieceFirion },
+    { 12, nullptr, -10, -8, kPieceDragoon6Crystal },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceGunner13Dreams },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceGirl13Os },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceNone },
+    { 35, nullptr, 2, 0, kPiecePirate13Wod },
+    { 36, nullptr, 6, 0, kPieceChest },
+    { 42, nullptr, -10, 4, kPieceNone },
+    { 44, nullptr, -2, 4, kPieceNone },
+};
+static const BoardDef kRyukahnDef = { kRyukahnDiscs, 16, 42, 2 };
+static const BoardDef* const kKnownBoards[20] = { &kPrologueDef, &kLakeDef, &kSagesDef,
+    &kFoolsDef, &kEncountersDef, &kGulgDef, &kSnowDef, &kSeasonlessDef, &kCh3FirstDef, &kDecayDef, &kWestMelmondDef, &kNorthMelmondDef, &kBlueShrineDef, &kSouthShrineDef, &kNorthSanctuaryDef, &kForsakenDef, &kSunkenDef, &kLegendaryDef, &kTrueIntentDef, &kRyukahnDef };
 // Generic fallback for an unrecognised board: position from the live disc data,
 // no table, no pieces.
 static const BoardDef kGenericDef = { nullptr, 0, -1, -1 };
