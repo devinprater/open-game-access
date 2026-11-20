@@ -11313,3 +11313,84 @@ terrace-to-shelf crossing. The corridor must be
 entered from its MOUTH on the strip (273.48,
 147.11) - attempt 2 runs from the coast state
 s54_ct_final.state eastward along the strip.
+
+K2. GATE 14 (lead 3), ATTEMPT 2 - THE FULL C->D
+ROUTE, MARCHED IN THE ADV LINEAGE: from the
+coast state s54_ct_final.state (242.01, 143.56)
+the strip E is march-clean with the resynced
+walker (s53's xprobe "death point" (243.29,
+142.93) was old-tooling noise - today's march
+passed through (243.37, 142.91) without pausing):
+coast -> ARRIVED (272.58, 145.70), 1.67 from the
+corridor mouth (273.48, 147.11) [s55_mth]. The
+corridor is a clean N-S lane at X~268-272:
+ARRIVED (269.60, 163.18) at its top [s55_cor].
+The shelf strip E: ARRIVED (295.54, 173.55),
+1.89 from s44's shelf stand [s55_shf]. The SE
+chute: ARRIVED (302.27, 167.59), inside the
+pocket [s55_pkt]. GATE TABLE at the pocket
+(this boot, GateMgr 0x095D7110, by VALUE):
+k1 life=5 timer=122.0 A-1 B-1 = Legendary Lake
+FINISHED; k2 A26 B3 = gate 22; k3 B0 = gate 11;
+k4 A28 = Hidden Darkness; k7 B1 = gate 16;
+k8 B2 = gate 17; k0/5/6/9/10/11 all A-1 B-1
+life=0 (the inert set: gates 14/15/18/20/21 and
+one more). ANCHOR TEST: fine march from the
+bench stalled at (303.23, 166.94), 1.84 from the
+anchor (305.04, 166.59) - the pocket's E wall at
+X~303.2, matching s45's closest stand (303.22,
+166.81) to the centimeter. The stall protocol's
+Cross at 1.84 dashed him S inside the pocket
+(state68=2, no entry); two further Cross presses
+from (302.81, 166.47) dashed W along the pocket
+band / no movement. GATE TABLE AFTER: NO CHANGE,
+record for record. VERDICT: gate 14 is NOT
+enterable post-Legendary-Lake in the MAIN
+lineage - the anchor cannot be stood on from
+the only reachable side, Cross at closest
+approach does nothing, and its record reads
+(-1, -1) inert like the other off-segment gates.
+The test owed since session 52 is CLOSED, and
+s48's side-lineage result is confirmed in the
+main lineage.
+
+SESSION 55 CLOSE: standing unchanged (Kain
+Lv 10, HP 1,851/1,851, gil 9,774 verified at
+every boot, banked KP 104, Shiva + Rosetta Stone
+held, Firion assist; no fights, no events, no
+title cards - no gateway was entered). Boards
+done: Sunken Lake, Hidden Darkness, Legendary
+Lake. Owed: True Intent, Ryukahn, Exdeath Lv 18.
+The session's durable gains are GROUND and
+METHOD: (1) s55_march's cycle-top resync kills
+the s53 desync - every "unwalkable" verdict the
+old walkers produced is suspect, and three of
+them fell today (the LL pocket's N, the pocket's
+E plateau, the coast strip E of X~243); (2) the
+whole high country N/E of Legendary Lake is now
+mapped and state-banked: N corridor, E plateau
+(Z~220-229), ledges, west shelf, Z~250 terrace,
+high strip (Z~247-252), plus the full C->D route
+(coast -> corridor -> shelf strip -> chute ->
+gate 14 pocket) in the adv lineage. RESUME
+STATES: s55_pkt_final.state (gate 14 pocket
+bench (302.27, 167.59)), s55_shf_final.state
+(shelf strip (295.54, 173.55)), s55_cor_final.
+state (corridor top (269.60, 163.18)),
+s55_mth_final.state (corridor mouth (272.58,
+145.70)), s55_clus_final.state (terrace cluster
+(284.93, 252.62)), s55_cn_final.state (terrace
+W (274.64, 249.92)), s55_o1168_final.state (E
+plateau (283.83, 219.56)), s55_n120_final.state
+(N corridor (269.08, 229.28)); canonical
+ch6_s47_ll_finished.state; master fallback
+ch6_s48_bench1_final.state. NEXT LEADS: (a) the
+untested kind=1 orb candidate id=224 (280.0,
+234.0) - kind 1 was the prologue orb's kind;
+(b) the high strip's E continuation from
+(291-298, 247-252) toward gate 20's anchor
+(319.33, 193.64) and gate 21 (315.09, 270.40) -
+the F->K corridor country, never walked from
+this side; (c) keep watching state68 on all new
+ground for the roaming Tree (actor-table entity;
+the pint-diff method is closed).
