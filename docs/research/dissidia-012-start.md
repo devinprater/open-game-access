@@ -12131,3 +12131,119 @@ Lv 13, HP 2,033, gil 10,440):
   Second retry with rot4z (race from <= 700:
   at foe 635 the foe BRV is only ~150-210, so
   the race gets ~5 rotations of clear water).
+
+E. RUN 4 CONTINUED - THE PIRATE FALLS TO rot4z,
+AND THE CHAIN DOOR OPENS:
+- PIRATE retry with rot4z (race from <= 700):
+  WIN at rotation 39. The race fired ~rot 31
+  (foe 506 at rot 35) and dealt 506 in ~4
+  rotations; Kain even recovered 688 -> 749
+  (the ~+61 endgame recovery, third sighting).
+  Gil +234 -> 10,674. The Pirate kill LEVELED
+  Kain 13 -> 14 (VS card read firsthand).
+  rot4z supersedes rot4x for the Lv 13 pieces:
+  it won the trace rot4x lost at foe-74 and
+  rot4y lost at foe-251.
+- EXIT TRAP (cost a detour, banked as a rule):
+  the post-Pirate state held the TREE'S CHAIN
+  CARD open (Cross Chain offer). A pause-exit
+  attempted on top of it sent down/down/Cross
+  into the card and ENGAGED the Tree (VS card:
+  World of Darkness) instead of exiting. RULE:
+  decline any resting chain card (Circle ->
+  Left -> Cross) BEFORE pausing to exit. With
+  the decline first, the exit worked cleanly
+  (field bank s58_field_r6.state: Lv 14, gil
+  10,674; max HP at Lv 14 = 2,094).
+- THE CHAIN SAMPLE (from the accidental engage,
+  fought deliberately from the bank): Tree at
+  Lv 14, Kain HP 749, rot4z: LOSS at rot 23 -
+  but Kain dealt 1,380 (foe 1,727 -> 347), with
+  damage flowing from rot 1 (426 by rot 5).
+  Chain-engaged traces do NOT show the prompt
+  traces' ~20-rotation guard phase.
+
+F. RUN 6 (fresh board, Lv 14, HP 2,094):
+- GUNNER: WIN in 12 rotations, UNTOUCHED (foe
+  at 1 HP by rot 10). At Lv 14 the Gunner is
+  free. Gil +66 -> 10,740.
+- TREE via prompt, rot4z, full HP: LOSS at
+  rot 31, foe 1,581 - only 146 dealt. The
+  guard-phase trace again (foe untouched until
+  ~rot 21) while Kain ate cash-ins of 981 and
+  346 and died to an 864 build. Prompt-engaged
+  Tree traces vary wildly (256 / 768 / 146 at
+  Lv 10 / 13 / 14); the foe's early guard is
+  the variable, not Kain's stats alone.
+
+G. RUN 7 - THE DELIBERATE CHAIN RETRY:
+- Gunner re-won byte-identically (12 rots,
+  untouched). PIRATE, rot4z: WIN in 23
+  rotations, Kain 2,094 -> 1,560 (the foe was
+  under 700 by rot 5, so the race ran almost
+  the whole fight - slower per rotation but
+  safe). Gil -> 10,994 (declined lineage) /
+  10,974 (no-decline lineage). NOTE: the fight
+  script's win handler DECLINES chain prompts;
+  a no-decline build (s58_fight_nc.py) re-ran
+  the identical win and left the Tree's chain
+  card open (bank: s58_s58pir7nc_post2.state,
+  Kain at grid 23, HP 1,560).
+- TREE VIA CHAIN from that bank, rot4z: foe HP
+  discovered = 1,921 (NOT 1,727 - chain foes
+  may carry bonus HP, or the Tree's HP varies
+  per instance as the Imitation Despot's did;
+  run 4's chain read exactly 1,727). LOSS at
+  rot 27, foe at 940: 981 dealt. Kain took NO
+  damage through rot 20, then the foe's 1,299
+  BRV cash-in landed at rot ~21-25 (1,560 ->
+  261) and finished him at rot 27 - the race
+  (threshold 700) never fired; the foe was
+  still at 940. The mid-phase BRV bank is the
+  Tree's kill mechanism in every trace.
+
+H. SESSION 58 CLOSE - WHERE THE TREE STANDS:
+Damage curve vs the Tree (rot4-family):
+  prompt Lv 10 (HP 1,851): 256 dealt, died r18
+  prompt Lv 13 (HP 2,033): 768 dealt, died r46
+  prompt Lv 14 (HP 2,094): 146 dealt, died r31
+  chain  Lv 14 (HP 749):  1,380 dealt, died r23
+  chain  Lv 14 (HP 1,560): 981 dealt, died r27
+The wall is no longer raw stats: at Lv 14 Kain
+has the damage (the 749-HP chain trace nearly
+killed a 1,727 Tree). The losses turn on (a)
+trace variance in the foe's guard phase and
+(b) surviving the foe's one big BRV cash-in
+(~1,300) in the mid-phase. Levers for s59:
+(1) more levels (each Pirate kill ~+1 level;
+Lv 15-16 raises both damage and the HP pool
+above the cash-in's reach); (2) take the chain
+route every time (no guard phase); (3) if a
+trace shows the foe banking >1,200 BRV with
+Kain under that in HP, the run is likely lost
+- exit earlier and re-roll. The Flash (disc
+13) was never fought; chests and the Stigma
+remain; the board is NOT finished.
+STANDING AT CLOSE: Kain Lv 14, gil 10,974
+(active lineage), banked KP 104, Shiva +
+Rosetta Stone held, Firion assist. Board KP
+this visit unverified (the 12-rotation Gunner
+win likely met the 90-second chance; not
+screenshot-confirmed). RESUME BANKS:
+s58_s58pir7nc_post2.state (Pirate beaten,
+Tree chain card OPEN, Kain HP 1,560, at 23 -
+the prime retry bank); s58_r6_start.state
+(fresh board, Lv 14, gil 10,674);
+s58_field_r6.state (field at gate 22).
+PROTECTED, untouched: s56_ti_resume.state.
+DO NOT USE: s58_r3_start.state / s58_r3_at43.
+state (mid-title-card), s58_field_r5.state
+(the accidental Tree VS screen), s58_r3_at33.
+state (boot-screen save from the mistimed
+load). Harness added: s58_fight.py (rot4y/
+rot4z modes, longer post-win settle + verify
+save), s58_fight_nc.py (no-decline win
+handler), s58_press.py, s58_shot.py,
+s58_exit2.py, s58_decline_exit.py,
+s58_enter2.py / s58_enter3.py (entry with
+control proof before saving).
