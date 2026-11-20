@@ -12796,3 +12796,162 @@ Lv 20, HP 198, gil 13,528, board KP gauge 3):
   at 3. East chest (25) again on the way if
   the route passes 24 with HP to spare - it
   is free.
+
+D. VISIT 3 (from s60_t2_field.state via
+s59_enter.py -> s60_t3_start.state; Lv 20,
+HP 2,458, gil 13,528):
+- Gunner (prompt bank s60_t3_nav1.state):
+  rot4z WIN r14. Start read 2,457, took 148,
+  final 2,370 = 2,309 + 61 LEVEL-UP HEAL -
+  Kain Lv 20 -> 21 on the Gunner kill (t2's
+  banked EXP tipped it). Lv 21 max 2,519.
+  Gil 13,594.
+- Pirate (prompt bank s60_t3_nav2.state,
+  entry 2,370): idle-900 LOSS r21 (foe 446;
+  846 cash-in ~r12). idle-2700 WIN r34, ends
+  1,085 (cost 1,285; race stalled ~15 rots
+  at foe 114 while foe BRV rebuilt to 1,238
+  unfired). Gil 13,828. Chain open; post
+  bank s60_t3pir2700_post2.state.
+- Tree via chain (post bank idle-rolled;
+  foe 1,727 in all samples): idle-2700 WIN
+  r31, ends 378 (no damage until ~r17; flow
+  1,666->536->1->0; 202 parting hit). Gil
+  14,062. Post bank s60_t3tree2700_post2.
+- Flash SCOUT at 378 HP (prompt bank
+  s60_t3_nav3.state, idle-0): LOSS r29, foe
+  at 584 - but Kain took ZERO damage for
+  25+ rotations and dealt 1,143. A KEEP-AWAY
+  trace family: the Flash banks/plays range
+  and barely attacks; its first hit landed
+  ~r27. Key data: this family is beatable
+  at ~900+ entry HP, possibly lower.
+- Exit (s60_exit2.py) -> s60_t3_field.state
+  (pocket (292.70, 310.17), gil 14,062).
+
+E. VISIT 4 - THE CLEAR (from s60_t3_field
+via s59_enter.py -> s60_t4_start.state):
+- Gunner (s60_t4_nav1.state): WIN r9, ZERO
+  damage. Start read 2,578 -> the visit-3
+  Tree kill had leveled Kain to 22 (max
+  2,580). Gil 14,128.
+- Pirate (prompt bank s60_t4_nav2.state,
+  entry 2,578) - a brutal bank: idle-2700
+  WIN r38 but cost 2,200 (ends 378; 1,536
+  cash-in ~r12); idle-900 LOSS r25 (foe
+  1,086); idle-450 LOSS r25 (foe 1,038;
+  1,441 cash-in); idle-0 LOSS r35 (foe
+  1,360; 1,212 taken in the first 5 rots);
+  idle-1800 WIN r21, ends 1,378 (cost
+  1,200). Gil 14,362. Chain open; post bank
+  s60_t4pir1800_post2.state.
+- Tree via chain at 1,378 (idle-2700 rolled
+  bank s60_t4_tre2700.state; foe 1,727):
+  WIN r28, ends 413. TRACE NOTE: at rot 20
+  herHP read 1,439 = 1,378 + 61 - a LEVEL-UP
+  HEAL landed MID-FIGHT (the Pirate kill's
+  level-up, Lv 22 -> 23, processed during
+  the chain transition; max now 2,641). The
+  Tree's parting cash-in (foe BRV 821 +
+  pool) dealt 1,026 in the last rotations;
+  Kain survived at 413. Gil 14,596. Post
+  bank s60_t4tree2700_post2.state (grid 23).
+  Board KP gauge now 5.
+- EAST CHEST (25) revisited: opened, but
+  yielded only +20 gil this visit (gil
+  14,596 -> 14,616) vs 500 in visit 2 -
+  chest contents VARY per visit (random
+  roll). The WEST CHEST is VISIBLE in board
+  screenshots (gold chest, far west) =
+  almost certainly node 30 (-18, 0); still
+  unreachable on foot (no cardinal edges;
+  chain-only? - untested from a 33/23 win).
+- FLASH (prompt bank s60_t4_nav3.state from
+  grid 23, entry 413, idle-0, rot4z): WIN
+  r55, Kain ends 242. THE KEEP-AWAY FAMILY
+  AGAIN: one 171 hit at ~r3 (413 -> 242),
+  then NO damage taken for 50 rotations
+  while rot4z chipped 1,727 -> 0. The foe
+  banked to the 2,000 cap by ~r48 and HELD
+  it, unfired, for 10+ rotations while the
+  endgame race whiffed at foe 168 (rots
+  45-54) - then landed. Foe AI quirk worth
+  remembering: at max bravery in keep-away
+  it may simply never fire. Gil 14,850.
+  Post bank s60_t4flash0_post2.state.
+- STIGMA OF CHAOS (disc 3): from the Flash
+  post bank, nav up -> Kain stands on 13;
+  up again -> PROMPT->disc 3. Dialog read
+  firsthand (screenshot): "Stigma of Chaos -
+  Engaging this piece finishes the level."
+  Cross -> light beam, "CLEARED" banner
+  (screenshot). Post-clear dialogue (2
+  pages, Kain portrait) -> FIELD CONTROL at
+  (292.50, 318.26), state68=2.
+- CLEAR REWARDS / NEW STANDING: Kain Lv 23,
+  HP FULLY RESTORED on the field (2,639
+  read / 2,641 max), gil 14,850, BANKED KP
+  104 -> 109 (the board's 5 KP swept in at
+  the clear). Shiva + Rosetta Stone held;
+  Firion assist. GATEWAY OF TRUE INTENT
+  FINISHED - Chapter 6's second gateway
+  chain complete (Sunken Lake, Hidden
+  Darkness, Legendary Lake, True Intent).
+
+F. LEG 3 SCOUT (brief item 5, bounded):
+- Post-clear field bank s60_fin3.state:
+  (292.50, 318.26), full HP, KP 109.
+- s55_march toward the moogle shop (280,
+  273): the road runs -Z; a SEGMENT SEAM at
+  Z ~= 310 (state68 cycled 20 -> 0 -> 2 -
+  a field segment reload, NOT a battle or
+  a gateway entry; event bank
+  s60_leg3_event.state settled back to
+  field control just south of the seam).
+  Marcher stops at seams; session 61
+  resumes the march from the event bank.
+  Moogle shop (280, 273) and Ryukahn
+  Gateway still ~37 units beyond; Exdeath
+  Lv 18 NOT probed (no encounter reached;
+  Kain is Lv 23 and full HP for it).
+
+G. SESSION 60 CLOSE:
+- Kain Lv 19 -> 23 (four levels: Gunner
+  kills tipped 20 and 21 in visits 2-3;
+  the visit-3 Tree kill tipped 22; the
+  visit-4 Pirate kill tipped 23, its heal
+  landing mid-Tree-fight). Gil 12,174 ->
+  14,850. Banked KP 104 -> 109.
+- THE TREE: beaten three times (t2 chain
+  idle-2700 @1,004; t3 chain idle-2700
+  @1,085; t4 chain idle-2700 @1,378).
+  Winning entry floor is trace-dependent:
+  ~1,000 at Lv 20-21 in the 2700 family.
+- THE FLASH: beaten at 413 entry (idle-0,
+  keep-away family). Its danger is
+  trace-dependent, not absolute: the
+  aggressive family (s59) cashes 1,541;
+  the keep-away family may never fire.
+- LOOSE END: the Pebble (west chest, node
+  30) never collected - unreachable on
+  foot; try chain offers from a Gunner/
+  Pirate win in a future replay, or an
+  analog-stick move in all 8 directions
+  from 21/23 (only 2 diagonal combos
+  tried). Node 55 likewise unexplained.
+- RESUME: s60_fin3.state (field, post-
+  clear, full HP) is the lineage head;
+  s60_leg3_event.state for the march.
+  PROTECTED s56_ti_resume.state untouched.
+- NEXT (session 61): leg 3 - march from
+  s60_leg3_event.state to the moogle shop
+  (280, 273), then the Ryukahn Gateway
+  (gate per guides; board: Delusory
+  Dragoon Lv6, Phantasmal Girl Lv13,
+  Transient Gunner Lv13, Idle Sky Pirate
+  Lv13, chest Yellow Drop, Firion assist,
+  Bonus Line 12, KP chance Win battle) and
+  the chapter boss EXDEATH Lv 18 - Kain at
+  Lv 23 is five levels up on him; probe
+  with the standard fight harness at full
+  HP from a fresh bank.
