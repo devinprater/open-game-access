@@ -10346,3 +10346,45 @@ this run pins the east contour at X 289.9-290.4,
 Z 196.2-198.2). No east-side shore to gate 20's
 country from the band. Scratch state:
 s51_e1_scratch.state at (289.96, 196.61).
+
+FACE-SOUTH PROBE (lead 1, second leg): walker from
+s51_e1_scratch.state (289.96, 196.61) aimed at
+(296, 168) - the shelf latitude, east of the face.
+Step 0: SW +1.17 -> (289.52, 195.32); step 1: SW
++0.86 -> (288.61, 194.19); step 2: SW +0.86 ->
+(287.60, 192.98); step 3: ALL directions <= +0.01
+(S +0.01, SE +0.01, everything else negative).
+The face's southward contour funnels into the
+EXACT dead point s49 measured from the west side
+(287.62, 192.98, "TOTAL STALL, all 8 sticks <=
++0.02") - two sessions, two approach contours,
+identical terminus to 0.02 units. Eastward probes
+were negative at every step (E -0.58..-1.38).
+VERDICT: there is no southward run along the face
+and no eastward gap at Z 193-199; the band-end
+pocket drains SW into the (287.6, 193.0) dead
+point and stops. Combined with s42/s44 (pre-LL):
+the SE basin's west rim (ridge face Z 123-147),
+north rim (Z~134 face at X 287-290; headland band
+bottoming Z 125.35 at X 283.8; bowl at X 280-284 /
+Z 123-126.5 with rising E rim), the gate-14 pocket
+(sealed E/S), and now the NE landmass (band end,
+walled at X~290.4 for Z 196-199, funneling to the
+dead point) - every landward side of the SE basin
+is measured closed, pre- and post-LL alike. Gate
+16's anchor was NOT reached; whether it is barred
+or open remains UNRESOLVED - the measured fact is
+unreachability on foot, unchanged by finishing
+Legendary Lake. The basin's remaining untried
+entries are non-foot: pt1's ride (the pad at
+(331.1, 136.0) sits INSIDE the basin and cannot
+be stood on from outside) and whatever mechanism
+serves the SE cluster in its own chapter segment.
+Scratch state: s51_e2_scratch.state at the dead
+point (287.62, 192.98).
+
+SE PADS: pt1 (331.1, 136.0) and mes pt26 (332.2,
+123.5) are both inside the sealed basin - no
+reachable pad exists to re-probe. No other pads
+are charted in the SE cluster. That part of the
+follow-on closes as not-applicable, not untested.
