@@ -13949,3 +13949,108 @@ C. RYUKAHN GATEWAY - REACHED AND ENTERED
   not blocking completion. The state-11
   menu Shop (addendum 51 F) already covers
   the mesa's only function.
+
+D. THE RYUKAHN BOARD - FOUR FOES DOWN,
+EXDEATH PROBED (board NOT finished):
+- Entry scene: a long Firion/Kain dialogue
+  (the jump tutorial) plays IN state68 20 -
+  advance with Cross presses >=120f apart;
+  ~100 presses total across the scene and
+  the opening tip cards. Cursor then live.
+  Kain starts at cell 42. Board KP chance
+  "Win battle" on every foe card.
+- BOARD MAP (measured; 10-wide grid):
+  42 start -U-> 32 -L-> 31 -U-> 21 -U->
+  prompt 11 (Firion, talk only); 32 -R-> 33
+  -U-> prompt 23; 33 -R-> 34 -D-> 44 (spur);
+  34 -R-> prompt 35; 23 standable after the
+  Girl: 23 -U-> 13 (TIP piece - Cross reads
+  its tip pages; reading them first is
+  REQUIRED before the 12/14 prompts answer:
+  pre-tip probes from 13 read no prompts and
+  even the 13->23 return failed once - use
+  runbp(100) after board presses); 13 -L->
+  prompt 12, -R-> prompt 14; beaten foe
+  cells become standable (12, 14, 23, 35);
+  35 -R-> prompt 36 (chest), 36 standable
+  after opening (leaf); 12 -U-> prompt 2
+  (the Stigma). Cell 10 never accounted for
+  (a spare node; nothing prompts it).
+- CARDS, ALL FIRSTHAND: 23 Phantasmal Girl
+  Lv 13 (Order's Sanctuary); 35 Idle Sky
+  Pirate Lv 13 (World of Darkness); 12
+  Delusory Dragoon Lv 6 (Crystal World); 14
+  Transient Gunner Lv 13 (Dream's End);
+  2 = "???" Stigma ("Engage this piece to
+  find its true form").
+- FIGHTS (rot4z throughout; bank before
+  every fight):
+  * Pirate (foe HP 1,921): WIN 35 rots,
+    Kain 2,639 -> 1,859; gil +234; KP +1.
+    The kill LEVELED Kain 23 -> 24.
+  * CHEST 36: Yellow Drop (Suih's content
+    confirmed firsthand).
+  * Girl (foe HP **1** - the guides' 1-HP
+    gimmick is REAL; the anyfoe finder
+    (300-3000) misses her: engage manually,
+    ramdump, scan her_hp exact - block
+    0x0969D688 in that boot - then finish
+    ENGAGE=mid): WIN 7 rots; she cashed in
+    ~830 first (1,859 -> 1,027 at the low);
+    gil +234. Kill LEVELED Kain 24 -> 25.
+  * Dragoon (foe HP 1,303): WIN 8 rots,
+    1,087 -> 901, in the c12 lineage (see
+    the lineage warning below).
+  * Gunner (foe HP 1,727): first trace LOSS
+    (lethal ~730 cash-in at rot 6, Kain 901);
+    idle-900 re-roll WIN 22 rots, ZERO damage
+    taken in-fight (the intro hit 1,087 ->
+    929 happens before the first live read);
+    gil +234 (settled read 15,552).
+  * Dragoon AGAIN in the true lineage (the
+    gunner banks descend from s63_c13_scene,
+    banked BEFORE the first Dragoon fight -
+    the c12/c14 pre-banks are a SPLIT
+    lineage; the lesson is re-learned: card
+    banks made for identification are not
+    lineage banks): WIN 5 rots, 929 -> 761;
+    gil +66 (15,618). A "CHAIN!" banner
+    showed over the board before this fight
+    but the Dragoon's HP was NOT buffed
+    (1,303, not ~1,642) - the banner marks
+    chain availability, not an engagement.
+  * Board KP read 6 at the Stigma card -
+    more than the four "Win battle" pays I
+    tracked (1+1+?+?); the sweep at the
+    clear will settle the true count.
+- EXDEATH (the Stigma, cell 2): engaged
+  twice from s63_p12_pre_up.state (Kain HP
+  761 both times). Foe HP **2,725**
+  (discovered firsthand). Trace A (idle-0):
+  LOSS rot 34 - Kain took ZERO damage for
+  30 rots but dealt only ~474 (a guard/
+  keep-away family); one cash-in ~rot 31
+  killed. Trace B (idle-900): LOSS rot 20 -
+  flowing family (1,015 dealt by rot 15)
+  but two cash-ins (~487 + ~274) killed.
+  VERDICT: at 761 HP the pool is too thin -
+  he survives ~2 cash-ins and needs ~3x
+  trace B's damage window. DO NOT keep
+  rolling at this HP.
+- THE LINE FROM HERE (next session or as
+  time allows): EXIT GATEWAY (pause -> Exit
+  Gateway -> confirm) from s63_postdrag.
+  state = full heal on the field, levels/
+  gil/Yellow Drop kept, board resets, the
+  6 board KP lost (re-earnable - TI's
+  re-clears re-paid). Re-enter, re-clear
+  with the now-warm scripts (Pirate 35
+  rots; Girl via the mid-fight scan;
+  Dragoon; Gunner idle-900), then Exdeath
+  at FULL HP ~2,763 with idle-rolls in
+  reserve. Resume banks for that line:
+  s63_postdrag.state (at 13, all foes down,
+  HP 761), s63_bn_12.state, s63_p12_pre_up.
+  state (Stigma prompt open, HP 761),
+  s63_g01_base.state (field anchor stand),
+  s63_g01_board2.state (fresh board entry).
