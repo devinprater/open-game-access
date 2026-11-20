@@ -10896,3 +10896,16 @@ start line only, no verdict. No s54_ processes
 survive (verified by pgrep). This attempt re-runs
 the north-face march fresh from s53_b2_final.state
 as prefix s54_n2, in the foreground.
+
+HARNESS LESSON (s54, learned twice in one morning):
+a walker launched DETACHED from WSL (nohup /
+start_new_session via a short ssh call) DIES
+silently when its launching session goes away -
+attempt 1's n1 and this attempt's first launch
+(n2) both stopped mid-probe-cycle with no error
+and no verdict in the log. Walkers must run in
+the FOREGROUND of a held exec call (the pattern
+sessions 38-53 used). n2 verdict: NONE (killed
+mid-cycle-1 at (214.53, 190.46), its cycle-0 SW
+slide along the ruins band is the only data).
+Re-run as s54_n3, foreground.
