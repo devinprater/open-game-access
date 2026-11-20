@@ -11851,3 +11851,37 @@ check.state. Fight order per the brief: Pirate
 presumably lie past the Pirate (21 = left of 22)
 and elsewhere on the graph; the graph opens as
 pieces fall.
+
+C. FIGHT 1 - IDLE SKY PIRATE Lv 13 (disc 22):
+foe HP discovered at engagement: 1,727. Kain
+1,651 HP, rot4, WAIT 2, from s57_card22_check.
+ATTEMPT 1 (rot4): LOSS at rotation 28 - with the
+foe at 3 HP. Trace: Kain 1651 -> 771 (rot 10) ->
+591 (rot 15) -> 39 (rot 20) -> held 39 while the
+foe rebuilt BRV 164 -> 1300 and cashed in at
+rot 28. Foe HP: 1727 -> 1137 -> 899 -> 3 (rot 25).
+ATTEMPT 2 (rot4, same bank): BYTE-IDENTICAL trace,
+same LOSS at rot 28, foe at 3 HP. This fight from
+this bank is FULLY deterministic - a plain retry
+changes nothing; the policy has to change.
+The failure is an endgame race: at rot 25 the foe
+sits at 3 HP but Kain's BRV is ~0, so his Squares
+do ~0 damage while the foe rebuilds to a killing
+cash-in. FIX (s57_fight.py = s47_fight.py + mode
+rot4x): rot4 unchanged until the foe reads
+<= 120 HP, then drop the drift and race -
+Triangle, Triangle (build BRV; the Triangle
+connects, s47's lesson), Square, Square.
+ATTEMPT 3 (rot4x): WIN at rotation 28. The main
+phase replayed the same trace to rot 25 (foe 3 HP,
+Kain 39), the endgame rule fired, and Kain closed
+it out. Final cells: herHP=100, foeHP=0. Note the
+HP: Kain went 39 -> 100 across the three endgame
+rotations (+61) - some recovery rides on the
+endgame sequence (mechanism unproven; recorded as
+observed). Gil 9,840 -> 10,074 (+234). No chain
+prompt (declined=0). Post bank: ch6_s47_
+s57pirate3_post.state; Kain back at grid 23,
+state68=20. Whether the 90-second KP chance was
+met is read off the board next (board KP was 0
+after the Gunner's 34 rotations; this took 28).
