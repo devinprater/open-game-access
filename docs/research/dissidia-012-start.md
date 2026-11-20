@@ -11473,3 +11473,38 @@ in s55 from the LEDGE POCKET below (284.03,
 from s55_n250_final.state instead. Banked:
 s56_strip_scratch.state = the terrace E-end
 stand (286.80, 253.21).
+
+C. THE STRIP CONNECTS BY WALKING AFTER ALL,
+AND THE ROAD RUNS NE TO GATE 21 (lead 2):
+from s55_n250_final.state (278.58, 241.29) the
+march retraced the ledges E at Z~240-241.6
+(past s55's pocket, no stall), bent N up a
+clean RAMP at X~292 - (292.24, 243.70),
+(292.26, 245.38) - onto the strip at (291.71,
+246.96) (s55's first dash landing, reached on
+foot today), ran E along the strip and
+contoured N: ARRIVED (296.61, 251.56), 1.12
+from the strip's s55 stand. The s55 dashes
+were a shortcut, not a necessity: ledges ->
+ramp -> strip is a WALKING route. From the
+strip's E end the march toward gate 21's
+anchor (315.09, 270.40) walked a BROAD OPEN
+DIAGONAL ROAD NE - (300.51, 257.03), (304.26,
+262.31), (308.16, 267.78), bending E at the
+end - ARRIVED (314.28, 269.12), 1.52 from the
+anchor, no stalls, no events, state68=2
+throughout. The F->K corridor country is open
+ground. Fine march stood at (314.80, 270.46),
+0.30 from the anchor. ANCHOR TEST: Cross x2 =
+dashes only (to (317.06, 278.39), then
+(317.91, 284.44)), state68=2, gil unchanged.
+VERDICT: gate 21 is NOT enterable in this
+lineage - an empty/pass-through gateway or
+another segment's gate, matching its inert
+(-1, -1) record (addendum 44 K2). But its
+anchor ground is open and the country runs on
+N/NE past it (dashes reached Z~284). States:
+s56_strip2_final.state (296.61, 251.56),
+s56_e1_final.state (314.28, 269.12),
+s56_g21f_final.state (anchor stand),
+s56_g21x_final.state (317.91, 284.44).
