@@ -10315,3 +10315,34 @@ post-LL adv lineage (s50's lesson); old-lineage
 states are for terrain probing only.
 
 FINDINGS BELOW AS THEY LAND.
+
+RESUME VERIFIED: ch6_s49_e10_scratch.state ->
+(288.83, 199.37), state 2, gil 9,774 (adv lineage,
+post-LL). GateMgr this boot = *(ctrl+0x88) =
+0x095D7110 (same as s49/s50). GATE TABLE by values:
+k1 life 5 / timer 122.0 / -1/-1 = Legendary Lake
+FINISHED; k2 A 26 / B 3 = gate 22 (292.5, 312.0),
+live in both families; k3 B 0 = gate 11; k4 A 28 =
+Hidden Darkness (stays live); k7 B 1 = gate 16;
+k8 B 2 = gate 17; k0/k5/k6/k9/k10/k11 inert.
+Value-matching stable across boots, as before.
+
+EAST PROBE (lead 1, first leg): feedback walker
+from the band end (288.83, 199.37) aimed at gate
+20's anchor (319.3, 193.6). Step 0: best S +1.52
+-> (290.32, 199.06) (direct E and NE probes
+negative from the band end itself). Step 1: SW
++0.25 -> (290.34, 197.70). Step 2: SE +0.02 ->
+(290.44, 198.22). Step 3: all <= +0.04, best W
+-0.27 -> (289.96, 196.61). Step 4: RESULT STALL
+at (289.96, 196.61), 29.50 short of the target.
+VERDICT: the shore does NOT continue east at
+Z 196-199 - the X~290 ridge's east face is
+continuous at this latitude too; max X reached
+290.44. The band end is the end in every
+direction (s49 measured S from the band end
+stalling at (287.62, 192.98) on the west contour;
+this run pins the east contour at X 289.9-290.4,
+Z 196.2-198.2). No east-side shore to gate 20's
+country from the band. Scratch state:
+s51_e1_scratch.state at (289.96, 196.61).
