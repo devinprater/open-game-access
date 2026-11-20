@@ -229,7 +229,11 @@ static void SayField(bool high)
 // byte already holds its init value, and in the chapter shell the pointer is
 // 0xFFFFFFFF (both measured). Anything else fails closed and silent.
 //   current disc: grid id u32 at 0x08B82A24 (10*(row+2)+col on a virtual 10-wide grid)
-//   disc records: 0x08B82A30 + 8*grid (60 x 8 bytes: exists flag + object pointer);
+//   disc records: 0x08B82A30 + 8*grid (exists flag + object pointer); the first
+//     60 records were the session-10 characterisation, but sessions 25 and 35
+//     measured live records at grids 60-64 (Encounters and Treason, Seasonless,
+//     Chapter 3's first gateway, North Melmond, Southern Shrine), so every scan
+//     below runs to grid 70.
 //     the set of existing grids is the board's fingerprint (session 13: boards are
 //     told apart by their disc-table fingerprint, not by an identity cell)
 //   disc objects: 0x095CD570 + 0x40*grid, board X float at +0x00, Z at +0x08
@@ -407,7 +411,7 @@ static const BoardDisc* DiscAt(const BoardDef* def, int x, int z)
 }
 static int GridForRecord(uint32_t rec)
 {
-    if (rec < BOARD_RECORDS || rec >= BOARD_RECORDS + 60u * 8u) return -1;
+    if (rec < BOARD_RECORDS || rec >= BOARD_RECORDS + 70u * 8u) return -1;
     uint32_t off = rec - BOARD_RECORDS;
     return (off % 8u) ? -1 : (int) (off / 8u);
 }
@@ -420,11 +424,11 @@ static int BoardCtrlState(void)
 }
 static bool DiscExists(int grid)
 {
-    return grid >= 0 && grid < 60 && u32(BOARD_RECORDS + 8u * (uint32_t) grid) == 1u;
+    return grid >= 0 && grid < 70 && u32(BOARD_RECORDS + 8u * (uint32_t) grid) == 1u;
 }
 static bool DiscCoords(int grid, int* x, int* z)
 {
-    if (grid < 0 || grid >= 60) return false;
+    if (grid < 0 || grid >= 70) return false;
     uint32_t obj = BOARD_OBJECTS + 0x40u * (uint32_t) grid;
     float fx = f32at(obj), fz = f32at(obj + 8);
     if (!(fx == fx && fz == fz)) return false;
@@ -440,12 +444,17 @@ static bool DiscCoords(int grid, int* x, int* z)
 // this board's piece names).
 static const BoardDef* IdentifyBoard(void)
 {
-    int existCount = 0;
-    for (int g = 0; g < 60; g++) if (DiscExists(g)) existCount++;
     for (const BoardDef* def : kKnownBoards) {
-        if (existCount != def->nDiscs) continue;
         bool ok = true;
         for (int i = 0; i < def->nDiscs && ok; i++) if (!DiscExists(def->discs[i].grid)) ok = false;
+        if (!ok) continue;
+        // No disc outside the definition's set may exist either. The scan covers
+        // the characterised 0..59 range; a definition's own discs past 59 were
+        // checked just above. Records past 59 were only ever measured as the
+        // loaded board's own discs (sessions 25/35), never as another board's,
+        // so an unlisted record there cannot smuggle a wrong table in.
+        for (int g = 0; g < 60 && ok; g++)
+            if (DiscExists(g) && !DiscForGrid(def, g)) ok = false;
         if (!ok) continue;
         int x, z;
         const BoardDisc* e = DiscForGrid(def, def->entryGrid);
@@ -468,7 +477,7 @@ static const BoardDef* IdentifyBoard(void)
 static bool BoardCells(int* gridOut, const BoardDef** defOut)
 {
     uint32_t g = u32(BOARD_GRID_ID);
-    if (g >= 60u) return false;
+    if (g >= 70u) return false;
     if (u32(BOARD_MGR_CUR) != BOARD_RECORDS + 8u * g) return false;
     const BoardDef* def = IdentifyBoard();
     if (def) {
@@ -541,7 +550,7 @@ static bool NeighbourDisc(const BoardDef* def, int grid, int dx, int dz, int* ou
     }
     int cx, cz;
     if (!DiscCoords(grid, &cx, &cz)) return false;
-    for (int g = 0; g < 60; g++) {
+    for (int g = 0; g < 70; g++) {
         if (g == grid || !DiscExists(g)) continue;
         int x, z;
         if (DiscCoords(g, &x, &z) && x == cx + dx && z == cz + dz) { *outGrid = g; return true; }
