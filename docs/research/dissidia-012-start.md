@@ -11983,3 +11983,30 @@ Lv 12+. Decline every chain prompt (Circle ->
 real levels: at Lv 10 rot4x dealt only ~256 in
 15 rotations - retest it each run and record
 where the damage curve crosses.
+
+### Session 58 addendum 47 - THE TRUE INTENT GRIND (2026-11-20)
+
+PLAN (from addendum 46 H): the in-place grind. Resume
+s57_e13.state (fresh True Intent board, Kain Lv 12,
+HP 1,973/1,973 FULL, gil 10,074, banked KP 104, at
+cell 53, cursor live). Run 2 order: Gunner (33) ->
+Pirate (22, rot4x; Lv 12 trace unknown - bank first)
+-> Tree (24) -> Flash (13) -> chests (~21/~28) ->
+Stigma. Retest the Tree every run and record the
+damage curve by level. Exit to refill HP whenever a
+run runs low (Pause -> Exit Gateway, Left+Cross on
+YES); the board resets but EXP/gil/levels persist.
+Decline every chain prompt (Circle -> "Cancel
+chain?" -> Left+Cross). rot4x is the proven policy
+(rot4 until foe <= 120 HP, then no-drift Triangle,
+Triangle, Square, Square); rot4's base sequence is
+load-bearing - the only safe lever is LEVELS.
+Harness: s47_board.py (navigation), s57_fight.py
+(rot4x, WAIT 2), s55_march.py (field, if needed).
+All runs in HELD FOREGROUND exec calls. Branch
+verified at 56a8268, clean. Protected: s56_ti_
+resume.state (never overwrite); do not use
+s57_run2_start.state / s57_wedged.state (mid-fade).
+
+FINDINGS:
+(to be filled as the session runs)
