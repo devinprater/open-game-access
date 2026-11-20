@@ -10686,3 +10686,38 @@ its standable edge (303.2, 166.6) is still owed (session
 48's mesh probes were canonical-lineage); the kind=5
 cluster at (320, 158) x9 and gate 15 (366.0, 151.9)
 remain F-area and unreachable until F opens.
+
+### Session 53 addendum 42 - THE EAST BAY'S SOUTH SHORE: LEG 2 BEGINS (2026-11-20)
+
+PLAN (from addendum 41's guide route + session 52's
+discovery): identify the red object and the two kind-0
+pint records on the east bay's south shore - (227, 167)
+and (231, 162) - never walked by any session. If one is
+leg 2's Pink Tail chest, follow the shore in guide
+order: roaming Fallacious Tree Lv 11 guarding the KP
+Gambler chest -> breakable boulder (field attack) ->
+bridge -> Jump-skill chest -> Counterfeit Wraith Lv 7
+-> grassy hill path -> 1,000 gil chest -> Gateway of
+True Intent at the broken rock (TITLE CARD on entry,
+session 46's law) -> board census vs Suih (Transient
+Gunner Lv6, Idle Sky Pirate Lv13, Fallacious Tree
+Lv13, Fleeting Flash Lv13; Pebble + 500 gil; KP chance
+Win within 90 seconds; Bonus Line 10).
+
+APPROACH A (first try): from s52_bay_scratch.state
+(pocket S end (238.75, 176.37)) - round the bay's SE
+corner W onto the south shore. APPROACH B (fallback,
+session 52's written lead): ll_finished -> pass ->
+ruins -> gully -> Sunken Lake arch (211.5, 152.0) -> E
+along the shore strip (Z~150) to X~231 -> N across the
+land strip to (231, 162). NOTE session 39 measured the
+arch's direct north walled at Z~161-163 at X~211; the
+X~231 crossing is a different point on the strip.
+
+Harness: s53_walk.py (= s52_walk.py copy: greedy
+8-direction, stall protocol Cross probe -> 3 Circle
+volleys -> re-probe; exit codes 0 ARRIVED / 3 EVENT /
+4 STALL_ATTACKED). All walks in the adv lineage.
+
+FINDINGS:
+(to be filled as the session walks)
