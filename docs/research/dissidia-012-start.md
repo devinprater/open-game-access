@@ -10160,3 +10160,120 @@ kind-44 object id 250 is, it does not present as
 a talkable moogle in Chapter 6's current story
 state (plausibly another segment's dressing on
 this shared map). Lead closed, negative.
+
+SESSION 50 (CONTINUED) - PT0 RIDE, GATE-11 RE-TEST, BASIN/PT18 CLOSURE
+
+ROUTE TO PT0 (adv lineage): from ch6_s50_moogle_final.state
+(195.71, 144.61), the straight line at (213.0, 120.8) grinds
+along a face at Z~133-135 (walker run cut by a tunnel drop;
+its scratch state is unreliable). Working route: SOUTH down
+the shore thread at X~199-200 - waypoints (199.88, 131.41)
+-> (200.58, 121.72) [ch6_s50_shore_final.state] - then EAST
+along Z~120.5-121 to a fine stand at (212.70, 120.64), 0.34
+from pt0's center [ch6_s50_pt0b_final.state].
+
+PT0 RIDE: plain Cross from the stand rides EAST (+8.26, 0.00)
+to the ledge at (220.96, 120.64) [ch6_s50_pt0land]. (s43's
+landing was (221.27, 119.72) in the other lineage - same
+ledge, ~1 unit of landing scatter.)
+
+FIRION FIELD CHAT (new): Firion's model stands on the ledge.
+A neutral Cross at (220.98, 119.45) opened a 5-page story
+chat (state68 3): Firion asks if Kain has come across any of
+the others; he has heard rumors some of their friends have
+fallen; he does not trust a foe's words but is concerned;
+Kain answers noncommittally. No directions given. CAUTION
+for future tests near the ledge: a Cross that lands in
+state 3 here is this chat, not a gate. Firion also trails
+Kain on the field - several bench fan probes below ended in
+state 3 because a Cross with no segment in that stick
+direction talks to Firion instead of dashing.
+
+FANS (8 sticks + plain Cross per node; landings):
+- pt0 landing ledge (220.96, 120.64) [ch6_s50_pt0land]:
+  N -> (211.51, 120.93) west to the shore side;
+  NE -> (213.13, 122.60) pt0 itself; E -> dash;
+  SE -> dash; S -> (227.72, 117.10) bench;
+  SW -> (226.98, 115.51) bench; W -> (220.68, 112.82) THE LIP;
+  NW -> (214.11, 114.89) west slope;
+  plain -> (227.05, 117.49) default = bench SE.
+- Lip (220.68, 112.82) [ch6_s50_lipnode]:
+  N -> (212.05, 116.07); NE -> (216.14, 121.10);
+  E -> (222.26, 120.78) ledge; SE -> (228.89, 117.43) bench;
+  S -> (226.49, 115.39) bench; NW -> (215.90, 114.58) slope;
+  SW/W -> dashes along the lip; plain -> dash (220.38, 112.82).
+  NO segment south of the lip.
+- Bench west (226.49, 115.39) [ch6_s50_bench]:
+  SE -> (234.35, 119.57); S -> (235.22, 115.40) bench east;
+  SW -> (229.26, 115.45); W -> (221.34, 112.82) lip;
+  NW -> (218.34, 113.09) west slope;
+  plain -> (234.03, 115.63) default east;
+  N/NE/E -> no segment (Firion chat, state 3).
+- Bench east (235.22, 115.40) [ch6_s50_benche]:
+  S/plain -> (241.11, 115.95) bench end - PAST the on-foot
+  wall at x~239; SW -> (239.68, 115.00);
+  SE -> (240.07, 116.54); E -> short slide (235.74, 119.26);
+  W -> dash; N/NE/NW -> chat.
+- Bench end (241.11, 115.95) [ch6_s50_bench2]: DEAD END.
+  Every probe a dash, a chat, or zero movement (plain Cross
+  delta 0.00). No segment out except back west.
+- West slope (218.34, 113.09) [ch6_s50_wslope]:
+  N -> (210.58, 118.49); NE -> (216.14, 122.00);
+  E -> (222.70, 120.46); SE -> (227.20, 115.56) bench;
+  S -> (223.02, 113.61); SW -> (220.27, 112.82) lip;
+  NW -> (212.05, 116.08); plain -> (213.53, 114.93).
+  NO segment lands south of the lip line (Z 112.82).
+
+GATE 11 RE-TEST (lead 2) - STILL BARRED post-Legendary-Lake.
+From the lip node (220.68, 112.82), 1.84 from the anchor
+(220.4, 111.0): screenshot s50_gate11 shows the IRON
+PORTCULLIS DOWN (same as s43's pre-LL shot); plain Cross =
+dash delta (-0.30, 0.00), state stays 2, gil unchanged; the
+gate table still shows gate 11's B tester live (0).
+Finishing Legendary Lake did NOT open gate 11. Consistent
+with s42's pre-LL lip test in the other lineage.
+
+PT18 STAND-TEST (lead 4) - CANNOT BE STOOD ON from any
+measured approach. pt18 = OBB_jump_gate02_00 at (220.7, 107.6),
+inside the basin south of gate 11's gatehouse. Closures:
+(a) on foot from the north - the lip stalls at Z 112.82,
+5.2 short (s42/s43; this session every fan landing around
+the basin bottoms out at exactly Z 112.82);
+(b) on foot from the east - this session walked the bench's
+south face from (241.11, 115.95) west to (225.76, 115.22):
+Z never dropped below 115.03 and south probes read +0.00 at
+the east end (walk cut by a tunnel drop at step 9; the
+bench's west half was already walked by s42);
+(c) by quickmove - all six nodes ringing the basin fanned in
+full (above); no segment lands below Z 112.82.
+The basin is sealed from the north, the east, and the
+network. pt18's jump volume presumably arms a line whose
+origin node lies elsewhere (or inside a story state not yet
+reached); it is not a Chapter 6 entry mechanism from here.
+
+SESSION 50 VERDICT: The far north was NOT entered, and
+gate 22's title card was not reached. Lead 1 is now complete
+for the whole reachable network: the southern census (first
+half of this addendum) plus the pt0 subnetwork above. The
+quickmove mesh is a set of local ~5-9 unit grids; no segment
+crosses the X~290 ridge, none lands in the far north, none
+enters the gate-11 basin, and the bench chain's farthest
+reach is X 241.11. Gate 11 remains barred post-LL (lead 2).
+The moogle point is empty (lead 3). pt18 cannot be stood on
+(lead 4). Standing unchanged: Kain Lv 10, HP 1,851/1,851,
+Gil 9,774, KP 104 banked, Shiva summonstone + Rosetta Stone
+held, Firion assist. Boards done: Sunken Lake, Hidden
+Darkness, Legendary Lake. Remaining: Gateway of True Intent
+/ Ryukahn, Exdeath Lv 18.
+
+NEXT SESSION'S LEAD: gate 16 (331.5, 126.0) - the only live
+volume-family candidate never yet approached on foot post-LL.
+It sits in the SE cluster with pt1 jump pad (331.1, 136.0)
+and mes pt26 (332.2, 123.5); s42's pre-LL approaches from
+the east band failed. Jump-off state: ch6_s49_e10_scratch.state
+(east band end, 288.83, 199.37). Working hypothesis to test:
+gate 22's area may only open after True Intent (i.e. gate 16
+or 17 IS True Intent). Resume states from this session:
+ch6_s50_lipnode (lip, gate-11 face), ch6_s50_bench2 (bench
+east end), ch6_s50_pt0b_final.state (pt0 stand); master
+fallback ch6_s48_trek1_hop6.state (Firion's ruins).
