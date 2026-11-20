@@ -11943,3 +11943,43 @@ Flash are stat-beatable. Banked: s57_field_
 afterexit.state (field, at the TI entrance card).
 Also banked en route: s57_ticlean.state (chain
 declined, at 23), s57_at53.state.
+
+G. RE-ENTRY PROTOCOL + THE FOCUS LESSON: re-
+entering True Intent from the field replays the
+whole entry sequence (title card -> 3-page Kain/
+Firion dialogue -> 2 assist tutorial cards ->
+board). Pages/cards advance on SINGLE Cross
+presses spaced >=120 frames; they do NOT auto-
+advance (6,000 press-free frames sat on page 1).
+States saved mid-sequence resume ONLY at clean
+page boundaries (s57_e9.state, saved just after a
+page turn, resumed and finished the sequence);
+states saved during the title card/fade never
+initialize (s57_run2_start.state, s57_wedged.state
+- do not use). THE FOCUS LESSON: after the
+sequence, focus (0x095CD410) reads 0xffffffff
+until the first Circle press summons the cursor -
+ffffffff here means "cursor not yet summoned",
+not a wedge. First Circle+direction from
+s57_e12.state moved 53 -> 43 with focus =
+0x08b82b88 (disc 43) - control proven.
+RUN 2 IS BANKED LIVE: s57_e13.state = fresh True
+Intent board, all five pieces + both chests
+restored, Kain Lv 12, HP 1,973/1,973 (FULL),
+Gil 10,074, banked KP 104, at cell 53, cursor
+live. (Field bank: s57_field_afterexit.state.)
+
+H. SESSION 58 LEAD - THE IN-PLACE GRIND: run 2
+order: Gunner (33) -> Pirate (22, rot4x; Lv 12
+trace unknown - bank first) -> Tree (24) ->
+Flash (13) -> chests (~21/~28) -> Stigma. If HP
+runs low mid-run: Pause -> Exit Gateway (Left+
+Cross on YES) -> re-enter at full HP; the board
+resets but EXP/gil/levels persist, so each run
+reaches deeper. Pirate EXP at Lv 10 was +2
+levels; expect ~+1 level per Pirate kill at
+Lv 12+. Decline every chain prompt (Circle ->
+"Cancel chain?" -> Left+Cross). The Tree needs
+real levels: at Lv 10 rot4x dealt only ~256 in
+15 rotations - retest it each run and record
+where the damage curve crosses.
