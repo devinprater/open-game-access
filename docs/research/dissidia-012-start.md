@@ -14227,3 +14227,42 @@ EXIT-HEAL, AND A BOARD CLEARED AT 20 HP:
   banked prompt at idle-900 - s63's
   zero-damage family - never via a chain).
   The ratchet holds: Lv 27, gil 16,874.
+
+C. VISIT 3 - SAMPLING DISCIPLINE ON EVERY
+FOE (Kain Lv 27, full HP 2,882, gil 16,874;
+re-entry as sec B, bank s64_re3_board_live):
+- PIRATE (measured 1,727 AGAIN - the re-clear
+  roll has been 1,727 on all three re-clears;
+  only the first clear was 1,921): idle-900
+  WIN 7 rots, cost 301 -> 2,580. Gil 17,108.
+  All visit-3 fights use s60_fight.py
+  (in-flow chain decline).
+- CHEST 36: consumed on step again, gil
+  unchanged (17,108). Re-clear chests
+  auto-consume; contents unobserved.
+- GIRL engagements sampled: idle-0 rot4z WIN
+  60 rots, cost 1,296 (keep-away family -
+  rejected); idle-900 rot4z WIN 16 rots,
+  cost ZERO (2,580 in, 2,580 out - she never
+  cashed in). Lineage s60_s64girl3b_post2.
+  Gil 17,342.
+- TIP pages re-read at 13; DRAGOON measured
+  1,303 (stable across all visits): rot4z
+  WIN 6 rots, cost 133 -> 2,447; the chain
+  prompt toward disc 14 was DECLINED IN-FLOW
+  (declined=1) - the sec B trap closed.
+  Gil 17,408.
+- GUNNER sampled from the banked prompt:
+  idle-900 WIN 52 rots, cost 1,703 ->
+  744 (rejected - the s63 zero-damage
+  family does not reproduce by idle number
+  alone across visits); idle-1800 WIN 23
+  rots, cost 464 -> 1,983. Lineage
+  s60_s64gun3c_post2. Gil 17,642.
+- STANDING AT THE STIGMA'S DOOR: Kain Lv 27,
+  HP 1,983 / 2,882, gil 17,642. Pass totals:
+  Pirate 301, Girl 0, Dragoon 133, Gunner
+  464 = 898 for the whole board. Exdeath
+  next, from a banked prompt at disc 2;
+  idle-rolls in reserve, FORFEIT-flee and
+  re-roll on a guard-family trace.
