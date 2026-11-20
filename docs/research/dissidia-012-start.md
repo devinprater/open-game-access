@@ -11119,3 +11119,83 @@ until F opens.
 
 FINDINGS:
 (pending)
+
+INTERIM FINDINGS (written while the north march
+runs):
+
+A. CENSUS DIFF FOR THE ROAMING TREE (lead 2):
+census A from ch6_s47_ll_finished.state (list0
+0x095D2F40, 196 records, 176 unique in bounds -
+same base/count as s52's boot). Census B = same
+state advanced 3,600 frames, re-censused: IDENTICAL,
+row for row. NO pint record moves with game time
+at the LL exit stand. Either field manikins are
+not pint records (Firion has no record near his
+ledge stand either - checked: only kind=0 records
+at (209,118)/(207,126) within 10 of (212.7, 120.6);
+he is an ACTOR-table entity), or a roamer only
+moves when its area is active. The pint-diff
+method is therefore not the Tree instrument; the
+march walker's EVENT exit (contact changes
+state68) is. A second diff from walked ground is
+still owed before the method is closed.
+
+B. KIND DECODING (doc's own s36 work, re-read):
+KIND 2 = Light Orb spawn points; KIND 5 = arch/
+portal shells; KIND 6 = moogle shops (the x5
+cluster at (280, 273) is therefore a MOOGLE -
+leg 3's shop country, far +Z); KIND 1 includes
+the moogle point (196, 144) id=250 set=44 - the
+one session 50 found EMPTY in the adv lineage.
+Gateways have NO pint records (checked r=8-12
+around gates 13/19 anchors and the Sunken Lake
+arch: nothing) - gates live in the GateMgr/mesh
+tables only. Records carry a SET field (+0x04):
+the same physical object appears once per
+chapter-variant set (the (236, 184) arch = sets
+143-147, ids 1099-1103, identical mdl), so a
+record's mere presence does not prove it is live
+in Ch.6. id=1168 (285.3, 219.8) is set=144.
+
+C. OVERLOOK KIND=5 POINT (236, 184) - NEGATIVE:
+from s52_tc1_final.state (stand (236.73, 185.15),
+exactly on the cluster), Circle x2 + Cross:
+circle lunged him S to (234.95, 180.78), no event,
+state68=2 throughout, gil unchanged. The point
+does not react - consistent with an arch shell
+(scenery landmark), not an orb.
+
+D. COMPASS CORRECTION (important): the walker
+scripts label stick (0,+1) "S", but it INCREASES
+Z, and +Z is map NORTH (gate 22 (292.5, 312) is
+the far north; the bench's north-face probe in
+s49 stalled at Z=243.67 from a Z~115 stand).
+Old addenda's compass words around gate 19's
+pocket are mirrored: s52's "NE probe" stall at
+(269.91, 215.81) is SOUTH-east of the exit, on
+the pocket's south lip, reached by sliding S
+along the E wall. The pocket's NORTH was never
+marched - until now.
+
+E. THE POCKET IS OPEN TO THE NORTH (lead 1):
+s55_march (resynced) from ch6_s47_ll_finished.
+state toward kind=2 id=120 (270.0, 230.0):
+ARRIVED (269.08, 229.28), dist 1.17, in 3 cycles,
+every march step gaining +0.5..+1.6. The "boxed
+N/E pocket" verdict (s41 scan, s52 walk) does
+not survive the fixed walker: +Z from the exit
+is a clean corridor at least 10 units deep.
+Cycle-0 probes at the exit: +Z +1.42, -Z also
+walkable (-1.41 = it moved him, away from this
+target), +X -0.20 (E is walled AT the exit's
+latitude). So the pocket is a N-S corridor with
+an E wall at Z~219 - the wall s52 slid along.
+F. ORB TEST AT id=120 (270.0, 230.0) - NEGATIVE:
+from the arrived stand (269.08, 229.28), Circle
+lunged him +X+Z THROUGH the record point
+(closest approach ~0.15) to (272.39, 232.63):
+no popup, no state68 change, gil unchanged.
+id=120 (set=21) is not a live breakable orb in
+this lineage - a dead variant or a spawn point
+whose orb is not up. The orb hunt continues on
+the north corridor's ground.
