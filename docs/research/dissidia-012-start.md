@@ -12090,3 +12090,16 @@ visible on the board (west rock + east rock).
   fight was still running. Post states (both
   valid): ch6_s47_s58gun3_post.state, ch6_s47_
   s58gun3b_post.state, s58_s58gun3b_post2.state.
+- TREE (disc 24, HP 1,727), rot4x at FULL HP
+  2,033, Lv 13: LOSS at rotation 46, foe at
+  959/1,727 - Kain dealt 768. Cash-ins tracked
+  foe BRV exactly (876 at rot ~16-20: 2,033 ->
+  1,157; 548 at rot ~26-30: -> 609; died to the
+  691 build at rot 46). Damage is back-loaded:
+  foe untouched until ~rot 21 (the Tree guards
+  early), then ~25/rotation. DAMAGE CURVE:
+  Lv 10 (HP 1,851): 256 dealt, died rot 18.
+  Lv 13 (HP 2,033): 768 dealt, died rot 46.
+  Roughly tripled over 3 levels; the cross
+  looks like Lv 15-16 at this slope. The grind
+  continues (Pirate = ~+1 level per kill).
