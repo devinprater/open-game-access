@@ -12739,3 +12739,60 @@ gil 12,474):
   22 (the Tree's cell 24 -> up is the first
   candidate), find the Stigma's prompt, and
   probe what engaging it does.
+
+C. TRUE INTENT BOARD MAP (measured this session,
+from s60_t2tree2700_post2 and descendants; Kain
+Lv 20, HP 198, gil 13,528, board KP gauge 3):
+- Record scan (s60_scan.py; RECORDS + 8/cell,
+  flag word 1 = board node exists): nodes at
+  3, 13, 21, 22, 23, 24, 25, 30, 33, 43, 44,
+  51, 52, 53, 55. All other cells void.
+- Walked graph: spine 53-43-33-23 (column 3);
+  row 2: 21-22-23-24 with 24 -> prompt 25;
+  23 -> prompt 13 (Flash); 43 -> prompt 44
+  (Firion assist, confirmed firsthand by
+  screenshot); south spur 53-52-51 (empty,
+  dead end). Void probes: 24 up/down, 33
+  left/right, 43 left, 21 left/up/down, 51
+  left/up - no edges, no prompts.
+- EAST CHEST = disc 25 (NOT Suih's ~28):
+  prompt dialog "Treasure Chest - Contains
+  helpful items" read firsthand; opened:
+  "Obtained 500 gil from chest!" (screenshot
+  verified) - gil 13,028 -> 13,528. Taken in
+  this lineage: bank s60_t2_chestE_done.state.
+- FLASH card read firsthand (screenshot):
+  "Fleeting Flash, Lv 13, BATTLE STAGE
+  Ultimecia's Castle, KP Win within 90
+  seconds" - disc 13 confirmed.
+- STIGMA: the red flame-wreathed crystal
+  visible directly north of the Flash's rock
+  in the prompt screenshot = cell 3 (one row
+  north of 13, same column; node flag set).
+  Route: kill the Flash, stand on 13, up ->
+  prompt 3 -> Engage. (LL precedent: engaging
+  the Stigma finished that board.)
+- UNRESOLVED: nodes 30 (far west, (-18,0))
+  and 55 (south-east of start) have NO
+  cardinal edges (all neighbors void) and do
+  not answer analog diagonal pushes from 21
+  (two sign combos tried). The Pebble chest
+  (Suih: two chests; east was the 500 gil)
+  was NOT found - it may sit on 30 or 55
+  (chain-only destinations?) or be a
+  chapter-variant node (cf. the field pint
+  SET lesson). Loose end, not on the finish
+  path.
+- This visit cannot finish: Kain at 198 HP
+  cannot fight the Flash (first cash-in
+  1,541 in s59's sample). Exit banks the
+  lineage (Lv 20, gil 13,528, Tree-kill EXP);
+  visit 3 runs the full clear: Gunner ->
+  Pirate (cheapest trace) -> Tree (chain,
+  idle-rolled; the 2700 family won at Lv 20)
+  -> Flash (prompt from 23, best HP
+  available; a mid-visit level-up heal is
+  plausible with t2's banked EXP) -> Stigma
+  at 3. East chest (25) again on the way if
+  the route passes 24 with HP to spare - it
+  is free.
