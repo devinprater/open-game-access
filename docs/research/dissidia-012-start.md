@@ -13080,3 +13080,80 @@ F. MOOGLE SHOP (280, 273) - STATUS:
 - NEXT: march the trench E/NE to gate 21's
   anchor, test entry (stand + Cross, READ
   THE TITLE CARD), survey W from its stand.
+G. GATE 21 ENTRY TEST - INERT POST-CLEAR (measured):
+   from s61_m11_final.state (314.34, 270.03) the
+   micro-probe fine stander walked him to (315.01,
+   270.28), 0.14 from gate 21's anchor (315.09,
+   270.40) - closer than session 56's 0.30 stand.
+   Cross DASHED him to (322.77, 273.11); state68
+   stayed 2 throughout (s61_g21_stand.state,
+   s61_g21_after.state). GATE 21 IS INERT BOTH
+   PRE- AND POST-CLEAR. With session 52's mechanics
+   note (empty gateways are pass-through archways
+   the route threads THROUGH), gate 21 reads as a
+   pass-through on the leg-3 road, not a board.
+H. THE ORB-CHAIN ROAD SOUTH (measured): session
+   48's pint census lists kind-2 Light Orb spawn
+   points climbing the far north; two variant sets
+   trace a road from gate 22 south then EAST then
+   south: (292,297) (294,303) -> (304,286)
+   (312,283) -> (303,271) (310,268) (330,270) ->
+   (305,256) -> (299,245), with (285,253) and
+   (278,250) at the south end. Marched from gate
+   21's dash landing (322.77, 273.11): west along
+   Z~270 (through gate 21's latitude), then south
+   at X~314 (s61_m12), arriving the (305,256) orb
+   at (304.95, 257.22) (s61_m12_final.state); then
+   SW through a small basin (X 301-307, Z 246-252)
+   to the (299,245) orb at (299.24, 246.32)
+   (s61_m13_final.state). No encounters, no stalls;
+   state68 = 2 throughout. The road the orbs mark
+   is real and walkable end to end.
+I. PINT CENSUS THIS BOOT (list0 0x095D2F40, 196
+   records, from s61_m13_final.state; layout per
+   s55_pint2.py: rec = l0+8+j*0x2C; id/sub/set/
+   kind s16 at +0/+2/+4/+6; x/z floats +0x10/
+   +0x14). In the leg-3 box (X 255-345, Z 225-315):
+   kind-6 shop x5 at (280,273) sets 143-147 (ids
+   958-962). Kind-2 chains by set: set 41 = (285,
+   253), (299,245), (299,270), (330,270); set 34 =
+   (292,297), (305,287), (331,270), (305,256);
+   set 21 = (304,286), (310,268); set 25 = (278,
+   250), (303,271), (291,301) + kind-1 (263,292);
+   set 27 = (290,225), (277,229) + kind-1 (289,
+   295); set 18 = (312,283), (294,303). Kind-1
+   drawn models on/near the road: (289,295) set 27,
+   (307,260) set 29, (302,245) set 21, (280,234)
+   set 39, (332,265) set 39, (335,252) set 44,
+   (336,255) set 20. The sets are per-chapter
+   variants of the same map (Ch.7 reuses this
+   area); which set is live for Kain is not yet
+   determined by measurement.
+J. SOUTH OF THE BASIN (measured): a march from
+   (299.24, 246.32) toward (312,220) crept down a
+   SW slope (28-frame survey from (295.07, 233.17)
+   moves freely SW/S/W - the marcher's 14-frame
+   probes had stalled on the lip AGAIN) and
+   arrived the set-27 orb (290,225) at (289.55,
+   224.21) (s61_m15_final.state; pocket base banked
+   s61_pocket_base.state at (295.07, 233.17)).
+   Circle attacks at the pocket base changed
+   nothing (no boulder there). Survey at (289.55,
+   224.21): N/S/W/SW all open 28-frame; E pinched
+   (+0.45) - a N-S corridor along X~287-290 with an
+   east wall, at Legendary Lake's latitude (gate 19
+   at (268.4, 220.7) is ~21 west). This corridor is
+   plausibly leg 2's southern road - the leg-3
+   basin system may loop back to leg-2 ground.
+   RYUKAHN IS NOT DOWN HERE by any measurement so
+   far. Untested southern gates remain: 20 (319.3,
+   193.6), 14 (305.0, 166.6; boxed N/E in s41 -
+   never approached from W/S), 15 (366.0, 151.9).
+K. SHOP APPROACH - THE UNTRIED SIDE: every failed
+   approach to (280,273) came from N/NW/E/SE at
+   shelf or trench level. Never stood on: the
+   ground at X 278-290, Z 255-273 - due SOUTH of
+   the shop at road level, where the set-25/41
+   orbs (278,250) and (285,253) sit. Next move:
+   from the (299,245) basin, march NW to (282,256)
+   then N toward the shop's south face.
