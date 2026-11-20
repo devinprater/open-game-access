@@ -12452,3 +12452,69 @@ AND THE CHAIN CARD IDENTIFIED:
   chain at >= ~1,200 HP), engage the Tree
   from the post-win chain card, then Flash,
   chests, Stigma.
+
+F. VISIT 4-5 SAMPLES AND LV 19 (t4/t5 lineages):
+- Visit 4 Pirate samples (Lv 17): idle-0 LOSS
+  r26 (foe 163 - a furious late comeback from
+  387 HP fell 163 short); idle-900 WIN 29 rots
+  (one 932 cash-in; Kain 1,344); idle-1800 LOSS
+  r13 (foe cashed ~1,528 by rot 5); idle-450
+  WIN 29 rots but Kain at 402 (a 1,446 bank
+  landed mid-fight).
+- TREE VIA CHAIN at Lv 17 / 1,344 HP (from the
+  idle-900 win's post bank): foe 1,727. LOSS
+  r27, foe 736 (991 dealt). THE GUARD PHASE
+  APPEARED ANYWAY: zero damage through rot 15
+  (foe banked 735), flow only from ~rot 16
+  (598 in 5 rots). Chain entry does NOT
+  guarantee the no-guard trace - it varies by
+  bank, like everything else. (Also observed:
+  herHP ticked 710 -> 770 mid-fight - a +60
+  in-battle rise, mechanism unproven; not a
+  level-up, which happens on the results
+  screen.) The 402-HP sample from the idle-450
+  bank: LOSS r8, foe untouched.
+- Visit 5 (Lv 17): the Gunner kill LEVELED
+  KAIN 17->18 (final read 2,336 = Lv 18 max).
+  TREE VIA PROMPT at Lv 18 / FULL HP 2,336:
+  LOSS r29, 490 dealt - ALL of it after rot
+  20. The guard phase cost 2,232 HP (cash-ins
+  ~801 + ~970 plus chip) before the flow
+  phase (~98/rot at Lv 18) could start. The
+  prompt route's problem is the guard phase's
+  PRICE, and it varies (768 dealt at Lv 13,
+  146 at Lv 14, 490 at Lv 18).
+- PIRATE at Lv 18 (idle-900 bank): WIN 33
+  rots, CHEAP - damage flowed from rot 1
+  (foe 912 by rot 5); only two hits taken
+  (278 + 238) before the foe's 1,048 bank
+  cashed late (1,820 -> 772). Final 833 =
+  772 + 61: LEVELED 18->19 (Lv 19 max 2,397).
+  Gil -> 12,174. Chain card left open.
+- TREE VIA CHAIN at Lv 19 / 833 HP - THREE
+  SAMPLES via a NEW LEVER: idle-rolling the
+  POST-WIN BANK itself (s59_nav IDLE with no
+  moves; the post bank rests on the chain VS
+  screen, focus 006e0045, and idles safely):
+  idle-0: LOSS r18, 195 dealt (guard trace).
+  idle-900: LOSS r15, 562 dealt (flow by rot
+  10, but a 435 hit at rot ~8 and the 757
+  bank killed at 398). idle-2700: LOSS r10,
+  foe untouched (same start signature as the
+  others - the bank fixes the opening; idles
+  perturb the mid-fight only). VERDICT: 833
+  HP is below the Tree's floor at any trace
+  family seen: it lands 300-450 in the first
+  10 rotations plus a 550-800 bank by rot 15.
+  Entry HP >= ~1,200 with a flowing trace
+  remains the winning shape (the 341-HP
+  sample's flow dealt 1,023 - at 1,200 that
+  trace wins with ~800 to spare).
+- STANDING: Kain Lv 19 (max HP 2,397), gil
+  12,174, banked KP 104. Active bank:
+  s59_s59t5pir_post2.state (Pirate beaten,
+  Tree chain VS screen open, HP 833). NEXT:
+  visit 6 - Gunner, then the FLASH (disc 13,
+  up from the hub) VIA PROMPT AT FULL HP:
+  never fought; read its card, measure HP.
+  Then Pirate -> Tree chain with idle-rolls.
