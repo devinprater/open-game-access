@@ -10757,3 +10757,23 @@ from the (218.12, 194.18) target; state
 s53_b2_final.state. The road line (pass S, SE descent)
 was followed greedily the whole way - the s49 trek
 route is march-walker clean end to end.
+
+C. THE CHAIN (s53_chain.py, exit-gated march legs):
+C1 ruins -> gully foot ARRIVED (192.77, 160.07),
+12 cycles - the march walker threaded terrace, bowl
+and gully unaided (session 41 needed its fine walker
+for this). C2 gully foot -> arch ARRIVED (210.20,
+152.71), 5 cycles. C3 arch -> (231, 150) ARRIVED
+(229.71, 149.96), 4 cycles. State s53_c3_final.state
+is the clean strip position east end.
+C4 THE CROSSING (231, 150) -> (231, 162): STALLED.
+Six-plus cycles from (229.71, 149.96): best sustained
+progress ~0; Kain drifted west along the shore to
+~(227.8, 151.4) under repeated stall protocols (Cross
+probe + Circle volleys, all attack-negative - nothing
+breakable, no event). Direct north across the strip
+at X~228-231 does NOT go through: the strip's north
+edge there is water or wall. Chain killed by hand at
+C4 cycle ~6. Follow-up: s53_xprobe.py scans crossings
+at X=222, 238, 248 (strip walk + best-heading pushes,
+max Z reached is the readout).
