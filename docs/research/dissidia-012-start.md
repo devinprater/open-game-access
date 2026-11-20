@@ -11639,3 +11639,85 @@ X~274-287 is uncrossed by walking or dashing
 from this side. The moogle country's W
 approach, if any, runs at Z~270 from the E
 (the gate 21 road) - untested.
+
+H. THE ROAD WEST OF GATE 21 AND THE NORTHERN
+CENSUS: marching W from the gate 21 road
+(314.28, 269.12) toward the moogle point
+walked a broad plateau: W along Z~268-270 to
+(298.82, 264.77), N up a lane at X~295-298 to
+a pocket at (295.43, 277.94) (the stall Cross
+dashed NW out of it to (291.18, 284.55)), then
+W across the plateau top to (285.48, 286.76)
+[s56_west_final.state], MAXCYCLES, dist
+14.81. The moogle point (280, 273) is ringed:
+E face at X~295 (W probes slide back), S face
+below the plateau top (S probes +0.05), the
+terrace gap from the S (section G). A pint
+census from the plateau top (centers (287,
+280) r25 and (297, 307) r14) lists: the
+moogle = FIVE kind=6 records stacked at
+(280.0, 273.0), ids 958-962, sets 143-147 -
+one per chapter variant; which set is live
+in Ch.6 is unproven. kind=2 Light Orb points
+chain N at (292, 297), (291, 301), (294,
+303), (293, 305), with another W at (279,
+298) - a road's worth of markers up the W
+side of gate 22's plateau; kind=2 also at
+(299, 270), (303, 271), (304, 286), (305,
+287) along the E road. kind=1 id=890 at
+(289, 295), h=120, set 27. kind=0 chests at
+(285, 262) h=-36, (278, 263) h=-10, (287,
+266) h=-126 - three variant chests in the
+band between the terrace top and the
+plateau, at very different heights (floors
+of the terrace system; none stood on yet).
+Near Firion's stand the census shows only
+the kind=2 chain - the glowing crystal point
+in his screenshot is one of those spawn
+points rendered as a glow.
+
+I. GATE 22 REACHED FROM THE WEST - THE
+GATEWAY OF TRUE INTENT IS OPEN: from the
+plateau top (285.48, 286.76) the ground runs
+N: (285.78, 288.41), (284.67, 291.52), then E
+up the kind=2 chain - (286.95, 297.45),
+(290.69, 297.08) [s56_n2_final.state] - and
+on N: (290.27, 298.70), (292.38, 304.09),
+(293.07, 307.10), (292.74, 308.50), (292.02,
+309.74), stalling in a pocket at (292.50,
+310.17), 1.83 S of gate 22's anchor (292.5,
+312.0). The first stall Cross dashed to
+(293.00, 310.06); the second stall Cross, at
+(292.70, 310.17), DID NOT DASH - ctrl state
+2 -> 5 (transition) [s56_g22w_xevent.state].
+Riding the fade (white -> Now Loading ->
+board): state68 settled 20, and the board's
+own title banner, read firsthand from a
+screenshot, says GATEWAY OF TRUE INTENT.
+Gate 22 = True Intent; the anchor's trigger
+radius reaches the pocket 1.83 S of it.
+On entry, a three-page Kain/Firion exchange
+plays (Firion: "When the opponent's strong,
+I tend to stay back and look for any chance
+to counter..." / Kain: "Hmph, when the
+opponents are strong is when you truly
+shine, Firion." / Firion: "Really? Alright
+then, you give me the sign and I'll jump in
+to assist you."), then two assist tutorial
+cards. Board control: KP (board) 0, banked
+KP 104, Gil 9,774, Kain Lv 10 HP 1,851.
+The board (screenshot census): floating
+islands over a sea of clouds; FOUR manikin
+pieces and TWO gold chests - an exact visual
+match for Suih's True Intent census
+(Transient Gunner Lv 6, Idle Sky Pirate
+Lv 13, Fallacious Tree Lv 13, Fleeting Flash
+Lv 13; Pebble + 500 gil chests; KP chance
+"Win within 90 seconds"; Bonus Line 10).
+Banked pre-engagement states on the board:
+s56_ev5_check.state (entry dialogue p.1),
+s56_ev10_check.state and s56_evL2_check.
+state (board control, nothing moved - the
+clean resume). The gate table is NOT
+readable from inside the board shell
+(GateMgr ptr reads 0 in board context).
