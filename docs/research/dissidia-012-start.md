@@ -11593,3 +11593,49 @@ including the kind=6 moogle cluster at
 (280, 273) (leg 3's shop country) - and gate
 20's F country far SE. States:
 s56_ne1_scratch.state (297.09, 307.50).
+E2. CORRECTION to E (from the n1 march's full
+log): the run ended MAXCYCLES at (299.89,
+306.92) [s56_n1_final.state], not at the
+first stall stand. Its stall-protocol Crosses
+DASHED along the band - (299.65, 307.15) W to
+Firion's stand (297.09, 307.50), and (299.67,
+307.13) E to (301.01, 305.80) - never across
+it N. Landing on Firion's stand by dash did
+NOT open his chat (state68 stayed 2): the
+chat needs a Cross press at the stand.
+
+F2. CORRECTION to F (from the ne1 march's
+complete log): the run ended MAXCYCLES at
+(306.69, 298.38) [s56_ne1_final.state], dist
+18.48 - it stalled at (305.64, 299.97), where
+the stall Cross DASHED NW up the road's top
+to (302.94, 301.91), and at (305.98, 299.73),
+where Circle volleys lunged him back DOWN
+the road to (302.21, 289.87); it never
+reached the band. A second, divergent trace
+of the same march (walk outcomes vary at
+probe granularity) ended in a stall at
+Firion's stand (297.09, 307.50). Both traces
+agree on the verdict: no way N past the road
+top from the E side.
+
+G. THE MOOGLE COUNTRY IS NOT REACHABLE FROM
+THE TERRACE: marching from the terrace E end
+(286.80, 253.21) toward the kind=6 cluster
+(280.0, 273.0), the walker gained only the
+terrace top itself - a shelf at Z~253.3-254.5,
+X~274.6-286.9 - and could not leave it N:
++Z probes slide back S (the N face is a drop,
+not a climb), and four stall-protocol Crosses
+all DASHED E-W ALONG the shelf ((284.84,
+254.47)->(286.91, 254.21); (284.07, 254.27)
+->(276.56, 253.45); (279.76, 254.01)->
+(274.58, 253.63); (279.60, 254.02)->(284.82,
+254.47)) - no dash ever jumped N. MAXCYCLES
+at (284.95, 252.80) [s56_moo_final.state],
+dist 20.80. The gap between the terrace top
+(Z~254.5) and the moogle latitude (Z~273) at
+X~274-287 is uncrossed by walking or dashing
+from this side. The moogle country's W
+approach, if any, runs at Z~270 from the E
+(the gate 21 road) - untested.
