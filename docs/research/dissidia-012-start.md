@@ -11426,3 +11426,29 @@ Branch verified at ca4b3a4, clean.
 
 FINDINGS:
 (pending)
+
+A. ORB TEST AT kind=1 id=224 (280.0, 234.0) -
+NEGATIVE; THE ORB QUESTION IS CLOSED (lead 1):
+marched from s55_n120_final.state (269.08,
+229.28) with s55_march: ARRIVED (279.44, 233.65),
+0.66 from the record, in 4 cycles - the ground
+between the N corridor and the point is plain
+walkable (contour E then N in map terms).
+Fine march (tol 0.35) stood at (279.84, 233.91),
+0.18 from the point - effectively ON it.
+Probes from the 0.66 stand: Cross DASHED him
++X+Z across the gap onto the ledge band
+(282.11, 241.46) (dash-crossing again, no
+interaction); Circle-first lunges passed ~0.4
+from the point - nothing. Probes from the 0.18
+stand: Circle lunged from on top of the point
+to (283.75, 236.54) - no popup, no state68
+change, gil unchanged; Cross nothing; second
+Circle nothing. VERDICT: id=224 is inert in
+this lineage, like id=120, id=136, id=231 and
+id=1168 before it (addendum 44 H). No reachable
+pint record of any kind behaves as a live
+breakable orb post-Legendary-Lake. The guide's
+orb is a route LANDMARK; nothing on the route
+is gated by an orb strike. THE ROUTE IS THE
+GROUND. Lead 1 closed.
