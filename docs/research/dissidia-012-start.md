@@ -13365,3 +13365,51 @@ O. MESA GEOMETRY (synthesis of sections F-K +
   Idle Sky Pirate Lv 13, chest Yellow Drop, Firion
   assist, Bonus Line 12, KP chance "Win battle";
   B = Exdeath Lv 18) wait on a route in.
+
+### Session 62 addendum 51 - THE DEEP SOUTH + SIDE LEADS: GATE 14 POCKET EXITS, GATES 15/16 FROM THE SOUTH, KANAME_01, THE CHEST LEDGE, THE MENU BLOCKER (2026-11-20)
+
+PLAN (from addendum 50 R): (1) THE DEEP SOUTH -
+take the s55 C-to-D corridor (coast -> corridor
+mouth -> corridor top -> shelf strip (295.54,
+173.55) -> chute -> gate 14's pocket (302.27,
+167.59)) and measure the pocket's UNMEASURED S
+and W exits; then gates 15 (366.0, 151.9) and 16
+(331.5, 126.0) - gate 16 was sealed from N/W in
+s51, so approach from the S; its jump pad
+jump_gate02_05 sits at (331.1, 136.0) (pads are a
+quickmove network: held stick selects the
+segment, plain Cross fires the default). (2)
+KANAME_01 (194.0, 165.1) - ride the west
+crystal's line (stand exactly on the point;
+Circle lunges past; Triangle boards; Triangle
+~0.75 off the point falls through to the menu).
+(3) THE CHEST LEDGE W of the kaname_02 landing
+(320.1, 301.34). (4) THE STATE-11 MENU BLOCKER -
+the Customization menu (Triangle on the field)
+takes NO drv input while its ticker animates;
+try letting the ticker finish, input-path
+orders, state changes; if the Shop opens, READ
+stock + prices, keep gil reserve >= ~5,000.
+(5) FALLBACKS: moogle mesa = documented loose
+end if still unstood; if Ryukahn stays unfound,
+deliver the full measured census.
+Standing at start: Kain Lv 23 (max HP 2,641), HP
+2,639/2,641, gil 14,850, banked KP 109, Shiva +
+Rosetta Stone held, Firion assist (walks the
+field; Cross near him = his flavor talk - avoid
+accidental triggers near gates).
+Policy: rot4z. Walker: s61_march28.py (28-frame
+probes). Gate table re-read FRESH this boot
+(GateMgr is boot-dependent); cross-reference
+gates by tester VALUES, never record index.
+If any gateway/board opens: READ THE TITLE CARD
+firsthand (session 46's law), census by record
+scan + Opponent Info cards; Exdeath Lv 18 probe
+at full HP from a fresh bank before committing.
+Branch verified at 6f66207, clean.
+Protected: s56_ti_resume.state.
+Lineage head: s60_fin3.state (field (292.50,
+318.26), full HP).
+
+FINDINGS:
+(to be filled as the session runs)
