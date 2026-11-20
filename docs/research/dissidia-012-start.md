@@ -9939,3 +9939,22 @@ Z 303: (299,245), (278,250), (285,253), (305,256),
 kind-1 at (250,276) and (263,292) only. The northern
 region exists and is dressed; it is the approaches that
 are unmeasured, not the destination.
+
+WALK NORTH FROM THE BENCH - CLOSED (lead 5 + the
+bench-north gap): bench screenshots (as-loaded and
+after a north nudge) show only the snow-peak mountain
+face - no rift portal or structure is visible from the
+bench. The feedback walker aimed at (215, 270) crept
+ESE along a contour - (190.57, 247.09), (191.67,
+247.98), then (194.04, 246.02), (196.65, 244.94),
+(198.04, 244.35), (199.12, 243.67) - with per-step
+progress decaying +1.68 -> +0.00 and every N/NE/NW
+stick strongly negative throughout. RESULT: STALL at
+(199.12, 243.67), 30.75 short of the target. The bench
+pocket drains ESE back toward the junction mesh; its
+north face is a wall. The west's last unmeasured
+northward vector is now measured CLOSED. The far north
+must be approached from the EAST side (the s45 plan
+that never ran): shelf strip -> gate 20's anchor ->
+gate 21's anchor -> pt3/pt15. Resume state for the
+trek: ch6_s49_n1_scratch.state at (199.12, 243.67).
