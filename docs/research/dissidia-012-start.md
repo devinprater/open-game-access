@@ -12342,3 +12342,63 @@ one more Pirate kill there (the prime lineage
 carries the most EXP; its Pirate fell twice in
 s58) to reach Lv 15, then chain the Tree at the
 higher level with a fuller entry HP.
+
+C. FORFEIT / FLEE - THE BOARD-LEVEL RETREAT
+(prime lineage): the Tree's chain VS screen
+cannot be backed out of with Circle, but the
+in-battle pause menu offers Return / Retry /
+Forfeit. Forfeit asks "Forfeit this battle?
+*EXP and character settings will be retained"
+(cursor defaults NO; Left+Cross = YES) and lands
+on a Retry / Flee menu: Retry = "Start over
+from status at beginning of battle. Resets
+Summonstone status and EXP"; Flee returns to
+the board with EXP kept and HP UNCHANGED (Kain
+back at grid 23, HP 1,560, Pirate still beaten,
+board KP gauge showed 1 this visit). Tools:
+s59_forfeit2.py (VS screen -> Retry/Flee menu),
+then s58_press down,cross (Flee). Exit from
+there healed Kain fully as usual (field bank
+s59_prime_field.state, pocket 292.70, 310.17).
+
+D. PRIME-LINEAGE GRIND - TWO LEVELS IN ONE
+VISIT (fresh board from s59_p_start.state):
+- GUNNER (disc 33), rot4z: WIN 32 rots, Kain
+  UNTOUCHED - and the in-battle final read
+  showed herHP 2,154, ABOVE the Lv 14 max 2,094.
+  Board HUD (screenshot, firsthand): "Lv 15,
+  HP 2154". THE GUNNER KILL LEVELED KAIN 14->15
+  (the prime lineage's banked EXP was close).
+  MYSTERY SOLVED: the "+~61 HP recovery on wins"
+  sighted in s57/s58 is the LEVEL-UP HEAL - on a
+  leveling win, current HP rises by the max-HP
+  delta (Lv 12->13: +60, 13->14: +61, 14->15:
+  +60). Gil -> 11,040.
+- PIRATE (disc 22) at Lv 15, first bank: LOSS
+  r18, foe 1,494 (guard trace; Kain's start read
+  was 2,037 - the foe landed a 117 HP hit during
+  the wait-for-live polling, a finder artifact,
+  not board HP loss). Idle-900 re-roll: WIN in
+  37 rots. Foe cashed ~978 by rot 5 (2,154 ->
+  1,176) but damage flowed (1,098 by r10); race
+  from <=700 closed it (496 at r30, 71 at r35).
+  Kain ended 398 = 337 + 61: THE PIRATE KILL
+  LEVELED KAIN 15->16 (Lv 16 max HP = 2,215).
+  Gil -> 11,274. Chain card (disc 24) left open;
+  post bank s59_s59ppir2_post2.state rests on
+  the Tree VS screen - screenshot firsthand:
+  "Lv 16 Kain Highwind" VS "?" Lv 13, World of
+  Darkness.
+- TREE VIA CHAIN at Lv 16 but HP 398 (sample):
+  LOSS r10, only 60 dealt - the Tree hit for
+  258 by rot 5 and finished him at r10. This
+  visit's chained Tree again measured 1,921 HP.
+  Entry HP 398 is hopeless; the sample only
+  confirms the chain HP (1,921) and the need
+  for a fuller entry.
+- LOOP EXECUTED: forfeit -> flee -> exit (full
+  heal) -> re-enter. Fresh board banked at
+  Lv 16, gil 11,274: s59_t2_start.state. Next:
+  Gunner -> Pirate at Lv 16 (cheaper traces
+  expected) -> chain the Tree with a real HP
+  pool (target entry > 1,700).
