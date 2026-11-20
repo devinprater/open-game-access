@@ -14122,3 +14122,33 @@ chapter-end standing; bank a
 chapter-complete state. Chapter 6 completes
 when the Stigma falls and the post-clear
 dialogue plays.
+
+A. PIRATE RE-FIGHT - THE NO_BLOCK LESSON AND
+THE IDLE-ROLL LADDER (foe HP re-rolls per
+visit): the first launch (s60_fight_nc,
+keyed foe 1,921 from the first clear) came
+back RESULT NO_BLOCK - 40 polls, no battle
+block. Diagnosis by screenshot + probe: the
+prompt bank is sound (grid 34, PROMPT->disc
+35, the Pirate's card: Lv 13, World of
+Darkness, Kain Lv 25 HP 2,760), Cross engages
+to the VS screen (focus 006e0045), and the
+battle DOES start - but this visit's Pirate
+has foe HP **1,727**, not 1,921. The block
+sat at 0x096BBF98 with foe 1,727 in every
+probe dump; the finder, keyed to 1,921,
+walked straight past a live battle. (s63's
+interrupted re-fight was keyed the same way
+and was very likely failing identically
+before the restart.) RULE: on a re-clear,
+MEASURE each foe's HP at engagement - never
+key a finder to a prior visit's value.
+- Pirate rolls (all rot4z, from 2,760):
+  idle-0: WIN 16 rots, Kain -> 1,583 (cost
+  1,177). idle-900: WIN 16 rots, Kain ->
+  1,897 (cost 863). idle-1800: WIN 27 rots,
+  Kain -> 2,006 (cost 754). Gil 15,852 after
+  all three (the +234 pays once per lineage;
+  the banks are siblings, not a chain). The
+  line continues from the idle-1800 bank
+  s60_s64pir18_post2.state (Kain HP 2,006).
