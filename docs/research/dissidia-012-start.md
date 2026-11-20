@@ -10573,3 +10573,116 @@ note: Kain is Lv 10 against Lv 13 pieces - entry
 and census are this session's win; fights are
 probes until the farm decision (chapter plan:
 farm repeat boards toward the boss's level).
+
+### Addendum 41 part 2 - session 52 EXECUTION (2026-11-20)
+
+CORRECTION to part 1: the claim "no session attacked the
+obstruction at a stall point" is too broad. Session 43 DID
+run a boulder protocol - Circle volleys at the shelf east
+face (233.83, 232.57) and a Circle sweep at the basin ledge
+(197.57, 244.64), both negative - and addendum 14 (session
+42) listed "a boulder plug somewhere on the ridge/band
+faces" as untried entry (a), noting the Ch.3 boulder
+protocol had never been applied in Ch.6 up to that point.
+What part 1 should have said: attacks were never tried
+along the leg-2 route east/south of Legendary Lake, nor at
+the ruins-anchor band east face (x~242).
+
+Harness: s52_walk.py (greedy 8-direction walker, NO visited
+penalty; stall protocol = Cross probe, then 3 Circle
+volleys facing the target, then re-probe). All walks in the
+adv lineage from ch6_s47_ll_finished.state unless noted.
+
+1. GATE 19 POCKET, NE PROBE (target: high-id kind=2 pint
+   object id 1168 at (285.3, 219.8)): STALL at
+   (269.91, 215.81), ~4 units N of the exit, dist 15.89.
+   Cross probe = dash (once dashed him S to (269.98,
+   209.97); he climbed back and stalled at the same lip).
+   Circle volleys negative. Gate 19's pocket is boxed N/E
+   on foot - session 41's scan claim CONFIRMED for the
+   pocket itself. The id-1168 object is not reachable from
+   the pocket; it most likely dresses F-area ground seen
+   from the west.
+2. DEFILE EAST WALL: a greedy descent at X~269 (aiming
+   straight at the band end) stalled at (269.09, 207.23);
+   attack protocol negative. The defile's east side at
+   Z~207 is plain terrain. The working route to the band
+   is the waypoint route: LL exit -> chainE (257.24,
+   205.47) ARRIVED step 14 -> band end (287.81, 198.89)
+   ARRIVED step 24 (state s52_eb1b_final.state).
+3. THE X~290 RIDGE FACE AT Z~198: from the band end, the
+   walker stalled at (290.46, 198.08) facing the kind-0
+   pair (299, 197) / (300, 202). Cross = no-op; three
+   Circle volleys produced ZERO displacement; post-attack
+   best +0.00. Screenshot s52_ridge.png: a continuous grey
+   rock mountain face, snow-capped peaks beyond, the
+   distant stone tower visible in a notch. NO boulder, NO
+   gap, NO gate. The ridge at Z~198 is plain terrain, not
+   a breakable plug - the guides' leg-2 boulder is NOT
+   here.
+4. NEW GROUND - THE TERRACE SOUTH SLOPE AND THE LAKE'S
+   EAST-SHORE POCKET. From chainE the walker went S around
+   the south end of the x~242 face: (241.34, 193.84) ->
+   (239.05, 191.38) -> ARRIVED (236.73, 185.15) step 22 -
+   the kind=5 pint cluster point (236, 184) (x5 records).
+   No encounter, chest or orb fired on the point itself.
+   Screenshot s52_tc1.png: Kain stands on a grassy east
+   shore overlooking an EAST BAY of the lake; across the
+   water on the far shore stand a stone tower and a RED
+   OBJECT at the water's edge. The shore pocket runs S to
+   (238.75, 176.37), where it terminates (stall +
+   attack-negative, reached identically from two sides).
+   The pocket is also reachable from the WEST: a terrace
+   ledge at (226.30, 189.03), S of the ruins band - itself
+   cut off from the hub (208.25, 189.32) by a dip (stall +
+   attack-negative there; the hub is NOT reachable from
+   the ledge). Geography update: there are TWO water
+   bodies - the main lake (S) and an east bay (water at
+   ~Z 168-180, X ~225-245) - separated by a land strip.
+   The walked shore strip (Z~148-152) is the main lake's
+   north shore; the bay's SOUTH shore (Z~160-168,
+   X~220-245) has NEVER been walked. Kind-0 pint records
+   at (227, 167) and (231, 162) sit on that shore - the
+   red object is their candidate, and the first unclaimed
+   field-chest candidate found since the Rosetta Stone.
+5. GUIDE-ROUTE STATUS: NOT executed to True Intent. None
+   of leg 2's landmarks (Pink Tail chest near a barred
+   gateway, Fallacious Tree Lv 11, KP Gambler chest,
+   breakable boulder, bridge, Jump chest, Counterfeit
+   Wraith Lv 7, 1,000 gil chest) exist on any ground
+   walked in sessions 41-52. Breakable-boulder attacks
+   are now negative at SIX Ch.6 stall points (s43 x2, s52
+   x4). The guides agree with each other and with Suih's
+   board data on everything checkable; the route's ground
+   simply has not been found yet. The east bay's south
+   shore is the strongest un walked candidate: it fits
+   GameSpy's "follow the water" leg and holds the red
+   object.
+
+STANDING (unchanged): Kain Lv 10, HP 1,851/1,851, Gil
+9,774, banked KP 104, Shiva summonstone + Rosetta Stone
+held, Firion assist. Boards done: Sunken Lake, Hidden
+Darkness, Legendary Lake. Owed: Gateway of True Intent,
+Ryukahn, Exdeath Lv 18.
+
+RESUME STATES (WSL ~/d12s): canonical
+ch6_s47_ll_finished.state (268.50, 219.40). New:
+s52_eb1b_final.state (band end (287.81, 198.89)),
+s52_tc1_final.state (east-shore overlook (236.73,
+185.15)), s52_bay_scratch.state (pocket S end (238.75,
+176.37)), s52_hub_scratch.state (terrace ledge (226.30,
+189.03)). Screenshots: s52_exit.png, s52_ridge.png,
+s52_tc1.png.
+
+NEXT SESSION LEAD: the east bay's south shore. Route:
+ll_finished -> pass -> ruins -> gully -> Sunken Lake arch
+-> E along the shore strip (Z~150) to X~231 -> N across
+the land strip to (231, 162); identify the red object
+(Pink Tail chest?). If it is leg 2's first chest, follow
+the bay shore E/N hunting the Fallacious Tree, the KP
+Gambler chest, the boulder and the bridge. Secondary:
+gate 14's pocket post-LL stand test in the ADV lineage at
+its standable edge (303.2, 166.6) is still owed (session
+48's mesh probes were canonical-lineage); the kind=5
+cluster at (320, 158) x9 and gate 15 (366.0, 151.9)
+remain F-area and unreachable until F opens.
