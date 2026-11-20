@@ -10144,3 +10144,19 @@ ruins -> (211.13, 193.13) -> (206.27, 185.87) ->
 181.51) -> (193.11, 178.22) -> (185.42, 173.74)
 -> (191.03, 166.83) -> (191.73, 157.87) ->
 (193.55, 149.33) [ch6_s50_south_hop5.state].
+
+MOOGLE POINT (196, 144) RE-CHECK (lead 3, adv
+lineage): walked in on foot from (193.55, 149.33)
+to (195.71, 144.61) [ch6_s50_moogle_final.state] -
+no proximity trigger fired on approach. Screenshot
+(s50_moogle0.png): Kain alone on the valley path,
+Firion's assist model at his back; NO moogle NPC
+present. Cross at the point: a plain dash to
+(199.30, 138.73), state 2 throughout, no talk, no
+popup, no shop. VERDICT: the moogle point is
+EMPTY in the adv lineage too, matching s41's
+finding in the canonical lineage. Whatever the
+kind-44 object id 250 is, it does not present as
+a talkable moogle in Chapter 6's current story
+state (plausibly another segment's dressing on
+this shared map). Lead closed, negative.
