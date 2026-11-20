@@ -10463,3 +10463,113 @@ s51_w7_scratch.state (gate 17 face), s51_e2_
 scratch.state (SE dead point), ch6_s49_e10_
 scratch.state (band end); master fallback
 ch6_s48_bench1_final.state.
+
+### Session 52 addendum 41 - THE GUIDE CHECK: THE INTENDED ROUTE PAST LEGENDARY LAKE (2026-11-20)
+
+GUIDE SOURCES (the project's standing set, confirmed
+from the doc's own earlier chapters): Suih's Move
+List and Guide (GameFAQs faqs/62070) - its Ch.6
+board data is already in the chapter plan above;
+the GameSpy/IGN walkthrough (psp.gamespy.com guide,
+page 13 = Chapter 6) - the prose route source used
+for the Ch.2/Ch.3 field legs; Squall_of_SeeD's Game
+Script (faqs/62288) and its atwiki mirror for scene
+order. Read this session BEFORE any new measurement,
+per session 51's lead.
+
+WHAT THE GUIDES SAY (GUIDE DATA - unverified until
+played):
+
+1. GATEWAY ORDER, Ch.6 (all sources agree): Sunken
+Lake -> field leg 1 -> Hidden Darkness (blue,
+optional) and Legendary Lake (red) -> field leg 2
+-> Gateway of True Intent -> field leg 3 (short)
+-> Ryukahn Gateway (Exdeath Lv 18). NO source
+describes any gateway being unlocked by clearing
+another, and no portcullis-opening event exists in
+this chapter. The barred gates (11 and 17) are
+therefore most likely NOT this chapter's route at
+all. The script agrees: at the bridge Firion says
+he "wanted to unlock the gateways here, but-" -
+the pair simply proceed on foot. The locked
+gateways are scenery the story walks past.
+
+2. FIELD LEG 1 (Sunken Lake -> Legendary Lake),
+GameSpy p.13: Despot in the grass; 500 gil chest;
+through an EMPTY gateway; Assist Charge chest;
+BREAK A ROCK; bridge; Maser Eye chest. Right into
+a mountain-peak field: False Stalwart; Rosetta
+Stone chest "in front of the locked gateway"
+(matches session 42's claim at gate 17's foot -
+the locked gateway is a landmark of this leg, not
+its destination). Firion scene at the bridge; then
+the blue and red gateways side by side; the red
+one (right) is Legendary Lake. Sessions 39-48
+match this leg point for point.
+
+3. FIELD LEG 2 (Legendary Lake -> True Intent),
+GameSpy p.13 - THE LEG NO SESSION HAS WALKED AS A
+ROUTE. Verbatim route: "Back in the world map,
+feel free to turn around and take another stab at
+the blue gateway, or continue forward if you're
+happy with your level. As you pass through the
+empty gateway, make a left and move past the orb
+to find a chest containing a Pink Tail accessory.
+Turn around and make a left at the orb and walk
+until you come to another empty gateway. Make a
+left and follow the water until you encounter a
+roaming Fallacious Tree, then take it down and
+grab a KP Gambler skill from the chest it was
+guarding. Turn around and head to the rock, then
+break it and cross the bridge for a chest
+containing a Jump skill. Back across the bridge,
+take down the roaming Counterfeit Wraith, then
+follow the grassy path all the way up the hill to
+find a chest containing 1,000 gil. Return to where
+you broke the rock and, if you're ready, jump into
+the Gateway of True Intent."
+
+4. FIELD LEG 3 (True Intent -> Ryukahn), GameSpy
+p.13: "break the rock in front of you and jump
+across the bridge" - Fallacious Tree - BRV Charge
+chest - "break the second rock and take the bridge
+back" - "break the orbs if you'd like" - moogle
+shop - Ryukahn Gateway.
+
+MECHANICS THE MEASUREMENT SESSIONS NEVER USED:
+- BREAKABLE ROCKS block the intended path at least
+three times in Ch.6 (leg 1 once, leg 2 once, leg 3
+twice). A rock is destroyed by a field attack, not
+walked around. Every "sealed" verdict in sessions
+49-51 was reached by WALKING into the obstruction;
+no session attacked the obstruction at a stall
+point. The leg-2 rock is the prime suspect for the
+wall between the Legendary Lake exit area and True
+Intent's gateway.
+- EMPTY GATEWAYS are pass-through archways the
+route threads THROUGH (walked through, not
+entered) - they match the gates reading -1/-1 on
+both testers that sessions 48-51 filed as "another
+segment's gates." Treating them as endpoints means
+never walking the corridor beyond them.
+- ORBS are route landmarks (and breakable, leg 3).
+
+EXECUTION PLAN (this session): resume at the
+Legendary Lake exit and walk leg 2 AS A ROUTE in
+guide order, verifying landmarks as they come:
+Pink Tail chest past the orb; Fallacious Tree and
+KP Gambler chest along the water; THE ROCK -
+attack it at the stall; bridge and Jump chest;
+Counterfeit Wraith; grassy hill path; 1,000 gil
+chest; True Intent's gateway at the broken rock.
+Title card on entry (session 46's law), then the
+board per Suih: Transient Gunner Lv6, Fallacious
+Tree Lv13, Fleeting Flash Lv13, Idle Sky Pirate
+Lv13; chests Pebble and 500 gil; KP chance Win
+within 90 seconds; Bonus Line 10. GameSpy KP tip:
+Jump over the Gunner, KP Gambler in the center of
+the four enemies, chain all four = 48 KP. Level
+note: Kain is Lv 10 against Lv 13 pieces - entry
+and census are this session's win; fights are
+probes until the farm decision (chapter plan:
+farm repeat boards toward the boss's level).
