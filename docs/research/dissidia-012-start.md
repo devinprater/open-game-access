@@ -10848,3 +10848,40 @@ the shelf's SE corner from the east coast at
 (243.29, 142.93); a constant-Z~170 westward probe
 from the pocket terminus (238.75, 176.37).
 Standing unchanged; gil 9,774 at every boot.
+
+### Session 54 addendum 43 - THE SHELF'S NORTH FACE: THE LAST UNTESTED SIDE (2026-11-20)
+
+PLAN (from addendum 42 F): the shelf segment holding
+both kind-0 chest candidates (227, 167) and (231, 162)
+is boxed on its south face (Z~151.5, X 211-231+) and
+its west face (X~211, Z~158). Its north side has
+never been walked. LEAD: from the ruins approach
+(s53_b2_final.state (217.06, 195.70)) / Firion's
+ruins boxes (227.8, 185.4), walk due south to
+(227, 167); if a descent exists on the north face it
+lands between the two candidates. If the shelf is
+gained: identify both candidates + session 52's red
+object (stand on spot, Cross, record the take), then
+follow guide leg 2 east/north (Fallacious Tree Lv 11
+-> KP Gambler chest -> boulder (Circle volleys) ->
+bridge -> Jump chest -> Counterfeit Wraith Lv 7 ->
+grassy hill -> 1,000 gil chest -> Gateway of True
+Intent at the broken rock; TITLE CARD on entry,
+session 46's law; census vs addendum 41).
+SECONDARIES in order: (a) shelf SE corner from the
+east coast (243.29, 142.93), probing the coast's
+north edge westward; (b) constant-Z~170 westward
+probe from the pocket terminus (238.75, 176.37);
+(c) gate 14 pocket stand test post-Legendary-Lake,
+MAIN lineage (owed since session 52).
+
+Harness: s53_march.py (probe once per cycle, march
+the winner up to 4 pushes, early stop <0.3 gain;
+stall protocol Cross probe -> 3 Circle volleys ->
+re-probe; exit codes 0 ARRIVED / 3 EVENT / 4 STALL).
+Standing at open: Kain Lv 10, HP 1,851/1,851, gil
+9,774, banked KP 104, Shiva + Rosetta Stone held,
+Firion assist. Branch verified at 699523f, clean.
+
+FINDINGS:
+(pending)
