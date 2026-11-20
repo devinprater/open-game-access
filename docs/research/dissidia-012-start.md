@@ -11573,3 +11573,23 @@ sits ~4.6 N of the band behind the gatehouse.
 Untried: the NE corner (stay E until Z~312,
 then W along the top) and the far-W plateau.
 States: s56_n1_scratch.state (297.43, 307.42).
+
+F. THE NE CORNER DOES NOT EXIST EITHER:
+marching from gate 21's dashes toward
+(318.0, 313.0) - stay E, then W along the top
+- the greedy walker was pulled onto the same
+diagonal N road (every NE probe walled) and
+followed it to its end: stall protocol at
+(298.00, 307.41) (Cross: nothing; circles
+crept W), then W to Firion's stand (297.09,
+307.50), RESULT STALL, dist 21.20. The road's
+ceiling is the Z~307.4 band along its whole
+length; there is no NE shoulder at Z~313 to
+turn W on. Gate 22's anchor plateau is sealed
+from S and E by the band + gatehouse. Untried:
+the FAR-W plateau - the unmapped country
+between the terrace top (Z~254) and the band,
+including the kind=6 moogle cluster at
+(280, 273) (leg 3's shop country) - and gate
+20's F country far SE. States:
+s56_ne1_scratch.state (297.09, 307.50).
