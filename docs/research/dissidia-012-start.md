@@ -12121,3 +12121,13 @@ Lv 13, HP 2,033, gil 10,440):
   the base sequence. Added mode rot4y to
   s58_fight.py (race from foe <= 300 HP) and
   retried from the same bank.
+  Retry with rot4y (race from <= 300): trace
+  byte-identical through rot 45 (determinism
+  again), race fired at foe 251 - but the foe's
+  cash-in (BRV 1,002 -> 1,173) landed during the
+  race's 2-rotation Triangle build: LOSS at
+  rotation 47, foe still 251. The race cannot
+  start once a lethal cash-in is already built.
+  Second retry with rot4z (race from <= 700:
+  at foe 635 the foe BRV is only ~150-210, so
+  the race gets ~5 rotations of clear water).
