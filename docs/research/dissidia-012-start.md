@@ -10909,3 +10909,28 @@ sessions 38-53 used). n2 verdict: NONE (killed
 mid-cycle-1 at (214.53, 190.46), its cycle-0 SW
 slide along the ruins band is the only data).
 Re-run as s54_n3, foreground.
+
+N3 (foreground re-run of the lead): the direct
+due-south march from the ruins approach stalls on
+a face at (215.62, 184.58) - all three southward
+headings ~0 at hold 14, lateral moves work. Face
+scan (s54_scan.py / s54_scan2.py, every probe
+re-anchored): south face probed at anchors X
+210.1-217.0, Z 184.0-186.1 - NO confirmed descent
+(one SE slip at (210.10, 185.86) -> (209.81,
+184.21) failed the follow-through test; it is the
+known terrace slope, not a shelf entry). The
+face's eastward contour PINCHES at (217.36,
+186.78): both lateral headings gain < 0.4 X. So
+from the approach, the band edge runs X ~210-217
+and is closed southward and eastward at that
+level.
+BREAKTHROUGH - THE BOXES ARE REACHABLE: a march
+with the boxes (227.8, 185.4) as target routed
+SOUTHEAST through the ruins interior - (221.32,
+193.00) -> (224.24, 193.95) -> (226.78, 190.86)
+-> (227.50, 185.87) - ARRIVED in 4 cycles, no
+stalls (state s54_bx_final.state). The ruins'
+east side has a clean descending lane the
+due-south line never touches. The due-south test
+from the boxes is running as walk s54_bs.
