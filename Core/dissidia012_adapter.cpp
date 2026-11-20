@@ -293,8 +293,7 @@ enum BoardPiece : int { kPieceNone = 0, kPieceChest, kPieceKain, kPieceManikin, 
                         kPieceFlash6Dreams90, kPieceDragoon8_90, kPieceFlash8_90, kPiecePirate13_90, kPieceHero13_90, kPieceDespot13_90,
                         kPieceTree7Wod90, kPieceFlash7Crystal90, kPieceDragoon7Crystal90, kPieceFlash3Ultimecia90, kPieceGunner6Crystal90, kPieceTree13Wod90,
                         kPieceFlash13Ultimecia90, kPieceTerra, kPieceVaan, kPieceJecht, kPieceZidane, kPieceFirion,
-                        kPieceSummonstone, kPiecePotion, kPieceWarriorOfLight,
-                        kPieceWarriorOfLight };
+                        kPieceSummonstone, kPiecePotion, kPieceWarriorOfLight };
 struct BoardPieceInfo { const char* name; const char* clause; const char* desc; const char* promptDesc; bool prompt; };
 static const BoardPieceInfo kBoardPieces[96] = {
     { "", "", "", nullptr, false },
