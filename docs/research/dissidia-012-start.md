@@ -12402,3 +12402,53 @@ VISIT (fresh board from s59_p_start.state):
   Gunner -> Pirate at Lv 16 (cheaper traces
   expected) -> chain the Tree with a real HP
   pool (target entry > 1,700).
+
+E. SECOND VISIT (Lv 16) - PIRATE DOWN, LV 17,
+AND THE CHAIN CARD IDENTIFIED:
+- GUNNER at Lv 16: WIN 12 rots, UNTOUCHED
+  (foe at 96 HP by rot 5). Gil -> 11,340.
+- PIRATE at Lv 16 (entry 2,215): WIN in 44
+  rots - a long stall trace (foe frozen at
+  775/BRV 694 for ~10 rots mid-fight; its 694
+  cash-in landed at rot ~33, 1,047 -> 350; the
+  race closed from 584). Final herHP 341 =
+  280 + 61: THE KILL LEVELED KAIN 16->17
+  (board HUD firsthand: "Lv 17, HP 341"; Lv 17
+  max HP ~2,276). Gil -> 11,574. The win MET
+  the KP chance (board KP gauge showed 1; the
+  44-rotation win still beat the 90-second
+  battle clock - rotations are not seconds).
+- THE POST-WIN CARD IS THE CHAIN OFFER -
+  PROVEN: the post bank (s59_s59t2pir_post2)
+  rests with the Fallacious Tree's card open
+  ("Engage X / Cancel O", KP-chance banner).
+  A Circle press opened the "Cancel chain?"
+  dialog (cursor NO) - the documented decline
+  flow. So the win handler's end state leaves
+  the CHAIN CARD open (its final circle presses
+  summon the cursor onto it), and one Cross
+  from the post bank ENGAGES THE CHAIN.
+- TREE VIA THAT CHAIN at Lv 17, HP 341
+  (sample): foe HP 1,727 this instance (chain
+  HP varies: 1,727 in run 4 and here, 1,921 in
+  run 7 and the Lv 16 visit - per-instance
+  variance, not a route marker). LOSS r17 -
+  but the shape is the news: the Tree hit for
+  320 by rot 5 (341 -> 21) and then did NOT
+  land a killing blow for 12 rotations while
+  Kain, at 21 HP, dealt 1,023 (foe -> 704;
+  damage flowing from ~rot 6, no guard phase;
+  the race ran from ~rot 14). At any real
+  entry HP (>= ~900) this trace family is a
+  WIN: the foe's kill windows are the early
+  hit and its mid cash-ins, and Lv 17 damage
+  (~60-190/rot in the race) outruns them.
+- Chain declined properly (Circle -> Left ->
+  Cross), exit clean (field s59_t3_field.
+  state; board KP 1 lost on exit, banked KP
+  still 104). ENDGAME PLAN: re-enter at Lv 17
+  (HP 2,276), free Gunner, re-roll the Pirate
+  for a CHEAP win (target: enter the Tree
+  chain at >= ~1,200 HP), engage the Tree
+  from the post-win chain card, then Flash,
+  chests, Stigma.
