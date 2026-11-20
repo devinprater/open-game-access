@@ -11394,3 +11394,35 @@ the F->K corridor country, never walked from
 this side; (c) keep watching state68 on all new
 ground for the roaming Tree (actor-table entity;
 the pint-diff method is closed).
+
+### Session 56 addendum 45 - THE LAST ORB, AND THE HIGH STRIP EAST (2026-11-20)
+
+PLAN (from addendum 44's close): (1) test the
+last orb candidate, kind=1 id=224 (280.0, 234.0)
+- kind 1 was the prologue orb's kind; stand on
+it, probe Cross + Circle, watch state68; if it
+activates, re-census + re-read the gate table.
+If inert, the orb question closes: the route is
+pure ground. (2) THE HIGH STRIP EAST: from the
+strip (291-298, 247-252) continue E toward gate
+20's anchor (319.33, 193.64) and gate 21
+(315.09, 270.40) - the F->K corridor country,
+never walked from this side; the likeliest
+remaining road toward Ryukahn (leg 3: two more
+boulders + the moogle country at (280, 273)).
+At any gateway anchor: stand EXACTLY, Cross,
+READ THE TITLE CARD (session 46's law). (3) On
+all new ground watch state68 for the roaming
+Fallacious Tree (actor-table entity; contact =
+battle, rot4).
+
+Harness: s55_march.py (cycle-top resync) as the
+walker base; s55_probe.py for button tests;
+s55_pint2.py for censuses. All walkers in HELD
+FOREGROUND exec calls. Standing at open: Kain
+Lv 10, HP 1,851/1,851, gil 9,774, banked KP 104,
+Shiva + Rosetta Stone held, Firion assist.
+Branch verified at ca4b3a4, clean.
+
+FINDINGS:
+(pending)
