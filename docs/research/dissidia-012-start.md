@@ -10277,3 +10277,41 @@ or 17 IS True Intent). Resume states from this session:
 ch6_s50_lipnode (lip, gate-11 face), ch6_s50_bench2 (bench
 east end), ch6_s50_pt0b_final.state (pt0 stand); master
 fallback ch6_s48_trek1_hop6.state (Firion's ruins).
+### Session 51 addendum 40 - GATE 16 FIRST: THE SE CLUSTER POST-LL (2026-11-20)
+
+RESUME PLAN: adv lineage from ch6_s49_e10_scratch.state
+(east band end (288.83, 199.37)). Standing at open:
+Kain Lv 10, HP 1,851/1,851, gil 9,774, banked KP 104,
+Shiva + Rosetta Stone held, Firion assist. Boards
+done: Sunken Lake, Hidden Darkness (gate 13),
+Legendary Lake (gate 19, FINISHED). Owed: Gateway of
+True Intent / Ryukahn, Exdeath Lv 18.
+
+PLAN (brief order): (1) gate 16 (331.5, 126.0) -
+head SE from the band end; probe east along the
+shore toward gate 20's anchor (319.3, 193.6), then
+south down the east side if the terrain opens;
+stand on the anchor, Cross, READ THE TITLE CARD.
+(2) If blocked, document the block exactly, then
+re-examine gate 17 (154.1, 229.4) post-LL and
+re-probe unprobed SE pads. Gate numbers cross-
+checked by tester VALUES only (addenda 38/39) plus
+addendum 12's decoded id->point map (16 -> pt9
+(331.5, 126.0); 17 -> pt10 (154.1, 229.4); 20 ->
+pt13 (319.3, 193.6); B's first word: HIGH s16 =
+point index, LOW s16 = gate id).
+
+PRIOR MEASUREMENTS (s42 addendum 14, s44 addendum
+23; both PRE-LL): gate 16 unreachable on foot from
+W (ridge face continuous Z 147->123), NW (shore
+dead-ends X~290.6; face at Z~134 around X 287-290),
+N (shelf crossing -> gate-14 pocket, sealed E/S).
+NEVER measured: the east side - terrain east of the
+band end (X>289 at Z~190-200, gate 20's country)
+and any southward run along X 305-366 down to gate
+16's latitude. That gap is this session's first
+probe. NOTE: any gate-ENTRY test must run in the
+post-LL adv lineage (s50's lesson); old-lineage
+states are for terrain probing only.
+
+FINDINGS BELOW AS THEY LAND.
