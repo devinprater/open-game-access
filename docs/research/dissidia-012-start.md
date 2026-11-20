@@ -11042,3 +11042,80 @@ chests may be reachable only after a story-state
 change (the Fallacious Tree fight itself is a
 roaming-manikin encounter - contact anywhere it
 wanders, not necessarily at the shelf).
+
+### Session 55 addendum 44 - THE ORB, THE ROAMING TREE, AND GATE 14 (2026-11-20)
+
+PLAN (from addendum 43's close): the east-bay shelf
+is unwalkable from all four sides, so leg 2's
+mechanism is not walking onto the shelf. Three
+leads, in order: (1) THE GUIDE'S ORB - pin it down
+from addendum 41's quotes, then hunt the pint
+candidates on reachable ground; (2) THE TREE ROAMS -
+census the pint table twice from the same lineage
+at different game times and diff for a MOVING
+record (the guide calls the Fallacious Tree a
+roaming encounter, contact anywhere it wanders);
+(3) GATE 14 STAND TEST from the LL-side shelf
+(Z~166-175 at X~257+ east into the pocket), owed
+since session 52. If 1 or 2 cracks leg 2, follow
+the guide sequence (boulder -> bridge -> Jump
+chest -> Wraith -> hill -> 1,000 gil chest -> True
+Intent at the broken rock; TITLE CARD on entry,
+session 46's law; census vs addendum 41).
+
+Harness: s55_march.py = s53_march.py + the DESYNC
+FIX (brief's option A): at the top of every cycle
+the walker reloads its committed scratch state and
+re-reads the position before probing, so a cycle
+never starts from the phantom endpoint probe_all
+leaves behind (the s53/s54 oscillation). s55_pint.py
+= s52_pint.py + an optional frame-advance arg so
+two censuses of one lineage at different game
+times can be diffed. All walkers run in HELD
+FOREGROUND exec calls (s54's lesson). Standing at
+open: Kain Lv 10, HP 1,851/1,851, gil 9,774,
+banked KP 104, Shiva + Rosetta Stone held, Firion
+assist. Branch verified at 0ca3570, clean.
+
+THE ORB, PINNED DOWN (guide data, from addendum
+41's GameSpy p.13 leg-2 verbatim): "As you pass
+through the empty gateway, make a left and move
+past the orb to find a chest containing a Pink
+Tail accessory. Turn around and make a left at
+the orb and walk until you come to another empty
+gateway. Make a left and follow the water until
+you encounter a roaming Fallacious Tree, then
+take it down and grab a KP Gambler skill from
+the chest it was guarding." So the orb is a ROUTE
+LANDMARK just past the first empty (pass-through)
+gateway out of Legendary Lake: left at the orb
+reaches the Pink Tail chest; returning to the orb
+and turning left again reaches a second empty
+gateway, then "follow the water" to the Tree.
+In this game's field mechanics an orb on the
+world map is a LIGHT ORB: the game's own tutorial
+(doc, prologue) says "You can attack these orbs
+with Circle. It seems that we gain powers from
+them," and the guide control list says "Circle
+attacks orbs, enemies and rocks." Breaking one
+grants a world-map skill. The leg-2 orb is
+therefore most likely a Light Orb pint record
+near the Legendary Lake exit - a landmark to walk
+PAST (and optionally break), not a switch for the
+shelf. CANDIDATES (s52 census): kind=2 id 1168 at
+(285.3, 219.8) - due E of the LL exit stand
+(268.50, 219.40) at the same Z, matching "make a
+left" if the exit faces S; s52's NE probe stalled
+at (269.91, 215.81) but a due-E march at Z~219.8
+with a resynced walker has never been run.
+kind=5 cluster (236, 184) x5 - session 52 STOOD on
+it (236.73, 185.15) and nothing fired on arrival,
+but no Circle press was made standing on the
+point; that test is still owed. kind=5 (212, 194)
+x1 near the hub. kind=5 (320, 158) x9 and kind=2
+ids 1169/1170/1131 at (307.3, 199.2), (318.8,
+133.3), (330.0, 180.0) are F-area, unreachable
+until F opens.
+
+FINDINGS:
+(pending)
