@@ -12635,3 +12635,47 @@ globs do NOT expand; use find -name for listings.
 
 FINDINGS:
 (to be filled as the session runs)
+
+A. VISIT 1 (t1; from s59_t6_start.state, Lv 19,
+pool 2,397, gil 12,174):
+- GUNNER (disc 33) via prompt bank s60_t1_nav1
+  (Kain 43, prompt 33), rot4z: WIN 9 rots, one
+  167 hit (2,397 -> 2,230) - the same trace as
+  s59 visit 6. Foe HP 1,303 (discovered). Gil
+  -> 12,240. No chain offered after.
+- PIRATE (disc 22) via prompt bank s60_t1_nav2
+  (Kain 23, prompt 22; entry HP 2,230; foe
+  1,727; all rot4z):
+  idle-0: WIN r31, left 583 (foe cashed twice
+  early while Kain dealt nothing until ~r12;
+  chain left open).
+  idle-900: LOSS r28, foe 733 (Kain broken
+  ~r10).
+  idle-450: WIN r18, left 786 (flow from r5;
+  no chain line logged by the handler).
+  idle-1800: WIN r28, left 572 (opening
+  signature identical to idle-0).
+  idle-2700: WIN r33, left 1,094 - BEST (cost
+  1,136; steady flow, only two HP drops).
+  Post bank s60_t1pir2700_post2 rests grid 23,
+  PROMPT->disc 24.
+  Pirate win costs at Lv 19 / entry 2,230 run
+  1,136-1,658: the ">= 1,700 left" full-clear
+  trigger (cost <= 530) was not approached in
+  five samples.
+- TREE (disc 24) via the chain card from
+  s60_t1pir2700_post2 (entry HP 1,094; foe
+  1,727 in all four samples), post bank
+  idle-rolled, all LOSS:
+  idle-0: r9, 0 dealt (broken ~r5).
+  idle-900: r12, 0 dealt (guard/bank, foe
+  BRV 908 at death).
+  idle-2700: r40, 930 dealt (delayed flow -
+  nothing either way for ~15 rots, flow from
+  ~r20; Kain plateaued at 381 from r20).
+  idle-450: r27, 330 dealt (flow by r10, then
+  stall; foe banked 904 and cashed).
+  VERDICT: entry 1,094 is below this bank's
+  winning band; its trace families cap at
+  ~930 dealt. Ratchet on: exit (gil 12,474
+  banked) and re-enter for visit 2.
