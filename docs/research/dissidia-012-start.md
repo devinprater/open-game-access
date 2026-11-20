@@ -13413,3 +13413,53 @@ Lineage head: s60_fin3.state (field (292.50,
 
 FINDINGS:
 (to be filled as the session runs)
+
+A. BOOT + GATE TABLE (s62, fresh read):
+- s60_fin3.state loads at (292.50, 318.26),
+  state68 2, gil 14,850 - standing verified.
+  Banked as s62_boot_check.state.
+- GateMgr THIS boot = 0x095D5C20 (s61 boot:
+  0x095D7110 - boot-dependent, as expected).
+  HARNESS CORRECTION: the testers read DIRECT -
+  A = s16 at ptrA+4, B = s16 at ptrB+0xE. The
+  dereferenced read (*(ptrA)+4) returns zeros.
+- 11 framed records (k00-k10); the rest null.
+  Cross-referenced by tester VALUES: k00 A -1 /
+  B 3 = gate 22 (cleared; the B3 family); k01
+  life 5 / timer 122.0 / A -1 = gate 19
+  (Legendary Lake's finished signature); k02
+  A 27 = gate 13 - the ONLY A-live record, the
+  replayable farm (s61 read A 28; the value
+  moved by one between boots - identity by
+  elimination against s61's full table). Every
+  other record reads A -1. CONFIRMS s61's
+  settlement: NO unentered gate reads live
+  this boot either.
+
+B. GATE 14'S POCKET - THE S/W EXITS, MEASURED
+(scouted from s55_pkt_final.state - terrain
+facts, lineage-independent; pocket stand
+verified at (302.27, 167.59), state68 2):
+- 8-direction hold survey (28f pulses from
+  s62_survey.py; stick labels are camera-
+  relative and rotated at this stand, so all
+  verdicts are stated in MAP coordinates):
+  - map-S: dead end at (303.16, 165.82), 2.0
+    units of travel - CLOSED.
+  - map-E: face at (303.24, 167.25), under 1
+    unit - CLOSED.
+  - map-N / map-NW: corridor endpoints
+    (290.65, 172.89), (298.42, 176.24),
+    (299.0, 175.79), (299.0, 174.55) - the
+    chute back up to the shelf strip; the
+    known way in and out.
+  - map-W: 4.3 units of travel to (298.27,
+    165.95), running W along the Z~=166 ridge
+    shelf - the pocket's west lip opens onto
+    the shelf (followed in section C).
+- VERDICT: for gates 15/16 the pocket is a
+  dead-end box - E and S faces close within
+  2 units, and gates 15 (366.0, 151.9) and 16
+  (331.5, 126.0) lie E-SE of it. The pocket's
+  only exits are the chute (N) and the shelf
+  (W). Per-direction banks: s62_g14_*.state.
