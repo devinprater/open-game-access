@@ -11007,3 +11007,38 @@ threads "past the orb" - no orb has been found on
 any walked ground), or a story-state change.
 Standing unchanged (gil 9,774 at every boot; no
 fights, no events, state68 = 2 throughout).
+
+G14 (secondary c, attempted): a greedy march from
+the band-end state ch6_s49_e10_scratch.state
+(288.83, 199.37) toward gate 14's pocket edge
+(303.2, 166.6) funnels SW and pins at (287.62,
+192.98) - the EXACT dead point sessions 49 and 51
+measured (third agreement) - then oscillates.
+Greedy distance-following cannot take the shelf
+crossing from the band end; session 49 reached
+the Z~166-175 shelf from its own level, not by
+descending from the band. The stand test itself
+remains owed; next session's route: get onto the
+shelf from the LL side (the s41 chainE lineage
+ground, Z~166-175 at X~257+) and walk it east
+into the pocket, or find a waypoint on the ridge
+top E of X~290 (s51 measured that face closed at
+(289.96, 196.61), max X 290.44 - so the LL-side
+shelf entry is the live option).
+SESSION 54 CLOSE: the shelf is unwalkable from
+every side (see verdict above); the session's
+positive gains are two new march-clean routes -
+the ruins' SE lane to the boxes (s54_bx_final.
+state) and the boxes -> bay shore -> pocket line
+(s54_es_descent.state) - plus the coast line E
+(s54_ct_final.state). Resume for leg-2 work:
+s54_bx_final.state (boxes) or s54_es_descent.
+state (pocket). Next lead: the guide's leg 2
+begins "past the orb" - no orb has been found on
+any walked ground; the kind=5 pint clusters and
+the (320, 158)x9 segment objects E of the shelf
+are the unexamined candidates, and the shelf's
+chests may be reachable only after a story-state
+change (the Fallacious Tree fight itself is a
+roaming-manikin encounter - contact anywhere it
+wanders, not necessarily at the shelf).
