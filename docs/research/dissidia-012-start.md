@@ -13532,3 +13532,94 @@ facts):
   kaname_01's line is a scenic two-way ride
   that reaches nothing else - not a route to
   new country, and not a way south.
+
+F. THE STATE-11 MENU BLOCKER - SOLVED, AND THE
+SHOP READ (live lineage, from s62_boot_check):
+- state68 = 11 is the Customization menu
+  (Triangle on the field). s61 found it takes
+  NO drv input. THE LOCK IS THE ANNOUNCEMENT
+  TICKER: on a fresh open the ticker ("New
+  inventory in the shop!" plus a queue of
+  accomplishment lines) plays across the menu
+  and inputs are dropped while it runs. After
+  3600 frames of idle the ticker had cleared
+  and every input worked from then on. s61's
+  presses all landed inside the lock window.
+- FULL INPUT PROTOCOL, proven end to end:
+  Down/Up move the cursor; Cross opens an
+  entry; Circle backs one layer (Buy list ->
+  Buy/Sell -> top menu); the EXIT to the field
+  is Circle with a LONG hold (~30f) - hold
+  6/12 taps at the top level were dropped even
+  after the ticker cleared. Start opens the
+  Manual (a help index; Circle closes it).
+  Select switches the ability Set.
+- Kain in the menu (firsthand): Lv 23, EXP
+  next 2,037 / total 188,618, CP 245/356, BRV
+  260, ATK 46, DEF 37, LUK 21, LUCKY! 40%,
+  BATTLES 5, NEXT BATTLE EXP x3. Equipment:
+  Javelin, Buckler, Bronze Helm, Leather
+  Armor. Totals: HP 2639 (base 2333 + 306
+  gear), CP 356, BRV 260 (222 + 38), ATK 46
+  (33 + 13), DEF 37 (34 + 3), LUK 21.
+- THE SHOP (the menu's Shop entry carries the
+  moogle network's stock; Buy/Sell; INVENT
+  14%): six categories on L/R - Weapons,
+  Shields, Helms, Armor, Accessories, Etc.
+  Gil-buyable: the four equipment categories.
+  Accessories are ALL trade-only (Power Ring,
+  Muscle Belt, Earring, Protect Stud, White
+  Cape, Guard Ring, Block Ring, Guardian
+  Bangle, Booster, ...), and Etc holds a
+  single item: Extra Slot (trade; adds 1
+  accessory slot).
+- STOCK READ (first page per category, the
+  full spear run, prices in gil; TRADE =
+  materials, not gil):
+  Weapons: Broadsword 500, Iron Sword 1300,
+  Serpent Sword 4400, Mythril Sword TRADE,
+  Knife 500, Dagger 1300, Khukuri 4400,
+  Longsword 500, Greatsword 1300, Zweihander
+  TRADE, Katana 450, Spear 1140, Javelin 3780
+  (equipped), Heavy Lance 8320, Mythril Spear
+  TRADE, Gold Sword TRADE, Golden Staff
+  TRADE, Axe 1300, Light Axe 4400, Battle Axe
+  9300, Rod 450, Guard Stick 1220, Healing
+  Rod 4090, Mythril Rod TRADE, Staff 450, Oak
+  Staff 1220, Healing Staff 4090, Juji
+  Shuriken 8320, Leather Gloves 400, Metal
+  Knuckles 3780, Tanegashima 400, Altair 3780,
+  Valiant TRADE, Capella TRADE, Oaken Pole
+  450, Iron Pole 4090 - and the list runs on
+  past 35 items.
+  Shields: Buckler 450 (equipped), Iron
+  Shield 1220, Knight's Shield 4090, Hide
+  Armlet 450, Iron Armlet 1220, Heavy Shield
+  1060, Jennet Shield 3470, Legion Scutum
+  TRADE, Kunai 400, ...
+  Helms: Bronze Helm 300 (equipped), Iron
+  Helm 620, Knight Helm 1600, Mythril Helm
+  TRADE, Iron Visor TRADE, Ribbon TRADE,
+  Leather Hat 500, Plumed Hat 700, Hairpin
+  4200, ...
+  Armor: Leather Armor 500 (equipped),
+  Chainmail 1000, Mythril Vest TRADE, Linen
+  Cuirass TRADE, Bronze Armor 1100, Iron Armor
+  3760, Knight's Armor 7740, Demon Mail
+  TRADE, Leather Clothing 950, ...
+- PURCHASE DECISION: NONE. The only gil spear
+  upgrade, Heavy Lance (8320), previews at
+  HP 2639 -> 2602 (-37) and ATK 46 -> 50 (+4)
+  against the equipped Javelin - a sidegrade
+  that spends HP (the binding constraint in
+  rot4z's long fights) for +4 ATK, at 56% of
+  the treasury. Not "clearly helps", so under
+  the standing rule nothing was bought; gil
+  untouched at 14,850. The shop is now open
+  for business at any time - the field moogle
+  itself is no longer the only door, and may
+  not even be needed.
+- Banks: s62_shop_open.state (Buy/Sell),
+  s62_heavylance.state (cursor on Heavy
+  Lance), s62_menu_exit3.state (field, state
+  2, (292.50, 318.26)).
