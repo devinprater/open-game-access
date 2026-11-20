@@ -13710,3 +13710,118 @@ H. SESSION 62 CLOSE
   Lv 18 waits on the Ryukahn board; the
   probe plan (fresh full-HP bank, card + HP
   firsthand, rot4z) carries over unchanged.
+
+
+### Session 63 addendum 52 - HOW IS RYUKAHN ENTERED? THE GUIDES RE-READ, CANDIDATES, AND THE NORTHERN MARCH (2026-11-20)
+
+PLAN (from addendum 51 H): (1) GUIDES FIRST -
+re-read Suih (faqs/62070), GameSpy/IGN p.13 and
+link3895 sections 1.6.3-1.6.4 against the full
+measurement record for HOW Ryukahn is entered,
+and write the candidate mechanisms HERE before
+testing any of them. (2) FIRION - test whether
+a Firion scene near gate 22 / the shelf advances
+anything; re-read the gate table after any
+scene. (3) THE MESA ARCH - one last prompt test
+at the stone arch on the mesa's N end
+(Cross/Circle from the closest stands); on
+failure the mesa / chest-ledge / east-bay-shelf
+family is written off for good as floating
+scenery. (4) EXDEATH Lv 18 - if a route in
+appears: fresh full-HP bank, title card + foe
+card + HP firsthand, then rot4z.
+Standing at start: Kain Lv 23 (max HP 2,641),
+HP 2,639/2,641, gil 14,850, banked KP 109,
+Shiva + Rosetta Stone held, Firion assist.
+Branch verified at ffffaa6, clean. Protected:
+s56_ti_resume.state. Live field head:
+s62_menu_exit3.state ((292.50, 318.26),
+state68 2). Lineage head: s60_fin3.state.
+
+THE GUIDES, RE-READ THIS SESSION (verbatim
+where it matters):
+- GameSpy p.13, leg 3 complete: "Once you're
+  in the world map, break the rock in front of
+  you and jump across the bridge to battle the
+  roaming Fallacious Tree. Dodge its Delta
+  Attack with Jump and move from platform to
+  platform if you need to recover from Break.
+  Once the Tree is gone, open the chest to the
+  right for a BRV Charge skill, then break the
+  second rock and take the bridge back across
+  toward the gateway. Break the orbs if you'd
+  like, then stop at the moogle shop if you
+  need to unload some of the KP burning a hole
+  in your pocket. Once you're happy with your
+  equipment, move forward and jump into this
+  chapter's final board, the Ryukahn Gateway."
+- link3895 1.6.3 World Map tail (the field
+  segment AFTER the True Intent board):
+  "Available Mogshops: 9.2.6. Wandering
+  Manikins: Fallacious Tree Lv11. Chest
+  Contents: (BRV Charge). Straight ahead
+  you'll see a boulder, it leads to the Tree
+  and chest."
+- GameSpy Ch.1 (the mechanics gloss): "attack
+  the rock ahead of you to open up a light
+  bridge, then jump across it" - breaking a
+  rock OPENS A LIGHT BRIDGE. Ch.1 also treats
+  orbs as breakable: "Destroy the orbs for a
+  Straight Chain skill if you'd like."
+- Squall_of_SeeD game script, post-True
+  Intent: "[Shortly thereafter, the two come
+  upon and enter another gateway] -Ryukahn
+  Gateway-" - no special entry trigger named;
+  a Firion scene plays ON the Ryukahn board.
+
+CANDIDATE MECHANISMS (written before testing):
+- C1 (STRONG): THE ROUTE RUNS NORTH FROM THE
+  EXIT STAND. Kain exits True Intent at
+  (292.50, 318.26), 6.3 units N of gate 22's
+  anchor - he comes out on the gate's FAR
+  side, on the chapter's forward heading.
+  "The rock in front of you" (GameSpy) /
+  "Straight ahead you'll see a boulder"
+  (link3895) then means NORTH of the exit
+  stand - ground NO session has ever marched
+  (s60's leg-3 scout went S from the clear
+  point; s49-51's far north was the bench
+  country far to the W). Sequence per the
+  guides: boulder -> light bridge -> platform
+  country (cf. the floating ledges beside the
+  kaname_02 landing, addendum 50 Q) -> roaming
+  Fallacious Tree Lv11 -> BRV Charge chest ->
+  second boulder -> bridge back toward the
+  gateway -> orbs (the kind-2 chain S of gate
+  22: (292,297), (294,303)) -> moogle shop
+  (280, 273) -> "move forward" -> Ryukahn.
+  If C1's first steps verify, Ryukahn's gate
+  likely stands past the shop on ground never
+  stood on - prime suspect: the shop's S-face
+  approach from (282, 256) (addendum 50 K's
+  untested next move), or the mesa top.
+- C2: THE MESA ARCH AS A PROMPT POINT (the
+  brief's lead 3): the stone arch at the
+  mesa's N end (a kind-5 shell, seen from the
+  pocket (295.76, 276.99)) takes a Cross or
+  Circle prompt from its closest stands.
+- C3: A FIRION SCENE GATES PROGRESS (the
+  brief's lead 2): his field talk near gate
+  22 / the shelf is more than flavor in the
+  post-clear state - a scene variant advances
+  a story flag and a gate record changes.
+  Test: talk at both known spots post-clear;
+  re-read the gate table after.
+- C4: A ROUTE THROUGH THE GATE-13 FARM BOARD
+  (a second Stigma or a different exit).
+  Weak: boards have always exited to their
+  own gate. Kept for completeness; tested
+  only if C1-C3 all fail.
+- C5: RYUKAHN'S RECORD JOINS THE GATE TABLE
+  ONLY AFTER A FIELD EVENT (the Tree fight,
+  a boulder, a scene). Corollary of C1/C3:
+  re-read the gate table after EVERY leg-3
+  event, not just at boot.
+
+FINDINGS:
+(to be filled as the session runs)
