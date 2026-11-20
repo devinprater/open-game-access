@@ -12247,3 +12247,39 @@ handler), s58_press.py, s58_shot.py,
 s58_exit2.py, s58_decline_exit.py,
 s58_enter2.py / s58_enter3.py (entry with
 control proof before saving).
+
+### Session 59 addendum 48 - TRUE INTENT: THE CHAIN DOOR (2026-11-20)
+
+PLAN (from addendum 47 H): finish the Gateway of
+True Intent. Resume the PRIME bank s58_s58pir7nc_
+post2.state (Pirate beaten, Tree CHAIN CARD OPEN,
+Kain HP 1,560 at grid 23, Lv 14, gil 10,974) and
+take the chain into the Tree with rot4z - the
+chain route skips the Tree's ~20-rotation guard
+phase. If the chain trace stalls, do NOT plain-
+retry: fresh run, one more Pirate-kill level,
+back via the chain at higher level / fuller HP.
+Then the Fleeting Flash (disc 13, never fought -
+read its card, measure HP, bank first), BOTH
+chests (west rock + east rock; Suih's cells are
+approximate - cell 21 is empty ground), then the
+STIGMA OF CHAOS to finish the board. Bank KP at
+the end; never accept a chain at the finish.
+OPEN QUESTION from s58: did run 7's Pirate kill
+reach Lv 15? (standing at close said Lv 14 -
+verify from the prime bank and record.)
+Policy: rot4z (rot4 base; no-drift Triangle x2 /
+Square x2 race from foe <= 700 HP). rot4's base
+sequence is load-bearing; levers are the race
+threshold, the entry route, and LEVELS. Fights
+from a bank can be fully deterministic.
+Harness: s59_fight.py (declines chains), s59_
+fight_nc.py (leaves chain cards open), s58_press.
+py, s47_board.py. All runs in HELD FOREGROUND
+exec calls. Branch verified at 584738b, clean.
+Protected: s56_ti_resume.state. DEAD: s58_r3_
+start / s58_r3_at43 / s58_field_r5 / s58_r3_at33,
+s57_run2_start / s57_wedged.
+
+FINDINGS:
+(to be filled as the session runs)
