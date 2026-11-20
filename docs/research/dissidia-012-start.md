@@ -10388,3 +10388,78 @@ SE PADS: pt1 (331.1, 136.0) and mes pt26 (332.2,
 reachable pad exists to re-probe. No other pads
 are charted in the SE cluster. That part of the
 follow-on closes as not-applicable, not untested.
+
+GATE 17 RE-EXAMINATION (follow-on, post-LL, adv
+lineage): full re-walk from ch6_s48_bench1_final.
+state - bench -> pass road S (205.00, 223.06)
+[s51_w1_final.state] -> SE descent -> ruins
+approach (217.87, 194.39) [s51_w2_final.state] ->
+west road bend (207.24, 202.88) [s51_w3_final.
+state] -> pass (186.90, 216.85) [s51_w4b_final.
+state; the w4 run was cut by a tunnel drop at
+step ~15 and recovered from its committed
+scratch state at (188.72, 216.24) - no findings
+lost] -> (170.85, 219.65) [s51_w5_final.state] ->
+doorstep (157.01, 229.27) [s51_w6_final.state].
+NO manikin ambush anywhere on the pass in this
+lineage (state 2, gil 9,774 throughout; s42's
+False Stalwart did not appear post-LL). Fine
+stand converged to (155.91, 229.44) - the gate's
+collision face stops Kain 1.81 short of the
+anchor (154.1, 229.4), the same geometry as
+s42's test point and gate 11's lip. Screenshot
+s51_g17a.png: the IRON PORTCULLIS IS DOWN across
+the gatehouse arch; HUD reads Lv 10 / HP 1851 /
+Gil 9774 / KP 104. Cross at the face: dash only
+((155.91, 229.44) -> (155.93, 230.25)), state
+stays 2, no popup, no dialogue, no entry.
+VERDICT: gate 17 is STILL BARRED post-Legendary-
+Lake, unchanged from s42's pre-LL test. Its
+volume tester (k8, B 2) still reads live - live
+tester, barred gate, the same combination as
+gate 11 (k3, B 0). Post-Cross state:
+s51_g17test.state; clean stand: s51_w7_scratch.
+state.
+
+SESSION 51 VERDICT: gate 16 was NOT reached and
+its title card was not read. The session closed
+the last unmeasured land approach (the NE
+landmass east of the band end) and re-tested
+gate 17 post-LL. The working hypothesis is NOT
+confirmed: gate 17 is barred, and gate 16 -
+unreachable on foot from every side, pre- and
+post-LL - cannot be stood on to test. What the
+tester values say is still live: gate 22 (26/3,
+far north, unreachable), gate 16 (B 1, SE basin,
+unreachable), gates 11/17 (B 0 / B 2, barred
+portcullises), Hidden Darkness (A 28, the farm
+board). Every remaining candidate is barred or
+unreachable by the mechanisms mapped so far
+(foot travel + the fully-fanned quickmove
+network). Standing unchanged all session (no
+fights, no spending): Kain Lv 10, HP 1,851/
+1,851, gil 9,774, banked KP 104, Shiva +
+Rosetta Stone held, Firion assist. Boards done:
+Sunken Lake, Hidden Darkness, Legendary Lake.
+Remaining: Gateway of True Intent / Ryukahn,
+Exdeath Lv 18.
+
+NEXT SESSION'S LEAD: (1) consult the Chapter 6
+walkthrough/guide for the INTENDED route into
+the Gateway of True Intent and the SE basin -
+eleven sessions of measurement have mapped what
+the terrain forbids; the guide is the ground
+truth for what the game intends (adapter method
+step 1), and no session has yet checked it for
+this leg. (2) Gate 14's pocket post-LL re-check
+- the one SE-adjacent interior measured only
+pre-LL (sealed E/S then); reach it via the
+Z~166-175 shelf from ch6_s44_shelf.state's
+route, re-measured in the adv lineage. (3) The
+OBB_cpu transition points (e.g. DtoF at gate
+20's anchor (319.37, 193.65)) have never been
+probed as entry mechanisms. Resume states:
+s51_w7_scratch.state (gate 17 face), s51_e2_
+scratch.state (SE dead point), ch6_s49_e10_
+scratch.state (band end); master fallback
+ch6_s48_bench1_final.state.
