@@ -12283,3 +12283,62 @@ s57_run2_start / s57_wedged.
 
 FINDINGS:
 (to be filled as the session runs)
+
+A. LEVEL CHECK + FIRST CHAIN ATTEMPT (prime bank):
+- Screenshot of s58_s58pir7nc_post2.state read
+  firsthand: the bank rests on the Tree's VS
+  screen - "Lv 14 Kain Highwind" (Assist Firion)
+  VS "?" Lv 13, stage World of Darkness. ANSWER
+  to s58's open question: run 7's Pirate kill did
+  NOT reach Lv 15; Kain is Lv 14.
+- TREE VIA CHAIN from the prime bank, rot4z
+  (foe discovered 1,921 HP; Kain in at 1,560):
+  LOSS at rot 27, foe at 940 - 981 dealt. The
+  trace REPLAYED s58 run 7 almost exactly (foe
+  banked 1,299 BRV by rot 20 while Kain chipped
+  it to 1,306; the cash-in landed rot ~21-25,
+  1,560 -> 261; finished rot 27; the <=700 race
+  never fired). This bank's chain trace is
+  deterministic across boots. A materially
+  better attempt needs levels / fuller entry HP.
+
+B. FRESH-RUN DETOUR (s58_r6_start lineage) -
+  THE PIRATE WALLS THIS SESSION'S SAMPLES:
+Re-rolls are bank-determined: re-running the
+identical fight from s59_pir_prompt.state
+reproduced the loss BYTE-IDENTICALLY. Changing
+the bank (different nav path, or an idle-wait
+before prompting - new tool s59_nav.py) changes
+the trace. Samples (all Lv 14, rot4z):
+- GUNNER from a two-step nav bank: WIN 20 rots,
+  Kain 2,094 -> 1,913 (a ~181 cash-in). Re-rolled
+  via a one-shot nav bank: WIN 16 rots, Kain
+  UNTOUCHED. The Gunner re-rolls cleanly.
+- PIRATE (entry 1,913): LOSS r16, foe UNTOUCHED
+  (1,727; two early cash-ins, Kain's BRV pinned
+  <115 - broken repeatedly). Re-roll: LOSS r18,
+  foe 1,386.
+- PIRATE (entry 2,094, clean Gunner): LOSS r19,
+  foe 1,390 (no damage through rot 10; foe bank
+  1,014+ by rot 15).
+- PIRATE (idle-900 re-roll, entry 2,094): LOSS
+  r31, foe 863 - THE NEAR TRACE. Damage flowed
+  from rot 1; Kain at FULL HP through rot 15
+  while the foe held a ~921 bank; first cash-in
+  ~783 at rot ~17-20 (to 1,311); then Kain was
+  BROKEN (pool spiked 718) and a ~1,310 hit left
+  him at 1 HP; he fought on to foe 863 before
+  the next cash-in (895) killed him at r31.
+- PIRATE (idle-1800 re-roll, entry 2,094): LOSS
+  r16, foe 1,238 (cash-in ~1,087 by rot 5).
+The Pirate's kill mechanism in every loss: a
+~1,000-1,300 BRV bank cashed mid-fight; at Lv 14
+Kain survives one, not two, and his base-phase
+damage (~25-60/rot) makes fights run long
+enough to eat two. DECISION: stop sampling this
+lineage. Return to the PRIME lineage, back out
+of the Tree VS screen, exit/re-enter, and take
+one more Pirate kill there (the prime lineage
+carries the most EXP; its Pirate fell twice in
+s58) to reach Lv 15, then chain the Tree at the
+higher level with a fuller entry HP.
