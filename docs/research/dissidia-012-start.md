@@ -10885,3 +10885,14 @@ Firion assist. Branch verified at 699523f, clean.
 
 FINDINGS:
 (pending)
+
+SECOND ATTEMPT (recovery): the first attempt ended
+~4 min in for a process reason (it idled on a
+backgrounded log-check and its session closed) -
+not a game result. Its n1 march booted from
+s53_b2_final.state toward (227, 167) and was cut
+mid-first-probe-cycle: log s54_n1.log shows the
+start line only, no verdict. No s54_ processes
+survive (verified by pgrep). This attempt re-runs
+the north-face march fresh from s53_b2_final.state
+as prefix s54_n2, in the foreground.
