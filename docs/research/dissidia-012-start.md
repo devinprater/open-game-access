@@ -13623,3 +13623,90 @@ SHOP READ (live lineage, from s62_boot_check):
   s62_heavylance.state (cursor on Heavy
   Lance), s62_menu_exit3.state (field, state
   2, (292.50, 318.26)).
+
+G. THE CHEST LEDGE W OF THE KANAME_02 LANDING
+- STILL UNSTOOD (documented loose end):
+- From the landing (320.1, 301.34) the only
+  stands are the landing point itself and its
+  S lip (320.22, 298.09). A Circle lunge
+  funnels to the S lip; Triangle there boards
+  nothing; Cross dashes at the lip move
+  nothing. No W crossing exists from the
+  landing.
+- From below: a march from the shelf (288.34,
+  286.77) toward (312, 300) climbs the kaname
+  shelf top and stalls at (307.55, 296.87),
+  5.4 units short - a face under the ledge.
+- With s61's failed rim dashes, the ledge is
+  recorded as a documented loose end: a
+  golden chest, visible and unstood, contents
+  unknown - the same family as the moogle
+  mesa's floating ledges.
+
+H. SESSION 62 CLOSE
+- Standing UNCHANGED all session (no fights,
+  no purchases, nothing spent): Kain Lv 23,
+  HP 2,639/2,641, gil 14,850, banked KP 109,
+  Firion assist, Shiva + Rosetta Stone held.
+  Live-lineage field bank: s62_menu_exit3.state
+  ((292.50, 318.26), state 2). Lineage head
+  remains s60_fin3.state. PROTECTED
+  s56_ti_resume.state untouched.
+- HEADLINE: the deep south is now measured
+  end to end and it is all dead ends - gate
+  14's pocket (S/E faces closed; exits = the
+  chute N and the shelf W), the shelf (a
+  through-route W to a pinch at X~=264; the
+  chest-candidate segment stays islanded),
+  and gate 20's yard (the corridor's E end;
+  no east-coast route S). Gates 15/16 have no
+  southern approach from any measured ground.
+  Kaname_01 was ridden: a scenic two-way line
+  to a dead-end ledge, like kaname_02. The
+  chest ledge W of the kaname_02 landing
+  stays unstood. THE SESSION'S REAL WIN: the
+  state-11 menu blocker is SOLVED (ticker
+  lock + long-hold Circle exit) and the Shop
+  is read - the moogle shop's stock was
+  reachable from the menu all along; the
+  field mesa need not be stood on for
+  shopping. Nothing bought (Heavy Lance is a
+  -37 HP / +4 ATK sidegrade at 8320).
+- The gate table was re-read fresh (GateMgr
+  0x095D5C20): no unentered gate reads live;
+  gate 13 (A 27) is the only live record, the
+  replayable farm. Ryukahn remains unfound
+  and is not a standard field gate among
+  11-22 by tester signature, this boot too.
+- Resume banks: s62_boot_check.state /
+  s62_menu_exit3.state (live field head);
+  s62_shop_open.state + s62_heavylance.state
+  (shop, mid-browse); s62_g14_home.state +
+  s62_g14_*.state (pocket survey);
+  s62_shelfW_final.state (shelf W end);
+  s62_g20_*.state (gate 20 yard survey);
+  s62_kan01_fine.state + s62_kan01_after.state
+  (kaname_01 stands); s62_chest_home.state.
+- NEXT SESSION'S LEADS, in order: (1) the
+  guides against the measurements - Suih's
+  Chapter 6 route past True Intent assumes a
+  Ryukahn board exists; with every field gate
+  accounted for, re-read the guide text for
+  HOW Ryukahn is entered (a story trigger? a
+  gateway that activates after a field event?
+  the chapter may route through the gate-13
+  farm board's second Stigma or a Firion
+  scene first). (2) Firion's field talk fired
+  twice as flavor; check whether a Firion
+  scene near gate 22 / the shelf advances
+  anything (his s61 line: "Our chances may
+  yet improve if we just keep fighting").
+  (3) The moogle mesa + chest ledge +
+  east-bay chest segment: one family of
+  floating scenery; try the mesa's stone arch
+  (its N end) as a prompt point with
+  Cross/Circle from the closest stands before
+  writing them off for good. (4) Exdeath
+  Lv 18 waits on the Ryukahn board; the
+  probe plan (fresh full-HP bank, card + HP
+  firsthand, rot4z) carries over unchanged.
