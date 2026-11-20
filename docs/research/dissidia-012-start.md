@@ -10734,3 +10734,20 @@ attack-negative at the same terminus, approach A is
 closed from this point. (Walk stopped after step 0;
 the stall protocol would only have re-measured
 session 52's negative.)
+
+B. APPROACH B TRANSIT (in progress). New tool:
+s53_march.py - probe once per cycle, then MARCH the
+winning stick up to 4 pushes (early stop on <0.3 gain
+or state change); same stall protocol as s52_walk.
+Cuts loadstates ~4x on open ground. Legs so far:
+bench (189.30, 245.99) -> junction mesh: plain walker
+3 steps to (194.49, 242.04), then march cycles via
+(200.36, 239.92) and (203.71, 236.45) - within 1.3 of
+session 49's mesh waypoint (204.80, 235.73). Mesh ->
+ruins approach (218.12, 194.18) as ONE greedy target:
+road followed through the pass (cycle lines corrected
+the drift each cycle), passing (204.55, 221.39) at the
+pass-road waypoint. Gil 9,774 throughout, no events.
+Remaining chain (s53_chain.py, exit-code gated):
+gully foot (194.6, 160.7) -> arch (211.5, 152.0) ->
+(231, 150) -> CROSSING to (231, 162) -> (227, 167).
