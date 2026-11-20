@@ -11229,3 +11229,72 @@ CAUTION: s55_n250_step10.state is CORRUPT (loads
 to (0.00, 0.00), state68=0 - the cycle-10 step
 save caught a transient). Do not use it.
 s55_n250_final.state (278.58, 241.29) is sound.
+
+H. ORB TESTS - ALL NEGATIVE (lead 1 verdict):
+- id=136 (278.0, 250.0), reached via the west
+  shelf + ramp (section I): Circle lunge from
+  (277.22, 250.58) passed within ~0.10 of the
+  point - no popup, no state change, gil same.
+- The Z~250 terrace cluster: stood ON it at
+  (284.93, 252.62) - 0.4 from kind=2 id=231
+  (285, 253), ~1.0-1.4 from kind=0 ids 1063
+  (285, 254) / 222 (284, 253). Cross dashed over
+  (285, 254); Circle x2 at the terrace's N edge
+  (285.22, 254.58) - no event, gil unchanged.
+- id=1168 (285.3, 219.8), the prime candidate:
+  REACHED its plateau - the exit's E wall ends
+  at Z~226-229, and the plateau at Z~220-229 E
+  of the exit is walkable (marched E along
+  Z~226-229 through the id=157/id=104 band, then
+  S along X~282-284; ARRIVED (283.83, 219.56),
+  1.49 from the record). First time any session
+  has stood on this ground. Circle lunges from
+  the stand sweep +Z (camera-determined) and did
+  not clip the point dead-on, but with the two
+  dead-on negatives above the pattern is uniform.
+VERDICT: the guide's orb is a route LANDMARK,
+not an activator this lineage can use. Every
+reachable candidate record is inert to contact,
+Cross and Circle post-Legendary-Lake. Either the
+live set's orb record cannot be distinguished by
+interaction, or this segment's orb is not spawned
+in the current story state. Nothing on the route
+is gated by an orb strike we can perform; the
+route is the GROUND, and the ground is opening
+(sections E-I). One untested candidate remains:
+kind=1 id=224 (280.0, 234.0) - kind 1 was the
+PROLOGUE orb's kind (id 9 at (107, 24)); the
+kind semantics may differ per map. Next session.
+
+I. THE TERRACE SYSTEM (new ground): from the
+ledge pocket (278.58, 241.29) the march went W
+along the ledge to (273.83, 241.83), stall-dashed
+W onto a WEST SHELF (266.31, 245.09), ran E along
+Z~245 ((267.92, 245.55), (269.59, 245.43),
+(271.12, 244.74)), then climbed a clean +Z ramp
+at X~273-275 - (272.78, 245.24), (273.40, 246.80),
+(274.02, 248.36) - ARRIVED (274.64, 249.92). The
+Z~250 TERRACE runs E from there: (277.22, 250.58),
+(281.52, 249.63), (284.93, 252.62), N edge
+(285.22, 254.58). States: s55_cn_final.state,
+s55_o136_final.state, s55_clus_final.state. This
+terrace + the E plateau (section H) + the high
+strip (section G) are one connected high country
+N of Legendary Lake that the mirrored-compass
+era never reached.
+
+J. CENSUS C (lead 2 verdict): from
+s55_o1168_final.state (E plateau stand, after
+the corridor/terrace/plateau walks): list0
+0x095D2F40, 196 records, IDENTICAL to census A
+row for row. With census B (3,600 frames idle,
+also identical), the pint table is STATIC across
+time and travel. The roaming Fallacious Tree is
+NOT a pint record - it is an actor-table entity
+(Firion likewise has no pint record near his
+stand). No Tree contact occurred on any ground
+walked today: every march ended ARRIVED /
+MAXCYCLES / STALL, never EVENT; state68 = 2 in
+every probe. Interception method going forward:
+walk the "follow the water" ground and watch
+state68; the pint-diff method is closed.
