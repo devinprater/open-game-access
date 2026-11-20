@@ -10777,3 +10777,22 @@ edge there is water or wall. Chain killed by hand at
 C4 cycle ~6. Follow-up: s53_xprobe.py scans crossings
 at X=222, 238, 248 (strip walk + best-heading pushes,
 max Z reached is the readout).
+
+D. CROSSING SCAN (s53_xprobe.py, from
+s53_c3_final.state). X=222: BLOCKED - pushes north
+from (222.51, 149.91) top out at Z=151.68; the edge
+at Z~151.5 slides him east, same wall as X~230.
+X=238 and X=248: strip points at Z=150 unreachable -
+east of X~235 the shoreline bends away south (greedy
+died at (235.46, 147.09) and (243.29, 142.93)); the
+coast at Z~140-147 is the walkable line there (as
+session 41 found), and its north edge is unprobed.
+KEY REFRAME: session 39 measured the wall north of
+the arch at Z~161-163 (X~211) - ten units beyond the
+strip edge at X>=222. So the bay's south shore is a
+SHELF at Z~160-167 whose south face drops at Z~151.5
+east of X~222 but rounds down to the arch lowland at
+X~211. Both chest candidates sit on that shelf. The
+way in is up at the arch's longitude, then east along
+the shelf - NOT across the strip. Test running as
+walk s53_d1: arch state -> (227, 167) direct.
