@@ -10751,3 +10751,9 @@ pass-road waypoint. Gil 9,774 throughout, no events.
 Remaining chain (s53_chain.py, exit-code gated):
 gully foot (194.6, 160.7) -> arch (211.5, 152.0) ->
 (231, 150) -> CROSSING to (231, 162) -> (227, 167).
+B2 ARRIVED: mesh -> ruins approach in 10 march cycles,
+no stalls, no events: final (217.06, 195.70), 1.85
+from the (218.12, 194.18) target; state
+s53_b2_final.state. The road line (pass S, SE descent)
+was followed greedily the whole way - the s49 trek
+route is march-walker clean end to end.
