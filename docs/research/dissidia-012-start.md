@@ -10006,3 +10006,50 @@ pressed Cross. If the portal is an interactable
 teleport, it is the likeliest door into the far north.
 Trek state: ch6_s49_e11_scratch.state at the stall
 (287.62, 192.98); band-end state ch6_s49_e10_scratch.
+
+NORTH ROAD + RIFT PORTAL TEST: from Firion's ruins the
+road runs W then N at X~213-219 (walked (221.86, 193.67)
+-> (216.00, 207.87) -> bend (219.20, 224.12)), then NE
+along the mountain foot to the shelf (228-235, 229-233);
+Kain reached (234.33, 229.40). Screenshot from the
+shelf: snow peaks wall the view; a small stone frame
+shows through a ridge notch far NE and a tower-like
+silhouette sits on a central peak - the s41 "dark rift
+portal" is DISTANT SCENERY, not an interactable. Three
+Crosses at the shelf edge: plain dashes (state stayed
+2, gil unchanged) - the first dashed him OFF the shelf
+onto a narrow lower ledge at (235.60, 222.65), a scenic
+pocket a few units wide (walker stalls in every
+direction from (235.71, 224.00)). No teleport, no
+scene. Portal hypothesis CLOSED. The Z~220 band east
+of the ridge (pint kind-2 at (285.3, 219.8)) is not
+reachable from this ledge.
+
+SESSION 49 VERDICT on far-north access: every land
+approach is now measured closed - bench north (wall),
+junction pocket (drains SE), east band + X~290 ridge
+(one crossing, the Z~166-175 shelf, ending in the
+boxed gate-14 pocket), north road (ends at the portal
+shelf; portal is scenery), dash ledge (pocket). The
+far north (pt3 pad (292.7, 301.0), kaname_02 (304.8,
+296.5), gate 22's anchor pt15 (292.5, 312.0), the
+dressed pint corridor X 278-336 / Z 245-303) must be
+entered by a non-walking mechanism. Untried: a
+systematic re-ride of the quickmove network hunting a
+ridge-crossing segment (s45 mapped only the SW fan),
+and the volume-family gates {11, 16, 17} - gate 11's
+post-Legendary-Lake re-test via pt0's ride is still
+owed (brief lead 2), as are the moogle point (196,
+144) re-check (lead 3) and the pt18 stand-test (lead
+4); all three are south-map work for next session.
+
+STANDING (unchanged all session - no fights, no
+spending): Kain Lv 10, HP 1,851/1,851, gil 9,774,
+banked KP 104, Shiva + Rosetta Stone held, Firion
+assist. RESUME STATES: ch6_s49_nr4_scratch.state
+(portal shelf, (234.33, 229.40), walkable) for the
+north road; ch6_s49_e10_scratch.state (east band end,
+(288.83, 199.37)) for the east; master fallback
+ch6_s48_bench1_final.state (bench). Do NOT resume
+from ch6_s49_portal.state - it sits in the dash-ledge
+pocket (235.60, 222.65), exit unproven.
