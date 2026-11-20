@@ -12103,3 +12103,21 @@ visible on the board (west rock + east rock).
   Roughly tripled over 3 levels; the cross
   looks like Lv 15-16 at this slope. The grind
   continues (Pirate = ~+1 level per kill).
+
+D. RUN 4 (from run 3's post-Gunner bank; Kain
+Lv 13, HP 2,033, gil 10,440):
+- PIRATE (disc 22, HP 1,727), rot4x: LOSS at
+  rotation 58, foe at 74 HP. A different trace
+  from run 2's 16-rotation win: the Pirate
+  cashed 1,111 by rot 5 (2,033 -> 922), then a
+  long grind (Kain stable at 688-770, foe
+  falling steadily) ended when the foe's second
+  big build (BRV 1,051 at rot 45) cashed in at
+  rot ~56-58 with the foe at 74. The endgame
+  race (threshold 120) fired only at rot 55 -
+  too late. LESSON: the Pirate's early cash-in
+  is the swing factor between traces; per the
+  brief, the fix is the endgame THRESHOLD, not
+  the base sequence. Added mode rot4y to
+  s58_fight.py (race from foe <= 300 HP) and
+  retried from the same bank.
