@@ -14592,3 +14592,60 @@ same northern-segment tables as s62/s63):
   entry if so) or Frozen Continent. Roamers on
   the leg per guide: Transient Witch Lv8, False
   Stalwart Lv6.
+
+B. FIELD LEG CROSSED; gate03_03 = SOLITUDE AND
+TREACHERY (title card read firsthand); board
+entered, censused, NOT played (optional Blue,
+out of scope); clean exit back to the field.
+- MARCH: s61_march28 from (260.2, 345.8) to
+  target gate03_03 (211.98, 307.01): 16 steps,
+  arrived (212.91, 306.28), state68 2 the whole
+  way, gil 18,200. NO roamer contact - the
+  guide's Transient Witch Lv8 / False Stalwart
+  Lv6 did not intersect this line (the road runs
+  SW then S along the coast). Bank:
+  s67_m1_final.state.
+- ENTRY LESSON (new): Cross at 1.18 and at 1.33
+  units from the anchor did NOT fire (two
+  stands, NE and SW of the anchor). A 10-frame
+  stick nudge toward the anchor closed to
+  (211.83, 307.55), 0.57 units, and Cross fired:
+  state68 2 -> 20, grid 21. The gateway info
+  panel only renders at close range and this
+  gate's trigger radius is far tighter than
+  True Intent's 1.83 (s56). RECIPE: march to
+  ~1 unit, nudge toward the anchor, Cross.
+  (Control note: re-entry at the spent Melting
+  Snows gate also did not fire - consistent
+  with its A=-1/state 5 record in sec A: a
+  cleared story gate goes dark.)
+- TITLE CARD (firsthand, gateway panel on the
+  field after exit): "Solitude and Treachery",
+  KP Chance: Win within 90 seconds, Rules:
+  Disabled, Skills: Enabled. The entry dialogue
+  line ("I'm sure everyone's fine... I'll see
+  you all soon.") matches the atwiki script at
+  the Solitude and Treachery position. So
+  gate03_03 = Solitude and Treachery (Blue,
+  optional). CORRECTION to sec A: its k->gate
+  pairing for k=1/k=5 was transposed; the
+  title card is the authority.
+- BOARD CENSUS (start grid 21): exists discs
+  {3,4,5,6, 12,13,15, 20,21,22,23,25, 32,33,35,
+  43,44,45,46} (19); Stigma structure on the
+  disc W of start. Board KP 0, banked KP 116,
+  Tifa Lv 7 HP 1364. NOT played. Bank:
+  s67_g03_board.state. (Also noted: Tifa's
+  Skill panel shows Cross Chain owned, on both
+  field and board HUDs.)
+- EXIT: pause (Start) -> Exit Gateway ->
+  confirm defaults NO, Left + Cross = YES:
+  state68 20 -> 0 -> 2, landed on the FIELD at
+  the gate, gil/KP unchanged. A field-entered
+  board exits back to the field (contrast
+  s66 sec D: the chapter-shell board's exit
+  landed on the Story Mode title card). Bank:
+  s67_st_exit.state.
+- NEXT: march W to gate03_04 (133.47, 286.67),
+  the next live western gate - Frozen Continent
+  is expected there or at gate03_05.
