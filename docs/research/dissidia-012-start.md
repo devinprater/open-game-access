@@ -14649,3 +14649,44 @@ out of scope); clean exit back to the field.
 - NEXT: march W to gate03_04 (133.47, 286.67),
   the next live western gate - Frozen Continent
   is expected there or at gate03_05.
+
+C. WEST LEG: WITCH CONTACT + LOSS (rot4z cannot
+touch her); the plateau ends at a spur (X~133);
+gate03_04 is lowland across a mountain wall.
+- MARCH W from the S&T gate toward gate03_04
+  (133.47, 286.67): at (194.06, 301.97) state68
+  2 -> 5: ROAMER CONTACT. VS card firsthand:
+  Tifa Lv7 vs "?" Lv8, stage Dream's End = the
+  guide's Transient Witch Lv8 (FF wiki HP range
+  1,424-1,618; discovered foe_hp = 1,424).
+- FIGHT (s60_fight rot4z, from the VS bank):
+  RESULT LOSS, 86 rotations. Foe HP NEVER moved
+  (1,424 wire to wire); her BRV sat at 142 and
+  broke Tifa repeatedly (1364 -> 0 in ~142 HP
+  steps). STRUCTURAL: the Witch (ranged caster
+  manikin) hard-counters the melee rot4z policy
+  - it whiffed for 86 straight rotations. Not a
+  luck problem; do not re-run this matchup with
+  rot4z. The loss lived only in that drv
+  session; play resumed from the pre-leg bank.
+- RE-MARCH with an 1,800-frame idle-roll first
+  (roamer positions are time-based): NO contact.
+  But the road W is a snowfield bowl along a
+  mountain wall: greedy marches stall in a
+  pocket at (130.34, 303.08) - all 8 probes
+  fail there, E is the only exit - and the
+  ridge crest funnels (149.56,319.08) ->
+  (137.74,316.06) -> (135.01,314.16) ->
+  (133.61,312.04) -> stall. gate03_04 at
+  (133.47, 286.67) is 16 units S of the pocket,
+  across the wall: NO descent found anywhere
+  along X 130-210. gate03_05 (48.33, 262.18)
+  reads A=-1 (dark); the other live western
+  gate is gate03_07 (-67.91, 305.5, A=33),
+  also cut off by the spur.
+- DECISION: the lowland must be reached by the
+  KANAME network (the proven elevation-crossing
+  mechanic, s63): kaname_03 (41.25, 290.64)
+  sits in the low W. Backtrack E to the
+  Melting Snows area, then N to kaname_01
+  (300.44, 338.65) and ride the stones W.
