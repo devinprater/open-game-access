@@ -14373,3 +14373,78 @@ Chapter 6 is unfinished). Changes:
   identities (13 = Hidden Darkness, 19 = Legendary Lake, 22 =
   True Intent, POS_gate03_01 = Ryukahn) were not encoded; gate
   tables are segment-scoped in any case.
+
+### Session 66 addendum 55 - CHAPTER 7 OPENS: MELTING SNOWS (2026-11-21)
+
+A. GUIDES FIRST (Suih faqs/62070, read in full for Ch.7;
+FF wiki Treachery of the Gods/Chapter 7; atwiki script):
+Chapter 7 - Ally, lead Tifa. Board order: (1) Gateway of
+Melting Snows [KP chance: Win battle; Bonus Line 2; chest =
+Pearl Necklace; Imaginary Brawler Lv4 (disc per guide pos 1),
+Ephemeral Summoner Lv4 (2), Imaginary Brawler Lv1 (3), Idle
+Sky Pirate Lv1 (4); S = Magic Pot AUTO summonstone], then a
+field leg (Transient Witch Lv8, False Stalwart Lv6), (2)
+Solitude and Treachery (Blue, optional) [Win in 90s; chest
+1000 gil; Imitation Despot Lv1, Delusory Dragoon Lv1,
+Ephemeral Vision Lv4, Counterfeit Wraith Lv4, Fleeting Flash
+Lv4], (3) Frozen Continent [Win in 90s; Bonus Line 6; chest
+Metal Knuckles; Ephemeral Summoner Lv1, Fleeting Flash Lv4,
+Imaginary Brawler Lv4, Delusory Dragoon Lv1, Imaginary
+Brawler Lv4, Fallacious Tree Lv16; B = ULTIMECIA Lv12, the
+chapter boss; P = Potion; guide: reach position K and use a
+Straight Chain], field (Transient Witch Lv6), (4) Snow of
+Sorrow (Blue, optional) [Win in 90s; chests Wakizashi + Cyan
+Drop; Counterfeit Wraith Lv7, Fleeting Flash Lv11, Ephemeral
+Summoner Lv11, Transient Gunner Lv7, Imaginary Brawler Lv11],
+field (False Stalwart Lv6, Transient Witch Lv8), (5)
+Solitude and Treachery revisited (chest unknown to Suih),
+(6) Ryukahn Gateway [Win battle; Bonus Line 12; chest White
+Drop; A = Kain talk piece; Fleeting Flash Lv10, Ephemeral
+Summoner Lv10, Imaginary Brawler Lv11, Delusory Dragoon
+Lv11; NO boss piece - the chapter closes on the Kain scene].
+FF wiki adds field treasures Pink Tail and 500 gil. NOTE:
+Ch.7's Ryukahn board is a DIFFERENT board from Ch.6's
+Ryukahn (different disc set) - do not reuse the Ch.6 table.
+
+B. THE OPEN (from s65_ch6_complete.state, the chapter
+shell): the shell shows Chapter 7 - Ally, Tifa Lockhart Lv1.
+Cross at <1800 frames after loadstate is eaten by the
+shell's settle/banner; after an 1800-frame settle Cross
+opens "Play this story? YES/NO" (YES default), Cross
+confirms. The chapter intro (subtitle card "Tifa fights
+alone against the manikins that obstruct the way to her
+friends.") rides at state68 21 and needs periodic Cross
+presses; the board goes live when the board-manager pointer
+(0x095D123C) equals RECORDS + 8*grid. First board reached
+with NO field leg - the chapter opens directly onto the
+Gateway of Melting Snows board (state68 21 throughout, the
+chapter-shell lineage like Ch.1's Crescent Lake board).
+- KP CONFIRMATION: the board HUD reads Gil 18056, **KP
+  113** - the derived banked KP from addendum 53 sec D is
+  CONFIRMED exact. (The KP holder cell reads the board
+  gauge, 0 on entry; the HUD total is the banked figure.)
+- BOARD CENSUS (measured fingerprint, exists discs):
+  rows z=-12..4, x=-18..2: {0,2,4, 10,11,12,15,
+  20,21,22,23,24,25, 32,33,35, 40,42,44}. This matches
+  Suih's Melting Snows diagram cell-for-cell, so: disc 2 =
+  Magic Pot AUTO (S), disc 12 = Brawler Lv4 (1), disc 20 =
+  deploy (Tifa start), disc 22 = chest (Pearl Necklace),
+  disc 23 = Brawler Lv1 (3), disc 24 = Sky Pirate Lv1 (4),
+  disc 35 = Stigma of Chaos (G), disc 42 = Summoner Lv4 (2).
+- OPENING DIALOGUE: the first input on the board (a
+  Triangle press meant for the menu) triggered the board's
+  scripted scene instead: Tifa "Phew. That's most of them.
+  Now's my chance to get outta here!" (the Magic Pot scene
+  per the game script), then two tutorial cards ("Tifa is
+  skilled in hand-to-hand combat. Get close to an opponent
+  and attack." / "The character in your control has
+  changed. Check equipment in the customization menu.").
+  Cross advances; the board is clean after ~4 pages.
+- TIFA'S START (Customization -> Equipment, firsthand):
+  Lv 1; HP 1000/1000; CP 265 used / 330; BRV 95; ATK 49;
+  DEF 12; LUK 10. Every equipment bonus reads +0 - the
+  s39 empty-slots pattern holds for the Ch.7 lead: she
+  fights on base stats until geared. Harness: s66_fight.py
+  = s60_fight.py with the rotation guard widened to
+  state68 in (20, 21) and a KP-gauge readout post-win
+  (this chapter's boards and battles ride at 21).
