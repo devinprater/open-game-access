@@ -14448,3 +14448,104 @@ chapter-shell lineage like Ch.1's Crescent Lake board).
   = s60_fight.py with the rotation guard widened to
   state68 in (20, 21) and a KP-gauge readout post-win
   (this chapter's boards and battles ride at 21).
+
+C. VISIT 1 (Melting Snows, first clear attempt): chest at
+22 opened (obtained card not captured; Pearl Necklace per
+guide). Brawler Lv1 (23): foe HP 1000 measured; WIN 37
+rots rot4z; Tifa 1000 -> 703 (level-up heal -> Lv 2);
+gil +6 = 18,062; gauge 1. Sky Pirate Lv1 (24): foe 1000;
+WIN 32 rots; 703 -> 553 (-> Lv 3); gil 18,068; gauge 2.
+Brawler Lv4 (12): foe 1023 (wiki exact); WIN 25 rots;
+553 -> 41 (two big cash-ins); gil +36 = 18,104; gauge 3;
+no level-up. Magic Pot (2): scene played firsthand
+("Gimme an elixir!"), AUTO summonstone obtained. Summoner
+Lv4 (42): foe 1023; idle-0 LOSS at rotation 1 - the foe's
+opening killed her at 41 HP. HP growth measured: Lv 2
+1061 (+61), Lv 3 1121 (+60), Lv 4 1182 (+61), Lv 5 1242
+(+60). Max CP also grows: 330 at Lv 1, 335 at Lv 5.
+
+D. EXIT-HEAL + CONTINUE (new for this chapter's shape):
+with gauge 3 unbanked and Tifa at 41 HP, exit via pause
+(Start) -> Exit Gateway; the confirm dialog DEFAULTS TO
+NO (Left -> YES -> Cross). Because this chapter has no
+field leg before its first board, exit lands on the Story
+Mode title card, not a field pocket. From the shell:
+Start opens the Story Mode info menu (Circle closes it);
+Cross on the scenario banner -> "There is a story in
+progress - Continue / Return to story selection menu" ->
+Continue drops DIRECTLY back onto the Melting Snows
+board, fully reset, Tifa at FULL HP, levels/gil kept,
+gauge 0, and the opening dialogue does NOT replay.
+Cleaner than Ch.6's field exit-heal. CHESTS DO NOT
+RESET: on revisits disc 22 is plain walkable floor - the
+Pearl Necklace is once per chapter, no second copy, gil
+unchanged on re-crossing.
+
+E. RE-CLEAR 1 (visit 2): Brawler Lv1 WIN 19 rots, ZERO
+damage; mid-fight level-up -> Lv 4 (1182); gauge 1; gil
+18,110. (Post-win chain-decline dance displaced the pawn
+to grid 20 - verify pawn position after every fight.)
+Pirate Lv1 WIN 26 rots, ZERO damage; Lv 5 (1242); gauge
+2; gil 18,116. Brawler Lv4 (foe 1023) WIN 55 rots - the
+foe sat at 1 HP from rot 45 to 55 while the endgame race
+whiffed; Tifa 1242 -> 268; gil 18,152; gauge 3. Summoner
+Lv4 at 268 HP: idle 0 / 900 / 1800 / 2700 ALL LOSE - she
+lands one hit (175-327) and dies to the foe's first
+cash-in (~255-330) around rot 8. LESSON: the Summoner is
+a burst foe; engage it at high HP, not last in the order.
+
+F. RE-CLEAR 2 (visit 3, reordered) + STIGMA: second
+exit-heal/Continue cycle (same mechanics as sec D).
+BOARD-ENTRY WAKE-UP: a fresh Continue bank eats D-pad
+input until ~8 spaced Cross presses / ~3000 frames pass;
+focus reads junk (a6772dbd) until the board wakes, then
+snaps to a real record. The known-good s66_cont_end
+bank behaves identically - an entry-settle property, not
+corruption. New order: Brawler Lv1 WIN 12 rots, ZERO
+damage -> Lv 6 (1303); gauge 1; gil 18,158 (a chain
+toward disc 12 was offered and declined). Pirate Lv1 WIN
+27 rots but took 332 (foe parked at 1 HP rots 20-27);
+971 left; gauge 2; gil 18,164. Summoner Lv4: FOE HP
+RE-ROLLED TO 1340 this visit (1023 on visits 1-2) - the
+stale 1023 key returned NO_BLOCK; discover mode
+(FOEHP=0) found it. WIN 35 rots: no damage through rot
+30, one 802 cash-in at rot 35, level-up heal at the kill
+-> Lv 7 (1364); final HP 230; gil +36 = 18,200; gauge 3.
+Brawler Lv4 at 230 HP: idle-0 and idle-900 both LOSS at
+rot 2 (opening cash-in >= 230) - CONCEDED; its 1 KP is
+the only Melting Snows KP left unbanked. Magic Pot
+skipped (stone already owned from visit 1). STIGMA
+(disc 35): the prompt needs a PATIENT press - from 25 a
+single Down press + ~600 frames registers focus ==
+record_of(35); the hop helper's rapid presses never
+landed it and its opposite-direction fallback walked the
+pawn to 15. Cross from the prompt -> state68 3, the
+post-board scene (Tifa: "I'm - exhausted.") -> field
+live (state68 2). PAYOUT VERIFIED firsthand on the
+field HUD: **KP 116 = 113 banked + 3 gauge**; HP fully
+restored 1364/1364; gil 18,200. GATEWAY OF MELTING
+SNOWS COMPLETE.
+
+G. STANDING + BANKS + LESSONS (session 66 wrap):
+Tifa Lv 7, HP 1364/1364, gil 18,200, banked KP 116.
+RESUME BANK: s66_y_field.state - the field leg after
+Melting Snows (roaming Transient Witch Lv8 / False
+Stalwart Lv6 per guide; ahead: Solitude and Treachery
+(Blue, optional), then Frozen Continent with ULTIMECIA
+Lv 12). Other banks: s66_x2_cont_end.state (visit-3
+board entry), s66_y_prompt42.state / s66_y_prompt12.state
+(visit-3 prompts), s66_y_sum_disc_post2.state (Summoner
+beaten, gauge 3), s66_probe35.state (Stigma scene, state
+3). Harness lessons: (1) foe HP re-rolls per board VISIT
+with wide variance (Summoner 1023 -> 1340, +31%) -
+discover mode is the safe default on a fresh visit; a
+stale HP key yields NO_BLOCK, not an error. (2) Burst
+foes set the clear order: highest-burst piece first at
+full HP; idle sampling does not rescue a bad order
+(4/4 losses at 268 HP). (3) The rot4z endgame race can
+stall on a 1-HP foe for 8-11 rotations - budget HP for
+the stall. (4) Stigma prompts and Continue board
+entries both need patient, spaced inputs; rapid-fire
+presses are eaten. (5) drv "shot" writes Netpbm PPM
+whatever the extension says; s66_census.py takes a BARE
+filename (it prepends the d12s path itself).
