@@ -327,6 +327,24 @@ int main(){
   ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 12. Delusory Dragoon here. Left: Firion on disc 11. Right: disc 13, empty. Up: ??? on disc 2. Down: nothing.","ryukahn disc 12");
   ram[0x095cd410]=0x08b82a30u+8u*2u; a->on_frame(); CHECK(said.back()=="??? \u2014 Engage this piece to find its true form. Engage / Cancel","ryukahn stigma prompt");
   ram[0x095cd410]=0x08b82a30u+8u*12u; a->on_frame();
+  // Session 68: Chapter 7's Solitude and Treachery (a 90-second board).
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {3,4,5,6,12,13,15,20,21,22,23,25,32,33,35,43,44,45,46}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*21]=0xC1600000u; ram[0x095cd570+0x40*21+8]=0xC0800000u;   // entry disc 21 at (-14,-4)
+  ram[0x095cd570+0x40*20]=0xC1900000u; ram[0x095cd570+0x40*20+8]=0xC0800000u;   // Stigma disc 20 at (-18,-4)
+  ram[0x08b82a24]=21; ram[0x095d123c]=0x08b82a30u+8u*21u; ram[0x095cd410]=0x08b82a30u+8u*21u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 21, the entry disc. Left: Stigma of Chaos on disc 20. Right: disc 22, empty. Up: nothing. Down: nothing.","solitude entry");
+  ram[0x08b82a24]=13; ram[0x095d123c]=0x08b82a30u+8u*13u; ram[0x095cd410]=0x08b82a30u+8u*13u;
+  a->on_frame(); CHECK(said.back()=="On disc 13. Left: Imitation Despot on disc 12. Right: nothing. Up: Ephemeral Vision on disc 3. Down: disc 23, empty.","solitude disc 13");
+  ram[0x095cd410]=0x08b82a30u+8u*3u; a->on_frame(); CHECK(said.back()=="Ephemeral Vision \u2014 Lv 4. Battle stage: Old Chaos Shrine. KP chance: Win within 90 seconds. Engage / Cancel","vision prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*13u; a->on_frame();
+  ram[0x08b82a24]=33; ram[0x095d123c]=0x08b82a30u+8u*33u; ram[0x095cd410]=0x08b82a30u+8u*33u;
+  a->on_frame(); CHECK(said.back()=="On disc 33. Left: Delusory Dragoon on disc 32. Right: nothing. Up: disc 23, empty. Down: Counterfeit Wraith on disc 43.","solitude disc 33");
+  ram[0x095cd410]=0x08b82a30u+8u*32u; a->on_frame(); CHECK(said.back()=="Delusory Dragoon \u2014 Lv 1. Battle stage: Ultimecia's Castle. KP chance: Win within 90 seconds. Engage / Cancel","dragoon prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*33u; a->on_frame();
+  ram[0x095cd41c]=0x08b82a30u+8u*6u; a->on_frame(); CHECK(said.back()=="Scan: disc 6. Treasure Chest \u2014 Contains helpful items.","scan solitude chest");
+  ram[0x095cd41c]=0xFFFFFFFFu;
   // Session 46: Hidden Darkness is NOT tabled -- its Chapter 6 instance
   // shares this fingerprint with different pieces, so the board must be
   // announced generically, pieces never named.
