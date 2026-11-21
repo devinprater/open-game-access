@@ -8,8 +8,9 @@
  * routes PSP addresses to psp_debug_read here.
  *
  * Runtime configuration (fixed, not negotiable without re-proving):
- *   CPU = IR interpreter (no JIT: iOS has no MAP_JIT under a free sideload,
- *     same reason the DS core runs its interpreter).
+ *   CPU = IR interpreter on iOS (no JIT: iOS has no MAP_JIT under a free
+ *     sideload, same reason the DS core runs its interpreter). Android
+ *     arm64 runs PPSSPP's IR JIT instead -- see psp_core.cpp.
  *   GPU = software rasterizer, read back on CPU (no GL context on iOS here).
  */
 #ifndef PSP_CORE_H
@@ -93,6 +94,13 @@ bool psp_load_state(PspCore *core, const char *path);
 unsigned long long psp_frames_completed(PspCore *core);
 const char *psp_last_error(PspCore *core);
 
+/* The session's CPU core mode in plain terms ("JIT (Arm64 IR)",
+ * "IR interpreter (JIT not engaged)", ...), composed at boot from the
+ * backend object PPSSPP created -- see psp_load_rom. The app logs it at
+ * every session start so a session's speed is never a matter of faith.
+ * "not booted" before a successful psp_load_rom. */
+const char *psp_core_mode(PspCore *core);
+
 /* Raw PSP memory read (user RAM 0x08000000..0x0A000000 and friends) for the
  * adapter Host path and binding verification. */
 uint32_t psp_debug_read(PspCore *core, uint32_t addr, int width);
@@ -112,6 +120,20 @@ void psp_set_classic_interpreter(PspCore *core);
  * only the picture is thinned. For a screen-reader player that is free speed. */
 void psp_set_frame_skip(PspCore *core, int skip);
 void psp_watch_read(PspCore *core, uint32_t start, uint32_t end);
+/* Write-side companions: MEMCHECK_WRITE, optionally ONCHANGE so only
+ * value-changing stores fire. Poll with psp_watch_poll on the same range. */
+void psp_watch_write(PspCore *core, uint32_t start, uint32_t end);
+void psp_watch_write_onchange(PspCore *core, uint32_t start, uint32_t end);
+/* LOG variants: every hit prints a CHK line (addr + PC) to the core log,
+ * because MemCheck::Apply never fills lastPC/lastAddr for poll. */
+void psp_watch_write_log(PspCore *core, uint32_t start, uint32_t end);
+void psp_watch_write_onchange_log(PspCore *core, uint32_t start, uint32_t end);
+void psp_watch_write_pause(PspCore *core, uint32_t start, uint32_t end);
+void psp_watch_write_onchange_pause(PspCore *core, uint32_t start, uint32_t end);
+/* Drain the memory-hit snapshot ring filled by the breakpoint-hit shim. */
+int psp_memwatch_poll(PspCore *core, uint32_t index, uint32_t *pc_out,
+                      uint32_t *addr_out, int *size_out, int *write_out,
+                      uint32_t regs_out[32], uint32_t *hits_out);
 /* Same, but each hit also emits a log line with (pc, addr, size) through the
  * core log callback path. Use sparingly on hot ranges: every watched read
  * prints. */
@@ -119,6 +141,18 @@ void psp_watch_read_log(PspCore *core, uint32_t start, uint32_t end);
 int psp_watch_poll(PspCore *core, uint32_t start, uint32_t end,
                    uint32_t *hits_out, uint32_t *pc_out,
                    uint32_t *addr_out, int *size_out);
+
+/* Host-trace exec breakpoints (scripts only, never on device).
+ * psp_break_set plants a pausing exec breakpoint at addr; each hit snapshots
+ * the GPR file in the glue (see the WebSocketNotifyBreakpointHit shim in
+ * psp_core.cpp). psp_break_poll copies out the snapshot for absolute hit
+ * index (0-based) and the total hit count; it returns 0 when that hit has
+ * not happened yet or has already fallen out of the snapshot ring. The CPU
+ * stays paused after a hit until psp_break_resume. */
+void psp_break_set(PspCore *core, uint32_t addr);
+int psp_break_poll(PspCore *core, uint32_t index, uint32_t *pc_out,
+                   uint32_t regs_out[32], uint32_t *hits_out);
+void psp_break_resume(PspCore *core);
 
 #ifdef __cplusplus
 }

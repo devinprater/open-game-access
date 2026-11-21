@@ -1,5 +1,10 @@
 package com.devin.opengameaccess.ui
 
+import android.net.Uri
+import android.webkit.MimeTypeMap
+import androidx.activity.compose.BackHandler
+import androidx.activity.compose.rememberLauncherForActivityResult
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -16,14 +21,17 @@ import androidx.compose.material.Switch
 import androidx.compose.material.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.semantics.LiveRegionMode
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.heading
+import androidx.compose.ui.semantics.liveRegion
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -37,34 +45,69 @@ import com.devin.opengameaccess.GameSettings
  * AdapterLibraryView (Sources/OpenGameAccess/AdapterLibrary.swift).
  *
  * ⛔ THE LIST IS THE REGISTRY'S, READ FROM GENERATED DATA. iOS reads the Core
- * adapter registry live through poke_adapter_library_*; the Android layer
- * never links that registry (its readers are Lua), so it reads
- * AdapterLibraryData instead — which is GENERATED from the same registry
- * objects by tools/android-library-gen.cpp and checked for staleness by the
- * launcher contract test. A reader that ships without its library entry is
- * therefore impossible on either platform.
+ * adapter registry live through poke_adapter_library_*; this screen reads
+ * AdapterLibraryData instead — GENERATED from the same registry objects by
+ * tools/android-library-gen.cpp and checked for staleness by the launcher
+ * contract test. (The DS host itself links the registry — that is how its
+ * adapters select by cartridge code — but a Compose screen still reads the
+ * generated data, not a native query.) A reader that ships without its
+ * library entry is therefore impossible on either platform.
  *
- * ⛔ THE ONE DELIBERATE DIFFERENCE FROM iOS: THE LOAD BUTTON. iOS's game page
- * loads the game filtered to that console's files. The Android launcher's
- * Select Game flow starts Game Boy and PSP games from its own screen, and
- * there is no per-game filtered picker behind this list, so a per-game Load
- * button here would promise a flow that does not exist. Each page instead
- * ends with a plain line saying what THIS build does with that console
- * (see [platformLine]).
+ * ⛔ THE LOAD BUTTONS, AND HOW THEIR FILTERS ARE KEPT HONEST. Each page
+ * carries a Load button in iOS's place (after the notes) and under iOS's
+ * label. Game Boy and PSP pages open the file picker filtered to the
+ * console's files and hand the pick to the launcher (the screen's
+ * onLoadRom callback), which starts it through its own accept + start
+ * path — the same routing and spoken answers as its Select Game flow.
+ * Nintendo DS pages carry their own button ("Load this game"): the DS
+ * half of the flow landed with the DS session (parity stage 4), and it
+ * hands the GAME to the launcher (onLoadGame / MainActivity's
+ * dsLoadRequest), which opens its picker and routes the pick into the
+ * DS session by extension, like any other pick.
+ *
+ * Android's picker filters by MIME TYPE, NOT BY EXTENSION, and has
+ * no equivalent of iOS's UTType-by-extension filter
+ * (AdapterGame.contentTypes). So a page's picker launches with the
+ * console's MIME types plus the generic binary type (which is what
+ * the system tags most ROM files as, their extensions being unknown
+ * to it), and the picked file's extension is checked against the
+ * console's own list on return: a wrong file is refused in words,
+ * on this page, rather than routed into a session that cannot use
+ * it. The guarantee iOS gets at the picker's front door is kept at
+ * this end instead (see consoleExtensions / pickerMimeTypes).
+ *
+ * For a console this build cannot run yet, the button still exists
+ * — every page has it, as on iOS — and its press speaks the plain
+ * line saying what THIS build does with that console (see
+ * [platformLine]) instead of opening a picker onto a dead end.
  */
 @Composable
 fun AdapterGamesScreen(
     onBack: () -> Unit,
+    onLoadRom: (Uri) -> Unit,
+    onLoadGame: (AdapterGameInfo) -> Unit,
+    announce: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     var selected by remember { mutableStateOf<AdapterGameInfo?>(null) }
     var settingsFor by remember { mutableStateOf<AdapterGameInfo?>(null) }
 
+    // The system Back walks this screen's own levels before it may leave
+    // the screen (input parity, stage 1): each early-return level below
+    // registers the handler for its own onBack lambda — the same calls the
+    // levels' Back buttons make — and only that level is composed at a
+    // time, so exactly one of these stands. At the list itself neither
+    // stands, and MainActivity's handler takes the press back to the
+    // launcher. Before this, system Back from a game page or the per-game
+    // settings left the whole screen (or the app) instead of stepping
+    // back one level.
     val settingsGame = settingsFor
     if (settingsGame != null) {
+        BackHandler { settingsFor = null }
         PerGameSettingsScreen(
             game = settingsGame,
             onBack = { settingsFor = null },
+            announce = announce,
             modifier = modifier,
         )
         return
@@ -72,10 +115,13 @@ fun AdapterGamesScreen(
 
     val game = selected
     if (game != null) {
+        BackHandler { selected = null }
         AdapterGamePage(
             game = game,
             onBack = { selected = null },
             onOpenSettings = { settingsFor = game },
+            onLoadGame = onLoadGame,
+            onLoadRom = onLoadRom,
             modifier = modifier,
         )
         return
@@ -100,8 +146,8 @@ fun AdapterGamesScreen(
         }
 
         Text(
-            text = "Each game opens notes on what its reader speaks and the " +
-                "controls it adds.",
+            text = "Each game opens notes on what its reader speaks, the " +
+                "controls it adds, and a Load Game button.",
             fontSize = 16.sp,
             color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
         )
@@ -147,14 +193,68 @@ fun AdapterGamesScreen(
     }
 }
 
-/** One game's page: what the reader does, and what this build does with it. */
+/** One game's page: what the reader does, its Load button, and what this build does with it. */
 @Composable
 private fun AdapterGamePage(
     game: AdapterGameInfo,
     onBack: () -> Unit,
     onOpenSettings: () -> Unit,
+    onLoadRom: (Uri) -> Unit,
+    onLoadGame: (AdapterGameInfo) -> Unit,
     modifier: Modifier = Modifier,
 ) {
+    // Whether THIS build can start the game's console today. The Load
+    // button exists either way (see the file header); this decides
+    // whether its press opens the picker or speaks the honest line.
+    val canRun = game.console == "gb" || game.console == "psp" ||
+        game.console == "nes" || game.console == "snes"
+    val context = LocalContext.current
+
+    // The page's spoken answers (a cancelled picker, a wrong file, an
+    // un-runnable console): rendered under the Load button as a live
+    // region, the launcher status line's pattern, so a screen reader
+    // announces them rather than leaving the press unanswered.
+    var loadNote by remember { mutableStateOf("") }
+    // ⛔ EVERY ATTEMPT ANNOUNCES, EVEN A REPEATED ONE. Assigning the
+    // same note twice (Load pressed again for an un-runnable console,
+    // a second cancelled picker) changes no state, so the live region
+    // would stay silent on the repeat. The nonce counts attempts; the
+    // note's Text is keyed on it below, so each attempt re-enters
+    // composition and is announced, while the text itself stays the
+    // display copy.
+    var loadNoteNonce by remember { mutableStateOf(0) }
+    fun note(text: String) {
+        loadNote = text
+        loadNoteNonce++
+    }
+
+    val pickForGame = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocument()
+    ) { uri: Uri? ->
+        if (uri == null) {
+            // A cancel is SPOKEN rather than left silent, the same
+            // contract the launcher's own picker keeps.
+            note("No game selected.")
+            return@rememberLauncherForActivityResult
+        }
+        // The provider's display name, not the URI's last segment: an
+        // opaque SAF id (msf:42) carries no extension to check.
+        val name = displayName(context, uri)
+        val extension = name.substringAfterLast('.', "").lowercase()
+        if (extension in consoleExtensions(game.console)) {
+            // The hand-off: the Activity closes this screen and the
+            // launcher runs the pick through its own accept + start
+            // path, so everything it says and checks is the
+            // launcher's own.
+            onLoadRom(uri)
+        } else {
+            note(
+                "That file is not a ${consoleShortName(game.console)} game. " +
+                    formatLine(game.console)
+            )
+        }
+    }
+
     Column(
         modifier = modifier
             .fillMaxSize()
@@ -191,6 +291,24 @@ private fun AdapterGamePage(
             Text("Back to games", fontSize = 18.sp)
         }
 
+        // The DS half of the parity program's load flow (see the file
+        // doc): a DS page can start its game from here. The button
+        // hands the game to the launcher, which opens its picker — the
+        // player still chooses the ROM file, and the launcher routes
+        // it into the DS session by extension, as it does for a pick
+        // made on its own screen. Other consoles' pages have no such
+        // button until their halves of the flow land.
+        if (game.console == "nds") {
+            Button(
+                onClick = { onLoadGame(game) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Load ${game.name}" },
+            ) {
+                Text("Load this game", fontSize = 18.sp)
+            }
+        }
+
         Text(
             text = consoleName(game.console),
             fontSize = 16.sp,
@@ -209,6 +327,52 @@ private fun AdapterGamePage(
             text = game.notes.ifEmpty { "No notes have been written for this game yet." },
             fontSize = 16.sp,
         )
+
+        // The page's one action, in iOS's place (after the notes) and
+        // under iOS's label, spoken as "Load <game>" the way iOS
+        // speaks it. For a console this build runs it opens the
+        // picker filtered to the console's file types; for one it
+        // cannot run yet, the press answers with the platform line
+        // as the note below — the button never promises a flow that
+        // does not exist.
+        //
+        // ⛔ NOT ON DS PAGES: a DS page already carries its own Load
+        // button above ("Load this game", the DS stage's flow through
+        // the launcher). Two Load buttons on one page would be two
+        // doors to the same room; each console keeps the flow its own
+        // stage built.
+        if (game.console != "nds") {
+            Button(
+                onClick = {
+                    if (canRun) {
+                        pickForGame.launch(pickerMimeTypes(game.console))
+                    } else {
+                        note(platformLine(game.console))
+                    }
+                },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .semantics { contentDescription = "Load ${game.name}" },
+            ) {
+                Text("Load game", fontSize = 18.sp)
+            }
+        }
+
+        if (loadNote.isNotEmpty()) {
+            // Keyed on the attempt nonce (see note() above): a repeated
+            // identical answer is a fresh element, so the live region
+            // announces it again instead of treating it as no change.
+            key(loadNoteNonce) {
+                Text(
+                    text = loadNote,
+                    fontSize = 16.sp,
+                    modifier = Modifier.semantics {
+                        liveRegion = LiveRegionMode.Polite
+                        contentDescription = loadNote
+                    },
+                )
+            }
+        }
 
         Text(
             text = platformLine(game.console),
@@ -248,6 +412,7 @@ private fun AdapterGamePage(
 private fun PerGameSettingsScreen(
     game: AdapterGameInfo,
     onBack: () -> Unit,
+    announce: (String) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -255,6 +420,20 @@ private fun PerGameSettingsScreen(
     // overrides — the store is SharedPreferences, not Compose state.
     var revision by remember { mutableStateOf(0) }
     val settings = remember(revision) { GameSettings.supportedSettings(game.id) }
+
+    // ⛔ EVERY CHANGE HERE IS SPOKEN, AS ON iOS (parity stage 3).
+    // iOS's panel announces each change itself ("Battle cue sounds:
+    // on, for Birth by Sleep." / "...now uses the app default: on."),
+    // because with no screen an unspoken change is an invisible one.
+    // The line goes two ways, the launcher's pattern: [lastChange]
+    // feeds the live-region line below — the games list is usually
+    // browsed with no game running, when the speech bridge does not
+    // exist — and [announce] carries it to the bridge while one does.
+    var lastChange by remember { mutableStateOf("") }
+    fun changed(line: String) {
+        lastChange = line
+        announce(line)
+    }
 
     Column(
         modifier = modifier
@@ -280,6 +459,20 @@ private fun PerGameSettingsScreen(
                 "overrides it for this game. Settings apply when the game starts.",
             fontSize = 16.sp,
         )
+
+        // The change line: a live region, spoken as changes happen
+        // (see the note at the top of this screen).
+        if (lastChange.isNotEmpty()) {
+            Text(
+                text = lastChange,
+                fontSize = 14.sp,
+                color = MaterialTheme.colors.onSurface.copy(alpha = 0.8f),
+                modifier = Modifier.semantics {
+                    liveRegion = LiveRegionMode.Polite
+                    contentDescription = lastChange
+                },
+            )
+        }
 
         if (settings.isEmpty()) {
             Text(
@@ -326,6 +519,8 @@ private fun PerGameSettingsScreen(
                         // it with "Use app default".
                         GameSettings.setOverride(context, game.id, setting, newValue)
                         revision++
+                        // iOS's own words for this change.
+                        changed("${setting.title}: ${onOff(newValue)}, for ${game.name}.")
                     },
                 )
             }
@@ -339,6 +534,11 @@ private fun PerGameSettingsScreen(
                     onClick = {
                         GameSettings.setOverride(context, game.id, setting, null)
                         revision++
+                        // iOS's own words for this change.
+                        changed(
+                            "${setting.title} for ${game.name} now uses the app " +
+                                "default: ${onOff(global)}."
+                        )
                     },
                     modifier = Modifier
                         .fillMaxWidth()
@@ -401,19 +601,80 @@ private fun versionLine(code: String): String? = when {
  * stage 4 — their readers are in the build with it, attached by the same
  * DISC_IDs iOS dispatches on. What a PSP game's speech covers is whatever
  * its adapter reports (the coverage line above, from the adapter itself);
- * this line only claims the reader is present. The DS and SNES readers
- * are not compiled into this build at all. A page that implied otherwise
- * would send a blind player hunting for speech that cannot happen.
+ * this line only claims the reader is present. Nintendo DS joined them
+ * with the parity program's DS stage: the shared Core DS host is compiled
+ * in, the launcher starts DS games, and its readers — the native adapters
+ * and the Pokémon script — are in the build with it. NES and Super
+ * Nintendo joined them with the parity program's Mesen stage: the
+ * MesenCE cores are compiled in (the overlay's section 10), the launcher
+ * starts their games, the NES reader sets (Dragon Warrior, Zelda 1) are
+ * staged from the bundled assets, and the SNES A Link to the Past
+ * adapter attaches through the shared registry. A page that implied
+ * otherwise would send a blind player hunting for speech that cannot
+ * happen.
  */
 private fun platformLine(console: String): String = when (console) {
-    "gb" -> "This Android build runs these games: pick one with Select Game " +
-        "on the launcher."
-    "nds" -> "This game's reader is not in the Android build yet; its speech " +
-        "is in the iOS app today."
+    "gb" -> "This Android build runs these games: use Load game on this " +
+        "page, or pick one with Select Game on the launcher."
+    "nds" -> "Nintendo DS games run in this Android build, and this " +
+        "game's reader is in the build too: use Load this game above, or " +
+        "pick the game with Select Game on the launcher."
     "psp" -> "PlayStation Portable games run in this Android build, and this " +
-        "game's reader is in the build too: pick one with Select Game on " +
-        "the launcher."
-    "snes" -> "Super Nintendo games cannot run in this Android build yet. " +
-        "This reader is in the iOS app today."
+        "game's reader is in the build too: use Load game on this page, " +
+        "or pick one with Select Game on the launcher."
+    "snes" -> "Super Nintendo games run in this Android build, and this " +
+        "game's reader is in the build too: use Load game on this page, " +
+        "or pick one with Select Game on the launcher."
+    "nes" -> "Nintendo Entertainment System games run in this Android " +
+        "build, and this game's reader is in the build too: use Load " +
+        "game on this page, or pick one with Select Game on the launcher."
     else -> "This console's games cannot run in this Android build yet."
+}
+
+// ---- the Load button's filter -----------------------------------------------
+
+/**
+ * The file extensions a console's games use: the extension lists of
+ * iOS's AdapterGame.contentTypes, verbatim. A page's pick is checked
+ * against this list on return — Android's picker filters by MIME
+ * type, not by extension, so the console's guarantee is kept at this
+ * end of the picker (see the file header).
+ */
+private fun consoleExtensions(console: String): Set<String> = when (console) {
+    "nds" -> setOf("nds")
+    "gb" -> setOf("gba", "gbc", "gb")
+    "psp" -> setOf("iso", "cso", "pbp")
+    "snes" -> setOf("sfc", "smc", "fig", "swc")
+    "nes" -> setOf("nes", "fds", "unf")
+    "n64" -> setOf("z64", "n64", "v64")
+    else -> emptySet()
+}
+
+/**
+ * The picker's filter for a console: the MIME types its extensions
+ * resolve to, plus the generic binary type.
+ *
+ * ⛔ THE GENERIC TYPE RIDES ALONG ON PURPOSE. Most of these
+ * extensions are unknown to the system's MIME table, so most real
+ * ROM files are tagged application/octet-stream by their providers;
+ * filtering on the registered types alone would hide the very files
+ * the picker exists to offer. With the generic type included, the
+ * picker hides everything carrying a known non-game type, and the
+ * extension check on return (consoleExtensions) keeps the console's
+ * promise exactly.
+ */
+private fun pickerMimeTypes(console: String): Array<String> {
+    val mimeMap = MimeTypeMap.getSingleton()
+    val types = consoleExtensions(console)
+        .mapNotNull { mimeMap.getMimeTypeFromExtension(it) }
+        .toMutableSet()
+    types += "application/octet-stream"
+    return types.toTypedArray()
+}
+
+/** "Game Boy" / "PlayStation Portable" — for the wrong-file line. */
+private fun consoleShortName(console: String): String = when (console) {
+    "gb" -> "Game Boy"
+    "psp" -> "PlayStation Portable"
+    else -> consoleName(console)
 }

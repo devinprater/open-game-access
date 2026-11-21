@@ -61,6 +61,11 @@ static bool logged_has(const char* needle)
     for (int i = 0; i < NLOGGED; i++) if (strstr(LOGGED[i], needle)) return true;
     return false;
 }
+static bool spoken_has(const char* needle)
+{
+    for (int i = 0; i < NSPOKEN; i++) if (strstr(SPOKEN[i], needle)) return true;
+    return false;
+}
 
 int main()
 {
@@ -226,6 +231,54 @@ int main()
           "Practice character select follows the cursor");
     put_u32(0x08C1B3B0, 0); put_u32(0x09F9C1A8, 0);
 
+    // ---- Practice's OPPONENT grid (measured live 2026-11-07) --------------------
+    // After P1 locks Scorpion the holder points into a third table: index 7 (Sub-Zero,
+    // the opponent cursor's start) at 0x090E7850, index-0 object at 0x090E9840. The
+    // static cursor word still holds P1's pick. Each RIGHT is -0x490, a row is
+    // -10 * 0x490 (live: 0x090E73C0, 0x090E6F30, 0x090E4190, then LEFT 0x090E4620).
+    for (int k = 0; k < 30; k++) put_u32(0x090E9840 - k * 0x490 + 4, 0x4F424A20);
+    put_u32(0x08C1B3B0, 2);
+    put_u32(0x09F9C1A8, 0);
+    a->on_frame();                                   // no screen: the watch resets
+    put_u32(0x09F9C1A8, 0x090E05A0);                 // the P1 grid, Scorpion
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();                                   // the watch learns P1's table
+    CHECK(NSPOKEN >= 1 && strstr(SPOKEN[NSPOKEN - 1], "Character select") &&
+          strstr(SPOKEN[NSPOKEN - 1], "Scorpion"),
+          "opponent grid: the P1 grid still reads as character select");
+    put_u32(0x09F9C1A8, 0x090E7850);                 // opponent cursor on Sub-Zero
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN >= 1 &&
+          strstr(SPOKEN[NSPOKEN - 1], "Opponent: Sub-Zero, row 1, column 8"),
+          "opponent grid: entry names the opponent, not P1's pick");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Opponent select. Opponent: Sub-Zero"),
+          "opponent grid: WhereAmI says Opponent select");
+    put_u32(0x09F9C1A8, 0x090E73C0);                 // RIGHT -> Havik
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Opponent: Havik, row 1, column 9"),
+          "opponent grid: RIGHT speaks the new opponent");
+    put_u32(0x09F9C1A8, 0x090E4620);                 // two rows' travel -> index 18
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Opponent: Noob-Smoke, row 2, column 9"),
+          "opponent grid: DOWN speaks the opponent a row lower");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN == 0, "opponent grid: a resting cursor is not re-announced");
+    put_u32(0x09F9C1A8, 0x090E05A0);                 // back to P1's table
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN >= 1 && strstr(SPOKEN[NSPOKEN - 1], "Scorpion") &&
+          !strstr(SPOKEN[NSPOKEN - 1], "Opponent"),
+          "opponent grid: P1's own table is never read as the opponent's");
+    put_u32(0x08C1B3B0, 0); put_u32(0x09F9C1A8, 0);
+    for (int i = 0; i < 40; i++) a->on_frame();      // the grid is gone: base forgotten
+    for (int k = 0; k < 30; k++) put_u32(0x090E9840 - k * 0x490 + 4, 0);
+
     // ---- the Kombat submenu (verified structure, synthetic plant) ---------------
     // The front end keeps the parent index while the child screen is up: measured
     // on the game, the cursor reads 1 with the Kombat submenu open.
@@ -315,6 +368,50 @@ int main()
     CHECK(!a->ready(), "fight gate closes when nobody is standing");
     put_f32(0x08D929B8, 0.904f); put_f32(0x08D92A24, 0.333f);
     put_u32(0x08D92AF0, 0);                          // (leave a clean state)
+
+    // ---- the arcade tower: the next opponent (measured live 2026-11-07) -------
+    // After P1 locks, round and timer read 0, both HP words 1.0, and the P2 id
+    // is written while the tower pans up. Id 0 is Kenshi AND "not chosen yet",
+    // so it needs the slot flag at 0x08D92A1C (3 -> 1) to count.
+    put_u32(0x08D92AE0, 0);
+    put_f32(0x08D929B8, 1.0f); put_f32(0x08D92A24, 1.0f);
+    put_u32(0x08D92A2C, 0); put_u32(0x08D92A1C, 3);  // locked, opponent unset
+    CHECK(!a->ready(), "tower: silent until the opponent is chosen (id 0, flag 3)");
+    put_u32(0x08D92A2C, 4); put_u32(0x08D92A1C, 1);  // Goro written, flag flipped
+    CHECK(a->ready(), "tower: ready once the opponent is chosen");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Arcade tower") &&
+          strstr(SPOKEN[0], "Next opponent: Goro"),
+          "tower: WhereAmI names the next opponent");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->on_frame();
+    CHECK(NSPOKEN >= 1 && strstr(SPOKEN[NSPOKEN - 1], "Next opponent: Goro"),
+          "tower: the frame watch announces the opponent on entry");
+    int towerSpoken = NSPOKEN;
+    a->on_frame(); a->on_frame();
+    CHECK(NSPOKEN == towerSpoken, "tower: announced once, not on every frame");
+    put_u32(0x08D92A2C, 0);                           // flag still 1: Kenshi chosen
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Next opponent: Kenshi"),
+          "tower: a Kenshi opponent is spoken once the slot flag has flipped");
+    put_u32(0x08D92A1C, 3);
+    CHECK(!a->ready(), "tower: id 0 with the flag unset stays silent");
+    put_u32(0x08D92A2C, 4); put_u32(0x08D92A1C, 1);
+    put_u32(0x08D92AE0, 1); put_u32(0x08D92AF0, 60);  // the fight begins
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Round 1") &&
+          !strstr(SPOKEN[0], "Next opponent"),
+          "tower: gives way to the fight once round 1 starts");
+    put_f32(0x08D929B8, 0.5f);
+    put_u32(0x08D92AE0, 0); put_u32(0x08D92AF0, 0);
+    CHECK(!a->ready(), "tower: a half-health fighter is not the tower");
+    // restore the plant the pause-menu block below expects
+    put_u32(0x08D92A1C, 0);
+    put_f32(0x08D929B8, 0.904f); put_f32(0x08D92A24, 0.333f);
+    put_u32(0x08D92AE0, 2); put_u32(0x08D92AF0, 0);
 
     // ---- the pause menu (relocation by signature + nav confirmation) ------------
     // Fight plant is still live from the block above; restore round/timer.
@@ -573,6 +670,164 @@ int main()
           "a dialogue line stays on the dialogue channel");
     put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
 
+    // ---- Konquest cutscene subtitles (measured 2026-11-12, village bench) ----
+    // Village conversations are cutscenes, not the dialogue box: walking near
+    // an NPC starts one and the line lands at 0x09106354. The whole workspace
+    // reads zero outside a cutscene, so a printable line is its own gate.
+    put_ascii(0x09106354, "Hello, Shujinko. I think Apep is waiting for you. ");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Hello, Shujinko. I think Apep is waiting for you."),
+          "a village cutscene subtitle speaks");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(NSPOKEN == 0, "the same subtitle does not repeat while it stays up");
+
+    put_ascii(0x09106354, "Did you want something from me? ");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Did you want something from me?"),
+          "Cross advancing the cutscene speaks the next subtitle");
+
+    RAM[OFF(0x09106354)] = 0;                        // cutscene ends
+    for (int i = 0; i < 5; i++) a->on_frame();
+    put_ascii(0x09106354, "Did you want something from me? ");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Did you want something from me?"),
+          "a subtitle shown again after the cutscene speaks again");
+
+    RAM[OFF(0x09106354)] = 1;                        // not printable
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(NSPOKEN == 0, "a non-printable subtitle fails closed");
+    RAM[OFF(0x09106354)] = 0;
+    for (int i = 0; i < 5; i++) a->on_frame();
+
+    // ---- Konquest dojo training prompt (measured 2026-11-12, live bench) -----
+    // The named-move boxes are DRAWN text: the dialogue buffer never sees them.
+    // The move name and input glyph are ASCII strings in the resident training
+    // table at 0x09DDA000, and the live pair is pointed at from the script
+    // workspace (name 0x09179814, input 0x09179818). The drill counter is one
+    // packed word at 0x09179808: (required << 8) | done. Every input this
+    // table named was fired from the RAM value alone and the lesson passed.
+    put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 1);
+    {
+        const uint32_t base = 0x09178568 - 48;
+        const uint32_t sig[12] = {0x30, 0xE9, 0x24, 0x180, 0x2A, 0x11,
+                                  0xFFFFFFFF, 0xC8C8C8FF, 0x6, 0x0,
+                                  0x08AFD1C0, 0x0};
+        for (int i = 0; i < 12; i++) put_u32(base + (uint32_t) i * 4, sig[i]);
+    }
+    put_u32(0x09178D30, 0x091782A0);
+    put_u32(0x09178554, 0xFF4848FF);
+    put_ascii(0x09178568, "Now, Shujinko, strike me with each of your high punch attacks.");
+    put_ascii(0x09DDA0DC, "LEANING FINGERS");
+    put_ascii(0x09DDA0EC, "A");
+    put_ascii(0x09DDA0F0, "STONE COLUMN");
+    put_ascii(0x09DDA100, "(+A");
+    put_ascii(0x09DDA10C, "CREATURE KICK");
+    put_ascii(0x09DDA11C, "X");
+    put_ascii(0x09DDA120, "STING TAP");
+    put_ascii(0x09DDA12C, ":+X");
+    put_u32(0x09179814, 0x09DDA0DC);
+    put_u32(0x09179818, 0x09DDA0EC);
+    put_u32(0x09179808, 0x0200);                     // 0 of 2
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 45; i++) a->on_frame();
+    CHECK(spoken_has("Move, Leaning Fingers. Triangle. 0 of 2."),
+          "the drawn move name and glyph speak as a move line");
+    CHECK(spoken_has("Objective."),
+          "the drill objective still speaks alongside the move line");
+
+    put_u32(0x09179808, 0x0201);                     // 1 of 2, name unchanged
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("1 of 2."), "the drill counter speaks as it advances");
+
+    put_u32(0x09179814, 0x09DDA0F0);                 // the sequence's second move
+    put_u32(0x09179818, 0x09DDA100);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Move, Stone Column. Up plus Triangle. 1 of 2."),
+          "the next move speaks when the prompt switches");
+
+    // ⛔ The workspace outlives the drill (free-roam still read 0x404 with a
+    // garbage pointer). Only the red drill line may arm it.
+    put_u32(0x09178554, 0xC8C8C8FF);
+    put_ascii(0x09178568, "Well done, Shujinko.");
+    put_u32(0x09179808, 0x0202);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 45; i++) a->on_frame();
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Well done") &&
+          !strstr(SPOKEN[0], "Move,"),
+          "a stale training workspace stays silent outside a drill line");
+
+    // ⛔ Free-roam keeps the red colour, the dojo's last line and a plausible
+    // counter (measured live 2026-11-12: A=1, B=0, colour 0xFF4848FF, buffer
+    // "Strike me with two high attacks and two low attacks.", counter 0x404).
+    // The fight-engine flag is what separates the village from a running drill.
+    put_u32(0x08AF69C8, 1); put_u32(0x08B123DC, 0);
+    put_u32(0x09178554, 0xFF4848FF);
+    put_u32(0x09178D30, 0);                          // no box, as in free-roam
+    put_ascii(0x09178568, "Strike me with two high attacks and two low attacks.");
+    put_u32(0x09179814, 0);
+    put_u32(0x09179818, 0);
+    put_u32(0x09179808, 0x0404);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 45; i++) a->on_frame();
+    CHECK(NSPOKEN == 0,
+          "free-roam keeps the red drill line and counter; flag B keeps it silent");
+    put_u32(0x08B123DC, 1);                          // back to a live drill
+    put_u32(0x09178D30, 0x091782A0);
+
+    put_u32(0x09178554, 0xFF4848FF);
+    put_ascii(0x09178568, "Strike me with each of your high and low attacks.");
+    put_ascii(0x09DDA0EC, "Q");                      // an unmeasured glyph code
+    put_u32(0x09179814, 0x09DDA0DC);
+    put_u32(0x09179818, 0x09DDA0EC);
+    put_u32(0x09179808, 0x0200);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(spoken_has("Move, Leaning Fingers. 0 of 2."),
+          "an unknown glyph names the move without inventing a button");
+
+    put_u32(0x09179814, 0x09179700);                 // stale heap pointer
+    put_ascii(0x09178568, "Strike me with two high attacks and two low attacks.");
+    put_u32(0x09179808, 0x0401);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(!spoken_has("Move,"),
+          "a pointer outside the training table never reads as a move name");
+
+    put_u32(0x09179808, 0x0105);                     // done > total: implausible
+    put_u32(0x09179814, 0x09DDA0DC);
+    put_u32(0x09179818, 0x09DDA10C);                 // and 'X' here
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    for (int i = 0; i < 30; i++) a->on_frame();
+    CHECK(!spoken_has("of 1"), "an implausible counter is never spoken");
+
+    put_ascii(0x09DDA0EC, "A");
+    put_u32(0x09179814, 0x09DDA0DC);
+    put_u32(0x09179818, 0x09DDA0EC);
+    put_u32(0x09179808, 0x0201);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(spoken_has("Move, Leaning Fingers. Triangle. 1 of 2."),
+          "WhereAmI repeats the live move and drill count");
+    // Leave the dialogue/drill channels as the next block expects them: a red
+    // objective line and a plausible counter left behind would speak into the
+    // bout tests, which count speech exactly.
+    put_u32(0x09178D30, 0);
+    put_u32(0x09178554, 0);
+    put_ascii(0x09178568, "Cleared.");
+    put_u32(0x09179814, 0);
+    put_u32(0x09179818, 0);
+    put_u32(0x09179808, 0);
+    a->on_frame();                                   // drop the training watch
+    put_u32(0x08AF69C8, 0); put_u32(0x08B123DC, 0);
+
     // ---- Konquest bout speech (measured 2026-10-23, bout hunts) -------------
     // A Konquest bout runs on the versus engine: flag A for the mode, flag B
     // for the live engine, and the shared struct's HP floats (P1 id 2 =
@@ -676,16 +931,60 @@ int main()
     put_f32b(0x08AED478, -53.85f);                   // Apep's post, as measured
     put_f32b(0x08AED47C, 0.87f);
     put_f32b(0x08AED480, 162.96f);
+    // The vec3 is populated before the scripted camera hands control back, so a
+    // position spoken that early is a place the hero cannot yet stand. Movement
+    // arms it; until then WhereAmI says so instead of reading a frozen pair.
+    put_u32(0x08AF69C8, 0); a->on_frame();           // leave free-roam: the gate resets
+    put_u32(0x08AF69C8, 1); a->on_frame();           // back in with a frozen vec3
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Konquest.") &&
+          strstr(SPOKEN[0], "not ready yet") &&
+          !strstr(SPOKEN[0], "Position -"),
+          "a frozen vec3 is not spoken as a position");
+    a->on_frame();                                   // seed the previous sample
+    put_f32b(0x08AED478, -53.82f);                   // 0.03 units of drift
+    a->on_frame();
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "not ready yet"),
+          "a nudge under the threshold does not arm the position");
+    put_f32b(0x08AED478, -52.00f);                   // a real step
+    a->on_frame();
+    put_f32b(0x08AED478, -53.85f);                   // back to Apep's post
+    a->on_frame();
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Konquest.") &&
           strstr(SPOKEN[0], "Position -54, 163."),
-          "free-roam WhereAmI speaks the position pair");
+          "free-roam WhereAmI speaks the position pair once moved");
     put_f32b(0x08AED478, -64.18f); put_f32b(0x08AED480, 140.84f);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Position -64, 141."),
           "the spoken position tracks the vec3 (and rounds)");
+
+    // ---- named Konquest NPCs (measured 2026-11-13) ---------------------------
+    // Record positions match the drawn actor when the villager stands at his
+    // post, so WhereAmI can point at the nearest one. Unknown names say
+    // "Someone" rather than inventing a name.
+    put_ascii(0x09F00000, "npc_apep");
+    put_u32(0x09151098, 0x09F00000);
+    put_f32b(0x09151098 + 0x1C, -64.18f);            // 10 units north of the player
+    put_f32b(0x09151098 + 0x20, 0.87f);
+    put_f32b(0x09151098 + 0x24, 150.84f);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(spoken_has("Apep is 10 units north."),
+          "WhereAmI points at the nearest named NPC");
+
+    put_ascii(0x09F00000, "npc_unseen_person");      // a name never seen in play
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::WhereAmI);
+    CHECK(spoken_has("Someone is 10 units north.") && !spoken_has("unseen"),
+          "an unknown NPC name stays unnamed");
+
+    put_u32(0x09151098, 0);                           // clear the record
     put_u32(0x08B123DC, 1);                          // a bout owns the mode
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::WhereAmI);
@@ -991,6 +1290,58 @@ int main()
     sf3();
     CHECK(NSPOKEN == 0 && a->cue_snapshot(&vsnap) && !vsnap.foe_beep,
           "sound-first: the killing blow raises nothing (the game owns the KO)");
+    // ---- Fight proximity beacon (live-verified 2026-11-17) ------------------
+    // Actor pointers at the fighters' blocks; position vec3 at actor+0x20.
+    // Numbers are the bench's own: idle gap ~2.0, walked in to ~0.85,
+    // walked out to ~5.3.
+    {
+        const uint32_t A1 = 0x090FCA00, A2 = 0x090A5A10;
+        put_u32(0x08D929C4, A1); put_u32(0x08D92A30, A2);
+        put_f32b(A1 + 0x20, -11.38f); put_f32b(A1 + 0x28, 9.40f);
+        put_f32b(A2 + 0x20, -10.95f); put_f32b(A2 + 0x28, 7.41f);
+        sf3();
+        oga::CueSnapshot ps{};
+        CHECK(a->cue_snapshot(&ps) && ps.battle && ps.locked && ps.dist > 4.0f && ps.dist < 45.0f,
+              "proximity: a live fight with readable positions locks the beacon");
+        float mid = ps.dist;
+        put_f32b(A1 + 0x20, -10.85f); put_f32b(A1 + 0x28, 3.60f);   // walked in
+        put_f32b(A2 + 0x20, -10.04f); put_f32b(A2 + 0x28, 3.60f);
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked && ps.dist == 4.0f,
+              "proximity: closer than the near bound pins to the synth's fastest pulse");
+        put_f32b(A1 + 0x28, 9.20f); put_f32b(A2 + 0x28, 4.59f);     // walked out
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked && ps.dist > mid,
+              "proximity: backing away raises the distance (slower pulse)");
+        put_f32b(A1 + 0x28, 300.0f);                                 // beyond any arena
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked && ps.dist == 45.0f,
+              "proximity: past the far bound pins to the slowest pulse");
+        put_f32b(A1 + 0x20, -11.38f); put_f32b(A1 + 0x28, 9.40f);
+        put_u32(0x08D929C4, 0);                                      // pointer not set yet
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.battle && !ps.locked,
+              "proximity: an unset actor pointer gives no lock (never a guessed distance)");
+        put_u32(0x08D929C4, 0x08D929C5);                             // misaligned
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && !ps.locked, "proximity: a misaligned pointer is refused");
+        put_u32(0x08D929C4, A1);
+        put_f32b(A1 + 0x20, 1.0e30f);                                // garbage coordinate
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && !ps.locked, "proximity: an out-of-range coordinate is refused");
+        put_f32b(A1 + 0x20, -11.38f);
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked, "proximity: recovers when the words are sane again");
+        // Pause: the round timer holding still for 240+ frames.
+        for (int i = 0; i < 260; i++) a->on_frame();
+        CHECK(a->cue_snapshot(&ps) && ps.battle && !ps.locked,
+              "proximity: silent while the game is paused (timer frozen)");
+        put_u32(0x08D92AF0, 59);                                     // the clock moves again
+        sf3();
+        CHECK(a->cue_snapshot(&ps) && ps.locked, "proximity: resumes when the timer ticks");
+        put_u32(0x08D929C4, 0); put_u32(0x08D92A30, 0);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+    }
     put_u32(0x08D92AE0, 2);                           // round 2: fresh bars
     put_f32b(0x08D929B8, 1.0f); put_f32b(0x08D92A24, 1.0f);
     NSPOKEN = 0; oga::AdapterSpeechReset();

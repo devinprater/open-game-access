@@ -1,7 +1,8 @@
 // PspAdapterHost.h — the Android PSP adapter host (stage 4).
 //
 // The seam between the PSP session (PspSessionJNI.cpp) and the native
-// game adapters (Core/dissidia_adapter.cpp, Core/dbzar_adapter.cpp,
+// game adapters (Core/dissidia_adapter.cpp, Core/dissidia012_adapter.cpp,
+// Core/dbzar_adapter.cpp,
 // Core/mku_adapter.cpp, Core/khbbs_adapter.cpp). It is the PSP slice of
 // what Core/pokecore.cpp does on iOS — selection by DISC_ID, a lazy
 // attach, a per-frame pump, a command entry point, an announcement

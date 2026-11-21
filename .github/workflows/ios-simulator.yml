@@ -101,6 +101,11 @@ jobs:
           # because the NES backend is part of the app now. Omitting it here made
           # the job die at the core-build step.
           MESEN_SRC: ${{ runner.temp }}/src/mesen
+          # ⛔ GPGX_SRC IS REQUIRED for the same reason MESEN_SRC is:
+          # bootstrap-deps.sh fetches Genesis Plus GX there, and build-sim.sh
+          # refuses to run without it because the Genesis backend is part of
+          # the app now.
+          GPGX_SRC: ${{ runner.temp }}/src/genesis-plus-gx
         run: |
           # Xcode's own simulator SDK, at whatever version this runner has. The
           # script defaults to xtool's fetched SDK path, which does not exist here.

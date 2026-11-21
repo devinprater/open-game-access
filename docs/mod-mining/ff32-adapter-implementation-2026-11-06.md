@@ -116,3 +116,79 @@ after. Full run after the changes:
 1. **Baked nav grids + pure router (§32.2), one committed route
    (§32.6), leg merging + percent-of-route (§32.10), turn-penal
 ...[truncated 3907 chars]
+<!-- RE-AUTHORED TAIL (2026-11-08): everything below this marker was
+re-authored; the original text was lost to a snapshot-push truncation. -->
+
+*Editorial note, 2026-11-08: the original ending of this note was lost
+when a snapshot push truncated the file — the missing tail is the rest
+of this Proposals section (~3,900 characters). The text below was
+re-authored on 2026-11-08 at the owner's direction, reconstructed from
+the note's own headline and per-adapter audit above (which summarise
+each proposal and its blocker) and from the catalogue sections the
+proposals cite (§32.2, §32.6, §32.10, §31.9, §30, §31.12). It is a
+reconstruction, not the original wording.*
+
+**1. The route package: baked nav grids + pure router (§32.2), one
+committed route (§32.6), leg merging + percent-of-route (§32.10),
+turn penalties (§31.9).** Not implemented because there is nothing for
+it to attach to: no adapter in the tree computes a route or owns
+navigation data. ALttP's guide aims at the objective area — a
+direction, not a route — and DQ9's route planning and auto-walk are
+deliberately the JVPA Lua mod's territory (the scope decision recorded
+in that adapter's header and in the audit above), so importing a
+second router there would fork behaviour the project chose not to
+own. The package also has a hard prerequisite none of OGA's titles
+meets yet: §32.2's grids are baked offline from map dumps (collision,
+layers, hidden passages, warp edges) and the router is only
+trustworthy because the identical code runs in an offline checker
+against every baked map before shipping. No OGA title has map-dump
+tooling today. When the first one does, adopt the package whole, not
+piecemeal: one committed route object feeding spoken directions, the
+beacon, the reachability filter and any auto-walk (§32.6 — no
+consumer recomputing its own shortcut, a no-path result propagating
+to all of them, §32.7's proved-unreachable-only rule governing the
+filter); leg merging and percent-of-route on the platform progress
+control so the spoken form stays listenable over walkmesh-grade
+detail (§32.10); and a turn penalty in the search cost, on §31.9's
+evidence, so the route the player hears prefers fewer turns among
+equal-length candidates.
+
+**2. Dissidia radar occlusion (§30).** The spec is settled — it is
+Devin's directive, filed as §30: the beacon muffles (low-pass at the
+same loudness, never merely quieter) when the tracked enemy is behind
+solid geometry, the where-am-I query names the nearest cover object,
+and both work while paused. What is missing is not design but data:
+the muffle needs a player↔enemy line-of-sight verdict every frame,
+and no LOS source has been verified in Dissidia's data yet. §30's own
+implementation note sets the order of attack — prefer the game's own
+visibility/LOS data where the engine keeps it; fall back to an
+adapter-side raycast against collision geometry only if the game
+keeps none — and the same test then feeds the cover search (nearest
+cover = nearest occluder that would break the line). Until that
+reverse-engineering is done there is no honest code to write: a
+muffle driven by a guessed LOS would lie about exactly the thing the
+cue exists to say. Sequencing: Dissidia first (§30's scope), BBS
+arenas with occluders second; KHBBS's cue snapshot already fails
+closed, which is the right substrate when the data lands.
+
+**3. Fire Emblem tactics layer: forecast template, cursor travel,
+attack solver (§31.12).** The reader's verified scope is map
+questions and front menus; it reads no battle-forecast structures at
+all, so there is currently nothing to format. JVPA's template is only
+speakable because their mod reads the game's own forecast proc —
+both BattleUnits' attack, defense, hit and crit, the hit counts, and
+the opponent's weapon name taken from the proc's own text id — and
+OGA's adapter has no equivalent verified reads yet. The prerequisite
+is therefore a data pass, not a writing pass: verify Sacred Stones'
+forecast proc and BattleUnit layout in the adapter's terms (the JVPA
+addresses and field offsets are the map for that work; §31.12 records
+them). Once the reads exist, the rest follows as one layer, in
+§31.12's shapes: the forecast line with **net** damage (attack minus
+the defender's battle defense) and "Cannot counterattack" stated
+instead of zeros; the cursor-travel state machine (horizontal axis
+first, per-cell announcements suspended in transit, a 90-frame stall
+or 600-frame timeout answered honestly with "The cursor cannot get
+there"); and the attack-position solver over the movement-cost map —
+least movement cost, tie-break farthest from the enemy, weapon ranges
+decoded from the item data's range byte, its nearest-tile fallback
+announced as out of reach this turn rather than silently substituted.

@@ -69,6 +69,9 @@ const OgaButton kGenesis[] = {
     { "A", "a.circle", "A button", BTN_A },
     { "B", "b.circle", "B button", BTN_B },
     { "C", "circle",   "C button", BTN_X },
+    { "X", "x.circle", "X button", BTN_L },
+    { "Y", "y.circle", "Y button", BTN_Y },
+    { "Z", "z.circle", "Z button", BTN_R },
 };
 
 /* Nintendo 64: A/B plus four C buttons. The C buttons are reported through
@@ -96,7 +99,7 @@ const char* const kPs1Ext[]   = { ".iso", ".bin", ".cue", ".chd", ".pbp", NULL }
 const char* const kPs2Ext[]   = { ".iso", ".chd", NULL };
 const char* const kGcExt[]    = { ".iso", ".gcm", ".rvz", ".wia", NULL };
 const char* const kWiiExt[]   = { ".iso", ".wbfs", ".rvz", ".wia", NULL };
-const char* const kGenesisExt[] = { ".md", ".gen", ".smd", NULL };
+const char* const kGenesisExt[] = { ".md", ".gen", ".smd", ".bin", NULL };
 /* Dreamcast disc images. Deliberately WITHOUT .chd: that extension already
  * resolves to the PlayStation row (first match wins in the table), so listing
  * it here would read as support that cannot be reached. */
@@ -192,6 +195,16 @@ const OgaSystem kSystems[] = {
 #endif
       1, true, false, 1, true, kN64, 4 },
 
+    /* The Genesis is READY, and it sits ahead of the PlayStation row ON
+     * PURPOSE: filename lookup is first-match, both consoles claim .bin,
+     * and the Genesis is the one with a backend. A PlayStation .bin was
+     * never bootable in this build; a Genesis .bin now is, and one that is
+     * not really a Genesis ROM is refused in words by the core's content
+     * check rather than played on the wrong machine. The core is Genesis
+     * Plus GX (Core/genesis_core.cpp); the pad is the full 6-button pad. */
+    { OGA_SYS_GENESIS, "Sega Genesis", kGenesisExt, OGA_BACKEND_READY,
+      1, false, false, 0, true, kGenesis, 6 },
+
     { OGA_SYS_PS1, "PlayStation", kPs1Ext, OGA_BACKEND_PLANNED,
       1, true, false, 0, true, kPlayStation, 4 },
 
@@ -218,9 +231,6 @@ const OgaSystem kSystems[] = {
      * "not playable yet" lie. PS2/GC/Wii stay above because they are on the
      * wanted list with real cores, just not phone-viable yet.
      */
-    { OGA_SYS_GENESIS, "Sega Genesis", kGenesisExt, OGA_BACKEND_PLANNED,
-      1, false, false, 0, true, kGenesis, 3 },
-
     { OGA_SYS_DREAMCAST, "Dreamcast", kDreamcastExt, OGA_BACKEND_PLANNED,
       1, true, false, 1, true, kDiamond, 4 },
 

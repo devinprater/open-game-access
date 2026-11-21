@@ -27,10 +27,10 @@ BIN="${TMPDIR:-/tmp}/oga-android-library-gen"
 g++ -O1 -g -fwrapv -fno-strict-aliasing \
     -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" -std=c++17 \
     -o "$BIN" tools/android-library-gen.cpp \
-    Core/adapters.cpp Core/announce.cpp \
+    Core/adapters.cpp Core/genesis_adapter.cpp Core/announce.cpp \
     Core/fe_adapter.cpp \
     Core/gba_adapter.cpp \
-    Core/dbz_adapter.cpp Core/dissidia_adapter.cpp Core/dbzar_adapter.cpp \
+    Core/dbz_adapter.cpp Core/dissidia_adapter.cpp Core/dissidia012_adapter.cpp Core/dbzar_adapter.cpp \
     Core/dq9_adapter.cpp Core/mku_adapter.cpp Core/khbbs_adapter.cpp \
     Core/alttp_adapter.cpp Core/alttp_text.cpp Core/alttp_names.cpp \
     Core/alttp_rooms.cpp Core/osk_echo.cpp \

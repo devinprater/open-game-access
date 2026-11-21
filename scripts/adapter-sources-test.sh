@@ -27,3 +27,18 @@ if [ "$sab" -eq 0 ]; then
   exit 1
 fi
 echo "PASS: adapter-sources gate catches a registered adapter missing from OGA_GLUE"
+
+# Second sabotage: the Android half (the kDissidia012 link failure). Drop the Dissidia 012
+# adapter from the PSP glue list the overlay writes, and the gate must fail.
+OVL=scripts/android-apply-overlay.sh
+cp "$OVL" /tmp/oga-android-overlay.bak
+sed -i '/glue\/dissidia012_adapter\.cpp/d' "$OVL"
+python3 scripts/adapter-sources-check.py 2>&1 | head -n 3
+sab=$?
+cp /tmp/oga-android-overlay.bak "$OVL"
+
+if [ "$sab" -eq 0 ]; then
+  echo "FAIL: removing dissidia012_adapter.cpp from the Android glue did not trip the gate"
+  exit 1
+fi
+echo "PASS: adapter-sources gate catches a registered adapter the Android overlay does not compile"

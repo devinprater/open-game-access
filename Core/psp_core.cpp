@@ -86,10 +86,38 @@ void GPU_Shutdown()
 // this shape for builds without it (see the __LIBRETRO__ branch of
 // Core/Debugger/WebSocket.h): the tick/notify calls in the run loop resolve
 // to harmless no-ops instead of dragging the whole subscriber tree in.
+#include "Core/MIPS/MIPS.h"
 #include "Core/Debugger/WebSocket.h"
 void WebSocketDebuggerTick() {}
 bool WebSocketDebuggerHasClients() { return false; }
-void WebSocketNotifyBreakpointHit(const BreakpointHit &) {}
+
+// Host-trace exec-breakpoint snapshots (scripts only, never on device): a
+// pausing exec breakpoint's notify lands here on the CPU thread before
+// Core_Break parks it, so currentMIPS still holds the pre-instruction
+// register file. psp_break_poll (near the watch APIs below) drains the ring.
+struct PspBreakSnap { uint32_t pc; uint32_t r[32]; };
+static PspBreakSnap s_breakSnaps[512];
+static uint32_t s_breakHits = 0;
+struct PspMemSnap { uint32_t pc; uint32_t addr; int size; int write; uint32_t r[32]; };
+static PspMemSnap s_memSnaps[512];
+static uint32_t s_memHits = 0;
+void WebSocketNotifyBreakpointHit(const BreakpointHit &hit) {
+    if (hit.kind == BreakpointKind::Memory && currentMIPS) {
+        PspMemSnap &s = s_memSnaps[s_memHits % 512];
+        s.pc = hit.pc;
+        s.addr = hit.address;
+        s.size = hit.size;
+        s.write = hit.write ? 1 : 0;
+        for (int i = 0; i < 32; i++) s.r[i] = currentMIPS->r[i];
+        ++s_memHits;
+    }
+    if (hit.kind == BreakpointKind::Exec && currentMIPS) {
+        PspBreakSnap &s = s_breakSnaps[s_breakHits % 512];
+        s.pc = hit.pc;
+        for (int i = 0; i < 32; i++) s.r[i] = currentMIPS->r[i];
+        ++s_breakHits;
+    }
+}
 
 const char *RasterChannelToString(RasterChannel channel)
 {
@@ -110,6 +138,10 @@ struct PspCore {
     bool running = false;
     char error[512] = {0};
     char code[16] = {0};
+    // The session core-mode report, composed at boot from the backend
+    // object the run loop will dispatch through (see psp_load_rom) and
+    // served to the app by psp_core_mode().
+    char coreMode[128] = {0};
     std::string romPath;
     std::string saveRoot;
     std::string assetDir;
@@ -139,6 +171,22 @@ struct PspCore {
     // interpreter's memory ops bypass them). Used by scripts/psp-memtrace.
     bool traceClassicCpu = false;
 };
+
+// Session core-mode witness: the class name of the JIT backend the
+// MIPSComp factory most recently built (see CreateNativeJit below), or
+// nullptr when it built none. Declared ahead of psp_load_rom because the
+// boot reads it to compose PspCore::coreMode: the report states what
+// object MIPSState::Init created, not what the boot merely requested.
+static const char *g_createdJitBackend = nullptr;
+
+// What the CPU backend PPSSPP created for a requested core actually is,
+// in plain terms. Defined beside the JIT factory below -- the one place
+// this file is guaranteed to see MIPSComp's declarations (JitCommon.h
+// is included down there, not at the top; the boot code above must not
+// name MIPSComp itself, and in the Android glue build's include chain
+// nothing earlier declares it). Called at the end of a successful boot
+// to compose PspCore::coreMode.
+static const char *DescribeCreatedCore(CPUCore requested);
 
 static void SetError(PspCore *core, const char *fmt, ...)
 {
@@ -273,10 +321,26 @@ int64_t System_GetPropertyInt(SystemProperty prop)
 float System_GetPropertyFloat(SystemProperty) { return 0.0f; }
 bool System_GetPropertyBool(SystemProperty prop)
 {
-    // No back button, no keyboard, no JIT: report the plain truth.
+    // No back button, no keyboard: report the plain truth.
     if (prop == SYSPROP_HAS_BACK_BUTTON) return false;
     if (prop == SYSPROP_HAS_KEYBOARD) return false;
-    if (prop == SYSPROP_CAN_JIT) return false;
+    // JIT: the platform answer differs, and it matters beyond honesty --
+    // PPSSPP's Config::Load clamps a requested JIT/JIT_IR core back to
+    // the IR interpreter whenever this says no ("Forcing JIT off due to
+    // unavailablility", Core/Config.cpp) and DefaultCpuCore() consults
+    // it too. The boot below dispatches on its CoreParameter, never on
+    // g_Config, so the clamp never gated the shipped Android JIT -- but
+    // the false answer was a live landmine for any config-driven path,
+    // and it flatly contradicted the JIT_IR the boot requests. Android
+    // grants executable pages, so its answer is yes; iOS keeps the
+    // honest no (a free-account sideload gets no executable pages).
+    if (prop == SYSPROP_CAN_JIT) {
+#if defined(__ANDROID__)
+        return true;
+#else
+        return false;
+#endif
+    }
     return false;
 }
 std::string System_GetProperty(SystemProperty) { return std::string(); }
@@ -437,7 +501,17 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
     }
 
     CoreParameter param;
+#if defined(__ANDROID__) && defined(__aarch64__)
+    // Android arm64 carries PPSSPP's IR JIT (the backend TUs are in
+    // PPSPP_ANDROID_ARM64_CPP and the factory below returns the real
+    // Arm64IRJit there): executable pages are ordinary mmap on Android,
+    // so the iOS reason for the interpreter does not apply. The IR
+    // interpreter's frame cost was audible as choppy sound on device
+    // (first on-phone MK Unchained session, 2026-11-11).
+    param.cpuCore = CPUCore::JIT_IR;
+#else
     param.cpuCore = CPUCore::IR_INTERPRETER;   // no JIT pages on iOS
+#endif
     // Host trace override (scripts/psp-memtrace): the classic interpreter's
     // memory ops fire debugger MemChecks; the IR interpreter's do not.
     if (core->traceClassicCpu) param.cpuCore = CPUCore::INTERPRETER;
@@ -487,6 +561,17 @@ bool psp_load_rom(PspCore *core, const char *rom_path, const char *save_path, ch
     }
     strncpy(core->code, id.c_str(), sizeof(core->code) - 1);
     strncpy(code_out, core->code, 16);
+
+    // The session core-mode report. MIPSState::Init has run by now and
+    // created the CPU backend from param.cpuCore (PPSSPP dispatches
+    // RunLoopUntil on that same CoreParameter value), so state what the
+    // backend OBJECT is: a requested JIT with no backend behind it is a
+    // build defect, and the report says BROKEN rather than letting the
+    // session quietly run an interpreter nobody chose.
+    {
+        const char *mode = DescribeCreatedCore(param.cpuCore);
+        std::snprintf(core->coreMode, sizeof(core->coreMode), "%s", mode);
+    }
 
     core->booted = true;
     return true;
@@ -677,6 +762,12 @@ unsigned long long psp_frames_completed(PspCore *core)
     return core ? core->frames : 0;
 }
 
+const char *psp_core_mode(PspCore *core)
+{
+    if (!core || !core->coreMode[0]) return "not booted";
+    return core->coreMode;
+}
+
 const char *psp_last_error(PspCore *core)
 {
     return (core && core->error[0]) ? core->error : "";
@@ -740,6 +831,65 @@ void psp_watch_read_log(PspCore *core, uint32_t start, uint32_t end)
     g_breakpoints.AddMemCheck(start, end, MEMCHECK_READ, BREAK_ACTION_LOG);
 }
 
+void psp_watch_write(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end, MEMCHECK_WRITE, BREAK_ACTION_NONE);
+}
+
+void psp_watch_write_onchange(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end,
+        (MemCheckCondition)(MEMCHECK_WRITE | MEMCHECK_WRITE_ONCHANGE),
+        BREAK_ACTION_NONE);
+}
+
+void psp_watch_write_log(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end, MEMCHECK_WRITE, BREAK_ACTION_LOG);
+}
+
+void psp_watch_write_onchange_log(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end,
+        (MemCheckCondition)(MEMCHECK_WRITE | MEMCHECK_WRITE_ONCHANGE),
+        BREAK_ACTION_LOG);
+}
+
+void psp_watch_write_pause(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end, MEMCHECK_WRITE, BREAK_ACTION_PAUSE);
+}
+
+void psp_watch_write_onchange_pause(PspCore *core, uint32_t start, uint32_t end)
+{
+    if (!core || end <= start) return;
+    g_breakpoints.AddMemCheck(start, end,
+        (MemCheckCondition)(MEMCHECK_WRITE | MEMCHECK_WRITE_ONCHANGE),
+        BREAK_ACTION_PAUSE);
+}
+
+int psp_memwatch_poll(PspCore *core, uint32_t index, uint32_t *pc_out,
+                      uint32_t *addr_out, int *size_out, int *write_out,
+                      uint32_t regs_out[32], uint32_t *hits_out)
+{
+    if (!core) return 0;
+    if (hits_out) *hits_out = s_memHits;
+    if (index >= s_memHits) return 0;
+    if (s_memHits - index > 512) return 0;
+    const PspMemSnap &s = s_memSnaps[index % 512];
+    if (pc_out) *pc_out = s.pc;
+    if (addr_out) *addr_out = s.addr;
+    if (size_out) *size_out = s.size;
+    if (write_out) *write_out = s.write;
+    if (regs_out) for (int i = 0; i < 32; i++) regs_out[i] = s.r[i];
+    return 1;
+}
+
 int psp_watch_poll(PspCore *core, uint32_t start, uint32_t end,
                    uint32_t *hits_out, uint32_t *pc_out,
                    uint32_t *addr_out, int *size_out)
@@ -752,6 +902,32 @@ int psp_watch_poll(PspCore *core, uint32_t start, uint32_t end,
     if (addr_out) *addr_out = mc.lastAddr;
     if (size_out) *size_out = mc.lastSize;
     return 1;
+}
+
+void psp_break_set(PspCore *core, uint32_t addr)
+{
+    if (!core) return;
+    g_breakpoints.AddBreakPoint(addr);
+    g_breakpoints.ChangeBreakPoint(addr, BREAK_ACTION_PAUSE);
+}
+
+int psp_break_poll(PspCore *core, uint32_t index, uint32_t *pc_out,
+                   uint32_t regs_out[32], uint32_t *hits_out)
+{
+    if (!core) return 0;
+    if (hits_out) *hits_out = s_breakHits;
+    if (index >= s_breakHits) return 0;
+    if (s_breakHits - index > 512) return 0;  // fell out of the ring
+    const PspBreakSnap &s = s_breakSnaps[index % 512];
+    if (pc_out) *pc_out = s.pc;
+    if (regs_out) for (int i = 0; i < 32; i++) regs_out[i] = s.r[i];
+    return 1;
+}
+
+void psp_break_resume(PspCore *core)
+{
+    if (!core) return;
+    if (Core_IsStepping()) Core_Resume();
 }
 
 // ---- embedding-disabled service shims -------------------------------------
@@ -835,14 +1011,61 @@ void System_RunOnMainThread(std::function<void()> f) { f(); }
 // (CmdLine parses the flag, nothing listens).
 void WebServerSetRequireExactPort(bool) {}
 
-// Native JIT selection: this embedding only ever runs
-// CPUCore::IR_INTERPRETER, so MIPS.cpp's JIT branches are never taken. The
-// null jit pointer is exactly what MemFault's guards expect, and
-// DoDummyJitState keeps the verbatim upstream section layout so savestates
-// stay well-formed (saves are embedding-local: same writer, same reader).
+// Native JIT selection: everywhere except Android arm64 this embedding
+// only ever runs CPUCore::IR_INTERPRETER, so MIPS.cpp's JIT branches are
+// never taken. The null jit pointer is exactly what MemFault's guards
+// expect, and DoDummyJitState keeps the verbatim upstream section layout
+// so savestates stay well-formed (saves are embedding-local: same writer,
+// same reader).
+//
+// Android arm64 is the exception: psp_boot selects CPUCore::JIT_IR there,
+// so the factory returns the real backend. Upstream's factory
+// (Core/MIPS/JitCommon/JitCommon.cpp) is not compiled in -- it also
+// houses the disassemblers this subset excludes (the Disassemble* stubs
+// below) -- so the factory is re-homed here, and JitAt with it: the
+// backend's fixed code (Arm64IRAsm) takes JitAt's address, and its
+// upstream body needs nothing beyond the jit pointer and currentMIPS.
+// This embedding only ever requests the IR JIT; the classic JIT is not
+// carried, so a classic request gets the same null every other
+// platform gets.
+#if defined(__ANDROID__) && defined(__aarch64__)
+#include "Core/MIPS/ARM64/Arm64IRJit.h"
+#endif
+
+static const char *DescribeCreatedCore(CPUCore requested)
+{
+    switch (requested) {
+    case CPUCore::JIT_IR:
+        if (!MIPSComp::jit) return "BROKEN: JIT_IR requested but no JIT backend was created";
+        return g_createdJitBackend ? "JIT (Arm64 IR)" : "JIT (IR native backend)";
+    case CPUCore::JIT:
+        return MIPSComp::jit ? "JIT (classic)"
+            : "BROKEN: classic JIT requested but this build carries no classic JIT backend";
+    case CPUCore::IR_INTERPRETER:
+        return "IR interpreter (JIT not engaged)";
+    case CPUCore::INTERPRETER:
+        return "classic interpreter (JIT not engaged)";
+    }
+    return "interpreter (JIT not engaged)";
+}
+
 namespace MIPSComp {
 JitInterface *jit = nullptr;
+// Verbatim upstream body from JitCommon.cpp (the file excluded above):
+// the JIT's fixed code calls here when it reaches an uncompiled block.
+void JitAt() {
+    // TODO: We could probably check for a bad pc here, and fire an exception. Could spare us from some crashes.
+    // Although, we just tried to load from this address to check for a JIT block, and if we're here, that succeeded..
+    jit->Compile(currentMIPS->pc);
+}
+#if defined(__ANDROID__) && defined(__aarch64__)
+JitInterface *CreateNativeJit(MIPSState *mipsState, bool useIR) {
+    g_createdJitBackend = useIR ? "Arm64IRJit" : nullptr;
+    return useIR ? new Arm64IRJit(mipsState) : nullptr;
+}
+#else
 JitInterface *CreateNativeJit(MIPSState *, bool) { return nullptr; }
+#endif
 void DoDummyJitState(PointerWrap &p) {
     auto sec = p.Section("Jit", 1, 2);
     if (!sec)

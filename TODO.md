@@ -202,7 +202,11 @@
   it can only smooth jitter. Next: compare another PSP title (Dissidia, Birth by Sleep) in OGA and
   RetroArch, and re-test after an iOS or PPSSPP update. Do not call the remaining stutter an OGA bug
   until that comparison exists.
-- [ ] **MK Unchained: speak the tower/versus screen, so the next opponent is known (open; asked 2026-10-21).**
+- [~] **MK Unchained: speak the tower, so the next opponent is known (first-fight tower wired 2026-11-07, not yet run on a device; 'after a win' still open).**
+  2026-11-07: after P1 locks, the P2 id word 0x08D92A2C is already written while the tower pans
+  (see mortal-kombat-unchained.md, 'The arcade tower'). `OnTower()` speaks "Next opponent: <name>".
+  Still to do: sample the tower AFTER a won fight, and check the round word clears between matches.
+  Older note follows.
   After a win the game shows the next fighter on the tower before the match, and today the adapter
   says nothing there. Feasible, but not mapped: the opponent-select screen that precedes it already
   fails the same way (a third fighter table; holder 0x090E7850 with the static cursor still on P1),
@@ -210,15 +214,16 @@
   Next: a live capture on the tower — screenshot plus a state dump at the moment the next portrait
   is shown — then find a word that matches the roster index and changes when the opponent changes.
   Speak it once on entry as "Next: <name>", and keep it silent if no index is proven.
-- [ ] **MK Unchained: a proximity click that quickens as you close on the opponent (MK1 2023 style).**
-  The adapter has no `cue_snapshot` today (it is `nullptr` in the registry), so the app's Lock cue
-  toggle does nothing in this game. The cue side is ready: `CueSynth.updateBeacon(state:distance:)`
-  already maps distance to pulse rate, fast near and slow far, with a centred tone. What is missing
-  is the two fighters' world positions in the fight struct. The Konquest position/compass hunt is a
-  different mode and must not be reused here. Next: find P1 and P2 x/z in a fight, return state 2
-  (enemy lock) with their distance while `InFight()`, tune near/far to the arena, and prove the rate
-  tracks a walk-in on the host before it ships. Silent outside a fight, and only when Lock cue is on.
-- [ ] **MK Unchained's SECOND-PLAYER character select is not mapped (open; recorded 2026-10-21).**
+- [x] **MK Unchained: a proximity click that quickens as you close on the opponent (MK1 2023 style) (2026-11-17, host-tested; positions measured live in PPSSPP, not yet heard on a device).**
+  Each fighter block holds a pointer to its actor (P1 0x08D929C4, P2 0x08D92A30); the actor's
+  x/y/z floats sit at +0x20. `mku_cue_snapshot` now returns a lock (state 2) with the x/z gap,
+  rescaled from the arena's ~1..10 units onto the synth's 4..45 band so `CueSynth` is unchanged.
+  Silent outside arcade/versus fights, while paused, and whenever a pointer or coordinate fails
+  its range check. Still to do: hear it on a device; Konquest bouts have no mapped actors.
+- [~] **MK Unchained's SECOND-PLAYER character select (Practice; wired 2026-11-07, host-tested, not yet run on a device).**
+  2026-11-07: the opponent grid's holder steps like the P1 tables and the index is recovered by
+  climbing the table (no static word exists). Speaks "Opponent: <name>, row, column". Check Versus too.
+  Older note follows.
   The first grid is read, but after P1 locks a fighter the opponent grid is a
   second screen with its own state. Measured live from the 9:34 recording: P1
   Shao Kahn versus P2 Tanya, while the static cursor still held 24 (P1's pick)
@@ -898,15 +903,29 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   2026-10-16 scaffold this entry originally described. Live-verified and spoken:
   main menu, Kombat submenu, character select, fight state (health, round wins,
   timer), pause menu, and Konquest dialogue (auto-speaks each new line). Host
-  tests: 56 checks, all passing locally (2026-10-21). On GitHub main since
+  tests: 172 checks, all passing locally (2026-11-12). On GitHub main since
   2026-10-17 (commit 96746ce), with Hermes's 2026-10-19 commits wiring the
-  red objective line's speech and gating Konquest on flag A alone (71 host
-  checks). The missing test-strength baseline row for mku (71) was pushed
-  2026-10-21 (commit cec2048). Still open: the QUIT GAME dialog's selection (decomp
-  route), Konquest bout speech (gate + opponent naming), the objective
-  counters, free-roam position/sector/clock (the HUD draws a compass + grid
-  coordinate; their RAM values are unlocated), and Apep's talk trigger
-  (script-VM decomp is the next route, not more blind navigation). Detail:
+  red objective line's speech and gating Konquest on flag A alone. **2026-11-12:
+  the dojo lesson prompts are spoken.** The drawn move-name and input boxes are
+  backed by ASCII in the resident training table: name pointer `0x09179814`,
+  input glyph `0x09179818`, drill counter `0x09179808` as
+  `(required << 8) OR done`. Measured live against screenshots, then proved by a
+  driver that played the whole dojo from those words alone (all named lessons
+  2/2, four-attacks drill 4/4). The adapter speaks `Move, Leaning Fingers.
+  Triangle. 0 of 2.`, speaks the count as it advances, and repeats the current
+  move on WhereAmI. **2026-11-12, same day: village conversation text is
+  spoken.** Village talk is not a button — walking near a villager starts a
+  letterboxed cutscene, and the line is drawn as a subtitle. The live line sits
+  at `0x09106354` (whole) and `0x09105F6C` (word split); the workspace is never
+  cleared, so speech rides on change and the first line seen is swallowed. Also
+  corrected the old "no proximity trigger" note, which was measured at 3-7 AM
+  when the quest NPCs are despawned. The live NPC table is at `0x09151098`,
+  stride `0x810` (name, position, state), read by `scripts/mku-npcs.py`, and
+  `Circle` meditation fast-forwards the clock to a quest window. Host tests:
+  178. Still open: finishing a quest end to end (Apep's own cutscene was never
+  triggered on the bench), the QUIT GAME dialog's selection (decomp route), and
+  free-roam position/sector/clock (the HUD draws a compass + grid coordinate;
+  their RAM values are unlocated). Detail:
   docs/reverse-engineering/mortal-kombat-unchained.md.
 
 - [~] **Kingdom Hearts: Birth by Sleep (PSP, ULUS10505) adapter:** local only,

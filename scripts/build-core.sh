@@ -120,6 +120,20 @@ MESEN_INC="-I$MESEN_SRC -I$MESEN_SRC/Core -I$MESEN_SRC/Utilities"
 MESEN_FORCE="-include $MESEN_SRC/Core/pch.h"
 [ -d "$MESEN_SRC/Core" ] || { echo "!! no Mesen source at $MESEN_SRC" >&2; exit 1; }
 
+# ---- Genesis Plus GX (Sega Genesis / Mega Drive) ----
+# The include shape differs from Mesen's: the tree's TUs include each other's
+# headers by bare name across seven subdirectories, plus "osd.h" — the
+# frontend shim, which is OURS (Core/gpgx/osd.h) and sits FIRST so nothing
+# else's osd.h could ever win. GPGX_DEFS are the core's own configuration:
+# LSB_FIRST + LITTLE_ENDIAN name the host byte order the sound code switches
+# on, and USE_32BPP_RENDERING selects the 32-bit pixel format
+# Core/genesis_core.cpp converts from. The TUs compile as C (the `gpgx` lang
+# below), their native language; the glue declares the linkage itself.
+GPGX_SRC="${GPGX_SRC:-$HOME/src/genesis-plus-gx}"
+GPGX_INC="-I$ROOT/Core/gpgx -I$GPGX_SRC/core -I$GPGX_SRC/core/z80 -I$GPGX_SRC/core/m68k -I$GPGX_SRC/core/ntsc -I$GPGX_SRC/core/sound -I$GPGX_SRC/core/sound/minimp3 -I$GPGX_SRC/core/input_hw -I$GPGX_SRC/core/cd_hw -I$GPGX_SRC/core/cart_hw -I$GPGX_SRC/core/cart_hw/svp"
+GPGX_DEFS="-DLSB_FIRST -DBYTE_ORDER=LITTLE_ENDIAN -DUSE_32BPP_RENDERING"
+[ -d "$GPGX_SRC/core" ] || { echo "!! no Genesis Plus GX source at $GPGX_SRC" >&2; exit 1; }
+
 
 # -fwrapv matters: melonDS's ARM interpreter relies on wrapping arithmetic.
 # No JIT_ENABLED: see scripts/README.md — the ARM64 JIT needs MAP_JIT and
@@ -161,6 +175,13 @@ compile() { # compile <lang> <src> <tag>
       if [ "$(basename "$src")" = "mesen_core.cpp" ] || [ "$(basename "$src")" = "snes_core.cpp" ]; then
         flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $MESEN_INC $MESEN_FORCE"
       fi
+      # genesis_core.cpp is OGA glue that includes the core's shared.h, so it
+      # needs the GPGX include roots and defines — and the same isolation rule
+      # as the mesen case: NO $INC, whose melonDS roots carry generic header
+      # names (system.h and friends) that would shadow the core's own.
+      if [ "$(basename "$src")" = "genesis_core.cpp" ]; then
+        flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $GPGX_DEFS $GPGX_INC"
+      fi
       # Our own Core/ code only (not melonDS): a self-calling EndFrame once
       # crashed every game on its first frame (v0.4.0) behind a mere warning.
       case "$src" in "$ROOT"/Core/*) flags="$flags -Werror=infinite-recursion" ;; esac ;;
@@ -182,6 +203,13 @@ compile() { # compile <lang> <src> <tag>
     # Mesen's OWN Lua headers must win here (lua_WatchDogHook and the sandbox global live
     # in Mesen's fork). Mesen's Lua root goes FIRST and $INC is absent entirely.
     mesenlua) flags="$COMMON -I$MESEN_SRC/Lua -I$MESEN_SRC/Core -I$LUA_SRC/src -I$ROOT/Core -std=gnu11 -DLUA_USE_POSIX -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    # Genesis Plus GX: plain C, the core's native language (the mesenc
+    # shape). Compiling the tree as C++ was tried first and was wrong: the
+    # sources lean on implicit void* conversions and implicit declarations
+    # that GCC's -fpermissive forgives and Apple clang refuses. The glue
+    # (genesis_core.cpp, via the cxx case) speaks to the C objects through
+    # extern "C" declarations, which is also how upstream's frontends do it.
+    gpgx) flags="$COMMON -std=gnu11 $GPGX_DEFS $GPGX_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     ppspp) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE" ;;
     ppsppmm) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE -fobjc-arc" ;;
     ppsppc) flags="$CFLAGS $PPSPP_INC -DMOBILE_DEVICE -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
@@ -228,6 +256,12 @@ compile() { # compile <lang> <src> <tag>
   for f in $MESEN_C;           do printf '%s|mesenc|%s\n' "$MESEN_SRC/$f" "mesenc_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $MESEN_SEVENZIP_C;  do printf '%s|mesenc|%s\n' "$MESEN_SRC/$f" "mesen7z_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   for f in $MESEN_SEVENZIP_CPP; do printf '%s|mesen|%s\n' "$MESEN_SRC/$f" "mesen7zpp_$(echo "$f" | tr '/' '_' | sed 's/\.cpp$//')"; done
+  # ---- Genesis Plus GX. The measured list from core-sources.sh (the libretro
+  # wildcard set), NOT a hand-picked subset: core/system.c's frame dispatcher
+  # references the Sega CD and SVP objects unconditionally, so a Genesis-only
+  # list compiles and cannot link. genesis_core.cpp itself is NOT emitted
+  # here: it is in OGA_GLUE and the cxx case above gives it the GPGX flags.
+  for f in $GPGX_ALL; do printf '%s|gpgx|%s\n' "$GPGX_SRC/$f" "gpgx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   # The Lua-fork symbol shim, and our NES glue -- the console the NES adapter reads from.
   printf '%s|mesenlua|mesen_lua_extras\n' "$ROOT/Core/mesen_lua_extras.c"
   # mesen_core.cpp is NOT emitted here: it is in OGA_GLUE and the cxx case below
@@ -272,6 +306,12 @@ export COMMON LUA_SRC ROOT
 # ⛔ EXPORTED: compile() runs in xargs-spawned children, where an unexported include path
 # expands to EMPTY and every Mesen TU fails with "header not found".
 export MESEN_SRC MESEN_INC MESEN_FORCE
+# ⛔ EXPORTED, for the identical reason as MESEN_* above: the gpgx lang and
+# the genesis_core.cpp case build their flags from these, and unexported
+# they reach the xargs children EMPTY — every GPGX TU then fails with
+# "'shared.h' file not found" (and its glue with "'osd.h' file not found"),
+# which reads like a missing header in the tree. It is not in the tree.
+export GPGX_SRC GPGX_INC GPGX_DEFS
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED. Without it xargs reads STDIN, which is
 # empty under a non-interactive shell, so it compiles ZERO files, the archive is
@@ -330,6 +370,15 @@ if [ -n "$LLVM_OBJCOPY" ]; then
   done
   echo "== localised Mesen's shared 7-Zip symbols for the link =="
 fi
+
+# ---- Localise the blip_buf symbols Genesis Plus GX shares with melonDS ----
+# GPGX vendors blip_buf (core/sound/blip_buf.c), as do melonDS (src/blip-buf)
+# and Mesen (Utilities/Audio). The computed-overlap pass — the Mesen script's
+# sibling — localizes the GPGX side; it runs here, after the compile loop,
+# for the same reason the 7-Zip pass does. GPGX's own entry points have no
+# twin and stay global.
+bash "$ROOT/scripts/gpgx-localize-twins.sh" "$OBJ" "$LLVM_NM" "$LLVM_OBJCOPY" || {
+  echo "!! GPGX twin symbol localization failed" >&2; exit 1; }
 
 echo "== archiving =="
 # Merge the ffmpeg static slices into the core archive via $OBJ.

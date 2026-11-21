@@ -28,6 +28,7 @@
 #include "psp_core.h"
 #include "mesen_core.h"
 #include "snes_core.h"
+#include "genesis_core.h"
 
 // The GBA adapter's symbols (defined in gba_adapter.cpp). A GBA ROM selects
 // its native reader the same way an NDS ROM is matched from the registry —
@@ -37,6 +38,7 @@
 namespace oga {
 extern const Adapter kGameBoyAdvance;
 extern const Adapter kNintendoEntertainmentSystem;
+extern const Adapter kSegaGenesis;
 void gba_set_game_code(const char* code);
 void gba_set_platform(int platform);
 }
@@ -103,6 +105,10 @@ struct PokeCore {
     // The SNES (MesenCE). Same ownership rule: created here, destroyed here, and
     // pointed at by backend.state.
     SnesCore* snes = nullptr;
+    // The Genesis (Genesis Plus GX). Same ownership rule: created here,
+    // destroyed here, and pointed at by backend.state. The core underneath is
+    // a singleton machine; this pointer is the one live wrapper for it.
+    GenesisCore* genesis = nullptr;
     // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
     // the app bundle; the app points the core at them before loading a PSP
     // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
@@ -807,6 +813,7 @@ void poke_destroy(PokeCore* core)
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
+    if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
     core->backend.ops = nullptr;
     core->backend.state = nullptr;
     if (gCurrentCore == core) gCurrentCore = nullptr;
@@ -970,7 +977,8 @@ const char *poke_adapter_name(PokeCore *core)
 static bool LibraryAdapter(const oga::Adapter* a)
 {
     if (!a || !a->id) return false;
-    return strcmp(a->id, "nes") != 0 && strcmp(a->id, "n64") != 0;
+    return strcmp(a->id, "nes") != 0 && strcmp(a->id, "n64") != 0 &&
+           strcmp(a->id, "genesis") != 0;
 }
 
 static const oga::Adapter* LibraryAt(int index)
@@ -1038,6 +1046,7 @@ const char *poke_adapter_library_console(int index)
     if (strcmp(a->id, "gba") == 0) return "gb";
     if (strcmp(a->id, "nes") == 0) return "nes";
     if (strcmp(a->id, "n64") == 0) return "n64";
+    if (strcmp(a->id, "genesis") == 0) return "genesis";
     if (a->game_code && strncmp(a->game_code, "crc:", 4) == 0) return "snes";
     if (a->game_code && strncmp(a->game_code, "ULUS", 4) == 0) return "psp";
     if (a->game_code && strlen(a->game_code) == 4) return "nds";
@@ -1472,6 +1481,23 @@ static void GbaSoundForward(const char* path, int pan, int volume, void* ctx)
     if (core && core->soundCb && path) core->soundCb(path, pan, volume, core->soundUserdata);
 }
 
+/* The NES reader's speech arrives the same way the GBA reader's does: the
+ * core's own callback (nes_set_speech_callback), fed by mesen_core's poll of
+ * the reader's speech file. Until now nothing registered it, so a bundled
+ * NES reader (Dragon Warrior, Zelda 1) ran in the app with its speech sink
+ * null -- the mods spoke into a file nobody forwarded. The GBA forwards
+ * above are the shape; these are the same two lines for the NES core. */
+static void NesSayForward(const char* utf8, bool interrupt, void* ctx)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (utf8) EmitSpeech(core, utf8, interrupt, 0);
+}
+static void NesLogForward(const char* utf8, void* ctx)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (core && core->logCb && utf8) core->logCb(utf8, core->logUserdata);
+}
+
 // Tear down whichever backend ran before, so a new ROM never inherits a live
 // core, a Lua state, or an attached adapter from the previous game.
 static void TeardownBackends(PokeCore* core)
@@ -1484,6 +1510,7 @@ static void TeardownBackends(PokeCore* core)
     if (core->psp) { psp_destroy(core->psp); core->psp = nullptr; }
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
+    if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
     core->adapter = nullptr;
     core->adapterAttached = false;
     // Clearing the ops is what makes "is a game loaded?" answerable from one
@@ -1544,6 +1571,8 @@ static bool LoadNesRom(PokeCore* core, const char* rom_path, const char* save_pa
         return false;
     }
     core->backend = oga_nes_core(core->nes);
+    nes_set_speech_callback(core->nes, NesSayForward, core);
+    nes_set_log_callback(core->nes, NesLogForward, core);
     strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
     // The NES adapter is a SEAM that refuses by design (Core/nes_adapter.cpp): it is the script
     // adapter's job to narrate, and no reader script is bundled yet. Selecting it here means the UI
@@ -1576,6 +1605,35 @@ static bool LoadSnesRom(PokeCore* core, const char* rom_path, const char* save_p
     // the registry matches it as a string, and a game with no adapter is the
     // normal no-reader case.
     core->adapter = oga::find_by_game_code(core->gameCode);
+    return true;
+}
+
+static bool LoadGenesisRom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    TeardownBackends(core);
+
+    core->genesis = genesis_create();
+    if (!core->genesis) { SetError(core, "Could not create the Genesis core."); return false; }
+    char code[16] = {0};
+    /* The save path is the battery file itself here (unlike Mesen's home
+     * folder): genesis_load_rom restores it into the cartridge SRAM, and the
+     * core flushes it back on stop. */
+    if (!genesis_load_rom(core->genesis, rom_path, save_path ? save_path : "", code))
+    {
+        SetError(core, "%s", genesis_last_error(core->genesis));
+        genesis_destroy(core->genesis);
+        core->genesis = nullptr;
+        return false;
+    }
+    core->backend = oga_genesis_core(core->genesis);
+    strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
+    // The Genesis adapter is a console row that REFUSES by design
+    // (Core/genesis_adapter.cpp): no Genesis game has a reader yet, and
+    // selecting the row is what makes the UI correctly show no reader
+    // controls, which is the truth. Selected directly because a Genesis ROM
+    // carries no four-character code for find_by_game_code to match — the
+    // "crc:<hex>" id in gameCode is a content fingerprint, not a key.
+    core->adapter = &oga::kSegaGenesis;
     return true;
 }
 
@@ -1632,6 +1690,7 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
          * be the exact bug the resolver was written to end. */
         if (backend->nes_hint) return LoadNesRom(core, rom_path, save_path);
         if (backend->snes_hint) return LoadSnesRom(core, rom_path, save_path);
+        if (backend->genesis_hint) return LoadGenesisRom(core, rom_path, save_path);
         if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
     }
 
@@ -1661,11 +1720,12 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
     // this app wants: the finished 256x192 framebuffers are read straight out
     // of the core, so no GPU surface is ever needed.
     //
-    // ⛔ THE JIT MUST BE EXPLICITLY DISABLED, AND ASKING FOR IT IS A TRAP.
-    // This build is compiled WITHOUT JIT_ENABLED (the ARM64 JIT needs MAP_JIT
-    // and pthread_jit_write_protect_np, which iOS only grants to apps signed
-    // with the dynamic-codesigning entitlement — a free-account sideload has
-    // none). NDSArgs' default is `std::optional<JITArgs> JIT = JITArgs()`, i.e.
+    // ⛔ ON iOS, THE JIT MUST BE EXPLICITLY DISABLED, AND ASKING FOR IT IS
+    // A TRAP. The iOS build is compiled WITHOUT JIT_ENABLED (the ARM64 JIT
+    // needs MAP_JIT and pthread_jit_write_protect_np, which iOS only grants
+    // to apps signed with the dynamic-codesigning entitlement — a
+    // free-account sideload has none). Android compiles the JIT in; see
+    // the args below. NDSArgs' default is `std::optional<JITArgs> JIT = JITArgs()`, i.e.
     // JIT *requested*. With it requested, NDS::RunFrame() dispatches to
     // RunFrame<CPUExecuteMode::JIT>() — and in a build where JIT_ENABLED is
     // absent, that path never actually runs the CPUs. The console "boots" and
@@ -1675,7 +1735,15 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
     // which is the correct (and only) engine here.
     NDSArgs args;
     args.OutputSampleRate = 32768.0;
+#ifdef __ANDROID__
+    // Android is not the build the warning above describes: the overlay
+    // compiles melonDS WITH its JIT (ENABLE_JIT=ON is pinned for arm64
+    // and x86_64 -- scripts/android-jit-check.sh asserts it) and Android
+    // grants the executable pages the JIT needs, so leave args.JIT at
+    // its default (JIT requested) and the JIT actually runs.
+#else
     args.JIT = std::nullopt;   // interpreter: see the note above
+#endif
 
     // Real BIOS + firmware when the app has them. This is what decides whether
     // the console boots through the firmware/menu handshake or is forced into
@@ -1720,6 +1788,18 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
     }
 
     core->nds = std::make_unique<NDS>(std::move(args));
+
+    // The session core-mode line: NDS::IsJITEnabled() reads the flag the
+    // constructor set from args.JIT, and in a build without the JIT
+    // compiled in the header answers false unconditionally -- so this
+    // one call witnesses both the request and the binary. Logged here,
+    // at construction, where the object that decides it exists.
+    if (core->logCb) {
+        core->logCb(core->nds->IsJITEnabled()
+                        ? "DS core: JIT (melonDS ARM JIT)"
+                        : "DS core: interpreter (melonDS JIT not engaged)",
+                    core->logUserdata);
+    }
 
     // ⛔ THE CONSOLE MUST BE RESET BEFORE THE CART IS INSERTED AND BOOTED, OR
     // EVERY FRAME RUNS FOREVER. NDS::Reset() is what fills ARM9MemTimings /

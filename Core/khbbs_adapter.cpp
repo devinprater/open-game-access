@@ -6268,16 +6268,26 @@ bool ShopLine(char* buf, size_t n)
                 if (++seen == v) { ShopStockId(i, nullptr, &price); break; }
             }
         }
+        // Voyager Access 16.6 (mined 2026-11-08): when the selected
+        // total outruns the balance, speak the shortfall itself. The
+        // game's own refusal names nothing, and total-vs-balance left
+        // the subtraction to the player. Pure arithmetic on values
+        // already read here; only when the price is known.
+        long total = (long) qty * price;
+        char shortPart[64] = "";
+        if (price > 0 && total > (long) bal)
+            snprintf(shortPart, sizeof(shortPart), " You need %ld more %s.",
+                     total - (long) bal, ShopCurWord());
         if (phase == 2)
-            snprintf(buf, n, "%s. %s Quantity %d, %d %s. You have %u %s.",
-                     ShopName(), g_shopBuyName, qty, qty * price,
-                     ShopCurWord(), bal, ShopCurWord());
+            snprintf(buf, n, "%s. %s Quantity %d, %ld %s. You have %u %s.%s",
+                     ShopName(), g_shopBuyName, qty, total,
+                     ShopCurWord(), bal, ShopCurWord(), shortPart);
         else if (ShopMedal())
-            snprintf(buf, n, "%s. Trade in these %s? %s.",
-                     ShopName(), ShopCurWord(), g_shopConfYes ? "Yes" : "No");
+            snprintf(buf, n, "%s.%s Trade in these %s? %s.",
+                     ShopName(), shortPart, ShopCurWord(), g_shopConfYes ? "Yes" : "No");
         else
-            snprintf(buf, n, "%s. Complete this purchase? %s.",
-                     ShopName(), g_shopConfYes ? "Yes" : "No");
+            snprintf(buf, n, "%s.%s Complete this purchase? %s.",
+                     ShopName(), shortPart, g_shopConfYes ? "Yes" : "No");
         return true;
     }
     if (phase == 6 || phase == 7) {

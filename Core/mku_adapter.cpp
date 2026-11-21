@@ -499,6 +499,43 @@ static bool CharObjectAt(uint32_t addr)
            (addr & 3) == 0 && u32(addr + 4) == kObjMagic;
 }
 
+// ---- Practice's SECOND-PLAYER select (MEASURED live 2026-11-07) -------------
+//
+// After P1 locks a fighter in Practice the opponent grid opens: P1's name stays
+// on the left, the opponent cursor starts on Sub-Zero (index 7), and
+// kCharCursorAddr still holds P1's pick. The CURRENT-OBJECT holder at
+// kCharHolderAddr now points into a THIRD fighter table (0x090E7850 at index 7)
+// whose index-0 object sat at 0x090E9840. Walked live from Sub-Zero:
+//   RIGHT -> holder 0x090E73C0 (-0x490), RIGHT -> 0x090E6F30 (-0x490),
+//   DOWN  -> 0x090E4190 (-10 * 0x490, a row), LEFT -> 0x090E4620 (+0x490)
+// so the holder steps exactly like the P1 tables, and the index is the number
+// of 0x490 strides from the holder UP to the table's first object: the object
+// one stride above index 0 is not a ` OBJ`, which ends the climb (checked: at
+// 0x090E9CD0 the +4 word read 0xFFFFFFFF). No word in the static image holds
+// the opponent's index (diffed across five cursor stops, nothing matched).
+//
+// Telling this grid from the P1 grid: the P1 heap table's index-0 object is
+// holder + P1 index * 0x490, and that base is remembered while the P1 grid is
+// up. On the opponent grid the same arithmetic lands somewhere else, because
+// the holder is in another table. If no P1 base was ever seen (the adapter
+// attached late) the screen reads as the P1 grid, as before.
+static uint32_t g_p1TableBase = 0;
+static int g_charGoneFrames = 0;
+
+// The index of a heap-table holder: climb in +stride steps while each step is
+// still a fighter object. -1 when the holder is not part of a plausible table.
+static int HeapTableIndex(uint32_t holder)
+{
+    if (!CharObjectAt(holder)) return -1;
+    int k = 0;
+    uint32_t a = holder;
+    while (k < kCharCount && CharObjectAt(a + kCharObjStride)) {
+        a += kCharObjStride;
+        k++;
+    }
+    return k < kCharCount ? k : -1;
+}
+
 bool OnCharSelect(void)
 {
     if (InKonquest()) return false;   // front-end state is stale there
@@ -522,12 +559,53 @@ bool OnCharSelect(void)
     uint32_t h = u32(kCharHolderAddr);
     if (h < 0x09000000u || h >= 0x09120000u) return false;
     if (!CharObjectAt(h)) return false;
-    return CharObjectAt(h + idx * kCharObjStride);
+    if (!CharObjectAt(h + idx * kCharObjStride)) return false;
+    // A holder in some other table than P1's is the opponent grid: it must
+    // yield an index, or the screen is unmapped rather than P1's name again.
+    if (g_p1TableBase && h + idx * kCharObjStride != g_p1TableBase &&
+        HeapTableIndex(h) < 0)
+        return false;
+    return true;
+}
+
+// True on Practice's opponent grid (see the block above).
+bool OnP2Select(void)
+{
+    if (!OnCharSelect()) return false;
+    uint32_t idx = u32(kCharCursorAddr);
+    uint32_t h = u32(kCharHolderAddr);
+    if (h == kCharObjBase - idx * kCharObjStride) return false;   // Arcade's table
+    return g_p1TableBase && h + idx * kCharObjStride != g_p1TableBase &&
+           HeapTableIndex(h) >= 0;
+}
+
+// Learns the P1 heap table while the P1 grid is up; forgets it once the grid
+// has been gone for half a second so the next visit may allocate elsewhere.
+static void TrackCharSlot(void)
+{
+    if (!OnCharSelect()) {
+        if (++g_charGoneFrames > 30) g_p1TableBase = 0;
+        return;
+    }
+    g_charGoneFrames = 0;
+    uint32_t idx = u32(kCharCursorAddr);
+    uint32_t h = u32(kCharHolderAddr);
+    if (h == kCharObjBase - idx * kCharObjStride) {   // Arcade: no P2 grid
+        g_p1TableBase = 0;
+        return;
+    }
+    if (!g_p1TableBase) g_p1TableBase = h + idx * kCharObjStride;
 }
 
 // "<name>, row R, column C" for the hovered fighter; on-grid only.
 void CharRow(char* out, size_t cap)
 {
+    if (OnP2Select()) {
+        int o = HeapTableIndex(u32(kCharHolderAddr));
+        snprintf(out, cap, "Opponent: %s, row %d, column %d", kCharNames[o],
+                 o / kCharCols + 1, o % kCharCols + 1);
+        return;
+    }
     uint32_t idx = u32(kCharCursorAddr);
     snprintf(out, cap, "%s, row %u, column %u", kCharNames[idx],
              idx / kCharCols + 1, idx % kCharCols + 1);
@@ -656,6 +734,266 @@ void DlgOnFrame(void)
     }
 }
 
+// ---- Konquest cutscene subtitles (VERIFIED 2026-11-12, village bench) --------
+//
+// Village conversations are CUTSCENES with drawn subtitles, not the dialogue
+// box. Walking near an NPC starts one — measured live: walking past the
+// students by the wall produced "Hello, Shujinko. I think Apep is waiting for
+// you.", and Cross advanced it to "Did you want something from me?" and then
+// "I really need to practice. You...". At that moment the dialogue buffer still
+// held the dojo's stale line and its scene pointer was 0, which is why the
+// village looked silent to the adapter.
+//
+// The live line is copied to a fixed subtitle workspace:
+//   0x09106354  the whole current line, NUL-terminated ASCII
+//   0x09105F6C  the same line split into words, each NUL-terminated
+// A cutscene's line is spoken when it changes and settles for a few frames.
+// ⛔ The workspace is NOT cleared when the conversation ends: a free-roam read
+// after the benchmark still held "I really need to practice...", and the words
+// around it were identical to the in-cutscene pattern, so there is no flag to
+// test. Speech therefore rides on change alone, and the very first frame the
+// adapter ever sees is swallowed so a stale line at startup is never spoken.
+constexpr uint32_t kSubtitleAddr = 0x09106354;
+constexpr int kSubtitleStableFrames = 10;
+
+char g_subLast[192] = "";
+char g_subPending[192] = "";
+int g_subStable = 0;
+bool g_subStarted = false;
+
+bool SubtitleReadLine(char* out, size_t cap)
+{
+    size_t n = 0;
+    while (n + 1 < cap) {
+        uint8_t c = u8(kSubtitleAddr + (uint32_t) n);
+        if (c == 0) break;
+        if (c < 32 || c > 126) return false;
+        out[n++] = (char) c;
+    }
+    if (n == 0 || u8(kSubtitleAddr + (uint32_t) n) != 0) return false;
+    while (n > 0 && out[n - 1] == ' ') n--;      // the game pads with a space
+    out[n] = 0;
+    return n > 0;
+}
+
+void SubtitleOnFrame(void)
+{
+    char line[192];
+    bool has = SubtitleReadLine(line, sizeof(line));
+    if (!g_subStarted) {
+        // First frame since the app started: record a line left over from a
+        // finished conversation instead of speaking it.
+        g_subStarted = true;
+        if (has) snprintf(g_subLast, sizeof(g_subLast), "%s", line);
+        return;
+    }
+    if (!has) {
+        g_subPending[0] = 0;
+        g_subStable = 0;
+        g_subLast[0] = 0;   // cutscene over: the next line speaks again
+        return;
+    }
+    if (strcmp(line, g_subPending) != 0) {
+        snprintf(g_subPending, sizeof(g_subPending), "%s", line);
+        g_subStable = 0;
+        return;
+    }
+    if (++g_subStable < kSubtitleStableFrames) return;
+    if (strcmp(line, g_subLast) != 0) {
+        Say(line, "dialogue", oga::Priority::Normal);
+        snprintf(g_subLast, sizeof(g_subLast), "%s", line);
+    }
+}
+
+// ---- Konquest dojo training prompt (VERIFIED 2026-11-12, live bench) ---------
+//
+// The named-move lessons draw two more boxes the dialogue buffer never sees:
+// a move name ("LEANING FINGERS") and its input glyph ("A", "(+A", ":+X").
+// Both are plain ASCII strings that stay resident in the training table at
+// 0x09DDA000, and the LIVE pair is pointed at from the script workspace:
+//
+//   0x09179814 -> move name      0x09179818 -> input glyph
+//   0x09179808 -> (required << 8) | done   — the box's "0 / 2"
+//
+// Measured 2026-11-12 in one boot. Four-attacks drill: 0x400 (0/4), then
+// 0x401, 0x402, 0x403, 0x404 as the attacks landed, and the drill completed
+// at 0x404. Named lessons, each with a screenshot taken on the announcement:
+//   LEANING FINGERS / 'A'    -> Triangle       counter 0x200, then 0x201
+//   STONE COLUMN   / '(+A'   -> Up + Triangle  counter 0x201 (the box switched)
+//   CREATURE KICK  / 'X'     -> Cross          counter 0x200, then 0x201
+//   STING TAP      / ':+X'   -> Left + Cross   counter 0x201
+// Every one of those inputs was then fired from the RAM value alone and the
+// lesson passed (2/2 each), so the glyph table is proved, not guessed.
+//
+// ⛔ The workspace OUTLIVES the drill: free-roam still read 0x404 and a garbage
+// prompt pointer. Speech is therefore gated on the red objective line AND one
+// of the dojo's own drill phrasings, never on the workspace alone.
+constexpr uint32_t kTrainPromptNameAddr = 0x09179814;
+constexpr uint32_t kTrainPromptInputAddr = 0x09179818;
+constexpr uint32_t kTrainCounterAddr = 0x09179808;
+constexpr uint32_t kTrainTableLo = 0x09DDA000;   // training move-name strings
+constexpr uint32_t kTrainTableHi = 0x09DDB000;
+constexpr int kTrainStableFrames = 12;
+
+char g_trainKey[96] = "";
+int g_trainLastDone = -1;
+char g_trainPendKey[96] = "";
+int g_trainPendDone = -1;
+int g_trainStable = 0;
+
+// Read a NUL-terminated printable string from the training table; fails closed
+// outside the table so a stale heap pointer is never read as a move name.
+bool TrainReadString(uint32_t addr, char* out, size_t cap)
+{
+    if (addr < kTrainTableLo || addr >= kTrainTableHi || cap < 2) return false;
+    size_t n = 0;
+    while (n + 1 < cap) {
+        uint8_t c = u8(addr + (uint32_t) n);
+        if (c == 0) break;
+        if (c < 32 || c > 126) return false;
+        out[n++] = (char) c;
+    }
+    if (n == 0 || u8(addr + (uint32_t) n) != 0) return false;
+    out[n] = 0;
+    return true;
+}
+
+// The game's move names are stored in capitals. Speak them in sentence case:
+// a screen reader spells a fully capitalised word letter by letter.
+void TrainTitleCase(const char* in, char* out, size_t cap)
+{
+    size_t i = 0;
+    bool start = true;
+    for (; in[i] && i + 1 < cap; i++) {
+        char c = in[i];
+        if (c >= 'A' && c <= 'Z') c = (char)(c - 'A' + 'a');
+        if (start && c >= 'a' && c <= 'z') c = (char)(c - 'a' + 'A');
+        out[i] = c;
+        start = (c == ' ' || c == '-');
+    }
+    out[i] = 0;
+}
+
+// The four glyph strings the dojo's named lessons use, each mapped to what the
+// player must press. Measured off screenshots (see above); unknown codes speak
+// the move name without inventing an input.
+const char* TrainInputSpoken(const char* glyph)
+{
+    if (strcmp(glyph, "A") == 0) return "Triangle";
+    if (strcmp(glyph, "X") == 0) return "Cross";
+    if (strcmp(glyph, "(+A") == 0) return "Up plus Triangle";
+    if (strcmp(glyph, ":+X") == 0) return "Left plus Cross";
+    return nullptr;
+}
+
+// True only while a dojo drill is live: the mode, the fight engine (flag B),
+// the red objective channel, and one of the phrasings the tutorial uses.
+//
+// ⛔ Flag B is the one that catches free-roam. Measured live 2026-11-12: in the
+// village flag A=1, B=0, the colour word STILL reads 0xFF4848FF and the buffer
+// STILL holds the dojo's last line ("Strike me with two high attacks and two
+// low attacks."), which contains a drill phrase and a plausible stale counter
+// (0x404). Without the B test the adapter would have announced a finished
+// lesson while the player walked the village. Drills run on the fight engine,
+// so B is 1 throughout them.
+bool TrainDrillActive(void)
+{
+    if (!InKonquest() || !DlgStructOk()) return false;
+    if (u32(kKonquestFlagBAddr) != 1) return false;
+    if (u32(kDlgColorAddr) != kDlgColorObjective) return false;
+    char line[224];
+    if (!DlgReadLine(line, sizeof(line))) return false;
+    return strstr(line, "step toward") || strstr(line, "step away") ||
+           strstr(line, "Backward Dash") || strstr(line, "strike me") ||
+           strstr(line, "high attacks") || strstr(line, "low attacks");
+}
+
+bool TrainCounter(int* done, int* total)
+{
+    uint32_t w = u32(kTrainCounterAddr);
+    int t = (int)(w >> 8), d = (int)(w & 0xFF);
+    if (t < 1 || t > 20 || d < 0 || d > t) return false;
+    *done = d;
+    *total = t;
+    return true;
+}
+
+// The one-line answer WhereAmI gives: "Move, Leaning Fingers. Triangle. 0 of 2."
+bool TrainClause(char* out, size_t cap)
+{
+    if (!TrainDrillActive()) return false;
+    int done = 0, total = 0;
+    if (!TrainCounter(&done, &total)) return false;
+    char name[40], glyph[12];
+    bool named = TrainReadString(u32(kTrainPromptNameAddr), name, sizeof(name)) &&
+                 TrainReadString(u32(kTrainPromptInputAddr), glyph, sizeof(glyph));
+    char pretty[40];
+    TrainTitleCase(name, pretty, sizeof(pretty));
+    const char* input = named ? TrainInputSpoken(glyph) : nullptr;
+    if (named && input)
+        snprintf(out, cap, "Move, %s. %s. %d of %d.", pretty, input, done, total);
+    else if (named)
+        snprintf(out, cap, "Move, %s. %d of %d.", pretty, done, total);
+    else
+        snprintf(out, cap, "%d of %d.", done, total);
+    return true;
+}
+
+void TrainOnFrame(void)
+{
+    if (!TrainDrillActive()) {
+        g_trainKey[0] = 0;
+        g_trainLastDone = -1;
+        g_trainPendKey[0] = 0;
+        g_trainPendDone = -1;
+        g_trainStable = 0;
+        return;
+    }
+    int done = 0, total = 0;
+    if (!TrainCounter(&done, &total)) return;
+    char name[40], glyph[12];
+    bool named = TrainReadString(u32(kTrainPromptNameAddr), name, sizeof(name)) &&
+                 TrainReadString(u32(kTrainPromptInputAddr), glyph, sizeof(glyph));
+    char pretty[40];
+    TrainTitleCase(name, pretty, sizeof(pretty));
+    char key[96];
+    if (named)
+        snprintf(key, sizeof(key), "%s|%s|%d", name, glyph, total);
+    else
+        snprintf(key, sizeof(key), "|%d", total);
+    if (strcmp(key, g_trainPendKey) != 0 || done != g_trainPendDone) {
+        snprintf(g_trainPendKey, sizeof(g_trainPendKey), "%s", key);
+        g_trainPendDone = done;
+        g_trainStable = 0;
+        return;
+    }
+    if (++g_trainStable < kTrainStableFrames) return;
+    if (strcmp(key, g_trainKey) != 0) {
+        // A new move (or a new drill): name it, then say where the drill sits.
+        char spoken[192];
+        const char* input = named ? TrainInputSpoken(glyph) : nullptr;
+        if (named && input)
+            snprintf(spoken, sizeof(spoken), "Move, %s. %s. %d of %d.",
+                     pretty, input, done, total);
+        else if (named)
+            snprintf(spoken, sizeof(spoken), "Move, %s. %d of %d.", pretty, done, total);
+        else
+            snprintf(spoken, sizeof(spoken), "%d of %d.", done, total);
+        // A plain drill at zero adds nothing the objective line did not say.
+        if (named || done > 0)
+            Say(spoken, "objective", oga::Priority::Normal);
+        snprintf(g_trainKey, sizeof(g_trainKey), "%s", key);
+        g_trainLastDone = done;
+    } else if (done != g_trainLastDone) {
+        if (done > 0) {
+            char spoken[64];
+            snprintf(spoken, sizeof(spoken), "%d of %d.", done, total);
+            Say(spoken, "objective", oga::Priority::Normal);
+        }
+        g_trainLastDone = done;
+    }
+}
+
 // ---- fight state (VERIFIED 2026-10-16 night, hunt11) ------------------------
 //
 // One BSS fight struct holds the whole match. The two fighter blocks sit
@@ -718,6 +1056,41 @@ bool InFight(void)
     if (!(h1 >= 0.0f && h1 <= 1.0f) || !(h2 >= 0.0f && h2 <= 1.0f)) return false;
     if (h1 == 0.0f && h2 == 0.0f) return false;  // nobody standing: not a live match
     return true;
+}
+
+// ---- the arcade tower: who you fight next (MEASURED live 2026-11-07) ------
+//
+// After P1 locks a fighter, Arcade shows a camera pan up a tower of
+// portraits, a loading screen, then the fight. The opponent is already in
+// the fight struct while the tower is up. Sampled every 2 s from the lock:
+//   t=0-3 s   p1 id valid, p2 id 0 (not chosen yet), round 0, timer 0
+//   t=4 s     p2 id written (4 = Goro; the pan settles on Goro's portrait),
+//             and the word at kTowerSlotFlagAddr goes 3 -> 1 in the same
+//             frame (0x08D92A6C 0x31 -> 0x23 as well; not used)
+//   t=4-16 s  both HP words 1.0, round 0, timer 0 (tower, then LOADING)
+//   t=17 s    round 1, t=19 s timer 60: the fight, which InFight() owns.
+// Id 0 is Kenshi AND the unset value, so "chosen" needs the slot flag when
+// the id reads 0: a Kenshi opponent speaks only once the flag has flipped,
+// and stays silent if that proxy is wrong (fail closed).
+// A second match in one session may leave the round word non-zero until the
+// game clears it, in which case the tower stays silent rather than guess.
+constexpr uint32_t kTowerSlotFlagAddr = 0x08D92A1C;
+
+bool OnTower(void)
+{
+    if (InKonquest()) return false;
+    if (OnCharSelect()) return false;
+    if (FrontEndRow()) return false;
+    if (u32(kRoundAddr) != 0 || u32(kTimerAddr) != 0) return false;
+    uint32_t p1 = u32(kP1FighterIdAddr), p2 = u32(kP2FighterIdAddr);
+    if (p1 >= (uint32_t) kCharCount || p2 >= (uint32_t) kCharCount) return false;
+    if (f32(kP1HpAddr) != 1.0f || f32(kP2HpAddr) != 1.0f) return false;
+    return p2 != 0 || u32(kTowerSlotFlagAddr) == 1;
+}
+
+void TowerRow(char* out, size_t cap)
+{
+    snprintf(out, cap, "Next opponent: %s", kCharNames[u32(kP2FighterIdAddr)]);
 }
 
 // "Scorpion 90 percent, Goro 33 percent. 48 seconds left. You lead 1 to 0."
@@ -1074,12 +1447,57 @@ void SfReset(void)
 
 // The cue feed (adapter.h CueSnapshot): silent, read-only, polled
 // every frame by the host's cue synth. This game has no lock-on,
-// so the beacon fields stay empty (battle with no lock = the
-// synth's quiet state); the sound-first one-shot health events
+// so the beacon carries FIGHT PROXIMITY instead (FightGap above;
+// locked = in a live fight with readable positions); the sound-first one-shot health events
 // ride the trailing fields exactly as BBS's do — the watches stash
 // them during on_frame, and the first poll inside a live fight
 // copies them out and clears them, so each hit sounds exactly
 // once. A poll outside a fight is refused and consumes nothing.
+// ---- Fight proximity (VERIFIED LIVE 2026-11-17, Windows PPSSPP bench) ------
+//
+// Each fighter's block in the fight struct holds a heap pointer to its
+// engine actor at +0x10 (P1 0x08D929C4, P2 0x08D92A30; the heap addresses
+// move per boot, so the pointer is followed every poll and never cached).
+// The actor's world position is a float vec3 at +0x20 (x), +0x24 (y,
+// height) and +0x28 (z). Bench: Scorpion vs Blaze, P1 walked toward and
+// away from the CPU while both positions were sampled every 0.3 s; the
+// ground distance hypot(dx, dz) fell 5.3 -> 0.85 on the walk-in and rose
+// again on the walk-out, and an idle stretch held both positions steady.
+// The arena is a corridor along z (about 1.8 to 11.5 on the bench stage),
+// with the fighters about 1 unit apart when they trade blows and up to
+// ~10 apart at the far ends. y is left out so a jump does not read as
+// distance. A throwaway diff of whole-RAM dumps taken while P1 walked
+// found the same three floats among noise from animation bone matrices;
+// the pointer chain above is what makes them stable.
+constexpr uint32_t kP1ActorPtrAddr = 0x08D929C4;
+constexpr uint32_t kP2ActorPtrAddr = 0x08D92A30;
+constexpr uint32_t kActorPosOffset = 0x20;
+// The cue synth's beacon was tuned on Dissidia's scale (pulse fastest at
+// 4 units, slowest at 45). A fight arena is ~10 units deep, so the real
+// distance is mapped linearly from [kProxNear, kProxFar] onto that band
+// here rather than teaching the synth a second scale.
+constexpr float kProxNear = 1.0f, kProxFar = 10.0f;
+constexpr float kSynthNear = 4.0f, kSynthFar = 45.0f;
+
+bool PauseFrozen(void);
+
+bool FightGap(float* out)
+{
+    uint32_t pp[2] = { u32(kP1ActorPtrAddr), u32(kP2ActorPtrAddr) };
+    float xz[2][2];
+    for (int i = 0; i < 2; i++) {
+        uint32_t p = pp[i];
+        if (p < 0x08800000 || p > 0x09FFFF00 || (p & 3)) return false;
+        float x = f32(p + kActorPosOffset);
+        float z = f32(p + kActorPosOffset + 8);
+        if (!(x > -500.0f && x < 500.0f && z > -500.0f && z < 500.0f)) return false;
+        xz[i][0] = x; xz[i][1] = z;
+    }
+    float dx = xz[0][0] - xz[1][0], dz = xz[0][1] - xz[1][1];
+    *out = sqrtf(dx * dx + dz * dz);
+    return true;
+}
+
 static bool mku_cue_snapshot(CueSnapshot* out)
 {
     if (!out) return false;
@@ -1094,6 +1512,15 @@ static bool mku_cue_snapshot(CueSnapshot* out)
     if (!g_host) return false;
     if (!InFight() && !g_boutLive) return false;
     out->battle = true;
+    // Proximity beacon: only in a live arcade/versus fight (not a Konquest
+    // bout, whose actors are not mapped) and not while the game is paused.
+    float gap;
+    if (InFight() && !PauseFrozen() && FightGap(&gap)) {
+        float t = (gap - kProxNear) / (kProxFar - kProxNear);
+        t = t < 0.0f ? 0.0f : (t > 1.0f ? 1.0f : t);
+        out->locked = true;
+        out->dist = kSynthNear + t * (kSynthFar - kSynthNear);
+    }
     out->foe_beep = g_sfPendFoeBeep;
     out->foe_beep_hz = g_sfPendFoeHz;
     out->foe_beep_pan = g_sfPendFoeBeep ? kSfFoePan : 0.0f;
@@ -1187,6 +1614,97 @@ void RoamPositionClause(char* out, size_t cap)
     snprintf(out, cap, "Position %d, %d.", ix, iz);
 }
 
+// ---- named Konquest NPCs (VERIFIED 2026-11-13) --------------------------------
+//
+// Every village NPC has a 0x810-byte script record, anchored at npc_apep's
+// record: the name pointer at +0 and the world position at +0x1C/+0x20/+0x24.
+// When a villager stands at his post the record position matches the drawn
+// actor exactly (measured against the draw transforms: npc_apep d=0.00,
+// npc_adam d=0.01, npc_tao1 d=0.06, npc_vender2 d=0.24), so this answers "where
+// is he" without scanning 24 MB of draw transforms.
+//
+// Names not yet seen in play report as "Someone" rather than inventing one.
+constexpr uint32_t kNpcTopAddr = 0x09151098;   // npc_apep's record
+constexpr uint32_t kNpcStride = 0x810;
+constexpr int kNpcRecords = 40;
+constexpr float kNpcRange = 60.0f;
+
+const char* NpcSpokenName(const char* raw)
+{
+    static const struct { const char* key; const char* spoken; } kMap[] = {
+        {"npc_apep", "Apep"},
+        {"npc_sarah", "Sarah"},
+        {"npc_old_lady_1", "the old lady"},
+        {"npc_teacher", "the teacher"},
+        {"npc_butcher", "the butcher"},
+        {"npc_vender1", "a vendor"},
+        {"npc_vender2", "a vendor"},
+        {"npc_vender3", "a vendor"},
+        {"npc_ermac", "Ermac"},
+    };
+    for (size_t i = 0; i < sizeof(kMap) / sizeof(kMap[0]); i++)
+        if (strcmp(raw, kMap[i].key) == 0) return kMap[i].spoken;
+    return nullptr;
+}
+
+bool NpcRecordName(uint32_t base, char* out, size_t cap)
+{
+    uint32_t p = u32(base);
+    if (p < 0x08800000 || p >= 0x0A000000) return false;
+    size_t n = 0;
+    while (n + 1 < cap) {
+        uint8_t c = u8(p + (uint32_t) n);
+        if (c == 0) break;
+        if (c < 32 || c > 126) return false;
+        out[n++] = (char) c;
+    }
+    if (n == 0 || u8(p + (uint32_t) n) != 0) return false;
+    out[n] = 0;
+    return strncmp(out, "npc_", 4) == 0;
+}
+
+// The HUD compass reads north as +z and east as +x (measured on the village).
+const char* NpcCompassWord(float dx, float dz)
+{
+    float deg = atan2f(dx, dz) * 57.29578f;
+    if (deg < 0.0f) deg += 360.0f;
+    if (deg < 22.5f || deg >= 337.5f) return "north";
+    if (deg < 67.5f) return "north east";
+    if (deg < 112.5f) return "east";
+    if (deg < 157.5f) return "south east";
+    if (deg < 202.5f) return "south";
+    if (deg < 247.5f) return "south west";
+    if (deg < 292.5f) return "west";
+    return "north west";
+}
+
+bool NpcNearestClause(char* out, size_t cap)
+{
+    float px, py, pz;
+    if (!KonquestPos(&px, &py, &pz)) return false;
+    int best = -1;
+    float bestD2 = kNpcRange * kNpcRange, bx = 0.0f, bz = 0.0f;
+    for (int i = 0; i < kNpcRecords; i++) {
+        uint32_t base = kNpcTopAddr - (uint32_t) i * kNpcStride;
+        float x = f32(base + 0x1C), y = f32(base + 0x20), z = f32(base + 0x24);
+        if (!(x > -300.0f && x < 300.0f)) continue;
+        if (!(z > -300.0f && z < 300.0f)) continue;
+        if (!(y > -2.0f && y < 6.0f)) continue;
+        float dx = x - px, dz = z - pz, d2 = dx * dx + dz * dz;
+        if (d2 < 0.01f || d2 >= bestD2) continue;
+        bestD2 = d2; best = i; bx = dx; bz = dz;
+    }
+    if (best < 0) return false;
+    char raw[40];
+    uint32_t base = kNpcTopAddr - (uint32_t) best * kNpcStride;
+    if (!NpcRecordName(base, raw, sizeof(raw))) return false;
+    const char* who = NpcSpokenName(raw);
+    if (!who) who = "Someone";
+    snprintf(out, cap, "%s is %d units %s.", who, (int) (sqrtf(bestD2) + 0.5f),
+             NpcCompassWord(bx, bz));
+    return true;
+}
+
 // Movement-derived facing: a short window of recent positions (the
 // last ~2 s) is kept while in free-roam; whenever the player has
 // covered >= 0.5 units across that window, the facing is the window's
@@ -1214,14 +1732,33 @@ bool RoamFacing(float* dx, float* dz)
     return true;
 }
 
+// Whether the player has actually moved since free-roam began. The vec3 is
+// already populated while the post-lesson scripted camera is still handing the
+// player back (measured 2026-11-12: frozen at the dojo spawn for several
+// seconds, with input discarded), so a position spoken in that window is a
+// place the player cannot yet occupy. Speaking it is worse than saying nothing:
+// it reads as "you are here" while the hero is not under control.
+bool g_roamMoved = false;
+float g_roamPrevX = 0.0f, g_roamPrevZ = 0.0f;
+bool g_roamHavePrev = false;
+
+bool RoamPositionReady(void) { return g_roamMoved; }
+
 void RoamOnFrame(void)
 {
     float x, y, z;
     if (!InFreeRoam() || !KonquestPos(&x, &y, &z)) {
         g_roamHistCount = 0;
         g_roamFaceValid = false;
+        g_roamMoved = false;
+        g_roamHavePrev = false;
         return;
     }
+    if (g_roamHavePrev) {
+        float dx = x - g_roamPrevX, dz = z - g_roamPrevZ;
+        if (dx * dx + dz * dz > 0.0025f) g_roamMoved = true;   // 0.05 units
+    }
+    g_roamPrevX = x; g_roamPrevZ = z; g_roamHavePrev = true;
     g_roamHistX[g_roamHistHead] = x;
     g_roamHistZ[g_roamHistHead] = z;
     g_roamHistHead = (g_roamHistHead + 1) % kRoamHistLen;
@@ -1399,6 +1936,7 @@ uint32_t g_candAtNav[kMaxPauseCand];     // value at the previous nav command
 int g_candChangeFrame[kMaxPauseCand];    // frame g_candVal last changed
 int g_candCount = -1;         // -1: not scanned yet this freeze
 int g_frozenFrames = 0;
+bool PauseFrozen(void) { return g_frozenFrames >= kPauseFreezeFrames; }
 uint32_t g_lastTimer = 0xFFFFFFFF;
 int g_frameNo = 0;
 int g_lastNavFrame = -1;
@@ -1652,6 +2190,7 @@ static void MenuWatch(void)
     row[0] = 0;
 
     TrackPauseCtx();
+    TrackCharSlot();
     if (OnMainMenu()) {
         screen = 1;
         MainMenuRow(row, sizeof(row));
@@ -1667,6 +2206,9 @@ static void MenuWatch(void)
     } else if (OnCharSelect()) {
         screen = 5;
         CharRow(row, sizeof(row));
+    } else if (OnTower()) {
+        screen = 8;
+        TowerRow(row, sizeof(row));
     } else if (OnQuitDialog()) {
         screen = 7;
         QuitDialogRow(row, sizeof(row));
@@ -1722,6 +2264,8 @@ void MkuOnFrame(void)
 {
     g_frameNo++;
     DlgOnFrame();
+    SubtitleOnFrame();
+    TrainOnFrame();
     BoutOnFrame();
     WatchMkuHealthCues();
     RoamOnFrame();
@@ -1802,7 +2346,16 @@ void CmdWhereAmI(void)
         char line[128];
         char row[96];
         CharRow(row, sizeof(row));
-        snprintf(line, sizeof(line), "Character select. %s.", row);
+        snprintf(line, sizeof(line), "%s. %s.",
+                 OnP2Select() ? "Opponent select" : "Character select", row);
+        Say(line, "menu", oga::Priority::High);
+        return;
+    }
+    if (OnTower()) {
+        char line[128];
+        char row[96];
+        TowerRow(row, sizeof(row));
+        snprintf(line, sizeof(line), "Arcade tower. %s.", row);
         Say(line, "menu", oga::Priority::High);
         return;
     }
@@ -1832,6 +2385,18 @@ void CmdWhereAmI(void)
             Say(spoken, "fight", oga::Priority::High);
             return;
         }
+        if (TrainDrillActive() && DlgReadLine(line, sizeof(line))) {
+            char clause[160];
+            char spoken[400];
+            if (TrainClause(clause, sizeof(clause)))
+                snprintf(spoken, sizeof(spoken), "Objective. %s %s", line, clause);
+            else
+                snprintf(spoken, sizeof(spoken), "Objective. %s", line);
+            Say(spoken, "objective", oga::Priority::High);
+            strncpy(g_dlgLast, line, sizeof(g_dlgLast) - 1);
+            g_dlgLast[sizeof(g_dlgLast) - 1] = 0;
+            return;
+        }
         if (ObjectiveUp() && DlgReadLine(line, sizeof(line))) {
             char spoken[256];
             snprintf(spoken, sizeof(spoken), "Objective. %s", line);
@@ -1848,9 +2413,16 @@ void CmdWhereAmI(void)
         }
         if (InFreeRoam()) {
             char pos[64];
-            RoamPositionClause(pos, sizeof(pos));
-            char spoken[128];
-            snprintf(spoken, sizeof(spoken), "Konquest. %s", pos);
+            if (!RoamPositionReady())
+                snprintf(pos, sizeof(pos), "Position not ready yet.");
+            else
+                RoamPositionClause(pos, sizeof(pos));
+            char npc[96];
+            char spoken[224];
+            if (NpcNearestClause(npc, sizeof(npc)))
+                snprintf(spoken, sizeof(spoken), "Konquest. %s %s", pos, npc);
+            else
+                snprintf(spoken, sizeof(spoken), "Konquest. %s", pos);
             Say(spoken, "status", oga::Priority::High);
             return;
         }
@@ -1885,6 +2457,11 @@ void CmdMenuState(void)
     }
     if (OnCharSelect()) {
         Log("[mku] MENU character select");
+        CmdWhereAmI();
+        return;
+    }
+    if (OnTower()) {
+        Log("[mku] MENU arcade tower");
         CmdWhereAmI();
         return;
     }
@@ -1973,7 +2550,7 @@ static bool mku_ready(void)
     // character select), in a live fight, and in Konquest, using the
     // same gates the speech uses.
     return OnMainMenu() || OnKombatSub() || OnOptionsTabs() ||
-           OnOptionsRows() || OnCharSelect() || InFight() || InKonquest();
+           OnOptionsRows() || OnCharSelect() || OnTower() || InFight() || InKonquest();
 }
 
 static void mku_detach(void) { SfReset(); g_host = nullptr; }

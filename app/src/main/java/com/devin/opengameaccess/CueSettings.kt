@@ -40,3 +40,43 @@ object CueSettings {
         if (!enabled) PspCueSynth.silenceAll()
     }
 }
+
+/**
+ * The game-sound switch: iOS's Settings "Game sound"
+ * (`GameSession.audioEnabled`, on by default there), in the same
+ * preferences file as the cue switches.
+ *
+ * ⛔ IT GATES THE GAME'S AUDIO, NEVER THE CUES OR THE SPEECH. iOS
+ * keeps the three apart on purpose — a player may want the lock cue
+ * with the music muted — and the Android drain honours the same
+ * split: [PspGameSession] silences the game's samples before
+ * [PspCueSynth] mixes its cues into the same buffer, so the cues
+ * keep sounding with game sound off. Speech never passes through
+ * the drain at all.
+ *
+ * ⛔ HONOURED BY THE PSP AND GENESIS SESSIONS, AND NOTHING ELSE —
+ * the switch must not pretend otherwise. Game Boy has no audio path
+ * in this app at all (no audio export exists on its native surface),
+ * so there is no GB sound for this switch to gate. The DS host's
+ * native gate exists (poke_set_audio_enabled), but the DS session
+ * does not read this switch yet, so DS game sound is not gated by
+ * it either; the Genesis session reads it per frame and applies it
+ * through the same native gate.
+ */
+object GameSoundSettings {
+
+    private const val PREFS = "oga_settings"
+    private const val KEY_GAME_SOUND = "game_sound"
+
+    /** On by default, as on iOS — and as Android behaved before the switch existed. */
+    fun gameSoundEnabled(context: Context): Boolean =
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .getBoolean(KEY_GAME_SOUND, true)
+
+    fun setGameSoundEnabled(context: Context, enabled: Boolean) {
+        context.getSharedPreferences(PREFS, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(KEY_GAME_SOUND, enabled)
+            .apply()
+    }
+}

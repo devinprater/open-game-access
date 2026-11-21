@@ -512,6 +512,28 @@ while damage is fresh (early estimates said Goro 0.875/0.413 where the
 true word said 0.741/0.333). Never calibrate a RAM word against a
 fresh-damage bar; give the bar time to settle, or bracket single hits.
 
+## Fight positions and the proximity beacon (2026-11-17) — MAPPED, HOST-TESTED
+
+Bench: Windows PPSSPP 1.20.4 booted from the retail CSO, debugger on 12345,
+Arcade, Scorpion vs Blaze. Whole-RAM diffs while P1 walked were swamped by
+animation matrices, so the chain was followed from the fight struct instead:
+
+| word | address | form |
+|---|---|---|
+| P1 actor pointer | 0x08D929C4 | heap pointer (block +0x10), moves per boot |
+| P2 actor pointer | 0x08D92A30 | same, P2 block |
+| actor position | actor+0x20 / +0x24 / +0x28 | float x, y (height), z |
+
+Verified by sampling both positions every 0.3 s while holding D-pad right
+then left: the ground gap hypot(dx, dz) went 2.0 -> 0.85 walking in and
+5.3 on the way out; the pointers did not change between samples. The stage
+is a corridor along z (about 1.8 to 11.5), so gaps run ~1 (trading blows)
+to ~10. `mku_cue_snapshot` reports `locked` with that gap mapped onto the
+synth's 4..45 band; it is silent when paused, in Konquest, or when a
+pointer/coordinate fails its range check. Not yet checked: other stages,
+whether the pointers survive a rematch without a re-read (the adapter
+re-reads them every poll), and how it sounds on a device.
+
 ## Pause menu speech (2026-10-17, hunts 12-13) — MAPPED AND SPOKEN
 
 The pause block is **per-boot**: a cold-booted second session put the
@@ -1883,3 +1905,1247 @@ Bench artifacts for this investigation: drivers and logs in
 mku-varprobe, mku-timeoutprobe, mku-pauseprobe, mku-reloadprobe;
 apep1-apep12 and probe run folders; working notes in
 ~/mku-scan/apep-decomp/NOTES.md). Nothing was pushed.
+
+
+## The arcade tower and Practice's opponent grid (2026-11-07, live on Windows PPSSPP 1.20.4)
+
+Bench: the Windows PPSSPP build with its debugger on ws://127.0.0.1:12345, driven from WSL by
+small scripts (`~/mku-bench/mk.py` tap/rd/dump/shot, `poll.py` change logger). Screenshots are
+only whole-window once the capture process is DPI aware (`SetProcessDPIAware`); before that
+they were cropped to the left 2/3. ⚠ Debugger traps found on the way: a killed client leaves the
+server wedged (restart PPSSPP); `cpu.stepping` makes every `memory.read` go unanswered; a full
+24 MB dump takes 4 s at the title but ten minutes at some screens, so it can never snapshot a
+timed screen. Poll small windows instead.
+
+### The tower (after P1 locks in Arcade)
+A camera pan up a tower of portraits (TIME 00:00, DIFFICULTY 25%), then a LOADING screen, then
+the fight. The portrait column is not labelled; the camera settles on the opponent. Sampled
+from the lock (cold boot, Scorpion):
+- t 0-3 s: p1 id 2, p2 id 0 (unset), round 0, timer 0, both HP 1.0.
+- t 4 s: **p2 id 0x08D92A2C written (4 = Goro)**; in the same frame 0x08D92A1C goes 3 -> 1 and
+  0x08D92A6C 0x31 -> 0x23. The pan was showing Goro's portrait.
+- t 4-16 s: tower, then LOADING. t 17 s: round 0x08D92AE0 = 1; t 19 s: timer 0x3C, fight.
+Wired: `OnTower()` (round 0, timer 0, both ids valid, both HP exactly 1.0, not char select, no
+front-end row, and p2 != 0 or the 0x08D92A1C flag == 1 so a real Kenshi opponent is not lost
+and an unset id is not read as Kenshi). It speaks "Next opponent: <name>" once on entry (screen
+8 in the menu watch) and WhereAmI says "Arcade tower. Next opponent: ...". 7 host checks.
+⚠ Unproven: (1) the 0x08D92A1C flag as the Kenshi proxy (fails closed); (2) a SECOND match in
+one session: the round word may stay non-zero after the first, which would keep the tower
+silent. The opponent was Goro in four of five cold boots and Blaze in one, so it is not fixed;
+the id-to-name check was the portrait the camera settled on (Goro) and the fight HUD (Blaze).
+Not done: "after a win", which needs a won fight to sample.
+
+### Practice's opponent grid
+After P1 locks, the grid reopens with P1's name on the left and the opponent cursor on
+Sub-Zero (index 7). kCharCursorAddr keeps P1's pick, and the holder 0x09F9C1A8 points into a
+THIRD table (0x090E7850 at index 7; index-0 object 0x090E9840). Holder steps, measured:
+RIGHT -0x490 (0x090E73C0, 0x090E6F30), DOWN -10 x 0x490 (0x090E4190), LEFT +0x490 (0x090E4620).
+No static word held the opponent index across five cursor stops (diffed 0x08B80000-0x08E20000).
+The index is recovered by climbing in +0x490 steps while each object carries ` OBJ`; the object
+one stride above index 0 is not one (0xFFFFFFFF at +4), which ends the climb.
+The P1 heap table's index-0 base is learned while the P1 grid is up (`TrackCharSlot`) and
+forgotten after 30 frames off the grid; a holder whose base differs is the opponent grid.
+Spoken: "Opponent: Havik, row 1, column 9"; WhereAmI "Opponent select. ...". 6 host checks.
+⚠ Unproven live end-to-end (no adapter-on-Windows harness here): the P1-base learning on real
+objects, and Versus (if it uses the same grid). Host tests: 161 passed, 0 failed.
+
+
+## Konquest from a cold boot on the Windows bench: where the tutorial stands (2026-11-07)
+
+`scripts/mku-konquest-drive.py` (one websocket connection from a fresh PPSSPP launch; the helpers
+`mku-bench-mk.py` / `mku-bench-poll.py` / `psp-shot.py` sit beside it) reproduces, with no
+savestates: title -> main menu -> `ltrigger` -> kode Cross, Circle, Triangle, Square, Cross, Circle
+(the stick profile "PLAYER 1" at ULUS10102MKU0000 accepts it) -> Konquest -> the opening cinematic
+-> Bo' Rai Cho's dojo. Flags 0x08AF69C8 / 0x08B123DC read 1. About 5 minutes end to end.
+
+- Drill 1 (steps toward / away: d-pad right x3 then left x3, 0.15 s holds, 0.6 s gaps) passes.
+- Drill 2 (three Backward Dashes: double tap LEFT, 45 ms down, 55 ms up) passes.
+- Drill 3 (strike Bo' Rai Cho once with four DIFFERENT basic attacks) is NOT passed yet. Measured:
+  the HUD counter reads "N / 4"; walking right x4-5 closes the gap; strikes do land (1/4 and 3/4
+  seen in screenshots). The exercise clock (about 60 s) RUNS UNDER the instruction boxes, which
+  re-pop and need Cross each time; waiting for them to settle used the whole clock (counter 3/4
+  with 04 s left). Failing shows TRY AGAIN (Cross) / RETURN TO MAP (Triangle); Cross retries.
+  Next: one screenshot per button with the counter, to see which of Square/Triangle/Cross/Circle
+  fails to register at that range; then fire all four as soon as the box is dismissed.
+- The box word 0x09178D30 (non-zero while a box is up) flickers and stayed non-zero for ~40 s in
+  one attempt, so it is not a clean "box is gone" signal.
+- Leaving the tutorial by the map lands in the Earthrealm village: HUD "SUNDAY 01.01.01 9:22 AM",
+  a compass and the grid square B - 6 (the clock text is drawn; its RAM word is not located).
+
+Bench hazards: the debugger degrades after many short connections or any killed client (replies
+arrive out of order, the listener goes FIN_WAIT); use ONE long-lived connection and restart PPSSPP
+when it degrades. A `game.reset` once crashed PPSSPP (Application Error at 7:13 AM); prefer a
+fresh launch.
+
+
+## The dojo lessons passed in one cold-boot session, and where free-roam stops responding (2026-11-07, later)
+
+Run with `scripts/mku-konquest-drive.py` (+ `mku-bench-nav.py`, `mku-bench-shotd.py`; a live
+`handlers.py` is re-read for every lesson the driver does not know). Clock per lesson: **25 s**, and
+it runs under the instruction boxes. A failed lesson shows TRY AGAIN (Cross) / RETURN TO MAP
+(Triangle); Cross retries at no cost, so retries are the cheap way to learn a lesson.
+
+Lesson order seen, with what worked:
+1. Steps toward / away (right x3, left x3). 2. Three Backward Dashes (double tap left).
+3. "Strike me ... four different basic attacks" (counter N / 4). Hit damage is readable at
+   0x08D92A24 (P2 HP) but Bo' Rai Cho's bar REFILLS after each counted hit, so a drop/refill pattern
+   is not a per-button verdict. Square and Cross counted in every logged attempt; Triangle and Circle
+   counted only sometimes (one run reached 3/4, the passing run got Circle to register on attempt 4).
+   Cause not pinned: range/spacing is the strongest suspect, not an input-mapping fault (all four
+   buttons do fire).
+4. "Strike me with each of your high punch attacks": the screen names each move and shows its inputs
+   (text on screen, NOT found in RAM near 0x09178568 - worth a hunt, it is exactly what a blind
+   player needs). Seen: LEANING FINGERS = Triangle; STONE COLUMN = Up + Triangle.
+5. "Strike me with each of your high and low attacks": CREATURE KICK = Cross; STING TAP = Left + Cross
+   (the arrow icons are absolute d-pad directions; Left is "away" with Bo' Rai Cho on the right).
+6. "Strike me with two high attacks and two low attacks": counter 0 / 4, no named cue. The driver's
+   spread (Square, Triangle, Down+Square, Down+Triangle, Cross, Circle, Down+Cross, Down+Circle)
+   was followed by free-roam, so it probably passed, but the counter was never seen at 4 / 4.
+
+**Free-roam afterwards: reached, but the hero does not move.** flags A=1, B=0, position
+(-54.8, 0.23, 152.4) at 0x08AED478, on the B - 6 grid square. The world is alive (NPCs walk, the clock
+runs - about one in-game day per 10-15 real seconds, the date counter reached 01.17.01 - and Start
+pauses to RESUME / SAVE AND QUIT / QUIT GAME). But: the camera sits at ground level between two
+gate pillars with no visible hero, and NONE of these moved the position by more than 0.4 units:
+`input.analog.send` left stick in 8 directions, the real keyboard analog keys I/J/K/L, the arrow keys,
+Q/W (L/R), and a Cross/Circle/Triangle/Square/Select/L/R sweep. A stale red objective line
+("Strike me with two high attacks and two low attacks.") stays in the dialogue buffer. This is not the
+healthy free-roam of the earlier savestate lineage. Hypotheses, untested: the hero is down or hidden
+after the last lesson (the failed-lesson path "move_hero_to_safe_loc_boraicho"), a post-lesson script
+is waiting on something, or the camera is stuck. Apep was therefore never approached and the talk
+trigger was not tested in this lineage.
+
+Bench findings: the tool shell may run in Windows session 0, which cannot see the PPSSPP window; run
+PPSSPP and the screenshot/key daemon through scheduled tasks with an Interactive principal, and
+talk to the daemon through request files. Debugger replies carry the request's `ticket`; match on it
+(unticketed matching returned garbage floats). Keep ONE long-lived connection.
+
+## Tutorial counters confirmed live; the free-roam stall reproduced (2026-11-12, bench)
+
+A cold-boot session on the Windows bench (PPSSPP 1.20.4, `scripts/` drivers, one
+long-lived debugger connection) went from the title screen to Earthrealm free-roam
+in one run. What it measured, and what it did not.
+
+**Entry.** `ltrigger` opens ENTER KODE; Cross, Circle, Triangle, Square, Cross,
+Circle is accepted (the menu then shows PLAYER 1), three Downs put the cursor on
+KONQUEST, Cross enters. Flags 0x08AF69C8 / 0x08B123DC read 1/1 from the opening
+cinematic onward, and the dojo bout lineage shows pos (-58.00, 0.88, 170.00), the
+same frozen dojo spot recorded on 2026-10-23.
+
+**The step and dash counters are live.** Lesson 1 (steps toward / away): three
+D-pad RIGHT taps took 0x09179644 to 3, three LEFT taps took 0x09179654 to 3 — the
+first live confirmation that these two words track real play, not a stale scene.
+Lesson 2 (backward dashes): three double-taps of LEFT at 45 ms down / 55 ms up
+took 0x091796D4 to 1, then 2, then 3, and the block reset to 0 when the lesson
+advanced. Spacing matters as recorded: the same triple pressed 0.6 s apart moved
+the counter only once.
+
+⛔ **The block is per-scene, as suspected.** After lesson 2 gave way to lesson 3,
+0x09179574 (the Square landed flag) read 152540712 (0x0917_…, pointer-like) and
+the rest read 0, while the screen was still a live bout. So these words must be
+anchored or plausibility-checked before anything speaks them; a fixed address is
+correct only within one scene. That is what keeps them unwired in the adapter.
+
+**The lesson prompts are drawn text.** Lessons 3 to 5 show a move-name box and an
+input-glyph box (`STONE COLUMN`, `↑ + Triangle`; `CREATURE KICK`, `Left + Cross`)
+that are not in the dialogue buffer at 0x09178568 — the buffer there holds only
+the spoken advice lines. Those boxes are exactly what a blind player cannot read,
+and finding their source is the next hunt.
+
+**Drills 3 to 6 passed with real input.** Four different attacks (Square,
+Triangle, Cross, Circle — Circle took several attempts at close range), then the
+named high punches (Triangle, Up + Triangle), then Cross and Left + Cross, then two
+high and two low (Square, Triangle, Down + Square, Down + Triangle, with Circle
+filling the fourth when one whiffed).
+
+**Free-roam control returns; the stall was a hand-off, not a lock.** Immediately
+after the last drill the vec3 sits at (-56.41, 0.23, 154.45), neither analog nor
+D-pad moves it, the sector word reads 1, and the screenshot shows the camera
+parked at the gate pillars with Shujinko standing at the fountain in the
+midground. That looks like a locked player, and it is not one. A few seconds and
+three Cross presses later the camera snapped behind the hero's eyes, the vec3
+settled to ground level (y 0.23 -> 0.87), and movement worked at once: analog
+left stick (0, 1) for 2 s took x from -56.35 to -63.47, about 3.5 units/s, and
+(0, -1) walked it back. So the post-lesson scripted camera owns the player until
+it finishes, and input during that window is discarded.
+
+Consequences for the adapter: a player who starts walking the instant the dojo
+ends will think the game is broken, and a frozen vec3 is not a position worth
+speaking. The free-roam gate should require that the vec3 has moved, or that the
+camera has handed off, before WhereAmI reports a position — the current gate
+(flag A set, flag B clear, plausible vec3) is satisfied while nothing is yet
+controllable.
+
+⛔ **Sector word: still not the HUD column.** 0x08AED5B4 read 1 at (-56.35, ...,
+154.24) where the HUD said B - 6; it read 0 after crossing west to x -63.47; and
+it stayed 0 after walking back east to (-53.84, ..., 163.49) while the HUD still
+said B - 6. A streamed-cell index remains the standing guess, and the word must
+not be spoken.
+
+## The village quest chain, and why a 3 AM session finds nobody (2026-11-12, from the published guides)
+
+The 2026-11-12 bench session walked the village between 03:06 and 07:40 in-game
+and found no quest giver and no marker. That is not a mapping gap: the first
+mission is time-gated.
+
+**Mission 1, Meet Apep — B-6, available 8:00 AM to 7:00 PM.** Apep is the boy
+standing beside Bo' Rai Cho's dojo with a green pillar of light around him. He
+introduces the rest of the training and walks to the next dojo. Everything the
+session did before 8 AM was correctly silent.
+
+The chain after him, all from the guides and none of it measured here yet:
+
+- B-5: combos, power attacks, pop-ups and juggling. Talk to Apep again after.
+- D-5: defense (blocking, ducking, evading).
+- D-4: the bridge guard will not let anyone pass. Get ham from the butcher in
+  C-6 between 7:00 AM and 8:00 PM and give it to the guard.
+- C-4: fighting-style switching. A-3: counters and combo breakers.
+- B-2: Apep enrolls Shujinko in the fight school. A-1: style-branching combos.
+- D-1: Damashi recruits Shujinko, then Bo' Rai Cho must be beaten in a best of
+  three.
+- E-1: talk to Bo' Rai Cho to leave the village. ⛔ This auto-saves and there is
+  no way back into the village afterwards.
+
+**Village side quests** (the ones a blind player can actually complete, all
+inside the same 8 AM to 7 PM windows):
+
+- A-6: the old bald man with the toothache. Punch him once and he rewards 400
+  sapphire koins — the cheapest real quest to use as an end-to-end speech test.
+- B-5: the boy's lost key, found in the park at A-6; or rob his house instead.
+- B-6: the boy practising ninjitsu vanishes; find him at the fountain in A-6 for
+  a Mysterious Key.
+- B-5: the woman's missing son, at A-3 with the two boys play-fighting.
+- B-5: deliver the old woman's note to the blacksmith at B-4.
+- B-5: wake the lazy brother sleeping under the trees at D-4.
+
+Sources: the Kamidogu Konquest walkthrough, GameFAQs Konquest walkthroughs
+(Faceless21, Asternex), the MKKomplete mission list, and the GameSpy guide.
+
+## The dojo lesson prompts are ASCII in RAM, not just drawn (2026-11-12, bench)
+
+The move-name and input boxes that block a blind player from the dojo are
+DRAWN, but the text behind them is resident ASCII. Both strings live in the
+training table at `0x09DDA000` onward, and the live pair is pointed at from
+the script workspace:
+
+| What | Address | Notes |
+|---|---|---|
+| move name | `0x09179814` | pointer into the training table, 0 when no named move |
+| input glyph | `0x09179818` | pointer, same table; `A`, `X`, `(+A`, `:+X` |
+| drill counter | `0x09179808` | `(required << 8) OR done` — the box's `0 / 2` |
+
+Measured in one boot, against screenshots where noted:
+
+- four-attacks drill: `0x400` at `0 / 4`, then `0x401`, `0x402`, `0x403`,
+  `0x404` as the attacks landed, and the drill completed at `0x404`.
+- `LEANING FINGERS` / `A` on screen read back as exactly those strings with
+  the counter at `0x200`; the glyph box showed **Triangle**.
+- `CREATURE KICK` / `X` read back the same way; the glyph box showed **Cross**.
+- after the first move landed the pointer switched to `STONE COLUMN` / `(+A`
+  and to `STING TAP` / `:+X`, with the counter at `0x201` in both cases.
+- the glyph vocabulary is fixed by the lessons that passed: the high-punch
+  lesson completes with `Triangle` then `Up + Triangle`, and the high-and-low
+  lesson with `Cross` then `Left + Cross`, matching
+  `A` then `(+A` and `X` then `:+X`. So `A` = Triangle, `X` = Cross,
+  `(+` = up, `:` = left.
+
+Then the proof that the values are sufficient, not just present: a driver that
+read ONLY these words played the whole dojo. It fired `Triangle` for
+`LEANING FINGERS`, `Up + Triangle` for `STONE COLUMN`, `Cross` for
+`CREATURE KICK` and `Left + Cross` for `STING TAP`, and each lesson reached
+`2 / 2`; the four-attacks drill was driven to `4 / 4` by looping on the
+counter's low byte. No screenshot was consulted while playing.
+
+⛔ **The workspace outlives the drill.** Free-roam still read `0x404` with a
+garbage prompt pointer (`0x09179700`), so the adapter gates the training
+channel on the red objective line, one of the dojo's own phrasings
+("step toward", "step away", "Backward Dash", "strike me", "high attacks",
+"low attacks"), and the fight-engine flag B. The flag is the one that catches
+the village: measured live on 2026-11-12, free-roam keeps the red colour word
+and the buffer still holds the dojo's last line ("Strike me with two high
+attacks and two low attacks.") with a plausible `0x404`, so colour and phrase
+alone would have announced a finished lesson while the player walked around.
+Outside a drill it says nothing, even though the words are still there.
+
+The adapter now speaks `Move, Leaning Fingers. Triangle. 0 of 2.` when a named
+move appears, `1 of 2.` as the counter advances, and repeats the current move
+plus count on WhereAmI. An unknown glyph speaks the move name and no button,
+and a pointer outside the training table fails closed.
+
+## Free-roam: the NPC table, meditation, and the dojo trap (2026-11-12, bench)
+
+**The village's NPCs are a live table in RAM.** Every Konquest NPC has a
+record with a name pointer and a world position; the table is anchored at
+Apep and strides downward:
+
+| What | Address | Notes |
+|---|---|---|
+| `npc_apep` record | `0x09151098` | first record of the table |
+| stride | `0x810` | each following NPC sits one stride lower |
+| name pointer | `+0x00` | into the entity-name table at `0x09D9D6F0` |
+| position | `+0x1C`, `+0x20`, `+0x24` | x, y, z floats; y is 0 when the NPC is not spawned |
+| second position | `+0x40`, `+0x44`, `+0x48` | a copy, not always equal |
+| radius | `+0x4C` | 5.66 for Apep, 1.38 for ordinary villagers |
+| state word | `+0x14` | `4`, `0x850`, or `0x0002000C`; changes as NPCs spawn |
+
+Measured the same session: `npc_apep` at (-54.82, 0.87, 151.35) beside the
+dojo, `npc_sarah` walking, `npc_teacher` at (-48.7, 170.4), `npc_old_lady_1`
+at (-57.8, 159.8), and so on — 22 records read out by name in one pass.
+
+**Meditation is the clock control.** `Circle` sits Shujinko down and the
+in-game clock jumps: measured Tuesday 3:54 AM to Thursday 4:29 PM in 25 real
+seconds. That is the way to reach a quest's time window (most village quests
+open 8 AM to 7 PM) without waiting on the normal cycle. While meditating, the
+player cannot move, so the adapter must say so rather than let a player think
+the game has frozen.
+
+⛔ **The dojo re-arms training, and it sits on the approach to Apep.** Walking
+into the hall area around (-54, 156) starts Bo' Rai Cho's opening dialogue
+again, sets flag B, and locks the player into the tutorial. Apep's post is at
+z 151.35, so the straight approach from the north crosses the trigger; a
+walk that reports "no calibration" is usually this, not a broken harness.
+Approach him from the south, or expect the tutorial.
+
+**Still not solved: the village talk trigger.** Cross advances dialogue and
+confirms menus, and it is the documented Konquest action button, but pressing
+it beside a spawned Apep did not open a conversation: the dialogue buffer,
+the scene pointer and the NPC record's state word all stayed put, and the
+player kept moving. `Circle` freezes the player (meditation), `R` freezes him
+(block), and `Start` opens the pause menu, so the freeze test separates those
+from a conversation. The next attempt should approach Apep from the south
+without crossing the dojo trigger, watch the rendered screen for the game's
+own prompt icon, and only then trust a button.
+
+## Village conversations are cutscenes, and their text is in RAM (2026-11-12)
+
+The talk trigger is not a button. Walking close to a villager starts a
+cutscene: letterboxed, subtitled, with a "Press X to skip" prompt. Measured
+live at 12:53 PM next to the students by the wall — the first line was
+"Hello, Shujinko. I think Apep is waiting for you.", Cross advanced it to
+"Did you want something from me?", then "I really need to practice. You will
+have to excuse ...". The earlier "no proximity trigger" result was taken at
+3 to 7 AM, when the quest NPCs are despawned; it was a time-of-day fact, not
+an engine fact.
+
+| What | Address | Notes |
+|---|---|---|
+| current subtitle line | `0x09106354` | NUL-terminated ASCII, padded with a trailing space |
+| same line, split into words | `0x09105F6C` | each word NUL-terminated, composed as it is spoken |
+
+While the cutscene is up the dialogue buffer `0x09178568` still holds the
+dojo's stale line and its scene pointer reads 0, which is exactly why the
+village looked silent to the adapter.
+
+⛔ **The subtitle workspace is not cleared when the conversation ends.** A
+free-roam read after the benchmark still held the last line, and the words
+around it (including the `0x08B7AC24` and `0x091CF840` pointers) were identical
+to the in-cutscene pattern, so there is no flag to test. The adapter therefore
+speaks on change only, swallows the first line it ever sees, and keeps a
+line until it changes.
+
+The adapter now speaks every village subtitle as it appears: quest dialogue,
+the "Apep is waiting for you" hint, and the rest of the village prose, none of
+which reached speech before.
+
+⛔ **The NPC table is script state, not the render list.** Checked on a clean
+cold boot (SUNDAY 01.01.01): after playing the tutorial to free roam, Apep's
+record read state `0x0002000C` at (-54.8, 0.86, 151.4) and the player stood
+0.8 units away, yet he was not drawn and no cutscene fired — Cross, a walk-in
+from nine units, and a camera sweep all produced nothing, and the subtitle
+buffer stayed empty. Other records do move (Sarah walks, the children's y
+changes), so the table tracks scripted actors, but a record's position is not
+proof that the character is on screen or triggerable. For "where is he now",
+the next route is the rendered-actor list, not this table; for "where is his
+post", it is accurate.
+
+### Chasing the render list (2026-11-12, same bench session)
+
+- **Nothing points at the NPC records.** A full 24 MB scan for words equal to
+  any record address found zero references, so the table is a script-side
+  array indexed by the script, not a pointer-linked actor list.
+- **`y` in a record is not a spawn flag.** Correcting the earlier guess: many
+  NPCs that are plainly drawn read `y = 0.00` (the teacher stood 0.4 units from
+  the player at y 0.00), while Apep on the raised dojo step read 0.87. Treat
+  the triple as a ground position, not as presence.
+- **Apep owns a trigger volume.** His position appears in a node at
+  `0x0920FAC0` holding two positions (-54.925, 0.104, 151.244 and -54.821,
+  0.864, 151.351) and a radius of **5.76** at `+0x54`, and a pointer to that
+  node sits at `0x090D69F4` in a mixed list of scene objects. No other NPC has
+  such a node: it is the green aura, not a generic actor record.
+- ⛔ **Standing inside that 5.76-unit radius did not start his conversation**,
+  from a clean entry nine units away, on a fresh boot whose state word read
+  `0x0002000C`. The aura is a marker, not the talk trigger, so the trigger is
+  still unknown.
+- The visible actor list itself was not identified. The region around
+  `0x090D69E8` holds a mixed pointer list (scene objects, handles like
+  `0xEFFFEA2F`), but its entries do not line up with the drawn characters, so
+  it is not yet a reader.
+
+Next experiment: compare a trigger that DID fire (the students' "Hello,
+Shujinko" beat by the wall) with Apep's unfired volume and diff their state
+words, rather than looking for a render list.
+
+**That comparison (same session) came back negative.** The students' beat
+fired with the player at (-50.46, 0.87, 169.27), and the only structures at
+that spot in a dump taken while the cutscene was up are the effect nodes at
+`0x08CC8xxx` / `0x08CE8xxx`, all carrying the shared pointer `0x08AE6EAC` —
+the same particle-looking region seen earlier, and not a trigger volume at all.
+No volume sits near them. So the students' beat is script-conditioned rather
+than volume-driven, and Apep's 5.76-unit volume is not the mechanism for his
+conversation either. There is no consumed-trigger flag to read in the volumes
+that were found.
+
+The route that can answer this is static, not more walking: the Konquest
+script resource behind strings like `apep: Talk to apep after dojo 2` /
+`apep: I haven't talked to apep |AND| I haven't finished the first dojo`
+defines the condition that plays each beat. Finding that resource in
+`ARCHIVE.IMP` and reading its event clause is the next step, not another
+RAM sweep.
+
+## The world's named trigger table (2026-11-12, static + live)
+
+The static route worked. `ARCHIVE.BIN` is an `iMp0` index (header: `0x40`,
+version `2`; entries are SIGN `0xcdab0df0`, type, then name/path/offset/
+compressed-size/compression elements, with Directory entries holding exactly
+Name + Path and no terminator). It lists 167 entries, all stored uncompressed.
+The string `apep: Talk to apep after dojo 2` is at `0x81927b0`, inside
+`kon_earthrealm_1.ssf` (archive offset `0x07CDE810`, 9,717,760 bytes).
+
+That SSF's section table starts at `0x1C`: 30 sections of 16 bytes
+(`type`, `offset`, `size`, `0x7C801A4F`), and section 5 (type 2, `0x492000`,
+746,976 bytes) holds a 9,377-string script bank. It includes the trigger
+table: `trigger_table_header`, `trigger_dojo_1..4`, `trigger_last_dojo`,
+`nightwolf_trigger`, `boraicho_trigger`, `trigger_park_tease_1/2`,
+`trigger_school_entrance`, the `trigger_door_*` set, and
+`trigger_table_footer`.
+
+**The same table is live in RAM**, so no further static parsing is needed:
+
+| What | How |
+|---|---|
+| name bank | `trigger_dojo_1` string, one occurrence |
+| record | the one word that points at that name, minus `0x1C` |
+| record stride | `0x90`; `+0x00` previous, `+0x04` next, `+0x18` data pointer, `+0x1C` name pointer |
+| data record | `+0x08` x, `+0x0C` y, `+0x10` z, `+0x14` radius |
+
+`scripts/mku-triggers.py` dumps RAM, finds the name, walks the list and prints
+every trigger. Measured in the village:
+
+- `dojo_0` (-53.95, 154.98) r 3 — the tutorial dojo, and the re-arm zone.
+- `trigger_park_tease_1` (-87.63, 156.50) r 10, `trigger_park_tease_2`
+  (-62.16, 156.29) r 3 — the park beats by the students.
+- `nightwolf_trigger` (-44.37, 169.68) r 12, `ermac_trigger` (-63.10, 156.53)
+  r 6.5, `boraicho_trigger` (91.78, -119.59) r 10.
+- `trigger_dojo_1..4` at (-21.02, 113.91), (70.77, 72.75), (7.92, 11.59) and
+  (-67.23, -15.35), all r 3 — the four classroom doors Bo' Rai Cho's lessons
+  are held behind.
+
+⛔ The classroom triggers are the important correction to the quest story:
+after the first lesson Apep does not stay at the tutorial dojo. The condition
+strings name the next beats "Talk to apep after dojo 2/3/4/5", and dojo_1 sits
+at (-21, 114) in B-5, some 59 units from his recorded post at (-54.8, 151.4).
+Walking into dojo_1's 3-unit trigger on this save (9:12 PM, night) produced no
+cutscene, so the trigger is not unconditional either, but his recorded post is
+now known to be the tutorial dojo, not his current position.
+
+Next: enter a classroom trigger during the day (8 AM to 7 PM) and watch the
+subtitle buffer, and check whether Apep's beat follows the dojo_1 trigger
+rather than his record.
+
+### The face buttons do not talk to villagers (tested 2026-11-12)
+
+Tested twice, standing at arm's length from a villager and facing him, with the
+subtitle buffer watched after every press:
+
+- 6:44 PM next to a quest-flagged NPC (`npc_sam`, state `0x00020008`) and an
+  elderly woman: `square`, `cross`, `triangle` and `circle` all left the
+  subtitle buffer empty.
+- 9:41 AM next to the bald monk by the path: `cross`, `square`, `triangle` again
+  produced nothing.
+
+`circle` starts meditation and blocks every other input until it is toggled
+off, which also poisons any test that presses it — the player sits at
+y = 0.23 instead of the standing 0.87, and the "no reaction" that follows is
+not about the NPC.
+
+So the village talk input is closed as "not a face button". Conversations are
+triggered by the named trigger volumes or by script conditions, and the guides'
+"talk to X" means walking into the right beat, not pressing a key. The
+toothache quest therefore needs the punch to land, and the punch is the piece
+still unproven: no press so far has made a villager react.
+
+What would settle it: find the player's attack state (the animation flag that
+Square sets) and confirm a press reaches it, then check the villager's PUNCHED
+handler fires. Without that, "punch the old man" is still a guide's sentence,
+not a measured mechanic.
+
+**That scan is done, and Square sets nothing.** Sampled 4 KB around the player
+(`0x08AED000..0x08AEDFFF`) at about 15 Hz for half a second before and one
+second after a press, in free roam on the village street:
+
+- `square`: one word changed, `0x08AEDC90`, and it turned out to be a free
+  running counter (it climbs every sample, `0x002B2EE0`, `0x002B32A0`, ...),
+  not a reaction to the press.
+- `cross` and `circle`: no word changed at all.
+- The `0 -> 1` flag at `0x08AED5B0` flips on its own before any press arrives,
+  so it is not an input flag either.
+
+So the press produces no observable state change near the player in free roam.
+Attacks are either disabled in this state or bound to something else on this
+build, which is why every punch test failed. The next probe should read the
+game's own control mapping from the main-menu Options > Controls page, or take
+a press in a state where fighting is definitely live (a village bout), and only
+then retry the toothache quest.
+
+### The game's own button mapping (read 2026-11-12)
+
+The Options > Controls page is a live map, not a list: it draws a PSP and a
+six-slot grid, and selecting a slot lights the matching button on the diagram.
+Read off the screen:
+
+| Button | Action |
+|---|---|
+| Square | ATTACK 1 |
+| Triangle | ATTACK 2 |
+| L | CHANGE STYLE |
+| Cross | ATTACK 3 |
+| Circle | ATTACK 4 |
+| R | BLOCK |
+
+That is the **fighting** map. Konquest free-roam remaps some of it, measured
+directly: Circle meditates (y drops to 0.23 and input is ignored), R blocks,
+Cross confirms menus and advances dialogue, and Square changes nothing in RAM.
+
+⭐ This resolves the punch question. Attacks are live during the dojo drills,
+which run on the fight engine (flag B = 1), but free-roam has B = 0 and the
+4 KB scan around the player showed no attack state at all. So "punch the old
+man" cannot be a free-roam ATTACK 1. The string bank has separate
+`shove_reaction_standard`, `shove_reaction_stumble` and
+`shove_reaction_with_blood_into_talk` entries, so the interaction the guides
+call a punch is most likely the shove path, or a bout the NPC starts.
+
+Next: find what starts a shove, and read the Konquest free-roam bindings the
+same way the Options page was read (the page only describes fights).
+
+### Deeper into the Konquest code (2026-11-12)
+
+Section 5 of `kon_earthrealm_1.ssf` is the entire Konquest vocabulary, and it
+shows where a punch would have to come from:
+
+- **Trigger table**: `trigger_dojo_1..4`, `dojo_0`, the park teases, the doors,
+  the school gates (positions live in RAM, see the trigger section above).
+- **NPC names and schedules**: `npc_apep`, `npc_old_lady_1`, `npc_fighting_kid`,
+  each with a `<name>_timed_events` companion table.
+- **Quest scripts**: `LS_<QUEST>_<STATE>_<n>` for every villager, with the
+  states `GREETING`, `BOTHER`, `PUNCHED`, `HIT_ONCE`, `PUNCHED_INTO_NIS`,
+  `AFTER`, `WAITING`, `GOTRING`, `GIVE`, `NOTE_QUEST`.
+- **Reaction and effect names**: `punch_reaction_standard`,
+  `punch_reaction_stay_down`, `punch_reaction_stumble`,
+  `punch_reaction_stumble_safe`, `shove_reaction_standard`,
+  `shove_reaction_with_blood_into_talk`, `npc_shoved_from_front/back/left/right`,
+  `npc_been_shoved_standard`, and the `npc_block_*` set.
+- **Items and rewards**: `toothman_reward`, `ringman_ring`, `old_lady_key`,
+  `sickkid_reward`, `lost_key`, `ninja_star`, the koin caches.
+
+So the punch is real and the script side is complete: every villager has a
+`PUNCHED` handler, and the toothache quest's whole completion path is
+`LS_LOOSETOOTH_PUNCHED_0..2` plus the `toothman_reward` object. What is **not**
+in the data is a control label, a `disable`/`enable` gate, or a `can_attack`
+flag. The EBOOT has no plain `punch`, `shove`, `konq` or `konquest` strings at
+all, so the gate is engine-side and reached through hashed names.
+
+**The input does reach the game.** In free roam the fight input bitfield at
+`0x08D92A90` (twin at `0x08D92A94`) takes the button bits as they are pressed:
+Square `0x80000000`, Triangle `0x10000000`, Cross `0x40000000`, Circle
+`0x20000000`. So the press is seen. What does not follow is the attack: no
+animation appears in a capture taken 80 ms after the press, and nothing around
+the player (`0x08AED000..0x08AEDFFF`) or in the player model object
+(`0x09EACC20`) changes.
+
+**The decisive experiment is differential**: run the same scan inside a dojo
+drill, where attacks demonstrably work (flag B = 1), and diff the words that
+react against the free-roam result (B = 0). The difference is the attack-enable
+condition and the attack state itself. That scan has not been run yet.
+
+⛔ Note on the Controls page: it is a **rebinding** UI. Selecting a slot and
+pressing a face button assigns that button to the action immediately — one
+Triangle press moved ATTACK 1 from Square to Triangle. Leave it with RESET, and
+check the mapping again after any visit.
+
+### The press differential, run (2026-11-13)
+
+Full 24 MB dumps, taken idle, idle again, with Square held, and after release;
+only words that are stable while idle, change under the hold, and return to
+baseline after release count as a reaction.
+
+- Free roam (B = 0): 216 words reacted.
+- Dojo drill (B = 1): 180 words reacted.
+- Common to both: 17. They are the fight input bitfield (`0x08D92A90` and its
+  twin `0x08D92A94`, both `0x80000000` for Square) and a 16-word block at
+  `0x09F9C55C..0x09F9C5F0`.
+- Drill only: 163 words, clustered at `0x08BB3E00..0x08BB4A00` and
+  `0x08BE5800..0x08BE6200`. Their content is animation-curve data (floats and
+  keyframe indices), so these are the fight scene's per-frame pose buffers, not
+  an attack flag.
+
+**Forcing the flag does not unlock the attack.** `memory.write` works on this
+debugger (write, read back, restore all verified). With `0x08B123DC` forced to 1
+in free roam and Square pressed, the drill-only words did not react: 1 of 163
+reacted, versus 8 moving with no press at all. Flag B is a symptom of being in a
+fight scene, not the switch that allows an attack.
+
+**The differential is confounded.** A drill loads a different arena, a different
+camera and the fight engine's whole pose pipeline, so almost everything that
+reacts there is the scene, not the permission. A cleaner differential is needed:
+the same free-roam scene, with and without a villager in reach.
+
+What this leaves open, honestly:
+
+- Square is the documented Konquest attack and Cross is the documented action
+  button (talk), so both buttons should work in free roam. Every press so far was
+  made with no villager confirmed on screen within reach: the NPC table's
+  positions did not match the drawn actors, and the screenshots showed the
+  player alone or the NPCs several steps away.
+- So "the press does nothing" is not yet separable from "the press had no
+  target". The test that settles it needs a villager measurably adjacent, which
+  means locating a drawn actor by its rendered position rather than by the NPC
+  table.
+
+### The punch works in free roam (2026-11-13) — the earlier tests had no target
+
+Located drawn actors by their render transform instead of the NPC table, then
+followed one until it was measurably adjacent, then pressed Square.
+
+**Finding the drawn actors.** Scan the 24 MB for 12-float structures whose three
+rows are unit vectors (stride 4 words) with the translation at `+0x30` inside the
+village bounds (x -200..200, y 0..4, z 90..200), dump twice a couple of seconds
+apart, and keep the ones that moved. That yields about 290 candidate transforms
+and 8 that move between dumps, in mirrored pairs 0x40 apart (for example
+`0x09051710`/`0x09051830`, `0x09D08BD0`/`0x09D08C10`). Tracking them against the
+player confirmed they are real: one walked west 17 units across the village and
+the player, following its live position, arrived 0.79 units away.
+`scripts/mku-actorscan.py` is the tool.
+
+**The punch.** Adjacent (0.81 units), pressing Square once:
+
+- The frame 150 ms after the press shows Shujinko in a full punch pose (legs
+  spread, right arm driven at the villager) and a dense burst of dark blue
+  spheres at the point of impact.
+- The villager is knocked back, torso tilted away, one foot off the ground.
+- The measured distance went from 0.81 to 3.60 after one press, 2.15 after the
+  second and 4.40 after the third, with 30 words changing in the actor block each
+  time.
+- Neither the subtitle buffer (`0x09106354`) nor the dialogue buffer stayed
+  changed: this villager had no quest reaction line.
+
+**What this overturns.** Every earlier "Square does nothing in free roam" result
+(the 4 KB player scan, the full-RAM differential, the forced-B test) was taken
+with no villager in reach, so there was nothing for the attack to hit and nothing
+visible to change. The attack is not gated to fights. Square is ATTACK 1 in
+free roam, and the engine-side gate I inferred does not exist.
+
+Also corrected: at night the quest villagers are simply not drawn. The same
+spot that showed an empty plaza at 3 AM held two or three walkers by 9 AM, which
+is the real reason the village looked deserted in every night capture.
+
+Next: identify the toothache man among the tracked actors and punch him, then
+watch for `LS_LOOSETOOTH_PUNCHED_*` in the subtitle buffer.
+
+### Naming the actors (2026-11-13)
+
+The NPC script records and the draw transforms are the same world: when a
+villager stands at his post, the record position equals the drawn actor's
+position to within a few centimetres. Measured in one dump by matching all 40
+records against every draw transform within 1 unit:
+
+| record | record position | draw transform | error |
+|---|---|---|---|
+| `npc_apep` | (-54.82, 0.86, 151.35) | `0x09CF97C0` | 0.00 |
+| `npc_ermac` | (-67.08, 0.86, 152.83) | `0x09C91840` | 0.00 |
+| `npc_adam` | (-53.74, 0.00, 115.53) | `0x09CB07E0` | 0.01 |
+| `npc_billy` | (-63.14, 0.00, 172.94) | `0x09CAECE0` | 0.01 |
+| `npc_tao1` | (-64.27, 0.00, 161.00) | `0x09CB5110` | 0.06 |
+| `npc_vender2` | (10.44, 0.00, 127.09) | `0x09D362F0` | 0.24 |
+| `npc_old_lady_1` | (-57.35, 0.84, 151.37) | `0x091179B0` | 0.30 |
+
+So a record names the villager standing there, and `scripts/mku-npcs.py` plus
+this match is how an actor becomes "Apep" or "the old lady" rather than a
+transform address. Villagers who walk away from their posts stop matching;
+their records move with them (Sarah's does), which is why the table is still
+the cheaper source than a 24 MB transform scan.
+
+**The model-name table does not name an actor.** The table at `0x0954BE28`
+(0x10-byte records, name pointer first: `KON_VILL`, `KON_APEP_ULTRA`,
+`KON_KID_ULTRA`, ...) is live, but a full-RAM scan found **no pointer to any of
+its 286 slots**, so the actor -> model -> name chain is resolved at load time
+and is not walkable in RAM. Record matching is the identity route that works.
+
+The adapter now uses it: in free roam, WhereAmI appends the nearest named NPC
+within 60 units as `Apep is 10 units north.` Names verified in play are spoken;
+an unseen name reports as `Someone` rather than inventing one. Two host checks
+added (180 passing).
+
+### First quest completed: the old woman's hut key (2026-11-13)
+
+The mechanical loop worked. At 8 AM the record-to-transform match named the
+villagers standing at their posts; a greedy four-direction navigator
+(`scripts/mku-greedy4.py`) closed 17 units to 0.90 at the old woman's post
+without a calibration table, and four Square punches in four facings landed.
+The character was knocked flat on the road (white hair, brown robe).
+
+Opening the inventory (D-pad left) showed slot 1 holding **Hut Key — "This key
+will open an old woman's hut."** The inventory had been twelve empty slots
+before, so the punch produced the quest reward. Koins were unchanged
+(0, 10, 0, 150, 0, 0), which fits a quest that pays in an item.
+
+This is the `LS_OLDWOMAN` / `LS_OLDLADY` quest from the script catalogue: punch
+the old woman, take the key to her hut. One quest end to end, with an item in
+hand.
+
+**The item table.** Every item's name and description are 8-byte records of two
+string pointers, starting at `0x09D7F4F0`:
+
+| # | name | description |
+|---|---|---|
+| 0 | Bottle of Medicine | a bottle said to cure stomach... |
+| 1 | Medallion | an adornment indicating great skill |
+| 2 | Artifact | Hmmm.... very mysterious... |
+| 3 | Ham | a tender slab, loved by guards |
+| 4 | Hut Key | this key will open an old woman's hut |
+| 5 | Key | key found in the park |
+| 6 | Ninja Star | this throwing star might be useful |
+| 7 | Important Note | deliver this note to the blacksmith |
+| 8 | Bucket | use this bucket to carry water |
+| 9 | Mysterious Key | unknown what this key will unlock |
+| 10 | Ring | a beautiful wedding ring |
+| 11 | Sack of Flour | flour used to make baked goods |
+| 12 | Vase | a rare vase that seems priceless |
+| 13 | Kamidogu | a strange item of untold power |
+
+The inventory's own twelve-slot id array was not located: a diff between a dump
+before the punch and one with the key open found no aligned twelve-word array
+whose only change was a single small id, so the slots are either not held in
+this image or store something other than the table index. Announcing gained
+items in the adapter needs that array, and it is the next wiring task.
+
+### Item announcements: the changed word was UI, not storage (2026-11-13)
+
+The only word that appeared with the hut key in hand was `0x08AFD570` (u16 `4`,
+the Hut Key's index in the table). With the inventory closed it reads `0` again,
+so it is the screen's selected-slot field, not the inventory itself. A dump taken
+with the screen open and one taken before the punch differ by that field alone:
+no twelve-slot array of ids, in u8, u16 or u32, changed by the key anywhere in
+the 24 MB image.
+
+So the inventory is either re-read from the save when the screen opens, or held
+in a structure that was not resident during the dump. Announcing gained items in
+the adapter needs the save/profile structure, not a UI field; `0x08AFD570` must
+not be wired as inventory state.
+
+The item table itself is solid: `0x09D7F4F0`, 8-byte records, name then
+description, ids 0..13 (Bottle of Medicine, Medallion, Artifact, Ham, Hut Key,
+Key, Ninja Star, Important Note, Bucket, Mysterious Key, Ring, Sack of Flour,
+Vase, Kamidogu).
+
+### The candidate loop is steering-limited, not knowledge-limited (2026-11-13)
+
+Face-and-walk steering works. It measures the forward world bearing from a short
+forward push and the turn rate from a short sideways push, then alternates
+turning and walking, re-measuring after every push. Measured: 4.1 units closed
+to 0.94 at a villager post, and 10.4 units closed to 0.70 at Apep's post.
+
+What it cannot do yet is run a candidate sweep fast enough. Nine named villagers
+were walked to and punched in two batches; none answered with a subtitle line,
+but five of the nine were still 6 to 30 units away when the punches fell, so
+those are untested rather than negative. Two things cause that:
+
+- Walkers move 4 to 6 units per 1.5 s, so a record position is a post, not a
+  current position; only villagers standing at their posts match a transform.
+- The in-game clock runs about 13 real minutes to a day, so a 90-second analysis
+  pass costs two in-game hours and a candidate has often walked off before the
+  punch.
+
+A sweep needs roughly two seconds per candidate, or the target picked before the
+in-game morning starts. `scripts/mku-turnwalk.py` is the steering and
+`scripts/mku-punchwalk.py` follows a live transform with it and punches.
+
+The toothache man has not answered yet. Every punched candidate either had no
+`PUNCHED` line (generic villagers carry none) or was not in reach.
+
+### The toothache lead, and why the loop keeps missing it (2026-11-13)
+
+At 11:10 AM the path by the village gate held a **brown-robed elder with white
+hair tied up, walking away from the player** — the first figure in this hunt
+that matches the guide's "old, bald man with the white beard" description. By
+the time the player closed the distance (one screenshot to see him, one 0.6 s
+walk, two punches) he was out of reach and the subtitle buffer stayed empty.
+
+That is the shape of the remaining problem: the loop is slower than the
+villagers walk. A screenshot costs about two seconds of wall time, which is
+nearly four in-game minutes; a walk to a post costs seconds to tens of seconds,
+which is in-game hours. The elder was visible, identified and gone inside one
+iteration.
+
+What was tried in this pass:
+
+- Face-and-walk steering to every named post (Apep 0.70, villager post 0.94) and
+  punches in four facings at each: no line, and several approaches never closed.
+- An ambush that polls known draw transforms and punches when one comes within
+  1.8 units: the transforms that move at NPC height are rare, and the one
+  close encounter was a prop at y 1.58.
+- A 100-second patrol at the gate punching in four facings every 1.3 s: 32
+  rounds, no line.
+
+Tools kept: `scripts/mku-turnwalk.py`, `scripts/mku-punchwalk.py`,
+`scripts/mku-ambush.py`, `scripts/mku-patrol.py`.
+
+Next attempt should stand at the gate at about 10:30 AM with the elder's
+transform address already known (match his record to a transform while he is
+still visible), then poll that one word-pair at 10 Hz and punch the instant the
+distance falls under 1.5 — no screenshot in the loop, no walking.
+
+### Proximity parking: one scan, then punch on approach (2026-11-13)
+
+`scripts/mku-park.py` dumps once, uses numpy to collect every draw transform at
+NPC height (translation y 0.6 to 1.3) within a chosen radius, then polls those
+twelve-byte positions at about 10 Hz and punches four ways the moment one comes
+inside 1.6 units. No screenshot and no walking in the loop, so a passer-by can be
+hit while still there.
+
+⛔ The scan also returns **the player's own transform**, twice, 0x40 apart at
+distance 0.00. Without a filter the loop treats that as a permanent close
+encounter and punches at nothing: the first run logged 59 "close" rounds against
+`0x09E51510` / `0x09E514D0`. Skip anything under 2 units at scan time.
+
+Measured at the gate on a Tuesday morning, 8 to 11 AM: 71 NPC-height transforms
+inside 30 units, the nearest 3.9 away and stationary; a close punch at 1.29
+produced no line. So the parking loop works, but the villagers near that spot
+are not the elder and do not walk through it.
+
+### The table is longer than 40: `npc_oldman` exists (2026-11-13)
+
+The NPC record table was being read only 40 entries down from `npc_apep`. It
+continues well past that: scanning 90 entries found, among others,
+
+| record | address | post |
+|---|---|---|
+| `npc_old_lady_1` | `0x0914D828` | (-62.0, 157.5) |
+| **`npc_oldman`** | **`0x09143EF8`** | **(-16.2, 117.4)** |
+| `npc_ring_man` | `0x0913B5E8` | (67.5, 109.1) |
+| `npc_dojo_man` | `0x0913ADD8` | (54.2, 65.3) |
+| `npc_raceman` | `0x09128388` | (0, 0) |
+
+`npc_oldman` is the toothache man: the old man the guides place in the park.
+His post is at (-16.2, 117.4), in B-5, about 50 units east of the fountain —
+which is why every sweep of A-6 and the gate kept punching the wrong villagers.
+
+Reaching him is now the only problem. A pursuit controller that walks forward
+in bursts and strafes when the distance stops falling ran the wrong way and
+wedged the player at the fighting kids' area (-64.2, 172.7), 73 units away,
+so a controller that turns toward the target before walking is required; this
+one never did.
+
+### `npc_oldman` is a post, and it was empty when reached (2026-11-13)
+
+Getting to the toothache man's post did not produce him. Three visits:
+
+- 9:25 AM Friday: stood 0.10 units from (-16.2, 117.4), punched four facings, no
+  line.
+- 11:53 AM: stood 0.10 units again, four facings, no line, and a 25-unit
+  transform scan found only the player's own nodes, the ground markers and the
+  stone lantern within four units.
+- A dawn patrol at the post (22 rounds, a punch in four facings every second)
+  also produced nothing.
+
+So the record at `0x09143EF8` is a post, not his current position: he is not
+standing there at those hours, and his name is not the guarantee of presence.
+This is the same lesson as Apep's record, now measured for the quest NPC that
+matters.
+
+Two script names point at how he moves: `old_man_walk_path` sits in the string
+bank at section offset `0x019C58`, and `npc_oldman_timed_events` beside the
+other NPC names. Neither is referenced by a pointer in the 24 MB image (the same
+load-time resolution as the model table), so the path's waypoints cannot be read
+by following a pointer.
+
+Next: park on the path and let him come. The path's geometry is not in a pointer
+chain, so the practical way to find it is the mover scan at his height near
+(-16, 117) during the morning, then a proximity loop on that transform.
+
+### Correction: `npc_oldman` is a kid, not the toothache man (2026-11-13)
+
+The record's `+0x04` word points at a model record whose first word is the model
+name, so every NPC can be labelled. Reading the whole table that way:
+
+| record | model |
+|---|---|
+| `npc_apep` | KON_APEP_ULTRA |
+| `npc_sarah` | KON_GIRL_ULTRA |
+| `npc_old_lady_1`, `npc_vender2`, `npc_jack` | KON_FAT_ULTRA |
+| `npc_butcher`, `npc_blacksmith` | KON_OCC |
+| **`npc_oldman`** | **KON_KID_ULTRA** |
+| `npc_ermac`, `npc_scorpion`, `npc_subzero` | KON_ERMAC, KON_SCORPION, KON_SUBZERO |
+| most villagers (`steve`, `tommy`, `tao1`, `teacher`, venders, guards) | KON_VILL |
+
+So `npc_oldman` is a child model — the name is a red herring, and punching at his
+record (which moves, from (-16.2, 117.4) to (-4.8, 125.1) and later) says
+nothing about the toothache quest. The old man is a KON_VILL or KON_OCC adult,
+and the only KON_OCC records are the butcher, the blacksmith and one bouncer.
+
+Punched at close range this pass, with no subtitle line from any: `npc_vender3`
+(0.14 units), `npc_teacher` (0.93), `npc_oldman` (1.57 after following his live
+record). `npc_steve` and `npc_vender1` were not reached (8.3 and 19.3 units).
+
+That leaves about twenty KON_VILL adults to test, which is a sweep of two or
+three in-game days, not one.
+
+### Adult sweep, and why it keeps missing (2026-11-13)
+
+Three KON_VILL adults were reached and punched in these batches:
+
+| target | closest approach | result |
+|---|---|---|
+| `npc_vender3` | 1.09 | no line |
+| `npc_teacher` | 0.93 | no line |
+| `npc_tao1` | 1.05 | no line |
+
+The other candidates were never reached. The steering is the problem, not the
+targets: in one batch `npc_billy` went from 3.5 units to **46.55**, and
+`npc_steve` from 6.3 to 39.55, as the controller pushed the player away. Both
+the long-burst controller and the micro-step controller have runs like this when
+the camera has swung, because neither knows which way the character is actually
+facing.
+
+The fix is to stop inferring facing from movement: the player's own draw
+transform holds a 3x3 rotation, so the facing vector can be read directly and
+the stick only needs to turn until that vector matches the bearing to the
+target. With the facing known, turning becomes deterministic instead of a
+guess, and the sweep can run at a few seconds per candidate.
+
+Until then the sweep stands at three adults tested, all silent.
+
+### Facing solved, steering still open, and one more adult tested (2026-11-13)
+
+**Facing is readable.** The player's draw transform at `0x09E51510` holds a 3x3
+rotation whose first row, taken as (x, z), matches a forward push: dot 0.93 with
+the measured movement vector, while the other rows score 0.00 and 0.37. So the
+facing vector no longer has to be guessed.
+
+**But there is no fixed stick-to-world map.** Measured in one second at one spot:
+stick (0,1) moved (-1.56, 0.00), stick (1,0) moved (+1.57, 0.00), stick (0,-1)
+moved (0.00, +2.46), and stick (-1,0) moved (-1.38, +3.54). The last two are not
+opposites, because a sideways push makes the character *face* that way and the
+camera swings behind, so the next push is relative to a new heading. A walker
+that solved a linear map from stick to world (`scripts/mku-dirwalk.py`) therefore
+stalled: it pushed into a direction that no longer meant what the map said.
+
+The correct controller is turn-then-walk against the read facing: push sideways
+briefly, re-read row0, repeat until the facing is within about ten degrees of the
+bearing, then walk forward. The first attempt at that
+(`scripts/mku-facewalk.py`) did not converge — the turn pushes are twitchy, about
+90 degrees per 0.2 s — so it needs smaller fixed pushes with a re-read after
+each one.
+
+**One more adult tested.** `npc_steve` was reached at 0.71 units and punched: no
+line. Adults tested at punch range so far: `npc_vender3` (1.09), `npc_teacher`
+(0.93), `npc_tao1` (1.05), `npc_steve` (0.71). All silent.
+
+### Correction: the player transform's rotation is not the facing (2026-11-13)
+
+The node at `0x09E51510` has a translation exactly equal to the free-roam vec3,
+which made it look like the player node. Its rotation is not the character's
+heading, though. Measured twice in a row in free roam:
+
+- forward stick `(0,1)` moved the player **west** (-1.00, 0.00) and (-1.00, -0.01)
+- the node's row0 stayed `(0.00, +1.00)` through both pushes
+- dot(movement, row0) = **0.02** and **-0.01**
+
+So row0 does not predict movement, and the earlier 0.93 reading was a
+coincidence of that moment's heading. `mku-facewalk2.py` steered on that false
+signal, which is why it walked away from its targets.
+
+Two useful facts came out of the same test, though:
+
+1. Two consecutive forward pushes moved in the same world direction, so the
+   stick-to-world map is **stable while the heading does not change**.
+2. The map only rotates when a push makes the character turn, which is why the
+   four-direction probe gave non-opposite results for (1,0) and (-1,0) earlier.
+
+That leaves the empirical four-direction probe (`scripts/mku-greedy4.py`) as
+the only control that actually works, and the real heading somewhere else —
+most likely in the actor object behind the NPC-style record chain rather than in
+this transform.
+
+### The heading is not in the player's transform nodes either (2026-11-13)
+
+Both nodes that carry the player's translation (`0x09E51510` and `0x09E514D0`)
+do rotate — a sideways push changed row0 from `(0, 0, 1)` to `(-1, 0, -0.04)` —
+but neither rotation tracks the actual movement:
+
+- after that turn, a forward push moved (-0.46, -0.89); row2 scored 0.87 and
+  row0 scored 0.50 against it
+- the next three forward pushes all moved exactly (0, -1.00), while row2 stayed
+  at (-0.97, -0.20) — dot **0.20**, 0.23, 0.23
+
+So the nodes rotate with the scene but are not the character's heading; they look
+like camera or attachment nodes that reuse the player translation. Analytical
+steering from them is dead.
+
+One fact is still useful: inside a fixed state, consecutive forward pushes move in
+exactly the same world direction, so the empirical four-direction probe remains
+sound — it just has to be re-run whenever the character turns.
+
+The heading may be in the actor object reached from the NPC-style record chain,
+but this pass did not find it, and the probing controller stays the only one that
+works in practice.
+
+### The heading vector is at 0x09E5C180 (2026-11-13)
+
+Found by differencing: dump RAM, keep every consecutive float pair (x, z) whose
+length is 1 and whose angle matches the direction a forward push just produced,
+then turn the character and dump again. Of 925 bearing-matching pairs, 13 changed
+on the turn. Two were real:
+
+| address | before | after | dot with movement |
+|---|---|---|---|
+| **`0x09E5C180`** | (0.05, -1.00) | (-0.07, -0.90) | **1.00** |
+| `0x09D06CD0` | (0.22, -0.95) | (0.10, -0.83) | 0.97 |
+
+`0x09E5C180` is the answer: a unit (x, z) heading vector that matches the actual
+movement direction exactly. It is not a transform row — the transform nodes rotate
+but do not track movement, which is why every earlier attempt failed.
+
+Turning is measurable too: a 0.12 s sideways push changed the heading by about
+14 degrees, read back after each push.
+
+The controller built on it (`scripts/mku-facewalk3.py`) still fails in practice,
+but for a different reason: the character got wedged at (-62.5, 175.5), oscillated
+between two spots for a hundred iterations, and never recovered. That is a
+stuck-recovery problem, not a heading problem.
+
+So: heading solved, controller still needs obstacle handling.
+
+### Stuck recovery added; a wall still stops the run (2026-11-13)
+
+`mku-facewalk3.py` now reacts to being stuck: after eight iterations without
+position change it backs off along the reversed heading, slides sideways for
+1.2 s alternating direction, and re-plans. It also walks with up to 22 degrees of
+heading error instead of 10, because a 0.08 s turn push rotates about 9 degrees
+and the tight threshold made it oscillate forever without ever walking.
+
+That fixed the oscillation, but not the wall. From (-47, 172) toward (-54, 130)
+the player slid along x between -62 and -36 while z stayed pinned at 167 to 174,
+never getting south. Whatever sits there is a barrier the blind navigator cannot
+see, and sliding along it does not find the gap.
+
+So the state is: heading known and readable, turning measurable, stuck recovery
+working, and path-finding still impossible without a map of the obstacles. The
+trigger table gives named points but not walls; a usable route planner would need
+either a walkable-area probe or a hand-driven first traversal.
+
+### Pathfinding attempt: reactive wall-following did not converge (2026-11-13)
+
+`scripts/mku-bugwalk.py` implements bug2 on top of the heading vector: head for
+the target, probe forward (a 0.28 s push that must move the player 0.08 units or
+more), and on a block commit to a wall direction — perpendicular to the blocked
+bearing — following it with a fixed side until the direct line reopens or 70
+steps pass.
+
+Measured result: the walker did not converge. From (-62, 175) toward (-54, 130)
+it ended at (-114, 143) with the distance rising from 35.8 to 68.8 units, and
+repeated the pattern across the map. Two limits cause it:
+
+- **Turn granularity.** A 0.08 s sideways push rotates the heading about 9
+  degrees and sometimes not at all when the character is against geometry, so
+  "turn to this bearing" is a loop that often gives up or overshoots.
+- **Blocked-probe noise.** A short push into a wall and a short push that is
+  merely slow are not clearly distinguishable at 0.28 s, so wall-following
+  re-enters and leaves the wall at random.
+
+Tuning the reactive controller further is not paying off. The viable alternative
+is a one-off walkable map: probe a grid of cells once (push across each cell
+boundary and record whether the position changed), then plan on the grid with
+A*, where a single bad probe does not derail the route.
+
+### Pathfinding, second attempt: stick-from-heading works, walls still win (2026-11-13)
+
+Two attempts in this pass.
+
+**Stick from heading (`scripts/mku-dirwalk2.py`).** With the real heading vector,
+the stick is solved directly: push (B·right, B·forward) where forward is the
+heading and right is its perpendicular. No turning required. It moved the player
+steadily from 54.9 units out to 34.2 — the best sustained progress of any
+controller so far — then stalled at (-87.4, 137.3) for twenty iterations,
+pushing without moving. A wall, again.
+
+**Local map with A* (`scripts/mku-mapwalk.py`).** Cast eight probe rays, mark the
+cells they walk through as free, plan with A* over free cells only, follow five
+waypoints, replan. The rays produced only 2, 25 and 3 free cells across three
+plans, because turning to each bearing fails often enough that most rays never
+start. One plan did cut 61.9 to 19.7 units, so the idea has merit, but the
+sensor is too weak.
+
+The common root is turning. The character turns only by moving, at roughly nine
+degrees per 0.08 s push, and not at all when pressed against geometry, so every
+scheme that needs an aimed probe or an aimed walk degrades. The next thing worth
+trying is camera-relative control: if the camera yaw can be read and the camera
+rotated independently, the character can be aimed without the push-turn coupling.
+
+### Camera-relative control confirmed; the pocket still wins (2026-11-13)
+
+The camera is the steering wheel. Measured directly: a forward push moved
+(0.72, -0.69), then a one-second right-stick rotation, then the same forward push
+moved (1.00, 0.00) while the character's heading vector at `0x09E5C180` stayed at
+(0.02, -1.00). So the right stick rotates the camera independently of the
+character, and movement follows the camera, not the facing.
+
+That makes a clean controller possible without push-turning:
+`scripts/mku-camwalk.py` calibrates degrees-per-second of camera rotation, then
+loops: walk a 0.4 s burst, read the direction that burst actually took, rotate
+the camera by the error to the bearing, repeat. It also backs out and rotates
+90 degrees after five stalled iterations.
+
+It steers correctly and never gets stuck in the old way, but it cannot leave a
+pocket: around (-87, 137) it circles between -91 and -87 and 137 and 139, with
+the escape manoeuvre moving it out and the next correction bringing it back. The
+target stayed 34 units away.
+
+So the control problem is now solved twice over — heading, and camera steering —
+and what remains is map knowledge: a route around the pocket. That needs either a
+probed walkable grid (a long, mechanical session) or a hand-driven traversal.
+
+### Camera wall-follower: the best controller so far (2026-11-13)
+
+`scripts/mku-rotwalk.py` steers entirely with the camera: walk a burst, measure
+which way the burst actually went, rotate the camera toward the bearing, and on a
+blocked burst rotate 45 degrees in a committed direction, flipping that direction
+every fourth block so it does not lock into one side; also backs up and re-tries
+when every orientation is blocked.
+
+Measured runs:
+
+| start | goal | best distance reached |
+|---|---|---|
+| 34.1 units out | (-54, 130) | **18.96** (moved east from x -87 to -71 along z 137) |
+| 16 units out | (-60, 145) detour | 13.83 |
+
+That is the furthest any controller has carried the player toward either point,
+and it is the first one that recovered from a wedge without being restarted. It
+still plateaus at barriers: the direct line to (-54, 130) stops about 19 units
+out, and the detour about 14 units out.
+
+So: camera steering plus a committed 45-degree wall-follow is a real, working
+control loop; what it lacks is knowledge of where the gap in each barrier is.
+That is the map problem, still open.
+
+### Measured stick matrix: 50 units closed (2026-11-13)
+
+`scripts/mku-mapsteer.py` measures the two stick axes once — push (1,0), record
+the world displacement; push (0,1), record it — builds the 2x2 matrix
+M = [right | forward], and inverts it so any world bearing B becomes
+stick = M^-1 B. No heading vector, no camera yaw, no turning: the matrix is the
+movement model, measured rather than assumed.
+
+First run, from (-103, 174) toward (-54, 130):
+
+```
+65.7 -> 63.1 -> 53.3 -> 45.6 -> 33.8 -> 25.1 -> 17.8 -> 17.0 -> 16.1
+```
+
+Fifty units closed in about two minutes, with the stick values staying steady
+around (-0.95, -0.30) — the sign of a correct model. It then circled between 16
+and 18 units, which is the same wall the other controllers hit.
+
+This is the first controller that both closes distance reliably and holds a
+stable heading solution. The remaining problem is now purely the obstruction at
+about 16 units out.
+
+### Pathfinding solved: matrix steering plus a recorded map (2026-11-13)
+
+`scripts/mku-routeslam.py` combines the two working pieces:
+
+1. **Measured stick matrix.** Push (1,0) and (0,1) once, record the world
+   displacements, invert the 2x2, and solve stick = M^-1 B for any bearing. No
+   heading vector and no camera yaw involved.
+2. **Recorded cells.** Every burst records the cells it crosses as free; a stall
+   strafes, flips sides, recalibrates and clears the plan.
+
+Measured run toward (-55, 140), starting 30 units out and behind a wall that had
+stopped every previous controller:
+
+```
+1s   d=30.6  cells=1
+60s  d=29.5  cells=40
+planned 1 waypoint over 69 cells
+ARRIVED (-56.4, 139.7) in 2.3 min, d=1.5
+```
+
+It walked around the obstruction on its own and finished 1.5 units from the
+target. That is the first end-to-end success in the whole navigation hunt, and it
+means a villager can now be reached on purpose instead of by luck.
+
+### First NPC reaction captured (2026-11-13)
+
+With `mku-routeslam.py` steering, the bridge guard at (30.3, 120) —
+`npc_bridge_guard_1`, model KON_VILL — was reached and punched. He answers:
+
+- immediately on the hit: **"You shall not pass."**
+- settling a second later: **"Move along. This bridge is off limits."**
+
+That is the first NPC reaction line this hunt has produced. Generic villagers
+stay silent when punched; this guard speaks, which confirms two things at once:
+the punch really is the interaction, and the subtitle buffer at `0x09106354` is
+the channel those lines arrive on — exactly what the adapter already speaks.
+
+The bridge toll quest (`LS_BRIDGE`, 15 lines in the script bank) is therefore
+live and reachable. Route, punch and line, in that order, all work now.
+
+### The bridge chain: meat, and who gives it (2026-11-13)
+
+Reading the script bank around the bridge quest shows the chain:
+
+- `LS_BUTCHER_GREETING_*`, `LS_BUTCHER_INSTRUCT_*`, `LS_BUTCHER_GIVE_MEAT_*`,
+  `LS_BUTCHER_HIT_ONCE_*`, `LS_BUTCHER_PUNCHED_INTO_NIS_*`
+- `LS_BRIDGE_GUARD_GREETING_0`, `LS_BRIDGE_GUARD_NO_PASS_0..2`,
+  `LS_BRIDGE_GUARD_BOTHER_0..1`, **`LS_BRIDGE_GUARD_THANKS_FOR_MEAT_0`**
+- `LS_BRIDGE_KID_MEAT_0..2`, `LS_DOG_WOMAN_GOTMEAT_0..4`
+- items `butchers_meat`, `dog_meat`, `meat_reward`, and the table entry **Ham —
+  "A tender slab of ham, loved by guards in…"**
+
+So the bridge opens when the guard is given meat, and the meat comes from the
+butcher (or the dog quest). Measured in play this pass:
+
+- the guard answers a PUNCH with "You shall not pass." and then "Move along.
+  This bridge is off limits."
+- Cross on the guard retypes the same line; it does not open a conversation box.
+- the butcher (balding, dark beard, apron) does not answer Cross, a bump, or a
+  punch at his counter.
+
+The butcher's conversation is therefore gated behind another quest state — most
+likely the dog woman's meat request — and that is the next link to find.
+
+### Cross IS the talk button — and punching first spoils the NPC (2026-11-13)
+
+Correcting the earlier conclusion that no face button talks to villagers.
+
+After reloading the save (so the butcher was untouched by the punches of the
+previous session), walking up to him and pressing Cross produced a real
+conversation:
+
+- **"Hello there young man. Would you l…"** (the greeting, cut off as it typed)
+- pressing Cross again, before whatever step he wanted: **"You seem confused.
+  Why do you continue to …"** and **"I should really just ignore you. Then
+  perhaps you …"** — his BOTHER lines.
+
+So Cross is the action/talk button, exactly as the Konquest control listing says.
+The earlier failure was self-inflicted: every villager we had punched first now
+answers with a PUNCHED/HIT_ONCE line or refuses to help, which is why Cross
+"did nothing" in those tests.
+
+The butcher's greeting does not hand over meat by itself; the inventory stayed
+empty and the koins unchanged (0, 150, 0, 0, 0, 10). His GIVE_MEAT state must be
+reached through the quest step that precedes it — most likely the dog woman's
+request, which is where the chain goes next.
+
+Practical rule for the rest of this hunt: **talk first, never punch** unless the
+quest asks for it, because one punch closes the polite branch for good.

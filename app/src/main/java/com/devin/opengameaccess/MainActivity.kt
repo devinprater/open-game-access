@@ -1,7 +1,11 @@
 package com.devin.opengameaccess
 
+import android.net.Uri
 import android.os.Bundle
+import android.view.KeyEvent
+import android.view.MotionEvent
 import androidx.activity.ComponentActivity
+import androidx.activity.compose.BackHandler
 import androidx.activity.compose.setContent
 import androidx.compose.material.MaterialTheme
 import androidx.compose.material.Surface
@@ -16,6 +20,7 @@ import androidx.compose.runtime.SideEffect
 import androidx.compose.ui.platform.LocalView
 import com.devin.opengameaccess.ui.AdapterGamesScreen
 import com.devin.opengameaccess.ui.LauncherScreen
+import com.devin.opengameaccess.ui.ReadingLogScreen
 import com.devin.opengameaccess.ui.SettingsScreen
 import me.magnum.melonds.accessibility.AccessibilityScript
 
@@ -51,6 +56,14 @@ class MainActivity : ComponentActivity() {
         // loads the frontend library itself, on its own background thread.
         PspProbe.maybeStart(this, intent)
 
+        // The controller watch (input parity, stage 1). Safe here, unlike
+        // the speech bridge below: it registers an InputManager listener
+        // and scans InputDevices — platform calls only, no JNI, no native
+        // library. Connection state lands on ControllerInput.connectedName,
+        // which the launcher observes to announce changes and to hide the
+        // on-screen pad while a pad is connected.
+        ControllerInput.start(this)
+
         // ⛔ DO NOT INITIALISE THE SPEECH BRIDGE HERE.
         // `AccessibilityScript.initialize()` reaches a JNI method (`setSpeechBridge`),
         // and the native library is NOT loaded until a ROM loads. Calling it in
@@ -81,17 +94,17 @@ class MainActivity : ComponentActivity() {
      * Wires the announcement view.
      *
      * ⛔ IT DOES NOT OWN A FRAME CLOCK, whatever this docstring used to
-     * say (checked and corrected in stage 4): the PSP clock is
-     * rememberPspFrameClock, composed by LauncherScreen beside its
-     * session. The GB twin (rememberFrameClock in GbGameSession.kt)
-     * has NO call site — nothing composes it — so GbGameSession.runFrame
-     * is never called and the GB reader's per-frame resume
-     * (runGbFrame → the native runner) never runs on Android. GB speech
-     * in the shipped flow comes from the reader's load-time run inside
-     * its native start and from hotkey events, both of which the proofs
-     * exercised; frame-driven reader lines are a known gap in the GB
-     * flow, recorded here rather than fixed — stage 4's remit was the
-     * docstring, and the GB flow is otherwise proven as it stands.
+     * say (checked and corrected in stage 4): the clocks are
+     * rememberPspFrameClock and rememberFrameClock, composed by
+     * LauncherScreen beside their sessions. The GB clock long had NO
+     * call site, so GbGameSession.runFrame was never called and the GB
+     * reader's per-frame resume (runGbFrame → the native runner) never
+     * ran on Android — GB speech came only from the reader's load-time
+     * run and from hotkey events, and frame-driven reader lines could
+     * not happen. Parity stage 3 composed the GB clock in
+     * LauncherScreen next to its PSP twin, the way the PSP clock has
+     * always been driven; iOS drives the same cadence from the
+     * session's own CADisplayLink (GameSession.startDisplayLink).
      *
      * ⛔ THE ANNOUNCEMENT VIEW IS NOT OPTIONAL, AND IT MUST BE AN ATTACHED VIEW.
      * `AccessibilitySpeech` announces by mutating a view's live region when a screen
@@ -112,13 +125,140 @@ class MainActivity : ComponentActivity() {
             // whichever starts a game re-forwards it then.
             GbGameSession.attachAnnouncementView(view)
             PspGameSession.attachAnnouncementView(view)
+            DsGameSession.attachAnnouncementView(view)
+            MesenGameSession.attachAnnouncementView(view)
+            GenesisGameSession.attachAnnouncementView(view)
+        }
+
+        // ⛔ RE-ATTACH ON RESUME, not only on recomposition. The SideEffect
+        // above refreshes the stored view when Launcher recomposes, but a
+        // background/foreground cycle does not guarantee a recomposition --
+        // and a session relaunched after one announces through whatever
+        // view was stored before it. Measured on device (2026-11-11): a
+        // game relaunched inside the warm app spoke every menu line into
+        // the stored view and the player heard none of them. Re-handing
+        // the CURRENT view to every session on every resume means the
+        // stored view is never older than the last foregrounding.
+        val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+        androidx.compose.runtime.DisposableEffect(lifecycleOwner, view) {
+            val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+                if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                    GbGameSession.attachAnnouncementView(view)
+                    PspGameSession.attachAnnouncementView(view)
+                    DsGameSession.attachAnnouncementView(view)
+                    MesenGameSession.attachAnnouncementView(view)
+                    GenesisGameSession.attachAnnouncementView(view)
+                }
+            }
+            lifecycleOwner.lifecycle.addObserver(observer)
+            onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+        }
+
+        // Ask the display for its fastest mode. Every host's frame clock
+        // in this app is vsync-driven, and a panel idling at 60 Hz
+        // starves the PSP core's audio outright (see
+        // rememberPspFrameClock for the measured math). Best-effort and
+        // guarded: a single-mode panel, or a device that refuses the
+        // request, simply changes nothing -- the PSP clock's accumulator
+        // does not depend on the panel honouring this.
+        androidx.compose.runtime.LaunchedEffect(Unit) {
+            try {
+                val window = (context as? android.app.Activity)?.window
+                val display = view.display
+                if (window != null && display != null) {
+                    val fastest = display.supportedModes
+                        .filter {
+                            it.physicalWidth == display.mode.physicalWidth &&
+                                it.physicalHeight == display.mode.physicalHeight
+                        }
+                        .maxByOrNull { it.refreshRate }
+                    if (fastest != null && fastest.modeId != display.mode.modeId) {
+                        val attrs = window.attributes
+                        attrs.preferredDisplayModeId = fastest.modeId
+                        window.attributes = attrs
+                    }
+                }
+            } catch (t: Throwable) {
+                // A refused display mode must never cost the launcher.
+            }
+        }
+
+        // ⛔ THE APP'S VOICE FOR ITS OWN LINES, SHARED BY EVERY SCREEN.
+        // The settings screens speak their changes through this too
+        // (parity stage 3): iOS announces every settings and per-game
+        // change aloud, because with no screen an unspoken change is
+        // an invisible one.
+        //
+        // The bridge only exists once a game has started, so calling it
+        // earlier is both a crash (no native library) and unnecessary.
+        // Guarded rather than removed: with a game running, this is the
+        // same bridge the reader uses, so an app line during play queues
+        // behind the reader's speech instead of opening a second TTS
+        // client. Either session's game counts: the bridge is shared,
+        // and a PSP session builds it at start the same way the GB
+        // session does. Before any game, the screens' own live regions
+        // carry their lines to the screen reader instead (the launcher
+        // status line below is the first of those).
+        val announceLine: (String, Boolean) -> Unit = { text, interrupt ->
+            // ⛔ ONE LINE, ON PURPOSE: the launcher contract test checks
+            // line by line that every AccessibilityScript call in this
+            // Activity is guarded by a running game on the same line.
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
+        }
+
+        // The repeat walk's refusal channel: feedback ABOUT the spoken
+        // history, spoken through the bridge WITHOUT being recorded
+        // into that history (a recorded refusal would reset the walk
+        // and fill the reading log with refusals — see
+        // AccessibilitySpeech.speakControl). Same guard, same line
+        // shape, for the same contract test.
+        val announceControlLine: (String) -> Unit = { text ->
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning) AccessibilityScript.speakControl(text)
         }
 
         var showSettings by remember { mutableStateOf(false) }
         var showGames by remember { mutableStateOf(false) }
+        // A DS library page's Load button (the DS half of the parity
+        // program's Stage 2 load flow): the page names the game, the
+        // launcher opens its picker for the game's ROM, and the pick
+        // routes into the DS session by extension like any other pick.
+        // The request is consumed (and cleared) by LauncherScreen.
+        var dsLoadRequest by remember { mutableStateOf<AdapterGameInfo?>(null) }
+        var showReadingLog by remember { mutableStateOf(false) }
+
+        if (showReadingLog) {
+            // Pushed from Settings' Troubleshooting section; Back
+            // returns there, the way iOS's navigation stack returns
+            // from its Reading log to Settings.
+            ReadingLogScreen(onBack = { showReadingLog = false })
+            return
+        }
+        // A game file picked on a library page (AdapterGamesScreen's
+        // Load button), waiting for the launcher to run it through its
+        // own accept + start path. Set with the pick, cleared by the
+        // launcher as it consumes it — see LauncherScreen's hand-off.
+        var pendingRom by remember { mutableStateOf<Uri?>(null) }
         var battleCues by remember { mutableStateOf(CueSettings.battleCuesEnabled(context)) }
         var hudGaugeCuesSound by remember {
             mutableStateOf(GameSettings.globalDefault(context, GameSettings.Setting.HUD_GAUGE_CUES))
+        }
+        var gameSound by remember { mutableStateOf(GameSoundSettings.gameSoundEnabled(context)) }
+        var showPicture by remember { mutableStateOf(DisplaySettings.showPicture(context)) }
+
+        // ⛔ THE SYSTEM BACK BUTTON ENDS HERE FIRST (input parity, stage 1).
+        // Until now nothing in the app touched the OnBackPressedDispatcher,
+        // so Android's default callback finished the Activity from ANY
+        // screen — the 2026-11-08 logcat caught it doing exactly that
+        // mid-game. BackHandler IS the dispatcher's Compose face: while
+        // Settings or the games list is up, Back walks back to the launcher
+        // (the same lambdas the screens' own Back buttons call); deeper
+        // levels register their own handlers (the games list's pages, a
+        // running session in LauncherScreen) and, being composed later,
+        // are asked first. At the launcher itself nothing is enabled, the
+        // dispatcher falls through, and Back leaves the app — the one
+        // place that is the right answer.
+        BackHandler(enabled = showSettings || showGames) {
+            if (showSettings) showSettings = false else showGames = false
         }
 
         if (showSettings) {
@@ -134,46 +274,100 @@ class MainActivity : ComponentActivity() {
                     hudGaugeCuesSound = useSound
                     GameSettings.setGlobalHudGaugeCuesSound(context, useSound)
                 },
+                gameSoundEnabled = gameSound,
+                onGameSoundChanged = { enabled ->
+                    gameSound = enabled
+                    GameSoundSettings.setGameSoundEnabled(context, enabled)
+                },
+                pspRunning = PspGameSession.isRunning,
+                onSaveState = { PspGameSession.saveState(context) },
+                onLoadState = { PspGameSession.loadState(context) },
+                hasSavedState = { PspGameSession.hasSavedState(context) },
+                // Through the session, not the bridge class directly:
+                // the launcher contract keeps every AccessibilityScript
+                // call in this Activity behind the running-game guard
+                // above, and the sessions own bridge access elsewhere.
+                onRepeatSpeech = { PspGameSession.repeatLastSpeech() },
+                onOpenReadingLog = { showReadingLog = true },
+                announce = { text -> announceLine(text, true) },
+                showPicture = showPicture,
+                onShowPictureChanged = { show ->
+                    showPicture = show
+                    DisplaySettings.setShowPicture(context, show)
+                },
                 onBack = { showSettings = false },
             )
             return
         }
 
         if (showGames) {
-            AdapterGamesScreen(onBack = { showGames = false })
+            AdapterGamesScreen(
+                onBack = { showGames = false },
+                announce = { text -> announceLine(text, true) },
+                onLoadGame = { game ->
+                    dsLoadRequest = game
+                    showGames = false
+                },
+                onLoadRom = { uri ->
+                    pendingRom = uri
+                    showGames = false
+                },
+            )
             return
         }
 
         LauncherScreen(
             session = GbGameSession,
+            dsLoadRequest = dsLoadRequest,
+            onDsLoadRequestConsumed = { dsLoadRequest = null },
+            showPicture = showPicture,
+            pendingRom = pendingRom,
+            onPendingRomHandled = { pendingRom = null },
             onOpenSettings = { showSettings = true },
             onOpenGames = { showGames = true },
-            announce = { text, interrupt ->
-                // ⛔ THE STATUS LIVE REGION IS THE VOICE; THIS IS ONLY A FALLBACK.
-                // The status Text carries a liveRegion and its contentDescription is
-                // this same string, so a running screen reader announces it -- that is
-                // how the WebView-era bug was fixed (the screen reader should be the
-                // only voice).
-                //
-                // The bridge only exists once a game has started, so calling it earlier
-                // is both a crash (no native library) and unnecessary. Guarded rather
-                // than removed: with a game running, this is the same bridge the reader
-                // uses, so a launcher line during play queues behind the reader's speech
-                // instead of opening a second TTS client. Either session's game counts:
-                // the bridge is shared, and a PSP session builds it at start the same
-                // way the GB session does.
-                if (GbGameSession.isRunning || PspGameSession.isRunning) AccessibilityScript.speak(text, interrupt)
-            },
+            // ⛔ THE STATUS LIVE REGION IS THE VOICE; THIS IS ONLY A FALLBACK.
+            // The status Text carries a liveRegion and its contentDescription is
+            // this same string, so a running screen reader announces it -- that is
+            // how the WebView-era bug was fixed (the screen reader should be the
+            // only voice). announceLine above owns the bridge half.
+            announce = announceLine,
+            announceControl = announceControlLine,
         )
     }
 
+    /**
+     * The single input funnel for controllers and keyboards (input parity,
+     * stage 1): gamepad-sourced key and motion events are offered to
+     * [ControllerInput] first, which consumes the ones a running session
+     * maps and declines the rest — so volume keys, TalkBack's keys and
+     * every launcher key keep their normal path, and nothing outside a
+     * game is ever eaten.
+     */
+    override fun dispatchKeyEvent(event: KeyEvent): Boolean {
+        if (ControllerInput.handleKeyEvent(event)) return true
+        return super.dispatchKeyEvent(event)
+    }
+
+    override fun onGenericMotionEvent(event: MotionEvent): Boolean {
+        if (ControllerInput.handleMotionEvent(event)) return true
+        return super.onGenericMotionEvent(event)
+    }
+
     override fun onDestroy() {
+        // Release any held controller buttons BEFORE the sessions stop,
+        // so the releases reach live sessions (their own stops clear
+        // held state anyway — this is the same belt and braces, kept in
+        // the order that makes the releases real).
+        ControllerInput.stop()
         // Stop the sessions before the process goes away, or an emulator
         // thread outlives the Activity that owns the views it announces
         // through. The PSP stop is safe with no PSP game running (and on
         // builds with no PSP core), so it is unconditional, like the GB one.
         GbGameSession.stop()
         PspGameSession.stop()
+        DsGameSession.stop()
+        MesenGameSession.stop()
+        GenesisGameSession.stop()
         super.onDestroy()
     }
 }

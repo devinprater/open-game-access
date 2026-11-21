@@ -4043,8 +4043,17 @@ Extends §29.6 (Manamon dB constants) with how ~20 simultaneous loops
 stay intelligible (Pokémon radar, 1,037 lines):
 
 - **Mixer law:** their mixer attenuates the opposite channel
-  linearly, so dB values convert as pan = 1 − 10^(−|dB|/20), gain =
-  10^(dB/20). Pan from the E–W offset only; **volume from Manhattan
+  linearly, so dB values convert as pan magnitude = 1 − 10^(−|dB|/20),
+  gain = 10^(dB/20). **Sign convention — the formula gives a magnitude
+  only; the sign comes from the offset: signed pan is positive to the
+  RIGHT and negative to the LEFT (0 = centred), so a target EAST of
+  the listener takes the positive sign and one WEST of it the
+  negative.** That is the convention OGA's own code uses throughout
+  (pan −1..+1, or −100..+100 in the GB Lua form): bearings are
+  measured clockwise from map north (dbzar's `BearingTo`: 0 = ahead,
+  +90 = right), the cue synth sets pan = sin(bearing) (PspCueSynth),
+  and Dissidia's fixed health cues are +0.8 foe RIGHT / −0.8 own
+  LEFT. Pan from the E–W offset only; **volume from Manhattan
   distance**; beacons at unity gain.
 - **Voice budgets per family (hard caps, nearest first):** people 4;
   doors, stairs, items, signs, gates, caves, objects 2 each.

@@ -80,7 +80,8 @@ const Adapter* const* all_adapters(int* count);
 static bool LibraryAdapter(const oga::Adapter* a)
 {
     if (!a || !a->id) return false;
-    return strcmp(a->id, "nes") != 0 && strcmp(a->id, "n64") != 0;
+    return strcmp(a->id, "nes") != 0 && strcmp(a->id, "n64") != 0 &&
+           strcmp(a->id, "genesis") != 0;
 }
 
 // ---- copied from Core/pokecore.cpp: poke_adapter_library_console -----------
@@ -92,6 +93,7 @@ static const char* LibraryConsole(const oga::Adapter* a)
     if (strcmp(a->id, "gba") == 0) return "gb";
     if (strcmp(a->id, "nes") == 0) return "nes";
     if (strcmp(a->id, "n64") == 0) return "n64";
+    if (strcmp(a->id, "genesis") == 0) return "genesis";
     if (a->game_code && strncmp(a->game_code, "crc:", 4) == 0) return "snes";
     if (a->game_code && strncmp(a->game_code, "ULUS", 4) == 0) return "psp";
     if (a->game_code && strlen(a->game_code) == 4) return "nds";
@@ -123,6 +125,7 @@ static const int kSupportedKhbbs[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(NextAlly), CMD(NextEnemy), CMD(Enemies), CMD(Guide), CMD(DumpState)};
 static const int kSupportedMku[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(Guide), CMD(DumpState)};
+static const int kSupportedDissidia012[] = {CMD(WhereAmI), CMD(MenuState)};
 static const SupportedRow kSupported[] = {
     {"fe11", kSupportedFe11, 7},
     {"dbz-saiyans", kSupportedDbzSaiyans, 4},
@@ -131,6 +134,7 @@ static const SupportedRow kSupported[] = {
     {"dissidia", kSupportedDissidia, 9},
     {"khbbs", kSupportedKhbbs, 7},
     {"mku", kSupportedMku, 4},
+    {"dissidia012", kSupportedDissidia012, 2},
 };
 #undef CMD
 

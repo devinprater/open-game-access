@@ -166,6 +166,10 @@ OgaCore oga_nes_core(NesCore* nes);
 /* The SNES is the same story: opaque here, Mesen inside snes_core.cpp. */
 typedef struct SnesCore SnesCore;
 OgaCore oga_snes_core(SnesCore* snes);
+/* The Genesis is the same story again: opaque here, Genesis Plus GX inside
+ * genesis_core.cpp. */
+typedef struct GenesisCore GenesisCore;
+OgaCore oga_genesis_core(GenesisCore* genesis);
 OgaCore oga_psp_core(PspCore* psp);
 
 /* Which backend runs a file, by extension — or NULL when this build has none.
@@ -182,6 +186,9 @@ typedef struct OgaResolvedBackend {
     /* Trailing on purpose: the three initializers above keep compiling, and the
      * resolver stays the one place that decides "which emulator runs this ROM". */
     bool snes_hint;              /* the file should reach the Mesen SNES backend */
+    /* Trailing again, for the same reason: existing initializers keep
+     * compiling, and the resolver stays the one decision point. */
+    bool genesis_hint;           /* the file should reach the Genesis Plus GX backend */
 } OgaResolvedBackend;
 
 /* Resolves a ROM path to a backend id, or NULL when unsupported.

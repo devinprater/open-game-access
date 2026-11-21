@@ -150,6 +150,18 @@ object GbGameSession {
         if (running) GbAccessibilityScript.runFrame()
     }
 
+    /**
+     * The current frame (pixels, width, height) as RGBA8888 ints, or
+     * null when nothing is loaded — the session screen's game picture
+     * (the iOS app's FrameImage). The native copy has existed since
+     * the reader landed (GbAccessibilityScript.currentFrame); this is
+     * its session surface, the twin of PspGameSession.currentFrame.
+     */
+    fun currentFrame(): Triple<IntArray, Int, Int>? {
+        if (!running) return null
+        return GbAccessibilityScript.currentFrame()
+    }
+
     // ---- the emulated pad ---------------------------------------------------
     //
     // ⛔ HOLD, NOT TAP. Walking in these games means holding a direction, so the pad
@@ -228,6 +240,18 @@ object GbGameSession {
         AccessibilityScript.speak("", true)
         GbAccessibilityScript.stop()
     }
+
+    /**
+     * Re-read the newest spoken line, or step one line further back
+     * through what was spoken — the shared bridge's spoken-history
+     * walk (see AccessibilitySpeech), iOS's RepeatNewest /
+     * RepeatOlder pair. False when there is nothing (older) to
+     * repeat; speaking the refusal is the screen's job, as it is for
+     * iOS's callers.
+     */
+    fun repeatLastSpeech(): Boolean = AccessibilityScript.repeatLastSpeech()
+
+    fun repeatOlderSpeech(): Boolean = AccessibilityScript.repeatOlderSpeech()
 
     /** True once a game is running, so the pad and commands can appear. */
     val isRunning: Boolean get() = running
