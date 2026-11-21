@@ -229,7 +229,11 @@ static void SayField(bool high)
 // byte already holds its init value, and in the chapter shell the pointer is
 // 0xFFFFFFFF (both measured). Anything else fails closed and silent.
 //   current disc: grid id u32 at 0x08B82A24 (10*(row+2)+col on a virtual 10-wide grid)
-//   disc records: 0x08B82A30 + 8*grid (60 x 8 bytes: exists flag + object pointer);
+//   disc records: 0x08B82A30 + 8*grid (exists flag + object pointer); the first
+//     60 records were the session-10 characterisation, but sessions 25 and 35
+//     measured live records at grids 60-64 (Encounters and Treason, Seasonless,
+//     Chapter 3's first gateway, North Melmond, Southern Shrine), so every scan
+//     below runs to grid 70.
 //     the set of existing grids is the board's fingerprint (session 13: boards are
 //     told apart by their disc-table fingerprint, not by an identity cell)
 //   disc objects: 0x095CD570 + 0x40*grid, board X float at +0x00, Z at +0x08
@@ -238,8 +242,8 @@ static void SayField(bool high)
 //     behind (session 10), so prompts are announced on the CHANGE to a prompt disc,
 //     never level-triggered.
 //   Scan Mode cursor: record pointer at 0x095CD41C, 0xFFFFFFFF when not scanning.
-// A board whose fingerprint matches a known table (the prologue's Gateway to
-// Departure, Chapter 1's Crescent Lake and Sage's Path) is announced from it. An unknown
+// A board whose fingerprint matches a known table (the gateways tabled
+// below, Chapters 1-6) is announced from it. An unknown
 // board is announced GENERICALLY from the live disc data -- current disc and
 // coordinate-adjacent neighbours by grid id, no piece names, no prompts -- because
 // piece presence is not in a cell and an unverified name would be an invention.
@@ -275,9 +279,23 @@ static const uint32_t GIL_B = 0x08BBFA28u;
 enum BoardPiece : int { kPieceNone = 0, kPieceChest, kPieceKain, kPieceManikin, kPieceStigma,
                         kPieceReaper, kPieceFlash, kPieceLaguna, kPieceDragoon,
                         kPieceDragoon2, kPieceFlash6, kPieceFlashLunar, kPieceSkyPirate,
-                        kPieceTifa, kPieceUnknown };
+                        kPieceTifa, kPieceUnknown,
+                        kPieceFlash2Wod, kPiecePirate6Ocs, kPieceDragoon2Wod, kPieceGirl2Os, kPieceDragoon2Os, kPiecePirate2Wod,
+                        kPieceHarlequin5Os, kPieceWraith1Os, kPieceFlash5Wod, kPieceVision1Os, kPieceGunner1Os, kPiecePhantom3Ocs,
+                        kPieceDespot1Os, kPieceSummoner1Os, kPieceDragoon3Ocs, kPieceGirl15, kPiecePirate11, kPieceHarlequin15,
+                        kPieceFlash15, kPiecePirate15, kPieceHero13, kPieceSummoner13, kPiecePhantom23, kPieceVision11Lunar,
+                        kPiecePhantom11Lunar, kPieceHero11Lunar, kPieceDespot6Dreams, kPieceSummoner11Lunar, kPiecePhantom6Dreams, kPieceHero6Wod,
+                        kPieceDragoon3, kPieceGunner3, kPieceDespot7, kPieceFlash7, kPieceGirl13Os, kPiecePirate13Wod,
+                        kPieceDragoon6Crystal, kPieceGunner13Dreams, kPiecePirate5Lunar90, kPieceDragoon5Lunar90, kPieceReaper15Os90, kPieceHarlequin2Wod90,
+                        kPieceFlash2Wod90, kPieceHarlequin7Lunar90, kPiecePirate11Ocs90, kPiecePirate7Wod90, kPieceFlash11Ocs90, kPieceWraith5_90,
+                        kPieceDragoon4_90, kPieceGunner1_90, kPieceFlash5_90, kPieceFlash1_90, kPieceHero1Rift90, kPieceSummoner1Rift90,
+                        kPieceDespot3Ocs90, kPieceFlash3Dreams90, kPiecePhantom3Dreams90, kPiecePhantom11Wod90, kPiecePirate11Lunar90, kPieceWraith11Lunar90,
+                        kPieceFlash6Dreams90, kPieceDragoon8_90, kPieceFlash8_90, kPiecePirate13_90, kPieceHero13_90, kPieceDespot13_90,
+                        kPieceTree7Wod90, kPieceFlash7Crystal90, kPieceDragoon7Crystal90, kPieceFlash3Ultimecia90, kPieceGunner6Crystal90, kPieceTree13Wod90,
+                        kPieceFlash13Ultimecia90, kPieceTerra, kPieceVaan, kPieceJecht, kPieceZidane, kPieceFirion,
+                        kPieceSummonstone, kPiecePotion, kPieceWarriorOfLight };
 struct BoardPieceInfo { const char* name; const char* clause; const char* desc; const char* promptDesc; bool prompt; };
-static const BoardPieceInfo kBoardPieces[15] = {
+static const BoardPieceInfo kBoardPieces[96] = {
     { "", "", "", nullptr, false },
     { "Treasure Chest", "chest", "Contains helpful items", nullptr, true },
     { "Kain", "Kain", "Assist Character", nullptr, true },
@@ -304,6 +322,166 @@ static const BoardPieceInfo kBoardPieces[15] = {
       "Lv 6. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
     { "Tifa", "Tifa", "Assist Character", nullptr, true },
     { "???", "???", "Engage this piece to find its true form", nullptr, true },
+    // Boards of Chapters 1-6 (sessions 21-64, consolidated): every entry is a
+    // piece as the game presented it -- prompt or Scan text. The KP chance is
+    // per-board, so a foe identical in name, level and stage still needs its
+    // own entry when its board's chance differs (the 90-suffixed entries are
+    // the "Win within 90 seconds" boards). A description with no stage line
+    // means the record never stated that piece's stage; none was invented.
+    { "Fleeting Flash", "Fleeting Flash", "Lv 2. Battle stage: World of Darkness",
+      "Lv 2. Battle stage: World of Darkness. KP chance: Win battle", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 6. Battle stage: Old Chaos Shrine",
+      "Lv 6. Battle stage: Old Chaos Shrine. KP chance: Win battle", true },
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 2. Battle stage: World of Darkness",
+      "Lv 2. Battle stage: World of Darkness. KP chance: Win battle", true },
+    { "Phantasmal Girl", "Phantasmal Girl", "Lv 2. Battle stage: Order's Sanctuary",
+      "Lv 2. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 2. Battle stage: Order's Sanctuary",
+      "Lv 2. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 2. Battle stage: World of Darkness",
+      "Lv 2. Battle stage: World of Darkness. KP chance: Win battle", true },
+    { "Phantasmal Harlequin", "Phantasmal Harlequin", "Lv 5. Battle stage: Order's Sanctuary",
+      "Lv 5. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Counterfeit Wraith", "Counterfeit Wraith", "Lv 1. Battle stage: Order's Sanctuary",
+      "Lv 1. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 5. Battle stage: World of Darkness",
+      "Lv 5. Battle stage: World of Darkness. KP chance: Win battle", true },
+    { "Ephemeral Vision", "Ephemeral Vision", "Lv 1. Battle stage: Order's Sanctuary",
+      "Lv 1. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Transient Gunner", "Transient Gunner", "Lv 1. Battle stage: Order's Sanctuary",
+      "Lv 1. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Ephemeral Phantom", "Ephemeral Phantom", "Lv 3. Battle stage: Old Chaos Shrine",
+      "Lv 3. Battle stage: Old Chaos Shrine. KP chance: Win battle", true },
+    { "Imitation Despot", "Imitation Despot", "Lv 1. Battle stage: Order's Sanctuary",
+      "Lv 1. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Ephemeral Summoner", "Ephemeral Summoner", "Lv 1. Battle stage: Order's Sanctuary",
+      "Lv 1. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 3. Battle stage: Old Chaos Shrine",
+      "Lv 3. Battle stage: Old Chaos Shrine. KP chance: Win battle", true },
+    { "Phantasmal Girl", "Phantasmal Girl", "Lv 15",
+      "Lv 15. KP chance: Win battle", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 11",
+      "Lv 11. KP chance: Win battle", true },
+    { "Phantasmal Harlequin", "Phantasmal Harlequin", "Lv 15",
+      "Lv 15. KP chance: Win battle", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 15",
+      "Lv 15. KP chance: Win battle", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 15",
+      "Lv 15. KP chance: Win battle", true },
+    { "False Hero", "False Hero", "Lv 13",
+      "Lv 13. KP chance: Win battle", true },
+    { "Ephemeral Summoner", "Ephemeral Summoner", "Lv 13",
+      "Lv 13. KP chance: Win battle", true },
+    { "Ephemeral Phantom", "Ephemeral Phantom", "Lv 23",
+      "Lv 23. KP chance: Win battle", true },
+    { "Ephemeral Vision", "Ephemeral Vision", "Lv 11. Battle stage: Lunar Subterrane",
+      "Lv 11. Battle stage: Lunar Subterrane. KP chance: Win battle", true },
+    { "Ephemeral Phantom", "Ephemeral Phantom", "Lv 11. Battle stage: Lunar Subterrane",
+      "Lv 11. Battle stage: Lunar Subterrane. KP chance: Win battle", true },
+    { "False Hero", "False Hero", "Lv 11. Battle stage: Lunar Subterrane",
+      "Lv 11. Battle stage: Lunar Subterrane. KP chance: Win battle", true },
+    { "Imitation Despot", "Imitation Despot", "Lv 6. Battle stage: Dream's End",
+      "Lv 6. Battle stage: Dream's End. KP chance: Win battle", true },
+    { "Ephemeral Summoner", "Ephemeral Summoner", "Lv 11. Battle stage: Lunar Subterrane",
+      "Lv 11. Battle stage: Lunar Subterrane. KP chance: Win battle", true },
+    { "Ephemeral Phantom", "Ephemeral Phantom", "Lv 6. Battle stage: Dream's End",
+      "Lv 6. Battle stage: Dream's End. KP chance: Win battle", true },
+    { "False Hero", "False Hero", "Lv 6. Battle stage: World of Darkness",
+      "Lv 6. Battle stage: World of Darkness. KP chance: Win battle", true },
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 3",
+      "Lv 3. KP chance: Win battle", true },
+    { "Transient Gunner", "Transient Gunner", "Lv 3",
+      "Lv 3. KP chance: Win battle", true },
+    { "Imitation Despot", "Imitation Despot", "Lv 7",
+      "Lv 7. KP chance: Win battle", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 7",
+      "Lv 7. KP chance: Win battle", true },
+    { "Phantasmal Girl", "Phantasmal Girl", "Lv 13. Battle stage: Order's Sanctuary",
+      "Lv 13. Battle stage: Order's Sanctuary. KP chance: Win battle", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 13. Battle stage: World of Darkness",
+      "Lv 13. Battle stage: World of Darkness. KP chance: Win battle", true },
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 6. Battle stage: Crystal World",
+      "Lv 6. Battle stage: Crystal World. KP chance: Win battle", true },
+    { "Transient Gunner", "Transient Gunner", "Lv 13. Battle stage: Dream's End",
+      "Lv 13. Battle stage: Dream's End. KP chance: Win battle", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 5. Battle stage: Lunar Subterrane",
+      "Lv 5. Battle stage: Lunar Subterrane. KP chance: Win within 90 seconds", true },
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 5. Battle stage: Lunar Subterrane",
+      "Lv 5. Battle stage: Lunar Subterrane. KP chance: Win within 90 seconds", true },
+    { "Capricious Reaper", "Capricious Reaper", "Lv 15. Battle stage: Order's Sanctuary",
+      "Lv 15. Battle stage: Order's Sanctuary. KP chance: Win within 90 seconds", true },
+    { "Phantasmal Harlequin", "Phantasmal Harlequin", "Lv 2. Battle stage: World of Darkness",
+      "Lv 2. Battle stage: World of Darkness. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 2. Battle stage: World of Darkness",
+      "Lv 2. Battle stage: World of Darkness. KP chance: Win within 90 seconds", true },
+    { "Phantasmal Harlequin", "Phantasmal Harlequin", "Lv 7. Battle stage: Lunar Subterrane",
+      "Lv 7. Battle stage: Lunar Subterrane. KP chance: Win within 90 seconds", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 11. Battle stage: Old Chaos Shrine",
+      "Lv 11. Battle stage: Old Chaos Shrine. KP chance: Win within 90 seconds", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 7. Battle stage: World of Darkness",
+      "Lv 7. Battle stage: World of Darkness. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 11. Battle stage: Old Chaos Shrine",
+      "Lv 11. Battle stage: Old Chaos Shrine. KP chance: Win within 90 seconds", true },
+    { "Counterfeit Wraith", "Counterfeit Wraith", "Lv 5",
+      "Lv 5. KP chance: Win within 90 seconds", true },
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 4",
+      "Lv 4. KP chance: Win within 90 seconds", true },
+    { "Transient Gunner", "Transient Gunner", "Lv 1",
+      "Lv 1. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 5",
+      "Lv 5. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 1",
+      "Lv 1. KP chance: Win within 90 seconds", true },
+    { "False Hero", "False Hero", "Lv 1. Battle stage: The Rift",
+      "Lv 1. Battle stage: The Rift. KP chance: Win within 90 seconds", true },
+    { "Ephemeral Summoner", "Ephemeral Summoner", "Lv 1. Battle stage: The Rift",
+      "Lv 1. Battle stage: The Rift. KP chance: Win within 90 seconds", true },
+    { "Imitation Despot", "Imitation Despot", "Lv 3. Battle stage: Old Chaos Shrine",
+      "Lv 3. Battle stage: Old Chaos Shrine. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 3. Battle stage: Dream's End",
+      "Lv 3. Battle stage: Dream's End. KP chance: Win within 90 seconds", true },
+    { "Ephemeral Phantom", "Ephemeral Phantom", "Lv 3. Battle stage: Dream's End",
+      "Lv 3. Battle stage: Dream's End. KP chance: Win within 90 seconds", true },
+    { "Ephemeral Phantom", "Ephemeral Phantom", "Lv 11. Battle stage: World of Darkness",
+      "Lv 11. Battle stage: World of Darkness. KP chance: Win within 90 seconds", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 11. Battle stage: Lunar Subterrane",
+      "Lv 11. Battle stage: Lunar Subterrane. KP chance: Win within 90 seconds", true },
+    { "Counterfeit Wraith", "Counterfeit Wraith", "Lv 11. Battle stage: Lunar Subterrane",
+      "Lv 11. Battle stage: Lunar Subterrane. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 6. Battle stage: Dream's End",
+      "Lv 6. Battle stage: Dream's End. KP chance: Win within 90 seconds", true },
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 8",
+      "Lv 8. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 8",
+      "Lv 8. KP chance: Win within 90 seconds", true },
+    { "Idle Sky Pirate", "Idle Sky Pirate", "Lv 13",
+      "Lv 13. KP chance: Win within 90 seconds", true },
+    { "False Hero", "False Hero", "Lv 13",
+      "Lv 13. KP chance: Win within 90 seconds", true },
+    { "Imitation Despot", "Imitation Despot", "Lv 13",
+      "Lv 13. KP chance: Win within 90 seconds", true },
+    { "Fallacious Tree", "Fallacious Tree", "Lv 7. Battle stage: World of Darkness",
+      "Lv 7. Battle stage: World of Darkness. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 7. Battle stage: Crystal World",
+      "Lv 7. Battle stage: Crystal World. KP chance: Win within 90 seconds", true },
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 7. Battle stage: Crystal World",
+      "Lv 7. Battle stage: Crystal World. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 3. Battle stage: Ultimecia's Castle",
+      "Lv 3. Battle stage: Ultimecia's Castle. KP chance: Win within 90 seconds", true },
+    { "Transient Gunner", "Transient Gunner", "Lv 6. Battle stage: Crystal World",
+      "Lv 6. Battle stage: Crystal World. KP chance: Win within 90 seconds", true },
+    { "Fallacious Tree", "Fallacious Tree", "Lv 13. Battle stage: World of Darkness",
+      "Lv 13. Battle stage: World of Darkness. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 13. Battle stage: Ultimecia's Castle",
+      "Lv 13. Battle stage: Ultimecia's Castle. KP chance: Win within 90 seconds", true },
+    { "Terra", "Terra", "Assist Character", nullptr, true },
+    { "Vaan", "Vaan", "Assist Character", nullptr, true },
+    { "Jecht", "Jecht", "Assist Character", nullptr, true },
+    { "Zidane", "Zidane", "Assist Character", nullptr, true },
+    { "Firion", "Firion", "Assist Character", nullptr, true },
+    { "Summonstone", "Summonstone", "An unknown summon is sealed within", nullptr, true },
+    { "Potion", "Potion", "", nullptr, true },
+    { "Warrior of Light", "Warrior of Light", "", nullptr, true },
 };
 struct BoardDisc { int grid; const char* name; int x, z; int piece; };
 // x/z are the disc objects' board coordinates (session 10): 4.0 per step, +x east
@@ -388,7 +566,419 @@ struct BoardDef { const BoardDisc* discs; int nDiscs; int entryGrid; int stigmaG
 static const BoardDef kPrologueDef = { kBoardDiscs, 14, 21, 27 };
 static const BoardDef kLakeDef = { kLakeDiscs, 19, 20, 55 };
 static const BoardDef kSagesDef = { kSagesDiscs, 22, 20, -1 };
-static const BoardDef* const kKnownBoards[3] = { &kPrologueDef, &kLakeDef, &kSagesDef };
+// Chapter 2's Hidden Darkness Gateway is deliberately NOT tabled: its
+// Chapter 6 instance shares the identical disc fingerprint (same set,
+// entry and Stigma discs) with a different piece population and a
+// different KP chance (session 46, addendum 29), so either table would
+// misname the other chapter's pieces. It stays generic until a
+// measurement distinguishes the two instances.
+// Chapter 1's Gateway of Fools and Hope (sessions 21-22). The session-21 Scan
+// pass showed nothing on discs 2, 33 and 34; the pieces there were named by
+// their engage prompts in session 22, and the table follows the prompts.
+// No Stigma on the board: the ??? piece on 15 is the finish. Disc 22 is a
+// platform but not a registered disc (session 22), so it is not in the set.
+static const BoardDisc kFoolsDiscs[13] = {
+    { 1, nullptr, -14, -12, kPieceChest },
+    { 2, nullptr, -10, -12, kPiecePirate6Ocs },
+    { 4, nullptr, -2, -12, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceNone },
+    { 15, nullptr, 2, -8, kPieceUnknown },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceFlash2Wod },
+    { 24, nullptr, -2, -4, kPieceChest },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceDragoon2Wod },
+    { 34, nullptr, -2, 0, kPiecePirate6Ocs },
+    { 43, nullptr, -6, 4, kPieceNone },
+};
+static const BoardDef kFoolsDef = { kFoolsDiscs, 13, 20, -1 };
+// Chapter 2's Encounters and Treason (session 25, full Scan census). No Stigma
+// and no assist piece: the ??? piece on 31 (Terra) is the finish. Discs 63
+// and 64 are registered discs past the old 60-record scan range.
+static const BoardDisc kEncountersDiscs[24] = {
+    { 0, nullptr, -18, -12, kPieceNone },
+    { 11, nullptr, -14, -8, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceNone },
+    { 15, nullptr, 2, -8, kPiecePirate2Wod },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPieceNone },
+    { 30, nullptr, -18, 0, kPieceHarlequin5Os },
+    { 31, nullptr, -14, 0, kPieceUnknown },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceFlash2Wod },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 36, nullptr, 6, 0, kPieceDragoon2Os },
+    { 37, nullptr, 10, 0, kPieceNone },
+    { 40, nullptr, -18, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 50, nullptr, -18, 8, kPieceChest },
+    { 51, nullptr, -14, 8, kPieceGirl2Os },
+    { 52, nullptr, -10, 8, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 63, nullptr, -6, 12, kPieceNone },
+    { 64, nullptr, -2, 12, kPieceNone },
+};
+static const BoardDef kEncountersDef = { kEncountersDiscs, 24, 53, -1 };
+// Chapter 2's Gulg Gateway (session 26). No Stigma and no assist piece: the
+// ??? piece on 25 (Kefka) is the finish. The chest on 51 was never claimed
+// in play (it stands behind the Reaper on 31); it is tabled as presented.
+static const BoardDisc kGulgDiscs[19] = {
+    { 0, nullptr, -18, -12, kPieceNone },
+    { 2, nullptr, -10, -12, kPieceNone },
+    { 3, nullptr, -6, -12, kPiecePirate5Lunar90 },
+    { 4, nullptr, -2, -12, kPieceSummonstone },
+    { 11, nullptr, -14, -8, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPieceUnknown },
+    { 30, nullptr, -18, 0, kPieceDragoon5Lunar90 },
+    { 31, nullptr, -14, 0, kPieceReaper15Os90 },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceHarlequin2Wod90 },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 41, nullptr, -14, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceFlash2Wod90 },
+    { 51, nullptr, -14, 8, kPieceChest },
+};
+static const BoardDef kGulgDef = { kGulgDiscs, 19, 11, -1 };
+// Chapter 2's Snow of Sorrow (session 27, full Scan census).
+static const BoardDisc kSnowDiscs[16] = {
+    { 0, nullptr, -18, -12, kPieceChest },
+    { 1, nullptr, -14, -12, kPieceNone },
+    { 2, nullptr, -10, -12, kPieceHarlequin7Lunar90 },
+    { 3, nullptr, -6, -12, kPieceChest },
+    { 11, nullptr, -14, -8, kPiecePirate11Ocs90 },
+    { 20, nullptr, -18, -4, kPiecePirate7Wod90 },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceFlash11Ocs90 },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 42, nullptr, -10, 4, kPieceStigma },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceTerra },
+};
+static const BoardDef kSnowDef = { kSnowDiscs, 16, 22, 42 };
+// Chapter 2's Seasonless Gateway (session 27, full Scan census). The census
+// stated no battle stages on this board, so its pieces carry level only.
+static const BoardDisc kSeasonlessDiscs[19] = {
+    { 0, nullptr, -18, -12, kPieceChest },
+    { 10, nullptr, -18, -8, kPieceGirl15 },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceTerra },
+    { 25, nullptr, 2, -4, kPieceNone },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPiecePirate11 },
+    { 34, nullptr, -2, 0, kPieceNone },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 40, nullptr, -18, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceHarlequin15 },
+    { 50, nullptr, -18, 8, kPieceFlash15 },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 54, nullptr, -2, 8, kPiecePirate15 },
+    { 55, nullptr, 2, 8, kPieceStigma },
+    { 60, nullptr, -18, 12, kPieceChest },
+};
+static const BoardDef kSeasonlessDef = { kSeasonlessDiscs, 19, 31, 55 };
+// Chapter 3's first gateway (session 28, full Scan census). The record never
+// captured this gateway's banner name, so no name is tabled for it.
+static const BoardDisc kCh3FirstDiscs[17] = {
+    { 4, nullptr, -2, -12, kPieceChest },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceFlash5Wod },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceWraith1Os },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceChest },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceGunner1Os },
+    { 41, nullptr, -14, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceVision1Os },
+    { 44, nullptr, -2, 4, kPieceStigma },
+    { 52, nullptr, -10, 8, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 54, nullptr, -2, 8, kPieceFlash5Wod },
+    { 62, nullptr, -10, 12, kPieceNone },
+};
+static const BoardDef kCh3FirstDef = { kCh3FirstDiscs, 17, 30, 44 };
+// Chapter 3's Gateway To Decay (session 29). The board census stated no
+// battle stages, so its pieces carry level only. The Dragoon on 24 is the
+// gold variant (HP 1, a glass cannon) as measured in play.
+static const BoardDisc kDecayDiscs[18] = {
+    { 11, nullptr, -14, -8, kPieceVaan },
+    { 14, nullptr, -2, -8, kPieceWraith5_90 },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceDragoon4_90 },
+    { 25, nullptr, 2, -4, kPieceNone },
+    { 26, nullptr, 6, -4, kPieceChest },
+    { 32, nullptr, -10, 0, kPieceGunner1_90 },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceGunner1_90 },
+    { 41, nullptr, -14, 4, kPieceFlash5_90 },
+    { 42, nullptr, -10, 4, kPieceNone },
+    { 44, nullptr, -2, 4, kPieceNone },
+    { 45, nullptr, 2, 4, kPieceFlash1_90 },
+    { 46, nullptr, 6, 4, kPieceStigma },
+    { 51, nullptr, -14, 8, kPiecePotion },
+};
+static const BoardDef kDecayDef = { kDecayDiscs, 18, 20, 46 };
+// Chapter 4's West Melmond Gateway (session 35, full Scan census). Chapter 4
+// opens directly on this board.
+static const BoardDisc kWestMelmondDiscs[17] = {
+    { 1, nullptr, -14, -12, kPiecePhantom3Ocs },
+    { 2, nullptr, -10, -12, kPieceChest },
+    { 11, nullptr, -14, -8, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceJecht },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceDespot1Os },
+    { 23, nullptr, -6, -4, kPieceChest },
+    { 24, nullptr, -2, -4, kPieceSummoner1Os },
+    { 25, nullptr, 2, -4, kPieceNone },
+    { 26, nullptr, 6, -4, kPieceStigma },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceNone },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 41, nullptr, -14, 4, kPieceDragoon3Ocs },
+    { 45, nullptr, 2, 4, kPieceNone },
+    { 51, nullptr, -14, 8, kPieceChest },
+};
+static const BoardDef kWestMelmondDef = { kWestMelmondDiscs, 17, 20, 26 };
+// Chapter 4's North Melmond Gateway (session 35, full Scan census). The entry
+// disc is 63, past the old 60-record scan range.
+static const BoardDisc kNorthMelmondDiscs[15] = {
+    { 3, nullptr, -6, -12, kPieceStigma },
+    { 13, nullptr, -6, -8, kPieceSummoner1Rift90 },
+    { 22, nullptr, -10, -4, kPieceFlash3Dreams90 },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceHero1Rift90 },
+    { 34, nullptr, -2, 0, kPiecePhantom3Dreams90 },
+    { 35, nullptr, 2, 0, kPieceSummonstone },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 45, nullptr, 2, 4, kPieceZidane },
+    { 51, nullptr, -14, 8, kPieceChest },
+    { 52, nullptr, -10, 8, kPieceDespot3Ocs90 },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 54, nullptr, -2, 8, kPieceNone },
+    { 63, nullptr, -6, 12, kPieceNone },
+};
+static const BoardDef kNorthMelmondDef = { kNorthMelmondDiscs, 15, 63, 3 };
+// Chapter 4's Gateway to the Shrine (session 35's "Blue board", full Scan
+// census). Two battle pieces stand behind Jump and were never fought; they
+// are tabled as the census presented them.
+static const BoardDisc kBlueShrineDiscs[17] = {
+    { 1, nullptr, -14, -12, kPiecePhantom11Wod90 },
+    { 2, nullptr, -10, -12, kPieceNone },
+    { 3, nullptr, -6, -12, kPieceNone },
+    { 5, nullptr, 2, -12, kPiecePirate11Lunar90 },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceStigma },
+    { 20, nullptr, -18, -4, kPieceWraith11Lunar90 },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPiecePirate11Ocs90 },
+    { 26, nullptr, 6, -4, kPieceChest },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceFlash6Dreams90 },
+    { 42, nullptr, -10, 4, kPieceNone },
+};
+static const BoardDef kBlueShrineDef = { kBlueShrineDiscs, 17, 13, 14 };
+// Chapter 4's Southern Shrine Gateway (session 35, full Scan census). No
+// Stigma disc: the ??? piece on 37 (The Emperor) is the clear condition.
+static const BoardDisc kSouthShrineDiscs[26] = {
+    { 0, nullptr, -18, -12, kPieceVision11Lunar },
+    { 1, nullptr, -14, -12, kPieceChest },
+    { 10, nullptr, -18, -8, kPieceNone },
+    { 11, nullptr, -14, -8, kPiecePhantom11Lunar },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceHero11Lunar },
+    { 15, nullptr, 2, -8, kPieceChest },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceVision11Lunar },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceDespot6Dreams },
+    { 34, nullptr, -2, 0, kPieceSummoner11Lunar },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 36, nullptr, 6, 0, kPieceNone },
+    { 37, nullptr, 10, 0, kPieceUnknown },
+    { 40, nullptr, -18, 4, kPiecePotion },
+    { 42, nullptr, -10, 4, kPieceNone },
+    { 44, nullptr, -2, 4, kPiecePhantom6Dreams },
+    { 51, nullptr, -14, 8, kPieceNone },
+    { 52, nullptr, -10, 8, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 54, nullptr, -2, 8, kPieceNone },
+    { 60, nullptr, -18, 12, kPieceHero6Wod },
+};
+static const BoardDef kSouthShrineDef = { kSouthShrineDiscs, 26, 53, -1 };
+// Chapter 5's North Sanctuary Gateway (session 37). The record stated no
+// battle stages on this board, so its pieces carry level only.
+static const BoardDisc kNorthSanctuaryDiscs[19] = {
+    { 0, nullptr, -18, -12, kPieceChest },
+    { 2, nullptr, -10, -12, kPieceStigma },
+    { 4, nullptr, -2, -12, kPieceChest },
+    { 10, nullptr, -18, -8, kPieceHero13_90 },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPiecePirate13_90 },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceDragoon8_90 },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceFlash8_90 },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 30, nullptr, -18, 0, kPieceDespot13_90 },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceNone },
+    { 40, nullptr, -18, 4, kPieceChest },
+    { 42, nullptr, -10, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 52, nullptr, -10, 8, kPieceNone },
+};
+static const BoardDef kNorthSanctuaryDef = { kNorthSanctuaryDiscs, 19, 52, 2 };
+// Chapter 5's Forsaken Kingdom (session 37). No Stigma: the Warrior of Light
+// on 25 is the finish (his level was never read from his card in play; the
+// guides say 18). GAPS: the guides name two further chests (Blazefire Saber,
+// Mythril) behind the Phantom on 43, but their discs were never measured,
+// so they are not tabled.
+static const BoardDisc kForsakenDiscs[15] = {
+    { 1, nullptr, -14, -12, kPieceSummonstone },
+    { 10, nullptr, -18, -8, kPieceNone },
+    { 11, nullptr, -14, -8, kPieceHero13 },
+    { 13, nullptr, -6, -8, kPiecePotion },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceChest },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPieceWarriorOfLight },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 31, nullptr, -14, 0, kPieceSummoner13 },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 40, nullptr, -18, 4, kPieceNone },
+    { 43, nullptr, -6, 4, kPiecePhantom23 },
+};
+static const BoardDef kForsakenDef = { kForsakenDiscs, 15, 20, -1 };
+// Chapter 6's Sunken Lake Gateway (session 39, measured census). Chapter 6
+// opens directly on this board. The census stated no battle stages, so its
+// pieces carry level only.
+static const BoardDisc kSunkenDiscs[15] = {
+    { 1, nullptr, -14, -12, kPieceNone },
+    { 3, nullptr, -6, -12, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 20, nullptr, -18, -4, kPieceNone },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceDragoon3 },
+    { 24, nullptr, -2, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPieceGunner3 },
+    { 26, nullptr, 6, -4, kPieceStigma },
+    { 32, nullptr, -10, 0, kPieceDespot7 },
+    { 34, nullptr, -2, 0, kPieceFlash7 },
+    { 42, nullptr, -10, 4, kPieceChest },
+    { 44, nullptr, -2, 4, kPieceChest },
+};
+static const BoardDef kSunkenDef = { kSunkenDiscs, 15, 20, 26 };
+// Chapter 6's Legendary Lake Gateway (sessions 46-47, direction-press probe
+// map). GAPS: discs 1, 3, 4 and 5 were never reached (they sit behind the
+// battle pieces), so their contents are unmeasured and they are tabled
+// empty as presented; the guides' Imitation Despot Lv 17, Firion assist
+// piece and Black Dragon Spear chest were never located on this board.
+static const BoardDisc kLegendaryDiscs[17] = {
+    { 1, nullptr, -14, -12, kPieceNone },
+    { 2, nullptr, -10, -12, kPieceTree7Wod90 },
+    { 3, nullptr, -6, -12, kPieceNone },
+    { 4, nullptr, -2, -12, kPieceNone },
+    { 5, nullptr, 2, -12, kPieceNone },
+    { 10, nullptr, -18, -8, kPieceNone },
+    { 12, nullptr, -10, -8, kPieceNone },
+    { 13, nullptr, -6, -8, kPieceFlash7Crystal90 },
+    { 14, nullptr, -2, -8, kPieceNone },
+    { 20, nullptr, -18, -4, kPieceDragoon7Crystal90 },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceFlash3Ultimecia90 },
+    { 30, nullptr, -18, 0, kPieceSummonstone },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceStigma },
+};
+static const BoardDef kLegendaryDef = { kLegendaryDiscs, 17, 32, 34 };
+// Chapter 6's Gateway of True Intent (sessions 56-60; node set from the
+// session-60 record scan, pieces from firsthand prompt cards). GAPS: nodes
+// 30 and 55 exist but no cardinal path reaches them and their contents were
+// never read (one may hold the west chest, the Pebble); tabled empty as
+// presented. Session 56's note puts Firion's piece at 54, but the record
+// scan shows no node 54; the assist at 44 was confirmed by screenshot.
+static const BoardDisc kTrueIntentDiscs[15] = {
+    { 3, nullptr, -6, -12, kPieceStigma },
+    { 13, nullptr, -6, -8, kPieceFlash13Ultimecia90 },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPiecePirate13_90 },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 24, nullptr, -2, -4, kPieceTree13Wod90 },
+    { 25, nullptr, 2, -4, kPieceChest },
+    { 30, nullptr, -18, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceGunner6Crystal90 },
+    { 43, nullptr, -6, 4, kPieceNone },
+    { 44, nullptr, -2, 4, kPieceFirion },
+    { 51, nullptr, -14, 8, kPieceNone },
+    { 52, nullptr, -10, 8, kPieceNone },
+    { 53, nullptr, -6, 8, kPieceNone },
+    { 55, nullptr, 2, 8, kPieceNone },
+};
+static const BoardDef kTrueIntentDef = { kTrueIntentDiscs, 15, 53, 3 };
+// Chapter 6's Ryukahn Gateway (sessions 63-64, walked map, all cards read
+// firsthand). The Stigma disc (2) presents as a ??? piece -- it is Exdeath
+// in disguise -- so the table names what the game presents; stigmaGrid
+// still marks the disc so a board exit after its prompt speaks "Level
+// finished.". GAPS: disc 13 holds the battle-tips signpost, whose prompt
+// text was never quoted (tabled empty), and disc 10 is a spare node that
+// was never accounted for. Firion on 11 is a talk piece here.
+static const BoardDisc kRyukahnDiscs[16] = {
+    { 2, nullptr, -10, -12, kPieceUnknown },
+    { 10, nullptr, -18, -8, kPieceNone },
+    { 11, nullptr, -14, -8, kPieceFirion },
+    { 12, nullptr, -10, -8, kPieceDragoon6Crystal },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 14, nullptr, -2, -8, kPieceGunner13Dreams },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceGirl13Os },
+    { 31, nullptr, -14, 0, kPieceNone },
+    { 32, nullptr, -10, 0, kPieceNone },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 34, nullptr, -2, 0, kPieceNone },
+    { 35, nullptr, 2, 0, kPiecePirate13Wod },
+    { 36, nullptr, 6, 0, kPieceChest },
+    { 42, nullptr, -10, 4, kPieceNone },
+    { 44, nullptr, -2, 4, kPieceNone },
+};
+static const BoardDef kRyukahnDef = { kRyukahnDiscs, 16, 42, 2 };
+static const BoardDef* const kKnownBoards[20] = { &kPrologueDef, &kLakeDef, &kSagesDef,
+    &kFoolsDef, &kEncountersDef, &kGulgDef, &kSnowDef, &kSeasonlessDef, &kCh3FirstDef, &kDecayDef, &kWestMelmondDef, &kNorthMelmondDef, &kBlueShrineDef, &kSouthShrineDef, &kNorthSanctuaryDef, &kForsakenDef, &kSunkenDef, &kLegendaryDef, &kTrueIntentDef, &kRyukahnDef };
 // Generic fallback for an unrecognised board: position from the live disc data,
 // no table, no pieces.
 static const BoardDef kGenericDef = { nullptr, 0, -1, -1 };
@@ -407,7 +997,7 @@ static const BoardDisc* DiscAt(const BoardDef* def, int x, int z)
 }
 static int GridForRecord(uint32_t rec)
 {
-    if (rec < BOARD_RECORDS || rec >= BOARD_RECORDS + 60u * 8u) return -1;
+    if (rec < BOARD_RECORDS || rec >= BOARD_RECORDS + 70u * 8u) return -1;
     uint32_t off = rec - BOARD_RECORDS;
     return (off % 8u) ? -1 : (int) (off / 8u);
 }
@@ -420,11 +1010,11 @@ static int BoardCtrlState(void)
 }
 static bool DiscExists(int grid)
 {
-    return grid >= 0 && grid < 60 && u32(BOARD_RECORDS + 8u * (uint32_t) grid) == 1u;
+    return grid >= 0 && grid < 70 && u32(BOARD_RECORDS + 8u * (uint32_t) grid) == 1u;
 }
 static bool DiscCoords(int grid, int* x, int* z)
 {
-    if (grid < 0 || grid >= 60) return false;
+    if (grid < 0 || grid >= 70) return false;
     uint32_t obj = BOARD_OBJECTS + 0x40u * (uint32_t) grid;
     float fx = f32at(obj), fz = f32at(obj + 8);
     if (!(fx == fx && fz == fz)) return false;
@@ -440,12 +1030,17 @@ static bool DiscCoords(int grid, int* x, int* z)
 // this board's piece names).
 static const BoardDef* IdentifyBoard(void)
 {
-    int existCount = 0;
-    for (int g = 0; g < 60; g++) if (DiscExists(g)) existCount++;
     for (const BoardDef* def : kKnownBoards) {
-        if (existCount != def->nDiscs) continue;
         bool ok = true;
         for (int i = 0; i < def->nDiscs && ok; i++) if (!DiscExists(def->discs[i].grid)) ok = false;
+        if (!ok) continue;
+        // No disc outside the definition's set may exist either. The scan covers
+        // the characterised 0..59 range; a definition's own discs past 59 were
+        // checked just above. Records past 59 were only ever measured as the
+        // loaded board's own discs (sessions 25/35), never as another board's,
+        // so an unlisted record there cannot smuggle a wrong table in.
+        for (int g = 0; g < 60 && ok; g++)
+            if (DiscExists(g) && !DiscForGrid(def, g)) ok = false;
         if (!ok) continue;
         int x, z;
         const BoardDisc* e = DiscForGrid(def, def->entryGrid);
@@ -468,7 +1063,7 @@ static const BoardDef* IdentifyBoard(void)
 static bool BoardCells(int* gridOut, const BoardDef** defOut)
 {
     uint32_t g = u32(BOARD_GRID_ID);
-    if (g >= 60u) return false;
+    if (g >= 70u) return false;
     if (u32(BOARD_MGR_CUR) != BOARD_RECORDS + 8u * g) return false;
     const BoardDef* def = IdentifyBoard();
     if (def) {
@@ -541,7 +1136,7 @@ static bool NeighbourDisc(const BoardDef* def, int grid, int dx, int dz, int* ou
     }
     int cx, cz;
     if (!DiscCoords(grid, &cx, &cz)) return false;
-    for (int g = 0; g < 60; g++) {
+    for (int g = 0; g < 70; g++) {
         if (g == grid || !DiscExists(g)) continue;
         int x, z;
         if (DiscCoords(g, &x, &z) && x == cx + dx && z == cz + dz) { *outGrid = g; return true; }
@@ -587,8 +1182,12 @@ static void BoardPromptLine(const BoardDef* def, int grid, char* buf, size_t n)
     buf[0] = 0;
     if (!d || !IsPromptDisc(def, grid)) return;
     // The prompt's own text: name, description, Engage / Cancel (sessions 9/13/14).
+    // A piece whose description was never measured (the Potion, the Warrior of
+    // Light) speaks its name alone rather than an empty description.
     const BoardPieceInfo& p = kBoardPieces[d->piece];
-    snprintf(buf, n, "%s — %s. Engage / Cancel", p.name, p.promptDesc ? p.promptDesc : p.desc);
+    const char* desc = p.promptDesc ? p.promptDesc : p.desc;
+    if (desc[0]) snprintf(buf, n, "%s — %s. Engage / Cancel", p.name, desc);
+    else snprintf(buf, n, "%s. Engage / Cancel", p.name);
 }
 
 static void BoardScanLine(const BoardDef* def, int grid, char* buf, size_t n)

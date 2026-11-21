@@ -7765,3 +7765,6611 @@ North Sanctuary farmed twice (Lv 17 -> 20 -> 23), Forsaken Kingdom
 run three times; the Warrior of Light (2,762 HP) fell on the sixth
 attempt of run #3, at Lv 24, after the WAIT-cadence ladder and the
 fight5 no-search policy removed the block-search ambush window.
+
+
+## Session 39 — Chapter 6 (Indiscernible Truth): Kain leads
+
+Resume: `ch5_s38_chapter5_end.state` — Story Mode chapter select,
+Chapter 6 flagged NEW. Carried standing: Lightning Lv 24, Gil
+8,946, banked KP 91 (+2 in the final gateway's gauge, sweep
+unconfirmed), Odin summonstone owned, Ifrit AUTO equipped (shared
+pool). Kain starts at Lv 1 (chapter select card, session 38).
+
+### Chapter plan (all GUIDE DATA — Suih's Move List and Guide,
+GameFAQs faqs/62070, the same source as prior chapters' piece
+lists; unverified until measured in play)
+
+Character: Kain Highwind. Five gateways in guide order:
+
+1. **Sunken Lake Gateway** — KP Chance: Win battle. Bonus Line 2.
+   Pieces: Imitation Despot Lv7, Delusory Dragoon Lv3, Fleeting
+   Flash Lv7, Transient Gunner Lv3. Chests: Javelin (left), Pink
+   Tail (right). Field encounters around it: Imitation Despot Lv7,
+   False Stalwart Lv4.
+2. **Hidden Darkness Gateway (Blue)** — OPTIONAL (blue = enter and
+   exit freely). KP Chance: Win within 90 seconds. Board shares
+   the Forsaken Kingdom layout. Pieces: Imitation Despot Lv7,
+   Capricious Reaper Lv3, Idle Sky Pirate Lv7, Fleeting Flash Lv3,
+   Phantasmal Girl Lv7. Chests: 500 gil, Soul of Valor.
+3. **Legendary Lake Gateway** — KP Chance: Win within 90 seconds.
+   Bonus Line 6. Firion assist piece; Shiva AUTO summonstone;
+   chest: Black Dragon Spear. Pieces: Delusory Dragoon Lv7,
+   Fallacious Tree Lv7, Fleeting Flash Lv7, Imitation Despot Lv17,
+   Fleeting Flash Lv3. Guide note: reach panel K and execute a
+   Multichain. Field: Counterfeit Wraith Lv7.
+4. **Gateway of True Intent** — KP Chance: Win within 90 seconds.
+   Bonus Line 10. Firion assist. Chests: Pebble, 500 gil. Pieces:
+   Transient Gunner Lv6, Idle Sky Pirate Lv13, Fallacious Tree
+   Lv13, Fleeting Flash Lv13.
+5. **Ryukahn Gateway** — KP Chance: Win battle. Bonus Line 12.
+   Firion assist. Chest: Yellow Drop. Pieces: Delusory Dragoon
+   Lv6, Phantasmal Girl Lv13, Transient Gunner Lv13, Idle Sky
+   Pirate Lv13. **B = Exdeath Lv18 — the chapter boss.**
+
+Kain notes (guide data): Jump is his key attack; his BRV attacks
+branch by stick direction (neutral / up / down); Triangle after a
+BRV attack is a special dash. Boss plan: farm repeat boards until
+Kain is near the boss's level (the Ch.5 pattern), then the
+WAIT-ladder drift search with the no-search wait-for-live fight
+policy (session 37's s37_fight5 pattern).
+
+### Session 39 addendum 1 - Sunken Lake Gateway CLEARED (2026-11-19)
+
+Boot from ch5_s38_chapter5_end.state verified (state 21, Gil
+8,946). Chapter 6 selected ("Kain Highwind Lv 1"); intro cards are
+PRESS-driven (Cross advances; raw frame-running does nothing).
+Chapter opens DIRECTLY on the Sunken Lake board (no field segment
+first). Banked KP 93 on entry (Ch.5's final +2 swept in). Kain
+holds the Cross Chain board skill. Resume states: ch6_s39_open2
+(board), ch6_s39_sl_nochain (clean mid-board), ch6_s39_field1
+(field after the clear).
+
+BOARD CENSUS (Sunken Lake, measured): 15 discs. Grid -> (X,Z):
+1:(-14,-12), 3:(-6,-12), 12:(-10,-8), 13:(-6,-8), 20:(-18,-4)
+deploy, 21:(-14,-4), 22:(-10,-4), 23:(-6,-4), 24:(-2,-4),
+25:(2,-4), 26:(6,-4) Stigma, 32:(-10,0), 34:(-2,0), 42:(-10,4),
+44:(-2,4). Pieces: 23 Delusory Dragoon Lv3, 25 Transient Gunner
+Lv3, 32 Imitation Despot Lv7, 34 Fleeting Flash Lv7, 42 chest
+(Javelin), 44 chest (Pink Tail). A battle TIP BOX ("The opening
+after an opponent attacks...") intercepts inputs when approaching
+disc 23 - dismiss with ~4 Cross presses before aiming. A Kain
+tutorial tip ("skilled in aerial combat...") also fires on board
+entry in fresh lineages. Harness: nav scripts must dismiss tips,
+then POLL grid()/focus() after each hop/aim - grid reads lag the
+hop animation by up to ~700 frames on resumed-entry states.
+
+FIGHTS (battle block bases this boot: 0x0969D688 and 0x09691388,
+found per fight with the range finder; foe ranges must be WIDE,
+800-2000 - see the Despot note):
+- Delusory Dragoon Lv3 (23): HP 1,121. WIN, 34 rots, Kain
+  1000 -> 618. Battlegen: Order of Emptiness created. +24 gil.
+- Transient Gunner Lv3 (25): HP 1,121. At 618 HP: LOSS three
+  ways (W0 foe left at 121 HP; W5 worse; a Circle-heavy Kain
+  rotation much worse - his BRV attacks whiff at range; the
+  house Square rotation is correct for him too).
+- Imitation Despot Lv7 (32), DIRECT engage: HP 1,205. WIN, 35
+  rots, ZERO damage taken during the policy (973 -> 973; the
+  only damage was 330 lost fumbling the VS transition). +84 gil.
+- Fleeting Flash Lv7 (34): HP 1,364. LOSS at drifts 0/5/10/15
+  starting from 730 HP unequipped - then see addendum 2.
+
+CHAIN LESSON (measured, costly): after a win, the Cross Chain
+skill auto-targets an adjacent-diagonal piece behind a normal
+Engage/Cancel prompt (focus RAM = that piece's record). Blind
+Cross presses ENGAGE it. The chained Despot measured HP 1,522
+vs 1,205 direct - CHAINED FOES GET ~+26% HP. Forced chain fight
+at 618 HP was a LOSS. Correct handling, verified end to end:
+at the piece prompt press Circle -> "Cancel chain?" (defaults
+NO) -> Left + Cross (YES) cancels and banks the KP. Every win
+in this chapter is followed by a focus check for exactly this.
+"Win battle" KP chance pays +1 per piece into the gauge (HUD
+banner + gauge are authoritative; the RAM gauge cell reads 0
+on state-21 boards here).
+
+EXIT / CONTINUE FARM LOOP (measured): Pause -> Exit Gateway
+warns "KP gained in gateway will be lost" (gauge KP only; gil
+and EXP are kept). Exit lands on the scenario splash; Cross ->
+"There is a story in progress" -> Continue returns to the
+board start with the board fully reset and the lead at FULL
+HP. (The splash's START button opens the Story Mode HELP index,
+not the chapter select.) Farmed the Dragoon this way: Kain
+Lv 1 -> 6 over five cycles (+24 gil each). Max HP grows ~+61
+per level (1000 at Lv1, 1364 at Lv7). Mid-fight HP can RISE -
+the rotation's Triangle enters EX Mode, whose Regen ticks HP.
+
+### Session 39 addendum 2 - the gear fix, both chests, Stigma (2026-11-19)
+
+THE FLASH WALL WAS EQUIPMENT, NOT LEVELS. Opening Customization
+(Triangle on the board; ~6 sacrificial Crosses clear the banner
+stack first - battlegen banners like "Obtained Chocobo Down"
+queue here) showed Kain Highwind Lv 7 with ALL FOUR EQUIPMENT
+SLOTS EMPTY: HP 730/1364, CP 275/337, BRV 130, ATK 17, DEF 18,
+LUK 13, EXP next 6,550 / total 34,815. Chapter leads start
+UNARMED in this playthrough's save lineage - check gear FIRST
+for every new lead. The shared inventory (all chapters' loot)
+held his kit: Javelin (Spear, HP-122 ATK+13 DEF-2 - the Sunken
+Lake chest), Buckler (DEF+3), Bronze Helm (BRV+38 DEF+2),
+Leather Armor (HP+428). Equipped totals: HP max 1,670, BRV 168,
+ATK 30, DEF 21. Equipment screen tabs: L/R shoulders switch
+Abilities / Equipment / Accessories. His HP attack is Spiral
+Blow (Square, [Close] charge, wall rush).
+RETRY: Fleeting Flash Lv7 WIN in 16 rots, ZERO damage taken
+(730 -> 730). The four-drift wall was a naked character.
+Also from the Gunner retest at Lv 6: WIN, 39 rots, 973 -> 730.
+
+CHESTS are aim + Cross prompts ("Treasure Chest - Contains
+helpful items. Engage/Cancel"), opened from the disc ABOVE:
+Javelin from 32 (after the Despot), Pink Tail from 34 (after
+the Flash). Gauge reached 4 KP (all four pieces paid).
+STIGMA (26, from 25): prompt "Stigma of Chaos - Engaging this
+piece finishes the level." Clear cutscene: Kain ("I see the
+manikins have begun to take their toll"), Golbez dialogue,
+monochrome memory text cards ("As the fight wears on, our old
+memories return") - press-driven with slow beats; the end is a
+white fade through state 0 into a FIELD dialogue (state 3).
+FIELD LANDING: Kain at the Sunken Lake arch, HP FULLY RESTORED
+(1,670), KP BANKED 97, Gil 9,282, Lv 7. Field encounters per
+the guide remain here (Imitation Despot Lv7, False Stalwart
+Lv4). A moogle waits west across the water; the red gateway
+sphere glows through the arch. Resume: ch6_s39_field1.state.
+
+
+### Session 39 addendum 7 (2026-11-19) - FIELD WORK AFTER SUNKEN LAKE: gate table decoded, FIRION RECRUITED, one field foe beaten; the Legendary Lake approach is still unsolved
+
+Standing after Sunken Lake: Kain Lv 7 (geared, HP max 1,670), Gil 9,282, KP BANKED 97. Field resume state: `ch6_s39_field1.state` (Kain at (211.5, 152.0) by the spent Sunken Lake arch; entering the field healed him to full).
+
+- THE GATE TABLE, fully decoded this boot. GateMgr = `*(ctrl+0x88)` = 0x095D7110, count 21; records 0x14 bytes at mgr+4+k*0x14: rec+0 = ptrA, rec+4 = ptrB, **the lifecycle STATE is the s16 at rec+0xC** (the timer float lives at rec+0x10 - the prologue's "122.0" reading; reading state from rec+0x10's low half was this session's early mistake), rec+8 = 0. B's first word: HIGH s16 = the point index, LOW s16 = the gate id. The 12 populated gates (id -> point (X, Z)): 12 -> pt5 (210.6, 152.9) Sunken Lake [state 5 = finished, the only non-dormant gate]; 19 -> pt12 (268.4, 220.7); 22 -> pt15 (292.5, 312.0); 11 -> pt4 (220.4, 111.0); 13 -> pt6 (253.9, 181.7); 14 -> pt7 (305.0, 166.6); 15 -> pt8 (366.0, 151.9); 16 -> pt9 (331.5, 126.0); 17 -> pt10 (154.1, 229.4); 18 -> pt11 (222.0, 193.5); 20 -> pt13 (319.3, 193.6); 21 -> pt14 (315.1, 270.4). All except Sunken Lake read state 0 (dormant). Facing-cone (tester) family, `lh(ptrA+4) >= 0`: gates 19 (A+4=25), 22 (A+4=26), 13 (A+4=28). Volume family, `lh(ptrB+0xE) >= 0`: gates 22 (3), 11 (0), 16 (1), 17 (2). Point table: base = `*(0x09AEF944)`, point i at base+i*0x3C, position floats at +0x24/+0x28/+0x2C (same layout as Ch.1; 35+ points this map).
+- FIELD FOE BEATEN: walking the lake's SE shore at ~(270, 149), Kain touched a field manikin - VS card "Lv 7 ? - STAGE Ultimecia's Castle - JUDGMENT" - and won in 23 rotations (foe HP 702, Kain 1,670 -> 1,471; +84 gil to 9,366). Field manikins are FAR weaker than board pieces of the same level (702 HP vs 1,205-1,364). New battle-block base seen: 0x09695798. Note the field-battle transition also passes through controller state 20.
+- FIRION RECRUITED (story beat): at the ruined pillars at (223.3, 194.0) - the pt11/pt34 spot NW of the lake - walking in fires a dialogue (state 3): Firion: "Really? Thank you, Kain. I was just getting tired of fighting alone." He joins as Kain's ASSIST, matching the guide's "A = Firion" pieces from Legendary Lake onward. Clean resume state: `ch6_s39_talk1.state`.
+- THE LEGENDARY LAKE APPROACH (anchor pt6 (253.9, 181.7), gate id 13, tester-reachable) - UNSOLVED; three routes measured and walled:
+  1. EAST SHORE: from the Sunken Lake exit, east along Z~151 then north along X~265-275 reaches the NE rim (279.5, 185.1) and the SE shore, but the north shore west of X~264 is a dead-end cove: the walker stalls at (264.5-266, 165.9-168.3) from every eastern approach. The anchor cove cannot be entered from the east.
+  2. WEST HILLS: from the field start, west then NE over the hills is OPEN all the way to Firion's ruins (213, 190) - but a continuous N-S ridge at X~240-244 seals the lake's west shore: stalls at (244, 197) north, (239, 180) mid, (241.6, 189.4). The anchor cannot be entered from the west either.
+  3. DIRECT from the Sunken Lake arch north: walled at Z~161-163 (the pint cluster at (211, 171) is scenery behind the wall); point 16 (194.0, 165.1) is bare mountainside, NOT a gateway.
+  NEXT SESSION: try the northern loop - from Firion's ruins continue north/east toward gate 19's point (268.4, 220.7) and approach the lake's north shore from Z > 200 heading south; also re-survey the gate states there (recruiting Firion may have armed gate 13 - its state word should be re-read from a northern state before assuming it is still dormant), and check the volume-family gates (pt4 south (220.4, 111.0) is on the way back). The moogle at ~(196, 144) west of the Sunken Lake arch (kind-44 object id 250) is also still unvisited.
+
+### Session 40 addendum 8 - LEGENDARY LAKE REACHED AND CLEARED (2026-11-19)
+
+THE APPROACH (the s39 blocker, solved): the ridge pass at
+Z~200-201 east of Firion's ruins is OPEN all the way. Route:
+ruins (223.3, 194.0) -> east along Z~200 to (252, 201) -> south
+to the anchor. The s39 ridge stalls were a greedy-walker
+artifact (12-frame pushes + camera-swing recalibration); s40's
+scan-navigator (below) walked it without a single stall. The
+NE rim (279.5, 185.1) is a DEAD-END spur: the X~265 corridor
+from the south shore reaches it, but every push off the rim
+tip slides back down the corridor. The south shore itself
+dips to Z~140 around the headland at X~246-261 before turning
+north into that corridor.
+
+ENTRY MECHANIC (new): gate 13's state word reads 0 even when
+the gate is enterable - it is NOT a dormant flag (finished
+gate 12 also read 0 in a later boot). Gate 13 is a facing-cone
+tester: stand ON the anchor point (253.9, 181.7) and press
+Cross -> state 5 -> board. Being PLACED at the anchor (the
+post-clear landing) does not arm it; walk off and back on
+first (the edge-trigger rule again).
+
+SCAN-NAVIGATOR (new field tool, s40_nav3.py): per step, save a
+scratch state, trial all four cardinal pushes (10 frames) from
+it, score by progress toward the target minus 0.45 per visit
+to the landing 2-unit cell, commit the best. The visited-cell
+penalty is what kills the wall-oscillation that defeated both
+earlier walkers. Trial pushes that change the controller
+state (a panel firing, a manikin touch) stop the run and save
+- that is the discovery signal. Diagonals are useless (the
+game ignores sub-threshold stick diagonals: 0.7,0.7 moved
+nothing in the probe).
+
+BOARD CENSUS (Legendary Lake, measured): 18 discs, deploy 23
+(-6,-4). Discs: 0:(-18,-12), 3:(-6,-12), 4:(-2,-12),
+10:(-18,-8), 11:(-14,-8), 12:(-10,-8), 13:(-6,-8), 14:(-2,-8),
+20:(-18,-4), 21:(-14,-4), 22:(-10,-4), 23:(-6,-4), 24:(-2,-4),
+32:(-10,0), 33:(-6,0), 34:(-2,0), 35:(2,0), 36:(6,0). Links
+are the coordinate-adjacent pairs. PIECE MAP: 12 = battle,
+foe HP 1,121; 32 = battle, foe HP 1,121; 10 = battle, foe HP
+1,205 (+84 gil); 11 = FIRION ASSIST piece (prompt-verified by
+screenshot: "Firion - Assist Character"); 14 = STIGMA OF
+CHAOS (prompt-verified by screenshot); 3 = battle (aimed,
+unfought); 24/33/34/35/36 and corners 0/4 unexplored - the
+Black Dragon Spear chest is still unfound. Aim model
+confirmed: cross+direction HOPS onto an empty adjacent disc
+but only FOCUSES a piece disc (no hop) - that asymmetry is
+the piece detector.
+
+RUN 1 - AN ACCIDENTAL CLEAR: beat 12 (17 rots, Kain 1670 ->
+1556) and 32 (8 rots, no damage), then engaged 14 expecting
+a battle piece (the range finder found no block, exactly the
+stigma's signature, misread as a finder failure). The stigma
+finished the level: banked KP 97 -> 99, gil kept, Kain landed
+on the field at the anchor. LESSON: screenshot a prompt
+before engaging any disc whose battle block is not found -
+"BLOCK NOT FOUND" means prompt piece (stigma/chest/assist)
+at least as often as it means a finder miss.
+
+THE PROBEN INCIDENT (a warning): an aim at disc 10 from disc
+20 in a mapping probe ENGAGED the piece - a battle was live
+for the rest of that probe and the next one, and blind
+follow-up inputs let the foe beat Kain from 1,670 to 254 HP
+before the state was saved mid-battle (state68 reads 20
+during battle entry, so the probes never noticed). The
+salvage fight was lost at 254 HP. LESSON: after any aim,
+verify no battle is live (battle-block presence, not
+state68) before saving or sending more inputs. Contaminated
+states: ch6_s40_ll_probeN.state, ch6_s40_ll_probeS.state -
+do not resume from them.
+
+RUN 2 - THE DELIBERATE CLEAR: fresh board from the anchor.
+12 re-beaten (36 rots, WAIT 0; Kain 1670 -> 1191; chain
+prompt at 32 cancelled). 32 re-beaten (31 rots, no damage).
+Kain reached Lv 8. Firion engaged at 11: his dialogue ("Do
+you think the manikins feel pain when they are struck, as we
+do?") plays ON the board (controller state stays 20; advance
+with Cross) - the piece remains on the board afterwards.
+Piece 10 (foe HP 1,205): LOSS at WAIT 0 - the foe froze at
+454 HP for 34 straight rotations while Kain bled out (the
+ranged-whiff pattern: Kain's circle rotation cannot connect
+once the foe holds distance). WIN at WAIT 5 (31 rots, Kain
+1191 -> 488): the drift change breaks the freeze. Stigma
+engaged from 13 (aim right): white fade (state 0) straight
+to the field, no long scene. End standing: Kain Lv 8, Gil
+9,462, banked KP 99 + this run's gauge (2 by the stale field
+read; sweep to be verified at next entry). Resume state:
+ch6_s40_ll2_cleared.state (field at the anchor).
+
+STILL OPEN on this board: the Black Dragon Spear chest
+(south discs 24/33/34/35/36 unprobed), piece 3 unfought, the
+guide's Imitation Despot Lv17 and the Shiva summonstone not
+yet located, and the guide's "panel K Multichain" note
+unexplored. The gateway itself is complete (twice); a fresh
+re-entry at full HP is the chest-hunt vehicle.
+
+### Session 40 addendum 9 - LEGENDARY LAKE LOOT RUN: board fully mapped (2026-11-19)
+
+RUN 3 (entered from ch6_s40_ll2_cleared.state via the usual
+walk-off/walk-on + Cross): Kain Lv 8 at FULL HP 1,730, and
+the board HUD verified banked KP 101 - run 2's gauge 2 did
+sweep (99 + 2). The addendum-8 open question is closed.
+
+SOUTH DISCS: 24 and 34 are empty standable discs. 35 =
+PHANTASMAL GIRL Lv 7 (prompt + Opponent Info card verified:
+HP 1,364, BRV 714, CP 337, gear Cracked Shield / Wizard's
+Hat / Rusted Armor; BATTLE STAGE World of Darkness). 36 =
+the TREASURE CHEST (prompt-verified), reachable only by
+aiming right from 35 after beating the Girl. Chest opened;
+the item banner was advanced through uncaptured - the
+guide names this board's only chest as the Black Dragon
+Spear, so the spear is guide-attributed, not yet verified
+in the inventory.
+
+THE GIRL FIGHT - A FINDER FAILURE, ROOT-CAUSED: the mapping
+probe's save sat on the Opponent Info card (an aim's hop
+attempt had confirmed the engagement). The battle then ran
+through a summon sequence ("Lunar Ray") while later scripts
+dumped RAM: the battle block's paired cells read
+frozen/unequal and the pattern finder missed on 24 straight
+dumps across two scripts. A direct read at the lineage's
+known block base (0x096bbf98 - block bases recur across the
+whole save lineage, since every state descends from one RAM
+image) found the foe already at 1 HP, the summon having done
+the work; three circle/circle/square rotations finished it.
+WIN, +84 gil, Kain to Lv 9 (HP max 1,791). LESSON: when the
+range finder fails during a known-live battle, read the
+lineage's known block base directly - do not conclude the
+battle is absent.
+
+PIECE 3 = IDLE SKY PIRATE Lv 7 (prompt-verified), foe HP
+1,522 - beaten at WAIT 0 in 25 rots (Kain 1791 -> 1518),
++84 gil; the post-win chain prompt targeted disc 12 and was
+cancelled (Circle -> Left+Cross). Then the stigma from 13:
+fade -> field, gil 9,630. Resume state:
+ch6_s40_ll3_cleared.state (field at the lake anchor).
+
+LEGENDARY LAKE - FINAL MAP (all measured): battle pieces
+12 (foe HP 1,121), 32 (1,121), 10 (1,205, +84 gil),
+35 Phantasmal Girl Lv 7 (1,364, +84 gil), 3 Idle Sky Pirate
+Lv 7 (1,522, +84 gil); 11 Firion assist; 36 chest (guide:
+Black Dragon Spear); 14 stigma; empty standable 20, 21, 22,
+23 (deploy), 24, 33, 34; corners 0 and 4 cannot be aimed at
+from any standable disc (presumed decorative). Every battle
+piece has now been beaten at least once across the three
+runs. The guide's Imitation Despot Lv 17 and Shiva
+summonstone do NOT appear on this board as mapped - the
+guide's Legendary Lake list appears to conflate boards. Its
+"reach panel K and execute a Multichain" note is still
+unexplored and is the remaining candidate source for the
+Shiva/bonus rewards.
+
+END STANDING (Chapter 6, after Legendary Lake): Kain Lv 9,
+Gil 9,630, banked KP 101 + gauge 2 (sweep verified at the
+next entry by the same HUD read that confirmed 101).
+
+NEXT (session 41): the story should now arm the Gateway of
+True Intent. From ch6_s40_ll3_cleared.state: re-read the
+gate table, then stand-and-Cross test the eastern/northern
+anchors - gate 14 pt7 (305.0, 166.6), gate 20 pt13
+(319.3, 193.6), gate 19 pt12 (268.4, 220.7) - and if none
+reacts, finally visit the unvisited moogle at (196, 144)
+west of the Sunken Lake arch. The scan-navigator
+(s40_nav3.py) is the field vehicle; prompt-screenshot any
+new board before engaging unknown discs. Ryukahn's Exdeath
+is Lv 18 against Kain's Lv 9 - expect a farm arc on the
+Legendary Lake / Sunken Lake Exit-Continue loop first.
+
+### Session 41 addendum 10 - GATE 19 = LEGENDARY LAKE'S NORTH ENTRANCE; KP SWEEP CONFIRMED (2026-11-19)
+
+GATE TABLE re-read this boot: GateMgr 0x095D7110 (same as
+s39's boot - one RAM lineage), 12 records (ids 11-22), every
+lifecycle state word 0. The state word stays useless for
+entry decisions, as established.
+
+THE WALK: from the Legendary Lake anchor, the scan-navigator
+(s41_nav.py, the s40_nav3 pattern) walked the Z~200 ridge
+pass north then NE to gate 19's anchor (268.4, 220.7) in 55
+steps without a stall (state ch6_s41_g19a.state). The anchor
+POINT itself is inside a wall: the fine approach stalls at
+Z=218.91, 1.79 south of the point, X centred on 268.4. Cross
+pressed there fired state 5 -> board anyway - the tester
+volume extends south to the standable ground.
+
+THE BOARD IS LEGENDARY LAKE GATEWAY (banner-verified on the
+entry screenshot), entered from the north: Kain deploys on
+disc 32. NOT True Intent. Banked KP on the board HUD: 103 -
+run 3's gauge 2 DID sweep (101 + 2); addendum 9's open
+question is CLOSED. A Firion dialogue plays on the board at
+entry ("So their numbers grow... I'm glad to have met up
+with you before I got into trouble.") and eats the first
+Start presses; advance it with Cross (controller state
+stays 20). Census of this instance: 17 discs {1,2,3,4,5,10,
+12,13,14,20,21,22,23,24,30,32,34} on the usual grid formula
+- a different disc set than the south instance's map (which
+had 0,11,33,35,36 and lacked 1,2,5,13,30). Two board
+variants by entrance, or the record test is phase-dependent;
+unresolved, noted only.
+
+EXIT (fresh LL board, gauge 0): Start -> pause menu (Return
+to Game / Quicksave / Exit Gateway / Help Manual) -> Down x2
+-> Exit Gateway -> "KP gained in gateway will be lost"
+dialog (defaults NO; Left+Cross = YES) -> FIELD at
+(268.4, 218.9), the gate 19 standable point. Unlike the s39
+farm loop (exit mid-clear splashes back to the board start),
+exiting an already-cleared gateway lands on the field.
+
+Resume states: ch6_s41_g19a.state (field, approach),
+ch6_s41_ti_entry.state (the LL-north board entry - saved
+under a wrong guess name; it is Legendary Lake, not True
+Intent), ch6_s41_field_g19.state (field at gate 19, current).
+
+NEXT: stand-and-Cross gate 14 (305.0, 166.6), then gate 20
+(319.3, 193.6); if neither is True Intent, the unvisited
+moogle west of the Sunken Lake arch at (196, 144).
+
+### Session 41 addendum 11 - FIELD SURVEY: the ruins-to-arch gully route, the empty moogle point, corridor-mouth manikin (2026-11-19)
+
+THE LAKE'S SOUTH SHORE IS A POCKET from the anchor: two
+scan-nav attempts to walk south from (256.5, 184.7) boxed
+at (253.7, 174.4) and (249.5, 174.9) - slope slides, no
+south exit. The Z~150 shore is NOT reachable directly from
+the Legendary Lake anchor; the headland dip belongs to the
+shore path walked from the west.
+
+RUINS -> ARCH (the missing link): south from Firion's ruins
+boxes at (227.8, 185.4). West along the terrace (Z~190-193)
+is open to (206.6, 191.0); the SW descent enters a hanging
+bowl (scan-nav boxed at (193.3, 178.1) and (203.2, 181.5)),
+but the bowl's west side DRAINS: a gully at X~187-188 runs
+from the terrace (Z~181) down to (194.6, 160.7) - the fine
+walker (no visit penalty, 14-frame pushes) threaded it in
+25 steps where the scan-nav could not. From the gully foot
+the lowland is open: moogle point in 12 steps, the Sunken
+Lake arch (211.5, 152) in 13 more. States: ch6_s41_ruins,
+ch6_s41_moogle (bowl), ch6_s41_drain, ch6_s41_fine1 (gully
+foot), ch6_s41_moogle2, ch6_s41_arch2.
+
+THE MOOGLE POINT (196, 144): REACHED - and EMPTY. No NPC
+stands there in this story phase; Cross at point-blank is a
+no-op (state stays 2; the screenshot shows only Kain and
+Firion). The Chapter 5 moogle pattern does not apply here.
+
+EAST SHORE: arch -> east is open along Z~151, dipping
+around the headland (Z 139.7 at X~252-258, as s40 noted).
+The scan-nav boxed on the headland's face at (240.0, 145.4)
+- the visit-penalty artifact again; the fine walker rounded
+it at Z~140-144. A slide zone at (262, 144-145) oscillates
+the fine walker; cross it heading NE. Corridor mouth
+reached: (270.8, 151.4) (ch6_s41_corr.state).
+
+FIELD MANIKIN at the corridor mouth: the first step north
+touched a field manikin - VS card "Lv 7 ? - STAGE
+Ultimecia's Castle - JUDGMENT", the same encounter s39 met
+on the SE shore. Foe HP 702; battle block base this boot
+0x09695798 (found by the wide-range finder, single hit).
+WIN in 21 rotations (fight5 policy, WAIT 0): Kain 1791 ->
+1525, +84 gil (9,630 -> 9,714). Post-fight state:
+ch6_s41_postfight.state (field, corridor mouth, HP 1525).
+
+NEXT: north up the corridor to (272, 166.6), then probe
+east to gate 14's anchor (305.0, 166.6) for True Intent;
+gate 20 (319.3, 193.6) after that.
+
+### Session 41 addendum 12 - GATE HUNT: gate 14 inert from the west, the X~290 ridge, corrected gate table, live families, north road (2026-11-19)
+
+GATE 14 (305.0, 166.6): approached from the west along the
+Z~166-175 shelf (corridor top east). The anchor is inside
+a wall; the standable edge is (303.2, 166.6), 1.79 short,
+and Cross there gives NO reaction (unlike gate 19, whose
+tester fired from 1.79). The pocket has no east/north exit
+(NE probe stuck at once). Gate 14 is not enterable from
+the west in this story state.
+
+THE X~290 RIDGE: a N-S barrier at X~290-292 confirmed at
+four latitudes: shore Z~141-152 (pinch at (289.9, 147.6);
+manual pushes: NE/SE zero displacement, E slides down to
+(290.6, 141.4) and stops), rim Z~182-186 (terrace ends at
+(292, 184); north is a slide slope), plateau Z~194-201
+(ends (290.5, 198.1)). The ONE crossing is the gate-14
+shelf itself at Z~166-175 (walked X 273 -> 303 freely).
+The shore strip east of the corridor mouth runs Z~147-152
+to X~290.6 and dead-ends; a SE slope from the corridor top
+(272.4, 168.2) descends to (280.8, 158.7), joining shelf
+to strip. The corridor-mouth manikin (Lv 7 ?, HP 702,
+Ultimecia's Castle) RE-ARMS: beaten a second time from the
+pre-fight state, flawless (HP 1791 throughout), +84 gil;
+that lineage's state is ch6_s41_postfight.state (gil
+9,714).
+
+GATE 20 (319.3, 193.6): NOT reached by any route. The
+Legendary Lake pass (defile at X~260-264) DOES open east
+at Z~194-201 onto a high plateau (walked to (284.2, 199.0)
+then east to the ridge at (290.5, 198.1)) - a dead end.
+Gate 19's pocket is boxed N/E/W (only the south pass).
+
+GATE TABLE CORRECTED (the session brief's coordinates for
+gates 15-17, 21, 22 came from another chapter's reshuffle;
+this map is shared across chapters and gate->point is
+re-dealt per chapter). Ch.6 gate -> point: 11 -> (220.4,
+111.0); 12 -> (210.6, 152.9) Sunken Lake; 13 -> (253.9,
+181.7) Legendary Lake; 14 -> (305.0, 166.6); 15 -> (366.0,
+151.9); 16 -> (331.5, 126.0); 17 -> (154.1, 229.4);
+18 -> (222.0, 193.5) (the empty gateway at Firion's
+ruins); 19 -> (268.4, 220.7) Legendary Lake north;
+20 -> (319.3, 193.6); 21 -> (315.1, 270.4); 22 -> (292.5,
+312.0). Point table (base *(0x09AEF944) = 0x095E61C0, rec
+0x3C, pos floats +0x24/+0x2C) names: pt0/1/2/3/18 =
+POS_jumpgate (teleport pads) at (213.0, 120.8), (331.1,
+136.0), (163.1, 230.6), (292.7, 301.0), (220.7, 107.6);
+pt16/17 = POS_emekano (manikin spawns) (194.0, 165.1),
+(304.8, 296.5); pt26 = POS_mes_gate (332.2, 123.5);
+pt34 = POS_cpuHotB (218.7, 193.5) = Firion's CPU point.
+
+GATE FAMILIES re-read AFTER the Legendary Lake clear -
+IDENTICAL to session 39's pre-clear read, so the markers
+are segment membership, not story progress. Facing-cone
+(tester) family lh(ptrA+4) >= 0: gates 19 (25), 22 (26),
+13 (28). Volume family lh(ptrB+0xE) >= 0: gates 22 (3),
+11 (0), 16 (1), 17 (2). Gates 14/15/18/20/21 are inert in
+both families - other chapters' segments on this map.
+LIVE candidates for True Intent / Ryukahn: {22, 11, 16,
+17}.
+
+THE NORTH ROAD (the guide's Crescent Lake route): from
+Firion's ruins (222.4, 194.0) west, then NORTH at X~213-219
+to (219.5, 226.7), bending NE along the mountain foot to a
+shelf at (228-235, 229-233) - a dead end under the
+mountains (a dark rift portal shows beyond the ridge from
+(235.7, 229.0)). West from the bend and NW from the shelf
+are walled. As walked, the road does not reach gate 17.
+
+JUMP GATE pt0 (213.0, 120.8): reached down the open south
+shore from the moogle lowland (X~198-213, Z 144 -> 120).
+Standing on it + Cross: NO reaction (Cross just dashes).
+Inert for now, or one-way landing pads.
+
+GATE 11 (220.4, 111.0): approached to 1.83 (contour at
+Z~112.8; the anchor sits 1.8 south past a slope break).
+The stand-and-Cross test was cut off by a Legion tunnel
+drop (two drops this session, both ~20 min into quiet
+runs; the fine walker's scratch state recovered Kain both
+times). UNRESOLVED. Resume state: ch6_s41_g11.state
+(219.6, 112.8), gil 9,630 lineage, HP full.
+
+NEXT (session 42): finish gate 11 (approach the anchor
+from below - the basin around jumpgate pt18 (220.7,
+107.6)); then the remaining live candidates in order:
+gate 16 (331.5, 126.0; SE cluster with jumpgate pt1 and
+mes_gate pt26), gate 17 (154.1, 229.4; W cluster with
+jumpgate pt2), gate 22 (292.5, 312.0; both families).
+Also unexplored: the ruins<->anchor band (X 223-254,
+Z~188-196) the guide's route may use, and the barred
+gateway / Pink Tail chest geography west of the lake.
+
+### Session 42 addendum 13 - GATE 11: CROSS FROM THE LIP = DASH; BASIN UNREACHABLE ON FOOT FROM N/E (2026-11-19)
+
+RESUME VERIFIED: ch6_s41_g11.state -> ctrl state 2, Kain at
+(219.64, 112.82), gil 9,630, HP full - exactly s41's record.
+
+CROSS TEST (the test s41 lost to a tunnel drop): slid east
+along the lip contour to (220.40, 112.82) - x dead-on gate
+11's anchor (220.4, 111.0), 1.82 short - and pressed Cross:
+NO reaction. State stays 2; Cross just dashes Kain east
+along the lip to (222.09, 112.82). Unlike gate 19 (facing-
+cone family; its tester fired from 1.79 short), gate 11's
+volume tester does NOT reach the lip. Test-point state:
+ch6_s42_g11lip.state (pre-Cross).
+
+BASIN SURVEY: from jumpgate pt0 (ch6_s41_jg0.state,
+(212.09, 120.29)) the south shore descends SE smoothly to
+the lip z=112.82 at x~219-222. Minimum z over the whole
+survey: 112.82, reached only ON the lip itself. East of
+the lip the ground rises to a bench at z~115.0-115.7
+running x 224 -> 239, walled at x~239 (walker boxed at
+(237-239, 115-117)); no dip below 112.8 east of the lip
+either. With s41's west-side data, the basin holding the
+anchor and jumpgate pt18 (220.7, 107.6) has NO foot
+approach from the north or east. Gate 11 is INERT from
+every measured approach this session. If gate 11 is True
+Intent, its entry is not on foot from the north; the
+jumpgate pads remain the only untested mechanism (pt0 was
+inert to stand+Cross in s41 - they may be one-way landing
+pads or flag-gated).
+
+NEXT: gate 16 (331.5, 126.0), the SE cluster.
+
+
+---
+
+## Session 42 addendum 14 — Gate 16: every measured approach fails; the band's east face (2026-11-19)
+
+Gate 16's anchor (331.5, 126.0) sits in the SE cluster (with POS_mes_gate
+pt26 (332.2, 123.5) and the X~290 ridge west of it). Four distinct
+approaches were measured this session; all fail:
+
+1. **Northern shore (from the corridor-mouth postfight state (273.11,
+   149.69), gil-9,714 lineage):** the shore descends SE to (285.69, 143.97)
+   [state ch6_s42_wpt0.state]. The walker **crossed x=290 at z~138-139**
+   (the ridge does not reach this latitude as a wall at its top), then met
+   a face at **z~134 around x 287-290** — oscillation band (287-290,
+   134-141), closest z 134.24 at (288.05, 134.24). The face is the
+   headland's north rim above the SE basin.
+2. **Headland band (new geography):** from the corridor mouth a smooth
+   ramp descends SW->SE south of the headland: (262.61, 138.53)
+   [ch6_s42_band0.state] -> (276.48, 128.05) [ch6_s42_band1.state] ->
+   min z 125.35 at (283.8, 125.35). The X~290 ridge face blocks eastward
+   travel across the whole band z 125-141.
+3. **Ridge southern tip:** the ramp bottoms at **z~123.3 around x 281-282**
+   into a shallow bowl (x 280-284, z 123-126.5); south and east rims rise;
+   the probe toward (292, 118) never came closer than ~10.6 units.
+4. **Gate-14 shelf pocket** (ch6_s41_g14test.state, (303.16, 166.54)):
+   sealed S/E/N (bounce band x 299.7-303.2, z 165.2-168.4); its only exit
+   is west back along the shelf. No descent from the pocket to the SE
+   cluster.
+
+**Ruins-anchor band walked east:** from ch6_s41_ruins3.state (222.40,
+194.00) the band (z~193-197) runs east to **(239.17, 193.25)**
+[ch6_s42_leg_BAND-E1.state], then a face at x~242 blocks (walker slid S
+then NE along it to (241.49, 189.29)/(241.21, 189.77)). Session 41's
+flagged unexplored strip is now walked; its east face is untested with
+any boulder protocol.
+
+**Verdict for gate 16:** land approach from N/W is closed by measured
+walls on every side tried. Remaining untried entries: (a) a boulder plug
+somewhere on the ridge/band faces (the Ch.3 boulder protocol — face the
+plug, world-map attack — has never been applied in Ch.6; neither s41 nor
+s42 pressed an attack button at any Ch.6 stall), (b) a jumpgate pad
+arrival, (c) the possibility that 16 is a Ch.7 gateway (see addendum 15's
+guide note: Ch.7 reuses this exact map area).
+
+---
+
+## Session 42 addendum 15 — The west road, gate 17's barred gate + Rosetta Stone, the pass manikin, and the hunt reframed (2026-11-19)
+
+**THE WEST ROAD IS OPEN.** From Firion's ruins (222.40, 194.00) a terrace
+runs west and curves NW as a smooth diagonal ramp through a mountain pass
+— (213.6, 196.0) -> (205.80, 203.60) [ch6_s42_g17pinch.state] -> (195.53,
+211.86) -> (184.63, 217.16) -> west along z~217-218 -> (169.02, 219.57) ->
+NW to **(156.03, 230.28)**, 2.13 from gate 17's anchor. (An early coarse-
+grid walker oscillated at the (205-208, 202-206) bend and faked a pinch;
+screenshots show a wide-open valley — no boulder, no plug. Lesson
+reaffirmed: verify "sealed" with eyes before believing a walker.)
+Square presses at the bend opened the field skill panel (ctrl state 4 =
+the Cross Chain skill-info popup) — Square on the field is the SKILL
+button here, not an attack; the Ch.3 boulder-attack input remains
+unreplicated in Ch.6 and no Ch.6 boulder has been sighted yet.
+
+**Gate 17 (154.1, 229.4) = a BARRED gateway with a chest.** The anchor
+stands in a snowy mountain pass before an iron portcullis (screenshot
+s42_g17_before). At its foot: a golden chest — Cross at (156.63, 229.77)
+opened it (state 16 popup): **"Obtained Rosetta Stone from chest!"**
+[post-chest state ch6_s42_g17chest.state]. The gate itself, tested from
+(156.60, 229.53), 1.85 from the anchor: Cross = dash only, no reaction —
+**inert/barred**, like gate 18 and Ch.1's barred gates. (The Rosetta
+Stone is one of the four chests link3895 lists for the Sunken Lake
+segment; the guide's segment geography is looser than the game's.)
+
+**THE PASS MANIKIN — False Stalwart Lv 4, beaten.** Walking east from
+the chest toward jumpgate pad pt2 (163.1, 230.6), a field manikin
+ambushed at ~(160, 232): VS card "? Lv 4", stage **World of Darkness**,
+Judgment ruleset; Opponent Info: **False Stalwart, HP 520** (BRV 113,
+ATK 15, DEF 8, LUK 12; Cracked Shield + Rusted Armor). Ctrl state went
+2 -> 5 -> 20 — **state 20 is the battle shell generally, not only
+"board from field"**; the field player object is null for the whole
+battle. Battle lessons, all measured:
+- **Use s18lib.find_block_a on the ramdump** (DUMP_BASE = 0x08800000;
+  cells are DOUBLED pairs: her BRV at +0x00/+0x04, foe BRV +0x54/+0x58,
+  pool +0xA8/+0xAC). This boot's block: **0x096BBF98**. (Two hand-rolled
+  scans burned time on wrong dump-base arithmetic — 0x08000000 and a
+  mis-added 0x096EBF98; the helper exists precisely to prevent that.)
+- **Cross is DASH in battle too** — a 90-press Cross/Triangle spam dealt
+  ZERO damage while the Stalwart's ranged HP attacks cut Kain
+  1791 -> 791. **Square is the HP attack**: measured hits 520 -> 185
+  (335 dmg) and 185 -> 0. Triangle spends all BRV on a whiff-prone HP
+  attack; Circle did nothing measurable. (Contrast s34's duel, where
+  Cross+Triangle won a close-spawn board duel — button semantics are
+  range/context sensitive; probe per fight, watch the cells.)
+- Winning line (from ch6_s42_fight_nobase3.state, the pristine live
+  battle): drift (-1,0) briefly, Square when BRV >= ~120, wait out BRV
+  regen after each HP hit. Kain took one 359-dmg HP hit mid-fight.
+  **WIN: Kain 1432/1791 HP, +36 gil (9630 -> 9666).** Post-win results
+  cleared with Cross x6 through a state-0 transition back to the field
+  at (157.63, 230.19) [ch6_s42_passfield.state].
+
+**The pass continues east.** Scout from the post-fight spot walked ESE
+along z~227-230 to **(170.27, 227.04)** [ch6_s42_scout.state] with no
+wall and no second manikin — a through-road heading east, presumably
+curving north into the snowfields toward the gate 21/22 quadrant. pt2's
+pad point itself was never stood on (the manikin fired first); pads
+remain unproven as transport (pt0 inert, pt18 untested, pt2 untested).
+
+**The hunt, reframed.** All four of session 41's live candidates are now
+resolved or cornered: **11** = volume-live but basin-sealed, inert from
+the lip (addendum 13); **17** = barred gateway + chest, gate inert
+(this addendum); **16** = sealed from N/W on every measured approach
+(addendum 14); **22** (292.5, 312.0) = **untested**, the only candidate
+left, and the only gate besides Legendary Lake's two entrances in the
+facing-cone family. Guide context (link3895, read this session): after
+Legendary Lake the walkthrough's own route goes "around to the left...
+chest near a barred gateway... Tree blocking the road... Wraith in the
+trees to the right of the boulder and gateway" — boulders and a
+Fallacious Tree Lv 11 belong to the True Intent approach; the segment
+also unlocks **Mogshop 9.2.6**. Ryukahn's board (per Suih) matches the
+guide's 1.6.4 exactly. And Ch.7 (Tifa) reuses "the same exact area you
+were just at with Kain" — so some of these live-but-sealed gates are
+plausibly Ch.7's, not Kain's.
+
+**Standing after session 42:** Kain Lv 9, HP 1432/1791 (post-manikin),
+Firion assist, banked KP 103, **gil 9666** (survey lineage; the 9714
+postfight lineage is superseded — story flags were identical and this
+lineage now holds the Rosetta Stone + the pass scout). Chapter 6 still
+owes: Gateway of True Intent, Ryukahn, Exdeath Lv 18, the farm arc.
+**Session 43 opens at ch6_s42_scout.state** (170.27, 227.04), following
+the pass road east/north toward gate 22 (292.5, 312.0); fallbacks:
+boulder-protocol checks at the band's east face (x~242) and the shelf
+ridge, and a pt18/pt2 pad stand-test if a route passes one.
+
+
+### Session 43 addendum 16 - RESUME VERIFIED; the cross-country cut stalls on a bench at (191.3, 248.2) (2026-11-19)
+
+RESUME VERIFIED: ch6_s42_scout.state -> ctrl state 2, Kain at
+(170.27, 227.04), gil 9,666 - exactly s42's record.
+
+FIRST NAV (greedy scan-walker, target gate 22's anchor
+(292.5, 312.0)): the walker left the pass road heading NE
+cross-country and climbed steadily - (174.2, 232.1) ->
+(184.6, 244.7) -> (189.5, 248.8) - then stalled in a small
+pocket around (191.3-192.5, 247.3-248.8), distance to the
+anchor stuck at ~119.5 for 30+ steps. The slope up from the
+road IS walkable to z~248 at x~185-192; the ground there is
+a bench against a face, not a through-route as walked.
+
+CAMERA MAPPING at the bench (14-frame pushes, measured):
+stick N -> world (-0.60, -1.57); stick E -> (-1.68, +0.03);
+stick S -> (-0.50, +1.60); stick W -> (+1.59, +0.33). The
+camera sits ~180-flipped here (stick E moves -x). Diagonal
+pushes from the pocket's inner corner measured 0.00 four
+times running - treat diagonals as unreliable in tight
+pockets; cardinals still moved.
+
+NEXT: bench-following probes E and W from the stall pocket
+(ch6_s43_nav.state) before falling back to the road.
+
+
+### Session 43 addendum 17 - THE ROAD EAST: an arc over the ridge, a face at x~207.7, no boulder; a rift portal sighted north (2026-11-19)
+
+THE ROAD EAST FROM THE SCOUT POINT (canonical lineage,
+ch6_s42_scout.state): waypoint walker reached (200, 227.5)
+at (198.8, 228.3) [ch6_s43_road.state lineage], but NOT by
+the direct line - the walkable ground arcs NORTH to
+(190.4, 235.9) then descends SE through (195.9, 231.3).
+The straight z~227-228 line from x 170 to 199 is cut by
+terrain; the over-the-shoulder arc is the walked route.
+
+THE FACE AT X~207.7: east of (198.8, 228.3) the road runs
+to (207.5, 227.4) and stops. At (207.70, 228.04) 20-frame
+pushes east measure ZERO displacement; the walker
+oscillates in a z 227.4-228.8 band and a (214, 222)
+waypoint probe never moved him at all - a notch in a
+rock face, not a road gap. A z-line probe south (target
+(214, 222)) failed from the same notch.
+
+BOULDER PROTOCOL AT THE STALL (brief fallback (a),
+applied early): facing east (local mapping: stick S =
++x here), FOUR Circle presses - Kain's field Circle is a
+leaping spear animation (screenshot s43_block_circle1:
+airborne, spear levelled) - produced no break, no light
+line, no state change, and the east test stayed zero.
+No boulder within reach of the stall point. (The
+screenshot also shows open slope only at the first stall;
+no boulder, no tree.)
+
+PORTAL SIGHTED: the post-Circle screenshot from
+(207.70, 228.04) shows a dark rift portal (twin spires,
+red glow) beyond the snow ridge to the north - the same
+sighting s41 recorded from the shelf (235.7, 229.0). A
+gateway sphere stands north of the ridge at z~228-229's
+latitude band; the ridge crossing is still unfound.
+
+DIAGONAL ANALOG PUSHES (0.707, 0.707) measure ZERO
+displacement at every Ch.6 field spot probed this session
+(bench, road stall) while cardinals move normally.
+Walkers here are effectively cardinal-only; sessions'
+earlier "8-direction" trials were carried by cardinals.
+
+NEXT: jumpgate pt2 stand-test (163.1, 230.6 - never stood
+on; s42's manikin fired first), then the shelf boulder
+protocol + east-of-shelf probes via the junction if the
+face opens, or via the ruins north road if it does not.
+
+
+### Session 43 addendum 18 - JUMPGATE pt2 IS A LAUNCH PAD: Cross rides a line north to (165.45, 238.38); a frozen basin opens (2026-11-19)
+
+PT2 STAND-TEST (163.1, 230.6; never stood on before -
+s42's manikin fired first): fine approach put Kain ON the
+point at (163.17, 230.44), 0.18 from the record point
+[ch6_s43_pt2.state]. Three walk-on/walk-off cycles: NO
+trigger - the pad does not edge-fire.
+
+CROSS ON THE PAD: one press produced a deterministic
+~8.3-unit launch NNW: post-press read (165.00, 237.15),
+one drift chunk (+0.44, +1.23), then a HARD STOP at
+(165.45, 238.38) - stationary for 285 further frames.
+Identical endpoint (to 3 decimals) on both trials. A
+field dash is ~1.7 units; this is a scripted quickmove
+line ride, pad-triggered by Cross. Landing state:
+ch6_s43_pt2ride.state. (pt0's s41 stand+Cross negative
+may mean pt0 launches somewhere unobserved, or pairs
+differently - untested either way; pads are NOT inert.)
+
+THE LANDING (screenshot s43_pt2_end): a slope above a
+FROZEN BASIN (ice field to the east). West: a stone
+gatehouse with a barred portcullis - gate 17's structure
+seen from its NORTH side (the landing is (11.3, 9.0) NE
+of gate 17's anchor) - and a tall white tower beyond it.
+The pad hops the gate-17 ridge into country no session
+has walked: the basin north of the pass.
+
+FIELD HP NOTE: the field HUD reads "HP 1791" in every
+s43 screenshot although the post-manikin standing was
+1432/1791 - the HUD number appears to be MAX HP on the
+field display. True current HP to be taken from the
+battle block at the next fight.
+
+NEXT: explore the frozen basin E/N from the landing.
+
+
+### Session 43 addendum 19 - THE X~207.7 FACE IS A TRAP VERTEX; basin ledge mapped; the junction must be approached from the south (2026-11-19)
+
+THE NOTCH (207.70, 228.04) IS A ONE-WAY TRAP: three
+walkers (greedy, s40-faithful scan-nav with scratch-state
+trials + 0.45 visit penalty, and a 6-frame fine walker)
+all net ZERO progress from this exact point - position
+holds (207.7, 228.0) to two decimals over 20-30 steps.
+Short trial pushes move Kain within the notch, but every
+committed push returns him to the vertex (a concave
+collision corner). Do not resume from ch6_s43_stallE /
+the notch checkpoints in ch6_s43_road.state. The road
+walker's own oscillation slid him in. Canonical resume
+remains ch6_s42_scout.state.
+
+BASIN LEDGE (from the pt2 landing, addendum 18): walked
+E along z 243-248 to x~199; north capped at z~248.7 at
+every longitude tried (186, 191, 197); NE climb from
+(199.3, 243.6) stalls; west from the landing drains back
+SW to (159.3, 233.9) at the gatehouse. The ledge is a
+pocket system of its own - scenic, gated by the ridge on
+all sides tried. No continuation to gate 22 found there.
+
+DECISION: the junction (219.5, 226.7) and the shelf
+(228-235, 229-233) are approached from the SOUTH on the
+documented north road out of Firion's ruins, starting
+from ch6_s41_ruins3.state (222.40, 194.00) - an ancestor
+of the canonical lineage (s42's west-road walk started
+there). At the shelf: boulder protocol toward the ridge/
+portal, east-of-shelf probes, shelf north-face scan-nav.
+If the way north opens in this fork, the Rosetta Stone
+chest and the pass manikin are re-taken in-fork before
+any gateway entry, restoring parity with the canonical
+standing.
+
+### Session 43 addendum 20 — the shelf boulder test
+### (negative), the ledge sweep (negative), west of
+### gate 17 (boxed), the FULL point table, pt0's line
+### RIDDEN into gate 11's basin, gate 11 = a BARRED
+### gatehouse (session 43)
+
+- Shelf boulder protocol (measured): at the shelf's
+  east face (233.83, 232.57), four Circle volleys
+  facing +z (the face): the first stepped Kain +0.66
+  (the attack step); no break, no line, no state
+  change; a 20-frame push after: zero. The shelf's
+  NE face is plain terrain. The shelf is a dead-end
+  overlook, now with the attack verb tested.
+- Basin ledge east end (measured + seen): a Circle
+  sweep (4 facings x 3 volleys) at (197.57, 244.64)
+  broke nothing (the sweep wanders ~1 unit per
+  volley in the facing direction — a sweep is also a
+  slow walk); Triangle at the sweep's end opened
+  Customization (state 11) — no line boarded. The
+  ledge-end screenshot shows bare rock crest and
+  snow peaks: no boulder, no trees, no line. The
+  basin pocket is closed for real.
+- West of gate 17 (measured): from the Rosetta chest
+  apron (156.63, 229.77), west is boxed in place
+  (155.93, 230.25) — the gatehouse wall. The pass
+  road's west end IS gate 17's gatehouse; the road
+  does not continue west on the south side.
+- The FULL point table (measured, ramdump of the
+  shelf state; base *(0x09AEF944) = 0x095E61C0,
+  records 0x3C): pt0 POS_jump_gate02_00 (213.0,
+  120.8); pt1 POS_jump_gate02_05 (331.1, 136.0);
+  pt2 POS_jump_gate02_06 (163.1, 230.6); pt3
+  POS_jump_gate03_00 (292.7, 301.0); pt4-15 the
+  gates (gate02_00..10, gate03_00); pt16
+  POS_kaname_01 (194.0, 165.1); pt17 POS_kaname_02
+  (304.8, 296.5) — KANAME crystals, not manikin
+  spawns (correcting addendum 12's label); pt18
+  OBB_jump_gate02_00 (220.7, 107.6); pt26
+  OBB_mes_gate02_05 (332.2, 123.5); a further
+  record carries OBB_mes_gate03_00; pt34
+  OBB_cpu_BtoH (218.7, 193.5). No other named
+  points exist. Jump pads are named for their
+  gateway: jump_gate02_00 <-> gate 11,
+  jump_gate02_05 <-> gate 16, jump_gate02_06 <->
+  gate 17, jump_gate03_00 <-> gate 22.
+- Kaname mechanics (Ch.3, session 33, re-read):
+  near a kaname, after a Circle sweep, TRIANGLE
+  boards the crystal's quickmove line (~19 units
+  over the channel). Ch.6's kaname_01 (194.0,
+  165.1) is untested; kaname_02 (304.8, 296.5) is
+  in the far north.
+- pt0 RIDDEN (measured): the fine stand on pt0
+  (213.04, 120.44; state ch6_s43_pt0.state) + one
+  Cross press rode a line EAST: post-press
+  (219.34, 119.86), hard stop (221.27, 119.72) —
+  (+8.23, -0.72), the same ~8.3-unit ride as pt2.
+  Session 41's "pt0 inert" verdict is RETRACTED:
+  the pad fires; the dash-looking displacement was
+  the ride. State ch6_s43_pt0ride.state.
+- Gate 11's basin (measured + seen): from the
+  landing, south is open to the gate face: the
+  walk reached (219.44, 114.07), the fine stand
+  stalled 2.09 out at (221.43, 112.82) — the
+  anchor (220.4, 111.0) is INSIDE a stone
+  gatehouse whose arch is closed by an IRON
+  PORTCULLIS (screenshot s43_gate11.png) — gate
+  11 is a BARRED gateway like gate 17. Cross at
+  its face: a plain dash, no entry. The basin
+  floor runs along the face at z~114-115, west to
+  x~213.4 (boxed); no chest triggered on the west
+  half of the face. The pt18 OBB (220.7, 107.6)
+  lies 3.4 SOUTH of the anchor — behind the
+  gatehouse; whether the basin wraps around the
+  gatehouse's east side to it is the live test.
+
+### Session 43 addendum 21 — gate 11's basin closed;
+### KANAME_01'S LINE RIDDEN, Maser Eye chest claimed;
+### session 43 wrap-up and the session-44 brief
+### (session 43)
+
+- Gate 11's basin (completed): the basin floor runs
+  along the gate face at z~114-115 from x~213.4
+  (west wall) east to x~238 (the east rim at
+  (237.99, 115.00)); turning south is blocked along
+  the whole rim — the pt18 OBB behind the gatehouse
+  is unreachable from the basin. No chest on the
+  face's east half either (walked at z~115). Gate
+  11 is RESOLVED: a barred gatehouse in a closed
+  hop-in pocket, like gate 17. (Its purpose is
+  plausibly Ch.7's, which reuses this map.)
+- KANAME_01 REACHED (measured): from the lowland
+  (jg0 state), the gully threads from the south
+  too: (202.6, 140.5) at the arch -> west of the
+  arch (200.0, 146.6) -> (195.8, 157.3) -> the
+  crystal's apron (194.52, 163.06). The crystal is
+  a giant dark monolith with orange fissures
+  (screenshot s43_kaname.png), Firion's model
+  standing by as the field assist visual.
+- KANAME_01'S LINE RIDDEN (measured): protocol per
+  Ch.3 session 33 — a full Circle sweep around the
+  crystal (4 facings x 3 volleys, re-approaching
+  between facings; the sweep's attack-steps carry
+  Kain around the crystal), then stand 1.21 from
+  the point at (194.03, 163.89) and press TRIANGLE:
+  the ride ran ENE (194.03, 163.89) -> (201.42,
+  168.37) -> (207.08, 170.97) -> hard stop
+  (209.74, 172.09): +15.71/+8.20, ~17.7 units over
+  the channel. WITHOUT the sweep, Triangle at 1.91
+  from the point opened Customization (state 11)
+  — the sweep is part of the trigger (it presumably
+  breaks an unseen boulder / arms the line; the
+  Ch.3 ambiguity stands). NOTE: one Circle press
+  does NOT close the state-11 menu inside a single
+  10-frame window — the kaname2 run's sweep was
+  invalidated that way; always verify state 2
+  before sweeping. States: ch6_s43_kaname.state
+  (apron), ch6_s43_kaname_stand.state,
+  ch6_s43_kaname4.state (landing).
+- The landing is a one-chest point (measured +
+  seen): a sandy point above the channel with a
+  GOLDEN CHEST beside the landing spot — Cross
+  opened it (state 16): "Obtained Maser Eye from
+  chest!" (screenshot s43_chest.png). Exits: NE is
+  cliff (stalls (212.8, 171.8)); W narrows to a
+  dead tip (205.9, 172.3). The return is presumably
+  the line again (Triangle at the landing) —
+  untested; the point is a loot detour, not a
+  through-route. The Maser Eye is held in the
+  s41/gil-9630 fork (states ch6_s43_chest.state,
+  ch6_s43_chest2.state); the CANONICAL lineage
+  (gil 9,666, Rosetta Stone) does not hold it. To
+  claim it canonically, walk scout -> pass west ->
+  bowl -> terrace -> ruins -> gully (all documented
+  in-lineage) and repeat the sweep+Triangle.
+- SESSION 43 SUMMARY. Standing UNCHANGED:
+  canonical = ch6_s42_scout.state; Kain Lv 9,
+  HP 1432/1791 (standing; field HUD shows the 1791
+  max), Firion assist, gil 9,666, banked KP 103,
+  Rosetta Stone held. Chapter 6 still owes:
+  Gateway of True Intent, Ryukahn, Exdeath Lv 18,
+  the farm arc.
+- What session 43 closed: the pass road east (trap
+  vertex at (207.70, 228.04) — never resume from
+  ch6_s43_stallE.state or the notch checkpoints);
+  the basin ledge pocket (pt2's ride; bare-rock
+  end, sweep+Triangle negative); the shelf pocket
+  (boulder test negative); west of gate 17 (boxed);
+  gate 11 (barred, basin closed); jump pads
+  (Cross-activated line launchers, ~8.3 units,
+  fixed landings — pt0 and pt2 both ridden);
+  kaname_01 (line ridden, Maser Eye claimed in the
+  side fork).
+- SESSION 44 BRIEF — the far north (gates 21/22,
+  kaname_02 (304.8, 296.5), pt3 (292.7, 301.0)) is
+  still unreached, and every land route measured
+  in sessions 41-43 is closed EXCEPT:
+  (1) THE SE BASIN: the X~290 ridge is crossable
+      at z~138-139 (addendum 14 route 1 crossed
+      x=290 there); east of the crossing is the
+      least-walked ground left — the shore road to
+      gate 16 (331.5, 126.0; volume-live,
+      lh(ptrB+0xE)=1) and its pad pt1 (331.1,
+      136.0), whose ride is untested. If gate 16
+      is an open portal it is a gateway (True
+      Intent or Ryukahn — the board census will
+      say); if it is another barred gatehouse,
+      pt1's landing may still open the basin's
+      interior or the east coast toward gate 15
+      (366.0, 151.9) and the north coast.
+  (2) The guide's Tree/boulder segment is still
+      unfound; the SE shore road is the last
+      un walked "road" and the guide's geography
+      is loose (the Rosetta chest belonged to the
+      Sunken Lake segment on paper). Watch for a
+      field ambush (state 2 -> 5 -> 20) anywhere
+      on it: the pass manikin fired off-table.
+  (3) If gate 16 also proves barred/sealed, the
+      remaining untested verbs are: Triangle at
+      pt3's and kaname_02's points (needs the
+      north), a Cross ride FROM a pad's landing
+      (return rides — untested at pt0/pt2
+      landings), and the moogle at (196, 144)
+      re-checked in the canonical lineage (the
+      point was empty in s41's fork; Ch.5's
+      gateway armed at a moogle).
+
+### Session 44 addendum 22 - THE LONG WALK EAST; CORRIDOR-MOUTH MANIKIN BEATEN; SE BASIN SEALED FROM THE WEST (2026-11-19)
+
+RESUME VERIFIED: ch6_s42_scout.state loads to state 2 at
+(170.27, 227.04), gil 9,666 (canonical lineage).
+
+WALKER ENGINEERING (durable): the scan-navigator pattern
+(6 loadstates per step) degrades to ~50 s/step on long
+legs - do not use it for distance. The greedy calibrated
+walker (14-frame pushes, camera calibration, scratch
+probes only when stuck) crossed the whole map; its FINE
+variant (8-frame pushes, bias 6) threads gullies and
+rounds faces the coarse pushes overshoot; a 20-frame
+variant ferries open slopes. Legs walked: scout -> west
+road reversed -> Firion's ruins (220.73, 193.00)
+[ch6_s44_ruins.state]; ruins -> terrace west -> bowl ->
+the gully (fine walker only) -> lowland -> Sunken Lake
+arch: Kain halts at the arch's north face (211.03,
+156.65); the gap passes with 20-frame pushes routed SW
+then E along Z~151. East shore: the headland face zone
+(X 232-240, Z 136-147) defeats 20-frame pushes (bias
+overshoot and slides); the fine walker rounds it at
+Z~140-144.
+
+CORRIDOR-MOUTH MANIKIN - BEATEN IN THE CANONICAL
+LINEAGE: heading NE through the slide zone toward the
+corridor mouth, the field manikin fired at (273.96,
+147.40) (state 2 -> 5). VS card: Kain Lv 9 + Firion
+assist vs "?" Lv 7, stage Ultimecia's Castle, Judgment
+ruleset - the same manikin as sessions 41/42. FIGHT
+SCRIPT LESSONS: (1) ctrl state 20 covers the VS screen
+as well as battle and board - a fight script must press
+Cross while state==20 until the battle block appears, or
+it waits forever on the VS card; (2) key the
+live-battle guard on the FOE's HP (702), never Kain's -
+his HP at block-appear time varies with damage taken.
+Block base this boot 0x09695798 (same as session 41's
+boot). HP CORRECTION TO THE STANDING: Kain entered this
+battle at FULL HP 1,791 - the brief's "1,432/1,791" was
+session 42's in-battle end read, not the field standing;
+an ambush battle starts him full. Square hits of exactly
+258 (702 -> 444 -> 186 -> 0); several Square whiffs
+interleaved; Kain took two 130-damage hits. WIN in 12
+rotations, Kain ended 1,531/1,791. Post-fight: 13 Cross
+presses cleared the results chain (through a state-0
+transit) back to field state 2 at (273.48, 147.11) -
+the corridor mouth. Gil 9,666 -> 9,750 (+84, matching
+session 41's reward for this manikin). States:
+ch6_s44_fight0.state (pristine, on the VS card),
+ch6_s44_fight_end.state, ch6_s44_postfight.state
+(canonical resume).
+
+SE BASIN APPROACH - MEASURED NEGATIVE FROM THE WEST
+(addendum 21's lead): the northern shore walks fine to
+(285.69, 143.97), but the X~290 ridge is a CONTINUOUS
+wall at X~290.6 from Z~147 south: at (290.0, 137.9)
+eastward probes displace <= 0.8 while the south slide
+along the face stays open. A dedicated face-hug slide
+(southward stick recalibrated from scratch probes every
+10 pushes, 16-frame pushes) descended the face's west
+base from (289.8, 138.4) to session 42's bowl in 11
+pushes, ending (282.37, 126.87) [ch6_s44_hug.state].
+The ridge face plus the bowl's east rim seal the basin
+at every latitude 123-147. Gate 16's anchor was NOT
+reached; barred-vs-open remains UNRESOLVED - it is
+unreachable from the west, which is a different fact.
+
+GATE TABLE NOTE: the manager-record print (s8lib
+gate_table) does not expose addendum 12's tester family
+fields (facing-cone / volume markers were read off the
+in-world gate entities in session 41); the families
+stand as recorded there - volume {22, 11, 16, 17},
+facing {19, 22, 13}, gates 14/15/18/20/21 inert in
+both. Do not re-derive families from the manager print.
+
+NEXT (session 44 continues): the shelf-east south
+descent (X 295-303, Z 150-165) - the pocket's sealing
+was measured only in a ~3-unit bounce band at gate 14's
+anchor (addendum 14 route 4); the shelf strip's south
+edge east of the ridge was never probed. If a descent
+opens, run the coast SE to pt1 (331.1, 136.0) and gate
+16 (331.5, 126.0). If it is sealed too, the stop
+conditions of the session-44 brief are met on the land
+side: gate 16 unreachable (not proven barred), pt1
+unridden, east coast unreachable - and the chapter's
+remaining live candidate is gate 22 (both families),
+whose approach (the far-north country past the frozen
+basin and the rift-portal ridge) is session 45's
+problem.
+
+### Session 44 addendum 23 - SHELF-EAST DESCENT TESTED: A CHUTE INTO GATE 14'S POCKET, NOT A THROUGH-ROUTE; SE BASIN LAND ROUTES EXHAUSTED (2026-11-19)
+
+ROUTE: from ch6_s44_postfight.state (273.48, 147.11) up
+the corridor to its top (270.90, 164.25), east along the
+shelf strip past the ridge crossing to (297.42, 173.33)
+[ch6_s44_shelf.state]. The shelf's south rim at X~292.5
+is a lip (best southward probe -1.6 Z over two 20-frame
+pushes, sliding east), but at X~297-300 the rim OPENS
+into a slope chute: from (296.90, 172.69) the SE probes
+descend freely ((0,-1) -> (298.3, 168.5); (-1,-1) ->
+(299.3, 168.9)). The chute runs SE to a bench at
+(303.25, 167.25) - the gate-14 pocket's own floor,
+entered from its north rim this time.
+
+THE BENCH IS SEALED, re-measured from inside: at
+(303.25, 167.25) east probes (1,0) and (1,1) displace
+0.0; SE (1,-1) displaces 0.7; south (0,1) steps only to
+(303.2, 165.8), still inside the pocket band of
+addendum 14 (X 299.7-303.2, Z 165.2-168.4); all other
+probes lead back along the bench or up the chute. The
+chute is the pocket's north-rim slope, not a descent to
+the basin: there is no ground between the pocket
+(Z~165-168) and the basin rim (Z~140s) east of the
+ridge.
+
+SESSION 44 VERDICT ON THE SE BASIN (all measured this
+session and sessions 41-43): gate 16 (331.5, 126.0) is
+UNREACHABLE on foot from every reachable direction -
+west (ridge face continuous Z 147 -> 123, bowl east
+rim), northwest (shore dead-ends at X~290.6), north
+(shelf crossing -> gate-14 pocket, sealed E/S), and the
+east coast cannot be reached either (gate 15 (366.0,
+151.9) is inert in both tester families - another
+chapter's segment - and no route east of the ridge
+extends past the pocket). pt1 (331.1, 136.0) cannot be
+stood on from outside, so its ride is untestable.
+Whether gate 16 is barred or open is UNRESOLVED; the
+measured fact is unreachability. Per the session brief,
+no new theory is invented here.
+
+STANDING AT SESSION 44 CLOSE: Kain Lv 9, HP 1,531/1,791
+(post-fight read; ambushes start him full), Firion
+assist, geared, Rosetta Stone held, gil 9,750, banked
+KP 103. Chapter 6 cleared: Sunken Lake, Legendary Lake
+(3x). RESUME STATE for session 45: ch6_s44_postfight
+.state (corridor mouth (273.48, 147.11), gil 9,750,
+canonical lineage). Also saved: ch6_s44_hug.state (the
+bowl (282.37, 126.87)), ch6_s44_shelf.state (shelf east
+(297.42, 173.33)).
+
+SESSION 45 LEADS, in order: (1) GATE 22 (292.5, 312.0)
+- the only remaining gate live in BOTH tester families
+(volume 3, facing-cone 26); its cluster mirrors gate
+16's: jumpgate pt3 (292.7, 301.0) and kaname_02 /
+POS_emekano pt17 (304.8, 296.5). Its approach is the
+far-north problem: the north road ends at the shelf
+(228-235, 229-233) with a dark rift portal sighted
+beyond the ridge (sessions 41/43), and pt2's frozen
+basin ledge caps north at Z~248.7 - the ridge north of
+the shelf and any crossing east of it are unwalked.
+(2) The untested pad RETURN rides (stand on pt0's /
+pt2's landing point + Cross) - cheap, and a return ride
+that fires would rewrite the pad model. (3) The moogle
+point (196, 144) re-checked in the canonical lineage
+(it was empty in session 41's fork; Ch.5's gateway
+armed at a moogle). (4) Only after a new gateway opens:
+farm arc, then Ryukahn / Exdeath Lv 18 per the guide.
+
+### Session 45 addendum 24 - THE AREA GRAPH: cpu_XtoY ROUTE EDGES SAY GATE 22 IS REACHED FROM GATE 20'S AREA; mes03 SITS ON GATE 22 (2026-11-19)
+
+RESUME VERIFIED: ch6_s44_postfight.state -> state 2,
+(273.48, 147.11), gil 9,750 (canonical lineage).
+
+POINT TABLE RE-DUMPED from this boot (base *(0x09AEF944)
+= 0x095E61C0, records 0x3C, name inline at +0x00,
+coords f32 at +0x24): pt0-3 jump pads (213.0, 120.8),
+(331.1, 136.0), (163.1, 230.6), (292.7, 301.0); pt4-15
+gates 11-22 (gate 21 = (315.09, 270.40), gate 22 =
+(292.50, 312.00)); pt16/17 kaname (194.0, 165.1),
+(304.8, 296.5); pt18 OBB_jump_gate02_00 (220.7, 107.6).
+Past the POS records the table continues as 0x60-stride
+OBB entries (name at entry+0x01, center f32 at
+name+0x24, facing vector at name+0x30):
+
+- OBB_mes_gate02_05 center (332.18, 3.16, 123.53) -
+  at gate 16.
+- OBB_mes_gate02_06 center (151.37, 5.27, 228.87) -
+  at gate 17.
+- OBB_mes_gate03_00 center (293.19, 0.59, 315.32) -
+  3.4 NE of gate 22's anchor: the "mes" volumes are
+  per-gate story-message triggers sitting ON their
+  gates. mes03 is not a separate portal; the rift
+  portal sighted from the shelf / trap vertex is most
+  plausibly gate 22's own gateway visual at range.
+  No other named far-north object exists in the table.
+
+- THE cpu_XtoY ENTRIES ARE AN AREA ROUTE GRAPH. Each
+  edge's OBB center sits at the DESTINATION node's
+  location: AtoB (220.50, 111.00) = gate 11; BtoC
+  (210.56, 152.95) = gate 12; BtoH (218.71, 193.50)
+  and GtoH (225.57, 193.50) flank gate 18 (222.00,
+  193.50); BtoI (203.99, 210.02) - open country SW of
+  the junction; CtoD (305.04, 166.59) = gate 14; DtoE
+  (331.45, 125.99) = gate 16; DtoF (319.37, 193.65) =
+  gate 20; FtoG (268.45, 220.73) = gate 19; ItoJ
+  (154.09, 229.43) = gate 17; FtoK (292.50, 309.00) -
+  3.0 SOUTH of gate 22's anchor; KtoL (292.50,
+  315.00) - 3.0 NORTH of it. Edges: A->B, B->C, B->H,
+  B->I, C->D, D->E, D->F, F->G, F->K, G->H, I->J,
+  K->L. (Letters are area ids; K/L are gate 22's
+  near/far side.) A CUR curve record near the table's
+  end carries far-north ground points (306.33,
+  296.81), (310.23, 298.00), (313.00, 298.88) -
+  walkable ground exists around kaname_02 / gate 22.
+
+SESSION 45 ROUTE, REVISED BY THE GRAPH: the only edge
+into gate 22's area is F->K - from GATE 20's area
+(319.33, 193.64) north along the east side, past gate
+21 (315.09, 270.40) which sits on that corridor. Gate
+20's area is reached D->F from gate 14's area. No edge
+enters K from the west: the pt2 ledge / bench / shelf-
+north leads have no graph support. The untested ground
+is the shelf strip's continuation EAST/NORTH-EAST of
+(297.42, 173.33) toward (319.33, 193.64) - sessions
+41-44 probed that strip's SOUTH rim and the pocket
+below it, never its north/east continuation. Plan:
+load ch6_s44_shelf.state (canonical), probe N/NE/E,
+waypoint-walk to gate 20, stand+Cross its anchor,
+then north past gate 21 (stand+Cross), pt3 ride,
+kaname_02, gate 22 stand+Cross at (292.50, 312.00).
+
+### Session 45 addendum 25 - PADS ARE A QUICKMOVE NETWORK: pt2's LANDING IS A NODE, CHAIN RUNS NNE INTO THE BASIN; GATE 14 INERT AT CLOSEST APPROACH; SHELF-EAST KNOLL CLOSED (2026-11-19)
+
+GATE 14 ANCHOR TEST (from ch6_s44_shelf.state via the
+SE chute, re-descended: (299.20, 172.98) -> (302.14,
+167.74) [ch6_s45_pocket.state]): the fine stand stalls
+at (303.22, 166.81), 1.83 from the anchor (305.04,
+166.59) - the pocket's east wall at X~303.2 confirmed
+at 8-frame resolution; the anchor cannot be stood on
+from the pocket. Two Cross presses at 1.96: no entry,
+no state change (state 2 throughout). Gate 14 is
+INERT from the only reachable side.
+
+SHELF-EAST HIGH GROUND = A CLOSED KNOLL: north of the
+shelf strip a ramp climbs NNW from (297.6, 177.3) to a
+lane at Z~185-186 (X 284-288) [ch6_s45_e3/e4.state];
+north from the lane's west end is a hard wall (0.00 x
+2); east along the lane pinches (due-E 0.00 at
+(286.45, 185.56)); NE travel descends ESE along the
+contour back to the face base (296.30, 181.04). East
+from the face base is walled at X~299.0. No exit
+north or east - another scenic pocket. (One gap: no
+N-probe from the lane's midpoint ~(290, 184.7).)
+
+PAD MODEL REWRITTEN - NODES AND SEGMENTS: Cross at
+pt2's LANDING (165.45, 238.38) [ch6_s43_pt2ride.state]
+does NOT ride back to pt2. It fires a SECOND segment
+NNE: +7.77 to (167.88, 245.76), complete within ~25
+frames (trajectory-sampled). A further Cross there
+fires a THIRD segment ENE: +4.04 to (171.31, 247.89)
+on the frozen-basin ledge. At (171.31, 247.89) plain
+Cross = 0.33 dashes only (no segment in the arrival
+facing). So jump pads are nodes in a quickmove
+network; each Cross rides one segment, and the
+segment taken appears facing-dependent. The pt2
+chain so far: pt2 (163.14, 230.55) -> (165.45,
+238.38) -> (167.88, 245.76) -> (171.31, 247.89).
+Session 43's "hard stop" landings were nodes awaiting
+the next Cross. NEXT: facing-keyed Cross tests at
+(171.31, 247.89) (N/E/S/W), then follow the chain
+east/north across the basin; return-segment tests at
+each node (face the previous node + Cross); pt0's
+landing tested the same way.
+
+
+## Session 45 addendum 26 — DFS network map; the FIRION SCENE at the mesh junction (story progress)
+
+The fan-rider (addendum 25) oscillated in the SE-slope cluster (no visited-memory), so it was
+replaced by a proper DFS explorer (per-node savestates ch6_s45_node0..10.state, 8-stick fan,
+backtracking on visited keys). DFS from pt2's landing B (165.45, 238.38), gil-9,666 lineage:
+
+NEW LOWER LINE (all segments fired by stick (+1,0) unless noted):
+- B (165.45, 238.38) -> (173.27, 235.06) 8.50 -> (177.69, 235.85) 4.49 -> (183.73, 237.61) 6.29
+  -> (191.99, 236.04) 8.41 -> (200.33, 234.35) 8.50 -> (206.77, 232.95) 6.60 [node 6].
+- Node 6 stick (0,-1) -> (203.17, 239.34) 7.34 [node 7] = the SE-slope cluster of addendum 25:
+  the lower line and the ledge line (addendum 25) are ONE connected network.
+- Cluster mesh: node 7 stick (+1,0) -> (203.60, 238.04) 1.37 -> (204.01, 236.82) 1.29
+  -> (206.43, 233.92) 3.78 [node 10]; nodes 6 and 10 stand ~1.0 apart (one junction, landing
+  smear). Short 1.3-class hops in the mesh may be long dashes rather than true segments.
+
+STORY EVENT: at node 10, stick (0,-1) changed ctrl state 2 -> 3 (dialogue) at (206.29, 234.08)
+- the position itself is a scene trigger. FIRION scene (screenshots s45_event0/s45_talk.png):
+  Firion: "Honestly, I've been having a hard time fighting off the manikins." Four Cross presses
+  resolve the scene back to field (state 2). Firion then stands at the spot as a talk NPC
+  (x marker; Cross toggles his repeatable line): "I hope everyone's alright. I'm a little
+  worried since I haven't seen anyone." NO battle attached. Post-scene standing in this line:
+  Kain Lv 9, HP 1791/1791 (full), gil 9666, KP 109 (HUD). Saved: ch6_s45_adv.state
+  (post-scene, canonical-descent resume candidate).
+
+LINEAGE NOTE: the scene fired in the gil-9,666 descent from ch6_s43_pt2ride.state (the line
+that did NOT fight session 44's corridor manikin; gil 9750 line in ch6_s44_postfight.state).
+Story flags are identical between the lines (the corridor fight was a non-story field manikin,
++84 gil). The scene trigger is positional, so it is reachable identically in either line via
+the pt2 network. ch6_s45_adv.state is ahead on story (scene done), HP (full) and KP (109 vs
+103); it trails only the corridor fight's 84 gil.
+
+REMAINING NETWORK UNKNOWNS: node 6/7/10 sticks (0,+1), (-1,0) and diagonals untested; node 0's
+non-(+1,0) sticks untested (its NNE segment to C and any pt2 return ride); on-foot exits from
+the Firion ledge (east toward the junction (219.5, 226.7) / shelf (228-235, 229-233), south
+toward the pass road) untested.
+
+
+## Session 45 addendum 27 — junction fans; the SOUTH LINE to the central field; GATE 18 TESTED INERT on its anchor
+
+Mesh/junction fans (addendum 26's unknowns, all from fresh loads; sticks are raw, camera-relative):
+- Node 6 (206.77, 232.95): (0,+1) -> (206.59, 224.81) S; (1,1) -> (207.53, 227.57) the vertex;
+  (-1,1) -> (201.24, 226.50); (-1,0) -> (198.31, 232.11); (-1,-1) -> (200.08, 238.19);
+  (1,-1) -> 1.53 smear.
+- Node 10 (206.43, 233.92): (0,+1) -> (207.00, 226.11) road junction; (1,1) -> (207.51, 228.72);
+  (-1,0)/(-1,-1) only dash inside the Firion scene trigger (state 3 refires in the pre-scene
+  lineage; the trigger zone covers the whole junction, mesh (206, 234) to vertex (207.6, 228.3)).
+- Node 7 (203.17, 239.34): (0,-1) -> (198.57, 244.02) ledge line; (0,+1) -> (204.52, 230.94);
+  (-1,0) -> (194.77, 237.98).
+- Walking east from Firion's ledge on foot: creeps 0.09/push decaying to 0.02 — walled pocket;
+  the nodes are the only transport there.
+- VERTEX (207.52, 227.55) full fan: (+1,0) none; (0,-1) -> (205.19, 235.30); (0,+1) ->
+  (205.09, 221.17); (-1,0) -> (199.19, 225.87); (1,-1) -> (206.73, 233.58); (1,1) ->
+  (206.85, 225.70); (-1,1) -> (202.79, 220.49); (-1,-1) -> (200.42, 232.22). NO EAST EXIT —
+  the vertex is a cul-de-sac hub in the network too (matches session 43's on-foot trap).
+- Segment selection is position-sensitive within a node zone: from road junction landing
+  (207.07, 226.31) stick (+1,0) ran SW to (204.75, 220.73) (the SOUTH POCKET), while from
+  (207.00, 226.11) the same stick hopped 2.06 to the vertex.
+
+SOUTH LINE (the breakthrough): south pocket (204.75, 220.73) fan: (0,-1) -> (203.90, 229.19);
+(0,+1) -> (203.26, 213.46); (-1,0) -> (196.29, 219.89); (1,-1) -> (207.69, 228.01); (1,1) dash.
+Far node (203.26, 213.46) fan: (0,+1) -> (204.75, 205.29); (1,1) -> (208.91, 207.53);
+(-1,0) -> (194.80, 212.61); (-1,1) -> (197.19, 210.11); (0,-1)/(1,-1)/(-1,-1) north returns;
+(+1,0) dash. Southbound rider (stick (0,+1) throughout): (204.75, 205.29) -> (207.40, 197.78)
+-> (208.25, 189.32) [ch6_s45_south_cur.state]. The line passes the BtoI route-graph point
+(203.99, 210.02) and reaches the CENTRAL FIELD's west band, south of gate 18's latitude.
+
+CENTRAL FIELD GRID: node (208.25, 189.32) is a full 8-way hub: E (216.71, 190.17), N
+(207.47, 197.68), S (208.34, 183.58), W (199.79, 188.48), NE (213.66, 195.88), SE
+(214.76, 184.40), SW (202.84, 182.77), NW (205.08, 191.72). Node (216.71, 190.17) fan:
+(0,-1) -> (215.44, 198.57); (0,+1) -> (215.61, 184.58); (-1,0) -> (208.30, 188.90);
+(1,-1) -> (221.11, 194.00) ACROSS the water; (1,1) -> (217.29, 186.12); (-1,1) ->
+(211.63, 184.00); (-1,-1) -> (209.85, 195.18); (+1,0) dash only. On-foot approach to gate 18
+from the SW pins on the lakeshore/structure face at x~217.3-218.2 (creeps N) — the (1,-1)
+segment is the crossing. A purple field manikin stands on the shore near (218-220, 192-195)
+(visible in s45_g18.png; not engaged).
+
+GATE 18 (222.00, 193.50) TESTED: fine stander from (221.11, 194.00) reached (221.97, 193.63),
+0.13 from the anchor [ch6_s45_g18stand2.state]. Cross there did NOT enter — it fired an east
+segment to (225.18, 193.00): the anchor spot is itself a network node. GATE 18 IS INERT for
+Chapter 6 (consistent with both tester families); presumably another chapter's gateway on
+this shared map. Plain Cross (no stick) DOES fire segments at some nodes (the anchor chain:
+(225.18, 193.00) -> (228.95, 186.55) -> (232.91, 181.07) -> (238.29, 176.96), ESE toward
+gate 13) — refining addendum 25: plain Cross fires the node's default-direction segment
+when one exists, else dashes. The (238.29, 176.96) stand was NOT saved (script closed);
+re-derive by 4 plain Crosses from ch6_s45_g18stand2.state.
+
+NEXT: gate 13 (253.93, 181.66) — live in the FACING tester family — via the ESE chain;
+then gate 19 (268.42, 220.73, also facing-live). Gate 22 remains open via pt3/kaname_02
+if a far-north route ever opens; the network so far is a closed basin+junction system
+plus this south line into the central field grid.
+
+
+## Session 45 addendum 28 — GATE 13 ENTERED: it is the HIDDEN DARKNESS GATEWAY (optional board)
+
+East chain from gate 18's anchor (plain Cross, deterministic — re-derived exactly):
+(221.97, 193.63) -> (225.18, 193.00) -> (228.95, 186.55) -> (232.91, 181.07) ->
+(238.29, 176.96) [ch6_s45_chainE.state lineage]. The chain then wanders a mesh around
+(238-240, 177-184) and, left running, rode NE to (255.80, 204.06) [current
+ch6_s45_chainE.state]. On-foot walking in the central field is unreliable with a
+fixed basis: the camera basis rotates as Kain travels (measured bases 90+ degrees
+apart between nearby spots) and 2-frame analog holds crawl at ~0.24/push (analog's
+n argument is the drv-side hold time — use analog(x, y, fr) with the full frame
+count, ~1.2/10-frame push). The grid is the reliable transport; walkers only for
+the last ~3 units (the micro-probe fine stander converged at both gates 18 and 13).
+
+Gate 13 approach: hub (252.26, 198.44) [ch6_s45_g13w.state] full fan — E (260.75, 198.86),
+N (254.02, 204.80), SE (256.55, 194.46), W (243.89, 198.75), NE (257.99, 204.71),
+SE-far (258.64, 192.85), W (247.15, 198.75), NW (246.96, 200.17). Targeted rider:
+(256.55, 194.46) -stick(0,+1)-> (257.20, 186.06) -stick(-1,+1)-> (251.90, 179.64),
+2.86 SW of the anchor [ch6_s45_g13_cur.state]. Fine stander reached (253.71, 181.71),
+0.22 from gate 13's anchor (253.93, 181.66) [ch6_s45_g13stand.state]; Cross ->
+ctrl state 20, pos (0,0): GATE 13 ENTERED. Title card: "Hidden Darkness Gateway"
+(s45_board13.png). Gate 13 is the optional Blue/Hidden Darkness board, NOT True
+Intent or Ryukahn.
+
+Board census (visual, s45_census2/5 + s45_probe.png; no battle started, levels NOT
+probed — scan-mode info needs the cursor exactly on a piece): dark rocky board;
+visible pieces: at least 5 grey manikins, 1 purple character manikin (spearwoman),
+1 red/black boss-class piece standing on a glowing red panel (top-right), 1 gold
+piece at the east edge. Kain starts top-left. Board resume inside (no battle):
+ch6_s45_hd_board.state. HUD on board: Lv 9, HP 1791, Gil 9666, KP 103.
+CORRECTION to addendum 26: the post-scene KP is 103, not 109 (screenshot misread;
+103 confirmed on three later HUD shots). Standing (adv lineage, Firion scene done):
+Kain Lv 9, HP 1791/1791, gil 9666, banked KP 103.
+
+SESSION 46 LEADS: (1) Gate 19 (268.42, 220.73; live in the FACING family) — nearest
+saved approach ch6_s45_chainE.state (255.80, 204.06), ~20 NNE; grid-ride NE and
+stand-test the anchor exactly as done for gates 18/13. (2) Hidden Darkness clear
+(optional; probe piece levels first via scan cursor; historically high-level —
+do not engage blind). (3) Gate 22 far-north route still unsolved: only remaining
+far-north evidence is the CUR record's ground points (306.33, 296.81),
+(310.23, 298.00), (313.00, 298.88) from addendum 24. (4) Untested leftovers:
+pt0's return ride; moogle point (196, 144) re-check in the canonical lineage.
+Primary resume: ch6_s45_g13stand.state (on gate 13's anchor; Cross re-enters
+Hidden Darkness, or ride/walk away). Also ch6_s45_south_cur.state (central-field
+hub (208.25, 189.32)) and ch6_s45_adv.state (Firion's ledge, scene done).
+
+### Session 46 addendum 29 - STEP 0 RECONCILIATION: GATE 13 IS HIDDEN DARKNESS IN EVERY LINEAGE; S40'S "LEGENDARY LAKE" WAS A MISIDENTIFICATION; GATE 19 IS THE REAL LEGENDARY LAKE, NEVER CLEARED (2026-11-19)
+
+THE FLAG: s45 entered gate 13 (253.93, 181.66), read the title
+card "Hidden Darkness Gateway", and censused (visually) a board
+that did not match s40's "Legendary Lake" census of the board
+entered at the same anchor (253.9, 181.7) and cleared 3x.
+
+MEASUREMENTS THIS SESSION:
+1. s45's title card re-read directly (s45_board13.png):
+   "Hidden Darkness Gateway", unambiguous.
+2. ADV LINEAGE, fresh boot: loadstate ch6_s45_g13stand.state
+   (state 2, (253.71, 181.71), gil 9666) -> Cross -> state 5 ->
+   state 20, ENTRY DISC 23, gauge 0. Title card shot this boot
+   (s46_g13_board.png): "Hidden Darkness Gateway". Prompt
+   probes (s34_board pattern, screenshots s34_board_s46hd_
+   prompt{35,11,14}.png): disc 35 = Phantasmal Girl Lv 7,
+   stage World of Darkness, KP chance "Win within 90 seconds";
+   disc 11 = "Firion - Assist Character"; disc 14 = "Stigma of
+   Chaos - Engaging this piece finishes the level." Hops
+   23->33->34, 23->22->21, 23->13 all land (empty), exactly
+   s40's measured map, disc for disc.
+3. S40 LINEAGE, fresh boot: loadstate ch6_s40_ll3_cleared.state
+   (gil 9630; loads at (257.51, 174.92), off-anchor), walked on
+   foot to (253.89, 181.58), 0.09 from the anchor -> Cross ->
+   state 5 -> 20. Title card (s46_ll_title_2/3.png): "Hidden
+   Darkness Gateway". The destination did NOT change with
+   story progress or lineage: the banner was Hidden Darkness
+   in s40's own lineage all along. s40 never banner-checked
+   the south entry (addendum 8 records no banner; addendum
+   10's banner verification was for gate 19 only). The board
+   is watery and the gate stands on a lakeshore - the name
+   was assumed from geography and guide order.
+
+CORROBORATION FROM THE RECORD: this board's disc set
+{0,3,4,10,11,12,13,14,20,21,22,23,24,32,33,34,35,36}, entry
+disc 23, assist at 11, stigma at 14 is IDENTICAL to Chapter
+2's banner-verified Hidden Darkness Gateway census (session
+23). The guide's Ch.6 Hidden Darkness piece list (Imitation
+Despot Lv7, Capricious Reaper Lv3, Idle Sky Pirate Lv7,
+Fleeting Flash Lv3, Phantasmal Girl Lv7) contains BOTH named
+pieces s40 measured (Phantasmal Girl Lv7 at 35, Idle Sky
+Pirate Lv7 at 3); the guide's Legendary Lake list (Delusory
+Dragoon Lv7, Fallacious Tree Lv7, Fleeting Flash Lv7,
+Imitation Despot Lv17, Fleeting Flash Lv3) contains NEITHER.
+s40's remark that "the guide's Legendary Lake list appears
+to conflate boards" is explained: s40 was comparing Hidden
+Darkness's contents against Legendary Lake's guide entry.
+The guide was right; the board identification was wrong.
+
+CONSEQUENCES (chapter state re-baselined):
+- Hidden Darkness Gateway: CLEARED (as "Legendary Lake",
+  s40 runs 1-3): all five battle pieces beaten (12: foe HP
+  1,121; 32: 1,121; 10: 1,205; 35 Phantasmal Girl Lv7 1,364;
+  3 Idle Sky Pirate Lv7 1,522), Firion assist met, stigma
+  engaged 3x, disc-36 chest opened (item banner uncaptured;
+  guide HD chests are 500 gil + Soul of Valor - the 36 chest
+  was one of those, NOT the Black Dragon Spear). Disc 0 was
+  never probed in Ch.6 (Ch.2's instance held the second
+  chest there); the other HD chest may still be unclaimed -
+  probing it requires standing on 3 or 10, both battle discs.
+- Legendary Lake Gateway = GATE 19 (268.42, 220.73),
+  banner-verified s41, entered once and exited immediately
+  (ch6_s41_ti_entry.state is that board, misnamed). NEVER
+  CLEARED. Disc set 17 {1,2,3,4,5,10,12,13,14,20,21,22,23,24,
+  30,32,34}, deploy disc 32 - a DIFFERENT layout from Hidden
+  Darkness. Outstanding there (guide): Delusory Dragoon Lv7,
+  Fallacious Tree Lv7, Fleeting Flash Lv7, Imitation Despot
+  Lv17, Fleeting Flash Lv3; Firion assist piece; Shiva AUTO
+  summonstone; Black Dragon Spear chest; "reach panel K and
+  execute a Multichain" note.
+- Chapter 6 completion state: Sunken Lake done, Hidden
+  Darkness done (optional), Legendary Lake OPEN (guide order
+  #3, before True Intent #4 and Ryukahn #5). The True Intent
+  hunt's null results at the other gates are consistent with
+  story order: Legendary Lake likely must be cleared first.
+- KP/gil bookkeeping unaffected (the KP banked in s40-41
+  came from this board whatever its name). Standing (adv
+  lineage): Kain Lv 9, HP 1791/1791, gil 9,666, banked KP 103.
+
+NEXT: gate 19 from the adv lineage (nearest approach state
+ch6_s45_chainE.state (255.80, 204.06); s41's on-foot ridge
+route from the lake anchor also exists). Census the real
+Legendary Lake BEFORE fighting; the Imitation Despot Lv 17
+is boss-class for a Lv 9 party - probe levels first, take
+the Lv 7/3 pieces, Firion, Shiva and the chest; the Despot
+and the panel-K Multichain may need the farm arc first.
+
+
+## Addendum 30 - Session 46 (2026-11-19, continued): Legendary Lake board work
+
+Gate 19 anchor (268.42, 220.73) reached on foot from
+ch6_s45_chainE.state (255.80, 204.06) via waypoints (262, 212)
+-> (268.88, 218.73) with the feedback walker; stand state
+ch6_s46_g19stand.state. Banner shot s46_ll19_title_2.png reads
+"Legendary Lake Gateway" firsthand. Deploy disc 32; entry
+Firion/Kain dialogue advanced through; clean board state
+ch6_s46_ll_clean.state: Kain Lv 9, HP 1,791, Gil 9,666,
+banked KP 103. KP chance on this board: "Win within 90
+seconds".
+
+Census (direction-press probes only; standable so far:
+{32 deploy, 22, 12, 21, 23, 24 after its piece fell, 14}):
+- disc 2 = Fallacious Tree Lv 7 (stage World of Darkness),
+  probed from disc 12, PDIR up.
+- disc 13 = Fleeting Flash Lv 7 (stage Crystal World),
+  foe HP 1,364 measured in battle.
+- disc 20 = Delusory Dragoon Lv 7 (stage Crystal World),
+  probed from disc 21, PDIR left.
+- disc 24 = Fleeting Flash Lv 3 (stage Ultimecia's Castle),
+  foe HP 1,121. BEATEN (below).
+- disc 14 = EMPTY standable disc (not a stigma here).
+Unexplored discs: 1, 3, 4, 5, 10, 30, 34 - all behind battle
+pieces. Disc 34 probe still owed: from disc 24 press down
+(an earlier probe script's position tracking was flawed -
+after landing on 14 its "down" test actually moved 14->24,
+so 34 was never truly tested). Still owed per the guide:
+Imitation Despot Lv 17, Firion assist piece, Shiva AUTO
+summonstone, Black Dragon Spear chest, "reach panel K and
+execute a Multichain".
+
+Disc 24 beaten: fight5 (drift policy), foe 1,121 -> 0 in 22
+rotations, Kain 1,791 -> 1,170. Settle: gil 9,666 -> 9,690
+(+24); a chain prompt targeting disc 13 appeared and was
+DECLINED (Circle -> Left+Cross); KP gauge 0 -> 1. Disc 24
+now empty. Clean board resume state: ch6_s46_ll_probe2.state
+(disc 23, Kain HP 1,170, gil 9,690, banked KP 103, gauge 1).
+
+Disc 13 (Fleeting Flash Lv 7, HP 1,364) - five attempts, all
+from ch6_s46_fight_f13_pre.state (prompt focused on disc 13,
+Kain HP 1,170; this boot family's block base 0x096D6CA8).
+Scripts were VM /tmp/s46_fight5.py .. s46_fight9.py
+(ephemeral; policies fully described here):
+1. fight5, drift-only: Squares whiffed at range; aborted
+   spuriously at rotation 49 by a frozen-cells guard
+   (foe 879, Kain 964). LESSON: natural cell freezes of 5+
+   rotations occur during long foe animations - never abort
+   on a tight frozen guard. Mid-battle state kept:
+   ch6_s46_fight_f13_dbg.state (foe 879, Kain 964).
+2. fight6, Cross-approach + Square at BRV >= 120, WAIT 2,
+   no defense: LOSS at rotation 47. Best trade of any
+   attempt: foe 1,364 -> 340 inside the melee window
+   (rotations ~26-32) after the foe's BRV surge; Kain died
+   to a 721-BR HP attack (863 -> 142) plus a finisher.
+3. fight7 = fight6 + defense triggers (foe BRV >= 400, or
+   >= 250 and >= 80% of Kain's HP, or rising >= +80 to
+   >= 300 -> R+direction dodge chord alternating sides,
+   R-hold 40f, analog sidestep) + L+Circle assist chord
+   every 6 rotations: LOSS at rotation 48, only 166 damage
+   dealt. Defense rotations fired rotations 28-40 but the
+   foe's HP attacks still landed in full (1,170 -> 446 vs
+   foe BRV 724; 446 -> 2 vs foe BRV 444). Dodge/guard as
+   scripted did NOT reduce those hits.
+4. fight8, WAIT 5 as a full idle opening (no inputs), then
+   fight6 offense: LOSS at rotation 66; one Square landed
+   (-237). The idle opening did not change the geometry;
+   the foe's ranged BRV fire drained Kain 190 -> 9 and his
+   BRV never rebuilt.
+5. fight9, canonical dumb block (Cross approach + rotating
+   analog drift + Square at BRV >= 120, WAIT 2): best
+   opening of the five - Square landed at rotation 3
+   (-191; foe 1,173 by rotation 4, Kain untouched) - then
+   the run HUNG: the WSL-side python/drv processes vanished
+   (the day's recurring tunnel-drop pattern) while the local
+   ssh hung; attempt abandoned at rotation 4. Nothing lost;
+   the pre-state is on disk.
+Pattern across attempts: this foe wins the ranged game
+outright - its BRV attacks land from range and drain Kain's
+BRV (200 -> ~0 over ~25 rotations) while his Squares whiff;
+damage happens only in the melee trade window after the foe
+surges BRV and closes to spend it. Untried levers for
+session 47: re-run fight9 (best opening); resume mid-battle
+from ch6_s46_fight_f13_dbg.state with the Cross-approach
+policy; other WAIT values (0/1/3/5/10/15 all behaved
+differently per foe in earlier chapters); Circle BRV-attack
+builds to contest the ranged BRV drain; or clear discs
+20/2 first for EXP and come back.
+
+Harness lessons (session 46):
+(a) Battle-block layout: her HP is at word offset i+21
+    relative to the foe-HP word index (b+23 from the block
+    base). Two hand-rolled finders used i+23 and missed a
+    live block for three runs - s18lib.find_block_a is
+    correct.
+(b) Intro-freeze block signature (the working finder): all
+    three pairs equal, her_hp exactly equal to Kain's
+    current HP, her_brv 50-1200, foe_brv 0-3000, pool
+    50-5000, foe_hp 300-3000. The block is populated but
+    FROZEN during the battle intro - accept the candidate,
+    then wait-for-live (cells change) before fighting.
+    Decoy structures exist (e.g. herHP 1220 / foeHP 1160 /
+    BRV 0 / pool 0) and are excluded by the nonzero
+    pool/BRV + exact-HP filters.
+(c) Use a unique RAM-dump filename per dump; repeated dumps
+    to one path appeared to go stale.
+(d) Block base varies per boot: 0x09695798 (twice),
+    0x096D6CA8, 0x096BBF98 seen.
+(e) Cross is the approach in battle; drift-only starves vs
+    ranged foes and Cross-only stalls - the full dumb block
+    is Cross + drift + Square.
+(f) The VS screen advances with Cross ("Next").
+(g) Post-win: results advance with Cross (~10 presses);
+    gil/gauge update late; chain-prompt detection = focus
+    becomes a valid RECORDS slot address != current disc's
+    slot; cancel = Circle -> dialog -> Left+Cross (banks
+    the KP into the gauge).
+(h) Feedback walkers (probe the stick basis, re-probe on
+    drift, no savestates) are the reliable field transport;
+    savestate-trial walkers cost ~5 loadstates/step and one
+    hung 5+ minutes when the tunnel dropped.
+(i) FOCUS_ADDR is a sticky last-focused pointer, not a
+    modal flag; after a prompt, Circle dismisses it and the
+    next single press moves - without Circle, the first
+    direction press is eaten dismissing the prompt.
+
+Standing at session 46 wrap (adv lineage): Kain Lv 9, board
+HP 1,170/1,791, Gil 9,690, banked KP 103, gauge 1, Firion
+assist, Rosetta Stone held. Resume state for session 47:
+ch6_s46_ll_probe2.state (Legendary Lake board, disc 23,
+disc 24 cleared). Next: disc 13 retry (fight9 re-run or the
+dbg-state resume), then disc 20 (from disc 21, PDIR left),
+then disc 2 (from disc 12, PDIR up); probe newly opened
+discs after each fall (34 from 24 down; the 3/14 side from
+13; 10/30 from 20; 1/3 from 2); take Firion assist, Shiva,
+the Black Dragon Spear chest; Imitation Despot Lv 17
+(farm arc first if needed - Exit Gateway -> Continue resets
+a cleared board at full HP keeping gil/EXP; board HP
+persists between fights within one board visit, and Hidden
+Darkness is the proven farm board); engage the stigma to
+finish Legendary Lake. Then the True Intent hunt reopens:
+gate 20's anchor (319.33, 193.64) has never been
+stand-tested in any session; session 45's area graph says
+gate 22's area is reached F->K from gate 20's area, and
+gate 21 (315.09, 270.40) sits on that corridor. Still owed
+from the brief: pt0 return ride test; moogle point
+(196, 144) re-check in the adv lineage; Hidden Darkness
+disc-0 chest probe (needs standing on disc 3 or 10, both
+battle discs; guide HD chests are 500 gil + Soul of Valor,
+and the disc-36 chest claimed in session 40 was one of
+them, NOT the Black Dragon Spear).
+
+
+## Addendum 31 - Session 46 (2026-11-19, postscript): disc 13 attempt 6
+
+The fight9 re-run listed as untried in addendum 30 was run
+after all: LOSS at rotation 36, foe left at 1,159/1,364.
+Same pre-state and policy as the interrupted run, but the
+fight diverged from rotation 2 (Kain took a 212-BR HP hit
+at rotation 2 and a second at rotation 6: 1,170 -> 958 ->
+721; the foe surged to BRV 695 at rotations 15-17; Kain
+landed one Square in the trade window, rotation 20, -205;
+the 695 hit landed at rotation 22, 721 -> 26; death at
+rotation 36 to a 160-BR HP attack). Note the divergence
+itself: the two fight9 runs differed only in the
+polls-to-live count at combat start (7 vs 5), which shifted
+every later timing - fights from a savestate are only
+approximately deterministic across boots, so a policy's
+single observed outcome is a sample, not a proof. Disc 13
+stands unbeaten after six attempts; the levers listed in
+addendum 30 remain session 47's menu, with the
+dbg-state resume (foe 879, Kain 964) and Circle BRV builds
+the least-tried. Session 46 wraps here: branch tip carries
+addenda 29-31; resume state ch6_s46_ll_probe2.state.
+
+
+## Addendum 32 - Session 47 (2026-11-19): disc 13 attempts 7-8, finder lessons
+
+Session 47 opened on the disc 13 menu from addendum 30/31.
+
+Attempt 7 (lever a, dbg-state resume): loadstate
+ch6_s46_fight_f13_dbg.state in a fresh boot. The battle
+block was at the SAME base as the saving boot (0x096D6CA8 -
+a savestate restores the RAM layout), but both strict
+finders missed it: at the dump instant the her-BRV pair read
+8/7, not equal. LESSON: mid-battle, the doubled cell pairs
+can sit 1-2 counts apart; pair-equality is an intro-freeze
+signature, not a live-battle one. A tolerant finder (HP words
+exact, BRV/pool pairs within 16) found exactly one candidate.
+Second lesson: the wait-for-live poll cost real blood - it
+keyed on foe_hp/her_brv/foe_brv only, and while it polled
+(~600 frames) the live foe drained Kain 964 -> 538. Include
+her_hp in the liveness signature, and poll briefly on
+mid-battle resumes. The resumed battle then stalled hard:
+foe BRV plateaued at 215, pool crept 691 -> 770, and from
+rotation ~32 every cell froze for 30+ rotations under
+Cross-approach (fight6 policy, WAIT 2). RESULT: STUCK,
+abandoned at rotation 62, foe untouched at 879. The dbg
+state's saved moment was itself the stall fight5 aborted on
+- lever (a) is exhausted; the state is a dead end.
+
+Attempt 8 (lever b, Circle BRV builds, from the pre-state,
+WAIT 2): zero damage in 110 rotations. Shape of the loss:
+Kain's opening BRV (185) was spent on whiffed Squares at
+range (the >=120 rule fires before any approach); the foe
+then held range for ~24 rotations of total stillness
+(rotations 7-30, every cell static) before a single HP
+attack landed (1170 -> 893 at rotation 31; its BRV reset at
+rotation 34). Circle presses at range also whiffed, and the
+foe's ranged BRV fire drained Kain 144 -> 4 by rotation 90.
+At ~rotation 95 the foe surged to BRV 721 (pool 433 -> 316)
+and held it; Kain, broken, regenned +11/rotation to 207 by
+the 110-rotation cap. LESSON: this foe's stillness cadence
+is ~25 rotations, longer than the old 30-rotation frozen
+guard allows for - the guard is now 45. And Circle builds
+do NOT contest the ranged game: Kain's BRV attacks whiff at
+range exactly like his Squares. Damage remains possible
+only in the foe's spend window (s46 fight6: foe surged,
+closed, and Kain traded 1,024 before dying to the finisher).
+
+
+## Addendum 33 - Session 47 (2026-11-19): rot4 breaks the board open; Legendary Lake FINISHED
+
+Disc 13 attempt 9 (dumb block, WAIT 0, from the pre-state):
+the foe closed on its own schedule at rotation 21 and Kain
+dealt 276 (1364 -> 1088) with his HP untouched - then the
+foe went passive at range for 60+ rotations (BRV 112, pool
+static) and neither Cross dashes nor rotating drift closed
+the distance; rotating drifts cancel out and net ~zero
+displacement. Run killed at rotation 80. Disc 13 PARKED
+after 9 total attempts, per the brief, pending the farm.
+
+BOARD MAP (direction-press probes, all measured this
+session; the board is a pillar grid):
+- 23: up=PROMPT 13, left=22, right=24, down=none.
+- 22 (hub): up=12, down=32 (deploy), left=21, right=23.
+- 21: left=PROMPT 20, right=22.
+- 20 (post-clear): up=10, down=PROMPT 30, right=21.
+- 10: down=20 only (empty spur).
+- 12: up=PROMPT 2, down=22.
+- 24 (post-clear): up=14, down=PROMPT 34, left=23.
+- 14: down=24 (empty standable).
+
+DISC 20 (Delusory Dragoon Lv 7, HP 1,364) - BEATEN.
+Two single-press policies stalled at range first (dumb v1:
+no drift while BRV >= 120; dumb v2 drift-always: foe broke
+Kain at rotation 50, zero damage dealt). The winner is the
+canonical s13/s19 rotation, here called rot4: every
+rotation = rotating analog drift + presses SQUARE, SQUARE,
+CROSS, TRIANGLE, with the L+Circle assist chord every 6th
+rotation, cells read once per rotation (~150 frames),
+WAIT 2. It is the TRIANGLE in the sequence that connects
+where lone Squares whiff (compare s13 vs Kuja: the
+square-square-cross-triangle block was the only one that
+damaged the keep-away mage). Fight: foe 1364 -> 832 by
+rotation 10, -> 730 (rot 20), Kain broken at rot 25 (foe
+took the 560 pool, BRV 808) and again at rot 40 (Kain
+1035 -> 580, foe 266), foe at 1 HP at rot 45, WIN at
+rotation 45, Kain 640. Settle: gil 9690 -> 9774 (+84); no
+chain prompt appeared. Kain LEVELED to 10 on this win.
+Post state ch6_s47_f20c_post.state.
+
+DISC 30 = SHIVA AUTO SUMMONSTONE - CLAIMED, no battle.
+Prompt card reads "Summonstone: An unknown summon is
+sealed within." Engage starts her joining cutscene
+("Allow me to lend you my powers. Trust my northerly
+winds..."), advanced with Cross; the crystal vanishes and
+play resumes. A fight-script run against it correctly
+found NO_BLOCK - there is no guardian fight. State
+ch6_s47_shiva.state.
+
+DISC 2 (Fallacious Tree Lv 7, HP 1,364) - rot4 attempt
+from board HP 640: foe -> 528 by rotation 15 (Kain broken
+once, HP intact), then the foe spent its 603 BRV at
+rotation 25 (Kain 640 -> 37) and finished him at rotation
+26. LOSS, foe left at 528. The 640 HP start was the
+handicap (the Dragoon dealt ~530 total from a 1170 start);
+from full HP this is a winnable fight. Pre-state kept:
+ch6_s47_f2_pre.state.
+
+DISC 34 = THE STIGMA OF CHAOS. Prompt card: "Stigma of
+Chaos - Engaging this piece finishes the level." It was
+reachable all along from disc 24 (down); session 46's
+flawed probe script (bad position tracking) is why it was
+never found. LEGENDARY LAKE FINISHED: engaged from
+ch6_s47_stigma_pre.state; state ran 20 -> 0 -> 3
+(dialogue) -> 2 (field). Post-finish field state
+ch6_s47_ll_finished.state: Kain Lv 10, field HP FULL
+1,851/1,851 (Lv 10 max), Gil 9,774, BANKED KP 104
+(gauge 1 converted +1). Firion visible as field companion.
+
+Still owed on Legendary Lake (reset-visit sweep): disc 13
+rematch (rot4 is the untried lever there), disc 2 rematch
+at full HP, discs 1/3/4/5 (behind 13 and 2), Imitation
+Despot Lv 17, Firion assist piece, Black Dragon Spear
+chest, panel-K Multichain. None block the chapter: the
+stigma path never ran through them.
+
+Harness additions (durable in ~/d12s/): s47_fight.py
+(policies dumb/circle/fight6/rot4, foe-HP discovery,
+tolerant mid-battle finder, her-HP range args),
+s47_board.py (explore/go prober), s47_shot.py. NOTE: the
+VM's /tmp was wiped mid-session (restart) - keep master
+scripts in ~/d12s/, not /tmp.
+
+
+## Addendum 34 - Session 47 (2026-11-19): gate 19 exit fan; the gate 20 ride stalls in the north mesh
+
+FIELD FAN at gate 19's exit (Kain at (268.50, 219.40),
+1.34 from the anchor; stick held + Cross, fresh load per
+direction): N -> (268.77, 210.66); NE -> (264.40, 212.58);
+NW -> (270.08, 212.65); SW -> (272.23, 225.76); E/W =
+dash only; S/SE = ~0.5 and a state-3 dialogue trigger
+(the gateway's threshold). A greedy grid rider
+(s47_ride.py, fans every node, picks the landing closest
+to the target) then walked: (268.50, 219.40) -> NW ->
+(270.08, 212.65) -> NW -> (269.16, 207.43) -> hop2 pick
+saved [ch6_s47_g20_hop0/1/2.state]. Hop 2's full fan:
+E -> (260.37, 209.27), NE -> (261.62, 202.55),
+N -> (265.30, 200.76), plus returns - EVERY segment at
+this latitude runs W/NW/S. The lake's north-shore mesh
+does not extend east; distance-to-target stalled at
+~52 (from 56.98) over three hops. The ride was stopped:
+the east transport is the CENTRAL FIELD grid at
+z ~177-198 (addenda 27-28), reached from this basin only
+via the junction + SOUTH LINE, and gate 20's area is
+entered D->F from gate 14's area (addendum 24) - i.e.
+the long way around, an expedition of s45 scale.
+
+SESSION 48 OPENS with the gate 20 stand test as its
+first job, route: from ch6_s47_ll_finished.state ride
+the mesh back S/SW into the basin, junction (206, 233),
+south line to the central-field hub (208.25, 189.32),
+ESE Cross-chain past gate 18's anchor node to gate 13's
+hub (252.26, 198.44), then the shelf strip E/NE toward
+(297.42, 173.33) -> (319.33, 193.64) per addendum 24's
+untested continuation; fine-stand <= 0.25 on gate 20's
+anchor (319.33, 193.64) and Cross. If gate 20 is inert,
+the corridor north past gate 21 (315.09, 270.40) to
+gate 22 (292.50, 312.00) is the remaining candidate set,
+and the guide's boulder + Fallacious Tree Lv 11 approach
+(addendum 15) belongs to that corridor. Also still owed:
+the Legendary Lake reset-visit sweep (disc 13 rematch
+with rot4, disc 2 at full HP, discs 1/3/4/5, Imitation
+Despot Lv 17 - farm to ~Lv 13-15 first on Hidden
+Darkness), pt0 return ride, moogle point (196, 144)
+re-check, Hidden Darkness disc-0 chest probe.
+
+Standing at session 47 wrap (adv lineage): Kain Lv 10,
+field HP 1,851/1,851, Gil 9,774, banked KP 104, Shiva
+AUTO summonstone held, Firion assist, Rosetta Stone
+held. Chapter 6: Sunken Lake done, Hidden Darkness done
+(optional), Legendary Lake DONE. Owed: Gateway of True
+Intent, Ryukahn, Exdeath Lv 18, the farm arc. Canonical
+resume: ch6_s47_ll_finished.state (field at gate 19's
+exit). Branch NOT merged - chapter incomplete.
+
+## Addendum 35 - Session 48 (2026-11-19): the shelf cluster is a CLOSED mesh; the Firion scene is proximity-triggered; gate 20 not reachable from the shelf
+
+Resume verified: ch6_s47_ll_finished.state -> (268.50,
+219.40), state 2, gil 9,774 (adv lineage). Session 48
+toolkit in WSL ~/d12s: s48_fight.py (rot4, s48
+prefixes), s48_probe.py (on-foot fan), s48_walk.py v2
+(feedback walker: tests all 8 sticks from a scratch
+state each step, commits the best real displacement),
+s48_ride1.py (single stick+Cross ride with save).
+
+SCOUT of the shelf -> gate 20 leg, run from
+ch6_s44_shelf.state (canonical lineage, throwaway;
+(297.42, 173.33), gil 9,750):
+
+- The shelf point IS a network node. Cross fan:
+  N -> (290.89, 179.13); NE -> (296.25, 181.08) [face
+  base]; E -> (298.34, 178.04) 4.80; SE dash 2.11;
+  S -> (302.95, 167.00) [gate-14 pocket bench];
+  SW -> (298.74, 165.71); W dash 3.11;
+  NW -> (288.88, 172.81).
+- Knoll node (290.89, 179.13): full 8-way fan (all
+  segments): N (284.56, 185.50), NE (290.27, 184.66)
+  [lane midpoint], E (294.84, 182.08), SE (298.21,
+  178.29), S (296.85, 172.42), SW (289.56, 172.54),
+  W (284.17, 173.17), NW (281.92, 179.62).
+- Node (294.84, 182.08): E = 0.16 (pinch, no segment);
+  N (287.09, 185.29), NE (290.33, 184.66), SE (297.82,
+  179.05), S (299.00, 175.82), NW (285.96, 180.73).
+- Face base (296.25, 181.08): E = 0.61 (wall); N
+  (288.73, 184.88), NE (291.63, 184.05), SE (298.34,
+  178.03), NW (287.31, 180.17). On-foot v2 walker from
+  here toward gate 20 stalls in 3 steps (best SE
+  +0.43, then all <= 0): the face base is a pocket.
+- Pocket bench (302.95, 167.00): NE -> (299.24,
+  172.79) is the only segment; E/SE = bench centre
+  (303.25, 167.25), no east exit (network confirms
+  addendum 25's on-foot seal). N/NW nudges give
+  state68=16 (brief popup) toward gate 14's anchor.
+- Lane midpoint (290.27, 184.66): E = 0.87 (pinch);
+  N (283.03, 185.62), NE (287.07, 185.30), SE (295.84,
+  181.37), W (285.25, 177.21), NW (281.48, 182.82).
+  This closes addendum 25's one gap (no N-probe from
+  the lane midpoint) at network level too.
+- Plain Crosses at the knoll ride a default chain SW:
+  (294.55, 181.70) -> (289.50, 175.16) -> (285.44,
+  172.65) -> (279.50, 169.92) -> (274.30, 163.54) ->
+  (269.26, 156.99) -> (264.21, 150.45) (the corridor's
+  west shore band).
+
+VERDICT: the shelf / knoll / lane / face / pocket
+cluster is a CLOSED mesh - every landing sits inside
+X 264-303, Z 150-186, and east is pinched at network
+level (0.16 / 0.61 / 0.87) as well as on foot.
+Addendum 24's "untested continuation" E/NE of
+(297.42, 173.33) toward gate 20 is now TESTED AND
+CLOSED. Gate 20's area is NOT entered from the shelf
+cluster (area D's reachable ground).
+
+THE STATE-3 FAN READINGS ARE FIRION TALKS. Firion
+stands beside Kain on the field (visible in field
+shots); a held-stick Cross with no segment talks to
+him. In the canonical (pre-scene) lineage the full
+4-line scene fired at the face base (296.25, 181.08):
+Firion "Honestly, I've been having a hard time
+fighting off the manikins." / Kain "We are
+outnumbered." / Firion "I was thinking on how to buy
+us some time to get our crystals..." / Firion
+"There's no way we can continue to just fight
+endlessly..." - the SAME scene session 45 fired at
+the junction mesh (206.29, 234.08). The scene trigger
+is Firion-proximity, not a unique junction position.
+In the adv lineage the scene is done (his talks give
+the repeat line). A golden chest stands on the path
+at the face base, unclaimed in the canonical line.
+
+chainE fan (ch6_s45_chainE.state, adv lineage):
+N (256.19, 209.25), NE (259.72, 210.95), E (263.72,
+207.74), SE (264.06, 201.21), W (248.11, 200.08),
+NW (251.98, 202.70); S/SW = Firion talk. All local
+to the gate 13 hub <-> gate 19 mesh (X 248-264,
+Z 200-211).
+
+NEXT: on-foot east from chainE toward gate 20's
+anchor across the unexplored band X 264-319,
+Z 194-220 (v2 walker, adv lineage).
+
+### Session 48 addendum 36 - THE EAST BAND ENDS AT THE X~290 RIDGE; GATE TABLE RE-READ: GATE 22 IS THE ONLY LIVE MAIN-LINE GATE; GATE 18 STILL INERT; NORTH ROAD RE-WALKED CLEAN (2026-11-19)
+
+RESUME VERIFIED: ch6_s47_ll_finished.state -> (268.50, 219.40),
+state 2, gil 9,774 (Kain Lv 10, HP full, KP 104).
+
+THE EAST BAND (on foot, feedback walker s48_walk.py, from
+chainE (255.80, 204.06)): the Z~198-204 band east of the
+lake's north shore is open ground all the way to X~290.4:
+walked (255.80, 204.06) -> (270.27, 200.34) -> (280.83,
+199.99) -> (289.22, 200.44), then the band bends south along
+a face and STALLS at (290.43, 197.99) - every stick <= +0.07
+progress. This is the same X~290-292 ridge s41 measured at
+four latitudes (addendum 12); the band is a fifth latitude
+and it is closed here too. (One leg's ssh tunnel timed out
+mid-walk; the scratch state had committed step 7 at (270.27,
+200.34) and the walk resumed from it - no progress lost.)
+Scout states: ch6_s48_scout4_final.state (280.83, 199.99),
+ch6_s48_scout5_step10.state (290.43, 198.29).
+
+GATE 19'S EXIT, ON FOOT EAST: stalls - the walker slid from
+(268.50, 219.40) down the face to (270.09, 212.98) (net
++1.6 X) and stopped; the exit stand is a mesh pocket on a
+slope, no on-foot east exit (consistent with addendum 12's
+"Gate 19's pocket is boxed N/E/W").
+
+GATE TABLE RE-READ (GateMgr = *(ctrl+0x88) = 0x095D7110,
+from ll_finished): gate 19 now reads lifecycle state 5,
+timer 122.0, facing tester A+4 = -1: the FINISHED signature
+(compare gate 12 in s39). Clearing Legendary Lake via gate
+19 closed its facing tester. Gate 13 (Hidden Darkness)
+keeps A+4 = 28 (the repeatable farm board stays live).
+GATE 22 (292.50, 312.00) reads A+4 = 26 AND B+E = 3 - live
+in both families, the ONLY main-line gate still live.
+GATE 20 reads -1/-1 - it was in NEITHER tester family in
+s39's read either; the session brief's "gate 20 = Gateway
+of True Intent" was an assumption from the area graph, and
+the tester evidence says gate 20 belongs to another
+segment (like 14/15/18/21, inert in both families). TRUE
+INTENT / RYUKAHN must be gate 22 and/or the volume-family
+gates {11, 16, 17} (s41 addendum 12's candidate set) - the
+barred gates were only ever tested BEFORE Legendary Lake
+was finished.
+
+THE REAL TREK WEST (rider s47_ride.py from ll_finished):
+7 hops - (264.40, 212.58) -> (256.84, 209.50) -> (252.59,
+201.70) -> (244.48, 198.45) -> (236.98, 193.51) -> (228.07,
+194.70) -> (219.83, 194.00) = Firion's ruins (state
+ch6_s48_trek1_hop6.state, gil 9,774 - adv lineage intact).
+
+GATE 18 RE-TEST (post-LL): fine stand at (221.78, 193.56),
+0.23 from the anchor (222.00, 193.50); Cross fired a FIRION
+TALK ("Kain, have you come across any of the others?") - he
+stands at the ruins within talk range of the anchor. No
+entry, no state 5. Gate 18 remains inert.
+
+NORTH ROAD RE-WALK (post-LL, on foot from the ruins):
+(219.83, 194.00) -> north along X~215-219 -> (219.33,
+224.17) at the road junction (state ch6_s48_nroad1_final.
+state). NO Fallacious Tree, NO boulder, NO manikin - the
+road is exactly as s41 walked it pre-LL. The guide's
+tree/boulder are not on this road in this story state.
+
+NEXT: the shelf (228-235, 229-233) NE of the junction, then
+its north face; the pass road west past the trap face to
+gate 17 (re-test the portcullis post-LL); gate 11 the same
+if 17 stays barred.
+
+### Session 48 addendum 37 - SHELF NORTH FACE WALLED; GATE 17 STILL BARRED POST-LL; FIRION'S REPEAT TALK IS FLAVOR; THE BENCH/LEDGE SYSTEM CLOSES AT THE JUNCTION MESH (2026-11-19)
+
+SHELF (from ch6_s48_nroad1_final.state at the road junction
+(219.33, 224.17)): the road bends NE up a smooth ramp to the
+shelf at (228.53, 230.08) [ch6_s48_nroad2_final.state]. The
+north-face probe crept east along the shelf to (233.83,
+232.57) - the exact spot of s43's boulder protocol - and
+STALLED: every stick <= 0.00. The shelf's north/east face is
+a hard wall; the overlook is closed (boulder protocol was
+already negative here in s43).
+
+JUNCTION WEST: from the shelf back down to the junction
+pocket (219.63, 226.75), west STALLS at (219.19, 224.01).
+The junction pocket's only exits are the north road (south)
+and the shelf ramp (NE); the pass road's east segment is NOT
+reachable from it (the trap face is two-way at ground
+level).
+
+GATE 17 RE-TEST (post-LL, adv lineage): the WEST ROAD from
+Firion's ruins was walked end to end (feedback walker, no
+pinch at the (205-208, 202-206) bend that fooled s42's
+coarse walker): (219.83, 194.00) -> (207.49, 201.44) ->
+(198.46, 211.27) -> (186.55, 215.59) -> (171.28, 219.34) ->
+face stand (157.26, 228.63) [ch6_s48_wroad1..4_final,
+ch6_s48_g17app_final]. SCREENSHOT (s48_g17_look.png): the
+iron portcullis is STILL DOWN. Cross at the face: plain
+dash to (159.35, 234.01), state stays 2, no popup, no
+entry. Gate 17 remains barred after Legendary Lake. No
+Rosetta chest visible at the foot from the face stand and
+no chest popup fired (the adv lineage's chest state here
+is unresolved - the stand may simply be off the chest's
+trigger; s42's chest spot was (156.63, 229.77)).
+
+FIRION'S RUINS TALK (the state-3 dialogue that fired on
+gate 18's anchor): a 4-line repeatable chat, read in full:
+"have you come across any of the others?" / "I met one by
+chance and discussed our situation, but I have yet to meet
+anyone else." / "...You see, I've heard some bad rumors.
+Rumors that some of our friends have fallen." / "I don't
+intend to trust the words of a foe, but I'm concerned..."
+Flavor only - no directions, no trigger (5 Crosses to
+close; end state ch6_s48_talkdone.state).
+
+THE PASS EAST + THE BENCH (adv lineage): from gate 17's
+face the pass road east was walked to the scout point
+(168.16, 227.31) [ch6_s48_passe1_final] - NO False Stalwart
+ambush on the road line (s42's fired walking toward pt2 at
+Z~232; the road at Z~228 does not trigger it). The NE climb
+reached the bench at (189.30, 245.99) [ch6_s48_bench1_
+final.state]. THE BENCH EAST: the ledge runs ESE -
+(199.65, 243.34) -> (201.74, 241.25) - and DIES at a face
+at (203.61, 238.00), ~1.4 from junction mesh node 7
+(203.17, 239.34): the bench/ledge system drains into the
+junction mesh and has NO northern exit. (Two tunnel drops
+hit this stretch; both times the walk resumed from the
+committed scratch state with no progress lost.)
+
+SESSION 48 NET: the brief's gate-20 premise is dead
+(addendum 36); every land route to the far north is now
+measured closed (X~290 ridge at five latitudes, the shelf
+cluster, the east band, gate 19's pocket, the north road +
+shelf faces, the junction, the bench/ledge, the frozen
+basin). Gate 22 (both tester families) is the only live
+main-line gate and remains unreached. Standing UNCHANGED:
+Kain Lv 10, field HP full 1,851/1,851, gil 9,774, KP 104,
+Shiva held, Firion assist, Rosetta Stone held.
+
+SESSION 49 LEADS (untested, in order):
+(1) GATE 11 re-test post-LL - the only volume-family gate
+    not re-tested since LL; reach its face via pt0's ride
+    from the start field (213.0, 120.8) into its basin,
+    photograph the portcullis, Cross at the face.
+(2) MOOGLE POINT (196, 144) re-check in the adv lineage
+    (owed since s41; the True Intent segment unlocks
+    Mogshop 9.2.6 per the guide - a moogle interaction may
+    be part of the segment's flow).
+(3) pt18 (220.7, 107.6) OBB_jump_gate02_00 stand-test -
+    never stood on; in the start field near pt0.
+(4) EYES NORTH from the bench (189.30, 245.99): a screenshot
+    facing north to fix the rift portal's position and look
+    for a structure/bridge no walker has seen.
+(5) A fresh pint (field-object) census in the adv lineage:
+    list every field object with a position; look for
+    unvisited triggers (NPCs, a second moogle, a portal
+    object) anywhere on the map.
+RESUME: ch6_s48_bench1_final.state (bench, adv lineage,
+state 2, gil 9,774); alternates ch6_s48_g17app_final.state
+(gate 17 face), ch6_s48_trek1_hop6.state (Firion's ruins).
+
+### Session 49 addendum 38 - GATE 22 FIRST: THE TREK TO (292.50, 312.00) (2026-11-19)
+
+RESUME: ch6_s48_bench1_final.state (bench (189.30, 245.99),
+adv lineage). Standing at open: Kain Lv 10, HP full
+1,851/1,851, gil 9,774, banked KP 104, Shiva held, Firion
+assist, Rosetta Stone held. Boards done: Sunken Lake,
+Hidden Darkness (gate 13), Legendary Lake (gate 19).
+Chapter goals left: Gateway of True Intent / Ryukahn,
+Exdeath Lv 18.
+
+PLAN (brief order): (1) gate 22 - travel to (292.50,
+312.00), stand on the anchor, Cross, READ THE TITLE CARD.
+(2) Gate 11 re-test post-LL via pt0's ride. (3) Moogle
+point (196, 144) re-check. (4) pt18 stand-test.
+(5) Screenshot facing north from the bench. (6) Fresh
+pint census.
+
+FINDINGS BELOW AS THEY LAND.
+
+RESUME VERIFIED: ch6_s48_bench1_final.state -> (189.30,
+245.99), state 2, gil 9,774. GateMgr this boot =
+*(ctrl+0x88) = 0x095D7110; point table 0x095E61C0.
+
+POINT TABLE (fresh, this boot; X, height, Z): pt0 jump_
+gate02_00 (213.0, 120.8); pt1 jump_gate02_05 (331.1,
+136.0); pt2 jump_gate02_06 (163.1, 230.6); pt3 jump_
+gate03_00 (292.7, 301.0); pt4 gate02_00 (220.4, 111.0);
+pt5 gate02_01 (210.6, 152.9); pt6 gate02_02 (253.9,
+181.7); pt7 gate02_03 (305.0, 166.6); pt8 gate02_04
+(366.0, 151.9); pt9 gate02_05 (331.5, 126.0); pt10
+gate02_06 (154.1, 229.4); pt11 gate02_07 (222.0, 193.5);
+pt12 gate02_08 (268.4, 220.7); pt13 gate02_09 (319.3,
+193.6); pt14 gate02_10 (315.1, 270.4); pt15 gate03_00
+(292.5, 312.0); pt16 kaname_01 (194.0, 165.1); pt17
+kaname_02 (304.8, 296.5); pt18 OBB_jump_gate02_00
+(220.7, 107.6); pt26 OBB_mes_gate02_05 (332.2, 123.5);
+OBB_mes_gate03_00 present (name garbled in record 29);
+pt34 OBB_cpu_BtoH (218.7, 193.5); pt42 OBB_cpu_FtoG
+(268.5, 220.7).
+
+GATE TABLE RE-READ (records at gateMgr+4+k*0x14, k=0..11;
+record = ptrA, ptrB, life at +0xC, timer float at +0x10;
+testers A = s16 at *(ptrA)+4, B = s16 at *(ptrB)+0xE):
+k0: life 0, A -1, B -1. k1: life 5, timer 122.0, A -1,
+B -1. k2: life 0, A 26, B 3. k3: A -1, B 0. k4: A 28,
+B -1. k5: A -1, B -1. k6: A -1, B -1. k7: A -1, B 1.
+k8: A -1, B 2. k9: A -1, B -1. k10: A -1, B -1.
+k11: A -1, B -1.
+INDEXING CAUTION: if k = gate-11 (the natural read),
+then gate 12 holds the life-5/timer-122 FINISHED record,
+gate 13 reads A 26 / B 3, gate 15 reads A 28, gate 19
+reads A -1 / B 2, gate 22 reads -1/-1. Addendum 36's
+labels (gate 19 = life 5/122, gate 22 = A 26/B 3,
+gate 13 = A 28) match records k1, k2, k4 - i.e. s48's
+gate numbers sit +1/+9/+20 records off the natural
+indexing, so s48's NUMBERING cannot be reconciled with
+a constant shift; at least one of the two reads is
+mis-indexed. The board identities banner-verified in
+s46/s47 (Hidden Darkness at pt6 (253.93, 181.66),
+Legendary Lake at pt12 (268.42, 220.73)) are NOT in
+doubt - only the record-to-gate-number mapping is.
+Session 49 treats the TITLE CARD as the only authority
+for what gate 22's anchor (pt15) holds, and reports
+this table raw.
+
+PINT CENSUS (list 0 at 0x095D2F40, count 196, adv
+lineage): the far north is populated - a loose corridor
+of kind-2 objects (h=0) climbs X~278-336 from Z 245 to
+Z 303: (299,245), (278,250), (285,253), (305,256),
+(310,268), (299,270), (330,270), (303,271), (312,283),
+(304,286), (292,297), (294,303); kind-1 drawn models at
+(302,245), (307,260), (289,295); a kind-6 cluster x5 at
+(280,273). West-north (X<250, Z>250) is nearly empty:
+kind-1 at (250,276) and (263,292) only. The northern
+region exists and is dressed; it is the approaches that
+are unmeasured, not the destination.
+
+WALK NORTH FROM THE BENCH - CLOSED (lead 5 + the
+bench-north gap): bench screenshots (as-loaded and
+after a north nudge) show only the snow-peak mountain
+face - no rift portal or structure is visible from the
+bench. The feedback walker aimed at (215, 270) crept
+ESE along a contour - (190.57, 247.09), (191.67,
+247.98), then (194.04, 246.02), (196.65, 244.94),
+(198.04, 244.35), (199.12, 243.67) - with per-step
+progress decaying +1.68 -> +0.00 and every N/NE/NW
+stick strongly negative throughout. RESULT: STALL at
+(199.12, 243.67), 30.75 short of the target. The bench
+pocket drains ESE back toward the junction mesh; its
+north face is a wall. The west's last unmeasured
+northward vector is now measured CLOSED. The far north
+must be approached from the EAST side (the s45 plan
+that never ran): shelf strip -> gate 20's anchor ->
+gate 21's anchor -> pt3/pt15. Resume state for the
+trek: ch6_s49_n1_scratch.state at (199.12, 243.67).
+
+EASTERN TREK (bench -> junction mesh -> Firion's ruins
+-> chainE -> east band): all walked with the feedback
+walker, no fights, gil unchanged 9,774. Waypoints:
+bench (189.30, 245.99) -> mesh (204.80, 235.73) ->
+pass road S (205.35, 221.51) -> SE descent (208.27,
+208.15) -> ruins approach (218.12, 194.18) -> shore E
+(233.56, 197.40) -> chainE passed (255.80, 204.06) ->
+band E (285.30, 200.52) -> ARRIVED band end (288.83,
+199.37). South from the band end: descent to (287.62,
+192.98) then TOTAL STALL (all 8 sticks <= +0.02; the
+SE-slide retest stalled again at (288.57, 194.14)).
+The band's south face at X~288 is the pocket wall s41
+measured (plateau segment of the X~290 ridge). The
+only ridge crossing is the Z~166-175 shelf (s41), and
+gate 14's pocket at its east end is boxed N/E (s41) -
+the far north is NOT reachable by the eastern land
+route. Gate 20 (319.3, 193.6) stays unreached, as in
+every prior session.
+
+GATE-FAMILY RECONCILIATION (s41 addendum 12 vs the
+s49 raw table): s41's family values - facing A: gate
+19 = 25, gate 22 = 26, gate 13 = 28; volume B: gate
+22 = 3, gate 11 = 0, gate 16 = 1, gate 17 = 2 - match
+s49 records k2 (A 26, B 3), k4 (A 28), k3 (B 0), k7
+(B 1), k8 (B 2) value-for-value, and s41's read was
+taken BEFORE Legendary Lake was finished. Post-finish,
+gate 19's record changed to life 5 / timer 122.0 /
+A -1 (s48's read; s49's k1) - the FINISHED signature.
+So the tester VALUES are stable and thrice-confirmed;
+only the record-index-to-gate-number permutation is
+unsettled (the table is not stored in gate order).
+What the mission needs is settled: the gate at pt15
+(292.5, 312.0) is live in BOTH families (26/3), the
+only main-line gate that is; pt6's board is Hidden
+Darkness and pt12's is Legendary Lake (banner-proven,
+s46/s47), whatever numbers the table assigns them.
+
+NEXT LEAD (was s41's sighting, never tested): the
+north road from Firion's ruins (W, then N at X~213-219
+to (219.5, 226.7), NE along the mountain foot) ends at
+a shelf (228-235, 229-233) with a DARK RIFT PORTAL
+visible beyond the ridge (sighting from (235.7,
+229.0)). Nobody has stood at that shelf edge and
+pressed Cross. If the portal is an interactable
+teleport, it is the likeliest door into the far north.
+Trek state: ch6_s49_e11_scratch.state at the stall
+(287.62, 192.98); band-end state ch6_s49_e10_scratch.
+
+NORTH ROAD + RIFT PORTAL TEST: from Firion's ruins the
+road runs W then N at X~213-219 (walked (221.86, 193.67)
+-> (216.00, 207.87) -> bend (219.20, 224.12)), then NE
+along the mountain foot to the shelf (228-235, 229-233);
+Kain reached (234.33, 229.40). Screenshot from the
+shelf: snow peaks wall the view; a small stone frame
+shows through a ridge notch far NE and a tower-like
+silhouette sits on a central peak - the s41 "dark rift
+portal" is DISTANT SCENERY, not an interactable. Three
+Crosses at the shelf edge: plain dashes (state stayed
+2, gil unchanged) - the first dashed him OFF the shelf
+onto a narrow lower ledge at (235.60, 222.65), a scenic
+pocket a few units wide (walker stalls in every
+direction from (235.71, 224.00)). No teleport, no
+scene. Portal hypothesis CLOSED. The Z~220 band east
+of the ridge (pint kind-2 at (285.3, 219.8)) is not
+reachable from this ledge.
+
+SESSION 49 VERDICT on far-north access: every land
+approach is now measured closed - bench north (wall),
+junction pocket (drains SE), east band + X~290 ridge
+(one crossing, the Z~166-175 shelf, ending in the
+boxed gate-14 pocket), north road (ends at the portal
+shelf; portal is scenery), dash ledge (pocket). The
+far north (pt3 pad (292.7, 301.0), kaname_02 (304.8,
+296.5), gate 22's anchor pt15 (292.5, 312.0), the
+dressed pint corridor X 278-336 / Z 245-303) must be
+entered by a non-walking mechanism. Untried: a
+systematic re-ride of the quickmove network hunting a
+ridge-crossing segment (s45 mapped only the SW fan),
+and the volume-family gates {11, 16, 17} - gate 11's
+post-Legendary-Lake re-test via pt0's ride is still
+owed (brief lead 2), as are the moogle point (196,
+144) re-check (lead 3) and the pt18 stand-test (lead
+4); all three are south-map work for next session.
+
+STANDING (unchanged all session - no fights, no
+spending): Kain Lv 10, HP 1,851/1,851, gil 9,774,
+banked KP 104, Shiva + Rosetta Stone held, Firion
+assist. RESUME STATES: ch6_s49_nr4_scratch.state
+(portal shelf, (234.33, 229.40), walkable) for the
+north road; ch6_s49_e10_scratch.state (east band end,
+(288.83, 199.37)) for the east; master fallback
+ch6_s48_bench1_final.state (bench). Do NOT resume
+from ch6_s49_portal.state - it sits in the dash-ledge
+pocket (235.60, 222.65), exit unproven.
+
+### Session 50 addendum 39 - QUICKMOVE RE-RIDE SOUTH; GATE 11 RE-TEST POST-LL; MOOGLE POINT; pt18 STAND-TEST (2026-11-20)
+
+RESUME PLAN: adv lineage from ch6_s45_south_cur.state
+(central-field hub (208.25, 189.32)). Standing at open:
+Kain Lv 10, HP 1,851/1,851, gil 9,774, banked KP 104,
+Shiva + Rosetta Stone held, Firion assist. Boards done:
+Sunken Lake, Hidden Darkness (gate 13), Legendary Lake
+(gate 19, FINISHED). Owed: Gateway of True Intent /
+Ryukahn, Exdeath Lv 18.
+
+PLAN (brief order): (1) quickmove-network re-ride -
+fan every node on the south line below the central-
+field hub (unmapped in s45) hunting any segment
+landing east/north of the X~290 ridge (pt3 (292.7,
+301.0) / pt1 (331.1, 136.0) class landings); fan pt0's
+landing as a node when reached. (2) Gate 11 re-test
+post-LL via pt0's ride: portcullis photo + Cross at
+the face. (3) Moogle point (196, 144) re-check in the
+adv lineage. (4) pt18 (220.7, 107.6) stand-test. Gate
+numbers cross-checked by tester VALUES only
+(addendum 38 reconciliation: the gate table is not
+stored in gate order).
+
+FINDINGS BELOW AS THEY LAND.
+RESUME VERIFIED (with a lineage correction):
+ch6_s45_south_cur.state reads (208.25, 189.32) but
+gil 9,666 and gate-table k1 = A 25 (Legendary Lake
+still LIVE) - it is a PRE-LL state, fine for terrain
+work but INVALID for the post-LL gate 11 re-test.
+Session 50 therefore runs from ch6_s48_trek1_hop6.
+state (Firion's ruins (219.83, 194.00), adv lineage):
+gil 9,774 verified, state 2.
+
+GATE TABLE (this boot, GateMgr 0x095D7110; values
+cross-checked vs s41/s49): k0 -1/-1; k1 life 5,
+timer 122.0, -1/-1 = Legendary Lake FINISHED; k2
+A 26 / B 3 = the gate at (292.5, 312.0) (live in
+BOTH families); k3 B 0 = gate 11; k4 A 28 = Hidden
+Darkness (farm board, stays live); k7 B 1 = gate
+16; k8 B 2 = gate 17; k5/k6/k9/k10/k11 inert in
+both families. Value-matching is stable across
+boots and lineages.
+
+ROUTE SOUTH: ruins -> central-field hub by rider,
+then fan every node south of the hub toward the
+moogle point (196, 144) and pt0 (213.0, 120.8).
+
+SOUTH NETWORK CENSUS (rider fans, adv lineage;
+stick labels are raw/camera-relative - positions
+are the data). Ruins -> hub: (219.83, 194.00): W
+(225.33, 194.00) [5.50], S (212.99, 198.41), SE
+(211.13, 193.13), E (214.04, 188.02). (211.13,
+193.13): SW (209.51, 201.66), S (207.39, 197.96),
+W (216.00, 200.39), SE (203.12, 190.81), NW
+(219.26, 194.00), E (206.27, 185.87), NE (212.79,
+184.55). (206.27, 185.87): E (201.46, 181.11),
+SE (197.74, 183.06), W (210.35, 193.87), S
+(198.27, 189.95), SW (205.72, 192.48). (205.72,
+192.48): full 8-way - SE (198.33, 188.31), S
+(200.90, 191.42), E (202.64, 184.29), SW (207.39,
+197.19), NE (209.30, 184.50), W (209.48, 200.08),
+N (213.90, 189.40), NW (213.66, 196.12).
+Hub -> south (the fan s45 never mapped):
+(209.30, 184.50): S (201.39, 188.22), SE (201.08,
+181.51), E (203.64, 181.55), N (215.95, 184.88).
+(201.08, 181.51): SW (197.35, 189.41), S (192.85,
+184.42), SE (193.11, 178.22), W (204.00, 189.73),
+E (196.59, 179.75), NW (208.96, 185.30), N
+(207.35, 183.30). (193.11, 178.22): SE (185.42,
+173.74), S (184.41, 180.32), E (188.22, 174.64),
+N (199.60, 180.77), NW (200.77, 182.91). (185.42,
+173.74): SE (178.66, 167.83), S (176.48, 174.54),
+SW (179.71, 180.66), E (184.78, 164.78), W
+(186.24, 182.68), NE (191.03, 166.83). (191.03,
+166.83): SE (185.23, 159.98), S (182.08, 166.13),
+E (191.73, 157.87), NE (195.76, 160.97). (191.73,
+157.87): SE (189.76, 152.93) [5.33], S (183.65,
+157.66), E (193.55, 149.33), W (189.91, 166.42),
+NE (199.04, 153.08), N (200.28, 159.70), NW
+(196.53, 164.82).
+VERDICT SO FAR: south of the hub the network is
+the same uniform ~8-9-unit local grid as the
+central field. Across 10 fanned nodes NO landing
+exceeds 9 units, nothing lands east of X~225,
+and nothing jumps the ridge. Ride chain ridden:
+ruins -> (211.13, 193.13) -> (206.27, 185.87) ->
+(205.72, 192.48) -> (209.30, 184.50) -> (201.08,
+181.51) -> (193.11, 178.22) -> (185.42, 173.74)
+-> (191.03, 166.83) -> (191.73, 157.87) ->
+(193.55, 149.33) [ch6_s50_south_hop5.state].
+
+MOOGLE POINT (196, 144) RE-CHECK (lead 3, adv
+lineage): walked in on foot from (193.55, 149.33)
+to (195.71, 144.61) [ch6_s50_moogle_final.state] -
+no proximity trigger fired on approach. Screenshot
+(s50_moogle0.png): Kain alone on the valley path,
+Firion's assist model at his back; NO moogle NPC
+present. Cross at the point: a plain dash to
+(199.30, 138.73), state 2 throughout, no talk, no
+popup, no shop. VERDICT: the moogle point is
+EMPTY in the adv lineage too, matching s41's
+finding in the canonical lineage. Whatever the
+kind-44 object id 250 is, it does not present as
+a talkable moogle in Chapter 6's current story
+state (plausibly another segment's dressing on
+this shared map). Lead closed, negative.
+
+SESSION 50 (CONTINUED) - PT0 RIDE, GATE-11 RE-TEST, BASIN/PT18 CLOSURE
+
+ROUTE TO PT0 (adv lineage): from ch6_s50_moogle_final.state
+(195.71, 144.61), the straight line at (213.0, 120.8) grinds
+along a face at Z~133-135 (walker run cut by a tunnel drop;
+its scratch state is unreliable). Working route: SOUTH down
+the shore thread at X~199-200 - waypoints (199.88, 131.41)
+-> (200.58, 121.72) [ch6_s50_shore_final.state] - then EAST
+along Z~120.5-121 to a fine stand at (212.70, 120.64), 0.34
+from pt0's center [ch6_s50_pt0b_final.state].
+
+PT0 RIDE: plain Cross from the stand rides EAST (+8.26, 0.00)
+to the ledge at (220.96, 120.64) [ch6_s50_pt0land]. (s43's
+landing was (221.27, 119.72) in the other lineage - same
+ledge, ~1 unit of landing scatter.)
+
+FIRION FIELD CHAT (new): Firion's model stands on the ledge.
+A neutral Cross at (220.98, 119.45) opened a 5-page story
+chat (state68 3): Firion asks if Kain has come across any of
+the others; he has heard rumors some of their friends have
+fallen; he does not trust a foe's words but is concerned;
+Kain answers noncommittally. No directions given. CAUTION
+for future tests near the ledge: a Cross that lands in
+state 3 here is this chat, not a gate. Firion also trails
+Kain on the field - several bench fan probes below ended in
+state 3 because a Cross with no segment in that stick
+direction talks to Firion instead of dashing.
+
+FANS (8 sticks + plain Cross per node; landings):
+- pt0 landing ledge (220.96, 120.64) [ch6_s50_pt0land]:
+  N -> (211.51, 120.93) west to the shore side;
+  NE -> (213.13, 122.60) pt0 itself; E -> dash;
+  SE -> dash; S -> (227.72, 117.10) bench;
+  SW -> (226.98, 115.51) bench; W -> (220.68, 112.82) THE LIP;
+  NW -> (214.11, 114.89) west slope;
+  plain -> (227.05, 117.49) default = bench SE.
+- Lip (220.68, 112.82) [ch6_s50_lipnode]:
+  N -> (212.05, 116.07); NE -> (216.14, 121.10);
+  E -> (222.26, 120.78) ledge; SE -> (228.89, 117.43) bench;
+  S -> (226.49, 115.39) bench; NW -> (215.90, 114.58) slope;
+  SW/W -> dashes along the lip; plain -> dash (220.38, 112.82).
+  NO segment south of the lip.
+- Bench west (226.49, 115.39) [ch6_s50_bench]:
+  SE -> (234.35, 119.57); S -> (235.22, 115.40) bench east;
+  SW -> (229.26, 115.45); W -> (221.34, 112.82) lip;
+  NW -> (218.34, 113.09) west slope;
+  plain -> (234.03, 115.63) default east;
+  N/NE/E -> no segment (Firion chat, state 3).
+- Bench east (235.22, 115.40) [ch6_s50_benche]:
+  S/plain -> (241.11, 115.95) bench end - PAST the on-foot
+  wall at x~239; SW -> (239.68, 115.00);
+  SE -> (240.07, 116.54); E -> short slide (235.74, 119.26);
+  W -> dash; N/NE/NW -> chat.
+- Bench end (241.11, 115.95) [ch6_s50_bench2]: DEAD END.
+  Every probe a dash, a chat, or zero movement (plain Cross
+  delta 0.00). No segment out except back west.
+- West slope (218.34, 113.09) [ch6_s50_wslope]:
+  N -> (210.58, 118.49); NE -> (216.14, 122.00);
+  E -> (222.70, 120.46); SE -> (227.20, 115.56) bench;
+  S -> (223.02, 113.61); SW -> (220.27, 112.82) lip;
+  NW -> (212.05, 116.08); plain -> (213.53, 114.93).
+  NO segment lands south of the lip line (Z 112.82).
+
+GATE 11 RE-TEST (lead 2) - STILL BARRED post-Legendary-Lake.
+From the lip node (220.68, 112.82), 1.84 from the anchor
+(220.4, 111.0): screenshot s50_gate11 shows the IRON
+PORTCULLIS DOWN (same as s43's pre-LL shot); plain Cross =
+dash delta (-0.30, 0.00), state stays 2, gil unchanged; the
+gate table still shows gate 11's B tester live (0).
+Finishing Legendary Lake did NOT open gate 11. Consistent
+with s42's pre-LL lip test in the other lineage.
+
+PT18 STAND-TEST (lead 4) - CANNOT BE STOOD ON from any
+measured approach. pt18 = OBB_jump_gate02_00 at (220.7, 107.6),
+inside the basin south of gate 11's gatehouse. Closures:
+(a) on foot from the north - the lip stalls at Z 112.82,
+5.2 short (s42/s43; this session every fan landing around
+the basin bottoms out at exactly Z 112.82);
+(b) on foot from the east - this session walked the bench's
+south face from (241.11, 115.95) west to (225.76, 115.22):
+Z never dropped below 115.03 and south probes read +0.00 at
+the east end (walk cut by a tunnel drop at step 9; the
+bench's west half was already walked by s42);
+(c) by quickmove - all six nodes ringing the basin fanned in
+full (above); no segment lands below Z 112.82.
+The basin is sealed from the north, the east, and the
+network. pt18's jump volume presumably arms a line whose
+origin node lies elsewhere (or inside a story state not yet
+reached); it is not a Chapter 6 entry mechanism from here.
+
+SESSION 50 VERDICT: The far north was NOT entered, and
+gate 22's title card was not reached. Lead 1 is now complete
+for the whole reachable network: the southern census (first
+half of this addendum) plus the pt0 subnetwork above. The
+quickmove mesh is a set of local ~5-9 unit grids; no segment
+crosses the X~290 ridge, none lands in the far north, none
+enters the gate-11 basin, and the bench chain's farthest
+reach is X 241.11. Gate 11 remains barred post-LL (lead 2).
+The moogle point is empty (lead 3). pt18 cannot be stood on
+(lead 4). Standing unchanged: Kain Lv 10, HP 1,851/1,851,
+Gil 9,774, KP 104 banked, Shiva summonstone + Rosetta Stone
+held, Firion assist. Boards done: Sunken Lake, Hidden
+Darkness, Legendary Lake. Remaining: Gateway of True Intent
+/ Ryukahn, Exdeath Lv 18.
+
+NEXT SESSION'S LEAD: gate 16 (331.5, 126.0) - the only live
+volume-family candidate never yet approached on foot post-LL.
+It sits in the SE cluster with pt1 jump pad (331.1, 136.0)
+and mes pt26 (332.2, 123.5); s42's pre-LL approaches from
+the east band failed. Jump-off state: ch6_s49_e10_scratch.state
+(east band end, 288.83, 199.37). Working hypothesis to test:
+gate 22's area may only open after True Intent (i.e. gate 16
+or 17 IS True Intent). Resume states from this session:
+ch6_s50_lipnode (lip, gate-11 face), ch6_s50_bench2 (bench
+east end), ch6_s50_pt0b_final.state (pt0 stand); master
+fallback ch6_s48_trek1_hop6.state (Firion's ruins).
+### Session 51 addendum 40 - GATE 16 FIRST: THE SE CLUSTER POST-LL (2026-11-20)
+
+RESUME PLAN: adv lineage from ch6_s49_e10_scratch.state
+(east band end (288.83, 199.37)). Standing at open:
+Kain Lv 10, HP 1,851/1,851, gil 9,774, banked KP 104,
+Shiva + Rosetta Stone held, Firion assist. Boards
+done: Sunken Lake, Hidden Darkness (gate 13),
+Legendary Lake (gate 19, FINISHED). Owed: Gateway of
+True Intent / Ryukahn, Exdeath Lv 18.
+
+PLAN (brief order): (1) gate 16 (331.5, 126.0) -
+head SE from the band end; probe east along the
+shore toward gate 20's anchor (319.3, 193.6), then
+south down the east side if the terrain opens;
+stand on the anchor, Cross, READ THE TITLE CARD.
+(2) If blocked, document the block exactly, then
+re-examine gate 17 (154.1, 229.4) post-LL and
+re-probe unprobed SE pads. Gate numbers cross-
+checked by tester VALUES only (addenda 38/39) plus
+addendum 12's decoded id->point map (16 -> pt9
+(331.5, 126.0); 17 -> pt10 (154.1, 229.4); 20 ->
+pt13 (319.3, 193.6); B's first word: HIGH s16 =
+point index, LOW s16 = gate id).
+
+PRIOR MEASUREMENTS (s42 addendum 14, s44 addendum
+23; both PRE-LL): gate 16 unreachable on foot from
+W (ridge face continuous Z 147->123), NW (shore
+dead-ends X~290.6; face at Z~134 around X 287-290),
+N (shelf crossing -> gate-14 pocket, sealed E/S).
+NEVER measured: the east side - terrain east of the
+band end (X>289 at Z~190-200, gate 20's country)
+and any southward run along X 305-366 down to gate
+16's latitude. That gap is this session's first
+probe. NOTE: any gate-ENTRY test must run in the
+post-LL adv lineage (s50's lesson); old-lineage
+states are for terrain probing only.
+
+FINDINGS BELOW AS THEY LAND.
+
+RESUME VERIFIED: ch6_s49_e10_scratch.state ->
+(288.83, 199.37), state 2, gil 9,774 (adv lineage,
+post-LL). GateMgr this boot = *(ctrl+0x88) =
+0x095D7110 (same as s49/s50). GATE TABLE by values:
+k1 life 5 / timer 122.0 / -1/-1 = Legendary Lake
+FINISHED; k2 A 26 / B 3 = gate 22 (292.5, 312.0),
+live in both families; k3 B 0 = gate 11; k4 A 28 =
+Hidden Darkness (stays live); k7 B 1 = gate 16;
+k8 B 2 = gate 17; k0/k5/k6/k9/k10/k11 inert.
+Value-matching stable across boots, as before.
+
+EAST PROBE (lead 1, first leg): feedback walker
+from the band end (288.83, 199.37) aimed at gate
+20's anchor (319.3, 193.6). Step 0: best S +1.52
+-> (290.32, 199.06) (direct E and NE probes
+negative from the band end itself). Step 1: SW
++0.25 -> (290.34, 197.70). Step 2: SE +0.02 ->
+(290.44, 198.22). Step 3: all <= +0.04, best W
+-0.27 -> (289.96, 196.61). Step 4: RESULT STALL
+at (289.96, 196.61), 29.50 short of the target.
+VERDICT: the shore does NOT continue east at
+Z 196-199 - the X~290 ridge's east face is
+continuous at this latitude too; max X reached
+290.44. The band end is the end in every
+direction (s49 measured S from the band end
+stalling at (287.62, 192.98) on the west contour;
+this run pins the east contour at X 289.9-290.4,
+Z 196.2-198.2). No east-side shore to gate 20's
+country from the band. Scratch state:
+s51_e1_scratch.state at (289.96, 196.61).
+
+FACE-SOUTH PROBE (lead 1, second leg): walker from
+s51_e1_scratch.state (289.96, 196.61) aimed at
+(296, 168) - the shelf latitude, east of the face.
+Step 0: SW +1.17 -> (289.52, 195.32); step 1: SW
++0.86 -> (288.61, 194.19); step 2: SW +0.86 ->
+(287.60, 192.98); step 3: ALL directions <= +0.01
+(S +0.01, SE +0.01, everything else negative).
+The face's southward contour funnels into the
+EXACT dead point s49 measured from the west side
+(287.62, 192.98, "TOTAL STALL, all 8 sticks <=
++0.02") - two sessions, two approach contours,
+identical terminus to 0.02 units. Eastward probes
+were negative at every step (E -0.58..-1.38).
+VERDICT: there is no southward run along the face
+and no eastward gap at Z 193-199; the band-end
+pocket drains SW into the (287.6, 193.0) dead
+point and stops. Combined with s42/s44 (pre-LL):
+the SE basin's west rim (ridge face Z 123-147),
+north rim (Z~134 face at X 287-290; headland band
+bottoming Z 125.35 at X 283.8; bowl at X 280-284 /
+Z 123-126.5 with rising E rim), the gate-14 pocket
+(sealed E/S), and now the NE landmass (band end,
+walled at X~290.4 for Z 196-199, funneling to the
+dead point) - every landward side of the SE basin
+is measured closed, pre- and post-LL alike. Gate
+16's anchor was NOT reached; whether it is barred
+or open remains UNRESOLVED - the measured fact is
+unreachability on foot, unchanged by finishing
+Legendary Lake. The basin's remaining untried
+entries are non-foot: pt1's ride (the pad at
+(331.1, 136.0) sits INSIDE the basin and cannot
+be stood on from outside) and whatever mechanism
+serves the SE cluster in its own chapter segment.
+Scratch state: s51_e2_scratch.state at the dead
+point (287.62, 192.98).
+
+SE PADS: pt1 (331.1, 136.0) and mes pt26 (332.2,
+123.5) are both inside the sealed basin - no
+reachable pad exists to re-probe. No other pads
+are charted in the SE cluster. That part of the
+follow-on closes as not-applicable, not untested.
+
+GATE 17 RE-EXAMINATION (follow-on, post-LL, adv
+lineage): full re-walk from ch6_s48_bench1_final.
+state - bench -> pass road S (205.00, 223.06)
+[s51_w1_final.state] -> SE descent -> ruins
+approach (217.87, 194.39) [s51_w2_final.state] ->
+west road bend (207.24, 202.88) [s51_w3_final.
+state] -> pass (186.90, 216.85) [s51_w4b_final.
+state; the w4 run was cut by a tunnel drop at
+step ~15 and recovered from its committed
+scratch state at (188.72, 216.24) - no findings
+lost] -> (170.85, 219.65) [s51_w5_final.state] ->
+doorstep (157.01, 229.27) [s51_w6_final.state].
+NO manikin ambush anywhere on the pass in this
+lineage (state 2, gil 9,774 throughout; s42's
+False Stalwart did not appear post-LL). Fine
+stand converged to (155.91, 229.44) - the gate's
+collision face stops Kain 1.81 short of the
+anchor (154.1, 229.4), the same geometry as
+s42's test point and gate 11's lip. Screenshot
+s51_g17a.png: the IRON PORTCULLIS IS DOWN across
+the gatehouse arch; HUD reads Lv 10 / HP 1851 /
+Gil 9774 / KP 104. Cross at the face: dash only
+((155.91, 229.44) -> (155.93, 230.25)), state
+stays 2, no popup, no dialogue, no entry.
+VERDICT: gate 17 is STILL BARRED post-Legendary-
+Lake, unchanged from s42's pre-LL test. Its
+volume tester (k8, B 2) still reads live - live
+tester, barred gate, the same combination as
+gate 11 (k3, B 0). Post-Cross state:
+s51_g17test.state; clean stand: s51_w7_scratch.
+state.
+
+SESSION 51 VERDICT: gate 16 was NOT reached and
+its title card was not read. The session closed
+the last unmeasured land approach (the NE
+landmass east of the band end) and re-tested
+gate 17 post-LL. The working hypothesis is NOT
+confirmed: gate 17 is barred, and gate 16 -
+unreachable on foot from every side, pre- and
+post-LL - cannot be stood on to test. What the
+tester values say is still live: gate 22 (26/3,
+far north, unreachable), gate 16 (B 1, SE basin,
+unreachable), gates 11/17 (B 0 / B 2, barred
+portcullises), Hidden Darkness (A 28, the farm
+board). Every remaining candidate is barred or
+unreachable by the mechanisms mapped so far
+(foot travel + the fully-fanned quickmove
+network). Standing unchanged all session (no
+fights, no spending): Kain Lv 10, HP 1,851/
+1,851, gil 9,774, banked KP 104, Shiva +
+Rosetta Stone held, Firion assist. Boards done:
+Sunken Lake, Hidden Darkness, Legendary Lake.
+Remaining: Gateway of True Intent / Ryukahn,
+Exdeath Lv 18.
+
+NEXT SESSION'S LEAD: (1) consult the Chapter 6
+walkthrough/guide for the INTENDED route into
+the Gateway of True Intent and the SE basin -
+eleven sessions of measurement have mapped what
+the terrain forbids; the guide is the ground
+truth for what the game intends (adapter method
+step 1), and no session has yet checked it for
+this leg. (2) Gate 14's pocket post-LL re-check
+- the one SE-adjacent interior measured only
+pre-LL (sealed E/S then); reach it via the
+Z~166-175 shelf from ch6_s44_shelf.state's
+route, re-measured in the adv lineage. (3) The
+OBB_cpu transition points (e.g. DtoF at gate
+20's anchor (319.37, 193.65)) have never been
+probed as entry mechanisms. Resume states:
+s51_w7_scratch.state (gate 17 face), s51_e2_
+scratch.state (SE dead point), ch6_s49_e10_
+scratch.state (band end); master fallback
+ch6_s48_bench1_final.state.
+
+### Session 52 addendum 41 - THE GUIDE CHECK: THE INTENDED ROUTE PAST LEGENDARY LAKE (2026-11-20)
+
+GUIDE SOURCES (the project's standing set, confirmed
+from the doc's own earlier chapters): Suih's Move
+List and Guide (GameFAQs faqs/62070) - its Ch.6
+board data is already in the chapter plan above;
+the GameSpy/IGN walkthrough (psp.gamespy.com guide,
+page 13 = Chapter 6) - the prose route source used
+for the Ch.2/Ch.3 field legs; Squall_of_SeeD's Game
+Script (faqs/62288) and its atwiki mirror for scene
+order. Read this session BEFORE any new measurement,
+per session 51's lead.
+
+WHAT THE GUIDES SAY (GUIDE DATA - unverified until
+played):
+
+1. GATEWAY ORDER, Ch.6 (all sources agree): Sunken
+Lake -> field leg 1 -> Hidden Darkness (blue,
+optional) and Legendary Lake (red) -> field leg 2
+-> Gateway of True Intent -> field leg 3 (short)
+-> Ryukahn Gateway (Exdeath Lv 18). NO source
+describes any gateway being unlocked by clearing
+another, and no portcullis-opening event exists in
+this chapter. The barred gates (11 and 17) are
+therefore most likely NOT this chapter's route at
+all. The script agrees: at the bridge Firion says
+he "wanted to unlock the gateways here, but-" -
+the pair simply proceed on foot. The locked
+gateways are scenery the story walks past.
+
+2. FIELD LEG 1 (Sunken Lake -> Legendary Lake),
+GameSpy p.13: Despot in the grass; 500 gil chest;
+through an EMPTY gateway; Assist Charge chest;
+BREAK A ROCK; bridge; Maser Eye chest. Right into
+a mountain-peak field: False Stalwart; Rosetta
+Stone chest "in front of the locked gateway"
+(matches session 42's claim at gate 17's foot -
+the locked gateway is a landmark of this leg, not
+its destination). Firion scene at the bridge; then
+the blue and red gateways side by side; the red
+one (right) is Legendary Lake. Sessions 39-48
+match this leg point for point.
+
+3. FIELD LEG 2 (Legendary Lake -> True Intent),
+GameSpy p.13 - THE LEG NO SESSION HAS WALKED AS A
+ROUTE. Verbatim route: "Back in the world map,
+feel free to turn around and take another stab at
+the blue gateway, or continue forward if you're
+happy with your level. As you pass through the
+empty gateway, make a left and move past the orb
+to find a chest containing a Pink Tail accessory.
+Turn around and make a left at the orb and walk
+until you come to another empty gateway. Make a
+left and follow the water until you encounter a
+roaming Fallacious Tree, then take it down and
+grab a KP Gambler skill from the chest it was
+guarding. Turn around and head to the rock, then
+break it and cross the bridge for a chest
+containing a Jump skill. Back across the bridge,
+take down the roaming Counterfeit Wraith, then
+follow the grassy path all the way up the hill to
+find a chest containing 1,000 gil. Return to where
+you broke the rock and, if you're ready, jump into
+the Gateway of True Intent."
+
+4. FIELD LEG 3 (True Intent -> Ryukahn), GameSpy
+p.13: "break the rock in front of you and jump
+across the bridge" - Fallacious Tree - BRV Charge
+chest - "break the second rock and take the bridge
+back" - "break the orbs if you'd like" - moogle
+shop - Ryukahn Gateway.
+
+MECHANICS THE MEASUREMENT SESSIONS NEVER USED:
+- BREAKABLE ROCKS block the intended path at least
+three times in Ch.6 (leg 1 once, leg 2 once, leg 3
+twice). A rock is destroyed by a field attack, not
+walked around. Every "sealed" verdict in sessions
+49-51 was reached by WALKING into the obstruction;
+no session attacked the obstruction at a stall
+point. The leg-2 rock is the prime suspect for the
+wall between the Legendary Lake exit area and True
+Intent's gateway.
+- EMPTY GATEWAYS are pass-through archways the
+route threads THROUGH (walked through, not
+entered) - they match the gates reading -1/-1 on
+both testers that sessions 48-51 filed as "another
+segment's gates." Treating them as endpoints means
+never walking the corridor beyond them.
+- ORBS are route landmarks (and breakable, leg 3).
+
+EXECUTION PLAN (this session): resume at the
+Legendary Lake exit and walk leg 2 AS A ROUTE in
+guide order, verifying landmarks as they come:
+Pink Tail chest past the orb; Fallacious Tree and
+KP Gambler chest along the water; THE ROCK -
+attack it at the stall; bridge and Jump chest;
+Counterfeit Wraith; grassy hill path; 1,000 gil
+chest; True Intent's gateway at the broken rock.
+Title card on entry (session 46's law), then the
+board per Suih: Transient Gunner Lv6, Fallacious
+Tree Lv13, Fleeting Flash Lv13, Idle Sky Pirate
+Lv13; chests Pebble and 500 gil; KP chance Win
+within 90 seconds; Bonus Line 10. GameSpy KP tip:
+Jump over the Gunner, KP Gambler in the center of
+the four enemies, chain all four = 48 KP. Level
+note: Kain is Lv 10 against Lv 13 pieces - entry
+and census are this session's win; fights are
+probes until the farm decision (chapter plan:
+farm repeat boards toward the boss's level).
+
+### Addendum 41 part 2 - session 52 EXECUTION (2026-11-20)
+
+CORRECTION to part 1: the claim "no session attacked the
+obstruction at a stall point" is too broad. Session 43 DID
+run a boulder protocol - Circle volleys at the shelf east
+face (233.83, 232.57) and a Circle sweep at the basin ledge
+(197.57, 244.64), both negative - and addendum 14 (session
+42) listed "a boulder plug somewhere on the ridge/band
+faces" as untried entry (a), noting the Ch.3 boulder
+protocol had never been applied in Ch.6 up to that point.
+What part 1 should have said: attacks were never tried
+along the leg-2 route east/south of Legendary Lake, nor at
+the ruins-anchor band east face (x~242).
+
+Harness: s52_walk.py (greedy 8-direction walker, NO visited
+penalty; stall protocol = Cross probe, then 3 Circle
+volleys facing the target, then re-probe). All walks in the
+adv lineage from ch6_s47_ll_finished.state unless noted.
+
+1. GATE 19 POCKET, NE PROBE (target: high-id kind=2 pint
+   object id 1168 at (285.3, 219.8)): STALL at
+   (269.91, 215.81), ~4 units N of the exit, dist 15.89.
+   Cross probe = dash (once dashed him S to (269.98,
+   209.97); he climbed back and stalled at the same lip).
+   Circle volleys negative. Gate 19's pocket is boxed N/E
+   on foot - session 41's scan claim CONFIRMED for the
+   pocket itself. The id-1168 object is not reachable from
+   the pocket; it most likely dresses F-area ground seen
+   from the west.
+2. DEFILE EAST WALL: a greedy descent at X~269 (aiming
+   straight at the band end) stalled at (269.09, 207.23);
+   attack protocol negative. The defile's east side at
+   Z~207 is plain terrain. The working route to the band
+   is the waypoint route: LL exit -> chainE (257.24,
+   205.47) ARRIVED step 14 -> band end (287.81, 198.89)
+   ARRIVED step 24 (state s52_eb1b_final.state).
+3. THE X~290 RIDGE FACE AT Z~198: from the band end, the
+   walker stalled at (290.46, 198.08) facing the kind-0
+   pair (299, 197) / (300, 202). Cross = no-op; three
+   Circle volleys produced ZERO displacement; post-attack
+   best +0.00. Screenshot s52_ridge.png: a continuous grey
+   rock mountain face, snow-capped peaks beyond, the
+   distant stone tower visible in a notch. NO boulder, NO
+   gap, NO gate. The ridge at Z~198 is plain terrain, not
+   a breakable plug - the guides' leg-2 boulder is NOT
+   here.
+4. NEW GROUND - THE TERRACE SOUTH SLOPE AND THE LAKE'S
+   EAST-SHORE POCKET. From chainE the walker went S around
+   the south end of the x~242 face: (241.34, 193.84) ->
+   (239.05, 191.38) -> ARRIVED (236.73, 185.15) step 22 -
+   the kind=5 pint cluster point (236, 184) (x5 records).
+   No encounter, chest or orb fired on the point itself.
+   Screenshot s52_tc1.png: Kain stands on a grassy east
+   shore overlooking an EAST BAY of the lake; across the
+   water on the far shore stand a stone tower and a RED
+   OBJECT at the water's edge. The shore pocket runs S to
+   (238.75, 176.37), where it terminates (stall +
+   attack-negative, reached identically from two sides).
+   The pocket is also reachable from the WEST: a terrace
+   ledge at (226.30, 189.03), S of the ruins band - itself
+   cut off from the hub (208.25, 189.32) by a dip (stall +
+   attack-negative there; the hub is NOT reachable from
+   the ledge). Geography update: there are TWO water
+   bodies - the main lake (S) and an east bay (water at
+   ~Z 168-180, X ~225-245) - separated by a land strip.
+   The walked shore strip (Z~148-152) is the main lake's
+   north shore; the bay's SOUTH shore (Z~160-168,
+   X~220-245) has NEVER been walked. Kind-0 pint records
+   at (227, 167) and (231, 162) sit on that shore - the
+   red object is their candidate, and the first unclaimed
+   field-chest candidate found since the Rosetta Stone.
+5. GUIDE-ROUTE STATUS: NOT executed to True Intent. None
+   of leg 2's landmarks (Pink Tail chest near a barred
+   gateway, Fallacious Tree Lv 11, KP Gambler chest,
+   breakable boulder, bridge, Jump chest, Counterfeit
+   Wraith Lv 7, 1,000 gil chest) exist on any ground
+   walked in sessions 41-52. Breakable-boulder attacks
+   are now negative at SIX Ch.6 stall points (s43 x2, s52
+   x4). The guides agree with each other and with Suih's
+   board data on everything checkable; the route's ground
+   simply has not been found yet. The east bay's south
+   shore is the strongest un walked candidate: it fits
+   GameSpy's "follow the water" leg and holds the red
+   object.
+
+STANDING (unchanged): Kain Lv 10, HP 1,851/1,851, Gil
+9,774, banked KP 104, Shiva summonstone + Rosetta Stone
+held, Firion assist. Boards done: Sunken Lake, Hidden
+Darkness, Legendary Lake. Owed: Gateway of True Intent,
+Ryukahn, Exdeath Lv 18.
+
+RESUME STATES (WSL ~/d12s): canonical
+ch6_s47_ll_finished.state (268.50, 219.40). New:
+s52_eb1b_final.state (band end (287.81, 198.89)),
+s52_tc1_final.state (east-shore overlook (236.73,
+185.15)), s52_bay_scratch.state (pocket S end (238.75,
+176.37)), s52_hub_scratch.state (terrace ledge (226.30,
+189.03)). Screenshots: s52_exit.png, s52_ridge.png,
+s52_tc1.png.
+
+NEXT SESSION LEAD: the east bay's south shore. Route:
+ll_finished -> pass -> ruins -> gully -> Sunken Lake arch
+-> E along the shore strip (Z~150) to X~231 -> N across
+the land strip to (231, 162); identify the red object
+(Pink Tail chest?). If it is leg 2's first chest, follow
+the bay shore E/N hunting the Fallacious Tree, the KP
+Gambler chest, the boulder and the bridge. Secondary:
+gate 14's pocket post-LL stand test in the ADV lineage at
+its standable edge (303.2, 166.6) is still owed (session
+48's mesh probes were canonical-lineage); the kind=5
+cluster at (320, 158) x9 and gate 15 (366.0, 151.9)
+remain F-area and unreachable until F opens.
+
+### Session 53 addendum 42 - THE EAST BAY'S SOUTH SHORE: LEG 2 BEGINS (2026-11-20)
+
+PLAN (from addendum 41's guide route + session 52's
+discovery): identify the red object and the two kind-0
+pint records on the east bay's south shore - (227, 167)
+and (231, 162) - never walked by any session. If one is
+leg 2's Pink Tail chest, follow the shore in guide
+order: roaming Fallacious Tree Lv 11 guarding the KP
+Gambler chest -> breakable boulder (field attack) ->
+bridge -> Jump-skill chest -> Counterfeit Wraith Lv 7
+-> grassy hill path -> 1,000 gil chest -> Gateway of
+True Intent at the broken rock (TITLE CARD on entry,
+session 46's law) -> board census vs Suih (Transient
+Gunner Lv6, Idle Sky Pirate Lv13, Fallacious Tree
+Lv13, Fleeting Flash Lv13; Pebble + 500 gil; KP chance
+Win within 90 seconds; Bonus Line 10).
+
+APPROACH A (first try): from s52_bay_scratch.state
+(pocket S end (238.75, 176.37)) - round the bay's SE
+corner W onto the south shore. APPROACH B (fallback,
+session 52's written lead): ll_finished -> pass ->
+ruins -> gully -> Sunken Lake arch (211.5, 152.0) -> E
+along the shore strip (Z~150) to X~231 -> N across the
+land strip to (231, 162). NOTE session 39 measured the
+arch's direct north walled at Z~161-163 at X~211; the
+X~231 crossing is a different point on the strip.
+
+Harness: s53_walk.py (= s52_walk.py copy: greedy
+8-direction, stall protocol Cross probe -> 3 Circle
+volleys -> re-probe; exit codes 0 ARRIVED / 3 EVENT /
+4 STALL_ATTACKED). All walks in the adv lineage.
+
+FINDINGS:
+Transit SOLVED and banked: bench -> mesh -> ruins
+-> gully foot -> arch -> strip east all march-walked
+clean (states s53_b2/c1/c2/c3_final). The bay's south
+shore is a SHELF at Z~160-167 holding both kind-0
+chest candidates (227, 167) and (231, 162); it was
+NOT reached this session. Measured closed: strip
+crossings at X=222 and X~228-231 (face at Z~151.5),
+the arch lane east (same face, notch stall at
+(217.7, 152.7)), and the high lane from the gully
+foot, which runs east at Z~158-163 for ~18 units and
+dead-ends against a face at X~211 (walk s53_d2).
+Untested: the shelf's NORTH side - the direct descent
+from Firion's ruins boxes (227.8, 185.4) south to
+(227, 167). That is session 54's lead. Red object and
+chests still unidentified; no fights, no events,
+standing unchanged (Kain Lv 10, HP 1851, gil 9,774,
+KP 104).
+
+A. APPROACH A - DEAD (measured, not assumed). Walk
+s53_a1 from s52_bay_scratch.state (238.75, 176.37)
+toward (231, 162): step 0 probed all 8 headings - the
+three target-side headings gave ZERO displacement
+(walled), every other heading moved him AWAY from the
+target (back up the pocket N). Best progress +0.00.
+The pocket terminus cannot round the bay's SE corner
+toward the south shore; with session 52's
+attack-negative at the same terminus, approach A is
+closed from this point. (Walk stopped after step 0;
+the stall protocol would only have re-measured
+session 52's negative.)
+
+B. APPROACH B TRANSIT (in progress). New tool:
+s53_march.py - probe once per cycle, then MARCH the
+winning stick up to 4 pushes (early stop on <0.3 gain
+or state change); same stall protocol as s52_walk.
+Cuts loadstates ~4x on open ground. Legs so far:
+bench (189.30, 245.99) -> junction mesh: plain walker
+3 steps to (194.49, 242.04), then march cycles via
+(200.36, 239.92) and (203.71, 236.45) - within 1.3 of
+session 49's mesh waypoint (204.80, 235.73). Mesh ->
+ruins approach (218.12, 194.18) as ONE greedy target:
+road followed through the pass (cycle lines corrected
+the drift each cycle), passing (204.55, 221.39) at the
+pass-road waypoint. Gil 9,774 throughout, no events.
+Remaining chain (s53_chain.py, exit-code gated):
+gully foot (194.6, 160.7) -> arch (211.5, 152.0) ->
+(231, 150) -> CROSSING to (231, 162) -> (227, 167).
+B2 ARRIVED: mesh -> ruins approach in 10 march cycles,
+no stalls, no events: final (217.06, 195.70), 1.85
+from the (218.12, 194.18) target; state
+s53_b2_final.state. The road line (pass S, SE descent)
+was followed greedily the whole way - the s49 trek
+route is march-walker clean end to end.
+
+C. THE CHAIN (s53_chain.py, exit-gated march legs):
+C1 ruins -> gully foot ARRIVED (192.77, 160.07),
+12 cycles - the march walker threaded terrace, bowl
+and gully unaided (session 41 needed its fine walker
+for this). C2 gully foot -> arch ARRIVED (210.20,
+152.71), 5 cycles. C3 arch -> (231, 150) ARRIVED
+(229.71, 149.96), 4 cycles. State s53_c3_final.state
+is the clean strip position east end.
+C4 THE CROSSING (231, 150) -> (231, 162): STALLED.
+Six-plus cycles from (229.71, 149.96): best sustained
+progress ~0; Kain drifted west along the shore to
+~(227.8, 151.4) under repeated stall protocols (Cross
+probe + Circle volleys, all attack-negative - nothing
+breakable, no event). Direct north across the strip
+at X~228-231 does NOT go through: the strip's north
+edge there is water or wall. Chain killed by hand at
+C4 cycle ~6. Follow-up: s53_xprobe.py scans crossings
+at X=222, 238, 248 (strip walk + best-heading pushes,
+max Z reached is the readout).
+
+D. CROSSING SCAN (s53_xprobe.py, from
+s53_c3_final.state). X=222: BLOCKED - pushes north
+from (222.51, 149.91) top out at Z=151.68; the edge
+at Z~151.5 slides him east, same wall as X~230.
+X=238 and X=248: strip points at Z=150 unreachable -
+east of X~235 the shoreline bends away south (greedy
+died at (235.46, 147.09) and (243.29, 142.93)); the
+coast at Z~140-147 is the walkable line there (as
+session 41 found), and its north edge is unprobed.
+KEY REFRAME: session 39 measured the wall north of
+the arch at Z~161-163 (X~211) - ten units beyond the
+strip edge at X>=222. So the bay's south shore is a
+SHELF at Z~160-167 whose south face drops at Z~151.5
+east of X~222 but rounds down to the arch lowland at
+X~211. Both chest candidates sit on that shelf. The
+way in is up at the arch's longitude, then east along
+the shelf - NOT across the strip. Test running as
+walk s53_d1: arch state -> (227, 167) direct.
+
+E. SHELF TEST 1 (walk s53_d1, arch -> (227, 167)):
+FAILED. The "lane" east from the arch at Z~152-153
+is the strip itself; Kain stalled in a notch at
+~(217.7, 152.7) (cycle 2: all eight headings ~0.00),
+then slid east along the Z~151.5 edge to (225.37,
+151.84), dist 15.25, MAXCYCLES. No ramp up at
+X 211-218. The shelf's south face is continuous from
+X~211 to at least X~231 at Z~151.5-152.
+TEST 2 RUNNING (walk s53_d2): gully foot (192.77,
+160.07) -> (227, 167) - the Z~160 line east from the
+foot has never been walked; the foot already stands
+at shelf latitude.
+
+F. SHELF TEST 2 (walk s53_d2, gully foot -> (227,
+167)): FAILED at the last face, but it mapped the
+high lane. Cycles 0-3 walked a clean descending lane
+at Z~158-163 east from the foot: (198.47, 162.03) ->
+(201.50, 162.86) -> (204.83, 161.42) -> (207.36,
+160.81) -> (208.60, 160.37) -> (210.88, 158.08). At
+X~211 the lane ends against a face (cycle 4 best
++0.01; stall volleys negative; cycles 5-14 pinned at
+~(211.0, 157.9)). RESULT MAXCYCLES (209.99, 156.55),
+dist 19.97. So the shelf segment holding the chest
+candidates is boxed on its south face (Z~151.5, X
+211-231+) and its west face (X~211, Z~158). Its
+north side - from the ruins boxes - is the one side
+never walked. SESSION 54 LEAD: from the ruins
+approach (s53_b2_final.state (217.06, 195.70)) or
+Firion's ruins boxes (227.8, 185.4), walk due south
+to (227, 167); if a descent exists it lands on the
+shelf between the two candidates. Secondary leads:
+the shelf's SE corner from the east coast at
+(243.29, 142.93); a constant-Z~170 westward probe
+from the pocket terminus (238.75, 176.37).
+Standing unchanged; gil 9,774 at every boot.
+
+### Session 54 addendum 43 - THE SHELF'S NORTH FACE: THE LAST UNTESTED SIDE (2026-11-20)
+
+PLAN (from addendum 42 F): the shelf segment holding
+both kind-0 chest candidates (227, 167) and (231, 162)
+is boxed on its south face (Z~151.5, X 211-231+) and
+its west face (X~211, Z~158). Its north side has
+never been walked. LEAD: from the ruins approach
+(s53_b2_final.state (217.06, 195.70)) / Firion's
+ruins boxes (227.8, 185.4), walk due south to
+(227, 167); if a descent exists on the north face it
+lands between the two candidates. If the shelf is
+gained: identify both candidates + session 52's red
+object (stand on spot, Cross, record the take), then
+follow guide leg 2 east/north (Fallacious Tree Lv 11
+-> KP Gambler chest -> boulder (Circle volleys) ->
+bridge -> Jump chest -> Counterfeit Wraith Lv 7 ->
+grassy hill -> 1,000 gil chest -> Gateway of True
+Intent at the broken rock; TITLE CARD on entry,
+session 46's law; census vs addendum 41).
+SECONDARIES in order: (a) shelf SE corner from the
+east coast (243.29, 142.93), probing the coast's
+north edge westward; (b) constant-Z~170 westward
+probe from the pocket terminus (238.75, 176.37);
+(c) gate 14 pocket stand test post-Legendary-Lake,
+MAIN lineage (owed since session 52).
+
+Harness: s53_march.py (probe once per cycle, march
+the winner up to 4 pushes, early stop <0.3 gain;
+stall protocol Cross probe -> 3 Circle volleys ->
+re-probe; exit codes 0 ARRIVED / 3 EVENT / 4 STALL).
+Standing at open: Kain Lv 10, HP 1,851/1,851, gil
+9,774, banked KP 104, Shiva + Rosetta Stone held,
+Firion assist. Branch verified at 699523f, clean.
+
+FINDINGS:
+(pending)
+
+SECOND ATTEMPT (recovery): the first attempt ended
+~4 min in for a process reason (it idled on a
+backgrounded log-check and its session closed) -
+not a game result. Its n1 march booted from
+s53_b2_final.state toward (227, 167) and was cut
+mid-first-probe-cycle: log s54_n1.log shows the
+start line only, no verdict. No s54_ processes
+survive (verified by pgrep). This attempt re-runs
+the north-face march fresh from s53_b2_final.state
+as prefix s54_n2, in the foreground.
+
+HARNESS LESSON (s54, learned twice in one morning):
+a walker launched DETACHED from WSL (nohup /
+start_new_session via a short ssh call) DIES
+silently when its launching session goes away -
+attempt 1's n1 and this attempt's first launch
+(n2) both stopped mid-probe-cycle with no error
+and no verdict in the log. Walkers must run in
+the FOREGROUND of a held exec call (the pattern
+sessions 38-53 used). n2 verdict: NONE (killed
+mid-cycle-1 at (214.53, 190.46), its cycle-0 SW
+slide along the ruins band is the only data).
+Re-run as s54_n3, foreground.
+
+N3 (foreground re-run of the lead): the direct
+due-south march from the ruins approach stalls on
+a face at (215.62, 184.58) - all three southward
+headings ~0 at hold 14, lateral moves work. Face
+scan (s54_scan.py / s54_scan2.py, every probe
+re-anchored): south face probed at anchors X
+210.1-217.0, Z 184.0-186.1 - NO confirmed descent
+(one SE slip at (210.10, 185.86) -> (209.81,
+184.21) failed the follow-through test; it is the
+known terrace slope, not a shelf entry). The
+face's eastward contour PINCHES at (217.36,
+186.78): both lateral headings gain < 0.4 X. So
+from the approach, the band edge runs X ~210-217
+and is closed southward and eastward at that
+level.
+BREAKTHROUGH - THE BOXES ARE REACHABLE: a march
+with the boxes (227.8, 185.4) as target routed
+SOUTHEAST through the ruins interior - (221.32,
+193.00) -> (224.24, 193.95) -> (226.78, 190.86)
+-> (227.50, 185.87) - ARRIVED in 4 cycles, no
+stalls (state s54_bx_final.state). The ruins'
+east side has a clean descending lane the
+due-south line never touches. The due-south test
+from the boxes is running as walk s54_bs.
+
+BS (due south from the boxes): cycle 0 marched S
+cleanly down the ruins' south slope - (227.50,
+185.87) -> (228.40, 184.56) -> (229.33, 183.37)
+-> (230.37, 182.41) -> (231.38, 181.52) - then
+ALL probes ~0: a second face at Z~181.5, X~231.4
+(the bay's north shore edge). The march then
+oscillated on the probe-desync pattern (phantom
++1.0 readings alternating with true 0.00) and was
+killed at cycle 8, stand ~(232.23, 181.27). So
+the due-south line from the boxes ends at the
+bay's north shore; no walkable continuation S at
+X~231.
+ES (scan3 east along the shore face from
+(232.23, 181.27)): the face is a gentle slope
+running E, anchors (233.21, 180.99), (234.30,
+180.67), (235.20, 180.33), (236.39, 180.16),
+(237.35, 180.25); S probes slide SE, no opening
+until X~237. At anchor (237.35, 180.25) a SW
+probe dropped to (237.75, 178.62) and the
+confirm push dropped again to (238.06, 177.26) -
+CONFIRMED DESCENT (state s54_es_descent.state),
+landing on session 52's shore pocket from its
+NW side. The pocket is now reachable from the
+ruins/boxes line. March to the shelf candidate
+(231, 162) running as walk s54_pk.
+
+PK (pocket march, descent state -> (231, 162)):
+one S step landed exactly on session 52's pocket
+terminus (238.75, 176.37) - the two routes meet
+to the centimeter - and there EVERY heading reads
+0.00 real movement. The pocket is a true terminus,
+boxed on all sides at ground level. Secondary (b)
+is therefore answered from inside the pocket
+itself: it has no westward exit at all. (The
+march then oscillated on phantom readings and
+was killed; its Legion-side process survived the
+local kill and had to be pkill'ed - noted for the
+harness lesson: after killing a walker, verify
+with ps and pkill -f <prefix>.)
+CT (strip east -> coast): march from
+s53_c3_final.state ARRIVED (242.01, 143.56),
+1.43 from the s53 xprobe death point (243.29,
+142.93) - the coast line E is march-clean (state
+s54_ct_final.state). SE-corner test running as
+walk s54_se: coast -> (231, 162).
+
+SE (coast -> (231, 162)): the march routed along
+the coast and back W along the strip to stall at
+(227.44, 151.48) - the SAME Z~151.5 south face
+session 53 measured (stall (227.8, 151.4)), met
+this time from the coast side. No SE-corner ramp:
+the coast's north edge westward is just the strip
+and its face.
+SHELF VERDICT - ALL FOUR SIDES NOW MEASURED:
+south face continuous Z~151.5, X 211-231+ (s53,
+re-confirmed s54 from the coast); west face at
+X~211, Z~158 (s53 d2); north face from the ruins
+approach closed at Z~184.6, X 210-217 (s54 scans)
+and from the boxes the ground descends only to
+the bay's north shore (Z~181.5) whose eastward
+face drops into the pocket - a terminus with no
+exit (s54 es + pk); east side is the pocket/coast
+cul-de-sac (s52, s54). The shelf holding both
+chest candidates and the red object has NO
+walkable entry on any side. Whatever opens it is
+not walking: candidates for a future session -
+the kind=5 pint clusters as trigger objects, the
+orb landmarks of the guide's leg 2 (the route
+threads "past the orb" - no orb has been found on
+any walked ground), or a story-state change.
+Standing unchanged (gil 9,774 at every boot; no
+fights, no events, state68 = 2 throughout).
+
+G14 (secondary c, attempted): a greedy march from
+the band-end state ch6_s49_e10_scratch.state
+(288.83, 199.37) toward gate 14's pocket edge
+(303.2, 166.6) funnels SW and pins at (287.62,
+192.98) - the EXACT dead point sessions 49 and 51
+measured (third agreement) - then oscillates.
+Greedy distance-following cannot take the shelf
+crossing from the band end; session 49 reached
+the Z~166-175 shelf from its own level, not by
+descending from the band. The stand test itself
+remains owed; next session's route: get onto the
+shelf from the LL side (the s41 chainE lineage
+ground, Z~166-175 at X~257+) and walk it east
+into the pocket, or find a waypoint on the ridge
+top E of X~290 (s51 measured that face closed at
+(289.96, 196.61), max X 290.44 - so the LL-side
+shelf entry is the live option).
+SESSION 54 CLOSE: the shelf is unwalkable from
+every side (see verdict above); the session's
+positive gains are two new march-clean routes -
+the ruins' SE lane to the boxes (s54_bx_final.
+state) and the boxes -> bay shore -> pocket line
+(s54_es_descent.state) - plus the coast line E
+(s54_ct_final.state). Resume for leg-2 work:
+s54_bx_final.state (boxes) or s54_es_descent.
+state (pocket). Next lead: the guide's leg 2
+begins "past the orb" - no orb has been found on
+any walked ground; the kind=5 pint clusters and
+the (320, 158)x9 segment objects E of the shelf
+are the unexamined candidates, and the shelf's
+chests may be reachable only after a story-state
+change (the Fallacious Tree fight itself is a
+roaming-manikin encounter - contact anywhere it
+wanders, not necessarily at the shelf).
+
+### Session 55 addendum 44 - THE ORB, THE ROAMING TREE, AND GATE 14 (2026-11-20)
+
+PLAN (from addendum 43's close): the east-bay shelf
+is unwalkable from all four sides, so leg 2's
+mechanism is not walking onto the shelf. Three
+leads, in order: (1) THE GUIDE'S ORB - pin it down
+from addendum 41's quotes, then hunt the pint
+candidates on reachable ground; (2) THE TREE ROAMS -
+census the pint table twice from the same lineage
+at different game times and diff for a MOVING
+record (the guide calls the Fallacious Tree a
+roaming encounter, contact anywhere it wanders);
+(3) GATE 14 STAND TEST from the LL-side shelf
+(Z~166-175 at X~257+ east into the pocket), owed
+since session 52. If 1 or 2 cracks leg 2, follow
+the guide sequence (boulder -> bridge -> Jump
+chest -> Wraith -> hill -> 1,000 gil chest -> True
+Intent at the broken rock; TITLE CARD on entry,
+session 46's law; census vs addendum 41).
+
+Harness: s55_march.py = s53_march.py + the DESYNC
+FIX (brief's option A): at the top of every cycle
+the walker reloads its committed scratch state and
+re-reads the position before probing, so a cycle
+never starts from the phantom endpoint probe_all
+leaves behind (the s53/s54 oscillation). s55_pint.py
+= s52_pint.py + an optional frame-advance arg so
+two censuses of one lineage at different game
+times can be diffed. All walkers run in HELD
+FOREGROUND exec calls (s54's lesson). Standing at
+open: Kain Lv 10, HP 1,851/1,851, gil 9,774,
+banked KP 104, Shiva + Rosetta Stone held, Firion
+assist. Branch verified at 0ca3570, clean.
+
+THE ORB, PINNED DOWN (guide data, from addendum
+41's GameSpy p.13 leg-2 verbatim): "As you pass
+through the empty gateway, make a left and move
+past the orb to find a chest containing a Pink
+Tail accessory. Turn around and make a left at
+the orb and walk until you come to another empty
+gateway. Make a left and follow the water until
+you encounter a roaming Fallacious Tree, then
+take it down and grab a KP Gambler skill from
+the chest it was guarding." So the orb is a ROUTE
+LANDMARK just past the first empty (pass-through)
+gateway out of Legendary Lake: left at the orb
+reaches the Pink Tail chest; returning to the orb
+and turning left again reaches a second empty
+gateway, then "follow the water" to the Tree.
+In this game's field mechanics an orb on the
+world map is a LIGHT ORB: the game's own tutorial
+(doc, prologue) says "You can attack these orbs
+with Circle. It seems that we gain powers from
+them," and the guide control list says "Circle
+attacks orbs, enemies and rocks." Breaking one
+grants a world-map skill. The leg-2 orb is
+therefore most likely a Light Orb pint record
+near the Legendary Lake exit - a landmark to walk
+PAST (and optionally break), not a switch for the
+shelf. CANDIDATES (s52 census): kind=2 id 1168 at
+(285.3, 219.8) - due E of the LL exit stand
+(268.50, 219.40) at the same Z, matching "make a
+left" if the exit faces S; s52's NE probe stalled
+at (269.91, 215.81) but a due-E march at Z~219.8
+with a resynced walker has never been run.
+kind=5 cluster (236, 184) x5 - session 52 STOOD on
+it (236.73, 185.15) and nothing fired on arrival,
+but no Circle press was made standing on the
+point; that test is still owed. kind=5 (212, 194)
+x1 near the hub. kind=5 (320, 158) x9 and kind=2
+ids 1169/1170/1131 at (307.3, 199.2), (318.8,
+133.3), (330.0, 180.0) are F-area, unreachable
+until F opens.
+
+FINDINGS:
+(pending)
+
+INTERIM FINDINGS (written while the north march
+runs):
+
+A. CENSUS DIFF FOR THE ROAMING TREE (lead 2):
+census A from ch6_s47_ll_finished.state (list0
+0x095D2F40, 196 records, 176 unique in bounds -
+same base/count as s52's boot). Census B = same
+state advanced 3,600 frames, re-censused: IDENTICAL,
+row for row. NO pint record moves with game time
+at the LL exit stand. Either field manikins are
+not pint records (Firion has no record near his
+ledge stand either - checked: only kind=0 records
+at (209,118)/(207,126) within 10 of (212.7, 120.6);
+he is an ACTOR-table entity), or a roamer only
+moves when its area is active. The pint-diff
+method is therefore not the Tree instrument; the
+march walker's EVENT exit (contact changes
+state68) is. A second diff from walked ground is
+still owed before the method is closed.
+
+B. KIND DECODING (doc's own s36 work, re-read):
+KIND 2 = Light Orb spawn points; KIND 5 = arch/
+portal shells; KIND 6 = moogle shops (the x5
+cluster at (280, 273) is therefore a MOOGLE -
+leg 3's shop country, far +Z); KIND 1 includes
+the moogle point (196, 144) id=250 set=44 - the
+one session 50 found EMPTY in the adv lineage.
+Gateways have NO pint records (checked r=8-12
+around gates 13/19 anchors and the Sunken Lake
+arch: nothing) - gates live in the GateMgr/mesh
+tables only. Records carry a SET field (+0x04):
+the same physical object appears once per
+chapter-variant set (the (236, 184) arch = sets
+143-147, ids 1099-1103, identical mdl), so a
+record's mere presence does not prove it is live
+in Ch.6. id=1168 (285.3, 219.8) is set=144.
+
+C. OVERLOOK KIND=5 POINT (236, 184) - NEGATIVE:
+from s52_tc1_final.state (stand (236.73, 185.15),
+exactly on the cluster), Circle x2 + Cross:
+circle lunged him S to (234.95, 180.78), no event,
+state68=2 throughout, gil unchanged. The point
+does not react - consistent with an arch shell
+(scenery landmark), not an orb.
+
+D. COMPASS CORRECTION (important): the walker
+scripts label stick (0,+1) "S", but it INCREASES
+Z, and +Z is map NORTH (gate 22 (292.5, 312) is
+the far north; the bench's north-face probe in
+s49 stalled at Z=243.67 from a Z~115 stand).
+Old addenda's compass words around gate 19's
+pocket are mirrored: s52's "NE probe" stall at
+(269.91, 215.81) is SOUTH-east of the exit, on
+the pocket's south lip, reached by sliding S
+along the E wall. The pocket's NORTH was never
+marched - until now.
+
+E. THE POCKET IS OPEN TO THE NORTH (lead 1):
+s55_march (resynced) from ch6_s47_ll_finished.
+state toward kind=2 id=120 (270.0, 230.0):
+ARRIVED (269.08, 229.28), dist 1.17, in 3 cycles,
+every march step gaining +0.5..+1.6. The "boxed
+N/E pocket" verdict (s41 scan, s52 walk) does
+not survive the fixed walker: +Z from the exit
+is a clean corridor at least 10 units deep.
+Cycle-0 probes at the exit: +Z +1.42, -Z also
+walkable (-1.41 = it moved him, away from this
+target), +X -0.20 (E is walled AT the exit's
+latitude). So the pocket is a N-S corridor with
+an E wall at Z~219 - the wall s52 slid along.
+F. ORB TEST AT id=120 (270.0, 230.0) - NEGATIVE:
+from the arrived stand (269.08, 229.28), Circle
+lunged him +X+Z THROUGH the record point
+(closest approach ~0.15) to (272.39, 232.63):
+no popup, no state68 change, gil unchanged.
+id=120 (set=21) is not a live breakable orb in
+this lineage - a dead variant or a spawn point
+whose orb is not up. The orb hunt continues on
+the north corridor's ground.
+
+G. THE NORTH CORRIDOR RUNS, AND DASHES CROSS IT
+(s55_n250, from s55_orb120_final.state (272.51,
+232.72) toward (280.0, 250.0), tol 2.0, 16 cycles,
+MAXCYCLES at (278.58, 241.29)): the corridor
+continues N cleanly to (273.09, 239.18), then the
+ground bends E along a ledge system (279-284,
+240-243) and ends at a pocket (284.03, 243.27)
+where all eight probes read ~0.00. At that stall
+the stall protocol's Cross probe DASHED him
++7.0/+3.7 to (291.07, 246.96) - a dash crossing
+onto a separate HIGH STRIP; a second stall there
+dashed again to (297.65, 251.96). The strip runs
+E-W at Z~247-252 (walked X 291-298). The walker
+then contoured W back to (278.58, 241.29) without
+reaching the target: the (284-285, 253-254)
+cluster (kind=2 id=231 (285, 253); kind=0 id=1063
+(285, 254) + id=222 (284, 253)) still stands ~8
+units N of the ledge pocket, its own ground not
+yet stood on. Two facts banked: (1) Cross DASHES
+cross real gaps here - the high strip is reached
+by dashing, not walking; (2) this whole country
+(N corridor + ledges + high strip, Z 230-255) is
+the ground the mirrored-compass verdicts had
+written off - it is the north-road shelf system
+extended E, walked today for the first time.
+CAUTION: s55_n250_step10.state is CORRUPT (loads
+to (0.00, 0.00), state68=0 - the cycle-10 step
+save caught a transient). Do not use it.
+s55_n250_final.state (278.58, 241.29) is sound.
+
+H. ORB TESTS - ALL NEGATIVE (lead 1 verdict):
+- id=136 (278.0, 250.0), reached via the west
+  shelf + ramp (section I): Circle lunge from
+  (277.22, 250.58) passed within ~0.10 of the
+  point - no popup, no state change, gil same.
+- The Z~250 terrace cluster: stood ON it at
+  (284.93, 252.62) - 0.4 from kind=2 id=231
+  (285, 253), ~1.0-1.4 from kind=0 ids 1063
+  (285, 254) / 222 (284, 253). Cross dashed over
+  (285, 254); Circle x2 at the terrace's N edge
+  (285.22, 254.58) - no event, gil unchanged.
+- id=1168 (285.3, 219.8), the prime candidate:
+  REACHED its plateau - the exit's E wall ends
+  at Z~226-229, and the plateau at Z~220-229 E
+  of the exit is walkable (marched E along
+  Z~226-229 through the id=157/id=104 band, then
+  S along X~282-284; ARRIVED (283.83, 219.56),
+  1.49 from the record). First time any session
+  has stood on this ground. Circle lunges from
+  the stand sweep +Z (camera-determined) and did
+  not clip the point dead-on, but with the two
+  dead-on negatives above the pattern is uniform.
+VERDICT: the guide's orb is a route LANDMARK,
+not an activator this lineage can use. Every
+reachable candidate record is inert to contact,
+Cross and Circle post-Legendary-Lake. Either the
+live set's orb record cannot be distinguished by
+interaction, or this segment's orb is not spawned
+in the current story state. Nothing on the route
+is gated by an orb strike we can perform; the
+route is the GROUND, and the ground is opening
+(sections E-I). One untested candidate remains:
+kind=1 id=224 (280.0, 234.0) - kind 1 was the
+PROLOGUE orb's kind (id 9 at (107, 24)); the
+kind semantics may differ per map. Next session.
+
+I. THE TERRACE SYSTEM (new ground): from the
+ledge pocket (278.58, 241.29) the march went W
+along the ledge to (273.83, 241.83), stall-dashed
+W onto a WEST SHELF (266.31, 245.09), ran E along
+Z~245 ((267.92, 245.55), (269.59, 245.43),
+(271.12, 244.74)), then climbed a clean +Z ramp
+at X~273-275 - (272.78, 245.24), (273.40, 246.80),
+(274.02, 248.36) - ARRIVED (274.64, 249.92). The
+Z~250 TERRACE runs E from there: (277.22, 250.58),
+(281.52, 249.63), (284.93, 252.62), N edge
+(285.22, 254.58). States: s55_cn_final.state,
+s55_o136_final.state, s55_clus_final.state. This
+terrace + the E plateau (section H) + the high
+strip (section G) are one connected high country
+N of Legendary Lake that the mirrored-compass
+era never reached.
+
+J. CENSUS C (lead 2 verdict): from
+s55_o1168_final.state (E plateau stand, after
+the corridor/terrace/plateau walks): list0
+0x095D2F40, 196 records, IDENTICAL to census A
+row for row. With census B (3,600 frames idle,
+also identical), the pint table is STATIC across
+time and travel. The roaming Fallacious Tree is
+NOT a pint record - it is an actor-table entity
+(Firion likewise has no pint record near his
+stand). No Tree contact occurred on any ground
+walked today: every march ended ARRIVED /
+MAXCYCLES / STALL, never EVENT; state68 = 2 in
+every probe. Interception method going forward:
+walk the "follow the water" ground and watch
+state68; the pint-diff method is closed.
+
+K. GATE 14 (lead 3), ATTEMPT 1 - THE TERRACE
+LINE: from s52_tc1_final.state (236.73, 185.15)
+marching E/SE toward the corridor top (268.0,
+166.0): the walker slid S along the shore pocket
+((239.00, 180.80), (239.46, 179.33)) and stalled
+at the pocket terminus (238.72, 176.41) - stall
+protocol Cross + 3 Circle volleys, zero
+displacement, RESULT STALL_ATTACKED, dist 31.07.
+The pocket is a terminus in the adv lineage too
+(third confirmation, s52/s54/s55); there is no
+terrace-to-shelf crossing. The corridor must be
+entered from its MOUTH on the strip (273.48,
+147.11) - attempt 2 runs from the coast state
+s54_ct_final.state eastward along the strip.
+
+K2. GATE 14 (lead 3), ATTEMPT 2 - THE FULL C->D
+ROUTE, MARCHED IN THE ADV LINEAGE: from the
+coast state s54_ct_final.state (242.01, 143.56)
+the strip E is march-clean with the resynced
+walker (s53's xprobe "death point" (243.29,
+142.93) was old-tooling noise - today's march
+passed through (243.37, 142.91) without pausing):
+coast -> ARRIVED (272.58, 145.70), 1.67 from the
+corridor mouth (273.48, 147.11) [s55_mth]. The
+corridor is a clean N-S lane at X~268-272:
+ARRIVED (269.60, 163.18) at its top [s55_cor].
+The shelf strip E: ARRIVED (295.54, 173.55),
+1.89 from s44's shelf stand [s55_shf]. The SE
+chute: ARRIVED (302.27, 167.59), inside the
+pocket [s55_pkt]. GATE TABLE at the pocket
+(this boot, GateMgr 0x095D7110, by VALUE):
+k1 life=5 timer=122.0 A-1 B-1 = Legendary Lake
+FINISHED; k2 A26 B3 = gate 22; k3 B0 = gate 11;
+k4 A28 = Hidden Darkness; k7 B1 = gate 16;
+k8 B2 = gate 17; k0/5/6/9/10/11 all A-1 B-1
+life=0 (the inert set: gates 14/15/18/20/21 and
+one more). ANCHOR TEST: fine march from the
+bench stalled at (303.23, 166.94), 1.84 from the
+anchor (305.04, 166.59) - the pocket's E wall at
+X~303.2, matching s45's closest stand (303.22,
+166.81) to the centimeter. The stall protocol's
+Cross at 1.84 dashed him S inside the pocket
+(state68=2, no entry); two further Cross presses
+from (302.81, 166.47) dashed W along the pocket
+band / no movement. GATE TABLE AFTER: NO CHANGE,
+record for record. VERDICT: gate 14 is NOT
+enterable post-Legendary-Lake in the MAIN
+lineage - the anchor cannot be stood on from
+the only reachable side, Cross at closest
+approach does nothing, and its record reads
+(-1, -1) inert like the other off-segment gates.
+The test owed since session 52 is CLOSED, and
+s48's side-lineage result is confirmed in the
+main lineage.
+
+SESSION 55 CLOSE: standing unchanged (Kain
+Lv 10, HP 1,851/1,851, gil 9,774 verified at
+every boot, banked KP 104, Shiva + Rosetta Stone
+held, Firion assist; no fights, no events, no
+title cards - no gateway was entered). Boards
+done: Sunken Lake, Hidden Darkness, Legendary
+Lake. Owed: True Intent, Ryukahn, Exdeath Lv 18.
+The session's durable gains are GROUND and
+METHOD: (1) s55_march's cycle-top resync kills
+the s53 desync - every "unwalkable" verdict the
+old walkers produced is suspect, and three of
+them fell today (the LL pocket's N, the pocket's
+E plateau, the coast strip E of X~243); (2) the
+whole high country N/E of Legendary Lake is now
+mapped and state-banked: N corridor, E plateau
+(Z~220-229), ledges, west shelf, Z~250 terrace,
+high strip (Z~247-252), plus the full C->D route
+(coast -> corridor -> shelf strip -> chute ->
+gate 14 pocket) in the adv lineage. RESUME
+STATES: s55_pkt_final.state (gate 14 pocket
+bench (302.27, 167.59)), s55_shf_final.state
+(shelf strip (295.54, 173.55)), s55_cor_final.
+state (corridor top (269.60, 163.18)),
+s55_mth_final.state (corridor mouth (272.58,
+145.70)), s55_clus_final.state (terrace cluster
+(284.93, 252.62)), s55_cn_final.state (terrace
+W (274.64, 249.92)), s55_o1168_final.state (E
+plateau (283.83, 219.56)), s55_n120_final.state
+(N corridor (269.08, 229.28)); canonical
+ch6_s47_ll_finished.state; master fallback
+ch6_s48_bench1_final.state. NEXT LEADS: (a) the
+untested kind=1 orb candidate id=224 (280.0,
+234.0) - kind 1 was the prologue orb's kind;
+(b) the high strip's E continuation from
+(291-298, 247-252) toward gate 20's anchor
+(319.33, 193.64) and gate 21 (315.09, 270.40) -
+the F->K corridor country, never walked from
+this side; (c) keep watching state68 on all new
+ground for the roaming Tree (actor-table entity;
+the pint-diff method is closed).
+
+### Session 56 addendum 45 - THE LAST ORB, AND THE HIGH STRIP EAST (2026-11-20)
+
+PLAN (from addendum 44's close): (1) test the
+last orb candidate, kind=1 id=224 (280.0, 234.0)
+- kind 1 was the prologue orb's kind; stand on
+it, probe Cross + Circle, watch state68; if it
+activates, re-census + re-read the gate table.
+If inert, the orb question closes: the route is
+pure ground. (2) THE HIGH STRIP EAST: from the
+strip (291-298, 247-252) continue E toward gate
+20's anchor (319.33, 193.64) and gate 21
+(315.09, 270.40) - the F->K corridor country,
+never walked from this side; the likeliest
+remaining road toward Ryukahn (leg 3: two more
+boulders + the moogle country at (280, 273)).
+At any gateway anchor: stand EXACTLY, Cross,
+READ THE TITLE CARD (session 46's law). (3) On
+all new ground watch state68 for the roaming
+Fallacious Tree (actor-table entity; contact =
+battle, rot4).
+
+Harness: s55_march.py (cycle-top resync) as the
+walker base; s55_probe.py for button tests;
+s55_pint2.py for censuses. All walkers in HELD
+FOREGROUND exec calls. Standing at open: Kain
+Lv 10, HP 1,851/1,851, gil 9,774, banked KP 104,
+Shiva + Rosetta Stone held, Firion assist.
+Branch verified at ca4b3a4, clean.
+
+FINDINGS:
+Session 56 closes the orb question (id=224
+inert; A), walks the terrace/strip system
+end-to-end (B, C), tests gate 21's anchor -
+inert (C), finds FIRION's second chat stand
+on the gate 22 road and reads all five pages
+(D), proves the Z~307.4 band seals gate 22's
+plateau from the S and E (E, F), shows the
+moogle country is ringed by faces on every
+side tried (G, H), and then walks the W side
+up the kind=2 chain and ENTERS GATE 22 -
+which is the GATEWAY OF TRUE INTENT, title
+card read firsthand (I). On the board: the
+Transient Gunner Lv 6 is beaten (rot4, 34
+rotations, Kain 1851 -> 1651 HP, +66 gil);
+the Idle Sky Pirate Lv 13 is identified at
+cell 22 and NOT engaged; play is banked
+mid-board at s56_ti_resume.state (J).
+Standing at close: Kain Lv 10, HP 1,651,
+gil 9,840, banked KP 104, board KP 0.
+Next leads: finish True Intent (Sky Pirate
+Lv 13, Fallacious Tree Lv 13, Fleeting Flash
+Lv 13, two gold chests = Pebble + 500 gil;
+the board's KP chance is "Win within 90
+seconds" - rot4's pace missed it on the
+Gunner, so board KP here may need faster
+fights); exiting True Intent should put
+Kain on leg 3 (two more boulders + the
+moogle country at (280, 273), whose five
+kind=6 records are censused but unreached -
+ringed by faces from every side tried);
+gate 20's anchor (319.33, 193.64) in the F
+country far SE is still untested on foot.
+
+A. ORB TEST AT kind=1 id=224 (280.0, 234.0) -
+NEGATIVE; THE ORB QUESTION IS CLOSED (lead 1):
+marched from s55_n120_final.state (269.08,
+229.28) with s55_march: ARRIVED (279.44, 233.65),
+0.66 from the record, in 4 cycles - the ground
+between the N corridor and the point is plain
+walkable (contour E then N in map terms).
+Fine march (tol 0.35) stood at (279.84, 233.91),
+0.18 from the point - effectively ON it.
+Probes from the 0.66 stand: Cross DASHED him
++X+Z across the gap onto the ledge band
+(282.11, 241.46) (dash-crossing again, no
+interaction); Circle-first lunges passed ~0.4
+from the point - nothing. Probes from the 0.18
+stand: Circle lunged from on top of the point
+to (283.75, 236.54) - no popup, no state68
+change, gil unchanged; Cross nothing; second
+Circle nothing. VERDICT: id=224 is inert in
+this lineage, like id=120, id=136, id=231 and
+id=1168 before it (addendum 44 H). No reachable
+pint record of any kind behaves as a live
+breakable orb post-Legendary-Lake. The guide's
+orb is a route LANDMARK; nothing on the route
+is gated by an orb strike. THE ROUTE IS THE
+GROUND. Lead 1 closed.
+
+B. THE TERRACE DOES NOT WALK EAST INTO THE
+STRIP: from s55_clus_final.state (284.93,
+252.62) marching E toward the strip's known
+stand (297.65, 251.96), the terrace's walkable
+ground ends at ~(286.8, 252.8): cycle 0 gained
++1.6 E along Z~252.6, then every probe read
+~0.00 for five straight cycles. Stall protocol
+at (286.76, 252.81): Cross probe NO dash (no
+movement); Circle volleys crept him +Z to the
+terrace N edge (286.91, 254.21) - no boulder,
+no event, state68=2 throughout. RESULT STALL
+at (286.80, 253.21), dist 10.92. So the high
+strip is NOT walk-connected to the Z~250
+terrace at this latitude: the gap between
+X~287 and X~291 stands. The strip was reached
+in s55 from the LEDGE POCKET below (284.03,
+243.27) by stall-dashes - the approach runs
+from s55_n250_final.state instead. Banked:
+s56_strip_scratch.state = the terrace E-end
+stand (286.80, 253.21).
+
+C. THE STRIP CONNECTS BY WALKING AFTER ALL,
+AND THE ROAD RUNS NE TO GATE 21 (lead 2):
+from s55_n250_final.state (278.58, 241.29) the
+march retraced the ledges E at Z~240-241.6
+(past s55's pocket, no stall), bent N up a
+clean RAMP at X~292 - (292.24, 243.70),
+(292.26, 245.38) - onto the strip at (291.71,
+246.96) (s55's first dash landing, reached on
+foot today), ran E along the strip and
+contoured N: ARRIVED (296.61, 251.56), 1.12
+from the strip's s55 stand. The s55 dashes
+were a shortcut, not a necessity: ledges ->
+ramp -> strip is a WALKING route. From the
+strip's E end the march toward gate 21's
+anchor (315.09, 270.40) walked a BROAD OPEN
+DIAGONAL ROAD NE - (300.51, 257.03), (304.26,
+262.31), (308.16, 267.78), bending E at the
+end - ARRIVED (314.28, 269.12), 1.52 from the
+anchor, no stalls, no events, state68=2
+throughout. The F->K corridor country is open
+ground. Fine march stood at (314.80, 270.46),
+0.30 from the anchor. ANCHOR TEST: Cross x2 =
+dashes only (to (317.06, 278.39), then
+(317.91, 284.44)), state68=2, gil unchanged.
+VERDICT: gate 21 is NOT enterable in this
+lineage - an empty/pass-through gateway or
+another segment's gate, matching its inert
+(-1, -1) record (addendum 44 K2). But its
+anchor ground is open and the country runs on
+N/NE past it (dashes reached Z~284). States:
+s56_strip2_final.state (296.61, 251.56),
+s56_e1_final.state (314.28, 269.12),
+s56_g21f_final.state (anchor stand),
+s56_g21x_final.state (317.91, 284.44).
+
+D. THE ROAD TO GATE 22, AND FIRION AT ITS END:
+the march from gate 21's dashes (317.91,
+284.44) toward gate 22's anchor (292.5, 312.0)
+walked W along Z~285-286.6, then turned N up a
+LONG CLEAN ROAD - (308.73, 292.27), (307.18,
+296.90), (303.25, 301.69) - bent W along
+Z~307.4 and stalled at (297.09, 307.50), 6.43
+from the anchor, every probe ~0.00 (the local
+exec was SIGTERM'd mid-stall-protocol; the
+march's scratch commits made the work
+recoverable - killed cleanly, no strays). At
+that stand, a Cross probe did NOT dash: it
+opened a DIALOGUE (state68 2->3, position
+unchanged). Screenshot read firsthand: FIRION
+stands here, beside a stone gatehouse (W) with
+mountains behind (N) and a glowing crystal
+point on open ground (E). His chat, all five
+pages read from screenshots: Firion: "Kain,
+have you come across any of the others?" /
+Kain: "I met one by chance and discussed our
+situation, but I have yet to meet anyone
+else." / Firion: "...You see, I've heard some
+bad rumors. Rumors that some of our friends
+have fallen." / Kain: "I don't intend to trust
+the words of a foe, but I'm concerned, what
+with this situation..." / Kain: "That is
+true." Sixth Cross closed it (state68 back to
+2). It is the SAME five-page chat session 50
+recorded at the pt0 ledge - a repeatable
+companion talk node, present at this second
+stand. Post-chat gate table (this boot,
+GateMgr 0x095D7110, by value): IDENTICAL to
+s55's - k2 A26/B3 = gate 22 still live; the
+chat changes nothing. CAUTION: any march
+stalling at this stand fires the chat via its
+stall-protocol Cross (s56_w1 ended
+CROSS_EVENT, saved s56_w1_xevent.state) - the
+pt0-ledge trap, second instance. The stand
+itself is a walk pocket: all eight probes
+~0.00 except back E along the Z~307.4 band.
+The gatehouse walls the direct NW approach to
+the anchor; the anchor must be come at from
+N or E. States: s56_g22_scratch.state =
+s56_w1_scratch.state = the Firion stand
+(297.09, 307.50); s56_p6_check.state = the
+stand post-chat, field-clean.
+
+E. THE Z~307.4 BAND IS A CEILING (the N-lane
+test): marching from gate 21's dashes toward
+(305.0, 316.0) - aiming to pass E of the
+gatehouse - re-walked the long N road and bent
+W onto the same Z~307.4 band, stalling at
+(297.43, 307.42), 13.99 short. Stall protocol:
+Cross probe NO dash and NO chat (this stand is
+~0.34 E of Firion's exact spot - his trigger
+radius is tight); Circle volleys crept +0.1 W,
+no break, no event. So the country N of
+Legendary Lake tops out at the Z~307.4 band
+from at least X~297 to X~307: the road up ends
+there, and gate 22's anchor (292.5, 312.0)
+sits ~4.6 N of the band behind the gatehouse.
+Untried: the NE corner (stay E until Z~312,
+then W along the top) and the far-W plateau.
+States: s56_n1_scratch.state (297.43, 307.42).
+
+F. THE NE CORNER DOES NOT EXIST EITHER:
+marching from gate 21's dashes toward
+(318.0, 313.0) - stay E, then W along the top
+- the greedy walker was pulled onto the same
+diagonal N road (every NE probe walled) and
+followed it to its end: stall protocol at
+(298.00, 307.41) (Cross: nothing; circles
+crept W), then W to Firion's stand (297.09,
+307.50), RESULT STALL, dist 21.20. The road's
+ceiling is the Z~307.4 band along its whole
+length; there is no NE shoulder at Z~313 to
+turn W on. Gate 22's anchor plateau is sealed
+from S and E by the band + gatehouse. Untried:
+the FAR-W plateau - the unmapped country
+between the terrace top (Z~254) and the band,
+including the kind=6 moogle cluster at
+(280, 273) (leg 3's shop country) - and gate
+20's F country far SE. States:
+s56_ne1_scratch.state (297.09, 307.50).
+E2. CORRECTION to E (from the n1 march's full
+log): the run ended MAXCYCLES at (299.89,
+306.92) [s56_n1_final.state], not at the
+first stall stand. Its stall-protocol Crosses
+DASHED along the band - (299.65, 307.15) W to
+Firion's stand (297.09, 307.50), and (299.67,
+307.13) E to (301.01, 305.80) - never across
+it N. Landing on Firion's stand by dash did
+NOT open his chat (state68 stayed 2): the
+chat needs a Cross press at the stand.
+
+F2. CORRECTION to F (from the ne1 march's
+complete log): the run ended MAXCYCLES at
+(306.69, 298.38) [s56_ne1_final.state], dist
+18.48 - it stalled at (305.64, 299.97), where
+the stall Cross DASHED NW up the road's top
+to (302.94, 301.91), and at (305.98, 299.73),
+where Circle volleys lunged him back DOWN
+the road to (302.21, 289.87); it never
+reached the band. A second, divergent trace
+of the same march (walk outcomes vary at
+probe granularity) ended in a stall at
+Firion's stand (297.09, 307.50). Both traces
+agree on the verdict: no way N past the road
+top from the E side.
+
+G. THE MOOGLE COUNTRY IS NOT REACHABLE FROM
+THE TERRACE: marching from the terrace E end
+(286.80, 253.21) toward the kind=6 cluster
+(280.0, 273.0), the walker gained only the
+terrace top itself - a shelf at Z~253.3-254.5,
+X~274.6-286.9 - and could not leave it N:
++Z probes slide back S (the N face is a drop,
+not a climb), and four stall-protocol Crosses
+all DASHED E-W ALONG the shelf ((284.84,
+254.47)->(286.91, 254.21); (284.07, 254.27)
+->(276.56, 253.45); (279.76, 254.01)->
+(274.58, 253.63); (279.60, 254.02)->(284.82,
+254.47)) - no dash ever jumped N. MAXCYCLES
+at (284.95, 252.80) [s56_moo_final.state],
+dist 20.80. The gap between the terrace top
+(Z~254.5) and the moogle latitude (Z~273) at
+X~274-287 is uncrossed by walking or dashing
+from this side. The moogle country's W
+approach, if any, runs at Z~270 from the E
+(the gate 21 road) - untested.
+
+H. THE ROAD WEST OF GATE 21 AND THE NORTHERN
+CENSUS: marching W from the gate 21 road
+(314.28, 269.12) toward the moogle point
+walked a broad plateau: W along Z~268-270 to
+(298.82, 264.77), N up a lane at X~295-298 to
+a pocket at (295.43, 277.94) (the stall Cross
+dashed NW out of it to (291.18, 284.55)), then
+W across the plateau top to (285.48, 286.76)
+[s56_west_final.state], MAXCYCLES, dist
+14.81. The moogle point (280, 273) is ringed:
+E face at X~295 (W probes slide back), S face
+below the plateau top (S probes +0.05), the
+terrace gap from the S (section G). A pint
+census from the plateau top (centers (287,
+280) r25 and (297, 307) r14) lists: the
+moogle = FIVE kind=6 records stacked at
+(280.0, 273.0), ids 958-962, sets 143-147 -
+one per chapter variant; which set is live
+in Ch.6 is unproven. kind=2 Light Orb points
+chain N at (292, 297), (291, 301), (294,
+303), (293, 305), with another W at (279,
+298) - a road's worth of markers up the W
+side of gate 22's plateau; kind=2 also at
+(299, 270), (303, 271), (304, 286), (305,
+287) along the E road. kind=1 id=890 at
+(289, 295), h=120, set 27. kind=0 chests at
+(285, 262) h=-36, (278, 263) h=-10, (287,
+266) h=-126 - three variant chests in the
+band between the terrace top and the
+plateau, at very different heights (floors
+of the terrace system; none stood on yet).
+Near Firion's stand the census shows only
+the kind=2 chain - the glowing crystal point
+in his screenshot is one of those spawn
+points rendered as a glow.
+
+I. GATE 22 REACHED FROM THE WEST - THE
+GATEWAY OF TRUE INTENT IS OPEN: from the
+plateau top (285.48, 286.76) the ground runs
+N: (285.78, 288.41), (284.67, 291.52), then E
+up the kind=2 chain - (286.95, 297.45),
+(290.69, 297.08) [s56_n2_final.state] - and
+on N: (290.27, 298.70), (292.38, 304.09),
+(293.07, 307.10), (292.74, 308.50), (292.02,
+309.74), stalling in a pocket at (292.50,
+310.17), 1.83 S of gate 22's anchor (292.5,
+312.0). The first stall Cross dashed to
+(293.00, 310.06); the second stall Cross, at
+(292.70, 310.17), DID NOT DASH - ctrl state
+2 -> 5 (transition) [s56_g22w_xevent.state].
+Riding the fade (white -> Now Loading ->
+board): state68 settled 20, and the board's
+own title banner, read firsthand from a
+screenshot, says GATEWAY OF TRUE INTENT.
+Gate 22 = True Intent; the anchor's trigger
+radius reaches the pocket 1.83 S of it.
+On entry, a three-page Kain/Firion exchange
+plays (Firion: "When the opponent's strong,
+I tend to stay back and look for any chance
+to counter..." / Kain: "Hmph, when the
+opponents are strong is when you truly
+shine, Firion." / Firion: "Really? Alright
+then, you give me the sign and I'll jump in
+to assist you."), then two assist tutorial
+cards. Board control: KP (board) 0, banked
+KP 104, Gil 9,774, Kain Lv 10 HP 1,851.
+The board (screenshot census): floating
+islands over a sea of clouds; FOUR manikin
+pieces and TWO gold chests - an exact visual
+match for Suih's True Intent census
+(Transient Gunner Lv 6, Idle Sky Pirate
+Lv 13, Fallacious Tree Lv 13, Fleeting Flash
+Lv 13; Pebble + 500 gil chests; KP chance
+"Win within 90 seconds"; Bonus Line 10).
+Banked pre-engagement states on the board:
+s56_ev5_check.state (entry dialogue p.1),
+s56_ev10_check.state and s56_evL2_check.
+state (board control, nothing moved - the
+clean resume). The gate table is NOT
+readable from inside the board shell
+(GateMgr ptr reads 0 in board context).
+
+J. ON THE BOARD - FIRST BLOOD: Kain starts
+at grid 53; Firion's piece stands at 54
+(unpromptable - the assist piece). Up the
+middle: 53 -> 43 -> prompt on 33. The piece
+card (screenshot) reads TRANSIENT GUNNER
+Lv 6, KP chance "Win within 90 seconds",
+stage Crystal World. Engaged with s47_fight
+(rot4, WAIT 2): foe HP 1,303; WIN in 34
+rotations; Kain 1,851 -> 1,651 HP; gil
+9,774 -> 9,840 (+66); no chain prompt;
+post state ch6_s47_s56gun_post.state. Board
+KP stayed 0 - the 90-second chance was
+missed at rot4's pace (or KP pays only on
+the chance here). Kain then walked 43 -> 33
+(the Gunner's emptied cell) -> 23; targeting
+W (cell 22) prompts the IDLE SKY PIRATE
+Lv 13 (card read; same KP chance/stage).
+NOT engaged - Kain at 1,651 HP vs a Lv 13
+is session 57's fresh start, not this
+session's last throw. Prompt cancelled;
+s56_ti_resume.state banks board control at
+cell 23, HP 1,651, gil 9,840, banked KP 104.
+By the guide census the remaining pieces
+are the Fallacious Tree Lv 13 (the flame-
+wreathed figure on the glowing pedestal at
+the board's back-center, beside cell 23)
+and the Fleeting Flash Lv 13 (back-right),
+plus two gold chests (cells ~21 and ~28:
+Pebble + 500 gil per Suih).
+
+### Session 57 addendum 46 - FINISHING TRUE INTENT (2026-11-20)
+
+PLAN (from addendum 45's close): resume on the
+Gateway of True Intent board at s56_ti_resume.state
+(Kain at cell 23, HP 1,651, gil 9,840, banked KP 104,
+board KP 0; Transient Gunner Lv 6 beaten). Work the
+board: Idle Sky Pirate Lv 13 (cell 22) first, then
+Fallacious Tree Lv 13 (back-center), then Fleeting
+Flash Lv 13 (back-right); take both gold chests
+(cells ~21/~28: Pebble + 500 gil per Suih); then the
+Stigma of Chaos to finish the board. Read each foe's
+Opponent Info card before engaging; bank a fresh
+savestate before EVERY fight (never overwrite
+s56_ti_resume.state). KP chance is "Win within 90
+seconds" - rot4 missed it on the Gunner; a won fight
+at 0 KP beats a lost fight at speed (banked KP is
+already 104). On board finish: bank KP (decline any
+chain), record standing, then scout leg 3 (two more
+boulders, moogle country at (280, 273), toward
+Ryukahn / Exdeath Lv 18 - probe only).
+
+Harness: s47_board.py for board navigation,
+s47_fight.py (rot4, WAIT 2) for fights, s55_march.py
+for any field walking. All runs in HELD FOREGROUND
+exec calls. Standing at open: Kain Lv 10, HP 1,651/
+1,851, gil 9,840, banked KP 104, Shiva + Rosetta
+Stone held, Firion assist. Branch verified at
+53cbbbb, clean.
+
+FINDINGS:
+(to be filled as the session runs)
+
+A. RESUME VERIFIED; THE LOCAL GRAPH FROM CELL 23:
+booted s56_ti_resume.state (never overwritten; my
+working bank is s57_start.state). Board view read
+firsthand: Kain Lv 10 HP 1,651, gil 9,840, KP
+(banked) 104, board KP 0 - standing exactly as
+addendum 45 closed it. Explored from cell 23 with
+s47_board.py (explore mode):
+  up    -> PROMPT disc 13 (piece)
+  down  -> MOVE to cell 33 (the Gunner's emptied
+           cell; standing), returned up to 23
+  left  -> PROMPT disc 22 (piece)
+  right -> PROMPT disc 24 (piece)
+All three remaining foes ring cell 23.
+
+B. THE THREE CARDS, READ FIRSTHAND (s57_card.py
+targets + screenshots; the card shows name/level/
+stage/chance but NO numeric HP - foe HP is
+discovered from the battle block at engagement):
+  disc 22 (left)  IDLE SKY PIRATE Lv 13, stage
+                  Crystal World
+  disc 13 (up)    FLEETING FLASH Lv 13, stage
+                  Ultimecia's Castle
+  disc 24 (right) FALLACIOUS TREE Lv 13, stage
+                  World of Darkness
+KP chance on every card: "Win within 90 seconds".
+Correction to addendum 45 J's guess: the piece up
+from 23 is the FLASH, the piece right is the TREE
+(the flame-wreathed visual sits over the back
+islands; the cards are authoritative). Pre-fight
+banks with each prompt held open: s57_card22_
+check.state, s57_card13_check.state, s57_card24_
+check.state. Fight order per the brief: Pirate
+(22), Tree (24), Flash (13). Chests (~21/~28)
+presumably lie past the Pirate (21 = left of 22)
+and elsewhere on the graph; the graph opens as
+pieces fall.
+
+C. FIGHT 1 - IDLE SKY PIRATE Lv 13 (disc 22):
+foe HP discovered at engagement: 1,727. Kain
+1,651 HP, rot4, WAIT 2, from s57_card22_check.
+ATTEMPT 1 (rot4): LOSS at rotation 28 - with the
+foe at 3 HP. Trace: Kain 1651 -> 771 (rot 10) ->
+591 (rot 15) -> 39 (rot 20) -> held 39 while the
+foe rebuilt BRV 164 -> 1300 and cashed in at
+rot 28. Foe HP: 1727 -> 1137 -> 899 -> 3 (rot 25).
+ATTEMPT 2 (rot4, same bank): BYTE-IDENTICAL trace,
+same LOSS at rot 28, foe at 3 HP. This fight from
+this bank is FULLY deterministic - a plain retry
+changes nothing; the policy has to change.
+The failure is an endgame race: at rot 25 the foe
+sits at 3 HP but Kain's BRV is ~0, so his Squares
+do ~0 damage while the foe rebuilds to a killing
+cash-in. FIX (s57_fight.py = s47_fight.py + mode
+rot4x): rot4 unchanged until the foe reads
+<= 120 HP, then drop the drift and race -
+Triangle, Triangle (build BRV; the Triangle
+connects, s47's lesson), Square, Square.
+ATTEMPT 3 (rot4x): WIN at rotation 28. The main
+phase replayed the same trace to rot 25 (foe 3 HP,
+Kain 39), the endgame rule fired, and Kain closed
+it out. Final cells: herHP=100, foeHP=0. Note the
+HP: Kain went 39 -> 100 across the three endgame
+rotations (+61) - some recovery rides on the
+endgame sequence (mechanism unproven; recorded as
+observed). Gil 9,840 -> 10,074 (+234). No chain
+prompt (declined=0). Post bank: ch6_s47_
+s57pirate3_post.state; Kain back at grid 23,
+state68=20. Whether the 90-second KP chance was
+met is read off the board next (board KP was 0
+after the Gunner's 34 rotations; this took 28).
+
+D. FIGHT 2 (MEASUREMENT) - FALLACIOUS TREE Lv 13
+(disc 24) AT FULL HP, Lv 10 LINEAGE (s57_card24_
+check.state), rot4x: LOSS at rotation 18, foe at
+1,471/1,727. The Tree's HP is also 1,727 (all
+three Lv 13s share the template). Kain took -857
+by rot 10 and died at rot 18 having dealt only
+~256: the Tree (a guarding, Exdeath-type manikin)
+shrugs off rot4's offense - this is a STAT wall,
+not a policy wall. The policy lab backs this up:
+every deviation from rot4's exact sequence vs the
+Pirate collapsed (tri: LOSS rot 16, foe untouched,
+Kain -1,191 by rot 5; rot6 assist-every-rotation:
+LOSS rot 9, foe untouched - the extra chord inputs
+break the dodge rhythm; rot5 Circle-swap: LOSS
+rot 12, foe untouched; rot4x4 cadence-4: defense
+held to rot 15 but damage lagged and a single
+1,596-BRv cash-in killed at rot 23). rot4 remains
+the machine; rot4x's endgame is its only safe
+mod. CONCLUSION: Kain needs LEVELS for this board.
+The Pirate (softest Lv 13) cost 94% of his HP at
+Lv 10; the Tree is not beatable at Lv 10-12 stats
+with the proven policies.
+
+E. THE CHAIN PROMPT, SOLVED: ch6_s47_s57pirate3_
+post.state holds the Tree's card open - it is a
+CHAIN offer (this gateway's skill is Cross Chain),
+not a stuck dialog. One Circle on the card opens
+"Cancel chain?" (YES/NO, cursor on NO); a second
+Circle backs out to the card. Decline = Circle,
+Left, Cross (YES) - board control returns (walked
+23 -> 33 -> 43 -> 53 cleanly after). s47_fight's
+win handler misses this prompt when it is already
+the resting state (declined=0); after future wins,
+check for a resting chain prompt and decline it
+before navigating. (The 100-HP Tree "fight" from
+this state was void: Cross engaged the chain card
+and the block finder latched a stale/remnant
+block, herHP read 0 - no real battle sample.)
+
+F. EXIT MECHANICS + THE HP RULE (major): Pause
+(Start) -> Exit Gateway -> "Exit gateway? *KP
+gained in gateway will be lost." YES/NO (cursor
+starts on NO; Left+Cross = YES). Board KP was 0,
+nothing lost. Landing: the FIELD at gate 22's
+pocket (292.70, 310.17), state68 2, gil 10,074
+kept, levels kept - and KAIN AT FULL HP: the
+field card for True Intent (read firsthand)
+shows Lv 12, HP 1,973/1,973. HP IS PER-GATEWAY-
+VISIT: exiting restores full HP; an unfinished
+board resets on re-entry. The grind is therefore
+IN PLACE: re-enter True Intent at full HP, clear
+deeper each run (Gunner ~200, Pirate = big EXP),
+exit when HP runs low, repeat until the Tree and
+Flash are stat-beatable. Banked: s57_field_
+afterexit.state (field, at the TI entrance card).
+Also banked en route: s57_ticlean.state (chain
+declined, at 23), s57_at53.state.
+
+G. RE-ENTRY PROTOCOL + THE FOCUS LESSON: re-
+entering True Intent from the field replays the
+whole entry sequence (title card -> 3-page Kain/
+Firion dialogue -> 2 assist tutorial cards ->
+board). Pages/cards advance on SINGLE Cross
+presses spaced >=120 frames; they do NOT auto-
+advance (6,000 press-free frames sat on page 1).
+States saved mid-sequence resume ONLY at clean
+page boundaries (s57_e9.state, saved just after a
+page turn, resumed and finished the sequence);
+states saved during the title card/fade never
+initialize (s57_run2_start.state, s57_wedged.state
+- do not use). THE FOCUS LESSON: after the
+sequence, focus (0x095CD410) reads 0xffffffff
+until the first Circle press summons the cursor -
+ffffffff here means "cursor not yet summoned",
+not a wedge. First Circle+direction from
+s57_e12.state moved 53 -> 43 with focus =
+0x08b82b88 (disc 43) - control proven.
+RUN 2 IS BANKED LIVE: s57_e13.state = fresh True
+Intent board, all five pieces + both chests
+restored, Kain Lv 12, HP 1,973/1,973 (FULL),
+Gil 10,074, banked KP 104, at cell 53, cursor
+live. (Field bank: s57_field_afterexit.state.)
+
+H. SESSION 58 LEAD - THE IN-PLACE GRIND: run 2
+order: Gunner (33) -> Pirate (22, rot4x; Lv 12
+trace unknown - bank first) -> Tree (24) ->
+Flash (13) -> chests (~21/~28) -> Stigma. If HP
+runs low mid-run: Pause -> Exit Gateway (Left+
+Cross on YES) -> re-enter at full HP; the board
+resets but EXP/gil/levels persist, so each run
+reaches deeper. Pirate EXP at Lv 10 was +2
+levels; expect ~+1 level per Pirate kill at
+Lv 12+. Decline every chain prompt (Circle ->
+"Cancel chain?" -> Left+Cross). The Tree needs
+real levels: at Lv 10 rot4x dealt only ~256 in
+15 rotations - retest it each run and record
+where the damage curve crosses.
+
+### Session 58 addendum 47 - THE TRUE INTENT GRIND (2026-11-20)
+
+PLAN (from addendum 46 H): the in-place grind. Resume
+s57_e13.state (fresh True Intent board, Kain Lv 12,
+HP 1,973/1,973 FULL, gil 10,074, banked KP 104, at
+cell 53, cursor live). Run 2 order: Gunner (33) ->
+Pirate (22, rot4x; Lv 12 trace unknown - bank first)
+-> Tree (24) -> Flash (13) -> chests (~21/~28) ->
+Stigma. Retest the Tree every run and record the
+damage curve by level. Exit to refill HP whenever a
+run runs low (Pause -> Exit Gateway, Left+Cross on
+YES); the board resets but EXP/gil/levels persist.
+Decline every chain prompt (Circle -> "Cancel
+chain?" -> Left+Cross). rot4x is the proven policy
+(rot4 until foe <= 120 HP, then no-drift Triangle,
+Triangle, Square, Square); rot4's base sequence is
+load-bearing - the only safe lever is LEVELS.
+Harness: s47_board.py (navigation), s57_fight.py
+(rot4x, WAIT 2), s55_march.py (field, if needed).
+All runs in HELD FOREGROUND exec calls. Branch
+verified at 56a8268, clean. Protected: s56_ti_
+resume.state (never overwrite); do not use
+s57_run2_start.state / s57_wedged.state (mid-fade).
+
+FINDINGS:
+(to be filled as the session runs)
+
+A. RUN 2 (from s57_e13.state; Kain Lv 12, HP
+1,973 full, gil 10,074, banked KP 104):
+- GUNNER (disc 33, HP 1,303), rot4x: WIN in 33
+  rotations. Kain 1,973 -> 1,677 (foe sat at 1 HP
+  from rot 25; the endgame race took 8 rotations
+  to land). Gil +66 -> 10,140. No chain prompt.
+  Post: ch6_s47_s58gun_post.state (grid 43).
+- PIRATE (disc 22, HP 1,727), rot4x from 1,677 HP:
+  WIN in 16 rotations (vs 28 at Lv 10). Kain ->
+  981 at rot 15, ended 1,041 (the endgame +60
+  recovery again). Gil +234 -> 10,374. Win handler
+  declined 3 chain prompts. Post: ch6_s47_
+  s58pir_post.state (grid 22).
+- The Pirate kill LEVELED Kain 12 -> 13 (board
+  card: Lv 13, HP 1,041) and the 16-rotation win
+  MET the KP chance: board KP = 1 (screenshot).
+  So the 90-second chance is a pace threshold
+  between 16 and 28 rotations.
+- TREE (disc 24) test at Lv 13-from-12 lineage,
+  HP 1,041, rot4x: LOSS at rotation 5, foe
+  UNTOUCHED (1,727). An early ~1,040 cash-in
+  ended it before rot4's offense connected - an
+  HP-limited sample, not a damage curve point.
+  The full-HP test is owed (run 3).
+- Cell 21 is EMPTY ground (stood on it; the
+  disc-21 "prompt" at cell 22 was just focus
+  resting on the adjacent cell record). Suih's
+  ~21 chest is not at 21. A GOLD CHEST is visible
+  on the board's east side (screenshot) - the
+  ~28 chest, past the Tree's cell on row 2.
+- EXIT with board KP 1: the KP was lost on exit
+  (as the dialog warns); gil/levels kept. Field
+  card at gate 22 (read firsthand): Kain Lv 13,
+  HP 2,033/2,033 FULL (max HP 1,973 -> 2,033,
+  +60 for Lv 13). Banked: s58_field_r3.state.
+
+B. RE-ENTRY LESSON (repeat of s57 G, relearned):
+my first enter script broke its loop the moment
+state68 read 20 + grid 53 - but that was still
+the TITLE CARD (screenshot proof), and the state
+it saved (s58_r3_start.state) is a mid-card dead
+state - DO NOT USE s58_r3_start.state or
+s58_r3_at43.state. The working protocol
+(s58_enter2.py): press Cross at state68 2/3/20
+with 180-frame spacing (~14 presses), then PROVE
+control with a real move (53 -> 43) before
+saving. Run 3 start banked live: s58_r3_start2.
+state (fresh board, Lv 13, HP 2,033 full, gil
+10,374, at cell 53, control proven).
+
+C. RUN 3 (from s58_r3_start2.state; Kain Lv 13,
+HP 2,033 full, gil 10,374): the plan was a clean
+full-HP Tree test, but the Gunner (33) guards the
+only column to the hub 23 - from 43, left is dead
+and right prompts disc 44. DISC 44 = FIRION'S
+ASSIST PIECE (card read firsthand: "Firion -
+Assist Character - Engage/Cancel") - promptable,
+not a foe; left alone. Two gold chests are
+visible on the board (west rock + east rock).
+- GUNNER (disc 33, HP 1,303), rot4x at FULL HP:
+  WIN in 58 rotations, Kain UNTOUCHED (2,033
+  throughout). Odd trace: foe HP fell steadily
+  to 107 by rot 25, then the endgame race whiffed
+  for ~30 rotations (cells frozen, foe BRV 464)
+  before connecting at rot ~56-58. The win is
+  safe but the endgame race is unreliable vs the
+  Gunner. Gil +66 -> 10,440. VERIFIED TWICE: two
+  independent runs from s58_r3_gunner_prompt.
+  state produced the byte-identical trace (the
+  determinism of s57 again). NOTE: an interim
+  background delivery briefly suggested a
+  different trace (25 rotations, HP 1,868) -
+  that was a garbled partial read; the doubled
+  full trace above is the ground truth. The
+  first "corrupt post state" scare was the same
+  artifact: the post file was loaded while its
+  fight was still running. Post states (both
+  valid): ch6_s47_s58gun3_post.state, ch6_s47_
+  s58gun3b_post.state, s58_s58gun3b_post2.state.
+- TREE (disc 24, HP 1,727), rot4x at FULL HP
+  2,033, Lv 13: LOSS at rotation 46, foe at
+  959/1,727 - Kain dealt 768. Cash-ins tracked
+  foe BRV exactly (876 at rot ~16-20: 2,033 ->
+  1,157; 548 at rot ~26-30: -> 609; died to the
+  691 build at rot 46). Damage is back-loaded:
+  foe untouched until ~rot 21 (the Tree guards
+  early), then ~25/rotation. DAMAGE CURVE:
+  Lv 10 (HP 1,851): 256 dealt, died rot 18.
+  Lv 13 (HP 2,033): 768 dealt, died rot 46.
+  Roughly tripled over 3 levels; the cross
+  looks like Lv 15-16 at this slope. The grind
+  continues (Pirate = ~+1 level per kill).
+
+D. RUN 4 (from run 3's post-Gunner bank; Kain
+Lv 13, HP 2,033, gil 10,440):
+- PIRATE (disc 22, HP 1,727), rot4x: LOSS at
+  rotation 58, foe at 74 HP. A different trace
+  from run 2's 16-rotation win: the Pirate
+  cashed 1,111 by rot 5 (2,033 -> 922), then a
+  long grind (Kain stable at 688-770, foe
+  falling steadily) ended when the foe's second
+  big build (BRV 1,051 at rot 45) cashed in at
+  rot ~56-58 with the foe at 74. The endgame
+  race (threshold 120) fired only at rot 55 -
+  too late. LESSON: the Pirate's early cash-in
+  is the swing factor between traces; per the
+  brief, the fix is the endgame THRESHOLD, not
+  the base sequence. Added mode rot4y to
+  s58_fight.py (race from foe <= 300 HP) and
+  retried from the same bank.
+  Retry with rot4y (race from <= 300): trace
+  byte-identical through rot 45 (determinism
+  again), race fired at foe 251 - but the foe's
+  cash-in (BRV 1,002 -> 1,173) landed during the
+  race's 2-rotation Triangle build: LOSS at
+  rotation 47, foe still 251. The race cannot
+  start once a lethal cash-in is already built.
+  Second retry with rot4z (race from <= 700:
+  at foe 635 the foe BRV is only ~150-210, so
+  the race gets ~5 rotations of clear water).
+
+E. RUN 4 CONTINUED - THE PIRATE FALLS TO rot4z,
+AND THE CHAIN DOOR OPENS:
+- PIRATE retry with rot4z (race from <= 700):
+  WIN at rotation 39. The race fired ~rot 31
+  (foe 506 at rot 35) and dealt 506 in ~4
+  rotations; Kain even recovered 688 -> 749
+  (the ~+61 endgame recovery, third sighting).
+  Gil +234 -> 10,674. The Pirate kill LEVELED
+  Kain 13 -> 14 (VS card read firsthand).
+  rot4z supersedes rot4x for the Lv 13 pieces:
+  it won the trace rot4x lost at foe-74 and
+  rot4y lost at foe-251.
+- EXIT TRAP (cost a detour, banked as a rule):
+  the post-Pirate state held the TREE'S CHAIN
+  CARD open (Cross Chain offer). A pause-exit
+  attempted on top of it sent down/down/Cross
+  into the card and ENGAGED the Tree (VS card:
+  World of Darkness) instead of exiting. RULE:
+  decline any resting chain card (Circle ->
+  Left -> Cross) BEFORE pausing to exit. With
+  the decline first, the exit worked cleanly
+  (field bank s58_field_r6.state: Lv 14, gil
+  10,674; max HP at Lv 14 = 2,094).
+- THE CHAIN SAMPLE (from the accidental engage,
+  fought deliberately from the bank): Tree at
+  Lv 14, Kain HP 749, rot4z: LOSS at rot 23 -
+  but Kain dealt 1,380 (foe 1,727 -> 347), with
+  damage flowing from rot 1 (426 by rot 5).
+  Chain-engaged traces do NOT show the prompt
+  traces' ~20-rotation guard phase.
+
+F. RUN 6 (fresh board, Lv 14, HP 2,094):
+- GUNNER: WIN in 12 rotations, UNTOUCHED (foe
+  at 1 HP by rot 10). At Lv 14 the Gunner is
+  free. Gil +66 -> 10,740.
+- TREE via prompt, rot4z, full HP: LOSS at
+  rot 31, foe 1,581 - only 146 dealt. The
+  guard-phase trace again (foe untouched until
+  ~rot 21) while Kain ate cash-ins of 981 and
+  346 and died to an 864 build. Prompt-engaged
+  Tree traces vary wildly (256 / 768 / 146 at
+  Lv 10 / 13 / 14); the foe's early guard is
+  the variable, not Kain's stats alone.
+
+G. RUN 7 - THE DELIBERATE CHAIN RETRY:
+- Gunner re-won byte-identically (12 rots,
+  untouched). PIRATE, rot4z: WIN in 23
+  rotations, Kain 2,094 -> 1,560 (the foe was
+  under 700 by rot 5, so the race ran almost
+  the whole fight - slower per rotation but
+  safe). Gil -> 10,994 (declined lineage) /
+  10,974 (no-decline lineage). NOTE: the fight
+  script's win handler DECLINES chain prompts;
+  a no-decline build (s58_fight_nc.py) re-ran
+  the identical win and left the Tree's chain
+  card open (bank: s58_s58pir7nc_post2.state,
+  Kain at grid 23, HP 1,560).
+- TREE VIA CHAIN from that bank, rot4z: foe HP
+  discovered = 1,921 (NOT 1,727 - chain foes
+  may carry bonus HP, or the Tree's HP varies
+  per instance as the Imitation Despot's did;
+  run 4's chain read exactly 1,727). LOSS at
+  rot 27, foe at 940: 981 dealt. Kain took NO
+  damage through rot 20, then the foe's 1,299
+  BRV cash-in landed at rot ~21-25 (1,560 ->
+  261) and finished him at rot 27 - the race
+  (threshold 700) never fired; the foe was
+  still at 940. The mid-phase BRV bank is the
+  Tree's kill mechanism in every trace.
+
+H. SESSION 58 CLOSE - WHERE THE TREE STANDS:
+Damage curve vs the Tree (rot4-family):
+  prompt Lv 10 (HP 1,851): 256 dealt, died r18
+  prompt Lv 13 (HP 2,033): 768 dealt, died r46
+  prompt Lv 14 (HP 2,094): 146 dealt, died r31
+  chain  Lv 14 (HP 749):  1,380 dealt, died r23
+  chain  Lv 14 (HP 1,560): 981 dealt, died r27
+The wall is no longer raw stats: at Lv 14 Kain
+has the damage (the 749-HP chain trace nearly
+killed a 1,727 Tree). The losses turn on (a)
+trace variance in the foe's guard phase and
+(b) surviving the foe's one big BRV cash-in
+(~1,300) in the mid-phase. Levers for s59:
+(1) more levels (each Pirate kill ~+1 level;
+Lv 15-16 raises both damage and the HP pool
+above the cash-in's reach); (2) take the chain
+route every time (no guard phase); (3) if a
+trace shows the foe banking >1,200 BRV with
+Kain under that in HP, the run is likely lost
+- exit earlier and re-roll. The Flash (disc
+13) was never fought; chests and the Stigma
+remain; the board is NOT finished.
+STANDING AT CLOSE: Kain Lv 14, gil 10,974
+(active lineage), banked KP 104, Shiva +
+Rosetta Stone held, Firion assist. Board KP
+this visit unverified (the 12-rotation Gunner
+win likely met the 90-second chance; not
+screenshot-confirmed). RESUME BANKS:
+s58_s58pir7nc_post2.state (Pirate beaten,
+Tree chain card OPEN, Kain HP 1,560, at 23 -
+the prime retry bank); s58_r6_start.state
+(fresh board, Lv 14, gil 10,674);
+s58_field_r6.state (field at gate 22).
+PROTECTED, untouched: s56_ti_resume.state.
+DO NOT USE: s58_r3_start.state / s58_r3_at43.
+state (mid-title-card), s58_field_r5.state
+(the accidental Tree VS screen), s58_r3_at33.
+state (boot-screen save from the mistimed
+load). Harness added: s58_fight.py (rot4y/
+rot4z modes, longer post-win settle + verify
+save), s58_fight_nc.py (no-decline win
+handler), s58_press.py, s58_shot.py,
+s58_exit2.py, s58_decline_exit.py,
+s58_enter2.py / s58_enter3.py (entry with
+control proof before saving).
+
+### Session 59 addendum 48 - TRUE INTENT: THE CHAIN DOOR (2026-11-20)
+
+PLAN (from addendum 47 H): finish the Gateway of
+True Intent. Resume the PRIME bank s58_s58pir7nc_
+post2.state (Pirate beaten, Tree CHAIN CARD OPEN,
+Kain HP 1,560 at grid 23, Lv 14, gil 10,974) and
+take the chain into the Tree with rot4z - the
+chain route skips the Tree's ~20-rotation guard
+phase. If the chain trace stalls, do NOT plain-
+retry: fresh run, one more Pirate-kill level,
+back via the chain at higher level / fuller HP.
+Then the Fleeting Flash (disc 13, never fought -
+read its card, measure HP, bank first), BOTH
+chests (west rock + east rock; Suih's cells are
+approximate - cell 21 is empty ground), then the
+STIGMA OF CHAOS to finish the board. Bank KP at
+the end; never accept a chain at the finish.
+OPEN QUESTION from s58: did run 7's Pirate kill
+reach Lv 15? (standing at close said Lv 14 -
+verify from the prime bank and record.)
+Policy: rot4z (rot4 base; no-drift Triangle x2 /
+Square x2 race from foe <= 700 HP). rot4's base
+sequence is load-bearing; levers are the race
+threshold, the entry route, and LEVELS. Fights
+from a bank can be fully deterministic.
+Harness: s59_fight.py (declines chains), s59_
+fight_nc.py (leaves chain cards open), s58_press.
+py, s47_board.py. All runs in HELD FOREGROUND
+exec calls. Branch verified at 584738b, clean.
+Protected: s56_ti_resume.state. DEAD: s58_r3_
+start / s58_r3_at43 / s58_field_r5 / s58_r3_at33,
+s57_run2_start / s57_wedged.
+
+FINDINGS:
+(to be filled as the session runs)
+
+A. LEVEL CHECK + FIRST CHAIN ATTEMPT (prime bank):
+- Screenshot of s58_s58pir7nc_post2.state read
+  firsthand: the bank rests on the Tree's VS
+  screen - "Lv 14 Kain Highwind" (Assist Firion)
+  VS "?" Lv 13, stage World of Darkness. ANSWER
+  to s58's open question: run 7's Pirate kill did
+  NOT reach Lv 15; Kain is Lv 14.
+- TREE VIA CHAIN from the prime bank, rot4z
+  (foe discovered 1,921 HP; Kain in at 1,560):
+  LOSS at rot 27, foe at 940 - 981 dealt. The
+  trace REPLAYED s58 run 7 almost exactly (foe
+  banked 1,299 BRV by rot 20 while Kain chipped
+  it to 1,306; the cash-in landed rot ~21-25,
+  1,560 -> 261; finished rot 27; the <=700 race
+  never fired). This bank's chain trace is
+  deterministic across boots. A materially
+  better attempt needs levels / fuller entry HP.
+
+B. FRESH-RUN DETOUR (s58_r6_start lineage) -
+  THE PIRATE WALLS THIS SESSION'S SAMPLES:
+Re-rolls are bank-determined: re-running the
+identical fight from s59_pir_prompt.state
+reproduced the loss BYTE-IDENTICALLY. Changing
+the bank (different nav path, or an idle-wait
+before prompting - new tool s59_nav.py) changes
+the trace. Samples (all Lv 14, rot4z):
+- GUNNER from a two-step nav bank: WIN 20 rots,
+  Kain 2,094 -> 1,913 (a ~181 cash-in). Re-rolled
+  via a one-shot nav bank: WIN 16 rots, Kain
+  UNTOUCHED. The Gunner re-rolls cleanly.
+- PIRATE (entry 1,913): LOSS r16, foe UNTOUCHED
+  (1,727; two early cash-ins, Kain's BRV pinned
+  <115 - broken repeatedly). Re-roll: LOSS r18,
+  foe 1,386.
+- PIRATE (entry 2,094, clean Gunner): LOSS r19,
+  foe 1,390 (no damage through rot 10; foe bank
+  1,014+ by rot 15).
+- PIRATE (idle-900 re-roll, entry 2,094): LOSS
+  r31, foe 863 - THE NEAR TRACE. Damage flowed
+  from rot 1; Kain at FULL HP through rot 15
+  while the foe held a ~921 bank; first cash-in
+  ~783 at rot ~17-20 (to 1,311); then Kain was
+  BROKEN (pool spiked 718) and a ~1,310 hit left
+  him at 1 HP; he fought on to foe 863 before
+  the next cash-in (895) killed him at r31.
+- PIRATE (idle-1800 re-roll, entry 2,094): LOSS
+  r16, foe 1,238 (cash-in ~1,087 by rot 5).
+The Pirate's kill mechanism in every loss: a
+~1,000-1,300 BRV bank cashed mid-fight; at Lv 14
+Kain survives one, not two, and his base-phase
+damage (~25-60/rot) makes fights run long
+enough to eat two. DECISION: stop sampling this
+lineage. Return to the PRIME lineage, back out
+of the Tree VS screen, exit/re-enter, and take
+one more Pirate kill there (the prime lineage
+carries the most EXP; its Pirate fell twice in
+s58) to reach Lv 15, then chain the Tree at the
+higher level with a fuller entry HP.
+
+C. FORFEIT / FLEE - THE BOARD-LEVEL RETREAT
+(prime lineage): the Tree's chain VS screen
+cannot be backed out of with Circle, but the
+in-battle pause menu offers Return / Retry /
+Forfeit. Forfeit asks "Forfeit this battle?
+*EXP and character settings will be retained"
+(cursor defaults NO; Left+Cross = YES) and lands
+on a Retry / Flee menu: Retry = "Start over
+from status at beginning of battle. Resets
+Summonstone status and EXP"; Flee returns to
+the board with EXP kept and HP UNCHANGED (Kain
+back at grid 23, HP 1,560, Pirate still beaten,
+board KP gauge showed 1 this visit). Tools:
+s59_forfeit2.py (VS screen -> Retry/Flee menu),
+then s58_press down,cross (Flee). Exit from
+there healed Kain fully as usual (field bank
+s59_prime_field.state, pocket 292.70, 310.17).
+
+D. PRIME-LINEAGE GRIND - TWO LEVELS IN ONE
+VISIT (fresh board from s59_p_start.state):
+- GUNNER (disc 33), rot4z: WIN 32 rots, Kain
+  UNTOUCHED - and the in-battle final read
+  showed herHP 2,154, ABOVE the Lv 14 max 2,094.
+  Board HUD (screenshot, firsthand): "Lv 15,
+  HP 2154". THE GUNNER KILL LEVELED KAIN 14->15
+  (the prime lineage's banked EXP was close).
+  MYSTERY SOLVED: the "+~61 HP recovery on wins"
+  sighted in s57/s58 is the LEVEL-UP HEAL - on a
+  leveling win, current HP rises by the max-HP
+  delta (Lv 12->13: +60, 13->14: +61, 14->15:
+  +60). Gil -> 11,040.
+- PIRATE (disc 22) at Lv 15, first bank: LOSS
+  r18, foe 1,494 (guard trace; Kain's start read
+  was 2,037 - the foe landed a 117 HP hit during
+  the wait-for-live polling, a finder artifact,
+  not board HP loss). Idle-900 re-roll: WIN in
+  37 rots. Foe cashed ~978 by rot 5 (2,154 ->
+  1,176) but damage flowed (1,098 by r10); race
+  from <=700 closed it (496 at r30, 71 at r35).
+  Kain ended 398 = 337 + 61: THE PIRATE KILL
+  LEVELED KAIN 15->16 (Lv 16 max HP = 2,215).
+  Gil -> 11,274. Chain card (disc 24) left open;
+  post bank s59_s59ppir2_post2.state rests on
+  the Tree VS screen - screenshot firsthand:
+  "Lv 16 Kain Highwind" VS "?" Lv 13, World of
+  Darkness.
+- TREE VIA CHAIN at Lv 16 but HP 398 (sample):
+  LOSS r10, only 60 dealt - the Tree hit for
+  258 by rot 5 and finished him at r10. This
+  visit's chained Tree again measured 1,921 HP.
+  Entry HP 398 is hopeless; the sample only
+  confirms the chain HP (1,921) and the need
+  for a fuller entry.
+- LOOP EXECUTED: forfeit -> flee -> exit (full
+  heal) -> re-enter. Fresh board banked at
+  Lv 16, gil 11,274: s59_t2_start.state. Next:
+  Gunner -> Pirate at Lv 16 (cheaper traces
+  expected) -> chain the Tree with a real HP
+  pool (target entry > 1,700).
+
+E. SECOND VISIT (Lv 16) - PIRATE DOWN, LV 17,
+AND THE CHAIN CARD IDENTIFIED:
+- GUNNER at Lv 16: WIN 12 rots, UNTOUCHED
+  (foe at 96 HP by rot 5). Gil -> 11,340.
+- PIRATE at Lv 16 (entry 2,215): WIN in 44
+  rots - a long stall trace (foe frozen at
+  775/BRV 694 for ~10 rots mid-fight; its 694
+  cash-in landed at rot ~33, 1,047 -> 350; the
+  race closed from 584). Final herHP 341 =
+  280 + 61: THE KILL LEVELED KAIN 16->17
+  (board HUD firsthand: "Lv 17, HP 341"; Lv 17
+  max HP ~2,276). Gil -> 11,574. The win MET
+  the KP chance (board KP gauge showed 1; the
+  44-rotation win still beat the 90-second
+  battle clock - rotations are not seconds).
+- THE POST-WIN CARD IS THE CHAIN OFFER -
+  PROVEN: the post bank (s59_s59t2pir_post2)
+  rests with the Fallacious Tree's card open
+  ("Engage X / Cancel O", KP-chance banner).
+  A Circle press opened the "Cancel chain?"
+  dialog (cursor NO) - the documented decline
+  flow. So the win handler's end state leaves
+  the CHAIN CARD open (its final circle presses
+  summon the cursor onto it), and one Cross
+  from the post bank ENGAGES THE CHAIN.
+- TREE VIA THAT CHAIN at Lv 17, HP 341
+  (sample): foe HP 1,727 this instance (chain
+  HP varies: 1,727 in run 4 and here, 1,921 in
+  run 7 and the Lv 16 visit - per-instance
+  variance, not a route marker). LOSS r17 -
+  but the shape is the news: the Tree hit for
+  320 by rot 5 (341 -> 21) and then did NOT
+  land a killing blow for 12 rotations while
+  Kain, at 21 HP, dealt 1,023 (foe -> 704;
+  damage flowing from ~rot 6, no guard phase;
+  the race ran from ~rot 14). At any real
+  entry HP (>= ~900) this trace family is a
+  WIN: the foe's kill windows are the early
+  hit and its mid cash-ins, and Lv 17 damage
+  (~60-190/rot in the race) outruns them.
+- Chain declined properly (Circle -> Left ->
+  Cross), exit clean (field s59_t3_field.
+  state; board KP 1 lost on exit, banked KP
+  still 104). ENDGAME PLAN: re-enter at Lv 17
+  (HP 2,276), free Gunner, re-roll the Pirate
+  for a CHEAP win (target: enter the Tree
+  chain at >= ~1,200 HP), engage the Tree
+  from the post-win chain card, then Flash,
+  chests, Stigma.
+
+F. VISIT 4-5 SAMPLES AND LV 19 (t4/t5 lineages):
+- Visit 4 Pirate samples (Lv 17): idle-0 LOSS
+  r26 (foe 163 - a furious late comeback from
+  387 HP fell 163 short); idle-900 WIN 29 rots
+  (one 932 cash-in; Kain 1,344); idle-1800 LOSS
+  r13 (foe cashed ~1,528 by rot 5); idle-450
+  WIN 29 rots but Kain at 402 (a 1,446 bank
+  landed mid-fight).
+- TREE VIA CHAIN at Lv 17 / 1,344 HP (from the
+  idle-900 win's post bank): foe 1,727. LOSS
+  r27, foe 736 (991 dealt). THE GUARD PHASE
+  APPEARED ANYWAY: zero damage through rot 15
+  (foe banked 735), flow only from ~rot 16
+  (598 in 5 rots). Chain entry does NOT
+  guarantee the no-guard trace - it varies by
+  bank, like everything else. (Also observed:
+  herHP ticked 710 -> 770 mid-fight - a +60
+  in-battle rise, mechanism unproven; not a
+  level-up, which happens on the results
+  screen.) The 402-HP sample from the idle-450
+  bank: LOSS r8, foe untouched.
+- Visit 5 (Lv 17): the Gunner kill LEVELED
+  KAIN 17->18 (final read 2,336 = Lv 18 max).
+  TREE VIA PROMPT at Lv 18 / FULL HP 2,336:
+  LOSS r29, 490 dealt - ALL of it after rot
+  20. The guard phase cost 2,232 HP (cash-ins
+  ~801 + ~970 plus chip) before the flow
+  phase (~98/rot at Lv 18) could start. The
+  prompt route's problem is the guard phase's
+  PRICE, and it varies (768 dealt at Lv 13,
+  146 at Lv 14, 490 at Lv 18).
+- PIRATE at Lv 18 (idle-900 bank): WIN 33
+  rots, CHEAP - damage flowed from rot 1
+  (foe 912 by rot 5); only two hits taken
+  (278 + 238) before the foe's 1,048 bank
+  cashed late (1,820 -> 772). Final 833 =
+  772 + 61: LEVELED 18->19 (Lv 19 max 2,397).
+  Gil -> 12,174. Chain card left open.
+- TREE VIA CHAIN at Lv 19 / 833 HP - THREE
+  SAMPLES via a NEW LEVER: idle-rolling the
+  POST-WIN BANK itself (s59_nav IDLE with no
+  moves; the post bank rests on the chain VS
+  screen, focus 006e0045, and idles safely):
+  idle-0: LOSS r18, 195 dealt (guard trace).
+  idle-900: LOSS r15, 562 dealt (flow by rot
+  10, but a 435 hit at rot ~8 and the 757
+  bank killed at 398). idle-2700: LOSS r10,
+  foe untouched (same start signature as the
+  others - the bank fixes the opening; idles
+  perturb the mid-fight only). VERDICT: 833
+  HP is below the Tree's floor at any trace
+  family seen: it lands 300-450 in the first
+  10 rotations plus a 550-800 bank by rot 15.
+  Entry HP >= ~1,200 with a flowing trace
+  remains the winning shape (the 341-HP
+  sample's flow dealt 1,023 - at 1,200 that
+  trace wins with ~800 to spare).
+- STANDING: Kain Lv 19 (max HP 2,397), gil
+  12,174, banked KP 104. Active bank:
+  s59_s59t5pir_post2.state (Pirate beaten,
+  Tree chain VS screen open, HP 833). NEXT:
+  visit 6 - Gunner, then the FLASH (disc 13,
+  up from the hub) VIA PROMPT AT FULL HP:
+  never fought; read its card, measure HP.
+  Then Pirate -> Tree chain with idle-rolls.
+
+G. VISIT 6 - THE FLASH MEASURED; SESSION CLOSE:
+- GUNNER at Lv 19: WIN 9 rots (one 167 hit;
+  entry HP 2,230). Gil -> 12,240.
+- FLEETING FLASH (disc 13, up from the hub;
+  card read firsthand: Lv 13, stage Ultimecia's
+  Castle, KP chance win-in-90s) FOUGHT FOR THE
+  FIRST TIME at Lv 19 / 2,230 HP, rot4z: HP =
+  1,727. LOSS r42, foe at 990 (737 dealt). Its
+  shape: an early trade window (258 by rot 10),
+  then a ~1,233 BRV bank cashed for 1,541
+  (1,932 -> 391, rot ~17 - BRV + pool/break
+  bonus; the biggest single hit on this board),
+  then a KEEP-AWAY phase (zero damage rots
+  20-35 - the s46 Legendary Lake Flash pattern:
+  it wins the ranged game; damage only in the
+  melee trade window), a second window at rots
+  35-40 (479 dealt), and the second bank
+  (1,430) killed Kain at r42. The Flash is a
+  two-cash-in endurance fight like the Tree,
+  with a bigger cash-in and dead zones.
+- BOARD SKILLS CHECKED: Square on the board
+  shows the held skill - Cross Chain ONLY
+  (held since the Ch.2 chest). NO Recovery
+  skill is held; the (Cure) chest was a Ch.3
+  field loose end, never picked up, and skills
+  are held per chapter lead, so it would not
+  be Kain's anyway. No in-visit healing
+  exists: a board finish must be ONE visit on
+  one HP pool (2,397 + level-up heals).
+- PIRATE at Lv 19, two samples: idle-900 LOSS
+  r30 (foe 923; early flow 691 by rot 5, then
+  a 15-rotation stall at 923 while two hits
+  landed); idle-450 LOSS r24 (foe 907; foe
+  cashed ~977 by rot 10 untouched).
+- ONE-VISIT ARITHMETIC (why the board still
+  stands): Pirate costs ~500-1,900 depending
+  on trace; the Tree needs entry >= ~1,200
+  AND a flowing trace (its guard phase, when
+  it appears, costs ~2,200 at full HP); the
+  Flash needs near-full entry (its first
+  cash-in is 1,541) or a kill inside its
+  first trade window. At Lv 19 the three
+  costs do not yet fit one 2,397 pool except
+  on an aligned set of traces. THE RATCHET IS
+  THE PLAN: every visit banks EXP/gil even
+  when it fails (levels persist through
+  exits); Kain went Lv 14 -> 19 THIS SESSION
+  (five levels: Gunner kills tipped 15 and
+  18, Pirate kills tipped 16, 17, 19). At
+  Lv 20-22 the same traces cost less and the
+  damage windows widen; the finish is a
+  matter of visits, and every mechanism it
+  needs (chain entry, idle re-rolls of both
+  prompt banks and post-win banks, forfeit/
+  flee, the decline flow) is now proven and
+  tooled (s59_nav / s59_enter / s59_forfeit2 /
+  s59_fight / s59_fight_nc).
+- CHESTS / STIGMA: not reached this session.
+  Both chests are visible on the board (west
+  rock + east rock); the Stigma presumably
+  follows the last manikin.
+STANDING AT CLOSE (active t6 lineage): Kain
+Lv 19, max HP 2,397, gil 12,240, banked KP
+104, board KP 0, Shiva + Rosetta Stone held,
+Firion assist, Cross Chain board skill.
+RESUME: s59_t6_start.state (fresh board, full
+HP) or s59_s59t6gun_post2.state (this visit,
+Gunner beaten, HP 2,230, at grid 43). Other
+live banks: s59_s59t5pir_post2.state (Lv 19,
+HP 833, Tree chain VS open - idle-roll
+samples), s59_t5_field.state / s59_t6_field.
+state (field pocket). PROTECTED, untouched:
+s56_ti_resume.state. SESSION 60 LEAD: keep
+ratcheting - Gunner + Pirate per visit (each
+kill ~a level in this range), Tree via the
+Pirate chain with idle-rolled post banks at
+entry >= 1,200; take the Flash in the same
+visit only if the Tree falls cheap; expect
+the finish around Lv 20-22. If a visit's
+Pirate win leaves >= 1,700, skip the Tree
+chain sample and go straight for the full
+clear: Tree (chain) -> Flash (prompt, up
+from hub) -> chests (west/east rocks) ->
+Stigma.
+
+### Session 60 addendum 49 - TRUE INTENT: THE RATCHET, THEN THE CLEAR (2026-11-20)
+
+PLAN (from addendum 48 G): keep ratcheting - Gunner +
+Pirate per visit (each kill ~a level in this range),
+Tree via the Pirate chain with idle-rolled post banks
+at entry >= 1,200; if a Pirate win leaves >= 1,700 go
+straight for the full clear: Tree (chain) -> Flash
+(prompt, up from hub) -> chests (west/east rocks) ->
+Stigma. Expect the finish around Lv 20-22.
+Standing at start: Kain Lv 19 (max HP 2,397), gil
+12,174 (bank s59_t6_start.state, fresh board, grid 53,
+state68=20 - verified firsthand this session; the
+brief's 12,240 was the post-Gunner figure of visit 6),
+banked KP 104, board KP 0, Shiva + Rosetta Stone held,
+Firion assist, Cross Chain the only board skill (NO
+in-visit healing: a finish is ONE visit on one HP pool
+of 2,397 + level-up heals).
+Policy: rot4z (rot4 base; no-drift Triangle x2 /
+Square x2 race from foe <= 700 HP). Levers: race
+threshold, idle-rolls (0/450/900/1800/2700) of prompt
+banks AND post-win banks, entry HP, LEVELS.
+Harness: s60_fight.py / s60_fight_nc.py (s59 builds
+with s60_ save prefix), s59_nav.py, s59_forfeit2.py,
+s58_press.py, s60_status.py. All runs in HELD
+FOREGROUND exec calls. Branch verified at 3d8504f,
+clean. Protected: s56_ti_resume.state.
+NOTE: wsl -e runs binaries directly (no shell) - file
+globs do NOT expand; use find -name for listings.
+
+FINDINGS:
+(to be filled as the session runs)
+
+A. VISIT 1 (t1; from s59_t6_start.state, Lv 19,
+pool 2,397, gil 12,174):
+- GUNNER (disc 33) via prompt bank s60_t1_nav1
+  (Kain 43, prompt 33), rot4z: WIN 9 rots, one
+  167 hit (2,397 -> 2,230) - the same trace as
+  s59 visit 6. Foe HP 1,303 (discovered). Gil
+  -> 12,240. No chain offered after.
+- PIRATE (disc 22) via prompt bank s60_t1_nav2
+  (Kain 23, prompt 22; entry HP 2,230; foe
+  1,727; all rot4z):
+  idle-0: WIN r31, left 583 (foe cashed twice
+  early while Kain dealt nothing until ~r12;
+  chain left open).
+  idle-900: LOSS r28, foe 733 (Kain broken
+  ~r10).
+  idle-450: WIN r18, left 786 (flow from r5;
+  no chain line logged by the handler).
+  idle-1800: WIN r28, left 572 (opening
+  signature identical to idle-0).
+  idle-2700: WIN r33, left 1,094 - BEST (cost
+  1,136; steady flow, only two HP drops).
+  Post bank s60_t1pir2700_post2 rests grid 23,
+  PROMPT->disc 24.
+  Pirate win costs at Lv 19 / entry 2,230 run
+  1,136-1,658: the ">= 1,700 left" full-clear
+  trigger (cost <= 530) was not approached in
+  five samples.
+- TREE (disc 24) via the chain card from
+  s60_t1pir2700_post2 (entry HP 1,094; foe
+  1,727 in all four samples), post bank
+  idle-rolled, all LOSS:
+  idle-0: r9, 0 dealt (broken ~r5).
+  idle-900: r12, 0 dealt (guard/bank, foe
+  BRV 908 at death).
+  idle-2700: r40, 930 dealt (delayed flow -
+  nothing either way for ~15 rots, flow from
+  ~r20; Kain plateaued at 381 from r20).
+  idle-450: r27, 330 dealt (flow by r10, then
+  stall; foe banked 904 and cashed).
+  VERDICT: entry 1,094 is below this bank's
+  winning band; its trace families cap at
+  ~930 dealt. Ratchet on: exit (gil 12,474
+  banked) and re-enter for visit 2.
+
+B. VISIT 2 (t2; re-entered from s60_t1_field,
+gil 12,474):
+- GUNNER via s60_t2_nav1, rot4z: WIN 8 rots -
+  and the final read showed herHP 2,290 =
+  2,230 + 60: THE GUNNER KILL LEVELED KAIN
+  19 -> 20 (visit 1's banked EXP tipped it).
+  Lv 20 max HP 2,458. Gil -> 12,540.
+- PIRATE via prompt bank s60_t2_nav2 (entry
+  HP 2,290; foe 1,727; all rot4z):
+  idle-0: LOSS r25, foe 323 (early flow, a
+  1,354 hit ~r20, race stalled at 323). NOTE:
+  the first attempt at this bank HUNG (live=
+  False, no rotation output for 6+ min) and
+  was killed; the retry on a fresh boot ran
+  normally - a transient frozen block, the
+  s47 lesson in reverse.
+  idle-2700: LOSS r56, foe 646 (Kain pinned
+  at 215 from r20 while the foe rebuilt BRV
+  to 1,930 without cashing; the race could
+  not finish the last 646).
+  idle-450: WIN r34, left 498 (cost 1,792 -
+  the most expensive win yet).
+  idle-900: WIN r30, left 1,004 (fast flow -
+  foe at 14 by r20 - but the race whiffed
+  ~10 rots on the last 14 HP). Chain open.
+  idle-1800: LOSS r24, foe 1,269 (a ~1,338
+  cash-in ~r22).
+- TREE VIA CHAIN from s60_t2pir900_post2
+  (entry HP 1,004; foe 1,727):
+  idle-0: LOSS r28, 241 dealt (stall trace -
+  nothing dealt after r10).
+  idle-2700: **WIN r34** - THE TREE FALLS.
+  One hit taken before r30 (503, ~r8: 1,004
+  -> 501), steady flow (1,727 -> 1,446 ->
+  1,095 -> 446 -> 40 -> 0), and a 303 parting
+  hit in the killing rotation: Kain ends at
+  198 HP. Gil -> 13,028. No level-up (Lv 20
+  stands). The win handler declined chains
+  to disc 13, disc 22 and disc 21 (chains can
+  target the west chest's record). Post bank
+  s60_t2tree2700_post2: Kain at grid 22, HP
+  198, Tree DEAD in this lineage.
+  Winning shape, for the record: Lv 20, entry
+  ~1,000, idle-2700 trace family - the entry
+  floor is trace-dependent, not a hard 1,200.
+- BOARD STATE: Gunner, Pirate and Tree are
+  dead in this visit; the Flash (disc 13)
+  still stands; both chests untaken. Per the
+  s47 Legendary Lake precedent the Stigma of
+  Chaos was a reachable board piece (disc 34,
+  from disc 24 down) and that board FINISHED
+  with two manikins unbeaten - so the TI
+  Stigma may be reachable NOW, at 198 HP,
+  without fighting the Flash. The post bank
+  is a persistent file: probing costs nothing
+  but time. NEXT: map the back rows from grid
+  22 (the Tree's cell 24 -> up is the first
+  candidate), find the Stigma's prompt, and
+  probe what engaging it does.
+
+C. TRUE INTENT BOARD MAP (measured this session,
+from s60_t2tree2700_post2 and descendants; Kain
+Lv 20, HP 198, gil 13,528, board KP gauge 3):
+- Record scan (s60_scan.py; RECORDS + 8/cell,
+  flag word 1 = board node exists): nodes at
+  3, 13, 21, 22, 23, 24, 25, 30, 33, 43, 44,
+  51, 52, 53, 55. All other cells void.
+- Walked graph: spine 53-43-33-23 (column 3);
+  row 2: 21-22-23-24 with 24 -> prompt 25;
+  23 -> prompt 13 (Flash); 43 -> prompt 44
+  (Firion assist, confirmed firsthand by
+  screenshot); south spur 53-52-51 (empty,
+  dead end). Void probes: 24 up/down, 33
+  left/right, 43 left, 21 left/up/down, 51
+  left/up - no edges, no prompts.
+- EAST CHEST = disc 25 (NOT Suih's ~28):
+  prompt dialog "Treasure Chest - Contains
+  helpful items" read firsthand; opened:
+  "Obtained 500 gil from chest!" (screenshot
+  verified) - gil 13,028 -> 13,528. Taken in
+  this lineage: bank s60_t2_chestE_done.state.
+- FLASH card read firsthand (screenshot):
+  "Fleeting Flash, Lv 13, BATTLE STAGE
+  Ultimecia's Castle, KP Win within 90
+  seconds" - disc 13 confirmed.
+- STIGMA: the red flame-wreathed crystal
+  visible directly north of the Flash's rock
+  in the prompt screenshot = cell 3 (one row
+  north of 13, same column; node flag set).
+  Route: kill the Flash, stand on 13, up ->
+  prompt 3 -> Engage. (LL precedent: engaging
+  the Stigma finished that board.)
+- UNRESOLVED: nodes 30 (far west, (-18,0))
+  and 55 (south-east of start) have NO
+  cardinal edges (all neighbors void) and do
+  not answer analog diagonal pushes from 21
+  (two sign combos tried). The Pebble chest
+  (Suih: two chests; east was the 500 gil)
+  was NOT found - it may sit on 30 or 55
+  (chain-only destinations?) or be a
+  chapter-variant node (cf. the field pint
+  SET lesson). Loose end, not on the finish
+  path.
+- This visit cannot finish: Kain at 198 HP
+  cannot fight the Flash (first cash-in
+  1,541 in s59's sample). Exit banks the
+  lineage (Lv 20, gil 13,528, Tree-kill EXP);
+  visit 3 runs the full clear: Gunner ->
+  Pirate (cheapest trace) -> Tree (chain,
+  idle-rolled; the 2700 family won at Lv 20)
+  -> Flash (prompt from 23, best HP
+  available; a mid-visit level-up heal is
+  plausible with t2's banked EXP) -> Stigma
+  at 3. East chest (25) again on the way if
+  the route passes 24 with HP to spare - it
+  is free.
+
+D. VISIT 3 (from s60_t2_field.state via
+s59_enter.py -> s60_t3_start.state; Lv 20,
+HP 2,458, gil 13,528):
+- Gunner (prompt bank s60_t3_nav1.state):
+  rot4z WIN r14. Start read 2,457, took 148,
+  final 2,370 = 2,309 + 61 LEVEL-UP HEAL -
+  Kain Lv 20 -> 21 on the Gunner kill (t2's
+  banked EXP tipped it). Lv 21 max 2,519.
+  Gil 13,594.
+- Pirate (prompt bank s60_t3_nav2.state,
+  entry 2,370): idle-900 LOSS r21 (foe 446;
+  846 cash-in ~r12). idle-2700 WIN r34, ends
+  1,085 (cost 1,285; race stalled ~15 rots
+  at foe 114 while foe BRV rebuilt to 1,238
+  unfired). Gil 13,828. Chain open; post
+  bank s60_t3pir2700_post2.state.
+- Tree via chain (post bank idle-rolled;
+  foe 1,727 in all samples): idle-2700 WIN
+  r31, ends 378 (no damage until ~r17; flow
+  1,666->536->1->0; 202 parting hit). Gil
+  14,062. Post bank s60_t3tree2700_post2.
+- Flash SCOUT at 378 HP (prompt bank
+  s60_t3_nav3.state, idle-0): LOSS r29, foe
+  at 584 - but Kain took ZERO damage for
+  25+ rotations and dealt 1,143. A KEEP-AWAY
+  trace family: the Flash banks/plays range
+  and barely attacks; its first hit landed
+  ~r27. Key data: this family is beatable
+  at ~900+ entry HP, possibly lower.
+- Exit (s60_exit2.py) -> s60_t3_field.state
+  (pocket (292.70, 310.17), gil 14,062).
+
+E. VISIT 4 - THE CLEAR (from s60_t3_field
+via s59_enter.py -> s60_t4_start.state):
+- Gunner (s60_t4_nav1.state): WIN r9, ZERO
+  damage. Start read 2,578 -> the visit-3
+  Tree kill had leveled Kain to 22 (max
+  2,580). Gil 14,128.
+- Pirate (prompt bank s60_t4_nav2.state,
+  entry 2,578) - a brutal bank: idle-2700
+  WIN r38 but cost 2,200 (ends 378; 1,536
+  cash-in ~r12); idle-900 LOSS r25 (foe
+  1,086); idle-450 LOSS r25 (foe 1,038;
+  1,441 cash-in); idle-0 LOSS r35 (foe
+  1,360; 1,212 taken in the first 5 rots);
+  idle-1800 WIN r21, ends 1,378 (cost
+  1,200). Gil 14,362. Chain open; post bank
+  s60_t4pir1800_post2.state.
+- Tree via chain at 1,378 (idle-2700 rolled
+  bank s60_t4_tre2700.state; foe 1,727):
+  WIN r28, ends 413. TRACE NOTE: at rot 20
+  herHP read 1,439 = 1,378 + 61 - a LEVEL-UP
+  HEAL landed MID-FIGHT (the Pirate kill's
+  level-up, Lv 22 -> 23, processed during
+  the chain transition; max now 2,641). The
+  Tree's parting cash-in (foe BRV 821 +
+  pool) dealt 1,026 in the last rotations;
+  Kain survived at 413. Gil 14,596. Post
+  bank s60_t4tree2700_post2.state (grid 23).
+  Board KP gauge now 5.
+- EAST CHEST (25) revisited: opened, but
+  yielded only +20 gil this visit (gil
+  14,596 -> 14,616) vs 500 in visit 2 -
+  chest contents VARY per visit (random
+  roll). The WEST CHEST is VISIBLE in board
+  screenshots (gold chest, far west) =
+  almost certainly node 30 (-18, 0); still
+  unreachable on foot (no cardinal edges;
+  chain-only? - untested from a 33/23 win).
+- FLASH (prompt bank s60_t4_nav3.state from
+  grid 23, entry 413, idle-0, rot4z): WIN
+  r55, Kain ends 242. THE KEEP-AWAY FAMILY
+  AGAIN: one 171 hit at ~r3 (413 -> 242),
+  then NO damage taken for 50 rotations
+  while rot4z chipped 1,727 -> 0. The foe
+  banked to the 2,000 cap by ~r48 and HELD
+  it, unfired, for 10+ rotations while the
+  endgame race whiffed at foe 168 (rots
+  45-54) - then landed. Foe AI quirk worth
+  remembering: at max bravery in keep-away
+  it may simply never fire. Gil 14,850.
+  Post bank s60_t4flash0_post2.state.
+- STIGMA OF CHAOS (disc 3): from the Flash
+  post bank, nav up -> Kain stands on 13;
+  up again -> PROMPT->disc 3. Dialog read
+  firsthand (screenshot): "Stigma of Chaos -
+  Engaging this piece finishes the level."
+  Cross -> light beam, "CLEARED" banner
+  (screenshot). Post-clear dialogue (2
+  pages, Kain portrait) -> FIELD CONTROL at
+  (292.50, 318.26), state68=2.
+- CLEAR REWARDS / NEW STANDING: Kain Lv 23,
+  HP FULLY RESTORED on the field (2,639
+  read / 2,641 max), gil 14,850, BANKED KP
+  104 -> 109 (the board's 5 KP swept in at
+  the clear). Shiva + Rosetta Stone held;
+  Firion assist. GATEWAY OF TRUE INTENT
+  FINISHED - Chapter 6's second gateway
+  chain complete (Sunken Lake, Hidden
+  Darkness, Legendary Lake, True Intent).
+
+F. LEG 3 SCOUT (brief item 5, bounded):
+- Post-clear field bank s60_fin3.state:
+  (292.50, 318.26), full HP, KP 109.
+- s55_march toward the moogle shop (280,
+  273): the road runs -Z; a SEGMENT SEAM at
+  Z ~= 310 (state68 cycled 20 -> 0 -> 2 -
+  a field segment reload, NOT a battle or
+  a gateway entry; event bank
+  s60_leg3_event.state settled back to
+  field control just south of the seam).
+  Marcher stops at seams; session 61
+  resumes the march from the event bank.
+  Moogle shop (280, 273) and Ryukahn
+  Gateway still ~37 units beyond; Exdeath
+  Lv 18 NOT probed (no encounter reached;
+  Kain is Lv 23 and full HP for it).
+
+G. SESSION 60 CLOSE:
+- Kain Lv 19 -> 23 (four levels: Gunner
+  kills tipped 20 and 21 in visits 2-3;
+  the visit-3 Tree kill tipped 22; the
+  visit-4 Pirate kill tipped 23, its heal
+  landing mid-Tree-fight). Gil 12,174 ->
+  14,850. Banked KP 104 -> 109.
+- THE TREE: beaten three times (t2 chain
+  idle-2700 @1,004; t3 chain idle-2700
+  @1,085; t4 chain idle-2700 @1,378).
+  Winning entry floor is trace-dependent:
+  ~1,000 at Lv 20-21 in the 2700 family.
+- THE FLASH: beaten at 413 entry (idle-0,
+  keep-away family). Its danger is
+  trace-dependent, not absolute: the
+  aggressive family (s59) cashes 1,541;
+  the keep-away family may never fire.
+- LOOSE END: the Pebble (west chest, node
+  30) never collected - unreachable on
+  foot; try chain offers from a Gunner/
+  Pirate win in a future replay, or an
+  analog-stick move in all 8 directions
+  from 21/23 (only 2 diagonal combos
+  tried). Node 55 likewise unexplained.
+- RESUME: s60_fin3.state (field, post-
+  clear, full HP) is the lineage head;
+  s60_leg3_event.state for the march.
+  PROTECTED s56_ti_resume.state untouched.
+- NEXT (session 61): leg 3 - march from
+  s60_leg3_event.state to the moogle shop
+  (280, 273), then the Ryukahn Gateway
+  (gate per guides; board: Delusory
+  Dragoon Lv6, Phantasmal Girl Lv13,
+  Transient Gunner Lv13, Idle Sky Pirate
+  Lv13, chest Yellow Drop, Firion assist,
+  Bonus Line 12, KP chance Win battle) and
+  the chapter boss EXDEATH Lv 18 - Kain at
+  Lv 23 is five levels up on him; probe
+  with the standard fight harness at full
+  HP from a fresh bank.
+
+
+### Session 61 addendum 50 - LEG 3: MOOGLE SHOP, RYUKAHN GATEWAY, EXDEATH (2026-11-20)
+
+PLAN (from addendum 49 G): march leg 3 from
+s60_leg3_event.state (settled just south of the
+Z~=310 segment seam) to the moogle shop (280, 273);
+read the shop, buy only what clearly helps (keep
+gil reserve >= ~5,000); continue to the Ryukahn
+Gateway, enter, READ THE TITLE CARD firsthand,
+census the board (guides: Delusory Dragoon Lv6,
+Phantasmal Girl Lv13, Transient Gunner Lv13, Idle
+Sky Pirate Lv13, chest Yellow Drop, Firion assist,
+Bonus Line 12, KP chance "Win battle"); work the
+board (rot4z, idle-rolls, bank before every
+fight, chests, Stigma, bank KP at the end); then
+EXDEATH Lv 18 - probe from a fresh full-HP bank
+(card + HP), then commit with rot4z.
+Standing at start: Kain Lv 23 (max HP 2,641), HP
+2,639/2,641, gil 14,850, banked KP 109, Shiva +
+Rosetta Stone held, Firion assist.
+Policy: rot4z (rot4 base; no-drift Triangle x2 /
+Square x2 race from foe <= 700 HP). Levers: race
+threshold, idle-rolls (0/450/900/1800/2700), entry
+HP, LEVELS. Field walker: s55_march.py (desync
+fix in). Branch verified at f5a34d7, clean.
+Protected: s56_ti_resume.state.
+Lineage head: s60_fin3.state (field (292.50,
+318.26), full HP). March bank:
+s60_leg3_event.state.
+
+FINDINGS:
+(to be filled as the session runs)
+
+A. THE SEAM + THE ROAD SOUTH (from
+s60_leg3_event.state):
+- The s60 event bank loads (0,0)/state68=0
+  under the marcher's 60-frame settle but
+  SETTLES at 120 frames: field control at
+  (292.67, 301.01), gil 14,850 - just south
+  of the Z~=310 seam (s61_probe_settled).
+  HARNESS NOTE: post-seam banks need >= 120
+  frames before the first position read.
+- The road runs clean S from (292.67, 301.01)
+  to a shelf at Z~=286-287 (march gains
+  +1.66/step): stand (288.34, 286.77) banked
+  as s61_m2_final.state.
+
+B. THE SHELF WALL (Z~=286) - NOT A BOULDER:
+- Due-S from (288.34, 286.77) creeps down a
+  slope to a hard face at (288.08, 285.99)
+  and stops. Three Circle spear lunges at
+  the face base + post-attack S probes:
+  NO break, no movement (s61_b2_atk /
+  s61_b2_after). A facing-S Cross dash also
+  stops at the face (~0.8 travel).
+- BUT a long SE hold from the same stand
+  DESCENDS: (290.47, 284.67) - the face is a
+  contour; the slope runs diagonally SE.
+
+C. THE SE VALLEY + BASIN FLOOR:
+- Marching the SE descent: (293.03, 282.45)
+  [s61_m3_final]. The marcher's 14-frame
+  probes read ~0 there (a lip hides the
+  slide) but 28-frame holds DESCEND: S ->
+  (295.32, 279.99), SW -> (294.32, 280.38).
+  LESSON: on this leg, short probes lie;
+  survey with 28-frame holds (s61_survey28).
+- Valley floor reached (297.41, 276.31)
+  [s61_m5_final]: floor runs E-W at Z~=273-
+  276 (S hold -> (298.95, 273.32); W hold ->
+  (295.95, 276.45) then a WALL at X~=295.5:
+  march probes W ~= 0 from (295.77, 276.96);
+  a facing-W Cross dash crosses only ~1.2 -
+  the wall stops dashes too (s61_dash_B).
+- Stall-protocol dash from (295.78, 276.94)
+  jumped SE-down into a N-S TRENCH at
+  (299.23, 269.60) [s61_m6_scratch].
+
+D. THE TRENCH (X~=299-302, Z 261-279+):
+- Runs N-S: marched S to (298.99, 265.16)
+  [s61_m7_final]; SE stick reaches Z=261.85.
+  WEST WALL SOLID at every latitude probed
+  (best -X in 28-holds: -0.22). E/NE open
+  ((302.30, 265.38)) toward gate 21 country.
+- A facing-SW dash from the trench landing
+  climbs BACK to the mid shelf (295.87,
+  277.31) - the trench and shelf connect
+  only via that lip/dash point.
+
+E. THE SHELF WEST END + KNOB:
+- The shelf runs W from (288, 287) at
+  Z~=287-289 to a knob at (277.02, 291.26)
+  (shelf RISES westward). A stall dash from
+  (285.56, 286.73) crossed W to (278.98,
+  289.47); a facing-S dash from the knob
+  stand (276.63, 289.78) went map-WEST to
+  (269.10, 288.63) [s61_dash_A] - the shelf
+  top extends to X~=269.
+- From (269.10, 288.63) a SW slope descends
+  to a DEAD-END pocket at (260.73, 283.87)
+  [s61_m9_scratch]: stall protocol attacked
+  (3 Circles) - nothing broke; RESULT
+  STALL_ATTACKED. Not the way in.
+
+F. MOOGLE SHOP (280, 273) - STATUS:
+- NOT reached. Ringed on every side tried
+  this session: N shelf face (attacks do
+  not break it), NW knob + SW pocket (dead
+  end), E trench (west wall solid, dashes
+  stopped), SE valley floor (wall X~=295.5).
+- Session 56 had already found it ringed
+  from three sides pre-clear. Remaining
+  untried approaches: (1) from GATE 21's
+  stand (315.09, 270.40) heading W along
+  Z~=270 at the east ground level; (2) the
+  trench's south end (below Z=261) bending
+  W; (3) gate 21 itself may now be LIVE
+  post-clear (it was inert in s56, tested
+  BEFORE True Intent fell) - if Ryukahn is
+  gate 21, the shop may be sequenced after
+  or beside it, not before.
+- NEXT: march the trench E/NE to gate 21's
+  anchor, test entry (stand + Cross, READ
+  THE TITLE CARD), survey W from its stand.
+G. GATE 21 ENTRY TEST - INERT POST-CLEAR (measured):
+   from s61_m11_final.state (314.34, 270.03) the
+   micro-probe fine stander walked him to (315.01,
+   270.28), 0.14 from gate 21's anchor (315.09,
+   270.40) - closer than session 56's 0.30 stand.
+   Cross DASHED him to (322.77, 273.11); state68
+   stayed 2 throughout (s61_g21_stand.state,
+   s61_g21_after.state). GATE 21 IS INERT BOTH
+   PRE- AND POST-CLEAR. With session 52's mechanics
+   note (empty gateways are pass-through archways
+   the route threads THROUGH), gate 21 reads as a
+   pass-through on the leg-3 road, not a board.
+H. THE ORB-CHAIN ROAD SOUTH (measured): session
+   48's pint census lists kind-2 Light Orb spawn
+   points climbing the far north; two variant sets
+   trace a road from gate 22 south then EAST then
+   south: (292,297) (294,303) -> (304,286)
+   (312,283) -> (303,271) (310,268) (330,270) ->
+   (305,256) -> (299,245), with (285,253) and
+   (278,250) at the south end. Marched from gate
+   21's dash landing (322.77, 273.11): west along
+   Z~270 (through gate 21's latitude), then south
+   at X~314 (s61_m12), arriving the (305,256) orb
+   at (304.95, 257.22) (s61_m12_final.state); then
+   SW through a small basin (X 301-307, Z 246-252)
+   to the (299,245) orb at (299.24, 246.32)
+   (s61_m13_final.state). No encounters, no stalls;
+   state68 = 2 throughout. The road the orbs mark
+   is real and walkable end to end.
+I. PINT CENSUS THIS BOOT (list0 0x095D2F40, 196
+   records, from s61_m13_final.state; layout per
+   s55_pint2.py: rec = l0+8+j*0x2C; id/sub/set/
+   kind s16 at +0/+2/+4/+6; x/z floats +0x10/
+   +0x14). In the leg-3 box (X 255-345, Z 225-315):
+   kind-6 shop x5 at (280,273) sets 143-147 (ids
+   958-962). Kind-2 chains by set: set 41 = (285,
+   253), (299,245), (299,270), (330,270); set 34 =
+   (292,297), (305,287), (331,270), (305,256);
+   set 21 = (304,286), (310,268); set 25 = (278,
+   250), (303,271), (291,301) + kind-1 (263,292);
+   set 27 = (290,225), (277,229) + kind-1 (289,
+   295); set 18 = (312,283), (294,303). Kind-1
+   drawn models on/near the road: (289,295) set 27,
+   (307,260) set 29, (302,245) set 21, (280,234)
+   set 39, (332,265) set 39, (335,252) set 44,
+   (336,255) set 20. The sets are per-chapter
+   variants of the same map (Ch.7 reuses this
+   area); which set is live for Kain is not yet
+   determined by measurement.
+J. SOUTH OF THE BASIN (measured): a march from
+   (299.24, 246.32) toward (312,220) crept down a
+   SW slope (28-frame survey from (295.07, 233.17)
+   moves freely SW/S/W - the marcher's 14-frame
+   probes had stalled on the lip AGAIN) and
+   arrived the set-27 orb (290,225) at (289.55,
+   224.21) (s61_m15_final.state; pocket base banked
+   s61_pocket_base.state at (295.07, 233.17)).
+   Circle attacks at the pocket base changed
+   nothing (no boulder there). Survey at (289.55,
+   224.21): N/S/W/SW all open 28-frame; E pinched
+   (+0.45) - a N-S corridor along X~287-290 with an
+   east wall, at Legendary Lake's latitude (gate 19
+   at (268.4, 220.7) is ~21 west). This corridor is
+   plausibly leg 2's southern road - the leg-3
+   basin system may loop back to leg-2 ground.
+   RYUKAHN IS NOT DOWN HERE by any measurement so
+   far. Untested southern gates remain: 20 (319.3,
+   193.6), 14 (305.0, 166.6; boxed N/E in s41 -
+   never approached from W/S), 15 (366.0, 151.9).
+K. SHOP APPROACH - THE UNTRIED SIDE: every failed
+   approach to (280,273) came from N/NW/E/SE at
+   shelf or trench level. Never stood on: the
+   ground at X 278-290, Z 255-273 - due SOUTH of
+   the shop at road level, where the set-25/41
+   orbs (278,250) and (285,253) sit. Next move:
+   from the (299,245) basin, march NW to (282,256)
+   then N toward the shop's south face.
+L. GATE TABLE, CURRENT LINEAGE (measured from
+   s61_m13_final.state; s55_gates layout + gate id
+   and point index from ptrB's first word; points
+   from *(0x09AEF944), +0x24/+0x2C floats):
+   gateMgr 0x095D7110, 12 records:
+   12 pt5 (210.6,152.9) A=-1 B=-1 Sunken Lake
+   19 pt12 (268.4,220.7) A=-1 B=-1 Legendary Lake
+   22 pt15 (292.5,312.0) A=-1 B=3 True Intent
+   11 pt4 (220.4,111.0) A=-1 B=0
+   13 pt6 (253.9,181.7) A=28 B=-1 Hidden Darkness
+   14 pt7 (305.0,166.6) A=-1 B=-1
+   15 pt8 (366.0,151.9) A=-1 B=-1
+   16 pt9 (331.5,126.0) A=-1 B=1
+   17 pt10 (154.1,229.4) A=-1 B=2
+   18 pt11 (222.0,193.5) A=-1 B=-1
+   20 pt13 (319.3,193.6) A=-1 B=-1
+   21 pt14 (315.1,270.4) A=-1 B=-1
+   Against session 41/48: gate 19's A fell 25 -> -1
+   when Legendary Lake finished (s48's "finished
+   signature"); gate 22's A fell 26 -> -1 with True
+   Intent's clear this session's lineage. Gate 13
+   still reads A=28 - it is the replayable farm
+   board. NO unentered gate reads live on the
+   facing tester. The volume family {11:0, 16:1,
+   17:2, 22:3} is unchanged by clears.
+M. THE SOUTHERN CORRIDOR (measured): from the
+   (299,245) basin the ground drains SW down a
+   slope (pocket base (295.07, 233.17),
+   s61_pocket_base.state; Circle attacks there
+   broke nothing) to the set-27 orb (290,225) at
+   (289.55, 224.21) (s61_m15_final.state), then a
+   clean N-S road runs SOUTH: (290.12, 220.9),
+   (291.17, 214.26), (294.55, 209.68), (298.34,
+   201.88), bending E at its south end (S probes
+   dead at (298.44, 196.19)) along Z~196 to a bowl
+   at (309.56, 196.8) (s61_m28_final.state), then
+   NE up to (315.11, 198.99) and SE down to gate
+   20's front yard. SCREENSHOTS (this session):
+   the field map (Select, state68 14) shows two
+   continents joined by an east land bridge; Kain
+   on the southern continent's east arm. From
+   (285.78, 244.3) a deep river canyon cuts E-W
+   between the basin country and the moogle mesa,
+   a gold chest visible on the far rim. From the
+   pocket (295.76, 276.99) the MOOGLE is VISIBLE,
+   standing on the mesa top across the river, with
+   a stone ARCH at the mesa's north end. From the
+   bowl (309.56, 196.8) a ruined TOWER stands on
+   the ridge NE. FIRION now WALKS THE FIELD WITH
+   KAIN (seen beside him in three screenshots) -
+   an ally follower since his field scenes, not a
+   manikin: no contact battle in 360+ frames.
+N. GATE 20 = BARRED (measured + photographed):
+   marched the corridor to (318.21, 195.4); the
+   fine stander crept to (319.18, 195.46), 1.87
+   from the anchor (319.3, 193.6) - the last 1.86
+   of Z would not close (a lip). Cross DASHED E to
+   (320.32, 195.54); state68 stayed 2 (s61_g20_
+   stand.state, s61_g20_after.state). Screenshot
+   from the stand: a stone arch with an IRON
+   PORTCULLIS, closed - gate 20 is a barred
+   gateway like 11 and 17. Its ledge is a dead-end
+   spur (S walled from the stand). NOT Ryukahn.
+O. MESA GEOMETRY (synthesis of sections F-K +
+   this session's screenshots): the moogle mesa
+   is bounded by river on E (channel at X~290-295,
+   the lane/pocket side) and S (the E-W canyon at
+   Z~245-265), and opens N to gate 22's road
+   country. Mesa-top stands: knob strip Z~289-291
+   (276.82, 289.77), dash landing (269.10, 288.63),
+   NW pocket (260.73, 283.87), rim (284.55,
+   287.41). The knob strip's south face does not
+   descend on foot at X 270-285 (m23/m25 slides
+   run E or W along Z~289); the rim at (284.55,
+   287.41) lips S (+0.48/-0.34). The moogle shelf
+   at (280, 273) is still unstood. Kain's field
+   skill list holds ONLY Cross Chain (skill panel
+   read firsthand, state68 4) - no Jump skill was
+   ever collected; the guide's "jump across the
+   bridge" cannot mean a Jump skill for this
+   lineage. Remaining leads: (1) a dash/leap SOUTH
+   from the mesa rim onto the shop shelf; (2) the
+   deep south (gates 14/15/16) via the Z~166-175
+   ridge shelf into gate 14's pocket (boxed N/E
+   in s41 - its S/W exits unmeasured), gate 16
+   having been "sealed from N/W" (s42) - its live
+   approach, if any, is S/E; (3) a dash S from the
+   gate-20 bowl rim (309.56, 196.8) into the
+   pocket country below.
+
+### Q. DASH TESTS, THE "RIDES" CORRECTION, FIRION'S TALK, KANAME_02, AND THE MENU (all s61, measured)
+
+- Rim dash S from (284.55, 287.41): dash stopped by the
+  lip at (285.44, 286.77); a second dash moved nothing.
+  Bowl dash SW from (309.56, 196.8): two dashes carried
+  him W along the wall foot to (306.41, 195.44), no
+  drop. Neither dash lead reaches new ground.
+- The stick+Cross "rides" tested around the shelf
+  (landings (275.36, 291.55), (279.61, 296.9),
+  (281.43, 289.10), (288.07, 285.99), (294.49, 280.26),
+  (298.07, 272.87)) were WALK+DASHES, not pad rides:
+  the full point-table dump (base 0x095E61C0) holds
+  only pt3 (292.7, 301.0), pt14 gate 21, pt15 gate 22,
+  pt17 kaname_02 (304.8, 296.5) in the northern box —
+  no pad nodes exist at the landings. Displacements
+  8.2-11.7 = walk (~3.3) + dash (~8.4). RETRACT any
+  "northern pad network" reading.
+- pt3 = POS_jump_gate03_00, the jump pad bound to
+  gate 22 (per the s43 point-name table, re-read this
+  session). A plain Cross on pt0/pt2 in earlier
+  chapters rode ~8.3 units — the pads' hop is
+  dash-like by design, which is what made the
+  walk+dash artifact plausible.
+- FIRION'S TALK: at the shelf (288.87, 285.9), Cross
+  opens his field talk (state68 3): "Our chances may
+  yet improve if we just keep fighting. Let's not
+  give up!" (screenshot s61_dlg2.png). Repeatable
+  flavor. HARNESS CAVEAT: Cross near Firion TALKS
+  instead of dashing/entering — gate tests must be
+  read with his position in mind.
+- KANAME_02 (pt17, (304.8, 296.5), on the shelf top
+  E of the road; marched there from s61_m2_final via
+  (303.01, 294.08) = s61_m32_final.state): the fine
+  stander stalls 1.90 W of the anchor at
+  (303.07, 295.74) (the crystal's own collision).
+  Circle lunges him PAST the anchor to
+  (307.06, 297.55); Triangle then BOARDS THE LINE:
+  ride to (320.1, 301.34), state68 2 throughout,
+  banked s61_kan_after.state. The landing is a small
+  cliff ledge (marches stall within ~3 units S at
+  (320.22, 298.09) = s61_m33_final.state); a GOLDEN
+  CHEST is visible W across the channel from it on
+  another unstood ledge, and floating rock ledges
+  stand across the void. RETURN: a plain Triangle at
+  the exact landing point (NO Circle prime — the
+  lunge moves him off the end point and Triangle
+  falls through to the menu) rides back W to
+  (303.42, 296.19), beside the crystal. The line is
+  two-way and reaches nothing else: a scenic
+  shortcut, not the shop route.
+- state68 = 11 IS THE CUSTOMIZATION MENU (Triangle
+  on the field, away from prompts): Kain Highwind
+  Lv 23, Assist Firion, GIL 14,850, EXP NEXT 2,037 /
+  TOTAL 188,618, HP 2,639/2,639, CP 245/356, BRV 260,
+  ATK 46, DEF 37 (screenshot s61_kan_state11.png).
+  Menu entries: Abilities, Equipment, Accessories,
+  Summons, Assist, Adjust Level, SHOP. Ticker lines
+  seen: "New inventory in the shop!", "New prizes
+  creatable through Battlegen!", "New accomplishments
+  added!", "Obtained Off Assists Locked", "Obtained
+  Staggering", "Successfully accomplished Productive
+  Battling!". Status widget: LUCKY! 40%, BATTLES 5,
+  NEXT BATTLE EXP x3. BLOCKER: the menu takes NO drv
+  input in state 11 — dpad presses (hold 6 and 20),
+  analog pulses (10-25f), Cross, Circle, Start all
+  inert, fresh-opened and restored alike, while the
+  ticker animates. The Shop's stock could NOT be
+  read this session. The menu Shop is very likely
+  the moogle-shop network (the field moogles' stock);
+  reading it needs an input-path fix or the field
+  moogle itself.
+
+### R. SESSION 61 CLOSE
+
+- Standing UNCHANGED all session (no fights, no
+  purchases, state68 2 at every stand): Kain Lv 23,
+  HP 2,639/2,641, gil 14,850, banked KP 109, Firion
+  assist, Shiva + Rosetta Stone held.
+- HEADLINE: leg 3's moogle shop and the Ryukahn
+  Gateway were NOT reached. Gate 21 is an inert
+  pass-through post-clear; gate 20 is barred by an
+  iron portcullis; the full gate table (ids 11-22)
+  shows NO unentered gate reading live — Ryukahn is
+  not a standard enterable field gate on this map by
+  tester signature. The moogle mesa (280, 273) was
+  ringed completely (N shelf face, NW knob + SW
+  pocket, E lane/pocket/trench, S canyon rim) and
+  never stood on; its S face does not descend at
+  X 270-285 and its rim does not dash.
+- The southern continent is now mapped end to end:
+  orb-chain road, basin, the Z~196 corridor E to
+  gate 20's barred front yard, the tower bowl.
+- Resume banks: s61_m13_final.state (basin
+  (299.24, 246.32)); s61_m30_final.state (gate 20
+  front yard (318.21, 195.4)); s61_m32_final.state
+  (kaname approach (303.01, 294.08));
+  s61_kan_after.state (line landing (320.1, 301.34));
+  lineage head remains s60_fin3.state. PROTECTED
+  s56_ti_resume.state untouched.
+- NEXT SESSION'S LEADS, in order: (1) the DEEP SOUTH
+  — central field to the Z~166-175 ridge shelf,
+  gate 14's pocket (302.27, 167.59), and its
+  UNMEASURED S/W exits, toward gates 15 (366.0,
+  151.9) and 16 (331.5, 126.0; sealed from N/W, so
+  its live approach is S/E; its jump pad
+  jump_gate02_05 sits at (331.1, 136.0)); (2)
+  KANAME_01 (194.0, 165.1) — the west crystal's line
+  is untested; (3) the golden chest on the ledge W
+  of the kaname landing; (4) the state-11 menu input
+  blocker (the Shop read); (5) the moogle mesa
+  itself — if it stays unstood after the deep-south
+  pass, record it as a documented loose end rather
+  than blocking the chapter. Exdeath Lv 18 and the
+  Ryukahn board (Suih census: Delusory Dragoon Lv 6,
+  Phantasmal Girl Lv 13, Transient Gunner Lv 13,
+  Idle Sky Pirate Lv 13, chest Yellow Drop, Firion
+  assist, Bonus Line 12, KP chance "Win battle";
+  B = Exdeath Lv 18) wait on a route in.
+
+### Session 62 addendum 51 - THE DEEP SOUTH + SIDE LEADS: GATE 14 POCKET EXITS, GATES 15/16 FROM THE SOUTH, KANAME_01, THE CHEST LEDGE, THE MENU BLOCKER (2026-11-20)
+
+PLAN (from addendum 50 R): (1) THE DEEP SOUTH -
+take the s55 C-to-D corridor (coast -> corridor
+mouth -> corridor top -> shelf strip (295.54,
+173.55) -> chute -> gate 14's pocket (302.27,
+167.59)) and measure the pocket's UNMEASURED S
+and W exits; then gates 15 (366.0, 151.9) and 16
+(331.5, 126.0) - gate 16 was sealed from N/W in
+s51, so approach from the S; its jump pad
+jump_gate02_05 sits at (331.1, 136.0) (pads are a
+quickmove network: held stick selects the
+segment, plain Cross fires the default). (2)
+KANAME_01 (194.0, 165.1) - ride the west
+crystal's line (stand exactly on the point;
+Circle lunges past; Triangle boards; Triangle
+~0.75 off the point falls through to the menu).
+(3) THE CHEST LEDGE W of the kaname_02 landing
+(320.1, 301.34). (4) THE STATE-11 MENU BLOCKER -
+the Customization menu (Triangle on the field)
+takes NO drv input while its ticker animates;
+try letting the ticker finish, input-path
+orders, state changes; if the Shop opens, READ
+stock + prices, keep gil reserve >= ~5,000.
+(5) FALLBACKS: moogle mesa = documented loose
+end if still unstood; if Ryukahn stays unfound,
+deliver the full measured census.
+Standing at start: Kain Lv 23 (max HP 2,641), HP
+2,639/2,641, gil 14,850, banked KP 109, Shiva +
+Rosetta Stone held, Firion assist (walks the
+field; Cross near him = his flavor talk - avoid
+accidental triggers near gates).
+Policy: rot4z. Walker: s61_march28.py (28-frame
+probes). Gate table re-read FRESH this boot
+(GateMgr is boot-dependent); cross-reference
+gates by tester VALUES, never record index.
+If any gateway/board opens: READ THE TITLE CARD
+firsthand (session 46's law), census by record
+scan + Opponent Info cards; Exdeath Lv 18 probe
+at full HP from a fresh bank before committing.
+Branch verified at 6f66207, clean.
+Protected: s56_ti_resume.state.
+Lineage head: s60_fin3.state (field (292.50,
+318.26), full HP).
+
+FINDINGS:
+(to be filled as the session runs)
+
+A. BOOT + GATE TABLE (s62, fresh read):
+- s60_fin3.state loads at (292.50, 318.26),
+  state68 2, gil 14,850 - standing verified.
+  Banked as s62_boot_check.state.
+- GateMgr THIS boot = 0x095D5C20 (s61 boot:
+  0x095D7110 - boot-dependent, as expected).
+  HARNESS CORRECTION: the testers read DIRECT -
+  A = s16 at ptrA+4, B = s16 at ptrB+0xE. The
+  dereferenced read (*(ptrA)+4) returns zeros.
+- 11 framed records (k00-k10); the rest null.
+  Cross-referenced by tester VALUES: k00 A -1 /
+  B 3 = gate 22 (cleared; the B3 family); k01
+  life 5 / timer 122.0 / A -1 = gate 19
+  (Legendary Lake's finished signature); k02
+  A 27 = gate 13 - the ONLY A-live record, the
+  replayable farm (s61 read A 28; the value
+  moved by one between boots - identity by
+  elimination against s61's full table). Every
+  other record reads A -1. CONFIRMS s61's
+  settlement: NO unentered gate reads live
+  this boot either.
+
+B. GATE 14'S POCKET - THE S/W EXITS, MEASURED
+(scouted from s55_pkt_final.state - terrain
+facts, lineage-independent; pocket stand
+verified at (302.27, 167.59), state68 2):
+- 8-direction hold survey (28f pulses from
+  s62_survey.py; stick labels are camera-
+  relative and rotated at this stand, so all
+  verdicts are stated in MAP coordinates):
+  - map-S: dead end at (303.16, 165.82), 2.0
+    units of travel - CLOSED.
+  - map-E: face at (303.24, 167.25), under 1
+    unit - CLOSED.
+  - map-N / map-NW: corridor endpoints
+    (290.65, 172.89), (298.42, 176.24),
+    (299.0, 175.79), (299.0, 174.55) - the
+    chute back up to the shelf strip; the
+    known way in and out.
+  - map-W: 4.3 units of travel to (298.27,
+    165.95), running W along the Z~=166 ridge
+    shelf - the pocket's west lip opens onto
+    the shelf (followed in section C).
+- VERDICT: for gates 15/16 the pocket is a
+  dead-end box - E and S faces close within
+  2 units, and gates 15 (366.0, 151.9) and 16
+  (331.5, 126.0) lie E-SE of it. The pocket's
+  only exits are the chute (N) and the shelf
+  (W). Per-direction banks: s62_g14_*.state.
+
+C. THE Z~=166-175 SHELF - A THROUGH-ROUTE WITH
+A PINCH (scouted from the s55 lineage; terrain
+facts):
+- From the pocket's west lip (298.27, 165.95)
+  the shelf runs clean W: the marcher climbed
+  to the shelf top (Z~=170-173), ran it W, and
+  dropped to (270.11, 164.42) - ARRIVED
+  (s62_shelfW_final.state). The pocket and the
+  shelf's east segment are one through-route.
+- The lane then pinches out at X~=264: the S
+  lane stalls at (264.0, 165.0) and a second
+  march aimed at the top lane (240, 172)
+  funnels to the same pinch (264.09, 164.76) -
+  no 28f hold in any direction gains W.
+- So the chest-candidate segment (X~=211-238;
+  pint candidates (227, 167) / (231, 162))
+  stays islanded: s54's four-sided verdict
+  stands, and s62 adds the E side - the east
+  shelf ends ~26 units short of it.
+
+D. GATE 20'S YARD - THE CORRIDOR'S EAST END
+(live lineage, from s61_m30_final.state
+(318.21, 195.4), gil 14,850):
+- A march E toward (345, 192) gains 2 units to
+  (320.51, 196.65) and stalls at (320.32,
+  195.54) - the yard's east lip.
+- 8-direction hold survey (map coordinates):
+  exits run W only - three stick directions
+  ride the corridor back W at lanes Z~=195-205
+  (endpoints (304.47, 197.31), (302.85,
+  201.27), (304.38, 204.6), all MAXP). Map-N
+  stalls at a face at (318.15, 200.91), 5.5
+  units. Map-E closes at the lip (~2 units);
+  no hold produces a map-S endpoint at all.
+- VERDICT: the Z~=196 corridor is a dead-end
+  E-W road - basin at its W end, gate 20's
+  barred yard at its E end. There is NO
+  east-coast route S from gate 20 toward
+  gates 15/16. Per-direction banks:
+  s62_g20_*.state.
+
+E. KANAME_01 (194.0, 165.1) - RODE (scouted
+from the s53 lineage; mechanics + terrain
+facts):
+- Approach: from s53_b2_final.state (ruins
+  approach (217.06, 195.70)) the greedy march
+  ran W/S through the gully country. NOTE: the
+  march outlived a VM-side timeout kill - the
+  orphaned walker was found by pgrep on the
+  Legion, killed, and resumed from its own
+  bank at (202.39, 181.30) with no ground
+  lost (the documented recovery works). The
+  final approach stalls at (192.62, 166.79),
+  2.18 from the anchor - the crystal's own
+  collision, exactly as at kaname_02.
+- Fine stand (192.23, 166.01), 1.99 from the
+  anchor (banked s62_kan01_fine.state). Circle
+  lunges past the anchor ESE to (196.34,
+  163.99); Triangle BOARDS THE LINE: it rides
+  ENE and stops at (209.79, 172.26), state68 2
+  throughout (banked s62_kan01_after.state).
+- The landing is a small dead-end ledge: an
+  8-direction hold survey wanders a pocket
+  ~8x5 units around (205-213, 169-173) and
+  breaks out in no direction. Like kaname_02,
+  kaname_01's line is a scenic two-way ride
+  that reaches nothing else - not a route to
+  new country, and not a way south.
+
+F. THE STATE-11 MENU BLOCKER - SOLVED, AND THE
+SHOP READ (live lineage, from s62_boot_check):
+- state68 = 11 is the Customization menu
+  (Triangle on the field). s61 found it takes
+  NO drv input. THE LOCK IS THE ANNOUNCEMENT
+  TICKER: on a fresh open the ticker ("New
+  inventory in the shop!" plus a queue of
+  accomplishment lines) plays across the menu
+  and inputs are dropped while it runs. After
+  3600 frames of idle the ticker had cleared
+  and every input worked from then on. s61's
+  presses all landed inside the lock window.
+- FULL INPUT PROTOCOL, proven end to end:
+  Down/Up move the cursor; Cross opens an
+  entry; Circle backs one layer (Buy list ->
+  Buy/Sell -> top menu); the EXIT to the field
+  is Circle with a LONG hold (~30f) - hold
+  6/12 taps at the top level were dropped even
+  after the ticker cleared. Start opens the
+  Manual (a help index; Circle closes it).
+  Select switches the ability Set.
+- Kain in the menu (firsthand): Lv 23, EXP
+  next 2,037 / total 188,618, CP 245/356, BRV
+  260, ATK 46, DEF 37, LUK 21, LUCKY! 40%,
+  BATTLES 5, NEXT BATTLE EXP x3. Equipment:
+  Javelin, Buckler, Bronze Helm, Leather
+  Armor. Totals: HP 2639 (base 2333 + 306
+  gear), CP 356, BRV 260 (222 + 38), ATK 46
+  (33 + 13), DEF 37 (34 + 3), LUK 21.
+- THE SHOP (the menu's Shop entry carries the
+  moogle network's stock; Buy/Sell; INVENT
+  14%): six categories on L/R - Weapons,
+  Shields, Helms, Armor, Accessories, Etc.
+  Gil-buyable: the four equipment categories.
+  Accessories are ALL trade-only (Power Ring,
+  Muscle Belt, Earring, Protect Stud, White
+  Cape, Guard Ring, Block Ring, Guardian
+  Bangle, Booster, ...), and Etc holds a
+  single item: Extra Slot (trade; adds 1
+  accessory slot).
+- STOCK READ (first page per category, the
+  full spear run, prices in gil; TRADE =
+  materials, not gil):
+  Weapons: Broadsword 500, Iron Sword 1300,
+  Serpent Sword 4400, Mythril Sword TRADE,
+  Knife 500, Dagger 1300, Khukuri 4400,
+  Longsword 500, Greatsword 1300, Zweihander
+  TRADE, Katana 450, Spear 1140, Javelin 3780
+  (equipped), Heavy Lance 8320, Mythril Spear
+  TRADE, Gold Sword TRADE, Golden Staff
+  TRADE, Axe 1300, Light Axe 4400, Battle Axe
+  9300, Rod 450, Guard Stick 1220, Healing
+  Rod 4090, Mythril Rod TRADE, Staff 450, Oak
+  Staff 1220, Healing Staff 4090, Juji
+  Shuriken 8320, Leather Gloves 400, Metal
+  Knuckles 3780, Tanegashima 400, Altair 3780,
+  Valiant TRADE, Capella TRADE, Oaken Pole
+  450, Iron Pole 4090 - and the list runs on
+  past 35 items.
+  Shields: Buckler 450 (equipped), Iron
+  Shield 1220, Knight's Shield 4090, Hide
+  Armlet 450, Iron Armlet 1220, Heavy Shield
+  1060, Jennet Shield 3470, Legion Scutum
+  TRADE, Kunai 400, ...
+  Helms: Bronze Helm 300 (equipped), Iron
+  Helm 620, Knight Helm 1600, Mythril Helm
+  TRADE, Iron Visor TRADE, Ribbon TRADE,
+  Leather Hat 500, Plumed Hat 700, Hairpin
+  4200, ...
+  Armor: Leather Armor 500 (equipped),
+  Chainmail 1000, Mythril Vest TRADE, Linen
+  Cuirass TRADE, Bronze Armor 1100, Iron Armor
+  3760, Knight's Armor 7740, Demon Mail
+  TRADE, Leather Clothing 950, ...
+- PURCHASE DECISION: NONE. The only gil spear
+  upgrade, Heavy Lance (8320), previews at
+  HP 2639 -> 2602 (-37) and ATK 46 -> 50 (+4)
+  against the equipped Javelin - a sidegrade
+  that spends HP (the binding constraint in
+  rot4z's long fights) for +4 ATK, at 56% of
+  the treasury. Not "clearly helps", so under
+  the standing rule nothing was bought; gil
+  untouched at 14,850. The shop is now open
+  for business at any time - the field moogle
+  itself is no longer the only door, and may
+  not even be needed.
+- Banks: s62_shop_open.state (Buy/Sell),
+  s62_heavylance.state (cursor on Heavy
+  Lance), s62_menu_exit3.state (field, state
+  2, (292.50, 318.26)).
+
+G. THE CHEST LEDGE W OF THE KANAME_02 LANDING
+- STILL UNSTOOD (documented loose end):
+- From the landing (320.1, 301.34) the only
+  stands are the landing point itself and its
+  S lip (320.22, 298.09). A Circle lunge
+  funnels to the S lip; Triangle there boards
+  nothing; Cross dashes at the lip move
+  nothing. No W crossing exists from the
+  landing.
+- From below: a march from the shelf (288.34,
+  286.77) toward (312, 300) climbs the kaname
+  shelf top and stalls at (307.55, 296.87),
+  5.4 units short - a face under the ledge.
+- With s61's failed rim dashes, the ledge is
+  recorded as a documented loose end: a
+  golden chest, visible and unstood, contents
+  unknown - the same family as the moogle
+  mesa's floating ledges.
+
+H. SESSION 62 CLOSE
+- Standing UNCHANGED all session (no fights,
+  no purchases, nothing spent): Kain Lv 23,
+  HP 2,639/2,641, gil 14,850, banked KP 109,
+  Firion assist, Shiva + Rosetta Stone held.
+  Live-lineage field bank: s62_menu_exit3.state
+  ((292.50, 318.26), state 2). Lineage head
+  remains s60_fin3.state. PROTECTED
+  s56_ti_resume.state untouched.
+- HEADLINE: the deep south is now measured
+  end to end and it is all dead ends - gate
+  14's pocket (S/E faces closed; exits = the
+  chute N and the shelf W), the shelf (a
+  through-route W to a pinch at X~=264; the
+  chest-candidate segment stays islanded),
+  and gate 20's yard (the corridor's E end;
+  no east-coast route S). Gates 15/16 have no
+  southern approach from any measured ground.
+  Kaname_01 was ridden: a scenic two-way line
+  to a dead-end ledge, like kaname_02. The
+  chest ledge W of the kaname_02 landing
+  stays unstood. THE SESSION'S REAL WIN: the
+  state-11 menu blocker is SOLVED (ticker
+  lock + long-hold Circle exit) and the Shop
+  is read - the moogle shop's stock was
+  reachable from the menu all along; the
+  field mesa need not be stood on for
+  shopping. Nothing bought (Heavy Lance is a
+  -37 HP / +4 ATK sidegrade at 8320).
+- The gate table was re-read fresh (GateMgr
+  0x095D5C20): no unentered gate reads live;
+  gate 13 (A 27) is the only live record, the
+  replayable farm. Ryukahn remains unfound
+  and is not a standard field gate among
+  11-22 by tester signature, this boot too.
+- Resume banks: s62_boot_check.state /
+  s62_menu_exit3.state (live field head);
+  s62_shop_open.state + s62_heavylance.state
+  (shop, mid-browse); s62_g14_home.state +
+  s62_g14_*.state (pocket survey);
+  s62_shelfW_final.state (shelf W end);
+  s62_g20_*.state (gate 20 yard survey);
+  s62_kan01_fine.state + s62_kan01_after.state
+  (kaname_01 stands); s62_chest_home.state.
+- NEXT SESSION'S LEADS, in order: (1) the
+  guides against the measurements - Suih's
+  Chapter 6 route past True Intent assumes a
+  Ryukahn board exists; with every field gate
+  accounted for, re-read the guide text for
+  HOW Ryukahn is entered (a story trigger? a
+  gateway that activates after a field event?
+  the chapter may route through the gate-13
+  farm board's second Stigma or a Firion
+  scene first). (2) Firion's field talk fired
+  twice as flavor; check whether a Firion
+  scene near gate 22 / the shelf advances
+  anything (his s61 line: "Our chances may
+  yet improve if we just keep fighting").
+  (3) The moogle mesa + chest ledge +
+  east-bay chest segment: one family of
+  floating scenery; try the mesa's stone arch
+  (its N end) as a prompt point with
+  Cross/Circle from the closest stands before
+  writing them off for good. (4) Exdeath
+  Lv 18 waits on the Ryukahn board; the
+  probe plan (fresh full-HP bank, card + HP
+  firsthand, rot4z) carries over unchanged.
+
+
+### Session 63 addendum 52 - HOW IS RYUKAHN ENTERED? THE GUIDES RE-READ, CANDIDATES, AND THE NORTHERN MARCH (2026-11-20)
+
+PLAN (from addendum 51 H): (1) GUIDES FIRST -
+re-read Suih (faqs/62070), GameSpy/IGN p.13 and
+link3895 sections 1.6.3-1.6.4 against the full
+measurement record for HOW Ryukahn is entered,
+and write the candidate mechanisms HERE before
+testing any of them. (2) FIRION - test whether
+a Firion scene near gate 22 / the shelf advances
+anything; re-read the gate table after any
+scene. (3) THE MESA ARCH - one last prompt test
+at the stone arch on the mesa's N end
+(Cross/Circle from the closest stands); on
+failure the mesa / chest-ledge / east-bay-shelf
+family is written off for good as floating
+scenery. (4) EXDEATH Lv 18 - if a route in
+appears: fresh full-HP bank, title card + foe
+card + HP firsthand, then rot4z.
+Standing at start: Kain Lv 23 (max HP 2,641),
+HP 2,639/2,641, gil 14,850, banked KP 109,
+Shiva + Rosetta Stone held, Firion assist.
+Branch verified at ffffaa6, clean. Protected:
+s56_ti_resume.state. Live field head:
+s62_menu_exit3.state ((292.50, 318.26),
+state68 2). Lineage head: s60_fin3.state.
+
+THE GUIDES, RE-READ THIS SESSION (verbatim
+where it matters):
+- GameSpy p.13, leg 3 complete: "Once you're
+  in the world map, break the rock in front of
+  you and jump across the bridge to battle the
+  roaming Fallacious Tree. Dodge its Delta
+  Attack with Jump and move from platform to
+  platform if you need to recover from Break.
+  Once the Tree is gone, open the chest to the
+  right for a BRV Charge skill, then break the
+  second rock and take the bridge back across
+  toward the gateway. Break the orbs if you'd
+  like, then stop at the moogle shop if you
+  need to unload some of the KP burning a hole
+  in your pocket. Once you're happy with your
+  equipment, move forward and jump into this
+  chapter's final board, the Ryukahn Gateway."
+- link3895 1.6.3 World Map tail (the field
+  segment AFTER the True Intent board):
+  "Available Mogshops: 9.2.6. Wandering
+  Manikins: Fallacious Tree Lv11. Chest
+  Contents: (BRV Charge). Straight ahead
+  you'll see a boulder, it leads to the Tree
+  and chest."
+- GameSpy Ch.1 (the mechanics gloss): "attack
+  the rock ahead of you to open up a light
+  bridge, then jump across it" - breaking a
+  rock OPENS A LIGHT BRIDGE. Ch.1 also treats
+  orbs as breakable: "Destroy the orbs for a
+  Straight Chain skill if you'd like."
+- Squall_of_SeeD game script, post-True
+  Intent: "[Shortly thereafter, the two come
+  upon and enter another gateway] -Ryukahn
+  Gateway-" - no special entry trigger named;
+  a Firion scene plays ON the Ryukahn board.
+
+CANDIDATE MECHANISMS (written before testing):
+- C1 (STRONG): THE ROUTE RUNS NORTH FROM THE
+  EXIT STAND. Kain exits True Intent at
+  (292.50, 318.26), 6.3 units N of gate 22's
+  anchor - he comes out on the gate's FAR
+  side, on the chapter's forward heading.
+  "The rock in front of you" (GameSpy) /
+  "Straight ahead you'll see a boulder"
+  (link3895) then means NORTH of the exit
+  stand - ground NO session has ever marched
+  (s60's leg-3 scout went S from the clear
+  point; s49-51's far north was the bench
+  country far to the W). Sequence per the
+  guides: boulder -> light bridge -> platform
+  country (cf. the floating ledges beside the
+  kaname_02 landing, addendum 50 Q) -> roaming
+  Fallacious Tree Lv11 -> BRV Charge chest ->
+  second boulder -> bridge back toward the
+  gateway -> orbs (the kind-2 chain S of gate
+  22: (292,297), (294,303)) -> moogle shop
+  (280, 273) -> "move forward" -> Ryukahn.
+  If C1's first steps verify, Ryukahn's gate
+  likely stands past the shop on ground never
+  stood on - prime suspect: the shop's S-face
+  approach from (282, 256) (addendum 50 K's
+  untested next move), or the mesa top.
+- C2: THE MESA ARCH AS A PROMPT POINT (the
+  brief's lead 3): the stone arch at the
+  mesa's N end (a kind-5 shell, seen from the
+  pocket (295.76, 276.99)) takes a Cross or
+  Circle prompt from its closest stands.
+- C3: A FIRION SCENE GATES PROGRESS (the
+  brief's lead 2): his field talk near gate
+  22 / the shelf is more than flavor in the
+  post-clear state - a scene variant advances
+  a story flag and a gate record changes.
+  Test: talk at both known spots post-clear;
+  re-read the gate table after.
+- C4: A ROUTE THROUGH THE GATE-13 FARM BOARD
+  (a second Stigma or a different exit).
+  Weak: boards have always exited to their
+  own gate. Kept for completeness; tested
+  only if C1-C3 all fail.
+- C5: RYUKAHN'S RECORD JOINS THE GATE TABLE
+  ONLY AFTER A FIELD EVENT (the Tree fight,
+  a boulder, a scene). Corollary of C1/C3:
+  re-read the gate table after EVERY leg-3
+  event, not just at boot.
+
+FINDINGS:
+(to be filled as the session runs)
+
+A. THE NORTHERN CENSUS (pint dump from
+s62_menu_exit3.state; list0 0x095D2A00, 135
+records this boot): A WHOLE NORTHERN FIELD
+SEGMENT EXISTS PAST GATE 22 - no session had
+ever dumped it. In the box X 255-345,
+Z 315-375: kind-2 Light Orb chains in three
+variant sets - set 47: (291,340), (271,350),
+(261,345), (271,336); set 52: (283,346),
+(297,327), (321,351), (311,360); set 60:
+(273,345), (288,345), (321,348), (295,330).
+kind-5 arch shells at (271,329) in MANY sets
+(the segment's gateway arch, one per chapter
+variant). kind-0/1 scenery at (264,321),
+(268,321), (305,363), (326,355), (327,357),
+(308,362). Which set is live for Kain is
+again a measurement question, not a table
+question.
+
+B. THE NORTHERN MARCH (C1's first test,
+s61_march28 from s62_menu_exit3.state):
+- Clean walk N from the exit stand: (292.61,
+  321.54) -> (294.07, 323.67) -> (295.16,
+  326.63) -> (295.78, 329.88) -> STALL at
+  (295.59, 330.87) [s63_n1_final]. 12.6 units
+  of new ground; no event, state68 2
+  throughout.
+- At the stall: 8-direction survey - the
+  face blocks map-NE; walks W/E along it move
+  freely. BOULDER PROTOCOL: facing the face,
+  Circle volley 1 LUNGED him over it
+  (+4.6 units to (298.78, 334.43)); volley 3
+  lunged again to (300.32, 340.01)
+  [s63_stall_after]. Whether a boulder broke
+  or the lunge simply vaults the lip is
+  UNRESOLVED - the post-attack probe started
+  from the landing, not the stall base. The
+  guide's "jump across the bridge" may be
+  exactly this: spear-lunge hops between
+  platforms ("move from platform to
+  platform" - GameSpy on the Tree fight).
+- The country past the face is a PLATFORM
+  FIELD (X 290-302, Z 334-343 by survey):
+  small stands joined by lunges. From
+  (296.3, 341.79) every lunge funnels W to
+  ~(290.5, 341.2) - the set-47 orb's platform
+  at (291, 340). A march W reached (290.53,
+  342.4) [s63_n3_bank] before a TUNNEL DROP
+  killed the run (recovered per protocol:
+  pgrep clean, no orphan, resume from the
+  bank - no ground lost).
+- The roaming Fallacious Tree Lv11 has NOT
+  been met yet; the BRV Charge chest is not
+  yet found. C1 is ALIVE: the northern
+  segment is real, walkable, and un walked
+  by any prior session.
+
+C. RYUKAHN GATEWAY - REACHED AND ENTERED
+(title card read firsthand, s63_tc_25.png:
+"Ryukahn Gateway"):
+- From the arch stand (272.12, 333.05)
+  [s63_n4_bank] the march closed on
+  POS_gate03_01's anchor (280.7, 327.6) and
+  stalled at (279.8, 329.38), 1.99 from the
+  anchor [s63_g01_bank] - the gate's own
+  collision, as at the kaname crystals.
+- ENTRY TEST: one Cross press at that stand:
+  state68 2 -> 5 -> 19 -> 20. ON THE BOARD.
+  Banked: s63_g01_entered.state,
+  s63_g01_board.state, s63_g01_board2.state.
+  Board HUD (from the title frame): Kain
+  Lv 23, HP 2639, Gil 14850, KP 109; grid 42;
+  focus 0xffffffff (cursor unsummoned).
+- THE GATE TABLE IS SEGMENT-SCOPED (the
+  correction this session owes the record):
+  GateMgr records and the point table are
+  rebuilt per field segment; record ORDER,
+  point indices and tester families are only
+  comparable WITHIN one segment/boot state.
+  Read from the northern segment (this boot,
+  GateMgr 0x095D5C20 - same address as s62's
+  southern read, different table): k=2 reads
+  A=27 (the live-board signature) and its
+  point is POS_gate03_01 (280.7, 327.6) =
+  RYUKAHN. The southern reads never lied -
+  Ryukahn was never IN the southern table.
+  Also in this table: k=10 reads A=238 with
+  point POS_gate03_99 (0.0, 0.0) - a special
+  record, unexplained; and POS_gate03_08
+  (325.4, 364.0) far NE reads A=-1 (another
+  segment's gate, presumably a later
+  chapter's - Ch.7 reuses this map).
+- THE ROUTE, END TO END (all measured this
+  session): exit True Intent at (292.50,
+  318.26) -> march N to the stall (295.59,
+  330.87) -> Circle-lunge the face NE to the
+  platform field (300.3, 340.0) -> lunge/
+  march W to (290.53, 342.4) -> clean WSW
+  road down to the arch stand (272.12,
+  333.05) -> E to gate03_01's anchor ->
+  Cross -> RYUKAHN. C1 VERIFIED in its first
+  steps and its conclusion: the boulder/
+  bridge details differ in mechanism (the
+  face is lunge-vaulted, not broken - or the
+  "bridge" is the lunge gap itself), but the
+  guides' shape - forward from the exit,
+  platforms, orbs, a gateway past the shop
+  country - is the shape of the ground.
+  NOTE: the northern kaname points exist
+  too (POS_kaname_01 (300.4, 338.7) - the
+  platform stand (300.29, 340.03) sits on
+  it; POS_kaname_02 (301.4, 357.9)) - the
+  segment mirrors the southern one.
+- SUPERSEDED LEADS: the brief's leads (2)
+  Firion-scene and (3) mesa-arch were
+  fallbacks for finding this route; the
+  guides (lead 1) produced the route first,
+  so neither was run. The moogle mesa /
+  chest ledge / east-bay shelf family stands
+  as DOCUMENTED LOOSE ENDS (addenda 50-51):
+  floating scenery off the chapter's route,
+  not blocking completion. The state-11
+  menu Shop (addendum 51 F) already covers
+  the mesa's only function.
+
+D. THE RYUKAHN BOARD - FOUR FOES DOWN,
+EXDEATH PROBED (board NOT finished):
+- Entry scene: a long Firion/Kain dialogue
+  (the jump tutorial) plays IN state68 20 -
+  advance with Cross presses >=120f apart;
+  ~100 presses total across the scene and
+  the opening tip cards. Cursor then live.
+  Kain starts at cell 42. Board KP chance
+  "Win battle" on every foe card.
+- BOARD MAP (measured; 10-wide grid):
+  42 start -U-> 32 -L-> 31 -U-> 21 -U->
+  prompt 11 (Firion, talk only); 32 -R-> 33
+  -U-> prompt 23; 33 -R-> 34 -D-> 44 (spur);
+  34 -R-> prompt 35; 23 standable after the
+  Girl: 23 -U-> 13 (TIP piece - Cross reads
+  its tip pages; reading them first is
+  REQUIRED before the 12/14 prompts answer:
+  pre-tip probes from 13 read no prompts and
+  even the 13->23 return failed once - use
+  runbp(100) after board presses); 13 -L->
+  prompt 12, -R-> prompt 14; beaten foe
+  cells become standable (12, 14, 23, 35);
+  35 -R-> prompt 36 (chest), 36 standable
+  after opening (leaf); 12 -U-> prompt 2
+  (the Stigma). Cell 10 never accounted for
+  (a spare node; nothing prompts it).
+- CARDS, ALL FIRSTHAND: 23 Phantasmal Girl
+  Lv 13 (Order's Sanctuary); 35 Idle Sky
+  Pirate Lv 13 (World of Darkness); 12
+  Delusory Dragoon Lv 6 (Crystal World); 14
+  Transient Gunner Lv 13 (Dream's End);
+  2 = "???" Stigma ("Engage this piece to
+  find its true form").
+- FIGHTS (rot4z throughout; bank before
+  every fight):
+  * Pirate (foe HP 1,921): WIN 35 rots,
+    Kain 2,639 -> 1,859; gil +234; KP +1.
+    The kill LEVELED Kain 23 -> 24.
+  * CHEST 36: Yellow Drop (Suih's content
+    confirmed firsthand).
+  * Girl (foe HP **1** - the guides' 1-HP
+    gimmick is REAL; the anyfoe finder
+    (300-3000) misses her: engage manually,
+    ramdump, scan her_hp exact - block
+    0x0969D688 in that boot - then finish
+    ENGAGE=mid): WIN 7 rots; she cashed in
+    ~830 first (1,859 -> 1,027 at the low);
+    gil +234. Kill LEVELED Kain 24 -> 25.
+  * Dragoon (foe HP 1,303): WIN 8 rots,
+    1,087 -> 901, in the c12 lineage (see
+    the lineage warning below).
+  * Gunner (foe HP 1,727): first trace LOSS
+    (lethal ~730 cash-in at rot 6, Kain 901);
+    idle-900 re-roll WIN 22 rots, ZERO damage
+    taken in-fight (the intro hit 1,087 ->
+    929 happens before the first live read);
+    gil +234 (settled read 15,552).
+  * Dragoon AGAIN in the true lineage (the
+    gunner banks descend from s63_c13_scene,
+    banked BEFORE the first Dragoon fight -
+    the c12/c14 pre-banks are a SPLIT
+    lineage; the lesson is re-learned: card
+    banks made for identification are not
+    lineage banks): WIN 5 rots, 929 -> 761;
+    gil +66 (15,618). A "CHAIN!" banner
+    showed over the board before this fight
+    but the Dragoon's HP was NOT buffed
+    (1,303, not ~1,642) - the banner marks
+    chain availability, not an engagement.
+  * Board KP read 6 at the Stigma card -
+    more than the four "Win battle" pays I
+    tracked (1+1+?+?); the sweep at the
+    clear will settle the true count.
+- EXDEATH (the Stigma, cell 2): engaged
+  twice from s63_p12_pre_up.state (Kain HP
+  761 both times). Foe HP **2,725**
+  (discovered firsthand). Trace A (idle-0):
+  LOSS rot 34 - Kain took ZERO damage for
+  30 rots but dealt only ~474 (a guard/
+  keep-away family); one cash-in ~rot 31
+  killed. Trace B (idle-900): LOSS rot 20 -
+  flowing family (1,015 dealt by rot 15)
+  but two cash-ins (~487 + ~274) killed.
+  VERDICT: at 761 HP the pool is too thin -
+  he survives ~2 cash-ins and needs ~3x
+  trace B's damage window. DO NOT keep
+  rolling at this HP.
+- THE LINE FROM HERE (next session or as
+  time allows): EXIT GATEWAY (pause -> Exit
+  Gateway -> confirm) from s63_postdrag.
+  state = full heal on the field, levels/
+  gil/Yellow Drop kept, board resets, the
+  6 board KP lost (re-earnable - TI's
+  re-clears re-paid). Re-enter, re-clear
+  with the now-warm scripts (Pirate 35
+  rots; Girl via the mid-fight scan;
+  Dragoon; Gunner idle-900), then Exdeath
+  at FULL HP ~2,763 with idle-rolls in
+  reserve. Resume banks for that line:
+  s63_postdrag.state (at 13, all foes down,
+  HP 761), s63_bn_12.state, s63_p12_pre_up.
+  state (Stigma prompt open, HP 761),
+  s63_g01_base.state (field anchor stand),
+  s63_g01_board2.state (fresh board entry).
+
+E. EXIT-HEAL DONE; RE-ENTRY DONE; RE-CLEAR
+INTERRUPTED BY A SERVICE RESTART:
+- Exit from s63_postdrag.state (s60_exit2
+  flow): landed on the field at the
+  gate03_01 anchor stand (279.80, 329.38),
+  gil 15,618 kept, HP FULLY HEALED
+  [s63_field_healed.state].
+- Re-entry: Cross at the stand -> board;
+  the scene press-loop (115 Cross presses,
+  150f apart) cleared the entry dialogue;
+  control test moved 42 -> 32 -> 42: LIVE
+  [s63_re_board_live.state]. Kain Lv 25,
+  full HP (~2,763).
+- Re-clear begun: nav 42 -> 32 -> 33 -> 34,
+  Pirate prompt banked [s63_re_pir_pre.
+  state]; the re-fight (foe 1,921, rot4z)
+  was launched but the VM service restarted
+  mid-run; the orphaned process was seen
+  alive once (poll dumps 0-11 written) and
+  later died WITHOUT banking post states.
+  No result either way - the fight simply
+  needs re-running from s63_re_pir_pre.
+  state. Nothing else was touched.
+- RESUME (next session): from
+  s63_re_pir_pre.state re-run the Pirate
+  (s60_fight_nc, foe 1921, rot4z, her
+  2600-2800), then chest (35 -R-> prompt 36,
+  Cross), Girl (33 -U-> prompt 23; engage,
+  ramdump-scan her_hp 2763-ish for foe_hp=1,
+  finish ENGAGE=mid), 23 -U-> 13, re-read
+  the tip pages (Cross x~10), Dragoon
+  (13 -L-> prompt 12, foe 1,303), Gunner
+  (13 -R-> prompt 14, foe 1,727, idle-900
+  bank is the proven trace family), then
+  12 -U-> prompt 2 and EXDEATH (foe 2,725)
+  at full HP with idle-rolls in reserve.
+  Chapter 6 completes when the Stigma
+  falls and the post-clear dialogue plays.
+
+### Session 64 addendum 53 - THE FINISH: RYUKAHN
+RE-CLEAR AT FULL HP AND EXDEATH (2026-11-20)
+
+PLAN (from addendum 52 E): Kain stands on the
+RESET Ryukahn board at FULL HP (Lv 25, 2,763),
+gil 15,618, banked KP 109, after the
+exit-heal. Re-clear the board and finish
+Chapter 6: (1) Pirate from
+s63_re_pir_pre.state (s60_fight_nc, foe
+1,921, rot4z, her 2600-2800). (2) Chest 36
+(35 -R-> prompt 36, Cross; contents may
+re-roll per visit). (3) Girl (33 -U-> prompt
+23; engage manually, ramdump-scan for
+foe_hp=1, finish ENGAGE=mid). (4) 23 -U-> 13;
+re-read the TIP pages (Cross x~10, >=120f
+apart) so the 12/14 prompts answer.
+(5) Dragoon (13 -L-> prompt 12, foe 1,303).
+(6) Gunner (13 -R-> prompt 14, foe 1,727,
+idle-900 family first). (7) BANK at the
+Stigma prompt (12 -U-> prompt 2), then
+EXDEATH Lv 18 (foe 2,725) with idle-rolls
+(0/450/900/1800/2700) in reserve; FLEE and
+re-roll rather than grind a losing trace.
+(8) Post-clear dialogue through; record the
+chapter-end standing; bank a
+chapter-complete state. Chapter 6 completes
+when the Stigma falls and the post-clear
+dialogue plays.
+
+A. PIRATE RE-FIGHT - THE NO_BLOCK LESSON AND
+THE IDLE-ROLL LADDER (foe HP re-rolls per
+visit): the first launch (s60_fight_nc,
+keyed foe 1,921 from the first clear) came
+back RESULT NO_BLOCK - 40 polls, no battle
+block. Diagnosis by screenshot + probe: the
+prompt bank is sound (grid 34, PROMPT->disc
+35, the Pirate's card: Lv 13, World of
+Darkness, Kain Lv 25 HP 2,760), Cross engages
+to the VS screen (focus 006e0045), and the
+battle DOES start - but this visit's Pirate
+has foe HP **1,727**, not 1,921. The block
+sat at 0x096BBF98 with foe 1,727 in every
+probe dump; the finder, keyed to 1,921,
+walked straight past a live battle. (s63's
+interrupted re-fight was keyed the same way
+and was very likely failing identically
+before the restart.) RULE: on a re-clear,
+MEASURE each foe's HP at engagement - never
+key a finder to a prior visit's value.
+- Pirate rolls (all rot4z, from 2,760):
+  idle-0: WIN 16 rots, Kain -> 1,583 (cost
+  1,177). idle-900: WIN 16 rots, Kain ->
+  1,897 (cost 863). idle-1800: WIN 27 rots,
+  Kain -> 2,006 (cost 754). Gil 15,852 after
+  all three (the +234 pays once per lineage;
+  the banks are siblings, not a chain). The
+  line continues from the idle-1800 bank
+  s60_s64pir18_post2.state (Kain HP 2,006).
+
+B. VISIT 2 - THE GIRL POLICY TRAP, AN
+EXIT-HEAL, AND A BOARD CLEARED AT 20 HP:
+- THE GIRL (visit 1 banks, Kain 2,006):
+  rot4z LOSS 54 rots - the endgame race runs
+  from rotation 0 against a 1-HP foe (she is
+  always <=700), so the drift that closes
+  distance never runs; she kept away, farmed
+  BRV and cashed Kain to 0 without ever being
+  hit. Plain rot4 WIN 47 rots but cost 1,650
+  (Kain -> 356). At 356 the line cannot
+  continue: EXIT-HEAL (gil 16,106 kept; field
+  bank s64_field_healed2.state at the anchor
+  (279.80, 329.38)). Her kill LEVELED Kain
+  25 -> 26 (max HP 2,760 -> 2,821).
+- RE-ENTRY: Cross at the stand, then the
+  scene press-loop (140 Crosses, 150f apart);
+  control test 42 -> 32 -> 42 LIVE (the
+  focus-sanity check misleads mid-scene -
+  trust the control test). Bank
+  s64_re_board_live.state.
+- PIRATE visit 2 (foe 1,727 again; Kain full
+  2,821): idle-1800 WIN 38 rots -> 1,038
+  (cost 1,783); idle-0 WIN -> 721 (cost
+  2,100; result recovered from the banked
+  post states + HUD after the exec channel
+  lost the fight log - post states exist
+  only on a WIN); idle-900 WIN 14 rots ->
+  2,508 (cost 313). Lineage: idle-900,
+  s60_s64pir29_post2.state. Gil 16,340.
+- CHEST 36 visit 2: stepping onto the cell
+  consumed it with NO prompt and NO gil
+  change (visit 1 lineage 2 paid 20 gil at a
+  prompt; s63 paid a Yellow Drop). Contents
+  this visit unobserved - item or nothing;
+  the cell is verified consumed.
+- GIRL visit 2 (idle-0 engagement, mid bank
+  s64_girl_mid_i0.state, block 0x0969D688):
+  rot4z WIN 9 rots, cost NEGATIVE - the kill
+  LEVELED Kain 26 -> 27 mid-fight (+61
+  level-up heal): 2,508 -> 2,568. Gil
+  16,574. She engaged close and died before
+  any cash-in; the same foe, the opposite
+  trace family from visit 1.
+- TIP pages re-read at 13 (6 Crosses);
+  prompts 12/14 answer again.
+- DRAGOON: measured 1,303 (block
+  0x096D6CA8); rot4z WIN 9 rots, cost 493 ->
+  2,075; gil 16,640. Post-win the
+  s60_fight_nc handler LEFT A CHAIN PROMPT
+  OPEN toward disc 14; from the reloaded
+  bank the state settled onto the Gunner's
+  VS SCREEN (focus 006e0045) - Circle does
+  not back out of a VS screen, and the chain
+  stood committed. LESSON: use s60_fight.py
+  (declines chains in-flow) whenever a chain
+  offer is possible; the nc build's
+  left-open prompt is a trap from a cold
+  bank.
+- GUNNER (chained, from the VS screen; mid
+  bank s64_gun_mid.state, block 0x096C6508):
+  measured foe 1,727 - NO chain HP buff
+  (confirms s63). rot4z WIN 17 rots but cost
+  2,055 -> Kain at **20 HP**. Gil 16,874.
+  The board is otherwise CLEAR (Pirate,
+  Girl, Dragoon, Gunner, chest, tips).
+- DECISION: at 20 HP the Stigma is
+  impossible - any hit kills. EXIT-HEAL
+  again; third pass with sampling discipline
+  on EVERY foe (Pirate idle ladder, Girl
+  engagement idles, Dragoon via s60_fight.py
+  for its in-flow decline, Gunner from a
+  banked prompt at idle-900 - s63's
+  zero-damage family - never via a chain).
+  The ratchet holds: Lv 27, gil 16,874.
+
+C. VISIT 3 - SAMPLING DISCIPLINE ON EVERY
+FOE (Kain Lv 27, full HP 2,882, gil 16,874;
+re-entry as sec B, bank s64_re3_board_live):
+- PIRATE (measured 1,727 AGAIN - the re-clear
+  roll has been 1,727 on all three re-clears;
+  only the first clear was 1,921): idle-900
+  WIN 7 rots, cost 301 -> 2,580. Gil 17,108.
+  All visit-3 fights use s60_fight.py
+  (in-flow chain decline).
+- CHEST 36: consumed on step again, gil
+  unchanged (17,108). Re-clear chests
+  auto-consume; contents unobserved.
+- GIRL engagements sampled: idle-0 rot4z WIN
+  60 rots, cost 1,296 (keep-away family -
+  rejected); idle-900 rot4z WIN 16 rots,
+  cost ZERO (2,580 in, 2,580 out - she never
+  cashed in). Lineage s60_s64girl3b_post2.
+  Gil 17,342.
+- TIP pages re-read at 13; DRAGOON measured
+  1,303 (stable across all visits): rot4z
+  WIN 6 rots, cost 133 -> 2,447; the chain
+  prompt toward disc 14 was DECLINED IN-FLOW
+  (declined=1) - the sec B trap closed.
+  Gil 17,408.
+- GUNNER sampled from the banked prompt:
+  idle-900 WIN 52 rots, cost 1,703 ->
+  744 (rejected - the s63 zero-damage
+  family does not reproduce by idle number
+  alone across visits); idle-1800 WIN 23
+  rots, cost 464 -> 1,983. Lineage
+  s60_s64gun3c_post2. Gil 17,642.
+- STANDING AT THE STIGMA'S DOOR: Kain Lv 27,
+  HP 1,983 / 2,882, gil 17,642. Pass totals:
+  Pirate 301, Girl 0, Dragoon 133, Gunner
+  464 = 898 for the whole board. Exdeath
+  next, from a banked prompt at disc 2;
+  idle-rolls in reserve, FORFEIT-flee and
+  re-roll on a guard-family trace.
+
+D. SESSION 65 - EXDEATH FALLS; CHAPTER 6
+COMPLETE (2026-11-20): resumed from
+s64_exd_pre.state (Kain Lv 27, HP 1,983 /
+2,882, gil 17,642, banked KP 109, at the
+Stigma prompt 12 -> disc 2; the board
+otherwise clear).
+- MEASUREMENT FIRST: a 40-poll probe
+  (engage Cross, one RAM dump per poll)
+  found the battle block at poll 19 - base
+  0x096D6CA8, foe HP **2,725** (the s63
+  value held this visit), her HP 1,983.
+  WHY S64'S PROBE FAILED: the Stigma
+  prompt's VS/intro runway is ~19 polls
+  long; at 10 polls the battle has not
+  started and focus reads 0xaaaaaaaa -
+  that value is this board's normal
+  VS-phase focus, not corruption. RULE:
+  probe a Stigma engagement at least 20
+  polls before concluding NO_BLOCK.
+- IDLE-0 (s60_fight.py, rot4z, from the
+  bank): LOSS at rotation 23 with the foe
+  at 274 HP. The flowing family (2,451
+  damage dealt) lost the endgame race by
+  one rotation: cash-ins of ~1,262
+  (rotations 10-15) and 721 (rotations
+  20-23) against Kain's 1,983.
+- IDLE-900 (bank s65_exd_i900): LOSS at
+  rotation 47, foe at 2,238 - a keep-away
+  family (487 damage in 47 rotations);
+  rejected.
+- IDLE-1800 (bank s65_exd_i1800): **WIN at
+  rotation 19, cost 58** (1,983 -> 1,925).
+  Kain cashed 2,725 -> 1,702 by rotation 5
+  and Exdeath's BRV sat pinned at 6 through
+  rotation 10 - he never built a cash-in.
+  No chain prompt followed (declined=0);
+  gil 17,642 -> **18,056** (+414). No
+  level-up: the HP arithmetic is exact (no
+  +61 heal; max unchanged at 2,882).
+  Post-win banks s60_exd18_post / _post2
+  (board, KP gauge 4).
+- THE CLEAR: the post-fight scene and the
+  closing narration ("-when it has forever
+  been the warriors that fought as divine
+  pawns?") advanced on Cross presses;
+  state68 went 20 -> 21 at the chapter
+  shell. The Story Mode shell shows
+  Chapter 6's card filled with Kain's
+  portrait, Chapter 7 - Ally (Tifa Lv 1)
+  marked NEW, and the banner "A new tale
+  has been added to Story Mode!" -
+  **CHAPTER 6 COMPLETE**. Chapter-complete
+  bank: s65_ch6_complete.state (the shell;
+  = s65_ride_end.state).
+- CHAPTER-END STANDING: Kain Lv 27, HP
+  1,925 / 2,882, gil 18,056. KP gauge 4 at
+  the clear -> banked KP 109 -> 113 by the
+  payout pattern verified at every prior
+  gateway in this record (the gauge pays
+  into banked during the finish flow; the
+  113 is derived - confirm at the next
+  board HUD). Held unchanged: Shiva
+  summonstone, Rosetta Stone, Yellow Drop;
+  Firion assist.
+- Chapter 6 loose ends, all optional, none
+  blocking: True Intent's west chest (node
+  30, the Pebble) never collected
+  (addendum 49); the adapter-side gaps of
+  addendum 54 (Hidden Darkness untabled;
+  Legendary Lake discs 1/3/4/5 unreached).
+  Chapter 7 (Tifa) is the next tale.
+
+### Addendum 54 - ADAPTER CONSOLIDATION (2026-11-20, sonix clone)
+
+The board knowledge from sessions 21-64 is now consolidated into
+Core/dissidia012_adapter.cpp on this branch (commits cc7192a,
+3767142, d02b6a7, 94f02db, 0f7c9f9, 61ea3c6; NOT merged to main -
+Chapter 6 is unfinished). Changes:
+
+- The board-record scan now runs to grid 70 (live records at
+  60-64 were measured in sessions 25/35) and IdentifyBoard's
+  set-equality is per-definition.
+- 17 more gateway boards tabled in the shipped idiom: Fools and
+  Hope, Encounters and Treason, Gulg, Snow of Sorrow, Seasonless,
+  Chapter 3's first gateway, Gateway To Decay, West Melmond,
+  North Melmond, Gateway to the Shrine (Blue), Southern Shrine,
+  North Sanctuary, Forsaken Kingdom, Sunken Lake, Legendary
+  Lake, Gateway of True Intent, Ryukahn. The piece table grew
+  from 15 to 96 entries (KP chance is per-board; the 90-second
+  boards carry distinct entries). Adapter tests: 95 -> 121
+  checks, all passing on sonix (nix-shell gcc).
+- Hidden Darkness is deliberately NOT tabled: its Chapter 2 and
+  Chapter 6 instances share one disc fingerprint with different
+  pieces and KP chances (addendum 29), so it stays generic until
+  a measurement distinguishes the instances.
+- Marked gaps, tabled as presented: Legendary Lake discs 1/3/4/5
+  (never reached), True Intent nodes 30/55 (no cardinal path;
+  one may hold the Pebble chest), Forsaken Kingdom's two
+  guide-only chests behind the Phantom, Ryukahn's tip disc 13.
+  Great Forest, Gateway to the Shrine (Ch.3) and Southern Shrine
+  (Ch.3) stay research-only: their full disc sets were never
+  recorded.
+- No field/gate layer exists in the adapter, so the settled gate
+  identities (13 = Hidden Darkness, 19 = Legendary Lake, 22 =
+  True Intent, POS_gate03_01 = Ryukahn) were not encoded; gate
+  tables are segment-scoped in any case.

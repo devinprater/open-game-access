@@ -180,4 +180,164 @@ int main(){
   ram[0x095cd410]=0x08b82a30u+8u*34u; a->on_frame();
   ram[0x08b82a24]=14; ram[0x095d123c]=0x08b82a30u+8u*14u; ram[0x095cd410]=0x08b82a30u+8u*14u;
   a->on_frame(); CHECK(said.back()=="On disc 14. Left: disc 13, empty. Right: nothing. Up: disc 4, empty. Down: disc 24, empty.","sages disc 14");
+  // Session 21: Chapter 1's Gateway of Fools and Hope (state 20).
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {1,2,4,12,14,15,20,21,24,32,33,34,43}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*20]=0xC1900000u; ram[0x095cd570+0x40*20+8]=0xC0800000u;   // entry disc 20 at (-18,-4)
+  ram[0x08b82a24]=20; ram[0x095d123c]=0x08b82a30u+8u*20u; ram[0x095cd410]=0x08b82a30u+8u*20u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 20, the entry disc. Left: nothing. Right: Fleeting Flash on disc 21. Up: nothing. Down: nothing.","fools entry");
+  // Session 25: Chapter 2's Encounters and Treason.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {0,11,12,13,14,15,20,21,25,30,31,33,34,35,36,37,40,43,50,51,52,53,63,64}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*53]=0xC0C00000u; ram[0x095cd570+0x40*53+8]=0x41000000u;   // entry disc 53 at (-6,8)
+  ram[0x08b82a24]=53; ram[0x095d123c]=0x08b82a30u+8u*53u; ram[0x095cd410]=0x08b82a30u+8u*53u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 53, the entry disc. Left: disc 52, empty. Right: nothing. Up: disc 43, empty. Down: disc 63, empty.","encounters entry");
+  // Session 26: Chapter 2's Gulg Gateway (a 90-second board).
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {0,2,3,4,11,12,13,20,21,23,25,30,31,33,34,35,41,43,51}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*11]=0xC1600000u; ram[0x095cd570+0x40*11+8]=0xC1000000u;   // entry disc 11 at (-14,-8)
+  ram[0x08b82a24]=11; ram[0x095d123c]=0x08b82a30u+8u*11u; ram[0x095cd410]=0x08b82a30u+8u*11u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 11, the entry disc. Left: nothing. Right: disc 12, empty. Up: nothing. Down: disc 21, empty.","gulg entry");
+  ram[0x08b82a24]=3; ram[0x095d123c]=0x08b82a30u+8u*3u; ram[0x095cd410]=0x08b82a30u+8u*3u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 3. Idle Sky Pirate here. Left: disc 2, empty. Right: Summonstone on disc 4. Up: nothing. Down: disc 13, empty.","gulg disc 3");
+  ram[0x095cd410]=0x08b82a30u+8u*4u; a->on_frame(); CHECK(said.back()=="Summonstone \u2014 An unknown summon is sealed within. Engage / Cancel","summonstone prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*3u; a->on_frame();
+  // Session 27: Chapter 2's Snow of Sorrow.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {0,1,2,3,11,20,21,22,23,24,31,32,33,42,43,53}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*22]=0xC1200000u; ram[0x095cd570+0x40*22+8]=0xC0800000u;   // entry disc 22 at (-10,-4)
+  ram[0x095cd570+0x40*42]=0xC1200000u; ram[0x095cd570+0x40*42+8]=0x40800000u;   // Stigma disc 42 at (-10,4)
+  ram[0x08b82a24]=22; ram[0x095d123c]=0x08b82a30u+8u*22u; ram[0x095cd410]=0x08b82a30u+8u*22u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 22, the entry disc. Left: disc 21, empty. Right: disc 23, empty. Up: nothing. Down: disc 32, empty.","snow entry");
+  ram[0x08b82a24]=21; ram[0x095d123c]=0x08b82a30u+8u*21u; ram[0x095cd410]=0x08b82a30u+8u*21u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 21. Left: Idle Sky Pirate on disc 20. Right: disc 22, the entry disc. Up: Idle Sky Pirate on disc 11. Down: Fleeting Flash on disc 31.","snow disc 21");
+  ram[0x095cd410]=0x08b82a30u+8u*20u; a->on_frame(); CHECK(said.back()=="Idle Sky Pirate \u2014 Lv 7. Battle stage: World of Darkness. KP chance: Win within 90 seconds. Engage / Cancel","snow 90s prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*21u; a->on_frame();
+  // Session 27: Chapter 2's Seasonless Gateway.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {0,10,20,23,24,25,30,31,32,33,34,35,40,43,50,53,54,55,60}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*31]=0xC1600000u; ram[0x095cd570+0x40*31+8]=0x00000000u;   // entry disc 31 at (-14,0)
+  ram[0x095cd570+0x40*55]=0x40000000u; ram[0x095cd570+0x40*55+8]=0x41000000u;   // Stigma disc 55 at (2,8)
+  ram[0x08b82a24]=31; ram[0x095d123c]=0x08b82a30u+8u*31u; ram[0x095cd410]=0x08b82a30u+8u*31u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 31, the entry disc. Left: disc 30, empty. Right: disc 32, empty. Up: nothing. Down: nothing.","seasonless entry");
+  // Session 28: Chapter 3's first gateway (banner name never recorded).
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {4,12,13,14,21,23,30,31,32,33,41,43,44,52,53,54,62}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*30]=0xC1900000u; ram[0x095cd570+0x40*30+8]=0x00000000u;   // entry disc 30 at (-18,0)
+  ram[0x095cd570+0x40*44]=0xC0000000u; ram[0x095cd570+0x40*44+8]=0x40800000u;   // Stigma disc 44 at (-2,4)
+  ram[0x08b82a24]=30; ram[0x095d123c]=0x08b82a30u+8u*30u; ram[0x095cd410]=0x08b82a30u+8u*30u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 30, the entry disc. Left: nothing. Right: chest on disc 31. Up: nothing. Down: nothing.","ch3 first entry");
+  // Session 29: Chapter 3's Gateway To Decay.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {11,14,20,21,22,23,24,25,26,32,33,34,41,42,44,45,46,51}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*20]=0xC1900000u; ram[0x095cd570+0x40*20+8]=0xC0800000u;   // entry disc 20 at (-18,-4)
+  ram[0x095cd570+0x40*46]=0x40C00000u; ram[0x095cd570+0x40*46+8]=0x40800000u;   // Stigma disc 46 at (6,4)
+  ram[0x08b82a24]=20; ram[0x095d123c]=0x08b82a30u+8u*20u; ram[0x095cd410]=0x08b82a30u+8u*20u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 20, the entry disc. Left: nothing. Right: disc 21, empty. Up: nothing. Down: nothing.","decay entry");
+  ram[0x08b82a24]=41; ram[0x095d123c]=0x08b82a30u+8u*41u; ram[0x095cd410]=0x08b82a30u+8u*41u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 41. Fleeting Flash here. Left: nothing. Right: disc 42, empty. Up: nothing. Down: Potion on disc 51.","decay disc 41");
+  ram[0x095cd410]=0x08b82a30u+8u*51u; a->on_frame(); CHECK(said.back()=="Potion. Engage / Cancel","potion prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*41u; a->on_frame();
+  // Session 35: Chapter 4's West Melmond Gateway.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {1,2,11,12,20,21,22,23,24,25,26,31,34,35,41,45,51}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*20]=0xC1900000u; ram[0x095cd570+0x40*20+8]=0xC0800000u;   // entry disc 20 at (-18,-4)
+  ram[0x095cd570+0x40*26]=0x40C00000u; ram[0x095cd570+0x40*26+8]=0xC0800000u;   // Stigma disc 26 at (6,-4)
+  ram[0x08b82a24]=20; ram[0x095d123c]=0x08b82a30u+8u*20u; ram[0x095cd410]=0x08b82a30u+8u*20u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 20, the entry disc. Left: nothing. Right: disc 21, empty. Up: nothing. Down: nothing.","west melmond entry");
+  // Session 35: Chapter 4's North Melmond Gateway (entry disc past 60).
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {3,13,22,23,31,33,34,35,43,45,51,52,53,54,63}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*63]=0xC0C00000u; ram[0x095cd570+0x40*63+8]=0x41400000u;   // entry disc 63 at (-6,12)
+  ram[0x095cd570+0x40*3]=0xC0C00000u; ram[0x095cd570+0x40*3+8]=0xC1400000u;   // Stigma disc 3 at (-6,-12)
+  ram[0x08b82a24]=63; ram[0x095d123c]=0x08b82a30u+8u*63u; ram[0x095cd410]=0x08b82a30u+8u*63u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 63, the entry disc. Left: nothing. Right: nothing. Up: disc 53, empty. Down: nothing.","north melmond entry");
+  // Session 35: Chapter 4's Gateway to the Shrine (the Blue board).
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {1,2,3,5,12,13,14,20,22,24,25,26,31,32,33,34,42}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*13]=0xC0C00000u; ram[0x095cd570+0x40*13+8]=0xC1000000u;   // entry disc 13 at (-6,-8)
+  ram[0x095cd570+0x40*14]=0xC0000000u; ram[0x095cd570+0x40*14+8]=0xC1000000u;   // Stigma disc 14 at (-2,-8)
+  ram[0x08b82a24]=13; ram[0x095d123c]=0x08b82a30u+8u*13u; ram[0x095cd410]=0x08b82a30u+8u*13u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 13, the entry disc. Left: disc 12, empty. Right: Stigma of Chaos on disc 14. Up: disc 3, empty. Down: nothing.","blue entry");
+  // Session 35: Chapter 4's Southern Shrine Gateway.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {0,1,10,11,12,14,15,20,22,24,30,31,32,33,34,35,36,37,40,42,44,51,52,53,54,60}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*53]=0xC0C00000u; ram[0x095cd570+0x40*53+8]=0x41000000u;   // entry disc 53 at (-6,8)
+  ram[0x08b82a24]=53; ram[0x095d123c]=0x08b82a30u+8u*53u; ram[0x095cd410]=0x08b82a30u+8u*53u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 53, the entry disc. Left: disc 52, empty. Right: disc 54, empty. Up: nothing. Down: nothing.","south shrine entry");
+  // Session 37: Chapter 5's North Sanctuary Gateway.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {0,2,4,10,12,14,20,21,22,23,24,30,32,33,34,40,42,43,52}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*52]=0xC1200000u; ram[0x095cd570+0x40*52+8]=0x41000000u;   // entry disc 52 at (-10,8)
+  ram[0x095cd570+0x40*2]=0xC1200000u; ram[0x095cd570+0x40*2+8]=0xC1400000u;   // Stigma disc 2 at (-10,-12)
+  ram[0x08b82a24]=52; ram[0x095d123c]=0x08b82a30u+8u*52u; ram[0x095cd410]=0x08b82a30u+8u*52u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 52, the entry disc. Left: nothing. Right: nothing. Up: disc 42, empty. Down: nothing.","north sanctuary entry");
+  // Session 37: Chapter 5's Forsaken Kingdom.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {1,10,11,13,20,21,22,23,24,25,30,31,33,40,43}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*20]=0xC1900000u; ram[0x095cd570+0x40*20+8]=0xC0800000u;   // entry disc 20 at (-18,-4)
+  ram[0x08b82a24]=20; ram[0x095d123c]=0x08b82a30u+8u*20u; ram[0x095cd410]=0x08b82a30u+8u*20u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 20, the entry disc. Left: nothing. Right: disc 21, empty. Up: disc 10, empty. Down: disc 30, empty.","forsaken entry");
+  // Session 39: Chapter 6's Sunken Lake Gateway.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {1,3,12,13,20,21,22,23,24,25,26,32,34,42,44}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*20]=0xC1900000u; ram[0x095cd570+0x40*20+8]=0xC0800000u;   // entry disc 20 at (-18,-4)
+  ram[0x095cd570+0x40*26]=0x40C00000u; ram[0x095cd570+0x40*26+8]=0xC0800000u;   // Stigma disc 26 at (6,-4)
+  ram[0x08b82a24]=20; ram[0x095d123c]=0x08b82a30u+8u*20u; ram[0x095cd410]=0x08b82a30u+8u*20u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 20, the entry disc. Left: nothing. Right: disc 21, empty. Up: nothing. Down: nothing.","sunken entry");
+  // Session 46: Chapter 6's Legendary Lake Gateway.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {1,2,3,4,5,10,12,13,14,20,21,22,23,24,30,32,34}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*32]=0xC1200000u; ram[0x095cd570+0x40*32+8]=0x00000000u;   // entry disc 32 at (-10,0)
+  ram[0x095cd570+0x40*34]=0xC0000000u; ram[0x095cd570+0x40*34+8]=0x00000000u;   // Stigma disc 34 at (-2,0)
+  ram[0x08b82a24]=32; ram[0x095d123c]=0x08b82a30u+8u*32u; ram[0x095cd410]=0x08b82a30u+8u*32u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 32, the entry disc. Left: nothing. Right: nothing. Up: disc 22, empty. Down: nothing.","legendary entry");
+  // Session 60: Chapter 6's Gateway of True Intent.
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {3,13,21,22,23,24,25,30,33,43,44,51,52,53,55}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*53]=0xC0C00000u; ram[0x095cd570+0x40*53+8]=0x41000000u;   // entry disc 53 at (-6,8)
+  ram[0x095cd570+0x40*3]=0xC0C00000u; ram[0x095cd570+0x40*3+8]=0xC1400000u;   // Stigma disc 3 at (-6,-12)
+  ram[0x08b82a24]=53; ram[0x095d123c]=0x08b82a30u+8u*53u; ram[0x095cd410]=0x08b82a30u+8u*53u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 53, the entry disc. Left: disc 52, empty. Right: nothing. Up: disc 43, empty. Down: nothing.","true intent entry");
+  // Session 63: Chapter 6's Ryukahn Gateway (the Stigma presents as ???).
+  ram[0x08b83714+0x68]=2; a->on_frame();   // leave the previous board
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {2,10,11,12,13,14,21,23,31,32,33,34,35,36,42,44}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*42]=0xC1200000u; ram[0x095cd570+0x40*42+8]=0x40800000u;   // entry disc 42 at (-10,4)
+  ram[0x095cd570+0x40*2]=0xC1200000u; ram[0x095cd570+0x40*2+8]=0xC1400000u;   // Stigma disc 2 at (-10,-12)
+  ram[0x08b82a24]=42; ram[0x095d123c]=0x08b82a30u+8u*42u; ram[0x095cd410]=0x08b82a30u+8u*42u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 42, the entry disc. Left: nothing. Right: nothing. Up: disc 32, empty. Down: nothing.","ryukahn entry");
+  ram[0x08b82a24]=12; ram[0x095d123c]=0x08b82a30u+8u*12u; ram[0x095cd410]=0x08b82a30u+8u*12u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 12. Delusory Dragoon here. Left: Firion on disc 11. Right: disc 13, empty. Up: ??? on disc 2. Down: nothing.","ryukahn disc 12");
+  ram[0x095cd410]=0x08b82a30u+8u*2u; a->on_frame(); CHECK(said.back()=="??? \u2014 Engage this piece to find its true form. Engage / Cancel","ryukahn stigma prompt");
+  ram[0x095cd410]=0x08b82a30u+8u*12u; a->on_frame();
+  // Session 46: Hidden Darkness is NOT tabled -- its Chapter 6 instance
+  // shares this fingerprint with different pieces, so the board must be
+  // announced generically, pieces never named.
+  ram[0x08b83714+0x68]=2; a->on_frame();
+  for (int g=0;g<70;g++) ram[0x08b82a30+8*g]=0;
+  for (int g : {0,3,4,10,11,12,13,14,20,21,22,23,24,32,33,34,35,36}) ram[0x08b82a30+8*g]=1;
+  ram[0x095cd570+0x40*23]=0xC0C00000u; ram[0x095cd570+0x40*23+8]=0xC0800000u;
+  ram[0x095cd570+0x40*22]=0xC1200000u; ram[0x095cd570+0x40*22+8]=0xC0800000u;
+  ram[0x095cd570+0x40*24]=0xC0000000u; ram[0x095cd570+0x40*24+8]=0xC0800000u;
+  ram[0x095cd570+0x40*13]=0xC0C00000u; ram[0x095cd570+0x40*13+8]=0xC1000000u;
+  ram[0x095cd570+0x40*33]=0xC0C00000u; ram[0x095cd570+0x40*33+8]=0x00000000u;
+  ram[0x08b82a24]=23; ram[0x095d123c]=0x08b82a30u+8u*23u; ram[0x095cd410]=0x08b82a30u+8u*23u; ram[0x095cd41c]=0xFFFFFFFFu;
+  ram[0x08b83714+0x68]=20; a->on_frame(); CHECK(said.back()=="On disc 23. Left: disc 22, empty. Right: disc 24, empty. Up: disc 13, empty. Down: disc 33, empty.","hidden darkness stays generic");
   printf("dissidia012 adapter: %d passed, %d failed\n",n-fails,fails); return fails?1:0; }
