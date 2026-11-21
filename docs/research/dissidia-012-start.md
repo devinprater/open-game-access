@@ -14549,3 +14549,207 @@ entries both need patient, spaced inputs; rapid-fire
 presses are eaten. (5) drv "shot" writes Netpbm PPM
 whatever the extension says; s66_census.py takes a BARE
 filename (it prepends the d12s path itself).
+
+### Session 67 addendum 56 - CHAPTER 7: FIELD LEG + FROZEN CONTINENT (2026-11-21)
+
+A. SURVEY (from s66_y_field.state; this boot GateMgr
+0x095D5C20, pint list0 0x095D2A00, 135 records - the
+same northern-segment tables as s62/s63):
+- Tifa stands at (260.2, 345.8), state68 2, HP
+  1364/1364, gil 18,200. Banked: s67_start.state.
+- NAMED-POINT TABLE DECODED: a 0x3C-stride string
+  table in RAM (this boot at 0x095E46C0): name at +0,
+  X float at +36, height at +40, Z float at +44.
+  Verified against s63 firsthand values:
+  POS_gate03_01 = (280.68, 327.56) Ryukahn;
+  POS_gate03_00 = (292.5, 312.0) True Intent;
+  POS_gate03_08 = (325.4, 364.04).
+  All gate anchors this map: gate03_02 (259.01,
+  345.15) - 1.3 units from Tifa's stand = the
+  Melting Snows gate she just exited; gate03_03
+  (211.98, 307.01); gate03_04 (133.47, 286.67);
+  gate03_05 (48.33, 262.18); gate03_06 (-34.0,
+  295.01); gate03_07 (-67.91, 305.5); gate02_06
+  (154.08, 229.42). Kaname: _01 (300.44, 338.65),
+  _02 (301.37, 357.93), _03 (41.25, 290.64).
+- GATE TABLE (11 populated records): record layout
+  A = [objId, ?, LIVEBOARD, pointIdx, ?, 0, -1, ?,
+  -1, -1], B[0] = pointIdx. Point index -> name
+  table entry = idx - 17 (hypothesis, cross-checked
+  on gate03_99 and the just-exited gate; the title
+  card on entry remains the authority). LIVE
+  (A[2] >= 0): k=1 A=30 -> gate03_04 (133.47,
+  286.67); k=5 A=32 -> gate03_03 (211.98, 307.01);
+  k=6 A=33 -> gate03_05 (48.33, 262.18). All three
+  live gates are WEST. gate03_02 (k=4) reads A=-1,
+  state 5, timer 122.0 = the spent Melting Snows
+  gate. gate03_01 Ryukahn (k=0) and gate03_08 (k=9)
+  read A=-1: not live yet - they presumably light
+  up as the chapter advances (cf. s63's C5).
+- PLAN: march W to gate03_03 (nearest live gate,
+  ~85 units), title card decides whether it is
+  Solitude and Treachery (optional Blue - skip
+  entry if so) or Frozen Continent. Roamers on
+  the leg per guide: Transient Witch Lv8, False
+  Stalwart Lv6.
+
+B. FIELD LEG CROSSED; gate03_03 = SOLITUDE AND
+TREACHERY (title card read firsthand); board
+entered, censused, NOT played (optional Blue,
+out of scope); clean exit back to the field.
+- MARCH: s61_march28 from (260.2, 345.8) to
+  target gate03_03 (211.98, 307.01): 16 steps,
+  arrived (212.91, 306.28), state68 2 the whole
+  way, gil 18,200. NO roamer contact - the
+  guide's Transient Witch Lv8 / False Stalwart
+  Lv6 did not intersect this line (the road runs
+  SW then S along the coast). Bank:
+  s67_m1_final.state.
+- ENTRY LESSON (new): Cross at 1.18 and at 1.33
+  units from the anchor did NOT fire (two
+  stands, NE and SW of the anchor). A 10-frame
+  stick nudge toward the anchor closed to
+  (211.83, 307.55), 0.57 units, and Cross fired:
+  state68 2 -> 20, grid 21. The gateway info
+  panel only renders at close range and this
+  gate's trigger radius is far tighter than
+  True Intent's 1.83 (s56). RECIPE: march to
+  ~1 unit, nudge toward the anchor, Cross.
+  (Control note: re-entry at the spent Melting
+  Snows gate also did not fire - consistent
+  with its A=-1/state 5 record in sec A: a
+  cleared story gate goes dark.)
+- TITLE CARD (firsthand, gateway panel on the
+  field after exit): "Solitude and Treachery",
+  KP Chance: Win within 90 seconds, Rules:
+  Disabled, Skills: Enabled. The entry dialogue
+  line ("I'm sure everyone's fine... I'll see
+  you all soon.") matches the atwiki script at
+  the Solitude and Treachery position. So
+  gate03_03 = Solitude and Treachery (Blue,
+  optional). CORRECTION to sec A: its k->gate
+  pairing for k=1/k=5 was transposed; the
+  title card is the authority.
+- BOARD CENSUS (start grid 21): exists discs
+  {3,4,5,6, 12,13,15, 20,21,22,23,25, 32,33,35,
+  43,44,45,46} (19); Stigma structure on the
+  disc W of start. Board KP 0, banked KP 116,
+  Tifa Lv 7 HP 1364. NOT played. Bank:
+  s67_g03_board.state. (Also noted: Tifa's
+  Skill panel shows Cross Chain owned, on both
+  field and board HUDs.)
+- EXIT: pause (Start) -> Exit Gateway ->
+  confirm defaults NO, Left + Cross = YES:
+  state68 20 -> 0 -> 2, landed on the FIELD at
+  the gate, gil/KP unchanged. A field-entered
+  board exits back to the field (contrast
+  s66 sec D: the chapter-shell board's exit
+  landed on the Story Mode title card). Bank:
+  s67_st_exit.state.
+- NEXT: march W to gate03_04 (133.47, 286.67),
+  the next live western gate - Frozen Continent
+  is expected there or at gate03_05.
+
+C. WEST LEG: WITCH CONTACT + LOSS (rot4z cannot
+touch her); the plateau ends at a spur (X~133);
+gate03_04 is lowland across a mountain wall.
+- MARCH W from the S&T gate toward gate03_04
+  (133.47, 286.67): at (194.06, 301.97) state68
+  2 -> 5: ROAMER CONTACT. VS card firsthand:
+  Tifa Lv7 vs "?" Lv8, stage Dream's End = the
+  guide's Transient Witch Lv8 (FF wiki HP range
+  1,424-1,618; discovered foe_hp = 1,424).
+- FIGHT (s60_fight rot4z, from the VS bank):
+  RESULT LOSS, 86 rotations. Foe HP NEVER moved
+  (1,424 wire to wire); her BRV sat at 142 and
+  broke Tifa repeatedly (1364 -> 0 in ~142 HP
+  steps). STRUCTURAL: the Witch (ranged caster
+  manikin) hard-counters the melee rot4z policy
+  - it whiffed for 86 straight rotations. Not a
+  luck problem; do not re-run this matchup with
+  rot4z. The loss lived only in that drv
+  session; play resumed from the pre-leg bank.
+- RE-MARCH with an 1,800-frame idle-roll first
+  (roamer positions are time-based): NO contact.
+  But the road W is a snowfield bowl along a
+  mountain wall: greedy marches stall in a
+  pocket at (130.34, 303.08) - all 8 probes
+  fail there, E is the only exit - and the
+  ridge crest funnels (149.56,319.08) ->
+  (137.74,316.06) -> (135.01,314.16) ->
+  (133.61,312.04) -> stall. gate03_04 at
+  (133.47, 286.67) is 16 units S of the pocket,
+  across the wall: NO descent found anywhere
+  along X 130-210. gate03_05 (48.33, 262.18)
+  reads A=-1 (dark); the other live western
+  gate is gate03_07 (-67.91, 305.5, A=33),
+  also cut off by the spur.
+- DECISION: the lowland must be reached by the
+  KANAME network (the proven elevation-crossing
+  mechanic, s63): kaname_03 (41.25, 290.64)
+  sits in the low W. Backtrack E to the
+  Melting Snows area, then N to kaname_01
+  (300.44, 338.65) and ride the stones W.
+
+D. ROUTE WALL (Frozen Continent NOT reached this
+session - documented honestly): every westward
+line from the S&T country is cut by terrain.
+- The Witch owns the middle band: second contact
+  at (157.84, 320.3) on the E backtrack (VS card
+  firsthand again: Lv8, Dream's End). A 900-frame
+  idle-roll changed her phase and the E march
+  home ran clean (35 steps, no contact). Roamer
+  doctrine for this chapter: idle-roll + march;
+  do NOT fight the Witch with rot4z (sec C).
+- The E march home ran the HIGH band (Z 313-326)
+  the whole width - the snowfield's bands are:
+  coast/bowl Z 300-307 (W half), high band
+  Z 313-326, mesa Z 340-347 (E end only).
+- NE excursion: kaname_01 (300.44, 338.65)
+  reached (stall 2.16 short, on its collision).
+  Firsthand view: a giant orange-fissured
+  crystal on a red plateau, a channel, and a
+  stone arch on the far plateau (the gate03_08
+  country, still dark). But NO quickmove line
+  boards here in this chapter: Triangle at 8
+  stands around the crystal opened Customization
+  (state 11) every time. (Ch.6 never rode the
+  northern stones either - addendum 52 calls
+  kaname_01 a "platform stand".) The kaname
+  theory for the lowland is DEAD for Ch.7.
+- Far-north band test: W from kaname_01 at
+  Z~342 stalls at (237.34, 327.3) - the mesa
+  band dies at X~237. Combined with sec C: the
+  plateau W of X~237 / spur W of X~133 leaves
+  gate03_04 (lowland) and gate03_07 (far W
+  plateau) unreachable by any line the greedy
+  marcher found. UNRESOLVED: the designed route
+  (a pass the 28-frame probes step over? a
+  quickmove chain somewhere E? gate03_04 may
+  not be Frozen Continent at all - the two live
+  candidates remain gate03_04 (A=30) and
+  gate03_07 (A=33); gate03_05 is dark).
+- STANDING at wrap-up: Tifa Lv 7, HP 1364/1364,
+  gil 18,200, banked KP 116 (all unchanged -
+  the only battle was the measured Witch loss,
+  which lived and died in its drv session).
+  Chapter 7 progress: Melting Snows cleared
+  (s66); Solitude and Treachery identified,
+  censused, deliberately not played.
+- RESUME BANKS: s67_resume.state = field at
+  the S&T gate (the FC leg starts here);
+  s67_m13_bank.state = kaname_01 platform;
+  s67_g03_board.state = S&T board entry
+  (if the optional board is ever played);
+  s67_m3_bank.state = the Witch VS contact
+  (do not resume into the fight with rot4z).
+- NEXT SESSION leads, in order: (1) re-check
+  the guides for the S&T -> Frozen Continent
+  field route specifically (GameFAQs Ch.7
+  walkthrough text, not just the gateway
+  census); (2) fine-probe (short-hold) wall
+  scan along the wall base X 210 -> 130 for a
+  narrow pass; (3) if a pass exists it likely
+  sits where the high band meets the bowl,
+  X~160-195, Z~308-313 - the one stretch the
+  Witch patrols.
