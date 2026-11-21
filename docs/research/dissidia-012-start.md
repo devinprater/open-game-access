@@ -14267,6 +14267,78 @@ re-entry as sec B, bank s64_re3_board_live):
   idle-rolls in reserve, FORFEIT-flee and
   re-roll on a guard-family trace.
 
+D. SESSION 65 - EXDEATH FALLS; CHAPTER 6
+COMPLETE (2026-11-20): resumed from
+s64_exd_pre.state (Kain Lv 27, HP 1,983 /
+2,882, gil 17,642, banked KP 109, at the
+Stigma prompt 12 -> disc 2; the board
+otherwise clear).
+- MEASUREMENT FIRST: a 40-poll probe
+  (engage Cross, one RAM dump per poll)
+  found the battle block at poll 19 - base
+  0x096D6CA8, foe HP **2,725** (the s63
+  value held this visit), her HP 1,983.
+  WHY S64'S PROBE FAILED: the Stigma
+  prompt's VS/intro runway is ~19 polls
+  long; at 10 polls the battle has not
+  started and focus reads 0xaaaaaaaa -
+  that value is this board's normal
+  VS-phase focus, not corruption. RULE:
+  probe a Stigma engagement at least 20
+  polls before concluding NO_BLOCK.
+- IDLE-0 (s60_fight.py, rot4z, from the
+  bank): LOSS at rotation 23 with the foe
+  at 274 HP. The flowing family (2,451
+  damage dealt) lost the endgame race by
+  one rotation: cash-ins of ~1,262
+  (rotations 10-15) and 721 (rotations
+  20-23) against Kain's 1,983.
+- IDLE-900 (bank s65_exd_i900): LOSS at
+  rotation 47, foe at 2,238 - a keep-away
+  family (487 damage in 47 rotations);
+  rejected.
+- IDLE-1800 (bank s65_exd_i1800): **WIN at
+  rotation 19, cost 58** (1,983 -> 1,925).
+  Kain cashed 2,725 -> 1,702 by rotation 5
+  and Exdeath's BRV sat pinned at 6 through
+  rotation 10 - he never built a cash-in.
+  No chain prompt followed (declined=0);
+  gil 17,642 -> **18,056** (+414). No
+  level-up: the HP arithmetic is exact (no
+  +61 heal; max unchanged at 2,882).
+  Post-win banks s60_exd18_post / _post2
+  (board, KP gauge 4).
+- THE CLEAR: the post-fight scene and the
+  closing narration ("-when it has forever
+  been the warriors that fought as divine
+  pawns?") advanced on Cross presses;
+  state68 went 20 -> 21 at the chapter
+  shell. The Story Mode shell shows
+  Chapter 6's card filled with Kain's
+  portrait, Chapter 7 - Ally (Tifa Lv 1)
+  marked NEW, and the banner "A new tale
+  has been added to Story Mode!" -
+  **CHAPTER 6 COMPLETE**. Chapter-complete
+  bank: s65_ch6_complete.state (the shell;
+  = s65_ride_end.state).
+- CHAPTER-END STANDING: Kain Lv 27, HP
+  1,925 / 2,882, gil 18,056. KP gauge 4 at
+  the clear -> banked KP 109 -> 113 by the
+  payout pattern verified at every prior
+  gateway in this record (the gauge pays
+  into banked during the finish flow; the
+  113 is derived - confirm at the next
+  board HUD). Held unchanged: Shiva
+  summonstone, Rosetta Stone, Yellow Drop;
+  Firion assist.
+- Chapter 6 loose ends, all optional, none
+  blocking: True Intent's west chest (node
+  30, the Pebble) never collected
+  (addendum 49); the adapter-side gaps of
+  addendum 54 (Hidden Darkness untabled;
+  Legendary Lake discs 1/3/4/5 unreached).
+  Chapter 7 (Tifa) is the next tale.
+
 ### Addendum 54 - ADAPTER CONSOLIDATION (2026-11-20, sonix clone)
 
 The board knowledge from sessions 21-64 is now consolidated into
