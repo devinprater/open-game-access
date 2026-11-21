@@ -14549,3 +14549,46 @@ entries both need patient, spaced inputs; rapid-fire
 presses are eaten. (5) drv "shot" writes Netpbm PPM
 whatever the extension says; s66_census.py takes a BARE
 filename (it prepends the d12s path itself).
+
+### Session 67 addendum 56 - CHAPTER 7: FIELD LEG + FROZEN CONTINENT (2026-11-21)
+
+A. SURVEY (from s66_y_field.state; this boot GateMgr
+0x095D5C20, pint list0 0x095D2A00, 135 records - the
+same northern-segment tables as s62/s63):
+- Tifa stands at (260.2, 345.8), state68 2, HP
+  1364/1364, gil 18,200. Banked: s67_start.state.
+- NAMED-POINT TABLE DECODED: a 0x3C-stride string
+  table in RAM (this boot at 0x095E46C0): name at +0,
+  X float at +36, height at +40, Z float at +44.
+  Verified against s63 firsthand values:
+  POS_gate03_01 = (280.68, 327.56) Ryukahn;
+  POS_gate03_00 = (292.5, 312.0) True Intent;
+  POS_gate03_08 = (325.4, 364.04).
+  All gate anchors this map: gate03_02 (259.01,
+  345.15) - 1.3 units from Tifa's stand = the
+  Melting Snows gate she just exited; gate03_03
+  (211.98, 307.01); gate03_04 (133.47, 286.67);
+  gate03_05 (48.33, 262.18); gate03_06 (-34.0,
+  295.01); gate03_07 (-67.91, 305.5); gate02_06
+  (154.08, 229.42). Kaname: _01 (300.44, 338.65),
+  _02 (301.37, 357.93), _03 (41.25, 290.64).
+- GATE TABLE (11 populated records): record layout
+  A = [objId, ?, LIVEBOARD, pointIdx, ?, 0, -1, ?,
+  -1, -1], B[0] = pointIdx. Point index -> name
+  table entry = idx - 17 (hypothesis, cross-checked
+  on gate03_99 and the just-exited gate; the title
+  card on entry remains the authority). LIVE
+  (A[2] >= 0): k=1 A=30 -> gate03_04 (133.47,
+  286.67); k=5 A=32 -> gate03_03 (211.98, 307.01);
+  k=6 A=33 -> gate03_05 (48.33, 262.18). All three
+  live gates are WEST. gate03_02 (k=4) reads A=-1,
+  state 5, timer 122.0 = the spent Melting Snows
+  gate. gate03_01 Ryukahn (k=0) and gate03_08 (k=9)
+  read A=-1: not live yet - they presumably light
+  up as the chapter advances (cf. s63's C5).
+- PLAN: march W to gate03_03 (nearest live gate,
+  ~85 units), title card decides whether it is
+  Solitude and Treachery (optional Blue - skip
+  entry if so) or Frozen Continent. Roamers on
+  the leg per guide: Transient Witch Lv8, False
+  Stalwart Lv6.
