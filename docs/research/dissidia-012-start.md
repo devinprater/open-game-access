@@ -14690,3 +14690,66 @@ gate03_04 is lowland across a mountain wall.
   sits in the low W. Backtrack E to the
   Melting Snows area, then N to kaname_01
   (300.44, 338.65) and ride the stones W.
+
+D. ROUTE WALL (Frozen Continent NOT reached this
+session - documented honestly): every westward
+line from the S&T country is cut by terrain.
+- The Witch owns the middle band: second contact
+  at (157.84, 320.3) on the E backtrack (VS card
+  firsthand again: Lv8, Dream's End). A 900-frame
+  idle-roll changed her phase and the E march
+  home ran clean (35 steps, no contact). Roamer
+  doctrine for this chapter: idle-roll + march;
+  do NOT fight the Witch with rot4z (sec C).
+- The E march home ran the HIGH band (Z 313-326)
+  the whole width - the snowfield's bands are:
+  coast/bowl Z 300-307 (W half), high band
+  Z 313-326, mesa Z 340-347 (E end only).
+- NE excursion: kaname_01 (300.44, 338.65)
+  reached (stall 2.16 short, on its collision).
+  Firsthand view: a giant orange-fissured
+  crystal on a red plateau, a channel, and a
+  stone arch on the far plateau (the gate03_08
+  country, still dark). But NO quickmove line
+  boards here in this chapter: Triangle at 8
+  stands around the crystal opened Customization
+  (state 11) every time. (Ch.6 never rode the
+  northern stones either - addendum 52 calls
+  kaname_01 a "platform stand".) The kaname
+  theory for the lowland is DEAD for Ch.7.
+- Far-north band test: W from kaname_01 at
+  Z~342 stalls at (237.34, 327.3) - the mesa
+  band dies at X~237. Combined with sec C: the
+  plateau W of X~237 / spur W of X~133 leaves
+  gate03_04 (lowland) and gate03_07 (far W
+  plateau) unreachable by any line the greedy
+  marcher found. UNRESOLVED: the designed route
+  (a pass the 28-frame probes step over? a
+  quickmove chain somewhere E? gate03_04 may
+  not be Frozen Continent at all - the two live
+  candidates remain gate03_04 (A=30) and
+  gate03_07 (A=33); gate03_05 is dark).
+- STANDING at wrap-up: Tifa Lv 7, HP 1364/1364,
+  gil 18,200, banked KP 116 (all unchanged -
+  the only battle was the measured Witch loss,
+  which lived and died in its drv session).
+  Chapter 7 progress: Melting Snows cleared
+  (s66); Solitude and Treachery identified,
+  censused, deliberately not played.
+- RESUME BANKS: s67_resume.state = field at
+  the S&T gate (the FC leg starts here);
+  s67_m13_bank.state = kaname_01 platform;
+  s67_g03_board.state = S&T board entry
+  (if the optional board is ever played);
+  s67_m3_bank.state = the Witch VS contact
+  (do not resume into the fight with rot4z).
+- NEXT SESSION leads, in order: (1) re-check
+  the guides for the S&T -> Frozen Continent
+  field route specifically (GameFAQs Ch.7
+  walkthrough text, not just the gateway
+  census); (2) fine-probe (short-hold) wall
+  scan along the wall base X 210 -> 130 for a
+  narrow pass; (3) if a pass exists it likely
+  sits where the high band meets the bowl,
+  X~160-195, Z~308-313 - the one stretch the
+  Witch patrols.
