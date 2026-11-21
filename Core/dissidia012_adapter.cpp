@@ -293,9 +293,10 @@ enum BoardPiece : int { kPieceNone = 0, kPieceChest, kPieceKain, kPieceManikin, 
                         kPieceFlash6Dreams90, kPieceDragoon8_90, kPieceFlash8_90, kPiecePirate13_90, kPieceHero13_90, kPieceDespot13_90,
                         kPieceTree7Wod90, kPieceFlash7Crystal90, kPieceDragoon7Crystal90, kPieceFlash3Ultimecia90, kPieceGunner6Crystal90, kPieceTree13Wod90,
                         kPieceFlash13Ultimecia90, kPieceTerra, kPieceVaan, kPieceJecht, kPieceZidane, kPieceFirion,
-                        kPieceSummonstone, kPiecePotion, kPieceWarriorOfLight };
+                        kPieceSummonstone, kPiecePotion, kPieceWarriorOfLight,
+                        kPieceDragoon1Ultimecia90, kPieceWraith4Pandaemonium90, kPieceFlash4Pandaemonium90, kPieceVision4Ocs90, kPieceDespot1Ocs90 };
 struct BoardPieceInfo { const char* name; const char* clause; const char* desc; const char* promptDesc; bool prompt; };
-static const BoardPieceInfo kBoardPieces[96] = {
+static const BoardPieceInfo kBoardPieces[101] = {
     { "", "", "", nullptr, false },
     { "Treasure Chest", "chest", "Contains helpful items", nullptr, true },
     { "Kain", "Kain", "Assist Character", nullptr, true },
@@ -482,6 +483,18 @@ static const BoardPieceInfo kBoardPieces[96] = {
     { "Summonstone", "Summonstone", "An unknown summon is sealed within", nullptr, true },
     { "Potion", "Potion", "", nullptr, true },
     { "Warrior of Light", "Warrior of Light", "", nullptr, true },
+    // Chapter 7's Solitude and Treachery (session 68, every card read
+    // firsthand on the board's own prompts; a 90-second board).
+    { "Delusory Dragoon", "Delusory Dragoon", "Lv 1. Battle stage: Ultimecia's Castle",
+      "Lv 1. Battle stage: Ultimecia's Castle. KP chance: Win within 90 seconds", true },
+    { "Counterfeit Wraith", "Counterfeit Wraith", "Lv 4. Battle stage: Pandaemonium",
+      "Lv 4. Battle stage: Pandaemonium. KP chance: Win within 90 seconds", true },
+    { "Fleeting Flash", "Fleeting Flash", "Lv 4. Battle stage: Pandaemonium",
+      "Lv 4. Battle stage: Pandaemonium. KP chance: Win within 90 seconds", true },
+    { "Ephemeral Vision", "Ephemeral Vision", "Lv 4. Battle stage: Old Chaos Shrine",
+      "Lv 4. Battle stage: Old Chaos Shrine. KP chance: Win within 90 seconds", true },
+    { "Imitation Despot", "Imitation Despot", "Lv 1. Battle stage: Old Chaos Shrine",
+      "Lv 1. Battle stage: Old Chaos Shrine. KP chance: Win within 90 seconds", true },
 };
 struct BoardDisc { int grid; const char* name; int x, z; int piece; };
 // x/z are the disc objects' board coordinates (session 10): 4.0 per step, +x east
@@ -977,8 +990,34 @@ static const BoardDisc kRyukahnDiscs[16] = {
     { 44, nullptr, -2, 4, kPieceNone },
 };
 static const BoardDef kRyukahnDef = { kRyukahnDiscs, 16, 42, 2 };
-static const BoardDef* const kKnownBoards[20] = { &kPrologueDef, &kLakeDef, &kSagesDef,
-    &kFoolsDef, &kEncountersDef, &kGulgDef, &kSnowDef, &kSeasonlessDef, &kCh3FirstDef, &kDecayDef, &kWestMelmondDef, &kNorthMelmondDef, &kBlueShrineDef, &kSouthShrineDef, &kNorthSanctuaryDef, &kForsakenDef, &kSunkenDef, &kLegendaryDef, &kTrueIntentDef, &kRyukahnDef };
+// Chapter 7's Solitude and Treachery (session 68, walked in full: every
+// disc stepped on or prompted, every card read firsthand). An optional
+// Blue gateway off the Chapter 7 field; KP chance "Win within 90
+// seconds". The chest on disc 6 held 1000 gil. No gaps.
+static const BoardDisc kSolitudeDiscs[19] = {
+    { 3, nullptr, -6, -12, kPieceVision4Ocs90 },
+    { 4, nullptr, -2, -12, kPieceNone },
+    { 5, nullptr, 2, -12, kPieceFlash4Pandaemonium90 },
+    { 6, nullptr, 6, -12, kPieceChest },
+    { 12, nullptr, -10, -8, kPieceDespot1Ocs90 },
+    { 13, nullptr, -6, -8, kPieceNone },
+    { 15, nullptr, 2, -8, kPieceNone },
+    { 20, nullptr, -18, -4, kPieceStigma },
+    { 21, nullptr, -14, -4, kPieceNone },
+    { 22, nullptr, -10, -4, kPieceNone },
+    { 23, nullptr, -6, -4, kPieceNone },
+    { 25, nullptr, 2, -4, kPieceNone },
+    { 32, nullptr, -10, 0, kPieceDragoon1Ultimecia90 },
+    { 33, nullptr, -6, 0, kPieceNone },
+    { 35, nullptr, 2, 0, kPieceNone },
+    { 43, nullptr, -6, 4, kPieceWraith4Pandaemonium90 },
+    { 44, nullptr, -2, 4, kPieceNone },
+    { 45, nullptr, 2, 4, kPieceNone },
+    { 46, nullptr, 6, 4, kPieceNone },
+};
+static const BoardDef kSolitudeDef = { kSolitudeDiscs, 19, 21, 20 };
+static const BoardDef* const kKnownBoards[21] = { &kPrologueDef, &kLakeDef, &kSagesDef,
+    &kFoolsDef, &kEncountersDef, &kGulgDef, &kSnowDef, &kSeasonlessDef, &kCh3FirstDef, &kDecayDef, &kWestMelmondDef, &kNorthMelmondDef, &kBlueShrineDef, &kSouthShrineDef, &kNorthSanctuaryDef, &kForsakenDef, &kSunkenDef, &kLegendaryDef, &kTrueIntentDef, &kRyukahnDef, &kSolitudeDef };
 // Generic fallback for an unrecognised board: position from the live disc data,
 // no table, no pieces.
 static const BoardDef kGenericDef = { nullptr, 0, -1, -1 };
