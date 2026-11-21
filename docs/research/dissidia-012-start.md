@@ -14753,3 +14753,153 @@ line from the S&T country is cut by terrain.
   sits where the high band meets the bowl,
   X~160-195, Z~308-313 - the one stretch the
   Witch patrols.
+
+### Session 68 addendum 57 - CHAPTER 7: SOLITUDE AND TREACHERY PLAYED IN FULL (2026-11-21)
+
+Devin's direction: play the optional Blue gateway in full so Tifa
+levels before Ultimecia, and map it completely for the board reader.
+START: Tifa Lv 7, HP 1364/1364, gil 18,200, banked KP 116, from
+`s67_g03_board.state`. END: BOARD CLEARED (Stigma engaged), Tifa
+Lv 8, HP 1424/1424, gil 19,284, banked KP 118. RESUME bank:
+`s68_postclear_watch.state` (field at the gate, post-clear; hands
+off after engaging the Stigma - see the Witch warning in section E).
+
+A. THE BOARD, COMPLETE CENSUS (verified live against s67; every
+disc stepped on or prompted, every card OCR-read firsthand).
+19 discs; entry 21 at (-14,-4); KP Chance "Win within 90 seconds",
+Rules Disabled, Skills Enabled.
+- 3 (-6,-12): Ephemeral Vision Lv 4, stage Old Chaos Shrine -
+  UNBEATEN, a structural counter this visit (section C).
+- 4 (-2,-12): plain. 13 (-6,-8): plain. 15 (2,-8): plain.
+  22 (-10,-4), 23 (-6,-4), 25 (2,-4), 33 (-6,0), 35 (2,0),
+  44 (-2,4), 45 (2,4), 46 (6,4): all plain.
+- 5 (2,-12): Fleeting Flash Lv 4, stage Pandaemonium - beaten.
+- 6 (6,-12): Treasure Chest - 1000 gil (measured: gil 18,278 ->
+  19,278 on opening; a gil chest, contents fixed as far as one
+  opening can show).
+- 12 (-10,-8): Imitation Despot Lv 1, stage Old Chaos Shrine -
+  beaten, KP paid (section D).
+- 20 (-18,-4): Stigma of Chaos - engaged last; board cleared.
+- 21 (-14,-4): entry. 32 (-10,0): Delusory Dragoon Lv 1, stage
+  Ultimecia's Castle - beaten, KP paid (section B).
+- 43 (-6,4): Counterfeit Wraith Lv 4, stage Pandaemonium - beaten.
+Movement notes (normal mode, measured): 32 -down-> 43 has NO edge
+(route via 33); the west columns have one-way stretches (23 -up->
+13 works, 13 -down-> 23 does not; 12 -down-> 22 does not) - the
+return from the north-west lobe runs 13 -left-> 12, then the long
+way round, or 13 with the cursor resting north (section D).
+
+B. FIGHTS. Foe HP re-rolled per visit; all measured at engagement.
+Policy rot6 (rot4 sequence, assist chord every rotation, rot4x
+endgame) after the first fight showed plain rot4z too slow for
+this board's 90-second KP chance.
+- Delusory Dragoon Lv 1 (disc 32, HP 1000): rot4z 67 rotations
+  (0 KP), rot6 33 (0 KP), then from the prompt bank with a
+  900-frame board idle first (idle-rolling re-rolls the trace):
+  rot6 WIN in 9 rotations, zero damage, KP PAID (gauge 0 -> 1).
+  Winning recipe banked as `s68_prompt32_i900.state` ->
+  `s68_d32c_post2.state`. Chain prompt after the win pointed at
+  disc 43 (declined).
+- Counterfeit Wraith Lv 4 (disc 43, HP 1023): four losses first
+  (idle-900 rot6: one cash-in of its own at ~1364 BRV one-shot
+  her; idle-0 rot6: same at rotation 38, and its HP ticked UP
+  395 -> 493 after its cash-in - a drain/regen effect; rot5:
+  survived 75 rotations but her damage was far too low against
+  the regen). Idle-1800 + rot6: WIN in 80 rotations, ZERO damage
+  taken (its BRV climbed past 2100 but it never cashed in on
+  that trace). 80 rotations >> 90 seconds: no KP. Banks:
+  `s68_prompt43.state`, win `s68_w43d_post2.state`.
+- Fleeting Flash Lv 4 (disc 5, HP 1340): idle-900 rot6 LOSS at
+  32 (its ~1967-BRV cash-in one-shot her) - but the trace showed
+  a MID-BATTLE LEVEL-UP: her HP cell rose 1364 -> 1424 (Lv 8).
+  Idle-0 rot6: WIN in 58 rotations, the level-up recurred at
+  rotation 40 and STUCK (a win banks it). No KP (58 rotations).
+  Bank: `s68_f05b_post2.state`. Tifa is Lv 8 from here on:
+  HP 1424, and the level is the session's main prize - she goes
+  to Ultimecia one level up, +60 max HP.
+- Imitation Despot Lv 1 (disc 12, HP 1000): idle-900 rot6 WIN in
+  33 (it sat at 1 HP from rotation 15 - the no-drift endgame
+  race kept whiffing); idle-0 rot6 WIN in 19, zero damage. The
+  gauge still read 1 after settling - because the win's KP was
+  HELD BY A RESTING CHAIN (section D); once declined, gauge 2.
+  A third trace (idle-1800) froze at foe 54 HP for 45+ rotations
+  (endgame race never connected) - discarded. Bank:
+  `s68_des12b_settled.state`.
+
+C. THE VISION IS A STRUCTURAL COUNTER (this visit's roll).
+Ephemeral Vision Lv 4 (disc 3): its VS Opponent Info card reads
+HP 1, BRV 2373 (base 113), ATK 14, DEF 15, LUK 12, accessory
+"Initial BRV +2000%", gear incl. "Soul of the Destroyer". A
+glass cannon: any HP hit kills it, but it opens by breaking her
+(pool 260 dumps to it at ~30 frames) and lands a ~2642-damage
+HP attack 190-630 frames after battle start, before any of
+Tifa's attacks connect, in EVERY trace tried (11): rot4 at
+board idles 0/900/1800, dodge-spam (R+Cross), Circle-mash
+(EX-defence style), Cross/Circle/Square rush, straight-line
+run, run + timed dodges, summon chord. Movement delays the
+shot (idle ~195 frames, run ~300, dodge-spam ~560) but never
+avoids it; it fires the moment she commits to an attack.
+Documented as a counter like the s67 Witch; NOT a skill wall
+to burn more sessions on. Future levers, in order: (1) a board
+re-visit re-rolls its HP but the +2000% BRV build is likely
+fixed, so the opener problem probably persists; (2) tanking
+the first hit needs HP > 2642 (roughly Lv 20+); (3) a party
+member with a ranged or instant opener; (4) frame-precise
+dodge timing the current press cadence cannot deliver.
+Its KP (1) and the piece itself remain for a future visit;
+the board still cleared without it (section E).
+
+D. CHAIN / CURSOR LESSONS (cost an hour; banked here).
+- A win can leave a RESTING CHAIN whose KP is not banked until
+  the chain is declined: after the Despot win the gauge read 1
+  through a 3500-frame settle, and only the decline ritual
+  (Circle -> "Cancel chain?" -> Left -> Cross) moved it to 2.
+  The fight script's post-win decline check can miss a chain
+  that rises late (the Despot's rose after its check loop).
+  Rule: after any win, if the cursor rests on another piece's
+  record, decline before trusting the gauge.
+- With the cursor resting on the chain target (disc 3), board
+  movement warps: "down" inputs did nothing, "left" moved her
+  13 -> 12, and "up" moved her 13 -> 23 (the board reads
+  directions relative to the resting cursor, not the grid).
+  Once she moved, normal row movement resumed; a 26-frame
+  analog push can also double-step (23 -> 21 in one push,
+  skipping 22). The reader's disc graph is unaffected (it
+  reads records, not inputs).
+
+E. THE CLEAR, AND A WITCH WARNING. From disc 21, left raised
+the Stigma prompt on 20 ("Stigma of Chaos - Engaging this
+piece finishes the level"), banked as `s68_prompt20.state`.
+Engage = one Cross; state68 20 -> 2 (field) within ~300
+frames; the gauge paid out: field HUD KP 118 (= 116 + Dragoon
+1 + Despot 1; Wraith and Flash paid 0 on time, Vision unpaid).
+WARNING: the first clear attempt pressed Cross repeatedly
+while back on the field and walked into the Transient Witch's
+battle (she roams at this gate - s67's counter; the VS screen
+showed her Lv 8 card, HP 1424). That bank (`s68_clear.state`)
+is CONTAMINATED mid-battle - do not use it. The clean clear
+pressed Cross once and touched nothing: RESUME =
+`s68_postclear_watch.state`.
+
+F. READER: THE BOARD IS TABLED. Census complete and firsthand,
+so Solitude and Treachery joins the reader in commit 29ca722
+(separate from this doc): kSolitudeDiscs[19] + kSolitudeDef
+(entry 21, stigma 20), five new 90-second piece entries
+(kPieceDragoon1Ultimecia90, kPieceWraith4Pandaemonium90,
+kPieceFlash4Pandaemonium90, kPieceVision4Ocs90,
+kPieceDespot1Ocs90; kBoardPieces 96 -> 101), kKnownBoards
+20 -> 21. Tests: scripts/dissidia012-adapter-test.sh =
+127 passed, 0 failed (was 121; +6 checks: entry line, discs
+13 and 33 neighbourhoods, Vision and Dragoon prompts, chest
+scan). No gaps in this board's table.
+
+G. STANDING FOR THE FROZEN CONTINENT LEG (unchanged plan, one
+level better). Tifa Lv 8, HP 1424/1424, gil 19,284, KP 118.
+Resume bank `s68_postclear_watch.state` stands on the field at
+the S&T gate - the Witch roams there, so the next session
+should move first and read the field before pressing anything.
+The Frozen Continent candidates from s67 stand (gate03_04
+A=30 / gate03_07 A=33, unproven); the westward field route is
+terrain-walled; the Witch remains a structural counter to
+rot4z. Nothing in this session changes that plan except Tifa's
+level: she is one level (and 60 HP) stronger for Ultimecia.
