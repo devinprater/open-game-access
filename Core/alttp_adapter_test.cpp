@@ -11,6 +11,7 @@
  */
 #include "adapter.h"
 #include "alttp_text.h"
+#include "alttp_graph.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -42,6 +43,31 @@ static uint32_t r32(void*, uint32_t a) {
 static void spk(void*, const char* s, bool) { if (NSPOKEN < 32) snprintf(SPOKEN[NSPOKEN++], 384, "%s", s); }
 static void lg (void*, const char* s) { if (NLOGGED < 32) snprintf(LOGGED[NLOGGED++], 256, "%s", s); }
 static void btn(void*, int, bool) {}
+
+/* Auto-walk stubs: a recording set_button (walk code must never call
+ * it), a recording set_direction (the walker's only output), a player
+ * feed driven by hand, and a combined event log for ordering checks. */
+static bool DIRDOWN[4] = { false, false, false, false };
+static int DIRPRESS = 0;
+static int BTNCALLS = 0;
+static uint32_t FEEDHELD = 0, FEEDPRESSED = 0;
+static char EVENTS[512][96]; static int NEVENTS = 0;
+static void btnrec(void*, int, bool) { BTNCALLS++; }
+static void dirset(void*, int dir, bool down) {
+    if (dir < 0 || dir > 3) return;
+    DIRDOWN[dir] = down;
+    if (down) {
+        DIRPRESS++;
+        if (NEVENTS < 512) snprintf(EVENTS[NEVENTS++], 96, "D %d", dir);
+    }
+}
+static void padfeed(void*, uint32_t* held, uint32_t* pressed) {
+    *held = FEEDHELD; *pressed = FEEDPRESSED; FEEDPRESSED = 0;
+}
+static void spk2(void* c, const char* s, bool i) {
+    spk(c, s, i);
+    if (NEVENTS < 512) snprintf(EVENTS[NEVENTS++], 96, "S %s", s);
+}
 
 namespace oga {
 extern const Adapter kZeldaLinkToThePast;
@@ -779,6 +805,302 @@ int main()
           "Objective: Climb Ganon's Tower and face Ganon. No walking route known; it lies north, about five screens away.") == 0,
           "objective: seven crystals point at Ganon's Tower");
     put8(0x7EF3C5u, 0); put8(0x7EF37Au, 0);
+
+
+    // ---- auto walk (docs/design/auto-walk.md) -------------------------------
+    // A second host WITH the walk verbs, recording everything: the stub
+    // set_button must never be called by walk code (the structural
+    // guarantee), set_direction writes are the walker's only output, and
+    // the player feed is driven by hand. The sim moves Link 2 px/frame
+    // in whatever direction the stub currently holds and re-derives the
+    // screen/area from his world position, the way the game does.
+    oga::Host H2 = {};
+    H2.read8 = r8; H2.read16 = r16; H2.read32 = r32;
+    H2.speak = spk2; H2.log = lg; H2.set_button = btnrec;
+    H2.set_direction = dirset; H2.player_pad = padfeed; H2.ctx = nullptr;
+
+    // A ground tile both masks accept, and a wall tile neither does,
+    // found in the shipped tables rather than hardcoded.
+    uint16_t groundTile = 0, wallTile = 0;
+    for (uint32_t m = 0; m < 3752; m++) {
+        if (!groundTile && oga::AlttpMap16Walkable((uint16_t) m) &&
+            oga::AlttpMap16Steerable((uint16_t) m)) groundTile = (uint16_t) m;
+        if (!wallTile && !oga::AlttpMap16Walkable((uint16_t) m)) wallTile = (uint16_t) m;
+    }
+    CHECK(groundTile != 0 && wallTile != 0, "walk: ground and wall tiles exist in the tables");
+    auto fillTiles = [&](bool island) {
+        for (int ry = 0; ry < 64; ry++)
+            for (int rx = 0; rx < 64; rx++) {
+                uint16_t t = groundTile;
+                if (island && rx >= 26 && rx <= 30 && ry >= 26 && ry <= 30 &&
+                    !(rx >= 27 && rx <= 29 && ry >= 27 && ry <= 29))
+                    t = wallTile;   // a walled 3x3 island: a second region
+                put16(0x7E2000u + (uint32_t) (ry * 64 + rx) * 2, t);
+            }
+        put16(0x7E0708u, 0); put16(0x7E070Au, 0);
+        put16(0x7E070Cu, 0); put16(0x7E070Eu, 0);
+    };
+    auto placeLink = [&](int x, int y) {
+        put16(X, (uint16_t) x); put16(Y, (uint16_t) y);
+        int scr = ((y >> 9) & 7) * 8 + ((x >> 9) & 7);
+        put16(SCREEN, (uint16_t) scr);
+        put16(AREA, oga::AlttpAreaOfScreen((uint8_t) scr));
+    };
+    auto simFrames = [&](int n, bool move) {
+        for (int i = 0; i < n; i++) {
+            oga::kZeldaLinkToThePast.on_frame();
+            if (!move) continue;
+            int dx = 0, dy = 0;
+            if (DIRDOWN[0]) dy -= 2;
+            if (DIRDOWN[1]) dy += 2;
+            if (DIRDOWN[2]) dx -= 2;
+            if (DIRDOWN[3]) dx += 2;
+            if (dx || dy) {
+                int nx = (int) r16(nullptr, X) + dx;
+                int ny = (int) r16(nullptr, Y) + dy;
+                if (nx < 0) nx = 0; if (ny < 0) ny = 0;
+                if (nx > 4095) nx = 4095; if (ny > 4095) ny = 4095;
+                placeLink(nx, ny);
+            }
+        }
+    };
+    auto said = [&](const char* sub) {
+        for (int i = 0; i < NSPOKEN; i++) if (strstr(SPOKEN[i], sub)) return true;
+        return false;
+    };
+    auto saidExact = [&](const char* line) {
+        for (int i = 0; i < NSPOKEN; i++) if (strcmp(SPOKEN[i], line) == 0) return true;
+        return false;
+    };
+    auto dirsClear = [&]() {
+        return !DIRDOWN[0] && !DIRDOWN[1] && !DIRDOWN[2] && !DIRDOWN[3];
+    };
+    auto walkSetup = [&](int x, int y, uint8_t flags) {
+        oga::kZeldaLinkToThePast.detach();
+        for (int d = 0; d < 4; d++) DIRDOWN[d] = false;
+        DIRPRESS = 0; BTNCALLS = 0; FEEDPRESSED = 0; FEEDHELD = 0;
+        oga::kZeldaLinkToThePast.attach(&H2);
+        oga::AlttpAutoWalk(true);
+        fillTiles(false);
+        put8(CAP, 0x18); put8(CUR, 0x18);
+        put8(0x7E0010u, 9); put8(0x7E0011u, 0); put16(0x7E010Cu, 9);
+        put8(INDOORS, 0); put16(0x7E1CF0u, 0); put8(0x7E040Cu, 0xFF);
+        put8(0x7EF3C6u, flags); put8(0x7EF374u, 0); put8(0x7EF359u, 1);
+        placeLink(x, y);
+        NSPOKEN = 0; NEVENTS = 0; oga::AdapterSpeechReset();
+    };
+    auto guideTo = [&](const char* name) {
+        char want[128];
+        snprintf(want, sizeof(want), "Guide: %s.", name);
+        for (int i = 0; i < 12; i++) {
+            NSPOKEN = 0; oga::AdapterSpeechReset();
+            oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+            if (NSPOKEN >= 1 && strstr(SPOKEN[0], want) == SPOKEN[0]) return true;
+        }
+        return false;
+    };
+
+    // Proof 5: a host with no direction verb gets a spoken refusal,
+    // never a silent dead button.
+    {
+        oga::kZeldaLinkToThePast.detach();
+        oga::kZeldaLinkToThePast.attach(&H);
+        oga::AlttpAutoWalk(true);
+        put8(CAP, 0x18); put8(CUR, 0x18);
+        put8(0x7E0010u, 9); put8(0x7E0011u, 0);
+        put8(INDOORS, 0); put16(AREA, 0x2C); put16(SCREEN, 0x2C);
+        put16(X, 2232); put16(Y, 2792); put8(0x7EF3C6u, 0x15);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+        CHECK(saidExact("Auto walk is unavailable."),
+              "walk: a host without the verbs gets a spoken refusal");
+        oga::kZeldaLinkToThePast.detach();
+    }
+
+    // Setting off: the one-time explanation, then the short form.
+    walkSetup(2232, 2792, 0x15);
+    oga::AlttpAutoWalk(false);
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(said("Auto walk is off.") && said("only ever holds a direction"),
+          "walk: setting off answers with the one-time explanation");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(saidExact("Auto walk is off. Turn it on in this game's settings."),
+          "walk: the explanation is given once, then the short form");
+    CHECK(DIRPRESS == 0, "walk: setting off never touches a direction");
+
+    // No route named yet: the honest answer.
+    walkSetup(2232, 2792, 0x15);
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(saidExact("Auto walk: ask for a route first."),
+          "walk: no Guide route yet is answered honestly");
+    CHECK(DIRPRESS == 0, "walk: no route, no movement");
+
+    // The full walk: Link's house north one screen into Hyrule Castle.
+    // The start line is spoken before the first direction is written.
+    walkSetup(2232, 2792, 0x11);
+    CHECK(guideTo("Hyrule Castle"), "walk: guide names the castle");
+    NSPOKEN = 0; NEVENTS = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(saidExact("Auto walk: Hyrule Castle."), "walk: the start line names the target");
+    {
+        int sIdx = -1, dIdx = -1;
+        for (int i = 0; i < NEVENTS; i++) {
+            if (sIdx < 0 && strstr(EVENTS[i], "S Auto walk: Hyrule Castle.") == EVENTS[i]) sIdx = i;
+            if (dIdx < 0 && EVENTS[i][0] == 'D') dIdx = i;
+        }
+        simFrames(1, true);
+        for (int i = 0; i < NEVENTS; i++)
+            if (dIdx < 0 && EVENTS[i][0] == 'D') dIdx = i;
+        CHECK(sIdx >= 0 && dIdx > sIdx,
+              "walk: the target is spoken before the first direction is written");
+    }
+    {
+        int frames = 0;
+        while (r16(nullptr, AREA) != 0x1B && frames < 4000) { simFrames(20, true); frames += 20; }
+        CHECK(r16(nullptr, AREA) == 0x1B, "walk: the walker steered Link into Hyrule Castle");
+        CHECK(said("Outside, Hyrule Castle."), "walk: arrival speaks the Where Am I line");
+        simFrames(5, true);
+        CHECK(dirsClear(), "walk: arrival releases every direction");
+        CHECK(BTNCALLS == 0, "walk: set_button was never called (the structural guarantee)");
+    }
+
+    // Progress is a Guide press during the walk, in route units.
+    walkSetup(2232, 2792, 0x15);
+    CHECK(guideTo("Desert of Mystery"), "walk: guide names the desert");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    simFrames(200, true);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(said("screens to go.") && !said("Guide:"),
+          "walk: Guide during a walk reports progress in screens");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(saidExact("Auto walk off."), "walk: WalkToggle during a walk stops it");
+    CHECK(dirsClear(), "walk: the stop releases every direction");
+
+    // The player's own press cancels, silently, within a frame.
+    walkSetup(2232, 2792, 0x15);
+    guideTo("Desert of Mystery");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    simFrames(150, true);
+    {
+        int px = (int) r16(nullptr, X), py = (int) r16(nullptr, Y);
+        NSPOKEN = 0; oga::AdapterSpeechReset();
+        FEEDPRESSED = 1u << 4;   // POKE_BTN_RIGHT
+        oga::kZeldaLinkToThePast.on_frame();
+        CHECK(dirsClear(), "walk: a player press releases the directions at once");
+        CHECK(!said("Auto walk"), "walk: a player cancel is silent");
+        simFrames(120, true);
+        CHECK((int) r16(nullptr, X) == px && (int) r16(nullptr, Y) == py,
+              "walk: after a player cancel the walker stays stopped");
+    }
+
+    // Dialogue cancels silently; a menu cancels silently; harm speaks.
+    walkSetup(2232, 2792, 0x15);
+    guideTo("Desert of Mystery");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    simFrames(60, true);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(0x7E1CF0u, 7);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(dirsClear() && !said("Auto walk"), "walk: dialogue cancels silently");
+    put16(0x7E1CF0u, 0);
+
+    walkSetup(2232, 2792, 0x15);
+    guideTo("Desert of Mystery");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    simFrames(60, true);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0010u, 14); put8(0x7E0011u, 1);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(dirsClear() && !said("Auto walk stopped"), "walk: a menu cancels silently");
+    put8(0x7E0010u, 9); put8(0x7E0011u, 0);
+
+    walkSetup(2232, 2792, 0x15);
+    guideTo("Desert of Mystery");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    simFrames(60, true);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(CUR, 0x10);
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(saidExact("Auto walk stopped: hurt."), "walk: a health decrease stops the walk, said once");
+    CHECK(dirsClear(), "walk: harm releases every direction");
+
+    // The gates that refuse to start.
+    walkSetup(2232, 2792, 0x15);
+    put8(CUR, 8);
+    guideTo("Kakariko Village");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(saidExact("Auto walk: too hurt to start."), "walk: one heart refuses to start");
+    CHECK(DIRPRESS == 0, "walk: the health gate never moves");
+
+    walkSetup(2232, 2792, 0x15);
+    guideTo("Lost Woods");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(saidExact("Auto walk does not walk the Lost Woods."),
+          "walk: the Lost Woods are refused by name");
+    CHECK(DIRPRESS == 0, "walk: the denylist never moves");
+
+    walkSetup(2232, 2792, 0x15);
+    put8(INDOORS, 1); put8(0x7E0010u, 7);
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(saidExact("Auto walk works outside."), "walk: indoors is answered honestly");
+
+    walkSetup(2232, 2792, 0x15);
+    guideTo("Link's House");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(NSPOKEN >= 1 && !said("Auto walk:") && DIRPRESS == 0,
+          "walk: already at the target answers with Where Am I, no walk");
+
+    // Stuck: frozen in place, one re-plan, then the blocked line.
+    walkSetup(2232, 2792, 0x15);
+    guideTo("Desert of Mystery");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    simFrames(600, false);
+    CHECK(said("Re-routing."), "walk: a stall earns one re-plan");
+    CHECK(saidExact("Auto walk stopped: blocked."), "walk: a second stall on the leg cancels");
+    CHECK(dirsClear(), "walk: blocked releases every direction");
+
+    // An unscheduled screen change is a route failure.
+    walkSetup(2232, 2792, 0x15);
+    guideTo("Desert of Mystery");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    simFrames(60, true);
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    placeLink(2148, 3684);   // screen 60, nowhere on the route
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(saidExact("Auto walk stopped: blocked."),
+          "walk: an unscheduled transition cancels as route failure");
+
+    // The costly leg: from Kakariko's east screen the castle route opens
+    // with a ledge drop. The walker stops BEFORE it, moves nothing, and
+    // a fresh press walks the leg.
+    fillTiles(true);   // screen 25's table has two regions; so does this grid
+    walkSetup(768, 1792, 0x11);
+    fillTiles(true);   // (walkSetup refilled plain; the island must be back)
+    CHECK(r16(nullptr, SCREEN) == 25, "walk: the ledge test stands on screen 25");
+    CHECK(guideTo("Hyrule Castle"), "walk: guide names the castle from Kakariko");
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    CHECK(saidExact("Auto walk: Hyrule Castle."), "walk: the costly walk still names its target first");
+    CHECK(saidExact("Ledge ahead. Press auto walk again to hop down."),
+          "walk: the walker stops before the ledge and says what it does");
+    simFrames(60, true);
+    CHECK(DIRPRESS == 0 && (int) r16(nullptr, X) == 768,
+          "walk: nothing moves until the player confirms the ledge");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    simFrames(150, true);
+    CHECK(DIRPRESS > 0 && (int) r16(nullptr, X) > 768,
+          "walk: the confirming press walks the ledge leg");
+    FEEDPRESSED = 1u << 4;
+    oga::kZeldaLinkToThePast.on_frame();
+    CHECK(dirsClear(), "walk: the ledge walk still yields to the player");
+    CHECK(BTNCALLS == 0, "walk: set_button was never called on the ledge route either");
 
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();

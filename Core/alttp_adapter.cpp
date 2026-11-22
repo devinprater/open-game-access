@@ -141,6 +141,29 @@ uint16_t g_lastBottle = 0xFFFFu;
  * landmark whenever the adapter attaches. */
 unsigned g_guideIndex = 0;
 
+/* ---- auto walk state that must outlive single functions ------------------
+ * The route Guide last named, retained so WalkToggle can follow it: the
+ * target's area, its name (a pointer into the static target tables) and
+ * its world. 0xFF area = no route has been named this session. Set by
+ * SpeakGuide, cleared by detach — a route is session state. */
+uint8_t g_guideTargetArea = 0xFF;
+const char* g_guideTargetName = nullptr;
+uint8_t g_guideTargetWorld = 0xFF;
+
+/* The walk view of the host, built at attach: a copy of the player's
+ * host with set_button NULLED, so the walker's only input verbs are
+ * set_direction and player_pad. g_walkHostOk is false when the host
+ * provides either verb as nullptr — the walker then refuses, out loud. */
+Host g_walkHost;
+bool g_walkHostOk = false;
+
+/* The one-time explanation has been given. Adapter state next to the
+ * setting itself: neither is reset by attach/detach. */
+bool g_walkExplained = false;
+
+void WalkTick();
+void WalkReset();
+
 /* Module numbers from the decomp's kMainRouting (src/misc.c). */
 enum : uint8_t {
     MOD_TITLE = 0, MOD_FILE_SELECT = 1, MOD_NAME_ENTRY = 4, MOD_LOAD_FILE = 5,
@@ -245,11 +268,20 @@ bool AlttpAttach(const Host* host)
     if (!host) return false;
     g_host = host;
     g_attached = true;
+    /* Build the walk view now, while the host is whole: the walker
+     * below may only ever touch this copy, whose set_button is null. */
+    g_walkHostOk = false;
+    if (host->set_direction && host->player_pad) {
+        g_walkHost = *host;
+        g_walkHost.set_button = nullptr;
+        g_walkHostOk = true;
+    }
     return true;
 }
 
 void AlttpDetach()
 {
+    WalkReset();
     g_host = nullptr;
     g_attached = false;
     g_lastMessage = 0xFFFFu;
@@ -309,6 +341,11 @@ Menu CurrentMenu()
 void AlttpFrame()
 {
     if (!g_attached) return;
+
+    /* Auto walk's release conditions are checked before anything else
+     * in the frame: a walk that should have ended must never survive
+     * into a menu or dialogue branch that returns early. */
+    WalkTick();
 
     Menu menu = CurrentMenu();
 
@@ -1420,6 +1457,12 @@ void SpeakGuide()
     const GuideTarget& target = targets[g_guideIndex % targetCount];
     g_guideIndex = (g_guideIndex + 1) % targetCount;
 
+    /* Retain the route just named: WalkToggle follows THIS target,
+     * re-planned from wherever Link stands when it is pressed. */
+    g_guideTargetArea = target.area;
+    g_guideTargetName = target.name;
+    g_guideTargetWorld = world;
+
     char line[320];
     if (area == target.area) {
         snprintf(line, sizeof(line), "Guide: %s. You are here.", target.name);
@@ -1431,6 +1474,620 @@ void SpeakGuide()
     DirectionText(target.area, target.name, dir, sizeof(dir));
     snprintf(line, sizeof(line), "Guide: %s. %s", target.name, dir);
     Say(line, "guide", Priority::High);
+}
+
+
+/* ---- auto walk (docs/design/auto-walk.md) ---------------------------------
+ * The walker follows the route Guide last named, holding ONLY directions
+ * through the walk view of the host (a copy whose set_button is nulled at
+ * attach): Confirm, items and menus are inexpressible in this section of
+ * the adapter, which is the design's structural guarantee, not a promise.
+ * The core owns the leases and player arbitration; this state machine
+ * owns the route, the release conditions and the speech contract:
+ * start/stop/arrival lines and the costly-leg warnings, nothing while
+ * walking, and silence for the cancels whose cause already announces
+ * itself (dialogue, menus, the player's own hand).
+ *
+ * SCOPE, measured against the shipped data: overworld only. The dungeon
+ * graph ships edges, not tiles, so indoor steering has no grid to steer
+ * over; WalkToggle indoors answers honestly instead (see the build
+ * record). The costly-leg machinery below is generic over legs — the
+ * overworld's costly leg is the ledge drop; the indoor kinds (key
+ * doors, pits) plug into the same stop when indoor steering lands. */
+
+enum class WalkState : uint8_t { Idle, Walking, AwaitLeg };
+
+WalkState g_walkState = WalkState::Idle;
+RouteLeg g_walkLegs[kMaxRouteLegs];
+int g_walkLegCount = 0;
+int g_walkLeg = 0;              /* leg being walked (== count: coasting) */
+bool g_walkLegConfirm = false;  /* the costly leg ahead was confirmed */
+uint8_t g_walkTargetArea = 0;
+const char* g_walkTargetName = nullptr;
+uint8_t g_walkScreen = 0xFF;    /* screen the current leg started on */
+uint8_t g_walkAwaitScreen = 0xFF;
+int g_walkCoastDir = 0;         /* direction held while coasting */
+uint8_t g_walkLastHealth = 0;
+int g_walkReplans = 0;
+int g_walkStuckOnLeg = 0;
+int g_walkHeldDir = -1;         /* direction currently leased, -1 none */
+
+/* The per-screen steering plan, rebuilt when the screen or leg changes. */
+uint8_t g_walkPathScreen = 0xFF;
+int16_t g_walkPath[1024];
+int g_walkPathLen = 0;
+int g_walkPathIdx = 0;
+bool g_walkCrossing = false;    /* on the goal tile: hold the leg dir */
+int g_walkBestRemain = 0;
+int g_walkStuck = 0;
+
+/* The live grids for one screen, filled by WalkLiveGrids below. */
+int16_t g_walkRegion[1024];
+bool g_walkSteer[1024];
+
+/* Side (route order: 0N 1S 2W 3E) and host direction (0 up, 1 down,
+ * 2 left, 3 right) share a numbering by design of both tables. */
+int WalkDirOfSide(uint8_t side) { return (int) side; }
+
+void WalkReleaseAll()
+{
+    if (g_walkHostOk) {
+        for (int d = 0; d < 4; d++)
+            g_walkHost.set_direction(g_walkHost.ctx, d, false);
+    }
+    g_walkHeldDir = -1;
+}
+
+void WalkHold(int dir)
+{
+    if (!g_walkHostOk) return;
+    if (g_walkHeldDir != dir) {
+        if (g_walkHeldDir >= 0)
+            g_walkHost.set_direction(g_walkHost.ctx, g_walkHeldDir, false);
+        g_walkHeldDir = dir;
+    }
+    /* Refresh every frame: the lease is the core's, and a refresh is
+     * what separates "still walking" from adapter silence. */
+    g_walkHost.set_direction(g_walkHost.ctx, dir, true);
+}
+
+void WalkCancel(const char* line)
+{
+    WalkReleaseAll();
+    g_walkState = WalkState::Idle;
+    if (line) Say(line, "walk", Priority::High);
+}
+
+void WalkArrive()
+{
+    WalkReleaseAll();
+    g_walkState = WalkState::Idle;
+    SpeakWhereAmI();
+}
+
+/* Fill the region and steering grids for one screen from the game's own
+ * tile-attribute RAM, addressed exactly as LiveRegion addresses it (the
+ * region numbering must match the generator's: row-major seeds,
+ * four-connectivity, on the SPEECH mask). The steering grid is the
+ * collision-shrunk mask (AlttpMap16Steerable). Returns false when the
+ * measurement cannot be trusted: the live fill's region count disagrees
+ * with the generated table. */
+bool WalkLiveGrids(uint8_t screen)
+{
+    int cell = screen & 63;
+    int cellX = (cell & 7) * SCREEN_UNITS;
+    int cellY = ((cell >> 3) & 7) * SCREEN_UNITS;
+    uint16_t by = u16(OW_BASE_Y), my = u16(OW_MASK_Y);
+    uint16_t bx = u16(OW_BASE_X), mx = u16(OW_MASK_X);
+    bool direct = (my == 0 || mx == 0);
+
+    static bool walk[1024];
+    for (int ry = 0; ry < 32; ry++) {
+        for (int rx = 0; rx < 32; rx++) {
+            uint32_t idx;
+            if (direct) {
+                idx = (uint32_t) (ry * 64 + rx);
+            } else {
+                int px8 = (cellX + rx * 16 + 8) / 8;
+                int py = cellY + ry * 16 + 8;
+                uint32_t t = (uint32_t) (((py - (int) by) & (int) my) * 8 +
+                                         ((px8 - (int) bx) & (int) mx));
+                idx = t >> 1;
+            }
+            uint16_t m16 = u16(TILEATTR + idx * 2);
+            walk[ry * 32 + rx] = AlttpMap16Walkable(m16);
+            g_walkSteer[ry * 32 + rx] = AlttpMap16Steerable(m16);
+        }
+    }
+
+    static uint16_t stack[1024];
+    for (int i = 0; i < 1024; i++) g_walkRegion[i] = -1;
+    int next = 0;
+    for (int ry = 0; ry < 32; ry++) {
+        for (int rx = 0; rx < 32; rx++) {
+            int seed = ry * 32 + rx;
+            if (g_walkRegion[seed] >= 0 || !walk[seed]) continue;
+            int sp = 0;
+            stack[sp++] = (uint16_t) seed;
+            g_walkRegion[seed] = (int16_t) next;
+            while (sp > 0) {
+                int cur = stack[--sp];
+                int cx = cur & 31, cy = cur >> 5;
+                static const int kDx[4] = { 1, -1, 0, 0 };
+                static const int kDy[4] = { 0, 0, 1, -1 };
+                for (int d = 0; d < 4; d++) {
+                    int nx = cx + kDx[d], ny = cy + kDy[d];
+                    if (nx < 0 || nx >= 32 || ny < 0 || ny >= 32) continue;
+                    int ni = ny * 32 + nx;
+                    if (g_walkRegion[ni] >= 0 || !walk[ni]) continue;
+                    g_walkRegion[ni] = (int16_t) next;
+                    stack[sp++] = (uint16_t) ni;
+                }
+            }
+            next++;
+        }
+    }
+    return next == (int) AlttpScreenRegionCount(screen);
+}
+
+/* Plan the current leg on the current screen: BFS over the steering
+ * grid from Link's tile to the leg's border. Goal tiles are the border
+ * row and the row just inside it, in Link's own region and in the
+ * gap's third of the border — for a walking gap the border tile is the
+ * crossing; for a ledge the takeoff stands one or two tiles inside
+ * (the generator's hop measurement), and the crossing hold carries
+ * Link over either way. Returns false when no trusted path exists
+ * this frame. */
+bool WalkPlanScreen(uint8_t screen)
+{
+    if (!WalkLiveGrids(screen)) return false;
+    int cell = screen & 63;
+    int cellX = (cell & 7) * SCREEN_UNITS;
+    int cellY = ((cell >> 3) & 7) * SCREEN_UNITS;
+    int lx = ((int) u16(LINK_X) - cellX) / 16;
+    int ly = ((int) u16(LINK_Y) - cellY) / 16;
+    if (lx < 0 || lx >= 32 || ly < 0 || ly >= 32) return false;
+    int start = ly * 32 + lx;
+    int linkRegion = g_walkRegion[start];
+    if (linkRegion < 0) {
+        /* On a door mat or a ledge lip: borrow a neighbour's region,
+         * the same rule LiveRegion uses. */
+        for (int dy = -1; dy <= 1 && linkRegion < 0; dy++)
+            for (int dx = -1; dx <= 1 && linkRegion < 0; dx++) {
+                int nx = lx + dx, ny = ly + dy;
+                if (nx >= 0 && nx < 32 && ny >= 0 && ny < 32)
+                    linkRegion = g_walkRegion[ny * 32 + nx];
+            }
+    }
+    if (linkRegion < 0) return false;
+
+    const RouteLeg& leg = g_walkLegs[g_walkLeg];
+    static bool goal[1024];
+    for (int i = 0; i < 1024; i++) goal[i] = false;
+    for (int i = 0; i < 32; i++) {
+        if ((i * 3) / 32 != leg.third) continue;
+        int bx = 0, by = 0, ix = 0, iy = 0;
+        switch (leg.side) {
+            case 0: bx = i; by = 0;  ix = i; iy = 1;  break;  /* north */
+            case 1: bx = i; by = 31; ix = i; iy = 30; break;  /* south */
+            case 2: bx = 0; by = i;  ix = 1; iy = i;  break;  /* west */
+            default: bx = 31; by = i; ix = 30; iy = i; break; /* east */
+        }
+        int b = by * 32 + bx, in = iy * 32 + ix;
+        if (g_walkRegion[b] == linkRegion && g_walkSteer[b]) goal[b] = true;
+        if (g_walkRegion[in] == linkRegion && g_walkSteer[in]) goal[in] = true;
+    }
+
+    static int16_t prev[1024];
+    static int16_t queue[1024];
+    for (int i = 0; i < 1024; i++) prev[i] = -1;
+    int qh = 0, qt = 0;
+    queue[qt++] = (int16_t) start;
+    prev[start] = (int16_t) start;
+    int found = goal[start] ? start : -1;
+    while (qh < qt && found < 0) {
+        int cur = queue[qh++];
+        int cx = cur & 31, cy = cur >> 5;
+        static const int kDx[4] = { 1, -1, 0, 0 };
+        static const int kDy[4] = { 0, 0, 1, -1 };
+        for (int d = 0; d < 4; d++) {
+            int nx = cx + kDx[d], ny = cy + kDy[d];
+            if (nx < 0 || nx >= 32 || ny < 0 || ny >= 32) continue;
+            int ni = ny * 32 + nx;
+            if (prev[ni] >= 0 || !g_walkSteer[ni]) continue;
+            prev[ni] = (int16_t) cur;
+            if (goal[ni]) { found = ni; break; }
+            queue[qt++] = (int16_t) ni;
+        }
+    }
+    if (found < 0) return false;
+    int len = 0;
+    for (int s = found; ; s = prev[s]) {
+        len++;
+        if (s == start) break;
+    }
+    if (len > 1024) return false;
+    int i = len;
+    for (int s = found; ; s = prev[s]) {
+        g_walkPath[--i] = (int16_t) s;
+        if (s == start) break;
+    }
+    g_walkPathLen = len;
+    g_walkPathIdx = len > 1 ? 1 : 0;
+    g_walkPathScreen = screen;
+    g_walkCrossing = len == 1;
+    g_walkBestRemain = 1 << 28;
+    g_walkStuck = 0;
+    return true;
+}
+
+/* One re-plan, under the design's limits: same target, recoverable
+ * displacement only, no costly leg the current plan lacks, at most
+ * three per walk (the caller enforces the count and the stuck-twice
+ * rule). Speaks "Re-routing." on success. */
+bool WalkReplan(uint8_t screen)
+{
+    int region = LiveRegion(screen);
+    if (region < 0) return false;
+    RouteLeg fresh[kMaxRouteLegs];
+    int n = FindRoute(screen, region, g_walkTargetArea, fresh, kMaxRouteLegs);
+    if (n <= 0) return false;
+    int newLedges = 0, oldLedges = 0;
+    for (int i = 0; i < n; i++) if (fresh[i].ledge) newLedges++;
+    for (int i = g_walkLeg; i < g_walkLegCount; i++)
+        if (g_walkLegs[i].ledge) oldLedges++;
+    if (newLedges > oldLedges) return false;
+    bool sameLeg = fresh[0].side == g_walkLegs[g_walkLeg].side &&
+                   fresh[0].toScreen == g_walkLegs[g_walkLeg].toScreen;
+    for (int i = 0; i < n; i++) g_walkLegs[i] = fresh[i];
+    g_walkLegCount = n;
+    g_walkLeg = 0;
+    g_walkLegConfirm = false;
+    g_walkScreen = screen;
+    g_walkPathScreen = 0xFF;
+    g_walkCrossing = false;
+    g_walkStuck = 0;
+    if (!sameLeg) g_walkStuckOnLeg = 0;
+    g_walkReplans++;
+    Say("Re-routing.", "walk", Priority::High);
+    return true;
+}
+
+/* ~90 frames without path-progress: re-plan under the limits, or the
+ * one blocked line the design allows. */
+void WalkStuck(uint8_t screen)
+{
+    g_walkStuckOnLeg++;
+    if (g_walkStuckOnLeg >= 2 || g_walkReplans >= 3 || !WalkReplan(screen)) {
+        WalkCancel("Auto walk stopped: blocked.");
+        return;
+    }
+    g_walkStuck = 0;
+}
+
+void WalkProgress(int remain)
+{
+    if (remain < g_walkBestRemain - 2) {
+        g_walkBestRemain = remain;
+        g_walkStuck = 0;
+    } else {
+        g_walkStuck++;
+    }
+}
+
+/* Stop BEFORE a costly leg and say what it does; a fresh WalkToggle
+ * press walks that one leg. The line rides its own announcement group
+ * so it can never replace the start line still pending. */
+void WalkEnterAwait()
+{
+    WalkReleaseAll();
+    g_walkState = WalkState::AwaitLeg;
+    g_walkAwaitScreen = (uint8_t) (u16(OVERWORLD_SCREEN) & 0x7F);
+    Say("Ledge ahead. Press auto walk again to hop down.",
+        "walkgate", Priority::High);
+}
+
+/* The frame hook. Release conditions are checked BEFORE steering,
+ * every frame, in the design's order of silence: the player's hand,
+ * dialogue and menus cancel without a walk line (their causes announce
+ * themselves); harm, unreadable state and route failure speak one. */
+void WalkTick()
+{
+    if (g_walkState != WalkState::Walking) return;
+
+    /* The player's own hand, first: any latched press is a takeover. */
+    if (g_walkHostOk) {
+        uint32_t held = 0, pressed = 0;
+        g_walkHost.player_pad(g_walkHost.ctx, &held, &pressed);
+        if (pressed != 0) { WalkCancel(nullptr); return; }
+    }
+
+    if (!AlttpReady()) { WalkCancel("Auto walk stopped."); return; }
+    if (CurrentMenu() != Menu::None) { WalkCancel(nullptr); return; }
+    if (u16(DIALOGUE_INDEX) != 0) { WalkCancel(nullptr); return; }
+    if (u8(PLAYER_INDOORS) != 0) {
+        /* The steering mask never steps on a door mat, so indoors
+         * means something else moved Link: the route has diverged. */
+        WalkCancel("Auto walk stopped: blocked.");
+        return;
+    }
+    if (RealModule() != MOD_OVERWORLD) {
+        WalkCancel("Auto walk stopped.");
+        return;
+    }
+    uint8_t health = u8(HEALTH_CURRENT);
+    if (health < g_walkLastHealth) {
+        WalkCancel("Auto walk stopped: hurt.");
+        return;
+    }
+    g_walkLastHealth = health;
+
+    uint16_t area = u16(OVERWORLD_AREA);
+    if (area == g_walkTargetArea) { WalkArrive(); return; }
+    if (area == 0x00) {
+        WalkCancel("Auto walk does not walk the Lost Woods.");
+        return;
+    }
+
+    uint8_t screen = (uint8_t) (u16(OVERWORLD_SCREEN) & 0x7F);
+    if (screen != g_walkScreen) {
+        if (g_walkLeg < g_walkLegCount &&
+            screen == g_walkLegs[g_walkLeg].toScreen) {
+            /* A scheduled transition ends the leg. */
+            g_walkLeg++;
+            g_walkLegConfirm = false;
+            g_walkCrossing = false;
+            g_walkPathScreen = 0xFF;
+            g_walkStuck = 0;
+            g_walkStuckOnLeg = 0;
+            g_walkScreen = screen;
+            if (g_walkLeg >= g_walkLegCount) {
+                g_walkCoastDir = WalkDirOfSide(g_walkLegs[g_walkLeg - 1].side);
+            } else if (g_walkLegs[g_walkLeg].ledge) {
+                WalkEnterAwait();
+                return;
+            }
+        } else {
+            WalkCancel("Auto walk stopped: blocked.");
+            return;
+        }
+    }
+
+    int cell = screen & 63;
+    int cellX = (cell & 7) * SCREEN_UNITS;
+    int cellY = ((cell >> 3) & 7) * SCREEN_UNITS;
+    int linkX = (int) u16(LINK_X), linkY = (int) u16(LINK_Y);
+
+    if (g_walkLeg >= g_walkLegCount) {
+        /* Coasting: the final screen is crossed but the area byte has
+         * not landed yet. Hold the last direction; arrival is checked
+         * above every frame, and the stuck rule bounds the coast. */
+        WalkHold(g_walkCoastDir);
+        int remain = g_walkCoastDir == 0 ? linkY - cellY :
+                     g_walkCoastDir == 1 ? (cellY + SCREEN_UNITS) - linkY :
+                     g_walkCoastDir == 2 ? linkX - cellX :
+                                           (cellX + SCREEN_UNITS) - linkX;
+        WalkProgress(remain);
+        if (g_walkStuck >= 90) WalkCancel("Auto walk stopped: blocked.");
+        return;
+    }
+
+    const RouteLeg& leg = g_walkLegs[g_walkLeg];
+    int dir = WalkDirOfSide(leg.side);
+
+    if (g_walkCrossing) {
+        WalkHold(dir);
+        int remain = leg.side == 0 ? linkY - cellY :
+                     leg.side == 1 ? (cellY + SCREEN_UNITS) - linkY :
+                     leg.side == 2 ? linkX - cellX :
+                                     (cellX + SCREEN_UNITS) - linkX;
+        WalkProgress(remain);
+        if (g_walkStuck >= 90) WalkStuck(screen);
+        return;
+    }
+
+    if (g_walkPathScreen != screen) {
+        if (!WalkPlanScreen(screen)) {
+            /* Untrusted grids (a redraw in flight) or no steerable
+             * path: hold nothing and let the stuck rule decide. */
+            WalkReleaseAll();
+            g_walkStuck++;
+            if (g_walkStuck >= 90) WalkStuck(screen);
+            return;
+        }
+        if (g_walkCrossing) return;   /* already standing on the goal */
+    }
+
+    /* Follow the tile path: servo the cross axis onto the waypoint's
+     * line first (within 3 px), then drive the main axis — the probe
+     * climb's technique, generalised to every turn. */
+    int tx = g_walkPath[g_walkPathIdx] & 31;
+    int ty = g_walkPath[g_walkPathIdx] >> 5;
+    int wantX = cellX + tx * 16, wantY = cellY + ty * 16;
+    int ex = wantX - linkX, ey = wantY - linkY;
+    if (ex >= -2 && ex <= 2 && ey >= -2 && ey <= 2) {
+        g_walkPathIdx++;
+        if (g_walkPathIdx >= g_walkPathLen) {
+            g_walkCrossing = true;
+            g_walkBestRemain = 1 << 28;
+            g_walkStuck = 0;
+            return;
+        }
+        tx = g_walkPath[g_walkPathIdx] & 31;
+        ty = g_walkPath[g_walkPathIdx] >> 5;
+        wantX = cellX + tx * 16; wantY = cellY + ty * 16;
+        ex = wantX - linkX; ey = wantY - linkY;
+    }
+    int px = g_walkPath[g_walkPathIdx - 1] & 31;
+    int py = g_walkPath[g_walkPathIdx - 1] >> 5;
+    int stepX = tx - px, stepY = ty - py;
+    int steer;
+    if (stepX != 0) {
+        if (ey > 3) steer = 1;
+        else if (ey < -3) steer = 0;
+        else steer = stepX > 0 ? 3 : 2;
+    } else {
+        if (ex > 3) steer = 3;
+        else if (ex < -3) steer = 2;
+        else steer = stepY > 0 ? 1 : 0;
+    }
+    WalkHold(steer);
+    int remain = (g_walkPathLen - g_walkPathIdx) * 16 +
+                 (ex < 0 ? -ex : ex) + (ey < 0 ? -ey : ey);
+    WalkProgress(remain);
+    if (g_walkStuck >= 90) WalkStuck(screen);
+}
+
+/* Begin a walk over the retained Guide route (the caller has already
+ * applied the setting, verb, menu, indoor and state gates). */
+void WalkStart()
+{
+    uint16_t area = u16(OVERWORLD_AREA);
+    uint8_t world = area >= 0x40 ? 1 : 0;
+    if (g_guideTargetArea == 0xFF || g_guideTargetWorld != world) {
+        Say("Auto walk: ask for a route first.", "walk", Priority::High);
+        return;
+    }
+    if (g_guideTargetArea == 0x00 || area == 0x00) {
+        Say("Auto walk does not walk the Lost Woods.", "walk",
+            Priority::High);
+        return;
+    }
+    if (u8(HEALTH_CURRENT) <= 8) {
+        /* One heart: the game's own low-health threshold, where its
+         * warning beep starts. The walker does not set out from it. */
+        Say("Auto walk: too hurt to start.", "walk", Priority::High);
+        return;
+    }
+    if (area == g_guideTargetArea) { SpeakWhereAmI(); return; }
+
+    uint8_t screen = (uint8_t) (u16(OVERWORLD_SCREEN) & 0x7F);
+    int region = LiveRegion(screen);
+    if (region < 0) {
+        Say("Auto walk can't start here.", "walk", Priority::High);
+        return;
+    }
+    int n = FindRoute(screen, region, g_guideTargetArea,
+                      g_walkLegs, kMaxRouteLegs);
+    if (n < 0) {
+        Say("Auto walk: no walking route known.", "walk", Priority::High);
+        return;
+    }
+    if (n == 0) { SpeakWhereAmI(); return; }
+
+    g_walkTargetArea = g_guideTargetArea;
+    g_walkTargetName = g_guideTargetName;
+    g_walkLegCount = n;
+    g_walkLeg = 0;
+    g_walkLegConfirm = false;
+    g_walkScreen = screen;
+    g_walkPathScreen = 0xFF;
+    g_walkCrossing = false;
+    g_walkReplans = 0;
+    g_walkStuckOnLeg = 0;
+    g_walkStuck = 0;
+    g_walkLastHealth = u8(HEALTH_CURRENT);
+    /* Discard presses from before the walk: the latch is the walk's
+     * from this frame on. */
+    if (g_walkHostOk) {
+        uint32_t held = 0, pressed = 0;
+        g_walkHost.player_pad(g_walkHost.ctx, &held, &pressed);
+    }
+    char line[128];
+    snprintf(line, sizeof(line), "Auto walk: %s.", g_walkTargetName);
+    Say(line, "walk", Priority::High);
+    if (g_walkLegs[0].ledge) {
+        WalkEnterAwait();
+        return;
+    }
+    g_walkState = WalkState::Walking;
+}
+
+/* Command::WalkToggle. Pressing it while walking stops; while stopped
+ * before a costly leg it confirms that one leg; otherwise it starts. */
+void WalkTogglePressed()
+{
+    if (g_walkState == WalkState::Walking) {
+        WalkCancel("Auto walk off.");
+        return;
+    }
+    if (g_walkState == WalkState::AwaitLeg) {
+        uint8_t screen = (uint8_t) (u16(OVERWORLD_SCREEN) & 0x7F);
+        if (screen == g_walkAwaitScreen) {
+            g_walkState = WalkState::Walking;
+            g_walkLegConfirm = true;
+            g_walkPathScreen = 0xFF;
+            g_walkCrossing = false;
+            g_walkStuck = 0;
+            if (g_walkHostOk) {
+                uint32_t held = 0, pressed = 0;
+                g_walkHost.player_pad(g_walkHost.ctx, &held, &pressed);
+            }
+            return;
+        }
+        /* The player walked away by hand: the press is a fresh start
+         * from wherever they now stand. */
+        g_walkState = WalkState::Idle;
+    }
+    if (!g_walkHostOk) {
+        /* No direction verb or no player feed on this host: refuse out
+         * loud, never a silent dead button (the design's proof 5). */
+        Say("Auto walk is unavailable.", "walk", Priority::High);
+        return;
+    }
+    if (!g_autoWalkEnabled) {
+        if (!g_walkExplained) {
+            g_walkExplained = true;
+            Say("Auto walk is off. Turn it on in this game's settings, "
+                "and auto walk will follow the route Guide last named. "
+                "It only ever holds a direction, and it stops the "
+                "moment you press anything, a menu or dialogue opens, "
+                "or you get hurt.", "walk", Priority::High);
+        } else {
+            Say("Auto walk is off. Turn it on in this game's settings.",
+                "walk", Priority::High);
+        }
+        return;
+    }
+    if (CurrentMenu() != Menu::None) {
+        Say("Close the menu first.", "walk", Priority::High);
+        return;
+    }
+    if (u8(PLAYER_INDOORS) != 0) {
+        Say("Auto walk works outside.", "walk", Priority::High);
+        return;
+    }
+    if (u16(DIALOGUE_INDEX) != 0 || RealModule() != MOD_OVERWORLD) {
+        Say("Auto walk can't start here.", "walk", Priority::High);
+        return;
+    }
+    WalkStart();
+}
+
+/* Guide pressed during a walk answers with progress in the route's own
+ * units instead of cycling targets (the design leaves the query verb
+ * unpinned; Guide is the route's own button). */
+void WalkProgressLine()
+{
+    int remaining = g_walkLegCount - g_walkLeg;
+    if (remaining < 1) remaining = 1;
+    char words[16];
+    NumberWords((unsigned) remaining, words, sizeof(words));
+    char line[96];
+    snprintf(line, sizeof(line), "Auto walk: %s screen%s to go.",
+             words, remaining == 1 ? "" : "s");
+    Say(line, "walk", Priority::High);
+}
+
+/* Detach: the walk is session state; the setting and the one-time
+ * explanation are not (they live with their own globals). */
+void WalkReset()
+{
+    if (g_walkState != WalkState::Idle) WalkReleaseAll();
+    g_walkState = WalkState::Idle;
+    g_guideTargetArea = 0xFF;
+    g_guideTargetName = nullptr;
+    g_guideTargetWorld = 0xFF;
 }
 
 /* ---- the objective -------------------------------------------------------
@@ -1618,6 +2275,14 @@ void AlttpCommand(Command cmd)
         return;
     }
 
+    /* Stopping a walk must work even when the game state just went
+     * unreadable — the frame hook cancels on its own in that case, but
+     * the player's explicit stop is honoured first and needs no reads. */
+    if (cmd == Command::WalkToggle && g_walkState == WalkState::Walking) {
+        WalkCancel("Auto walk off.");
+        return;
+    }
+
     /* ⛔ SILENT UNTIL THE GAME HAS STATE. A player command answered from a
      * booting console is the "bunch of numbers" failure the design forbids; the
      * UI does not offer the controls while ready() is false. */
@@ -1626,8 +2291,14 @@ void AlttpCommand(Command cmd)
     switch (cmd) {
         case Command::WhereAmI: SpeakWhereAmI(); break;
         case Command::Status:   SpeakStatus(); break;
-        case Command::Guide:    SpeakGuide(); break;
+        case Command::Guide:
+            /* During a walk, Guide is the progress query, not the
+             * target cycle: re-aiming mid-walk would strand the route. */
+            if (g_walkState != WalkState::Idle) WalkProgressLine();
+            else SpeakGuide();
+            break;
         case Command::Objective: SpeakObjective(); break;
+        case Command::WalkToggle: WalkTogglePressed(); break;
         default: break;
     }
 }
