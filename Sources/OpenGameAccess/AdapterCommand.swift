@@ -347,7 +347,7 @@ enum AdapterCommand: Int32, CaseIterable {
             // with the fight's foe count and roster. Guide answers only in the
             // Mirage Arena Hub (its landmark table); everywhere else the
             // adapter stays silent by design.
-            return [.whereAmI, .menuState, .nextAlly, .nextEnemy, .enemies, .guide, .dumpState]
+            return [.whereAmI, .menuState, .nextAlly, .nextEnemy, .enemies, .guide, .status, .dumpState]
 
         case "mku":
             // Mortal Kombat: Unchained. Menu rows and Konquest lines speak

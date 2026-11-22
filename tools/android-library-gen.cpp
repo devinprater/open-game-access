@@ -122,7 +122,8 @@ static const int kSupportedDissidia[] = {CMD(WhereAmI), CMD(MenuNext),
     CMD(MenuPrev), CMD(MenuLeft), CMD(MenuRight), CMD(CustToggle),
     CMD(CharToggle), CMD(OskToggle), CMD(DumpState)};
 static const int kSupportedKhbbs[] = {CMD(WhereAmI), CMD(MenuState),
-    CMD(NextAlly), CMD(NextEnemy), CMD(Enemies), CMD(Guide), CMD(DumpState)};
+    CMD(NextAlly), CMD(NextEnemy), CMD(Enemies), CMD(Guide), CMD(Status),
+    CMD(DumpState)};
 static const int kSupportedMku[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(Guide), CMD(DumpState)};
 static const int kSupportedDissidia012[] = {CMD(WhereAmI), CMD(MenuState)};
@@ -132,7 +133,7 @@ static const SupportedRow kSupported[] = {
     {"gba", nullptr, 0},
     {"alttp", kSupportedAlttp, 5},
     {"dissidia", kSupportedDissidia, 9},
-    {"khbbs", kSupportedKhbbs, 7},
+    {"khbbs", kSupportedKhbbs, 8},
     {"mku", kSupportedMku, 4},
     {"dissidia012", kSupportedDissidia012, 2},
 };

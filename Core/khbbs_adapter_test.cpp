@@ -359,6 +359,13 @@ int main()
     CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Ventus, health 35 of 35. Command: Aero. Gauge 27."),
           "WhereAmI speaks the field line — the actor beats the stale title plant");
 
+    // Status is the same self line on its own command (2026-11-22): the
+    // readout existed but was only reachable as a unit-cycling alias.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    a->command(oga::Command::Status);
+    CHECK(NSPOKEN == 1 && strstr(SPOKEN[0], "Ventus, health 35 of 35. Command: Aero. Gauge 27."),
+          "Status speaks the self line in the field");
+
     NSPOKEN = 0; oga::AdapterSpeechReset();
     a->command(oga::Command::MenuNext);
     CHECK(NSPOKEN == 0, "a nav command that did not move the deck cursor stays silent (change-only)");

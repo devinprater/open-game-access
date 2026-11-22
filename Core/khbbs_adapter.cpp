@@ -8326,6 +8326,11 @@ static void khbbs_command(Command cmd)
         case Command::PrevAlly:
         case Command::PrevEnemy:
         case Command::NextUnactedAlly: if (InField() && !CampActive() && !ReportsUp()) CmdSelfLine();  else CmdNotMapped(); break;
+        // On-demand status (Blind Soldier trick, 2026-11-22): the self line IS
+        // this adapter's status readout -- it already speaks under the "status"
+        // group -- so the Status command answers with it under the same field
+        // gates as its aliases instead of falling through to silence.
+        case Command::Status:          if (InField() && !CampActive() && !ReportsUp()) CmdSelfLine();  else CmdNotMapped(); break;
         case Command::DumpState:       CmdDump();      break;
         case Command::MenuState:       CmdWhereAmI();  break;
         case Command::MenuNext:

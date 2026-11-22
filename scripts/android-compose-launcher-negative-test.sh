@@ -153,7 +153,7 @@ case_genjni() {  # sabotage: rename a Genesis JNI symbol so it no longer resolve
      "$TMP/t/app/native-overlay/app/src/main/cpp/GenesisSessionJNI.cpp"
 }
 case_pspsupported() {  # sabotage: a generated command set drops a real button
-  sed -i 's/commands = listOf(0, 7, 1, 3, 43, 41, 6)/commands = listOf(0, 7, 1, 3, 41, 6)/' \
+  sed -i 's/commands = listOf(0, 7, 1, 3, 43, 41, 40, 6)/commands = listOf(0, 7, 1, 3, 41, 40, 6)/' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
 }
 
