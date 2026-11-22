@@ -29,6 +29,22 @@ MODE="${1:---identity}"
 [ -f "$ROM" ]        || { echo "!! no ROM at $ROM (set ALTP_ROM)" >&2; exit 1; }
 [ -d "$ROOT/Vendor/hostobj" ] || { echo "!! run scripts/build-host.sh first" >&2; exit 1; }
 
+# ⛔ STALENESS GUARD (2026-11-22): the archive below is only as fresh as the
+# host objects it packs, and nothing refreshed those objects when a Core
+# source changed. The Phase C indoor guide sat finished in the sources
+# while this script linked a pre-guide adapter object (its SpeakGuideIndoors
+# was still refusal-only, and alttp_dungeon_graph.o did not exist yet) and
+# reported the old object's refusal as the game's answer — the adapter unit
+# tests, which compile from source, were green the whole time. If any Core
+# source or header is newer than the archive, refresh the host objects
+# first (build-host.sh is incremental and decides per file); the re-archive
+# check below then packs whatever changed.
+if [ -d "$HOME/src/melonds-lua" ] && \
+   { [ ! -f "$OUT/libmesen.a" ] || \
+     [ -n "$(find "$ROOT/Core" \( -name '*.cpp' -o -name '*.h' -o -name '*.c' \) -newer "$OUT/libmesen.a" -print -quit)" ]; }; then
+  "$ROOT/scripts/build-host.sh" || { echo "!! build-host.sh failed" >&2; exit 1; }
+fi
+
 mkdir -p "$OUT" "$SAVE"
 
 # The Mesen object set is shared with every other host harness. Re-archive only

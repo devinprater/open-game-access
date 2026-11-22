@@ -526,7 +526,7 @@ static int Talk(const char* rom, const char* savedir)
  * savestate once the player is indoors with a dungeon id. Screenshots are
  * optional, because a wrong turn is easier to see than to infer from RAM.
  */
-struct NavPos { uint32_t x, y; uint16_t area; uint8_t indoors, palace; };
+struct NavPos { uint32_t x, y; uint32_t room; uint16_t area; uint8_t indoors, palace; };
 
 static bool WritePpm(SnesCore* c, const char* path);   /* defined below */
 
@@ -554,6 +554,7 @@ static NavPos ReadNav(SnesCore* c)
     snes_read(c, 0x7E040Au, 2, &v); p.area = (uint16_t) v;
     snes_read(c, 0x7E001Bu, 1, &v); p.indoors = (uint8_t) v;
     snes_read(c, 0x7E040Cu, 1, &v); p.palace = (uint8_t) v;
+    snes_read(c, 0x7E00A0u, 2, &v); p.room = v;
     return p;
 }
 
@@ -657,6 +658,87 @@ static int Teleport(const char* rom, const char* savedir, const char* stateout)
 
 
 
+/* ServoVertical: the precision half of the Eastern Palace climb.
+ *
+ * A 0x22 stair strip is exactly one body wide: moving vertically the
+ * engine samples the tiles at link_x, link_x+8 and link_x+15, so the
+ * strip only carries Link when his x puts all three samples on treads.
+ * Rather than fight the steering deadband (+/-8 px), this servos x to
+ * within 3 px of the strip's exact line with one-frame taps on open
+ * ground, then holds a single vertical direction: inside the game's
+ * bonk-snap capture window the engine nudges Link the last pixels onto
+ * the line itself. Returns true when y_stop is reached (or, with
+ * watch_indoors, when Link is inside the palace). */
+static bool ServoVertical(SnesCore* c, int& f, int target_x, int y_stop,
+                          bool north, bool watch_indoors, int stage_y)
+{
+    snes_set_button(c, SNES_BTN_UP, false);
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_LEFT, false);
+    snes_set_button(c, SNES_BTN_RIGHT, false);
+    snes_set_button(c, SNES_BTN_A, false);
+
+    /* Phase 0: the staging waypoint can be consumed with Link already
+     * beside the strip, where sideways taps hit the cliff face. Back
+     * out to the open staging floor first. */
+    for (int i = 0; i < 900; i++) {
+        NavPos p = ReadNav(c);
+        if (watch_indoors && p.indoors && p.palace != 0xFF) return true;
+        if (north && (int) p.y >= stage_y) break;
+        if (!north && (int) p.y <= stage_y) break;
+        snes_set_button(c, north ? SNES_BTN_DOWN : SNES_BTN_UP, true);
+        snes_frame(c); f++;
+        snes_set_button(c, SNES_BTN_DOWN, false);
+        snes_set_button(c, SNES_BTN_UP, false);
+    }
+
+    /* Phase 1: tap x onto the line. */
+    for (int i = 0; i < 600; i++) {
+        NavPos p = ReadNav(c);
+        if (watch_indoors && p.indoors && p.palace != 0xFF) return true;
+        int dx = (int) p.x - target_x;
+        if (dx >= -3 && dx <= 3) break;
+        if (dx < 0) snes_set_button(c, SNES_BTN_RIGHT, true);
+        else snes_set_button(c, SNES_BTN_LEFT, true);
+        snes_frame(c); f++;
+        snes_set_button(c, SNES_BTN_RIGHT, false);
+        snes_set_button(c, SNES_BTN_LEFT, false);
+        snes_frame(c); f++;
+    }
+
+    /* Phase 2: hold the one direction; the engine self-aligns. */
+    if (north) snes_set_button(c, SNES_BTN_UP, true);
+    else snes_set_button(c, SNES_BTN_DOWN, true);
+    NavPos p0 = ReadNav(c);
+    int last_y = (int) p0.y, still = 0;
+    bool ok = false;
+    for (int i = 0; i < 3600; i++) {
+        snes_frame(c); f++;
+        NavPos p = ReadNav(c);
+        if (watch_indoors && p.indoors && p.palace != 0xFF) { ok = true; break; }
+        if (north && (int) p.y <= y_stop) { ok = true; break; }
+        if (!north && (int) p.y >= y_stop) { ok = true; break; }
+        if ((int) p.y == last_y) {
+            if (++still > 900) break;   /* wedged */
+        } else {
+            still = 0;
+            last_y = (int) p.y;
+        }
+        if ((i % 600) == 599) {
+            std::printf("servo: x=%u y=%u target_x=%d y_stop=%d north=%d\n",
+                        p.x, p.y, target_x, y_stop, (int) north);
+        }
+    }
+    snes_set_button(c, SNES_BTN_UP, false);
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    NavPos p = ReadNav(c);
+    std::printf("servo-done ok=%d x=%u y=%u target_x=%d y_stop=%d north=%d in=%u pal=%02x room=%u\n",
+                (int) ok, p.x, p.y, target_x, y_stop, (int) north,
+                p.indoors, p.palace, p.room);
+    return ok;
+}
+
+
 static int Dungeon(const char* rom, const char* savedir, const char* stateout, const char* shot)
 {
     SnesCore* c = snes_create();
@@ -692,47 +774,69 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
 
     /* Waypoint steering on the measured crossing points of the generated
      * overworld graph (scripts/gen-alttp-graph.py, gap runs with their
-     * centre tiles): the river is crossed on the wide land bridge at the
-     * bridge screen's north (tile rows 7-12 are open land) - the narrow
-     * south deck (one subtile row at map8 resolution) and the Moundlands
-     * screen both defeated earlier walkers. The chain: house screen east
-     * at tile row 24; up the west bank; east across the land bridge into
-     * the ruins screen (its west runs at tile rows 7-12); north at tile
-     * column 8; up the west cliff stairs of the palace screen's south
-     * cell (tile column 4-5); north across the top border at tile column
-     * 18; then the palace door. */
-    /* The chain below is a breadth-first path over the map8-resolution
-     * walk grid assembled from the game's own tiles (the same assembly
-     * the graph generator uses), simplified to its corners: east out of
-     * the house screen, north up the river's west bank (the channel is at
-     * x 2876), east across the land bridge, north through the ruins
-     * screen, to the cliff-stair base; then from the stair top east and
-     * north across the border into the palace screen, west a little, and
-     * north into the door at x 3212. */
+     * centre tiles): east out of the house screen, north up the river's
+     * west bank (the channel is at x 2876), east across the land bridge,
+     * north through the ruins screen.
+     *
+     * THE CLIFF CLIMB, SOLVED (2026-11-22, from the zelda3 decomp and the
+     * ROM's own tile data): the palace plateau is reached by a staircase
+     * of tile-attribute 0x22 ("indoor stairs" treads) at world x
+     * 3216..3231, y 2256..2351. The treads carry NO wall bit (player.c's
+     * TileHandlerIndoor_22 only records the stair tile), so Link walks
+     * straight up them; the Phase A walk grid simply never admitted
+     * 0x22 as walkable, and the diagonal one-subtile channel at x
+     * 3120..3152 the old chain aimed at is the cliff face's visual edge -
+     * a decoy no 16px body can traverse. The catch is alignment: moving
+     * vertically, the engine samples tiles at link_x, link_x+8 and
+     * link_x+15, so all three land on the 16px-wide strip only at
+     * link_x == 3216 exactly. One pixel off, exactly one outer sample
+     * touches cliff and the game's bonk-snap (player.c
+     * HandlePushingBonkingSnaps_Y) nudges Link 1px per frame TOWARD the
+     * strip instead of blocking, as long as the middle sample is free -
+     * a capture window of x 3209..3223. ServoVertical does the precise
+     * part: servo x onto the strip on the open floor, then hold one
+     * direction and let the engine self-align.
+     *
+     * The palace door is the same trick a third time - and it is NOT
+     * the grand door on the building's south face. That door (link_x
+     * 3312..3319, link_y <= 1848) is entrance 69, which the game's
+     * entrance table sends to room 261: Sahasrahla's house, palace:
+     * None. (This walker proudly entered it twice before the table was
+     * believed over the architecture.) The Eastern Palace is entrance
+     * 8, in the north east of the ruins: link_x 3920..3927, link_y
+     * <= 1576, at the top of a one-body channel (x 3920..3935) with a
+     * 0x22 strip at y 1648..1672. The route goes around the east side:
+     * across the forecourt, through the slope notch, down the east
+     * stair strip (0x22 at x 3648..3663, y 2144..2200), east along
+     * the lower terrace, north up the east channel, then east and
+     * north into the door channel, where ServoVertical makes the
+     * final aligned push. */
     static const int kWaypoints[][2] = {
         { 2876, 2948 },   /* east, then the bank channel */
         { 2876, 2708 },   /* north up the west bank */
         { 3188, 2708 },   /* east across the land bridge */
         { 3188, 2524 },   /* north into the palace screen's south cell */
-        { 3172, 2356 },   /* the cliff-stair base */
-        { 3148, 2332 },   /* the stair channel's foot (one subtile wide) */
-        { 3124, 2276 },   /* the stair channel's top */
-        { 3132, 2236 },   /* the stair top plateau */
-        { 3332, 2236 },   /* east along the ruins top */
-        { 3332, 1980 },   /* north into the palace screen */
-        { 3212, 1972 },   /* west, lining up with the door */
-        { 3212, 1692 },   /* north into the palace door */
+        { 3216, 2440 },   /* north up the pillar avenue */
+        { 3216, 2352 },   /* stair staging (servo climb follows) */
+        { 3336, 2244 },   /* east along the terrace */
+        { 3336, 1944 },   /* north up the channel into the forecourt */
+        { 3452, 1944 },   /* east across the forecourt plaza */
+        { 3504, 1952 },   /* east to the slope notch */
+        { 3628, 1960 },   /* through the notch */
+        { 3644, 2000 },   /* south-east out of the notch */
+        { 3652, 2216 },   /* south down the east stair strip */
+        { 3756, 2212 },   /* east along the lower terrace */
+        { 3756, 1948 },   /* north up the east channel (a stair strip) */
+        { 3776, 1924 },   /* north-east out of the channel mouth */
+        { 3868, 1928 },   /* east along the north plaza */
+        { 3868, 1796 },   /* north, up the last strip's side */
+        { 3924, 1796 },   /* east along the open band to the door channel */
+        { 3920, 1690 },   /* door staging (servo into the palace follows) */
     };
-    /* KNOWN GAP (2026-11-22): the walker reliably reaches the cliff-stair
-     * base at (3152, 2328) alive, but the climb itself is a two-layer
-     * tile mechanic the assembled walk grid does not express as
-     * adjacency - Link wedges in a one-tile shaft under the plateau and
-     * no button sequence found in an engine-refereed scan climbs it.
-     * The chain above is measured and correct as far as the base; the
-     * last two legs (plateau, door) come from the same BFS and are
-     * ready when the climb is solved. */
     const int kWaypointCount = (int) (sizeof(kWaypoints) / sizeof(kWaypoints[0]));
     int wp = 0;
+    bool stair_done = false, door_done = false, channel_cleared = false;
+    int stair_tries = 0;
 
     NavPos prev = ReadNav(c);
     std::printf("start area=%u x=%u y=%u in=%u pal=%02x\n",
@@ -744,10 +848,92 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
     bool arrived = false;
     for (int i = 0; i < 60000; i++) {
         NavPos p = ReadNav(c);
-        if (p.indoors && p.palace != 0xFF) { arrived = true; break; }
         uint32_t mod = 0;
         snes_read(c, 0x7E0010u, 1, &mod);
-        if (mod == 18) { std::printf("game-over at f=%d\n", f); break; }
+        /* Arrival: indoors, with the palace byte set or the game in
+         * the dungeon module - either signal accepted; the live proof
+         * referees whether the speech names the Eastern Palace. */
+        if (p.indoors && (p.palace != 0xFF || mod == 7)) { arrived = true; break; }
+        if (mod == 18) {
+            /* Module 18 is the death sequence, not yet the game-over
+             * screen: the sequence scans the bottles for a fairy
+             * (content 6) and diverts to the revival path (submodule
+             * 10+), restoring 7 hearts where Link fell. The proof save
+             * carries two fairies for exactly this. Wait the sequence
+             * out with buttons released; only the save/continue menu
+             * (submodule 9) means no fairy came. */
+            snes_set_button(c, SNES_BTN_UP, false);
+            snes_set_button(c, SNES_BTN_DOWN, false);
+            snes_set_button(c, SNES_BTN_LEFT, false);
+            snes_set_button(c, SNES_BTN_RIGHT, false);
+            snes_set_button(c, SNES_BTN_A, false);
+            bool revived = false;
+            for (int k = 0; k < 1800; k++) {
+                snes_frame(c); f++;
+                uint32_t m2 = 0, sub = 0;
+                snes_read(c, 0x7E0010u, 1, &m2);
+                snes_read(c, 0x7E0011u, 1, &sub);
+                if (m2 != 18) { revived = true; break; }
+                if (sub == 9) break;   /* save/continue menu: real game over */
+            }
+            if (!revived) { std::printf("game-over at f=%d\n", f); break; }
+            std::printf("fairy-revived at f=%d\n", f);
+            prev = ReadNav(c); stuck = 0; detour = 0; fight = 0;
+            last_hp = 0xA0;
+            continue;
+        }
+
+        /* Precision segments (see the chain comment): when a staging
+         * waypoint is consumed, hand control to ServoVertical for the
+         * aligned push, then resume ordinary steering. */
+        if (wp == 6 && !stair_done) {
+            snes_set_button(c, SNES_BTN_A, false);
+            if (ServoVertical(c, f, 3216, 2244, true, false, 2360)) {
+                stair_done = true;
+            } else if (++stair_tries >= 2) {
+                NavPos q = ReadNav(c);
+                std::printf("climb: stair servo failed twice at x=%u y=%u\n",
+                            q.x, q.y);
+                break;
+            }
+            prev = ReadNav(c); stuck = 0; detour = 0;
+            continue;
+        }
+        if (wp == 14 && !channel_cleared) {
+            channel_cleared = true;
+            uint32_t hp_now = 0;
+            snes_read(c, 0x7EF36Du, 1, &hp_now);
+            if (hp_now < 150) {
+                /* Something followed Link to the east channel's base,
+                 * and the strip ascent is slow: kill it here on open
+                 * ground, spinning, instead of being ground down on
+                 * the stairs (one run died in that channel). */
+                for (int k = 0; k < 720; k++) {
+                    /* Pulse A: holding it only charges a spin that
+                     * fires once on release; pulsing swings. */
+                    snes_set_button(c, SNES_BTN_A, (k % 12) < 6);
+                    snes_set_button(c, SNES_BTN_UP, ((k / 30) % 4) == 0);
+                    snes_set_button(c, SNES_BTN_RIGHT, ((k / 30) % 4) == 1);
+                    snes_set_button(c, SNES_BTN_DOWN, ((k / 30) % 4) == 2);
+                    snes_set_button(c, SNES_BTN_LEFT, ((k / 30) % 4) == 3);
+                    snes_frame(c); f++;
+                }
+                snes_set_button(c, SNES_BTN_UP, false);
+                snes_set_button(c, SNES_BTN_RIGHT, false);
+                snes_set_button(c, SNES_BTN_DOWN, false);
+                snes_set_button(c, SNES_BTN_LEFT, false);
+                snes_set_button(c, SNES_BTN_A, false);
+                prev = ReadNav(c); stuck = 0; detour = 0;
+                continue;
+            }
+        }
+        if (wp >= kWaypointCount && !door_done) {
+            snes_set_button(c, SNES_BTN_A, false);
+            door_done = true;   /* one servo attempt; plain push backstops */
+            ServoVertical(c, f, 3920, 0, true, true, 1690);
+            prev = ReadNav(c); stuck = 0; detour = 0;
+            continue;
+        }
         /* A SWINGS THE SWORD; B is the Boomerang in this save. The first attempts
          * mashed B, which only stuns, and the guards killed Link. */
         snes_set_button(c, SNES_BTN_A, (i % 12) < 6);
@@ -763,7 +949,8 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
              * direction in turn and keep swinging, so a guard standing
              * off-axis dies instead of grinding him down on the spot. */
             fight--;
-            snes_set_button(c, SNES_BTN_A, true);
+            /* A stays on the steering pulse above: holding it would
+             * charge a spin instead of swinging. */
             switch ((fight / 30) % 4) {
                 case 0: up = true; break;
                 case 1: right = true; break;
@@ -822,8 +1009,8 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
             snes_read(c, 0x7EF36Du, 1, &hp);
             snes_read(c, 0x7EF36Cu, 1, &cap);
             snes_read(c, 0x7E0010u, 1, &mmod);
-            std::printf("f=%d area=%u x=%u y=%u in=%u pal=%02x wp=%d stuck=%d hp=%u/%u mod=%u\n",
-                        f, p.area, p.x, p.y, p.indoors, p.palace, wp, stuck, hp, cap, mmod);
+            std::printf("f=%d area=%u x=%u y=%u in=%u pal=%02x room=%u wp=%d stuck=%d hp=%u/%u mod=%u\n",
+                        f, p.area, p.x, p.y, p.indoors, p.palace, p.room, wp, stuck, hp, cap, mmod);
             if (shot && *shot) {
                 char path[512];
                 std::snprintf(path, sizeof(path), "%s.%d.ppm", shot, i / 600);
@@ -838,8 +1025,8 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
     snes_set_button(c, SNES_BTN_RIGHT, false);
 
     NavPos end = ReadNav(c);
-    std::printf("end area=%u x=%u y=%u in=%u pal=%02x\n",
-                end.area, end.x, end.y, end.indoors, end.palace);
+    std::printf("end area=%u x=%u y=%u in=%u pal=%02x room=%u\n",
+                end.area, end.x, end.y, end.indoors, end.palace, end.room);
     if (shot && *shot) {
         char path[512];
         std::snprintf(path, sizeof(path), "%s.final.ppm", shot);
