@@ -789,11 +789,15 @@ static void Command(Command cmd)
         //   MenuNext / MenuPrev  -> step the TARGET RING and read the new target
         //   NextUnactedAlly      -> read the current target again (the re-read key)
         //   NextEnemy / PrevEnemy-> the city list, worst first (a standing summary)
+        //   Status               -> the same field summary on its own command
+        //                           (2026-11-22; PrevEnemy keeps its mapping --
+        //                           it is the documented gamepad control)
         case Command::MenuNext:        RingStep(+1); CmdRingHere(); break;
         case Command::MenuPrev:        RingStep(-1); CmdRingHere(); break;
         case Command::NextUnactedAlly: CmdRingHere();            break;
         case Command::NextEnemy:       CmdCityList();            break;
         case Command::PrevEnemy:       CmdStatus();              break;
+        case Command::Status:          CmdStatus();              break;
         default: break;   // every other command is silently not ours
     }
 }

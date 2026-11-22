@@ -385,6 +385,10 @@ int main(void)
     clear();
     oga::CM(oga::Command::PrevEnemy);          // status; NextEnemy is now the city list
     ok("37 unused entity slots report 0 enemies, not 37", said("0 enemies"));
+    clear();
+    oga::CM(oga::Command::Status);             // the same summary on its own command
+    ok("Status speaks the field summary (cities average, enemy count)",
+       NSPOKEN == 1 && said("average 100 percent") && said("0 enemies"));
 
     // 6. readiness follows the LIVE gate, not the mode flag and not the array alone
     // ⛔ TWO CASES, because one of them cannot distinguish the gate forms. Clearing AR_MODE is

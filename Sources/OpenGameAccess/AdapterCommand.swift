@@ -358,6 +358,15 @@ enum AdapterCommand: Int32, CaseIterable {
             // are not mapped.
             return [.whereAmI, .menuState, .guide, .dumpState]
 
+        case "dbzar":
+            // Dragon Ball Z: Shin Budokai — Another Road. Where Am I and the
+            // debug dump are real, and Status reads the field summary
+            // (chapter, city count and average health, enemy count) — the
+            // same readout the core also answers on previous-enemy. The
+            // target ring and the city list ride the host-forwarded menu
+            // and enemy keys, so they are not buttons here.
+            return [.whereAmI, .status, .dumpState]
+
         case "dissidia012":
             // Dissidia 012: title, setup and main menus speak automatically;
             // Where Am I is the on-demand read -- field position on the world

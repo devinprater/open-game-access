@@ -104,7 +104,7 @@ static const char* LibraryConsole(const oga::Adapter* a)
 // The player-facing command set per adapter id, as oga::Command values.
 // An id with NO row here has no buttons — the Swift switch's default —
 // which covers gba (its interaction is the Lua script's own hotkeys) and
-// dbzar/dq9 (no case in the switch at all) alike.
+// dq9 (no case in the switch at all) alike.
 struct SupportedRow {
     const char* id;
     const int* commands;
@@ -127,6 +127,8 @@ static const int kSupportedKhbbs[] = {CMD(WhereAmI), CMD(MenuState),
 static const int kSupportedMku[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(Guide), CMD(DumpState)};
 static const int kSupportedDissidia012[] = {CMD(WhereAmI), CMD(MenuState)};
+static const int kSupportedDbzar[] = {CMD(WhereAmI), CMD(Status),
+    CMD(DumpState)};
 static const SupportedRow kSupported[] = {
     {"fe11", kSupportedFe11, 7},
     {"dbz-saiyans", kSupportedDbzSaiyans, 4},
@@ -136,6 +138,7 @@ static const SupportedRow kSupported[] = {
     {"khbbs", kSupportedKhbbs, 8},
     {"mku", kSupportedMku, 4},
     {"dissidia012", kSupportedDissidia012, 2},
+    {"dbzar", kSupportedDbzar, 3},
 };
 #undef CMD
 
