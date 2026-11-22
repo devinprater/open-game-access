@@ -1821,18 +1821,17 @@ static const VillageMark kVillageMarks[] = {
 constexpr int kVillageMarkCount =
     (int) (sizeof(kVillageMarks) / sizeof(kVillageMarks[0]));
 
-void VillageGuideLine(char* out, size_t cap, const VillageMark& m,
-                      float px, float pz, bool haveFacing,
-                      float fdx, float fdz)
+void GuideLineAt(char* out, size_t cap, const char* name, float mx, float mz,
+                 float px, float pz, bool haveFacing, float fdx, float fdz)
 {
-    float dx = m.x - px, dz = m.z - pz;
+    float dx = mx - px, dz = mz - pz;
     float dist = sqrtf(dx * dx + dz * dz);
     if (dist < 1.5f) {
-        snprintf(out, cap, "%s, right here.", m.name);
+        snprintf(out, cap, "%s, right here.", name);
         return;
     }
     if (!haveFacing) {
-        snprintf(out, cap, "%s, %u away.", m.name,
+        snprintf(out, cap, "%s, %u away.", name,
                  (unsigned) (dist + 0.5f));
         return;
     }
@@ -1848,11 +1847,61 @@ void VillageGuideLine(char* out, size_t cap, const VillageMark& m,
     int clock = (int) (rel / 30.0f + 0.5f);
     if (clock == 0) clock = 12;
     if (clock == 12)
-        snprintf(out, cap, "%s, %u away, straight ahead.", m.name,
+        snprintf(out, cap, "%s, %u away, straight ahead.", name,
                  (unsigned) (dist + 0.5f));
     else
-        snprintf(out, cap, "%s, %u away, %d o'clock.", m.name,
+        snprintf(out, cap, "%s, %u away, %d o'clock.", name,
                  (unsigned) (dist + 0.5f), clock);
+}
+
+void VillageGuideLine(char* out, size_t cap, const VillageMark& m,
+                      float px, float pz, bool haveFacing,
+                      float fdx, float fdz)
+{
+    GuideLineAt(out, cap, m.name, m.x, m.z, px, pz, haveFacing, fdx, fdz);
+}
+
+// The nearest spawned villagers, nearest first, from the NPC table
+// (NpcNearestClause's own record filter). The Guide reads them after the
+// landmarks so a player can find who to talk to, with the same facing-
+// relative clock bearing. Unseen names stay "Someone" (never invented).
+constexpr int kGuideNpcMax = 3;
+constexpr float kGuideNpcRange = 40.0f;
+
+void GuideNpcLines(float px, float pz, bool haveFacing, float fdx, float fdz)
+{
+    float bd2[kGuideNpcMax]; float bx[kGuideNpcMax], bz[kGuideNpcMax];
+    uint32_t bbase[kGuideNpcMax];
+    int n = 0;
+    for (int i = 0; i < kNpcRecords; i++) {
+        uint32_t base = kNpcTopAddr - (uint32_t) i * kNpcStride;
+        float x = f32(base + 0x1C), y = f32(base + 0x20), z = f32(base + 0x24);
+        if (!(x > -300.0f && x < 300.0f)) continue;
+        if (!(z > -300.0f && z < 300.0f)) continue;
+        if (!(y > -2.0f && y < 6.0f)) continue;
+        float dx = x - px, dz = z - pz, d2 = dx * dx + dz * dz;
+        if (d2 >= kGuideNpcRange * kGuideNpcRange) continue;
+        char raw[40];
+        if (!NpcRecordName(base, raw, sizeof(raw))) continue;
+        int at = n;                                   // insertion, nearest first
+        while (at > 0 && bd2[at - 1] > d2) at--;
+        if (at >= kGuideNpcMax) continue;
+        int last = n < kGuideNpcMax ? n : kGuideNpcMax - 1;
+        for (int k = last; k > at; k--) {
+            bd2[k] = bd2[k - 1]; bx[k] = bx[k - 1]; bz[k] = bz[k - 1];
+            bbase[k] = bbase[k - 1];
+        }
+        bd2[at] = d2; bx[at] = x; bz[at] = z; bbase[at] = base;
+        if (n < kGuideNpcMax) n++;
+    }
+    for (int i = 0; i < n; i++) {
+        char raw[40], line[128];
+        if (!NpcRecordName(bbase[i], raw, sizeof(raw))) continue;
+        const char* who = NpcSpokenName(raw);
+        GuideLineAt(line, sizeof(line), who ? who : "Someone", bx[i], bz[i],
+                    px, pz, haveFacing, fdx, fdz);
+        Say(line, "guide", oga::Priority::High);
+    }
 }
 
 void CmdVillageGuide(void)
@@ -1877,6 +1926,7 @@ void CmdVillageGuide(void)
                          facing, fdx, fdz);
         Say(line, "guide", oga::Priority::High);
     }
+    GuideNpcLines(px, pz, facing, fdx, fdz);
 }
 
 // ---- the pause menu (VERIFIED 2026-10-17, hunts 12-13) ---------------------
@@ -2590,7 +2640,9 @@ const Adapter kMortalKombatUnchained = {
     "the village spawn, Bo' Rai Cho's hall and the west fence — "
     "each with its distance and, once you have moved, its clock "
     "bearing relative to the way you last travelled; before you "
-    "have moved it gives distances only. Compass headings are "
+    "have moved it gives distances only. After the landmarks it "
+    "reads the three nearest villagers the same way (names not yet "
+    "seen in play are called Someone). Compass headings are "
     "not read. In Konquest bouts the round, timer and "
     "win words are not read (they are per-phase machinery), and only "
     "Bo' Rai Cho is named among Konquest opponents — others are "

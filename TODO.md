@@ -1010,4 +1010,4 @@ against the running ROM.
   `0x020CC794` count word mean, and what `0x020CC770` (four bytes before the array, referenced 70
   times) holds. ⛔ Never narrate from the 8-record character-definition array: it includes two
   entities the player cannot field.
-
+- [x] **MK Unchained Konquest: the Guide also names the nearest three villagers (2026-11-17, host-tested, not yet run on a device).** After the four landmarks, the Guide reads up to three spawned NPCs within 40 units, nearest first, with distance and the same facing-relative clock bearing; unseen names stay "Someone". Uses the 0x810-stride NPC table (mortal-kombat-unchained.md, "the NPC table"). Still open: the bridge chain (dog woman -> butcher meat -> guard) needs a bench hunt.
