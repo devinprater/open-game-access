@@ -225,3 +225,51 @@ an SRAM-crafted save at progress 3 (the slot checksum rule is measured:
 the first 0x280 words sum to 0x5A5A, checksum word at slot +0x27E) to
 prove the dark-world Objective and Guide answers live; Phase C proves
 indoors as described above.
+## Consult addendum (2026-11-22, BlindPilot critique)
+
+The design above was critiqued by the BlindPilot Claude session before any
+code was written. What changed because of it:
+
+- **Regions.** A screen can be split into disconnected walkable regions,
+  so border edges alone can invent a route. The generator flood-fills each
+  screen's map16 grid; every border gap records its region; routing runs
+  over (cell, region) states and is region-consistent through every
+  intermediate cell. The adapter cannot know which region of the start
+  cell Link stands in, so a route is spoken only when all of the start
+  cell's regions agree on the first leg — otherwise Guide speaks the
+  bearing fallback. An edge needs a run of at least two adjacent
+  enterable border positions on both sides (Link's collision width), and
+  each gap records which third of the border it sits in.
+- **Fallback honesty.** In Guide, an unrouted answer says so: "No walking
+  route known; it lies north-west, about three screens away." A bearing
+  is never dressed as a route.
+- **Ledges** are directed edges, treated as costly: pathfinding prefers
+  routes without drops, and the leg says "hop down the ledge; no way back
+  up".
+- **Indoor speech.** Consecutive same-direction doors merge ("north
+  through two doors"); when the exit wall holds two or more passage
+  doors, the leg names the half ("the west door"); stairs are spoken as
+  "take the stairs" — the data does not say up or down. A route that
+  spends a small key says so, and adds "you have no key" when the player
+  holds none. Rooms whose header tags gate their doors behind combat or
+  switches are flagged in the route ("the way is gated").
+- **Dungeon invariants.** The dungeon generator prints, per connected
+  component, whether an entrance reaches the boss room and the big chest
+  with all edge types allowed, the two-way symmetry count, and one-sided
+  doors classified by cause (diagnostics only — only both-sides doors,
+  stairs and pits ship). Pits are a one-way edge class of their own.
+- **Phase B wording.** No authoritative "Next:". Objective speaks the
+  crystals held, the remaining dungeons, and the nearest remaining one by
+  graph distance; Guide's first press aims at it. The final stage names
+  Ganon's Tower as the way to Ganon. (The consult's medallion claim was
+  checked against the decomp: vanilla fixes Ether to Misery Mire and
+  Quake to Turtle Rock; Objective never names medallions, so nothing is
+  hard-coded.)
+
+Deferred, deliberately: route-progress announcements (Guide recomputes
+per press), per-door opened state and finished-target skipping (needs
+live measurement of the per-room SRAM state bits), cave/portal edges
+between overworld areas (the generator prints unreachable landmarks so
+the gap is measured), and a words-only executor proof. The Lost Woods'
+looping transitions are a documented limitation: its border edges are
+physically walkable and entry routes stay valid.
