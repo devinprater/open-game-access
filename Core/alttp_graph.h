@@ -39,6 +39,14 @@ uint8_t AlttpScreenRegionCount(uint8_t screen);
  * the region it stands in is measured, not tracked. */
 bool AlttpMap16Walkable(uint16_t map16);
 
+/* Whether a map16 tile id is STEERABLE ground for auto walk
+ * (docs/design/auto-walk.md SS5): the collision-shrunk form of the
+ * table above. ALL four subtiles must carry a walk-on behaviour (a
+ * tile walkable on one subtile only is a wall the walker would grind
+ * on), and no subtile may be a spike floor, a warp tile or an entrance
+ * threshold — the walker stops AT doors and warps, never on them. */
+bool AlttpMap16Steerable(uint16_t map16);
+
 } // namespace oga
 
 #endif

@@ -167,7 +167,15 @@ def load_behaviours(src):
                           text):
         vals = [int(v, 16) for v in re.findall(r"0x([0-9a-f]{2})", mm.group(1))]
         ledges.setdefault(mm.group(2), set()).update(vals)
-    return walkable, ledges
+    # The steering mask's exclusions (docs/design/auto-walk.md SS5):
+    # spike floors hurt, warp tiles teleport, entrance tiles are door
+    # thresholds. All three are IN the walkable set above (Link can
+    # stand on each), so the speech table cannot express the steering
+    # rule; the generator emits a second bitmap for it below.
+    blocked = set()
+    for name in ("SpikeFloor", "Warp", "Entrance"):
+        blocked |= groups.get(name, set())
+    return walkable, ledges, blocked
 
 
 def load_map32_table(src):
@@ -434,6 +442,14 @@ uint8_t AlttpScreenRegionCount(uint8_t screen);
  * the region it stands in is measured, not tracked. */
 bool AlttpMap16Walkable(uint16_t map16);
 
+/* Whether a map16 tile id is STEERABLE ground for auto walk
+ * (docs/design/auto-walk.md SS5): the collision-shrunk form of the
+ * table above. ALL four subtiles must carry a walk-on behaviour (a
+ * tile walkable on one subtile only is a wall the walker would grind
+ * on), and no subtile may be a spike floor, a warp tile or an entrance
+ * threshold — the walker stops AT doors and warps, never on them. */
+bool AlttpMap16Steerable(uint16_t map16);
+
 } // namespace oga
 
 #endif
@@ -466,7 +482,7 @@ def main():
     args = ap.parse_args()
 
     rom = Rom(args.rom)
-    walkable, ledges = load_behaviours(args.src)
+    walkable, ledges, blocked = load_behaviours(args.src)
     ledge_ns = ledges.get("North", set()) | ledges.get("South", set()) | \
         ledges.get("NorthDiagonal", set()) | ledges.get("SouthDiagonal", set())
     ledge_ew = ledges.get("EastWest", set()) | \
@@ -592,12 +608,27 @@ def main():
     for i in range(0, len(bits), 16):
         out.append("    " + ", ".join("0x%02x" % b for b in bits[i:i + 16]) + ",")
     out.append("};\n")
+    # Steerable bit per map16 id: the collision-shrunk steering mask.
+    # All four subtiles walk-on, and none of them a spike, warp or
+    # entrance subtile (see load_behaviours for the groups).
+    sbits = bytearray((n16 + 7) // 8)
+    for m16 in range(n16):
+        attrs = [map8attr[map16tab[m16 * 4 + q] & 0x1FF] for q in range(4)]
+        if all(a in walkable for a in attrs) and \
+                not any(a in blocked for a in attrs):
+            sbits[m16 >> 3] |= 1 << (m16 & 7)
+    out.append("const uint8_t kMap16Steerable[%d] = {" % len(sbits))
+    for i in range(0, len(sbits), 16):
+        out.append("    " + ", ".join("0x%02x" % b for b in sbits[i:i + 16]) + ",")
+    out.append("};\n")
     out.append("uint8_t AlttpAreaOfScreen(uint8_t screen)\n{\n"
                "    return screen < 128 ? kAreaOf[screen] : screen;\n}\n")
     out.append("uint8_t AlttpScreenRegionCount(uint8_t screen)\n{\n"
                "    return screen < 128 ? kRegionCount[screen] : 0;\n}\n")
     out.append("bool AlttpMap16Walkable(uint16_t map16)\n{\n"
                "    return map16 < %d && (kMap16Walkable[map16 >> 3] >> (map16 & 7)) & 1;\n}\n" % n16)
+    out.append("bool AlttpMap16Steerable(uint16_t map16)\n{\n"
+               "    return map16 < %d && (kMap16Steerable[map16 >> 3] >> (map16 & 7)) & 1;\n}\n" % n16)
     out.append("int AlttpScreenGaps(uint8_t screen, const AlttpGap** out)\n{\n"
                "    if (screen >= 128) { *out = nullptr; return 0; }\n"
                "    int n = (int) kGapOffset[screen + 1] - (int) kGapOffset[screen];\n"
