@@ -100,6 +100,13 @@ case "$MODE" in
     exec "$OUT/snes-live-proof" --walk "$ROM" "$SAVE" ;;
   --darkobj)
     exec "$OUT/snes-live-proof" --darkobj "$ROM" "$SAVE" ;;
+  --dungeon)
+    # The probe steers Link into the Eastern Palace and saves a state at
+    # the door; the live proof then loads it through the app path.
+    DSTATE="$OUT/ep-entrance.state"
+    "$OUT/snes-probe" --dungeon "$ROM" "$SAVE" "$DSTATE" || { echo "!! dungeon walk failed" >&2; exit 1; }
+    build_live
+    exec "$OUT/snes-live-proof" --dungeon "$ROM" "$SAVE" "$DSTATE" ;;
   --dialogue)
     # ⛔ A NEW FILE, NOT THE PUBLIC SAVE. The intro's telepathy box is the one
     # story message this harness can raise without steering; the save has long

@@ -612,6 +612,47 @@ int main()
     put8(0x7EF3C5u, 0); put8(0x7EF37Au, 0);
     put16(AREA, 0x2C); put16(SCREEN, 0x2C); put16(X, 2232); put16(Y, 2792);
 
+    // Indoors guidance: the Eastern Palace room graph. Room 201 is the
+    // entrance hall, the big chest is room 169, the boss is room 200. The
+    // expected routes were cross-checked against the generated table with
+    // an independent router. No small keys, no big key.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E0010u, 7); put8(0x7E0011u, 0);
+    put8(INDOORS, 1); put16(ROOM, 201); put8(0x7E040Cu, 4);
+    put8(0x7EF36Fu, 0); put16(0x7EF366u, 0);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Big Chest. Route: north through the shutter door, then north through the door into the big chest room. One room on the way is gated: a switch opens the door.") == 0,
+          "guide indoors: the first press routes to the big chest");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Boss. Route: north through the shutter door, north through the door, north through the big key door, take the stairs, west through two shutter doors, then north through the shutter door into the boss room. You do not have the big key. One room on the way is gated: a switch opens the door.") == 0,
+          "guide indoors: the boss route names the big key door and the shortfall");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guide: Entrance. You are here.") == 0,
+          "guide indoors: standing in the entrance room says so");
+
+    // From the boss room the cycle restarts at the big chest; that route
+    // spends a small key the player does not have, and says so.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(ROOM, 200);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Big Chest. Route: south through the shutter door, east through the door, east through the shutter door, take the stairs, then south through the locked door into the big chest room. You have no small key for the locked door. One room on the way is gated: clear it to open the door.") == 0,
+          "guide indoors: a locked door with no key is named with its cost");
+
+    // A house is indoors but no dungeon: the refusal stands.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(0x7E040Cu, 0xFF);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guidance works outside.") == 0,
+          "guide indoors: a house is not a dungeon");
+    put8(INDOORS, 0);
+
     // Objective: the game's own progress bytes pick the story stage. The save
     // measured flags 0x15 (sword given, Zelda at the Sanctuary, uncle gone),
     // no pendants, Fighter's Sword.

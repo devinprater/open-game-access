@@ -653,6 +653,10 @@ static int Teleport(const char* rom, const char* savedir, const char* stateout)
     return entered ? 0 : 1;
 }
 
+
+
+
+
 static int Dungeon(const char* rom, const char* savedir, const char* stateout, const char* shot)
 {
     SnesCore* c = snes_create();
@@ -686,17 +690,59 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
     for (int i = 0; i < 30; i++) { snes_frame(c); f++; }
     CloseMenu(c);
 
-    const uint16_t target = 0x1E;          /* Eastern Palace */
-    const int tx = (target & 7) * 512 + 256;
-    const int ty = ((target >> 3) & 7) * 512 + 256;
+    /* Waypoint steering on the measured crossing points of the generated
+     * overworld graph (scripts/gen-alttp-graph.py, gap runs with their
+     * centre tiles): the river is crossed on the wide land bridge at the
+     * bridge screen's north (tile rows 7-12 are open land) - the narrow
+     * south deck (one subtile row at map8 resolution) and the Moundlands
+     * screen both defeated earlier walkers. The chain: house screen east
+     * at tile row 24; up the west bank; east across the land bridge into
+     * the ruins screen (its west runs at tile rows 7-12); north at tile
+     * column 8; up the west cliff stairs of the palace screen's south
+     * cell (tile column 4-5); north across the top border at tile column
+     * 18; then the palace door. */
+    /* The chain below is a breadth-first path over the map8-resolution
+     * walk grid assembled from the game's own tiles (the same assembly
+     * the graph generator uses), simplified to its corners: east out of
+     * the house screen, north up the river's west bank (the channel is at
+     * x 2876), east across the land bridge, north through the ruins
+     * screen, to the cliff-stair base; then from the stair top east and
+     * north across the border into the palace screen, west a little, and
+     * north into the door at x 3212. */
+    static const int kWaypoints[][2] = {
+        { 2876, 2948 },   /* east, then the bank channel */
+        { 2876, 2708 },   /* north up the west bank */
+        { 3188, 2708 },   /* east across the land bridge */
+        { 3188, 2524 },   /* north into the palace screen's south cell */
+        { 3172, 2356 },   /* the cliff-stair base */
+        { 3148, 2332 },   /* the stair channel's foot (one subtile wide) */
+        { 3124, 2276 },   /* the stair channel's top */
+        { 3132, 2236 },   /* the stair top plateau */
+        { 3332, 2236 },   /* east along the ruins top */
+        { 3332, 1980 },   /* north into the palace screen */
+        { 3212, 1972 },   /* west, lining up with the door */
+        { 3212, 1692 },   /* north into the palace door */
+    };
+    /* KNOWN GAP (2026-11-22): the walker reliably reaches the cliff-stair
+     * base at (3152, 2328) alive, but the climb itself is a two-layer
+     * tile mechanic the assembled walk grid does not express as
+     * adjacency - Link wedges in a one-tile shaft under the plateau and
+     * no button sequence found in an engine-refereed scan climbs it.
+     * The chain above is measured and correct as far as the base; the
+     * last two legs (plateau, door) come from the same BFS and are
+     * ready when the climb is solved. */
+    const int kWaypointCount = (int) (sizeof(kWaypoints) / sizeof(kWaypoints[0]));
+    int wp = 0;
 
     NavPos prev = ReadNav(c);
-    std::printf("start area=%u x=%u y=%u in=%u pal=%02x target=%04x\n",
-                prev.area, prev.x, prev.y, prev.indoors, prev.palace, target);
+    std::printf("start area=%u x=%u y=%u in=%u pal=%02x\n",
+                prev.area, prev.x, prev.y, prev.indoors, prev.palace);
 
-    int stuck = 0, detour = 0, detour_dir = 0, hug_dir = 0, hug_timer = 900;
+    int stuck = 0, detour = 0, detour_dir = 0, detour_span = 90;
+    int fight = 0;
+    uint32_t last_hp = 0xA0;
     bool arrived = false;
-    for (int i = 0; i < 26000; i++) {
+    for (int i = 0; i < 60000; i++) {
         NavPos p = ReadNav(c);
         if (p.indoors && p.palace != 0xFF) { arrived = true; break; }
         uint32_t mod = 0;
@@ -704,38 +750,34 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
         if (mod == 18) { std::printf("game-over at f=%d\n", f); break; }
         /* A SWINGS THE SWORD; B is the Boomerang in this save. The first attempts
          * mashed B, which only stuns, and the guards killed Link. */
-        snes_set_button(c, SNES_BTN_A, (i % 20) < 8);
+        snes_set_button(c, SNES_BTN_A, (i % 12) < 6);
 
-        int dx = tx - (int) p.x, dy = ty - (int) p.y;
+        if (wp < kWaypointCount) {
+            int dx = kWaypoints[wp][0] - (int) p.x;
+            int dy = kWaypoints[wp][1] - (int) p.y;
+            if ((dx < 0 ? -dx : dx) + (dy < 0 ? -dy : dy) < 28) wp++;
+        }
         bool up = false, down = false, left = false, right = false;
-        /* ⛔ THE ROUTE IS THE WALKTHROUGH'S, EXPRESSED IN SCREENS. 0x2C is
-         * Uncle's Estate East (the house); go east to 0x2D Eastern Ruins Bridge,
-         * NORTH across it into 0x25 Moundlands, east into 0x26 Eastern Ruins,
-         * then north into 0x1E Eastern Ruins NW, the palace. Both a walkthrough
-         * and IGN say "east from Link's house, north across the bridge, then
-         * east again". */
-        switch (p.area) {
-            case 0x2C: right = true; break;
-            case 0x2D:
-                if ((int) p.x > 2900) left = true;
-                else if ((int) p.x < 2760) right = true;
-                else up = true;
-                break;
-            case 0x25:
-                /* Hug the east wall: hold east and slide along it in one
-                 * direction until a corner, then sweep the other way. */
-                right = true;
-                if (hug_dir) down = true; else up = true;
-                break;
-            case 0x26: case 0x27:
-                up = true;
-                if (hug_dir) right = true; else left = true;
-                break;
-            case 0x1E: up = true; break;
-            default:
-                if (dx > 24) right = true; else if (dx < -24) left = true;
-                if (dy > 24) down = true; else if (dy < -24) up = true;
-                break;
+        if (fight > 0) {
+            /* Something is hitting Link and he is not moving: face each
+             * direction in turn and keep swinging, so a guard standing
+             * off-axis dies instead of grinding him down on the spot. */
+            fight--;
+            snes_set_button(c, SNES_BTN_A, true);
+            switch ((fight / 30) % 4) {
+                case 0: up = true; break;
+                case 1: right = true; break;
+                case 2: down = true; break;
+                default: left = true; break;
+            }
+        } else if (wp < kWaypointCount) {
+            int dx = kWaypoints[wp][0] - (int) p.x;
+            int dy = kWaypoints[wp][1] - (int) p.y;
+            if (dx > 8) right = true; else if (dx < -8) left = true;
+            if (dy > 8) down = true; else if (dy < -8) up = true;
+            if (!up && !down && !left && !right) up = true;   /* at the door: push in */
+        } else {
+            up = true;
         }
 
         /* Wall slide: when the wanted direction is blocked, ADD the
@@ -749,12 +791,6 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
             if (detour == 0) detour_dir ^= 1;   /* next sweep goes the other way */
         }
 
-        /* A full-screen sweep before reversing, or the hug reverses at the
-         * first obstacle and never covers the rest of the wall. */
-        if (p.area == 0x25 || p.area == 0x26 || p.area == 0x27) {
-            if (--hug_timer <= 0) { hug_dir ^= 1; hug_timer = 900; }
-        }
-
         snes_set_button(c, SNES_BTN_UP, up);
         snes_set_button(c, SNES_BTN_DOWN, down);
         snes_set_button(c, SNES_BTN_LEFT, left);
@@ -762,16 +798,22 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
         snes_frame(c); f++;
 
         if ((i % 40) == 0) {
+            uint32_t hp_now = 0;
+            snes_read(c, 0x7EF36Du, 1, &hp_now);
             int moved = (int) (p.x > prev.x ? p.x - prev.x : prev.x - p.x) +
                         (int) (p.y > prev.y ? p.y - prev.y : prev.y - p.y);
+            if (moved < 8 && hp_now < last_hp && fight == 0) fight = 240;
+            last_hp = hp_now;
             if (moved < 8) {
                 stuck++;
                 if (stuck > 2 && detour == 0) {
-                    detour = 420;   /* one long sweep along the wall */
+                    detour = detour_span;   /* a sweep along the wall, growing */
+                    if (detour_span < 720) detour_span *= 2;
                     stuck = 0;
                 }
             } else {
                 stuck = 0;
+                detour_span = 90;
             }
             prev = p;
         }
@@ -780,8 +822,8 @@ static int Dungeon(const char* rom, const char* savedir, const char* stateout, c
             snes_read(c, 0x7EF36Du, 1, &hp);
             snes_read(c, 0x7EF36Cu, 1, &cap);
             snes_read(c, 0x7E0010u, 1, &mmod);
-            std::printf("f=%d area=%u x=%u y=%u in=%u pal=%02x stuck=%d hp=%u/%u mod=%u\n",
-                        f, p.area, p.x, p.y, p.indoors, p.palace, stuck, hp, cap, mmod);
+            std::printf("f=%d area=%u x=%u y=%u in=%u pal=%02x wp=%d stuck=%d hp=%u/%u mod=%u\n",
+                        f, p.area, p.x, p.y, p.indoors, p.palace, wp, stuck, hp, cap, mmod);
             if (shot && *shot) {
                 char path[512];
                 std::snprintf(path, sizeof(path), "%s.%d.ppm", shot, i / 600);

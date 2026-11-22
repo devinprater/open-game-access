@@ -85,7 +85,7 @@ dbzar_adapter.cpp
 dq9_adapter.cpp
 mku_adapter.cpp
 khbbs_adapter.cpp
-alttp_adapter.cpp alttp_text.cpp alttp_names.cpp alttp_rooms.cpp alttp_graph.cpp
+alttp_adapter.cpp alttp_text.cpp alttp_names.cpp alttp_rooms.cpp alttp_graph.cpp alttp_dungeon_graph.cpp
 osk_echo.cpp
 adapters.cpp
 announce.cpp

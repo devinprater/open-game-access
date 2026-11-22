@@ -201,6 +201,7 @@ compile() {
   printf '%s|cxx|alttp_names\n'   "$ROOT/Core/alttp_names.cpp"
   printf '%s|cxx|alttp_rooms\n'   "$ROOT/Core/alttp_rooms.cpp"
   printf '%s|cxx|alttp_graph\n'   "$ROOT/Core/alttp_graph.cpp"
+  printf '%s|cxx|alttp_dungeon_graph\n' "$ROOT/Core/alttp_dungeon_graph.cpp"
   # Mortal Kombat: Unchained. Its adapter was in OGA_GLUE but in NO host list,
   # so adapters.o referenced oga::kMortalKombatUnchained with nothing to resolve it.
   printf '%s|cxx|osk_echo\n'  "$ROOT/Core/osk_echo.cpp"

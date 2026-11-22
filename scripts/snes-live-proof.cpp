@@ -520,12 +520,64 @@ static int DarkObj(const char* rom, const char* savedir)
     return ok ? 0 : 1;
 }
 
+
+/* --dungeon: the in-dungeon proof. A state saved at the Eastern Palace
+ * door (the probe's --dungeon walk steers Link there on the real game)
+ * is loaded through the app path, and the adapter must say where he is
+ * and give the guide's first indoor route - the big chest route from
+ * the entrance hall, computed from the room graph. */
+static int ProofDungeon(const char* rom, const char* savedir, const char* state)
+{
+    std::printf("== live proof: inside the Eastern Palace\n");
+    PokeCore* core = poke_create();
+    if (!core) { std::printf("FAIL: no core\n"); return 1; }
+    poke_set_speech_callback(core, OnSpeak, nullptr);
+    g_say.clear();
+    if (!poke_load_rom(core, rom, savedir) || !poke_start(core)) {
+        std::printf("FAIL: %s\n", poke_last_error(core));
+        poke_destroy(core);
+        return 1;
+    }
+    if (!poke_load_state(core, state)) {
+        std::printf("FAIL: poke_load_state(%s): %s\n", state, poke_last_error(core));
+        poke_destroy(core);
+        return 1;
+    }
+    for (int f = 0; f < 600; f++) poke_frame(core);   /* the entrance settles */
+    bool rdy = poke_adapter_ready(core);
+    std::printf("adapter ready inside the dungeon: %s\n", rdy ? "YES" : "NO");
+    if (!rdy) { poke_destroy(core); return 1; }
+
+    g_say.clear();
+    poke_command(core, 0);   /* WhereAmI */
+    for (int f = 0; f < 400; f++) poke_frame(core);
+    bool inPalace = false;
+    for (const std::string& s : g_say)
+        if (s.find("Inside Eastern Palace") != std::string::npos) inPalace = true;
+
+    g_say.clear();
+    poke_command(core, 41);  /* Guide */
+    for (int f = 0; f < 400; f++) poke_frame(core);
+    bool routed = false;
+    for (const std::string& s : g_say)
+        if (s.find("Guide: Big Chest. Route: north through the shutter door, "
+                   "then north through the door into the big chest room.") != std::string::npos)
+            routed = true;
+
+    std::printf("dungeon-proof=%s\n", (inPalace && routed) ? "YES" : "NO");
+    poke_stop(core);
+    poke_destroy(core);
+    return (inPalace && routed) ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
     if (argc >= 4 && std::strcmp(argv[1], "--walk") == 0)
         return Walk(argv[2], argv[3]);
     if (argc >= 4 && std::strcmp(argv[1], "--darkobj") == 0)
         return DarkObj(argv[2], argv[3]);
+    if (argc >= 5 && std::strcmp(argv[1], "--dungeon") == 0)
+        return ProofDungeon(argv[2], argv[3], argv[4]);
     if (argc >= 4 && std::strcmp(argv[1], "--dialogue") == 0)
         return Dialogue(argv[2], argv[3]);
     if (argc >= 4 && std::strcmp(argv[1], "--files") == 0)

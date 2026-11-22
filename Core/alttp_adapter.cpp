@@ -21,6 +21,7 @@
 #include "alttp_names.h"
 #include "alttp_rooms.h"
 #include "alttp_graph.h"
+#include "alttp_dungeon_graph.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -43,6 +44,10 @@ uint8_t g_objectiveArea = 0xFE;
 /* The world the guide cycle was last aimed in (0 light, 1 dark); switching
  * worlds re-aims the cycle like a story-stage change does. */
 uint8_t g_guideWorld = 0xFF;
+/* The dungeon component the indoor guide cycle was last aimed in, and the
+ * cycle position within it (big chest, boss, entrance). */
+uint16_t g_indoorComponent = 0xFFFF;
+unsigned g_indoorIndex = 0;
 
 /* ---- the work-RAM map (zelda3 src/variables.h, g_ram is banks 7E/7F) ---- */
 constexpr uint32_t RAM_BASE          = 0x7E0000u;
@@ -248,6 +253,8 @@ void AlttpDetach()
     g_spokenTextHash = 0;
     g_objectiveArea = 0xFE;
     g_guideWorld = 0xFF;
+    g_indoorComponent = 0xFFFF;
+    g_indoorIndex = 0;
 }
 
 /* Module 14 is the interface/HUD layer; the real screen is in
@@ -1172,6 +1179,194 @@ void DirectionText(uint8_t targetArea, const char* targetName, char* out, size_t
     snprintf(out, cap, "No walking route known; it lies %s away.", bearing);
 }
 
+/* ---- indoors guidance ------------------------------------------------------
+ * Inside a dungeon the guide routes room to room on the generated room
+ * graph (alttp_dungeon_graph.cpp): doors confirmed from both sides by the
+ * game's own pairing rule, staircases confirmed from both ends, pit drops
+ * that stay inside the component. The cycle walks the three points of
+ * interest - big chest, boss, entrance - and a point the graph cannot
+ * reach from this part of the dungeon is skipped, never invented: when
+ * nothing at all is reachable the answer says so. */
+
+struct RoomLeg { uint16_t from; AlttpRoomEdge edge; };
+
+int RoomEdgeCost(uint8_t kind)
+{
+    switch (kind) {
+        case 1: return 110;   /* shutter: may need the room cleared first */
+        case 2: return 150;   /* small-key door */
+        case 3: return 150;   /* big-key door */
+        case 4: return 130;   /* bombable wall */
+        default: return 100;  /* free door, stairs, pit */
+    }
+}
+
+/* Dijkstra over rooms from `from` to the nearest room carrying poiBit.
+ * Fills legs in travel order; returns the leg count, 0 when the start
+ * room itself carries the bit, or -1 when no such room is reachable. */
+int FindRoomRoute(uint16_t from, uint8_t poiBit, RoomLeg* legs, int maxLegs,
+                  uint16_t* targetOut)
+{
+    static int dist[320];
+    static int prevRoom[320];
+    static AlttpRoomEdge prevEdge[320];
+    for (int i = 0; i < 320; i++) { dist[i] = -1; prevRoom[i] = -1; }
+    dist[from] = 0;
+    int goal = -1;
+    for (;;) {
+        int s = -1;
+        for (int i = 0; i < 320; i++)
+            if (dist[i] >= 0 && (s < 0 || dist[i] < dist[s])) s = i;
+        if (s < 0) break;
+        if (AlttpRoomPoi((uint16_t) s) & poiBit) { goal = s; break; }
+        const AlttpRoomEdge* edges = nullptr;
+        int n = AlttpRoomEdges((uint16_t) s, &edges);
+        for (int i = 0; i < n; i++) {
+            if (dist[edges[i].to] == -2) continue;   /* settled */
+            int nd = dist[s] + RoomEdgeCost(edges[i].kind);
+            if (dist[edges[i].to] < 0 || nd < dist[edges[i].to]) {
+                dist[edges[i].to] = nd;
+                prevRoom[edges[i].to] = s;
+                prevEdge[edges[i].to] = edges[i];
+            }
+        }
+        dist[s] = -2;   /* settled */
+    }
+    if (goal < 0) return -1;
+    *targetOut = (uint16_t) goal;
+    int count = 0;
+    for (int s = goal; prevRoom[s] >= 0; s = prevRoom[s]) count++;
+    if (count > maxLegs) return -1;
+    int i = count;
+    for (int s = goal; prevRoom[s] >= 0; s = prevRoom[s])
+        legs[--i] = RoomLeg{ (uint16_t) prevRoom[s], prevEdge[s] };
+    return count;
+}
+
+/* "Route: north through the west door, east through two doors, take the
+ * stairs, then north through the locked door into the boss room." plus
+ * the honest warnings: a locked door with no key in hand, a big-key door
+ * without the big key, a gated room on the way. */
+void RenderRoomRoute(const RoomLeg* legs, int n, const char* targetRoom,
+                     char* out, size_t cap)
+{
+    struct Merged { uint8_t kind; uint8_t dir; int half; int count; };
+    Merged m[64];
+    int mn = 0;
+    bool lockedUsed = false, bigkeyUsed = false;
+    int gate = 0;
+    for (int i = 0; i < n; i++) {
+        const AlttpRoomEdge& e = legs[i].edge;
+        if (e.kind == 2) lockedUsed = true;
+        if (e.kind == 3) bigkeyUsed = true;
+        if (!gate) gate = AlttpRoomGate(e.to);
+        int half = -1;
+        if (e.kind <= 4) {
+            const AlttpRoomEdge* sib = nullptr;
+            int cnt = AlttpRoomEdges(legs[i].from, &sib);
+            int sameWall = 0;
+            for (int j = 0; j < cnt; j++)
+                if (sib[j].kind <= 4 && sib[j].dir == e.dir) sameWall++;
+            if (sameWall >= 2) half = e.pos < 6 ? 0 : 1;
+        }
+        if (mn > 0 && e.kind <= 4 && m[mn - 1].kind == e.kind &&
+            m[mn - 1].dir == e.dir && m[mn - 1].half == half)
+            m[mn - 1].count++;
+        else
+            m[mn++] = Merged{ e.kind, e.dir, half, 1 };
+    }
+    static const char* kDir[4] = { "north", "south", "west", "east" };
+    static const char* kKindWord[5] = { "door", "shutter door", "locked door",
+                                        "big key door", "bombable wall" };
+    char buf[384];
+    size_t used = 0;
+    used += (size_t) snprintf(buf + used, sizeof(buf) - used, "Route: ");
+    for (int i = 0; i < mn; i++) {
+        bool last = (i == mn - 1);
+        if (i > 0) used += (size_t) snprintf(buf + used, sizeof(buf) - used, ", ");
+        if (last && mn > 1) used += (size_t) snprintf(buf + used, sizeof(buf) - used, "then ");
+        if (m[i].kind == 5) {
+            used += (size_t) snprintf(buf + used, sizeof(buf) - used, "take the stairs");
+        } else if (m[i].kind == 6) {
+            used += (size_t) snprintf(buf + used, sizeof(buf) - used, "drop down the pit");
+        } else {
+            const char* halfWord = "";
+            if (m[i].half >= 0)
+                halfWord = (m[i].dir <= 1) ? (m[i].half == 0 ? "west " : "east ")
+                                           : (m[i].half == 0 ? "north " : "south ");
+            if (m[i].count == 1) {
+                used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                          "%s through the %s%s", kDir[m[i].dir],
+                                          halfWord, kKindWord[m[i].kind]);
+            } else {
+                char w[16];
+                NumberWords((unsigned) m[i].count, w, sizeof(w));
+                used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                          "%s through %s %s%ss", kDir[m[i].dir],
+                                          w, halfWord, kKindWord[m[i].kind]);
+            }
+        }
+        if (last)
+            used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                      " into the %s.", targetRoom);
+    }
+    if (lockedUsed && u8(KEYS) == 0)
+        used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                  " You have no small key for the locked door.");
+    if (bigkeyUsed) {
+        unsigned id = (unsigned) u8(DUNGEON_INDEX) / 2u;
+        bool big = id < 16u && ((u16(BIG_KEY) >> id) & 1u) != 0;
+        if (!big)
+            used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                      " You do not have the big key.");
+    }
+    if (gate == 1)
+        used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                  " One room on the way is gated: clear it to open the door.");
+    else if (gate == 2)
+        used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                  " One room on the way is gated: a switch opens the door.");
+    snprintf(out, cap, "%s", buf);
+}
+
+void SpeakGuideIndoors()
+{
+    uint8_t dungeon = u8(DUNGEON_INDEX);
+    unsigned room = u16(DUNGEON_ROOM);
+    if (dungeon == 0xFF || room >= 320) {
+        Say("Guidance works outside.", "guide", Priority::High);
+        return;
+    }
+    uint16_t comp = AlttpRoomComponent((uint16_t) room);
+    if (comp != g_indoorComponent) {
+        g_indoorComponent = comp;
+        g_indoorIndex = 0;
+    }
+    static const uint8_t kPoiBits[3] = { 2, 4, 1 };
+    static const char* kPoiNames[3] = { "Big Chest", "Boss", "Entrance" };
+    static const char* kPoiRooms[3] = { "big chest room", "boss room", "entrance room" };
+    for (int t = 0; t < 3; t++) {
+        int ci = (g_indoorIndex + t) % 3;
+        RoomLeg legs[64];
+        uint16_t target = 0;
+        int n = FindRoomRoute((uint16_t) room, kPoiBits[ci], legs, 64, &target);
+        if (n < 0) continue;
+        g_indoorIndex = (unsigned) (ci + 1) % 3;
+        char line[448];
+        if (n == 0) {
+            snprintf(line, sizeof(line), "Guide: %s. You are here.", kPoiNames[ci]);
+            Say(line, "guide", Priority::High);
+            return;
+        }
+        char route[384];
+        RenderRoomRoute(legs, n, kPoiRooms[ci], route, sizeof(route));
+        snprintf(line, sizeof(line), "Guide: %s. %s", kPoiNames[ci], route);
+        Say(line, "guide", Priority::High);
+        return;
+    }
+    Say("Guide: no route from here.", "guide", Priority::High);
+}
+
 /* Declared here because the guide aims at the objective before the objective
  * section below defines it. */
 struct Objective { const char* text; uint8_t area; };
@@ -1184,7 +1379,7 @@ void SpeakGuide()
         return;
     }
     if (u8(PLAYER_INDOORS) != 0) {
-        Say("Guidance works outside.", "guide", Priority::High);
+        SpeakGuideIndoors();
         return;
     }
 
@@ -1443,10 +1638,11 @@ const Adapter kZeldaLinkToThePast = {
     "in-game dialogue is spoken as it appears; the item menu reads the "
     "selected item, and the save menu reads the selected slot. Where Am I "
     "names your area. Status reads hearts, magic, rupees and, inside a "
-    "dungeon, keys, big key, map and compass. Guide and Objective give a "
-    "Guide gives a spoken walking route to named places in both the "
-    "light and dark worlds when the game's tile data proves one, and "
-    "otherwise a compass bearing, said as a fallback. Objective names "
+    "dungeon, keys, big key, map and compass. Guide gives a spoken "
+    "walking route to named places in both the light and dark worlds "
+    "when the game's tile data proves one, and otherwise a compass "
+    "bearing, said as a fallback; inside a dungeon it routes room to "
+    "room to the big chest, the boss and the entrance. Objective names "
     "your current goal and, in the dark world, the crystals held, "
     "those remaining, and the nearest remaining dungeon.\n"
     "Supported version: the USA 1.0 ROM with CRC32 777AAC2F.",
