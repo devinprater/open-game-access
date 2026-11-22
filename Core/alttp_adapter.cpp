@@ -1183,7 +1183,10 @@ void DirectionText(uint8_t targetArea, const char* targetName, char* out, size_t
  * Inside a dungeon the guide routes room to room on the generated room
  * graph (alttp_dungeon_graph.cpp): doors confirmed from both sides by the
  * game's own pairing rule, staircases confirmed from both ends, pit drops
- * that stay inside the component. The cycle walks the three points of
+ * the game itself proves: a real pit in the room (an open-hole object, or
+ * the hole hidden under a liftable block) in a room whose pits drop the
+ * player - where pits only hurt, the destination byte is never read and
+ * proves nothing. The cycle walks the three points of
  * interest - big chest, boss, entrance - and a point the graph cannot
  * reach from this part of the dungeon is skipped, never invented: when
  * nothing at all is reachable the answer says so. */

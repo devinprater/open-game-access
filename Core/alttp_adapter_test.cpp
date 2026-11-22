@@ -645,6 +645,56 @@ int main()
           "Guide: Big Chest. Route: south through the shutter door, east through the door, east through the shutter door, take the stairs, then south through the locked door into the big chest room. You have no small key for the locked door. One room on the way is gated: clear it to open the door.") == 0,
           "guide indoors: a locked door with no key is named with its cost");
 
+    // The Ice Palace boss has no door at all: room 222 is reached
+    // only by the pit fall from room 206, whose pick-up block hides
+    // the game's only hole secret - and the fall is live because that
+    // room's pits drop the player (where pits only hurt, the
+    // destination byte is never read and proves nothing). Expected
+    // routes cross-checked with an independent router over the
+    // emitted table. Room 14 is the entrance hall, 158 the big chest.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(ROOM, 14); put8(0x7E040Cu, 0x12);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Big Chest. Route: take the stairs, east through the shutter door, take the stairs, take the stairs, take the stairs, west through the shutter door, then drop down the pit into the big chest room. One room on the way is gated: a switch opens the door.") == 0,
+          "guide indoors: the Ice Palace big chest route drops through a pit");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Boss. Route: take the stairs, east through the shutter door, take the stairs, take the stairs, take the stairs, west through the shutter door, drop down the pit, take the stairs, south through the shutter door, then drop down the pit into the boss room. One room on the way is gated: a switch opens the door.") == 0,
+          "guide indoors: the Ice Palace boss route ends with the fall from room 206");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guide: Entrance. You are here.") == 0,
+          "guide indoors: the Ice Palace entrance room says so");
+
+    // Standing over the hidden hole itself, the boss is one fall away.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(ROOM, 206);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Big Chest. Route: north through the shutter door, then take the stairs into the big chest room. One room on the way is gated: a switch opens the door.") == 0,
+          "guide indoors: from room 206 the cycle restarts at the big chest");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Boss. Route: drop down the pit into the boss room. One room on the way is gated: clear it to open the door.") == 0,
+          "guide indoors: room 206 falls straight into the boss room");
+
+    // The same fall rule connects Mothula: Skull Woods' boss room 41
+    // has no paired door either, and the pit in room 57 drops into
+    // it. From the Boss Lair entrance (room 89) the first press skips
+    // the big chest this part of the dungeon does not hold.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(ROOM, 89); put8(0x7E040Cu, 0x10);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Boss. Route: north through the locked door, north through the door, then drop down the pit into the boss room. You have no small key for the locked door. One room on the way is gated: clear it to open the door.") == 0,
+          "guide indoors: the Mothula route falls through the pit in room 57");
+
     // A house is indoors but no dungeon: the refusal stands.
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(0x7E040Cu, 0xFF);

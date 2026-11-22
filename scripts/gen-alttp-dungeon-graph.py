@@ -17,8 +17,11 @@ Edge rules (all measured from the game's own code, src/dungeon.c):
   destination room's own stair list points back) - the header carries
   inert template values in rooms with no staircase, so an unconfirmed
   dest is not evidence of travel.
-- Pits: a one-way edge where the room holds an open-hole object
-  (FE6-Hole / A4-Hole) and hole0_dest names another room.
+- Pits: a one-way edge where the room holds a real pit - an open-hole
+  object (FE6-Hole / A4-Hole) or the hole hidden under a liftable
+  object (the 80-Hole secret) - and its pits drop the player: the
+  header's pits_hurt_player flag is the game's own switch for whether
+  the destination byte is ever read on a fall (see the pit block).
 
 The generator prints the closure invariant per component: from every
 entrance room, are the component's big chest and boss rooms reachable
@@ -83,6 +86,7 @@ def main():
     poi = defaultdict(int)   # 1 entrance, 2 big chest, 4 boss
     entrance_name = {}
     has_hole = {}
+    pits_hurt = {}
     for room, data in rooms.items():
         header = data.get("Header") or {}
         doors[room] = [(d["dir"], d["pos"], d["type"])
@@ -91,6 +95,7 @@ def main():
                        for k in ("hole0_dest", "stair0_dest", "stair1_dest",
                                  "stair2_dest", "stair3_dest")]
         gates[room] = gate_class(header)
+        pits_hurt[room] = bool(header.get("pits_hurt_player"))
         for chest in data.get("Chests") or []:
             if isinstance(chest, str) and chest.endswith("!"):
                 poi[room] |= 2
@@ -101,7 +106,9 @@ def main():
             entrance_name[room] = e.get("name", "")
         names = [o.get("n", "") for layer in ("Layer1", "Layer2")
                  for o in (data.get(layer) or []) if isinstance(o, dict)]
-        has_hole[room] = any(n.startswith(HOLE_OBJECTS) for n in names)
+        has_hole[room] = any(n.startswith(HOLE_OBJECTS) for n in names) or any(
+            len(s) > 2 and str(s[2]) == "80-Hole"
+            for s in (data.get("Secrets") or []))
 
     def neighbour(room, d):
         if d == 0 and room < 16: return None
@@ -169,30 +176,31 @@ def main():
             else:
                 diag["stair_unconfirmed"] += 1
 
-    # Components from doors + stairs first: a pit drop ships only when it
-    # lands inside the same component. A hole dest that leaves the
-    # component is template residue (Skull Woods' drop-in rooms carry
-    # hole dest 9, a Palace of Darkness room - palette-verified different
-    # dungeon) and is reported, not shipped.
-    parent0 = list(range(320))
-    def find0(x):
-        while parent0[x] != x:
-            parent0[x] = parent0[parent0[x]]
-            x = parent0[x]
-        return x
-    for room in range(320):
-        for (to, *_rest) in edges[room]:
-            a, b = find0(room), find0(to)
-            if a != b:
-                parent0[a] = b
+    # Pit drops. The destination byte (travel_destinations[0], header
+    # byte 9) is read on a fall ONLY when the room's pits drop the
+    # player: player.c checks Dungeon_IsPitThatHurtsPlayer() first,
+    # and where the header sets pits_hurt_player the game damages Link
+    # and keeps him in the room - the byte is never read, so dest
+    # values in those rooms are inert template residue (Skull Woods'
+    # drop-in rooms 86/88 carry hole dest 9, a Palace of Darkness
+    # room, under exactly that flag; the old same-component test
+    # existed to keep them out). Where a real pit exists and the byte
+    # is live, the dest is exactly what the game loads, even when the
+    # fall is the destination's only way in: the Ice Palace boss room
+    # 222 has no doors at all and is reached only by the fall from
+    # room 206, whose pick-up block hides the game's only 80-Hole
+    # secret.
     for room in range(320):
         hole = dests[room][0]
-        if hole and hole != room and hole < 320 and has_hole.get(room):
-            if find0(hole) == find0(room):
-                edges[room].append((hole, KIND_PIT, 0xFE, 0))
-                diag["pit_edges"] += 1
-            else:
-                diag["pit_cross_component"] += 1
+        if not has_hole.get(room):
+            continue
+        if not hole or hole == room or hole >= 320:
+            diag["pit_no_dest"] += 1
+        elif pits_hurt.get(room):
+            diag["pit_hurt_inert"] += 1
+        else:
+            edges[room].append((hole, KIND_PIT, 0xFE, 0))
+            diag["pit_edges"] += 1
 
     # components over shipped edges, undirected
     parent = list(range(320))
