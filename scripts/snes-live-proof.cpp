@@ -377,15 +377,18 @@ static int Walk(const char* rom, const char* savedir)
     }
     for (int f = 0; f < 400; f++) poke_frame(core);
     bool guide_objective = false;
+    bool guide_route = false;
     for (const std::string& s : g_say) {
         std::printf("SAY: %s\n", s.c_str());
         if (s.rfind("Guide: ", 0) == 0) {
             bearings++;
             if (s.find("Kakariko Village") != std::string::npos) guide_objective = true;
+            if (s.find("Route:") != std::string::npos) guide_route = true;
         }
     }
     std::printf("guide-lines=%d\n", bearings);
     std::printf("guide-objective=%s\n", guide_objective ? "YES" : "NO");
+    std::printf("guide-route=%s\n", guide_route ? "YES" : "NO");
     std::printf("guide-proof=%s\n", bearings >= 2 ? "YES" : "NO");
 
     /* The objective on the live save: progress flags 0x15 and no pendants, so
@@ -402,7 +405,7 @@ static int Walk(const char* rom, const char* savedir)
     std::printf("walk-proof=%s\n", spoke_outside ? "YES" : "NO");
     poke_stop(core);
     poke_destroy(core);
-    return (spoke_outside && bearings >= 2 && objective_spoke && guide_objective) ? 0 : 1;
+    return (spoke_outside && bearings >= 2 && objective_spoke && guide_objective && guide_route) ? 0 : 1;
 }
 
 // --dialogue: the intro's telepathy box on a NEW file. This is the only
@@ -444,10 +447,85 @@ static int Dialogue(const char* rom, const char* savedir)
     return spoke ? 0 : 1;
 }
 
+// --darkobj: the dark-world objective on the real game. The save directory
+// given to this mode is a CRAFTED COPY of the public save whose slot 1 has
+// sram_progress_indicator 3 (Agahnim down) and three crystal bits set, with
+// the file checksum recomputed by the game's own rule (select_file.c:
+// word 0x27F makes the first 0x280 words sum to 0x5A5A). The fixture and the
+// golden save are never written. Link still stands at his house in the
+// light world, so the Objective must name the maidens stage, the crystals
+// held and remaining, and the nearest remaining dungeon as lying in the
+// dark world.
+static int DarkObj(const char* rom, const char* savedir)
+{
+    PokeCore* core = poke_create();
+    if (!core) { std::printf("FAIL: no core\n"); return 1; }
+    poke_set_speech_callback(core, OnSpeak, nullptr);
+    g_say.clear();
+
+    if (!poke_load_rom(core, rom, savedir) || !poke_start(core)) {
+        std::printf("FAIL: %s\n", poke_last_error(core));
+        poke_destroy(core);
+        return 1;
+    }
+    (void) poke_adapter_ready(core);
+
+    for (int f = 0; f < 1500; f++) {
+        poke_set_button(core, POKE_BTN_START, (f % 90) < 4);
+        poke_set_button(core, POKE_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        poke_frame(core);
+    }
+    poke_set_button(core, POKE_BTN_START, false);
+    poke_set_button(core, POKE_BTN_A, false);
+
+    size_t before = g_say.size();
+    TapApp(core, POKE_BTN_START, 4, 60);
+    bool opened = false;
+    for (size_t i = before; i < g_say.size(); i++)
+        if (g_say[i].rfind("Item menu.", 0) == 0) opened = true;
+    if (opened) TapApp(core, POKE_BTN_START, 4, 60);
+
+    std::printf("-- walking out --\n");
+    for (int i = 0; i < 300; i++) {
+        poke_set_button(core, POKE_BTN_DOWN, true);
+        poke_set_button(core, POKE_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        poke_frame(core);
+    }
+    poke_set_button(core, POKE_BTN_DOWN, false);
+    poke_set_button(core, POKE_BTN_A, false);
+    for (int i = 0; i < 60; i++) poke_frame(core);
+
+    bool spoke_outside = false;
+    for (const std::string& s : g_say)
+        if (s.rfind("Outside,", 0) == 0) spoke_outside = true;
+    std::printf("outside-spoken=%d\n", (int) spoke_outside);
+
+    g_say.clear();
+    poke_command(core, 42);
+    for (int f = 0; f < 400; f++) poke_frame(core);
+    bool maidens = false, held = false, remaining = false, nearest = false;
+    for (const std::string& s : g_say) {
+        if (s.rfind("Objective:", 0) != 0) continue;
+        if (s.find("Rescue the seven maidens.") != std::string::npos) maidens = true;
+        if (s.find("Three of seven crystals held.") != std::string::npos) held = true;
+        if (s.find("Remaining: Thieves' Town, Ice Palace, Misery Mire, Turtle Rock.") != std::string::npos) remaining = true;
+        if (s.find("Nearest remaining: Thieves' Town, in the dark world.") != std::string::npos) nearest = true;
+    }
+    bool ok = spoke_outside && maidens && held && remaining && nearest;
+    std::printf("maidens=%d held=%d remaining=%d nearest=%d\n",
+                (int) maidens, (int) held, (int) remaining, (int) nearest);
+    std::printf("darkobj-proof=%s\n", ok ? "YES" : "NO");
+    poke_stop(core);
+    poke_destroy(core);
+    return ok ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
     if (argc >= 4 && std::strcmp(argv[1], "--walk") == 0)
         return Walk(argv[2], argv[3]);
+    if (argc >= 4 && std::strcmp(argv[1], "--darkobj") == 0)
+        return DarkObj(argv[2], argv[3]);
     if (argc >= 4 && std::strcmp(argv[1], "--dialogue") == 0)
         return Dialogue(argv[2], argv[3]);
     if (argc >= 4 && std::strcmp(argv[1], "--files") == 0)

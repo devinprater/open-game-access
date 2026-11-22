@@ -20,6 +20,7 @@
 #include "alttp_text.h"
 #include "alttp_names.h"
 #include "alttp_rooms.h"
+#include "alttp_graph.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -39,6 +40,9 @@ uint32_t g_spokenTextHash = 0;
 /* The story stage the guide cycle was last aimed at. 0xFE is "never aimed", so
  * the first press after attach points at the current objective. */
 uint8_t g_objectiveArea = 0xFE;
+/* The world the guide cycle was last aimed in (0 light, 1 dark); switching
+ * worlds re-aims the cycle like a story-stage change does. */
+uint8_t g_guideWorld = 0xFF;
 
 /* ---- the work-RAM map (zelda3 src/variables.h, g_ram is banks 7E/7F) ---- */
 constexpr uint32_t RAM_BASE          = 0x7E0000u;
@@ -73,6 +77,16 @@ constexpr uint32_t BOTTLE_INFO        = 0x7EF35Cu;  /* link_bottle_info[4] */
 constexpr uint32_t PROGRESS_FLAGS     = 0x7EF3C6u;  /* sram_progress_flags */
 constexpr uint32_t PROGRESS_INDICATOR = 0x7EF3C5u;  /* sram_progress_indicator */
 constexpr uint32_t PENDANTS           = 0x7EF374u;  /* link_which_pendants */
+constexpr uint32_t CRYSTALS           = 0x7EF37Au;  /* link_which_crystals */
+/* The overworld tile-attribute map (overworld_tileattr) and the scroll
+ * window it is addressed through (overworld_offset_base/mask x/y). The
+ * guide flood-fills the current screen from these, exactly as the game's
+ * own Overworld_GetTileAttributeAtLocation addresses them. */
+constexpr uint32_t TILEATTR           = 0x7E2000u;  /* overworld_tileattr */
+constexpr uint32_t OW_BASE_Y          = 0x7E0708u;  /* overworld_offset_base_y */
+constexpr uint32_t OW_MASK_Y          = 0x7E070Au;  /* overworld_offset_mask_y */
+constexpr uint32_t OW_BASE_X          = 0x7E070Cu;  /* overworld_offset_base_x */
+constexpr uint32_t OW_MASK_X          = 0x7E070Eu;  /* overworld_offset_mask_x */
 constexpr uint32_t KEYS               = 0x7EF36Fu;  /* link_num_keys */
 constexpr uint32_t BIG_KEY            = 0x7EF366u;  /* link_bigkey, one bit per dungeon */
 constexpr uint32_t COMPASS            = 0x7EF364u;  /* link_compass, one bit per dungeon */
@@ -233,6 +247,7 @@ void AlttpDetach()
     g_lastTextHash = 0;
     g_spokenTextHash = 0;
     g_objectiveArea = 0xFE;
+    g_guideWorld = 0xFF;
 }
 
 /* Module 14 is the interface/HUD layer; the real screen is in
@@ -815,10 +830,19 @@ void SpeakWhereAmI()
 }
 
 /* ---- guidance -------------------------------------------------------------
- * ⛔ THIS IS A BEARING, NOT A ROUTE. The game exposes no walkable graph, so the
- * reader says only which way a landmark lies and roughly how many screens away
- * it is. Walls, rivers and ledges stay the player's problem; claiming a path
- * would send a blind player into one.
+ * ⛔ A ROUTE IS A CLAIM, SO IT IS ONLY SPOKEN WHEN IT IS PROVEN. The walking
+ * graph in alttp_graph.cpp is generated offline from the game's own tile
+ * assembly (scripts/gen-alttp-graph.py): per screen, the walkable regions
+ * and the border gaps between them, ledge drops included as one-way edges.
+ * The guide flood-fills the CURRENT screen from the game's tile-attribute
+ * RAM with the same walkable table and the same region numbering, so the
+ * region Link stands in is measured at the moment of the press. When that
+ * measurement cannot be trusted (the live fill disagrees with the table's
+ * region count), a route is spoken only if every region of the screen that
+ * can reach the target agrees on the same legs. Anything less falls back
+ * to a bearing, said as a bearing: "No walking route known; it lies ...".
+ * Caves, doors and portals are not graph edges; a landmark the walking
+ * graph cannot reach gets the bearing fallback, never an invented path.
  *
  * The screen grid comes from the game's own conversion in overworld.c:
  *   area = ((y & 0x1E00) >> 5) | ((x & 0x1E00) >> 8)
@@ -830,9 +854,8 @@ constexpr int SCREEN_UNITS = 0x200;
 
 struct GuideTarget { uint8_t area; const char* name; };
 
-/* The landmarks a player actually walks to. The names are repeated here only as
- * a fallback; the spoken name is the same table WhereAmI uses. */
-const GuideTarget kGuideTargets[] = {
+/* The landmarks a player actually walks to, per world. */
+const GuideTarget kLightTargets[] = {
     { 0x2C, "Link's House" },
     { 0x13, "Sanctuary" },
     { 0x1B, "Hyrule Castle" },
@@ -843,7 +866,20 @@ const GuideTarget kGuideTargets[] = {
     { 0x05, "Death Mountain East" },
     { 0x00, "Lost Woods" },
 };
-const unsigned kGuideTargetCount = sizeof(kGuideTargets) / sizeof(kGuideTargets[0]);
+const unsigned kLightTargetCount = sizeof(kLightTargets) / sizeof(kLightTargets[0]);
+
+const GuideTarget kDarkTargets[] = {
+    { 0x5B, "Pyramid of Power" },
+    { 0x5E, "Palace of Darkness" },
+    { 0x7B, "Swamp Palace" },
+    { 0x40, "Skull Woods" },
+    { 0x58, "Thieves' Town" },
+    { 0x75, "Ice Palace" },
+    { 0x70, "Misery Mire" },
+    { 0x47, "Turtle Rock" },
+    { 0x43, "Ganon's Tower" },
+};
+const unsigned kDarkTargetCount = sizeof(kDarkTargets) / sizeof(kDarkTargets[0]);
 
 /* Screen y grows downward, so a positive dy is south. A ratio test keeps the
  * cardinal directions from wobbling on small offsets. */
@@ -861,7 +897,8 @@ const char* CompassWords(int dx, int dy)
 }
 
 /* "north-west, about three screens" for the target area's base cell. The octile
- * span is exact enough for "about" and needs no sqrt. Returns `out`. */
+ * span is exact enough for "about" and needs no sqrt. Returns `out`. The dark
+ * world mirrors the light grid, so the same arithmetic serves both. */
 const char* BearingText(uint8_t targetArea, char* out, size_t cap)
 {
     int column = (int) (targetArea & 7);
@@ -890,6 +927,251 @@ const char* BearingText(uint8_t targetArea, char* out, size_t cap)
     return out;
 }
 
+/* ---- the walking router -------------------------------------------------- */
+
+struct RouteLeg { uint8_t side; uint8_t third; uint8_t ledge; uint8_t toScreen; };
+constexpr int kMaxRouteLegs = 48;
+
+/* The walkable region under Link's feet on the given screen (0..127),
+ * flood-filled from the game's own tile-attribute RAM with the generated
+ * walkable table. Region numbering matches the generator: row-major seed
+ * order, four-connectivity. Returns -1 when the measurement cannot be
+ * trusted: Link off the cell, on no walkable tile, or the live fill's
+ * region count disagrees with the generated table (a redraw in flight, or
+ * tiles the game has changed since the table was made). */
+int LiveRegion(uint8_t screen)
+{
+    int cell = screen & 63;
+    int cellX = (cell & 7) * SCREEN_UNITS;
+    int cellY = ((cell >> 3) & 7) * SCREEN_UNITS;
+    uint16_t by = u16(OW_BASE_Y), my = u16(OW_MASK_Y);
+    uint16_t bx = u16(OW_BASE_X), mx = u16(OW_MASK_X);
+    bool direct = (my == 0 || mx == 0);
+
+    static bool walk[1024];
+    for (int ry = 0; ry < 32; ry++) {
+        for (int rx = 0; rx < 32; rx++) {
+            uint32_t idx;
+            if (direct) {
+                idx = (uint32_t) (ry * 64 + rx);
+            } else {
+                int px8 = (cellX + rx * 16 + 8) / 8;
+                int py = cellY + ry * 16 + 8;
+                uint32_t t = (uint32_t) (((py - (int) by) & (int) my) * 8 +
+                                         ((px8 - (int) bx) & (int) mx));
+                idx = t >> 1;
+            }
+            walk[ry * 32 + rx] = AlttpMap16Walkable(u16(TILEATTR + idx * 2));
+        }
+    }
+
+    static int16_t region[1024];
+    static uint16_t stack[1024];
+    for (int i = 0; i < 1024; i++) region[i] = -1;
+    int next = 0;
+    for (int ry = 0; ry < 32; ry++) {
+        for (int rx = 0; rx < 32; rx++) {
+            int seed = ry * 32 + rx;
+            if (region[seed] >= 0 || !walk[seed]) continue;
+            int sp = 0;
+            stack[sp++] = (uint16_t) seed;
+            region[seed] = (int16_t) next;
+            while (sp > 0) {
+                int cur = stack[--sp];
+                int cx = cur & 31, cy = cur >> 5;
+                static const int kDx[4] = { 1, -1, 0, 0 };
+                static const int kDy[4] = { 0, 0, 1, -1 };
+                for (int d = 0; d < 4; d++) {
+                    int nx = cx + kDx[d], ny = cy + kDy[d];
+                    if (nx < 0 || nx >= 32 || ny < 0 || ny >= 32) continue;
+                    int ni = ny * 32 + nx;
+                    if (region[ni] >= 0 || !walk[ni]) continue;
+                    region[ni] = (int16_t) next;
+                    stack[sp++] = (uint16_t) ni;
+                }
+            }
+            next++;
+        }
+    }
+    if (next != (int) AlttpScreenRegionCount(screen)) return -1;
+
+    int lx = ((int) u16(LINK_X) - cellX) / 16;
+    int ly = ((int) u16(LINK_Y) - cellY) / 16;
+    if (lx < 0 || lx >= 32 || ly < 0 || ly >= 32) return -1;
+    int r = region[ly * 32 + lx];
+    if (r < 0) {
+        /* On a door mat or a ledge lip: borrow a neighbour's region. */
+        for (int dy = -1; dy <= 1 && r < 0; dy++)
+            for (int dx = -1; dx <= 1 && r < 0; dx++) {
+                int nx = lx + dx, ny = ly + dy;
+                if (nx >= 0 && nx < 32 && ny >= 0 && ny < 32)
+                    r = region[ny * 32 + nx];
+            }
+    }
+    return r;
+}
+
+/* Dijkstra over (screen, region) states on the generated gap graph. A gap
+ * costs 100, plus 50 when it is a ledge drop, so at equal length a walking
+ * route beats a dropping one. Fills legs in travel order and returns the
+ * leg count, 0 when the start screen is already in the target area, or -1
+ * when the area cannot be reached. */
+int FindRoute(uint8_t fromScreen, int fromRegion, uint8_t targetArea,
+              RouteLeg* legs, int maxLegs)
+{
+    constexpr int kRegions = 80;
+    constexpr int kStates = 128 * kRegions;
+    static int dist[kStates];
+    static int prevState[kStates];
+    static RouteLeg prevLeg[kStates];
+    static int heapDist[kStates];
+    static int heapState[kStates];
+
+    if (fromRegion < 0 || fromRegion >= kRegions) return -1;
+    for (int i = 0; i < kStates; i++) { dist[i] = -1; prevState[i] = -1; }
+    int start = fromScreen * kRegions + fromRegion;
+    dist[start] = 0;
+    int hn = 0;
+    heapDist[hn] = 0; heapState[hn] = start; hn++;
+    int goal = -1;
+    while (hn > 0) {
+        /* pop the cheapest */
+        int bi = 0;
+        for (int i = 1; i < hn; i++)
+            if (heapDist[i] < heapDist[bi] ||
+                (heapDist[i] == heapDist[bi] && heapState[i] < heapState[bi]))
+                bi = i;
+        int d = heapDist[bi], s = heapState[bi];
+        heapDist[bi] = heapDist[hn - 1]; heapState[bi] = heapState[hn - 1]; hn--;
+        if (d != dist[s]) continue;
+        int screen = s / kRegions, region = s % kRegions;
+        if (AlttpAreaOfScreen((uint8_t) screen) == targetArea) { goal = s; break; }
+        const AlttpGap* gaps = nullptr;
+        int n = AlttpScreenGaps((uint8_t) screen, &gaps);
+        for (int i = 0; i < n; i++) {
+            const AlttpGap& g = gaps[i];
+            if (g.region != region) continue;
+            int ns = screen + g.dScreen;
+            if (ns < 0 || ns >= 128 || g.toRegion >= kRegions) continue;
+            int nstate = ns * kRegions + g.toRegion;
+            int nd = d + 100 + (g.ledge ? 50 : 0);
+            if (dist[nstate] < 0 || nd < dist[nstate]) {
+                dist[nstate] = nd;
+                prevState[nstate] = s;
+                prevLeg[nstate] = RouteLeg{ g.side, g.third, g.ledge, (uint8_t) ns };
+                heapDist[hn] = nd; heapState[hn] = nstate; hn++;
+            }
+        }
+    }
+    if (goal < 0) return -1;
+    int count = 0;
+    for (int s = goal; prevState[s] >= 0; s = prevState[s]) count++;
+    if (count > maxLegs) return -1;
+    int i = count;
+    for (int s = goal; prevState[s] >= 0; s = prevState[s]) legs[--i] = prevLeg[s];
+    return count;
+}
+
+/* "Route: north one screen, west two screens, then south one screen,
+ * hopping down the ledge, into Kakariko Village." Consecutive legs in the
+ * same direction (and the same ledge flag) merge into one counted leg; the
+ * first leg names which end of the border to leave by when the gap is not
+ * in the border's middle third. */
+void RenderRoute(const RouteLeg* legs, int n, const char* targetName,
+                 char* out, size_t cap)
+{
+    struct Merged { uint8_t side; uint8_t third; uint8_t ledge; int count; };
+    Merged m[kMaxRouteLegs];
+    int mn = 0;
+    for (int i = 0; i < n; i++) {
+        if (mn > 0 && m[mn - 1].side == legs[i].side && m[mn - 1].ledge == legs[i].ledge)
+            m[mn - 1].count++;
+        else
+            m[mn++] = Merged{ legs[i].side, legs[i].third, legs[i].ledge, 1 };
+    }
+    static const char* kDir[4] = { "north", "south", "west", "east" };
+    char buf[320];
+    size_t used = 0;
+    used += (size_t) snprintf(buf + used, sizeof(buf) - used, "Route: ");
+    for (int i = 0; i < mn; i++) {
+        bool last = (i == mn - 1);
+        if (i > 0) used += (size_t) snprintf(buf + used, sizeof(buf) - used, ", ");
+        if (last && mn > 1) used += (size_t) snprintf(buf + used, sizeof(buf) - used, "then ");
+        char count[24];
+        if (m[i].count == 1) {
+            snprintf(count, sizeof(count), "one screen");
+        } else {
+            char w[16];
+            NumberWords((unsigned) m[i].count, w, sizeof(w));
+            snprintf(count, sizeof(count), "%s screens", w);
+        }
+        used += (size_t) snprintf(buf + used, sizeof(buf) - used, "%s %s",
+                                  kDir[m[i].side], count);
+        if (m[i].ledge)
+            used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                      ", hopping down the ledge");
+        if (i == 0 && m[i].third != 1) {
+            const char* end = (m[i].side <= 1)
+                ? (m[i].third == 0 ? "west end" : "east end")
+                : (m[i].third == 0 ? "north end" : "south end");
+            used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                      " from near the %s", end);
+        }
+        if (last)
+            used += (size_t) snprintf(buf + used, sizeof(buf) - used,
+                                      " into %s.", targetName);
+    }
+    snprintf(out, cap, "%s", buf);
+}
+
+/* The direction sentence for a target area from where Link stands: a proven
+ * walking route, or the bearing fallback said as a fallback. */
+void DirectionText(uint8_t targetArea, const char* targetName, char* out, size_t cap)
+{
+    uint8_t raw = u8(OVERWORLD_SCREEN);
+    uint8_t screen = (uint8_t) (raw & 0x7F);
+    RouteLeg legs[kMaxRouteLegs];
+    int n = -1;
+    if (raw < 128 && AlttpAreaOfScreen(screen) != targetArea) {
+        int region = LiveRegion(screen);
+        if (region >= 0) {
+            n = FindRoute(screen, region, targetArea, legs, kMaxRouteLegs);
+        } else {
+            /* The live fill cannot be trusted: speak a route only when
+             * every region of this screen that can reach the target at all
+             * agrees on the same legs. */
+            int count = (int) AlttpScreenRegionCount(screen);
+            RouteLeg best[kMaxRouteLegs];
+            int bestN = -1;
+            bool agreed = true;
+            for (int r = 0; r < count; r++) {
+                RouteLeg l2[kMaxRouteLegs];
+                int n2 = FindRoute(screen, r, targetArea, l2, kMaxRouteLegs);
+                if (n2 < 0) continue;
+                if (bestN < 0) {
+                    bestN = n2;
+                    memcpy(best, l2, sizeof(RouteLeg) * (size_t) n2);
+                } else if (n2 != bestN ||
+                           memcmp(best, l2, sizeof(RouteLeg) * (size_t) n2) != 0) {
+                    agreed = false;
+                    break;
+                }
+            }
+            if (agreed && bestN > 0) {
+                memcpy(legs, best, sizeof(RouteLeg) * (size_t) bestN);
+                n = bestN;
+            }
+        }
+    }
+    if (n > 0) {
+        RenderRoute(legs, n, targetName, out, cap);
+        return;
+    }
+    char bearing[80];
+    BearingText(targetArea, bearing, sizeof(bearing));
+    snprintf(out, cap, "No walking route known; it lies %s away.", bearing);
+}
+
 /* Declared here because the guide aims at the objective before the objective
  * section below defines it. */
 struct Objective { const char* text; uint8_t area; };
@@ -907,48 +1189,38 @@ void SpeakGuide()
     }
 
     unsigned area = u16(OVERWORLD_AREA);
-    /* ⛔ THE DARK WORLD MIRRORS THE LIGHT WORLD GRID, but the landmark names for
-     * those ids have not been measured against a save, so the reader refuses
-     * rather than point at a guessed place. */
-    if (area >= 0x40) {
-        Say("Guidance covers the light world only.", "guide", Priority::High);
-        return;
-    }
+    uint8_t world = area >= 0x40 ? 1 : 0;
+    const GuideTarget* targets = world ? kDarkTargets : kLightTargets;
+    unsigned targetCount = world ? kDarkTargetCount : kLightTargetCount;
 
     /* ⛔ THE FIRST PRESS ANSWERS THE QUESTION THE PLAYER ACTUALLY HAS: where is
-     * the next objective? The cycle re-aims only when the story stage changes,
-     * not on every press, so the whole landmark list stays walkable. */
+     * the next objective? The cycle re-aims only when the story stage or the
+     * world changes, not on every press, so the whole landmark list stays
+     * walkable. */
     Objective goal = CurrentObjective();
-    if (goal.area != g_objectiveArea) {
+    if (goal.area != g_objectiveArea || world != g_guideWorld) {
         g_objectiveArea = goal.area;
+        g_guideWorld = world;
         g_guideIndex = 0;
-        for (unsigned i = 0; i < kGuideTargetCount; i++) {
-            if (kGuideTargets[i].area == goal.area) { g_guideIndex = i; break; }
+        for (unsigned i = 0; i < targetCount; i++) {
+            if (targets[i].area == goal.area) { g_guideIndex = i; break; }
         }
     }
 
-    const GuideTarget& target = kGuideTargets[g_guideIndex % kGuideTargetCount];
-    const char* name = AlttpAreaName(target.area);
-    if (!name) name = target.name;
+    const GuideTarget& target = targets[g_guideIndex % targetCount];
+    g_guideIndex = (g_guideIndex + 1) % targetCount;
 
-    char line[160];
+    char line[320];
     if (area == target.area) {
-        snprintf(line, sizeof(line), "Guide: %s. You are here.", name);
+        snprintf(line, sizeof(line), "Guide: %s. You are here.", target.name);
         Say(line, "guide", Priority::High);
-        g_guideIndex = (g_guideIndex + 1) % kGuideTargetCount;
         return;
     }
 
-    /* The area id's low six bits are row * 8 + column. A big area covers four
-     * cells, so its base cell is the top-left one; aiming at that cell's centre
-     * still gives the right side of the map, and arrival is detected by the id
-     * rather than by the cell, so entering any of the four quadrants says "You
-     * are here". */
-    char bearing[80];
-    snprintf(line, sizeof(line), "Guide: %s, %s away.", name,
-             BearingText(target.area, bearing, sizeof(bearing)));
+    char dir[280];
+    DirectionText(target.area, target.name, dir, sizeof(dir));
+    snprintf(line, sizeof(line), "Guide: %s. %s", target.name, dir);
     Say(line, "guide", Priority::High);
-    g_guideIndex = (g_guideIndex + 1) % kGuideTargetCount;
 }
 
 /* ---- the objective -------------------------------------------------------
@@ -957,9 +1229,92 @@ void SpeakGuide()
  * flags 0x15 (sword, Zelda delivered, uncle gone), pendants 0, sword 1.
  * bits: 0x01 uncle gave the sword, 0x04 Zelda reached the Sanctuary,
  * 0x10 the uncle left the house.
- */
+ *
+ * The dark-world stage keys on sram_progress_indicator: the game sets it to
+ * 3 when Agahnim falls in the castle tower (PrepareDungeonExitFromBossFight
+ * in the decompilation), and it stays 3 for the whole second half. A set
+ * crystal bit proves the same phase on its own. There is deliberately no
+ * authoritative "next dungeon": the crystal dungeons gate each other by
+ * equipment, not by a story counter, so the reader names what is held, what
+ * remains, and which remaining dungeon is nearest — never an invented
+ * "next". */
+
+/* The seven crystal dungeons in gating order (each one's equipment opens
+ * the next), with the crystal bit from the decompilation's
+ * kDungeonCrystalPendantBit and the overworld area of the entrance. */
+struct CrystalDungeon { uint8_t bit; uint8_t area; const char* name; };
+const CrystalDungeon kCrystalDungeons[] = {
+    { 2,  0x5E, "Palace of Darkness" },
+    { 16, 0x7B, "Swamp Palace" },
+    { 64, 0x40, "Skull Woods" },
+    { 32, 0x58, "Thieves' Town" },
+    { 4,  0x75, "Ice Palace" },
+    { 1,  0x70, "Misery Mire" },
+    { 8,  0x47, "Turtle Rock" },
+};
+
+bool DarkPhase()
+{
+    return u8(PROGRESS_INDICATOR) == 3 || u8(CRYSTALS) != 0;
+}
+
+int CrystalsHeld()
+{
+    uint8_t c = (uint8_t) (u8(CRYSTALS) & 0x7F);
+    int n = 0;
+    for (int i = 0; i < 7; i++) if (c & (1 << i)) n++;
+    return n;
+}
+
+const CrystalDungeon* CrystalByArea(uint8_t area)
+{
+    for (const CrystalDungeon& d : kCrystalDungeons)
+        if (d.area == area) return &d;
+    return nullptr;
+}
+
+/* The dark-world target: the nearest remaining crystal dungeon by walking
+ * cost when Link stands outdoors in the dark world, else the first
+ * remaining in gating order; Ganon's Tower (0x43) when all seven are held. */
+uint8_t DarkTarget()
+{
+    uint8_t crystals = u8(CRYSTALS);
+    const CrystalDungeon* first = nullptr;
+    for (const CrystalDungeon& d : kCrystalDungeons)
+        if (!(crystals & d.bit)) { first = &d; break; }
+    if (!first) return 0x43;
+    if (u8(PLAYER_INDOORS) == 0 && u16(OVERWORLD_AREA) >= 0x40) {
+        uint8_t raw = u8(OVERWORLD_SCREEN);
+        if (raw < 128) {
+            uint8_t screen = (uint8_t) (raw & 0x7F);
+            int region = LiveRegion(screen);
+            if (region >= 0) {
+                const CrystalDungeon* bestD = nullptr;
+                int bestCost = -1;
+                for (const CrystalDungeon& d : kCrystalDungeons) {
+                    if (crystals & d.bit) continue;
+                    RouteLeg legs[kMaxRouteLegs];
+                    int n = FindRoute(screen, region, d.area, legs, kMaxRouteLegs);
+                    if (n < 0) continue;
+                    int cost = 0;
+                    for (int i = 0; i < n; i++) cost += 100 + (legs[i].ledge ? 50 : 0);
+                    if (bestCost < 0 || cost < bestCost) { bestCost = cost; bestD = &d; }
+                }
+                if (bestD) return bestD->area;
+            }
+        }
+    }
+    return first->area;
+}
+
 Objective CurrentObjective()
 {
+    if (DarkPhase()) {
+        if ((u8(CRYSTALS) & 0x7F) == 0x7F)
+            return { "Climb Ganon's Tower and face Ganon.", 0x43 };
+        return { "Rescue the seven maidens.", DarkTarget() };
+    }
+
     uint8_t flags = u8(PROGRESS_FLAGS);
     uint8_t pendants = u8(PENDANTS);
     uint8_t sword = u8(SWORD_TYPE);
@@ -983,17 +1338,47 @@ void SpeakObjective()
     }
 
     unsigned area = u16(OVERWORLD_AREA);
-    /* ⛔ THE DARK WORLD HAS ITS OWN STORY AFTER AGHANIM, and none of its stages
-     * have been measured, so the reader refuses instead of naming the wrong
-     * goal for the second half of the game. */
-    if (area >= 0x40) {
-        Say("Objective: nothing mapped for the dark world yet.", "objective", Priority::High);
+    bool indoors = u8(PLAYER_INDOORS) != 0;
+    char line[320];
+
+    if (DarkPhase() && (u8(CRYSTALS) & 0x7F) != 0x7F) {
+        /* The maidens stage: what is held, what remains, and — only when a
+         * direction can be proven — the nearest remaining dungeon. */
+        uint8_t crystals = (uint8_t) (u8(CRYSTALS) & 0x7F);
+        char heldWords[16];
+        NumberWords((unsigned) CrystalsHeld(), heldWords, sizeof(heldWords));
+        heldWords[0] = (char) toupper((unsigned char) heldWords[0]);
+        char remaining[192];
+        size_t used = 0;
+        remaining[0] = 0;
+        for (const CrystalDungeon& d : kCrystalDungeons) {
+            if (crystals & d.bit) continue;
+            used += (size_t) snprintf(remaining + used, sizeof(remaining) - used,
+                                      "%s%s", used ? ", " : "", d.name);
+        }
+        uint8_t target = DarkTarget();
+        const CrystalDungeon* td = CrystalByArea(target);
+        if (indoors) {
+            snprintf(line, sizeof(line),
+                     "Objective: Rescue the seven maidens. %s of seven crystals held. Remaining: %s.",
+                     heldWords, remaining);
+        } else if (area >= 0x40) {
+            char dir[280];
+            DirectionText(target, td ? td->name : "the dungeon", dir, sizeof(dir));
+            snprintf(line, sizeof(line),
+                     "Objective: Rescue the seven maidens. %s of seven crystals held. Remaining: %s. Nearest remaining: %s. %s",
+                     heldWords, remaining, td ? td->name : "the dungeon", dir);
+        } else {
+            snprintf(line, sizeof(line),
+                     "Objective: Rescue the seven maidens. %s of seven crystals held. Remaining: %s. Nearest remaining: %s, in the dark world.",
+                     heldWords, remaining, td ? td->name : "the dungeon");
+        }
+        Say(line, "objective", Priority::High);
         return;
     }
 
     Objective goal = CurrentObjective();
-    char line[220];
-    if (u8(PLAYER_INDOORS) != 0) {
+    if (indoors) {
         snprintf(line, sizeof(line), "Objective: %s", goal.text);
         Say(line, "objective", Priority::High);
         return;
@@ -1005,10 +1390,9 @@ void SpeakObjective()
     }
 
     const char* name = AlttpAreaName(goal.area);
-    char bearing[80];
-    BearingText(goal.area, bearing, sizeof(bearing));
-    snprintf(line, sizeof(line), "Objective: %s %s is %s away.", goal.text,
-             name ? name : "The target", bearing);
+    char dir[280];
+    DirectionText(goal.area, name ? name : "The target", dir, sizeof(dir));
+    snprintf(line, sizeof(line), "Objective: %s %s", goal.text, dir);
     Say(line, "objective", Priority::High);
 }
 
@@ -1060,10 +1444,11 @@ const Adapter kZeldaLinkToThePast = {
     "selected item, and the save menu reads the selected slot. Where Am I "
     "names your area. Status reads hearts, magic, rupees and, inside a "
     "dungeon, keys, big key, map and compass. Guide and Objective give a "
-    "compass bearing and a rough distance to named places and to your "
-    "current goal.\n"
-    "Guide is a bearing, not a walkable route, and the dark world's "
-    "objectives are not mapped yet.\n"
+    "Guide gives a spoken walking route to named places in both the "
+    "light and dark worlds when the game's tile data proves one, and "
+    "otherwise a compass bearing, said as a fallback. Objective names "
+    "your current goal and, in the dark world, the crystals held, "
+    "those remaining, and the nearest remaining dungeon.\n"
     "Supported version: the USA 1.0 ROM with CRC32 777AAC2F.",
 };
 

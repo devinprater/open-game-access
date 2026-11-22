@@ -904,6 +904,60 @@ static int WalkMap(const char* rom, const char* savedir)
     return 0;
 }
 
+
+static int WalkMap2(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    snes_set_uncapped(c, true);
+    int f = 0;
+    for (; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    CloseMenu(c);
+    for (int i = 0; i < 300; i++) {
+        snes_set_button(c, SNES_BTN_DOWN, true);
+        snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        snes_frame(c); f++;
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int rep = 0; rep < 3; rep++) {
+        for (int i = 0; i < (rep ? 600 : 40); i++) { snes_frame(c); f++; }
+        uint32_t by = 0, my = 0, bx = 0, mx = 0;
+        snes_read(c, 0x7E0708u, 2, &by);
+        snes_read(c, 0x7E070Au, 2, &my);
+        snes_read(c, 0x7E070Cu, 2, &bx);
+        snes_read(c, 0x7E070Eu, 2, &mx);
+        int n4241 = 0;
+        std::printf("rep=%d base=%u,%u mask=%04x,%04x attrs=", rep, bx, by, mx, my);
+        for (int ry = 0; ry < 32; ry++) {
+            for (int rx = 0; rx < 32; rx++) {
+                uint32_t px = bx + (uint32_t) rx * 2, py = by + (uint32_t) ry * 16;
+                uint32_t t = (((uint32_t) py - by) & my) * 8 + (((uint32_t) px - bx) & mx);
+                uint32_t v = 0;
+                snes_read(c, 0x7E2000u + ((t >> 1) * 2u), 2, &v);
+                if (v == 0x4241) n4241++;
+                std::printf("%s%04x", (ry || rx) ? "," : "", (unsigned) v);
+            }
+        }
+        std::printf("\nn4241=%d\n", n4241);
+    }
+    snes_stop(c);
+    snes_destroy(c);
+    return 0;
+}
+
 static int Memory(const char* rom, const char* savedir)
 {
     SnesCore* c = snes_create();
@@ -1575,6 +1629,10 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--drive") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return Drive(argv[2], argv[3], argc > 4 ? std::atoi(argv[4]) : 1800);
+    }
+    if (std::strcmp(argv[1], "--walkmap2") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return WalkMap2(argv[2], argv[3]);
     }
     if (std::strcmp(argv[1], "--walkmap") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }

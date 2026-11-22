@@ -78,7 +78,7 @@ build_live() {
 
 echo "== $MODE"
 case "$MODE" in
-  --live|--live-cases|--teardown|--menus|--files|--walk|--dialogue) build_live ;;
+  --live|--live-cases|--teardown|--menus|--files|--walk|--dialogue|--darkobj) build_live ;;
   *)                   build_probe ;;
 esac
 
@@ -98,6 +98,8 @@ case "$MODE" in
     exec "$OUT/snes-live-proof" --files "$ROM" "$SAVE" ;;
   --walk)
     exec "$OUT/snes-live-proof" --walk "$ROM" "$SAVE" ;;
+  --darkobj)
+    exec "$OUT/snes-live-proof" --darkobj "$ROM" "$SAVE" ;;
   --dialogue)
     # ⛔ A NEW FILE, NOT THE PUBLIC SAVE. The intro's telepathy box is the one
     # story message this harness can raise without steering; the save has long

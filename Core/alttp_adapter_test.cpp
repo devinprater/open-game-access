@@ -23,7 +23,7 @@ static const uint32_t SRAMBASE = 0x700000u;
 static inline size_t OFF(uint32_t a) { return (size_t) (a - RAMBASE); }
 static inline bool IS_SRAM(uint32_t a) { return a >= SRAMBASE && a < SRAMBASE + sizeof(SRAM); }
 
-static char SPOKEN[32][192]; static int NSPOKEN = 0;
+static char SPOKEN[32][384]; static int NSPOKEN = 0;
 static char LOGGED[32][256]; static int NLOGGED = 0;
 
 static uint8_t  r8 (void*, uint32_t a) { return IS_SRAM(a) ? SRAM[a - SRAMBASE] : RAM[OFF(a)]; }
@@ -39,7 +39,7 @@ static uint32_t r32(void*, uint32_t a) {
     else memcpy(&v, &RAM[OFF(a)], 4);
     return v;
 }
-static void spk(void*, const char* s, bool) { if (NSPOKEN < 32) snprintf(SPOKEN[NSPOKEN++], 192, "%s", s); }
+static void spk(void*, const char* s, bool) { if (NSPOKEN < 32) snprintf(SPOKEN[NSPOKEN++], 384, "%s", s); }
 static void lg (void*, const char* s) { if (NLOGGED < 32) snprintf(LOGGED[NLOGGED++], 256, "%s", s); }
 static void btn(void*, int, bool) {}
 
@@ -527,7 +527,9 @@ int main()
           "File one, Link. Four hearts. Master Sword, Fighter's Shield.") == 0,
           "status on the file select speaks the slot");
 
-    // Guidance: a bearing to the next named landmark, never a walkable route.
+    // Guidance: a spoken walking route when the generated graph proves one.
+    // The synthetic tile-attribute RAM is all tile 0 (walkable), so the house
+    // screen flood-fills to its single table region and routes are spoken.
     // Coordinates are the public save's own, standing at Link's House (0x2C).
     // The save's progress flags are 0x15 and it has no pendants, so the first
     // press must aim at Kakariko, the objective, not at Link's House.
@@ -538,13 +540,13 @@ int main()
     put8(0x7EF3C6u, 0x15); put8(0x7EF374u, 0); put8(0x7EF359u, 1);
     oga::kZeldaLinkToThePast.command(oga::Command::Guide);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
-          "Guide: Kakariko Village, north-west, about five screens away.") == 0,
+          "Guide: Kakariko Village. Route: west one screen, south one screen, west one screen, north one screen, west one screen, then north one screen into Kakariko Village.") == 0,
           "guide: the first press aims at the current objective");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
     oga::kZeldaLinkToThePast.command(oga::Command::Guide);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
-          "Guide: Eastern Palace, north-east, about three screens away.") == 0,
+          "Guide: Eastern Palace. Route: east two screens from near the south end, north one screen, then east one screen into Eastern Palace.") == 0,
           "guide: the next press walks the landmark list");
 
     // A new story stage re-aims the cycle at the new objective.
@@ -552,7 +554,7 @@ int main()
     put8(0x7EF3C6u, 0x11);
     oga::kZeldaLinkToThePast.command(oga::Command::Guide);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
-          "Guide: Hyrule Castle, north-west, about two screens away.") == 0,
+          "Guide: Hyrule Castle. Route: north one screen into Hyrule Castle.") == 0,
           "guide: a new objective re-aims the cycle");
 
     // Standing in the objective's own area is said plainly. A new stage re-aims
@@ -578,11 +580,37 @@ int main()
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Close the menu first.") == 0,
           "guide refuses while a menu owns the frame");
 
+    // The dark world has its own landmark cycle. At the Pyramid with a
+    // light-world story stage, the cycle starts at the Pyramid itself; the
+    // next press cannot prove a route (the synthetic fill sees one region,
+    // the Pyramid's table has eight, so no region can be trusted and the
+    // regions disagree), so it falls back to a bearing said as a fallback.
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    put8(0x7E0010u, 9); put8(0x7E0011u, 0); put16(AREA, 0x43);
+    put8(0x7E0010u, 9); put8(0x7E0011u, 0);
+    put16(AREA, 0x5B); put16(SCREEN, 0x5B); put16(X, 1792); put16(Y, 1792);
+    put8(0x7EF3C5u, 0); put8(0x7EF37Au, 0);
     oga::kZeldaLinkToThePast.command(oga::Command::Guide);
-    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guidance covers the light world only.") == 0,
-          "guide refuses in the dark world rather than guess a name");
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Guide: Pyramid of Power. You are here.") == 0,
+          "guide: the dark cycle starts at the Pyramid");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Palace of Darkness. No walking route known; it lies east, about three screens away.") == 0,
+          "guide: an unprovable dark route falls back to a bearing");
+
+    // On a single-region dark screen the live fill is trustworthy, and the
+    // first press aims at the nearest remaining crystal dungeon: the Palace
+    // of Darkness is one screen north of screen 0x66.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put16(AREA, 0x65); put16(SCREEN, 0x66); put16(X, 3328); put16(Y, 2304);
+    put8(0x7EF3C5u, 3); put8(0x7EF37Au, 0);
+    oga::kZeldaLinkToThePast.command(oga::Command::Guide);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Guide: Palace of Darkness. Route: north one screen into Palace of Darkness.") == 0,
+          "guide: a proven dark route is spoken as a route");
+    put8(0x7EF3C5u, 0); put8(0x7EF37Au, 0);
+    put16(AREA, 0x2C); put16(SCREEN, 0x2C); put16(X, 2232); put16(Y, 2792);
 
     // Objective: the game's own progress bytes pick the story stage. The save
     // measured flags 0x15 (sword given, Zelda at the Sanctuary, uncle gone),
@@ -594,28 +622,28 @@ int main()
     put8(0x7EF3C6u, 0x15); put8(0x7EF374u, 0); put8(0x7EF359u, 1);
     oga::kZeldaLinkToThePast.command(oga::Command::Objective);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
-          "Objective: Collect the three pendants. Sahasrahla in Kakariko knows where to start. Kakariko Village is north-west, about five screens away.") == 0,
+          "Objective: Collect the three pendants. Sahasrahla in Kakariko knows where to start. Route: west one screen, south one screen, west one screen, north one screen, west one screen, then north one screen into Kakariko Village.") == 0,
           "objective: after the Sanctuary, the pendants are the goal");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(0x7EF3C6u, 0x00);
     oga::kZeldaLinkToThePast.command(oga::Command::Objective);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
-          "Objective: Find your uncle in Hyrule Castle. Hyrule Castle is north-west, about two screens away.") == 0,
+          "Objective: Find your uncle in Hyrule Castle. Route: north one screen into Hyrule Castle.") == 0,
           "objective: before the sword, find the uncle");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(0x7EF3C6u, 0x11);
     oga::kZeldaLinkToThePast.command(oga::Command::Objective);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
-          "Objective: Rescue Zelda in Hyrule Castle. Hyrule Castle is north-west, about two screens away.") == 0,
+          "Objective: Rescue Zelda in Hyrule Castle. Route: north one screen into Hyrule Castle.") == 0,
           "objective: with the sword, Zelda is the goal");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
     put8(0x7EF3C6u, 0x15); put8(0x7EF374u, 7);
     oga::kZeldaLinkToThePast.command(oga::Command::Objective);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
-          "Objective: Claim the Master Sword in the Lost Woods. Lost Woods is north-west, about seven screens away.") == 0,
+          "Objective: Claim the Master Sword in the Lost Woods. Route: north one screen, west one screen, north one screen, west one screen, north one screen, west one screen, then north one screen into Lost Woods.") == 0,
           "objective: three pendants, the Master Sword is the goal");
 
     NSPOKEN = 0; oga::AdapterSpeechReset();
@@ -631,12 +659,35 @@ int main()
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0], "Close the menu first.") == 0,
           "objective refuses while a menu owns the frame");
 
+    // The dark-world stage: progress indicator 3 (Agahnim down) and three
+    // crystal bits set (Palace of Darkness, Swamp Palace, Skull Woods). At
+    // the Pyramid no region can be trusted, so the nearest remaining dungeon
+    // is the first in gating order and its direction is a bearing.
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    put8(0x7E0010u, 9); put8(0x7E0011u, 0); put16(AREA, 0x43);
+    put8(0x7E0010u, 9); put8(0x7E0011u, 0);
+    put16(AREA, 0x5B); put16(SCREEN, 0x5B); put16(X, 1792); put16(Y, 1792);
+    put8(0x7EF3C5u, 3); put8(0x7EF37Au, 0x52);
     oga::kZeldaLinkToThePast.command(oga::Command::Objective);
     CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
-          "Objective: nothing mapped for the dark world yet.") == 0,
-          "objective refuses in the dark world rather than guess the goal");
+          "Objective: Rescue the seven maidens. Three of seven crystals held. Remaining: Thieves' Town, Ice Palace, Misery Mire, Turtle Rock. Nearest remaining: Thieves' Town. No walking route known; it lies west, about three screens away.") == 0,
+          "objective: the maidens stage names held, remaining and nearest");
+
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(INDOORS, 1);
+    oga::kZeldaLinkToThePast.command(oga::Command::Objective);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Objective: Rescue the seven maidens. Three of seven crystals held. Remaining: Thieves' Town, Ice Palace, Misery Mire, Turtle Rock.") == 0,
+          "objective: indoors names the maidens stage without a direction");
+
+    // All seven crystals: the goal is Ganon's Tower, named from either world.
+    NSPOKEN = 0; oga::AdapterSpeechReset();
+    put8(INDOORS, 0); put8(0x7EF37Au, 0x7F);
+    put16(AREA, 0x2C); put16(SCREEN, 0x2C); put16(X, 2232); put16(Y, 2792);
+    oga::kZeldaLinkToThePast.command(oga::Command::Objective);
+    CHECK(NSPOKEN == 1 && strcmp(SPOKEN[0],
+          "Objective: Climb Ganon's Tower and face Ganon. No walking route known; it lies north, about five screens away.") == 0,
+          "objective: seven crystals point at Ganon's Tower");
+    put8(0x7EF3C5u, 0); put8(0x7EF37Au, 0);
 
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();
