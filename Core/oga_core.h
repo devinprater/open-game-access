@@ -144,6 +144,19 @@ typedef struct OgaCoreOps {
     /* ---- diagnostics ---- */
     unsigned long long (*frames_completed)(void* state);
     const char* (*last_error)(void* state);
+
+    /* ---- adapter directions (auto walk, docs/design/auto-walk.md) ----
+     *
+     * TRAILING member: every backend's table value-initializes it to
+     * NULL, and NULL is the refusal the design wants — a console with
+     * no direction layer cannot be walked, and pokecore wires the
+     * adapter Host's set_direction only when this member exists.
+     * `dir` is the shared direction numbering (0 up, 1 down, 2 left,
+     * 3 right), NOT the backend's pad numbering: the backend
+     * translates, exactly as set_button does. The backend owns the
+     * lease (frame-counted expiry) and player arbitration; see
+     * snes_core.h for the reference implementation. */
+    void (*set_direction)(void* state, int dir, bool down);
 } OgaCoreOps;
 
 /* A live backend: which ops, and the state they act on. */

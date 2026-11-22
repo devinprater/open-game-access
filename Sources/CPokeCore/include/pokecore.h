@@ -329,6 +329,16 @@ int poke_cue_guard(PokeCore *core, float *frac, int *beat);
  * gates on the adapter id anyway: an unmeant call should not exist. */
 void poke_set_hud_gauge_cues(PokeCore *core, bool use_sound);
 
+/* Push the player's auto-walk choice into the A Link to the Past
+ * adapter (oga::AlttpAutoWalk, adapter.h): true = Command::WalkToggle
+ * walks the current Guide route, false = it answers with the
+ * explanation instead. The same contract as poke_set_hud_gauge_cues
+ * above: the app resolves the effective value (the game's Per Game
+ * Settings override, else the global default in Settings) and calls
+ * this once when a session starts. Only the alttp adapter reads the
+ * flag. */
+void poke_set_alttp_auto_walk(PokeCore *core, bool enabled);
+
 /* Announcement-queue completion hooks (additive: estimate pacing works without
  * them). The queue releases one line at a time; a platform that can report
  * "finished" calls poke_announce_done with the utterance id it got from the

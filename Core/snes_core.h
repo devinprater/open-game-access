@@ -77,6 +77,19 @@ const char *snes_video_result(SnesCore *core);
 
 void snes_set_button(SnesCore *core, int snes_button, bool down);
 
+/* ---- adapter directions (auto walk, docs/design/auto-walk.md) ----
+ *
+ * A direction layer BESIDE the pad, never in it: `dir` is the shared
+ * direction numbering (0 = up, 1 = down, 2 = left, 3 = right), not a
+ * SNES_BTN_* index. Holding a direction leases it for 3 frames; the
+ * core ages leases at the end of every snes_frame and the input
+ * provider merges only live leases into the pad Mesen samples, so an
+ * adapter that stops refreshing stops the character. Any press
+ * through snes_set_button (the player's layer) clears the direction
+ * layer instantly: the player wins arbitration in the core, before
+ * the next sample, not whenever the adapter next polls. */
+void snes_set_direction(SnesCore *core, int dir, bool down);
+
 /* The pad state Mesen serializes for port 1, as a bit field in SNES_BTN_*
  * order. Diagnostic: proves the host's input reached the console's controller.
  * Returns 0xFFFFFFFF when there is no SNES controller on port 1. */

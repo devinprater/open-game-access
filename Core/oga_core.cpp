@@ -327,6 +327,15 @@ static void SnesSetButton(void* s, int pad_button, bool down)
     snes_set_button((SnesCore*) s, kPadToSnes[pad_button], down);
 }
 
+static void SnesSetDirection(void* s, int dir, bool down)
+{
+    /* snes_set_direction takes the shared direction numbering itself
+     * (0 up, 1 down, 2 left, 3 right) and owns the SNES_BTN_*
+     * translation, the lease and arbitration — this is a pass-through,
+     * like SnesSetButton's table one level up. */
+    snes_set_direction((SnesCore*) s, dir, down);
+}
+
 static bool SnesSaveState(void* s, const char* path) { return snes_save_state((SnesCore*) s, path); }
 static bool SnesLoadState(void* s, const char* path) { return snes_load_state((SnesCore*) s, path); }
 static unsigned long long SnesFrames(void* s) { return snes_frames_completed((SnesCore*) s); }
@@ -348,6 +357,7 @@ static const OgaCoreOps kSnesOps = {
     NULL,                       /* read_audio: snes_read_audio returns 0 by design */
     SnesSaveState, SnesLoadState,
     SnesFrames, SnesLastError,
+    SnesSetDirection,           /* set_direction */
 };
 
 OgaCore oga_snes_core(SnesCore* snes)

@@ -59,6 +59,13 @@ struct SnesCore {
     long header_bytes = 0;  /* 512 for a headered .smc, 0 otherwise */
 
     uint8_t buttons[SNES_BTN_COUNT] = {0};  /* 1 = pressed, in SNES_BTN_* order */
+    /* Adapter-held directions (auto walk): dirHeld in the shared
+     * direction numbering (0 up, 1 down, 2 left, 3 right); dirLease is
+     * the frames of life left, aged by snes_frame. The provider merges
+     * a direction only while its lease lives, so adapter silence is a
+     * stop after at most 3 frames. */
+    uint8_t dirHeld[4] = {0};
+    int dirLease[4] = {0};
     /* What the host last handed Mesen's controller, for the input proof. */
     unsigned providerBits = 0;
     int providerCalls = 0;
@@ -88,6 +95,17 @@ public:
         unsigned bits = 0;
         for (int i = 0; i < SNES_BTN_COUNT; i++) {
             bool down = _core->buttons[i] != 0;
+            /* Merge the adapter's direction layer: a direction counts
+             * only while its lease lives (aged in snes_frame). The
+             * player's own buttons[] always reads as-is; the layers
+             * OR, they never mask each other. */
+            int dir = -1;
+            if (i == SNES_BTN_UP) dir = 0;
+            else if (i == SNES_BTN_DOWN) dir = 1;
+            else if (i == SNES_BTN_LEFT) dir = 2;
+            else if (i == SNES_BTN_RIGHT) dir = 3;
+            if (dir >= 0 && _core->dirHeld[dir] && _core->dirLease[dir] > 0)
+                down = true;
             if (down) bits |= (1u << i);
             device->SetBitValue((uint8_t) i, down);
         }
@@ -399,6 +417,9 @@ static const char *g_frameResult = "ok";
 
 const char *snes_frame_result(SnesCore *c) { (void) c; return g_frameResult; }
 
+/* Defined with snes_set_direction below; snes_frame ages the leases. */
+static void AgeDirectionLeases(SnesCore *c);
+
 bool snes_frame(SnesCore *c)
 {
     if (!c || !c->loaded || !c->emu) { g_frameResult = "core not loaded"; return false; }
@@ -442,6 +463,7 @@ bool snes_frame(SnesCore *c)
             c->console = now;
             c->framesSeenOnConsole = now->GetFrameCount();
             c->frames++;
+            AgeDirectionLeases(c);
             CaptureFrame(c);
             return true;
         }
@@ -459,6 +481,7 @@ bool snes_frame(SnesCore *c)
     c->console = LiveConsole(c);
     c->framesSeenOnConsole = c->console ? c->console->GetFrameCount() : 0;
     c->frames++;
+    AgeDirectionLeases(c);
     CaptureFrame(c);
     return true;
 }
@@ -482,6 +505,37 @@ void snes_set_button(SnesCore *c, int snes_button, bool down)
 {
     if (!c || snes_button < 0 || snes_button >= SNES_BTN_COUNT) return;
     c->buttons[snes_button] = down ? 1 : 0;
+    /* ⛔ ARBITRATION LIVES HERE, not in the adapter's poll: a real press
+     * on the player's layer zeroes the adapter's direction layer the
+     * moment it lands, so no frame is ever sampled from both. A
+     * release does not arbitrate — releases trail presses, and a stray
+     * one must not cancel a walk the player is not touching. */
+    if (down) {
+        for (int d = 0; d < 4; d++) { c->dirHeld[d] = 0; c->dirLease[d] = 0; }
+    }
+}
+
+void snes_set_direction(SnesCore *c, int dir, bool down)
+{
+    if (!c || dir < 0 || dir > 3) return;
+    if (down) {
+        c->dirHeld[dir] = 1;
+        c->dirLease[dir] = 3;   /* frames; aged at the end of snes_frame */
+    } else {
+        c->dirHeld[dir] = 0;
+        c->dirLease[dir] = 0;
+    }
+}
+
+/* Age the direction leases by one frame. Called at every successful
+ * exit of snes_frame, AFTER the frame has run: a direction written
+ * once is then sampled for exactly 3 frames (lease 3, 2, 1) and is
+ * gone on the fourth. Frame-counted, never wall-clock: pause and
+ * fast-forward cannot stretch or shrink a lease. */
+static void AgeDirectionLeases(SnesCore *c)
+{
+    for (int d = 0; d < 4; d++)
+        if (c->dirLease[d] > 0) c->dirLease[d]--;
 }
 
 bool snes_read(SnesCore *c, uint32_t addr, int width, uint32_t *out)

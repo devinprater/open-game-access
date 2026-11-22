@@ -186,6 +186,15 @@ struct PokeCore {
     // The backend's own ids for the currently latched taps, so a release reaches the same
     // translation the press did (the Game Boy drops X/Y, PSP remaps Cross, ...).
     std::vector<int> tapBackendIds;
+    // The player's own pad, for the auto-walk feed (Host::player_pad):
+    // playerHeld = POKE_BTN_* bits down right now, playerPressed =
+    // down-edges latched since the last feed read (reading clears it).
+    // Maintained ONLY by the player's entry points (poke_set_button,
+    // poke_tap_button and the tap release in poke_frame) — never by
+    // the adapter's HostSetButton path, whose presses are the adapter
+    // driving, not the player taking over. See PokeSetButtonImpl.
+    uint32_t playerHeld = 0;
+    uint32_t playerPressed = 0;
     bool touchDown = false;
     uint16_t touchX = 0;
     uint16_t touchY = 0;
@@ -933,9 +942,45 @@ static void HostLog(void* ctx, const char* utf8)
     if (core->logCb && utf8) core->logCb(utf8, core->logUserdata);
 }
 
+/* The one pad write, split by WHOSE hand it is (auto walk,
+ * docs/design/auto-walk.md §3): the player's presses feed the
+ * player_pad latch the walker polls; the adapter's own presses (its
+ * Host::set_button) do not — an adapter driving a menu must not read
+ * as the player taking over its own walk. Both reach the same
+ * backend write, and the backend's pad layer arbitrates the
+ * adapter's direction leases either way. Defined with poke_set_button
+ * below; declared here for HostSetButton. */
+static void PokeSetButtonImpl(PokeCore* core, int ds_button, bool down,
+                              bool from_player);
+
 static void HostSetButton(void* ctx, int ds_button, bool down)
 {
-    poke_set_button((PokeCore*) ctx, ds_button, down);
+    PokeSetButtonImpl((PokeCore*) ctx, ds_button, down, false);
+}
+
+/* The auto-walk direction verb (Host::set_direction): forwarded to the
+ * backend's direction layer, which owns the lease and arbitration.
+ * BuildHost wires this ONLY when the backend implements it — a null
+ * verb is the design's refusal, never a silent dead control. */
+static void HostSetDirection(void* ctx, int dir, bool down)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (core->backend.ops && core->backend.ops->set_direction)
+        core->backend.ops->set_direction(core->backend.state, dir, down);
+}
+
+/* The auto-walk player feed (Host::player_pad): the core's own record
+ * of the player's pad, in POKE_BTN_* numbering. Reading the pressed
+ * latch clears it — the latch exists so a press that lands and lifts
+ * between two adapter frames is still seen exactly once. */
+static void HostPlayerPad(void* ctx, uint32_t* held, uint32_t* pressed)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (held) *held = core->playerHeld;
+    if (pressed) {
+        *pressed = core->playerPressed;
+        core->playerPressed = 0;
+    }
 }
 
 // One Host per core, held in the core so its lifetime matches.
@@ -949,6 +994,10 @@ static void BuildHost(PokeCore* core)
     core->host.announce_q = core->announceQ;
     core->host.log        = HostLog;
     core->host.set_button = HostSetButton;
+    core->host.set_direction =
+        (core->backend.ops && core->backend.ops->set_direction)
+            ? HostSetDirection : nullptr;
+    core->host.player_pad = HostPlayerPad;
     core->host.ctx        = core;
 }
 
@@ -1256,6 +1305,16 @@ void poke_set_hud_gauge_cues(PokeCore *core, bool use_sound)
     oga::KhbbsHudGaugeCues(use_sound);
 }
 
+/* The per-game-settings seam for A Link to the Past's auto walk (see
+ * the header): the same pass-through shape as poke_set_hud_gauge_cues
+ * above. The app calls this once at session start with the effective
+ * value it resolved; nothing calls it per frame. */
+void poke_set_alttp_auto_walk(PokeCore *core, bool enabled)
+{
+    (void)core;
+    oga::AlttpAutoWalk(enabled);
+}
+
 bool poke_command(PokeCore *core, int cmd)
 {
     if (!core || !core->adapter) return false;
@@ -1263,9 +1322,12 @@ bool poke_command(PokeCore *core, int cmd)
     // silently rejects a new command with no speech and no error. This bound was
     // left at RepeatOlder when Status (40) and Guide (41) were appended, so both
     // buttons were dead on the live path while their unit tests passed. It now
-    // ends at Objective (42) and must move with every appended command.
+    // ends at WalkToggle (44) and must move with every appended command.
+    // (Enemies (43) was appended without moving it and was dead on this
+    // path until this widening — the failure this comment exists to
+    // prevent, caught by the auto-walk survey, 2026-11-22.)
     if (cmd < 0 ||
-        cmd > (int) oga::Command::Objective) return false;
+        cmd > (int) oga::Command::WalkToggle) return false;
     if (cmd == (int) oga::Command::StopSpeech)
     {
         // Player stop key: clear queued lines and stop the platform voice.
@@ -2103,6 +2165,8 @@ bool poke_frame(PokeCore* core)
                     core->backend.ops->set_button(core->backend.state, id, false);
                 else if (id < POKE_BTN_COUNT)
                     core->buttonsDown &= ~(1u << id);
+                if (id < POKE_BTN_COUNT)
+                    core->playerHeld &= ~(1u << id);
             }
             core->tapButtons.clear();
             core->tapBackendIds.clear();
@@ -2153,9 +2217,19 @@ const uint8_t* poke_framebuffer_ptr(PokeCore* core, int screen)
 
 // ----------------------------------------------------------------------- input
 
-void poke_set_button(PokeCore* core, int ds_button, bool down)
+static void PokeSetButtonImpl(PokeCore* core, int ds_button, bool down,
+                              bool from_player)
 {
     if (!core || ds_button < 0) return;
+    if (from_player && ds_button < POKE_BTN_COUNT) {
+        uint32_t bit = 1u << ds_button;
+        if (down) {
+            if (!(core->playerHeld & bit)) core->playerPressed |= bit;
+            core->playerHeld |= bit;
+        } else {
+            core->playerHeld &= ~bit;
+        }
+    }
     if (core->backend.ops && !IsPokeNds(core))
     {
         // Pad indices are the app's shared numbering; the backend translates
@@ -2167,6 +2241,14 @@ void poke_set_button(PokeCore* core, int ds_button, bool down)
     if (ds_button >= POKE_BTN_COUNT) return;
     if (down) core->buttonsDown |= (1u << ds_button);
     else core->buttonsDown &= ~(1u << ds_button);
+}
+
+void poke_set_button(PokeCore* core, int ds_button, bool down)
+{
+    /* The public entry point is the PLAYER's hand (the app's pad), so
+     * it feeds the auto-walk latch; adapter presses take the
+     * from_player=false path through HostSetButton instead. */
+    PokeSetButtonImpl(core, ds_button, down, true);
 }
 
 void poke_tap_button(PokeCore* core, int ds_button, int frames)
@@ -2184,6 +2266,14 @@ void poke_tap_button(PokeCore* core, int ds_button, int frames)
         core->backend.ops->set_button(core->backend.state, ds_button, true);
     else if (ds_button < POKE_BTN_COUNT)
         core->buttonsDown |= (1u << ds_button);
+
+    /* A tap is the player's press too: it feeds the auto-walk latch
+     * and reads as held until poke_frame releases it (below). */
+    if (ds_button < POKE_BTN_COUNT) {
+        uint32_t bit = 1u << ds_button;
+        if (!(core->playerHeld & bit)) core->playerPressed |= bit;
+        core->playerHeld |= bit;
+    }
 
     core->tapButtons.push_back(ds_button);
     core->tapBackendIds.push_back(ds_button);

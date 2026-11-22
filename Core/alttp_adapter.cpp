@@ -28,6 +28,18 @@
 #include <string.h>
 
 namespace oga {
+
+// The auto-walk setting (docs/design/auto-walk.md §4): false (the
+// default) means Command::WalkToggle answers with the one-time
+// explanation instead of walking. This flag is THE SEAM the per-game
+// settings panel binds to (poke_set_alttp_auto_walk calls
+// AlttpAutoWalk() with the player's choice). It lives at oga scope,
+// outside the adapter's anonymous namespace, so other translation
+// units can reach it; it is deliberately NOT reset by attach/detach —
+// a setting is not session state.
+bool g_autoWalkEnabled = false;
+void AlttpAutoWalk(bool enabled) { g_autoWalkEnabled = enabled; }
+
 namespace {
 
 const Host* g_host = nullptr;

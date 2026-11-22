@@ -53,6 +53,32 @@ struct Host {
     /// it does not teleport units or mutate gameplay state).
     void (*set_button)(void* ctx, int ds_button, bool down);
     void* ctx;
+    // ---- TRAILING ADDITIONS (auto walk, docs/design/auto-walk.md) ----
+    // Appended after ctx, never in the middle: hosts and adapters are
+    // compiled separately, and a member inserted mid-struct would move
+    // every later offset silently. A host that predates auto walk
+    // value-initializes both to nullptr, and an adapter that walks
+    // treats either nullptr as a refusal (below).
+    /// Hold or release ONE cardinal direction: 0 = up, 1 = down,
+    /// 2 = left, 3 = right. This is the ONLY input verb the auto walker
+    /// uses, and its signature is the structural guarantee behind the
+    /// design: Confirm, items and menus are inexpressible through it,
+    /// so walk code cannot press an action button even by bug. The
+    /// core owns the lease: a held direction expires after 3 frames
+    /// unless the adapter refreshes it, so adapter silence — crash,
+    /// detach, a release condition the adapter missed — means stop.
+    /// nullptr on a backend with no direction layer; a walker must
+    /// refuse to start without it, never fall back to set_button.
+    void (*set_direction)(void* ctx, int dir, bool down);
+    /// The player's own pad, in the shared POKE_BTN_* numbering (the
+    /// same numbering set_button takes): *held = buttons down right
+    /// now, *pressed = buttons whose down-edge arrived since the last
+    /// read (latched by the core; reading clears the latch). The
+    /// walker polls this every frame: any pressed bit is the player
+    /// taking over, and the walk cancels silently. nullptr where the
+    /// core provides no feed; a walker must refuse to start without
+    /// it, because a walk it cannot be interrupted from is not safe.
+    void (*player_pad)(void* ctx, uint32_t* held, uint32_t* pressed);
 };
 
 /// One accessibility query, mapped to whatever the player's input device sends.
@@ -135,6 +161,12 @@ enum class Command {
     // Appended after Objective; raw values are the C ABI shared with Swift
     // and must never be reordered.
     Enemies,
+    // Auto walk toggle (docs/design/auto-walk.md): with a current Guide
+    // route, start walking it; pressed again, stop. Gated by the game's
+    // own per-game auto-walk setting (off by default). Appended after
+    // Enemies; raw value 44 is the C ABI shared with Swift and must
+    // never be renumbered.
+    WalkToggle,
 };
 
 /// Per-frame battle snapshot for host-side audio cues (item 5 spike).
@@ -232,6 +264,17 @@ struct CueSnapshot {
 /// default) and push it in when a session starts: iOS through
 /// poke_set_hud_gauge_cues, Android through the adapter host.
 void KhbbsHudGaugeCues(bool use_sound);
+
+/// A Link to the Past's auto-walk setting — the per-game setting the
+/// apps' Per Game Settings panels drive, the same seam as
+/// KhbbsHudGaugeCues above (docs/design/per-game-settings.md,
+/// docs/design/auto-walk.md). false (the default): Command::WalkToggle
+/// answers with the one-time explanation instead of walking. Defined
+/// in alttp_adapter.cpp; the flag is adapter state, deliberately NOT
+/// reset by attach/detach — a setting is not session state. The apps
+/// resolve the player's effective value and push it in when a session
+/// starts: iOS through poke_set_alttp_auto_walk.
+void AlttpAutoWalk(bool enabled);
 
 // TWO CORE SIGNALS, because the evidence supports both (2026-10-05), with an honest
 // correction attached:
