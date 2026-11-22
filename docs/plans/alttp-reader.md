@@ -438,3 +438,33 @@ reach a dungeon without steering.
 ## Follow-on plan
 
 Route guidance (counted steps, room routes) stays out of this plan. It needs room collision or a waypoint graph, which is its own measurement project. The beacon slice is now done and documented in `docs/design/alttp-guidance.md`; what remains there is the screen graph, dark-world landmarks, and a better aim for large areas.
+
+## 2026-11-22 verification note (mesen-link session)
+
+The Mesen/SNES link was re-verified end to end on main `b8bf21b` (worktree off
+origin/main), because the standing record (2026-10-25 shelf survey) still
+described SNES as PLANNED with the app link missing. It is not missing:
+
+- `scripts/build-host.sh` clean: 731 TUs, symbol localisation clean.
+- `scripts/build-core.sh` clean: `Vendor/libpokecore.a` archived with
+  `snes_core.o`, `alttp_adapter.o`, `alttp_text.o`, `alttp_rooms.o` in
+  `Vendor/obj` — the SNES glue and this adapter are in the app build.
+- `scripts/adapter-tests.sh` green (exit 0); this adapter: 73 passed, 0 failed.
+- `scripts/systems-test.sh`: 70 checks, 0 failed (registry READY is covered).
+- `scripts/snes-alttp-proof.sh`: `--identity` YES (crc=777aac2f),
+  `--live` YES, `--live-cases` YES (renamed copy attaches by CRC, an unknown
+  dump gets no adapter and no speech, reload swaps identity cleanly),
+  `--files` YES (file select spoken from the real save), `--dialogue` YES
+  (the intro telepathy message spoken).
+
+⚠️ **`--menus` FAILS deterministically** ("the item menu never opened"). It was
+`menu-proof=YES` on 2026-10-17 (Task 6 above). The core probe's own `--menus`
+stalls at the same place: after loading the public save, the game sits on
+Zelda's telepathy message (mod=14 sub=2, msg=31) and the drive's presses do not
+clear it, so the item menu is never reached. Ruled out: the save directory
+(`~/z3work/alttp-home`, untouched since 2026-10-17) and Mesen version drift
+(`~/src/mesen` is exactly the pinned rev `a60e79f`). Suspects, in order:
+post-2026-10-17 changes (88b859d, 9765ddd, the later adapter live-path work),
+or SRAM state left by the 2026-10-18 harness memory-write session. This needs
+a bisect. The console link itself is not implicated: `--files` and
+`--dialogue` prove the adapter attached and answering through the app path.
