@@ -42,3 +42,18 @@ if [ "$sab" -eq 0 ]; then
   exit 1
 fi
 echo "PASS: adapter-sources gate catches a registered adapter the Android overlay does not compile"
+
+# Third sabotage: an adapter's own dependency (the oga::AlttpMap16Walkable link failure).
+# Drop alttp_graph from the Android DS glue loop; alttp_adapter.cpp includes its header, so
+# the gate must fail even though the adapter's own file is still staged.
+cp "$OVL" /tmp/oga-android-overlay.bak
+sed -i 's/ alttp_graph alttp_dungeon_graph / alttp_dungeon_graph /' "$OVL"
+python3 scripts/adapter-sources-check.py 2>&1 | head -n 3
+sab=$?
+cp /tmp/oga-android-overlay.bak "$OVL"
+
+if [ "$sab" -eq 0 ]; then
+  echo "FAIL: removing alttp_graph from the Android DS glue did not trip the gate"
+  exit 1
+fi
+echo "PASS: adapter-sources gate catches an adapter dependency the Android overlay does not compile"

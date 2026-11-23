@@ -19,6 +19,12 @@ glue lists such as the PSP's OGA_PPSPP_GLUE), and the file was in none of them. 
 (scripts/build-host.sh) has its own hand list too. So the check covers all three: every
 registered adapter's source must be in OGA_GLUE, in one of the two Android lists, and in the
 host list.
+
+⛔ AND ITS OWN DEPENDENCIES: the APK link died again with `undefined symbol:
+oga::AlttpMap16Walkable` (and nine more). alttp_adapter.cpp was staged, but the two files it
+had started calling into, alttp_graph.cpp and alttp_dungeon_graph.cpp, were added to OGA_GLUE
+only. So the check follows each adapter's own `#include "x.h"` lines: wherever Core/x.cpp
+exists, that file must be in every list too.
 """
 import pathlib
 import re
@@ -67,6 +73,20 @@ def host_names():
     return set(re.findall(r'"\$ROOT/Core/(\w+\.cpp)"', HOST.read_text()))
 
 
+def companions(src):
+    """Core/*.cpp files an adapter source calls into: each `#include "x.h"` in it for which
+    Core/x.cpp exists. DIRECT includes only -- following them transitively walks into the
+    backend cores (pokecore.h pulls in every console), which each build stages its own way."""
+    body = (CORE / src).read_text(errors="replace")
+    out = []
+    for inc in re.findall(r'#\s*include\s+"(\w+)\.h"', body):
+        cpp = inc + ".cpp"
+        if cpp != src and cpp not in out and (CORE / cpp).exists() \
+                and not cpp.endswith("_test.cpp"):
+            out.append(cpp)
+    return out
+
+
 def main():
     glue = glue_names()
     if glue is None:
@@ -103,14 +123,16 @@ def main():
         if src is None:
             problems.append("%s: no Core/*.cpp defines it (renamed? moved?)" % sym)
         else:
-            if src not in glue:
-                problems.append("%s: defined in %s, which is NOT in OGA_GLUE" % (sym, src))
-            if src not in android:
-                problems.append("%s: defined in %s, which the Android overlay does NOT compile "
-                                "(add it to the DS glue loop or a glue list such as "
-                                "OGA_PPSPP_GLUE in android-apply-overlay.sh)" % (sym, src))
-            if src not in host:
-                problems.append("%s: defined in %s, which is NOT in build-host.sh" % (sym, src))
+            for f in [src] + companions(src):
+                what = src if f == src else "%s (which %s depends on)" % (f, src)
+                if f not in glue:
+                    problems.append("%s: %s is NOT in OGA_GLUE" % (sym, what))
+                if f not in android:
+                    problems.append("%s: %s is NOT compiled by the Android overlay "
+                                    "(add it to the DS glue loop or a glue list such as "
+                                    "OGA_PPSPP_GLUE in android-apply-overlay.sh)" % (sym, what))
+                if f not in host:
+                    problems.append("%s: %s is NOT in build-host.sh" % (sym, what))
 
     if problems:
         print("adapter-sources: FAIL (%d problem(s))" % len(problems))

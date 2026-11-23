@@ -2644,6 +2644,7 @@ static const OgaCoreOps* NdsOpsTable(void)
         NdsReadAudio,
         NdsSaveState, NdsLoadState,
         NdsFrames, NdsLastError,
+        NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
     };
     return &kTable;
 }
