@@ -450,6 +450,12 @@ bool AlttpMap16Walkable(uint16_t map16);
  * threshold — the walker stops AT doors and warps, never on them. */
 bool AlttpMap16Steerable(uint16_t map16);
 
+/* Whether a map16 tile id is PASSABLE ground for auto walk's
+ * fallback plans: at least three of its four subtiles walk-on, and
+ * still no spike, warp or entrance subtile. Used only when no
+ * steerable path exists on a screen (stairs and cliff paths). */
+bool AlttpMap16Passable(uint16_t map16);
+
 } // namespace oga
 
 #endif
@@ -621,6 +627,23 @@ def main():
     for i in range(0, len(sbits), 16):
         out.append("    " + ", ".join("0x%02x" % b for b in sbits[i:i + 16]) + ",")
     out.append("};\n")
+    # Passable bit per map16 id: the fallback mask. At least three of
+    # four subtiles walk-on and still no spike, warp or entrance
+    # subtile — Link's body is narrower than a tile, so stairs and
+    # cliff paths whose fourth subtile is the face are traversable,
+    # and the hazard exclusion (the mask's safety property) is
+    # unchanged. Measured need: the climb into Kakariko from the
+    # south runs over such tiles and has no all-four-subtiles route.
+    pbits = bytearray((n16 + 7) // 8)
+    for m16 in range(n16):
+        attrs = [map8attr[map16tab[m16 * 4 + q] & 0x1FF] for q in range(4)]
+        if sum(1 for a in attrs if a in walkable) >= 3 and \
+                not any(a in blocked for a in attrs):
+            pbits[m16 >> 3] |= 1 << (m16 & 7)
+    out.append("const uint8_t kMap16Passable[%d] = {" % len(pbits))
+    for i in range(0, len(pbits), 16):
+        out.append("    " + ", ".join("0x%02x" % b for b in pbits[i:i + 16]) + ",")
+    out.append("};\n")
     out.append("uint8_t AlttpAreaOfScreen(uint8_t screen)\n{\n"
                "    return screen < 128 ? kAreaOf[screen] : screen;\n}\n")
     out.append("uint8_t AlttpScreenRegionCount(uint8_t screen)\n{\n"
@@ -629,6 +652,8 @@ def main():
                "    return map16 < %d && (kMap16Walkable[map16 >> 3] >> (map16 & 7)) & 1;\n}\n" % n16)
     out.append("bool AlttpMap16Steerable(uint16_t map16)\n{\n"
                "    return map16 < %d && (kMap16Steerable[map16 >> 3] >> (map16 & 7)) & 1;\n}\n" % n16)
+    out.append("bool AlttpMap16Passable(uint16_t map16)\n{\n"
+               "    return map16 < %d && (kMap16Passable[map16 >> 3] >> (map16 & 7)) & 1;\n}\n" % n16)
     out.append("int AlttpScreenGaps(uint8_t screen, const AlttpGap** out)\n{\n"
                "    if (screen >= 128) { *out = nullptr; return 0; }\n"
                "    int n = (int) kGapOffset[screen + 1] - (int) kGapOffset[screen];\n"

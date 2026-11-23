@@ -124,6 +124,7 @@ constexpr uint32_t SRAM_SHIELD        = 0x35Au;
 /* Interface submodules from the decomp's kMessagingSubmodules. */
 enum : uint8_t {
     SUB_HUD = 1,          /* Hud_Module_Run: the item menu while module 14 is up */
+    SUB_TEXT = 2,         /* RenderText: a message box is on screen */
     SUB_SAVE_MENU = 11,   /* Module0E_0B_SaveMenu: SELECT's continue/save box */
 };
 
@@ -336,6 +337,18 @@ Menu CurrentMenu()
     if (sub == SUB_HUD) return Menu::Item;
     if (sub == SUB_SAVE_MENU) return Menu::Save;
     return Menu::None;
+}
+
+/* Is a message box on screen right now? The interface module running
+ * its RenderText handler is the game's real signal (kMessagingSubmodules
+ * submodule 2). The message INDEX is not: it names the last message and
+ * stays set with no box open — measured 388 in the public save, sitting
+ * outdoors with no dialogue anywhere (the probe's --walkdiag), and 31
+ * with module 14 sub 2 while Zelda's telepathy is really on screen
+ * (the probe's --msgdiag). A gate on the index refuses every walk. */
+bool DialogueOpen()
+{
+    return u8(MAIN_MODULE) == MOD_INTERFACE && u8(SUBMODULE) == SUB_TEXT;
 }
 
 void AlttpFrame()
@@ -1505,12 +1518,49 @@ bool g_walkLegConfirm = false;  /* the costly leg ahead was confirmed */
 uint8_t g_walkTargetArea = 0;
 const char* g_walkTargetName = nullptr;
 uint8_t g_walkScreen = 0xFF;    /* screen the current leg started on */
+uint8_t g_walkPendingScreen = 0xFF;  /* unconfirmed screen reading */
+int g_walkPendingFrames = 0;         /* frames it has held for */
 uint8_t g_walkAwaitScreen = 0xFF;
 int g_walkCoastDir = 0;         /* direction held while coasting */
 uint8_t g_walkLastHealth = 0;
 int g_walkReplans = 0;
+int g_walkSinceAdvance = 0;  /* frames since the last leg advance */
+int g_walkSettle = 0;        /* post-advance scroll-settle frames left */
+int g_walkSettleDir = 0;     /* direction held while settling */
 int g_walkStuckOnLeg = 0;
 int g_walkHeldDir = -1;         /* direction currently leased, -1 none */
+
+/* The screen Link's position is in. The screen register follows
+ * the camera and can sit on the wrong side of a seam for seconds
+ * (measured live at a border: it read the old screen for 100+
+ * frames while Link stood in the new one, and every plan built on
+ * it failed). Position is continuous and cannot bounce, so the
+ * walker's screen tracking is based on it; the register still
+ * serves the guide and the start gates, where Link stands still
+ * mid-screen and the two agree. */
+uint8_t WalkPosScreen()
+{
+    int cellX = ((int) u16(LINK_X) >> 9) & 7;
+    int cellY = ((int) u16(LINK_Y) >> 9) & 7;
+    int cell = cellY * 8 + cellX;
+    return (uint8_t) (cell + (u16(OVERWORLD_AREA) >= 0x40 ? 64 : 0));
+}
+
+/* Link's tile on the given screen. False while he is in the seam
+ * band: the screen register flips before the scroll carries him
+ * into the new screen's grid, and a plan built then would read a
+ * negative tile row and fail as if the way were blocked. */
+bool WalkLinkTile(uint8_t screen, int* lx, int* ly)
+{
+    int cell = screen & 63;
+    int cellX = (cell & 7) * SCREEN_UNITS;
+    int cellY = ((cell >> 3) & 7) * SCREEN_UNITS;
+    int x = ((int) u16(LINK_X) - cellX) / 16;
+    int y = ((int) u16(LINK_Y) - cellY) / 16;
+    if (lx) *lx = x;
+    if (ly) *ly = y;
+    return x >= 0 && x < 32 && y >= 0 && y < 32;
+}
 
 /* The per-screen steering plan, rebuilt when the screen or leg changes. */
 uint8_t g_walkPathScreen = 0xFF;
@@ -1519,11 +1569,42 @@ int g_walkPathLen = 0;
 int g_walkPathIdx = 0;
 bool g_walkCrossing = false;    /* on the goal tile: hold the leg dir */
 int g_walkBestRemain = 0;
+int g_walkWpStall = 0;  /* frames without progress toward the waypoint */
 int g_walkStuck = 0;
 
 /* The live grids for one screen, filled by WalkLiveGrids below. */
 int16_t g_walkRegion[1024];
 bool g_walkSteer[1024];
+bool g_walkPass[1024];  /* the fallback mask (see WalkPlanScreen) */
+/* Tiles excluded from this screen's plans after a stall: a body the
+ * tile grid cannot see (a posted guard) can block a waypoint's line
+ * while the tile itself is sound ground. Excluding the stalled
+ * waypoint's tile and re-planning routes around the body. */
+bool g_walkExcluded[1024];
+uint8_t g_walkExcludedScreen = 0xFF;
+int g_walkExclusions = 0;
+int g_walkExcludedCount = 0;
+
+/* Mark a tile as body-blocked for this screen's plans. The set is
+ * small and self-clearing: it exists so a re-pressed walk routes
+ * around the guard who just proved he stands there, and it ages
+ * out whole rather than accumulating across a long session. */
+void WalkExcludeTile(uint8_t screen, int tile)
+{
+    if (tile < 0 || tile >= 1024) return;
+    if (g_walkExcludedScreen != screen) {
+        for (int i = 0; i < 1024; i++) g_walkExcluded[i] = false;
+        g_walkExcludedScreen = screen;
+        g_walkExcludedCount = 0;
+    }
+    if (g_walkExcluded[tile]) return;
+    if (g_walkExcludedCount >= 16) {
+        for (int i = 0; i < 1024; i++) g_walkExcluded[i] = false;
+        g_walkExcludedCount = 0;
+    }
+    g_walkExcluded[tile] = true;
+    g_walkExcludedCount++;
+}
 
 /* Side (route order: 0N 1S 2W 3E) and host direction (0 up, 1 down,
  * 2 left, 3 right) share a numbering by design of both tables. */
@@ -1597,6 +1678,7 @@ bool WalkLiveGrids(uint8_t screen)
             uint16_t m16 = u16(TILEATTR + idx * 2);
             walk[ry * 32 + rx] = AlttpMap16Walkable(m16);
             g_walkSteer[ry * 32 + rx] = AlttpMap16Steerable(m16);
+            g_walkPass[ry * 32 + rx] = AlttpMap16Passable(m16);
         }
     }
 
@@ -1638,6 +1720,65 @@ bool WalkLiveGrids(uint8_t screen)
  * (the generator's hop measurement), and the crossing hold carries
  * Link over either way. Returns false when no trusted path exists
  * this frame. */
+static int16_t g_walkBfsPrev[1024];
+
+/* One plan attempt over the given grid: build the leg's goal set
+ * (the border row and the row inside it, in Link's region, in the
+ * gap's third — a plain crossing needs the whole doorway pair, a
+ * ledge only its takeoff) and BFS from Link's tile to it. Returns
+ * the goal tile reached, or -1; the path is in g_walkBfsPrev. */
+static int WalkBfsAttempt(int start, int linkRegion, const RouteLeg& leg,
+                          const bool* grid)
+{
+    static bool goal[1024];
+    for (int i = 0; i < 1024; i++) goal[i] = false;
+    for (int i = 0; i < 32; i++) {
+        if ((i * 3) / 32 != leg.third) continue;
+        int bx = 0, by = 0, ix = 0, iy = 0;
+        switch (leg.side) {
+            case 0: bx = i; by = 0;  ix = i; iy = 1;  break;  /* north */
+            case 1: bx = i; by = 31; ix = i; iy = 30; break;  /* south */
+            case 2: bx = 0; by = i;  ix = 1; iy = i;  break;  /* west */
+            default: bx = 31; by = i; ix = 30; iy = i; break; /* east */
+        }
+        int b = by * 32 + bx, in = iy * 32 + ix;
+        bool bOk = g_walkRegion[b] == linkRegion && grid[b] &&
+                   !g_walkExcluded[b];
+        bool iOk = g_walkRegion[in] == linkRegion && grid[in];
+        if (leg.ledge) {
+            if (bOk) goal[b] = true;
+            if (iOk) goal[in] = true;
+        } else if (bOk && iOk) {
+            goal[b] = true;
+            goal[in] = true;
+        }
+    }
+
+    static int16_t queue[1024];
+    for (int i = 0; i < 1024; i++) g_walkBfsPrev[i] = -1;
+    int qh = 0, qt = 0;
+    queue[qt++] = (int16_t) start;
+    g_walkBfsPrev[start] = (int16_t) start;
+    int found = goal[start] ? start : -1;
+    while (qh < qt && found < 0) {
+        int cur = queue[qh++];
+        int cx = cur & 31, cy = cur >> 5;
+        static const int kDx[4] = { 1, -1, 0, 0 };
+        static const int kDy[4] = { 0, 0, 1, -1 };
+        for (int d = 0; d < 4; d++) {
+            int nx = cx + kDx[d], ny = cy + kDy[d];
+            if (nx < 0 || nx >= 32 || ny < 0 || ny >= 32) continue;
+            int ni = ny * 32 + nx;
+            if (g_walkBfsPrev[ni] >= 0 || !grid[ni]) continue;
+            if (g_walkExcluded[ni] && ni != start) continue;
+            g_walkBfsPrev[ni] = (int16_t) cur;
+            if (goal[ni]) { found = ni; break; }
+            queue[qt++] = (int16_t) ni;
+        }
+    }
+    return found;
+}
+
 bool WalkPlanScreen(uint8_t screen)
 {
     if (!WalkLiveGrids(screen)) return false;
@@ -1662,53 +1803,27 @@ bool WalkPlanScreen(uint8_t screen)
     if (linkRegion < 0) return false;
 
     const RouteLeg& leg = g_walkLegs[g_walkLeg];
-    static bool goal[1024];
-    for (int i = 0; i < 1024; i++) goal[i] = false;
-    for (int i = 0; i < 32; i++) {
-        if ((i * 3) / 32 != leg.third) continue;
-        int bx = 0, by = 0, ix = 0, iy = 0;
-        switch (leg.side) {
-            case 0: bx = i; by = 0;  ix = i; iy = 1;  break;  /* north */
-            case 1: bx = i; by = 31; ix = i; iy = 30; break;  /* south */
-            case 2: bx = 0; by = i;  ix = 1; iy = i;  break;  /* west */
-            default: bx = 31; by = i; ix = 30; iy = i; break; /* east */
-        }
-        int b = by * 32 + bx, in = iy * 32 + ix;
-        if (g_walkRegion[b] == linkRegion && g_walkSteer[b]) goal[b] = true;
-        if (g_walkRegion[in] == linkRegion && g_walkSteer[in]) goal[in] = true;
+    int found = WalkBfsAttempt(start, linkRegion, leg, g_walkSteer);
+    if (found < 0) {
+        /* Fallback: the passable mask — at least three subtiles
+         * walk-on, still no spike, warp or entrance subtile. Some
+         * ground the game routes over (the stairs and cliff paths
+         * into Kakariko from the south, measured live) has no
+         * all-four-subtiles path at all; the strict plan is always
+         * tried first, and the hazard exclusion is unchanged. */
+        found = WalkBfsAttempt(start, linkRegion, leg, g_walkPass);
     }
-
-    static int16_t prev[1024];
-    static int16_t queue[1024];
-    for (int i = 0; i < 1024; i++) prev[i] = -1;
-    int qh = 0, qt = 0;
-    queue[qt++] = (int16_t) start;
-    prev[start] = (int16_t) start;
-    int found = goal[start] ? start : -1;
-    while (qh < qt && found < 0) {
-        int cur = queue[qh++];
-        int cx = cur & 31, cy = cur >> 5;
-        static const int kDx[4] = { 1, -1, 0, 0 };
-        static const int kDy[4] = { 0, 0, 1, -1 };
-        for (int d = 0; d < 4; d++) {
-            int nx = cx + kDx[d], ny = cy + kDy[d];
-            if (nx < 0 || nx >= 32 || ny < 0 || ny >= 32) continue;
-            int ni = ny * 32 + nx;
-            if (prev[ni] >= 0 || !g_walkSteer[ni]) continue;
-            prev[ni] = (int16_t) cur;
-            if (goal[ni]) { found = ni; break; }
-            queue[qt++] = (int16_t) ni;
-        }
+    if (found < 0) {
+        return false;
     }
-    if (found < 0) return false;
     int len = 0;
-    for (int s = found; ; s = prev[s]) {
+    for (int s = found; ; s = g_walkBfsPrev[s]) {
         len++;
         if (s == start) break;
     }
     if (len > 1024) return false;
     int i = len;
-    for (int s = found; ; s = prev[s]) {
+    for (int s = found; ; s = g_walkBfsPrev[s]) {
         g_walkPath[--i] = (int16_t) s;
         if (s == start) break;
     }
@@ -1747,6 +1862,10 @@ bool WalkReplan(uint8_t screen)
     g_walkPathScreen = 0xFF;
     g_walkCrossing = false;
     g_walkStuck = 0;
+    /* A fresh route earns a fresh exclusion budget: the re-plan's
+     * whole point is another attempt, and the tiles excluded on the
+     * old attempt are exactly what it may need to route around. */
+    g_walkExclusions = 0;
     if (!sameLeg) g_walkStuckOnLeg = 0;
     g_walkReplans++;
     Say("Re-routing.", "walk", Priority::High);
@@ -1770,8 +1889,10 @@ void WalkProgress(int remain)
     if (remain < g_walkBestRemain - 2) {
         g_walkBestRemain = remain;
         g_walkStuck = 0;
+        g_walkWpStall = 0;
     } else {
         g_walkStuck++;
+        g_walkWpStall++;
     }
 }
 
@@ -1804,7 +1925,7 @@ void WalkTick()
 
     if (!AlttpReady()) { WalkCancel("Auto walk stopped."); return; }
     if (CurrentMenu() != Menu::None) { WalkCancel(nullptr); return; }
-    if (u16(DIALOGUE_INDEX) != 0) { WalkCancel(nullptr); return; }
+    if (DialogueOpen()) { WalkCancel(nullptr); return; }
     if (u8(PLAYER_INDOORS) != 0) {
         /* The steering mask never steps on a door mat, so indoors
          * means something else moved Link: the route has diverged. */
@@ -1815,8 +1936,22 @@ void WalkTick()
         WalkCancel("Auto walk stopped.");
         return;
     }
+    g_walkSinceAdvance++;
+
     uint8_t health = u8(HEALTH_CURRENT);
     if (health < g_walkLastHealth) {
+        /* A contact hit means a body at the waypoint: remember the
+         * tile for this screen, so the player's re-press routes
+         * around the guard instead of into him again. */
+        uint8_t ps = WalkPosScreen();
+        int tile = -1;
+        if (g_walkPathScreen == ps && g_walkPathLen > 0) {
+            tile = g_walkPath[g_walkPathIdx];
+        } else {
+            int lx = 0, ly = 0;
+            if (WalkLinkTile(ps, &lx, &ly)) tile = ly * 32 + lx;
+        }
+        WalkExcludeTile(ps, tile);
         WalkCancel("Auto walk stopped: hurt.");
         return;
     }
@@ -1829,8 +1964,62 @@ void WalkTick()
         return;
     }
 
-    uint8_t screen = (uint8_t) (u16(OVERWORLD_SCREEN) & 0x7F);
+    uint8_t screen = WalkPosScreen();
+    if (screen != g_walkScreen && g_walkSinceAdvance < 90) {
+        /* Scroll noise: for a few seconds after a leg advance the
+         * game's own scroll can snap Link's reported position back
+         * to the seam's resting coordinate for tens of frames at a
+         * time (measured live: repeated change-cancels at the same
+         * seam coordinate after clean advances). The walk's screen
+         * stays authoritative until the scroll settles; a genuine
+         * divergence still confirms once the grace passes. */
+        screen = g_walkScreen;
+        g_walkPendingScreen = 0xFF;
+        g_walkPendingFrames = 0;
+    }
     if (screen != g_walkScreen) {
+        /* The screen register bounces at a seam while the game
+         * scrolls (measured live: it flips between the two screens
+         * at the border for many frames). Only a reading that holds
+         * is a real change; until one confirms, coast on the current
+         * leg's direction — that is the crossing behaviour anyway. */
+        if (screen == g_walkPendingScreen) g_walkPendingFrames++;
+        else { g_walkPendingScreen = screen; g_walkPendingFrames = 1; }
+        if (g_walkPendingFrames < 10) {
+            WalkHold(g_walkLeg < g_walkLegCount
+                         ? WalkDirOfSide(g_walkLegs[g_walkLeg].side)
+                         : g_walkCoastDir);
+            return;
+        }
+        if (g_walkLeg < g_walkLegCount &&
+            screen == g_walkLegs[g_walkLeg].toScreen &&
+            g_walkPendingFrames < 300) {
+            /* Confirmed as the leg's target, but the leg advances
+             * only once Link is a full tile INSIDE the new screen:
+             * planning from the border row puts his line on the
+             * seam itself, and the game's seam collision drifts him
+             * back across it (measured live: advance at the border,
+             * drift back, change-cancel, repeat). Keep holding the
+             * crossing direction meanwhile; the pending reading
+             * stays latched, and the 300-frame bound keeps a
+             * genuinely impassable border from holding forever. */
+            int lx = 0, ly = 0;
+            bool inset = WalkLinkTile(screen, &lx, &ly);
+            if (inset) {
+                switch (g_walkLegs[g_walkLeg].side) {
+                    case 0: inset = ly <= 30; break;
+                    case 1: inset = ly >= 1; break;
+                    case 2: inset = lx <= 30; break;
+                    default: inset = lx >= 1; break;
+                }
+            }
+            if (!inset) {
+                WalkHold(WalkDirOfSide(g_walkLegs[g_walkLeg].side));
+                return;
+            }
+        }
+        g_walkPendingScreen = 0xFF;
+        g_walkPendingFrames = 0;
         if (g_walkLeg < g_walkLegCount &&
             screen == g_walkLegs[g_walkLeg].toScreen) {
             /* A scheduled transition ends the leg. */
@@ -1840,6 +2029,10 @@ void WalkTick()
             g_walkPathScreen = 0xFF;
             g_walkStuck = 0;
             g_walkStuckOnLeg = 0;
+            g_walkExclusions = 0;
+            g_walkSinceAdvance = 0;
+            g_walkSettle = 45;
+            g_walkSettleDir = WalkDirOfSide(g_walkLegs[g_walkLeg - 1].side);
             g_walkScreen = screen;
             if (g_walkLeg >= g_walkLegCount) {
                 g_walkCoastDir = WalkDirOfSide(g_walkLegs[g_walkLeg - 1].side);
@@ -1857,6 +2050,18 @@ void WalkTick()
     int cellX = (cell & 7) * SCREEN_UNITS;
     int cellY = ((cell >> 3) & 7) * SCREEN_UNITS;
     int linkX = (int) u16(LINK_X), linkY = (int) u16(LINK_Y);
+
+    if (g_walkSettle > 0 && g_walkLeg < g_walkLegCount) {
+        /* The game's scroll is still running after an advance:
+         * steering onto the new leg's plan mid-scroll gets Link
+         * ejected back across the seam (measured live, repeatedly,
+         * at two different borders). A player keeps holding the
+         * crossing direction through a transition; so does the
+         * walker, for a fixed settle window, before the plan. */
+        g_walkSettle--;
+        WalkHold(g_walkSettleDir);
+        return;
+    }
 
     if (g_walkLeg >= g_walkLegCount) {
         /* Coasting: the final screen is crossed but the area byte has
@@ -1882,12 +2087,50 @@ void WalkTick()
                      leg.side == 2 ? linkX - cellX :
                                      (cellX + SCREEN_UNITS) - linkX;
         WalkProgress(remain);
+        if (g_walkStuck >= 90 && g_walkExclusions < 3 &&
+            g_walkPathLen > 0) {
+            /* A crossing that grinds: this row of the third is
+             * steerable in the data but the game will not cross
+             * there (measured live at a fence-end row). Exclude the
+             * border tile and re-plan to another row of the third. */
+            int gt = g_walkPath[g_walkPathLen - 1];
+            int gx = gt & 31, gy = gt >> 5;
+            int bt = leg.side == 0 ? gx :
+                     leg.side == 1 ? gx + 31 * 32 :
+                     leg.side == 2 ? gy * 32 :
+                                     gy * 32 + 31;
+            WalkExcludeTile(screen, bt);
+            g_walkExclusions++;
+            g_walkCrossing = false;
+            g_walkPathScreen = 0xFF;
+            g_walkStuck = 0;
+            return;
+        }
         if (g_walkStuck >= 90) WalkStuck(screen);
         return;
     }
 
     if (g_walkPathScreen != screen) {
+        if (!WalkLinkTile(screen, nullptr, nullptr)) {
+            /* In the seam band of the screen being planned: coast
+             * on the leg's direction until Link is inside the grid. */
+            WalkHold(dir);
+            return;
+        }
         if (!WalkPlanScreen(screen)) {
+            if (g_walkSinceAdvance < 120) {
+                /* Fresh across a seam, the game is still redrawing:
+                 * the live grid is a hybrid of two screens and its
+                 * region count cannot be trusted yet (measured live:
+                 * plans fail for ~100 frames at a border, and
+                 * releasing here stalls the scroll so the grid never
+                 * settles). Keep holding the crossing direction —
+                 * the scroll needs Link moving to complete. */
+                WalkHold(g_walkLeg > 0
+                             ? WalkDirOfSide(g_walkLegs[g_walkLeg - 1].side)
+                             : dir);
+                return;
+            }
             /* Untrusted grids (a redraw in flight) or no steerable
              * path: hold nothing and let the stuck rule decide. */
             WalkReleaseAll();
@@ -1900,10 +2143,15 @@ void WalkTick()
 
     /* Follow the tile path: servo the cross axis onto the waypoint's
      * line first (within 3 px), then drive the main axis — the probe
-     * climb's technique, generalised to every turn. */
+     * climb's technique, generalised to every turn. Waypoints are
+     * tile CENTRES: aiming at the corner of a border-row tile puts
+     * Link's line exactly on the seam, and the cross-axis correction
+     * then shoves him back across the border (measured live at two
+     * seams: a change-cancel at one, a seam grind to the stuck rule
+     * at the other). */
     int tx = g_walkPath[g_walkPathIdx] & 31;
     int ty = g_walkPath[g_walkPathIdx] >> 5;
-    int wantX = cellX + tx * 16, wantY = cellY + ty * 16;
+    int wantX = cellX + tx * 16 + 8, wantY = cellY + ty * 16 + 8;
     int ex = wantX - linkX, ey = wantY - linkY;
     if (ex >= -2 && ex <= 2 && ey >= -2 && ey <= 2) {
         g_walkPathIdx++;
@@ -1915,7 +2163,7 @@ void WalkTick()
         }
         tx = g_walkPath[g_walkPathIdx] & 31;
         ty = g_walkPath[g_walkPathIdx] >> 5;
-        wantX = cellX + tx * 16; wantY = cellY + ty * 16;
+        wantX = cellX + tx * 16 + 8; wantY = cellY + ty * 16 + 8;
         ex = wantX - linkX; ey = wantY - linkY;
     }
     int px = g_walkPath[g_walkPathIdx - 1] & 31;
@@ -1935,6 +2183,27 @@ void WalkTick()
     int remain = (g_walkPathLen - g_walkPathIdx) * 16 +
                  (ex < 0 ? -ex : ex) + (ey < 0 ? -ey : ey);
     WalkProgress(remain);
+    if (g_walkStuck >= 90 && g_walkExclusions < 3) {
+        /* Stalled against something the grid cannot see: exclude
+         * the waypoint's tile and re-plan this screen around it.
+         * Bounded per leg; the route re-plan below still bounds
+         * the leg as a whole. */
+        WalkExcludeTile(screen, g_walkPath[g_walkPathIdx]);
+        g_walkExclusions++;
+        g_walkPathScreen = 0xFF;
+        g_walkStuck = 0;
+        g_walkWpStall = 0;
+        return;
+    }
+    if (g_walkWpStall >= 45 && g_walkPathIdx < g_walkPathLen - 1) {
+        /* Sub-tile wedge: the tile path is sound but this waypoint's
+         * line is blocked by part of a tile (a tree trunk at its
+         * centre, measured live). Aim at the next waypoint instead —
+         * its line usually slips around the obstacle. The overall
+         * stuck rule above still bounds a genuinely wedged path. */
+        g_walkPathIdx++;
+        g_walkWpStall = 0;
+    }
     if (g_walkStuck >= 90) WalkStuck(screen);
 }
 
@@ -1984,6 +2253,8 @@ void WalkStart()
     g_walkPathScreen = 0xFF;
     g_walkCrossing = false;
     g_walkReplans = 0;
+    g_walkSinceAdvance = 999;  /* no advance yet: the start gates read
+                                * a settled screen, so no seam grace */
     g_walkStuckOnLeg = 0;
     g_walkStuck = 0;
     g_walkLastHealth = u8(HEALTH_CURRENT);
@@ -1995,7 +2266,11 @@ void WalkStart()
     }
     char line[128];
     snprintf(line, sizeof(line), "Auto walk: %s.", g_walkTargetName);
-    Say(line, "walk", Priority::High);
+    /* Its own group, not "walk": a stop line queued a moment later
+     * would replace a still-pending start line in the same group, and
+     * the player would hear a stop for a walk they never heard start
+     * (measured on the bench, behind a hurt stop). */
+    Say(line, "walkstart", Priority::High);
     if (g_walkLegs[0].ledge) {
         WalkEnterAwait();
         return;
@@ -2057,7 +2332,7 @@ void WalkTogglePressed()
         Say("Auto walk works outside.", "walk", Priority::High);
         return;
     }
-    if (u16(DIALOGUE_INDEX) != 0 || RealModule() != MOD_OVERWORLD) {
+    if (DialogueOpen() || RealModule() != MOD_OVERWORLD) {
         Say("Auto walk can't start here.", "walk", Priority::High);
         return;
     }

@@ -94,12 +94,12 @@ build_live() {
 
 echo "== $MODE"
 case "$MODE" in
-  --live|--live-cases|--teardown|--menus|--files|--walk|--dialogue|--darkobj) build_live ;;
+  --live|--live-cases|--teardown|--menus|--files|--walk|--autowalk|--dialogue|--darkobj) build_live ;;
   *)                   build_probe ;;
 esac
 
 case "$MODE" in
-  --identity|--run|--input|--reset|--reads|--resolve|--states|--after-stop|--memory|--drive|--gameplay|--explore|--leave|--wander|--resume|--measure|--text|--keytest|--file|--walkmap)
+  --identity|--run|--input|--reset|--reads|--resolve|--states|--after-stop|--memory|--drive|--gameplay|--explore|--leave|--wander|--resume|--measure|--text|--keytest|--file|--walkmap|--walklease|--walkdiag|--msgdiag|--deathdiag|--spritedump|--guardmap)
     exec "$OUT/snes-probe" "$MODE" "$ROM" "$SAVE" "${@:2}" ;;
   --headered)
     HEADERED="$HOME/z3work/alttp-headered.smc"
@@ -114,6 +114,8 @@ case "$MODE" in
     exec "$OUT/snes-live-proof" --files "$ROM" "$SAVE" ;;
   --walk)
     exec "$OUT/snes-live-proof" --walk "$ROM" "$SAVE" ;;
+  --autowalk)
+    exec "$OUT/snes-live-proof" --autowalk "$ROM" "$SAVE" ;;
   --darkobj)
     exec "$OUT/snes-live-proof" --darkobj "$ROM" "$SAVE" ;;
   --dungeon)

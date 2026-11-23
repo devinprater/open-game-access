@@ -884,7 +884,7 @@ int main()
         fillTiles(false);
         put8(CAP, 0x18); put8(CUR, 0x18);
         put8(0x7E0010u, 9); put8(0x7E0011u, 0); put16(0x7E010Cu, 9);
-        put8(INDOORS, 0); put16(0x7E1CF0u, 0); put8(0x7E040Cu, 0xFF);
+        put8(INDOORS, 0); put16(0x7E1CF0u, 388); put8(0x7E040Cu, 0xFF);
         put8(0x7EF3C6u, flags); put8(0x7EF374u, 0); put8(0x7EF359u, 1);
         placeLink(x, y);
         NSPOKEN = 0; NEVENTS = 0; oga::AdapterSpeechReset();
@@ -1003,10 +1003,12 @@ int main()
     oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
     simFrames(60, true);
     NSPOKEN = 0; oga::AdapterSpeechReset();
-    put16(0x7E1CF0u, 7);
+    /* A box really open: interface module running RenderText, the
+     * saved module still the overworld (measured on the intro message). */
+    put8(0x7E0010u, 14); put8(0x7E0011u, 2); put8(0x7E010Cu, 9);
     oga::kZeldaLinkToThePast.on_frame();
     CHECK(dirsClear() && !said("Auto walk"), "walk: dialogue cancels silently");
-    put16(0x7E1CF0u, 0);
+    put8(0x7E0010u, 9); put8(0x7E0011u, 0);
 
     walkSetup(2232, 2792, 0x15);
     guideTo("Desert of Mystery");
@@ -1058,10 +1060,12 @@ int main()
           "walk: already at the target answers with Where Am I, no walk");
 
     // Stuck: frozen in place, one re-plan, then the blocked line.
+    // (The stall cycle now includes up to three tile exclusions
+    // before each re-plan, so the whole sequence takes longer.)
     walkSetup(2232, 2792, 0x15);
     guideTo("Desert of Mystery");
     oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
-    simFrames(600, false);
+    simFrames(1600, false);
     CHECK(said("Re-routing."), "walk: a stall earns one re-plan");
     CHECK(saidExact("Auto walk stopped: blocked."), "walk: a second stall on the leg cancels");
     CHECK(dirsClear(), "walk: blocked releases every direction");
@@ -1073,7 +1077,10 @@ int main()
     simFrames(60, true);
     NSPOKEN = 0; oga::AdapterSpeechReset();
     placeLink(2148, 3684);   // screen 60, nowhere on the route
-    oga::kZeldaLinkToThePast.on_frame();
+    // The screen register bounces at real seams (measured live), so a
+    // change must hold for several frames before it is believed; an
+    // unscheduled one that holds is a route failure.
+    for (int i = 0; i < 12; i++) oga::kZeldaLinkToThePast.on_frame();
     CHECK(saidExact("Auto walk stopped: blocked."),
           "walk: an unscheduled transition cancels as route failure");
 

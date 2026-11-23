@@ -8,6 +8,7 @@
 // game address; the modes that check addresses get them from the plan's
 // measured table, and they print what they read.
 #include "snes_core.h"
+#include "alttp_graph.h"
 #include "oga_core.h"
 #include "alttp_text.h"
 
@@ -1794,6 +1795,564 @@ static int FileSelect(const char* rom, const char* savedir, const char* ppm)
     return 0;
 }
 
+
+
+/* ---- walkdiag: why does LiveRegion refuse the real screen? ----
+ * Boots into the save, walks out of the house exactly as the live
+ * proof does, then prints the gate registers and replicates
+ * LiveRegion's fill for the current screen: region count, Link's
+ * tile, and the walkable map as text. */
+static uint32_t DiagRead(SnesCore* c, uint32_t addr, int size)
+{
+    uint32_t v = 0;
+    snes_read(c, addr, size, &v);
+    return v;
+}
+
+static int WalkDiag(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    for (int f = 0; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    /* Close the interface overlay if it is up: two START taps. */
+    for (int t = 0; t < 2; t++) {
+        for (int i = 0; i < 4; i++) { snes_set_button(c, SNES_BTN_START, true); snes_frame(c); }
+        snes_set_button(c, SNES_BTN_START, false);
+        for (int i = 0; i < 60; i++) snes_frame(c);
+    }
+    for (int i = 0; i < 300; i++) {
+        snes_set_button(c, SNES_BTN_DOWN, true);
+        snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 60; i++) snes_frame(c);
+    /* The bench's step off the road. */
+    for (int i = 0; i < 55; i++) {
+        snes_set_button(c, SNES_BTN_DOWN, true);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    for (int i = 0; i < 30; i++) snes_frame(c);
+
+    uint32_t mod = DiagRead(c, 0x7E0010, 1), saved = DiagRead(c, 0x7E010C, 1);
+    uint32_t sub = DiagRead(c, 0x7E0011, 1), dlg = DiagRead(c, 0x7E1CF0, 2);
+    uint32_t indoors = DiagRead(c, 0x7E001B, 1);
+    uint32_t screenRaw = DiagRead(c, 0x7E008A, 2);
+    uint32_t area = DiagRead(c, 0x7E040A, 2);
+    uint32_t lx = DiagRead(c, 0x7E0022, 2), ly = DiagRead(c, 0x7E0020, 2);
+    uint32_t health = DiagRead(c, 0x7EF36D, 1);
+    std::printf("module=%u saved=%u sub=%u dialogue=%u indoors=%u screen=%u area=%u "
+                "link=(%u,%u) health=%u\n",
+                mod, saved, sub, dlg, indoors, screenRaw & 0x7F, area, lx, ly, health);
+    uint32_t by = DiagRead(c, 0x7E0708, 2), my = DiagRead(c, 0x7E070A, 2);
+    uint32_t bx = DiagRead(c, 0x7E070C, 2), mx = DiagRead(c, 0x7E070E, 2);
+    std::printf("base_y=%u mask_y=%u base_x=%u mask_x=%u direct=%d\n",
+                by, my, bx, mx, (int) (my == 0 || mx == 0));
+
+    int screen = (int) (screenRaw & 0x7F);
+    int cell = screen & 63;
+    int cellX = (cell & 7) * 0x200, cellY = ((cell >> 3) & 7) * 0x200;
+    static bool walk[1024];
+    static bool steer[1024];
+    for (int ry = 0; ry < 32; ry++) {
+        for (int rx = 0; rx < 32; rx++) {
+            uint32_t idx;
+            if (my == 0 || mx == 0) {
+                idx = (uint32_t) (ry * 64 + rx);
+            } else {
+                int px8 = (cellX + rx * 16 + 8) / 8;
+                int py = cellY + ry * 16 + 8;
+                uint32_t t = (uint32_t) (((py - (int) by) & (int) my) * 8 +
+                                         ((px8 - (int) bx) & (int) mx));
+                idx = t >> 1;
+            }
+            uint32_t m16 = DiagRead(c, 0x7E2000 + idx * 2, 2);
+            walk[ry * 32 + rx] = oga::AlttpMap16Walkable((uint16_t) m16);
+            steer[ry * 32 + rx] = oga::AlttpMap16Steerable((uint16_t) m16);
+        }
+    }
+    static int region[1024];
+    static uint16_t stack[1024];
+    for (int i = 0; i < 1024; i++) region[i] = -1;
+    int next = 0;
+    for (int ry = 0; ry < 32; ry++) {
+        for (int rx = 0; rx < 32; rx++) {
+            int seed = ry * 32 + rx;
+            if (region[seed] >= 0 || !walk[seed]) continue;
+            int sp = 0;
+            stack[sp++] = (uint16_t) seed;
+            region[seed] = next;
+            while (sp > 0) {
+                int cur = stack[--sp];
+                int cx = cur & 31, cy = cur >> 5;
+                static const int kDx[4] = { 1, -1, 0, 0 };
+                static const int kDy[4] = { 0, 0, 1, -1 };
+                for (int d = 0; d < 4; d++) {
+                    int nx = cx + kDx[d], ny = cy + kDy[d];
+                    if (nx < 0 || nx >= 32 || ny < 0 || ny >= 32) continue;
+                    int ni = ny * 32 + nx;
+                    if (region[ni] >= 0 || !walk[ni]) continue;
+                    region[ni] = next;
+                    stack[sp++] = (uint16_t) ni;
+                }
+            }
+            next++;
+        }
+    }
+    int tx = ((int) lx - cellX) / 16, ty = ((int) ly - cellY) / 16;
+    std::printf("regions=%d expected=%u link-tile=(%d,%d) link-region=%d\n",
+                next, oga::AlttpScreenRegionCount((uint8_t) screen), tx, ty,
+                (tx >= 0 && tx < 32 && ty >= 0 && ty < 32) ? region[ty * 32 + tx] : -99);
+    for (int ry = 0; ry < 32; ry++) {
+        char line[33];
+        for (int rx = 0; rx < 32; rx++)
+            line[rx] = (rx == tx && ry == ty) ? 'L' : (walk[ry * 32 + rx] ? '#' : '.');
+        line[32] = 0;
+        std::printf("%s\n", line);
+    }
+    std::printf("steer grid (S = steerable):\n");
+    for (int ry = 0; ry < 32; ry++) {
+        char line[33];
+        for (int rx = 0; rx < 32; rx++)
+            line[rx] = (rx == tx && ry == ty) ? 'L' : (steer[ry * 32 + rx] ? 'S' : '.');
+        line[32] = 0;
+        std::printf("%s\n", line);
+    }
+    if (tx >= 0 && tx < 32 && ty >= 0 && ty < 32) {
+        /* Link's steer component (start tile exempt, as the walker
+         * treats it) and whether the west border goals are in it. */
+        static bool seen[1024];
+        for (int i = 0; i < 1024; i++) seen[i] = false;
+        uint16_t st[1024];
+        int sp = 0, comp = 0;
+        st[sp++] = (uint16_t) (ty * 32 + tx);
+        seen[ty * 32 + tx] = true;
+        bool goalW = false;
+        while (sp > 0) {
+            int cur = st[--sp];
+            comp++;
+            int cx = cur & 31, cy = cur >> 5;
+            if (cx <= 1 && cy <= 10) goalW = true;
+            static const int kDx[4] = { 1, -1, 0, 0 };
+            static const int kDy[4] = { 0, 0, 1, -1 };
+            for (int d = 0; d < 4; d++) {
+                int nx = cx + kDx[d], ny = cy + kDy[d];
+                if (nx < 0 || nx >= 32 || ny < 0 || ny >= 32) continue;
+                int ni = ny * 32 + nx;
+                if (seen[ni] || !steer[ni]) continue;
+                seen[ni] = true;
+                st[sp++] = (uint16_t) ni;
+            }
+        }
+        std::printf("steer-component=%d west-goal-reachable=%d\n",
+                    comp, (int) goalW);
+        for (int third = 0; third < 3; third++) {
+            bool reach = false;
+            for (int ry = 0; ry < 32 && !reach; ry++) {
+                if ((ry * 3) / 32 != third) continue;
+                for (int rx = 0; rx <= 1; rx++)
+                    if (seen[ry * 32 + rx]) reach = true;
+            }
+            std::printf("west-third-%d-reachable=%d\n", third, (int) reach);
+        }
+        for (int side = 0; side < 4; side++) {
+            /* 0N 1S 2W 3E: which thirds of each border the component
+             * touches at all (border row/col plus one inside). */
+            for (int third = 0; third < 3; third++) {
+                bool reach = false;
+                for (int i = 0; i < 32 && !reach; i++) {
+                    if ((i * 3) / 32 != third) continue;
+                    int cells[2];
+                    if (side == 0) { cells[0] = i; cells[1] = 32 + i; }
+                    else if (side == 1) { cells[0] = 31 * 32 + i; cells[1] = 30 * 32 + i; }
+                    else if (side == 2) { cells[0] = i * 32; cells[1] = i * 32 + 1; }
+                    else { cells[0] = i * 32 + 31; cells[1] = i * 32 + 30; }
+                    if (seen[cells[0]] || seen[cells[1]]) reach = true;
+                }
+                std::printf("side-%d-third-%d=%d\n", side, third, (int) reach);
+            }
+        }
+    }
+    snes_destroy(c);
+    return 0;
+}
+
+
+/* ---- msgdiag: the registers while a message box is really open ----
+ * A NEW file (empty save dir): the boot drive starts the game and
+ * Zelda's telepathy message opens on its own. Dump the module,
+ * submodule, saved module and message index at that moment, so the
+ * walker's dialogue gate can use the game's real signal instead of
+ * the message index (which the public save proves is stale at 388
+ * with no box open). */
+static int MsgDiag(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    for (int f = 0; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 600; i++) snes_frame(c);
+
+    std::printf("module=%u saved=%u sub=%u dialogue=%u indoors=%u\n",
+                DiagRead(c, 0x7E0010, 1), DiagRead(c, 0x7E010C, 1),
+                DiagRead(c, 0x7E0011, 1), DiagRead(c, 0x7E1CF0, 2),
+                DiagRead(c, 0x7E001B, 1));
+    uint8_t buf[128];
+    for (int i = 0; i < (int) sizeof(buf); i++)
+        buf[i] = (uint8_t) DiagRead(c, 0x7F1200 + (uint32_t) i, 1);
+    char text[192];
+    int n = oga::AlttpDecodeText(buf, (int) sizeof(buf), text, (int) sizeof(text));
+    std::printf("text=\"%s\"\n", n > 0 ? text : "");
+    snes_destroy(c);
+    return 0;
+}
+
+
+/* ---- deathdiag: where does the live-proof drive lose Link? ----
+ * Mirrors snes-live-proof's --autowalk drive checkpoint by checkpoint
+ * (boot, ONE overlay tap, walk out, a Guide press and its drain, then
+ * idle), printing module/health/position at each one. */
+static void DeathMark(SnesCore* c, const char* tag)
+{
+    std::printf("%s: module=%u saved=%u sub=%u health=%u link=(%u,%u) screen=%u\n",
+                tag, DiagRead(c, 0x7E0010, 1), DiagRead(c, 0x7E010C, 1),
+                DiagRead(c, 0x7E0011, 1), DiagRead(c, 0x7EF36D, 1),
+                DiagRead(c, 0x7E0022, 2), DiagRead(c, 0x7E0020, 2),
+                DiagRead(c, 0x7E008A, 2) & 0x7F);
+}
+
+static int DeathDiag(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    for (int f = 0; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    DeathMark(c, "boot");
+
+    /* The live proof's overlay dance: tap, see the item menu, tap again. */
+    for (int t = 0; t < 2; t++) {
+        for (int i = 0; i < 4; i++) { snes_set_button(c, SNES_BTN_START, true); snes_frame(c); }
+        snes_set_button(c, SNES_BTN_START, false);
+        for (int i = 0; i < 60; i++) snes_frame(c);
+        DeathMark(c, t == 0 ? "tap1" : "tap2");
+    }
+
+    for (int i = 0; i < 300; i++) {
+        snes_set_button(c, SNES_BTN_DOWN, true);
+        snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 60; i++) snes_frame(c);
+    DeathMark(c, "out");
+
+    for (int k = 0; k < 20; k++) {
+        for (int i = 0; i < 150; i++) snes_frame(c);
+        char tag[32];
+        std::snprintf(tag, sizeof(tag), "idle%d", (k + 1) * 150);
+        DeathMark(c, tag);
+    }
+    snes_destroy(c);
+    return 0;
+}
+
+
+/* ---- spritedump: what body is standing at the field wedge? ----
+ * Replicates the bench's approach (boot, walk out, cross west into
+ * the next screen, climb into the field), then holds west along the
+ * field line where the walker wedges, and dumps every sprite slot. */
+static int SpriteDump(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    for (int f = 0; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int t = 0; t < 2; t++) {
+        for (int i = 0; i < 4; i++) { snes_set_button(c, SNES_BTN_START, true); snes_frame(c); }
+        snes_set_button(c, SNES_BTN_START, false);
+        for (int i = 0; i < 60; i++) snes_frame(c);
+    }
+    for (int i = 0; i < 300; i++) {
+        snes_set_button(c, SNES_BTN_DOWN, true);
+        snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 60; i++) snes_frame(c);
+
+    /* West into screen 43, then up into the field, then west along
+     * the wedge line, all closed-loop on Link's position. */
+    auto pos = [&]() {
+        return std::pair<int, int>((int) DiagRead(c, 0x7E0022, 2),
+                                   (int) DiagRead(c, 0x7E0020, 2));
+    };
+    auto drive = [&](int tx, int ty, int ticks) {
+        for (int k = 0; k < ticks; k++) {
+            auto [x, y] = pos();
+            if (std::abs(x - tx) <= 12 && std::abs(y - ty) <= 12) break;
+            snes_set_button(c, SNES_BTN_LEFT, x > tx + 6);
+            snes_set_button(c, SNES_BTN_RIGHT, x < tx - 6);
+            snes_set_button(c, SNES_BTN_UP, y > ty + 6);
+            snes_set_button(c, SNES_BTN_DOWN, y < ty - 6);
+            for (int f = 0; f < 30; f++) snes_frame(c);
+        }
+        snes_set_button(c, SNES_BTN_LEFT, false);
+        snes_set_button(c, SNES_BTN_RIGHT, false);
+        snes_set_button(c, SNES_BTN_UP, false);
+        snes_set_button(c, SNES_BTN_DOWN, false);
+    };
+    drive(2000, 2936, 30);          /* into screen 43 */
+    drive(1870, 2845, 30);          /* the field hand-over spot */
+    /* West along the wedge line, stopping the moment x stalls:
+     * that is the wedge, and Link must be alive when we dump. */
+    {
+        int lx = -1, stall = 0;
+        for (int k = 0; k < 60; k++) {
+            auto [x, y] = pos();
+            if (x == lx) stall++;
+            else stall = 0;
+            lx = x;
+            if (stall >= 3) break;
+            snes_set_button(c, SNES_BTN_LEFT, true);
+            snes_set_button(c, SNES_BTN_DOWN, y < 2850);
+            snes_set_button(c, SNES_BTN_UP, y > 2862);
+            for (int f = 0; f < 30; f++) snes_frame(c);
+        }
+        snes_set_button(c, SNES_BTN_LEFT, false);
+        snes_set_button(c, SNES_BTN_DOWN, false);
+        snes_set_button(c, SNES_BTN_UP, false);
+    }
+    auto [lx, ly] = pos();
+    std::printf("link=(%d,%d) health=%u\n", lx, ly, DiagRead(c, 0x7EF36D, 1));
+    for (int s = 0; s < 16; s++) {
+        int type = DiagRead(c, 0x7E0E20 + s, 1);
+        int x = DiagRead(c, 0x7E0D00 + s, 1) | (DiagRead(c, 0x7E0D20 + s, 1) << 8);
+        int y = DiagRead(c, 0x7E0D10 + s, 1) | (DiagRead(c, 0x7E0D30 + s, 1) << 8);
+        int state = DiagRead(c, 0x7E0DD0 + s, 1);
+        if (type || state)
+            std::printf("sprite %d: type=0x%02x at=(%d,%d) state=%u\n",
+                        s, type, x, y, state);
+    }
+    snes_destroy(c);
+    return 0;
+}
+
+
+/* ---- guardmap: patrol bounding boxes on the castle approaches ----
+ * Boots the save, walks out, and from three vantage points (the west
+ * field, the doorstep, the road east) samples every sprite slot for
+ * a few hundred frames each, printing each body's type and the
+ * bounding box it patrols. Recon for the auto-walk bench's staging:
+ * a hurt stop is only survivable where no patrol passes. */
+static int GuardMap(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    for (int f = 0; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int t = 0; t < 2; t++) {
+        for (int i = 0; i < 4; i++) { snes_set_button(c, SNES_BTN_START, true); snes_frame(c); }
+        snes_set_button(c, SNES_BTN_START, false);
+        for (int i = 0; i < 60; i++) snes_frame(c);
+    }
+    for (int i = 0; i < 300; i++) {
+        snes_set_button(c, SNES_BTN_DOWN, true);
+        snes_set_button(c, SNES_BTN_A, (i % 30) >= 26 && (i % 30) < 30);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_DOWN, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 60; i++) snes_frame(c);
+
+    auto pos = [&]() {
+        return std::pair<int, int>((int) DiagRead(c, 0x7E0022, 2),
+                                   (int) DiagRead(c, 0x7E0020, 2));
+    };
+    auto drive = [&](int tx, int ty, int ticks) {
+        for (int k = 0; k < ticks; k++) {
+            auto [x, y] = pos();
+            if (std::abs(x - tx) <= 12 && std::abs(y - ty) <= 12) break;
+            if ((int) DiagRead(c, 0x7EF36D, 1) <= 4) break;
+            snes_set_button(c, SNES_BTN_LEFT, x > tx + 6);
+            snes_set_button(c, SNES_BTN_RIGHT, x < tx - 6);
+            snes_set_button(c, SNES_BTN_UP, y > ty + 6);
+            snes_set_button(c, SNES_BTN_DOWN, y < ty - 6);
+            for (int f = 0; f < 30; f++) snes_frame(c);
+        }
+        snes_set_button(c, SNES_BTN_LEFT, false);
+        snes_set_button(c, SNES_BTN_RIGHT, false);
+        snes_set_button(c, SNES_BTN_UP, false);
+        snes_set_button(c, SNES_BTN_DOWN, false);
+    };
+    auto sample = [&](const char* tag, int samples) {
+        int mnx[16], mxx[16], mny[16], mxy[16], typ[16];
+        for (int s = 0; s < 16; s++) { mnx[s] = 1 << 28; mxx[s] = -1; mny[s] = 1 << 28; mxy[s] = -1; typ[s] = 0; }
+        for (int k = 0; k < samples; k++) {
+            for (int f = 0; f < 60; f++) snes_frame(c);
+            for (int s = 0; s < 16; s++) {
+                int type = DiagRead(c, 0x7E0E20 + s, 1);
+                int state = DiagRead(c, 0x7E0DD0 + s, 1);
+                if (!type && !state) continue;
+                int x = DiagRead(c, 0x7E0D00 + s, 1) | (DiagRead(c, 0x7E0D20 + s, 1) << 8);
+                int y = DiagRead(c, 0x7E0D10 + s, 1) | (DiagRead(c, 0x7E0D30 + s, 1) << 8);
+                typ[s] = type;
+                if (x < mnx[s]) mnx[s] = x;
+                if (x > mxx[s]) mxx[s] = x;
+                if (y < mny[s]) mny[s] = y;
+                if (y > mxy[s]) mxy[s] = y;
+            }
+        }
+        auto [lx, ly] = pos();
+        std::printf("%s: link=(%d,%d) health=%d\n", tag, lx, ly,
+                    (int) DiagRead(c, 0x7EF36D, 1));
+        for (int s = 0; s < 16; s++)
+            if (mxx[s] >= 0)
+                std::printf("  slot %d type=0x%02x x=[%d..%d] y=[%d..%d]\n",
+                            s, typ[s], mnx[s], mxx[s], mny[s], mxy[s]);
+    };
+
+    drive(2000, 2936, 30);
+    drive(1870, 2845, 30);
+    sample("west-field", 8);
+    drive(2256, 2944, 40);
+    sample("doorstep", 5);
+    drive(2750, 2943, 40);
+    sample("road-east", 8);
+    snes_destroy(c);
+    return 0;
+}
+
+/* ---- walklease: the direction lease and player arbitration, measured ----
+ * The auto-walk core contract, measured through the provider bits the
+ * console actually consumed: a direction refreshed every frame persists;
+ * one unrefreshed write dies within the 3-frame lease bound (the sampled
+ * count is 2 or 3 depending on where in the in-flight frame the write
+ * lands — the in-flight frame's own aging can consume one count before
+ * its poll); an explicit release clears it at once; and a real player
+ * button press clears the direction layer on the frame it lands while
+ * the player's own bit still reads. */
+static int WalkLease(const char* rom, const char* savedir)
+{
+    SnesCore* c = snes_create();
+    if (!c) { std::printf("FAIL: no core\n"); return 1; }
+    char code[16] = {0};
+    if (!snes_load_rom(c, rom, savedir, code) || !snes_start(c)) {
+        std::printf("FAIL: %s\n", snes_last_error(c));
+        snes_destroy(c);
+        return 1;
+    }
+    for (int f = 0; f < 1500; f++) {
+        snes_set_button(c, SNES_BTN_START, (f % 90) < 4);
+        snes_set_button(c, SNES_BTN_A, (f % 90) >= 30 && (f % 90) < 34);
+        snes_frame(c);
+    }
+    snes_set_button(c, SNES_BTN_START, false);
+    snes_set_button(c, SNES_BTN_A, false);
+    for (int i = 0; i < 30; i++) snes_frame(c);
+
+    /* Refreshed every frame, the direction persists at every sample. */
+    bool hold = true;
+    for (int i = 0; i < 60; i++) {
+        snes_set_direction(c, 0, true);
+        snes_frame(c);
+        if (!(snes_provider_bits(c) & (1u << SNES_BTN_UP))) hold = false;
+    }
+    std::printf("hold-persists=%s\n", hold ? "YES" : "NO");
+
+    /* One write, never refreshed: sampled for at most the lease bound. */
+    snes_set_direction(c, 0, true);
+    int lease = 0;
+    for (int i = 0; i < 10; i++) {
+        snes_frame(c);
+        if (snes_provider_bits(c) & (1u << SNES_BTN_UP)) lease++;
+    }
+    std::printf("lease-frames=%d\n", lease);
+    bool bounded = lease >= 1 && lease <= 3;
+    std::printf("lease-bounded=%s\n", bounded ? "YES" : "NO");
+
+    /* An explicit release clears the layer at once. */
+    for (int i = 0; i < 10; i++) { snes_set_direction(c, 0, true); snes_frame(c); }
+    snes_set_direction(c, 0, false);
+    snes_frame(c);
+    bool released = !(snes_provider_bits(c) & (1u << SNES_BTN_UP));
+    std::printf("release-clears=%s\n", released ? "YES" : "NO");
+
+    /* A player press arbitrates instantly; the player's bit still reads. */
+    for (int i = 0; i < 10; i++) { snes_set_direction(c, 0, true); snes_frame(c); }
+    bool wasHeld = (snes_provider_bits(c) & (1u << SNES_BTN_UP)) != 0;
+    snes_set_button(c, SNES_BTN_B, true);
+    snes_frame(c);
+    unsigned bits = snes_provider_bits(c);
+    bool arb = wasHeld && !(bits & (1u << SNES_BTN_UP)) && (bits & (1u << SNES_BTN_B));
+    snes_set_button(c, SNES_BTN_B, false);
+    std::printf("arbitration=%s\n", arb ? "YES" : "NO");
+
+    bool ok = hold && bounded && released && arb;
+    std::printf("walklease=%s\n", ok ? "YES" : "NO");
+    snes_destroy(c);
+    return ok ? 0 : 1;
+}
+
 int main(int argc, char** argv)
 {
     if (argc < 2) { Usage(argv[0]); return 2; }
@@ -1854,6 +2413,30 @@ int main(int argc, char** argv)
     if (std::strcmp(argv[1], "--gameplay") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }
         return Gameplay(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--deathdiag") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return DeathDiag(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--msgdiag") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return MsgDiag(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--guardmap") == 0) {
+        if (argc < 4) { std::printf("usage: --guardmap ROM SAVEDIR\n"); return 2; }
+        return GuardMap(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--spritedump") == 0) {
+        if (argc < 4) { std::printf("usage: --spritedump ROM SAVEDIR\n"); return 2; }
+        return SpriteDump(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--walkdiag") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return WalkDiag(argv[2], argv[3]);
+    }
+    if (std::strcmp(argv[1], "--walklease") == 0) {
+        if (argc < 4) { Usage(argv[0]); return 2; }
+        return WalkLease(argv[2], argv[3]);
     }
     if (std::strcmp(argv[1], "--drive") == 0) {
         if (argc < 4) { Usage(argv[0]); return 2; }

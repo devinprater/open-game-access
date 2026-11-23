@@ -47,6 +47,12 @@ bool AlttpMap16Walkable(uint16_t map16);
  * threshold — the walker stops AT doors and warps, never on them. */
 bool AlttpMap16Steerable(uint16_t map16);
 
+/* Whether a map16 tile id is PASSABLE ground for auto walk's
+ * fallback plans: at least three of its four subtiles walk-on, and
+ * still no spike, warp or entrance subtile. Used only when no
+ * steerable path exists on a screen (stairs and cliff paths). */
+bool AlttpMap16Passable(uint16_t map16);
+
 } // namespace oga
 
 #endif
