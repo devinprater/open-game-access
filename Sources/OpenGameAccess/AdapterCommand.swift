@@ -94,6 +94,11 @@ enum AdapterCommand: Int32, CaseIterable {
     /// The fight's enemy roster: how many foes there are, and for each its
     /// name (when proven), distance and bearing. Appended at 43.
     case enemies = 43
+    /// Auto walk: with a current Guide route, start walking it; pressed again,
+    /// stop (docs/design/auto-walk.md). Gated by the game's own per-game
+    /// auto-walk setting. Appended at 44. No adapter lists it in supported()
+    /// yet: the design opts ALttP in only once its bench proof passes.
+    case walkToggle = 44
 
     /// The label a player hears and sees. Kept here rather than in the view so the
     /// command and its wording cannot drift apart.
@@ -143,6 +148,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .guide:        return "Guide"
         case .objective:    return "Objective"
         case .enemies:      return "Enemies"
+        case .walkToggle:   return "Auto walk"
         }
     }
 
@@ -239,6 +245,8 @@ enum AdapterCommand: Int32, CaseIterable {
             return "Reads the current story goal from the game and the direction to the place it happens."
         case .enemies:
             return "Reads how many enemies are in the fight and, for each, its name, distance and direction."
+        case .walkToggle:
+            return "Starts walking the current Guide route, and stops when pressed again. Only works when auto walk is turned on for this game."
         }
     }
 
@@ -289,6 +297,7 @@ enum AdapterCommand: Int32, CaseIterable {
         case .guide:        return "location.north.line"
         case .objective:    return "target"
         case .enemies:      return "person.3"
+        case .walkToggle:   return "figure.walk"
         }
     }
 
