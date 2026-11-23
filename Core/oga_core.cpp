@@ -101,6 +101,7 @@ static const OgaCoreOps kGbaOps = {
     GbaReadAudio,               /* the console's own audio (see gba_read_audio) */
     GbaSaveState, GbaLoadState,
     GbaFrames, GbaLastError,
+    NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
 };
 
 OgaCore oga_gba_core(GbaCore* gba)
@@ -183,6 +184,7 @@ static const OgaCoreOps kNesOps = {
                                  * slot says the same thing, so wire it when there is real audio */
     NesSaveState, NesLoadState, /* both refuse out loud today -- see mesen_core.cpp */
     NesFrames, NesLastError,
+    NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
 };
 
 OgaCore oga_nes_core(NesCore* nes)
@@ -269,6 +271,7 @@ static const OgaCoreOps kPspOps = {
     PspReadAudio,
     PspSaveState, PspLoadState,
     PspFrames, PspLastError,
+    NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
 };
 
 OgaCore oga_psp_core(PspCore* psp)
@@ -473,6 +476,7 @@ static const OgaCoreOps kGenesisOps = {
     GenesisLoadState,
     GenesisFrames,
     GenesisLastError,
+    NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
 };
 
 OgaCore oga_genesis_core(GenesisCore* genesis)

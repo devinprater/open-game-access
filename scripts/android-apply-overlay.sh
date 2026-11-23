@@ -1388,12 +1388,13 @@ DS_GLUE="$FRONTEND/app/ds-glue"
 mkdir -p "$DS_GLUE"
 for f in pokecore oga_core systems adapters fe_adapter fe_access \
          dbz_adapter dq9_adapter gba_adapter nes_adapter alttp_adapter \
-         alttp_text alttp_names alttp_rooms n64_adapter; do
+         alttp_text alttp_names alttp_rooms alttp_graph alttp_dungeon_graph \
+         n64_adapter; do
   cp "$ROOT/Core/$f.cpp" "$DS_GLUE/$f.cpp" || { echo "   !! Core/$f.cpp missing" >&2; exit 1; }
 done
 cp "$ROOT"/Core/*.h "$DS_GLUE/"
 cp "$ROOT/Sources/CPokeCore/include/pokecore.h" "$DS_GLUE/"
-echo "     staged the DS host (15 Core translation units + headers)"
+echo "     staged the DS host (17 Core translation units + headers)"
 
 CMAKE="$FRONTEND/app/CMakeLists.txt"
 if grep -q 'OGA_DS_GLUE' "$CMAKE"; then
@@ -1407,7 +1408,7 @@ NL = chr(10)
 tus = ["pokecore", "oga_core", "systems", "adapters", "fe_adapter",
        "fe_access", "dbz_adapter", "dq9_adapter", "gba_adapter",
        "nes_adapter", "alttp_adapter", "alttp_text", "alttp_names",
-       "alttp_rooms", "n64_adapter"]
+       "alttp_rooms", "alttp_graph", "alttp_dungeon_graph", "n64_adapter"]
 lines = [
     "",
     "# ---------------------------------------------------------------------------",
