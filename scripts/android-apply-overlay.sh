@@ -2098,8 +2098,24 @@ for i, line in enumerate(lines):
         break
 else:
     print("     !! frontend link line not found"); sys.exit(1)
-open(p, "w", encoding="utf-8").write(NL.join(lines))
-print("     wired the PlayStation core into the frontend (archives linked)")
+s = NL.join(lines)
+# The session's JNI surface rides the frontend target, section 10's
+# Genesis shape: it speaks only the poke_* C ABI. 64-bit only, like the
+# libraries; the Kotlin probe reads the absence as "not in this build".
+block = NL.join([
+    "",
+    "# OGA_PS1 -- the PlayStation session's JNI surface (Ps1SessionJNI.cpp),",
+    "# appended by scripts/android-apply-overlay.sh section 10b.",
+    'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
+    "    target_sources(melonDS-android-frontend PRIVATE",
+    "        ${ANDROID-CPP}/Ps1SessionJNI.cpp",
+    "    )",
+    "endif ()",
+    "",
+])
+s = s.rstrip("\n") + NL + block + NL
+open(p, "w", encoding="utf-8").write(s)
+print("     wired the PlayStation core into the frontend (archives linked; JNI in the target)")
 PY
 
 fi
