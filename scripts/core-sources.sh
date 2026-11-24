@@ -78,6 +78,7 @@ mesen_core.cpp
 snes_core.cpp
 genesis_core.cpp
 genesis_adapter.cpp
+n64_core.cpp
 ps1_core.cpp
 ps1_adapter.cpp
 dbz_adapter.cpp
@@ -1392,6 +1393,153 @@ core/vdp_render.c
 core/z80/z80.c
 "
 
+# ---- Mupen64Plus-Next (Nintendo 64 core) ----
+# Fetched by scripts/bootstrap-deps.sh (pin + licence note live there). The
+# build scripts compile this list directly with M64P_DEFS and m64p_inc — no
+# build system of upstream's is run. It is upstream's own Makefile.common set
+# for the SOFTWARE path only: the angrylion RDP (pixel-accurate software video,
+# HAVE_THR_AL), the cxd4 LLE RSP angrylion needs (HAVE_LLE), the HLE RSP the
+# core links unconditionally, and the r4300 interpreters (NO_ASM, no dynarec:
+# iOS cannot JIT on a free sideload, and the cached interpreter runs everywhere).
+# ⛔ NO GLideN64 AND NO GL. Upstream's default renderer is GLideN64 (OpenGL);
+# libretro.c and the core's plugin table still NAME its entry points, so they are
+# satisfied by Core/n64_m64p_stubs.c (M64P_OGA_C below), and the one GL header
+# libretro.c includes is shadowed by Core/n64/glsm/glsmsym.h. Nothing in this set
+# includes a GL header, so no GL SDK is needed to build it. The one GLideN64 file
+# kept, osal_files_unix.c, is plain POSIX file helpers the core calls.
+# zlib, libpng and minizip are NOT linked: nothing on this path references them
+# (measured: the set links with -Wl,--no-undefined against libc + pthread only).
+# ⛔ EVERY OBJECT FROM THIS LIST IS TAGGED m64p_ AND RENAMED. The core is a
+# libretro core with hundreds of generic globals (main_*, g_dev, md5_*, the
+# whole libretro-common set). scripts/m64p-isolate.sh prefixes every strong
+# global it defines with oga_m64p_, in every m64p_*.o at once, so the core
+# can never collide with another emulator in this link (or a future libretro
+# core) and Core/n64_core.cpp calls it as oga_m64p_retro_*.
+M64P_SRC="${M64P_SRC:-$HOME/src/mupen64plus-libretro-nx}"
+M64P_DEFS="-DHAVE_THR_AL -DHAVE_LLE -DNO_ASM -DCORE -D__LIBRETRO__ -DUSE_FILE32API -DM64P_PLUGIN_API -DM64P_CORE_PROTOTYPES -D_ENDUSER_RELEASE -DSINC_LOWER_QUALITY -DTXFILTER_LIB -D__VEC4_OPT -DMUPENPLUSAPI -D__STDC_CONSTANT_MACROS -D__STDC_LIMIT_MACROS -DNDEBUG -fsigned-char -fcommon -fno-strict-aliasing"
+# m64p_inc <m64p-src> <repo-root>: the include roots, upstream's order, with
+# OGA's shim directory FIRST so its glsm/glsmsym.h wins, and the forced
+# include that supplies GIT_VERSION (upstream passes it on the command line,
+# which does not survive the xargs quoting the build scripts use).
+m64p_inc() {
+  local s="$1" r="$2"
+  echo "-I$r/Core/n64 -include $r/Core/n64/m64p_oga.h -I$s/custom -I$s/custom/mupen64plus-core -I$s/custom/android/include -I$s/custom/GLideN64 -I$s/GLideN64/src -I$s/GLideN64/src/osal -I$s/mupen64plus-core/src -I$s/mupen64plus-core/src/api -I$s/custom/mupen64plus-core/plugin/audio_libretro -I$s/libretro-common/include -I$s/libretro -I$s/GLideN64/src/inc -I$s/mupen64plus-core/subprojects/md5 -I$s/mupen64plus-core/subprojects/minizip -I$s/xxHash"
+}
+M64P_ALL="
+GLideN64/src/osal/osal_files_unix.c
+custom/mupen64plus-core/api/config.c
+custom/mupen64plus-core/api/vidext_libretro.c
+custom/mupen64plus-core/plugin/audio_libretro/audio_backend_libretro.c
+custom/mupen64plus-core/plugin/emulate_game_controller_via_libretro.c
+libretro-common/audio/conversion/float_to_s16.c
+libretro-common/audio/conversion/s16_to_float.c
+libretro-common/audio/resampler/audio_resampler.c
+libretro-common/audio/resampler/drivers/nearest_resampler.c
+libretro-common/audio/resampler/drivers/sinc_resampler.c
+libretro-common/compat/compat_posix_string.c
+libretro-common/compat/compat_strcasestr.c
+libretro-common/compat/compat_strl.c
+libretro-common/compat/fopen_utf8.c
+libretro-common/encodings/encoding_utf.c
+libretro-common/features/features_cpu.c
+libretro-common/file/config_file.c
+libretro-common/file/config_file_userdata.c
+libretro-common/file/file_path.c
+libretro-common/file/file_path_io.c
+libretro-common/libco/libco.c
+libretro-common/lists/string_list.c
+libretro-common/memmap/memalign.c
+libretro-common/streams/file_stream.c
+libretro-common/string/stdstring.c
+libretro-common/time/rtime.c
+libretro-common/vfs/vfs_implementation.c
+libretro/libretro.c
+mupen64plus-core/src/api/callbacks.c
+mupen64plus-core/src/api/debugger.c
+mupen64plus-core/src/api/frontend.c
+mupen64plus-core/src/asm_defines/asm_defines.c
+mupen64plus-core/src/backends/api/video_capture_backend.c
+mupen64plus-core/src/backends/clock_ctime_plus_delta.c
+mupen64plus-core/src/backends/dummy_video_capture.c
+mupen64plus-core/src/backends/file_storage.c
+mupen64plus-core/src/backends/plugins_compat/audio_plugin_compat.c
+mupen64plus-core/src/backends/plugins_compat/input_plugin_compat.c
+mupen64plus-core/src/device/cart/af_rtc.c
+mupen64plus-core/src/device/cart/cart.c
+mupen64plus-core/src/device/cart/cart_rom.c
+mupen64plus-core/src/device/cart/eeprom.c
+mupen64plus-core/src/device/cart/flashram.c
+mupen64plus-core/src/device/cart/is_viewer.c
+mupen64plus-core/src/device/cart/sram.c
+mupen64plus-core/src/device/controllers/game_controller.c
+mupen64plus-core/src/device/controllers/paks/biopak.c
+mupen64plus-core/src/device/controllers/paks/mempak.c
+mupen64plus-core/src/device/controllers/paks/rumblepak.c
+mupen64plus-core/src/device/controllers/paks/transferpak.c
+mupen64plus-core/src/device/controllers/vru_controller.c
+mupen64plus-core/src/device/dd/dd_controller.c
+mupen64plus-core/src/device/dd/disk.c
+mupen64plus-core/src/device/device.c
+mupen64plus-core/src/device/gb/gb_cart.c
+mupen64plus-core/src/device/gb/m64282fp.c
+mupen64plus-core/src/device/gb/mbc3_rtc.c
+mupen64plus-core/src/device/memory/memory.c
+mupen64plus-core/src/device/pif/bootrom_hle.c
+mupen64plus-core/src/device/pif/cic.c
+mupen64plus-core/src/device/pif/n64_cic_nus_6105.c
+mupen64plus-core/src/device/pif/pif.c
+mupen64plus-core/src/device/r4300/cached_interp.c
+mupen64plus-core/src/device/r4300/cp0.c
+mupen64plus-core/src/device/r4300/cp1.c
+mupen64plus-core/src/device/r4300/cp2.c
+mupen64plus-core/src/device/r4300/idec.c
+mupen64plus-core/src/device/r4300/interrupt.c
+mupen64plus-core/src/device/r4300/pure_interp.c
+mupen64plus-core/src/device/r4300/r4300_core.c
+mupen64plus-core/src/device/r4300/tlb.c
+mupen64plus-core/src/device/rcp/ai/ai_controller.c
+mupen64plus-core/src/device/rcp/mi/mi_controller.c
+mupen64plus-core/src/device/rcp/pi/pi_controller.c
+mupen64plus-core/src/device/rcp/rdp/fb.c
+mupen64plus-core/src/device/rcp/rdp/rdp_core.c
+mupen64plus-core/src/device/rcp/ri/ri_controller.c
+mupen64plus-core/src/device/rcp/rsp/rsp_core.c
+mupen64plus-core/src/device/rcp/si/si_controller.c
+mupen64plus-core/src/device/rcp/vi/vi_controller.c
+mupen64plus-core/src/device/rdram/rdram.c
+mupen64plus-core/src/main/cheat.c
+mupen64plus-core/src/main/main.c
+mupen64plus-core/src/main/rom.c
+mupen64plus-core/src/main/savestates.c
+mupen64plus-core/src/main/util.c
+mupen64plus-core/src/plugin/dummy_audio.c
+mupen64plus-core/src/plugin/dummy_input.c
+mupen64plus-core/src/plugin/plugin.c
+mupen64plus-core/subprojects/md5/md5.c
+mupen64plus-rsp-cxd4/rsp.c
+mupen64plus-rsp-hle/src/alist.c
+mupen64plus-rsp-hle/src/alist_audio.c
+mupen64plus-rsp-hle/src/alist_naudio.c
+mupen64plus-rsp-hle/src/alist_nead.c
+mupen64plus-rsp-hle/src/audio.c
+mupen64plus-rsp-hle/src/cicx105.c
+mupen64plus-rsp-hle/src/hle.c
+mupen64plus-rsp-hle/src/hvqm.c
+mupen64plus-rsp-hle/src/jpeg.c
+mupen64plus-rsp-hle/src/memory.c
+mupen64plus-rsp-hle/src/mp3.c
+mupen64plus-rsp-hle/src/musyx.c
+mupen64plus-rsp-hle/src/plugin.c
+mupen64plus-rsp-hle/src/re2.c
+mupen64plus-video-angrylion/interface.c
+mupen64plus-video-angrylion/n64video.c
+mupen64plus-video-angrylion/parallel_al.cpp
+"
+# OGA's own TUs that join the core's object set (and so its rename): the
+# GLideN64/GL entry points the software path never calls.
+M64P_OGA_C="
+n64_m64p_stubs.c
+"
 # ---- PCSX ReARMed (Sony PlayStation core) ----
 # Fetched by scripts/bootstrap-deps.sh (pin + licence note live there). The
 # build scripts compile this list directly with PCSX_DEFS and PCSX_INC; no

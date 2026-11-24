@@ -227,9 +227,11 @@ int main()
         /* ⛔ GENESIS IS OUT OF THIS LIST FOR THE SAME REASON THE NES AND SNES
          * ARE: the Genesis Plus GX core is linked in (Core/genesis_core.cpp),
          * a real ROM boots, and the row now says READY. */
+        /* ⛔ N64 IS OUT TOO: Mupen64Plus-Next is linked in (Core/n64_core.cpp)
+         * and the host proof boots a cartridge through it. */
         /* ⛔ PS1 IS OUT OF THIS LIST TOO: PCSX ReARMed is linked in
          * (Core/ps1_core.cpp) and scripts/ps1-core-test.sh boots a program. */
-        const OgaSystemId planned[] = { OGA_SYS_N64,
+        const OgaSystemId planned[] = {
                                         OGA_SYS_DREAMCAST, OGA_SYS_3DS,
                                         OGA_SYS_MASTER, OGA_SYS_PCE,
                                         OGA_SYS_WONDERSWAN };
@@ -248,6 +250,30 @@ int main()
         if (gen && gen->faceButtonCount == 6 && !gen->hasShoulders)
             ok("the Genesis has six face buttons and no shoulders");
         else bad("the Genesis has six face buttons and no shoulders", "wrong");
+
+        /* The N64 row names what each shared slot does on this console. Seven
+         * buttons (A, B, Z, R, three C buttons), no generic L/R shoulders (Z and
+         * R are listed by name), one stick, every slot distinct, and NO C-up:
+         * the shared pad has no slot for it, and listing a button that does
+         * nothing is the lie this registry exists to prevent. */
+        const OgaSystem* n64row = oga_system_by_id(OGA_SYS_N64);
+        bool n64ok = n64row && n64row->faceButtonCount == 7 && !n64row->hasShoulders &&
+                     n64row->analogSticks == 1 && n64row->faceButtons;
+        bool sawZ = false, sawCUp = false;
+        if (n64ok)
+        {
+            for (int i = 0; i < n64row->faceButtonCount; i++)
+            {
+                const OgaButton& b = n64row->faceButtons[i];
+                if (strcmp(b.title, "Z") == 0) sawZ = true;
+                if (strcmp(b.title, "C up") == 0) sawCUp = true;
+                for (int j = 0; j < i; j++)
+                    if (n64row->faceButtons[j].raw == b.raw) n64ok = false;
+            }
+        }
+        if (n64ok && sawZ && !sawCUp)
+            ok("the N64 lists A, B, Z, R and three C buttons on distinct slots, and one stick");
+        else bad("the N64 lists A, B, Z, R and three C buttons on distinct slots, and one stick", "wrong");
 
         const OgaSystem* dc = oga_system_by_id(OGA_SYS_DREAMCAST);
         if (dc && dc->analogSticks == 1 && dc->faceButtonCount == 4)
@@ -291,6 +317,13 @@ int main()
         else
             bad("the Genesis reports its core present", "the row still says PLANNED");
 
+        /* The N64 row is READY only because Core/n64_core.cpp exists and
+         * scripts/n64-host-proof.sh boots a cartridge through it. */
+        if (n64 && oga_system_is_runnable(n64))
+            ok("the N64 reports its core present");
+        else
+            bad("the N64 reports its core present", "the row still says PLANNED");
+
         /* The PlayStation row is READY only because Core/ps1_core.cpp exists
          * and its host test (a synthetic PS-EXE under the HLE BIOS: frames,
          * audio, RAM reads, states) passes. */
@@ -299,12 +332,6 @@ int main()
             ok("the PlayStation reports its core present");
         else
             bad("the PlayStation reports its core present", "the row still says PLANNED");
-
-        /* N64 must NOT claim to be runnable: no core for it exists here. */
-        if (n64 && !oga_system_is_runnable(n64))
-            ok("the N64 does not claim to be playable");
-        else
-            bad("the N64 does not claim to be playable", "it claimed runnable");
 
         if (!oga_system_is_runnable(nullptr))
             ok("a null system is not runnable");
@@ -417,8 +444,8 @@ int main()
         else bad("an unknown extension is named in the message", r ? r : "null");
 
         /* A known console with no core says WHICH console. */
-        const char* n = oga_unsupported_reason("/roms/mario64.z64");
-        if (n && strstr(n, "Nintendo 64")) ok("a not-yet-playable console is named");
+        const char* n = oga_unsupported_reason("/roms/sonic.gdi");
+        if (n && strstr(n, "Dreamcast")) ok("a not-yet-playable console is named");
         else bad("a not-yet-playable console is named", n ? n : "null");
 
         /* Always a string, never null, for any input. */

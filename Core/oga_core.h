@@ -197,6 +197,9 @@ OgaCore oga_snes_core(SnesCore* snes);
  * genesis_core.cpp. */
 typedef struct GenesisCore GenesisCore;
 OgaCore oga_genesis_core(GenesisCore* genesis);
+/* The Nintendo 64: opaque here, Mupen64Plus-Next inside n64_core.cpp. */
+typedef struct N64Core N64Core;
+OgaCore oga_n64_core(N64Core* n64);
 /* The PlayStation: opaque here, PCSX ReARMed inside ps1_core.cpp. */
 typedef struct Ps1Core Ps1Core;
 OgaCore oga_ps1_core(Ps1Core* ps1);
@@ -219,6 +222,8 @@ typedef struct OgaResolvedBackend {
     /* Trailing again, for the same reason: existing initializers keep
      * compiling, and the resolver stays the one decision point. */
     bool genesis_hint;           /* the file should reach the Genesis Plus GX backend */
+    /* Trailing, as above. */
+    bool n64_hint;               /* the file should reach the Mupen64Plus-Next backend */
     /* Trailing again: the earlier initializers keep compiling. */
     bool ps1_hint;               /* the file should reach the PCSX ReARMed backend */
 } OgaResolvedBackend;

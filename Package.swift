@@ -66,6 +66,9 @@ let package = Package(
                 ]),
                 .linkedLibrary("c++"),
                 .linkedLibrary("z"),
+                // Mupen64Plus-Next resamples its audio with AudioConverter on Apple
+                // platforms (mupen64plus-core libretro audio plugin, __APPLE__ branch).
+                .linkedFramework("AudioToolbox"),
             ]
         ),
         .target(

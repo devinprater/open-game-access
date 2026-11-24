@@ -134,8 +134,6 @@ GPGX_INC="-I$ROOT/Core/gpgx -I$GPGX_SRC/core -I$GPGX_SRC/core/z80 -I$GPGX_SRC/co
 GPGX_DEFS="-DLSB_FIRST -DBYTE_ORDER=LITTLE_ENDIAN -DUSE_32BPP_RENDERING"
 [ -d "$GPGX_SRC/core" ] || { echo "!! no Genesis Plus GX source at $GPGX_SRC" >&2; exit 1; }
 
-
-
 # -fwrapv matters: melonDS's ARM interpreter relies on wrapping arithmetic.
 # No JIT_ENABLED: see scripts/README.md — the ARM64 JIT needs MAP_JIT and
 # pthread_jit_write_protect_np, which iOS only exposes to apps signed with the
@@ -153,6 +151,15 @@ TEAKRA=""
 # copies is exactly how the simulator build ends up missing a translation unit
 # and fails at the FINAL link with a symbol the device build has.
 source "$ROOT/scripts/core-sources.sh"
+# ---- Mupen64Plus-Next (Nintendo 64) ----
+# The software path only (angrylion RDP, cxd4 RSP, cached interpreter: no JIT,
+# which iOS does not give a sideloaded app). M64P_DEFS and m64p_inc come from
+# core-sources.sh, shared with the host proof, so the app compiles the exact
+# set scripts/n64-host-proof.sh boots. -DIOS -DOS_IOS are upstream's own iOS
+# defines (its Makefile's ios-arm64 platform); HAVE_POSIX_MEMALIGN keeps
+# libco off memalign(), which iOS does not have.
+[ -d "$M64P_SRC/mupen64plus-core" ] || { echo "!! no Mupen64Plus-Next source at $M64P_SRC" >&2; exit 1; }
+M64P_FLAGS="$M64P_DEFS -DIOS -DOS_IOS -DHAVE_POSIX_MEMALIGN=1 $(m64p_inc "$M64P_SRC" "$ROOT")"
 
 # ---- PCSX ReARMed (Sony PlayStation) ----
 # The TU list, defines and include roots live in core-sources.sh (PCSX_ALL,
@@ -190,6 +197,11 @@ compile() { # compile <lang> <src> <tag>
       # needs the GPGX include roots and defines — and the same isolation rule
       # as the mesen case: NO $INC, whose melonDS roots carry generic header
       # names (system.h and friends) that would shadow the core's own.
+      # n64_core.cpp is OGA glue that declares the renamed libretro entry
+      # points itself; it needs only libretro.h from the core's tree.
+      if [ "$(basename "$src")" = "n64_core.cpp" ]; then
+        flags="$CXXFLAGS -I$M64P_SRC/libretro-common/include"
+      fi
       if [ "$(basename "$src")" = "genesis_core.cpp" ]; then
         flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $GPGX_DEFS $GPGX_INC"
       fi
@@ -227,6 +239,12 @@ compile() { # compile <lang> <src> <tag>
     # (genesis_core.cpp, via the cxx case) speaks to the C objects through
     # extern "C" declarations, which is also how upstream's frontends do it.
     gpgx) flags="$COMMON -std=gnu11 $GPGX_DEFS $GPGX_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    # Mupen64Plus-Next: C, plus one C++ TU (angrylion's parallel worker). NO
+    # $INC, the gpgx rule again: the core's include roots carry generic names
+    # (main.h, rom.h, util.h) that melonDS's would shadow. Every object this
+    # makes is renamed by scripts/m64p-isolate.sh after the compile loop.
+    m64p) flags="$COMMON -std=gnu11 $M64P_FLAGS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    m64pxx) flags="$COMMON -std=gnu++11 -stdlib=libc++ $M64P_FLAGS" ;;
     # PCSX ReARMed: plain C. -fno-common turns tentative definitions into real
     # ones, which the oga_ps1_ prefix pass (after the compile loop) must see.
     pcsx) flags="$COMMON -std=gnu11 -fno-common $PCSX_DEFS $PCSX_APPLE_DEFS $PCSX_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
@@ -282,6 +300,17 @@ compile() { # compile <lang> <src> <tag>
   # list compiles and cannot link. genesis_core.cpp itself is NOT emitted
   # here: it is in OGA_GLUE and the cxx case above gives it the GPGX flags.
   for f in $GPGX_ALL; do printf '%s|gpgx|%s\n' "$GPGX_SRC/$f" "gpgx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  # ---- Mupen64Plus-Next. The audited software-path list from core-sources.sh
+  # (M64P_ALL), plus OUR stubs for the GLideN64/minizip symbols the core
+  # references but the software path never calls (Core/n64_m64p_stubs.c).
+  # Every tag starts m64p_: that prefix is how m64p-isolate.sh finds the set.
+  # n64_core.cpp is NOT here: it is in OGA_GLUE, and the cxx case above gives
+  # it the libretro.h root.
+  for f in $M64P_ALL; do
+    case "$f" in *.cpp) _l=m64pxx ;; *) _l=m64p ;; esac
+    printf '%s|%s|%s\n' "$M64P_SRC/$f" "$_l" "m64p_$(echo "$f" | tr '/' '_' | sed 's/\.[a-z]*$//')"
+  done
+  for f in $M64P_OGA_C; do printf '%s|m64p|%s\n' "$ROOT/Core/$f" "m64p_oga_$(basename "$f" .c)"; done
   # ---- PCSX ReARMed. The audited list from core-sources.sh; ps1_core.cpp is
   # in OGA_GLUE. Tags keep the path: cdrom.c and gpu.c each exist twice.
   for f in $PCSX_ALL; do printf '%s|pcsx|%s\n' "$PCSX_SRC/$f" "pcsx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
@@ -335,6 +364,9 @@ export MESEN_SRC MESEN_INC MESEN_FORCE
 # "'shared.h' file not found" (and its glue with "'osd.h' file not found"),
 # which reads like a missing header in the tree. It is not in the tree.
 export GPGX_SRC GPGX_INC GPGX_DEFS
+# ⛔ EXPORTED, same reason: the m64p langs and the n64_core.cpp case read
+# these in the xargs children, where unexported they are EMPTY.
+export M64P_SRC M64P_FLAGS
 # The pcsx lang and the ps1_core.cpp case, same reason as GPGX above.
 export PCSX_SRC PCSX_INC PCSX_DEFS PCSX_APPLE_DEFS
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
@@ -345,10 +377,15 @@ export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_finge
 # archive kept its old contents and a newly added source file was simply absent.
 # It cost a full round-trip here: the FE adapter compiled "cleanly" and was not
 # in the archive at all. Any change to this pipeline must keep the input explicit.
-xargs -P "$JOBS" -I{} bash -c '
-  IFS="|" read -r src lang tag <<< "{}"
+# ⛔ NO `xargs -I{}`. BSD xargs (macOS, where this runs) caps an -I argument
+# at 255 bytes after substitution and stops with "command line cannot be
+# assembled, too long" on the first longer line -- which the Mupen64Plus paths
+# are on the runner's /Users/runner/work/_temp/src. Each line goes to the child
+# as $1 instead, NUL-separated so a path with spaces stays one argument.
+tr '\n' '\0' < "$OBJ/list.txt" | xargs -0 -n 1 -P "$JOBS" bash -c '
+  IFS="|" read -r src lang tag <<< "$1"
   compile "$lang" "$src" "$tag"
-' < "$OBJ/list.txt"
+' _
 
 # Fail loudly if xargs did not process every requested translation unit. A valid
 # cache hit counts as completed work just like a fresh compile; object mtimes alone
@@ -365,6 +402,17 @@ fi
 
 if [ -f "$OBJ/.failed" ]; then echo "!! compile errors above" >&2; exit 1; fi
 
+# ---- Rename every Mupen64Plus-Next global (oga_m64p_*) ----
+# A libretro core defines hundreds of generic names (retro_*, main_run, g_dev,
+# the libretro-common set); m64p-isolate.sh renames them all in the m64p
+# objects so nothing else in this link can bind to them, and re-proves it.
+# After the compile loop, every time: a fresh compile restores the old names.
+# ⛔ BEFORE the Mesen and GPGX twin passes: those compute their overlap from
+# every object's globals, so an unrenamed core global (Mupen64Plus's `input`,
+# a common symbol on Mach-O) reads to them as a twin they cannot resolve
+# ("!! still duplicated: _input"). Renamed first, the core has no twins.
+bash "$ROOT/scripts/m64p-isolate.sh" "$OBJ" "$LLVM_NM" "$LLVM_OBJCOPY" || {
+  echo "!! Mupen64Plus-Next symbol isolation failed" >&2; exit 1; }
 # ---- Prefix every PCSX ReARMed global with oga_ps1_ ----
 # FIRST of the symbol passes, and after the compile loop for the same reason
 # as the others: a fresh compile rewrites the objects. The whole defined set
