@@ -67,6 +67,8 @@ import com.devin.opengameaccess.GbGameSession
 import com.devin.opengameaccess.GbKeys
 import com.devin.opengameaccess.GenesisGameSession
 import com.devin.opengameaccess.GenesisKeys
+import com.devin.opengameaccess.Ps1GameSession
+import com.devin.opengameaccess.Ps1Keys
 import com.devin.opengameaccess.PspAdapterCommands
 import com.devin.opengameaccess.PspGameSession
 import com.devin.opengameaccess.PspKeys
@@ -74,6 +76,7 @@ import com.devin.opengameaccess.rememberDsFrameClock
 import com.devin.opengameaccess.rememberMesenFrameClock
 import com.devin.opengameaccess.rememberFrameClock
 import com.devin.opengameaccess.rememberGenesisFrameClock
+import com.devin.opengameaccess.rememberPs1FrameClock
 import com.devin.opengameaccess.rememberPspFrameClock
 import me.magnum.melonds.accessibility.MesenAccessibilityScript
 
@@ -117,7 +120,8 @@ fun LauncherScreen(
     val dsAvailable = remember { DsGameSession.coreAvailable(context) }
     val mesenAvailable = remember { MesenGameSession.coreAvailable(context) }
     val genesisAvailable = remember { GenesisGameSession.coreAvailable(context) }
-    val available = gbAvailable || pspAvailable || dsAvailable || mesenAvailable || genesisAvailable
+    val ps1Available = remember { Ps1GameSession.coreAvailable(context) }
+    val available = gbAvailable || pspAvailable || dsAvailable || mesenAvailable || genesisAvailable || ps1Available
 
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var pickedName by remember { mutableStateOf("") }
@@ -125,6 +129,7 @@ fun LauncherScreen(
     var pickedIsDs by remember { mutableStateOf(false) }
     var pickedIsMesen by remember { mutableStateOf(false) }
     var pickedIsGenesis by remember { mutableStateOf(false) }
+    var pickedIsPs1 by remember { mutableStateOf(false) }
     // ⛔ SEEDED FROM THE SESSIONS, NOT FROM FALSE. This screen leaves the
     // composition entirely when Settings or the games list opens, while
     // the session objects (singletons) keep the game running. Starting
@@ -149,6 +154,8 @@ fun LauncherScreen(
     // The Genesis flag is read from its session the same way, for the
     // same reason (see the DS note above).
     val genesisRunning = GenesisGameSession.isRunning
+    // The PlayStation flag, read from its session for the same reason.
+    val ps1Running = Ps1GameSession.isRunning
     var starting by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var problem by remember { mutableStateOf("") }
@@ -157,7 +164,7 @@ fun LauncherScreen(
     // One running flag for the parts of the screen that only care THAT a
     // game is up (the header, the status line); the control groups below
     // still branch on which session it is.
-    val anyRunning = running || pspRunning || dsRunning || mesenRunning || genesisRunning
+    val anyRunning = running || pspRunning || dsRunning || mesenRunning || genesisRunning || ps1Running
 
     // The frame clocks: one emulated frame per Compose frame while a
     // game runs, one clock per session. iOS drives its frames from a
@@ -212,6 +219,11 @@ fun LauncherScreen(
     BackHandler(enabled = genesisRunning) {
         GenesisGameSession.stop()
     }
+    // The PlayStation session joins it too: Back quits the game (the
+    // session's stop writes the memory card on the way down).
+    BackHandler(enabled = ps1Running) {
+        Ps1GameSession.stop()
+    }
 
     // ⛔ CONTROLLER CONNECT / DISCONNECT IS SPOKEN (input parity, stage 1).
     // iOS publishes the connected controller's name and the player hears
@@ -233,6 +245,8 @@ fun LauncherScreen(
     rememberMesenFrameClock(mesenRunning)
     // The Genesis frame clock, paced to the console like the others.
     rememberGenesisFrameClock(genesisRunning)
+    // The PlayStation frame clock, paced to the console (59.94 Hz).
+    rememberPs1FrameClock(ps1Running)
 
     fun say(message: String, interrupt: Boolean = false) {
         status = message
@@ -273,6 +287,28 @@ fun LauncherScreen(
         // launcher has ever handled goes to the GB session (which
         // still refuses what it cannot run).
         val extension = pickedName.substringAfterLast('.', "").lowercase()
+        // ⛔ A PLAYSTATION BIOS IS NOT A GAME. Picked through the same
+        // picker (scph5501.bin and its kin), it is kept for every later
+        // PlayStation disc, said aloud, and never becomes the pending
+        // game -- checked before routing, because Genesis claims .bin.
+        if (Ps1GameSession.isBiosName(pickedName)) {
+            pickedUri = null
+            pickedIsPs1 = false
+            pickedIsGenesis = false
+            say(Ps1GameSession.importBios(context, uri, pickedName))
+            pickedName = ""
+            return
+        }
+        pickedIsPs1 = Ps1GameSession.handlesExtension(extension)
+        if (pickedIsPs1 && !ps1Available) {
+            // Said at pick time, like the others below: on a build
+            // without the PlayStation core (armeabi-v7a) this is the
+            // honest one.
+            say(
+                "$pickedName selected. That is a PlayStation game, and this build has no PlayStation core.",
+            )
+            return
+        }
         pickedIsPsp = PspGameSession.handlesExtension(extension)
         pickedIsDs = DsGameSession.handlesExtension(extension)
         pickedIsMesen = MesenGameSession.handlesExtension(extension)
@@ -391,6 +427,10 @@ fun LauncherScreen(
                 // the action going silent.
                 say("No reader command there for this game.")
             }
+            ps1Running -> {
+                // Nor a PlayStation reader: the same honest line.
+                say("No reader command there for this game.")
+            }
             else -> Unit
         }
     }
@@ -490,6 +530,31 @@ fun LauncherScreen(
                     "take a while to copy."
             )
             DsGameSession.start(activity, uri) { error ->
+                starting = false
+                if (error != null) {
+                    problem = error
+                    say(
+                        "That game could not be started. $error",
+                        interrupt = true,
+                    )
+                } else {
+                    problem = ""
+                    say("Game started.")
+                }
+            }
+            return
+        }
+        if (pickedIsPs1) {
+            if (!ps1Available) {
+                // acceptPickedRom already said this at pick time.
+                return
+            }
+            // Asynchronous, like the Genesis start below: the resolver
+            // may copy the disc image first, which takes a while for a
+            // whole .chd, so Start says so and the session calls back.
+            starting = true
+            say("Loading $pickedName. A disc image can take a while to copy.")
+            Ps1GameSession.start(activity, uri) { error ->
                 starting = false
                 if (error != null) {
                     problem = error
@@ -605,7 +670,7 @@ fun LauncherScreen(
         // a pick handed up while a game runs can never start a second
         // session over the live one — it stays the pending selection
         // until the player quits, exactly as the comment above says.
-        if (!GbGameSession.isRunning && !PspGameSession.isRunning && !DsGameSession.isRunning && !MesenGameSession.isRunning && !GenesisGameSession.isRunning) {
+        if (!GbGameSession.isRunning && !PspGameSession.isRunning && !DsGameSession.isRunning && !MesenGameSession.isRunning && !GenesisGameSession.isRunning && !Ps1GameSession.isRunning) {
             startPickedGame()
         }
     }
@@ -615,7 +680,7 @@ fun LauncherScreen(
     // or the games list mid-game recomposes this screen; the ready line
     // is for the idle launcher only, never spoken over a running game.
     remember(available) {
-        if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning) {
+        if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning) {
             // A game is already running (see the seeded flags above).
         } else if (available) {
             say("Open Game Access ready. Press Select Game to choose a game.", interrupt = true)
@@ -635,9 +700,10 @@ fun LauncherScreen(
         if (dsAvailable) parts += DsGameSession.romExtensions()
         if (mesenAvailable) parts += MesenGameSession.romExtensions()
         if (genesisAvailable) parts += GenesisGameSession.romExtensions()
+        if (ps1Available) parts += Ps1GameSession.romExtensions()
         if (parts.isEmpty()) {
             "Game Boy, Game Boy Color, Game Boy Advance, PSP, Nintendo DS, " +
-                "Nintendo Entertainment System, Super Nintendo, Sega Genesis"
+                "Nintendo Entertainment System, Super Nintendo, Sega Genesis, PlayStation"
         } else {
             parts.joinToString(", ") { it.uppercase() }
         }
@@ -731,7 +797,9 @@ fun LauncherScreen(
         if (anyRunning && showPicture) {
             GamePicture(
                 fetchFrame = {
-                    if (GenesisGameSession.isRunning) {
+                    if (Ps1GameSession.isRunning) {
+                        Ps1GameSession.currentFrame()
+                    } else if (GenesisGameSession.isRunning) {
                         GenesisGameSession.currentFrame()
                     } else if (PspGameSession.isRunning) {
                         PspGameSession.currentFrame()
@@ -780,7 +848,7 @@ fun LauncherScreen(
                 Text("Games with readers", fontSize = 18.sp)
             }
 
-            if (!running && !pspRunning && !dsRunning && !mesenRunning && !genesisRunning) {
+            if (!running && !pspRunning && !dsRunning && !mesenRunning && !genesisRunning && !ps1Running) {
                 // Idle: pick, then start -- in the order they are needed.
                 Button(
                     onClick = {
@@ -796,7 +864,7 @@ fun LauncherScreen(
                 Button(
                     onClick = { startPickedGame() },
                     enabled = available && pickedUri != null && !starting &&
-                        (if (pickedIsMesen) mesenAvailable else if (pickedIsGenesis) genesisAvailable else if (pickedIsDs) dsAvailable else if (pickedIsPsp) pspAvailable else gbAvailable),
+                        (if (pickedIsPs1) ps1Available else if (pickedIsMesen) mesenAvailable else if (pickedIsGenesis) genesisAvailable else if (pickedIsDs) dsAvailable else if (pickedIsPsp) pspAvailable else gbAvailable),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Start Game", fontSize = 18.sp)
@@ -873,6 +941,18 @@ fun LauncherScreen(
                     sayControl = { message -> sayControl(message) })
                 GenesisStateGroup(GenesisGameSession) { message -> say(message) }
                 QuitGenesisGame(GenesisGameSession, { message -> say(message) })
+            } else if (ps1Running) {
+                // Running a PlayStation game: the digital pad, the
+                // speech controls, the whole-core savestates and
+                // quit-with-save. NO reader group: PlayStation has no
+                // reader in this build (see Ps1GameSession).
+                Ps1DirectionalPad(Ps1GameSession)
+                Ps1ActionButtons(Ps1GameSession)
+                Ps1ShoulderButtons(Ps1GameSession)
+                Ps1SystemButtons(Ps1GameSession)
+                Ps1SpeechGroup(Ps1GameSession, sayControl = { message -> sayControl(message) })
+                Ps1StateGroup(Ps1GameSession) { message -> say(message) }
+                QuitPs1Game(Ps1GameSession, { message -> say(message) })
             } else if (pspRunning) {
                 // Running a PSP game: the pad the console actually has,
                 // the reader commands the running game's adapter
@@ -2382,6 +2462,241 @@ private fun GenesisHoldButton(
                     // press is held across frame boundaries by the
                     // core, so the game samples it however busy the
                     // device is.
+                    session.tapButton(button)
+                    true
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(if (held) "$label (held)" else label, fontSize = 16.sp)
+    }
+}
+
+// ---- the PlayStation pad -----------------------------------------------------
+//
+// The Genesis pad's shape with the buttons the original PlayStation
+// digital pad has: the d-pad, the four face buttons by their names
+// (Cross, Circle, Square, Triangle), L1/R1 and Select/Start. L2, R2
+// and the analog sticks are not here yet: the shared host's button
+// set stops at L1/R1 (see Ps1Keys). No reader group below the pad, for
+// Genesis's reason: PlayStation has no reader in this build.
+
+/** Move up / left / right / down. */
+@Composable
+private fun Ps1DirectionalPad(session: Ps1GameSession) {
+    GroupLabel("Directional pad")
+    Ps1HoldButton("Up", session, Ps1Keys.UP)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Ps1HoldButton("Left", session, Ps1Keys.LEFT, Modifier.weight(1f))
+        Ps1HoldButton("Right", session, Ps1Keys.RIGHT, Modifier.weight(1f))
+    }
+    Ps1HoldButton("Down", session, Ps1Keys.DOWN)
+}
+
+/** The face buttons, named as the console names them. */
+@Composable
+private fun Ps1ActionButtons(session: Ps1GameSession) {
+    GroupLabel("Action buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Ps1HoldButton("Cross", session, Ps1Keys.CROSS, Modifier.weight(1f))
+        Ps1HoldButton("Circle", session, Ps1Keys.CIRCLE, Modifier.weight(1f))
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Ps1HoldButton("Square", session, Ps1Keys.SQUARE, Modifier.weight(1f))
+        Ps1HoldButton("Triangle", session, Ps1Keys.TRIANGLE, Modifier.weight(1f))
+    }
+}
+
+/** L1 and R1, the shoulder buttons the shared host carries. */
+@Composable
+private fun Ps1ShoulderButtons(session: Ps1GameSession) {
+    GroupLabel("Shoulder buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Ps1HoldButton("L1", session, Ps1Keys.L1, Modifier.weight(1f))
+        Ps1HoldButton("R1", session, Ps1Keys.R1, Modifier.weight(1f))
+    }
+}
+
+/** Select and Start. */
+@Composable
+private fun Ps1SystemButtons(session: Ps1GameSession) {
+    GroupLabel("System buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Ps1HoldButton("Select", session, Ps1Keys.SELECT, Modifier.weight(1f))
+        Ps1HoldButton("Start", session, Ps1Keys.START, Modifier.weight(1f))
+    }
+}
+
+/**
+ * Stop speech and the repeat walk: [GenesisSpeechGroup]'s twin, for
+ * the same reason (no reader queue behind the bridge).
+ */
+@Composable
+private fun Ps1SpeechGroup(
+    session: Ps1GameSession,
+    sayControl: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    GroupLabel("Speech controls")
+    OutlinedButton(
+        onClick = { session.stopSpeech(context) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics {
+                contentDescription = "Stop speech"
+            },
+    ) {
+        Text("Stop speech", fontSize = 16.sp)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatLastSpeech()) sayControl("Nothing to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat last speech" },
+        ) {
+            Text("Repeat", fontSize = 14.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatOlderSpeech()) sayControl("Nothing older to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat older speech" },
+        ) {
+            Text("Repeat older", fontSize = 14.sp)
+        }
+    }
+}
+
+/** Whole-core savestates, one slot per disc. [GenesisStateGroup]'s twin. */
+@Composable
+private fun Ps1StateGroup(session: Ps1GameSession, say: (String) -> Unit) {
+    val context = LocalContext.current
+    GroupLabel("Save states")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = {
+                say(
+                    if (session.saveState(context)) {
+                        "State saved."
+                    } else {
+                        "That state could not be saved."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Save state" },
+        ) {
+            Text("Save state", fontSize = 14.sp)
+        }
+        Button(
+            onClick = {
+                say(
+                    if (session.loadState(context)) {
+                        "State loaded."
+                    } else {
+                        "There is no saved state for this game yet."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Load state" },
+        ) {
+            Text("Load state", fontSize = 14.sp)
+        }
+    }
+}
+
+/**
+ * Quit the PlayStation game, saving a state first and saying so:
+ * [QuitGenesisGame]'s twin. The memory card needs no line of its own;
+ * the session's stop writes it on the way down.
+ */
+@Composable
+private fun QuitPs1Game(
+    session: Ps1GameSession,
+    say: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    OutlinedButton(
+        onClick = {
+            val saved = session.saveState(context)
+            say(
+                if (saved) {
+                    "Game closed. Progress saved."
+                } else {
+                    "Game closed. Could not save."
+                }
+            )
+            session.stop()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = "Quit game" },
+    ) {
+        Text("Quit game", fontSize = 16.sp)
+    }
+}
+
+/**
+ * A PlayStation game button: [GenesisHoldButton]'s twin, typed to the
+ * PlayStation session (hold under a finger, a frame-counted tap on the
+ * screen-reader click).
+ */
+@Composable
+private fun Ps1HoldButton(
+    label: String,
+    session: Ps1GameSession,
+    button: Int,
+    modifier: Modifier = Modifier,
+) {
+    var held by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                1.dp,
+                MaterialTheme.colors.onSurface.copy(alpha = 0.12f),
+                RoundedCornerShape(4.dp),
+            )
+            .clip(RoundedCornerShape(4.dp))
+            .background(
+                if (held) MaterialTheme.colors.primary.copy(alpha = 0.12f)
+                else MaterialTheme.colors.surface
+            )
+            .pointerInput(button) {
+                detectTapGestures(
+                    onPress = {
+                        held = true
+                        session.pressButton(button)
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            held = false
+                            session.releaseButton(button)
+                        }
+                    },
+                )
+            }
+            .semantics {
+                contentDescription = label
+                onClick(label = "press") {
                     session.tapButton(button)
                     true
                 }

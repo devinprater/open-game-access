@@ -993,6 +993,167 @@ else:
         "shoulder/Select mapping moved")
 
 
+# ---- 12b. THE PLAYSTATION SESSION: BUTTON SLOTS, JNI, ROUTING, THE PAGE ----
+# The Genesis section's checks, over the PlayStation session that the
+# PCSX ReARMed backend (Core/ps1_core.cpp) sits behind. Twists:
+#  * The slots carry Sony names (Cross on A, Circle on B, Triangle on X,
+#    Square on Y, L1 on L, R1 on R), checked against pokecore.h AND the
+#    core's kPs1Button table AND ps1_core.h's PS1_BTN_* defines.
+#  * The overlay builds the core 64-bit only (section 10b) and must put
+#    the JNI surface in the frontend target under the same gate.
+#  * The pick of a PlayStation BIOS is an import, never a pending game,
+#    and it must be tested BEFORE routing: Genesis claims .bin.
+#  * The page stays honest: no PlayStation reader exists.
+PS1_SESSION_KT = "app/src/main/java/com/devin/opengameaccess/Ps1GameSession.kt"
+PS1_SCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+                 "accessibility/Ps1AccessibilityScript.kt")
+PS1_RESOLVER_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+                   "accessibility/Ps1RomResolver.kt")
+PS1_JNI_CPP = "app/native-overlay/app/src/main/cpp/Ps1SessionJNI.cpp"
+PS1_CORE_H = "Core/ps1_core.h"
+for rel in (PS1_SESSION_KT, PS1_SCRIPT_KT, PS1_RESOLVER_KT, PS1_JNI_CPP,
+            PS1_CORE_H):
+    if not os.path.exists(rel):
+        print("!! %s is missing; refusing to report a pass" % rel)
+        sys.exit(1)
+
+ps1_session = strip_kt(read(PS1_SESSION_KT))
+PS1_SLOTS = {"CROSS": "A", "CIRCLE": "B", "SELECT": "SELECT",
+             "START": "START", "RIGHT": "RIGHT", "LEFT": "LEFT",
+             "UP": "UP", "DOWN": "DOWN", "R1": "R", "L1": "L",
+             "TRIANGLE": "X", "SQUARE": "Y"}
+block = re.search(r"object\s+Ps1Keys\s*\{(.*?)\}", ps1_session, re.S)
+if not block:
+    bad("Ps1Keys is defined", "no `object Ps1Keys {` found")
+else:
+    got_ps1 = {k: int(v) for k, v in
+               re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)", block.group(1))}
+    wrong = {k: (got_ps1.get(k), want_ds[slot])
+             for k, slot in PS1_SLOTS.items()
+             if got_ps1.get(k) != want_ds[slot]}
+    if not wrong and len(got_ps1) == 12:
+        ok("the PlayStation button ids are the shared slots their names "
+           "ride (%d buttons)" % len(got_ps1))
+    else:
+        bad("the PlayStation button ids are the shared slots their names "
+            "ride", "differs: %s (count %d)" % (wrong, len(got_ps1)))
+
+ps1_btns = {k: int(v) for k, v in
+            re.findall(r"#define\s+PS1_BTN_(\w+)\s+(\d+)", read(PS1_CORE_H))}
+table = re.search(r"kPs1Button\[12\]\s*=\s*\{(.*?)\};",
+                  read(OGA_CORE_CPP), re.S)
+table_names = re.findall(r"PS1_BTN_(\w+)", table.group(1)) if table else []
+wrong = {}
+if len(table_names) != 12:
+    wrong["table"] = table_names
+else:
+    for name, slot in PS1_SLOTS.items():
+        idx = want_ds[slot]
+        if table_names[idx] != name or name not in ps1_btns:
+            wrong[name] = (table_names[idx], ps1_btns.get(name))
+if not wrong:
+    ok("the core's PlayStation translation table lands every slot on "
+       "the same-named PS1_BTN_*")
+else:
+    bad("the core's PlayStation translation table lands every slot on "
+        "the same-named PS1_BTN_*", "differs: %s" % wrong)
+
+ps1_kt = read(PS1_SCRIPT_KT)
+ps1_jni_symbols = set(re.findall(r"Java_[A-Za-z0-9_]+", read(PS1_JNI_CPP)))
+ps1_externals = re.findall(r"external\s+fun\s+(\w+)\s*\(", ps1_kt)
+unbound = [n for n in ps1_externals
+           if ("Java_me_magnum_melonds_accessibility_"
+               "Ps1AccessibilityScript_" + n) not in ps1_jni_symbols]
+if ps1_externals and not unbound:
+    ok("every PlayStation external fun has its exact JNI symbol (%d)"
+       % len(ps1_externals))
+else:
+    bad("every PlayStation external fun has its exact JNI symbol",
+        "unbound: %s" % unbound)
+
+if ("coreAvailable" in ps1_session and "isCoreLinked" in ps1_session
+        and "UnsatisfiedLinkError" in ps1_session):
+    ok("PlayStation availability is the guarded native probe")
+else:
+    bad("PlayStation availability is the guarded native probe",
+        "the probe must reach the JNI existence check behind an "
+        "UnsatisfiedLinkError catch")
+
+if "Ps1GameSession.start(" in screen_raw and '"chd"' in ps1_kt:
+    ok("the launcher routes PlayStation discs (.chd) to the PlayStation "
+       "session")
+else:
+    bad("the launcher routes PlayStation discs (.chd) to the PlayStation "
+        "session",
+        "no Ps1GameSession.start in the screen, or the extension set "
+        "lost chd")
+
+bios_at = screen_raw.find("Ps1GameSession.isBiosName(pickedName)")
+gen_route_at = screen_raw.find("pickedIsGenesis = GenesisGameSession.handlesExtension")
+if (bios_at >= 0 and gen_route_at > bios_at
+        and "Ps1GameSession.importBios(" in screen_raw):
+    ok("a picked PlayStation BIOS is imported, and tested before the "
+       "Genesis .bin routing")
+else:
+    bad("a picked PlayStation BIOS is imported, and tested before the "
+        "Genesis .bin routing",
+        "the BIOS test is missing or comes after Genesis claims .bin")
+
+ps1_cmake = re.search(r"OGA_PS1.*?endif", overlay_sh, re.S)
+if ("oga-pcsx" in overlay_sh and "oga-ps1-glue" in overlay_sh
+        and ps1_cmake and "Ps1SessionJNI.cpp" in ps1_cmake.group(0)
+        and "armeabi-v7a" in ps1_cmake.group(0)):
+    ok("the overlay builds the PlayStation core and puts its JNI surface "
+       "in the frontend, 64-bit only")
+else:
+    bad("the overlay builds the PlayStation core and puts its JNI surface "
+        "in the frontend, 64-bit only",
+        "section 10b's staging or the gated Ps1SessionJNI.cpp source is "
+        "missing from android-apply-overlay.sh")
+
+if ("Ps1GameSession.attachAnnouncementView" in activity_raw
+        and "Ps1GameSession.isRunning" in activity_raw
+        and "Ps1GameSession.stop()" in activity_raw):
+    ok("the PlayStation session builds the shared speech bridge, the "
+       "launcher guard covers it and the Activity stops it")
+else:
+    bad("the PlayStation session builds the shared speech bridge, the "
+        "launcher guard covers it and the Activity stops it",
+        "the view attach, the widened guard or the onDestroy stop is "
+        "missing from MainActivity")
+
+if ("BackHandler(enabled = ps1Running)" in screen_kt
+        and "Ps1GameSession.currentFrame()" in screen_raw
+        and "QuitPs1Game(Ps1GameSession" in screen_kt):
+    ok("the PlayStation page quits on Back, shows the game picture and "
+       "quits with a save first")
+else:
+    bad("the PlayStation page quits on Back, shows the game picture and "
+        "quits with a save first",
+        "the Back handler, the GamePicture branch or the quit control "
+        "is missing")
+
+if "Ps1ReaderGroup" not in screen_kt and "ps1Running ->" in screen_kt:
+    ok("the PlayStation page offers no reader group and answers Where "
+       "Am I honestly")
+else:
+    bad("the PlayStation page offers no reader group and answers Where "
+        "Am I honestly",
+        "a Ps1ReaderGroup appeared (no PlayStation reader exists), or "
+        "the Where Am I arm is missing")
+
+if ("EmuButton.Ps1" in controller_kt
+        and "Ps1Keys.L1" in controller_kt and "Ps1Keys.R1" in controller_kt
+        and "Ps1Keys.CROSS" in controller_kt
+        and "Ps1Keys.SELECT" in controller_kt
+        and "Ps1GameSession.pressButton" in controller_kt):
+    ok("the controller layer drives PlayStation (Cross south, L1/R1, "
+       "Select)")
+else:
+    bad("the controller layer drives PlayStation (Cross south, L1/R1, "
+        "Select)",
+        "the PlayStation arm of ControllerInput is missing or moved")
+
 # ---- 13. THE MESEN SESSION: BUTTON IDS, JNI, READER SETS, THE PAGES -----
 # Parity stage 5 adds a fourth session beside GB, PSP and DS, over the
 # SAME shared Core host (Core/pokecore.cpp): its NES and SNES branches,

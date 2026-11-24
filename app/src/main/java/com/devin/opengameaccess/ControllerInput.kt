@@ -99,6 +99,10 @@ import me.magnum.melonds.accessibility.AccessibilityScript
  * other console. The DS session does NOT route here (it never joined
  * this layer); Genesis does because its pad is the whole of its
  * input — it has no reader hotkeys or touch surface to keep apart.
+ * PlayStation joins the same way, its positions the PSP's (south =
+ * Cross, east = Circle, north = Triangle, west = Square; L1, R1,
+ * Select and Start as named). L2/R2 stay the reader's ask and browse
+ * modifiers here, so the PlayStation's own L2/R2 are not mapped yet.
  * Its reader chords resolve the honest way: with no Genesis reader,
  * the ask/browse slots have nothing behind them and say so, while
  * Stop speech and the Repeats are bridge-level and work as elsewhere.
@@ -124,6 +128,7 @@ object ControllerInput {
         data class Psp(val button: Int) : EmuButton
         data class Mesen(val button: Int) : EmuButton
         data class Genesis(val button: Int) : EmuButton
+        data class Ps1(val button: Int) : EmuButton
     }
 
     private enum class PadDir { UP, DOWN, LEFT, RIGHT }
@@ -246,7 +251,7 @@ object ControllerInput {
         device != null && device.isKeyboard()
 
     private val sessionActive: Boolean
-        get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning
+        get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning
 
     /**
      * Session-boundary reset. Events are only routed while a session
@@ -333,10 +338,10 @@ object ControllerInput {
             KeyEvent.KEYCODE_BUTTON_B -> { faceButton(Face.EAST, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_X -> { faceButton(Face.WEST, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_Y -> { faceButton(Face.NORTH, source, pressed); true }
-            KeyEvent.KEYCODE_BUTTON_L1 -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_R1 -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_START -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_SELECT -> { set(source, emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_L1 -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X, Ps1Keys.L1), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_R1 -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z, Ps1Keys.R1), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_START -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START, Ps1Keys.START), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_SELECT -> { set(source, emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE, Ps1Keys.SELECT), pressed); true }
             // The reader's modifiers. Never game input.
             KeyEvent.KEYCODE_BUTTON_L2 -> { setModifier(askHeld, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_R2 -> { setModifier(browseHeld, source, pressed); true }
@@ -399,9 +404,9 @@ object ControllerInput {
             KeyEvent.KEYCODE_X -> { faceButton(Face.EAST, source, pressed); true }
             KeyEvent.KEYCODE_A -> { faceButton(Face.WEST, source, pressed); true }
             KeyEvent.KEYCODE_S -> { faceButton(Face.NORTH, source, pressed); true }
-            KeyEvent.KEYCODE_Q -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X), pressed); true }
-            KeyEvent.KEYCODE_W -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z), pressed); true }
-            KeyEvent.KEYCODE_ENTER -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START), pressed); true }
+            KeyEvent.KEYCODE_Q -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X, Ps1Keys.L1), pressed); true }
+            KeyEvent.KEYCODE_W -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z, Ps1Keys.R1), pressed); true }
+            KeyEvent.KEYCODE_ENTER -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START, Ps1Keys.START), pressed); true }
             // Shift is Select AND the item keys' category modifier;
             // shiftKey decides which of the two the press was.
             KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> { shiftKey(source, pressed); true }
@@ -473,7 +478,7 @@ object ControllerInput {
         shiftHeld.remove(source)
         if (shiftHeld.isEmpty() && shiftTapArmed) {
             shiftTapArmed = false
-            val button = emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE)
+            val button = emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE, Ps1Keys.SELECT)
             set(source, button, true)
             set(source, button, false)
         }
@@ -540,10 +545,10 @@ object ControllerInput {
     private fun direction(dir: PadDir, source: String, pressed: Boolean) {
         if (routeChord(Input.Pad(dir), source, pressed)) return
         val button = when (dir) {
-            PadDir.UP -> emuButton(GbKeys.UP, PspKeys.UP, MesenKeys.UP, GenesisKeys.UP)
-            PadDir.DOWN -> emuButton(GbKeys.DOWN, PspKeys.DOWN, MesenKeys.DOWN, GenesisKeys.DOWN)
-            PadDir.LEFT -> emuButton(GbKeys.LEFT, PspKeys.LEFT, MesenKeys.LEFT, GenesisKeys.LEFT)
-            PadDir.RIGHT -> emuButton(GbKeys.RIGHT, PspKeys.RIGHT, MesenKeys.RIGHT, GenesisKeys.RIGHT)
+            PadDir.UP -> emuButton(GbKeys.UP, PspKeys.UP, MesenKeys.UP, GenesisKeys.UP, Ps1Keys.UP)
+            PadDir.DOWN -> emuButton(GbKeys.DOWN, PspKeys.DOWN, MesenKeys.DOWN, GenesisKeys.DOWN, Ps1Keys.DOWN)
+            PadDir.LEFT -> emuButton(GbKeys.LEFT, PspKeys.LEFT, MesenKeys.LEFT, GenesisKeys.LEFT, Ps1Keys.LEFT)
+            PadDir.RIGHT -> emuButton(GbKeys.RIGHT, PspKeys.RIGHT, MesenKeys.RIGHT, GenesisKeys.RIGHT, Ps1Keys.RIGHT)
         }
         set(source, button, pressed)
     }
@@ -572,10 +577,11 @@ object ControllerInput {
     }
 
     /** The emulated button for a position, in the running session's terms. */
-    private fun emuButton(gb: Int, psp: Int, mesen: Int, genesis: Int): EmuButton? = when {
+    private fun emuButton(gb: Int, psp: Int, mesen: Int, genesis: Int, ps1: Int): EmuButton? = when {
         PspGameSession.isRunning -> EmuButton.Psp(psp)
         MesenGameSession.isRunning -> EmuButton.Mesen(mesen)
         GenesisGameSession.isRunning -> EmuButton.Genesis(genesis)
+        Ps1GameSession.isRunning -> EmuButton.Ps1(ps1)
         GbGameSession.isRunning -> EmuButton.Gb(gb)
         else -> null
     }
@@ -626,6 +632,17 @@ object ControllerInput {
                 }
             )
         }
+        if (Ps1GameSession.isRunning) {
+            // The PlayStation pad, by position, like the PSP's above.
+            return EmuButton.Ps1(
+                when (face) {
+                    Face.SOUTH -> Ps1Keys.CROSS
+                    Face.EAST -> Ps1Keys.CIRCLE
+                    Face.NORTH -> Ps1Keys.TRIANGLE
+                    Face.WEST -> Ps1Keys.SQUARE
+                }
+            )
+        }
         if (GbGameSession.isRunning) {
             return when (face) {
                 Face.EAST -> EmuButton.Gb(GbKeys.A)
@@ -665,6 +682,8 @@ object ControllerInput {
                 if (down) MesenGameSession.pressButton(button.button) else MesenGameSession.releaseButton(button.button)
             is EmuButton.Genesis ->
                 if (down) GenesisGameSession.pressButton(button.button) else GenesisGameSession.releaseButton(button.button)
+            is EmuButton.Ps1 ->
+                if (down) Ps1GameSession.pressButton(button.button) else Ps1GameSession.releaseButton(button.button)
         }
     }
 
@@ -845,6 +864,9 @@ object ControllerInput {
                     // The bridge stop is the whole of it (no reader
                     // queue behind it — see GenesisGameSession).
                     GenesisGameSession.stopSpeech(context)
+                } else if (Ps1GameSession.isRunning && context != null) {
+                    // The same for PlayStation: no reader queue behind it.
+                    Ps1GameSession.stopSpeech(context)
                 } else {
                     GbGameSession.stopSpeech()
                 }
