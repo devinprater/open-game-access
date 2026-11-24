@@ -142,6 +142,12 @@ enum ROMStore {
         for ext in ["md", "gen", "smd", "bin"] {
             if let t = UTType(filenameExtension: ext) { types.append(t) }
         }
+        // PlayStation discs run in the PCSX ReARMed core (see Core/ps1_core.cpp).
+        // .chd is one file per disc; a .cue needs its .bin track files imported
+        // beside it (the core reads them from the same Games folder).
+        for ext in ["cue", "chd", "m3u", "ccd"] {
+            if let t = UTType(filenameExtension: ext) { types.append(t) }
+        }
         // PSP images run in the PPSSPP core (see Core/psp_core.cpp).
         if let iso = UTType(filenameExtension: "iso") { types.append(iso) }
         if let cso = UTType(filenameExtension: "cso") { types.append(cso) }
@@ -197,7 +203,8 @@ enum ROMStore {
             .filter { ["nds", "gba", "gbc", "gb", "nes", "fds", "unf",
                        "iso", "cso", "pbp",
                        "sfc", "smc", "fig", "swc",
-                       "md", "gen", "smd", "bin"].contains($0.pathExtension.lowercased()) }
+                       "md", "gen", "smd", "bin",
+                       "cue", "chd", "m3u", "ccd"].contains($0.pathExtension.lowercased()) }
             .sorted { a, b in
                 let da = (try? a.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast
                 let db = (try? b.resourceValues(forKeys: [.contentModificationDateKey]).contentModificationDate) ?? .distantPast

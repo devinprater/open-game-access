@@ -16,6 +16,7 @@
 #include "mesen_core.h"
 #include "snes_core.h"
 #include "genesis_core.h"
+#include "ps1_core.h"
 
 // For POKE_BTN_* — the app's shared pad numbering, which the PSP's button
 // translation table below is indexed by. This header is stdlib-only and is on
@@ -509,6 +510,110 @@ OgaCore oga_genesis_core(GenesisCore* genesis)
     return c;
 }
 
+/* ------------------------------------------------------------------ PlayStation
+ *
+ * PCSX ReARMed, driven through its libretro frontend (Core/ps1_core.cpp). Thin
+ * like the Genesis table, and NULL in the same places for the same reasons:
+ * no adapter layer in the core (Core/ps1_adapter.cpp is a console row that
+ * refuses until a game has a reader), no bundled Lua reader set, no touch, no
+ * hotkeys, no direction layer.
+ *
+ * THE PAD, SHARED INDEX → PLAYSTATION. The registry row lists Cross, Circle,
+ * Triangle and Square on BTN_A, BTN_B, BTN_X and BTN_Y; the shared L and R
+ * slots are L1 and R1. The shared numbering has no L2/R2 or stick clicks, so
+ * those stay unreachable until it does — said here rather than discovered by a
+ * player in a menu that needs R2.
+ *
+ * NO ANALOG YET. The wrapper reports a standard digital pad, which is what
+ * nearly every PlayStation game accepts; a DualShock-only game needs the stick
+ * path, which is a later change to both this table and ps1_core.cpp.
+ */
+
+static bool Ps1Start(void* s) { return ps1_start((Ps1Core*) s); }
+static void Ps1Stop(void* s)  { ps1_stop((Ps1Core*) s); }
+static bool Ps1Frame(void* s) { return ps1_frame((Ps1Core*) s); }
+
+static bool Ps1Read(void* s, uint32_t addr, int width, uint32_t* out)
+{
+    return ps1_read((Ps1Core*) s, addr, width, out);
+}
+
+static bool Ps1Framebuffer(void* s, int screen, int* w, int* h, const uint8_t** pixels)
+{
+    (void) screen;   /* one panel */
+    Ps1Core* ps1 = (Ps1Core*) s;
+    if (!ps1 || !ps1_framebuffer(ps1, w, h)) return false;
+    *pixels = ps1_framebuffer_ptr(ps1);
+    return *pixels != NULL;
+}
+
+static void Ps1SetButton(void* s, int pad_button, bool down)
+{
+    /* Shared pad indices: A=0 B=1 Select=2 Start=3 Right=4 Left=5 Up=6
+     * Down=7 R=8 L=9 X=10 Y=11. */
+    static const int kPs1Button[12] = {
+        PS1_BTN_CROSS,    /* 0: A      -> Cross */
+        PS1_BTN_CIRCLE,   /* 1: B      -> Circle */
+        PS1_BTN_SELECT,   /* 2 */
+        PS1_BTN_START,    /* 3 */
+        PS1_BTN_RIGHT,    /* 4 */
+        PS1_BTN_LEFT,     /* 5 */
+        PS1_BTN_UP,       /* 6 */
+        PS1_BTN_DOWN,     /* 7 */
+        PS1_BTN_R1,       /* 8: R      -> R1 */
+        PS1_BTN_L1,       /* 9: L      -> L1 */
+        PS1_BTN_TRIANGLE, /* 10: X     -> Triangle */
+        PS1_BTN_SQUARE,   /* 11: Y     -> Square */
+    };
+    if (pad_button < 0 || pad_button >= 12) return;
+    ps1_set_button((Ps1Core*) s, kPs1Button[pad_button], down);
+}
+
+static int Ps1ReadAudio(void* s, int16_t* out, int max_frames)
+{
+    return ps1_read_audio((Ps1Core*) s, out, max_frames);
+}
+static bool Ps1SaveState(void* s, const char* path) { return ps1_save_state((Ps1Core*) s, path); }
+static bool Ps1LoadState(void* s, const char* path) { return ps1_load_state((Ps1Core*) s, path); }
+static unsigned long long Ps1Frames(void* s) { return ps1_frames_completed((Ps1Core*) s); }
+static const char* Ps1LastError(void* s)
+{
+    Ps1Core* ps1 = (Ps1Core*) s;
+    return ps1 ? ps1_last_error(ps1) : "no core";
+}
+
+static const OgaCoreOps kPs1Ops = {
+    "ps1",                      /* id */
+    Ps1Start,
+    Ps1Stop,
+    Ps1Frame,
+    NULL,                       /* tick: the memory card flushes on stop and before a state save */
+    Ps1Read,
+    NULL,                       /* attach: no adapter layer in the core */
+    NULL,                       /* on_frame */
+    Ps1Framebuffer,
+    Ps1SetButton,
+    NULL,                       /* set_analog: digital pad for now (see above) */
+    NULL,                       /* set_touch: no touch screen */
+    NULL,                       /* set_hotkey: the native adapters are the only reader */
+    NULL,                       /* set_script_dir: no bundled PlayStation reader set */
+    NULL,                       /* reader_set: no bundled PlayStation reader set */
+    Ps1ReadAudio,
+    Ps1SaveState,
+    Ps1LoadState,
+    Ps1Frames,
+    Ps1LastError,
+    NULL,                       /* set_direction: no direction layer on this console */
+};
+
+OgaCore oga_ps1_core(Ps1Core* ps1)
+{
+    OgaCore c;
+    c.ops = &kPs1Ops;
+    c.state = ps1;
+    return c;
+}
+
 /* ------------------------------------------------------------------ resolver */
 
 /* Lower-cased extension INCLUDING the dot, or empty. Mirrors systems.cpp's
@@ -541,6 +646,7 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     static const OgaResolvedBackend kNes = { "nes", false, false, true, false };
     static const OgaResolvedBackend kSnes = { "snes", false, false, false, true };
     static const OgaResolvedBackend kGenesis = { "genesis", false, false, false, false, true };
+    static const OgaResolvedBackend kPs1 = { "ps1", false, false, false, false, false, true };
 
     static const char* const kGb[]  = { ".gba", ".gb", ".gbc", NULL };
     static const char* const kPspE[] = { ".iso", ".cso", ".pbp", ".elf", ".prx", ".ppdmp", NULL };
@@ -563,6 +669,12 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
      * A .bin that is not a Genesis ROM is refused in words by
      * genesis_load_rom's content check — never played on the wrong console. */
     static const char* const kGenesisE[] = { ".md", ".gen", ".smd", ".bin", NULL };
+    /* PCSX ReARMed. Only the extensions NO other row here claims: a cue sheet
+     * (with its .bin tracks beside it), a CHD, a multi-disc .m3u list, and a
+     * CloneCD .ccd. A single-file PS1 .iso/.pbp is the PSP's by extension and a
+     * PS1 .bin the Genesis's; routing those by content is a later change, and
+     * until then each is refused in words by the core it reaches. */
+    static const char* const kPs1E[] = { ".cue", ".chd", ".m3u", ".ccd", NULL };
 
     char ext[8];
     ExtOf(rom_path, ext, (int) sizeof(ext));
@@ -574,5 +686,6 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     if (ExtIs(ext, kNesE)) return &kNes;
     if (ExtIs(ext, kSnesE)) return &kSnes;
     if (ExtIs(ext, kGenesisE)) return &kGenesis;
+    if (ExtIs(ext, kPs1E)) return &kPs1;
     return NULL;
 }

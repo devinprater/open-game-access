@@ -81,6 +81,11 @@ int main()
      * reason: first match in the table wins, so listing it twice would promise
      * Dreamcast support that can never be reached. */
     ExpectSys("/roms/ff7.chd",            OGA_SYS_PS1, "a .chd resolves to the PlayStation, not the Dreamcast");
+    /* The PlayStation's own extensions: the ones no other row claims, which
+     * are also the ones the backend resolver routes to PCSX ReARMed. */
+    ExpectSys("/roms/ff7.cue",            OGA_SYS_PS1, "a .cue sheet is a PlayStation disc");
+    ExpectSys("/roms/ff7.m3u",            OGA_SYS_PS1, "a .m3u multi-disc list is a PlayStation game");
+    ExpectSys("/roms/ff7.ccd",            OGA_SYS_PS1, "a CloneCD .ccd is a PlayStation disc");
 
     printf("\n== case and path handling\n");
     ExpectSys("/roms/POKEMON.NDS",         OGA_SYS_DS,  "uppercase extensions match");
@@ -222,8 +227,9 @@ int main()
         /* ⛔ GENESIS IS OUT OF THIS LIST FOR THE SAME REASON THE NES AND SNES
          * ARE: the Genesis Plus GX core is linked in (Core/genesis_core.cpp),
          * a real ROM boots, and the row now says READY. */
+        /* ⛔ PS1 IS OUT OF THIS LIST TOO: PCSX ReARMed is linked in
+         * (Core/ps1_core.cpp) and scripts/ps1-core-test.sh boots a program. */
         const OgaSystemId planned[] = { OGA_SYS_N64,
-                                        OGA_SYS_PS1,
                                         OGA_SYS_DREAMCAST, OGA_SYS_3DS,
                                         OGA_SYS_MASTER, OGA_SYS_PCE,
                                         OGA_SYS_WONDERSWAN };
@@ -284,6 +290,15 @@ int main()
             ok("the Genesis reports its core present");
         else
             bad("the Genesis reports its core present", "the row still says PLANNED");
+
+        /* The PlayStation row is READY only because Core/ps1_core.cpp exists
+         * and its host test (a synthetic PS-EXE under the HLE BIOS: frames,
+         * audio, RAM reads, states) passes. */
+        const OgaSystem* ps1 = oga_system_by_id(OGA_SYS_PS1);
+        if (ps1 && oga_system_is_runnable(ps1))
+            ok("the PlayStation reports its core present");
+        else
+            bad("the PlayStation reports its core present", "the row still says PLANNED");
 
         /* N64 must NOT claim to be runnable: no core for it exists here. */
         if (n64 && !oga_system_is_runnable(n64))

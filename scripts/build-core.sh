@@ -135,6 +135,7 @@ GPGX_DEFS="-DLSB_FIRST -DBYTE_ORDER=LITTLE_ENDIAN -DUSE_32BPP_RENDERING"
 [ -d "$GPGX_SRC/core" ] || { echo "!! no Genesis Plus GX source at $GPGX_SRC" >&2; exit 1; }
 
 
+
 # -fwrapv matters: melonDS's ARM interpreter relies on wrapping arithmetic.
 # No JIT_ENABLED: see scripts/README.md — the ARM64 JIT needs MAP_JIT and
 # pthread_jit_write_protect_np, which iOS only exposes to apps signed with the
@@ -152,6 +153,16 @@ TEAKRA=""
 # copies is exactly how the simulator build ends up missing a translation unit
 # and fails at the FINAL link with a symbol the device build has.
 source "$ROOT/scripts/core-sources.sh"
+
+# ---- PCSX ReARMed (Sony PlayStation) ----
+# The TU list, defines and include roots live in core-sources.sh (PCSX_ALL,
+# PCSX_DEFS, PCSX_INC_REL); this block only roots them. Plain C (the `pcsx`
+# lang below) with -fno-common, so every global is a real definition the
+# prefix pass can see. PCSX_APPLE_DEFS (-DTVOS) skips upstream's iOS ptrace
+# call, which only the dynarec this build leaves out ever needed.
+PCSX_INC="-I$ROOT/Core/pcsx"
+for _d in $PCSX_INC_REL; do PCSX_INC="$PCSX_INC -I$PCSX_SRC/$_d"; done
+[ -f "$PCSX_SRC/frontend/libretro.c" ] || { echo "!! no PCSX ReARMed source at $PCSX_SRC" >&2; exit 1; }
 # ⛔ BUILT FROM THE SHARED LIST, NOT A PRIVATE COPY. This line used to be a second,
 # hand-maintained list of the same files — and it is why adding a new adapter meant
 # remembering two places, and why the simulator build silently had none.
@@ -182,6 +193,12 @@ compile() { # compile <lang> <src> <tag>
       if [ "$(basename "$src")" = "genesis_core.cpp" ]; then
         flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $GPGX_DEFS $GPGX_INC"
       fi
+      # ps1_core.cpp is the PCSX glue: it needs only libretro.h from the core's
+      # tree, and the same isolation rule (no $INC) so no other core's header
+      # of the same name can shadow it.
+      if [ "$(basename "$src")" = "ps1_core.cpp" ]; then
+        flags="$COMMON -I$ROOT/Core -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing -I$PCSX_SRC/deps/libretro-common/include"
+      fi
       # Our own Core/ code only (not melonDS): a self-calling EndFrame once
       # crashed every game on its first frame (v0.4.0) behind a mere warning.
       case "$src" in "$ROOT"/Core/*) flags="$flags -Werror=infinite-recursion" ;; esac ;;
@@ -210,6 +227,9 @@ compile() { # compile <lang> <src> <tag>
     # (genesis_core.cpp, via the cxx case) speaks to the C objects through
     # extern "C" declarations, which is also how upstream's frontends do it.
     gpgx) flags="$COMMON -std=gnu11 $GPGX_DEFS $GPGX_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
+    # PCSX ReARMed: plain C. -fno-common turns tentative definitions into real
+    # ones, which the oga_ps1_ prefix pass (after the compile loop) must see.
+    pcsx) flags="$COMMON -std=gnu11 -fno-common $PCSX_DEFS $PCSX_APPLE_DEFS $PCSX_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     ppspp) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE" ;;
     ppsppmm) flags="$CXXFLAGS $PPSPP_INC -DMOBILE_DEVICE -fobjc-arc" ;;
     ppsppc) flags="$CFLAGS $PPSPP_INC -DMOBILE_DEVICE -DLUA_USE_IOS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
@@ -262,6 +282,9 @@ compile() { # compile <lang> <src> <tag>
   # list compiles and cannot link. genesis_core.cpp itself is NOT emitted
   # here: it is in OGA_GLUE and the cxx case above gives it the GPGX flags.
   for f in $GPGX_ALL; do printf '%s|gpgx|%s\n' "$GPGX_SRC/$f" "gpgx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  # ---- PCSX ReARMed. The audited list from core-sources.sh; ps1_core.cpp is
+  # in OGA_GLUE. Tags keep the path: cdrom.c and gpu.c each exist twice.
+  for f in $PCSX_ALL; do printf '%s|pcsx|%s\n' "$PCSX_SRC/$f" "pcsx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   # The Lua-fork symbol shim, and our NES glue -- the console the NES adapter reads from.
   printf '%s|mesenlua|mesen_lua_extras\n' "$ROOT/Core/mesen_lua_extras.c"
   # mesen_core.cpp is NOT emitted here: it is in OGA_GLUE and the cxx case below
@@ -312,6 +335,8 @@ export MESEN_SRC MESEN_INC MESEN_FORCE
 # "'shared.h' file not found" (and its glue with "'osd.h' file not found"),
 # which reads like a missing header in the tree. It is not in the tree.
 export GPGX_SRC GPGX_INC GPGX_DEFS
+# The pcsx lang and the ps1_core.cpp case, same reason as GPGX above.
+export PCSX_SRC PCSX_INC PCSX_DEFS PCSX_APPLE_DEFS
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED. Without it xargs reads STDIN, which is
 # empty under a non-interactive shell, so it compiles ZERO files, the archive is
@@ -339,6 +364,14 @@ if [ "$_have" -ne "$_want" ]; then
 fi
 
 if [ -f "$OBJ/.failed" ]; then echo "!! compile errors above" >&2; exit 1; fi
+
+# ---- Prefix every PCSX ReARMed global with oga_ps1_ ----
+# FIRST of the symbol passes, and after the compile loop for the same reason
+# as the others: a fresh compile rewrites the objects. The whole defined set
+# is renamed (not a computed overlap), so the twin passes below never see a
+# PCSX name. See scripts/ps1-prefix-symbols.py.
+python3 "$ROOT/scripts/ps1-prefix-symbols.py" --format macho --nm "$LLVM_NM" --objcopy "$LLVM_OBJCOPY" "$OBJ"/pcsx_*.o || {
+  echo "!! PCSX symbol prefix pass failed" >&2; exit 1; }
 
 # ---- Localise the 7-Zip symbols Mesen shares with PPSSPP's vendored copy ----
 # ⛔ TWO VENDORED COPIES OF THE SAME SDK. Mesen's SevenZip/ and PPSSPP's ext/lzma-sdk/ are the same

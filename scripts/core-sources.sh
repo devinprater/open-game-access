@@ -78,6 +78,8 @@ mesen_core.cpp
 snes_core.cpp
 genesis_core.cpp
 genesis_adapter.cpp
+ps1_core.cpp
+ps1_adapter.cpp
 dbz_adapter.cpp
 dissidia_adapter.cpp
 dissidia012_adapter.cpp
@@ -1388,4 +1390,110 @@ core/system.c
 core/vdp_ctrl.c
 core/vdp_render.c
 core/z80/z80.c
+"
+
+# ---- PCSX ReARMed (Sony PlayStation core) ----
+# Fetched by scripts/bootstrap-deps.sh (pin + licence note live there). The
+# build scripts compile this list directly with PCSX_DEFS and PCSX_INC; no
+# build system of upstream's is run. The list is what upstream's own
+# Makefile.libretro builds for this configuration, read from a dry run of
+# `make -f Makefile.libretro platform=unix STATIC_LINKING=1 DYNAREC=0
+# BUILTIN_GPU=peops USE_ASYNC_CDROM=0 USE_ASYNC_GPU=0 USE_ASYNC_SPU=0
+# HAVE_PHYSICAL_CDROM=0 -n` at the pinned revision:
+#   * the interpreter only (DRC_DISABLE). iOS gives a sideloaded app no JIT,
+#     and one CPU path on every platform keeps the three builds identical.
+#   * the P.E.Op.S. software GPU (plugins/dfxvideo), plain C. The NEON GPU
+#     is faster on ARM but is not portable C, and the host test is x86_64.
+#   * no async CD, GPU or SPU threads: the app drives frames synchronously.
+#   * libchdr for .chd images, and libretro-common's VFS for file access.
+#   * frontend/libretro.c IS the frontend: Core/ps1_core.cpp drives the core
+#     through the libretro API in-process, the way RetroArch does.
+# The TUs are plain C. Every global they define is renamed with an oga_ps1_
+# prefix after the compile (scripts/ps1-prefix-symbols.py), so none of the
+# core's generic names (Config, gpu, spu, retro_init, ...) can meet another
+# core's in the link. Core/ps1_core.cpp calls the prefixed names.
+#
+# PCSX_INC is relative to PCSX_SRC; each build prefixes it. Core/pcsx holds
+# only revision.h (the version header upstream's Makefile generates).
+PCSX_SRC="${PCSX_SRC:-$HOME/src/pcsx_rearmed}"
+PCSX_DEFS="-DP_HAVE_MMAP=1 -DP_HAVE_POSIX_MEMALIGN=1 -DDISABLE_MEM_LUTS=0 -DDRC_DISABLE -DGPU_PEOPS -DBUILTIN_GPU=peops -DHAVE_CHD -DUSE_MINIZ -DMINIZ_NO_ARCHIVE_APIS -DMINIZ_NO_DEFLATE_APIS -DMINIZ_NO_STDIO -DUSE_LIBRETRO_VFS -DHAVE_LIBRETRO -DNO_FRONTEND -DNDEBUG"
+# Apple builds add PCSX_APPLE_DEFS. -DTVOS has exactly one effect in the
+# compiled files: it skips retro_init's ptrace(PT_TRACE_ME) call, upstream's
+# trick for getting the iOS dynarec writable+executable pages. This build
+# has no dynarec, and a sandboxed app asking to be traced is not something
+# it should do. (Checked at the pin: libretro.c is the only compiled TVOS use.)
+PCSX_APPLE_DEFS="-DTVOS"
+PCSX_INC_REL="include deps/libchdr/include deps/libchdr/deps/miniz-3.1.2 deps/libchdr/deps/lzma-26.02/include deps/libretro-common/include"
+PCSX_ALL="
+libpcsxcore/cdriso.c
+libpcsxcore/cdrom.c
+libpcsxcore/cdrom-async.c
+libpcsxcore/cheat.c
+libpcsxcore/database.c
+libpcsxcore/decode_xa.c
+libpcsxcore/mdec.c
+libpcsxcore/misc.c
+libpcsxcore/plugins.c
+libpcsxcore/ppf.c
+libpcsxcore/psxbios.c
+libpcsxcore/psxcommon.c
+libpcsxcore/psxcounters.c
+libpcsxcore/psxdma.c
+libpcsxcore/psxhw.c
+libpcsxcore/psxinterpreter.c
+libpcsxcore/psxmem.c
+libpcsxcore/psxevents.c
+libpcsxcore/r3000a.c
+libpcsxcore/sio.c
+libpcsxcore/spu.c
+libpcsxcore/gpu.c
+libpcsxcore/pad.c
+libpcsxcore/gte.c
+libpcsxcore/gte_nf.c
+libpcsxcore/gte_divider.c
+libpcsxcore/new_dynarec/emu_if.c
+plugins/dfsound/dma.c
+plugins/dfsound/freeze.c
+plugins/dfsound/registers.c
+plugins/dfsound/spu.c
+plugins/dfsound/out.c
+plugins/dfsound/nullsnd.c
+plugins/gpulib/gpu.c
+plugins/gpulib/vout_pl.c
+plugins/gpulib/prim.c
+plugins/dfxvideo/gpulib_if.c
+deps/libchdr/src/libchdr_bitstream.c
+deps/libchdr/src/libchdr_cdrom.c
+deps/libchdr/src/libchdr_chd.c
+deps/libchdr/src/libchdr_codec_cdfl.c
+deps/libchdr/src/libchdr_codec_cdlz.c
+deps/libchdr/src/libchdr_codec_cdzl.c
+deps/libchdr/src/libchdr_codec_cdzs.c
+deps/libchdr/src/libchdr_codec_flac.c
+deps/libchdr/src/libchdr_codec_huff.c
+deps/libchdr/src/libchdr_codec_lzma.c
+deps/libchdr/src/libchdr_codec_zlib.c
+deps/libchdr/src/libchdr_codec_zstd.c
+deps/libchdr/src/libchdr_flac.c
+deps/libchdr/src/libchdr_huffman.c
+deps/libchdr/deps/lzma-26.02/src/LzmaDec.c
+deps/libchdr/deps/zstd-1.5.7/zstddeclib.c
+deps/libchdr/deps/miniz-3.1.2/miniz.c
+frontend/cspace.c
+deps/libretro-common/compat/compat_strl.c
+deps/libretro-common/file/file_path.c
+deps/libretro-common/file/file_path_io.c
+deps/libretro-common/string/stdstring.c
+deps/libretro-common/string/rstrtod.c
+deps/libretro-common/vfs/vfs_implementation.c
+deps/libretro-common/compat/compat_posix_string.c
+deps/libretro-common/compat/fopen_utf8.c
+deps/libretro-common/encodings/encoding_utf.c
+deps/libretro-common/file/retro_dirent.c
+deps/libretro-common/streams/file_stream.c
+deps/libretro-common/streams/file_stream_transforms.c
+deps/libretro-common/time/rtime.c
+frontend/libretro.c
+frontend/main.c
+frontend/plugin.c
 "

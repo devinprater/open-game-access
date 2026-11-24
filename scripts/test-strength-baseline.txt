@@ -19,4 +19,5 @@ Core/gba_adapter_test.cpp       19
 Core/khbbs_adapter_test.cpp     527
 Core/mku_adapter_test.cpp       146
 Core/osk_echo_test.cpp          49
+Core/ps1_core_test.cpp          43
 Core/systems_test.cpp           34

@@ -249,7 +249,7 @@ else:
 # AdapterLibraryData.kt is generated from the registry but checked in, so it
 # can go stale. What is asserted here is the identity a regeneration cannot
 # fake: one library entry per registered adapter, minus the console-only
-# placeholders (the NES, N64 and Genesis rows) that Core's LibraryAdapter filter
+# placeholders (the NES, N64, Genesis and PlayStation rows) that Core's LibraryAdapter filter
 # excludes — if a tenth adapter is registered and the data is not
 # regenerated, the counts diverge and this fails. The screen must also exist
 # and be wired from the Activity, or the data is a list nobody can reach.
@@ -264,7 +264,7 @@ else:
     entries = re.findall(r"&(k\w+)", block.group(1)) if block else []
     placeholders = [e for e in entries
                     if e in ("kNintendoEntertainmentSystem", "kNintendo64",
-                             "kSegaGenesis")]
+                             "kSegaGenesis", "kSonyPlayStation")]
     want_count = len(entries) - len(placeholders)
     data = read(LIBRARY_KT)
     # One match is the data class declaration; the rest are list entries.
