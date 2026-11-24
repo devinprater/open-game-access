@@ -759,11 +759,31 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   reading GBA addresses at it. Fix: a console gate in `gba_attach` (`g_platform == 1`). Measured:
   Crystal refuses and logs why; FireRed still attaches.
   ⚠ Host-proven only — no phone has heard either fix. Android is unaffected by both (no native
-  GBA reader there; it reads the console correctly via Lua) and still has NO emulated-audio path,
-  so Android Game Boy games remain silent — a missing feature there, unchanged by v0.6.6.
+  GBA reader there; it reads the console correctly via Lua) and, at v0.6.6, still had NO
+  emulated-audio path, so Android Game Boy games stayed silent — added since, see the next entry.
   ⛔ The first attempt fixed a real bug (the NULL `read_audio` slot) and proved it with "2048
   frames returned" — which a ring full of ZEROS also satisfies. The gate now measures peak
   amplitude and the nonzero fraction, and both bugs were re-introduced to confirm it fails.
+- [~] **Android Game Boy games play their own sound (2026-11-24, host-tested, NOT yet heard on a phone).**
+  They were silent: `MGBARunner` ran mGBA, mGBA filled its audio ring every frame, and nothing
+  read it (iOS had the same hole until v0.6.6; Android's GB path never links `Core/gba_core.cpp`).
+  Now the frame thread drains the ring right after each frame (`runGbFrame` ->
+  `MGBARunner::drainAudio`) into `GbAudioQueue.h`, which resamples to the 32768 Hz every Android
+  session uses, and `GbGameSession` plays it through an AudioTrack from its own thread (the DS and
+  PSP shape), stopped and joined before the core is torn down. GB, GBC and GBA all take this path.
+  Three details that matter by ear: the 131072 Hz Game Boy stream is AVERAGED down, not picked, so
+  square-wave harmonics do not fold back as whine (a 30 kHz tone leaves 10% alias, against ~100%
+  picking); the resampler's phase carries across frames, so there is no 60 Hz click; and the GB
+  frame clock is now PACED to the console's 59.7275 Hz like the other sessions', because on a 90
+  or 120 Hz screen it ran the game 1.5-2x fast, which with sound on would overproduce audio and
+  be heard as gaps. The backlog is capped at a quarter second. The Settings "Game sound" switch
+  now gates it (speech and the reader's cue sounds are untouched), and the master volume is set
+  explicitly (`opts.volume = 0x100`), the iOS v0.6.6 bug, though this runner never zeroed it.
+  Gate: `scripts/android-gb-audio-test.sh` (20 behaviour checks on the real header, 4 mutations,
+  9 wiring checks) in adapter-tests CI.
+  ⚠ OPEN: nobody has listened on a phone. To close it: play a Game Boy game on Android and hear
+  its music and effects at normal speed and pitch, with no crackle; flip Game sound off and on.
+
 - [x] **The Game Boy "numbers and nil" report was WRONG, and the real bug is fixed (v0.6.4).**
   Measured on Red: the GB path reads Oak's speech line by line with zero nil, zero raw numbers and
   zero hook errors -- that symptom is GBA-title-screen only. The real defect was a RESET handler
