@@ -141,6 +141,10 @@ void OnSpeech(const char *text, bool interrupt, void * /*userdata*/) {
 PokeCore *g_core = nullptr;
 std::string g_game_code;
 std::string g_last_error;
+// The in-game debug channel's folder (docs/design/debug-channel.md):
+// cmd.txt in, replies.log out. Kept across loads, like the script, and
+// handed to every core this file creates.
+std::string g_debug_dir;
 // The reader script (BizHawk compat shim + the game's main.lua,
 // concatenated by the Kotlin side), applied to each fresh core before
 // its ROM loads — pokecore's contract is set-once-before-load, the
@@ -177,6 +181,23 @@ void DestroyCoreLocked() {
 }
 
 }  // namespace
+
+extern "C" JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_DsAccessibilityScript_nativeDsSetDebugDir(
+    JNIEnv *env, jobject /*self*/, jstring dir) {
+  std::lock_guard<std::mutex> lock(g_lifecycle_lock);
+  g_debug_dir = FromJString(env, dir);
+  if (g_core) poke_debug_set_dir(g_core, g_debug_dir.c_str());
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_DsAccessibilityScript_nativeDsDebugCommand(
+    JNIEnv *env, jobject /*self*/, jstring text) {
+  std::lock_guard<std::mutex> lock(g_lifecycle_lock);
+  if (!g_core) return;
+  const std::string t = FromJString(env, text);
+  poke_debug_command(g_core, t.c_str());
+}
 
 extern "C" JNIEXPORT jboolean JNICALL
 Java_me_magnum_melonds_accessibility_DsAccessibilityScript_nativeDsAvailable(
@@ -237,6 +258,7 @@ Java_me_magnum_melonds_accessibility_DsAccessibilityScript_nativeDsLoadRom(
     return JNI_FALSE;
   }
   poke_set_log_callback(core, &CoreLog, nullptr);
+  poke_debug_set_dir(core, g_debug_dir.c_str());
   poke_set_speech_callback(core, &OnSpeech, nullptr);
   // Always applied, even empty: the session sets the script on every
   // start, and a stale script must never leak into a later game.

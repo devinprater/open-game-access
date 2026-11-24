@@ -72,6 +72,13 @@ bool gba_set_exec_hook(GbaCore *core, uint32_t address, int lua_ref);
 bool gba_clear_exec_hook(GbaCore *core, uint32_t address);
 bool gba_hooks_active(GbaCore *core);
 
+/* The in-game debug channel's exec hooks (Core/debug_channel.h `count` and `trace`): the same
+ * real mGBA breakpoints, reporting to a C callback with the program counter and r0..r3. One
+ * callback per core; enable=false removes the breakpoint at `address`. Refuses (false) an
+ * address the reader already hooks, so the two can never fight over one breakpoint. */
+typedef void (*GbaDebugHit)(void *user, uint32_t pc, const uint32_t *args, int nargs);
+bool gba_set_debug_hook(GbaCore *core, uint32_t address, bool enable, GbaDebugHit cb, void *user);
+
 bool gba_start(GbaCore *core);
 void gba_stop(GbaCore *core);
 bool gba_running(GbaCore *core);

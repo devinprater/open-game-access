@@ -286,6 +286,14 @@ object GenesisGameSession {
         // counterpart here.)
         synchronized(loadLock) {
             if (gen != generation) return LOAD_SUPERSEDED
+            // The debug channel's folder goes in before the load too, so
+            // the new core reads cmd.txt from its first frame. Never fatal:
+            // a missing folder only means no file-driven commands.
+            try {
+                GenesisAccessibilityScript.setDebugDir(DebugChannel.dir(context))
+            } catch (t: Throwable) {
+                Log.w(TAG, "debug channel folder not set", t)
+            }
             val loaded = try {
                 GenesisAccessibilityScript.loadRom(romPath, savePath)
             } catch (t: Throwable) {

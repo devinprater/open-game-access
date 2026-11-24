@@ -103,6 +103,7 @@ static const OgaCoreOps kGbaOps = {
     GbaSaveState, GbaLoadState,
     GbaFrames, GbaLastError,
     NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
+    NULL,                       /* write: no write path on the Game Boy */
 };
 
 OgaCore oga_gba_core(GbaCore* gba)
@@ -186,6 +187,7 @@ static const OgaCoreOps kNesOps = {
     NesSaveState, NesLoadState, /* both refuse out loud today -- see mesen_core.cpp */
     NesFrames, NesLastError,
     NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
+    NULL,                       /* write: the NES is read-only by contract (mesen_core.h) */
 };
 
 OgaCore oga_nes_core(NesCore* nes)
@@ -253,6 +255,17 @@ static int PspReadAudio(void* s, int16_t* out, int max_frames)
     return psp_read_audio((PspCore*) s, out, max_frames);
 }
 
+/* The debug channel's poke (Core/debug_channel.h). psp_debug_write keeps
+ * the read's guards and is silent on a bad address, so the channel reads the
+ * value back and reports what actually landed. */
+static bool PspWrite(void* s, uint32_t addr, int width, uint32_t value)
+{
+    PspCore* psp = (PspCore*) s;
+    if (!psp || (width != 1 && width != 2 && width != 4)) return false;
+    psp_debug_write(psp, addr, value, width);
+    return true;
+}
+
 static bool PspSaveState(void* s, const char* path) { return psp_save_state((PspCore*) s, path); }
 static bool PspLoadState(void* s, const char* path) { return psp_load_state((PspCore*) s, path); }
 static unsigned long long PspFrames(void* s) { return psp_frames_completed((PspCore*) s); }
@@ -273,6 +286,7 @@ static const OgaCoreOps kPspOps = {
     PspSaveState, PspLoadState,
     PspFrames, PspLastError,
     NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
+    PspWrite,                   /* write: psp_debug_write, the debug channel's poke */
 };
 
 OgaCore oga_psp_core(PspCore* psp)
@@ -340,6 +354,12 @@ static void SnesSetDirection(void* s, int dir, bool down)
     snes_set_direction((SnesCore*) s, dir, down);
 }
 
+/* The debug channel's poke. snes_write refuses exactly as snes_read does. */
+static bool SnesWrite(void* s, uint32_t addr, int width, uint32_t value)
+{
+    return snes_write((SnesCore*) s, addr, width, value);
+}
+
 static bool SnesSaveState(void* s, const char* path) { return snes_save_state((SnesCore*) s, path); }
 static bool SnesLoadState(void* s, const char* path) { return snes_load_state((SnesCore*) s, path); }
 static unsigned long long SnesFrames(void* s) { return snes_frames_completed((SnesCore*) s); }
@@ -362,6 +382,7 @@ static const OgaCoreOps kSnesOps = {
     SnesSaveState, SnesLoadState,
     SnesFrames, SnesLastError,
     SnesSetDirection,           /* set_direction */
+    SnesWrite,                  /* write: snes_write, the debug channel's poke */
 };
 
 OgaCore oga_snes_core(SnesCore* snes)
@@ -478,6 +499,7 @@ static const OgaCoreOps kGenesisOps = {
     GenesisFrames,
     GenesisLastError,
     NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
+    NULL,                       /* write: no write path on the Genesis */
 };
 
 OgaCore oga_genesis_core(GenesisCore* genesis)
@@ -582,6 +604,7 @@ static const OgaCoreOps kPs1Ops = {
     Ps1Frames,
     Ps1LastError,
     NULL,                       /* set_direction: no direction layer on this console */
+    NULL,                       /* write: no write path into the PlayStation's RAM yet */
 };
 
 OgaCore oga_ps1_core(Ps1Core* ps1)

@@ -180,6 +180,22 @@ const char *poke_adapter_id(PokeCore *core);
  * the reader and is null when a game has none, which is the normal case. */
 const char *poke_backend_id(PokeCore *core);
 
+/* THE IN-GAME DEBUG CHANNEL (docs/design/debug-channel.md, Core/debug_channel.h).
+ *
+ * A file-driven workbench for reverse engineering a game while it runs: drop a
+ * cmd.txt into the folder below (peek, poke, watch, pad, wait, count, trace…)
+ * and the replies land in replies.log in the same folder, and in the log
+ * callback with a "DBG " prefix. The file is read and deleted about four times
+ * a second. A core with no folder set reads no file, and an empty folder costs
+ * one failed open per poll.
+ *
+ * The folder may be set before or after a load and survives a reload. Pass
+ * NULL or "" to turn the file off. */
+void poke_debug_set_dir(PokeCore *core, const char *dir);
+/* The same commands without the file, e.g. from a typed console. Runs on the
+ * next frame; replies come back the same way. Thread-safe. */
+void poke_debug_command(PokeCore *core, const char *text);
+
 /* Human-readable name of the selected adapter, for the UI to speak. NULL when
  * there is none. */
 const char *poke_adapter_name(PokeCore *core);

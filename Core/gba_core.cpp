@@ -155,6 +155,12 @@ struct GbaCore {
     bool dbgAttached = false;
     std::unordered_map<uint32_t, int> execHooks;      // address -> Lua registry ref
     std::unordered_map<uint32_t, ssize_t> hookIds;    // address -> breakpoint id
+    // The in-game debug channel's hooks (gba_set_debug_hook): the same real breakpoints, with
+    // a C callback instead of a Lua ref. Kept apart from execHooks so neither side can remove
+    // the other's breakpoint by address.
+    std::unordered_map<uint32_t, ssize_t> debugIds;   // address -> breakpoint id
+    GbaDebugHit debugCb = nullptr;
+    void* debugUser = nullptr;
 };
 
 static void SetError(GbaCore* core, const char* fmt, ...)
@@ -854,7 +860,24 @@ static void GbaDebuggerEntered(struct mDebuggerModule* module, enum mDebuggerEnt
     // ⛔ CLEAR isPaused FIRST, before any Lua runs: a callback that errors must not leave the
     // debugger paused, or the next frame blocks forever.
     module->isPaused = false;
-    if (reason != DEBUGGER_ENTER_BREAKPOINT || !core || !core->L || !info) return;
+    if (reason != DEBUGGER_ENTER_BREAKPOINT || !core || !info) return;
+
+    // The debug channel's hooks first: they only count and copy registers, and never run Lua.
+    if (core->debugCb && core->debugIds.count((uint32_t) info->address))
+    {
+        uint32_t args[4] = {0, 0, 0, 0};
+        int nargs = 0;
+        static const char* const kArgRegs[4] = {"r0", "r1", "r2", "r3"};
+        for (int i = 0; i < 4 && core->core && core->core->readRegister; i++)
+        {
+            int32_t v = 0;
+            if (!core->core->readRegister(core->core, kArgRegs[i], &v)) break;
+            args[i] = (uint32_t) v;
+            nargs = i + 1;
+        }
+        core->debugCb(core->debugUser, (uint32_t) info->address, args, nargs);
+    }
+    if (!core->L) return;
 
     auto it = core->execHooks.find((uint32_t) info->address);
     if (it == core->execHooks.end()) return;
@@ -942,6 +965,36 @@ bool gba_clear_exec_hook(GbaCore* core, uint32_t address)
         if (core->dbgAttached && plat && plat->clearBreakpoint) plat->clearBreakpoint(plat, id->second);
         core->hookIds.erase(id);
     }
+    return true;
+}
+
+bool gba_set_debug_hook(GbaCore* core, uint32_t address, bool enable, GbaDebugHit cb, void* user)
+{
+    if (!core) return false;
+    auto have = core->debugIds.find(address);
+    if (!enable)
+    {
+        if (have == core->debugIds.end()) return false;
+        struct mDebuggerPlatform* plat = core->debugger.platform;
+        if (core->dbgAttached && plat && plat->clearBreakpoint) plat->clearBreakpoint(plat, have->second);
+        core->debugIds.erase(have);
+        return true;
+    }
+    core->debugCb = cb;
+    core->debugUser = user;
+    if (have != core->debugIds.end()) return true;
+    // The reader already owns a breakpoint here; a second one at the same address would be
+    // entered twice or not at all depending on mGBA's list order. Refuse rather than guess.
+    if (core->execHooks.count(address)) return false;
+    if (!EnsureDebugger(core)) return false;
+    struct mDebuggerPlatform* plat = core->debugger.platform;
+    if (!plat || !plat->setBreakpoint) return false;
+    struct mBreakpoint bp;
+    memset(&bp, 0, sizeof(bp));
+    bp.address = address;
+    bp.segment = -1;
+    bp.type = BREAKPOINT_HARDWARE;
+    core->debugIds[address] = plat->setBreakpoint(plat, &core->dbgModule, &bp);
     return true;
 }
 
@@ -1044,7 +1097,7 @@ bool gba_frame(GbaCore* core)
     // ⛔ THE FRAME DRIVER DEPENDS ON WHETHER HOOKS EXIST. Breakpoints are only checked by
     // mDebuggerRunFrame; a game with no exec hooks keeps the cheaper plain runFrame, so this
     // change costs nothing for the vast majority of titles.
-    if (!core->execHooks.empty() && core->dbgAttached)
+    if ((!core->execHooks.empty() || !core->debugIds.empty()) && core->dbgAttached)
         mDebuggerRunFrame(&core->debugger);
     else
         core->core->runFrame(core->core);
