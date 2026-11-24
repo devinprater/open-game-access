@@ -129,6 +129,7 @@ object ControllerInput {
         data class Mesen(val button: Int) : EmuButton
         data class Genesis(val button: Int) : EmuButton
         data class Ps1(val button: Int) : EmuButton
+        data class N64(val button: Int) : EmuButton
     }
 
     private enum class PadDir { UP, DOWN, LEFT, RIGHT }
@@ -160,6 +161,9 @@ object ControllerInput {
     private val browseHeld = mutableSetOf<String>()
 
     private const val STICK_THRESHOLD = 0.5f
+
+    /** The N64 analog stick's radial deadzone (pad drift stays still). */
+    private const val N64_STICK_DEADZONE = 0.15f
 
     // ---- lifecycle ------------------------------------------------------
 
@@ -251,7 +255,7 @@ object ControllerInput {
         device != null && device.isKeyboard()
 
     private val sessionActive: Boolean
-        get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning
+        get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || N64GameSession.isRunning
 
     /**
      * Session-boundary reset. Events are only routed while a session
@@ -338,10 +342,10 @@ object ControllerInput {
             KeyEvent.KEYCODE_BUTTON_B -> { faceButton(Face.EAST, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_X -> { faceButton(Face.WEST, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_Y -> { faceButton(Face.NORTH, source, pressed); true }
-            KeyEvent.KEYCODE_BUTTON_L1 -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X, Ps1Keys.L1), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_R1 -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z, Ps1Keys.R1), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_START -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START, Ps1Keys.START), pressed); true }
-            KeyEvent.KEYCODE_BUTTON_SELECT -> { set(source, emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE, Ps1Keys.SELECT), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_L1 -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X, Ps1Keys.L1, N64Keys.Z), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_R1 -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z, Ps1Keys.R1, N64Keys.R), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_START -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START, Ps1Keys.START, N64Keys.START), pressed); true }
+            KeyEvent.KEYCODE_BUTTON_SELECT -> { set(source, emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE, Ps1Keys.SELECT, N64Keys.C_DOWN), pressed); true }
             // The reader's modifiers. Never game input.
             KeyEvent.KEYCODE_BUTTON_L2 -> { setModifier(askHeld, source, pressed); true }
             KeyEvent.KEYCODE_BUTTON_R2 -> { setModifier(browseHeld, source, pressed); true }
@@ -404,9 +408,9 @@ object ControllerInput {
             KeyEvent.KEYCODE_X -> { faceButton(Face.EAST, source, pressed); true }
             KeyEvent.KEYCODE_A -> { faceButton(Face.WEST, source, pressed); true }
             KeyEvent.KEYCODE_S -> { faceButton(Face.NORTH, source, pressed); true }
-            KeyEvent.KEYCODE_Q -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X, Ps1Keys.L1), pressed); true }
-            KeyEvent.KEYCODE_W -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z, Ps1Keys.R1), pressed); true }
-            KeyEvent.KEYCODE_ENTER -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START, Ps1Keys.START), pressed); true }
+            KeyEvent.KEYCODE_Q -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X, Ps1Keys.L1, N64Keys.Z), pressed); true }
+            KeyEvent.KEYCODE_W -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z, Ps1Keys.R1, N64Keys.R), pressed); true }
+            KeyEvent.KEYCODE_ENTER -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START, Ps1Keys.START, N64Keys.START), pressed); true }
             // Shift is Select AND the item keys' category modifier;
             // shiftKey decides which of the two the press was.
             KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> { shiftKey(source, pressed); true }
@@ -478,7 +482,7 @@ object ControllerInput {
         shiftHeld.remove(source)
         if (shiftHeld.isEmpty() && shiftTapArmed) {
             shiftTapArmed = false
-            val button = emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE, Ps1Keys.SELECT)
+            val button = emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE, Ps1Keys.SELECT, N64Keys.C_DOWN)
             set(source, button, true)
             set(source, button, false)
         }
@@ -527,10 +531,44 @@ object ControllerInput {
         setModifier(browseHeld, "$id.axis.r2", r2 > STICK_THRESHOLD)
         val x = event.getAxisValue(MotionEvent.AXIS_X)
         val y = event.getAxisValue(MotionEvent.AXIS_Y)
-        direction(PadDir.UP, "$id.stick.up", y < -STICK_THRESHOLD)
-        direction(PadDir.DOWN, "$id.stick.down", y > STICK_THRESHOLD)
-        direction(PadDir.LEFT, "$id.stick.left", x < -STICK_THRESHOLD)
-        direction(PadDir.RIGHT, "$id.stick.right", x > STICK_THRESHOLD)
+        // ⛔ THE NINTENDO 64 STICK IS ANALOG. Its games move with the
+        // stick, not the d-pad, and by how far it is pushed, so while an
+        // N64 game runs the left stick goes to the core as an analog
+        // value instead of four d-pad directions — except while a chord
+        // modifier is held, when it is the chord's direction pad as
+        // always (and the game's stick is let go). The hat stays the
+        // d-pad. Android's +y is down, which is the core's convention.
+        val n64Stick = N64GameSession.isRunning && askHeld.isEmpty() && browseHeld.isEmpty()
+        if (n64Stick) {
+            direction(PadDir.UP, "$id.stick.up", false)
+            direction(PadDir.DOWN, "$id.stick.down", false)
+            direction(PadDir.LEFT, "$id.stick.left", false)
+            direction(PadDir.RIGHT, "$id.stick.right", false)
+            val magnitude = kotlin.math.sqrt(x * x + y * y)
+            if (magnitude < N64_STICK_DEADZONE) {
+                N64GameSession.setStick(0f, 0f)
+            } else {
+                // Rescale past the deadzone so a full push is still full.
+                val scale = ((magnitude - N64_STICK_DEADZONE) / (1f - N64_STICK_DEADZONE))
+                    .coerceIn(0f, 1f) / magnitude
+                N64GameSession.setStick(x * scale, y * scale)
+            }
+        } else {
+            if (N64GameSession.isRunning) N64GameSession.setStick(0f, 0f)
+            direction(PadDir.UP, "$id.stick.up", y < -STICK_THRESHOLD)
+            direction(PadDir.DOWN, "$id.stick.down", y > STICK_THRESHOLD)
+            direction(PadDir.LEFT, "$id.stick.left", x < -STICK_THRESHOLD)
+            direction(PadDir.RIGHT, "$id.stick.right", x > STICK_THRESHOLD)
+        }
+        // The right stick as the C buttons, for N64 games (C-up has no
+        // slot on the shared pad yet, so pushing up does nothing).
+        if (N64GameSession.isRunning) {
+            val rx = event.getAxisValue(MotionEvent.AXIS_Z)
+            val ry = event.getAxisValue(MotionEvent.AXIS_RZ)
+            set("$id.rstick.left", if (rx < -STICK_THRESHOLD) EmuButton.N64(N64Keys.C_LEFT) else null, rx < -STICK_THRESHOLD)
+            set("$id.rstick.right", if (rx > STICK_THRESHOLD) EmuButton.N64(N64Keys.C_RIGHT) else null, rx > STICK_THRESHOLD)
+            set("$id.rstick.down", if (ry > STICK_THRESHOLD) EmuButton.N64(N64Keys.C_DOWN) else null, ry > STICK_THRESHOLD)
+        }
         val hatX = event.getAxisValue(MotionEvent.AXIS_HAT_X)
         val hatY = event.getAxisValue(MotionEvent.AXIS_HAT_Y)
         direction(PadDir.UP, "$id.hat.up", hatY < -STICK_THRESHOLD)
@@ -545,10 +583,10 @@ object ControllerInput {
     private fun direction(dir: PadDir, source: String, pressed: Boolean) {
         if (routeChord(Input.Pad(dir), source, pressed)) return
         val button = when (dir) {
-            PadDir.UP -> emuButton(GbKeys.UP, PspKeys.UP, MesenKeys.UP, GenesisKeys.UP, Ps1Keys.UP)
-            PadDir.DOWN -> emuButton(GbKeys.DOWN, PspKeys.DOWN, MesenKeys.DOWN, GenesisKeys.DOWN, Ps1Keys.DOWN)
-            PadDir.LEFT -> emuButton(GbKeys.LEFT, PspKeys.LEFT, MesenKeys.LEFT, GenesisKeys.LEFT, Ps1Keys.LEFT)
-            PadDir.RIGHT -> emuButton(GbKeys.RIGHT, PspKeys.RIGHT, MesenKeys.RIGHT, GenesisKeys.RIGHT, Ps1Keys.RIGHT)
+            PadDir.UP -> emuButton(GbKeys.UP, PspKeys.UP, MesenKeys.UP, GenesisKeys.UP, Ps1Keys.UP, N64Keys.UP)
+            PadDir.DOWN -> emuButton(GbKeys.DOWN, PspKeys.DOWN, MesenKeys.DOWN, GenesisKeys.DOWN, Ps1Keys.DOWN, N64Keys.DOWN)
+            PadDir.LEFT -> emuButton(GbKeys.LEFT, PspKeys.LEFT, MesenKeys.LEFT, GenesisKeys.LEFT, Ps1Keys.LEFT, N64Keys.LEFT)
+            PadDir.RIGHT -> emuButton(GbKeys.RIGHT, PspKeys.RIGHT, MesenKeys.RIGHT, GenesisKeys.RIGHT, Ps1Keys.RIGHT, N64Keys.RIGHT)
         }
         set(source, button, pressed)
     }
@@ -577,11 +615,12 @@ object ControllerInput {
     }
 
     /** The emulated button for a position, in the running session's terms. */
-    private fun emuButton(gb: Int, psp: Int, mesen: Int, genesis: Int, ps1: Int): EmuButton? = when {
+    private fun emuButton(gb: Int, psp: Int, mesen: Int, genesis: Int, ps1: Int, n64: Int): EmuButton? = when {
         PspGameSession.isRunning -> EmuButton.Psp(psp)
         MesenGameSession.isRunning -> EmuButton.Mesen(mesen)
         GenesisGameSession.isRunning -> EmuButton.Genesis(genesis)
         Ps1GameSession.isRunning -> EmuButton.Ps1(ps1)
+        N64GameSession.isRunning -> EmuButton.N64(n64)
         GbGameSession.isRunning -> EmuButton.Gb(gb)
         else -> null
     }
@@ -643,6 +682,20 @@ object ControllerInput {
                 }
             )
         }
+        if (N64GameSession.isRunning) {
+            // The Nintendo 64 pad on a modern one, the usual way: A at
+            // south, B at west, and two of the C buttons on the other
+            // two (C-down rides Select, and the right stick carries
+            // C-left, C-right and C-down too; see handleMotionEvent).
+            return EmuButton.N64(
+                when (face) {
+                    Face.SOUTH -> N64Keys.A
+                    Face.WEST -> N64Keys.B
+                    Face.NORTH -> N64Keys.C_LEFT
+                    Face.EAST -> N64Keys.C_RIGHT
+                }
+            )
+        }
         if (GbGameSession.isRunning) {
             return when (face) {
                 Face.EAST -> EmuButton.Gb(GbKeys.A)
@@ -684,6 +737,8 @@ object ControllerInput {
                 if (down) GenesisGameSession.pressButton(button.button) else GenesisGameSession.releaseButton(button.button)
             is EmuButton.Ps1 ->
                 if (down) Ps1GameSession.pressButton(button.button) else Ps1GameSession.releaseButton(button.button)
+            is EmuButton.N64 ->
+                if (down) N64GameSession.pressButton(button.button) else N64GameSession.releaseButton(button.button)
         }
     }
 
@@ -867,6 +922,9 @@ object ControllerInput {
                 } else if (Ps1GameSession.isRunning && context != null) {
                     // The same for PlayStation: no reader queue behind it.
                     Ps1GameSession.stopSpeech(context)
+                } else if (N64GameSession.isRunning && context != null) {
+                    // And for Nintendo 64: no reader queue behind it.
+                    N64GameSession.stopSpeech(context)
                 } else {
                     GbGameSession.stopSpeech()
                 }
