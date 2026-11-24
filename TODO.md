@@ -773,6 +773,16 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 
 ## Game readers
 
+- [ ] **ALttP auto walk: what is left (2026-11-24).** Done: the stop earcon (bit 16 of
+  `poke_cue_health`, voiced by iOS `CueSynth` and Android `PspCueSynth`) and the push-block
+  census from the live `$7E:F940` table (`oga::AlttpPushBlocksInRoom`, logged by DumpState
+  as `pushblocks=N`); host tests cover both. Left: (1) the app never calls
+  `poke_set_alttp_auto_walk`, so auto walk is unreachable on a phone until a per-game
+  setting is wired (`docs/design/auto-walk.md` §4); (2) Android has no WalkToggle binding
+  for ALttP; (3) indoor steering, which must stop before any room with a push block or an
+  unknown census (§6); (4) the stage B Kakariko walk; (5) hear the earcon on a phone;
+  (6) check `pushblocks=` against a real dungeon room with push blocks.
+
 - [x] **Dissidia title tap-to-read diagnosis + fix:** root cause was the
   ready gate, not the fingerprint — `Ready()` was `ManagerOk()` only and
   `CmdWhereAmI` gated on the manager before reaching the title, so on-device

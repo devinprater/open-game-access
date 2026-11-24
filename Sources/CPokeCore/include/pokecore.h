@@ -310,6 +310,10 @@ int poke_cue_snapshot_field(PokeCore *core, int *kind, float *bearing_deg, float
  *      *own_hz / *own_pan receive pitch and pan (−0.8: LEFT).
  *   4  Focus gauge reached full (gauge-full earcon).
  *   8  D-Link gauge reached full (gauge-full earcon).
+ *  16  an auto walk stopped (A Link to the Past's walk-stop earcon,
+ *      docs/design/auto-walk.md). Unlike bits 1-8 it is not a battle
+ *      cue: it only exists once the player has turned auto walk on, so
+ *      the hosts voice it outside the battle-cues switch.
  * 0 = nothing happened (stay silent — the fail-closed value, as with
  * poke_cue_snapshot). Any out-pointer may be NULL. This never attaches
  * the adapter and never speaks; it is safe to call at frame rate. */

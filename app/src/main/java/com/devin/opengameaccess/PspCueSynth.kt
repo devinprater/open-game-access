@@ -78,6 +78,7 @@ object PspCueSynth {
     private val dlinkCueVoice = Voice()
     private val guardVoice = Voice()
     private val guardBeatVoice = Voice()
+    private val walkStopVoice = Voice()
 
     /** Per-family level, 0 to 1 (beacon, health; meter/tick slots kept for parity). */
     private val levels = floatArrayOf(1f, 1f, 1f, 1f)
@@ -242,6 +243,24 @@ object PspCueSynth {
         }
     }
 
+    // ---- the auto-walk stop earcon (A Link to the Past) ---------------------
+    //
+    // The iOS CueSynth's walk-stop recipe, same numbers: when an auto
+    // walk stops, for any reason, a soft centred settle (392 Hz, ~100 ms,
+    // a little second harmonic) says "your feet stopped"; the spoken
+    // line, where there is one, says why. Not gated by the battle-cues
+    // switch: the poll's bit 16 only exists once the player turned auto
+    // walk on. Rides the TICK family's level.
+    private const val WALK_STOP_HZ = 392f
+    private const val WALK_STOP_SECONDS = 0.100
+
+    /** Voice the walk-stop earcon when the poll's health bit 16 is set. */
+    fun updateWalkStop(bits: Int) {
+        if (bits and 16 == 0) return
+        trigger(walkStopVoice, WALK_STOP_HZ, 0f, WALK_STOP_SECONDS,
+            gain = 0.4f, curve = 1.2f, partial = 0.25f)
+    }
+
     // ---- the guard window: a continuous rising sweep (Attack of the Saiyans) --
     //
     // The third cue shape, the iOS CueSynth's timing family: a window
@@ -302,7 +321,8 @@ object PspCueSynth {
     fun silenceAll() {
         beaconVoice.gain = 0f
         guardVoice.gain = 0f
-        for (v in arrayOf(foeHitVoice, ownHitVoice, focusCueVoice, dlinkCueVoice, guardBeatVoice)) {
+        for (v in arrayOf(foeHitVoice, ownHitVoice, focusCueVoice, dlinkCueVoice, guardBeatVoice,
+                walkStopVoice)) {
             v.gain = 0f
             v.shotLeft = 0.0
         }
@@ -371,7 +391,7 @@ object PspCueSynth {
         val oneShots = arrayOf(
             foeHitVoice to FAMILY_HEALTH, ownHitVoice to FAMILY_HEALTH,
             focusCueVoice to FAMILY_BEACON, dlinkCueVoice to FAMILY_BEACON,
-            guardBeatVoice to FAMILY_TICK,
+            guardBeatVoice to FAMILY_TICK, walkStopVoice to FAMILY_TICK,
         )
         var anyAudible = beaconVoice.gain > 0 || guardVoice.gain > 0
         if (!anyAudible) {

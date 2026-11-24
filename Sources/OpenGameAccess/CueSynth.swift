@@ -247,6 +247,7 @@ final class CueSynth {
     private let focusCueVoice = CueVoice()
     private let dlinkCueVoice = CueVoice()
     private let guardBeatVoice = CueVoice()
+    private let walkStopVoice = CueVoice()
 
     /// The recipes, from the design doc. Durations are the audible shape: a
     /// 35 ms bright tick for the foe, a 55 ms duller thud for the player, and
@@ -311,6 +312,32 @@ final class CueSynth {
             trigger(dlinkCueVoice, hz: Self.dlinkHz, pan: 0, seconds: Self.earconSeconds,
                     gain: 0.4, curve: 1.4, partial: 0)
         }
+    }
+
+    // ---- The auto-walk stop earcon (A Link to the Past) -----------------------
+    //
+    // docs/design/auto-walk.md, consult addendum: when an auto walk stops,
+    // for any reason, the player hears it, including the stops no line
+    // is spoken for (their own press, a menu, dialogue). One fixed recipe,
+    // the same for every cause: it says "your feet stopped"; the spoken
+    // line, where there is one, says why. A soft mid-low settle with a
+    // little second harmonic, ~100 ms, centred: below the beacon's
+    // carriers and the gauge earcons, longer and rounder than the hit
+    // ticks, so it never reads as a battle sound.
+    //
+    // NOT gated by the battle-cues switch (off by default): this bit only
+    // exists once the player has turned auto walk on for the game, and a
+    // walk that stops in silence is the failure the earcon exists to fix.
+    // Gated by audio being on, like everything the synth renders. It
+    // rides Family.tick's level (navigation and timing).
+    private static let walkStopHz: Float = 392
+    private static let walkStopSeconds: Double = 0.100
+
+    /// Voice the walk-stop earcon when poke_cue_health()'s bit 16 is set.
+    func updateWalkStop(bits: Int32, enabled: Bool) {
+        guard enabled, bits & 16 != 0 else { return }
+        trigger(walkStopVoice, hz: Self.walkStopHz, pan: 0, seconds: Self.walkStopSeconds,
+                gain: 0.4, curve: 1.2, partial: 0.25)
     }
 
     // ---- The guard window: a continuous rising sweep (Attack of the Saiyans) ----
@@ -392,7 +419,8 @@ final class CueSynth {
     /// Silence every family. Used when the game stops.
     func silenceAll() {
         for v in voices { v.gain = 0 }
-        for v in [foeHitVoice, ownHitVoice, focusCueVoice, dlinkCueVoice, guardBeatVoice] {
+        for v in [foeHitVoice, ownHitVoice, focusCueVoice, dlinkCueVoice, guardBeatVoice,
+                  walkStopVoice] {
             v.gain = 0
             v.shotLeft = 0
         }
@@ -458,7 +486,7 @@ final class CueSynth {
         let oneShots: [(CueVoice, Family)] = [
             (foeHitVoice, .health), (ownHitVoice, .health),
             (focusCueVoice, .beacon), (dlinkCueVoice, .beacon),
-            (guardBeatVoice, .tick),
+            (guardBeatVoice, .tick), (walkStopVoice, .tick),
         ]
         var anyAudible = false
         for v in voices where v.gain > 0 { anyAudible = true }
