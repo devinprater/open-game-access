@@ -74,13 +74,24 @@ const OgaButton kGenesis[] = {
     { "Z", "z.circle", "Z button", BTN_R },
 };
 
-/* Nintendo 64: A/B plus four C buttons. The C buttons are reported through
- * X/Y and the two shoulders until a core that needs the real C pad lands. */
+/* Nintendo 64 (Mupen64Plus-Next, Core/n64_core.cpp). The N64 has fourteen
+ * inputs and the shared pad twelve, so this row says exactly what each slot
+ * does on this console, and Core/oga_core.cpp's N64SetButton is where the
+ * slots become the core's buttons:
+ *   L is the Z trigger and R is R, so the row has NO "L/R" shoulders of its
+ *   own (hasShoulders false) and lists both here under their N64 names;
+ *   X is C-left, Y is C-right, and the Select slot is C-down.
+ * C-UP AND THE N64's L HAVE NO SLOT: they are not listed, because a blind
+ * player cannot tell a missing button from a broken one. The stick is the
+ * row's one analog stick. */
 const OgaButton kN64[] = {
-    { "A", "a.circle", "Confirm, talk, select", BTN_A },
-    { "B", "b.circle", "Cancel, back",          BTN_B },
-    { "C left",  "circle", "C button left",  BTN_X },
-    { "C right", "circle", "C button right", BTN_Y },
+    { "A",       "a.circle",  "A button",                 BTN_A },
+    { "B",       "b.circle",  "B button",                 BTN_B },
+    { "Z",       "z.circle",  "Z trigger",                BTN_L },
+    { "R",       "r.circle",  "R shoulder button",        BTN_R },
+    { "C left",  "arrowtriangle.left.circle",  "C button left",  BTN_X },
+    { "C right", "arrowtriangle.right.circle", "C button right", BTN_Y },
+    { "C down",  "arrowtriangle.down.circle",  "C button down, also on Select", BTN_SELECT },
 };
 
 /* ---- extension lists, WITH the leading dot ---------------------------- */
@@ -179,7 +190,10 @@ const OgaSystem kSystems[] = {
      *              ONE TREE, SEVEN CORES: adding another Mesen console is a
      *              host file (Core/mesen_core.cpp's shape) plus a build list,
      *              not a new dependency. See docs/plans/emulator-agnostic-shell.md.
-     * N64        -> an ARM64-recompiling core; needs JIT consideration
+     * N64        -> Mupen64Plus-Next, INTEGRATED on its software path
+     *              (angrylion + cxd4 + cached interpreter: no JIT, which iOS
+     *              does not allow): Core/n64_core.cpp, proved on the host by
+     *              scripts/n64-host-proof.sh (READY row below).
      * PS1        -> DuckStation-class core; software renderer for ARM
      * PS2        -> PCSX2-class; almost certainly not viable on phone yet
      * GC/Wii     -> Dolphin-class; same caveat, and 32-bit ARM is a wall
@@ -189,11 +203,11 @@ const OgaSystem kSystems[] = {
       1, true, false, 0, true, kDiamond, 4 },
 
 #ifdef SABOTAGE_DUPLICATE_IDS
-    { OGA_SYS_DS, "Nintendo 64", kN64Ext, OGA_BACKEND_PLANNED,
+    { OGA_SYS_DS, "Nintendo 64", kN64Ext, OGA_BACKEND_READY,
 #else
-    { OGA_SYS_N64, "Nintendo 64", kN64Ext, OGA_BACKEND_PLANNED,
+    { OGA_SYS_N64, "Nintendo 64", kN64Ext, OGA_BACKEND_READY,
 #endif
-      1, true, false, 1, true, kN64, 4 },
+      1, false, false, 1, true, kN64, 7 },
 
     /* The Genesis is READY, and it sits ahead of the PlayStation row ON
      * PURPOSE: filename lookup is first-match, both consoles claim .bin,

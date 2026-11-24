@@ -16,6 +16,7 @@
 #include "mesen_core.h"
 #include "snes_core.h"
 #include "genesis_core.h"
+#include "n64_core.h"
 
 // For POKE_BTN_* — the app's shared pad numbering, which the PSP's button
 // translation table below is indexed by. This header is stdlib-only and is on
@@ -487,6 +488,122 @@ OgaCore oga_genesis_core(GenesisCore* genesis)
     return c;
 }
 
+/* ------------------------------------------------------------ Nintendo 64
+ *
+ * Mupen64Plus-Next on its software path (angrylion RDP, cxd4 RSP, cached
+ * interpreter), wrapped by Core/n64_core.cpp. The table is thin on purpose.
+ *
+ * ⛔ WHAT IS NULL HERE, AND WHY. No attach/on_frame (Core/n64_adapter.cpp is a
+ * console row, and the Host path the adapters share is fed by pokecore, as on
+ * the NES). No tick (the battery save flushes on stop and before a state is
+ * saved). No touch, no hotkeys, no reader set: NO bundled N64 reader exists
+ * yet, and inventing a set name would have the app look for files that are
+ * not in the bundle.
+ *
+ * THE PAD, SHARED INDEX -> N64. The app's pad has twelve slots; the N64 has
+ * fourteen inputs. The registry row (Core/systems.cpp) names what each slot
+ * does on this console, and this table is where the slots become the core's
+ * buttons:
+ *   A, B, Start and the d-pad are themselves;
+ *   L is the Z trigger (the N64's most-used shoulder: it sits under the
+ *     player's finger and most games use it where others use L);
+ *   R is R;
+ *   X is C-left, Y is C-right, Select is C-down.
+ * C-UP AND THE N64's OWN L HAVE NO SLOT. Of the fourteen they are the two the
+ * fewest games depend on (C-up is mostly a look/zoom key, L is unused by most
+ * games), and the honest fix is a wider shared pad, not a hidden chord. The
+ * stick goes through set_analog.
+ */
+
+static bool N64Start(void* s) { return n64_start((N64Core*) s); }
+static void N64Stop(void* s)  { n64_stop((N64Core*) s); }
+static bool N64Frame(void* s) { return n64_frame((N64Core*) s); }
+
+static bool N64Read(void* s, uint32_t addr, int width, uint32_t* out)
+{
+    /* RDRAM in the CPU's big-endian view, through KSEG0/KSEG1 or physical. */
+    return n64_read((N64Core*) s, addr, width, out);
+}
+
+static bool N64Framebuffer(void* s, int screen, int* w, int* h, const uint8_t** pixels)
+{
+    (void) screen;   /* one panel */
+    N64Core* n64 = (N64Core*) s;
+    if (!n64 || !n64_framebuffer(n64, w, h)) return false;
+    *pixels = n64_framebuffer_ptr(n64);
+    return *pixels != NULL;
+}
+
+static void N64SetButton(void* s, int pad_button, bool down)
+{
+    /* Shared indices: A=0 B=1 Select=2 Start=3 Right=4 Left=5 Up=6 Down=7
+     * R=8 L=9 X=10 Y=11. */
+    static const int kN64Button[12] = {
+        N64_BTN_A,       /* 0: A      -> A */
+        N64_BTN_B,       /* 1: B      -> B */
+        N64_BTN_C_DOWN,  /* 2: Select -> C-down */
+        N64_BTN_START,   /* 3: Start  -> Start */
+        N64_BTN_RIGHT,   /* 4 */
+        N64_BTN_LEFT,    /* 5 */
+        N64_BTN_UP,      /* 6 */
+        N64_BTN_DOWN,    /* 7 */
+        N64_BTN_R,       /* 8: R      -> R */
+        N64_BTN_Z,       /* 9: L      -> Z */
+        N64_BTN_C_LEFT,  /* 10: X     -> C-left */
+        N64_BTN_C_RIGHT, /* 11: Y     -> C-right */
+    };
+    if (pad_button < 0 || pad_button >= 12) return;
+    n64_set_button((N64Core*) s, kN64Button[pad_button], down);
+}
+
+static void N64SetAnalog(void* s, float x, float y) { n64_set_analog((N64Core*) s, x, y); }
+
+static int N64ReadAudio(void* s, int16_t* out, int max_frames)
+{
+    return n64_read_audio((N64Core*) s, out, max_frames);
+}
+
+static bool N64SaveState(void* s, const char* path) { return n64_save_state((N64Core*) s, path); }
+static bool N64LoadState(void* s, const char* path) { return n64_load_state((N64Core*) s, path); }
+static unsigned long long N64Frames(void* s) { return n64_frames_completed((N64Core*) s); }
+static const char* N64LastError(void* s)
+{
+    N64Core* n64 = (N64Core*) s;
+    return n64 ? n64_last_error(n64) : "no core";
+}
+
+static const OgaCoreOps kN64Ops = {
+    "n64",                      /* id */
+    N64Start,
+    N64Stop,
+    N64Frame,
+    NULL,                       /* tick: battery save flushes on stop */
+    N64Read,
+    NULL,                       /* attach: no adapter layer in the core */
+    NULL,                       /* on_frame */
+    N64Framebuffer,
+    N64SetButton,
+    N64SetAnalog,
+    NULL,                       /* set_touch: no touch screen */
+    NULL,                       /* set_hotkey: the native adapters are the only reader */
+    NULL,                       /* set_script_dir: no bundled N64 reader set */
+    NULL,                       /* reader_set: no bundled N64 reader set */
+    N64ReadAudio,
+    N64SaveState,
+    N64LoadState,
+    N64Frames,
+    N64LastError,
+    NULL,                       /* set_direction: no direction layer on this console */
+};
+
+OgaCore oga_n64_core(N64Core* n64)
+{
+    OgaCore c;
+    c.ops = &kN64Ops;
+    c.state = n64;
+    return c;
+}
+
 /* ------------------------------------------------------------------ resolver */
 
 /* Lower-cased extension INCLUDING the dot, or empty. Mirrors systems.cpp's
@@ -519,6 +636,7 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     static const OgaResolvedBackend kNes = { "nes", false, false, true, false };
     static const OgaResolvedBackend kSnes = { "snes", false, false, false, true };
     static const OgaResolvedBackend kGenesis = { "genesis", false, false, false, false, true };
+    static const OgaResolvedBackend kN64 = { "n64", false, false, false, false, false, true };
 
     static const char* const kGb[]  = { ".gba", ".gb", ".gbc", NULL };
     static const char* const kPspE[] = { ".iso", ".cso", ".pbp", ".elf", ".prx", ".ppdmp", NULL };
@@ -541,6 +659,10 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
      * A .bin that is not a Genesis ROM is refused in words by
      * genesis_load_rom's content check — never played on the wrong console. */
     static const char* const kGenesisE[] = { ".md", ".gen", ".smd", ".bin", NULL };
+    /* Mupen64Plus-Next. The three byte orders a dump comes in; the core
+     * identifies the order from the header, and n64_load_rom refuses a file
+     * whose header is none of them. */
+    static const char* const kN64E[] = { ".z64", ".n64", ".v64", NULL };
 
     char ext[8];
     ExtOf(rom_path, ext, (int) sizeof(ext));
@@ -552,5 +674,6 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     if (ExtIs(ext, kNesE)) return &kNes;
     if (ExtIs(ext, kSnesE)) return &kSnes;
     if (ExtIs(ext, kGenesisE)) return &kGenesis;
+    if (ExtIs(ext, kN64E)) return &kN64;
     return NULL;
 }

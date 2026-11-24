@@ -25,7 +25,7 @@
 #
 # ⛔ IT MUST RUN AFTER THE COMPILE LOOP, EVERY TIME. A fresh compile rewrites an
 # object with the original names. Running it twice is harmless: the second pass
-# finds every strong global already prefixed and renames nothing.
+# finds every strong global already prefixed and changes nothing.
 #
 # Usage: m64p-isolate.sh <obj-dir> [nm] [objcopy]
 #   <obj-dir>  directory holding the m64p_*.o objects
@@ -59,17 +59,25 @@ for o in "${objs[@]}"; do
   "$NM" --defined-only --extern-only "$o" 2>/dev/null | awk 'NF>=3 && $2 ~ /^[TDBRSC]$/ {print $3}'
 done | sort -u > "$MAP.syms"
 
+# ⛔ THE MAP IS BUILT FROM THE BASE NAMES, prefixed or not. The app builds
+# cache objects, so a rebuild can recompile ONE m64p object (fresh, old names)
+# beside the rest (already renamed). The fresh object's references to symbols
+# the others define must be renamed too, but those definitions now carry the
+# prefix -- so a name seen as oga_m64p_X still maps X -> oga_m64p_X. Renaming
+# a name an object does not contain is a no-op, so this is safe on every
+# object, renamed or not.
 : > "$MAP"
 while IFS= read -r s; do
   [ -n "$s" ] || continue
   case "$s" in
-    "$PREFIX"*|"_$PREFIX"*) continue ;;   # already renamed (second run)
+    "_$PREFIX"*) s="_${s#_$PREFIX}" ;;    # Mach-O, already renamed
+    "$PREFIX"*)  s="${s#$PREFIX}" ;;      # ELF, already renamed
   esac
   case "$s" in
-    _*) printf '%s _%s%s\n' "$s" "$PREFIX" "${s#_}" >> "$MAP" ;;
-    *)  printf '%s %s%s\n' "$s" "$PREFIX" "$s" >> "$MAP" ;;
+    _*) printf '%s _%s%s\n' "$s" "$PREFIX" "${s#_}" ;;
+    *)  printf '%s %s%s\n' "$s" "$PREFIX" "$s" ;;
   esac
-done < "$MAP.syms"
+done < "$MAP.syms" | sort -u > "$MAP"
 
 n=$(wc -l < "$MAP")
 if [ "$n" -gt 0 ]; then
@@ -77,7 +85,7 @@ if [ "$n" -gt 0 ]; then
     "$OBJCOPY" --redefine-syms="$MAP" "$o" || { echo "!! objcopy failed on $o" >&2; exit 1; }
   done
 fi
-echo "== m64p-isolate: renamed $n core symbols across ${#objs[@]} objects"
+echo "== m64p-isolate: $n core symbols mapped to $PREFIX* across ${#objs[@]} objects"
 
 # ---- re-prove: the outcome, not the intent ----
 # 1. No strong global defined by the core is left unprefixed.
@@ -94,7 +102,8 @@ for want in retro_init retro_deinit retro_load_game retro_unload_game retro_run 
             retro_set_environment retro_set_video_refresh retro_set_audio_sample \
             retro_set_audio_sample_batch retro_set_input_poll retro_set_input_state \
             retro_get_memory_data retro_get_memory_size retro_serialize_size \
-            retro_serialize retro_unserialize retro_get_system_av_info retro_reset; do
+            retro_serialize retro_unserialize retro_get_system_info retro_get_system_av_info \
+            retro_reset retro_savestate_result; do
   found=0
   for o in "${objs[@]}"; do
     if "$NM" --defined-only --extern-only "$o" 2>/dev/null | awk '{print $3}' | sed 's/^_//' | grep -qx "$PREFIX$want"; then

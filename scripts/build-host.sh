@@ -54,6 +54,10 @@ MESEN_FORCE="-include $MESEN_SRC/Core/pch.h"
 # -DHAVE_XLOCALE: glibc merged xlocale.h into locale.h (no such header).
 # -DHAVE_PTHREAD_SET_NAME_NP: macOS pthread_set_name_np; glibc wants the
 # plain HAVE_PTHREAD_SETNAME_NP branch (pthread_setname_np(thread, name)).
+# Mupen64Plus-Next (Nintendo 64): the same list and flags the app builds use
+# (core-sources.sh), with the host's OS define in place of upstream's iOS one.
+[ -d "$M64P_SRC/mupen64plus-core" ] || { echo "!! no Mupen64Plus-Next source at $M64P_SRC" >&2; exit 1; }
+M64P_FLAGS="$M64P_DEFS -DOS_LINUX -DHAVE_POSIX_MEMALIGN=1 $(m64p_inc "$M64P_SRC" "$ROOT")"
 HOST_MGBA_DEFS="$(echo "$MGBA_DEFS" | sed -e 's/-DHAVE_XLOCALE//' -e 's/-DHAVE_PTHREAD_SET_NAME_NP//')"
 
 # POKE_HOST, not POKE_IOS: the platform layer picks clock_gettime/usleep instead
@@ -102,6 +106,9 @@ compile() {
     gpgx) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything $GPGX_INC $GPGX_DEFS -std=gnu11 -w"; cc=gcc ;;
     # Our glue for it: C++, speaking to the C objects through the extern "C"
     # declarations in genesis_core.cpp, with the same include roots.
+    m64p)   flags="-O2 -g -fPIC -w $M64P_FLAGS -std=gnu11"; cc=gcc ;;
+    m64pxx) flags="-O2 -g -fPIC -w $M64P_FLAGS -std=gnu++11"; cc=g++ ;;
+    n64glue) flags="$CXXFLAGS -I$M64P_SRC/libretro-common/include -Werror=infinite-recursion"; cc=g++ ;;
     gpgxglue) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src $GPGX_INC $GPGX_DEFS -std=c++17 -w"; cc=g++ ;;
   esac
   # Timestamp alone is not enough: flag changes (DEFS, includes) must rebuild.
@@ -185,6 +192,15 @@ compile() {
   # ---- Genesis Plus GX. The measured list from core-sources.sh (the libretro
   # wildcard set), same rule as the Mesen lists above: a subset cannot link.
   for f in $GPGX_ALL; do printf '%s|gpgx|%s\n' "$GPGX_SRC/$f" "gpgx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  # The Nintendo 64: Mupen64Plus-Next underneath (Core/n64_core.cpp). pokecore.o
+  # and oga_core.o call n64_*, so the host set carries the real core, the same
+  # audited list the app ships; every m64p_ object is renamed after the loop.
+  printf '%s|n64glue|n64_core\n' "$ROOT/Core/n64_core.cpp"
+  for f in $M64P_ALL; do
+    case "$f" in *.cpp) _l=m64pxx ;; *) _l=m64p ;; esac
+    printf '%s|%s|%s\n' "$M64P_SRC/$f" "$_l" "m64p_$(echo "$f" | tr '/' '_' | sed 's/\.[a-z]*$//')"
+  done
+  for f in $M64P_OGA_C; do printf '%s|m64p|%s\n' "$ROOT/Core/$f" "m64p_oga_$(basename "$f" .c)"; done
   printf '%s|cxx|dbz_adapter\n'  "$ROOT/Core/dbz_adapter.cpp"
   printf '%s|cxx|dissidia_adapter\n'  "$ROOT/Core/dissidia_adapter.cpp"
   printf '%s|cxx|dissidia012_adapter\n' "$ROOT/Core/dissidia012_adapter.cpp"
@@ -229,6 +245,7 @@ export MGBA_DEFS MGBA_INC MGBA_GEN HOST_MGBA_DEFS
 # carries all of them rather than being extended one variable at a time.
 export MESEN_SRC MESEN_INC MESEN_FORCE ROOT LUA_SRC
 export GPGX_SRC GPGX_INC GPGX_DEFS
+export M64P_SRC M64P_FLAGS
 export -f compile
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED — see the same line in build-core.sh.
 # Without it xargs reads STDIN (empty under a non-interactive shell), compiles
@@ -276,6 +293,9 @@ bash "$ROOT/scripts/mesen-localize-twins.sh" "$OBJ" || {
 # Mesen's side, this one localizes GPGX's. See gpgx-localize-twins.sh.
 bash "$ROOT/scripts/gpgx-localize-twins.sh" "$OBJ" || {
   echo "!! GPGX twin symbol localization failed" >&2; touch "$OBJ/.failed"; }
+# Mupen64Plus-Next: every core global renamed oga_m64p_* (see m64p-isolate.sh).
+bash "$ROOT/scripts/m64p-isolate.sh" "$OBJ" || {
+  echo "!! Mupen64Plus-Next symbol isolation failed" >&2; touch "$OBJ/.failed"; }
 # ⛔ AN `A && B` AS THE LAST STATEMENT IS A TRAP: when A is false the whole script exits 1,
 # so a CLEAN build reported failure and every `build-host.sh || exit 1` caller aborted before
 # linking its probe. Use an explicit if, so the exit status reflects the dedupe and nothing else.

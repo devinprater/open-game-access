@@ -183,6 +183,9 @@ OgaCore oga_snes_core(SnesCore* snes);
  * genesis_core.cpp. */
 typedef struct GenesisCore GenesisCore;
 OgaCore oga_genesis_core(GenesisCore* genesis);
+/* The Nintendo 64: opaque here, Mupen64Plus-Next inside n64_core.cpp. */
+typedef struct N64Core N64Core;
+OgaCore oga_n64_core(N64Core* n64);
 OgaCore oga_psp_core(PspCore* psp);
 
 /* Which backend runs a file, by extension — or NULL when this build has none.
@@ -202,6 +205,8 @@ typedef struct OgaResolvedBackend {
     /* Trailing again, for the same reason: existing initializers keep
      * compiling, and the resolver stays the one decision point. */
     bool genesis_hint;           /* the file should reach the Genesis Plus GX backend */
+    /* Trailing, as above. */
+    bool n64_hint;               /* the file should reach the Mupen64Plus-Next backend */
 } OgaResolvedBackend;
 
 /* Resolves a ROM path to a backend id, or NULL when unsupported.

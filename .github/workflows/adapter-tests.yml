@@ -126,3 +126,16 @@ jobs:
         run: |
           python3 scripts/path-check.py
           bash scripts/path-check-test.sh
+
+  # The Nintendo 64 core, booted for real: Mupen64Plus-Next built from the same
+  # TU list and flags the app uses, symbol isolation (with its mutation half),
+  # and a synthetic cartridge exercising video, audio, RDRAM reads, battery save,
+  # savestates and a second boot. Its own job: the core is ~110 TUs and the boot
+  # runs the interpreter, so it would crowd the 10-minute gate above.
+  n64-host-proof:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: N64 host proof (Mupen64Plus-Next, synthetic cartridge)
+        run: bash scripts/n64-host-proof.sh

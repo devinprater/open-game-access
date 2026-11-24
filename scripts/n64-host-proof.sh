@@ -8,7 +8,8 @@
 # What it proves (each line of the driver's output names its own check):
 #   * the trimmed, GL-free core set compiles and links with nothing but libc,
 #     libstdc++ and pthread (no GL, no zlib, no libpng);
-#   * scripts/m64p-isolate.sh renames every core global, and the renamed core
+#   * scripts/m64p-isolate.sh renames every core global (also on a re-run over a
+#     half-renamed set, as a cached rebuild leaves it), and the renamed core
 #     links beside an object that defines the core's own generic names
 #     (retro_init, main_run, md5_init, g_dev, path_basename) — while the
 #     UNRENAMED objects do not (the mutation half: the isolation is load-bearing);
@@ -71,6 +72,14 @@ echo "== core: $have objects"
 # ---- isolate (on a copy, so the raw set is kept for the mutation half) ----
 rm -f "$ISO"/*.o
 cp "$RAW"/m64p_*.o "$ISO/"
+bash "$ROOT/scripts/m64p-isolate.sh" "$ISO" || exit 1
+# The app builds cache objects, so a rebuild can recompile ONE core object
+# (original names) beside the rest (renamed). Model that: put the raw
+# libretro.c object back -- it both defines the entry points and calls into
+# every other part of the core -- and isolate again. The final link below then
+# proves the second pass renamed its references to names the OTHER objects
+# already carry prefixed.
+cp "$RAW/m64p_libretro_libretro.o" "$ISO/" || exit 1
 bash "$ROOT/scripts/m64p-isolate.sh" "$ISO" || exit 1
 
 # ---- collision probe: the core's own generic names, defined by "another core" ----

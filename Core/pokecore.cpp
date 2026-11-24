@@ -29,6 +29,7 @@
 #include "mesen_core.h"
 #include "snes_core.h"
 #include "genesis_core.h"
+#include "n64_core.h"
 
 // The GBA adapter's symbols (defined in gba_adapter.cpp). A GBA ROM selects
 // its native reader the same way an NDS ROM is matched from the registry —
@@ -39,6 +40,7 @@ namespace oga {
 extern const Adapter kGameBoyAdvance;
 extern const Adapter kNintendoEntertainmentSystem;
 extern const Adapter kSegaGenesis;
+extern const Adapter kNintendo64;
 void gba_set_game_code(const char* code);
 void gba_set_platform(int platform);
 }
@@ -109,6 +111,10 @@ struct PokeCore {
     // destroyed here, and pointed at by backend.state. The core underneath is
     // a singleton machine; this pointer is the one live wrapper for it.
     GenesisCore* genesis = nullptr;
+    // The Nintendo 64 (Mupen64Plus-Next). Same ownership rule. The core is a
+    // singleton machine underneath (n64_create refuses a second live one), so
+    // this must be destroyed before another N64 game is created.
+    N64Core* n64 = nullptr;
     // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
     // the app bundle; the app points the core at them before loading a PSP
     // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
@@ -823,6 +829,7 @@ void poke_destroy(PokeCore* core)
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
     if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
+    if (core->n64) { n64_destroy(core->n64); core->n64 = nullptr; }
     core->backend.ops = nullptr;
     core->backend.state = nullptr;
     if (gCurrentCore == core) gCurrentCore = nullptr;
@@ -1573,6 +1580,7 @@ static void TeardownBackends(PokeCore* core)
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
     if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
+    if (core->n64) { n64_destroy(core->n64); core->n64 = nullptr; }
     core->adapter = nullptr;
     core->adapterAttached = false;
     // Clearing the ops is what makes "is a game loaded?" answerable from one
@@ -1699,6 +1707,33 @@ static bool LoadGenesisRom(PokeCore* core, const char* rom_path, const char* sav
     return true;
 }
 
+static bool LoadN64Rom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    TeardownBackends(core);
+
+    core->n64 = n64_create();
+    if (!core->n64) { SetError(core, "Could not create the Nintendo 64 core."); return false; }
+    char code[16] = {0};
+    /* The save path is the battery file itself, as on the Genesis:
+     * n64_load_rom restores it into the cartridge's save memory (EEPROM,
+     * SRAM, FlashRAM and the controller paks, one block), and the core
+     * writes it back on stop when the game changed it. */
+    if (!n64_load_rom(core->n64, rom_path, save_path, code))
+    {
+        SetError(core, "%s", n64_last_error(core->n64));
+        n64_destroy(core->n64);
+        core->n64 = nullptr;
+        return false;
+    }
+    core->backend = oga_n64_core(core->n64);
+    strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
+    // A console row that REFUSES by design (Core/n64_adapter.cpp): no N64 game
+    // has a reader yet. Selected directly because the "n64:XXXX" code is the
+    // cartridge ID, not a key the registry matches.
+    core->adapter = &oga::kNintendo64;
+    return true;
+}
+
 static bool LoadPspRom(PokeCore* core, const char* rom_path, const char* save_path)
 {
     TeardownBackends(core);
@@ -1753,6 +1788,7 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
         if (backend->nes_hint) return LoadNesRom(core, rom_path, save_path);
         if (backend->snes_hint) return LoadSnesRom(core, rom_path, save_path);
         if (backend->genesis_hint) return LoadGenesisRom(core, rom_path, save_path);
+        if (backend->n64_hint) return LoadN64Rom(core, rom_path, save_path);
         if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
     }
 

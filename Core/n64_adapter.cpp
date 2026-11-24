@@ -5,8 +5,12 @@
  * answer is that this console has TWO independent blockers, not one. Writing the
  * refusal down is how the next person avoids re-investigating it.
  *
- * BLOCKER 1 — NO CORE. There is no N64 backend: no Core/n64_core.cpp, and systems.cpp
- * reports the console as OGA_BACKEND_PLANNED. Same situation as NES.
+ * BLOCKER 1 — NO CORE. RESOLVED: Core/n64_core.cpp runs Mupen64Plus-Next (software
+ * path) and pokecore's LoadN64Rom selects this row. What remains is the reader: no
+ * N64 game's memory map has been measured against live RAM in this project yet, and
+ * an adapter that invented addresses would speak confident nonsense. n64_read
+ * (big-endian CPU view of RDRAM, KSEG0/KSEG1/physical) is the read path a reader
+ * will use, as genesis_read is on the Genesis.
  *
  * BLOCKER 2 — AND THE MOD ITSELF CANNOT BE PORTED, EVEN WITH A CORE. The StarFox 64
  * accessibility work (ohylli/blind-starship) is NOT an emulator mod. It is a fork of
@@ -21,9 +25,9 @@
  *   * Its cue design (see docs/research/accessibility-mods-survey.md §2c) is the part
  *     worth copying, not its code.
  *
- * ⛔ SO A STARFOX ADAPTER WOULD BE A NEW N64 LUA READER written against an N64 core,
- * with blind-starship as the DESIGN REFERENCE. That is a project, and it is gated on
- * blocker 1. Until then this refuses, which the UI correctly presents as "no reader".
+ * ⛔ SO A STARFOX ADAPTER WOULD BE A NEW N64 LUA READER written against the N64 core,
+ * with blind-starship as the DESIGN REFERENCE. That is a project of its own. Until a
+ * reader lands this refuses, which the UI correctly presents as "no reader".
  *
  * game_code is empty for the same reason as the NES adapter: an N64 ROM's header
  * carries a different layout and the registry's four-character-code match at 0x0C
@@ -37,7 +41,7 @@ namespace {
 
 bool N64Attach(const Host* host)
 {
-    // Refuses on purpose: no core AND no portable reader. Returning true would make
+    // Refuses on purpose: the core runs, but no N64 reader exists. Returning true would make
     // poke_adapter_ready() report a reader that cannot read.
     (void) host;
     return false;
@@ -58,8 +62,8 @@ const Adapter kNintendo64 = {
     nullptr,
     nullptr,     // cue_snapshot
     "Console only — no game-specific speech yet",
-    "This entry is the Nintendo 64 console; its backend is still "
-    "planned, and no N64 game has an adapter yet.",
+    "This entry is the Nintendo 64 console. Games play on Mupen64Plus-Next, "
+    "and no N64 game has an adapter yet.",
 };
 
 } // namespace oga

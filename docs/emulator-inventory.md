@@ -329,6 +329,27 @@ which each need their own mechanism.
 part; proving a harness is the work. RetroArch took three failed runs before it
 was understood — and the failures were a *path* problem, not a capability problem.
 
+## Nintendo 64 in the app: Mupen64Plus-Next (licence record)
+
+The app's own N64 backend (Core/n64_core.cpp) builds Mupen64Plus-Next from
+source, pinned in scripts/bootstrap-deps.sh, using only its software path:
+angrylion RDP, cxd4 RSP and the cached interpreter (no GL, no JIT). The TU list
+is M64P_ALL in scripts/core-sources.sh.
+
+Licences checked at the pin (15bada85):
+
+| Part | Licence |
+|---|---|
+| Repository LICENSE, Mupen64Plus core, HLE RSP, libretro glue | GPL v2 or later (headers say "or any later version"), compatible with this project's GPL-3.0 |
+| cxd4 RSP | CC0 public domain |
+| libretro-common | MIT-style |
+| libco | public domain |
+| angrylion RDP | ⚠️ no header of its own; ships under the repository's GPL. Not separately confirmed. |
+
+iOS allows no JIT, so the interpreter is the only CPU path there and full speed
+is not expected on most games. scripts/n64-host-proof.sh proves the set boots a
+synthetic cartridge on Linux (video, audio, RDRAM reads, saves, states).
+
 ## Why this matters beyond convenience
 
 The game backlog ranked NDS/GB/GBA first and everything else "blocked" — purely
