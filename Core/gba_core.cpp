@@ -37,6 +37,7 @@
  * present. Pixels are XBGR8, converted to RGBA8888 for Swift. GBA is 240x160, GB/GBC is 160x144.
  */
 #include "gba_core.h"
+#include "gb_audio_queue.h"
 
 #include <mutex>
 
@@ -124,20 +125,19 @@ struct GbaCore {
     // `core->getAudioBuffer()` and answer `core->audioSampleRate`; this pulls from that ring.
     //
     // The ring's rate is the console's own (GBA ~32768 Hz, GB 131072 Hz) and differs from the app's
-    // 32768 Hz output, so reads are resampled. `audioFrac` carries the phase across reads, exactly
-    // as psp_read_audio does -- restarting the phase each call produces a periodic click.
-    std::vector<int16_t> audio;        // staged interleaved stereo at kGbaMixRate
-    size_t audioRead = 0;              // consumed frames (compacts when fully drained)
-    double audioFrac = 0.0;
-    bool audioPrimed = false;
+    // 32768 Hz output, so it is resampled on the way into `audio` (Core/gb_audio_queue.h): the
+    // downsample AVERAGES every source frame under an output frame (a box low-pass, so the Game
+    // Boy's square-wave harmonics do not fold back as whine), the phase carries across frames (no
+    // click once a frame), and the backlog is capped at a quarter second.
+    //
     // ⛔ THE AUDIO THREAD MUST NOT TOUCH mGBA'S OWN RING. It is written by
     // runFrame on the main thread, and the app's render block used to READ it
     // from the audio thread; mCircleBuffer is not thread-safe, so the pointers
     // tore and mCircleBufferWrite's integrity assert aborted the app on the
-    // first GBA frame. The ring is now drained on the main thread into `audio`,
-    // and this mutex guards that vector between the two threads.
-    std::mutex audioMutex;
-    bool audioEnabled = true;
+    // first GBA frame. The ring is drained on the main thread into `audio`,
+    // whose own mutex guards it between the two threads. The Game sound switch
+    // lives in it too (off drops what is staged and everything after).
+    oga::GbAudioQueue audio;
 
     // ---- save ----
     std::string savePath;
@@ -812,8 +812,6 @@ void gba_stop(GbaCore* core)
     // Silence the game as well as stopping it: samples staged but never consumed would play as a
     // burst of stale audio the moment a new game starts.
     core->audio.clear();
-    core->audioRead = 0;
-    core->audioFrac = 0.0;
     core->running = false;
     core->scriptLoaded = false;
     core->coroutine = nullptr;
@@ -1006,30 +1004,21 @@ bool gba_hooks_active(GbaCore* core)
 void gba_set_audio_enabled(GbaCore* core, bool enabled)
 {
     if (!core) return;
-    std::lock_guard<std::mutex> lock(core->audioMutex);
-    core->audioEnabled = enabled;
-    if (!enabled)
-    {
-        // Drop the backlog: resuming play must not replay a minute of old game
-        // audio, and a muted game must not grow the vector without a consumer.
-        core->audio.clear();
-        core->audioRead = 0;
-    }
+    // Off empties the staged audio as well, so a muted game never grows it without a consumer
+    // and turning sound back on never replays what was produced while it was off.
+    core->audio.setEnabled(enabled);
 }
 
-// The ring rate the app outputs at: the same 32768 Hz the PSP path uses, so the Swift side's
-// AVAudioEngine format needs no per-console change.
-static const unsigned kGbaAppRate = 32768;
-
-// Pull whatever the console has produced into `core->audio`, resampled to kGbaAppRate.
-// Cheap and silent when the console produced nothing or the ring is unavailable.
+// Pull whatever the console has produced into `core->audio`, resampled to the app's 32768 Hz.
+// Cheap and silent when the console produced nothing or the ring is unavailable. The ring is
+// drained even while game sound is off (the queue drops it), so turning sound back on never plays
+// a ring's worth of stale audio.
 static void GbaDrainAudio(GbaCore* core)
 {
     if (!core || !core->core) return;
     if (!core->core->getAudioBuffer || !core->core->audioSampleRate) return;
 
     // Main thread only: this reads mGBA's ring, which runFrame writes.
-    std::lock_guard<std::mutex> lock(core->audioMutex);
     struct mAudioBuffer* ring = core->core->getAudioBuffer(core->core);
     if (!ring) return;
     size_t avail = mAudioBufferAvailable(ring);
@@ -1039,54 +1028,27 @@ static void GbaDrainAudio(GbaCore* core)
     unsigned srcRate = core->core->audioSampleRate(core->core);
     if (srcRate == 0) return;
 
-    // Bounded by the ring: never let a long pause balloon one read.
-    if (avail > 8192) avail = 8192;
+    // Bounded per read: a GB frame is ~2194 source frames; a long pause must not balloon one read.
     static thread_local std::vector<int16_t> tmp;
-    tmp.resize(avail * 2);
-    size_t got = mAudioBufferRead(ring, tmp.data(), avail);
-    if (got == 0) return;
-
-    // Linear resample srcRate -> kGbaAppRate, carrying the phase across calls.
-    const double step = (double) srcRate / (double) kGbaAppRate;
-    double pos = core->audioFrac;
-    while (pos < (double) (got - 1)) {
-        size_t i = (size_t) pos;
-        double frac = pos - (double) i;
-        int16_t l0 = tmp[i * 2],     r0 = tmp[i * 2 + 1];
-        int16_t l1 = tmp[(i + 1) * 2], r1 = tmp[(i + 1) * 2 + 1];
-        core->audio.push_back((int16_t) ((double) l0 + ((double) l1 - (double) l0) * frac));
-        core->audio.push_back((int16_t) ((double) r0 + ((double) r1 - (double) r0) * frac));
-        pos += step;
+    while (avail > 0)
+    {
+        size_t want = avail > 8192 ? 8192 : avail;
+        tmp.resize(want * 2);
+        size_t got = mAudioBufferRead(ring, tmp.data(), want);
+        if (got == 0) break;
+        core->audio.push(tmp.data(), got, srcRate);
+        avail = got < want ? 0 : mAudioBufferAvailable(ring);
     }
-    core->audioFrac = pos - (double) got;   // carry the surplus into the next read
-    if (core->audioFrac < 0.0) core->audioFrac = 0.0;
-    core->audioPrimed = true;
 }
 
-// Drain the console's audio ring and hand back interleaved stereo s16 at kGbaAppRate.
+// Hand back the staged audio: interleaved stereo s16 at 32768 Hz.
 // Returns the number of FRAMES written, 0 when there is nothing to give.
 int gba_read_audio(GbaCore* core, int16_t* out, int max_frames)
 {
     if (!core || !out || max_frames <= 0) return 0;
-    // ⛔ CALLED FROM THE AUDIO RENDER BLOCK. Only the staged vector is touched
-    // here; the emulator's own ring is drained in gba_frame on the main thread.
-    std::lock_guard<std::mutex> lock(core->audioMutex);
-
-    if (core->audioRead * 2 >= core->audio.size()) return 0;
-    size_t have = core->audio.size() / 2 - core->audioRead;
-    if (have == 0) return 0;
-    if (have > (size_t) max_frames) have = (size_t) max_frames;
-
-    memcpy(out, core->audio.data() + core->audioRead * 2, have * 2 * sizeof(int16_t));
-    core->audioRead += have;
-
-    // Compact only when fully drained: memmove-ing every call would be the cost, and a partial
-    // drain cannot be compacted without moving data the reader has not taken yet.
-    if (core->audioRead * 2 >= core->audio.size()) {
-        core->audio.clear();
-        core->audioRead = 0;
-    }
-    return (int) have;
+    // ⛔ CALLED FROM THE AUDIO THREAD. Only the staged queue is touched here; the emulator's
+    // own ring is drained in gba_frame on the main thread.
+    return core->audio.read(out, max_frames);
 }
 
 bool gba_frame(GbaCore* core)
@@ -1105,7 +1067,7 @@ bool gba_frame(GbaCore* core)
 
     // Produce the app's staged audio here, on the thread that wrote the
     // console's ring. The render block only consumes what this stages.
-    if (core->audioEnabled) GbaDrainAudio(core);
+    GbaDrainAudio(core);
 
     if (core->scriptLoaded && core->coroutine)
     {

@@ -15,9 +15,9 @@ import java.io.File
  * external storage the internal files folder is used instead, which adb
  * can still read with run-as.
  *
- * The DS, NES/SNES and Genesis sessions share the shared core and so
- * share this folder. Game Boy and PSP run their own hosts on Android and
- * have no channel yet.
+ * The DS, NES/SNES, Genesis and Game Boy sessions run on the shared core
+ * and so share this folder. PSP still runs its own host on Android and
+ * has no channel yet.
  */
 object DebugChannel
 {

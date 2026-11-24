@@ -1,27 +1,25 @@
 /*
-    GbAudioQueue.h — the Game Boy / GBC / GBA game-audio path on Android.
+    gb_audio_queue.h — the Game Boy / GBC / GBA game-audio staging, shared by
+    every app that runs Core/gba_core.cpp (iOS and Android).
 
-    Header-only and free of Android and mGBA headers ON PURPOSE: the host test
+    Header-only and free of platform and mGBA headers ON PURPOSE: the host test
     (scripts/android-gb-audio-test.sh) compiles this exact file with g++ and
     measures what it does to real sample streams. Nothing here can be tested
     on a phone from CI, so the part that CAN be proven on a host lives where
     a host compiler can reach it.
 
-    ⛔ WHY THIS EXISTS. Android Game Boy games were silent: MGBARunner ran the
-    core, mGBA filled its audio ring every frame, and nothing ever read it.
-    iOS fixed the same hole in Core/gba_core.cpp (gba_read_audio). Android
-    does not link that file -- its GB path is MGBARunner -- so the drain is
-    rebuilt here with the SAME contract the other Android sessions use:
-    interleaved stereo s16 at 32768 Hz, read from an AudioTrack thread.
+    ⛔ WHERE IT CAME FROM. Android Game Boy games were silent until PR 42, which
+    built this queue for Android's own mGBA host (MGBARunner). That host is
+    gone: Android now runs Game Boy games through the shared Core like iOS
+    (Core/gba_core.cpp via Core/pokecore.cpp), so the queue moved here and
+    gba_core.cpp uses it. iOS gains the same two fixes Android had: the
+    downsample averages instead of interpolating (no folded-back whine on
+    Game Boy square waves), and the backlog is bounded.
 
     ⛔ TWO THREADS, ONE MUTEX, AND mGBA'S RING IS NEVER TOUCHED BY THE AUDIO
     THREAD. mCircleBuffer is not thread-safe (iOS aborted on exactly this:
-    see the audioMutex note in Core/gba_core.cpp). The frame thread drains
-    mGBA's ring and push()es here; the AudioTrack thread only read()s here.
-
-    ⛔ THE QUEUE OUTLIVES THE CORE. It is a JNI-file global, not a member of
-    MGBARunner, so a stop() that destroys the runner while the AudioTrack
-    thread is mid-read cannot leave that thread holding a freed object.
+    see the audio note in Core/gba_core.cpp). The frame thread drains
+    mGBA's ring and push()es here; the audio thread only read()s here.
 */
 #ifndef GBAUDIOQUEUE_H
 #define GBAUDIOQUEUE_H
@@ -32,11 +30,11 @@
 #include <mutex>
 #include <vector>
 
-namespace MelonDSAndroid
+namespace oga
 {
 
-/// The rate every Android game session hands its AudioTrack (DS, PSP,
-/// Genesis and now Game Boy), and the rate iOS's engine runs at.
+/// The rate every app session plays game audio at: Android's AudioTrack
+/// (DS, PSP, Genesis, Game Boy) and iOS's engine alike.
 static const unsigned kGbAppAudioRate = 32768;
 
 /// Converts the console's stereo s16 stream to kGbAppAudioRate.
@@ -144,14 +142,14 @@ private:
     int lastL = 0, lastR = 0;
 };
 
-/// The staged game audio between the frame thread and the AudioTrack thread.
+/// The staged game audio between the frame thread and the audio thread.
 class GbAudioQueue
 {
 public:
     /// ⛔ THE BACKLOG IS BOUNDED. If the frame thread outruns the speaker
     /// (a stall, then a catch-up burst), the oldest audio is dropped so the
     /// game never plays a second behind what is on screen -- and a stopped
-    /// AudioTrack can never grow this without bound. A quarter second is
+    /// audio output can never grow this without bound. A quarter second is
     /// several AudioTrack buffers of slack and still reads as in sync.
     static const size_t kMaxBacklogFrames = kGbAppAudioRate / 4;
 
@@ -170,7 +168,7 @@ public:
         compact();
     }
 
-    /// AudioTrack thread: copy up to `maxFrames` stereo frames into `out`.
+    /// Audio thread: copy up to `maxFrames` stereo frames into `out`.
     /// Returns frames written; 0 when dry.
     int read(int16_t* out, int maxFrames)
     {
@@ -251,6 +249,6 @@ private:
     bool enabled = true;
 };
 
-} // namespace MelonDSAndroid
+} // namespace oga
 
 #endif // GBAUDIOQUEUE_H

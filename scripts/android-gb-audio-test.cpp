@@ -1,7 +1,8 @@
-// android-gb-audio-test.cpp -- host proof for the Android Game Boy audio path.
+// android-gb-audio-test.cpp -- host proof for the Game Boy audio path.
 //
-// Compiles app/native-overlay/app/src/main/cpp/GbAudioQueue.h, the exact header the
-// APK links, and measures what it does to real sample streams. No phone can be
+// Compiles Core/gb_audio_queue.h, the exact header the shared Core's Game Boy
+// host (Core/gba_core.cpp) stages its audio through on Android and iOS alike,
+// and measures what it does to real sample streams. No phone can be
 // driven from CI, so this is the part of "Game Boy games make sound on Android"
 // that a host can prove: the console's 131072 Hz stream comes out at 32768 Hz,
 // at the right length, without clicks at frame boundaries, without the square
@@ -10,16 +11,16 @@
 //
 // Run through scripts/android-gb-audio-test.sh, which also mutates the header and
 // requires each mutant to fail here.
-#include "GbAudioQueue.h"
+#include "gb_audio_queue.h"
 
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
 #include <vector>
 
-using MelonDSAndroid::GbAudioQueue;
-using MelonDSAndroid::GbAudioResampler;
-using MelonDSAndroid::kGbAppAudioRate;
+using oga::GbAudioQueue;
+using oga::GbAudioResampler;
+using oga::kGbAppAudioRate;
 
 static int failures = 0;
 static int passes = 0;
