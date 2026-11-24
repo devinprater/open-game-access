@@ -56,6 +56,8 @@ object MesenAccessibilityScript
     private external fun nativeMesenAvailable(): Boolean
     private external fun setMesenSpeechBridge(bridge: Any?)
     private external fun nativeMesenLoadRom(romPath: String, homePath: String): Boolean
+    private external fun nativeMesenSetDebugDir(dir: String)
+    private external fun nativeMesenDebugCommand(text: String)
     private external fun nativeMesenGameCode(): String
     private external fun nativeMesenLastError(): String
     private external fun nativeMesenBackendId(): String
@@ -95,6 +97,23 @@ object MesenAccessibilityScript
     {
         val name = uri.lastPathSegment ?: uri.toString()
         return handlesExtension(name.substringAfterLast('.', ""))
+    }
+
+    /**
+     * The in-game debug channel's folder (docs/design/debug-channel.md):
+     * a cmd.txt saved there runs against the live game, and the replies
+     * land in replies.log beside it. Kept across loads and applied to
+     * every core created after it; "" turns the file off.
+     */
+    fun setDebugDir(dir: String)
+    {
+        nativeMesenSetDebugDir(dir)
+    }
+
+    /** The same commands without the file; runs on the next frame. */
+    fun debugCommand(text: String)
+    {
+        nativeMesenDebugCommand(text)
     }
 
     /**

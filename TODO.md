@@ -65,7 +65,26 @@
   `C:\Users\Devin Prater\Games\DBZ3\check-game-files.py` (verifies against the port's
   `baserom.md` hashes, one line per problem).
 
-- [ ] **Give OGA a file-driven RE workbench, the way Budokai 3 Access has one.** Its `cmd.txt`
+- [x] **In-game debug channel — BUILT (2026-11-24).** `Core/debug_channel.h`, hosted by
+  `Core/pokecore.cpp`; design and commands in `docs/design/debug-channel.md`. A `cmd.txt`
+  saved into `oga-debug/` (iOS Documents, Android external files) runs against the live game:
+  `peek`, `poke`, `watch`, `pad`, `wait`, `count`, `trace`, `status`, `speak on`. Replies go to
+  `replies.log` and the reading log; iOS's Reading log screen also takes typed commands.
+  Works on every console pokecore runs (DS, GBA, NES, SNES, Genesis, PSP on iOS); `poke` where
+  the backend has a write path (DS RAM, SNES, PSP); `count`/`trace` on the GBA through real
+  mGBA breakpoints. Tested against a fake console with sabotage proofs
+  (`scripts/debug-channel-test.sh`, in CI).
+  Left over, each its own item: watchpoints that name the WRITER (below); `count`/`trace` on
+  the PSP (the PPSSPP exec-hook item); Game Boy and PSP on Android, which run their own hosts.
+
+- [ ] **Debug channel: watchpoints that name the writer.** Today `watch` reports a value change
+  once per frame. Budokai 3 Access names the instruction that wrote it, which is what finds the
+  routine behind a value. mGBA's `mWatchpoint` can do this for the GBA through the same
+  debugger `gba_set_debug_hook` already attaches; PPSSPP's MemChecks can for the PSP, but only
+  on the classic interpreter. No console needs it for a feature today.
+
+- [x] **Give OGA a file-driven RE workbench, the way Budokai 3 Access has one.** (Done as the
+  in-game debug channel above; the original note is kept for its RetroArch measurements.) Its `cmd.txt`
   channel is read while the game runs and offers call counters on every function, per-function
   traces with the argument registers, hardware watchpoints that name the WRITER of an address,
   poke, and `pad BUTTONS MS` controller injection so a menu can be walked with no hands on the
@@ -700,7 +719,9 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 
 ## PSP (parked, with a measured capability note)
 
-- [ ] **PPSSPP exec hooks — SURVEYED, NOT STARTED.** Read from the pinned source while looking for
+- [ ] **PPSSPP exec hooks — SURVEYED, NOT STARTED.** (When this lands, wire it into the debug
+  channel's `count` and `trace` too: `DbgExecHook` in `Core/pokecore.cpp` names the GBA today and
+  becomes an `OgaCoreOps` member once a second backend has hooks.) Read from the pinned source while looking for
   the PSP analogue of the GBA exec-hook work; written up in `docs/research/ppsspp-exec-hooks.md`.
   Headline: the IR interpreter (what this app runs) has a COMPLETE real exec-hook path
   (`IROp::Breakpoint` emitted by `IRFrontend::CheckBreakpoint`, fired in `IRRunBreakpoint`), with

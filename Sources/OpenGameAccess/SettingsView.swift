@@ -115,9 +115,26 @@ struct SettingsView: View {
 /// screen is not being announced as expected.
 struct ReadingLogView: View {
     @EnvironmentObject private var session: GameSession
+    @State private var command = ""
 
     var body: some View {
         List {
+            // The in-game debug channel's typed half: the same commands a cmd.txt in
+            // Documents/oga-debug takes (help lists them). Replies land below with "DBG".
+            Section {
+                TextField("Debug command, for example peek 0x02000000", text: $command)
+                    .font(.system(.body, design: .monospaced))
+                    .textInputAutocapitalization(.never)
+                    .autocorrectionDisabled()
+                    .submitLabel(.send)
+                    .onSubmit(runCommand)
+                    .accessibilityLabel("Debug command")
+                Button("Run command", action: runCommand)
+                    .disabled(command.trimmingCharacters(in: .whitespaces).isEmpty)
+            } header: {
+                Text("Debug channel")
+            }
+
             if session.debugLines.isEmpty {
                 Text("Nothing yet. Start a game and this fills with the script's own log.")
                     .foregroundStyle(.secondary)
@@ -138,5 +155,12 @@ struct ReadingLogView: View {
                 .accessibilityLabel("Share the log")
             }
         }
+    }
+
+    private func runCommand() {
+        let text = command.trimmingCharacters(in: .whitespaces)
+        guard !text.isEmpty else { return }
+        session.debugCommand(text)
+        command = ""
     }
 }

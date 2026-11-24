@@ -69,6 +69,12 @@ using namespace melonDS;
 // through it, so adding a console does not mean editing every entry point.
 #include "oga_core.h"
 
+// The in-game debug channel (Core/debug_channel.h). Its implementation is compiled HERE and
+// nowhere else, so every build that has this core has the channel without touching a single
+// hand-written source list; see that header for the history behind the rule.
+#define OGA_DEBUG_CHANNEL_IMPLEMENTATION
+#include "debug_channel.h"
+
 // Forward: defined beside HostSpeak below; used by the Lua bindings and
 // lifecycle functions above it.
 static uint64_t CoreNowMs(void);
@@ -252,7 +258,22 @@ struct PokeCore {
 
     bool running = false;
     int stopReason = 0;
+
+    // ---- the in-game debug channel (docs/design/debug-channel.md) ----
+    //
+    // Built at poke_start for the backend that is running (so its refusals name what this
+    // console really lacks) and dropped before that backend is torn down, which lets go of
+    // any button it still holds. `debugDir` is where the app keeps cmd.txt and replies.log;
+    // empty means the file side is off and only poke_debug_command feeds the channel.
+    oga::DebugChannel* debug = nullptr;
+    std::string debugDir;
+    FILE* debugReplies = nullptr;
 };
+
+// The debug channel's lifecycle, defined beside BuildHost below.
+static void DebugBuild(PokeCore* core);
+static void DebugDrop(PokeCore* core);
+static void DebugOnFrame(PokeCore* core);
 
 // The DS ops table, DEFINED at the very end of this file: its functions call
 // ApplyInput, FlushSave, BuildHost and the savestate code, all of which are
@@ -814,6 +835,7 @@ void poke_destroy(PokeCore* core)
     // frame would call into freed memory.
     if (core->adapter && core->adapterAttached && core->adapter->detach)
         core->adapter->detach();
+    DebugDrop(core);
     oga::announce_destroy(core->announceQ);
     core->announceQ = nullptr;
     if (core->nds) core->nds->Stop();
@@ -999,6 +1021,155 @@ static void BuildHost(PokeCore* core)
             ? HostSetDirection : nullptr;
     core->host.player_pad = HostPlayerPad;
     core->host.ctx        = core;
+}
+
+// ---- the in-game debug channel ------------------------------------------------
+//
+// The channel itself is pure (Core/debug_channel.h); this is its host. Reads go through
+// AdapterReadScalar, the exact path an adapter's reads take, so an address the channel answers
+// is the address an adapter would read. Presses go through the adapter-side pad write (not the
+// player's), so scripted hands never read as the player taking over an auto walk.
+
+static bool DbgRead(void* ctx, uint32_t addr, int width, uint32_t* out)
+{
+    return AdapterReadScalar((PokeCore*) ctx, addr, width, out);
+}
+
+static bool DbgWrite(void* ctx, uint32_t addr, int width, uint32_t value)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (!core->backend.ops || !core->backend.ops->write) return false;
+    return core->backend.ops->write(core->backend.state, addr, width, value);
+}
+
+static void DbgButton(void* ctx, int pad_button, bool down)
+{
+    PokeSetButtonImpl((PokeCore*) ctx, pad_button, down, false);
+}
+
+static void DbgGbaHit(void* user, uint32_t pc, const uint32_t* args, int nargs)
+{
+    PokeCore* core = (PokeCore*) user;
+    if (core && core->debug) oga::debug_exec_hit(core->debug, pc, args, nargs);
+}
+
+// ⛔ ONE BACKEND HAS EXEC HOOKS TODAY, so this names it rather than growing OgaCoreOps by a
+// member only one console fills (oga_core.h's rule: add a member when a second backend
+// implements it). The PSP's turn is the PPSSPP exec-hook item in TODO.md; when it lands, this
+// becomes an ops member and the Game Boy check goes.
+static bool DbgExecHook(void* ctx, uint32_t addr, bool enable)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (!core->gba || core->backend.state != (void*) core->gba) return false;
+    return gba_set_debug_hook(core->gba, addr, enable, DbgGbaHit, core);
+}
+
+static void DbgOut(void* ctx, const char* line, bool spoken)
+{
+    PokeCore* core = (PokeCore*) ctx;
+    if (!line) return;
+    if (core->debugReplies)
+    {
+        fprintf(core->debugReplies, "%s\n", line);
+        fflush(core->debugReplies);
+    }
+    if (core->logCb)
+    {
+        std::string tagged = std::string("DBG ") + line;
+        core->logCb(tagged.c_str(), core->logUserdata);
+    }
+    // Spoken replies are the player's own asks, so they go through the queue like any other
+    // requested line: one in flight, newest replaces a pending one, never a second voice.
+    if (spoken && core->announceQ)
+        oga::announce(core->announceQ,
+                      oga::Announcement{ line, oga::Priority::Normal, "debug", nullptr, 0, 0, -1 },
+                      CoreNowMs());
+}
+
+static void DebugOpenReplies(PokeCore* core)
+{
+    if (core->debugReplies || core->debugDir.empty()) return;
+    std::string path = core->debugDir + "/replies.log";
+    core->debugReplies = fopen(path.c_str(), "a");
+    if (core->debugReplies)
+    {
+        char stamp[64] = {0};
+        time_t now = time(nullptr);
+        strftime(stamp, sizeof(stamp), "%Y-%m-%d %H:%M:%S", localtime(&now));
+        fprintf(core->debugReplies, "== session %s, %s %s\n", stamp,
+                core->backend.ops ? core->backend.ops->id : "no console", core->gameCode);
+        fflush(core->debugReplies);
+    }
+}
+
+static void DebugBuild(PokeCore* core)
+{
+    DebugDrop(core);
+    oga::DebugHost h = {};
+    h.read = DbgRead;
+    // A NULL member is the channel's cue to refuse in words, so each one is wired only when
+    // this console really has it.
+    h.write = (core->backend.ops && core->backend.ops->write) ? DbgWrite : nullptr;
+    h.set_button = DbgButton;
+    h.exec_hook = (core->gba && core->backend.state == (void*) core->gba) ? DbgExecHook : nullptr;
+    h.out = DbgOut;
+    h.ctx = core;
+    core->debug = oga::debug_create(&h);
+    DebugOpenReplies(core);
+}
+
+static void DebugDrop(PokeCore* core)
+{
+    if (core->debug)
+    {
+        // debug_destroy lets go of any held button and disarms every hook, so it must run
+        // while the backend those calls reach still exists.
+        oga::debug_destroy(core->debug);
+        core->debug = nullptr;
+    }
+    if (core->debugReplies) { fclose(core->debugReplies); core->debugReplies = nullptr; }
+}
+
+// Read cmd.txt, if there is one, and delete it once read — the Budokai 3 Access contract, so
+// a file the player saves twice runs twice and a file left behind never runs again.
+static void DebugPollFile(PokeCore* core)
+{
+    if (core->debugDir.empty() || !core->debug) return;
+    std::string path = core->debugDir + "/cmd.txt";
+    FILE* f = fopen(path.c_str(), "rb");
+    if (!f) return;
+    std::string text;
+    char buf[4096];
+    size_t n;
+    while ((n = fread(buf, 1, sizeof(buf), f)) > 0 && text.size() < 65536) text.append(buf, n);
+    fclose(f);
+    remove(path.c_str());
+    oga::debug_submit(core->debug, text.c_str());
+}
+
+static void DebugOnFrame(PokeCore* core)
+{
+    if (!core->debug) return;
+    // Four times a second at 60 fps: a stat of one path, cheap next to a frame, and quick
+    // enough that a saved file answers before the player has looked up from the editor.
+    if (core->frameCounter % 15 == 0) DebugPollFile(core);
+    oga::debug_frame(core->debug, (uint64_t) core->frameCounter);
+}
+
+void poke_debug_set_dir(PokeCore* core, const char* dir)
+{
+    if (!core) return;
+    std::string d = dir ? dir : "";
+    while (d.size() > 1 && d.back() == '/') d.pop_back();
+    if (d == core->debugDir) return;
+    if (core->debugReplies) { fclose(core->debugReplies); core->debugReplies = nullptr; }
+    core->debugDir = d;
+    if (core->debug) DebugOpenReplies(core);
+}
+
+void poke_debug_command(PokeCore* core, const char* text)
+{
+    if (core && core->debug && text) oga::debug_submit(core->debug, text);
 }
 
 const char *poke_adapter_id(PokeCore *core)
@@ -1564,6 +1735,9 @@ static void NesLogForward(const char* utf8, void* ctx)
 // core, a Lua state, or an attached adapter from the previous game.
 static void TeardownBackends(PokeCore* core)
 {
+    // First, while the old console still exists: the channel lets go of its buttons and
+    // hooks through it.
+    DebugDrop(core);
     if (core->adapter && core->adapterAttached && core->adapter->detach)
         core->adapter->detach();
     if (core->nds) { core->nds->Stop(); core->nds.reset(); }
@@ -2035,12 +2209,14 @@ bool poke_start(PokeCore* core)
             return false;
         }
         core->running = true;
+        DebugBuild(core);
         return true;
     }
     if (!core->nds) { SetError(core, "Load a game first."); return false; }
     core->nds->Start();
     if (!StartScript(core)) return false;
     core->running = true;
+    DebugBuild(core);
     return true;
 }
 
@@ -2048,6 +2224,7 @@ void poke_stop(PokeCore* core)
 {
     if (!core) return;
     core->running = false;
+    DebugDrop(core);
     if (core->backend.ops && !IsPokeNds(core)) { core->backend.ops->stop(core->backend.state); return; }
     if (core->nds) core->nds->Stop();
 }
@@ -2174,6 +2351,7 @@ bool poke_frame(PokeCore* core)
     }
 
     EndFrame(core);
+    DebugOnFrame(core);
     return true;
 }
 
@@ -2512,6 +2690,29 @@ static bool NdsRead(void* state, uint32_t addr, int width, uint32_t* out)
     return AdapterReadScalar((PokeCore*) state, addr, width, out);
 }
 
+// The debug channel's poke (Core/debug_channel.h). Only the three RAM
+// domains (Main RAM 0x02000000, shared WRAM 0x03000000, ARM7 WRAM
+// 0x03800000) are writable here: never the system buses, where a write can
+// land on a hardware register, and never the offset-addressed domains (ROM,
+// save, TCM, BIOS) that the read path also matches at low addresses.
+static bool NdsWrite(void* state, uint32_t addr, int width, uint32_t value)
+{
+    PokeCore* core = (PokeCore*) state;
+    if (!core || !core->nds || (width != 1 && width != 2 && width != 4)) return false;
+    for (const MemoryDomain& d : DomainsFor(core))
+    {
+        if (d.bus != Bus::NotBus || !d.base || addr < d.start) continue;
+        if (d.start < 0x02000000u || d.start >= 0x04000000u) continue;
+        const uint64_t off = (uint64_t) addr - d.start;
+        if (off + (uint64_t) width > d.size) continue;
+        uint8_t bytes[4];
+        for (int i = 0; i < width; i++) bytes[i] = (uint8_t) (value >> (8 * i));
+        DomainWrite(d, core->nds.get(), bytes, addr, width);
+        return true;
+    }
+    return false;
+}
+
 // A8R8G8B8 (alpha in the high byte) -> non-premultiplied RGBA with solid alpha.
 // The DS is the only console here with two panels: `screen` picks top or bottom.
 static bool NdsFramebuffer(void* state, int screen, int* w, int* h, const uint8_t** pixels)
@@ -2645,6 +2846,7 @@ static const OgaCoreOps* NdsOpsTable(void)
         NdsSaveState, NdsLoadState,
         NdsFrames, NdsLastError,
         NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
+        NdsWrite,                   /* write: flat RAM domains only, the debug channel's poke */
     };
     return &kTable;
 }

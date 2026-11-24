@@ -49,6 +49,11 @@ jobs:
         run: bash scripts/adapter-tests.sh
       - name: Announcement queue (tests + sabotage verification)
         run: bash scripts/announce-test.sh
+      # The in-game debug channel (Core/debug_channel.h): command parsing, pad
+      # timing, watches, counts and traces against a fake console, then each
+      # SABOTAGE_* switch must fail the test.
+      - name: In-game debug channel (tests + sabotage verification)
+        run: bash scripts/debug-channel-test.sh
       # The system registry: which consoles this app knows, what each one's
       # hardware is, and whether a core for it is in this build. Guards the
       # rule that an unrecognised file must never resolve to a console.

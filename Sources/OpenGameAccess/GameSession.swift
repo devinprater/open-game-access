@@ -209,6 +209,15 @@ final class GameSession: ObservableObject {
             Task { @MainActor in session.appendDebug(line) }
         }, Unmanaged.passUnretained(self).toOpaque())
 
+        // The in-game debug channel (docs/design/debug-channel.md): a cmd.txt saved in
+        // Documents/oga-debug runs against the live game, and the replies land in
+        // replies.log beside it and in the reading log. The Reading log screen's command
+        // field reaches the same channel without a file.
+        let debugDir = FileManager.default.urls(for: .documentDirectory, in: .userDomainMask)[0]
+            .appendingPathComponent("oga-debug", isDirectory: true)
+        try? FileManager.default.createDirectory(at: debugDir, withIntermediateDirectories: true)
+        poke_debug_set_dir(core, debugDir.path)
+
         // The reader's positional cues (audio.play): 42 sites that pan a WAV to an
         // obstacle's side. oga_audio.lua forwards them here through _G.oga_play_sound.
         // Same contract as the Android bridge's sound callback.
@@ -364,6 +373,13 @@ final class GameSession: ObservableObject {
         try? FileManager.default.removeItem(at: url)
         return url
     }()
+
+    /// Runs debug-channel commands (peek, poke, watch, pad…) on the next frame. The
+    /// replies come back through the reading log with a "DBG" prefix.
+    func debugCommand(_ text: String) {
+        guard let core else { return }
+        poke_debug_command(core, text)
+    }
 
     private func appendDebug(_ line: String) {
         debugLines.append(line)
