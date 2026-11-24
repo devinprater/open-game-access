@@ -2,6 +2,9 @@ package com.devin.opengameaccess
 
 import android.app.Activity
 import android.content.Context
+import android.media.AudioAttributes
+import android.media.AudioFormat
+import android.media.AudioTrack
 import android.net.Uri
 import android.util.Log
 import android.view.View
@@ -27,6 +30,20 @@ import me.magnum.melonds.accessibility.GbRomResolver
  * through to its "no view yet" branch and spoke through TextToSpeech anyway — the
  * exact double-voice problem the guard exists to prevent. [attachAnnouncementView]
  * below is the missing call.
+ *
+ * ⛔ THE GAME'S OWN SOUND, AT LAST. Game Boy games were SILENT on Android:
+ * mGBA filled its audio ring every frame and nothing read it (iOS had the same
+ * hole until v0.6.6). The frame thread now drains that ring into a native
+ * queue after every frame (MGBAScriptJNI.cpp runGbFrame -> GbAudioQueue.h),
+ * and this session plays the queue through an AudioTrack from its own thread —
+ * the DS and PSP sessions' shape exactly, at the same 32768 Hz. The thread lives
+ * exactly as long as a game: started when one loads, stopped and joined in
+ * [stop] before the core is torn down. The reader's cue sounds (audio.play)
+ * keep their own path through AccessibilitySpeech and are not mixed here.
+ *
+ * ⛔ THE "GAME SOUND" SWITCH GATES IT, read once a frame like the PSP and
+ * Genesis sessions do, and applied at the native queue only when it moves.
+ * It gates the game's audio only — never speech, never the cue sounds.
  */
 object GbGameSession {
 
@@ -120,6 +137,7 @@ object GbGameSession {
      * ROM" from "the player swapped in a patched hack of the same name".
      */
     fun start(activity: Activity, uri: Uri): String? {
+        stopAudio()   // a second start without a stop must not leave two drains
         val romPath = GbRomResolver.resolve(activity, uri)
         if (romPath == null) {
             lastError = "Could not read that game file."
@@ -133,6 +151,10 @@ object GbGameSession {
             return lastError
         }
         Log.i(TAG, "reader running: $romPath")
+        appContext = activity.applicationContext
+        audioEnabledApplied = null
+        applyGameSoundSwitch()
+        startAudio()
         // The bridge exists now, so the view can actually be attached.
         storedAnnouncementView?.let { AccessibilityScript.setAnnouncementView(it) }
         lastError = ""
@@ -142,12 +164,141 @@ object GbGameSession {
     fun stop() {
         running = false
         heldMask = 0
+        // Audio first, joined, so nothing is still reading when the core goes.
+        stopAudio()
         GbAccessibilityScript.stop()
     }
 
     /** One emulated frame. Driven from the Compose frame clock, see [rememberFrameClock]. */
     fun runFrame() {
-        if (running) GbAccessibilityScript.runFrame()
+        if (!running) return
+        applyGameSoundSwitch()
+        GbAccessibilityScript.runFrame()
+    }
+
+    // ---- the game's audio ---------------------------------------------------
+
+    @Volatile
+    private var appContext: Context? = null
+
+    /** What the native gate was last told; null forces the next apply. */
+    private var audioEnabledApplied: Boolean? = null
+
+    /** Resolved per frame (a flip in Settings lands on the next frame), applied only when it moved. */
+    private fun applyGameSoundSwitch() {
+        val ctx = appContext ?: return
+        val on = GameSoundSettings.gameSoundEnabled(ctx)
+        if (audioEnabledApplied == on) return
+        audioEnabledApplied = on
+        try {
+            GbAccessibilityScript.setAudioEnabled(on)
+        } catch (t: Throwable) {
+            Log.w(TAG, "Game Boy sound switch unavailable: ${t.message}")
+        }
+    }
+
+    @Volatile
+    private var audioRunning = false
+
+    private var audioThread: Thread? = null
+    private var audioTrack: AudioTrack? = null
+
+    @Volatile
+    private var audioFramesWritten = 0L
+
+    /** Frames handed to the speaker since the game started (diagnostics). */
+    val audioFramesPlayed: Long get() = audioFramesWritten
+
+    private fun startAudio() {
+        val rate = GbAccessibilityScript.AUDIO_RATE
+        val minBuffer = AudioTrack.getMinBufferSize(
+            rate,
+            AudioFormat.CHANNEL_OUT_STEREO,
+            AudioFormat.ENCODING_PCM_16BIT,
+        )
+        if (minBuffer <= 0) {
+            Log.w(TAG, "Game Boy audio unavailable: min buffer size $minBuffer")
+            return
+        }
+        val track = try {
+            AudioTrack.Builder()
+                .setAudioAttributes(
+                    AudioAttributes.Builder()
+                        .setUsage(AudioAttributes.USAGE_GAME)
+                        .setContentType(AudioAttributes.CONTENT_TYPE_SONIFICATION)
+                        .build()
+                )
+                .setAudioFormat(
+                    AudioFormat.Builder()
+                        .setEncoding(AudioFormat.ENCODING_PCM_16BIT)
+                        .setSampleRate(rate)
+                        .setChannelMask(AudioFormat.CHANNEL_OUT_STEREO)
+                        .build()
+                )
+                // ~0.125 s of stereo s16, or the platform minimum if larger:
+                // small enough that a press and its sound stay together.
+                .setBufferSizeInBytes(maxOf(minBuffer, rate / 2))
+                .setTransferMode(AudioTrack.MODE_STREAM)
+                .build()
+        } catch (t: Throwable) {
+            Log.w(TAG, "Game Boy audio unavailable: ${t.message}")
+            return
+        }
+        audioTrack = track
+        audioFramesWritten = 0L
+        audioRunning = true
+        track.play()
+        val thread = Thread { audioLoop(track) }
+        thread.name = "gb-audio"
+        audioThread = thread
+        thread.start()
+        Log.i(TAG, "Game Boy audio started: AudioTrack at $rate Hz, stereo")
+    }
+
+    private fun audioLoop(track: AudioTrack) {
+        val buffer = ShortArray(1024 * 2)
+        while (audioRunning) {
+            val frames = try {
+                GbAccessibilityScript.readAudio(buffer, 1024)
+            } catch (t: Throwable) {
+                0
+            }
+            if (frames > 0) {
+                track.write(buffer, 0, frames * 2, AudioTrack.WRITE_BLOCKING)
+                audioFramesWritten += frames
+            } else {
+                // Dry: the frame clock refills it ~60 times a second. Sleep
+                // briefly rather than spin a processor on an empty queue.
+                try {
+                    Thread.sleep(4)
+                } catch (e: InterruptedException) {
+                    break
+                }
+            }
+        }
+    }
+
+    private fun stopAudio() {
+        audioRunning = false
+        val thread = audioThread
+        audioThread = null
+        if (thread != null) {
+            try {
+                thread.join(500)
+            } catch (e: InterruptedException) {
+                // The track is released below either way.
+            }
+        }
+        val track = audioTrack
+        audioTrack = null
+        if (track != null) {
+            try {
+                track.stop()
+            } catch (t: Throwable) {
+                // Already stopped; releasing is what matters.
+            }
+            track.release()
+        }
     }
 
     /**
@@ -278,21 +429,43 @@ object GbKeys {
 }
 
 /**
- * Drives one emulated frame per Compose frame while a game runs.
+ * Drives the Game Boy session's frames while a game runs — PACED TO THE
+ * CONSOLE, NOT TO THE DISPLAY.
  *
  * ⛔ THE CLOCK IS THE APP'S, AND IT IS THE SAME CADENCE THE READER ASSUMES. The page
  * used requestAnimationFrame; the iOS app uses a CADisplayLink. Driving frames from
  * a frame clock (rather than a free-running native thread) keeps the reader's
  * speech callbacks on the same thread that produced them. `withFrameNanos` is
  * Compose's frame signal and suspends between frames instead of spinning.
+ *
+ * ⛔ BUT ONE EMULATED FRAME PER DISPLAY FRAME RUNS THE GAME FAST on any screen
+ * above 60 Hz (90 and 120 Hz phones are common). That was only a speed problem
+ * while the game was silent; with its sound playing, a 120 Hz screen would make
+ * twice the audio the speaker can play, and the overflow would be cut out as
+ * gaps. So, like the DS, PSP, Mesen and Genesis clocks, a frame only RUNS when
+ * its slot has arrived: the Game Boy and the GBA both render 59.7275 frames a
+ * second (4194304 / 70224 and 16777216 / 280896), which is exactly the rate
+ * their audio plays out in real time. A stretch that falls behind resyncs to
+ * the next slot instead of bursting to catch up.
  */
 @Composable
 fun rememberFrameClock(running: Boolean) {
     if (!running) return
     androidx.compose.runtime.LaunchedEffect(Unit) {
+        // 1 s / 59.7275 Hz ≈ 16.743 ms.
+        val frameNs = (1_000_000_000.0 / GB_FRAMES_PER_SECOND).toLong()
+        var nextFrameAt = 0L
         while (true) {
-            androidx.compose.runtime.withFrameNanos { }
-            GbGameSession.runFrame()
+            val now = androidx.compose.runtime.withFrameNanos { it }
+            if (nextFrameAt == 0L) nextFrameAt = now
+            if (now >= nextFrameAt) {
+                GbGameSession.runFrame()
+                nextFrameAt += frameNs
+                if (nextFrameAt <= now) nextFrameAt = now + frameNs
+            }
         }
     }
 }
+
+/** The Game Boy's (and the GBA's) frame rate: 4194304 Hz / 70224 cycles per frame. */
+const val GB_FRAMES_PER_SECOND = 4194304.0 / 70224.0
