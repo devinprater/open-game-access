@@ -183,6 +183,9 @@ OgaCore oga_snes_core(SnesCore* snes);
  * genesis_core.cpp. */
 typedef struct GenesisCore GenesisCore;
 OgaCore oga_genesis_core(GenesisCore* genesis);
+/* The PlayStation: opaque here, PCSX ReARMed inside ps1_core.cpp. */
+typedef struct Ps1Core Ps1Core;
+OgaCore oga_ps1_core(Ps1Core* ps1);
 OgaCore oga_psp_core(PspCore* psp);
 
 /* Which backend runs a file, by extension — or NULL when this build has none.
@@ -202,12 +205,16 @@ typedef struct OgaResolvedBackend {
     /* Trailing again, for the same reason: existing initializers keep
      * compiling, and the resolver stays the one decision point. */
     bool genesis_hint;           /* the file should reach the Genesis Plus GX backend */
+    /* Trailing again: the earlier initializers keep compiling. */
+    bool ps1_hint;               /* the file should reach the PCSX ReARMed backend */
 } OgaResolvedBackend;
 
 /* Resolves a ROM path to a backend id, or NULL when unsupported.
  * `.iso`/`.cso`/`.pbp` are ambiguous by nature (PSP and PS1 both use them);
- * this function returns the PSP, which is the only one of the two this build
- * can boot, and the core confirms by the disc header after loading. */
+ * this function returns the PSP for them, and the PSP core confirms by the
+ * disc header after loading. The PlayStation gets the extensions only it uses
+ * (.cue, .chd, .m3u, .ccd); a bare PS1 .iso/.bin/.pbp still resolves to the
+ * PSP or the Genesis by extension and is refused by that core's own check. */
 const OgaResolvedBackend* oga_resolve_backend(const char* rom_path);
 
 #ifdef __cplusplus
