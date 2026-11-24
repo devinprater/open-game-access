@@ -171,6 +171,16 @@ typedef struct OgaCoreOps {
      * buttons; they never write RAM. pokecore wires this only into the
      * debug channel's host, never into oga::Host. */
     bool (*write)(void* state, uint32_t addr, int width, uint32_t value);
+
+    /* ---- the second stick and the game's own frame rate ----
+     *
+     * TRAILING members, NULL by default. set_analog_right is the right stick
+     * (set_analog's convention: -1..1, +y down); only a pad with two sticks
+     * answers it. frame_rate is the LOADED game's rate in frames per second,
+     * for consoles whose rate depends on the disc (a PAL PlayStation game
+     * runs at 50); NULL, or a return of 0, leaves the app's console default. */
+    void (*set_analog_right)(void* state, float x, float y);
+    double (*frame_rate)(void* state);
 } OgaCoreOps;
 
 /* A live backend: which ops, and the state they act on. */
@@ -229,11 +239,12 @@ typedef struct OgaResolvedBackend {
 } OgaResolvedBackend;
 
 /* Resolves a ROM path to a backend id, or NULL when unsupported.
- * `.iso`/`.cso`/`.pbp` are ambiguous by nature (PSP and PS1 both use them);
- * this function returns the PSP for them, and the PSP core confirms by the
- * disc header after loading. The PlayStation gets the extensions only it uses
- * (.cue, .chd, .m3u, .ccd); a bare PS1 .iso/.bin/.pbp still resolves to the
- * PSP or the Genesis by extension and is refused by that core's own check. */
+ * `.iso`/`.pbp`/`.bin` are ambiguous by nature (PSP, PlayStation and Genesis
+ * share them), so for those three the file's header is read first: a
+ * PlayStation disc goes to the PlayStation (oga_file_is_ps1_disc, in
+ * systems.cpp). Anything else keeps its name rule: .iso/.pbp the PSP, .bin
+ * the Genesis, each confirmed by that core's own check. The PlayStation also
+ * gets the extensions only it uses (.cue, .chd, .m3u, .ccd). */
 const OgaResolvedBackend* oga_resolve_backend(const char* rom_path);
 
 #ifdef __cplusplus

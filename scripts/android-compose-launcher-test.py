@@ -709,6 +709,13 @@ poke_header = read(POKE_HEADER)
 want_ds = {k: int(v) for k, v in
            re.findall(r"#define\s+POKE_BTN_(\w+)\s+(\d+)", poke_header)}
 want_ds.pop("COUNT", None)  # a count, not a button; DsKeys holds buttons
+want_ds.pop("EXT_COUNT", None)
+# The extended slots (POKE_BTN_L2..R3, past POKE_BTN_COUNT) exist only on
+# the PlayStation's pad; the twelve-button consoles hold the shared twelve.
+want_ext = {k: v for k, v in want_ds.items() if v >= 12}
+for k in want_ext:
+    want_ds.pop(k)
+want_all = dict(want_ds, **want_ext)
 block = re.search(r"object\s+DsKeys\s*\{(.*?)\n\}", ds_session, re.S)
 if not block:
     bad("DsKeys is defined", "no `object DsKeys {` found")
@@ -1021,17 +1028,18 @@ ps1_session = strip_kt(read(PS1_SESSION_KT))
 PS1_SLOTS = {"CROSS": "A", "CIRCLE": "B", "SELECT": "SELECT",
              "START": "START", "RIGHT": "RIGHT", "LEFT": "LEFT",
              "UP": "UP", "DOWN": "DOWN", "R1": "R", "L1": "L",
-             "TRIANGLE": "X", "SQUARE": "Y"}
+             "TRIANGLE": "X", "SQUARE": "Y",
+             "L2": "L2", "R2": "R2", "L3": "L3", "R3": "R3"}
 block = re.search(r"object\s+Ps1Keys\s*\{(.*?)\}", ps1_session, re.S)
 if not block:
     bad("Ps1Keys is defined", "no `object Ps1Keys {` found")
 else:
     got_ps1 = {k: int(v) for k, v in
                re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)", block.group(1))}
-    wrong = {k: (got_ps1.get(k), want_ds[slot])
+    wrong = {k: (got_ps1.get(k), want_all.get(slot))
              for k, slot in PS1_SLOTS.items()
-             if got_ps1.get(k) != want_ds[slot]}
-    if not wrong and len(got_ps1) == 12:
+             if got_ps1.get(k) != want_all.get(slot)}
+    if not wrong and len(got_ps1) == 16 and len(want_ext) == 4:
         ok("the PlayStation button ids are the shared slots their names "
            "ride (%d buttons)" % len(got_ps1))
     else:
@@ -1040,15 +1048,15 @@ else:
 
 ps1_btns = {k: int(v) for k, v in
             re.findall(r"#define\s+PS1_BTN_(\w+)\s+(\d+)", read(PS1_CORE_H))}
-table = re.search(r"kPs1Button\[12\]\s*=\s*\{(.*?)\};",
+table = re.search(r"kPs1Button\[POKE_BTN_EXT_COUNT\]\s*=\s*\{(.*?)\};",
                   read(OGA_CORE_CPP), re.S)
 table_names = re.findall(r"PS1_BTN_(\w+)", table.group(1)) if table else []
 wrong = {}
-if len(table_names) != 12:
+if len(table_names) != 16:
     wrong["table"] = table_names
 else:
     for name, slot in PS1_SLOTS.items():
-        idx = want_ds[slot]
+        idx = want_all[slot]
         if table_names[idx] != name or name not in ps1_btns:
             wrong[name] = (table_names[idx], ps1_btns.get(name))
 if not wrong:
@@ -1087,6 +1095,64 @@ else:
         "session",
         "no Ps1GameSession.start in the screen, or the extension set "
         "lost chd")
+
+# The disc sniff: a .iso/.pbp/.bin is read for a PlayStation header (the
+# core resolver's own test, through JNI) before the PSP and Genesis claim
+# it by name.
+sniff_at = screen_raw.find("Ps1GameSession.isPs1Disc(context, uri, extension)")
+psp_route_at = screen_raw.find("pickedIsPsp = PspGameSession.handlesExtension")
+ps1_jni_raw = read(PS1_JNI_CPP)
+if (0 <= sniff_at < psp_route_at and 0 <= sniff_at < screen_raw.find("pickedIsGenesis = GenesisGameSession.handlesExtension")
+        and "oga_disc_header_is_ps1(" in ps1_jni_raw
+        and re.search(r'SNIFFED_EXTENSIONS\s*=\s*setOf\("iso",\s*"pbp",\s*"bin"\)', ps1_kt)):
+    ok("a .iso, .pbp or .bin is read for a PlayStation header before the "
+       "PSP or Genesis claims it")
+else:
+    bad("a .iso, .pbp or .bin is read for a PlayStation header before the "
+        "PSP or Genesis claims it",
+        "the launcher's sniff call, its place before the PSP/Genesis "
+        "routing, or the JNI's shared-Core test is missing")
+
+# A cue sheet's tracks: the folder picker answers needsFolder and the
+# grant is kept, so the resolver can copy the listed files.
+ps1_resolver = read("app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/Ps1RomResolver.kt")
+if ("ActivityResultContracts.OpenDocumentTree()" in screen_raw
+        and "Ps1GameSession.needsFolder" in screen_raw
+        and "takePersistableUriPermission" in ps1_resolver
+        and "persistedUriPermissions" in ps1_resolver
+        and "needsFolder = true" in ps1_resolver):
+    ok("a .cue, .m3u or .ccd asks for its folder once and copies the "
+       "files it lists from the kept grant")
+else:
+    bad("a .cue, .m3u or .ccd asks for its folder once and copies the "
+        "files it lists from the kept grant",
+        "the folder picker, the needsFolder answer or the kept tree grant "
+        "is missing")
+
+# PAL speed: the clock paces by the disc's own rate, not a fixed NTSC one.
+clock = re.search(r"fun\s+rememberPs1FrameClock.*?\n\}", ps1_session, re.S)
+if (clock and "Ps1GameSession.frameRate" in clock.group(0)
+        and "59.94" not in clock.group(0)
+        and "Ps1AccessibilityScript.frameRate()" in ps1_session):
+    ok("the PlayStation frame clock paces by the disc's own rate (PAL at 50)")
+else:
+    bad("the PlayStation frame clock paces by the disc's own rate (PAL at 50)",
+        "the clock is fixed, or the rate is never read from the core")
+
+# The DualShock's extras reach the game from a controller.
+ctrl = strip_kt(read("app/src/main/java/com/devin/opengameaccess/ControllerInput.kt"))
+if all(t in ctrl for t in ("EmuButton.Ps1(Ps1Keys.L2)", "EmuButton.Ps1(Ps1Keys.R2)",
+                           "EmuButton.Ps1(Ps1Keys.L3)", "EmuButton.Ps1(Ps1Keys.R3)",
+                           "Ps1GameSession.setStick(0", "Ps1GameSession.setStick(",
+                           "MotionEvent.AXIS_RZ")):
+    ok("a controller's L2, R2, L3, R3 and both sticks reach the PlayStation")
+else:
+    bad("a controller's L2, R2, L3, R3 and both sticks reach the PlayStation",
+        "a trigger, a stick click or a stick is not routed to Ps1Keys")
+if all(('"%s", session, Ps1Keys.%s' % (n, n)) in screen_kt for n in ("L2", "R2", "L3", "R3")):
+    ok("the PlayStation page has L2, R2, L3 and R3 buttons")
+else:
+    bad("the PlayStation page has L2, R2, L3 and R3 buttons", "one is missing")
 
 bios_at = screen_raw.find("Ps1GameSession.isBiosName(pickedName)")
 gen_route_at = screen_raw.find("pickedIsGenesis = GenesisGameSession.handlesExtension")

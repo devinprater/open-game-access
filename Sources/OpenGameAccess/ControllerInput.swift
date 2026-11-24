@@ -119,18 +119,28 @@ final class ControllerInput: ObservableObject {
         // reaches for L3/R3 should not have to learn a trigger chord first, and on
         // a pad the sticks are already under the thumbs. Neither is a game button
         // on any console this app runs, so nothing is taken from the game.
-        onPress(pad.leftThumbstickButton, "l3") { s, _, pressed in
+        //
+        // ⛔ EXCEPT ON THE PLAYSTATION, whose DualShock HAS L2, R2, L3, R3 and
+        // two sticks, and which has no reader for the chords to reach: while a
+        // PlayStation game runs the triggers, the stick clicks and both sticks
+        // are game input. When a PlayStation reader exists, this is the place
+        // that has to give the chords back.
+        onPress(pad.leftThumbstickButton, "l3") { s, source, pressed in
+            if s.isPlayStation { s.set(source, .l3, pressed: pressed); return }
             if pressed { s.perform(.whereAmI) }
         }
-        onPress(pad.rightThumbstickButton, "r3") { s, _, pressed in
+        onPress(pad.rightThumbstickButton, "r3") { s, source, pressed in
+            if s.isPlayStation { s.set(source, .r3, pressed: pressed); return }
             if pressed { s.perform(.menuStatus) }
         }
 
-        // The reader's modifiers. Never game input.
+        // The reader's modifiers. Never game input (but see the PlayStation note).
         onPress(pad.leftTrigger, "l2") { s, source, pressed in
+            if s.isPlayStation { s.set(source, .l2, pressed: pressed); return }
             if pressed { s.askHeld.insert(source) } else { s.askHeld.remove(source) }
         }
         onPress(pad.rightTrigger, "r2") { s, source, pressed in
+            if s.isPlayStation { s.set(source, .r2, pressed: pressed); return }
             if pressed { s.browseHeld.insert(source) } else { s.browseHeld.remove(source) }
         }
 
@@ -139,13 +149,35 @@ final class ControllerInput: ObservableObject {
             MainActor.assumeIsolated {
                 guard let self else { return }
                 let t = Self.stickThreshold
+                // The DualShock's left stick (the core's +y is down). It still
+                // works as a D-pad below, so a digital game walks with it too.
+                if self.isPlayStation {
+                    self.session?.setStick(0, x: Self.deadZone(x), y: -Self.deadZone(y))
+                }
                 self.direction(.up, "\(id).stick.up", y > t)
                 self.direction(.down, "\(id).stick.down", y < -t)
                 self.direction(.left, "\(id).stick.left", x < -t)
                 self.direction(.right, "\(id).stick.right", x > t)
             }
         }
+
+        // The DualShock's right stick: only the PlayStation has one.
+        pad.rightThumbstick.valueChangedHandler = { [weak self] _, x, y in
+            MainActor.assumeIsolated {
+                guard let self, self.isPlayStation else { return }
+                self.session?.setStick(1, x: Self.deadZone(x), y: -Self.deadZone(y))
+            }
+        }
     }
+
+    /// True while a PlayStation game is loaded (registry id 8): its pad keeps
+    /// the triggers, stick clicks and sticks for the game (see bind).
+    private var isPlayStation: Bool { session?.system?.id == 8 }
+
+    /// Below this a stick reads as centred (resting drift, not a push).
+    private static let stickDeadZone: Float = 0.12
+
+    private static func deadZone(_ v: Float) -> Float { abs(v) < stickDeadZone ? 0 : v }
 
     // MARK: - Routing
 

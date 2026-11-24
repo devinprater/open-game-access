@@ -74,6 +74,15 @@ struct GameSystem: Equatable {
         return GameSystem(handle: OpaquePointer(h), id: oga_system_id(h))
     }
 
+    /// The system for an imported file. As forROMExtension, except that a
+    /// .iso, .pbp or .bin whose header is a PlayStation disc is the
+    /// PlayStation (by name those are the PSP's and the Genesis's) — the
+    /// same test the core's resolver runs, so the pad and the core agree.
+    static func forROMFile(_ url: URL) -> GameSystem? {
+        guard let h = url.path.withCString({ oga_system_for_file($0) }) else { return nil }
+        return GameSystem(handle: OpaquePointer(h), id: oga_system_id(h))
+    }
+
     /// Every console the app knows, INCLUDING ones with no core in this build.
     /// The picker reads this so it can name a file it cannot run yet.
     static var all: [GameSystem] {

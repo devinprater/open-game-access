@@ -8,7 +8,8 @@ import android.util.Log
  * — the same translation unit the iOS app ships) driven through the
  * poke_* C ABI in `Sources/CPokeCore/include/pokecore.h`, via
  * Ps1SessionJNI.cpp. pokecore routes the disc to the PCSX ReARMed
- * backend (Core/ps1_core.cpp) by extension. A sibling of
+ * backend (Core/ps1_core.cpp) by extension, or by its header for the
+ * shared names (.iso, .pbp, .bin). A sibling of
  * [GenesisAccessibilityScript], with the same shape and the same
  * fail-closed availability probe.
  *
@@ -35,13 +36,24 @@ object Ps1AccessibilityScript
     private const val TAG = "Ps1Access"
 
     /**
-     * The disc-image extensions this path handles — exactly the shared
-     * Core resolver's reachable PlayStation set (systems.cpp's kPs1Ext
-     * minus .iso/.pbp/.bin, which the PSP and Genesis rows claim
-     * first). A .cue and an .m3u name other files beside them, so they
-     * need those files in the same folder; .chd is one file per disc.
+     * The disc-image extensions this path handles BY NAME — the ones no
+     * other console claims (systems.cpp's kPs1Ext minus .iso/.pbp/.bin).
+     * A .cue and an .m3u name other files beside them, which the
+     * resolver copies from a folder the player granted; .chd is one
+     * file per disc.
      */
     val ROM_EXTENSIONS = setOf("cue", "chd", "m3u", "ccd")
+
+    /**
+     * The shared names a PlayStation disc may carry: .iso and .pbp (the
+     * PSP's by name) and .bin (the Genesis's). These are decided by the
+     * file's first bytes ([headerIsPs1]), the same test the core's own
+     * resolver runs, so the launcher and the core never disagree.
+     */
+    val SNIFFED_EXTENSIONS = setOf("iso", "pbp", "bin")
+
+    /** How many leading bytes [headerIsPs1] needs (systems.h's OGA_DISC_HEADER_BYTES). */
+    const val HEADER_BYTES = 65536
 
     /** The extensions that only list other files (tracks or discs). */
     val INDEX_EXTENSIONS = setOf("cue", "m3u", "ccd")
@@ -68,6 +80,9 @@ object Ps1AccessibilityScript
     private external fun nativePs1AdapterName(): String
     private external fun nativePs1AdapterReady(): Boolean
     private external fun nativePs1AdapterCommand(command: Int): Boolean
+    private external fun nativePs1SetAnalog(stick: Int, x: Float, y: Float)
+    private external fun nativePs1FrameRate(): Double
+    private external fun nativePs1HeaderIsPs1(header: ByteArray, length: Int): Boolean
 
     /**
      * True when the PlayStation glue is linked into this build. Throws
@@ -163,6 +178,28 @@ object Ps1AccessibilityScript
     {
         nativePs1SetAudioEnabled(enabled)
     }
+
+    /**
+     * One DualShock stick: [stick] 0 the left, 1 the right; each axis
+     * -1..1, +x right, +y down. A digital game ignores it (the pad
+     * starts in digital mode; the core turns analog on when a game asks).
+     */
+    fun setAnalog(stick: Int, x: Float, y: Float)
+    {
+        nativePs1SetAnalog(stick, x, y)
+    }
+
+    /** The loaded disc's frame rate (50 PAL, about 59.94 NTSC), or 0 before a load. */
+    fun frameRate(): Double = nativePs1FrameRate()
+
+    /**
+     * True when [header] (the first [length] bytes of a file, up to
+     * [HEADER_BYTES]) is a PlayStation disc: an ISO 9660 volume whose
+     * system id is PLAYSTATION (cooked or raw sectors) or a PSone-classic
+     * PBP. Throws UnsatisfiedLinkError on a build without the PlayStation
+     * glue, like every call here.
+     */
+    fun headerIsPs1(header: ByteArray, length: Int): Boolean = nativePs1HeaderIsPs1(header, length)
 
     fun saveState(path: String): Boolean = nativePs1SaveState(path)
 

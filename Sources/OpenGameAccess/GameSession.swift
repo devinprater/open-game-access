@@ -158,6 +158,9 @@ final class GameSession: ObservableObject {
     private var core: OpaquePointer?
     private weak var speech: SpeechEngine?
     private var displayLink: CADisplayLink?
+    /// Emulated frames owed at a console rate below the screen's (a PAL disc
+    /// at 50 on a 60 Hz link): see tick().
+    private var frameCredit: Double = 0
     /// The emulated screen, published on its OWN object: only ScreenView
     /// observes it, so a new frame redraws the picture and nothing else.
     let frames = FrameStore()
@@ -275,6 +278,14 @@ final class GameSession: ObservableObject {
     func setButton(_ raw: Int32, down: Bool) {
         guard let core else { return }
         poke_set_button(core, raw, down)
+    }
+
+    /// One analog stick: 0 the left, 1 the right; each axis -1...1, +x right,
+    /// +y DOWN (the core's convention; GameController's +y is up, so the
+    /// caller flips it). Only the PlayStation's DualShock has a right stick.
+    func setStick(_ stick: Int, x: Float, y: Float) {
+        guard let core else { return }
+        if stick == 0 { poke_set_analog(core, x, y) } else { poke_set_analog_right(core, x, y) }
     }
 
     /// Press a button for a few EMULATED FRAMES, then release it.
@@ -459,8 +470,13 @@ final class GameSession: ObservableObject {
             return
         }
 
-        system = GameSystem.forROMExtension(local.pathExtension)
-        if let system, system.analogSticks > 0 || system.id == 4 {
+        // ⛔ BY THE FILE, NOT ITS NAME: a PlayStation disc saved as .iso/.pbp
+        // (the PSP's names) or .bin (the Genesis's) is read for its header,
+        // the same test the core's resolver runs, so the pad matches the disc.
+        system = GameSystem.forROMFile(local)
+        // The PlayStation (8) has sticks but is not the PSP: it needs no
+        // PPSSPP assets, and a missing bundle must not stop a PS1 disc.
+        if let system, system.id != 8, system.analogSticks > 0 || system.id == 4 {
             if let assets = BundleResources.ppssppAssetDir {
                 // The PSP core refuses to boot without its staged assets (compat
                 // tables, soft-GPU atlas, VFPU LUTs); the path is set here so a
@@ -696,6 +712,20 @@ final class GameSession: ObservableObject {
 
     @objc private func tick() {
         guard let core else { return }
+        // ⛔ A PAL DISC RUNS AT 50, NOT AT THE SCREEN'S 60. The core reports
+        // the loaded game's own rate (0 = no preference, every console but the
+        // PlayStation today); below the link's rate, ticks earn frames at that
+        // rate and a tick with less than one owed is skipped, so a PAL game
+        // plays at its real speed instead of a fifth fast.
+        let rate = poke_frame_rate(core)
+        if rate > 0, rate < 58, let link = displayLink {
+            let interval = link.targetTimestamp - link.timestamp
+            frameCredit += (interval > 0 ? interval : 1.0 / 60.0) * rate
+            if frameCredit < 1 { return }
+            frameCredit = min(frameCredit - 1, 1)
+        } else {
+            frameCredit = 0
+        }
         let frameStart = Date.timeIntervalSinceReferenceDate
         if !poke_frame(core) {
             let message = String(cString: poke_last_error(core))

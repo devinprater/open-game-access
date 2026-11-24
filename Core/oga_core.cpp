@@ -28,6 +28,12 @@
 #include <string.h>
 #include <ctype.h>
 
+/* The PlayStation disc sniff lives with the system registry (Core/systems.cpp),
+ * so the picker and this resolver read a disc the same way. Declared here, not
+ * included: systems.h and pokecore.h spell the registry's C ABI with different
+ * pointer types and cannot share a translation unit. */
+extern "C" bool oga_file_is_ps1_disc(const char* path);
+
 /* ------------------------------------------------------------------- Game Boy
  *
  * mGBA's GBA/GB/GBC backend. Everything here is a straight forward to
@@ -105,6 +111,8 @@ static const OgaCoreOps kGbaOps = {
     GbaFrames, GbaLastError,
     NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
     NULL,                       /* write: no write path on the Game Boy */
+    NULL,                       /* set_analog_right: no right stick on this console */
+    NULL,                       /* frame_rate: none reported (the host keeps its own pace) */
 };
 
 OgaCore oga_gba_core(GbaCore* gba)
@@ -189,6 +197,8 @@ static const OgaCoreOps kNesOps = {
     NesFrames, NesLastError,
     NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
     NULL,                       /* write: the NES is read-only by contract (mesen_core.h) */
+    NULL,                       /* set_analog_right: no right stick on this console */
+    NULL,                       /* frame_rate: none reported (the host keeps its own pace) */
 };
 
 OgaCore oga_nes_core(NesCore* nes)
@@ -288,6 +298,8 @@ static const OgaCoreOps kPspOps = {
     PspFrames, PspLastError,
     NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
     PspWrite,                   /* write: psp_debug_write, the debug channel's poke */
+    NULL,                       /* set_analog_right: no right stick on this console */
+    NULL,                       /* frame_rate: none reported (the host keeps its own pace) */
 };
 
 OgaCore oga_psp_core(PspCore* psp)
@@ -384,6 +396,8 @@ static const OgaCoreOps kSnesOps = {
     SnesFrames, SnesLastError,
     SnesSetDirection,           /* set_direction */
     SnesWrite,                  /* write: snes_write, the debug channel's poke */
+    NULL,                       /* set_analog_right: no right stick on this console */
+    NULL,                       /* frame_rate: none reported (the host keeps its own pace) */
 };
 
 OgaCore oga_snes_core(SnesCore* snes)
@@ -501,6 +515,8 @@ static const OgaCoreOps kGenesisOps = {
     GenesisLastError,
     NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
     NULL,                       /* write: no write path on the Genesis */
+    NULL,                       /* set_analog_right: no right stick on this console */
+    NULL,                       /* frame_rate: none reported (the host keeps its own pace) */
 };
 
 OgaCore oga_genesis_core(GenesisCore* genesis)
@@ -618,6 +634,8 @@ static const OgaCoreOps kN64Ops = {
     N64LastError,
     NULL,                       /* set_direction: no direction layer on this console */
     NULL,                       /* write: no write path into N64 RDRAM yet */
+    NULL,                       /* set_analog_right: no right stick on this console */
+    NULL,                       /* frame_rate: none reported (the host keeps its own pace) */
 };
 
 OgaCore oga_n64_core(N64Core* n64)
@@ -638,13 +656,13 @@ OgaCore oga_n64_core(N64Core* n64)
  *
  * THE PAD, SHARED INDEX → PLAYSTATION. The registry row lists Cross, Circle,
  * Triangle and Square on BTN_A, BTN_B, BTN_X and BTN_Y; the shared L and R
- * slots are L1 and R1. The shared numbering has no L2/R2 or stick clicks, so
- * those stay unreachable until it does — said here rather than discovered by a
- * player in a menu that needs R2.
+ * slots are L1 and R1. L2, R2, L3 and R3 ride the extended slots past the
+ * shared twelve (POKE_BTN_L2..POKE_BTN_R3 in pokecore.h).
  *
- * NO ANALOG YET. The wrapper reports a standard digital pad, which is what
- * nearly every PlayStation game accepts; a DualShock-only game needs the stick
- * path, which is a later change to both this table and ps1_core.cpp.
+ * THE STICKS. The wrapper reports a DualShock, which starts in digital mode,
+ * so every digital game sees the pad it expects; set_analog is the left
+ * stick and set_analog_right the right. frame_rate reports the disc's own
+ * rate, so a PAL game runs at 50 frames a second, not 60.
  */
 
 static bool Ps1Start(void* s) { return ps1_start((Ps1Core*) s); }
@@ -669,7 +687,7 @@ static void Ps1SetButton(void* s, int pad_button, bool down)
 {
     /* Shared pad indices: A=0 B=1 Select=2 Start=3 Right=4 Left=5 Up=6
      * Down=7 R=8 L=9 X=10 Y=11. */
-    static const int kPs1Button[12] = {
+    static const int kPs1Button[POKE_BTN_EXT_COUNT] = {
         PS1_BTN_CROSS,    /* 0: A      -> Cross */
         PS1_BTN_CIRCLE,   /* 1: B      -> Circle */
         PS1_BTN_SELECT,   /* 2 */
@@ -682,10 +700,24 @@ static void Ps1SetButton(void* s, int pad_button, bool down)
         PS1_BTN_L1,       /* 9: L      -> L1 */
         PS1_BTN_TRIANGLE, /* 10: X     -> Triangle */
         PS1_BTN_SQUARE,   /* 11: Y     -> Square */
+        PS1_BTN_L2,       /* 12: the extended L2 slot */
+        PS1_BTN_R2,       /* 13: R2 */
+        PS1_BTN_L3,       /* 14: L3, the left stick's click */
+        PS1_BTN_R3,       /* 15: R3 */
     };
-    if (pad_button < 0 || pad_button >= 12) return;
+    if (pad_button < 0 || pad_button >= POKE_BTN_EXT_COUNT) return;
     ps1_set_button((Ps1Core*) s, kPs1Button[pad_button], down);
 }
+
+static void Ps1SetAnalog(void* s, float x, float y)
+{
+    ps1_set_analog((Ps1Core*) s, PS1_STICK_LEFT, x, y);
+}
+static void Ps1SetAnalogRight(void* s, float x, float y)
+{
+    ps1_set_analog((Ps1Core*) s, PS1_STICK_RIGHT, x, y);
+}
+static double Ps1FrameRate(void* s) { return ps1_frame_rate((Ps1Core*) s); }
 
 static int Ps1ReadAudio(void* s, int16_t* out, int max_frames)
 {
@@ -711,7 +743,7 @@ static const OgaCoreOps kPs1Ops = {
     NULL,                       /* on_frame */
     Ps1Framebuffer,
     Ps1SetButton,
-    NULL,                       /* set_analog: digital pad for now (see above) */
+    Ps1SetAnalog,               /* the DualShock's left stick */
     NULL,                       /* set_touch: no touch screen */
     NULL,                       /* set_hotkey: the native adapters are the only reader */
     NULL,                       /* set_script_dir: no bundled PlayStation reader set */
@@ -723,6 +755,8 @@ static const OgaCoreOps kPs1Ops = {
     Ps1LastError,
     NULL,                       /* set_direction: no direction layer on this console */
     NULL,                       /* write: no write path into the PlayStation's RAM yet */
+    Ps1SetAnalogRight,          /* the DualShock's right stick */
+    Ps1FrameRate,               /* 50 for a PAL disc, about 59.94 for NTSC */
 };
 
 OgaCore oga_ps1_core(Ps1Core* ps1)
@@ -793,16 +827,24 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
      * identifies the order from the header, and n64_load_rom refuses a file
      * whose header is none of them. */
     static const char* const kN64E[] = { ".z64", ".n64", ".v64", NULL };
-    /* PCSX ReARMed. Only the extensions NO other row here claims: a cue sheet
-     * (with its .bin tracks beside it), a CHD, a multi-disc .m3u list, and a
-     * CloneCD .ccd. A single-file PS1 .iso/.pbp is the PSP's by extension and a
-     * PS1 .bin the Genesis's; routing those by content is a later change, and
-     * until then each is refused in words by the core it reaches. */
+    /* PCSX ReARMed. By name, the extensions NO other row here claims: a cue
+     * sheet (with its .bin tracks beside it), a CHD, a multi-disc .m3u list and
+     * a CloneCD .ccd. A single-file .iso/.pbp/.bin is decided by its header
+     * before any name check (see kSniffE below). */
     static const char* const kPs1E[] = { ".cue", ".chd", ".m3u", ".ccd", NULL };
 
     char ext[8];
     ExtOf(rom_path, ext, (int) sizeof(ext));
     if (ext[0] == '\0') return NULL;
+
+    /* ⛔ CONTENT BEFORE NAME for the three shared names. A PlayStation disc
+     * saved as .iso/.pbp (the PSP's by name) or .bin (the Genesis's) is read
+     * for its header first; anything else with those names falls through to
+     * the name rules below, exactly as before. */
+    static const char* const kSniffE[] = { ".iso", ".pbp", ".bin", NULL };
+#ifndef SABOTAGE_NO_PS1_SNIFF
+    if (ExtIs(ext, kSniffE) && oga_file_is_ps1_disc(rom_path)) return &kPs1;
+#endif
 
     if (ExtIs(ext, kGb))   return &kGba;
     if (ExtIs(ext, kPspE)) return &kPsp;

@@ -17,7 +17,8 @@ import me.magnum.melonds.accessibility.AccessibilityScript
  * pads): the console's buttons, plus the reader's commands as trigger
  * chords.
  *
- * L2 and R2 never reach the game: they are the reader's modifiers.
+ * L2 and R2 never reach the game, except on the PlayStation (below):
+ * they are the reader's modifiers.
  * While one is held, D-pad and face presses become reader commands
  * instead of game input, laid out so each hand keeps one job (the table
  * is iOS's, unchanged):
@@ -101,11 +102,17 @@ import me.magnum.melonds.accessibility.AccessibilityScript
  * input — it has no reader hotkeys or touch surface to keep apart.
  * PlayStation joins the same way, its positions the PSP's (south =
  * Cross, east = Circle, north = Triangle, west = Square; L1, R1,
- * Select and Start as named). L2/R2 stay the reader's ask and browse
- * modifiers here, so the PlayStation's own L2/R2 are not mapped yet.
- * Its reader chords resolve the honest way: with no Genesis reader,
- * the ask/browse slots have nothing behind them and say so, while
- * Stop speech and the Repeats are bridge-level and work as elsewhere.
+ * Select and Start as named).
+ *
+ * ⛔ THE PLAYSTATION TAKES THE TRIGGERS, THE STICK CLICKS AND THE
+ * STICKS. It is the one console here whose pad HAS L2, R2, L3, R3 and
+ * two analog sticks, and it has no reader for the chords to reach, so
+ * while a PlayStation game runs those are game input: L2/R2 (key or
+ * axis) press L2/R2, the stick clicks press L3/R3, and both sticks
+ * move the DualShock's sticks. The left stick still also works as a
+ * D-pad, as on every other console, so a digital game (which ignores
+ * the analog sticks) still walks with it. When a PlayStation reader
+ * exists this is the place that has to give the chords back.
  *
  * The Activity is the single input funnel: MainActivity's
  * dispatchKeyEvent / onGenericMotionEvent hand gamepad-sourced events
@@ -161,6 +168,11 @@ object ControllerInput {
     private val browseHeld = mutableSetOf<String>()
 
     private const val STICK_THRESHOLD = 0.5f
+
+    /** Below this a stick reads as centred (resting drift, not a push). */
+    private const val STICK_DEAD_ZONE = 0.12f
+
+    private fun deadZone(v: Float): Float = if (kotlin.math.abs(v) < STICK_DEAD_ZONE) 0f else v
 
     /** The N64 analog stick's radial deadzone (pad drift stays still). */
     private const val N64_STICK_DEADZONE = 0.15f
@@ -347,13 +359,32 @@ object ControllerInput {
             KeyEvent.KEYCODE_BUTTON_START -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START, Ps1Keys.START, N64Keys.START), pressed); true }
             KeyEvent.KEYCODE_BUTTON_SELECT -> { set(source, emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE, Ps1Keys.SELECT, N64Keys.C_DOWN), pressed); true }
             // The reader's modifiers. Never game input.
-            KeyEvent.KEYCODE_BUTTON_L2 -> { setModifier(askHeld, source, pressed); true }
-            KeyEvent.KEYCODE_BUTTON_R2 -> { setModifier(browseHeld, source, pressed); true }
+            // (On the PlayStation these four are its own buttons: see
+            // the class note.)
+            KeyEvent.KEYCODE_BUTTON_L2 -> {
+                if (Ps1GameSession.isRunning) set(source, EmuButton.Ps1(Ps1Keys.L2), pressed)
+                else setModifier(askHeld, source, pressed)
+                true
+            }
+            KeyEvent.KEYCODE_BUTTON_R2 -> {
+                if (Ps1GameSession.isRunning) set(source, EmuButton.Ps1(Ps1Keys.R2), pressed)
+                else setModifier(browseHeld, source, pressed)
+                true
+            }
             // The stick clicks: the reader's two most-used commands, no
             // chord to learn first. Neither is a game button on any
-            // console this app runs, so nothing is taken from the game.
-            KeyEvent.KEYCODE_BUTTON_THUMBL -> { if (pressed) perform(Slot.WHERE_AM_I); true }
-            KeyEvent.KEYCODE_BUTTON_THUMBR -> { if (pressed) perform(Slot.MENU_STATUS); true }
+            // console this app runs except the PlayStation, which gets
+            // them as L3/R3.
+            KeyEvent.KEYCODE_BUTTON_THUMBL -> {
+                if (Ps1GameSession.isRunning) set(source, EmuButton.Ps1(Ps1Keys.L3), pressed)
+                else if (pressed) perform(Slot.WHERE_AM_I)
+                true
+            }
+            KeyEvent.KEYCODE_BUTTON_THUMBR -> {
+                if (Ps1GameSession.isRunning) set(source, EmuButton.Ps1(Ps1Keys.R3), pressed)
+                else if (pressed) perform(Slot.MENU_STATUS)
+                true
+            }
             else -> false
         }
     }
@@ -523,14 +554,28 @@ object ControllerInput {
             event.getAxisValue(MotionEvent.AXIS_LTRIGGER),
             event.getAxisValue(MotionEvent.AXIS_BRAKE),
         )
-        setModifier(askHeld, "$id.axis.l2", l2 > STICK_THRESHOLD)
+        val ps1 = Ps1GameSession.isRunning
+        if (ps1) set("$id.axis.l2", EmuButton.Ps1(Ps1Keys.L2), l2 > STICK_THRESHOLD)
+        else setModifier(askHeld, "$id.axis.l2", l2 > STICK_THRESHOLD)
         val r2 = maxOf(
             event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
             event.getAxisValue(MotionEvent.AXIS_GAS),
         )
-        setModifier(browseHeld, "$id.axis.r2", r2 > STICK_THRESHOLD)
+        if (ps1) set("$id.axis.r2", EmuButton.Ps1(Ps1Keys.R2), r2 > STICK_THRESHOLD)
+        else setModifier(browseHeld, "$id.axis.r2", r2 > STICK_THRESHOLD)
         val x = event.getAxisValue(MotionEvent.AXIS_X)
         val y = event.getAxisValue(MotionEvent.AXIS_Y)
+        if (ps1) {
+            // Both DualShock sticks. Android's +y is down, the same as
+            // the core's, so the values pass straight through; a small
+            // dead zone keeps a resting stick's drift out of the game.
+            Ps1GameSession.setStick(0, deadZone(x), deadZone(y))
+            Ps1GameSession.setStick(
+                1,
+                deadZone(event.getAxisValue(MotionEvent.AXIS_Z)),
+                deadZone(event.getAxisValue(MotionEvent.AXIS_RZ)),
+            )
+        }
         // ⛔ THE NINTENDO 64 STICK IS ANALOG. Its games move with the
         // stick, not the d-pad, and by how far it is pushed, so while an
         // N64 game runs the left stick goes to the core as an analog

@@ -439,14 +439,29 @@ private struct SystemButtons: View {
     @EnvironmentObject private var session: GameSession
 
     var body: some View {
-        HStack(spacing: 6) {
-            HoldButton(title: "Start", symbol: "play.circle", hint: "Start button, opens the menu") { .start }
-            HoldButton(title: "Select", symbol: "square.circle", hint: "Select button") { .select }
-            // The original Game Boy has no shoulder buttons; showing L/R for
-            // it would be controls that do nothing.
-            if (session.system ?? GameSystem.DSDefault).hasShoulders {
-                HoldButton(title: "L", symbol: "l.circle", hint: "Left shoulder button") { .l }
-                HoldButton(title: "R", symbol: "r.circle", hint: "Right shoulder button") { .r }
+        let system = session.system ?? GameSystem.DSDefault
+        // The PlayStation (8) names its shoulders L1/R1 and has L2, R2 and the
+        // stick clicks L3, R3 as well (its DualShock; the sticks themselves come
+        // from a controller).
+        let isPlayStation = system.id == 8
+        VStack(spacing: 6) {
+            HStack(spacing: 6) {
+                HoldButton(title: "Start", symbol: "play.circle", hint: "Start button, opens the menu") { .start }
+                HoldButton(title: "Select", symbol: "square.circle", hint: "Select button") { .select }
+                // The original Game Boy has no shoulder buttons; showing L/R for
+                // it would be controls that do nothing.
+                if system.hasShoulders {
+                    HoldButton(title: isPlayStation ? "L1" : "L", symbol: "l.circle", hint: "Left shoulder button") { .l }
+                    HoldButton(title: isPlayStation ? "R1" : "R", symbol: "r.circle", hint: "Right shoulder button") { .r }
+                }
+            }
+            if isPlayStation {
+                HStack(spacing: 6) {
+                    HoldButton(title: "L2", symbol: "l.circle", hint: "Left trigger") { .l2 }
+                    HoldButton(title: "R2", symbol: "r.circle", hint: "Right trigger") { .r2 }
+                    HoldButton(title: "L3", symbol: "l.circle", hint: "Left stick button") { .l3 }
+                    HoldButton(title: "R3", symbol: "r.circle", hint: "Right stick button") { .r3 }
+                }
             }
         }
         .accessibilityElement(children: .contain)
@@ -671,6 +686,10 @@ extension GamePadButton {
         case POKE_BTN_UP: self = .up
         case POKE_BTN_DOWN: self = .down
         case POKE_BTN_LEFT: self = .left
+        case POKE_BTN_L2: self = .l2
+        case POKE_BTN_R2: self = .r2
+        case POKE_BTN_L3: self = .l3
+        case POKE_BTN_R3: self = .r3
         default: self = .right
         }
     }

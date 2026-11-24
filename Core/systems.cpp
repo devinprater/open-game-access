@@ -14,6 +14,7 @@
 #include <string.h>
 #include <ctype.h>
 #include <stdio.h>
+#include <stdint.h>
 
 namespace {
 
@@ -103,15 +104,11 @@ const char* const kPspExt[]   = { ".iso", ".cso", ".pbp", ".elf", ".prx", ".ppdm
 const char* const kNesExt[]   = { ".nes", ".fds", ".unf", ".unif", NULL };
 const char* const kSnesExt[]  = { ".sfc", ".smc", ".fig", ".swc", NULL };
 const char* const kN64Ext[]   = { ".n64", ".z64", ".v64", NULL };
-/* PS1 shares the PSP extensions: .iso/.pbp/.cso are the same containers.
- * Which console a file is FOR is decided from the disc's header by the core,
- * not by the name — but the picker only needs to know it is a disc image. */
-/* The PlayStation. .iso and .pbp are listed but unreachable by extension
- * (the PSP row claims them first) and .bin is the Genesis's (see the Genesis
- * row): FIRST MATCH WINS. They stay listed because they ARE PlayStation
- * formats, and routing them by disc content is the planned follow-up. The
- * reachable ones are .cue, .chd, .m3u and .ccd, which is exactly what the
- * backend resolver (Core/oga_core.cpp) hands PCSX ReARMed. */
+/* The PlayStation. By NAME, first match wins: .iso and .pbp are the PSP's and
+ * .bin the Genesis's, so oga_system_for_path reaches this row only for .cue,
+ * .chd, .m3u and .ccd. They stay listed because they ARE PlayStation formats,
+ * and oga_system_for_file (the call for a file that exists) routes a PS1
+ * .iso/.pbp/.bin here by its header — see the disc sniff above. */
 const char* const kPs1Ext[]   = { ".iso", ".bin", ".cue", ".chd", ".pbp", ".m3u", ".ccd", NULL };
 const char* const kPs2Ext[]   = { ".iso", ".chd", NULL };
 const char* const kGcExt[]    = { ".iso", ".gcm", ".rvz", ".wia", NULL };
@@ -227,10 +224,10 @@ const OgaSystem kSystems[] = {
       1, false, false, 0, true, kGenesis, 6 },
 
     /* READY: PCSX ReARMed is linked in (Core/ps1_core.cpp), proved by
-     * scripts/ps1-core-test.sh. Digital pad: the shared numbering has no
-     * L2/R2 or sticks yet, so the row claims none. */
+     * scripts/ps1-core-test.sh. A DualShock: two sticks, and L2/R2/L3/R3 on
+     * the extended pad slots (POKE_BTN_L2..R3 in pokecore.h). */
     { OGA_SYS_PS1, "PlayStation", kPs1Ext, OGA_BACKEND_READY,
-      1, true, false, 0, true, kPlayStation, 4 },
+      1, true, false, 2, true, kPlayStation, 4 },
 
     { OGA_SYS_PS2, "PlayStation 2", kPs2Ext, OGA_BACKEND_NONE,
       1, true, false, 2, true, kPlayStation, 4 },
@@ -331,6 +328,73 @@ void NormalizeExt(const char* path, char* out, int outSize)
     for (const char* p = dot; *p && *p != '/' && *p != '\\' && n < outSize - 1; p++, n++)
         out[n] = (char) tolower((unsigned char) *p);
     out[n] = '\0';
+}
+
+
+/* ---- PlayStation disc sniff --------------------------------------------
+ *
+ * .iso, .pbp and .bin are shared names: a PSP UMD, a PS1 disc and a PSP EBOOT
+ * all use .iso/.pbp, and .bin is both a Genesis ROM and a PS1 track. The name
+ * cannot say which console a file is for, so these three are decided by the
+ * first bytes of the file. Everything a decision needs sits in the first
+ * 64 KiB (OGA_DISC_HEADER_BYTES):
+ *
+ *   cooked ISO (2048-byte sectors): the ISO 9660 primary volume descriptor at
+ *     0x8000 ("\1CD001"), whose system id says "PLAYSTATION" on a PS1 disc
+ *     and "PSP GAME" on a UMD;
+ *   raw image (2352-byte sectors, a single-track .bin or a raw .iso): the same
+ *     descriptor inside sector 16, after the 12-byte sync and the header;
+ *   PBP: "\0PBP", whose PARAM.SFO says CATEGORY "ME" for a PlayStation disc
+ *     converted to run on a PSP (what PCSX ReARMed reads) and "EG"/"MG" for a
+ *     real PSP program.
+ *
+ * ⛔ A PS2 DVD also says "PLAYSTATION". It is told apart by size: a CD holds
+ * at most about 360 000 sectors, and the descriptor's volume size above
+ * kCdMaxSectors is a DVD. There is no PS2 core, so a PS2 disc must keep going
+ * where it always went (the PSP, which refuses it in words). */
+const uint32_t kCdMaxSectors = 450000;
+
+uint32_t Le32(const uint8_t* p)
+{
+    return (uint32_t) p[0] | ((uint32_t) p[1] << 8) | ((uint32_t) p[2] << 16) | ((uint32_t) p[3] << 24);
+}
+
+uint16_t Le16(const uint8_t* p) { return (uint16_t) (p[0] | (p[1] << 8)); }
+
+bool PvdIsPs1(const uint8_t* d, size_t n, size_t off)
+{
+    if (off + 84 > n) return false;
+    const uint8_t* v = d + off;
+    if (v[0] != 1 || memcmp(v + 1, "CD001", 5) != 0) return false;
+#ifdef SABOTAGE_PS1_SNIFF_ANY_DISC
+    return true;
+#endif
+    if (memcmp(v + 8, "PLAYSTATION", 11) != 0) return false;
+    return Le32(v + 80) <= kCdMaxSectors;
+}
+
+/* PARAM.SFO's CATEGORY, compared to `want` (two letters). */
+bool SfoCategoryIs(const uint8_t* sfo, size_t n, const char* want)
+{
+    if (n < 20 || memcmp(sfo, "\0PSF", 4) != 0) return false;
+    uint32_t keys = Le32(sfo + 8), data = Le32(sfo + 12), count = Le32(sfo + 16);
+    if (count > 256) return false;
+    for (uint32_t i = 0; i < count; i++)
+    {
+        size_t e = 20 + (size_t) i * 16;
+        if (e + 16 > n) return false;
+        size_t k = (size_t) keys + Le16(sfo + e);
+        size_t v = (size_t) data + Le32(sfo + e + 12);
+        if (k + 9 > n || memcmp(sfo + k, "CATEGORY", 9) != 0) continue;
+        return v + 2 <= n && memcmp(sfo + v, want, 2) == 0;
+    }
+    return false;
+}
+
+/* The three names that are decided by content, not by name alone. */
+bool ExtIsSniffed(const char* ext)
+{
+    return strcmp(ext, ".iso") == 0 || strcmp(ext, ".pbp") == 0 || strcmp(ext, ".bin") == 0;
 }
 
 } // namespace
@@ -524,6 +588,53 @@ const void* const* oga_all_system_handles(int* out_count)
     for (int i = 0; i < count; i++) ptrs[i] = (const void*) all[i];
     if (out_count) *out_count = count;
     return ptrs;
+}
+
+bool oga_disc_header_is_ps1(const uint8_t* d, size_t n)
+{
+    if (!d) return false;
+
+    /* A PBP: decided by its PARAM.SFO, which the header points at. */
+    if (n >= 0x28 && memcmp(d, "\0PBP", 4) == 0)
+    {
+        size_t sfo = Le32(d + 8), next = Le32(d + 12);
+        if (next > n) next = n;
+        if (sfo >= next) return false;
+        return SfoCategoryIs(d + sfo, next - sfo, "ME");
+    }
+
+    /* Cooked: 2048-byte sectors, sector 16 at 0x8000. */
+    if (PvdIsPs1(d, n, 0x8000)) return true;
+
+    /* Raw: 2352-byte sectors, sector 16 at 0x9300, behind its sync and header
+     * (16 bytes in mode 1, 24 in mode 2 — a PS1 disc is mode 2). */
+    static const uint8_t kSync[12] = { 0, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF,
+                                       0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0 };
+    const size_t raw = 16 * 2352;
+    if (n >= raw + 16 && memcmp(d + raw, kSync, 12) == 0)
+        return PvdIsPs1(d, n, raw + (d[raw + 15] == 2 ? 24 : 16));
+
+    return false;
+}
+
+bool oga_file_is_ps1_disc(const char* path)
+{
+    if (!path) return false;
+    FILE* f = fopen(path, "rb");
+    if (!f) return false;
+    static uint8_t buf[OGA_DISC_HEADER_BYTES];
+    size_t n = fread(buf, 1, sizeof(buf), f);
+    fclose(f);
+    return oga_disc_header_is_ps1(buf, n);
+}
+
+const OgaSystem* oga_system_for_file(const char* path)
+{
+    char ext[8];
+    NormalizeExt(path, ext, (int) sizeof(ext));
+    if (ExtIsSniffed(ext) && oga_file_is_ps1_disc(path))
+        return oga_system_by_id(OGA_SYS_PS1);
+    return oga_system_for_path(path);
 }
 
 } // extern "C"

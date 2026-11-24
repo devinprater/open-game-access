@@ -2547,6 +2547,19 @@ void poke_set_analog(PokeCore *core, float x, float y)
     core->backend.ops->set_analog(core->backend.state, x, y);
 }
 
+void poke_set_analog_right(PokeCore *core, float x, float y)
+{
+    if (!core || !core->backend.ops || !core->backend.ops->set_analog_right) return;
+    core->backend.ops->set_analog_right(core->backend.state, x, y);
+}
+
+double poke_frame_rate(PokeCore *core)
+{
+    if (!core || !core->backend.ops || !core->backend.ops->frame_rate) return 0.0;
+    double fps = core->backend.ops->frame_rate(core->backend.state);
+    return fps > 0.0 ? fps : 0.0;
+}
+
 void poke_touch(PokeCore* core, int x, int y, bool down)
 {
     if (!core) return;
@@ -2930,6 +2943,8 @@ static const OgaCoreOps* NdsOpsTable(void)
         NdsFrames, NdsLastError,
         NULL,                       /* set_direction: no direction layer on this console (auto walk is SNES-only) */
         NdsWrite,                   /* write: flat RAM domains only, the debug channel's poke */
+        NULL,                       /* set_analog_right: no right stick on this console */
+        NULL,                       /* frame_rate: none reported (the host keeps its own pace) */
     };
     return &kTable;
 }

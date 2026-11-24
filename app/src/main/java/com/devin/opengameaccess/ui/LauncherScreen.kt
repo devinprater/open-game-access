@@ -324,7 +324,22 @@ fun LauncherScreen(
             )
             return
         }
-        pickedIsPs1 = Ps1GameSession.handlesExtension(extension)
+        // ⛔ A SHARED NAME IS READ, NOT TRUSTED. A .iso/.pbp is the
+        // PSP's by name and a .bin the Genesis's, but a PlayStation
+        // disc saved under one of them is a PlayStation disc: its first
+        // bytes decide (the core resolver's own test, so the two never
+        // disagree). Anything else keeps its by-name console below.
+        pickedIsPs1 = Ps1GameSession.handlesExtension(extension) ||
+            (ps1Available && Ps1GameSession.isPs1Disc(context, uri, extension))
+        if (pickedIsPs1 && ps1Available) {
+            pickedIsN64 = false
+            pickedIsPsp = false
+            pickedIsDs = false
+            pickedIsMesen = false
+            pickedIsGenesis = false
+            say("$pickedName selected. That is a PlayStation disc. Press Start Game.")
+            return
+        }
         if (pickedIsPs1 && !ps1Available) {
             // Said at pick time, like the others below: on a build
             // without the PlayStation core (armeabi-v7a) this is the
@@ -488,6 +503,26 @@ fun LauncherScreen(
         pickRom.launch(arrayOf("*/*"))
     }
 
+    // ⛔ A CUE SHEET'S TRACKS NEED THEIR FOLDER. The game picker grants
+    // the one file picked; a .cue, .m3u or .ccd names others beside it.
+    // When the session reports that (Ps1GameSession.needsFolder), the
+    // player is asked for the folder once; the grant is kept, so every
+    // later disc in it starts without asking, and the start runs again.
+    var ps1RetryAfterFolder by remember { mutableStateOf(false) }
+    val pickPs1Folder = rememberLauncherForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { tree: Uri? ->
+        if (tree == null) {
+            say("No folder chosen. That disc needs the files it lists.")
+            return@rememberLauncherForActivityResult
+        }
+        if (!Ps1GameSession.rememberFolder(context, tree)) {
+            say("That folder could not be opened.")
+            return@rememberLauncherForActivityResult
+        }
+        ps1RetryAfterFolder = true
+    }
+
     // Start the pending game: the Start Game button's whole behaviour,
     // extracted so a game loaded from its own library page starts
     // exactly the way a game picked here starts — same routing, same
@@ -610,7 +645,11 @@ fun LauncherScreen(
             say("Loading $pickedName. A disc image can take a while to copy.")
             Ps1GameSession.start(activity, uri) { error ->
                 starting = false
-                if (error != null) {
+                if (error != null && Ps1GameSession.needsFolder) {
+                    problem = error
+                    say(error, interrupt = true)
+                    pickPs1Folder.launch(null)
+                } else if (error != null) {
                     problem = error
                     say(
                         "That game could not be started. $error",
@@ -745,6 +784,15 @@ fun LauncherScreen(
             )
         }
         true
+    }
+
+    // The folder picker's answer (above): the grant is kept, so start the
+    // same disc again now that its tracks can be copied.
+    LaunchedEffect(ps1RetryAfterFolder) {
+        if (!ps1RetryAfterFolder) return@LaunchedEffect
+        ps1RetryAfterFolder = false
+        say("Folder saved. Loading the disc again.")
+        startPickedGame()
     }
 
     val extensions = remember(available) {
@@ -2545,12 +2593,14 @@ private fun GenesisHoldButton(
 
 // ---- the PlayStation pad -----------------------------------------------------
 //
-// The Genesis pad's shape with the buttons the original PlayStation
-// digital pad has: the d-pad, the four face buttons by their names
-// (Cross, Circle, Square, Triangle), L1/R1 and Select/Start. L2, R2
-// and the analog sticks are not here yet: the shared host's button
-// set stops at L1/R1 (see Ps1Keys). No reader group below the pad, for
-// Genesis's reason: PlayStation has no reader in this build.
+// The Genesis pad's shape with the buttons a DualShock has: the d-pad,
+// the four face buttons by their names (Cross, Circle, Square,
+// Triangle), L1/R1/L2/R2, the stick clicks L3/R3 and Select/Start
+// (Ps1Keys; L2..R3 ride the shared host's extended slots). The sticks
+// themselves come from a controller (see ControllerInput): a touch
+// stick is no use to a player who cannot see it. No reader group
+// below the pad, for Genesis's reason: PlayStation has no reader in
+// this build.
 
 /** Move up / left / right / down. */
 @Composable
@@ -2578,13 +2628,22 @@ private fun Ps1ActionButtons(session: Ps1GameSession) {
     }
 }
 
-/** L1 and R1, the shoulder buttons the shared host carries. */
+/** L1, R1, L2 and R2, then the stick clicks L3 and R3. */
 @Composable
 private fun Ps1ShoulderButtons(session: Ps1GameSession) {
     GroupLabel("Shoulder buttons")
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
         Ps1HoldButton("L1", session, Ps1Keys.L1, Modifier.weight(1f))
         Ps1HoldButton("R1", session, Ps1Keys.R1, Modifier.weight(1f))
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Ps1HoldButton("L2", session, Ps1Keys.L2, Modifier.weight(1f))
+        Ps1HoldButton("R2", session, Ps1Keys.R2, Modifier.weight(1f))
+    }
+    GroupLabel("Stick buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Ps1HoldButton("L3", session, Ps1Keys.L3, Modifier.weight(1f))
+        Ps1HoldButton("R3", session, Ps1Keys.R3, Modifier.weight(1f))
     }
 }
 

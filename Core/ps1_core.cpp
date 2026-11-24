@@ -70,6 +70,8 @@ struct Ps1Core {
     unsigned long long frames = 0;
 
     uint16_t padMask = 0;               /* bit i = PS1_BTN_* i is down */
+    int16_t axis[2][2] = {{0, 0}, {0, 0}};  /* [stick][x,y], libretro's -32768..32767 */
+    double fps = 0.0;                   /* the loaded disc's frame rate */
     std::string error;
     std::string lastCoreError;          /* the core's own last error-level log line */
     std::string biosDir;                /* "" = HLE */
@@ -125,8 +127,10 @@ const char *OptionValue(const Ps1Core *c, const char *key)
     if (!strcmp(key, "pcsx_rearmed_drc")) return "disabled";
     /* Never skip frames on our behalf: the app paces frames itself. */
     if (!strcmp(key, "pcsx_rearmed_frameskip_type")) return "disabled";
-    /* A plain digital pad until the app has analog sticks for this console. */
-    if (!strcmp(key, "pcsx_rearmed_pad1type")) return "standard";
+    /* The pad is a DualShock (set at load). L3 + R3 together flip it between
+     * digital and analog by hand, the way the real controller's ANALOG button
+     * does; the core also switches it on for a game that asks. */
+    if (!strcmp(key, "pcsx_rearmed_analog_combo")) return "l3+r3";
     return nullptr;
 }
 
@@ -266,9 +270,13 @@ void InputPollCb(void) {}
 
 int16_t InputStateCb(unsigned port, unsigned device, unsigned index, unsigned id)
 {
-    (void) index;
     Ps1Core *c = gLive;
-    if (!c || port != 0 || device != RETRO_DEVICE_JOYPAD) return 0;
+    if (!c || port != 0) return 0;
+    if (device == RETRO_DEVICE_ANALOG) {
+        if (index > RETRO_DEVICE_INDEX_ANALOG_RIGHT || id > RETRO_DEVICE_ID_ANALOG_Y) return 0;
+        return c->axis[index][id];
+    }
+    if (device != RETRO_DEVICE_JOYPAD) return 0;
     /* libretro joypad ids → this core's buttons. Sony's layout on libretro's
      * SNES-shaped pad: Cross is B (bottom), Circle is A (right), Triangle is X
      * (top), Square is Y (left) — upstream's own input descriptors say so. */
@@ -386,6 +394,8 @@ bool ps1_load_disc(Ps1Core *core, const char *disc_path, const char *save_path,
     core->lastCoreError.clear();
     core->frames = 0;
     core->padMask = 0;
+    memset(core->axis, 0, sizeof(core->axis));
+    core->fps = 0.0;
     core->scratch = nullptr;
     core->biosRomMapped = false;
     core->frameRGBA.clear();
@@ -419,8 +429,17 @@ bool ps1_load_disc(Ps1Core *core, const char *disc_path, const char *save_path,
         SetError(core, msg.c_str());
         return false;
     }
-    oga_ps1_retro_set_controller_port_device(0, RETRO_DEVICE_JOYPAD);
+    /* A DualShock, not a digital pad: it starts in digital mode, so every
+     * digital game still sees the pad it expects, and the sticks are there
+     * for the games that use them. upstream's subclass id, by value. */
+    oga_ps1_retro_set_controller_port_device(0, RETRO_DEVICE_SUBCLASS(RETRO_DEVICE_ANALOG, 1));
     core->loaded = true;
+    {
+        struct retro_system_av_info av;
+        memset(&av, 0, sizeof(av));
+        oga_ps1_retro_get_system_av_info(&av);
+        core->fps = av.timing.fps > 0.0 ? av.timing.fps : 0.0;
+    }
 
     /* HLE or a real BIOS: the core publishes the BIOS ROM region in its
      * memory map only when a real BIOS is in use (set_retro_memmap), so its
@@ -501,6 +520,24 @@ void ps1_set_button(Ps1Core *core, int ps1_button, bool down)
     uint16_t bit = (uint16_t) (1u << ps1_button);
     if (down) core->padMask |= bit;
     else core->padMask &= (uint16_t) ~bit;
+}
+
+void ps1_set_analog(Ps1Core *core, int stick, float x, float y)
+{
+    if (!core || stick < PS1_STICK_LEFT || stick > PS1_STICK_RIGHT) return;
+    auto axis = [](float v) -> int16_t {
+        if (!(v == v)) v = 0.0f;                  /* NaN reads as centred */
+        if (v > 1.0f) v = 1.0f;
+        if (v < -1.0f) v = -1.0f;
+        return (int16_t) (v >= 0.0f ? v * 32767.0f : v * 32768.0f);
+    };
+    core->axis[stick][0] = axis(x);
+    core->axis[stick][1] = axis(y);
+}
+
+double ps1_frame_rate(Ps1Core *core)
+{
+    return core && core->loaded ? core->fps : 0.0;
 }
 
 int ps1_read_audio(Ps1Core *core, int16_t *out, int max_frames)
