@@ -99,14 +99,14 @@ row "$KB" 'KeyEvent.KEYCODE_S -> { faceButton(Face.NORTH, source, pressed); true
 
 echo
 echo "== shoulders and Start"
-row "$KB" 'KeyEvent.KEYCODE_Q -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X, Ps1Keys.L1), pressed); true }' "Q is L1 (the pad's L1 targets)"
-row "$KB" 'KeyEvent.KEYCODE_W -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z, Ps1Keys.R1), pressed); true }' "W is R1 (the pad's R1 targets)"
-row "$KB" 'KeyEvent.KEYCODE_ENTER -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START, Ps1Keys.START), pressed); true }' "Enter is Start"
+row "$KB" 'KeyEvent.KEYCODE_Q -> { set(source, emuButton(GbKeys.L, PspKeys.L, MesenKeys.L, GenesisKeys.X, Ps1Keys.L1, N64Keys.Z), pressed); true }' "Q is L1 (the pad's L1 targets)"
+row "$KB" 'KeyEvent.KEYCODE_W -> { set(source, emuButton(GbKeys.R, PspKeys.R, MesenKeys.R, GenesisKeys.Z, Ps1Keys.R1, N64Keys.R), pressed); true }' "W is R1 (the pad's R1 targets)"
+row "$KB" 'KeyEvent.KEYCODE_ENTER -> { set(source, emuButton(GbKeys.START, PspKeys.START, MesenKeys.START, GenesisKeys.START, Ps1Keys.START, N64Keys.START), pressed); true }' "Enter is Start"
 
 echo
 echo "== Shift: Select on an unused tap, category modifier with J/L"
 row "$KB" 'KeyEvent.KEYCODE_SHIFT_LEFT, KeyEvent.KEYCODE_SHIFT_RIGHT -> { shiftKey(source, pressed); true }' "Shift routes to its own two-job handler"
-row "$SK" 'val button = emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE, Ps1Keys.SELECT)' "the Shift tap means Select (the pad's Select targets)"
+row "$SK" 'val button = emuButton(GbKeys.SELECT, PspKeys.SELECT, MesenKeys.SELECT, GenesisKeys.MODE, Ps1Keys.SELECT, N64Keys.C_DOWN)' "the Shift tap means Select (the pad's Select targets)"
 row "$SK" 'if (shiftHeld.isEmpty() && shiftTapArmed) {' "Select fires only when the last Shift comes up with its tap still armed"
 row "$SK" 'set(source, button, true)' "the tap presses Select"
 row "$SK" 'set(source, button, false)' "the tap releases Select (pressed and released at once)"
