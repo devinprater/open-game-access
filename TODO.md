@@ -1038,8 +1038,8 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   docs/reverse-engineering/kingdom-hearts-birth-by-sleep.md.
 
 - [~] **Pokémon Stadium (N64, USA Rev 2) — data and spec, no adapter yet:**
-  OGA has no N64 core, so this is address/spec work that transfers when a core
-  lands. Crowned and screen-verified: the party store (HP, species, level,
+  the N64 core (Mupen64Plus-Next) now runs on iOS and Android, so this
+  address/spec work is ready for an adapter; none is written yet. Crowned and screen-verified: the party store (HP, species, level,
   status byte, moves + PP for all six, both teams), HUD HP, the battle-phase
   word, the "Keep battling?" dialog word, and stat-stage indices 0 (Special),
   2 (Defense) and 3 (Attack). Battles 1–3 are banked via Save and Quit. Still

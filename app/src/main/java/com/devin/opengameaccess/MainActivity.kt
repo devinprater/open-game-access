@@ -129,6 +129,7 @@ class MainActivity : ComponentActivity() {
             MesenGameSession.attachAnnouncementView(view)
             GenesisGameSession.attachAnnouncementView(view)
             Ps1GameSession.attachAnnouncementView(view)
+            N64GameSession.attachAnnouncementView(view)
         }
 
         // ⛔ RE-ATTACH ON RESUME, not only on recomposition. The SideEffect
@@ -150,6 +151,7 @@ class MainActivity : ComponentActivity() {
                     MesenGameSession.attachAnnouncementView(view)
                     GenesisGameSession.attachAnnouncementView(view)
                     Ps1GameSession.attachAnnouncementView(view)
+                    N64GameSession.attachAnnouncementView(view)
                 }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
@@ -205,7 +207,7 @@ class MainActivity : ComponentActivity() {
             // ⛔ ONE LINE, ON PURPOSE: the launcher contract test checks
             // line by line that every AccessibilityScript call in this
             // Activity is guarded by a running game on the same line.
-            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning) AccessibilityScript.speak(text, interrupt)
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || N64GameSession.isRunning) AccessibilityScript.speak(text, interrupt)
         }
 
         // The repeat walk's refusal channel: feedback ABOUT the spoken
@@ -215,7 +217,7 @@ class MainActivity : ComponentActivity() {
         // AccessibilitySpeech.speakControl). Same guard, same line
         // shape, for the same contract test.
         val announceControlLine: (String) -> Unit = { text ->
-            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning) AccessibilityScript.speakControl(text)
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || N64GameSession.isRunning) AccessibilityScript.speakControl(text)
         }
 
         var showSettings by remember { mutableStateOf(false) }
@@ -371,6 +373,7 @@ class MainActivity : ComponentActivity() {
         MesenGameSession.stop()
         GenesisGameSession.stop()
         Ps1GameSession.stop()
+        N64GameSession.stop()
         super.onDestroy()
     }
 }

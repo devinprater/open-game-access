@@ -22,6 +22,8 @@ on:
       - 'scripts/android-*.sh'                  # the overlay, port, JIT check
       - 'scripts/check-reader-assets.sh'
       - 'scripts/core-sources.sh'               # the audited source lists
+      - 'scripts/m64p-*.sh'                     # the N64 core's rename and archive passes
+      - 'scripts/n64-android-cmake.py'          # the N64 core's CMake subproject
       - 'scripts/bootstrap-deps.sh'
       - 'scripts/ppsspp-subset-test.sh'         # the PPSSPP subset gate below
       - 'scripts/ppsspp-stage-assets.sh'        # stages the PSP runtime assets
@@ -171,6 +173,10 @@ jobs:
           # ⛔ REQUIRED since the PlayStation core landed, for the same reason:
           # bootstrap-deps.sh fetches PCSX ReARMed here.
           PCSX_SRC: ${{ runner.temp }}/src/pcsx_rearmed
+          # ⛔ REQUIRED since the Nintendo 64 core landed on Android (overlay
+          # section 10c), for the same reason: bootstrap-deps.sh fetches
+          # Mupen64Plus-Next here.
+          M64P_SRC: ${{ runner.temp }}/src/mupen64plus-libretro-nx
           # Where the ffmpeg step above put the Android installs; the
           # overlay stages them into the frontend tree from here.
           FFMPEG_ANDROID_OUT: ${{ runner.temp }}/ffmpeg-android

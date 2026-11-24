@@ -1154,6 +1154,185 @@ else:
         "Select)",
         "the PlayStation arm of ControllerInput is missing or moved")
 
+# ---- 12c. THE NINTENDO 64 SESSION: SLOTS, JNI, STICK, ROUTING, THE PAGE ---
+# Section 12b's checks over the Nintendo 64 session that the
+# Mupen64Plus-Next backend (Core/n64_core.cpp) sits behind. Twists:
+#  * The slots carry N64 names (Z on L, C-down on Select, C-left on X,
+#    C-right on Y), checked against pokecore.h AND the core's kN64Button
+#    table AND n64_core.h's N64_BTN_* defines.
+#  * The analog stick is its own JNI call (poke_set_analog), and the
+#    controller layer must send the left stick there while N64 runs.
+#  * Frames run on the session's own thread, never a Compose frame clock,
+#    and everything that touches the whole core between frames is locked.
+#  * The overlay builds the core 64-bit only (section 10c) and must put
+#    the JNI surface in the frontend target under the same gate.
+#  * The page stays honest: no Nintendo 64 reader exists.
+N64_SESSION_KT = "app/src/main/java/com/devin/opengameaccess/N64GameSession.kt"
+N64_SCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+                 "accessibility/N64AccessibilityScript.kt")
+N64_RESOLVER_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
+                   "accessibility/N64RomResolver.kt")
+N64_JNI_CPP = "app/native-overlay/app/src/main/cpp/N64SessionJNI.cpp"
+N64_CORE_H = "Core/n64_core.h"
+for rel in (N64_SESSION_KT, N64_SCRIPT_KT, N64_RESOLVER_KT, N64_JNI_CPP,
+            N64_CORE_H):
+    if not os.path.exists(rel):
+        print("!! %s is missing; refusing to report a pass" % rel)
+        sys.exit(1)
+
+n64_session = strip_kt(read(N64_SESSION_KT))
+N64_SLOTS = {"A": "A", "B": "B", "C_DOWN": "SELECT", "START": "START",
+             "RIGHT": "RIGHT", "LEFT": "LEFT", "UP": "UP", "DOWN": "DOWN",
+             "R": "R", "Z": "L", "C_LEFT": "X", "C_RIGHT": "Y"}
+block = re.search(r"object\s+N64Keys\s*\{(.*?)\}", n64_session, re.S)
+if not block:
+    bad("N64Keys is defined", "no `object N64Keys {` found")
+else:
+    got_n64 = {k: int(v) for k, v in
+               re.findall(r"const\s+val\s+(\w+)\s*=\s*(\d+)", block.group(1))}
+    wrong = {k: (got_n64.get(k), want_ds[slot])
+             for k, slot in N64_SLOTS.items()
+             if got_n64.get(k) != want_ds[slot]}
+    if not wrong and len(got_n64) == 12:
+        ok("the Nintendo 64 button ids are the shared slots their names "
+           "ride (%d buttons)" % len(got_n64))
+    else:
+        bad("the Nintendo 64 button ids are the shared slots their names "
+            "ride", "differs: %s (count %d)" % (wrong, len(got_n64)))
+
+n64_btns = {k: int(v) for k, v in
+            re.findall(r"#define\s+N64_BTN_(\w+)\s+(\d+)", read(N64_CORE_H))}
+table = re.search(r"kN64Button\[12\]\s*=\s*\{(.*?)\};",
+                  read(OGA_CORE_CPP), re.S)
+table_names = re.findall(r"N64_BTN_(\w+)", table.group(1)) if table else []
+wrong = {}
+if len(table_names) != 12:
+    wrong["table"] = table_names
+else:
+    for name, slot in N64_SLOTS.items():
+        idx = want_ds[slot]
+        if table_names[idx] != name or name not in n64_btns:
+            wrong[name] = (table_names[idx], n64_btns.get(name))
+if not wrong:
+    ok("the core's Nintendo 64 translation table lands every slot on "
+       "the same-named N64_BTN_*")
+else:
+    bad("the core's Nintendo 64 translation table lands every slot on "
+        "the same-named N64_BTN_*", "differs: %s" % wrong)
+
+n64_kt = read(N64_SCRIPT_KT)
+n64_jni_raw = read(N64_JNI_CPP)
+n64_jni_symbols = set(re.findall(r"Java_[A-Za-z0-9_]+", n64_jni_raw))
+n64_externals = re.findall(r"external\s+fun\s+(\w+)\s*\(", n64_kt)
+unbound = [n for n in n64_externals
+           if ("Java_me_magnum_melonds_accessibility_"
+               "N64AccessibilityScript_" + n) not in n64_jni_symbols]
+if n64_externals and not unbound:
+    ok("every Nintendo 64 external fun has its exact JNI symbol (%d)"
+       % len(n64_externals))
+else:
+    bad("every Nintendo 64 external fun has its exact JNI symbol",
+        "unbound: %s" % unbound)
+
+if ("nativeN64SetStick" in n64_externals
+        and "poke_set_analog(" in n64_jni_raw):
+    ok("the Nintendo 64 stick reaches the core's analog input")
+else:
+    bad("the Nintendo 64 stick reaches the core's analog input",
+        "nativeN64SetStick is missing, or its JNI body does not call "
+        "poke_set_analog")
+
+if ("coreAvailable" in n64_session and "isCoreLinked" in n64_session
+        and "UnsatisfiedLinkError" in n64_session):
+    ok("Nintendo 64 availability is the guarded native probe")
+else:
+    bad("Nintendo 64 availability is the guarded native probe",
+        "the probe must reach the JNI existence check behind an "
+        "UnsatisfiedLinkError catch")
+
+frame_body = re.search(r"fun\s+frameLoop\(.*?\n    \}\n", n64_session, re.S)
+locked = all(re.search(r"fun\s+%s\(.*?synchronized\s*\(\s*frameLock\s*\)" % f,
+                       n64_session, re.S)
+             for f in ("saveState", "loadState", "currentFrame"))
+if (frame_body and "synchronized(frameLock)" in frame_body.group(0)
+        and "runFrame()" in frame_body.group(0) and locked
+        and "rememberN64FrameClock" not in screen_kt
+        and "stopFrameLoop()" in n64_session):
+    ok("Nintendo 64 frames run on the session's own thread, locked "
+       "against the picture and the savestates")
+else:
+    bad("Nintendo 64 frames run on the session's own thread, locked "
+        "against the picture and the savestates",
+        "the frame loop, its lock, the locked whole-core calls or the "
+        "joined stop is missing (or a Compose clock came back)")
+
+if "N64GameSession.start(" in screen_raw and '"z64"' in n64_kt:
+    ok("the launcher routes Nintendo 64 cartridges (.z64) to the "
+       "Nintendo 64 session")
+else:
+    bad("the launcher routes Nintendo 64 cartridges (.z64) to the "
+        "Nintendo 64 session",
+        "no N64GameSession.start in the screen, or the extension set "
+        "lost z64")
+
+n64_cmake = re.search(r"OGA_N64.*?endif", overlay_sh, re.S)
+if ("oga-n64-glue" in overlay_sh and "n64-android-cmake.py" in overlay_sh
+        and n64_cmake and "N64SessionJNI.cpp" in n64_cmake.group(0)
+        and "armeabi-v7a" in n64_cmake.group(0)):
+    ok("the overlay builds the Nintendo 64 core and puts its JNI surface "
+       "in the frontend, 64-bit only")
+else:
+    bad("the overlay builds the Nintendo 64 core and puts its JNI surface "
+        "in the frontend, 64-bit only",
+        "section 10c's staging or the gated N64SessionJNI.cpp source is "
+        "missing from android-apply-overlay.sh")
+
+if ("N64GameSession.attachAnnouncementView" in activity_raw
+        and "N64GameSession.isRunning" in activity_raw
+        and "N64GameSession.stop()" in activity_raw):
+    ok("the Nintendo 64 session builds the shared speech bridge, the "
+       "launcher guard covers it and the Activity stops it")
+else:
+    bad("the Nintendo 64 session builds the shared speech bridge, the "
+        "launcher guard covers it and the Activity stops it",
+        "the view attach, the widened guard or the onDestroy stop is "
+        "missing from MainActivity")
+
+if ("BackHandler(enabled = n64Running)" in screen_kt
+        and "N64GameSession.currentFrame()" in screen_raw
+        and "QuitN64Game(N64GameSession" in screen_kt
+        and "N64StickButtons(N64GameSession)" in screen_kt):
+    ok("the Nintendo 64 page quits on Back, shows the game picture, has "
+       "the stick and quits with a save first")
+else:
+    bad("the Nintendo 64 page quits on Back, shows the game picture, has "
+        "the stick and quits with a save first",
+        "the Back handler, the GamePicture branch, the stick or the quit "
+        "control is missing")
+
+if "N64ReaderGroup" not in screen_kt and "n64Running ->" in screen_kt:
+    ok("the Nintendo 64 page offers no reader group and answers Where "
+       "Am I honestly")
+else:
+    bad("the Nintendo 64 page offers no reader group and answers Where "
+        "Am I honestly",
+        "an N64ReaderGroup appeared (no Nintendo 64 reader exists), or "
+        "the Where Am I arm is missing")
+
+if ("EmuButton.N64" in controller_kt
+        and "N64Keys.Z" in controller_kt and "N64Keys.R" in controller_kt
+        and "N64Keys.A" in controller_kt
+        and "N64Keys.C_DOWN" in controller_kt
+        and "N64GameSession.pressButton" in controller_kt
+        and "N64GameSession.setStick" in controller_kt):
+    ok("the controller layer drives Nintendo 64 (A south, Z/R, C-down, "
+       "the analog stick)")
+else:
+    bad("the controller layer drives Nintendo 64 (A south, Z/R, C-down, "
+        "the analog stick)",
+        "the Nintendo 64 arm of ControllerInput is missing or moved")
+
+
 # ---- 13. THE MESEN SESSION: BUTTON IDS, JNI, READER SETS, THE PAGES -----
 # Parity stage 5 adds a fourth session beside GB, PSP and DS, over the
 # SAME shared Core host (Core/pokecore.cpp): its NES and SNES branches,

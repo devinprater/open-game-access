@@ -158,6 +158,11 @@ jobs:
       - uses: actions/checkout@v4
       - name: N64 host proof (Mupen64Plus-Next, synthetic cartridge)
         run: bash scripts/n64-host-proof.sh
+      # The same core through the Android build's own CMake subproject (the
+      # overlay's section 10c), rename pass and archive included, booted on
+      # the host: the APK build only proves it links for the phone.
+      - name: N64 Android subproject builds, isolates and boots (host)
+        run: bash scripts/n64-android-cmake-test.sh
   # The PlayStation core (PCSX ReARMed), built exactly as the app builds it and
   # booted on a tiny PS-EXE the test writes itself: no disc, no BIOS. Its own
   # job because it clones and compiles the pinned core (about a minute).
