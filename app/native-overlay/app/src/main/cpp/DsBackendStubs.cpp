@@ -74,6 +74,7 @@ bool gba_load_rom(GbaCore *, const char *, const char *, char[16], int *) {
 bool gba_set_exec_hook(GbaCore *, uint32_t, int) { return false; }
 bool gba_clear_exec_hook(GbaCore *, uint32_t) { return false; }
 bool gba_hooks_active(GbaCore *) { return false; }
+bool gba_set_debug_hook(GbaCore *, uint32_t, bool, GbaDebugHit, void *) { return false; }
 
 bool gba_start(GbaCore *) { return false; }
 void gba_stop(GbaCore *) {}

@@ -50,6 +50,8 @@ object DsAccessibilityScript
     private external fun setDsSpeechBridge(bridge: Any?)
     private external fun nativeDsSetScript(script: String)
     private external fun nativeDsLoadRom(romPath: String, savePath: String): Boolean
+    private external fun nativeDsSetDebugDir(dir: String)
+    private external fun nativeDsDebugCommand(text: String)
     private external fun nativeDsGameCode(): String
     private external fun nativeDsLastError(): String
     private external fun nativeDsStart(): Boolean
@@ -98,6 +100,23 @@ object DsAccessibilityScript
     fun setScript(script: String)
     {
         nativeDsSetScript(script)
+    }
+
+    /**
+     * The in-game debug channel's folder (docs/design/debug-channel.md):
+     * a cmd.txt saved there runs against the live game, and the replies
+     * land in replies.log beside it. Kept across loads and applied to
+     * every core created after it; "" turns the file off.
+     */
+    fun setDebugDir(dir: String)
+    {
+        nativeDsSetDebugDir(dir)
+    }
+
+    /** The same commands without the file; runs on the next frame. */
+    fun debugCommand(text: String)
+    {
+        nativeDsDebugCommand(text)
     }
 
     /**

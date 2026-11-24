@@ -292,6 +292,14 @@ object DsGameSession {
                 Log.e(TAG, "DS script could not be handed to the core", t)
                 return "The DS core is not in this build."
             }
+            // The debug channel's folder goes in before the load too, so
+            // the new core reads cmd.txt from its first frame. Never fatal:
+            // a missing folder only means no file-driven commands.
+            try {
+                DsAccessibilityScript.setDebugDir(DebugChannel.dir(context))
+            } catch (t: Throwable) {
+                Log.w(TAG, "debug channel folder not set", t)
+            }
             val loaded = try {
                 DsAccessibilityScript.loadRom(romPath, savePath)
             } catch (t: Throwable) {

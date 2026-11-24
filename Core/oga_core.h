@@ -157,6 +157,20 @@ typedef struct OgaCoreOps {
      * lease (frame-counted expiry) and player arbitration; see
      * snes_core.h for the reference implementation. */
     void (*set_direction)(void* state, int dir, bool down);
+
+    /* ---- memory writes (the in-game debug channel's `poke`) ----
+     *
+     * TRAILING member, NULL by default, and NULL is the honest answer for
+     * most consoles: the NES is read-only by contract (mesen_core.h) and
+     * the Game Boy and Genesis have no write path here. It exists because
+     * three backends already had one (the DS's flat RAM domains, PPSSPP's
+     * psp_debug_write, MesenCE's snes_write) and the debug channel
+     * (Core/debug_channel.h) is their one caller.
+     *
+     * ⛔ NOT AN ADAPTER VERB. Adapters read the game and press its real
+     * buttons; they never write RAM. pokecore wires this only into the
+     * debug channel's host, never into oga::Host. */
+    bool (*write)(void* state, uint32_t addr, int width, uint32_t value);
 } OgaCoreOps;
 
 /* A live backend: which ops, and the state they act on. */

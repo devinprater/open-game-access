@@ -23,6 +23,7 @@ stage() {
   cp Core/psp_core.h "$TMP/t/Core/"
   cp Core/adapter.h "$TMP/t/Core/"
   cp Core/genesis_core.h "$TMP/t/Core/"
+  cp Core/ps1_core.h "$TMP/t/Core/"
   cp Core/oga_core.cpp "$TMP/t/Core/"
   cp Core/dissidia_adapter.cpp Core/dissidia012_adapter.cpp Core/dbzar_adapter.cpp Core/mku_adapter.cpp \
      Core/khbbs_adapter.cpp "$TMP/t/Core/"
@@ -42,6 +43,8 @@ stage() {
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/MesenAccessibilityScript.kt \
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/GenesisAccessibilityScript.kt \
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/GenesisRomResolver.kt \
+     app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/Ps1AccessibilityScript.kt \
+     app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/Ps1RomResolver.kt \
      "$TMP/t/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/"
   cp app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp \
      app/native-overlay/app/src/main/cpp/PspSessionJNI.cpp \
@@ -50,6 +53,7 @@ stage() {
      app/native-overlay/app/src/main/cpp/MesenSessionJNI.cpp \
      app/native-overlay/app/src/main/cpp/DsBackendStubs.cpp \
      app/native-overlay/app/src/main/cpp/GenesisSessionJNI.cpp \
+     app/native-overlay/app/src/main/cpp/Ps1SessionJNI.cpp \
      "$TMP/t/app/native-overlay/app/src/main/cpp/"
   cp scripts/android-apply-overlay.sh "$TMP/t/scripts/"
   cp "$TEST" "$TMP/t/scripts/"
@@ -152,6 +156,18 @@ case_genjni() {  # sabotage: rename a Genesis JNI symbol so it no longer resolve
   sed -i 's/Java_me_magnum_melonds_accessibility_GenesisAccessibilityScript_nativeGenesisLoadRom/Java_me_magnum_melonds_accessibility_GenesisAccessibilityScript_nativeGenesisLoadRomRenamed/' \
      "$TMP/t/app/native-overlay/app/src/main/cpp/GenesisSessionJNI.cpp"
 }
+case_ps1keys() {  # sabotage: swap the PlayStation Cross and Circle slot ids
+  sed -i 's/const val CROSS = 0/const val CROSS = 1/; s/const val CIRCLE = 1/const val CIRCLE = 0/' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/Ps1GameSession.kt"
+}
+case_ps1jni() {  # sabotage: rename a PlayStation JNI symbol so it no longer resolves
+  sed -i 's/Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1LoadRom/Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1LoadRomRenamed/' \
+     "$TMP/t/app/native-overlay/app/src/main/cpp/Ps1SessionJNI.cpp"
+}
+case_ps1bios() {  # sabotage: the BIOS pick stops being imported (a BIOS becomes a "game")
+  sed -i 's/Ps1GameSession\.isBiosName(pickedName)/false/' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/ui/LauncherScreen.kt"
+}
 case_pspsupported() {  # sabotage: a generated command set drops a real button
   sed -i 's/commands = listOf(0, 7, 1, 3, 43, 41, 40, 6)/commands = listOf(0, 7, 1, 3, 41, 40, 6)/' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
@@ -169,7 +185,7 @@ else
   bad=1
 fi
 
-for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys mesenjni mesenkeys mesenstubs genkeys genjni; do
+for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys mesenjni mesenkeys mesenstubs genkeys genjni ps1keys ps1jni ps1bios; do
   stage
   "case_$s"
   if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then

@@ -61,6 +61,8 @@ object GenesisAccessibilityScript
     private external fun nativeGenesisAvailable(): Boolean
     private external fun setGenesisSpeechBridge(bridge: Any?)
     private external fun nativeGenesisLoadRom(romPath: String, savePath: String): Boolean
+    private external fun nativeGenesisSetDebugDir(dir: String)
+    private external fun nativeGenesisDebugCommand(text: String)
     private external fun nativeGenesisGameCode(): String
     private external fun nativeGenesisLastError(): String
     private external fun nativeGenesisStart(): Boolean
@@ -96,6 +98,23 @@ object GenesisAccessibilityScript
     {
         val name = uri.lastPathSegment ?: uri.toString()
         return handlesExtension(name.substringAfterLast('.', ""))
+    }
+
+    /**
+     * The in-game debug channel's folder (docs/design/debug-channel.md):
+     * a cmd.txt saved there runs against the live game, and the replies
+     * land in replies.log beside it. Kept across loads and applied to
+     * every core created after it; "" turns the file off.
+     */
+    fun setDebugDir(dir: String)
+    {
+        nativeGenesisSetDebugDir(dir)
+    }
+
+    /** The same commands without the file; runs on the next frame. */
+    fun debugCommand(text: String)
+    {
+        nativeGenesisDebugCommand(text)
     }
 
     /**
