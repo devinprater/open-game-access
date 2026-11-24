@@ -1835,9 +1835,6 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
         if (backend->snes_hint) return LoadSnesRom(core, rom_path, save_path);
         if (backend->genesis_hint) return LoadGenesisRom(core, rom_path, save_path);
         if (backend->n64_hint) return LoadN64Rom(core, rom_path, save_path);
-    return true;
-}
-
         if (backend->ps1_hint) return LoadPs1Rom(core, rom_path, save_path);
         if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
     }
