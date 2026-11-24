@@ -955,20 +955,19 @@ object ControllerInput {
             }
             is Action.Hotkey -> GbGameSession.tapHotkey(action.key)
             Action.StopSpeech -> {
+                // Every branch is the session's stopSpeech, which stops the
+                // voice and clears the core's queue and NEVER ends the game
+                // (scripts/android-stop-speech-test.py).
                 val context = appContext
                 if (PspGameSession.isRunning && context != null) {
                     PspGameSession.stopSpeech(context)
                 } else if (MesenGameSession.isRunning && context != null) {
                     MesenGameSession.stopSpeech(context)
                 } else if (GenesisGameSession.isRunning && context != null) {
-                    // The bridge stop is the whole of it (no reader
-                    // queue behind it — see GenesisGameSession).
                     GenesisGameSession.stopSpeech(context)
                 } else if (Ps1GameSession.isRunning && context != null) {
-                    // The same for PlayStation: no reader queue behind it.
                     Ps1GameSession.stopSpeech(context)
                 } else if (N64GameSession.isRunning && context != null) {
-                    // And for Nintendo 64: no reader queue behind it.
                     N64GameSession.stopSpeech(context)
                 } else {
                     GbGameSession.stopSpeech()
