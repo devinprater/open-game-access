@@ -79,6 +79,30 @@ GPGX_REPO="${GPGX_REPO:-https://github.com/ekeeke/Genesis-Plus-GX.git}"
 GPGX_REV="${GPGX_REV:-a5834b3df455c49bb97bfaa328c20845831f576b}"
 fetch "$GPGX_REPO" genesis-plus-gx "$GPGX_REV"
 
+# ---- Mupen64Plus-Next (Nintendo 64 core) ----
+# Fetched for the audited TU list in core-sources.sh (M64P_ALL): the libretro
+# port's software path only (angrylion RDP, cxd4 RSP, interpreters). No build
+# system of upstream's is run, and no submodule is needed: the tree vendors
+# everything the set uses. OGA's own pieces are NOT fetched: the GL-free
+# glsm shim (Core/n64/), the GLideN64 stubs (Core/n64_m64p_stubs.c) and the
+# frontend (Core/n64_core.cpp).
+#
+# LICENCE: the repository's LICENSE is the GPL version 2 text, and the
+# Mupen64Plus core, its HLE RSP and the libretro glue carry "GPL version 2 or
+# (at your option) any later version" headers, which is compatible with this
+# project's GPL-3.0 (distributed under v3). Other parts in the set: cxd4 RSP is
+# CC0 public domain; libretro-common is MIT-style; libco is public domain;
+# angrylion's RDP files carry no header of their own and ship under the
+# repository's GPL. Record of the check: docs/emulator-inventory.md.
+#
+# PINNED BY HOST ADMISSIBILITY, the house pattern: at this exact revision the
+# 108-TU software set compiles, links against libc + pthread only, and boots
+# the synthetic cartridge (scripts/n64-host-proof.sh: video, audio, RDRAM
+# reads, savestates, a second boot in one process). A pin bump re-runs that.
+M64P_REPO="${M64P_REPO:-https://github.com/libretro/mupen64plus-libretro-nx.git}"
+M64P_REV="${M64P_REV:-15bada85906593376e8fd697f1b0b3af3a20f512}"
+fetch "$M64P_REPO" mupen64plus-libretro-nx "$M64P_REV"
+
 # ---- PPSSPP (PlayStation Portable core) ----
 # Fetched for headers + the audited IR-interpreter/software-GPU TU subset in
 # core-sources.sh. No CMake: the build scripts compile the subset directly.
@@ -200,6 +224,7 @@ cat <<EOF
   mgba         $( [ -d mgba ] && echo present || echo MISSING )
   ppsspp       $( [ -d ppsspp ] && echo present || echo MISSING )
   genesis-plus-gx $( [ -d genesis-plus-gx ] && echo present || echo MISSING )
+  mupen64plus-libretro-nx $( [ -d mupen64plus-libretro-nx ] && echo present || echo MISSING )
   lua-$LUA_VER      $( [ -d "lua-$LUA_VER" ] && echo present || echo MISSING )
 
 Next:
