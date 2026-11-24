@@ -24,6 +24,7 @@ stage() {
   cp Core/adapter.h "$TMP/t/Core/"
   cp Core/genesis_core.h "$TMP/t/Core/"
   cp Core/ps1_core.h "$TMP/t/Core/"
+  cp Core/n64_core.h "$TMP/t/Core/"
   cp Core/oga_core.cpp "$TMP/t/Core/"
   cp Core/dissidia_adapter.cpp Core/dissidia012_adapter.cpp Core/dbzar_adapter.cpp Core/mku_adapter.cpp \
      Core/khbbs_adapter.cpp "$TMP/t/Core/"
@@ -45,6 +46,8 @@ stage() {
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/GenesisRomResolver.kt \
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/Ps1AccessibilityScript.kt \
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/Ps1RomResolver.kt \
+     app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/N64AccessibilityScript.kt \
+     app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/N64RomResolver.kt \
      "$TMP/t/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/"
   cp app/native-overlay/app/src/main/cpp/GbSessionJNI.cpp \
      app/native-overlay/app/src/main/cpp/PspSessionJNI.cpp \
@@ -54,6 +57,7 @@ stage() {
      app/native-overlay/app/src/main/cpp/DsBackendStubs.cpp \
      app/native-overlay/app/src/main/cpp/GenesisSessionJNI.cpp \
      app/native-overlay/app/src/main/cpp/Ps1SessionJNI.cpp \
+     app/native-overlay/app/src/main/cpp/N64SessionJNI.cpp \
      "$TMP/t/app/native-overlay/app/src/main/cpp/"
   cp scripts/android-apply-overlay.sh "$TMP/t/scripts/"
   cp "$TEST" "$TMP/t/scripts/"
@@ -201,6 +205,22 @@ case_ps1triggers() {  # sabotage: a controller's L2 stays a reader modifier on t
   sed -i 's/EmuButton.Ps1(Ps1Keys.L2)/EmuButton.Ps1(Ps1Keys.L1)/g' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/ControllerInput.kt"
 }
+case_n64keys() {  # sabotage: swap the Nintendo 64 Z and R slot ids
+  sed -i 's/const val R = 8/const val R = 9/; s/const val Z = 9/const val Z = 8/' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/N64GameSession.kt"
+}
+case_n64jni() {  # sabotage: rename a Nintendo 64 JNI symbol so it no longer resolves
+  sed -i 's/Java_me_magnum_melonds_accessibility_N64AccessibilityScript_nativeN64LoadRom/Java_me_magnum_melonds_accessibility_N64AccessibilityScript_nativeN64LoadRomRenamed/' \
+     "$TMP/t/app/native-overlay/app/src/main/cpp/N64SessionJNI.cpp"
+}
+case_n64stick() {  # sabotage: the controller's left stick stops reaching the N64 analog input
+  sed -i 's/N64GameSession\.setStick(x \* scale, y \* scale)/Unit/; s/N64GameSession\.setStick(0f, 0f)/Unit/g' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/ControllerInput.kt"
+}
+case_n64thread() {  # sabotage: the frame loop runs a frame outside the frame lock
+  sed -i 's/val ok = synchronized(frameLock) {/val ok = run {/' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/N64GameSession.kt"
+}
 case_pspsupported() {  # sabotage: a generated command set drops a real button
   sed -i 's/commands = listOf(0, 7, 1, 3, 43, 41, 40, 6)/commands = listOf(0, 7, 1, 3, 41, 40, 6)/' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
@@ -218,7 +238,7 @@ else
   bad=1
 fi
 
-for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys mesenjni mesenkeys mesenstubs genkeys genjni ps1keys ps1jni ps1bios ps1sniff ps1folder ps1clock ps1triggers gbstopspeech gbprobe gbstubs gbglue; do
+for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys mesenjni mesenkeys mesenstubs genkeys genjni ps1keys ps1jni ps1bios ps1sniff ps1folder ps1clock ps1triggers n64keys n64jni n64stick n64thread gbstopspeech gbprobe gbstubs gbglue; do
   stage
   "case_$s"
   if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then

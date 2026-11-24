@@ -67,6 +67,8 @@ import com.devin.opengameaccess.GbGameSession
 import com.devin.opengameaccess.GbKeys
 import com.devin.opengameaccess.GenesisGameSession
 import com.devin.opengameaccess.GenesisKeys
+import com.devin.opengameaccess.N64GameSession
+import com.devin.opengameaccess.N64Keys
 import com.devin.opengameaccess.Ps1GameSession
 import com.devin.opengameaccess.Ps1Keys
 import com.devin.opengameaccess.PspAdapterCommands
@@ -121,7 +123,8 @@ fun LauncherScreen(
     val mesenAvailable = remember { MesenGameSession.coreAvailable(context) }
     val genesisAvailable = remember { GenesisGameSession.coreAvailable(context) }
     val ps1Available = remember { Ps1GameSession.coreAvailable(context) }
-    val available = gbAvailable || pspAvailable || dsAvailable || mesenAvailable || genesisAvailable || ps1Available
+    val n64Available = remember { N64GameSession.coreAvailable(context) }
+    val available = gbAvailable || pspAvailable || dsAvailable || mesenAvailable || genesisAvailable || ps1Available || n64Available
 
     var pickedUri by remember { mutableStateOf<Uri?>(null) }
     var pickedName by remember { mutableStateOf("") }
@@ -130,6 +133,7 @@ fun LauncherScreen(
     var pickedIsMesen by remember { mutableStateOf(false) }
     var pickedIsGenesis by remember { mutableStateOf(false) }
     var pickedIsPs1 by remember { mutableStateOf(false) }
+    var pickedIsN64 by remember { mutableStateOf(false) }
     // ⛔ SEEDED FROM THE SESSIONS, NOT FROM FALSE. This screen leaves the
     // composition entirely when Settings or the games list opens, while
     // the session objects (singletons) keep the game running. Starting
@@ -156,6 +160,9 @@ fun LauncherScreen(
     val genesisRunning = GenesisGameSession.isRunning
     // The PlayStation flag, read from its session for the same reason.
     val ps1Running = Ps1GameSession.isRunning
+    // The Nintendo 64 flag, read from its session for the same reason
+    // (a frame failure on its worker thread ends the session itself).
+    val n64Running = N64GameSession.isRunning
     var starting by remember { mutableStateOf(false) }
     var status by remember { mutableStateOf("") }
     var problem by remember { mutableStateOf("") }
@@ -164,7 +171,7 @@ fun LauncherScreen(
     // One running flag for the parts of the screen that only care THAT a
     // game is up (the header, the status line); the control groups below
     // still branch on which session it is.
-    val anyRunning = running || pspRunning || dsRunning || mesenRunning || genesisRunning || ps1Running
+    val anyRunning = running || pspRunning || dsRunning || mesenRunning || genesisRunning || ps1Running || n64Running
 
     // The frame clocks: one emulated frame per Compose frame while a
     // game runs, one clock per session. iOS drives its frames from a
@@ -224,6 +231,11 @@ fun LauncherScreen(
     BackHandler(enabled = ps1Running) {
         Ps1GameSession.stop()
     }
+    // And the Nintendo 64 session: Back quits the game (the session's
+    // stop writes the battery save on the way down).
+    BackHandler(enabled = n64Running) {
+        N64GameSession.stop()
+    }
 
     // ⛔ CONTROLLER CONNECT / DISCONNECT IS SPOKEN (input parity, stage 1).
     // iOS publishes the connected controller's name and the player hears
@@ -247,6 +259,8 @@ fun LauncherScreen(
     rememberGenesisFrameClock(genesisRunning)
     // The PlayStation frame clock, paced to the console (59.94 Hz).
     rememberPs1FrameClock(ps1Running)
+    // No Nintendo 64 frame clock here: its frames run on the session's
+    // own thread (see N64GameSession), too slow for the main thread.
 
     fun say(message: String, interrupt: Boolean = false) {
         status = message
@@ -294,9 +308,20 @@ fun LauncherScreen(
         if (Ps1GameSession.isBiosName(pickedName)) {
             pickedUri = null
             pickedIsPs1 = false
+            pickedIsN64 = false
             pickedIsGenesis = false
             say(Ps1GameSession.importBios(context, uri, pickedName))
             pickedName = ""
+            return
+        }
+        pickedIsN64 = N64GameSession.handlesExtension(extension)
+        if (pickedIsN64 && !n64Available) {
+            // Said at pick time, like the others: on a build without the
+            // Nintendo 64 core (armeabi-v7a) this is the honest one.
+            pickedIsPs1 = false
+            say(
+                "$pickedName selected. That is a Nintendo 64 game, and this build has no Nintendo 64 core.",
+            )
             return
         }
         // ⛔ A SHARED NAME IS READ, NOT TRUSTED. A .iso/.pbp is the
@@ -307,6 +332,7 @@ fun LauncherScreen(
         pickedIsPs1 = Ps1GameSession.handlesExtension(extension) ||
             (ps1Available && Ps1GameSession.isPs1Disc(context, uri, extension))
         if (pickedIsPs1 && ps1Available) {
+            pickedIsN64 = false
             pickedIsPsp = false
             pickedIsDs = false
             pickedIsMesen = false
@@ -445,6 +471,10 @@ fun LauncherScreen(
                 // Nor a PlayStation reader: the same honest line.
                 say("No reader command there for this game.")
             }
+            n64Running -> {
+                // Nor a Nintendo 64 reader yet: the same honest line.
+                say("No reader command there for this game.")
+            }
             else -> Unit
         }
     }
@@ -574,6 +604,31 @@ fun LauncherScreen(
                 } else {
                     problem = ""
                     say("Game started.")
+                }
+            }
+            return
+        }
+        if (pickedIsN64) {
+            if (!n64Available) {
+                // acceptPickedRom already said this at pick time.
+                return
+            }
+            // Asynchronous, like the PlayStation start below: the
+            // resolver may copy the cartridge first, so Start says so
+            // and the session calls back.
+            starting = true
+            say("Loading $pickedName.")
+            N64GameSession.start(activity, uri) { error ->
+                starting = false
+                if (error != null) {
+                    problem = error
+                    say(
+                        "That game could not be started. $error",
+                        interrupt = true,
+                    )
+                } else {
+                    problem = ""
+                    say("Game started. Nintendo 64 games run slowly on most phones for now.")
                 }
             }
             return
@@ -708,7 +763,7 @@ fun LauncherScreen(
         // a pick handed up while a game runs can never start a second
         // session over the live one — it stays the pending selection
         // until the player quits, exactly as the comment above says.
-        if (!GbGameSession.isRunning && !PspGameSession.isRunning && !DsGameSession.isRunning && !MesenGameSession.isRunning && !GenesisGameSession.isRunning && !Ps1GameSession.isRunning) {
+        if (!GbGameSession.isRunning && !PspGameSession.isRunning && !DsGameSession.isRunning && !MesenGameSession.isRunning && !GenesisGameSession.isRunning && !Ps1GameSession.isRunning && !N64GameSession.isRunning) {
             startPickedGame()
         }
     }
@@ -718,7 +773,7 @@ fun LauncherScreen(
     // or the games list mid-game recomposes this screen; the ready line
     // is for the idle launcher only, never spoken over a running game.
     remember(available) {
-        if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning) {
+        if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || N64GameSession.isRunning) {
             // A game is already running (see the seeded flags above).
         } else if (available) {
             say("Open Game Access ready. Press Select Game to choose a game.", interrupt = true)
@@ -748,9 +803,10 @@ fun LauncherScreen(
         if (mesenAvailable) parts += MesenGameSession.romExtensions()
         if (genesisAvailable) parts += GenesisGameSession.romExtensions()
         if (ps1Available) parts += Ps1GameSession.romExtensions()
+        if (n64Available) parts += N64GameSession.romExtensions()
         if (parts.isEmpty()) {
             "Game Boy, Game Boy Color, Game Boy Advance, PSP, Nintendo DS, " +
-                "Nintendo Entertainment System, Super Nintendo, Sega Genesis, PlayStation"
+                "Nintendo Entertainment System, Super Nintendo, Sega Genesis, PlayStation, Nintendo 64"
         } else {
             parts.joinToString(", ") { it.uppercase() }
         }
@@ -844,7 +900,9 @@ fun LauncherScreen(
         if (anyRunning && showPicture) {
             GamePicture(
                 fetchFrame = {
-                    if (Ps1GameSession.isRunning) {
+                    if (N64GameSession.isRunning) {
+                        N64GameSession.currentFrame()
+                    } else if (Ps1GameSession.isRunning) {
                         Ps1GameSession.currentFrame()
                     } else if (GenesisGameSession.isRunning) {
                         GenesisGameSession.currentFrame()
@@ -895,7 +953,7 @@ fun LauncherScreen(
                 Text("Games with readers", fontSize = 18.sp)
             }
 
-            if (!running && !pspRunning && !dsRunning && !mesenRunning && !genesisRunning && !ps1Running) {
+            if (!running && !pspRunning && !dsRunning && !mesenRunning && !genesisRunning && !ps1Running && !n64Running) {
                 // Idle: pick, then start -- in the order they are needed.
                 Button(
                     onClick = {
@@ -911,7 +969,7 @@ fun LauncherScreen(
                 Button(
                     onClick = { startPickedGame() },
                     enabled = available && pickedUri != null && !starting &&
-                        (if (pickedIsPs1) ps1Available else if (pickedIsMesen) mesenAvailable else if (pickedIsGenesis) genesisAvailable else if (pickedIsDs) dsAvailable else if (pickedIsPsp) pspAvailable else gbAvailable),
+                        (if (pickedIsN64) n64Available else if (pickedIsPs1) ps1Available else if (pickedIsMesen) mesenAvailable else if (pickedIsGenesis) genesisAvailable else if (pickedIsDs) dsAvailable else if (pickedIsPsp) pspAvailable else gbAvailable),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text("Start Game", fontSize = 18.sp)
@@ -1000,6 +1058,20 @@ fun LauncherScreen(
                 Ps1SpeechGroup(Ps1GameSession, sayControl = { message -> sayControl(message) })
                 Ps1StateGroup(Ps1GameSession) { message -> say(message) }
                 QuitPs1Game(Ps1GameSession, { message -> say(message) })
+            } else if (n64Running) {
+                // Running a Nintendo 64 game: the stick, the d-pad, the
+                // buttons, the speech controls, the whole-core
+                // savestates and quit-with-save. NO reader group: the
+                // Nintendo 64 has no reader in this build (see
+                // N64GameSession).
+                N64StickButtons(N64GameSession)
+                N64DirectionalPad(N64GameSession)
+                N64ActionButtons(N64GameSession)
+                N64CButtons(N64GameSession)
+                N64TriggerButtons(N64GameSession)
+                N64SpeechGroup(N64GameSession, sayControl = { message -> sayControl(message) })
+                N64StateGroup(N64GameSession) { message -> say(message) }
+                QuitN64Game(N64GameSession, { message -> say(message) })
             } else if (pspRunning) {
                 // Running a PSP game: the pad the console actually has,
                 // the reader commands the running game's adapter
@@ -2756,6 +2828,271 @@ private fun Ps1HoldButton(
                 contentDescription = label
                 onClick(label = "press") {
                     session.tapButton(button)
+                    true
+                }
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(if (held) "$label (held)" else label, fontSize = 16.sp)
+    }
+}
+
+// ---- the Nintendo 64 pad -----------------------------------------------------
+//
+// The PlayStation pad's shape with the Nintendo 64's buttons: the analog
+// stick (as four push buttons: held, it pushes the stick fully that way;
+// a screen-reader click pushes it for a quarter of a second of game
+// time), the d-pad, A and B, three of the four C buttons, Z and R, and
+// Start. C-up and the N64's own L button have no slot on the shared pad
+// yet (see N64Keys). No reader group below the pad: the Nintendo 64 has
+// no reader in this build.
+
+/** The analog stick, pushed fully one way. Most N64 games move with it. */
+@Composable
+private fun N64StickButtons(session: N64GameSession) {
+    GroupLabel("Control stick")
+    N64HoldButton("Stick up", onPress = { session.setStick(0f, -1f) },
+        onRelease = { session.setStick(0f, 0f) }, onTap = { session.tapStick(0f, -1f) })
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        N64HoldButton("Stick left", Modifier.weight(1f), onPress = { session.setStick(-1f, 0f) },
+            onRelease = { session.setStick(0f, 0f) }, onTap = { session.tapStick(-1f, 0f) })
+        N64HoldButton("Stick right", Modifier.weight(1f), onPress = { session.setStick(1f, 0f) },
+            onRelease = { session.setStick(0f, 0f) }, onTap = { session.tapStick(1f, 0f) })
+    }
+    N64HoldButton("Stick down", onPress = { session.setStick(0f, 1f) },
+        onRelease = { session.setStick(0f, 0f) }, onTap = { session.tapStick(0f, 1f) })
+}
+
+/** The d-pad: up / left / right / down. */
+@Composable
+private fun N64DirectionalPad(session: N64GameSession) {
+    GroupLabel("Directional pad")
+    N64PadButton("Up", session, N64Keys.UP)
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        N64PadButton("Left", session, N64Keys.LEFT, Modifier.weight(1f))
+        N64PadButton("Right", session, N64Keys.RIGHT, Modifier.weight(1f))
+    }
+    N64PadButton("Down", session, N64Keys.DOWN)
+}
+
+/** A, B and Start. */
+@Composable
+private fun N64ActionButtons(session: N64GameSession) {
+    GroupLabel("Action buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        N64PadButton("A", session, N64Keys.A, Modifier.weight(1f))
+        N64PadButton("B", session, N64Keys.B, Modifier.weight(1f))
+    }
+    N64PadButton("Start", session, N64Keys.START)
+}
+
+/** The C buttons the shared pad carries (no C-up yet). */
+@Composable
+private fun N64CButtons(session: N64GameSession) {
+    GroupLabel("C buttons")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        N64PadButton("C left", session, N64Keys.C_LEFT, Modifier.weight(1f))
+        N64PadButton("C right", session, N64Keys.C_RIGHT, Modifier.weight(1f))
+    }
+    N64PadButton("C down", session, N64Keys.C_DOWN)
+}
+
+/** Z (the trigger under the pad) and R. */
+@Composable
+private fun N64TriggerButtons(session: N64GameSession) {
+    GroupLabel("Triggers")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        N64PadButton("Z", session, N64Keys.Z, Modifier.weight(1f))
+        N64PadButton("R", session, N64Keys.R, Modifier.weight(1f))
+    }
+}
+
+/** Stop speech and the repeat walk: [Ps1SpeechGroup]'s twin. */
+@Composable
+private fun N64SpeechGroup(
+    session: N64GameSession,
+    sayControl: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    GroupLabel("Speech controls")
+    OutlinedButton(
+        onClick = { session.stopSpeech(context) },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics {
+                contentDescription = "Stop speech"
+            },
+    ) {
+        Text("Stop speech", fontSize = 16.sp)
+    }
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatLastSpeech()) sayControl("Nothing to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat last speech" },
+        ) {
+            Text("Repeat", fontSize = 14.sp)
+        }
+        OutlinedButton(
+            onClick = {
+                if (!session.repeatOlderSpeech()) sayControl("Nothing older to repeat.")
+            },
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Repeat older speech" },
+        ) {
+            Text("Repeat older", fontSize = 14.sp)
+        }
+    }
+}
+
+/** Whole-core savestates, one slot per cartridge. [Ps1StateGroup]'s twin. */
+@Composable
+private fun N64StateGroup(session: N64GameSession, say: (String) -> Unit) {
+    val context = LocalContext.current
+    GroupLabel("Save states")
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Button(
+            onClick = {
+                say(
+                    if (session.saveState(context)) {
+                        "State saved."
+                    } else {
+                        "That state could not be saved."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Save state" },
+        ) {
+            Text("Save state", fontSize = 14.sp)
+        }
+        Button(
+            onClick = {
+                say(
+                    if (session.loadState(context)) {
+                        "State loaded."
+                    } else {
+                        "There is no saved state for this game yet."
+                    }
+                )
+            },
+            colors = ButtonDefaults.outlinedButtonColors(),
+            modifier = Modifier
+                .weight(1f)
+                .height(56.dp)
+                .semantics { contentDescription = "Load state" },
+        ) {
+            Text("Load state", fontSize = 14.sp)
+        }
+    }
+}
+
+/**
+ * Quit the Nintendo 64 game, saving a state first and saying so:
+ * [QuitPs1Game]'s twin. The battery save needs no line of its own; the
+ * session's stop writes it on the way down.
+ */
+@Composable
+private fun QuitN64Game(
+    session: N64GameSession,
+    say: (String) -> Unit,
+) {
+    val context = LocalContext.current
+    OutlinedButton(
+        onClick = {
+            val saved = session.saveState(context)
+            say(
+                if (saved) {
+                    "Game closed. Progress saved."
+                } else {
+                    "Game closed. Could not save."
+                }
+            )
+            session.stop()
+        },
+        modifier = Modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .semantics { contentDescription = "Quit game" },
+    ) {
+        Text("Quit game", fontSize = 16.sp)
+    }
+}
+
+/** A Nintendo 64 pad button: [N64HoldButton] bound to one pad slot. */
+@Composable
+private fun N64PadButton(
+    label: String,
+    session: N64GameSession,
+    button: Int,
+    modifier: Modifier = Modifier,
+) {
+    N64HoldButton(
+        label,
+        modifier,
+        onPress = { session.pressButton(button) },
+        onRelease = { session.releaseButton(button) },
+        onTap = { session.tapButton(button) },
+    )
+}
+
+/**
+ * A Nintendo 64 control: [Ps1HoldButton]'s shape (held under a finger,
+ * a game-time tap on the screen-reader click), with the three actions
+ * passed in so the stick and the pad share it.
+ */
+@Composable
+private fun N64HoldButton(
+    label: String,
+    modifier: Modifier = Modifier,
+    onPress: () -> Unit,
+    onRelease: () -> Unit,
+    onTap: () -> Unit,
+) {
+    var held by remember { mutableStateOf(false) }
+
+    Box(
+        modifier = modifier
+            .fillMaxWidth()
+            .height(56.dp)
+            .border(
+                1.dp,
+                MaterialTheme.colors.onSurface.copy(alpha = 0.12f),
+                RoundedCornerShape(4.dp),
+            )
+            .clip(RoundedCornerShape(4.dp))
+            .background(
+                if (held) MaterialTheme.colors.primary.copy(alpha = 0.12f)
+                else MaterialTheme.colors.surface
+            )
+            .pointerInput(label) {
+                detectTapGestures(
+                    onPress = {
+                        held = true
+                        onPress()
+                        try {
+                            tryAwaitRelease()
+                        } finally {
+                            held = false
+                            onRelease()
+                        }
+                    },
+                )
+            }
+            .semantics {
+                contentDescription = label
+                onClick(label = "press") {
+                    onTap()
                     true
                 }
             },
