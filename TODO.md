@@ -528,10 +528,10 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
 - [x] **Stop speech never ends a game on any Android console (2026-11-24).** Game Boy's
   Stop speech used to tear the core down (fixed by the shared-Core move above). The other
   sessions never ended the game, but Genesis and PlayStation only stopped the voice and left
-  the core's announcement queue alone, so a queued line could start again; they now send
-  pokecore's StopSpeech (37) too, as iOS, DS, PSP, NES/SNES and Game Boy do.
-  `scripts/android-stop-speech-test.sh` (in adapter-tests CI) holds every `*GameSession.kt`
-  to this by file name, so the N64 session is checked the moment it lands: stopSpeech tears
+  the core's announcement queue alone, so a queued line could start again; Nintendo 64 did
+  the same. All three now send pokecore's StopSpeech (37) too, as iOS, DS, PSP, NES/SNES
+  and Game Boy do. `scripts/android-stop-speech-test.sh` (in adapter-tests CI) holds every
+  `*GameSession.kt` to this by file name, so a new console is checked too: stopSpeech tears
   nothing down, sends StopSpeech, its native side only reaches poke_command, and the
   controller chord reaches every session but DS. Seven planted bugs must each fail it.
 - [~] **Android on the shared Core (plan steps 2 and 5; Game Boy moved 2026-11-24, NOT yet run on a phone).**
