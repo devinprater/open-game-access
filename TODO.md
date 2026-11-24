@@ -396,8 +396,11 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   now in the binary, which it never was. The remaining work is UI/plumbing, not
   emulation.
 
-- [~] **Wire the overlay's GBA/GB sources into the Android build.** IN PROGRESS
-  (2026-10-04). The four accessibility hosts (MGBACore/MGBARunner/MGBAScriptJNI/
+- [x] **Wire the overlay's GBA/GB sources into the Android build.** DONE — the link
+  succeeded (see "The GBA/GB code is COMPILED AND LINKED" above, run 37189884773);
+  loading a .gba on a device is tracked by "THE GBA PATH IS NOW REACHABLE ON ANDROID".
+  The M_CORE_GB scope call below is still Devin's to make. Original entry
+  (2026-10-04): The four accessibility hosts (MGBACore/MGBARunner/MGBAScriptJNI/
   PokeScript.cpp) and the mGBA core are now compiled into the frontend target; the
   build went from 336 to ~498 translation units. Feasibility was measured with the
   real NDK before writing anything: 126/126 mGBA sources, 23/23 Game Boy sources,
@@ -431,8 +434,12 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   (33 WAVs the readers name) existed only on the Android side and is now canonical, and
   `bizhawk_compat.lua` genuinely differs between the platforms (its Android copy has an
   inert `joypad.set`) and still needs its own decision.
-  STILL OPEN: the NES readers are iOS-only — `nes-lua/` has no Android staging path at
-  all.
+  DONE since: the NES readers ship on Android too. `scripts/android-apply-overlay.sh`
+  section 1c stages every set from `Sources/.../nes-lua/` (the tree iOS bundles) into
+  `assets/nes-lua/`, `MesenGameSession.kt` copies the chosen set to a writable dir at
+  start, and the APK gate now requires each canonical set's `.lua` files inside the
+  built APK (no "iOS-only" escape branch). Main's run on `18f4a60` (2026-11-24) staged
+  2 sets (17 files) and the gate saw them in the APK.
 
 - [x] **Android has the adapter game list, at parity with iOS** (2026-10-22, local —
   lands with the next push). iOS opens on the adapter library; Android's launcher
@@ -822,10 +829,6 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   (2) tutorial hints DONE (engage + DP-zero, eebdc25); (3) dialogue: portrait
   names + 137-scene tables + runtime scene-ID/title all DONE
   (044b59a/d7db670/889eecd/1796757, 175/175 green).
-- [ ] **Dialogue remainder:** (a) advance-map (portrait change -> table order
-  -> per-line speaker, needs box-line segmentation validation); (b) portrait
-  address boot-stability proof across boots; (c) current-line text anchor
-  (heap, no pointer found); (d) portrait table growth per scene walked.
 - [ ] **Trunks unknowns via Scan** (0x31/0x7F/0x80/0x32 tooltips blank +
   Opponent Info blank, likely Scan-gated), ~2-4 h uncertain.
 - [ ] **FE11 past-prologue save,** open-ended hours+. **UNBLOCKED + PARTLY DONE 2026-10-08:**
@@ -834,8 +837,8 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   to the main menu). The Chapter Saves screen is now read (`FeFileSelectActive`, stage byte
   0x020E3CA8 = 02, two boots). Still open: the highlighted-slot cursor (no ordinal found;
   0x0224F540 is static), the Map Savepoints list, and battle-preparation/unit-list screens.
-- [ ] **Device build:** v0.4.0 predates all Oct-2 Dissidia work; cut a new
-  release so the board hints, portrait names, and scene titles reach hardware.
+- [x] **Device build:** v0.4.0 predated the Oct-2 Dissidia work; superseded by
+  v0.5.0 (2026-10-04) through v0.6.8 (2026-10-10), all cut after it.
 - [ ] **Dissidia Tutorial-mode prompts:** tutorial fights already get the
   battle/QTE path (fighters + prompts resolve there), but the scripted
   instruction sentences ("Bravery attacks: use circle") are OCR-only with no
@@ -848,8 +851,12 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   script + 3 audio renders in docs/research/audio-description.md.
 - [ ] **Dissidia dialogue-box reader (partly done 2026-10-02):** scene title
   on entry + speaker name per portrait change (verified IDs) are wired and
-  tested. Still missing: per-line speaker via advance-map, quoting the line
-  text itself (needs current-line anchor), portraits beyond the 5 verified.
+  tested. Still missing (this entry also holds the former "Dialogue remainder"):
+  (a) per-line speaker via advance-map (portrait change -> table order ->
+  per-line speaker, needs box-line segmentation validation); (b) portrait
+  address boot-stability proof across boots; (c) quoting the line text itself,
+  which needs the current-line text anchor (heap, no pointer found); (d)
+  portraits beyond the 5 verified, i.e. portrait table growth per scene walked.
 - [x] **Dissidia name-entry reader:** implemented as the universal PPSSPP OSK
   reader (`Core/osk_echo.h/.cpp` input-echo engine + `OskToggle/Type/Delete/
   Space/Shift/Finish` commands, `oga::Command::OskToggle..OskFinish`): Dissidia

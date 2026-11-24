@@ -134,6 +134,26 @@ for f in oga_bootstrap.lua mgba_compat.lua gb.lua gba.lua pokemon.lua; do
 done
 [ "$missing" -eq 0 ] || fail "the APK's Game Boy / GBA reader set is incomplete"
 echo "   ok: the Game Boy / GBA reader set is present and current"
+# NES: every set in the canonical tree, with its .lua files, under
+# assets/nes-lua/ -- the same check as .github/workflows/android-apk.yml.
+nes_missing=0
+nes_sets=0
+for setdir in "$ROOT"/Sources/OpenGameAccess/Resources/nes-lua/*/; do
+  set=$(basename "$setdir")
+  nes_sets=$((nes_sets+1))
+  for lua in "$setdir"*.lua; do
+    f="assets/nes-lua/$set/$(basename "$lua")"
+    if grep -qF "$f" /tmp/apk-list.txt; then
+      echo "   ok: $f"
+    else
+      echo "   !! MISSING from the APK: $f" >&2
+      nes_missing=1
+    fi
+  done
+done
+[ "$nes_sets" -ge 2 ] || fail "only $nes_sets NES reader set(s) in the canonical tree"
+[ "$nes_missing" -eq 0 ] || fail "the APK's NES reader sets are incomplete"
+echo "   ok: all $nes_sets NES reader sets are in the APK"
 
 cd "$ROOT" || exit 1
 bash scripts/check-no-roms.sh . --skip-build-output || fail "ROM guard failed"
