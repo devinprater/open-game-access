@@ -555,16 +555,27 @@ object GenesisGameSession {
     // ---- speech -----------------------------------------------------------------
 
     /**
-     * Stop speech: the platform voice only. The DS twin also sends
-     * its host a StopSpeech command for the reader queue's sake;
-     * Genesis has no reader and no queue, so the bridge stop is the
-     * whole of it.
+     * Stop speech: the platform voice, then pokecore's StopSpeech
+     * command (37), which clears the core's announcement queue so a
+     * queued line can't start again a moment later. Both halves iOS's
+     * GameSession.stopSpeech performs, and the DS, PSP and Mesen
+     * sessions' shape.
+     *
+     * ⛔ STOP SPEECH NEVER STOPS THE GAME. It must not call [stop] or
+     * anything that tears the core down: the Game Boy path once did,
+     * and the game died while the screen still said it was running.
+     * scripts/android-stop-speech-test.py holds every session to this.
      */
     fun stopSpeech(context: Context) {
         try {
             AccessibilityScript.speechBridge(context.applicationContext).stop()
         } catch (t: Throwable) {
-            // No bridge to stop.
+            // No bridge to stop; the command below is a no-op then too.
+        }
+        try {
+            GenesisAccessibilityScript.adapterCommand(GenesisAdapterCommands.STOP_SPEECH)
+        } catch (t: Throwable) {
+            // No Genesis surface in this build; nothing queued to stop.
         }
     }
 
@@ -764,4 +775,13 @@ fun rememberGenesisFrameClock(running: Boolean) {
             }
         }
     }
+}
+
+/**
+ * The one pokecore command this session sends itself, mirrored from
+ * Core/adapter.h's Command enum (scripts/android-stop-speech-test.py
+ * checks the value against the enum).
+ */
+object GenesisAdapterCommands {
+    const val STOP_SPEECH = 37
 }

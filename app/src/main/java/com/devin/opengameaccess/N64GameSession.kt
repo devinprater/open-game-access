@@ -528,12 +528,26 @@ object N64GameSession {
 
     // ---- speech ---------------------------------------------------------------
 
-    /** Stop speech: the platform voice only (no reader queue behind it). */
+    /**
+     * Stop speech: the platform voice, then pokecore's StopSpeech
+     * command (37), which clears the core's announcement queue so a
+     * queued line can't start again a moment later, as iOS and every
+     * other Android session do.
+     *
+     * ⛔ STOP SPEECH NEVER STOPS THE GAME: no [stop], nothing that tears
+     * the core down. scripts/android-stop-speech-test.py holds every
+     * session to this.
+     */
     fun stopSpeech(context: Context) {
         try {
             AccessibilityScript.speechBridge(context.applicationContext).stop()
         } catch (t: Throwable) {
-            // No bridge to stop.
+            // No bridge to stop; the command below is a no-op then too.
+        }
+        try {
+            N64AccessibilityScript.adapterCommand(N64AdapterCommands.STOP_SPEECH)
+        } catch (t: Throwable) {
+            // No Nintendo 64 surface in this build; nothing queued to stop.
         }
     }
 
@@ -677,4 +691,13 @@ object N64Keys {
     const val Z = 9
     const val C_LEFT = 10
     const val C_RIGHT = 11
+}
+
+/**
+ * The one pokecore command this session sends itself, mirrored from
+ * Core/adapter.h's Command enum (scripts/android-stop-speech-test.py
+ * checks the value against the enum).
+ */
+object N64AdapterCommands {
+    const val STOP_SPEECH = 37
 }
