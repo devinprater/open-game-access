@@ -230,11 +230,20 @@ BEFORE any leg whose data marks it costly or irreversible — the
 route graphs already classify pit, locked, big-key and ledge legs
 — speaks what the leg does ("Locked door ahead: it will spend a
 key."), and waits for a fresh WalkToggle press to walk that one
-leg. Push blocks are the known remainder: no per-room push-block
-flag exists in the room data yet, so dungeon walking beyond the
-proof routes waits on that flag being measured into the generator;
-until then the bench proofs stick to routes whose rooms are known
-block-free or block-safe.
+leg. Push blocks: ALttP keeps them in a live table, not in the
+room data. `movable_block_datas` at `$7E:F940` holds 99 slots of
+{u16 room, u16 tilemap}; the game rebuilds it on every dungeon
+entrance and rewrites a slot when a block falls through a pit, so
+the room below inherits it. `oga::AlttpPushBlocksInRoom`
+(`Core/alttp_walk.h`) counts a room's blocks from that table and
+returns their 16px tiles; it answers -1 (unknown) outdoors, when
+unattached, and when the table reads all zero. The rule for the
+indoor walker: a room with any push block, or an unknown answer,
+is a costly leg — stop before entering it and wait for a fresh
+WalkToggle, exactly like a ledge. The walker is still overworld
+only, so the census has no steering caller yet; DumpState logs
+`pushblocks=N` for the current room so a bench run can check it
+against a real dungeon.
 
 
 ## Which adapters, in which order
@@ -389,14 +398,18 @@ ACCEPTED, and the design is changed by them:
   (2b, 5); **tile paths computed only while walking, cached per
   screen** (§5).
 
-ACCEPTED IN PRINCIPLE, mechanism deferred:
-- **A non-speech stop earcon** (consult Q3/Q4): the player should
-  get a sound, not silence, when a walk stops — including a player
-  override. ALttP has no cue_snapshot feed today, so there is no
-  channel to put it on; the principle is recorded here and the
-  earcon lands with any future ALttP cue work, not as a blocker
-  for the bench proofs. Interim: system-cause lines already cover
-  every stop the player did not cause.
+BUILT (2026-11-24):
+- **A non-speech stop earcon** (consult Q3/Q4): the player gets a
+  sound, not silence, whenever a walk that was moving stops —
+  arrival, WalkToggle off, player override, dialogue, harm, and the
+  stop before a costly leg. A refusal to start, or a stop before
+  the first step, makes none (nothing was moving). ALttP now has a
+  `cue_snapshot`: its only field is the one-frame
+  `CueSnapshot::walk_stop`, carried as bit 16 of
+  `poke_cue_health` (and of the Android PSP-path poll). The synths
+  own the recipe: one short 392 Hz tick, gated only on game audio
+  being on, not on battle cues. Speech lines are unchanged.
+  Not yet heard on a phone.
 
 REJECTED, with reasons:
 - **Enemy-radius release for ALttP** (consult point 4's third

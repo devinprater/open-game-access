@@ -12,6 +12,7 @@
 #include "adapter.h"
 #include "alttp_text.h"
 #include "alttp_graph.h"
+#include "alttp_walk.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -889,6 +890,15 @@ int main()
         placeLink(x, y);
         NSPOKEN = 0; NEVENTS = 0; oga::AdapterSpeechReset();
     };
+    /* The walk-stop earcon: one cue snapshot carrying walk_stop, then
+     * nothing — the one-shot is consumed as the snapshot is taken. */
+    auto takeStopCue = [&]() {
+        oga::CueSnapshot c{};
+        if (!oga::kZeldaLinkToThePast.cue_snapshot) return false;
+        bool ok = oga::kZeldaLinkToThePast.cue_snapshot(&c);
+        return ok && c.walk_stop && !c.battle && !c.locked && !c.field &&
+               !c.foe_beep && !c.own_beep && !c.guard_active;
+    };
     auto guideTo = [&](const char* name) {
         char want[128];
         snprintf(want, sizeof(want), "Guide: %s.", name);
@@ -937,6 +947,7 @@ int main()
     CHECK(saidExact("Auto walk: ask for a route first."),
           "walk: no Guide route yet is answered honestly");
     CHECK(DIRPRESS == 0, "walk: no route, no movement");
+    CHECK(!takeStopCue(), "walk: a refusal sounds no stop earcon");
 
     // The full walk: Link's house north one screen into Hyrule Castle.
     // The start line is spoken before the first direction is written.
@@ -956,6 +967,7 @@ int main()
             if (dIdx < 0 && EVENTS[i][0] == 'D') dIdx = i;
         CHECK(sIdx >= 0 && dIdx > sIdx,
               "walk: the target is spoken before the first direction is written");
+        CHECK(!takeStopCue(), "walk: a walk under way sounds no stop earcon");
     }
     {
         int frames = 0;
@@ -965,6 +977,8 @@ int main()
         simFrames(5, true);
         CHECK(dirsClear(), "walk: arrival releases every direction");
         CHECK(BTNCALLS == 0, "walk: set_button was never called (the structural guarantee)");
+        CHECK(takeStopCue(), "walk: arrival raises the stop earcon");
+        CHECK(!takeStopCue(), "walk: the stop earcon is delivered exactly once");
     }
 
     // Progress is a Guide press during the walk, in route units.
@@ -979,6 +993,7 @@ int main()
     oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
     CHECK(saidExact("Auto walk off."), "walk: WalkToggle during a walk stops it");
     CHECK(dirsClear(), "walk: the stop releases every direction");
+    CHECK(takeStopCue(), "walk: WalkToggle off raises the stop earcon");
 
     // The player's own press cancels, silently, within a frame.
     walkSetup(2232, 2792, 0x15);
@@ -992,6 +1007,7 @@ int main()
         oga::kZeldaLinkToThePast.on_frame();
         CHECK(dirsClear(), "walk: a player press releases the directions at once");
         CHECK(!said("Auto walk"), "walk: a player cancel is silent");
+        CHECK(takeStopCue(), "walk: a silent player cancel still sounds the stop earcon");
         simFrames(120, true);
         CHECK((int) r16(nullptr, X) == px && (int) r16(nullptr, Y) == py,
               "walk: after a player cancel the walker stays stopped");
@@ -1008,6 +1024,7 @@ int main()
     put8(0x7E0010u, 14); put8(0x7E0011u, 2); put8(0x7E010Cu, 9);
     oga::kZeldaLinkToThePast.on_frame();
     CHECK(dirsClear() && !said("Auto walk"), "walk: dialogue cancels silently");
+    CHECK(takeStopCue(), "walk: a dialogue cancel sounds the stop earcon");
     put8(0x7E0010u, 9); put8(0x7E0011u, 0);
 
     walkSetup(2232, 2792, 0x15);
@@ -1029,6 +1046,7 @@ int main()
     oga::kZeldaLinkToThePast.on_frame();
     CHECK(saidExact("Auto walk stopped: hurt."), "walk: a health decrease stops the walk, said once");
     CHECK(dirsClear(), "walk: harm releases every direction");
+    CHECK(takeStopCue(), "walk: a hurt stop sounds the stop earcon");
 
     // The gates that refuse to start.
     walkSetup(2232, 2792, 0x15);
@@ -1100,6 +1118,7 @@ int main()
     simFrames(60, true);
     CHECK(DIRPRESS == 0 && (int) r16(nullptr, X) == 768,
           "walk: nothing moves until the player confirms the ledge");
+    CHECK(!takeStopCue(), "walk: a stop before a first costly leg, never having moved, sounds nothing");
     oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
     simFrames(150, true);
     CHECK(DIRPRESS > 0 && (int) r16(nullptr, X) > 768,
@@ -1107,7 +1126,69 @@ int main()
     FEEDPRESSED = 1u << 4;
     oga::kZeldaLinkToThePast.on_frame();
     CHECK(dirsClear(), "walk: the ledge walk still yields to the player");
+    CHECK(takeStopCue(), "walk: the ledge walk's player stop sounds the stop earcon");
     CHECK(BTNCALLS == 0, "walk: set_button was never called on the ledge route either");
+
+    // Detach drops a stop earcon nobody polled: the session is gone.
+    walkSetup(2232, 2792, 0x15);
+    guideTo("Desert of Mystery");
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    simFrames(30, true);
+    oga::kZeldaLinkToThePast.command(oga::Command::WalkToggle);
+    oga::kZeldaLinkToThePast.detach();
+    oga::kZeldaLinkToThePast.attach(&H2);
+    CHECK(!takeStopCue(), "walk: detach drops an unpolled stop earcon");
+
+    // ---- the push-block census (docs/design/auto-walk.md §6) ---------------
+    // The game's own table at $7E:F940: 99 slots of {u16 room, u16
+    // tilemap}. Outdoors it describes the last dungeon, so it answers -1;
+    // a never-initialised (all-zero) table answers -1; otherwise the
+    // count for the room, with the blocks' 16 px tiles.
+    {
+        const uint32_t MB = 0x7EF940u;
+        for (int i = 0; i < 99 * 4; i++) put8(MB + (uint32_t) i, 0);
+        put8(INDOORS, 0);
+        CHECK(oga::AlttpPushBlocksInRoom(0x0099, nullptr, 0) == -1,
+              "push blocks: outdoors the census is unknown");
+        put8(INDOORS, 1);
+        CHECK(oga::AlttpPushBlocksInRoom(0x0099, nullptr, 0) == -1,
+              "push blocks: an all-zero table is unknown, never 'none'");
+        /* Two blocks in room 0x99, one in 0x2A. Block A: 8 px tile
+         * (col 20, row 10) on BG2 -> dsto 10*64+20, tilemap dsto*2.
+         * Block B: (col 40, row 50) on BG1 (the 0x2000 layer bit). */
+        auto putBlock = [&](int slot, uint16_t room, int col8, int row8, bool bg1) {
+            uint16_t tm = (uint16_t) ((row8 * 64 + col8) * 2) | (bg1 ? 0x2000 : 0);
+            put16(MB + (uint32_t) slot * 4, room);
+            put16(MB + (uint32_t) slot * 4 + 2, tm);
+        };
+        putBlock(0, 0x0099, 20, 10, false);
+        putBlock(1, 0x002A, 4, 4, false);
+        putBlock(7, 0x0099, 40, 50, true);
+        uint16_t tiles[4] = { 0xFFFF, 0xFFFF, 0xFFFF, 0xFFFF };
+        int n = oga::AlttpPushBlocksInRoom(0x0099, tiles, 4);
+        CHECK(n == 2, "push blocks: the census counts the room's blocks");
+        CHECK(tiles[0] == 5 * 32 + 10 && tiles[1] == 25 * 32 + 20,
+              "push blocks: positions come back as the room's 16 px tiles, either layer");
+        CHECK(oga::AlttpPushBlocksInRoom(0x002A, nullptr, 0) == 1 &&
+              oga::AlttpPushBlocksInRoom(0x0010, nullptr, 0) == 0,
+              "push blocks: another room's blocks are its own; an empty room is 0");
+        /* A block pushed into a pit moves to the room below in the
+         * game's own table; the census follows it. */
+        put16(MB + 0 * 4, 0x00A9);
+        CHECK(oga::AlttpPushBlocksInRoom(0x0099, nullptr, 0) == 1 &&
+              oga::AlttpPushBlocksInRoom(0x00A9, nullptr, 0) == 1,
+              "push blocks: a block that fell through a pit counts in the room below");
+        uint16_t one = 0xFFFF;
+        CHECK(oga::AlttpPushBlocksInRoom(0x0099, &one, 0) == 1 && one == 0xFFFF,
+              "push blocks: cap 0 counts without writing");
+        put16(ROOM, 0x0099);
+        NLOGGED = 0;
+        oga::kZeldaLinkToThePast.command(oga::Command::DumpState);
+        CHECK(NLOGGED >= 1 && strstr(LOGGED[0], " pushblocks=1") != nullptr,
+              "push blocks: DumpState logs the current room's census");
+        put8(INDOORS, 0);
+        for (int i = 0; i < 99 * 4; i++) put8(MB + (uint32_t) i, 0);
+    }
 
     // Detach is honest about being gone.
     oga::kZeldaLinkToThePast.detach();

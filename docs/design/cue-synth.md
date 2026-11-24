@@ -132,6 +132,12 @@ cannot be exercised from the Core tests):
   the gauge-full earcons share the beacon's readiness family level. The adapter-side
   speech/sound split for gauge-full moments (kh BBS's `KhbbsHudGaugeCues`) is a
   separate axis: it decides whether the event is an earcon or a spoken line at all.
+* Bit 16 (walk stop, 2026-11-24): `CueSnapshot::walk_stop`, raised for one frame when
+  an auto walk that was moving stops for any reason (`docs/design/auto-walk.md`).
+  Fixed recipe: one short tick at 392 Hz, ~100 ms, centred, in the tick family. It is
+  NOT a battle cue: hosts voice it outside the battle-cue switch, gated only on game
+  audio being on, because a walk can stop with every battle cue off. ALttP is the only
+  producer today.
 
 The general shape for future adapters: hit/health events are one-frame fields on the
 snapshot (adapter detects, core carries, synth sounds), never speech callbacks, and

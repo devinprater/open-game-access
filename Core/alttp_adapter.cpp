@@ -22,6 +22,7 @@
 #include "alttp_rooms.h"
 #include "alttp_graph.h"
 #include "alttp_dungeon_graph.h"
+#include "alttp_walk.h"
 
 #include <ctype.h>
 #include <stdio.h>
@@ -108,6 +109,13 @@ constexpr uint32_t KEYS               = 0x7EF36Fu;  /* link_num_keys */
 constexpr uint32_t BIG_KEY            = 0x7EF366u;  /* link_bigkey, one bit per dungeon */
 constexpr uint32_t COMPASS            = 0x7EF364u;  /* link_compass, one bit per dungeon */
 constexpr uint32_t DUNGEON_MAP        = 0x7EF368u;  /* link_dungeon_map, one bit per dungeon */
+/* movable_block_datas[99]: one {u16 room, u16 tilemap} per push block in
+ * the dungeon Link entered, copied from the ROM's kMovableBlockDataInit at
+ * every entrance (Dungeon_LoadEntrance) and rewritten when a block is
+ * pushed into a pit (PushBlock_CheckForPit moves it to the room below).
+ * zelda3 src/variables.h: g_ram+0xf940. See AlttpPushBlocksInRoom. */
+constexpr uint32_t MOVABLE_BLOCKS     = 0x7EF940u;
+constexpr int kMovableBlockSlots      = 99;
 
 /* The file select (module 1). Its slots are NOT in work RAM: select_file.c draws
  * them straight out of the cartridge's save RAM, which the core exposes at the
@@ -161,6 +169,11 @@ bool g_walkHostOk = false;
 /* The one-time explanation has been given. Adapter state next to the
  * setting itself: neither is reset by attach/detach. */
 bool g_walkExplained = false;
+
+/* The walk-stop earcon is pending: set on the frame a walk leaves the
+ * Walking state, cleared when the cue snapshot carries it out
+ * (CueSnapshot::walk_stop). Session state, cleared by detach. */
+bool g_walkStopCue = false;
 
 void WalkTick();
 void WalkReset();
@@ -250,7 +263,7 @@ void DumpState()
 {
     char line[320];
     snprintf(line, sizeof(line),
-             "crc:777aac2f health=%u/%u area=%u screen=%u room=%u indoors=%u magic=%u rupees=%u x=%u y=%u frame=%u hud=%u choice=%u guide=%u prog=%u flags=%02x pend=%u",
+             "crc:777aac2f health=%u/%u area=%u screen=%u room=%u indoors=%u magic=%u rupees=%u x=%u y=%u frame=%u hud=%u choice=%u guide=%u prog=%u flags=%02x pend=%u pushblocks=%d",
              (unsigned) u8(HEALTH_CURRENT), (unsigned) u8(HEALTH_CAPACITY),
              (unsigned) u16(OVERWORLD_AREA), (unsigned) u16(OVERWORLD_SCREEN),
              (unsigned) u16(DUNGEON_ROOM), (unsigned) u8(PLAYER_INDOORS),
@@ -260,7 +273,11 @@ void DumpState()
              (unsigned) u8(HUD_CUR_ITEM), (unsigned) u8(CHOICE_BOX),
              (unsigned) g_guideIndex,
              (unsigned) u8(PROGRESS_INDICATOR), (unsigned) u8(PROGRESS_FLAGS),
-             (unsigned) u8(PENDANTS));
+             (unsigned) u8(PENDANTS),
+             /* -1 outdoors: the census only describes the dungeon Link
+              * is in (see AlttpPushBlocksInRoom). Logged, never spoken,
+              * so a bench run in a real dungeon can check it. */
+             AlttpPushBlocksInRoom(u16(DUNGEON_ROOM), nullptr, 0));
     Log(line);
 }
 
@@ -1632,17 +1649,28 @@ void WalkHold(int dir)
     g_walkHost.set_direction(g_walkHost.ctx, dir, true);
 }
 
-void WalkCancel(const char* line)
+/* Every way a walk ends or pauses comes through here: release, then
+ * raise the stop earcon if the feet were actually moving. A walk that
+ * never left Idle (a refusal, a first leg that is costly) has nothing
+ * to stop, so it sounds nothing. The earcon is deliberately the same
+ * for every cause, the player's own press included: it says "your
+ * feet stopped"; the reason, where it needs one, is the spoken line. */
+void WalkStopTo(WalkState next)
 {
     WalkReleaseAll();
-    g_walkState = WalkState::Idle;
+    if (g_walkState == WalkState::Walking) g_walkStopCue = true;
+    g_walkState = next;
+}
+
+void WalkCancel(const char* line)
+{
+    WalkStopTo(WalkState::Idle);
     if (line) Say(line, "walk", Priority::High);
 }
 
 void WalkArrive()
 {
-    WalkReleaseAll();
-    g_walkState = WalkState::Idle;
+    WalkStopTo(WalkState::Idle);
     SpeakWhereAmI();
 }
 
@@ -1901,8 +1929,7 @@ void WalkProgress(int remain)
  * so it can never replace the start line still pending. */
 void WalkEnterAwait()
 {
-    WalkReleaseAll();
-    g_walkState = WalkState::AwaitLeg;
+    WalkStopTo(WalkState::AwaitLeg);
     g_walkAwaitScreen = (uint8_t) (u16(OVERWORLD_SCREEN) & 0x7F);
     Say("Ledge ahead. Press auto walk again to hop down.",
         "walkgate", Priority::High);
@@ -2360,6 +2387,8 @@ void WalkReset()
 {
     if (g_walkState != WalkState::Idle) WalkReleaseAll();
     g_walkState = WalkState::Idle;
+    /* Detach is not a stop the player hears: the session is gone. */
+    g_walkStopCue = false;
     g_guideTargetArea = 0xFF;
     g_guideTargetName = nullptr;
     g_guideTargetWorld = 0xFF;
@@ -2538,6 +2567,22 @@ void SpeakObjective()
     Say(line, "objective", Priority::High);
 }
 
+/* The cue snapshot (adapter.h CueSnapshot): this reader has no battle
+ * cues, only the auto-walk stop earcon. Fail-closed like every cue
+ * snapshot: false — nothing to sound — on every frame without a
+ * pending stop, so the host's beacon and field polls stay silent; on
+ * the frame after a stop, one snapshot with walk_stop set, consumed as
+ * it is taken so the earcon sounds exactly once. Speech-free and
+ * read-only apart from consuming its own one-shot. */
+bool AlttpCueSnapshot(CueSnapshot* out)
+{
+    if (!out || !g_attached || !g_walkStopCue) return false;
+    *out = CueSnapshot{};
+    out->walk_stop = true;
+    g_walkStopCue = false;
+    return true;
+}
+
 void AlttpCommand(Command cmd)
 {
     if (cmd == Command::DumpState) { DumpState(); return; }
@@ -2580,6 +2625,48 @@ void AlttpCommand(Command cmd)
 
 } // namespace
 
+/* The push-block census (docs/design/auto-walk.md §6, costly legs): how
+ * many push blocks the game itself has placed in `room`, read from its
+ * own live table (MOVABLE_BLOCKS above) rather than from shipped room
+ * data. Live is better than generated here: the table follows a block
+ * the player pushed into a pit down to the room below, which no static
+ * room database can know. `tiles`, when given, receives up to `cap`
+ * block positions as 16-pixel tile indices in the room's 32x32 grid
+ * (row * 32 + column, the walker's grid), the block's top-left tile.
+ *
+ * Returns -1 when the census cannot be trusted: no game attached,
+ * Link outdoors (the table is only (re)built on a dungeon or cave
+ * entrance, so outdoors it describes wherever Link last was), or a
+ * table that is all zeros (never initialised this session). -1 is
+ * the fail-closed answer: a walker must treat "unknown" as costly.
+ *
+ * The indoor walker that will read this does not exist yet (the
+ * overworld walker never enters a room); this is the measured flag
+ * the design was waiting for, so indoor steering can stop before a
+ * push-block room the moment it lands. */
+int AlttpPushBlocksInRoom(uint16_t room, uint16_t* tiles, int cap)
+{
+    if (!g_attached || !g_host) return -1;
+    if (u8(PLAYER_INDOORS) == 0) return -1;
+    bool initialised = false;
+    int n = 0;
+    for (int i = 0; i < kMovableBlockSlots; i++) {
+        uint32_t a = MOVABLE_BLOCKS + (uint32_t) i * 4u;
+        uint16_t r = u16(a), t = u16(a + 2);
+        if (r != 0 || t != 0) initialised = true;
+        if (r != room) continue;
+        if (tiles && n < cap) {
+            /* tilemap = dsto * 2 | 0x2000 on BG1 (dungeon.c): the low
+             * twelve bits of dsto index the 64x64 grid of 8 px tiles. */
+            int idx = (t >> 1) & 0x0FFF;
+            int x8 = idx & 63, y8 = idx >> 6;
+            tiles[n] = (uint16_t) ((y8 / 2) * 32 + x8 / 2);
+        }
+        n++;
+    }
+    return initialised ? n : -1;
+}
+
 /* ⛔ A namespace-scope `const` object has INTERNAL linkage in C++ unless it is
  * declared extern first. Without this line the registry and every test see an
  * undefined symbol, which reads as a missing adapter. */
@@ -2593,7 +2680,7 @@ const Adapter kZeldaLinkToThePast = {
     AlttpCommand,
     AlttpReady,
     AlttpDetach,
-    nullptr,   // cue_snapshot: this reader has no audio beacon
+    AlttpCueSnapshot,   // cue_snapshot: only the auto-walk stop earcon
     "Menus, dialogue, file select, location, status, guidance and objectives",
     "Spoken: the file select reads each file's name, hearts and equipment; "
     "in-game dialogue is spoken as it appears; the item menu reads the "
