@@ -573,6 +573,10 @@ final class GameSession: ObservableObject {
         let healthBits = poke_cue_health(core, &foeHz, &foePan, &ownHz, &ownPan)
         CueSynth.shared.updateOneShots(bits: healthBits, foeHz: foeHz, foePan: foePan,
                                        ownHz: ownHz, ownPan: ownPan, enabled: on)
+        // The auto-walk stop earcon rides the same bitmask (bit 16) but
+        // not the battle-cues switch: it only exists once the player has
+        // turned auto walk on, so audio being on is its only gate.
+        CueSynth.shared.updateWalkStop(bits: healthBits, enabled: audioEnabled)
 
         // The Active Guard window (Attack of the Saiyans): a CONTINUOUS
         // cue, not an event — poke_cue_guard answers from the same
