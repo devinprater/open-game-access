@@ -251,6 +251,16 @@ struct CueSnapshot {
     bool  guard_active;
     float guard_frac;
     bool  guard_beat;
+
+    // ---- TRAILING ADDITION (auto-walk stop earcon, A Link to the Past, 2026-11-24) ----
+    /// One frame: an auto walk just stopped — for any reason (arrival, the
+    /// player's own press, a menu or dialogue, harm, a block, WalkToggle,
+    /// the stop before a costly leg). The consult's earcon
+    /// (docs/design/auto-walk.md, consult addendum): the player hears
+    /// their feet stop even when no line is spoken. A one-shot like the
+    /// beeps above — the adapter clears it as the snapshot is taken.
+    /// The synth owns the fixed recipe; nothing about it varies.
+    bool  walk_stop;
 };
 
 /// Birth by Sleep's HUD gauge-cue mode — the per-game setting the apps'

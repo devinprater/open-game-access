@@ -1281,6 +1281,7 @@ int poke_cue_health(PokeCore* core, float* foe_hz, float* foe_pan, float* own_hz
     }
     if (s.focus_cue) bits |= 4;
     if (s.dlink_cue) bits |= 8;
+    if (s.walk_stop) bits |= 16;   /* auto walk stopped (A Link to the Past) */
     return bits;
 }
 
