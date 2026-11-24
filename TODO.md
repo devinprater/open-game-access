@@ -525,6 +525,24 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   and merging there would swallow that button as a focusable action. Verified on a
   fresh upstream clone that the merge attaches to the inner Row and the button
   survives.
+- [~] **Android on the shared Core (plan steps 2 and 5; Game Boy moved 2026-11-24, NOT yet run on a phone).**
+  Every Android console except PSP now runs on `Core/pokecore.cpp`, the iOS host: DS
+  (DsSessionJNI), NES/SNES (MesenSessionJNI), Genesis (GenesisSessionJNI) and, since
+  this change, Game Boy / Game Boy Color / GBA (GbSessionJNI over `Core/gba_core.cpp`).
+  The Android-only Game Boy host (MGBARunner/MGBACore/MGBAScriptJNI) and the unused
+  PokeScript host are deleted; the GB audio queue moved into `Core/gb_audio_queue.h`, so
+  iOS Game Boy sound gets the same resampler and latency cap. Side effects worth knowing:
+  Stop speech on a Game Boy game now stops the voice and leaves the game running (it used
+  to end the game while the screen still showed it); Game Boy joins the debug channel; and
+  Game Boy is now 64-bit only on Android, like DS/NES/SNES/Genesis (no 32-bit ARM phones).
+  Check on a phone: a .gb, a .gbc and a .gba Pokemon game load, speak, play sound, honour
+  the Game sound switch, play the reader's cue sounds, answer the reader hotkeys, keep the
+  game running after Stop speech, and keep the battery save across a quit and reload.
+  LEFT: (1) PSP still runs `psp_core` directly through PspSessionJNI + PspAdapterHost
+  instead of through pokecore; (2) the launcher still routes by file extension in
+  LauncherScreen instead of reading `oga_system_*` over JNI (plan step 3 on Android);
+  (3) `MelonInstance` and the rest of the upstream melonDS frontend are still compiled
+  around the shared-Core glue.
 - [~] **Make the shell emulator-agnostic (started 2026-10-04):** plan at
   `docs/plans/emulator-agnostic-shell.md`. Three of its steps are DONE:
   * **Registry:** 14 consoles (Genesis/Dreamcast/3DS added -- each has an
@@ -771,6 +789,8 @@ DS-only). iOS simulator CI green with all of it (run 36272995003). Update 2026-0
   `MGBARunner::drainAudio`) into `GbAudioQueue.h`, which resamples to the 32768 Hz every Android
   session uses, and `GbGameSession` plays it through an AudioTrack from its own thread (the DS and
   PSP shape), stopped and joined before the core is torn down. GB, GBC and GBA all take this path.
+  (Same day, later: the Game Boy moved onto the shared Core, so the drain now lives in
+  `Core/gba_core.cpp` and the queue in `Core/gb_audio_queue.h`; see "Android on the shared Core".)
   Three details that matter by ear: the 131072 Hz Game Boy stream is AVERAGED down, not picked, so
   square-wave harmonics do not fold back as whine (a 30 kHz tone leaves 10% alias, against ~100%
   picking); the resampler's phase carries across frames, so there is no 60 Hz click; and the GB
