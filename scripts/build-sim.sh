@@ -169,7 +169,6 @@ GPGX_INC="-I$ROOT/Core/gpgx -I$GPGX_SRC/core -I$GPGX_SRC/core/z80 -I$GPGX_SRC/co
 GPGX_DEFS="-DLSB_FIRST -DBYTE_ORDER=LITTLE_ENDIAN -DUSE_32BPP_RENDERING"
 [ -d "$GPGX_SRC/core" ] || { echo "!! no Genesis Plus GX source at $GPGX_SRC" >&2; exit 1; }
 
-
 # -DFE_NO_MAIN=1 MUST stay in step with scripts/build-core.sh: fe_access.cpp owns
 # a standalone-host main() behind #ifndef FE_NO_MAIN, and without this define the
 # simulator archive ships a second _main that fails the app link with
@@ -394,6 +393,18 @@ if [ "$count" -lt 100 ]; then
   exit 1
 fi
 
+# ---- Rename every Mupen64Plus-Next global (oga_m64p_*) ----
+# A libretro core defines hundreds of generic names (retro_*, main_run, g_dev,
+# the libretro-common set); m64p-isolate.sh renames them all in the m64p
+# objects so nothing else in this link can bind to them, and re-proves it.
+# After the compile loop, every time: a fresh compile restores the old names.
+# ⛔ BEFORE the Mesen and GPGX twin passes: those compute their overlap from
+# every object's globals, so an unrenamed core global (Mupen64Plus's `input`,
+# a common symbol on Mach-O) reads to them as a twin they cannot resolve
+# ("!! still duplicated: _input"). Renamed first, the core has no twins.
+bash "$ROOT/scripts/m64p-isolate.sh" "$OBJ" "$LLVM_NM" "$LLVM_OBJCOPY" || {
+  echo "!! Mupen64Plus-Next symbol isolation failed" >&2; exit 1; }
+
 # ⛔ AFTER the compile loop, BEFORE archiving. See localise_mesen_twins above for why
 # the position is load-bearing: a fresh compile rewrites these objects.
 localise_mesen_twins || exit 1
@@ -402,14 +413,6 @@ localise_mesen_twins || exit 1
 # gpgx-localize-twins.sh's header: GPGX's vendored blip_buf is the
 # third copy of that library in this link.
 bash "$ROOT/scripts/gpgx-localize-twins.sh" "$OBJ" "$LLVM_NM" "$LLVM_OBJCOPY" || exit 1
-
-# ---- Rename every Mupen64Plus-Next global (oga_m64p_*) ----
-# A libretro core defines hundreds of generic names (retro_*, main_run, g_dev,
-# the libretro-common set); m64p-isolate.sh renames them all in the m64p
-# objects so nothing else in this link can bind to them, and re-proves it.
-# After the compile loop, every time: a fresh compile restores the old names.
-bash "$ROOT/scripts/m64p-isolate.sh" "$OBJ" "$LLVM_NM" "$LLVM_OBJCOPY" || {
-  echo "!! Mupen64Plus-Next symbol isolation failed" >&2; exit 1; }
 
 echo "== archiving"
 # Merge the ffmpeg static slices into the core archive via $OBJ.

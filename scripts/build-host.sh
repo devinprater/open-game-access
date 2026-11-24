@@ -282,6 +282,11 @@ echo "== host objects: $_have objects"
 #
 # Order: the 7-Zip-specific pass first (it re-proves Mesen's SevenZip object still exports the
 # LookToRead_* symbols SZReader needs), then the computed all-twins pass.
+# Mupen64Plus-Next: every core global renamed oga_m64p_* (see m64p-isolate.sh).
+# First, before the twin passes below: they would read an unrenamed core
+# global as a twin.
+bash "$ROOT/scripts/m64p-isolate.sh" "$OBJ" || {
+  echo "!! Mupen64Plus-Next symbol isolation failed" >&2; touch "$OBJ/.failed"; }
 if [ -f "$OBJ/mesen7z_SevenZip_7zStream.o" ]; then
   bash "$ROOT/scripts/mesen-dedupe-7z.sh" "$OBJ/mesen7z_SevenZip_7zStream.o" || {
     echo "!! 7-Zip symbol dedupe failed" >&2; touch "$OBJ/.failed"; }
@@ -293,9 +298,6 @@ bash "$ROOT/scripts/mesen-localize-twins.sh" "$OBJ" || {
 # Mesen's side, this one localizes GPGX's. See gpgx-localize-twins.sh.
 bash "$ROOT/scripts/gpgx-localize-twins.sh" "$OBJ" || {
   echo "!! GPGX twin symbol localization failed" >&2; touch "$OBJ/.failed"; }
-# Mupen64Plus-Next: every core global renamed oga_m64p_* (see m64p-isolate.sh).
-bash "$ROOT/scripts/m64p-isolate.sh" "$OBJ" || {
-  echo "!! Mupen64Plus-Next symbol isolation failed" >&2; touch "$OBJ/.failed"; }
 # ⛔ AN `A && B` AS THE LAST STATEMENT IS A TRAP: when A is false the whole script exits 1,
 # so a CLEAN build reported failure and every `build-host.sh || exit 1` caller aborted before
 # linking its probe. Use an explicit if, so the exit status reflects the dedupe and nothing else.
