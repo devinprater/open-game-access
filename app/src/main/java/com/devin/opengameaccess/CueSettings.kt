@@ -54,10 +54,11 @@ object CueSettings {
  * keep sounding with game sound off. Speech never passes through
  * the drain at all.
  *
- * ⛔ HONOURED BY THE PSP AND GENESIS SESSIONS, AND NOTHING ELSE —
- * the switch must not pretend otherwise. Game Boy has no audio path
- * in this app at all (no audio export exists on its native surface),
- * so there is no GB sound for this switch to gate. The DS host's
+ * ⛔ HONOURED BY THE PSP, GENESIS, MESEN AND GAME BOY SESSIONS, AND
+ * NOTHING ELSE — the switch must not pretend otherwise. The Game Boy
+ * session (GB, GBC and GBA) reads it per frame and applies it at its
+ * native audio queue (GbAudioQueue.h), so off drops the game's music
+ * and effects while speech and the reader's cue sounds go on. The DS host's
  * native gate exists (poke_set_audio_enabled), but the DS session
  * does not read this switch yet, so DS game sound is not gated by
  * it either; the Genesis session reads it per frame and applies it

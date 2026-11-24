@@ -14,6 +14,7 @@ namespace MelonDSAndroid
 {
 
 class MGBAScript;
+class GbAudioQueue;
 
 /// Owns one mGBA core plus the accessibility script host, and drives the frame
 /// loop the way mGBA requires when a debugger with breakpoints is attached.
@@ -55,6 +56,12 @@ public:
     /// then resumes the script's coroutine once.
     void runFrame();
 
+    /// Moves the audio the core produced since the last call into `queue`
+    /// (resampled there to 32768 Hz). Frame thread only: this reads mGBA's own
+    /// ring, which runFrame writes and which is not thread-safe. Returns the
+    /// console frames taken from the ring (0 when it was empty).
+    size_t drainAudio(GbAudioQueue& queue);
+
     /// RGBA8888 framebuffer of the current frame, width 240x160 (GBA) or
     /// 160x144 (GB). Owned by the runner; valid until the next runFrame().
     const uint32_t* framebuffer(int* width, int* height, int* stride) const;
@@ -88,6 +95,7 @@ private:
 
     std::string romStorage;
     std::vector<uint32_t> videoBuffer;
+    std::vector<int16_t> audioScratch;
     uint32_t pendingKeys = 0;
     uint32_t lastFrameCounter = 0;
     std::string platform;

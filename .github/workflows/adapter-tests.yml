@@ -99,6 +99,14 @@ jobs:
       # reporting a pass it did not earn.
       - name: GB gate can actually fail (mutation proof)
         run: bash scripts/gb-gate-mutations.sh
+      # Android Game Boy games were SILENT: mGBA filled its audio ring and nothing read it.
+      # This compiles the exact queue header the APK links and measures real streams
+      # (131072 Hz in, 32768 Hz out, no click at frame edges, harmonics not folded back,
+      # bounded latency, the Game sound switch), mutates the header 4 ways and requires
+      # each mutant to fail, and checks the frame thread, session and clock are wired.
+      # Needs only g++, so it never skips.
+      - name: Android Game Boy audio path (behaviour + mutations + wiring)
+        run: bash scripts/android-gb-audio-test.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols

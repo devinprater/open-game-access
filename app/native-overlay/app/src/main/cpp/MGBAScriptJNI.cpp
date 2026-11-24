@@ -14,7 +14,9 @@
       * load a .gb/.gbc/.gba ROM into an MGBARunner owned here;
       * start the script with the asset directory;
       * resume it once per emulated frame and drive the mGBA frame loop;
-      * hand the framebuffer to Kotlin as an RGBA byte array.
+      * hand the framebuffer to Kotlin as an RGBA byte array;
+      * hand the game's own audio to Kotlin's AudioTrack thread
+        (GbAudioQueue.h: drained on the frame thread, read on the audio one).
 
     ⛔ The speech callback fires on the emulator thread, inside the frame loop.
     It must not block: the Kotlin side hands the string straight to
@@ -30,6 +32,7 @@
 
 #include "MGBARunner.h"
 #include "MGBACore.h"
+#include "GbAudioQueue.h"
 #include "MelonDSAndroidInterface.h"
 
 #define LOG_TAG "PokemonAccess"
@@ -40,6 +43,12 @@ namespace
 {
 
 std::unique_ptr<MelonDSAndroid::MGBARunner> gRunner;
+
+// The game's audio between the frame thread and the AudioTrack thread. A
+// global, not a runner member: stopGbRom destroys the runner on the main
+// thread while the audio thread may be inside readGbAudio, and this object is
+// what that thread touches -- so it must not die with the runner.
+MelonDSAndroid::GbAudioQueue gAudio;
 
 // The Kotlin bridge object — the same AccessibilitySpeech instance the NDS path
 // uses. Held as a global ref for the ROM session.
@@ -142,6 +151,7 @@ Java_me_magnum_melonds_accessibility_GbAccessibilityScript_loadGbRom(
     env->ReleaseStringUTFChars(assetDir, assets);
 
     gRunner = std::make_unique<MelonDSAndroid::MGBARunner>();
+    gAudio.clear();   // a new game never plays the last one's tail
 
     if (!gRunner->loadRom(romString, saveString))
     {
@@ -193,7 +203,40 @@ Java_me_magnum_melonds_accessibility_GbAccessibilityScript_loadGbRom(
 JNIEXPORT void JNICALL
 Java_me_magnum_melonds_accessibility_GbAccessibilityScript_runGbFrame(JNIEnv* env, jobject thiz)
 {
-    if (gRunner) gRunner->runFrame();
+    if (!gRunner) return;
+    gRunner->runFrame();
+    // Same thread that just wrote mGBA's ring, so reading it here is safe.
+    gRunner->drainAudio(gAudio);
+}
+
+/// The AudioTrack thread's read: up to `maxFrames` interleaved stereo s16
+/// frames at 32768 Hz into `out`. Returns frames written, 0 when dry. Touches
+/// only the queue, never the core (see GbAudioQueue.h).
+JNIEXPORT jint JNICALL
+Java_me_magnum_melonds_accessibility_GbAccessibilityScript_readGbAudio(
+    JNIEnv* env, jobject thiz, jshortArray out, jint maxFrames)
+{
+    if (out == nullptr || maxFrames <= 0) return 0;
+    jsize capacity = env->GetArrayLength(out) / 2;
+    if (maxFrames > capacity) maxFrames = capacity;
+    if (maxFrames <= 0) return 0;
+    // Reused per thread: this runs every few milliseconds on the audio thread.
+    static thread_local std::vector<int16_t> tmp;
+    tmp.resize((size_t) maxFrames * 2);
+    int got = gAudio.read(tmp.data(), maxFrames);
+    if (got > 0)
+        env->SetShortArrayRegion(out, 0, got * 2, reinterpret_cast<const jshort*>(tmp.data()));
+    return got;
+}
+
+/// The "Game sound" switch. Off drops the game's audio at the queue (and what
+/// was already staged); speech and the reader's cue sounds take other paths
+/// and are unaffected.
+JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_GbAccessibilityScript_setGbAudioEnabled(
+    JNIEnv* env, jobject thiz, jboolean enabled)
+{
+    gAudio.setEnabled(enabled == JNI_TRUE);
 }
 
 /// Copies the current RGBA8888 frame into `out` (240*160 or 160*144 pixels).
@@ -289,6 +332,7 @@ Java_me_magnum_melonds_accessibility_GbAccessibilityScript_stopGbRom(JNIEnv* env
     auto* script = gRunner->script();
     if (script) script->setSpeechCallback(nullptr, nullptr);
     gRunner.reset();
+    gAudio.clear();
     LOGI("[pokemon-access-gb] stopped");
 }
 
