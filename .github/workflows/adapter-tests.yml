@@ -112,6 +112,12 @@ jobs:
       # Needs only g++, so it never skips.
       - name: Android Game Boy audio path (behaviour + mutations + wiring)
         run: bash scripts/android-gb-audio-test.sh
+      # Stop speech must silence speech and never end the game, on every Android
+      # session (Game Boy's once tore the core down while the screen said it was
+      # running). Finds the sessions by file name, so a new console is held to it
+      # too, and requires 7 known bugs to each turn it red. Needs only python3.
+      - name: Android Stop speech never ends a game (every session + mutations)
+        run: bash scripts/android-stop-speech-test.sh
       - name: Verify compile-cache invalidation
         run: bash scripts/build-cache-test.sh
       - name: Verify mGBA version stub symbols
