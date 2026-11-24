@@ -359,11 +359,15 @@ export GPGX_SRC GPGX_INC GPGX_DEFS
 export M64P_SRC M64P_FLAGS
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # stdin, not `xargs -a` (GNU-only).
-# shellcheck disable=SC2002
-cat "$OBJ/list.txt" | xargs -P "$JOBS" -I{} bash -c '
-  IFS="|" read -r src lang tag <<< "{}"
+# ⛔ NO `xargs -I{}`. BSD xargs (macOS, where this runs) caps an -I argument
+# at 255 bytes after substitution and stops with "command line cannot be
+# assembled, too long" on the first longer line -- which the Mupen64Plus paths
+# are on the runner's /Users/runner/work/_temp/src. Each line goes to the child
+# as $1 instead, NUL-separated so a path with spaces stays one argument.
+tr '\n' '\0' < "$OBJ/list.txt" | xargs -0 -n 1 -P "$JOBS" bash -c '
+  IFS="|" read -r src lang tag <<< "$1"
   compile "$lang" "$src" "$tag"
-'
+' _
 
 # A cache hit is still completed work. Verify each requested TU was either
 # compiled or accepted from a current cache entry, so xargs no-ops remain fatal.

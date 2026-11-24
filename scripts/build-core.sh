@@ -354,10 +354,15 @@ export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_finge
 # archive kept its old contents and a newly added source file was simply absent.
 # It cost a full round-trip here: the FE adapter compiled "cleanly" and was not
 # in the archive at all. Any change to this pipeline must keep the input explicit.
-xargs -P "$JOBS" -I{} bash -c '
-  IFS="|" read -r src lang tag <<< "{}"
+# ⛔ NO `xargs -I{}`. BSD xargs (macOS, where this runs) caps an -I argument
+# at 255 bytes after substitution and stops with "command line cannot be
+# assembled, too long" on the first longer line -- which the Mupen64Plus paths
+# are on the runner's /Users/runner/work/_temp/src. Each line goes to the child
+# as $1 instead, NUL-separated so a path with spaces stays one argument.
+tr '\n' '\0' < "$OBJ/list.txt" | xargs -0 -n 1 -P "$JOBS" bash -c '
+  IFS="|" read -r src lang tag <<< "$1"
   compile "$lang" "$src" "$tag"
-' < "$OBJ/list.txt"
+' _
 
 # Fail loudly if xargs did not process every requested translation unit. A valid
 # cache hit counts as completed work just like a fresh compile; object mtimes alone
