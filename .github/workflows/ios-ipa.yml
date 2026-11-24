@@ -105,6 +105,9 @@ jobs:
           # build-core.sh refuses to run without it because the Genesis
           # backend is part of the app now.
           GPGX_SRC: ${{ runner.temp }}/src/genesis-plus-gx
+          # ⛔ REQUIRED since the PlayStation core landed, for the same reason:
+          # bootstrap-deps.sh fetches PCSX ReARMed here.
+          PCSX_SRC: ${{ runner.temp }}/src/pcsx_rearmed
         run: |
           SDKROOT="$(xcrun --sdk iphoneos --show-sdk-path)" bash scripts/build-core.sh
 
