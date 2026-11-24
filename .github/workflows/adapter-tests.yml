@@ -134,3 +134,17 @@ jobs:
         run: |
           python3 scripts/path-check.py
           bash scripts/path-check-test.sh
+
+  # The PlayStation core (PCSX ReARMed), built exactly as the app builds it and
+  # booted on a tiny PS-EXE the test writes itself: no disc, no BIOS. Its own
+  # job because it clones and compiles the pinned core (about a minute).
+  ps1-core-test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: PlayStation core boots, reads RAM, plays audio, saves states
+        env:
+          PCSX_SRC: ${{ runner.temp }}/src/pcsx_rearmed
+          OUT: ${{ runner.temp }}/oga-ps1-test
+        run: bash scripts/ps1-core-test.sh

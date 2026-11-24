@@ -29,6 +29,7 @@
 #include "mesen_core.h"
 #include "snes_core.h"
 #include "genesis_core.h"
+#include "ps1_core.h"
 
 // The GBA adapter's symbols (defined in gba_adapter.cpp). A GBA ROM selects
 // its native reader the same way an NDS ROM is matched from the registry —
@@ -39,6 +40,7 @@ namespace oga {
 extern const Adapter kGameBoyAdvance;
 extern const Adapter kNintendoEntertainmentSystem;
 extern const Adapter kSegaGenesis;
+extern const Adapter kSonyPlayStation;
 void gba_set_game_code(const char* code);
 void gba_set_platform(int platform);
 }
@@ -109,6 +111,9 @@ struct PokeCore {
     // destroyed here, and pointed at by backend.state. The core underneath is
     // a singleton machine; this pointer is the one live wrapper for it.
     GenesisCore* genesis = nullptr;
+    // The PlayStation (PCSX ReARMed). Same ownership rule; also a singleton
+    // machine underneath (ps1_create refuses a second live one).
+    Ps1Core* ps1 = nullptr;
     // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
     // the app bundle; the app points the core at them before loading a PSP
     // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
@@ -823,6 +828,7 @@ void poke_destroy(PokeCore* core)
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
     if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
+    if (core->ps1) { ps1_destroy(core->ps1); core->ps1 = nullptr; }
     core->backend.ops = nullptr;
     core->backend.state = nullptr;
     if (gCurrentCore == core) gCurrentCore = nullptr;
@@ -1027,7 +1033,7 @@ static bool LibraryAdapter(const oga::Adapter* a)
 {
     if (!a || !a->id) return false;
     return strcmp(a->id, "nes") != 0 && strcmp(a->id, "n64") != 0 &&
-           strcmp(a->id, "genesis") != 0;
+           strcmp(a->id, "genesis") != 0 && strcmp(a->id, "ps1") != 0;
 }
 
 static const oga::Adapter* LibraryAt(int index)
@@ -1096,6 +1102,7 @@ const char *poke_adapter_library_console(int index)
     if (strcmp(a->id, "nes") == 0) return "nes";
     if (strcmp(a->id, "n64") == 0) return "n64";
     if (strcmp(a->id, "genesis") == 0) return "genesis";
+    if (strcmp(a->id, "ps1") == 0) return "ps1";
     if (a->game_code && strncmp(a->game_code, "crc:", 4) == 0) return "snes";
     if (a->game_code && strncmp(a->game_code, "ULUS", 4) == 0) return "psp";
     if (a->game_code && strlen(a->game_code) == 4) return "nds";
@@ -1274,6 +1281,7 @@ int poke_cue_health(PokeCore* core, float* foe_hz, float* foe_pan, float* own_hz
     }
     if (s.focus_cue) bits |= 4;
     if (s.dlink_cue) bits |= 8;
+    if (s.walk_stop) bits |= 16;   /* auto walk stopped (A Link to the Past) */
     return bits;
 }
 
@@ -1573,6 +1581,7 @@ static void TeardownBackends(PokeCore* core)
     if (core->nes) { nes_destroy(core->nes); core->nes = nullptr; }
     if (core->snes) { snes_destroy(core->snes); core->snes = nullptr; }
     if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
+    if (core->ps1) { ps1_destroy(core->ps1); core->ps1 = nullptr; }
     core->adapter = nullptr;
     core->adapterAttached = false;
     // Clearing the ops is what makes "is a game loaded?" answerable from one
@@ -1699,6 +1708,43 @@ static bool LoadGenesisRom(PokeCore* core, const char* rom_path, const char* sav
     return true;
 }
 
+static bool LoadPs1Rom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    TeardownBackends(core);
+
+    core->ps1 = ps1_create();
+    if (!core->ps1) { SetError(core, "Could not create the PlayStation core."); return false; }
+    /* THE BIOS FOLDER IS THE GAME'S OWN FOLDER. A real PlayStation BIOS is
+     * Sony's firmware and none ships with the app; a player who has one
+     * (scph5501.bin and the like) puts it beside their games, and the core
+     * picks the right region's file there. With none, the core's HLE BIOS
+     * runs, which boots most games. No setting, no extra screen. */
+    {
+        std::string dir(rom_path);
+        size_t slash = dir.find_last_of("/\\");
+        dir = (slash == std::string::npos) ? std::string() : dir.substr(0, slash);
+        if (!dir.empty()) ps1_set_bios_dir(core->ps1, dir.c_str());
+    }
+    char code[16] = {0};
+    /* The save path is the slot-1 memory card file itself (a raw 128 KiB
+     * card): restored at load, written back on stop when it changed. */
+    if (!ps1_load_disc(core->ps1, rom_path, save_path ? save_path : "", code))
+    {
+        SetError(core, "%s", ps1_last_error(core->ps1));
+        ps1_destroy(core->ps1);
+        core->ps1 = nullptr;
+        return false;
+    }
+    core->backend = oga_ps1_core(core->ps1);
+    strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
+    /* A disc carries a real serial ("SLUS00594"), so a game reader is found by
+     * it like a DS or PSP game; with no reader for this disc, the console row
+     * is selected, which refuses and so shows no reader controls. */
+    core->adapter = core->gameCode[0] ? oga::find_by_game_code(core->gameCode) : nullptr;
+    if (!core->adapter) core->adapter = &oga::kSonyPlayStation;
+    return true;
+}
+
 static bool LoadPspRom(PokeCore* core, const char* rom_path, const char* save_path)
 {
     TeardownBackends(core);
@@ -1753,6 +1799,7 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
         if (backend->nes_hint) return LoadNesRom(core, rom_path, save_path);
         if (backend->snes_hint) return LoadSnesRom(core, rom_path, save_path);
         if (backend->genesis_hint) return LoadGenesisRom(core, rom_path, save_path);
+        if (backend->ps1_hint) return LoadPs1Rom(core, rom_path, save_path);
         if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
     }
 

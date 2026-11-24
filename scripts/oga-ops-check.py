@@ -101,6 +101,7 @@ def main() -> int:
         (ROOT / "Core/oga_core.cpp", r"OgaCoreOps kPspOps\s*=\s*\{", "kPspOps"),
         (ROOT / "Core/oga_core.cpp", r"OgaCoreOps kNesOps\s*=\s*\{", "kNesOps"),
         (ROOT / "Core/oga_core.cpp", r"OgaCoreOps kGenesisOps\s*=\s*\{", "kGenesisOps"),
+        (ROOT / "Core/oga_core.cpp", r"OgaCoreOps kPs1Ops\s*=\s*\{", "kPs1Ops"),
         (ROOT / "Core/pokecore.cpp", r"OgaCoreOps kTable\s*=\s*\{", "kDsOps"),
     ]
 

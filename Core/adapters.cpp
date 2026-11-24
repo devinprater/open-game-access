@@ -103,6 +103,9 @@ extern const Adapter kNintendoEntertainmentSystem;
 // A StarFox reader for this app would be a NEW N64 Lua reader, gated on blocker 1.
 extern const Adapter kNintendo64;
 extern const Adapter kSegaGenesis;
+// The PlayStation console row (Core/ps1_adapter.cpp): refuses, and never
+// matches a disc. A game reader registers its disc serial as its own row.
+extern const Adapter kSonyPlayStation;
 
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
@@ -118,6 +121,7 @@ static const Adapter* const kAdapters[] = {
     &kNintendoEntertainmentSystem,
     &kNintendo64,
     &kSegaGenesis,
+    &kSonyPlayStation,
 };
 
 const Adapter* const* all_adapters(int* count)

@@ -410,6 +410,7 @@ bool PspAdapterHostCuePoll(int* state, float* dist, int* field,
   }
   if (s.focus_cue) bits |= 4;
   if (s.dlink_cue) bits |= 8;
+  if (s.walk_stop) bits |= 16;  // auto-walk stop earcon (pokecore's bit, kept in step)
   if (health_bits) *health_bits = bits;
 
   // The Active Guard window (poke_cue_guard's continuous answer): a

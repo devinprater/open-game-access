@@ -513,6 +513,9 @@ object MesenGameSession {
         PspCueSynth.updateOneShots(
             poll.healthBits, poll.foeHz, poll.foePan, poll.ownHz, poll.ownPan, on,
         )
+        // The auto-walk stop earcon (bit 16): outside the battle-cues
+        // switch, because it only exists once auto walk is turned on.
+        PspCueSynth.updateWalkStop(poll.healthBits)
         PspCueSynth.updateGuard(
             poll.guardActive, poll.guardFrac, poll.guardBeat, on,
         )
