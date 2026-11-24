@@ -2,11 +2,13 @@
 # =============================================================================
 # android-gb-audio-test.sh -- Game Boy games make their own sound on Android.
 #
-# They were SILENT: MGBARunner ran mGBA, mGBA filled its audio ring every frame,
-# and nothing read it. The fix has three parts and this gate covers each:
+# They were SILENT: the old Android-only host ran mGBA, mGBA filled its audio
+# ring every frame, and nothing read it. The Game Boy now runs on the shared Core
+# (Core/gba_core.cpp under pokecore, behind GbSessionJNI.cpp) on Android as on
+# iOS, and the fix lives there. It has three parts and this gate covers each:
 #
 #   1. BEHAVIOUR (scripts/android-gb-audio-test.cpp). Compiles the exact header the
-#      APK links, GbAudioQueue.h, and measures real streams: 131072 Hz in, 32768 Hz
+#      core stages through, Core/gb_audio_queue.h, and measures real streams: 131072 Hz in, 32768 Hz
 #      out, no click at frame edges, harmonics not folded back, latency bounded,
 #      the Game sound switch honoured.
 #   2. THE GATE CAN FAIL. Four mutations of the header, each a bug this path could
@@ -22,10 +24,11 @@ set -uo pipefail
 R="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$R" || exit 1
 
-HDR=app/native-overlay/app/src/main/cpp/GbAudioQueue.h
+HDR=Core/gb_audio_queue.h
 TEST=scripts/android-gb-audio-test.cpp
-JNI=app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp
-RUNNER=app/native-overlay/app/src/main/cpp/MGBARunner.cpp
+JNI=app/native-overlay/app/src/main/cpp/GbSessionJNI.cpp
+CORE=Core/gba_core.cpp
+POKE=Core/pokecore.cpp
 SESSION=app/src/main/java/com/devin/opengameaccess/GbGameSession.kt
 TMP="$(mktemp -d)"
 trap 'rm -rf "$TMP"' EXIT
@@ -53,7 +56,7 @@ echo "== 2. the gate can fail (each mutant must be caught)"
 mutate() { # mutate <name> <python replace expression on s>
   local name="$1" expr="$2" dir="$TMP/m-$1"
   mkdir -p "$dir"
-  python3 - "$HDR" "$dir/GbAudioQueue.h" "$expr" <<'PY'
+  python3 - "$HDR" "$dir/gb_audio_queue.h" "$expr" <<'PY'
 import sys
 src, dst, expr = sys.argv[1], sys.argv[2], sys.argv[3]
 s = open(src).read()
@@ -79,9 +82,9 @@ mutate no-backlog-cap $'        if (have > kMaxBacklogFrames)\n=>\n        if (f
 mutate switch-ignored $'        if (!enabled) return;\n=>\n'
 
 echo "== 3. the wiring"
-python3 - "$JNI" "$RUNNER" "$SESSION" <<'PY' || fail=1
+python3 - "$JNI" "$CORE" "$POKE" "$SESSION" <<'PY' || fail=1
 import re, sys
-jni, runner, session = (open(p).read() for p in sys.argv[1:4])
+jni, core, poke, session = (open(p).read() for p in sys.argv[1:5])
 bad = 0
 def ok(c, what):
     global bad
@@ -97,17 +100,26 @@ def body(src, head):
         if depth == 0: return src[j:k + 1]
     return ""
 
-frame = body(jni, "GbAccessibilityScript_runGbFrame(")
-ok("runFrame()" in frame and "drainAudio(gAudio)" in frame
-   and frame.find("runFrame()") < frame.find("drainAudio(gAudio)"),
+frame = body(core, "bool gba_frame(GbaCore* core)")
+run_at = max(frame.find("runFrame(core->core)"), frame.find("mDebuggerRunFrame("))
+ok(run_at >= 0 and "GbaDrainAudio(core);" in frame
+   and run_at < frame.find("GbaDrainAudio(core);"),
    "the frame thread drains mGBA's ring right after it runs the frame")
-read = body(jni, "GbAccessibilityScript_readGbAudio(")
-ok("gAudio.read(" in read and "gRunner" not in read,
+drain = body(core, "static void GbaDrainAudio(GbaCore* core)")
+ok("mAudioBufferRead" in drain and "core->audio.push(" in drain,
+   "the drain really reads mGBA's audio ring into the staged queue")
+read = body(core, "int gba_read_audio(")
+ok("core->audio.read(" in read and "mAudioBuffer" not in read,
    "the audio thread's read touches the queue only, never the core")
-ok("mAudioBufferRead" in body(runner, "size_t MGBARunner::drainAudio("),
-   "MGBARunner::drainAudio really reads mGBA's audio ring")
-ok("core->opts.volume = 0x100" in runner,
+ok("opts.volume = 0x100" in core,
    "the master volume is set, not left to whatever the struct held")
+ok("core->audio.setEnabled(" in body(core, "void gba_set_audio_enabled("),
+   "the Game sound switch reaches the staged queue")
+jread = body(jni, "GbAccessibilityScript_nativeGbReadAudio(")
+ok("poke_read_audio(" in jread and "poke_frame" not in jread,
+   "the Android audio thread reads through pokecore's queue accessor only")
+ok("poke_set_audio_enabled(" in body(jni, "GbAccessibilityScript_nativeGbSetAudioEnabled("),
+   "the Android Game sound switch reaches the shared core")
 
 start = body(session, "fun start(activity: Activity, uri: Uri)")
 ok("startAudio()" in start, "starting a game starts the audio drain")

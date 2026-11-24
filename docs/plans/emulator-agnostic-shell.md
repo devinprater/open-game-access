@@ -33,7 +33,8 @@ makes console #5 cheap.
 
 ### 2. Android stops assuming melonDS
 
-Android does not use the shared `Core/` at all — it has `MelonInstance` (DS) and a
+(2026-11-24: largely done, see step 5 under Order of work.) When this was written,
+Android did not use the shared `Core/` at all — it had `MelonInstance` (DS) and a
 separate `MGBAScriptJNI` (GBA), with nothing for PSP. The native side is not the
 hard part (the JNI entry points already exist); the UI is: 578 Kotlin files sit in
 a package called `me.magnum.melonds` and the ROM picker only knows `.nds`.
@@ -92,6 +93,13 @@ Mario Kart 64 (N64) or Double Dash (GameCube) would.
    **GB/GBC and GBA have a second, unused Mesen core** — mGBA already boots
    both, so those two are a choice (swap, or keep mGBA) and not a gap.
 5. **Android reads the registry** — retire `MelonInstance` for NDS too.
+   **MOSTLY DONE on the native side (2026-11-24).** DS, NES/SNES, Genesis and now
+   Game Boy / Game Boy Color / GBA all run on Android through `Core/pokecore.cpp`
+   (DsSessionJNI, MesenSessionJNI, GenesisSessionJNI, GbSessionJNI); the
+   Android-only `MGBAScriptJNI` host is gone and `MelonInstance` no longer hosts any
+   OGA game. Still left: PSP runs `psp_core` directly (PspSessionJNI +
+   PspAdapterHost) rather than through pokecore, and the Android launcher still
+   routes by file extension instead of reading `oga_system_*` over JNI.
 6. **PS1**, then **N64** (measure first), then **SNES**.
 7. PS2 / GC / Wii: not planned; revisit when a core exists that runs on a phone.
 

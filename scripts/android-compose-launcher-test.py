@@ -50,7 +50,7 @@ GBSCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
                "accessibility/GbAccessibilityScript.kt")
 DSSCRIPT_KT = ("app/native-overlay/app/src/main/java/me/magnum/melonds/"
                "accessibility/AccessibilityScript.kt")
-JNI_CPP = "app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp"
+JNI_CPP = "app/native-overlay/app/src/main/cpp/GbSessionJNI.cpp"
 LEGACY_HTML = "app/src/main/assets/index.html"
 LIBRARY_KT = "app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
 GAMES_SCREEN_KT = "app/src/main/java/com/devin/opengameaccess/ui/AdapterGamesScreen.kt"
@@ -1268,13 +1268,14 @@ else:
 
 stubs = read(STUBS_CPP)
 if ("nes_create" not in stubs and "snes_create" not in stubs
-        and "gba_create" in stubs):
-    ok("the backend stubs refuse only GBA now (the Mesen glue is real)")
+        and "gba_create" not in stubs):
+    ok("the backend stubs refuse neither Mesen nor the Game Boy "
+       "(both glues are real)")
 else:
-    bad("the backend stubs refuse only GBA now (the Mesen glue is real)",
-        "a leftover nes_create/snes_create stub would duplicate the "
-        "real symbol in the frontend .so; a missing gba_create drops "
-        "the GBA refusal the DS host links against")
+    bad("the backend stubs refuse neither Mesen nor the Game Boy "
+        "(both glues are real)",
+        "a leftover nes_create/snes_create/gba_create stub would "
+        "duplicate the real symbol in the frontend .so")
 
 if ("OGA_MESEN" in overlay_sh and "MesenSessionJNI" in overlay_sh
         and "mesen/glue" in overlay_sh and "assets/nes-lua" in overlay_sh):
@@ -1331,6 +1332,55 @@ else:
         "without the bridge built at Mesen start, the view "
         "re-forward and the widened announce guard, launcher lines "
         "during NES/SNES play reach no voice")
+# ---- 14. THE GAME BOY RUNS ON THE SHARED CORE ------------------------------
+# The Android-only Game Boy host (MGBARunner/MGBACore/MGBAScriptJNI) is gone;
+# the Game Boy family rides pokecore through GbSessionJNI.cpp, exactly as on
+# iOS. Hold the pieces that make that true, and the stop-speech fix that came
+# with it:
+#  * the overlay stages Core/gba_core.cpp with the rest of the shared-Core
+#    glue and lists GbSessionJNI.cpp in the frontend target;
+#  * the JNI surface drives pokecore (load, script folder, start), never mGBA;
+#  * availability is the guarded native probe (the DS/Mesen/Genesis shape),
+#    not the old "is there any frontend .so in the APK" zip walk, which says
+#    yes on a 32-bit build where the shared-Core glue is not compiled;
+#  * Stop speech stops the VOICE (pokecore's StopSpeech command) and leaves
+#    the game running. It used to call the session's stop, which tore the
+#    core down while the screen still showed the game.
+gb_jni_raw = read(JNI_CPP)
+gb_session_raw = read(SESSION_KT)
+if ("gba_core" in overlay_sh and "GbSessionJNI.cpp" in overlay_sh
+        and not os.path.exists("app/native-overlay/app/src/main/cpp/MGBARunner.cpp")
+        and not os.path.exists("app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp")):
+    ok("the overlay builds the Game Boy into the shared-Core glue and the "
+       "old Android-only host is gone")
+else:
+    bad("the overlay builds the Game Boy into the shared-Core glue and the "
+        "old Android-only host is gone",
+        "section 9 must stage gba_core and list GbSessionJNI.cpp, and "
+        "MGBARunner/MGBAScriptJNI must not come back beside it")
+if all(call in gb_jni_raw for call in ("poke_load_rom(", "poke_set_script_dir(",
+                                       "poke_start(", "poke_read_audio(")):
+    ok("the Game Boy JNI surface drives pokecore")
+else:
+    bad("the Game Boy JNI surface drives pokecore",
+        "GbSessionJNI.cpp no longer loads, boots or drains through poke_*")
+if ("isCoreLinked" in session and "UnsatisfiedLinkError" in session
+        and "ZipFile" not in session):
+    ok("Game Boy availability is the guarded native probe")
+else:
+    bad("Game Boy availability is the guarded native probe",
+        "GbGameSession.coreAvailable must ask GbAccessibilityScript."
+        "isCoreLinked under an UnsatisfiedLinkError catch")
+stop_body = re.search(r"fun\s+stopSpeech\s*\(\)\s*\{(.*?)\n    \}", session, re.S)
+if (stop_body and "GbAccessibilityScript.stopSpeech()" in stop_body.group(1)
+        and "GbAccessibilityScript.stop()" not in stop_body.group(1)
+        and "kCommandStopSpeech = 37" in gb_jni_raw):
+    ok("Stop speech stops the voice and leaves the Game Boy game running")
+else:
+    bad("Stop speech stops the voice and leaves the Game Boy game running",
+        "GbGameSession.stopSpeech must send pokecore's StopSpeech (37), "
+        "not stop the session")
+
 print()
 if fails:
     print("FAIL: the Compose launcher contract is broken:")

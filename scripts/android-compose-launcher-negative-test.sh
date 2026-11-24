@@ -46,7 +46,7 @@ stage() {
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/Ps1AccessibilityScript.kt \
      app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/Ps1RomResolver.kt \
      "$TMP/t/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/"
-  cp app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp \
+  cp app/native-overlay/app/src/main/cpp/GbSessionJNI.cpp \
      app/native-overlay/app/src/main/cpp/PspSessionJNI.cpp \
      app/native-overlay/app/src/main/cpp/PspAdapterHost.cpp \
      app/native-overlay/app/src/main/cpp/DsSessionJNI.cpp \
@@ -84,8 +84,25 @@ open(p, "w", encoding="utf-8").write(s)
 PYEOF
 }
 case_jni() {  # sabotage: rename a JNI symbol so it no longer resolves
-  sed -i 's/Java_me_magnum_melonds_accessibility_GbAccessibilityScript_loadGbRom/Java_me_magnum_melonds_accessibility_GbAccessibilityScript_loadGbRomRenamed/' \
-     "$TMP/t/app/native-overlay/app/src/main/cpp/MGBAScriptJNI.cpp"
+  sed -i 's/Java_me_magnum_melonds_accessibility_GbAccessibilityScript_nativeGbLoadRom/Java_me_magnum_melonds_accessibility_GbAccessibilityScript_nativeGbLoadRomRenamed/' \
+     "$TMP/t/app/native-overlay/app/src/main/cpp/GbSessionJNI.cpp"
+}
+case_gbstopspeech() {  # sabotage: Stop speech tears the Game Boy game down again (the old bug)
+  sed -i 's/GbAccessibilityScript\.stopSpeech()/GbAccessibilityScript.stop()/' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/GbGameSession.kt"
+}
+case_gbprobe() {  # sabotage: Game Boy availability asserted instead of asked
+  sed -i 's/GbAccessibilityScript\.isCoreLinked()/true/' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/GbGameSession.kt"
+}
+case_gbstubs() {  # sabotage: the GBA refusal stub comes back beside the real gba_core
+  printf '\nGbaCore *gba_create(void) { return nullptr; }\n' \
+     >> "$TMP/t/app/native-overlay/app/src/main/cpp/DsBackendStubs.cpp"
+}
+case_gbglue() {  # sabotage: the overlay stops compiling gba_core into the shared-Core glue
+  sed -i 's/ n64_adapter gba_core; do/ n64_adapter; do/; s/"gba_core"\]/]/; s/"n64_adapter",$/"n64_adapter"]/' \
+     "$TMP/t/scripts/android-apply-overlay.sh"
+  sed -i 's/gba_core/gbacore_removed/g' "$TMP/t/scripts/android-apply-overlay.sh"
 }
 case_webview() {  # sabotage: a second WebView launcher returns
   printf '\n// loadUrl("https://appassets.androidplatform.net/assets/index.html")\n' \
@@ -185,7 +202,7 @@ else
   bad=1
 fi
 
-for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys mesenjni mesenkeys mesenstubs genkeys genjni ps1keys ps1jni ps1bios; do
+for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys mesenjni mesenkeys mesenstubs genkeys genjni ps1keys ps1jni ps1bios gbstopspeech gbprobe gbstubs gbglue; do
   stage
   "case_$s"
   if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then
