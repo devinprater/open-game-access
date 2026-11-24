@@ -79,6 +79,7 @@ Addresses are always hex (`0x`, `$` or bare). Values and counts are decimal unle
 | SNES (pokecore) | yes | yes | no |
 | Genesis (pokecore) | yes | no | no |
 | PSP (pokecore, iOS) | yes | yes | no |
+| PlayStation (pokecore) | yes | no | no |
 
 Game Boy and PSP on Android run their own hosts, not pokecore, so they have no channel yet.
 

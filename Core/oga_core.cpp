@@ -604,6 +604,7 @@ static const OgaCoreOps kPs1Ops = {
     Ps1Frames,
     Ps1LastError,
     NULL,                       /* set_direction: no direction layer on this console */
+    NULL,                       /* write: no write path into the PlayStation's RAM yet */
 };
 
 OgaCore oga_ps1_core(Ps1Core* ps1)
