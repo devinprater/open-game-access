@@ -66,8 +66,13 @@ check's own ancestor.
   shim. `scripts/check-reader-assets.sh` fails if a second tree reappears and is
   wired into the Android workflow BEFORE the build, so drift fails in seconds
   instead of after a 20-minute APK run.
-- **Still open:** the NES readers are iOS-only. `nes-lua/` has no Android
-  staging path; `app/src/main/assets/` has no NES entry at all.
+- **Still open (at the time):** the NES readers were iOS-only. `nes-lua/` had no
+  Android staging path; `app/src/main/assets/` had no NES entry at all.
+- **Fixed since:** `scripts/android-apply-overlay.sh` section 1c stages every NES
+  set from the canonical `Sources/OpenGameAccess/Resources/nes-lua/` into
+  `assets/nes-lua/`, and the APK gate (CI and `android-build-local.sh`) requires
+  each set's `.lua` files in the built APK, with the set list read from the
+  canonical tree. Main's run on `18f4a60` (2026-11-24) staged 2 sets, 17 files.
 
 ## What a correct gate asserts
 
@@ -76,7 +81,7 @@ Per reader set, on the APK's own file list:
 * `assets/lua/gb/oga_bootstrap.lua` — the loader, exists only in the current set
 * `assets/lua/gb/mgba_compat.lua`   — the shim, the actual blocker
 * `assets/lua/gb/gb.lua`, `gba.lua`, `pokemon.lua` — the readers themselves
-* and for NES: whatever staging path Android will use, which does not exist yet
+* and for NES: `assets/nes-lua/<set>/*.lua` for every set in the canonical tree
 
 ## The staging decision this exposes
 
