@@ -298,7 +298,15 @@ fi
 # symbols either (PokeScript.cpp, the NDS path's Lua host, was equally unwired).
 #
 # This builds the mGBA core and Lua as a CMake subproject for Android, then wires
-# the four overlay files and the archive into the frontend target.
+# the archive and its headers into the frontend target.
+#
+# Those four hosts are GONE now: the Game Boy runs on the shared Core
+# (Core/gba_core.cpp under pokecore, compiled with the rest of the shared-Core
+# glue in section 9, behind GbSessionJNI.cpp), exactly as on iOS, and
+# PokeScript was compiled but never used. What this section still provides is
+# the mGBA + Lua archive (oga-mgba) and its include paths, which gba_core and
+# pokecore compile against, plus the anchor line section 8 lists the PSP glue
+# objects after.
 # ---------------------------------------------------------------------------
 say "building the GBA/Game Boy core for Android"
 
@@ -506,8 +514,8 @@ target_include_directories(oga-mgba PUBLIC
 target_compile_options(oga-mgba PRIVATE -w)
 target_compile_definitions(oga-mgba PRIVATE ${OGA_MGBA_DEFS})
 
-# Propagate to consumers: the accessibility hosts need the same view of mGBA's
-# headers, or the guards above hide the members they call.
+# Propagate to consumers: the shared Core's Game Boy host (gba_core.cpp) needs
+# the same view of mGBA's headers, or the guards above hide the members it calls.
 target_compile_definitions(oga-mgba INTERFACE ${OGA_MGBA_DEFS})
 """)
 print(f"     generated the mGBA build ({len(files)} audited sources + Lua)")
@@ -538,14 +546,12 @@ intro = NL.join([
 ])
 s = s.replace(anchor, intro + anchor, 1)
 
-# 2. the four accessibility hosts were copied here but never LISTED.
+# 2. the anchor the later sections list their objects after. The Game Boy's
+#    own Android hosts used to sit here; the Game Boy now rides the shared
+#    Core (section 9), so only the marker line remains.
 hosts = NL.join([
-    "        # Open Game Access accessibility hosts. Previously copied here but never",
-    "        # listed, so they were never compiled -- see the overlay script.",
-    "        ${ANDROID-CPP}/PokeScript.cpp",
-    "        ${ANDROID-CPP}/MGBACore.cpp",
-    "        ${ANDROID-CPP}/MGBARunner.cpp",
-    "        ${ANDROID-CPP}/MGBAScriptJNI.cpp",
+    "        # OGA_HOSTS_ANCHOR -- Open Game Access objects that ride this target",
+    "        # are listed after this line (scripts/android-apply-overlay.sh).",
 ])
 s = s.replace("        ${ANDROID-CPP}/MelonInstance.cpp",
               "        ${ANDROID-CPP}/MelonInstance.cpp" + NL + hosts, 1)
@@ -565,7 +571,7 @@ s = s.replace(
     "target_link_libraries(melonDS-android-frontend android core net-utils oboe faad enet rcheevos EGL GLESv3 oga-mgba)", 1)
 
 open(p, "w", encoding="utf-8").write(s)
-print("     wired oga-mgba + the four accessibility hosts into the frontend")
+print("     wired oga-mgba into the frontend")
 PY
 fi
 
@@ -1094,13 +1100,13 @@ intro = NL.join([
 ])
 s = s.replace(anchor, intro + anchor, 1)
 
-# The glue's objects ride in the frontend target itself, listed next
-# to the mGBA accessibility hosts (section 7's pattern): psp_core.o is
-# then always in the .so, and its references pull the subset objects
-# from the archive -- normal archive semantics, as on iOS.
-hosts_anchor = "        ${ANDROID-CPP}/MGBAScriptJNI.cpp"
+# The glue's objects ride in the frontend target itself, listed after
+# section 7's anchor line: psp_core.o is then always in the .so, and
+# its references pull the subset objects from the archive -- normal
+# archive semantics, as on iOS.
+hosts_anchor = "        # are listed after this line (scripts/android-apply-overlay.sh)."
 if hosts_anchor not in s:
-    print("     !! mGBA hosts anchor not found"); sys.exit(1)
+    print("     !! section 7 hosts anchor not found"); sys.exit(1)
 s = s.replace(hosts_anchor,
               hosts_anchor + NL + "        ${OGA_PPSPP_GLUE_OBJECTS}", 1)
 
@@ -1342,8 +1348,8 @@ fi
 # the embedded Lua the Pokemon Black/White reader script runs in, the
 # native adapter attach (the shared registry's DS adapters), the
 # announcement queue and the battle-cue snapshots. The Android side adds
-# only a JNI surface over it (DsSessionJNI.cpp, riding the frontend
-# target like the other accessibility hosts) — see that file's header
+# only JNI surfaces over it (DsSessionJNI.cpp for the DS, GbSessionJNI.cpp
+# for the Game Boy family, riding the frontend target) — see DsSessionJNI's header
 # for why the earlier DS starts in this tree (the MelonCore stub, the
 # script-only PokeScript) could not run a game.
 #
@@ -1357,13 +1363,13 @@ fi
 #     melonDS::Platform file IO, which the frontend's PlatformAndroid
 #     already provides in this library. DsSessionJNI.cpp defines the one
 #     symbol pokecore needs from it (PokeSetLogForward).
-#   - gba_core is NOT compiled: GB has its own Android slice, and
-#     DsBackendStubs.cpp refuses its ABI (create() returns null, which
-#     pokecore's load path turns into a clean refusal) — the
-#     missing-symbol set was measured with nm over exactly the TUs
-#     staged below, not guessed. mesen_core/snes_core ARE compiled
-#     since section 10 (the MesenCE subproject below); their former
-#     stubs are gone from DsBackendStubs.cpp for exactly that reason.
+#   - gba_core IS compiled: the Game Boy, Game Boy Color and GBA run on
+#     this host now, behind GbSessionJNI.cpp, against section 7's mGBA
+#     archive — the iOS app's Game Boy host, the same translation unit.
+#     Its former refusal stubs are gone from DsBackendStubs.cpp, as
+#     mesen_core/snes_core's went when section 10 began compiling them.
+#     Like the rest of this glue it is 64-bit only, so a 32-bit ARM
+#     phone has no Game Boy either (the Kotlin probe says so).
 #
 # ⛔ THE GLUE RIDES THE FRONTEND TARGET, not a subproject library (the
 # PSP pattern does not transfer): pokecore shares melonDS C++ class
@@ -1389,12 +1395,12 @@ mkdir -p "$DS_GLUE"
 for f in pokecore oga_core systems adapters fe_adapter fe_access \
          dbz_adapter dq9_adapter gba_adapter nes_adapter alttp_adapter \
          alttp_text alttp_names alttp_rooms alttp_graph alttp_dungeon_graph \
-         n64_adapter; do
+         n64_adapter gba_core; do
   cp "$ROOT/Core/$f.cpp" "$DS_GLUE/$f.cpp" || { echo "   !! Core/$f.cpp missing" >&2; exit 1; }
 done
 cp "$ROOT"/Core/*.h "$DS_GLUE/"
 cp "$ROOT/Sources/CPokeCore/include/pokecore.h" "$DS_GLUE/"
-echo "     staged the DS host (17 Core translation units + headers)"
+echo "     staged the shared-Core host (18 Core translation units + headers)"
 
 CMAKE="$FRONTEND/app/CMakeLists.txt"
 if grep -q 'OGA_DS_GLUE' "$CMAKE"; then
@@ -1408,7 +1414,8 @@ NL = chr(10)
 tus = ["pokecore", "oga_core", "systems", "adapters", "fe_adapter",
        "fe_access", "dbz_adapter", "dq9_adapter", "gba_adapter",
        "nes_adapter", "alttp_adapter", "alttp_text", "alttp_names",
-       "alttp_rooms", "alttp_graph", "alttp_dungeon_graph", "n64_adapter"]
+       "alttp_rooms", "alttp_graph", "alttp_dungeon_graph", "n64_adapter",
+       "gba_core"]
 lines = [
     "",
     "# ---------------------------------------------------------------------------",
@@ -1422,6 +1429,7 @@ lines = [
     'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
     "    target_sources(melonDS-android-frontend PRIVATE",
     "        ${ANDROID-CPP}/DsSessionJNI.cpp",
+    "        ${ANDROID-CPP}/GbSessionJNI.cpp",
     "        ${ANDROID-CPP}/DsBackendStubs.cpp",
 ]
 lines += ["        ${CMAKE_CURRENT_SOURCE_DIR}/ds-glue/%s.cpp" % t for t in tus]

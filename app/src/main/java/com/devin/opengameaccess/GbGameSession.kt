@@ -31,10 +31,14 @@ import me.magnum.melonds.accessibility.GbRomResolver
  * exact double-voice problem the guard exists to prevent. [attachAnnouncementView]
  * below is the missing call.
  *
- * ⛔ THE GAME'S OWN SOUND, AT LAST. Game Boy games were SILENT on Android:
- * mGBA filled its audio ring every frame and nothing read it (iOS had the same
- * hole until v0.6.6). The frame thread now drains that ring into a native
- * queue after every frame (MGBAScriptJNI.cpp runGbFrame -> GbAudioQueue.h),
+ * ⛔ THE HOST IS THE SHARED CORE. GbAccessibilityScript drives GbSessionJNI.cpp,
+ * which runs Core/gba_core.cpp under pokecore — the iOS app's Game Boy host,
+ * the same translation unit — instead of the Android-only MGBARunner host the
+ * app used to carry. This object's surface did not change with the move.
+ *
+ * ⛔ THE GAME'S OWN SOUND. mGBA fills its audio ring every frame; the shared
+ * core drains it into its queue after every frame (gba_core.cpp gba_frame ->
+ * Core/gb_audio_queue.h, resampled to 32768 Hz and bounded in latency),
  * and this session plays the queue through an AudioTrack from its own thread —
  * the DS and PSP sessions' shape exactly, at the same 32768 Hz. The thread lives
  * exactly as long as a game: started when one loads, stopped and joined in
@@ -62,38 +66,21 @@ object GbGameSession {
     /**
      * True when this build can actually run Game Boy ROMs.
      *
-     * ⛔ ASK THE APK, DO NOT ASK THE LIBRARY DIRECTORY. The GB reader's native
-     * code is linked into `libmelonDS-android-frontend.so`, and this build sets
-     * `extractNativeLibs=false` — so on an installed app `nativeLibraryDir` is
-     * EMPTY: the libraries are never extracted to disk, they stay in the APK and
-     * the platform loads them straight out of it. The previous probe listed
-     * `nativeLibraryDir`, found nothing (logcat: `no frontend .so in
-     * /data/app/~~…/lib/x86_64: []`), and reported the core missing on every
-     * launch — the launcher's Select Game / Start Game buttons were permanently
-     * disabled even though the frontend .so was sitting in the APK. The probe
-     * now reads the APK's own entries (`applicationInfo.sourceDir` as a zip) and
-     * looks for `lib/<any-abi>/lib…frontend….so`, which is where the library
-     * actually is in this build configuration. Still fail-closed: no frontend
-     * entry in the APK means the feature really is not in this build.
+     * ⛔ ASK THE CORE, NOT THE PACKAGE — the DS/Mesen/Genesis probe's reasoning:
+     * every core shares the frontend .so, so its presence says nothing about
+     * the Game Boy; the question is whether the Game Boy surface was compiled
+     * into it, and the only honest witness is the JNI probe that exists exactly
+     * when it was (GbAccessibilityScript.isCoreLinked). On armeabi-v7a, where
+     * the shared-Core glue is not built, the call throws UnsatisfiedLinkError;
+     * that throw is the "no", caught here.
      */
     fun coreAvailable(context: Context): Boolean {
         return try {
-            val apk = context.applicationInfo.sourceDir ?: return false
-            var hasFrontend = false
-            java.util.zip.ZipFile(apk).use { zip ->
-                val entries = zip.entries()
-                while (entries.hasMoreElements()) {
-                    val name = entries.nextElement().name
-                    if (name.startsWith("lib/") && name.endsWith(".so") &&
-                        name.substringAfterLast('/').contains("frontend")
-                    ) {
-                        hasFrontend = true
-                        break
-                    }
-                }
-            }
-            if (!hasFrontend) Log.w(TAG, "no frontend .so in APK $apk")
-            hasFrontend
+            GbAccessibilityScript.isCoreLinked()
+        } catch (e: UnsatisfiedLinkError) {
+            // The armeabi-v7a answer: the surface is not in the .so.
+            Log.w(TAG, "Game Boy path unavailable: ${e.message}")
+            false
         } catch (t: Throwable) {
             Log.w(TAG, "Game Boy path unavailable: ${t.message}")
             false
@@ -144,7 +131,20 @@ object GbGameSession {
             return lastError
         }
         val savePath = GbRomResolver.savePathFor(activity, romPath)
-        val started = GbAccessibilityScript.start(activity, romPath, savePath)
+        // The debug channel's folder goes in before the load, so the new core
+        // reads cmd.txt from its first frame. Never fatal: a missing folder
+        // only means no file-driven commands.
+        try {
+            GbAccessibilityScript.setDebugDir(DebugChannel.dir(activity))
+        } catch (t: Throwable) {
+            Log.w(TAG, "debug channel folder not set", t)
+        }
+        val started = try {
+            GbAccessibilityScript.start(activity, romPath, savePath)
+        } catch (t: Throwable) {
+            Log.e(TAG, "Game Boy start threw", t)
+            false
+        }
         running = started
         if (!started) {
             lastError = "The accessibility reader could not start for that game."
@@ -316,9 +316,8 @@ object GbGameSession {
     // ---- the emulated pad ---------------------------------------------------
     //
     // ⛔ HOLD, NOT TAP. Walking in these games means holding a direction, so the pad
-    // press and release are separate calls. The mask is OR'd by the CALLER (the
-    // screen tracks which buttons are down) and pushed whole, because setKeys takes
-    // the entire state -- there is no per-button call in the core.
+    // press and release are separate calls. The mask is OR'd here and pushed whole;
+    // GbSessionJNI turns the changed bits into the shared core's per-button calls.
 
     fun pressKey(bit: Int) {
         if (!running) return
@@ -386,10 +385,22 @@ object GbGameSession {
      * exactly this case (`hasDirectSpeechStop`) and stops at the engine instead,
      * because a screen reader's own "stop" gesture only ends the current utterance
      * while the script keeps producing lines.
+     *
+     * ⛔ AND THE GAME KEEPS RUNNING. The old Android host had no way to stop just
+     * the speech, so this used to tear the whole core down while the screen still
+     * showed the game (and `running` stayed true over a dead core). The shared
+     * core's StopSpeech command clears its announcement queue and stops the voice
+     * — iOS's behaviour — and the game goes on.
      */
     fun stopSpeech() {
         AccessibilityScript.speak("", true)
-        GbAccessibilityScript.stop()
+        if (running) {
+            try {
+                GbAccessibilityScript.stopSpeech()
+            } catch (t: Throwable) {
+                Log.w(TAG, "Game Boy stop speech unavailable: ${t.message}")
+            }
+        }
     }
 
     /**

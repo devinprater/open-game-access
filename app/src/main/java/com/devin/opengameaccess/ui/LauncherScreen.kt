@@ -1348,7 +1348,7 @@ private fun PspSpeechGroup(
  * announcement so the quit does not produce two overlapping ones.
  *
  * Game Boy's QuitGame above does NOT do this: the GB native surface
- * (GbAccessibilityScript / MGBAScriptJNI.cpp) exports no save-state
+ * (GbAccessibilityScript / GbSessionJNI.cpp) exports no save-state
  * call at all, so there is nothing honest to call — see the stage 3
  * notes in the PR. A GB game's own battery save is unaffected: mGBA
  * writes it to the save path as the game itself saves.
