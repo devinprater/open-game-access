@@ -1,6 +1,7 @@
 package me.magnum.melonds.accessibility
 
 import android.content.Context
+import android.content.Intent
 import android.net.Uri
 import android.util.Log
 import androidx.documentfile.provider.DocumentFile
@@ -17,13 +18,16 @@ import java.io.File
  * cache (keyed by the URI's hash, so two discs that share a name never
  * collide) under its original name, never a prefixed one.
  *
- * ⛔ A .cue, .m3u OR .ccd NEEDS FILES THIS APP CANNOT REACH. The system
- * picker grants access to the ONE document picked, not its folder, so
- * the tracks a .cue lists are out of reach unless the URI is a plain
- * file path. [resolve] checks every listed file and, when one is
- * missing, refuses in words ([lastProblem]) — the player is told to use
- * a .chd image, which is one file per disc — rather than letting the
- * core fail on a half-present disc.
+ * ⛔ A .cue, .m3u OR .ccd NAMES FILES THE PICK DID NOT GRANT. The
+ * system picker grants access to the ONE document picked, not its
+ * folder, so the tracks a .cue lists are out of reach from that pick
+ * alone. The player grants the FOLDER once ([rememberFolder], a
+ * persisted tree grant from the folder picker), and [resolve] copies
+ * every listed file from the granted folders into the disc's cache
+ * folder — following an .m3u to its .cue sheets and each .cue to its
+ * tracks. When a listed file is still not found, [resolve] refuses with
+ * [needsFolder] set, and the launcher opens the folder picker rather
+ * than letting the core fail on a half-present disc.
  *
  * ⛔ THE BIOS IS IMPORTED ONCE AND STAGED BESIDE EVERY DISC. A real
  * PlayStation BIOS (scph5501.bin and the like) is optional: without
@@ -39,6 +43,18 @@ object Ps1RomResolver
     @Volatile
     var lastProblem: String = ""
         private set
+
+    /**
+     * True when the last [resolve] refused because the disc lists files
+     * that no granted folder holds: the launcher answers it by asking
+     * for the folder ([rememberFolder]) and starting again.
+     */
+    @Volatile
+    var needsFolder: Boolean = false
+        private set
+
+    /** The extensions that list other files: a .cue's tracks, an .m3u's discs, a .ccd's image. */
+    private val INDEX_EXTENSIONS = setOf("cue", "m3u", "ccd")
 
     /** BIOS file names the core recognises: scph followed by digits, .bin. */
     private val BIOS_NAME = Regex("(?i)^(scph|psxonpsp|ps1_rom|openbios)[0-9a-z_-]*\\.bin$")
@@ -105,22 +121,124 @@ object Ps1RomResolver
     fun resolve(context: Context, uri: Uri): String?
     {
         lastProblem = ""
+        needsFolder = false
         val path = resolveDisc(context, uri)
         if (path == null)
         {
             if (lastProblem.isEmpty()) lastProblem = "Could not read that game file."
             return null
         }
-        val missing = missingListedFiles(File(path))
+        val missing = fillFromFolders(context, File(path))
         if (missing.isNotEmpty())
         {
-            lastProblem = "That file lists other files (${missing.first()}" +
+            needsFolder = true
+            lastProblem = "That disc lists other files (${missing.first()}" +
                 (if (missing.size > 1) " and ${missing.size - 1} more" else "") +
-                ") that this app cannot open from a single pick. Use a .chd image of the disc instead."
+                ") that are not in a folder this app may read. Choose the folder that holds them."
             return null
         }
         stageBios(context, File(path).parentFile)
         return path
+    }
+
+    /**
+     * Keep read access to a folder the player chose (the folder
+     * picker's tree), so every later disc in it finds its tracks
+     * without asking again. False when the grant could not be kept.
+     */
+    fun rememberFolder(context: Context, treeUri: Uri): Boolean
+    {
+        return try
+        {
+            context.contentResolver.takePersistableUriPermission(
+                treeUri, Intent.FLAG_GRANT_READ_URI_PERMISSION)
+            Log.i(TAG, "[ps1] folder granted: $treeUri")
+            true
+        }
+        catch (e: Exception)
+        {
+            Log.w(TAG, "[ps1] could not keep the folder grant for $treeUri", e)
+            false
+        }
+    }
+
+    /** The folders the player has granted (tree URIs with a kept read grant). */
+    private fun grantedFolders(context: Context): List<Uri> =
+        context.contentResolver.persistedUriPermissions
+            .filter { it.isReadPermission && it.uri.pathSegments.firstOrNull() == "tree" }
+            .map { it.uri }
+
+    /**
+     * Copies into the disc's folder every file it lists that is not
+     * already there, from the granted folders, following index files
+     * (an .m3u's .cue sheets, each sheet's tracks). Returns the names
+     * still missing; empty when the disc is complete.
+     */
+    private fun fillFromFolders(context: Context, disc: File): List<String>
+    {
+        if (missingListedFiles(disc).isEmpty() && disc.extension.lowercase() != "m3u") return emptyList()
+        val folders by lazy { grantedFolders(context) }
+        val stillMissing = mutableListOf<String>()
+        val seen = mutableSetOf<String>()
+        val queue = ArrayDeque<File>()
+        queue.add(disc)
+        while (queue.isNotEmpty())
+        {
+            val index = queue.removeFirst()
+            val dir = index.parentFile ?: continue
+            for (name in listedFiles(index))
+            {
+                if (!seen.add(name.lowercase())) continue
+                var file = File(dir, name)
+                if (!file.isFile)
+                {
+                    file = copyFromFolders(context, folders, name, dir) ?: run {
+                        stillMissing.add(name)
+                        null
+                    } ?: continue
+                }
+                if (file.extension.lowercase() in INDEX_EXTENSIONS) queue.add(file)
+            }
+        }
+        return stillMissing
+    }
+
+    /**
+     * Finds [name] in a granted folder (the folder itself, then its
+     * direct subfolders; the name compared without case) and copies it
+     * into [dir] under the name the index used. Null when no folder
+     * holds it or the copy failed.
+     */
+    private fun copyFromFolders(context: Context, folders: List<Uri>, name: String, dir: File): File?
+    {
+        if (name.isEmpty() || name == "." || name == "..") return null
+        for (tree in folders)
+        {
+            val root = try { DocumentFile.fromTreeUri(context, tree) } catch (e: Exception) { null } ?: continue
+            val children = try { root.listFiles().toList() } catch (e: Exception) { emptyList() }
+            val match = children.firstOrNull { it.isFile && it.name.equals(name, ignoreCase = true) }
+                ?: children.asSequence().filter { it.isDirectory }.mapNotNull { sub ->
+                    try { sub.listFiles().firstOrNull { it.isFile && it.name.equals(name, ignoreCase = true) } }
+                    catch (e: Exception) { null }
+                }.firstOrNull()
+                ?: continue
+            val target = File(dir, name)
+            return try
+            {
+                context.contentResolver.openInputStream(match.uri)?.use { input ->
+                    target.outputStream().use { output -> input.copyTo(output, 256 * 1024) }
+                } ?: continue
+                Log.i(TAG, "[ps1] copied listed file $name (${target.length()} bytes)")
+                target
+            }
+            catch (e: Exception)
+            {
+                Log.e(TAG, "[ps1] could not copy listed file $name", e)
+                target.delete()
+                null
+            }
+        }
+        return null
     }
 
     private fun resolveDisc(context: Context, uri: Uri): String?
@@ -171,20 +289,33 @@ object Ps1RomResolver
     fun missingListedFiles(disc: File): List<String>
     {
         val dir = disc.parentFile ?: return emptyList()
-        val listed: List<String> = when (disc.extension.lowercase())
+        return listedFiles(disc).filter { !File(dir, it).isFile }
+    }
+
+    /** Every file an index image names, as bare file names (no folders). */
+    private fun listedFiles(disc: File): List<String>
+    {
+        val listed: List<String> = try
         {
-            "cue" -> disc.readLines().mapNotNull { line ->
-                val t = line.trim()
-                if (!t.uppercase().startsWith("FILE")) return@mapNotNull null
-                val quoted = Regex("\"([^\"]+)\"").find(t)?.groupValues?.get(1)
-                quoted ?: t.split(Regex("\\s+")).getOrNull(1)
+            when (disc.extension.lowercase())
+            {
+                "cue" -> disc.readLines().mapNotNull { line ->
+                    val t = line.trim()
+                    if (!t.uppercase().startsWith("FILE")) return@mapNotNull null
+                    val quoted = Regex("\"([^\"]+)\"").find(t)?.groupValues?.get(1)
+                    quoted ?: t.split(Regex("\\s+")).getOrNull(1)
+                }
+                "m3u" -> disc.readLines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
+                "ccd" -> listOf(disc.nameWithoutExtension + ".img")
+                else -> emptyList()
             }
-            "m3u" -> disc.readLines().map { it.trim() }.filter { it.isNotEmpty() && !it.startsWith("#") }
-            "ccd" -> listOf(disc.nameWithoutExtension + ".img")
-            else -> emptyList()
+        }
+        catch (e: Exception)
+        {
+            emptyList()
         }
         return listed.map { it.substringAfterLast('/').substringAfterLast('\\') }
-            .filter { !File(dir, it).isFile }
+            .filter { it.isNotEmpty() && it != "." && it != ".." }
     }
 
     /** Copy the imported BIOS files into [dir], where the host looks. */

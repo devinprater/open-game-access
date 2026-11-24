@@ -33,6 +33,8 @@
 #define OGA_SYSTEMS_H
 
 #include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -108,6 +110,19 @@ const OgaSystem* oga_system_for_path(const char* path);
 
 /* Same, by extension alone ("nds" or ".nds" both accepted). */
 const OgaSystem* oga_system_for_extension(const char* ext);
+
+/* The system for a file that EXISTS: as oga_system_for_path, except that a
+ * .iso, .pbp or .bin whose header is a PlayStation disc is the PlayStation
+ * (by name those are the PSP's and the Genesis's). Reads at most
+ * OGA_DISC_HEADER_BYTES; an unreadable file falls back to the name. */
+const OgaSystem* oga_system_for_file(const char* path);
+
+/* The header test itself, for a caller that holds the bytes rather than a
+ * path (Android reads a picked document through a stream). Pass the first
+ * OGA_DISC_HEADER_BYTES of the file, or all of it when shorter. */
+#define OGA_DISC_HEADER_BYTES 65536
+bool oga_disc_header_is_ps1(const uint8_t* data, size_t len);
+bool oga_file_is_ps1_disc(const char* path);
 
 const OgaSystem* oga_system_by_id(OgaSystemId id);
 

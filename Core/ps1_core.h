@@ -115,6 +115,18 @@ const uint8_t *ps1_framebuffer_ptr(Ps1Core *core);
 
 void ps1_set_button(Ps1Core *core, int ps1_button, bool down);
 
+/* The DualShock's sticks: stick 0 is the left, 1 the right; each axis -1..1,
+ * +x right, +y down. The pad is a DualShock, which every digital game also
+ * accepts (it starts in digital mode); a game that asks for analog gets it
+ * switched on by the core, and L3 + R3 together toggle it by hand. */
+#define PS1_STICK_LEFT  0
+#define PS1_STICK_RIGHT 1
+void ps1_set_analog(Ps1Core *core, int stick, float x, float y);
+
+/* The loaded disc's frame rate (the core's own timing: about 59.94 for NTSC,
+ * 50 for PAL), or 0 before a load. */
+double ps1_frame_rate(Ps1Core *core);
+
 /* Interleaved stereo s16 at PS1_APP_AUDIO_RATE. Returns frames written. */
 int ps1_read_audio(Ps1Core *core, int16_t *out, int max_frames);
 

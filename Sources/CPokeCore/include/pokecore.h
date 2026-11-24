@@ -31,6 +31,17 @@ extern "C" {
 #define POKE_BTN_X      10
 #define POKE_BTN_Y      11
 #define POKE_BTN_COUNT  12
+/* Extended slots past the shared twelve, for the pads that have them (today
+ * the PlayStation's L2, R2 and stick clicks). poke_set_button and
+ * poke_tap_button pass them to the backend unchanged; a backend whose pad has
+ * no such button ignores them, as every set_button already does for an id past
+ * its own table. They are NOT counted in POKE_BTN_COUNT, which sizes the
+ * player-held bitmask the shared twelve feed. */
+#define POKE_BTN_L2     12
+#define POKE_BTN_R2     13
+#define POKE_BTN_L3     14
+#define POKE_BTN_R3     15
+#define POKE_BTN_EXT_COUNT 16
 
 #define POKE_SCREEN_TOP    0
 #define POKE_SCREEN_BOTTOM 1
@@ -135,8 +146,16 @@ void poke_set_button(PokeCore *core, int ds_button, bool down);
  * counted in frames whatever the frame rate is doing. Re-tapping the same button extends the hold
  * rather than latching a second release. */
 void poke_tap_button(PokeCore *core, int ds_button, int frames);
-/* PSP analog stick, -1..1. No-op on other cores. */
+/* The (left) analog stick, each axis -1..1, +x right, +y down. No-op on a
+ * core with no stick. */
 void poke_set_analog(PokeCore *core, float x, float y);
+/* The right analog stick, same convention. No-op on a core with one stick or
+ * none (today only the PlayStation's DualShock has a second). */
+void poke_set_analog_right(PokeCore *core, float x, float y);
+/* The loaded game's own frame rate in frames per second (59.94 for an NTSC
+ * PlayStation disc, about 50 for a PAL one), or 0 when the backend does not
+ * report one and the caller should keep its own console default. */
+double poke_frame_rate(PokeCore *core);
 void poke_touch(PokeCore *core, int x, int y, bool down);
 /* Hotkeys are the letters main.lua listens for: J K L I O P C E N B R U. */
 void poke_set_hotkey(PokeCore *core, const char *key, bool down);
@@ -397,6 +416,12 @@ const void* oga_system_for_path(const char* path);
  * has once a file is picked. oga_system_for_path needs a name with a dot and
  * returns NULL for a bare extension, which is why this exists. */
 const void* oga_system_for_extension(const char* ext);
+
+/* The system for a file that exists: as oga_system_for_path, except that a
+ * .iso, .pbp or .bin whose header is a PlayStation disc is the PlayStation
+ * (by name alone those are the PSP's and the Genesis's). The app calls this
+ * once the picked file is copied in, so the pad matches the disc. */
+const void* oga_system_for_file(const char* path);
 
 /* True when this build has a backend that can actually load that console. */
 bool oga_system_is_runnable(const void* sys);

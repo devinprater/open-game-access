@@ -185,6 +185,22 @@ case_ps1bios() {  # sabotage: the BIOS pick stops being imported (a BIOS becomes
   sed -i 's/Ps1GameSession\.isBiosName(pickedName)/false/' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/ui/LauncherScreen.kt"
 }
+case_ps1sniff() {  # sabotage: a .iso/.pbp/.bin is routed by name again, never read
+  sed -i 's/(ps1Available \&\& Ps1GameSession.isPs1Disc(context, uri, extension))/false/' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/ui/LauncherScreen.kt"
+}
+case_ps1folder() {  # sabotage: the folder grant is not kept, so tracks are never reachable
+  sed -i 's/takePersistableUriPermission/takeNothing/' \
+     "$TMP/t/app/native-overlay/app/src/main/java/me/magnum/melonds/accessibility/Ps1RomResolver.kt"
+}
+case_ps1clock() {  # sabotage: the PlayStation clock is fixed at the NTSC rate again
+  sed -i 's|(1_000_000_000.0 / Ps1GameSession.frameRate)|(1_000_000_000.0 / 59.94)|' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/Ps1GameSession.kt"
+}
+case_ps1triggers() {  # sabotage: a controller's L2 stays a reader modifier on the PlayStation
+  sed -i 's/EmuButton.Ps1(Ps1Keys.L2)/EmuButton.Ps1(Ps1Keys.L1)/g' \
+     "$TMP/t/app/src/main/java/com/devin/opengameaccess/ControllerInput.kt"
+}
 case_pspsupported() {  # sabotage: a generated command set drops a real button
   sed -i 's/commands = listOf(0, 7, 1, 3, 43, 41, 40, 6)/commands = listOf(0, 7, 1, 3, 41, 40, 6)/' \
      "$TMP/t/app/src/main/java/com/devin/opengameaccess/AdapterLibraryData.kt"
@@ -202,7 +218,7 @@ else
   bad=1
 fi
 
-for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys mesenjni mesenkeys mesenstubs genkeys genjni ps1keys ps1jni ps1bios gbstopspeech gbprobe gbstubs gbglue; do
+for s in key announce sideeffect jni webview stale bridgelate library dsguard pspkeys pspjni pspline pspbridge pspcmd pspregistry pspsupported dsjni dskeys mesenjni mesenkeys mesenstubs genkeys genjni ps1keys ps1jni ps1bios ps1sniff ps1folder ps1clock ps1triggers gbstopspeech gbprobe gbstubs gbglue; do
   stage
   "case_$s"
   if python3 "$TMP/t/scripts/android-compose-launcher-test.py" "$TMP/t" >/dev/null 2>&1; then

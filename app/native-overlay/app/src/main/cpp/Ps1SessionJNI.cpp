@@ -287,6 +287,48 @@ Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1TapButton(
   if (core) poke_tap_button(core, (int)button, (int)frames);
 }
 
+// The DualShock's sticks: stick 0 the left, 1 the right; each axis
+// -1..1, +x right, +y down (pokecore.h). The pad starts in digital mode
+// and a game that wants analog switches it on, so a stick held during a
+// digital game changes nothing.
+extern "C" JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1SetAnalog(
+    JNIEnv * /*env*/, jobject /*self*/, jint stick, jfloat x, jfloat y) {
+  PokeCore *core = g_core;
+  if (!core) return;
+  if (stick == 0) poke_set_analog(core, (float)x, (float)y);
+  else if (stick == 1) poke_set_analog_right(core, (float)x, (float)y);
+}
+
+// The loaded disc's own frame rate (50 for a PAL disc, about 59.94 for
+// NTSC), or 0 before a load. The frame clock paces itself by this, so a
+// PAL game runs at its real speed instead of a fifth too fast.
+extern "C" JNIEXPORT jdouble JNICALL
+Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1FrameRate(
+    JNIEnv * /*env*/, jobject /*self*/) {
+  PokeCore *core = g_core;
+  return core ? (jdouble)poke_frame_rate(core) : 0.0;
+}
+
+// Whether the first bytes of a picked file are a PlayStation disc
+// (Core/systems.cpp's sniff, shared with the iPhone and the core's own
+// resolver). The launcher reads a .iso/.pbp/.bin's header through its
+// document stream and asks here before it decides which console runs it.
+extern "C" bool oga_disc_header_is_ps1(const uint8_t *data, size_t len);
+
+extern "C" JNIEXPORT jboolean JNICALL
+Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1HeaderIsPs1(
+    JNIEnv *env, jobject /*self*/, jbyteArray header, jint length) {
+  if (!header || length <= 0) return JNI_FALSE;
+  const jsize have = env->GetArrayLength(header);
+  const jsize n = std::min<jsize>(have, (jsize)length);
+  std::vector<uint8_t> bytes((size_t)n);
+  env->GetByteArrayRegion(header, 0, n,
+                          reinterpret_cast<jbyte *>(bytes.data()));
+  return oga_disc_header_is_ps1(bytes.data(), bytes.size()) ? JNI_TRUE
+                                                            : JNI_FALSE;
+}
+
 extern "C" JNIEXPORT jint JNICALL
 Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1ReadAudio(
     JNIEnv *env, jobject /*self*/, jshortArray out, jint max_frames) {

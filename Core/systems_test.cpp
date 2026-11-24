@@ -14,6 +14,9 @@
 #include <cstdio>
 #include <cstring>
 #include <string>
+#include <vector>
+#include <unistd.h>
+#include <sys/stat.h>
 
 /* The C-ABI accessors Swift reads through CPokeCore (Sources/CPokeCore/include/
  * pokecore.h). Declared HERE rather than included, because this test compiles
@@ -54,6 +57,87 @@ static void ExpectNull(const char* path, const char* what)
     const OgaSystem* s = oga_system_for_path(path);
     if (!s) ok(what);
     else bad(what, std::string(s->name));
+}
+
+
+/* ---- synthetic disc headers (no real disc, no Sony data) ---- */
+
+/* An ISO 9660 primary volume descriptor with the given system id. */
+static void PutPvd(std::vector<uint8_t>& d, size_t off, const char* sysid, uint32_t sectors)
+{
+    if (d.size() < off + 2048) d.resize(off + 2048, 0);
+    d[off] = 1;
+    memcpy(&d[off + 1], "CD001", 5);
+    d[off + 6] = 1;
+    memset(&d[off + 8], ' ', 32);
+    memcpy(&d[off + 8], sysid, strlen(sysid));
+    for (int i = 0; i < 4; i++) d[off + 80 + i] = (uint8_t) (sectors >> (8 * i));
+}
+
+static std::vector<uint8_t> CookedIso(const char* sysid, uint32_t sectors = 300000)
+{
+    std::vector<uint8_t> d(0x8000, 0);
+    PutPvd(d, 0x8000, sysid, sectors);
+    return d;
+}
+
+/* A raw 2352-byte-sector image: sector 16 carries the sync, a mode byte and
+ * the descriptor at 24 (mode 2) or 16 (mode 1). */
+static std::vector<uint8_t> RawImage(const char* sysid, int mode)
+{
+    const size_t s16 = 16 * 2352;
+    std::vector<uint8_t> d(s16, 0);
+    d.resize(s16 + 2352, 0);
+    d[s16] = 0; memset(&d[s16 + 1], 0xFF, 10); d[s16 + 11] = 0;
+    d[s16 + 15] = (uint8_t) mode;
+    PutPvd(d, s16 + (mode == 2 ? 24 : 16), sysid, 300000);
+    d.resize(s16 + 2352);
+    return d;
+}
+
+/* A PBP whose PARAM.SFO holds one key, CATEGORY = `cat`. */
+static std::vector<uint8_t> Pbp(const char* cat)
+{
+    std::vector<uint8_t> d(0x28, 0);
+    d[1] = 'P'; d[2] = 'B'; d[3] = 'P';
+    auto put32 = [&](size_t o, uint32_t v) { for (int i = 0; i < 4; i++) d[o + i] = (uint8_t) (v >> (8 * i)); };
+    const uint32_t sfo = 0x28;
+    /* SFO: header 20, one 16-byte entry, key table "CATEGORY\0" (pad to 12), data 4 */
+    std::vector<uint8_t> f(20 + 16 + 12 + 4, 0);
+    f[0] = 0; f[1] = 'P'; f[2] = 'S'; f[3] = 'F';
+    auto f32 = [&](size_t o, uint32_t v) { for (int i = 0; i < 4; i++) f[o + i] = (uint8_t) (v >> (8 * i)); };
+    f32(8, 36);           /* key table */
+    f32(12, 48);          /* data table */
+    f32(16, 1);           /* one entry */
+    f[20] = 0; f[21] = 0; /* key offset 0 */
+    f32(24, 3); f32(28, 4); f32(32, 0);   /* len, max len, data offset 0 */
+    memcpy(&f[36], "CATEGORY", 9);
+    memcpy(&f[48], cat, 2);
+    put32(8, sfo);
+    put32(12, sfo + (uint32_t) f.size());
+    for (int i = 4; i < 8; i++) put32(8 + 4 * (i - 2), sfo + (uint32_t) f.size());
+    put32(8, sfo);
+    d.insert(d.end(), f.begin(), f.end());
+    return d;
+}
+
+static std::string WriteTemp(const std::vector<uint8_t>& d, const char* name)
+{
+    std::string dir = "/tmp/oga-systems-sniff";
+    mkdir(dir.c_str(), 0755);
+    std::string p = dir + "/" + name;
+    FILE* f = fopen(p.c_str(), "wb");
+    if (f) { fwrite(d.data(), 1, d.size(), f); fclose(f); }
+    return p;
+}
+
+static void ExpectFile(const std::vector<uint8_t>& d, const char* name, OgaSystemId want, const char* what)
+{
+    std::string p = WriteTemp(d, name);
+    const OgaSystem* s = oga_system_for_file(p.c_str());
+    if (s && s->id == want) ok(what);
+    else bad(what, s ? std::string(s->name) : std::string("null"));
+    unlink(p.c_str());
 }
 
 int main()
@@ -434,6 +518,52 @@ int main()
         else
             bad("the Master System, PC Engine and WonderSwan are two-button, one-screen, no sticks",
                 "wrong");
+    }
+
+    printf("\n== a PlayStation disc under a shared name is read, not named\n");
+    {
+        auto ps1 = CookedIso("PLAYSTATION");
+        auto psp = CookedIso("PSP GAME");
+        if (oga_disc_header_is_ps1(ps1.data(), ps1.size())) ok("a cooked PS1 .iso header is the PlayStation");
+        else bad("a cooked PS1 .iso header is the PlayStation", "no");
+        if (!oga_disc_header_is_ps1(psp.data(), psp.size())) ok("a PSP UMD header is not");
+        else bad("a PSP UMD header is not", "it claimed PS1");
+        auto ps2 = CookedIso("PLAYSTATION", 2000000);
+        if (!oga_disc_header_is_ps1(ps2.data(), ps2.size())) ok("a DVD-sized PLAYSTATION volume (a PS2 disc) is not");
+        else bad("a DVD-sized PLAYSTATION volume (a PS2 disc) is not", "it claimed PS1");
+        auto raw2 = RawImage("PLAYSTATION", 2);
+        if (oga_disc_header_is_ps1(raw2.data(), raw2.size())) ok("a raw mode-2 PS1 .bin is the PlayStation");
+        else bad("a raw mode-2 PS1 .bin is the PlayStation", "no");
+        auto raw1 = RawImage("PLAYSTATION", 1);
+        if (oga_disc_header_is_ps1(raw1.data(), raw1.size())) ok("a raw mode-1 PLAYSTATION image is the PlayStation");
+        else bad("a raw mode-1 PLAYSTATION image is the PlayStation", "no");
+        auto pbpMe = Pbp("ME"), pbpEg = Pbp("EG");
+        if (oga_disc_header_is_ps1(pbpMe.data(), pbpMe.size())) ok("a PSone-classic .pbp (CATEGORY ME) is the PlayStation");
+        else bad("a PSone-classic .pbp (CATEGORY ME) is the PlayStation", "no");
+        if (!oga_disc_header_is_ps1(pbpEg.data(), pbpEg.size())) ok("a PSP game .pbp (CATEGORY EG) is not");
+        else bad("a PSP game .pbp (CATEGORY EG) is not", "it claimed PS1");
+        std::vector<uint8_t> genesis(0x10000, 0);
+        memcpy(&genesis[0x100], "SEGA GENESIS    ", 16);
+        if (!oga_disc_header_is_ps1(genesis.data(), genesis.size())) ok("a Genesis ROM is not");
+        else bad("a Genesis ROM is not", "it claimed PS1");
+        if (!oga_disc_header_is_ps1(ps1.data(), 0x8000) && !oga_disc_header_is_ps1(nullptr, 99))
+            ok("a header cut short, or none, is not");
+        else bad("a header cut short, or none, is not", "it claimed PS1");
+
+        ExpectFile(ps1, "ff7.iso", OGA_SYS_PS1, "a PS1 .iso file goes to the PlayStation");
+        ExpectFile(raw2, "ff7.BIN", OGA_SYS_PS1, "a PS1 .bin file goes to the PlayStation (any case)");
+        ExpectFile(pbpMe, "ff7.pbp", OGA_SYS_PS1, "a PS1 .pbp file goes to the PlayStation");
+        ExpectFile(psp, "dissidia.iso", OGA_SYS_PSP, "a PSP .iso file stays the PSP's");
+        ExpectFile(pbpEg, "eboot.pbp", OGA_SYS_PSP, "a PSP .pbp file stays the PSP's");
+        ExpectFile(genesis, "sonic.bin", OGA_SYS_GENESIS, "a Genesis .bin file stays the Genesis's");
+        ExpectFile(raw2, "ff7.cso", OGA_SYS_PSP, "only .iso/.pbp/.bin are sniffed: a .cso is the PSP's by name");
+        const OgaSystem* gone = oga_system_for_file("/no/such/dir/ff7.iso");
+        if (gone && gone->id == OGA_SYS_PSP) ok("a file that cannot be read falls back to its name");
+        else bad("a file that cannot be read falls back to its name", gone ? gone->name : "null");
+
+        const OgaSystem* row = oga_system_by_id(OGA_SYS_PS1);
+        if (row && row->analogSticks == 2 && row->hasShoulders) ok("the PlayStation pad is a DualShock: two sticks and shoulders");
+        else bad("the PlayStation pad is a DualShock: two sticks and shoulders", "wrong");
     }
 
     printf("\n== the refusal explains itself\n");

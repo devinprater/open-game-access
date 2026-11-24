@@ -34,6 +34,7 @@ SABOTAGES=(
   SABOTAGE_DUPLICATE_IDS       # two rows share an id
   SABOTAGE_REASON_IS_GENERIC   # the refusal stops naming the console
   SABOTAGE_MASTER_LOSES_GG     # a Game Gear ROM stops resolving to the Sega 8-bit row
+  SABOTAGE_PS1_SNIFF_ANY_DISC  # any ISO 9660 disc (a PSP UMD) is taken for a PlayStation disc
 )
 
 echo

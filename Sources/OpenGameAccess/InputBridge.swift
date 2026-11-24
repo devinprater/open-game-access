@@ -10,6 +10,8 @@ import CPokeCore
 /// so one enum serves every console and only the UI labels change per system.
 enum GamePadButton {
     case a, b, x, y, start, select, up, down, left, right, l, r
+    /// The PlayStation's extra four (POKE_BTN_L2...R3, past the shared twelve).
+    case l2, r2, l3, r3
 
     /// melonDS's own key bit order (NDS::SetKeyMask): A,B,Select,Start,Right,
     /// Left,Up,Down,R,L,X,Y.
@@ -27,6 +29,10 @@ enum GamePadButton {
         case .l: return POKE_BTN_L
         case .x: return POKE_BTN_X
         case .y: return POKE_BTN_Y
+        case .l2: return POKE_BTN_L2
+        case .r2: return POKE_BTN_R2
+        case .l3: return POKE_BTN_L3
+        case .r3: return POKE_BTN_R3
         }
     }
 }
@@ -144,7 +150,9 @@ enum ROMStore {
         }
         // PlayStation discs run in the PCSX ReARMed core (see Core/ps1_core.cpp).
         // .chd is one file per disc; a .cue needs its .bin track files imported
-        // beside it (the core reads them from the same Games folder).
+        // beside it (the core reads them from the same Games folder). A single
+        // .iso, .pbp or .bin PlayStation disc is picked under the PSP and
+        // Genesis names below and routed by its header (oga_system_for_file).
         for ext in ["cue", "chd", "m3u", "ccd"] {
             if let t = UTType(filenameExtension: ext) { types.append(t) }
         }

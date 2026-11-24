@@ -94,11 +94,19 @@ static void RunSession(const std::string &dir, int round)
     CHECK(!ps1_frame(c), "no frame without a loaded disc");
     uint32_t v = 0;
     CHECK(!ps1_read(c, 0x80000000u, 4, &v), "no read without a loaded disc");
+    CHECK(ps1_frame_rate(c) == 0.0, "no frame rate before a disc loads");
 
     CHECK(ps1_load_disc(c, exe.c_str(), card.c_str(), code), "the synthetic PS-EXE loads");
     if (round == 0 && strlen(ps1_last_error(c)) > 0) fprintf(stderr, "  load error: %s\n", ps1_last_error(c));
     CHECK(code[0] == '\0', "a PS-EXE has no disc serial");
     CHECK(ps1_using_hle_bios(c), "with no BIOS folder the HLE BIOS runs");
+    {
+        /* The core's own timing: NTSC (about 59.94) or PAL (50), never the
+         * app's guess. A PS-EXE carries no region, so either is the core's. */
+        double fps = ps1_frame_rate(c);
+        CHECK((fps > 59.0 && fps < 61.0) || (fps > 49.0 && fps < 51.0),
+              "the loaded program reports an NTSC or PAL frame rate");
+    }
     CHECK(!ps1_frame(c), "no frame before start");
     CHECK(ps1_start(c) && ps1_running(c), "start");
 
@@ -159,6 +167,18 @@ static void RunSession(const std::string &dir, int round)
     ps1_set_button(c, PS1_BTN_CROSS, false);
     ps1_set_button(c, -1, true);
     ps1_set_button(c, PS1_BTN_COUNT, true);
+    ps1_set_button(c, PS1_BTN_L2, true);
+    ps1_set_button(c, PS1_BTN_L2, false);
+    /* The sticks, clamped and NaN-safe; frames keep running through them
+     * (the DualShock reads them every frame). */
+    ps1_set_analog(c, PS1_STICK_LEFT, 0.5f, -0.5f);
+    ps1_set_analog(c, PS1_STICK_RIGHT, 2.0f, -2.0f);
+    ps1_set_analog(c, PS1_STICK_LEFT, 0.0f / 0.0f, 0.0f);
+    ps1_set_analog(c, 2, 1.0f, 1.0f);
+    ps1_set_analog(c, -1, 1.0f, 1.0f);
+    CHECK(ps1_frame(c), "frames run with the sticks moved");
+    ps1_set_analog(c, PS1_STICK_LEFT, 0.0f, 0.0f);
+    ps1_set_analog(c, PS1_STICK_RIGHT, 0.0f, 0.0f);
 
     ps1_stop(c);
     CHECK(!ps1_running(c), "stop");

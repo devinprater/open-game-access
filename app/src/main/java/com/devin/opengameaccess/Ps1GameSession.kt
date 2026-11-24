@@ -145,6 +145,58 @@ object Ps1GameSession {
         Ps1AccessibilityScript.handlesExtension(extension)
 
     /**
+     * True when a picked .iso, .pbp or .bin is a PlayStation disc,
+     * decided by its first bytes (the core resolver's own test, so the
+     * launcher and the core agree). Any other extension, an unreadable
+     * file, or a build without the PlayStation core answers false, and
+     * the file keeps its by-name console (PSP or Genesis).
+     */
+    fun isPs1Disc(context: Context, uri: Uri, extension: String?): Boolean {
+        if (extension?.lowercase() !in Ps1AccessibilityScript.SNIFFED_EXTENSIONS) return false
+        return try {
+            val header = ByteArray(Ps1AccessibilityScript.HEADER_BYTES)
+            var length = 0
+            context.contentResolver.openInputStream(uri)?.use { input ->
+                while (length < header.size) {
+                    val n = input.read(header, length, header.size - length)
+                    if (n <= 0) break
+                    length += n
+                }
+            } ?: return false
+            Ps1AccessibilityScript.headerIsPs1(header, length)
+        } catch (e: UnsatisfiedLinkError) {
+            false
+        } catch (t: Throwable) {
+            Log.w(TAG, "could not read the header of $uri: ${t.message}")
+            false
+        }
+    }
+
+    /**
+     * True when the last start refused because the disc lists files
+     * (a .cue's tracks, an .m3u's discs) that no granted folder holds.
+     * The launcher answers it with the folder picker, [rememberFolder],
+     * and a fresh start.
+     */
+    val needsFolder: Boolean get() = Ps1RomResolver.needsFolder
+
+    /** Keep read access to the folder the player chose for a disc's tracks. */
+    fun rememberFolder(context: Context, treeUri: Uri): Boolean =
+        Ps1RomResolver.rememberFolder(context.applicationContext, treeUri)
+
+    // The loaded disc's frame rate, read once when the load lands (the
+    // core's own timing: 50 for PAL, about 59.94 for NTSC); 0 = unknown.
+    @Volatile
+    private var discFrameRate: Double = 0.0
+
+    /** The rate the frame clock paces this disc at, in frames per second. */
+    val frameRate: Double
+        get() = discFrameRate.takeIf { it in 40.0..80.0 } ?: NTSC_RATE
+
+    /** The NTSC PlayStation rate, used before a load reports its own. */
+    const val NTSC_RATE = 59.94
+
+    /**
      * True when this build can actually run PlayStation games.
      *
      * ⛔ ASK THE CORE, NOT THE PACKAGE — the DS probe's reasoning: the
@@ -286,6 +338,11 @@ object Ps1GameSession {
                 }
             }
             gameCode = Ps1AccessibilityScript.gameCode()
+            discFrameRate = try {
+                Ps1AccessibilityScript.frameRate()
+            } catch (t: Throwable) {
+                0.0
+            }
             if (!Ps1AccessibilityScript.startCore()) {
                 val why = Ps1AccessibilityScript.lastError()
                 teardownNative()
@@ -312,6 +369,7 @@ object Ps1GameSession {
     fun stop() {
         generation++
         running = false
+        discFrameRate = 0.0
         heldButtons.clear()
         pendingReleases.clear()
         selectedAdapterId = ""
@@ -456,6 +514,19 @@ object Ps1GameSession {
             Ps1AccessibilityScript.tapButton(button, 2)
         } catch (t: Throwable) {
             Log.w(TAG, "PlayStation tap failed: ${t.message}")
+        }
+    }
+
+    /**
+     * Move one DualShock stick ([stick] 0 the left, 1 the right; each
+     * axis -1..1, +x right, +y down). A digital game ignores it.
+     */
+    fun setStick(stick: Int, x: Float, y: Float) {
+        if (!running) return
+        try {
+            Ps1AccessibilityScript.setAnalog(stick, x, y)
+        } catch (t: Throwable) {
+            Log.w(TAG, "PlayStation stick failed: ${t.message}")
         }
     }
 
@@ -678,8 +749,9 @@ object Ps1GameSession {
  * (pokecore.h), named for the PlayStation pad the way the core's own
  * translation table (Core/oga_core.cpp's kPs1Button) lands them:
  * Cross on A, Circle on B, Triangle on X, Square on Y, L1 on L, R1 on
- * R. The launcher contract test checks this object against pokecore.h
- * AND against that table.
+ * R, and L2, R2, L3, R3 on the extended slots past the shared twelve
+ * (POKE_BTN_L2..POKE_BTN_R3). The launcher contract test checks this
+ * object against pokecore.h AND against that table.
  */
 object Ps1Keys {
     const val CROSS = 0
@@ -694,25 +766,30 @@ object Ps1Keys {
     const val L1 = 9
     const val TRIANGLE = 10
     const val SQUARE = 11
+    const val L2 = 12
+    const val R2 = 13
+    const val L3 = 14
+    const val R3 = 15
 }
 
 /**
  * Drives the PlayStation session's frames while a game runs, PACED TO
  * THE CONSOLE, NOT TO THE DISPLAY (the Genesis clock's reasoning).
  *
- * ⛔ THE PACE IS THE NTSC RATE (~59.94 Hz); A PAL DISC (50 Hz) RUNS
- * ABOUT A FIFTH FAST UNDER IT — the Genesis clock's same limit, said
- * plainly: the wrapper does not report which region it picked.
+ * ⛔ THE PACE IS THE DISC'S OWN RATE. The core reports it after the
+ * load (Ps1GameSession.frameRate: 50 for a PAL disc, about 59.94 for
+ * NTSC), so a PAL game runs at its real speed instead of a fifth fast.
+ * The interval is re-read every frame, so it follows the load that
+ * started this clock.
  */
 @Composable
 fun rememberPs1FrameClock(running: Boolean) {
     if (!running) return
     androidx.compose.runtime.LaunchedEffect(Unit) {
-        // The NTSC PlayStation frame interval: 1 s / 59.94 Hz ≈ 16.683 ms.
-        val frameNs = (1_000_000_000.0 / 59.94).toLong()
         var nextFrameAt = 0L
         while (true) {
             val now = androidx.compose.runtime.withFrameNanos { it }
+            val frameNs = (1_000_000_000.0 / Ps1GameSession.frameRate).toLong()
             if (nextFrameAt == 0L) nextFrameAt = now
             if (now >= nextFrameAt) {
                 Ps1GameSession.runFrame()
