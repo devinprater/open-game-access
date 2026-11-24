@@ -102,6 +102,25 @@ fetch "$GPGX_REPO" genesis-plus-gx "$GPGX_REV"
 M64P_REPO="${M64P_REPO:-https://github.com/libretro/mupen64plus-libretro-nx.git}"
 M64P_REV="${M64P_REV:-15bada85906593376e8fd697f1b0b3af3a20f512}"
 fetch "$M64P_REPO" mupen64plus-libretro-nx "$M64P_REV"
+# ---- PCSX ReARMed (Sony PlayStation core) ----
+# libretro/pcsx_rearmed, Devin's pick for PS1 (Nov 2026): built for phone
+# chips, plain C, and its libretro frontend exposes the 2 MiB of main RAM the
+# readers need. Fetched for the audited TU list in core-sources.sh
+# (PCSX_ALL); no upstream build system is run. Its one git submodule
+# (frontend/libpicofe, the standalone UI) is not used and not fetched.
+#
+# LICENCE: GPL-2.0-or-later. COPYING is the GPL v2 text, and the file
+# headers that state a licence say "version 2 of the License, or (at your
+# option) any later version" (gpulib also offers LGPL 2.1+; the bundled
+# libchdr is BSD, zstd BSD, miniz MIT, LZMA public domain). The "or later"
+# is what lets it ship inside this GPL-3.0 project. A pin bump re-checks
+# that no file it compiles has become v2-ONLY, which would not be compatible.
+#
+# DuckStation was the other candidate and was ruled out: its licence no
+# longer permits reuse in other projects.
+PCSX_REPO="${PCSX_REPO:-https://github.com/libretro/pcsx_rearmed.git}"
+PCSX_REV="${PCSX_REV:-0f544ce1d18ac7dd114cb8f5507f01a29d3cd58c}"
+fetch "$PCSX_REPO" pcsx_rearmed "$PCSX_REV"
 
 # ---- PPSSPP (PlayStation Portable core) ----
 # Fetched for headers + the audited IR-interpreter/software-GPU TU subset in
@@ -225,6 +244,7 @@ cat <<EOF
   ppsspp       $( [ -d ppsspp ] && echo present || echo MISSING )
   genesis-plus-gx $( [ -d genesis-plus-gx ] && echo present || echo MISSING )
   mupen64plus-libretro-nx $( [ -d mupen64plus-libretro-nx ] && echo present || echo MISSING )
+  pcsx_rearmed $( [ -d pcsx_rearmed ] && echo present || echo MISSING )
   lua-$LUA_VER      $( [ -d "lua-$LUA_VER" ] && echo present || echo MISSING )
 
 Next:

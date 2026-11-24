@@ -48,6 +48,12 @@ GPGX_SRC="${GPGX_SRC:-$HOME/src/genesis-plus-gx}"
 GPGX_INC="-I$ROOT/Core/gpgx -I$GPGX_SRC/core -I$GPGX_SRC/core/z80 -I$GPGX_SRC/core/m68k -I$GPGX_SRC/core/ntsc -I$GPGX_SRC/core/sound -I$GPGX_SRC/core/sound/minimp3 -I$GPGX_SRC/core/input_hw -I$GPGX_SRC/core/cd_hw -I$GPGX_SRC/core/cart_hw -I$GPGX_SRC/core/cart_hw/svp"
 GPGX_DEFS="-DLSB_FIRST -DBYTE_ORDER=LITTLE_ENDIAN -DUSE_32BPP_RENDERING"
 MESEN_DEFS=""
+
+# ---- PCSX ReARMed (Sony PlayStation) ----
+# The list, defines and include roots are core-sources.sh's (PCSX_ALL,
+# PCSX_DEFS, PCSX_INC_REL), exactly as the app builds use them.
+PCSX_INC="-I$ROOT/Core/pcsx"
+for _d in $PCSX_INC_REL; do PCSX_INC="$PCSX_INC -I$PCSX_SRC/$_d"; done
 MESEN_FORCE="-include $MESEN_SRC/Core/pch.h"
 # Host glibc has no <xlocale.h> (merged into <locale.h>); the audited DEFS
 # target the Mac toolchain where it exists. Everything else carries over.
@@ -109,6 +115,10 @@ compile() {
     m64p)   flags="-O2 -g -fPIC -w $M64P_FLAGS -std=gnu11"; cc=gcc ;;
     m64pxx) flags="-O2 -g -fPIC -w $M64P_FLAGS -std=gnu++11"; cc=g++ ;;
     n64glue) flags="$CXXFLAGS -I$M64P_SRC/libretro-common/include -Werror=infinite-recursion"; cc=g++ ;;
+    # PCSX ReARMed: plain C, -fno-common so the oga_ps1_ prefix pass sees
+    # every global; and its glue, which needs only libretro.h from the tree.
+    pcsx) flags="-O2 -g -fPIC -fno-common -fno-strict-aliasing -w $PCSX_DEFS $PCSX_INC -std=gnu11"; cc=gcc ;;
+    pcsxglue) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DPOKE_HOST=1 -w -I$ROOT/Core -I$PCSX_SRC/deps/libretro-common/include -std=c++17"; cc=g++ ;;
     gpgxglue) flags="-O2 -g -fPIC -fwrapv -fno-strict-aliasing -DHAVE_PTHREADS=1 -DPOKE_HOST=1 -Wno-everything -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src $GPGX_INC $GPGX_DEFS -std=c++17 -w"; cc=g++ ;;
   esac
   # Timestamp alone is not enough: flag changes (DEFS, includes) must rebuild.
@@ -209,6 +219,11 @@ compile() {
   printf '%s|cxx|mku_adapter\n'  "$ROOT/Core/mku_adapter.cpp"
   printf '%s|cxx|khbbs_adapter\n' "$ROOT/Core/khbbs_adapter.cpp"
   printf '%s|cxx|genesis_adapter\n' "$ROOT/Core/genesis_adapter.cpp"
+  # The PlayStation: PCSX ReARMed underneath (Core/ps1_core.cpp), its audited list,
+  # and the console row adapters.o names.
+  printf '%s|pcsxglue|ps1_core\n' "$ROOT/Core/ps1_core.cpp"
+  for f in $PCSX_ALL; do printf '%s|pcsx|%s\n' "$PCSX_SRC/$f" "pcsx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
+  printf '%s|cxx|ps1_adapter\n' "$ROOT/Core/ps1_adapter.cpp"
   # A Link to the Past. The same omission class as MKU above: adapters.o names
   # oga::kZeldaLinkToThePast, so the host set must carry the adapter and its
   # decoder and name table or every harness dies at the LINK.
@@ -246,6 +261,7 @@ export MGBA_DEFS MGBA_INC MGBA_GEN HOST_MGBA_DEFS
 export MESEN_SRC MESEN_INC MESEN_FORCE ROOT LUA_SRC
 export GPGX_SRC GPGX_INC GPGX_DEFS
 export M64P_SRC M64P_FLAGS
+export PCSX_SRC PCSX_INC PCSX_DEFS
 export -f compile
 # ⛔ THE `< "$OBJ/list.txt"` IS REQUIRED — see the same line in build-core.sh.
 # Without it xargs reads STDIN (empty under a non-interactive shell), compiles
@@ -291,6 +307,10 @@ if [ -f "$OBJ/mesen7z_SevenZip_7zStream.o" ]; then
   bash "$ROOT/scripts/mesen-dedupe-7z.sh" "$OBJ/mesen7z_SevenZip_7zStream.o" || {
     echo "!! 7-Zip symbol dedupe failed" >&2; touch "$OBJ/.failed"; }
 fi
+# The PlayStation core's globals all take the oga_ps1_ prefix first, so the
+# twin passes below never see a PCSX name (scripts/ps1-prefix-symbols.py).
+python3 "$ROOT/scripts/ps1-prefix-symbols.py" --format elf "$OBJ"/pcsx_*.o || {
+  echo "!! PCSX symbol prefix pass failed" >&2; exit 1; }
 bash "$ROOT/scripts/mesen-localize-twins.sh" "$OBJ" || {
   echo "!! Mesen twin symbol localization failed" >&2; touch "$OBJ/.failed"; }
 # GPGX's vendored blip_buf is the THIRD copy of that library in this link

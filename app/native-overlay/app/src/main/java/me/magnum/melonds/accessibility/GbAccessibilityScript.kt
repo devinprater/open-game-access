@@ -53,6 +53,11 @@ object GbAccessibilityScript
     private external fun setGbKeys(keys: Int)
     private external fun stopGbRom()
     private external fun getGbExecHookStats(out: LongArray)
+    private external fun readGbAudio(out: ShortArray, maxFrames: Int): Int
+    private external fun setGbAudioEnabled(enabled: Boolean)
+
+    /** The rate [readAudio] hands audio out at: every Android session's 32768 Hz. */
+    const val AUDIO_RATE = 32768
 
     val isRunning: Boolean get() = isGbScriptRunning()
     val frameCount: Long get() = getGbScriptFrameCount()
@@ -216,6 +221,20 @@ object GbAccessibilityScript
         val stats = LongArray(2)
         getGbExecHookStats(stats)
         return stats[0] to stats[1]
+    }
+
+    /**
+     * The game's own audio: up to [maxFrames] interleaved stereo 16-bit frames
+     * at [AUDIO_RATE] into [out]. Returns frames written, 0 when nothing is
+     * waiting. Safe from the AudioTrack thread: it reads a queue the frame
+     * thread fills, never the core itself.
+     */
+    fun readAudio(out: ShortArray, maxFrames: Int): Int = readGbAudio(out, maxFrames)
+
+    /** The "Game sound" switch. Speech and the reader's cue sounds are not gated by it. */
+    fun setAudioEnabled(enabled: Boolean)
+    {
+        setGbAudioEnabled(enabled)
     }
 
     /** Host key down/up, for the script's own hotkeys (letters). */

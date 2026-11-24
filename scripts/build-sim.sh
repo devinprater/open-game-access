@@ -169,6 +169,17 @@ GPGX_INC="-I$ROOT/Core/gpgx -I$GPGX_SRC/core -I$GPGX_SRC/core/z80 -I$GPGX_SRC/co
 GPGX_DEFS="-DLSB_FIRST -DBYTE_ORDER=LITTLE_ENDIAN -DUSE_32BPP_RENDERING"
 [ -d "$GPGX_SRC/core" ] || { echo "!! no Genesis Plus GX source at $GPGX_SRC" >&2; exit 1; }
 
+# ---- PCSX ReARMed (Sony PlayStation) ----
+# The TU list, defines and include roots live in core-sources.sh (PCSX_ALL,
+# PCSX_DEFS, PCSX_INC_REL); this block only roots them. Plain C (the `pcsx`
+# lang below) with -fno-common, so every global is a real definition the
+# prefix pass can see. PCSX_APPLE_DEFS (-DTVOS) skips upstream's iOS ptrace
+# call, which only the dynarec this build leaves out ever needed.
+PCSX_INC="-I$ROOT/Core/pcsx"
+for _d in $PCSX_INC_REL; do PCSX_INC="$PCSX_INC -I$PCSX_SRC/$_d"; done
+[ -f "$PCSX_SRC/frontend/libretro.c" ] || { echo "!! no PCSX ReARMed source at $PCSX_SRC" >&2; exit 1; }
+
+
 # -DFE_NO_MAIN=1 MUST stay in step with scripts/build-core.sh: fe_access.cpp owns
 # a standalone-host main() behind #ifndef FE_NO_MAIN, and without this define the
 # simulator archive ships a second _main that fails the app link with
@@ -205,6 +216,12 @@ compile() {
       if [ "$(basename "$src")" = "genesis_core.cpp" ]; then
         flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -I$LUA_SRC/src -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing $GPGX_DEFS $GPGX_INC"
       fi
+      # ps1_core.cpp is the PCSX glue: it needs only libretro.h from the core's
+      # tree, and the same isolation rule (no $INC) so no other core's header
+      # of the same name can shadow it.
+      if [ "$(basename "$src")" = "ps1_core.cpp" ]; then
+        flags="$COMMON -I$ROOT/Core -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing -I$PCSX_SRC/deps/libretro-common/include"
+      fi
       # Our own Core/ code only (not melonDS): a self-calling EndFrame once
       # crashed every game on its first frame (v0.4.0) behind a mere warning.
       case "$src" in "$ROOT"/Core/*) flags="$flags -Werror=infinite-recursion" ;; esac ;;
@@ -232,6 +249,9 @@ compile() {
     # makes is renamed by scripts/m64p-isolate.sh after the compile loop.
     m64p) flags="$COMMON -std=gnu11 $M64P_FLAGS"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     m64pxx) flags="$COMMON -std=gnu++11 -stdlib=libc++ $M64P_FLAGS" ;;
+    # PCSX ReARMed: plain C. -fno-common turns tentative definitions into real
+    # ones, which the oga_ps1_ prefix pass (after the compile loop) must see.
+    pcsx) flags="$COMMON -std=gnu11 -fno-common $PCSX_DEFS $PCSX_APPLE_DEFS $PCSX_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     # Mesen C: spng and the 7-Zip SDK -- no pch force-include (those are plain C).
     mesenc) flags="$COMMON -I$ROOT/Core -I$ROOT/Sources/CPokeCore/include -std=gnu11 $MESEN_INC"; cc="$CC"; compiler_id="$CC_CACHE_ID" ;;
     # The four symbols Mesen's Lua FORK adds over the app's Lua, satisfied without a second
@@ -301,6 +321,9 @@ compile() {
     printf '%s|%s|%s\n' "$M64P_SRC/$f" "$_l" "m64p_$(echo "$f" | tr '/' '_' | sed 's/\.[a-z]*$//')"
   done
   for f in $M64P_OGA_C; do printf '%s|m64p|%s\n' "$ROOT/Core/$f" "m64p_oga_$(basename "$f" .c)"; done
+  # ---- PCSX ReARMed. The audited list from core-sources.sh; ps1_core.cpp is
+  # in OGA_GLUE. Tags keep the path: cdrom.c and gpu.c each exist twice.
+  for f in $PCSX_ALL; do printf '%s|pcsx|%s\n' "$PCSX_SRC/$f" "pcsx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   # The Lua-fork symbol shim, and our NES glue -- the console the NES adapter reads from.
   printf '%s|mesenlua|mesen_lua_extras\n' "$ROOT/Core/mesen_lua_extras.c"
   # mesen_core.cpp is NOT emitted here: it is in OGA_GLUE and the cxx case below
@@ -356,6 +379,8 @@ export GPGX_SRC GPGX_INC GPGX_DEFS
 # ⛔ EXPORTED, same reason: the m64p langs and the n64_core.cpp case read
 # these in the xargs children, where unexported they are EMPTY.
 export M64P_SRC M64P_FLAGS
+# The pcsx lang and the ps1_core.cpp case, same reason as GPGX above.
+export PCSX_SRC PCSX_INC PCSX_DEFS PCSX_APPLE_DEFS
 export -f compile oga_cache_fingerprint oga_cache_is_valid oga_cache_write_fingerprint
 # stdin, not `xargs -a` (GNU-only).
 # ⛔ NO `xargs -I{}`. BSD xargs (macOS, where this runs) caps an -I argument
@@ -404,6 +429,13 @@ fi
 # ("!! still duplicated: _input"). Renamed first, the core has no twins.
 bash "$ROOT/scripts/m64p-isolate.sh" "$OBJ" "$LLVM_NM" "$LLVM_OBJCOPY" || {
   echo "!! Mupen64Plus-Next symbol isolation failed" >&2; exit 1; }
+# ---- Prefix every PCSX ReARMed global with oga_ps1_ ----
+# FIRST of the symbol passes, and after the compile loop for the same reason
+# as the others: a fresh compile rewrites the objects. The whole defined set
+# is renamed (not a computed overlap), so the twin passes below never see a
+# PCSX name. See scripts/ps1-prefix-symbols.py.
+python3 "$ROOT/scripts/ps1-prefix-symbols.py" --format macho --nm "$LLVM_NM" --objcopy "$LLVM_OBJCOPY" "$OBJ"/pcsx_*.o || {
+  echo "!! PCSX symbol prefix pass failed" >&2; exit 1; }
 
 # ⛔ AFTER the compile loop, BEFORE archiving. See localise_mesen_twins above for why
 # the position is load-bearing: a fresh compile rewrites these objects.

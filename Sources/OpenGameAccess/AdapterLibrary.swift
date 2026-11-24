@@ -64,6 +64,9 @@ struct AdapterGame: Identifiable, Hashable {
         case "nes":  exts = ["nes", "fds", "unf"]
         case "n64":  exts = ["z64", "n64", "v64"]
         case "genesis": exts = ["md", "gen", "smd", "bin"]
+        // A .cue's .bin tracks are imported from the full picker; the PlayStation
+        // row filters to the files that name a disc.
+        case "ps1":  exts = ["cue", "chd", "m3u", "ccd"]
         default:     return ROMStore.allowedTypes
         }
         let types = exts.compactMap { UTType(filenameExtension: $0) }

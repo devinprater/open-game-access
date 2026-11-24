@@ -168,6 +168,9 @@ jobs:
           # overlay's Genesis section cannot find the pinned tree and
           # exits on purpose (a silent skip is how a core goes missing).
           GPGX_SRC: ${{ runner.temp }}/src/genesis-plus-gx
+          # ⛔ REQUIRED since the PlayStation core landed, for the same reason:
+          # bootstrap-deps.sh fetches PCSX ReARMed here.
+          PCSX_SRC: ${{ runner.temp }}/src/pcsx_rearmed
           # Where the ffmpeg step above put the Android installs; the
           # overlay stages them into the frontend tree from here.
           FFMPEG_ANDROID_OUT: ${{ runner.temp }}/ffmpeg-android

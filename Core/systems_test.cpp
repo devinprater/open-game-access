@@ -81,6 +81,11 @@ int main()
      * reason: first match in the table wins, so listing it twice would promise
      * Dreamcast support that can never be reached. */
     ExpectSys("/roms/ff7.chd",            OGA_SYS_PS1, "a .chd resolves to the PlayStation, not the Dreamcast");
+    /* The PlayStation's own extensions: the ones no other row claims, which
+     * are also the ones the backend resolver routes to PCSX ReARMed. */
+    ExpectSys("/roms/ff7.cue",            OGA_SYS_PS1, "a .cue sheet is a PlayStation disc");
+    ExpectSys("/roms/ff7.m3u",            OGA_SYS_PS1, "a .m3u multi-disc list is a PlayStation game");
+    ExpectSys("/roms/ff7.ccd",            OGA_SYS_PS1, "a CloneCD .ccd is a PlayStation disc");
 
     printf("\n== case and path handling\n");
     ExpectSys("/roms/POKEMON.NDS",         OGA_SYS_DS,  "uppercase extensions match");
@@ -224,7 +229,9 @@ int main()
          * a real ROM boots, and the row now says READY. */
         /* ⛔ N64 IS OUT TOO: Mupen64Plus-Next is linked in (Core/n64_core.cpp)
          * and the host proof boots a cartridge through it. */
-        const OgaSystemId planned[] = { OGA_SYS_PS1,
+        /* ⛔ PS1 IS OUT OF THIS LIST TOO: PCSX ReARMed is linked in
+         * (Core/ps1_core.cpp) and scripts/ps1-core-test.sh boots a program. */
+        const OgaSystemId planned[] = {
                                         OGA_SYS_DREAMCAST, OGA_SYS_3DS,
                                         OGA_SYS_MASTER, OGA_SYS_PCE,
                                         OGA_SYS_WONDERSWAN };
@@ -317,12 +324,14 @@ int main()
         else
             bad("the N64 reports its core present", "the row still says PLANNED");
 
-        /* The PlayStation must NOT claim to be runnable: no core for it here. */
+        /* The PlayStation row is READY only because Core/ps1_core.cpp exists
+         * and its host test (a synthetic PS-EXE under the HLE BIOS: frames,
+         * audio, RAM reads, states) passes. */
         const OgaSystem* ps1 = oga_system_by_id(OGA_SYS_PS1);
-        if (ps1 && !oga_system_is_runnable(ps1))
-            ok("the PlayStation does not claim to be playable");
+        if (ps1 && oga_system_is_runnable(ps1))
+            ok("the PlayStation reports its core present");
         else
-            bad("the PlayStation does not claim to be playable", "it claimed runnable");
+            bad("the PlayStation reports its core present", "the row still says PLANNED");
 
         if (!oga_system_is_runnable(nullptr))
             ok("a null system is not runnable");
@@ -435,8 +444,8 @@ int main()
         else bad("an unknown extension is named in the message", r ? r : "null");
 
         /* A known console with no core says WHICH console. */
-        const char* n = oga_unsupported_reason("/roms/crash.cue");
-        if (n && strstr(n, "PlayStation")) ok("a not-yet-playable console is named");
+        const char* n = oga_unsupported_reason("/roms/sonic.gdi");
+        if (n && strstr(n, "Dreamcast")) ok("a not-yet-playable console is named");
         else bad("a not-yet-playable console is named", n ? n : "null");
 
         /* Always a string, never null, for any input. */

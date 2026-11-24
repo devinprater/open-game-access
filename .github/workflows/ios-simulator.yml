@@ -110,6 +110,9 @@ jobs:
           # is part of the app, bootstrap-deps.sh fetches it there, and the core
           # build refuses to run without it.
           M64P_SRC: ${{ runner.temp }}/src/mupen64plus-libretro-nx
+          # ⛔ REQUIRED since the PlayStation core landed, for the same reason:
+          # bootstrap-deps.sh fetches PCSX ReARMed here.
+          PCSX_SRC: ${{ runner.temp }}/src/pcsx_rearmed
         run: |
           # Xcode's own simulator SDK, at whatever version this runner has. The
           # script defaults to xtool's fetched SDK path, which does not exist here.

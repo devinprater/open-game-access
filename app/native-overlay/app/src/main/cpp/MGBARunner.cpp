@@ -23,6 +23,7 @@
 
 #include "MGBARunner.h"
 #include "MGBACore.h"
+#include "GbAudioQueue.h"
 
 #include <android/log.h>
 #define LOG_TAG "PokemonAccess"
@@ -37,6 +38,7 @@ extern "C" {
 #include <mgba/core/interface.h>
 #include <mgba-util/vfs.h>
 #include <mgba-util/image.h>
+#include <mgba-util/audio-buffer.h>
 #include <mgba/debugger/debugger.h>
 }
 
@@ -200,6 +202,17 @@ bool MGBARunner::loadRom(const std::string& romPath, const std::string& savePath
         return false;
     mCoreInitConfig(core, nullptr);
     core->reset(core);
+
+    // ⛔ THE MASTER VOLUME IS SET, NOT ASSUMED. mGBA multiplies every sample by
+    // audio.masterVolume, and any path through mCoreLoadConfig copies
+    // core->opts.volume into it -- which is 0 unless someone sets it. iOS shipped
+    // every Game Boy title silent on exactly that (Core/gba_core.cpp, v0.6.6).
+    // This runner never calls mCoreLoadConfig today, so GBAudioInit's default
+    // (max) survives; setting opts here keeps it that way the day a config load
+    // is added. 0x100 is GB_AUDIO_VOLUME_MAX / GBA_AUDIO_VOLUME_MAX.
+    core->opts.volume = 0x100;
+    core->opts.mute = false;
+    if (core->reloadConfigOption) core->reloadConfigOption(core, nullptr, nullptr);
 
     if (!savePath.empty())
     {
@@ -370,6 +383,33 @@ void MGBARunner::runFrame()
 
     if (script)
         script->runFrame();
+}
+
+size_t MGBARunner::drainAudio(GbAudioQueue& queue)
+{
+    mCore* core = corePtr.get();
+    if (!core || !core->getAudioBuffer || !core->audioSampleRate) return 0;
+    struct mAudioBuffer* ring = core->getAudioBuffer(core);
+    if (!ring) return 0;
+    unsigned srcRate = core->audioSampleRate(core);
+    if (srcRate == 0) return 0;
+
+    // Drain it all, every frame: a Game Boy frame is ~2194 frames at
+    // 131072 Hz and the ring holds 16384, so a frame that is skipped here is
+    // audio mGBA overwrites, heard as a gap. The chunk bounds one read.
+    size_t total = 0;
+    for (;;)
+    {
+        size_t avail = mAudioBufferAvailable(ring);
+        if (avail == 0) break;
+        if (avail > 4096) avail = 4096;
+        audioScratch.resize(avail * 2);
+        size_t got = mAudioBufferRead(ring, audioScratch.data(), avail);
+        if (got == 0) break;
+        queue.push(audioScratch.data(), got, srcRate);
+        total += got;
+    }
+    return total;
 }
 
 const uint32_t* MGBARunner::framebuffer(int* width, int* height, int* stride) const

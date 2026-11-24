@@ -106,7 +106,13 @@ const char* const kN64Ext[]   = { ".n64", ".z64", ".v64", NULL };
 /* PS1 shares the PSP extensions: .iso/.pbp/.cso are the same containers.
  * Which console a file is FOR is decided from the disc's header by the core,
  * not by the name — but the picker only needs to know it is a disc image. */
-const char* const kPs1Ext[]   = { ".iso", ".bin", ".cue", ".chd", ".pbp", NULL };
+/* The PlayStation. .iso and .pbp are listed but unreachable by extension
+ * (the PSP row claims them first) and .bin is the Genesis's (see the Genesis
+ * row): FIRST MATCH WINS. They stay listed because they ARE PlayStation
+ * formats, and routing them by disc content is the planned follow-up. The
+ * reachable ones are .cue, .chd, .m3u and .ccd, which is exactly what the
+ * backend resolver (Core/oga_core.cpp) hands PCSX ReARMed. */
+const char* const kPs1Ext[]   = { ".iso", ".bin", ".cue", ".chd", ".pbp", ".m3u", ".ccd", NULL };
 const char* const kPs2Ext[]   = { ".iso", ".chd", NULL };
 const char* const kGcExt[]    = { ".iso", ".gcm", ".rvz", ".wia", NULL };
 const char* const kWiiExt[]   = { ".iso", ".wbfs", ".rvz", ".wia", NULL };
@@ -194,7 +200,8 @@ const OgaSystem kSystems[] = {
      *              (angrylion + cxd4 + cached interpreter: no JIT, which iOS
      *              does not allow): Core/n64_core.cpp, proved on the host by
      *              scripts/n64-host-proof.sh (READY row below).
-     * PS1        -> DuckStation-class core; software renderer for ARM
+     * PS1        -> PCSX ReARMed, INTEGRATED: Core/ps1_core.cpp (READY row
+     *              below, interpreter + software GPU on every platform).
      * PS2        -> PCSX2-class; almost certainly not viable on phone yet
      * GC/Wii     -> Dolphin-class; same caveat, and 32-bit ARM is a wall
      */
@@ -219,7 +226,10 @@ const OgaSystem kSystems[] = {
     { OGA_SYS_GENESIS, "Sega Genesis", kGenesisExt, OGA_BACKEND_READY,
       1, false, false, 0, true, kGenesis, 6 },
 
-    { OGA_SYS_PS1, "PlayStation", kPs1Ext, OGA_BACKEND_PLANNED,
+    /* READY: PCSX ReARMed is linked in (Core/ps1_core.cpp), proved by
+     * scripts/ps1-core-test.sh. Digital pad: the shared numbering has no
+     * L2/R2 or sticks yet, so the row claims none. */
+    { OGA_SYS_PS1, "PlayStation", kPs1Ext, OGA_BACKEND_READY,
       1, true, false, 0, true, kPlayStation, 4 },
 
     { OGA_SYS_PS2, "PlayStation 2", kPs2Ext, OGA_BACKEND_NONE,
