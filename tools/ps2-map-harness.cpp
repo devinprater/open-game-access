@@ -31,6 +31,7 @@
 #include <vector>
 #include <algorithm>
 #include <chrono>
+#include <ctime>
 
 #include "ps2_core.h"
 
@@ -148,6 +149,22 @@ int main(int argc, char **argv)
             }
         }
     }
+    /* An async core (retro_run returns at once; frames present on the
+     * core's own thread) may not have shown anything yet when the loop
+     * above ends. Give it a paced wait for its first frame so the
+     * evidence below is the game's, not the race's. */
+    {
+        int pw = 0, ph = 0;
+        if (!ps2_framebuffer(core, &pw, &ph)) {
+            for (int i = 0; i < 10000; i++) {
+                ps2_frame(core);
+                if (ps2_framebuffer(core, &pw, &ph)) break;
+                struct timespec ts { 0, 1000000 };
+                nanosleep(&ts, nullptr);
+            }
+        }
+    }
+
     auto t1 = std::chrono::steady_clock::now();
     double wall = std::chrono::duration<double>(t1 - t0).count();
 

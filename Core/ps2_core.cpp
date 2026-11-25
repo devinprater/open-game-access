@@ -498,9 +498,15 @@ bool EnvCb(unsigned cmd, void *data)
         return true;
     case RETRO_ENVIRONMENT_SET_MEMORY_MAPS: {
         const struct retro_memory_map *m = (const struct retro_memory_map *) data;
+        if (getenv("OGA_PS2_LOG"))
+            fprintf(stderr, "[ps2core] memmaps called num=%u\n", m ? m->num_descriptors : 0);
         if (!c || !m) return true;
         for (unsigned i = 0; i < m->num_descriptors; i++) {
             const struct retro_memory_descriptor &d = m->descriptors[i];
+            if (getenv("OGA_PS2_LOG"))
+                fprintf(stderr, "[ps2core] memmap desc start=0x%llx select=0x%llx len=0x%llx offset=0x%llx ptr=%p\n",
+                        (unsigned long long) d.start, (unsigned long long) d.select,
+                        (unsigned long long) d.len, (unsigned long long) d.offset, (void *) d.ptr);
             if (!d.ptr) continue;
             if (d.start == PS2_SCRATCH_BASE && d.len >= PS2_SCRATCH_SIZE)
                 c->scratch = (const uint8_t *) d.ptr + d.offset;
@@ -829,11 +835,14 @@ bool ps2_load_disc(Ps2Core *core, const char *disc_path, const char *save_path,
      * BIOS is in its hands. */
     core->hleBios = core->coreName.rfind("Play", 0) == 0 || !BiosPresent(core->biosDir);
     if (core->api.get_memory_data) {
-        core->ram = (const uint8_t *) core->api.get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
-        core->ramSize = core->api.get_memory_size ? core->api.get_memory_size(RETRO_MEMORY_SYSTEM_RAM) : 0;
+        const uint8_t *p = (const uint8_t *) core->api.get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
+        size_t n = core->api.get_memory_size ? core->api.get_memory_size(RETRO_MEMORY_SYSTEM_RAM) : 0;
         /* A core that publishes less than the EE's RAM is not believed:
-         * adapter reads fail closed rather than reading a short buffer. */
-        if (core->ramSize < PS2_RAM_SIZE) { core->ram = nullptr; core->ramSize = 0; }
+         * adapter reads fail closed rather than reading a short buffer.
+         * A core that publishes nothing yet (its VM starts lazily, on a
+         * thread of its own) keeps whatever SET_MEMORY_MAPS described;
+         * Ps2EnsureRam asks again once frames are running. */
+        if (p && n >= PS2_RAM_SIZE) { core->ram = p; core->ramSize = n; }
     }
     if (code_out) {
         std::string serial = SerialFromIso(disc_path);
@@ -1015,6 +1024,21 @@ bool ps2_using_hle_bios(Ps2Core *core)
  * checked before any masking because the mask would destroy it; only the
  * KUSEG/KSEG0/KSEG1 windows and the 0x2/0x3 uncached aliases are served;
  * the physical result must land inside the 32 MiB of EE RAM. */
+/* Some cores start their VM lazily: at load time get_memory_data has
+ * nothing to give, and the RAM pointer only exists once frames run.
+ * Ask again whenever a read finds no RAM yet. */
+static void Ps2EnsureRam(Ps2Core *core)
+{
+    if (core->ram || !core->api.get_memory_data) return;
+    const uint8_t *p = (const uint8_t *) core->api.get_memory_data(RETRO_MEMORY_SYSTEM_RAM);
+    size_t n = core->api.get_memory_size ? core->api.get_memory_size(RETRO_MEMORY_SYSTEM_RAM) : 0;
+    static int tries = 0;
+    if (getenv("OGA_PS2_LOG") && tries < 8)
+        fprintf(stderr, "[ps2core] ensure-ram try %d: ptr=%p size=%zu\n", tries, (const void *) p, n);
+    tries++;
+    if (p && n >= PS2_RAM_SIZE) { core->ram = p; core->ramSize = n; }
+}
+
 static const uint8_t *Ps2Translate(Ps2Core *core, uint32_t addr, int width, uint32_t *offset)
 {
     if (addr >= PS2_SCRATCH_BASE && addr + (uint32_t) width <= PS2_SCRATCH_BASE + PS2_SCRATCH_SIZE) {
@@ -1027,6 +1051,7 @@ static const uint8_t *Ps2Translate(Ps2Core *core, uint32_t addr, int width, uint
     if (!window) return nullptr;
     uint32_t phys = addr & 0x1FFFFFFFu;
     if (phys + (uint32_t) width > PS2_RAM_SIZE) return nullptr;
+    if (!core->ram) Ps2EnsureRam(core);
     if (!core->ram) return nullptr;
     *offset = phys;
     return core->ram;
