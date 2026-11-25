@@ -314,6 +314,29 @@ int main()
     clear();
     w8(M->pause_addr, M->pause_value); frames(1);
     CHECK(said("Paused."), "pausing twice is two pauses, not a repeat");
+    // the pause menu: Select opens Continue/Quit, Quit opens a Yes/No confirm (stack-slot highlights)
+    clear();
+    w32(M->pause_menu_addr, 0x801); frames(1);
+    CHECK(said("Pause menu. Continue."), "the pause menu opening says its first row");
+    clear();
+    w32(M->pause_menu_addr, 0x800); frames(1);
+    CHECK(said("Quit.") && !said("Pause menu"), "moving to Quit says the row only");
+    clear();
+    w32(M->pause_confirm_addr, 0x801); frames(1);
+    CHECK(said("Quit game? No."), "the confirm opens on No");
+    clear();
+    w32(M->pause_confirm_addr, 0x800); frames(1);
+    CHECK(said("Quit game? Yes."), "and moves to Yes");
+    clear();
+    A->command(oga::Command::MenuState);
+    CHECK(said("Paused. Quit game? Yes."), "the menu key reads the confirm row");
+    clear();
+    w32(M->pause_confirm_addr, 0); w32(M->pause_menu_addr, 0x801); frames(1);
+    CHECK(said("Continue."), "backing out of the confirm says the menu row again");
+    clear();
+    w32(M->pause_menu_addr, 0x1234); frames(2);
+    CHECK(NSPOKEN == 0, "a stack value that is not a highlight says nothing");
+    w32(M->pause_menu_addr, 0);
     w8(M->pause_addr, 0); frames(1);
 
     // ---- slots swap between fights -------------------------------------------------------------------

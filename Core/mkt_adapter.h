@@ -77,6 +77,12 @@ struct MktMap {
     /// A byte that reads `pause_value` exactly while the game is paused. 0 = unmapped.
     uint32_t pause_addr;
     uint8_t  pause_value;
+    /// While paused, Select opens a two-row menu (Continue, Quit) and Quit opens a Yes/No
+    /// confirm. Both highlights are the pause loop's own stack slots (words), so they are
+    /// only read while the pause flag is up: 0x801 = the first row (Continue, No), 0x800 = the
+    /// second (Quit, Yes); anything else = that level is not open. 0 = unmapped.
+    uint32_t pause_menu_addr;
+    uint32_t pause_confirm_addr;
 };
 
 /// The values of the screen id pair for each screen, as measured. Shared with the test.

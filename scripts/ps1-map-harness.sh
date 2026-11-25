@@ -9,7 +9,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 OUT="${OUT:-$HOME/oga-ps1-test}"
 [ -d "$OUT/obj" ] || { echo "run scripts/ps1-core-test.sh first (it builds the PCSX objects)" >&2; exit 1; }
-if [ ! -x "$OUT/ps1-map-harness" ] || [ "$ROOT/tools/ps1-map-harness.cpp" -nt "$OUT/ps1-map-harness" ]; then
+if [ ! -x "$OUT/ps1-map-harness" ] || [ "$ROOT/tools/ps1-map-harness.cpp" -nt "$OUT/ps1-map-harness" ] || [ "$ROOT/Core/mkt_adapter.cpp" -nt "$OUT/ps1-map-harness" ] || [ "$ROOT/Core/mkt_adapter.h" -nt "$OUT/ps1-map-harness" ]; then
   c++ -std=c++17 -O1 -g -I"$ROOT/Core" -c "$ROOT/tools/ps1-map-harness.cpp" -o "$OUT/harness.o"
   # The reader and the registry it lives in (the Nintendo readers are stood in for in the harness).
   mkdir -p "$OUT/adobj"

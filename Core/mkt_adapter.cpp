@@ -77,6 +77,8 @@ const MktMap kShippedMap = {
     /* gap_far              */ 250,          //                    largest gap 247
     /* pause_addr           */ 0x800327A4,   // 12 states
     /* pause_value          */ 1,
+    /* pause_menu_addr      */ 0x801FFFCC,   // stack slot; 8 states, cleared on resume
+    /* pause_confirm_addr   */ 0x801FFFC8,   // stack slot; 3 states
 };
 const MktMap* g_map = &kShippedMap;
 
@@ -148,6 +150,7 @@ bool HasPos(void)
 bool HasWins(void)   { return HasFight() && g_map->p1_wins_addr && g_map->p2_wins_addr; }
 bool HasIds(void)    { return HasFight() && g_map->p1_id_addr && g_map->p2_id_addr; }
 bool HasPause(void)  { return g_map->pause_addr != 0; }
+bool HasPauseMenu(void) { return HasPause() && g_map->pause_menu_addr && g_map->pause_confirm_addr; }
 bool AnythingMapped(void) { return HasFight() || HasPause() || HasScreens(); }
 
 bool InFight(void) { return HasFight() && u8(g_map->fight_addr) == g_map->fight_value; }
@@ -466,18 +469,50 @@ void TrackRound(void)
 // ---- the pause --------------------------------------------------------------------------
 
 bool g_wasPaused = false;
+int  g_pauseLevel = 0;      // 0 plain pause, 1 pause menu, 2 quit confirm
+int  g_pauseRow = -1;
+
+/// Which level of the pause is up and which row is highlighted. The slots are stack locals of
+/// the game's pause loop, so they mean something only while the pause flag is set.
+void PauseNow(int* level, int* row)
+{
+    *level = 0; *row = -1;
+    if (!HasPauseMenu()) return;
+    uint32_t conf = u32(g_map->pause_confirm_addr), menu = u32(g_map->pause_menu_addr);
+    if (conf == 0x800 || conf == 0x801) { *level = 2; *row = (int) (0x801 - conf); return; }
+    if (menu == 0x800 || menu == 0x801) { *level = 1; *row = (int) (0x801 - menu); }
+}
+
+const char* PauseWords(int level, int row)
+{
+    if (level == 1) return row == 0 ? "Continue" : "Quit";
+    if (level == 2) return row == 0 ? "No" : "Yes";
+    return nullptr;
+}
 
 void TrackPause(void)
 {
     bool paused = Paused() && InFight();
+    int level = 0, row = -1;
+    if (paused) PauseNow(&level, &row);
+    char line[64];
     if (paused && !g_wasPaused) {
         AdapterNoteSpoken("");              // pausing twice is two pauses, not a repeat
         Say("Paused.", "pause", Priority::Normal);
     } else if (!paused && g_wasPaused && InFight()) {
         AdapterNoteSpoken("");
         Say("Resumed.", "pause", Priority::Normal);
+    } else if (paused && (level != g_pauseLevel || row != g_pauseRow)) {
+        const char* w = PauseWords(level, row);
+        if (w) {
+            snprintf(line, sizeof(line), "%s%s.", level == 2 ? "Quit game? " : (g_pauseLevel == 0 ? "Pause menu. " : ""), w);
+            AdapterNoteSpoken("");
+            Say(line, "pause", Priority::Normal);
+        }
     }
     g_wasPaused = paused;
+    g_pauseLevel = paused ? level : 0;
+    g_pauseRow = paused ? row : -1;
 }
 
 void ResetFight(void)
@@ -494,7 +529,7 @@ void ResetAll(void)
     ResetFight();
     g_pendFoeBeep = g_pendOwnBeep = false;
     g_pendFoeHz = g_pendOwnHz = 0.0f;
-    g_wasPaused = false;
+    g_wasPaused = false; g_pauseLevel = 0; g_pauseRow = -1;
     g_screen = g_prevScreen = g_candidate = kMktScreenOther;
     g_candidateFrames = 0; g_menuCursor = -1; g_difficulty = -1; g_konfigureReal = false;
 }
@@ -605,10 +640,20 @@ bool MenuLine(char* out, size_t cap)
     return true;
 }
 
+/// "Paused." or "Paused. Continue." / "Paused. Quit game? Yes."
+void PauseLine(char* out, size_t cap)
+{
+    int level, row;
+    PauseNow(&level, &row);
+    const char* w = PauseWords(level, row);
+    if (!w) snprintf(out, cap, "Paused.");
+    else snprintf(out, cap, "Paused. %s%s.", level == 2 ? "Quit game? " : "", w);
+}
+
 void CmdWhereAmI(void)
 {
     char line[224];
-    if (Paused() && InFight()) { Say("Paused.", "whereami", Priority::High); return; }
+    if (Paused() && InFight()) { PauseLine(line, sizeof(line)); Say(line, "whereami", Priority::High); return; }
     if (FightLine(line, sizeof(line))) { Say(line, "whereami", Priority::High); return; }
     if (MenuLine(line, sizeof(line))) { Say(line, "whereami", Priority::High); return; }
     if (!AnythingMapped()) { CmdNotMapped(); return; }
@@ -627,7 +672,10 @@ void CmdStatus(void)
 void CmdMenuState(void)
 {
     char line[160];
-    if (InFight()) { Say(Paused() ? "Paused." : "Not paused.", "pause", Priority::High); return; }
+    if (InFight()) {
+        if (!Paused()) { Say("Not paused.", "pause", Priority::High); return; }
+        char pl[96]; PauseLine(pl, sizeof(pl)); Say(pl, "pause", Priority::High); return;
+    }
     if (MenuLine(line, sizeof(line))) { Say(line, "menu", Priority::High); return; }
     if (!AnythingMapped()) { CmdNotMapped(); return; }
     Say("No menu I know is open.", "menu", Priority::High);
@@ -772,8 +820,8 @@ const Adapter kMortalKombatTrilogy = {
     "health left (the foe on the right, you on the left) and the percent spoken at 75, 50, 25 "
     "and nearly gone; a closeness sound whose pace shows how far apart the fighters are; a "
     "short line when the foe crosses to your other side; who won each round and the match; "
-    "Paused and Resumed.\n"
-    "Not yet read: the round timer, the pause menu's Continue and Quit rows, the other "
+    "Paused and Resumed, and the pause menu's Continue and Quit rows and its Yes or No.\n"
+    "Not yet read: the round timer, the other "
     "Konfigure settings' values, and the second player's cursor. Where Am I says the screen "
     "and, in a fight, the round, both health bars and where the foe is. Dump writes a memory "
     "scan to the reading log.\n"
