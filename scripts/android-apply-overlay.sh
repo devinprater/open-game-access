@@ -310,6 +310,26 @@ fi
 # ---------------------------------------------------------------------------
 say "building the GBA/Game Boy core for Android"
 
+# ⛔ THE RETIRED GB HOST MUST NOT COMPILE. An earlier overlay listed the
+# frontend's own MGBAScriptJNI.cpp in the frontend target ("previously
+# copied here but never listed"); that listing survives in a local
+# frontend tree because nothing resets it. The frontend's file defines
+# GbAccessibilityScript's JNI natives -- the same natives GbSessionJNI
+# (section 9) now serves -- so with both listed the link dies on a
+# duplicate symbol. Strip the line wherever it lingers; the removal is
+# idempotent and a fresh frontend checkout never had it.
+GB_CMAKE="$FRONTEND/app/CMakeLists.txt"
+if [ -f "$GB_CMAKE" ] && grep -q 'MGBAScriptJNI' "$GB_CMAKE"; then
+  python3 - "$GB_CMAKE" <<'PY'
+import sys
+p = sys.argv[1]
+lines = open(p, encoding="utf-8").read().splitlines(keepends=True)
+kept = [l for l in lines if "MGBAScriptJNI.cpp" not in l]
+open(p, "w", encoding="utf-8").write("".join(kept))
+print("     removed the retired MGBAScriptJNI from the frontend target")
+PY
+fi
+
 MGBA_SRC="${MGBA_SRC:-}"
 LUA_SRC="${LUA_SRC:-}"
 
