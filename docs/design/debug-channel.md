@@ -63,6 +63,9 @@ peek 0x0202A6C4 1
 | `wait FRAMES\|MSms` | Hold the lines after it |
 | `count ADDR…` / `count dump` / `count reset` / `uncount` | Count calls of the code at ADDR |
 | `trace ADDR [N]` | Report the next N calls with their first four arguments |
+| `search start ADDR LEN [WIDTH]` | Remember every aligned value in a range (2 MiB at most) to narrow down |
+| `search eq\|ne VALUE`, `search changed\|same`, `search up\|down [N]` | Keep the candidates that match, compared with the step before; names them once 10 or fewer are left |
+| `search list [N]`, `search clear` | Name what is left; end the search (`clear` and a reset end it too) |
 | `status`, `clear`, `help` | Where things stand; drop everything; the list |
 | `speak on\|off` | Also speak replies through the announcement queue (off by default) |
 

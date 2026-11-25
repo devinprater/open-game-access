@@ -298,6 +298,79 @@ static void TestSpeechAndParsing()
     debug_destroy(ch);
 }
 
+static void Put16(uint32_t a, uint16_t v) { F.ram[a - 0x1000] = (uint8_t) v; F.ram[a - 0x1000 + 1] = (uint8_t) (v >> 8); }
+
+// A memory search the way a player maps a health bar with no debugger: remember the range,
+// take a hit, keep what went down, wait, keep what stayed, until one address is left.
+static void TestSearch()
+{
+    DebugChannel* ch = Make();
+    Put16(0x1500, 166);            // the real health bar
+    Put16(0x1600, 166);            // a decoy that also starts full but never moves
+    Put16(0x1700, 5);              // a timer that counts down every step
+    debug_submit(ch, "search start 0x1000 0x1000 2\nsearch eq 166");
+    Step(ch);
+    check(Said("search started: 2048 addresses of width 2 from 0x00001000"), "search start remembers every aligned halfword");
+    check(Said("search eq: 2 left"), "eq keeps the addresses that hold the value now");
+    check(Said("  0x00001500 = 0x00A6 (166)") && Said("  0x00001600 = 0x00A6 (166)"),
+          "with few left, a step names them");
+
+    Put16(0x1500, 140); Put16(0x1700, 4);
+    debug_submit(ch, "search down");
+    Step(ch);
+    check(Said("search down: 1 left"), "down drops the decoy that did not move");
+
+    // Unchanged since the LAST step (140), not since the start (166).
+    Put16(0x1700, 3);
+    debug_submit(ch, "search same");
+    Step(ch);
+    check(Said("search same: 1 left"), "same compares with the previous step, not the start");
+
+    Put16(0x1500, 100);
+    debug_submit(ch, "search down 40\nsearch list");
+    Step(ch);
+    check(Said("search down: 1 left") && Said("  0x00001500 = 0x0064 (100)"), "down by exactly N follows the bar");
+    check(Said("search: 1 left"), "list says how many are left");
+
+    debug_submit(ch, "search up\nsearch eq 1");
+    Step(ch);
+    check(Said("search up: nothing left. The search is over"), "an empty result ends the search and says so");
+    check(Said("search: no search under way"), "a step with no search says how to start one");
+
+    // A wide start: a counter going up by one among thousands of zeros.
+    debug_submit(ch, "search start 0x1000 0x1000 1");
+    Step(ch);
+    F.ram[0x123]++; F.ram[0x456] = 7;
+    debug_submit(ch, "search changed");
+    Step(ch);
+    check(Said("search changed: 2 left"), "changed keeps everything that moved");
+    F.ram[0x123]++; F.ram[0x456] = 9;
+    debug_submit(ch, "search up 1");
+    Step(ch);
+    check(Said("search up: 1 left") && Said("  0x00001123 = 0x02 (2)"), "up by 1 finds the counter");
+
+    debug_submit(ch, "search start 0x1000 0x300000\nsearch start 0x9000 16\nsearch start 0x1000 16 2\nsearch eq 70000");
+    Step(ch);
+    check(Said("search: at most 0x200000 bytes at a time"), "a search wider than 2 MiB is refused");
+    check(Said("search refused: nothing readable from 0x00009000"), "an unreadable range is refused");
+    check(Said("search: 0x11170 does not fit in 2 bytes"), "a value too wide for the search is refused");
+
+    debug_submit(ch, "status\nclear");
+    Step(ch);
+    debug_submit(ch, "search list");   // its own file: clear drops the lines queued after it
+    Step(ch);
+    check(Said("search: 8 candidates of width 2"), "status reports a search under way");
+    check(CountSaid("search: no search under way") == 2, "clear ends the search too");
+
+    debug_submit(ch, "search start 0x1000 64");
+    Step(ch);
+    debug_reset(ch);
+    debug_submit(ch, "search list");
+    Step(ch);
+    check(CountSaid("search: no search under way") == 3, "reset ends the search, so it never runs into the next game");
+    debug_destroy(ch);
+}
+
 int main()
 {
     TestPeekPoke();
@@ -306,6 +379,7 @@ int main()
     TestWatch();
     TestCountTrace();
     TestSpeechAndParsing();
+    TestSearch();
     printf("debug channel: %d passed, %d failed\n", g_pass, g_fail);
     return g_fail ? 1 : 0;
 }

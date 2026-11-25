@@ -224,6 +224,7 @@ compile() {
   printf '%s|pcsxglue|ps1_core\n' "$ROOT/Core/ps1_core.cpp"
   for f in $PCSX_ALL; do printf '%s|pcsx|%s\n' "$PCSX_SRC/$f" "pcsx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   printf '%s|cxx|ps1_adapter\n' "$ROOT/Core/ps1_adapter.cpp"
+  printf '%s|cxx|mkt_adapter\n' "$ROOT/Core/mkt_adapter.cpp"
   # A Link to the Past. The same omission class as MKU above: adapters.o names
   # oga::kZeldaLinkToThePast, so the host set must carry the adapter and its
   # decoder and name table or every harness dies at the LINK.
