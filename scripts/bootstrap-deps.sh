@@ -249,7 +249,7 @@ echo "   lua-$LUA_VER/src: $(ls "lua-$LUA_VER/src"/*.c 2>/dev/null | wc -l) C fi
 # There is NO armsx2 Linux build on the buildbot (checked 2026-11-25),
 # so the host proof runs Play! only; armsx2 is Android-only here.
 # ---------------------------------------------------------------------------
-say "fetching the PlayStation 2 cores (pinned buildbot artifacts)"
+echo "== fetching the PlayStation 2 cores (pinned buildbot artifacts)"
 mkdir -p "$DEST/ps2-cores/android" "$DEST/ps2-cores/linux"
 ps2_fetch() { # url destdir filename sha256
   if [ -f "$2/$3" ] && echo "$4  $2/$3" | sha256sum -c - >/dev/null 2>&1; then
