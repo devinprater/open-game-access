@@ -85,6 +85,7 @@ int main(int argc, char **argv)
     unsetenv("OGA_PS2_CORE");
     Ps2Core *c = ps2_create();
     CHECK(c != nullptr, "create with no core configured");
+    ps2_set_java_vm(nullptr);   /* no JVM on this host: a harmless no-op */
     Ps2Core *second = ps2_create();
     CHECK(second == nullptr, "a second live wrapper is refused (the singleton rule)");
     CHECK(ps2_create_error()[0] != '\0', "the refusal says why: %s", ps2_create_error());
@@ -142,6 +143,123 @@ int main(int argc, char **argv)
             CHECK(!ps2_read(w, 0x100000, 3, &v), "a width of 3 is refused");
         }
         ps2_destroy(w);
+    }
+
+    /* ---- the JavaVM hand-off, against a stub core ----
+     *
+     * Play!'s Android build cannot start without the JavaVM* its
+     * frontend hands to Framework::CJavaVM::SetJavaVM (see
+     * ps2_core.h). No host here has a JVM, so the hand-off is proven
+     * against a stub core built on the spot: it exports the libretro
+     * surface the wrapper requires plus the setter under its real
+     * mangled name, and writes the pointer it receives to the file
+     * OGA_PS2_STUB_JAVAVM_OUT names. The wrapper must call it with
+     * exactly the pointer ps2_set_java_vm was given — and must not
+     * call it at all when no pointer was given. (The stub defines the
+     * setter out of line: an in-class definition would be inline and
+     * might never be emitted as a symbol.) */
+    {
+        const std::string stubSrc = dir + "/oga-ps2-stub.cpp";
+        const std::string stubSo = dir + "/stub_libretro.so";
+        const std::string stubOut = dir + "/stub-javavm.txt";
+        const char *kStubSource = R"STUB(
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+struct _JavaVM;
+namespace Framework {
+struct CJavaVM {
+    static void SetJavaVM(_JavaVM *vm);
+};
+void CJavaVM::SetJavaVM(_JavaVM *vm) {
+    const char *out = getenv("OGA_PS2_STUB_JAVAVM_OUT");
+    if (!out) return;
+    FILE *f = fopen(out, "w");
+    if (!f) return;
+    fprintf(f, "%p", (void *) vm);
+    fclose(f);
+}
+}  // namespace Framework
+struct retro_system_info {
+    const char *library_name;
+    const char *library_version;
+    const char *valid_extensions;
+    bool need_fullpath;
+    bool block_extract;
+};
+struct retro_game_geometry { unsigned base_width, base_height, max_width, max_height; float aspect_ratio; };
+struct retro_system_timing { double fps, sample_rate; };
+struct retro_system_av_info { retro_game_geometry geometry; retro_system_timing timing; };
+extern "C" {
+void retro_set_environment(void *) {}
+void retro_set_video_refresh(void *) {}
+void retro_set_audio_sample(void *) {}
+void retro_set_audio_sample_batch(void *) {}
+void retro_set_input_poll(void *) {}
+void retro_set_input_state(void *) {}
+void retro_init(void) {}
+void retro_deinit(void) {}
+void retro_get_system_info(retro_system_info *info) {
+    info->library_name = "OGA Stub";
+    info->library_version = "1.0";
+    info->valid_extensions = "elf";
+    info->need_fullpath = true;
+    info->block_extract = false;
+}
+void retro_get_system_av_info(retro_system_av_info *info) { memset(info, 0, sizeof(*info)); }
+bool retro_load_game(const void *) { return true; }
+void retro_unload_game(void) {}
+void retro_run(void) {}
+}
+)STUB";
+        CHECK(WriteFile(stubSrc, kStubSource, strlen(kStubSource)),
+              "the stub core source was written");
+        const std::string build =
+            "c++ -shared -fPIC -O1 -o \"" + stubSo + "\" \"" + stubSrc + "\"";
+        CHECK(system(build.c_str()) == 0, "the stub core built");
+        setenv("OGA_PS2_STUB_JAVAVM_OUT", stubOut.c_str(), 1);
+        const std::string elf2 = WriteTestElf(dir);
+        CHECK(!elf2.empty(), "the test ELF was written for the stub half");
+        void *sentinel = (void *) (uintptr_t) 0xC0FFEE11u;
+        ps2_set_java_vm(sentinel);
+        Ps2Core *s = ps2_create();
+        CHECK(s != nullptr, "create for the stub half");
+        if (s) {
+            ps2_set_core_path(s, stubSo.c_str());
+            char code[16];
+            remove(stubOut.c_str());
+            CHECK(ps2_load_disc(s, elf2.c_str(), dir.c_str(), code),
+                  "the stub core loads the ELF: %s", ps2_last_error(s));
+            CHECK(strcmp(ps2_core_name(s), "OGA Stub") == 0,
+                  "the stub names itself: %s", ps2_core_name(s));
+            FILE *f = fopen(stubOut.c_str(), "r");
+            CHECK(f != nullptr, "the stub's JavaVM setter was called");
+            if (f) {
+                char buf[64] = {0};
+                size_t n = fread(buf, 1, sizeof(buf) - 1, f);
+                fclose(f);
+                void *got = nullptr;
+                CHECK(n > 0 && sscanf(buf, "%p", &got) == 1 && got == sentinel,
+                      "the core received the exact JavaVM pointer (%s)", buf);
+            }
+            ps2_destroy(s);
+        }
+        /* And with no pointer supplied, the setter stays uncalled. */
+        ps2_set_java_vm(nullptr);
+        remove(stubOut.c_str());
+        Ps2Core *s2 = ps2_create();
+        CHECK(s2 != nullptr, "create for the stub half (no JavaVM)");
+        if (s2) {
+            ps2_set_core_path(s2, stubSo.c_str());
+            char code[16];
+            CHECK(ps2_load_disc(s2, elf2.c_str(), dir.c_str(), code),
+                  "the stub core loads with no JavaVM set: %s", ps2_last_error(s2));
+            FILE *f = fopen(stubOut.c_str(), "r");
+            CHECK(f == nullptr, "no JavaVM supplied, the core's setter is not called");
+            if (f) fclose(f);
+            ps2_destroy(s2);
+        }
+        unsetenv("OGA_PS2_STUB_JAVAVM_OUT");
     }
 
     /* ---- with a real disc: the boot contract ---- */

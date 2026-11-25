@@ -219,6 +219,14 @@ Java_me_magnum_melonds_accessibility_Ps2AccessibilityScript_nativePs2LoadRom(
   // them, and the core reads its system files from the BIOS folder.
   poke_set_ps2_core_dir(core, g_core_dir.c_str());
   poke_set_ps2_system_dir(core, g_system_dir.c_str());
+  // The process's JavaVM goes to the wrapper before the load: Play!'s
+  // Android build dereferences a JavaVM* static that only its frontend
+  // sets (Framework::CJavaVM::SetJavaVM) and dies on its VM thread
+  // without it. GetJavaVM names this process's VM from any JNIEnv.
+  // ARMSX2 exports no such setter and is never called (Core/ps2_core.cpp).
+  JavaVM *vm = nullptr;
+  env->GetJavaVM(&vm);
+  poke_set_ps2_java_vm(core, vm);
   // No script to set: the PlayStation 2 backend has no reader set (its
   // ops table's reader_set is null), so there is nothing to hand over —
   // the DS surface's set-on-every-load step has no counterpart here.

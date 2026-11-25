@@ -707,6 +707,14 @@ void ps2_set_bios_dir(Ps2Core *core, const char *dir)
         core->biosDir.pop_back();
 }
 
+/* The host process's JavaVM (see ps2_core.h): process state, handed to
+ * a core that exports the Java-bridge setter at the moment the wrapper
+ * opens it (ps2_load_disc's dlopen block, before retro_init, so the
+ * pointer is in place before the core can start its VM thread). */
+static void *gJavaVm = nullptr;
+
+void ps2_set_java_vm(void *java_vm) { gJavaVm = java_vm; }
+
 bool ps2_load_disc(Ps2Core *core, const char *disc_path, const char *save_path,
                    char code_out[16])
 {
@@ -768,6 +776,19 @@ bool ps2_load_disc(Ps2Core *core, const char *disc_path, const char *save_path,
             return false;
         }
         gLive = core;
+        /* The JavaVM hand-off (see ps2_set_java_vm): the setter is
+         * Play!-specific C++ under its real mangled name; dlsym
+         * decides, per core, whether there is anything to call. */
+        if (gJavaVm) {
+            typedef void (*Ps2SetJavaVmFn)(void *);
+            void *setJavaVm = dlsym(core->api.lib,
+                                    "_ZN9Framework7CJavaVM9SetJavaVMEP7_JavaVM");
+            if (setJavaVm) {
+                ((Ps2SetJavaVmFn) setJavaVm)(gJavaVm);
+                if (getenv("OGA_PS2_LOG"))
+                    fprintf(stderr, "[ps2core] handed the JavaVM to the core's Java bridge\n");
+            }
+        }
         core->api.set_environment(EnvCb);
         core->api.set_video_refresh(VideoCb);
         core->api.set_audio_sample(AudioSampleCb);

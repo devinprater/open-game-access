@@ -139,6 +139,7 @@ struct PokeCore {
     // game's own folder, the PlayStation rule below.
     std::string ps2CoreDir;
     std::string ps2SystemDir;
+    void* ps2JavaVm = nullptr;
     // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
     // the app bundle; the app points the core at them before loading a PSP
     // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
@@ -1692,6 +1693,15 @@ void poke_set_ps2_system_dir(PokeCore* core, const char* dir)
     core->ps2SystemDir = (dir && *dir) ? dir : "";
 }
 
+// The host process's JavaVM, forwarded to the wrapper at load (see
+// ps2_set_java_vm): Play!'s Android build cannot start its VM thread
+// without it. Stored as an opaque pointer — pokecore has no JNI types.
+void poke_set_ps2_java_vm(PokeCore* core, void* java_vm)
+{
+    if (!core) return;
+    core->ps2JavaVm = java_vm;
+}
+
 void poke_set_script_dir(PokeCore* core, const char* dir)
 {
     if (!core || !dir || !core->backend.ops) return;
@@ -1994,6 +2004,7 @@ static bool LoadPs2Rom(PokeCore* core, const char* rom_path, const char* save_pa
     core->ps2 = ps2_create();
     if (!core->ps2) { SetError(core, "Could not create the PlayStation 2 core."); return false; }
     if (!core->ps2CoreDir.empty()) ps2_set_core_dir(core->ps2, core->ps2CoreDir.c_str());
+    ps2_set_java_vm(core->ps2JavaVm);
     /* THE BIOS, LIKE THE PLAYSTATION'S, IS THE PLAYER'S OWN. No PS2 BIOS
      * ships with the app. The app stages one the player imported under a
      * system folder (poke_set_ps2_system_dir, laid out as pcsx2/bios);

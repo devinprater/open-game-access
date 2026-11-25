@@ -117,6 +117,10 @@ void poke_set_psp_asset_dir(PokeCore *core, const char *asset_dir);
  * load time (see Core/pokecore.cpp). */
 void poke_set_ps2_core_dir(PokeCore *core, const char *dir);
 void poke_set_ps2_system_dir(PokeCore *core, const char *dir);
+/* The host process's JavaVM for the PlayStation 2 wrapper (see
+ * Core/ps2_core.h): the app's JNI layer sets it before a load; hosts
+ * without a JVM never call it. An opaque pointer — no JNI types here. */
+void poke_set_ps2_java_vm(PokeCore *core, void *java_vm);
 bool poke_start(PokeCore *core);
 void poke_stop(PokeCore *core);
 /* Write the battery save to its file NOW. The core flushes on its own

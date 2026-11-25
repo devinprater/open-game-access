@@ -139,6 +139,21 @@ void ps2_set_core_path(Ps2Core *core, const char *path);
 void ps2_set_core_dir(Ps2Core *core, const char *dir);
 void ps2_set_bios_dir(Ps2Core *core, const char *dir);
 
+/* The host process's JavaVM, for the one core that bridges to a Java
+ * host. Play!'s Android build keeps a JavaVM* in a static
+ * (Framework::CJavaVM::m_vm) that only its frontend ever sets, through
+ * the core's own exported Framework::CJavaVM::SetJavaVM; with it null,
+ * the core's VM thread dereferences it and dies about a second after
+ * load (measured on a Galaxy S25+). A native harness has no JVM and
+ * never calls this; the app's JNI layer calls it with the process's
+ * real JavaVM* before a load. The pointer is process state, not core
+ * state — a JavaVM outlives any core — so the setter takes no
+ * Ps2Core. When the wrapper opens a core it hands the pointer over,
+ * but only when one was supplied AND the core exports the setter: a
+ * core without the export (ARMSX2, Play!'s Linux build) is never
+ * called, and NULL (the default) changes nothing anywhere. */
+void ps2_set_java_vm(void *java_vm);
+
 /* Load a disc image (see DISCS above). save_path is the save DIRECTORY
  * (memory cards live there; see MEMORY CARDS above); it is created when
  * missing. Empty or NULL = a scratch folder under the system temp dir.
