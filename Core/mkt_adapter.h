@@ -58,6 +58,10 @@ struct MktMap {
     uint32_t p2_health_addr;
     uint16_t health_full;
 
+    // the round timer: its two digits, each a halfword 0-9 (tens, ones); 0 = unmapped
+    uint32_t timer_tens_addr;
+    uint32_t timer_ones_addr;
+
     // round wins (words); a bout is best of three
     uint32_t p1_wins_addr;
     uint32_t p2_wins_addr;

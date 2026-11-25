@@ -84,6 +84,8 @@ static void startFight(int p1id, int p2id, bool swapSlots)
     w8(M->p2_id_addr, (uint8_t) p2id);
     w16(M->p1_health_addr, M->health_full);
     w16(M->p2_health_addr, M->health_full);
+    w16(M->timer_tens_addr, 9);
+    w16(M->timer_ones_addr, 9);
     w32(M->p1_wins_addr, 0);
     w32(M->p2_wins_addr, 0);
     w32(M->p1_obj_ptr_addr, swapSlots ? kObjB : kObjA);
@@ -230,6 +232,38 @@ int main()
     clear();
     frames(30);
     CHECK(NSPOKEN == 0, "the round line is said once");
+
+    // the round timer: two digits, said at 30, 10 and 5 seconds
+    auto setTime = [&](int t) { w16(M->timer_tens_addr, (uint16_t) (t / 10)); w16(M->timer_ones_addr, (uint16_t) (t % 10)); };
+    setTime(45); frames(1);
+    CHECK(NSPOKEN == 0, "an ordinary tick says nothing");
+    setTime(31); frames(1);
+    CHECK(NSPOKEN == 0, "31 seconds says nothing");
+    setTime(30); frames(1);
+    CHECK(said("30 seconds."), "30 seconds is said");
+    clear();
+    setTime(29); frames(1);
+    CHECK(NSPOKEN == 0, "a latched mark is not repeated");
+    setTime(10); frames(1);
+    CHECK(said("10 seconds."), "10 seconds is said");
+    clear();
+    setTime(5); frames(1);
+    CHECK(said("5 seconds."), "5 seconds is said");
+    clear();
+    w16(M->timer_ones_addr, 12); frames(1);
+    CHECK(NSPOKEN == 0, "a digit above 9 is not a timer");
+    A->command(oga::Command::WhereAmI);
+    CHECK(!said("seconds left"), "and Where Am I does not report it");
+    clear();
+    setTime(99); frames(1);
+    setTime(98); frames(1);
+    setTime(30); frames(1);
+    CHECK(said("30 seconds."), "a new round re-arms the marks");
+    clear();
+    A->command(oga::Command::WhereAmI);
+    CHECK(said("30 seconds left."), "Where Am I in a fight reports the time");
+    clear();
+    setTime(99);
 
     // health: hits, milestones, beeps
     oga::CueSnapshot cs;

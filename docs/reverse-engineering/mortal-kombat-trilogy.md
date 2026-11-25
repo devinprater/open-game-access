@@ -43,6 +43,7 @@ address was checked in.
 | fight flag | `0x80032478` | 1 in every fight image (inc. between rounds and paused), 0 on every menu, select, ladder, loading and continue image | 113 fight images |
 | P1 / P2 fighter id | `0x80032198` / `0x80032310` | 0 Kano, 1 Sonya, 2 Jax, 3 Nightwolf, 4 Sub-Zero, 5 Stryker, 6 Sindel, 7 Sektor, 8 Cyrax, 9 Kung Lao, 10 Kabal, 11 Sheeva, 12 Shang Tsung, 13 Liu Kang, 14 Smoke, 15 Kitana, 16 Jade, 17 Mileena, 18 Scorpion, 19 Reptile, 20 Ermac, 21 Sub-Zero (a second one), 23 Noob Saibot, 26 Rain, 28 Rayden, 29 Baraka, 31 Johnny Cage | each id read off the on-screen health bar name in a fight (17 fighters). Not seen: 22, 24, 25, 27, 30, 32 |
 | P1 / P2 health | `0x8003219E` / `0x80032316` | halfword, full = 166 (`0xA6`), 0 = empty | hits, KOs and the refill, two fights, two characters. Matches the published GameShark codes for the v1.0 pressing |
+| round timer | `0x80031EB4` (tens), `0x80031EB6` (ones) | halfwords, each 0 to 9 | found by dumping RAM every frame for 75 frames and keeping addresses that change by one exactly at the screen's ticks (33 frames apart): the ones digit went 8, 7, 6. Then the tens digit sat just before it. Matched the on-screen timer in 17 images (96, 84, 72, 60 in round 1; 85 in round 2) |
 | P1 / P2 round wins | `0x800321A4` / `0x8003231C` | word | P2's went 0, 1, 2, 0 over a whole lost match. P1's went 0 to 1 when the foe was knocked out, in a saved state whose foe health was patched to 3 (the reader then said "You win the round. 1 to 0."), and a state with P1 wins patched to 1 gave "You win the match." on the next KO |
 | pause menu highlight | `0x801FFFCC` | word, 0x801 = Continue, 0x800 = Quit, anything else = the menu is not open | a STACK slot of the game's pause loop, found by decompiling that loop in Ghidra and then searching the stack for its 0x801/0x800 values in 3 pause-menu states; 0 while paused with no menu, cleared when the menu closes. Only read while the pause flag is up |
 | quit confirm highlight | `0x801FFFC8` | word, 0x801 = No, 0x800 = Yes | another stack slot, 3 states (No, Yes, No) |
@@ -82,9 +83,9 @@ is its entry 21 but id 23), which gives the unseen ones: 24 Motaro, 25 Shao Kahn
   milestones at 75, 50, 25 and nearly gone; the closeness beacon (MKU's fight-proximity cue,
   silent while paused); "Foe on your left." when the foe crosses over; "Foe wins the round. 0 to 1.",
   "You win the round. 1 to 1.", "Jade wins the match."; "Round 2." after the refill; "Paused." and
-  "Resumed."; the pause menu ("Pause menu. Continue.", "Quit.", "Quit game? No.", "Quit game? Yes."); "Continue? Press start." after a lost match.
+  "Resumed."; the timer at 30, 10 and 5 seconds; the pause menu ("Pause menu. Continue.", "Quit.", "Quit game? No.", "Quit game? Yes."); "Continue? Press start." after a lost match.
 - **Where Am I / Status / Menu state.** The screen and cursor, or in a fight the round, both
-  health bars and where the foe is. Dump writes the map state and a text scan to the reading log.
+  health bars, where the foe is, and the time left. Dump writes the map state and a text scan to the reading log.
 
 ## Not confirmed
 
@@ -92,20 +93,18 @@ is its entry 21 but id 23), which gives the unseen ones: 24 Motaro, 25 Shao Kahn
 - **The pause menu is read from two stack slots**, so it is only as steady as the game's call
   path while paused. It was checked in four runs of the real game (open, move, quit confirm,
   Continue, pause again). Select never closes it; Continue (Cross) does.
-- **Game Konfigure values other than the difficulty.** Left, right, Cross, Square and Start did
-  nothing visible on the other rows in the harness (Blood, Timer, and so on), so their value
-  addresses were never found. Their words are in RAM (`0x800F8C39`); the settings block sits
+- **Game Konfigure values other than the difficulty.** Left, right, Cross, Circle, Triangle, Square, R1 and Start,
+  tapped or held, did nothing visible on the other rows in the harness (Blood stayed ON through ten
+  different presses), so their value addresses were never found. Those rows may not change from
+  a plain pad in this build. Their words are in RAM (`0x800F8C39`); the settings block sits
   around `0x80032470` to `0x800324E0` (difficulty is at +0x34).
 - **Hub icon 2 ("?")** was never reached by the cursor, so its index is a guess; it is called
   "Secret Konfigure", after a string in RAM.
-- **The round timer.** Not found. It counts down about once per 33 frames from 99. It is not a
-  decreasing byte, halfword or 16.16 word across 70-frame spaced images, not BCD and not ASCII.
-  What does exist is a halfword at `0x80031B4E` that counts up one per frame and resets when a
-  round starts (the game's scheduler loop increments it; it is not the displayed timer, but the
-  timer is probably derived from it, and `99 - (count - about 120) / 33` matched the screen to
-  within a second in four readings). Not used: that is a fit, not a measurement.
-- **The second player** (versus mode): the harness has only pad 1, so P2's character select cursor
-  and a second human were never seen. The P2 fighter id, health, wins, and object are confirmed
+- **The second player** (versus mode): the harness has only pad 1 (the core wrapper reads port 0
+  only), so a second human and P2's character select cursor were never seen. A candidate is
+  `0x80033BAE`, one 0xE0-byte process record after P1's slot at `0x80033ACE`; it holds 108 (not a
+  slot) in every one-player select image, and writing a slot number there in a saved state
+  showed no second cursor, so it is unconfirmed. The P2 fighter id, health, wins, and object are confirmed
   as the foe in a one-player fight.
 - **Fatality, "Finish him", flawless and draw lines.** The strings exist (see tables); the events
   were not mapped.
@@ -127,6 +126,8 @@ not for copying.
 
 ## Candidates for later
 
-- The timer, the Game Konfigure value words and the 2P cursor, with the same method on a menu image.
+- The Game Konfigure value words and the 2P cursor. The method that found the timer (a dump per
+  frame, keep the addresses that change on the screen's own tick) is the one to try on a menu
+  image once a second pad is possible.
 - Arena name on character select / the ladder (the table above).
 - Round timer, winning streaks and the continue countdown, once mapped.

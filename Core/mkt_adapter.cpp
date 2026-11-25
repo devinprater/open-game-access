@@ -68,6 +68,8 @@ const MktMap kShippedMap = {
     /* p1_health_addr       */ 0x8003219E,   // hits, KOs and refills, 2 fights
     /* p2_health_addr       */ 0x80032316,
     /* health_full          */ 166,
+    /* timer_tens_addr      */ 0x80031EB4,   // 17 images against the screen; ticks every 33 frames
+    /* timer_ones_addr      */ 0x80031EB6,
     /* p1_wins_addr         */ 0x800321A4,   // P2's confirmed over a full match; P1's by symmetry
     /* p2_wins_addr         */ 0x8003231C,
     /* p1_obj_ptr_addr      */ 0x8003218C,   // objects swap slots between fights: read via these
@@ -147,6 +149,7 @@ bool HasPos(void)
 {
     return HasFight() && g_map->p1_obj_ptr_addr && g_map->p2_obj_ptr_addr && g_map->gap_far > g_map->gap_near;
 }
+bool HasTimer(void)  { return HasFight() && g_map->timer_tens_addr && g_map->timer_ones_addr; }
 bool HasWins(void)   { return HasFight() && g_map->p1_wins_addr && g_map->p2_wins_addr; }
 bool HasIds(void)    { return HasFight() && g_map->p1_id_addr && g_map->p2_id_addr; }
 bool HasPause(void)  { return g_map->pause_addr != 0; }
@@ -466,6 +469,40 @@ void TrackRound(void)
     }
 }
 
+// ---- the round timer ----------------------------------------------------------------
+
+/// The timer reads 99 down to 0, as two digits. A digit above 9 is not a timer (a stale or
+/// foreign read), so it is refused rather than spoken.
+bool ReadTime(int* out)
+{
+    if (!HasTimer()) return false;
+    uint16_t t = u16(g_map->timer_tens_addr), o = u16(g_map->timer_ones_addr);
+    if (t > 9 || o > 9) return false;
+    *out = (int) t * 10 + (int) o;
+    return true;
+}
+
+int  g_lastTime = -1;
+bool g_t30 = false, g_t10 = false, g_t5 = false;
+
+void TrackTimer(void)
+{
+    int t;
+    if (!ReadTime(&t)) { g_lastTime = -1; return; }
+    if (g_lastTime < 0) {                       // first sight: prime silently
+        g_lastTime = t;
+        g_t30 = t <= 30; g_t10 = t <= 10; g_t5 = t <= 5;
+        return;
+    }
+    if (t > g_lastTime && t > 35) { g_t30 = g_t10 = g_t5 = false; }   // a new round
+    if (t < g_lastTime) {
+        if (t <= 30 && !g_t30) { g_t30 = true; Say("30 seconds.", "timer", Priority::Normal); }
+        if (t <= 10 && !g_t10) { g_t10 = true; Say("10 seconds.", "timer", Priority::Normal); }
+        if (t <= 5 && !g_t5)   { g_t5 = true;  Say("5 seconds.", "timer", Priority::Normal); }
+    }
+    g_lastTime = t;
+}
+
 // ---- the pause --------------------------------------------------------------------------
 
 bool g_wasPaused = false;
@@ -522,6 +559,7 @@ void ResetFight(void)
     g_side = 0; g_sideCandidate = 0; g_sideFrames = 0;
     g_fightFrames = 0; g_fightAnnounced = false;
     g_winsPrimed = false; g_p1Wins = g_p2Wins = 0; g_koSeen = false;
+    g_lastTime = -1; g_t30 = g_t10 = g_t5 = false;
 }
 
 void ResetAll(void)
@@ -542,6 +580,7 @@ void OnFrame(void)
     if (!InFight()) { ResetFight(); return; }
     if (Paused()) return;                  // nothing moves under a pause; keep the latches
     TrackRound();
+    TrackTimer();
     if (HasHealth()) {
         float own, foe;
         bool haveOwn = HealthFrac(g_map->p1_health_addr, &own);
@@ -612,7 +651,14 @@ bool FightLine(char* out, size_t cap)
     if (!InFight()) return false;
     char hp[96] = "", pos[64] = "", rd[24] = "";
     float own, foe;
-    if (HasWins()) snprintf(rd, sizeof(rd), "Round %d. ", Wins(g_map->p1_wins_addr) + Wins(g_map->p2_wins_addr) + 1);
+    if (HasWins()) {
+        int w1 = Wins(g_map->p1_wins_addr), w2 = Wins(g_map->p2_wins_addr);
+        if (w1 >= kRoundsToWin || w2 >= kRoundsToWin) snprintf(rd, sizeof(rd), "Match over. ");
+        else snprintf(rd, sizeof(rd), "Round %d. ", w1 + w2 + 1);
+    }
+    char tm[24] = "";
+    int secs;
+    if (ReadTime(&secs)) snprintf(tm, sizeof(tm), " %d seconds left.", secs);
     if (HasHealth() && HealthFrac(g_map->p1_health_addr, &own) &&
         HealthFrac(g_map->p2_health_addr, &foe))
         snprintf(hp, sizeof(hp), "Your health %d percent, foe %d percent.", Pct(own), Pct(foe));
@@ -621,7 +667,7 @@ bool FightLine(char* out, size_t cap)
         snprintf(pos, sizeof(pos), "%sFoe %s%s.", hp[0] ? " " : "",
                  side > 0 ? "on your right, " : (side < 0 ? "on your left, " : ""), GapWords(gap));
     if (!hp[0] && !pos[0]) return false;
-    snprintf(out, cap, "%s%s%s", rd, hp, pos);
+    snprintf(out, cap, "%s%s%s%s", rd, hp, pos, tm);
     return true;
 }
 
@@ -819,9 +865,9 @@ const Adapter kMortalKombatTrilogy = {
     "Fights: the round and who is fighting; a beep on every hit with its pitch showing the "
     "health left (the foe on the right, you on the left) and the percent spoken at 75, 50, 25 "
     "and nearly gone; a closeness sound whose pace shows how far apart the fighters are; a "
-    "short line when the foe crosses to your other side; who won each round and the match; "
+    "short line when the foe crosses to your other side; the round timer at 30, 10 and 5 seconds; who won each round and the match; "
     "Paused and Resumed, and the pause menu's Continue and Quit rows and its Yes or No.\n"
-    "Not yet read: the round timer, the other "
+    "Not yet read: the other "
     "Konfigure settings' values, and the second player's cursor. Where Am I says the screen "
     "and, in a fight, the round, both health bars and where the foe is. Dump writes a memory "
     "scan to the reading log.\n"

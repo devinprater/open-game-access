@@ -413,6 +413,34 @@ Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1CopyFrame(
   return count;
 }
 
+// ---- the cue poll -----------------------------------------------------
+//
+// One snapshot per frame, packed into two scratch arrays the Kotlin side owns.
+// ints: [0] beacon state (poke_cue_snapshot: 0 silent, 1 battle no lock, 2 locked),
+// [1] one-shot health bitmask (poke_cue_health: 1 foe beep, 2 own beep).
+// floats: [0] lock distance, [1] foe hz, [2] foe pan, [3] own hz, [4] own pan.
+// Written even on a false return, so a refused poll reads as silence, never as
+// last frame's data. pokecore shares ONE per-frame snapshot between the two
+// calls, so asking both here loses no event.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1CuePoll(
+    JNIEnv *env, jobject /*self*/, jintArray ints, jfloatArray floats) {
+  if (!ints || !floats) return JNI_FALSE;
+  if (env->GetArrayLength(ints) < 2 || env->GetArrayLength(floats) < 5) return JNI_FALSE;
+  PokeCore *core = g_core;
+  int state = 0, bits = 0;
+  float dist = 0.0f, foe_hz = 0.0f, foe_pan = 0.0f, own_hz = 0.0f, own_pan = 0.0f;
+  if (core) {
+    state = poke_cue_snapshot(core, &dist);
+    bits = poke_cue_health(core, &foe_hz, &foe_pan, &own_hz, &own_pan);
+  }
+  const jint iv[2] = {state, bits};
+  const jfloat fv[5] = {dist, foe_hz, foe_pan, own_hz, own_pan};
+  env->SetIntArrayRegion(ints, 0, 2, iv);
+  env->SetFloatArrayRegion(floats, 0, 5, fv);
+  return core ? JNI_TRUE : JNI_FALSE;
+}
+
 // ---- the debug channel ------------------------------------------------
 
 extern "C" JNIEXPORT void JNICALL

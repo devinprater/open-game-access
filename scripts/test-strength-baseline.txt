@@ -17,7 +17,7 @@ Core/dissidia_adapter_test.cpp     269
 Core/dq9_adapter_test.cpp          69
 Core/gba_adapter_test.cpp          19
 Core/khbbs_adapter_test.cpp        557
-Core/mkt_adapter_test.cpp          84
+Core/mkt_adapter_test.cpp          94
 Core/mku_adapter_test.cpp          200
 Core/osk_echo_test.cpp             49
 Core/ps1_core_test.cpp             46
