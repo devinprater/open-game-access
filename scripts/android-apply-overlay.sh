@@ -1952,7 +1952,10 @@ fi
 #                 frontend (frontend/libretro.c), which the wrapper
 #                 drives in-process. One CPU path on every platform;
 #                 the dynarec is a later, Android-only build flag.
-#   oga-ps1-glue  Core/ps1_core.cpp (the wrapper) and Core/ps1_adapter.cpp Core/mkt_adapter.cpp
+#   oga-ps1-glue  Core/ps1_core.cpp (the wrapper), Core/ps1_adapter.cpp,
+#                 Core/ps2_adapter.cpp (the PS2 registry row -- it rides
+#                 here because Core/adapters.cpp references it) and
+#                 Core/mkt_adapter.cpp
 #                 (the registry's console row), as C++, needing only
 #                 libretro.h from the tree.
 #
@@ -1995,7 +1998,7 @@ else
   echo "     PCSX ReARMed source copied (pinned $(git -C "$PCSX_SRC" rev-parse --short HEAD 2>/dev/null || echo unknown)); image check asserted"
 
   mkdir -p "$PS1_DIR/glue/pcsx" "$PS1_DIR/gen"
-  cp "$ROOT/Core/ps1_core.cpp" "$ROOT/Core/ps1_adapter.cpp" "$ROOT/Core/mkt_adapter.cpp" "$PS1_DIR/glue/"
+  cp "$ROOT/Core/ps1_core.cpp" "$ROOT/Core/ps1_adapter.cpp" "$ROOT/Core/ps2_adapter.cpp" "$ROOT/Core/mkt_adapter.cpp" "$PS1_DIR/glue/"
   cp "$ROOT"/Core/*.h "$PS1_DIR/glue/"
   cp "$ROOT/Core/pcsx/revision.h" "$PS1_DIR/glue/pcsx/revision.h"
   cp "$ROOT/scripts/ps1-prefix-symbols.py" "$PS1_DIR/gen/ps1-prefix-symbols.py"
@@ -2056,6 +2059,7 @@ else ()
     add_library(oga-ps1-glue STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/glue/ps1_core.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/glue/ps1_adapter.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue/ps2_adapter.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/glue/mkt_adapter.cpp
     )
     target_include_directories(oga-ps1-glue PRIVATE
@@ -2492,6 +2496,98 @@ lines = [
 s = s.rstrip("\n") + NL + NL.join(lines) + NL
 open(p, "w", encoding="utf-8").write(s)
 print("     wired the MesenCE cores into the frontend target")
+PY
+  fi
+fi
+
+# ---------------------------------------------------------------------------
+# 10d. The Sony PlayStation 2 native path (Play! / ARMSX2).
+#
+# Unlike every section above, NOTHING is compiled from a core tree here:
+# the two PS2 cores are pinned BINARY libretro artifacts (fetched by
+# scripts/bootstrap-deps.sh into $PS2_CORES) that the wrapper
+# (Core/ps2_core.cpp) dlopen()s at run time. What this section does:
+#   1. stages the wrapper source and the one header it needs (libretro.h,
+#      from the PCSX tree -- the wrapper is self-contained apart from it)
+#      into app/ps2/glue/;
+#   2. stages the core .so files into jniLibs/arm64-v8a under the names
+#      the wrapper searches for (libplay_libretro.so,
+#      libarmsx2_libretro.so), so they land in the app's native library
+#      directory at install;
+#   3. appends the CMake block that compiles the wrapper and the
+#      session's JNI surface into the frontend target, arm64-v8a only.
+# The frontend target already links EGL and GLESv3 (section 5), which
+# the wrapper's hardware-render readback needs; `dl` is added for the
+# dlopen. A build WITHOUT the cores is a build whose PlayStation 2 row
+# honestly says so at run time -- the Kotlin availability probe reads
+# the wrapper's absence the same way -- so, unlike section 10b, a
+# missing artifact warns loudly instead of failing the overlay, unless
+# OGA_REQUIRE_PS2=1 asks for the hard failure.
+# ---------------------------------------------------------------------------
+say "staging the PlayStation 2 cores (Play! / ARMSX2) for Android"
+
+PS2_CORES="${PS2_CORES:-$HOME/src/ps2-cores}"
+
+if [ ! -f "$PS2_CORES/android/play_libretro_android.so" ]; then
+  echo "   !! no pinned PlayStation 2 cores at $PS2_CORES, so PlayStation 2 would NOT be in this build." >&2
+  echo "      Run scripts/bootstrap-deps.sh, or set PS2_CORES." >&2
+  if [ "${OGA_REQUIRE_PS2:-0}" = "1" ]; then
+    echo "      OGA_REQUIRE_PS2=1 -- failing, as asked." >&2
+    exit 1
+  fi
+  echo "      Continuing without PlayStation 2 (set OGA_REQUIRE_PS2=1 to make this fatal)."
+else
+  PS2_DIR="$FRONTEND/app/ps2"
+  mkdir -p "$PS2_DIR/glue"
+  cp "$ROOT/Core/ps2_core.cpp" "$PS2_DIR/glue/"
+  if [ -f "$PCSX_SRC/deps/libretro-common/include/libretro.h" ]; then
+    cp "$PCSX_SRC/deps/libretro-common/include/libretro.h" "$PS2_DIR/glue/"
+  else
+    echo "   !! libretro.h not found under $PCSX_SRC -- the PlayStation 2 wrapper cannot compile" >&2
+    exit 1
+  fi
+  echo "     PlayStation 2 wrapper staged (Core/ps2_core.cpp + libretro.h)"
+
+  PS2_JNILIBS="$FRONTEND/app/src/main/jniLibs/arm64-v8a"
+  mkdir -p "$PS2_JNILIBS"
+  cp "$PS2_CORES/android/play_libretro_android.so" "$PS2_JNILIBS/libplay_libretro.so"
+  echo "     staged libplay_libretro.so (Play!, no BIOS needed)"
+  if [ -f "$PS2_CORES/android/armsx2_libretro_android.so" ]; then
+    cp "$PS2_CORES/android/armsx2_libretro_android.so" "$PS2_JNILIBS/libarmsx2_libretro.so"
+    echo "     staged libarmsx2_libretro.so (ARMSX2, needs a BIOS at run time)"
+  else
+    echo "     ARMSX2 artifact absent -- Play! only in this build"
+  fi
+
+  if grep -q "OGA_PS2" "$CMAKE"; then
+    echo "     PlayStation 2 already wired into the frontend target"
+  else
+    python3 - "$CMAKE" <<'PY'
+import sys
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+NL = "\n"
+lines = [
+    "# OGA_PS2 -- the PlayStation 2 wrapper (Core/ps2_core.cpp, staged in",
+    "# ps2/glue by scripts/android-apply-overlay.sh section 10d) and the",
+    "# session's JNI surface (Ps2SessionJNI.cpp). arm64-v8a only: the",
+    "# pinned cores are arm64 builds. The wrapper dlopen()s them at run",
+    "# time from the app's native library directory, where the overlay",
+    "# stages them as jniLibs. EGL/GLESv3 are already linked (section 5);",
+    "# dl is the dlopen.",
+    'if (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")',
+    "    target_sources(melonDS-android-frontend PRIVATE",
+    "        ${ANDROID-CPP}/Ps2SessionJNI.cpp",
+    "        ${CMAKE_CURRENT_SOURCE_DIR}/ps2/glue/ps2_core.cpp)",
+    "    target_include_directories(melonDS-android-frontend PRIVATE",
+    "        ${CMAKE_CURRENT_SOURCE_DIR}/ps2/glue)",
+    "    target_link_libraries(melonDS-android-frontend dl)",
+    "endif ()",
+    "",
+]
+s = s.rstrip("\n") + NL + NL.join(lines) + NL
+open(p, "w", encoding="utf-8").write(s)
+print("     wired PlayStation 2 into the frontend target")
 PY
   fi
 fi

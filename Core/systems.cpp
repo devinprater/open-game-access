@@ -199,7 +199,10 @@ const OgaSystem kSystems[] = {
      *              scripts/n64-host-proof.sh (READY row below).
      * PS1        -> PCSX ReARMed, INTEGRATED: Core/ps1_core.cpp (READY row
      *              below, interpreter + software GPU on every platform).
-     * PS2        -> PCSX2-class; almost certainly not viable on phone yet
+     * PS2        -> libretro cores loaded at run time (Play!, and ARMSX2
+     *              when a BIOS is present): Core/ps2_core.cpp (READY row
+     *              below; Android first, JIT cores, speed proven per game
+     *              on the device, never assumed from the host).
      * GC/Wii     -> Dolphin-class; same caveat, and 32-bit ARM is a wall
      */
 
@@ -229,7 +232,12 @@ const OgaSystem kSystems[] = {
     { OGA_SYS_PS1, "PlayStation", kPs1Ext, OGA_BACKEND_READY,
       1, true, false, 2, true, kPlayStation, 4 },
 
-    { OGA_SYS_PS2, "PlayStation 2", kPs2Ext, OGA_BACKEND_NONE,
+    /* READY: the PS2 wrapper is in (Core/ps2_core.cpp) — it dlopen()s a
+     * libretro core (Play!, or ARMSX2 when the player has a BIOS) rather
+     * than linking one, proved by scripts/ps2-core-test.sh and the
+     * tools/ps2-map-harness.cpp boot proof. A DualShock 2: two sticks,
+     * and L2/R2/L3/R3 on the extended pad slots. */
+    { OGA_SYS_PS2, "PlayStation 2", kPs2Ext, OGA_BACKEND_READY,
       1, true, false, 2, true, kPlayStation, 4 },
 
     { OGA_SYS_GAMECUBE, "GameCube", kGcExt, OGA_BACKEND_NONE,
@@ -350,8 +358,11 @@ void NormalizeExt(const char* path, char* out, int outSize)
  *
  * ⛔ A PS2 DVD also says "PLAYSTATION". It is told apart by size: a CD holds
  * at most about 360 000 sectors, and the descriptor's volume size above
- * kCdMaxSectors is a DVD. There is no PS2 core, so a PS2 disc must keep going
- * where it always went (the PSP, which refuses it in words). */
+ * kCdMaxSectors is a DVD. PvdIsPs2 below is the same test with the size
+ * line crossed the other way, so oga_system_for_file and the backend
+ * resolver claim a PS2 .iso for the PlayStation 2 (Core/ps2_core.cpp). A
+ * PS2 disc whose header cannot be read still falls through to the name
+ * rules and reaches the PSP, which refuses it in words. */
 const uint32_t kCdMaxSectors = 450000;
 
 uint32_t Le32(const uint8_t* p)
@@ -371,6 +382,17 @@ bool PvdIsPs1(const uint8_t* d, size_t n, size_t off)
 #endif
     if (memcmp(v + 8, "PLAYSTATION", 11) != 0) return false;
     return Le32(v + 80) <= kCdMaxSectors;
+}
+
+/* The PS2 twin: same descriptor, DVD-sized volume. Disjoint from PvdIsPs1
+ * by the size line, never both. */
+bool PvdIsPs2(const uint8_t* d, size_t n, size_t off)
+{
+    if (off + 84 > n) return false;
+    const uint8_t* v = d + off;
+    if (v[0] != 1 || memcmp(v + 1, "CD001", 5) != 0) return false;
+    if (memcmp(v + 8, "PLAYSTATION", 11) != 0) return false;
+    return Le32(v + 80) > kCdMaxSectors;
 }
 
 /* PARAM.SFO's CATEGORY, compared to `want` (two letters). */
@@ -628,12 +650,34 @@ bool oga_file_is_ps1_disc(const char* path)
     return oga_disc_header_is_ps1(buf, n);
 }
 
+bool oga_disc_header_is_ps2(const uint8_t* d, size_t n)
+{
+    if (!d) return false;
+    /* Cooked only: a PS2 DVD image is a 2048-byte-sector file. (A CHD has
+     * no descriptor in its first bytes at all, so a PS2 CHD is never
+     * claimed here; it routes by the resolver's own CHD rule instead.) */
+    return PvdIsPs2(d, n, 0x8000);
+}
+
+bool oga_file_is_ps2_disc(const char* path)
+{
+    if (!path) return false;
+    FILE* f = fopen(path, "rb");
+    if (!f) return false;
+    static uint8_t buf[OGA_DISC_HEADER_BYTES];
+    size_t n = fread(buf, 1, sizeof(buf), f);
+    fclose(f);
+    return oga_disc_header_is_ps2(buf, n);
+}
+
 const OgaSystem* oga_system_for_file(const char* path)
 {
     char ext[8];
     NormalizeExt(path, ext, (int) sizeof(ext));
     if (ExtIsSniffed(ext) && oga_file_is_ps1_disc(path))
         return oga_system_by_id(OGA_SYS_PS1);
+    if (ExtIsSniffed(ext) && oga_file_is_ps2_disc(path))
+        return oga_system_by_id(OGA_SYS_PS2);
     return oga_system_for_path(path);
 }
 

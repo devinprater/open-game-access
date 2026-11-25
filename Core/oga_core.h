@@ -213,6 +213,10 @@ OgaCore oga_n64_core(N64Core* n64);
 /* The PlayStation: opaque here, PCSX ReARMed inside ps1_core.cpp. */
 typedef struct Ps1Core Ps1Core;
 OgaCore oga_ps1_core(Ps1Core* ps1);
+/* The PlayStation 2: opaque here, a dlopen()ed libretro core (Play! or
+ * ARMSX2) inside ps2_core.cpp. */
+typedef struct Ps2Core Ps2Core;
+OgaCore oga_ps2_core(Ps2Core* ps2);
 OgaCore oga_psp_core(PspCore* psp);
 
 /* Which backend runs a file, by extension — or NULL when this build has none.
@@ -236,15 +240,21 @@ typedef struct OgaResolvedBackend {
     bool n64_hint;               /* the file should reach the Mupen64Plus-Next backend */
     /* Trailing again: the earlier initializers keep compiling. */
     bool ps1_hint;               /* the file should reach the PCSX ReARMed backend */
+    /* Trailing again: the earlier initializers keep compiling. */
+    bool ps2_hint;               /* the file should reach the PlayStation 2 backend */
 } OgaResolvedBackend;
 
 /* Resolves a ROM path to a backend id, or NULL when unsupported.
  * `.iso`/`.pbp`/`.bin` are ambiguous by nature (PSP, PlayStation and Genesis
  * share them), so for those three the file's header is read first: a
  * PlayStation disc goes to the PlayStation (oga_file_is_ps1_disc, in
- * systems.cpp). Anything else keeps its name rule: .iso/.pbp the PSP, .bin
- * the Genesis, each confirmed by that core's own check. The PlayStation also
- * gets the extensions only it uses (.cue, .chd, .m3u, .ccd). */
+ * systems.cpp), and a DVD-sized one to the PlayStation 2
+ * (oga_file_is_ps2_disc). Anything else keeps its name rule: .iso/.pbp the
+ * PSP, .bin the Genesis, each confirmed by that core's own check. The
+ * PlayStation also gets the extensions only it uses (.cue, .chd, .m3u,
+ * .ccd); a .chd whose header marks it a PS2 disc goes to the PlayStation 2
+ * instead (a CHD carries no readable header here, so .chd keeps its PS1
+ * name rule and the PS2 session routes its own CHDs). */
 const OgaResolvedBackend* oga_resolve_backend(const char* rom_path);
 
 #ifdef __cplusplus

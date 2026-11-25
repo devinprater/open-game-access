@@ -128,6 +128,15 @@ object AdapterLibraryData {
             console = "ps1",
             commands = listOf(0, 7, 40, 6),
         ),
+        AdapterGameInfo(
+            id = "ps2",
+            name = "PlayStation 2",
+            code = "",
+            coverage = "Console only — no game-specific speech yet",
+            notes = "This entry runs PlayStation 2 games through the PS2 core (Play!, or ARMSX2 when a BIOS is present). No PlayStation 2 game has a reader yet, so games load without speech or cues: playable, but not accessible.",
+            console = "",
+            commands = listOf(),
+        ),
     )
 }
 

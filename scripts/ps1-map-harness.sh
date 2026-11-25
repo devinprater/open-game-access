@@ -18,7 +18,7 @@ if [ ! -x "$OUT/ps1-map-harness" ] || [ "$ROOT/tools/ps1-map-harness.cpp" -nt "$
     src="$ROOT/Core/${f}_adapter.cpp"; [ -f "$src" ] || src="$ROOT/Core/${f}.cpp"
     c++ -std=c++17 -O1 -w -I"$ROOT/Core" -I"$ROOT/Sources/CPokeCore/include" -c "$src" -o "$OUT/adobj/$f.o"
   done
-  c++ -o "$OUT/ps1-map-harness" "$OUT/harness.o" "$OUT"/adobj/*.o $(ls "$OUT"/obj/*.o | grep -v ps1_core_test) -lpthread -lm -ldl
+  c++ -o "$OUT/ps1-map-harness" "$OUT/harness.o" "$OUT"/adobj/*.o $(ls "$OUT"/obj/*.o | grep -v ps1_core_test) -lpthread -lm -ldl -lEGL -lGL
 fi
 [ $# -eq 4 ] || exit 0
 exec "$OUT/ps1-map-harness" "$@"

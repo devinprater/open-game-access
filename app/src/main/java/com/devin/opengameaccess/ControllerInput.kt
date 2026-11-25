@@ -136,6 +136,7 @@ object ControllerInput {
         data class Mesen(val button: Int) : EmuButton
         data class Genesis(val button: Int) : EmuButton
         data class Ps1(val button: Int) : EmuButton
+        data class Ps2(val button: Int) : EmuButton
         data class N64(val button: Int) : EmuButton
     }
 
@@ -267,7 +268,7 @@ object ControllerInput {
         device != null && device.isKeyboard()
 
     private val sessionActive: Boolean
-        get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || N64GameSession.isRunning
+        get() = GbGameSession.isRunning || PspGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || Ps2GameSession.isRunning || N64GameSession.isRunning
 
     /**
      * Session-boundary reset. Events are only routed while a session
@@ -363,11 +364,13 @@ object ControllerInput {
             // the class note.)
             KeyEvent.KEYCODE_BUTTON_L2 -> {
                 if (Ps1GameSession.isRunning) set(source, EmuButton.Ps1(Ps1Keys.L2), pressed)
+                else if (Ps2GameSession.isRunning) set(source, EmuButton.Ps2(Ps2Keys.L2), pressed)
                 else setModifier(askHeld, source, pressed)
                 true
             }
             KeyEvent.KEYCODE_BUTTON_R2 -> {
                 if (Ps1GameSession.isRunning) set(source, EmuButton.Ps1(Ps1Keys.R2), pressed)
+                else if (Ps2GameSession.isRunning) set(source, EmuButton.Ps2(Ps2Keys.R2), pressed)
                 else setModifier(browseHeld, source, pressed)
                 true
             }
@@ -377,11 +380,13 @@ object ControllerInput {
             // them as L3/R3.
             KeyEvent.KEYCODE_BUTTON_THUMBL -> {
                 if (Ps1GameSession.isRunning) set(source, EmuButton.Ps1(Ps1Keys.L3), pressed)
+                else if (Ps2GameSession.isRunning) set(source, EmuButton.Ps2(Ps2Keys.L3), pressed)
                 else if (pressed) perform(Slot.WHERE_AM_I)
                 true
             }
             KeyEvent.KEYCODE_BUTTON_THUMBR -> {
                 if (Ps1GameSession.isRunning) set(source, EmuButton.Ps1(Ps1Keys.R3), pressed)
+                else if (Ps2GameSession.isRunning) set(source, EmuButton.Ps2(Ps2Keys.R3), pressed)
                 else if (pressed) perform(Slot.MENU_STATUS)
                 true
             }
@@ -555,13 +560,16 @@ object ControllerInput {
             event.getAxisValue(MotionEvent.AXIS_BRAKE),
         )
         val ps1 = Ps1GameSession.isRunning
+        val ps2 = Ps2GameSession.isRunning
         if (ps1) set("$id.axis.l2", EmuButton.Ps1(Ps1Keys.L2), l2 > STICK_THRESHOLD)
+        else if (ps2) set("$id.axis.l2", EmuButton.Ps2(Ps2Keys.L2), l2 > STICK_THRESHOLD)
         else setModifier(askHeld, "$id.axis.l2", l2 > STICK_THRESHOLD)
         val r2 = maxOf(
             event.getAxisValue(MotionEvent.AXIS_RTRIGGER),
             event.getAxisValue(MotionEvent.AXIS_GAS),
         )
         if (ps1) set("$id.axis.r2", EmuButton.Ps1(Ps1Keys.R2), r2 > STICK_THRESHOLD)
+        else if (ps2) set("$id.axis.r2", EmuButton.Ps2(Ps2Keys.R2), r2 > STICK_THRESHOLD)
         else setModifier(browseHeld, "$id.axis.r2", r2 > STICK_THRESHOLD)
         val x = event.getAxisValue(MotionEvent.AXIS_X)
         val y = event.getAxisValue(MotionEvent.AXIS_Y)
@@ -571,6 +579,15 @@ object ControllerInput {
             // dead zone keeps a resting stick's drift out of the game.
             Ps1GameSession.setStick(0, deadZone(x), deadZone(y))
             Ps1GameSession.setStick(
+                1,
+                deadZone(event.getAxisValue(MotionEvent.AXIS_Z)),
+                deadZone(event.getAxisValue(MotionEvent.AXIS_RZ)),
+            )
+        }
+        if (ps2) {
+            // Both DualShock 2 sticks, the PlayStation shape above.
+            Ps2GameSession.setStick(0, deadZone(x), deadZone(y))
+            Ps2GameSession.setStick(
                 1,
                 deadZone(event.getAxisValue(MotionEvent.AXIS_Z)),
                 deadZone(event.getAxisValue(MotionEvent.AXIS_RZ)),
@@ -660,11 +677,12 @@ object ControllerInput {
     }
 
     /** The emulated button for a position, in the running session's terms. */
-    private fun emuButton(gb: Int, psp: Int, mesen: Int, genesis: Int, ps1: Int, n64: Int): EmuButton? = when {
+    private fun emuButton(gb: Int, psp: Int, mesen: Int, genesis: Int, ps1: Int, n64: Int, ps2: Int = ps1): EmuButton? = when {
         PspGameSession.isRunning -> EmuButton.Psp(psp)
         MesenGameSession.isRunning -> EmuButton.Mesen(mesen)
         GenesisGameSession.isRunning -> EmuButton.Genesis(genesis)
         Ps1GameSession.isRunning -> EmuButton.Ps1(ps1)
+        Ps2GameSession.isRunning -> EmuButton.Ps2(ps2)
         N64GameSession.isRunning -> EmuButton.N64(n64)
         GbGameSession.isRunning -> EmuButton.Gb(gb)
         else -> null
@@ -727,6 +745,17 @@ object ControllerInput {
                 }
             )
         }
+        if (Ps2GameSession.isRunning) {
+            // The PlayStation 2 pad, by position, like the PlayStation's above.
+            return EmuButton.Ps2(
+                when (face) {
+                    Face.SOUTH -> Ps2Keys.CROSS
+                    Face.EAST -> Ps2Keys.CIRCLE
+                    Face.NORTH -> Ps2Keys.TRIANGLE
+                    Face.WEST -> Ps2Keys.SQUARE
+                }
+            )
+        }
         if (N64GameSession.isRunning) {
             // The Nintendo 64 pad on a modern one, the usual way: A at
             // south, B at west, and two of the C buttons on the other
@@ -782,6 +811,8 @@ object ControllerInput {
                 if (down) GenesisGameSession.pressButton(button.button) else GenesisGameSession.releaseButton(button.button)
             is EmuButton.Ps1 ->
                 if (down) Ps1GameSession.pressButton(button.button) else Ps1GameSession.releaseButton(button.button)
+            is EmuButton.Ps2 ->
+                if (down) Ps2GameSession.pressButton(button.button) else Ps2GameSession.releaseButton(button.button)
             is EmuButton.N64 ->
                 if (down) N64GameSession.pressButton(button.button) else N64GameSession.releaseButton(button.button)
         }
@@ -967,6 +998,8 @@ object ControllerInput {
                     GenesisGameSession.stopSpeech(context)
                 } else if (Ps1GameSession.isRunning && context != null) {
                     Ps1GameSession.stopSpeech(context)
+                } else if (Ps2GameSession.isRunning && context != null) {
+                    Ps2GameSession.stopSpeech(context)
                 } else if (N64GameSession.isRunning && context != null) {
                     N64GameSession.stopSpeech(context)
                 } else {

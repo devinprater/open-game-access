@@ -31,6 +31,7 @@
 #include "genesis_core.h"
 #include "n64_core.h"
 #include "ps1_core.h"
+#include "ps2_core.h"
 
 // The GBA adapter's symbols (defined in gba_adapter.cpp). A GBA ROM selects
 // its native reader the same way an NDS ROM is matched from the registry —
@@ -43,6 +44,7 @@ extern const Adapter kNintendoEntertainmentSystem;
 extern const Adapter kSegaGenesis;
 extern const Adapter kNintendo64;
 extern const Adapter kSonyPlayStation;
+extern const Adapter kSonyPlayStation2;
 void gba_set_game_code(const char* code);
 void gba_set_platform(int platform);
 }
@@ -126,6 +128,17 @@ struct PokeCore {
     // The PlayStation (PCSX ReARMed). Same ownership rule; also a singleton
     // machine underneath (ps1_create refuses a second live one).
     Ps1Core* ps1 = nullptr;
+    // The PlayStation 2 (a dlopen()ed libretro core). Same ownership rule;
+    // also a singleton machine underneath (ps2_create refuses a second
+    // live one).
+    Ps2Core* ps2 = nullptr;
+    // Where the PS2 core libraries live, and where the player's BIOS is
+    // staged: set by the app before a load (poke_set_ps2_core_dir /
+    // poke_set_ps2_system_dir). Empty core dir means the wrapper searches
+    // only an explicit path / OGA_PS2_CORE; empty system dir means the
+    // game's own folder, the PlayStation rule below.
+    std::string ps2CoreDir;
+    std::string ps2SystemDir;
     // PSP runtime assets (compat.ini, soft-GPU atlas, VFPU LUTs) ship inside
     // the app bundle; the app points the core at them before loading a PSP
     // ROM. Empty means "use the PPSSPP_ASSETS env var or ./ppsspp-assets",
@@ -858,6 +871,7 @@ void poke_destroy(PokeCore* core)
     if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
     if (core->n64) { n64_destroy(core->n64); core->n64 = nullptr; }
     if (core->ps1) { ps1_destroy(core->ps1); core->ps1 = nullptr; }
+    if (core->ps2) { ps2_destroy(core->ps2); core->ps2 = nullptr; }
     core->backend.ops = nullptr;
     core->backend.state = nullptr;
     if (gCurrentCore == core) gCurrentCore = nullptr;
@@ -1211,7 +1225,8 @@ static bool LibraryAdapter(const oga::Adapter* a)
 {
     if (!a || !a->id) return false;
     return strcmp(a->id, "nes") != 0 && strcmp(a->id, "n64") != 0 &&
-           strcmp(a->id, "genesis") != 0 && strcmp(a->id, "ps1") != 0;
+           strcmp(a->id, "genesis") != 0 && strcmp(a->id, "ps1") != 0 &&
+           strcmp(a->id, "ps2") != 0;
 }
 
 static const oga::Adapter* LibraryAt(int index)
@@ -1281,6 +1296,7 @@ const char *poke_adapter_library_console(int index)
     if (strcmp(a->id, "n64") == 0) return "n64";
     if (strcmp(a->id, "genesis") == 0) return "genesis";
     if (strcmp(a->id, "ps1") == 0) return "ps1";
+    if (strcmp(a->id, "ps2") == 0) return "ps2";
     if (a->game_code && strncmp(a->game_code, "crc:", 4) == 0) return "snes";
     if (a->game_code && strncmp(a->game_code, "ULUS", 4) == 0) return "psp";
     if (a->game_code && strlen(a->game_code) == 4) return "nds";
@@ -1660,6 +1676,22 @@ void poke_set_psp_asset_dir(PokeCore* core, const char* asset_dir)
     core->pspAssetDir = (asset_dir && *asset_dir) ? asset_dir : "";
 }
 
+// The folder holding the PlayStation 2 core libraries (the app's native
+// library directory on Android), and the folder the player's BIOS is
+// staged under (as <dir>/pcsx2/bios). Both are read at load time by
+// LoadPs2Rom; setting them after a load changes nothing until the next.
+void poke_set_ps2_core_dir(PokeCore* core, const char* dir)
+{
+    if (!core) return;
+    core->ps2CoreDir = (dir && *dir) ? dir : "";
+}
+
+void poke_set_ps2_system_dir(PokeCore* core, const char* dir)
+{
+    if (!core) return;
+    core->ps2SystemDir = (dir && *dir) ? dir : "";
+}
+
 void poke_set_script_dir(PokeCore* core, const char* dir)
 {
     if (!core || !dir || !core->backend.ops) return;
@@ -1764,6 +1796,7 @@ static void TeardownBackends(PokeCore* core)
     if (core->genesis) { genesis_destroy(core->genesis); core->genesis = nullptr; }
     if (core->n64) { n64_destroy(core->n64); core->n64 = nullptr; }
     if (core->ps1) { ps1_destroy(core->ps1); core->ps1 = nullptr; }
+    if (core->ps2) { ps2_destroy(core->ps2); core->ps2 = nullptr; }
     core->adapter = nullptr;
     core->adapterAttached = false;
     // Clearing the ops is what makes "is a game loaded?" answerable from one
@@ -1954,6 +1987,51 @@ static bool LoadPs1Rom(PokeCore* core, const char* rom_path, const char* save_pa
     return true;
 }
 
+static bool LoadPs2Rom(PokeCore* core, const char* rom_path, const char* save_path)
+{
+    TeardownBackends(core);
+
+    core->ps2 = ps2_create();
+    if (!core->ps2) { SetError(core, "Could not create the PlayStation 2 core."); return false; }
+    if (!core->ps2CoreDir.empty()) ps2_set_core_dir(core->ps2, core->ps2CoreDir.c_str());
+    /* THE BIOS, LIKE THE PLAYSTATION'S, IS THE PLAYER'S OWN. No PS2 BIOS
+     * ships with the app. The app stages one the player imported under a
+     * system folder (poke_set_ps2_system_dir, laid out as pcsx2/bios);
+     * without that, the game's own folder is used, the PlayStation rule —
+     * a folder holding a pcsx2/bios layout or BIOS images directly is
+     * found either way. With a BIOS, the wrapper prefers ARMSX2; with
+     * none, Play! runs its HLE BIOS, which boots most games. */
+    {
+        std::string dir = core->ps2SystemDir;
+        if (dir.empty())
+        {
+            dir = rom_path;
+            size_t slash = dir.find_last_of("/\\");
+            dir = (slash == std::string::npos) ? std::string() : dir.substr(0, slash);
+        }
+        if (!dir.empty()) ps2_set_bios_dir(core->ps2, dir.c_str());
+    }
+    char code[16] = {0};
+    /* The save path is a FOLDER, not a file (the one deliberate difference
+     * from the PlayStation): the cores keep their own memory-card files,
+     * and a PS2 card is an 8 MB formatted image no other core reads. */
+    if (!ps2_load_disc(core->ps2, rom_path, save_path ? save_path : "", code))
+    {
+        SetError(core, "%s", ps2_last_error(core->ps2));
+        ps2_destroy(core->ps2);
+        core->ps2 = nullptr;
+        return false;
+    }
+    core->backend = oga_ps2_core(core->ps2);
+    strncpy(core->gameCode, code, sizeof(core->gameCode) - 1);
+    /* A disc carries a real serial ("SLUS20998"), so a game reader is found
+     * by it like a DS or PSP game; with no reader for this disc, the console
+     * row is selected, which refuses and so shows no reader controls. */
+    core->adapter = core->gameCode[0] ? oga::find_by_game_code(core->gameCode) : nullptr;
+    if (!core->adapter) core->adapter = &oga::kSonyPlayStation2;
+    return true;
+}
+
 static bool LoadPspRom(PokeCore* core, const char* rom_path, const char* save_path)
 {
     TeardownBackends(core);
@@ -2010,6 +2088,7 @@ bool poke_load_rom(PokeCore* core, const char* rom_path, const char* save_path)
         if (backend->genesis_hint) return LoadGenesisRom(core, rom_path, save_path);
         if (backend->n64_hint) return LoadN64Rom(core, rom_path, save_path);
         if (backend->ps1_hint) return LoadPs1Rom(core, rom_path, save_path);
+        if (backend->ps2_hint) return LoadPs2Rom(core, rom_path, save_path);
         if (backend->psp_hint) return LoadPspRom(core, rom_path, save_path);
     }
 

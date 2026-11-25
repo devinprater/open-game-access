@@ -124,6 +124,12 @@ const OgaSystem* oga_system_for_file(const char* path);
 bool oga_disc_header_is_ps1(const uint8_t* data, size_t len);
 bool oga_file_is_ps1_disc(const char* path);
 
+/* The same test for the PlayStation 2: a "PLAYSTATION" descriptor whose
+ * volume size is a DVD's, not a CD's. The two tests are disjoint by that
+ * size line, so a disc is never both. */
+bool oga_disc_header_is_ps2(const uint8_t* data, size_t len);
+bool oga_file_is_ps2_disc(const char* path);
+
 const OgaSystem* oga_system_by_id(OgaSystemId id);
 
 /* Every known system, in table order. Writes the count to out_count when

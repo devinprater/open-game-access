@@ -112,6 +112,11 @@ void poke_set_script_dir(PokeCore *core, const char *dir);
 const char *poke_reader_set(PokeCore *core);
 // PSP runtime assets inside the app bundle; set before loading a PSP ROM.
 void poke_set_psp_asset_dir(PokeCore *core, const char *asset_dir);
+
+/* The PlayStation 2's core-library folder and BIOS staging folder, read at
+ * load time (see Core/pokecore.cpp). */
+void poke_set_ps2_core_dir(PokeCore *core, const char *dir);
+void poke_set_ps2_system_dir(PokeCore *core, const char *dir);
 bool poke_start(PokeCore *core);
 void poke_stop(PokeCore *core);
 /* Write the battery save to its file NOW. The core flushes on its own
