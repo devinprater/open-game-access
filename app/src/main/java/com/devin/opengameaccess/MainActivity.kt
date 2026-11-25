@@ -56,6 +56,13 @@ class MainActivity : ComponentActivity() {
         // loads the frontend library itself, on its own background thread.
         PspProbe.maybeStart(this, intent)
 
+        // ⛔ IN-APP PROOF HARNESS (PlayStation 2 boot proof): the same
+        // pattern, one console over — inert unless the launch intent
+        // carries Ps2Probe's ROM extra. Unlike the PSP probe it drives
+        // the real Ps2GameSession, so a proof through it is a proof of
+        // the session itself (and of the JavaVM hand-off Play! needs).
+        Ps2Probe.maybeStart(this, intent)
+
         // The controller watch (input parity, stage 1). Safe here, unlike
         // the speech bridge below: it registers an InputManager listener
         // and scans InputDevices — platform calls only, no JNI, no native
