@@ -81,6 +81,8 @@ genesis_adapter.cpp
 n64_core.cpp
 ps1_core.cpp
 ps1_adapter.cpp
+ps2_core.cpp
+ps2_adapter.cpp
 mkt_adapter.cpp
 dbz_adapter.cpp
 dissidia_adapter.cpp

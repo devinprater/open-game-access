@@ -235,6 +235,45 @@ grep -Eq "#define LUA_VERSION_MAJOR[[:space:]]+\"${LUA_VER%%.*}\"" "lua-$LUA_VER
 echo "   lua-$LUA_VER/src: $(ls "lua-$LUA_VER/src"/*.c 2>/dev/null | wc -l) C files"
 
 # ---- what the build scripts expect ----
+# ---------------------------------------------------------------------------
+# The PlayStation 2 libretro cores (Play! and ARMSX2).
+#
+# These are BINARY dependencies, not source checkouts: the wrapper
+# (Core/ps2_core.cpp) dlopen()s a pinned buildbot .so at run time, so
+# what is pinned here is the artifact itself, by sha256. The pins below
+# are the 2026-11-24 nightly builds; the hashes were taken from the
+# artifacts the boot proofs ran on. Bumping a pin is a deliberate act:
+# download the new nightly, re-run the boot proof
+# (scripts/ps2-core-test.sh), then update the hash.
+#
+# There is NO armsx2 Linux build on the buildbot (checked 2026-11-25),
+# so the host proof runs Play! only; armsx2 is Android-only here.
+# ---------------------------------------------------------------------------
+echo "== fetching the PlayStation 2 cores (pinned buildbot artifacts)"
+mkdir -p "$DEST/ps2-cores/android" "$DEST/ps2-cores/linux"
+ps2_fetch() { # url destdir filename sha256
+  if [ -f "$2/$3" ] && echo "$4  $2/$3" | sha256sum -c - >/dev/null 2>&1; then
+    echo "   $3 already present (hash ok)"
+    return 0
+  fi
+  echo "   downloading $3"
+  curl -fSL -o "$2/$3.dl" "$1" || { echo "   !! download failed: $1" >&2; exit 1; }
+  echo "$4  $2/$3.dl" | sha256sum -c - >/dev/null || {
+    echo "   !! sha256 mismatch for $3 -- refusing the artifact" >&2; exit 1; }
+  mv "$2/$3.dl" "$2/$3"
+  unzip -o -q "$2/$3" -d "$2"
+  echo "   $3 pinned and unpacked"
+}
+ps2_fetch "https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/play_libretro_android.so.zip" \
+  "$DEST/ps2-cores/android" play-android.zip \
+  af705ab561a01dc1160cb6eb36c112ed2698920a0e683e90300bff0a8b09acf1
+ps2_fetch "https://buildbot.libretro.com/nightly/android/latest/arm64-v8a/armsx2_libretro_android.so.zip" \
+  "$DEST/ps2-cores/android" armsx2-android.zip \
+  0fcf0a0f2ecae67745d9c1477844bf9e52d9de29090fbc994cab1354810353bc
+ps2_fetch "https://buildbot.libretro.com/nightly/linux/x86_64/latest/play_libretro.so.zip" \
+  "$DEST/ps2-cores/linux" play-linux.zip \
+  3e035c1c923a81ccb6390cfa378ce53961cef428d2a00e3fc33cc8125923bae3
+
 echo
 cat <<EOF
 == done. Source tree: $DEST
@@ -245,6 +284,7 @@ cat <<EOF
   genesis-plus-gx $( [ -d genesis-plus-gx ] && echo present || echo MISSING )
   mupen64plus-libretro-nx $( [ -d mupen64plus-libretro-nx ] && echo present || echo MISSING )
   pcsx_rearmed $( [ -d pcsx_rearmed ] && echo present || echo MISSING )
+  ps2-cores    $( [ -f ps2-cores/android/play_libretro_android.so ] && echo present || echo MISSING )
   lua-$LUA_VER      $( [ -d "lua-$LUA_VER" ] && echo present || echo MISSING )
 
 Next:

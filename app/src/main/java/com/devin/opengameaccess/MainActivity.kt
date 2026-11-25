@@ -56,6 +56,13 @@ class MainActivity : ComponentActivity() {
         // loads the frontend library itself, on its own background thread.
         PspProbe.maybeStart(this, intent)
 
+        // ⛔ IN-APP PROOF HARNESS (PlayStation 2 boot proof): the same
+        // pattern, one console over — inert unless the launch intent
+        // carries Ps2Probe's ROM extra. Unlike the PSP probe it drives
+        // the real Ps2GameSession, so a proof through it is a proof of
+        // the session itself (and of the JavaVM hand-off Play! needs).
+        Ps2Probe.maybeStart(this, intent)
+
         // The controller watch (input parity, stage 1). Safe here, unlike
         // the speech bridge below: it registers an InputManager listener
         // and scans InputDevices — platform calls only, no JNI, no native
@@ -129,6 +136,7 @@ class MainActivity : ComponentActivity() {
             MesenGameSession.attachAnnouncementView(view)
             GenesisGameSession.attachAnnouncementView(view)
             Ps1GameSession.attachAnnouncementView(view)
+            Ps2GameSession.attachAnnouncementView(view)
             N64GameSession.attachAnnouncementView(view)
         }
 
@@ -151,6 +159,7 @@ class MainActivity : ComponentActivity() {
                     MesenGameSession.attachAnnouncementView(view)
                     GenesisGameSession.attachAnnouncementView(view)
                     Ps1GameSession.attachAnnouncementView(view)
+                    Ps2GameSession.attachAnnouncementView(view)
                     N64GameSession.attachAnnouncementView(view)
                 }
             }
@@ -207,7 +216,7 @@ class MainActivity : ComponentActivity() {
             // ⛔ ONE LINE, ON PURPOSE: the launcher contract test checks
             // line by line that every AccessibilityScript call in this
             // Activity is guarded by a running game on the same line.
-            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || N64GameSession.isRunning) AccessibilityScript.speak(text, interrupt)
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || Ps2GameSession.isRunning || N64GameSession.isRunning) AccessibilityScript.speak(text, interrupt)
         }
 
         // The repeat walk's refusal channel: feedback ABOUT the spoken
@@ -217,7 +226,7 @@ class MainActivity : ComponentActivity() {
         // AccessibilitySpeech.speakControl). Same guard, same line
         // shape, for the same contract test.
         val announceControlLine: (String) -> Unit = { text ->
-            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || N64GameSession.isRunning) AccessibilityScript.speakControl(text)
+            if (GbGameSession.isRunning || PspGameSession.isRunning || DsGameSession.isRunning || MesenGameSession.isRunning || GenesisGameSession.isRunning || Ps1GameSession.isRunning || Ps2GameSession.isRunning || N64GameSession.isRunning) AccessibilityScript.speakControl(text)
         }
 
         var showSettings by remember { mutableStateOf(false) }
@@ -373,6 +382,7 @@ class MainActivity : ComponentActivity() {
         MesenGameSession.stop()
         GenesisGameSession.stop()
         Ps1GameSession.stop()
+        Ps2GameSession.stop()
         N64GameSession.stop()
         super.onDestroy()
     }

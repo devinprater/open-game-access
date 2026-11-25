@@ -18,6 +18,7 @@
 #include "genesis_core.h"
 #include "n64_core.h"
 #include "ps1_core.h"
+#include "ps2_core.h"
 
 // For POKE_BTN_* — the app's shared pad numbering, which the PSP's button
 // translation table below is indexed by. This header is stdlib-only and is on
@@ -33,6 +34,7 @@
  * included: systems.h and pokecore.h spell the registry's C ABI with different
  * pointer types and cannot share a translation unit. */
 extern "C" bool oga_file_is_ps1_disc(const char* path);
+extern "C" bool oga_file_is_ps2_disc(const char* path);
 
 /* ------------------------------------------------------------------- Game Boy
  *
@@ -767,6 +769,116 @@ OgaCore oga_ps1_core(Ps1Core* ps1)
     return c;
 }
 
+/* ---------------------------------------------------------------- PlayStation 2
+ *
+ * The same shape as the PlayStation above, over Core/ps2_core.cpp: a
+ * dlopen()ed libretro core (Play!, or ARMSX2 when a BIOS is present)
+ * behind the same pad layout — the DualShock 2 kept the DualShock's
+ * numbering, so the button table is the PS1 table with PS2 names. The
+ * wrapper owns the core file, the GL context and the memory cards; this
+ * layer only forwards. frame_rate reports the disc's own rate, so a PAL
+ * game runs at 50 frames a second, not 60. */
+
+static bool Ps2Start(void* s) { return ps2_start((Ps2Core*) s); }
+static void Ps2Stop(void* s)  { ps2_stop((Ps2Core*) s); }
+static bool Ps2Frame(void* s) { return ps2_frame((Ps2Core*) s); }
+
+static bool Ps2Read(void* s, uint32_t addr, int width, uint32_t* out)
+{
+    return ps2_read((Ps2Core*) s, addr, width, out);
+}
+
+static bool Ps2Framebuffer(void* s, int screen, int* w, int* h, const uint8_t** pixels)
+{
+    (void) screen;   /* one panel */
+    Ps2Core* ps2 = (Ps2Core*) s;
+    if (!ps2 || !ps2_framebuffer(ps2, w, h)) return false;
+    *pixels = ps2_framebuffer_ptr(ps2);
+    return *pixels != NULL;
+}
+
+static void Ps2SetButton(void* s, int pad_button, bool down)
+{
+    static const int kPs2Button[POKE_BTN_EXT_COUNT] = {
+        PS2_BTN_CROSS,    /* 0: A      -> Cross */
+        PS2_BTN_CIRCLE,   /* 1: B      -> Circle */
+        PS2_BTN_SELECT,   /* 2 */
+        PS2_BTN_START,    /* 3 */
+        PS2_BTN_RIGHT,    /* 4 */
+        PS2_BTN_LEFT,     /* 5 */
+        PS2_BTN_UP,       /* 6 */
+        PS2_BTN_DOWN,     /* 7 */
+        PS2_BTN_R1,       /* 8: R      -> R1 */
+        PS2_BTN_L1,       /* 9: L      -> L1 */
+        PS2_BTN_TRIANGLE, /* 10: X     -> Triangle */
+        PS2_BTN_SQUARE,   /* 11: Y     -> Square */
+        PS2_BTN_L2,       /* 12: the extended L2 slot */
+        PS2_BTN_R2,       /* 13: R2 */
+        PS2_BTN_L3,       /* 14: L3, the left stick's click */
+        PS2_BTN_R3,       /* 15: R3 */
+    };
+    if (pad_button < 0 || pad_button >= POKE_BTN_EXT_COUNT) return;
+    ps2_set_button((Ps2Core*) s, kPs2Button[pad_button], down);
+}
+
+static void Ps2SetAnalog(void* s, float x, float y)
+{
+    ps2_set_analog((Ps2Core*) s, PS2_STICK_LEFT, x, y);
+}
+static void Ps2SetAnalogRight(void* s, float x, float y)
+{
+    ps2_set_analog((Ps2Core*) s, PS2_STICK_RIGHT, x, y);
+}
+static double Ps2FrameRate(void* s) { return ps2_frame_rate((Ps2Core*) s); }
+
+static int Ps2ReadAudio(void* s, int16_t* out, int max_frames)
+{
+    return ps2_read_audio((Ps2Core*) s, out, max_frames);
+}
+static bool Ps2SaveState(void* s, const char* path) { return ps2_save_state((Ps2Core*) s, path); }
+static bool Ps2LoadState(void* s, const char* path) { return ps2_load_state((Ps2Core*) s, path); }
+static unsigned long long Ps2Frames(void* s) { return ps2_frames_completed((Ps2Core*) s); }
+static const char* Ps2LastError(void* s)
+{
+    Ps2Core* ps2 = (Ps2Core*) s;
+    return ps2 ? ps2_last_error(ps2) : "no core";
+}
+
+static const OgaCoreOps kPs2Ops = {
+    "ps2",                      /* id */
+    Ps2Start,
+    Ps2Stop,
+    Ps2Frame,
+    NULL,                       /* tick: the memory cards are the core's own files */
+    Ps2Read,
+    NULL,                       /* attach: no adapter layer in the core */
+    NULL,                       /* on_frame */
+    Ps2Framebuffer,
+    Ps2SetButton,
+    Ps2SetAnalog,               /* the DualShock 2's left stick */
+    NULL,                       /* set_touch: no touch screen */
+    NULL,                       /* set_hotkey: the native adapters are the only reader */
+    NULL,                       /* set_script_dir: no bundled PlayStation 2 reader set */
+    NULL,                       /* reader_set: no bundled PlayStation 2 reader set */
+    Ps2ReadAudio,
+    Ps2SaveState,
+    Ps2LoadState,
+    Ps2Frames,
+    Ps2LastError,
+    NULL,                       /* set_direction: no direction layer on this console */
+    NULL,                       /* write: no write path into the PlayStation 2's RAM yet */
+    Ps2SetAnalogRight,          /* the DualShock 2's right stick */
+    Ps2FrameRate,               /* 50 for a PAL disc, about 59.94 for NTSC */
+};
+
+OgaCore oga_ps2_core(Ps2Core* ps2)
+{
+    OgaCore c;
+    c.ops = &kPs2Ops;
+    c.state = ps2;
+    return c;
+}
+
 /* ------------------------------------------------------------------ resolver */
 
 /* Lower-cased extension INCLUDING the dot, or empty. Mirrors systems.cpp's
@@ -801,6 +913,7 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
     static const OgaResolvedBackend kGenesis = { "genesis", false, false, false, false, true };
     static const OgaResolvedBackend kN64 = { "n64", false, false, false, false, false, true };
     static const OgaResolvedBackend kPs1 = { "ps1", false, false, false, false, false, false, true };
+    static const OgaResolvedBackend kPs2 = { "ps2", false, false, false, false, false, false, false, true };
 
     static const char* const kGb[]  = { ".gba", ".gb", ".gbc", NULL };
     static const char* const kPspE[] = { ".iso", ".cso", ".pbp", ".elf", ".prx", ".ppdmp", NULL };
@@ -845,6 +958,12 @@ const OgaResolvedBackend* oga_resolve_backend(const char* rom_path)
 #ifndef SABOTAGE_NO_PS1_SNIFF
     if (ExtIs(ext, kSniffE) && oga_file_is_ps1_disc(rom_path)) return &kPs1;
 #endif
+    /* The PS2 twin of the same rule, disjoint by the descriptor's size
+     * line (a CD or a DVD, never both). A PS2 .iso therefore reaches the
+     * PlayStation 2 instead of the PSP its name would suggest; one whose
+     * header cannot be read keeps the name rule and is refused in words
+     * by the PSP core, as before. */
+    if (ExtIs(ext, kSniffE) && oga_file_is_ps2_disc(rom_path)) return &kPs2;
 
     if (ExtIs(ext, kGb))   return &kGba;
     if (ExtIs(ext, kPspE)) return &kPsp;

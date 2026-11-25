@@ -109,6 +109,9 @@ extern const Adapter kSonyPlayStation;
 // Mortal Kombat Trilogy (Core/mkt_adapter.cpp), the first PlayStation game reader: it
 // registers the disc serial SLUS00330, so LoadPs1Rom picks it before the console row.
 extern const Adapter kMortalKombatTrilogy;
+// The PlayStation 2 console row (Core/ps2_adapter.cpp): refuses, and never
+// matches a disc. A game reader registers its disc serial as its own row.
+extern const Adapter kSonyPlayStation2;
 
 static const Adapter* const kAdapters[] = {
     &kFireEmblemShadowDragon,
@@ -126,6 +129,7 @@ static const Adapter* const kAdapters[] = {
     &kSegaGenesis,
     &kSonyPlayStation,
     &kMortalKombatTrilogy,
+    &kSonyPlayStation2,
 };
 
 const Adapter* const* all_adapters(int* count)

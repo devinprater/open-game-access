@@ -224,6 +224,12 @@ compile() {
   printf '%s|pcsxglue|ps1_core\n' "$ROOT/Core/ps1_core.cpp"
   for f in $PCSX_ALL; do printf '%s|pcsx|%s\n' "$PCSX_SRC/$f" "pcsx_$(echo "$f" | tr '/' '_' | sed 's/\.c$//')"; done
   printf '%s|cxx|ps1_adapter\n' "$ROOT/Core/ps1_adapter.cpp"
+  # The PlayStation 2: the wrapper (Core/ps2_core.cpp) dlopen()s its core, so
+  # it needs only libretro.h from the PCSX tree — the pcsxglue flags again —
+  # plus the console row. Its GL is EGL-guarded: on a platform without EGL
+  # headers it compiles the renderer out and refuses in words.
+  printf '%s|pcsxglue|ps2_core\n' "$ROOT/Core/ps2_core.cpp"
+  printf '%s|cxx|ps2_adapter\n' "$ROOT/Core/ps2_adapter.cpp"
   printf '%s|cxx|mkt_adapter\n' "$ROOT/Core/mkt_adapter.cpp"
   # A Link to the Past. The same omission class as MKU above: adapters.o names
   # oga::kZeldaLinkToThePast, so the host set must carry the adapter and its
