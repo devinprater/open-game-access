@@ -1,29 +1,27 @@
 /*
  * mkt_adapter.cpp — Mortal Kombat Trilogy (PlayStation, USA, SLUS-00330).
  *
- * THE FIRST PLAYSTATION GAME READER, AND A SCAFFOLD ON PURPOSE. The disc's boot serial is the
- * registry key (pokecore's LoadPs1Rom looks it up before falling back to the console row in
- * ps1_adapter.cpp), so loading this disc selects this reader. What it does today:
+ * THE FIRST PLAYSTATION GAME READER. The disc's boot serial is the registry key (pokecore's
+ * LoadPs1Rom looks it up before falling back to the console row in ps1_adapter.cpp), so
+ * loading this disc selects this reader. Every address below was measured on the owner's own
+ * copy of the disc (docs/reverse-engineering/mortal-kombat-trilogy.md says how, and what is
+ * still unconfirmed). What it speaks:
  *
- *   - says plainly what is not mapped yet, rather than guessing;
- *   - DumpState: scans all 2 MiB of PlayStation main RAM for the game's own words (fighter
- *     names, menu words) and logs every hit with its address, and logs what the published
- *     GameShark health addresses hold right now, labelled as unconfirmed candidates;
- *   - carries the fighting-game cues the owner asked for, the ones Mortal Kombat: Unchained
- *     already has (Core/mku_adapter.cpp), each switched on by its own measured map fields:
+ *   - the menus: the main menu's four boxes, the options hub's five icons, the rows of Game
+ *     Konfigure (and the difficulty's value), and the character-select cursor by fighter name;
+ *   - the pause: "Paused." and "Resumed.";
+ *   - the fight, with the language Mortal Kombat: Unchained (Core/mku_adapter.cpp) already has:
  *       * health: a pitch-mapped beep on every hit (foe on the right, you on the left, the
  *         pitch falling with the health), with the percent spoken only at 75, 50, 25 and
- *         nearly gone — the MKU and Birth by Sleep health language, unchanged;
+ *         nearly gone;
  *       * closeness: the beacon the battle-cue synth already plays, its pace carrying how far
- *         apart the two fighters are (MKU's fight-proximity cue), silent while paused;
- *       * side: one short line when the foe ends up on your other side (a jump over, a
- *         teleport), because in a 2D fighter the side decides which way every move goes;
- *       * the pause menu: "Paused." and the highlighted row, then each row as the highlight
- *         moves.
+ *         apart the two fighters are, silent while paused;
+ *       * side: one short line when the foe ends up on your other side (a jump over), because
+ *         in a 2D fighter the side decides which way every move goes;
+ *       * the round: who is fighting, round starts, who won each round, and who won the match.
  *
- * ⛔ NO ADDRESS HERE IS MEASURED YET, so every one of those cues is OFF in the shipped map
- * (Core/mkt_adapter.h). The host test proves each one against fake RAM; a phone run with the
- * debug channel's `search` fills the real map (docs/reverse-engineering/mortal-kombat-trilogy.md).
+ * A feature whose map field is 0 is off, so a field that turns out wrong on a pressing of the
+ * disc is switched off by clearing it, not by editing logic.
  *
  * READS. Host reads reach PlayStation main RAM at 0x80000000 (2 MiB, every mirror) and the
  * scratchpad at 0x1F800000; anything else reads 0 (the Host contract).
@@ -37,13 +35,49 @@
 
 namespace oga {
 
+// The screen id pair each screen shows (bytes at screen_a_addr and screen_b_addr). Measured on
+// 60+ saved RAM images; see the doc.
+const MktScreenId kMktScreenIds[kMktScreenCount] = {
+    {0xFF, 0xFF},   // Other: never matched
+    {2, 2},         // main menu
+    {1, 4},         // options hub
+    {11, 11},       // Game Konfigure (also shown on the "choose your destiny" ladder)
+    {33, 5},        // character select
+    {29, 29},       // a fight
+    {0, 0},         // continue screen (also all-zero at boot: only trusted straight after a fight)
+};
+
 namespace {
 
 const Host* g_host = nullptr;
 
-// ⛔ THE SHIPPED MAP: EMPTY UNTIL MEASURED. Value-initialized, so every address is 0 and every
-// feature that needs one stays off. Fill a field only with an address confirmed live.
-const MktMap kShippedMap = {};
+// THE SHIPPED MAP. Each address was measured; the comments say how many states confirmed it.
+const MktMap kShippedMap = {
+    /* screen_a_addr        */ 0x800283BC,   // 29+ states, 6 screens
+    /* screen_b_addr        */ 0x80028408,
+    /* main_cursor_addr     */ 0x80032662,   // 7 states (0..3)
+    /* options_cursor_addr  */ 0x80033638,   // 7 states (0,1,3,4; the "?" icon is skipped)
+    /* konfigure_cursor_addr*/ 0x80033676,   // 7 states (0..6), unique match
+    /* difficulty_addr      */ 0x800324A4,   // easy 1, medium 2, hard 3
+    /* select_cursor_addr   */ 0x80033ACE,   // 30 states, 24 slots
+    /* select_table_addr    */ 0x800FA8D6,   // slot -> fighter id, 14 slots checked against the HUD
+    /* fight_addr           */ 0x80032478,   // 1 in every fight state, 0 on every menu state
+    /* fight_value          */ 1,
+    /* p1_id_addr           */ 0x80032198,   // 17 fighters read off the HUD
+    /* p2_id_addr           */ 0x80032310,
+    /* p1_health_addr       */ 0x8003219E,   // hits, KOs and refills, 2 fights
+    /* p2_health_addr       */ 0x80032316,
+    /* health_full          */ 166,
+    /* p1_wins_addr         */ 0x800321A4,   // P2's confirmed over a full match; P1's by symmetry
+    /* p2_wins_addr         */ 0x8003231C,
+    /* p1_obj_ptr_addr      */ 0x8003218C,   // objects swap slots between fights: read via these
+    /* p2_obj_ptr_addr      */ 0x80032304,
+    /* x_offset             */ 0x12,
+    /* gap_near             */ 20,           // 113 fight images: smallest gap 13, median 130
+    /* gap_far              */ 250,          //                    largest gap 247
+    /* pause_addr           */ 0x800327A4,   // 12 states
+    /* pause_value          */ 1,
+};
 const MktMap* g_map = &kShippedMap;
 
 constexpr uint32_t kRamBase = 0x80000000;
@@ -69,8 +103,39 @@ void Log(const char* s)
     if (g_host && g_host->log) g_host->log(g_host->ctx, s);
 }
 
+// ---- the game's words --------------------------------------------------------------------
+
+const char* const kMainItems[] = { "Mortal Kombat", "2 on 2 Kombat", "8 Player Kombat", "Options" };
+const char* const kOptionsItems[] = { "Game Konfigure", "Kontrol Konfigure", "Secret Konfigure",
+                                      "Sound and Music", "Exit Kombat" };
+const char* const kKonfigureRows[] = {
+    "Difficulty", "Blood", "Timer", "Aggressor", "Combos player 1", "Combos player 2",
+    "Shang Tsung's morphs", "Versus screen", "Buy in screen", "Select screen", "Match recycle", "Exit",
+};
+const char* const kDifficulty[] = { "Very easy", "Easy", "Medium", "Hard", "Very hard" };
+
+#define COUNT(a) ((int) (sizeof(a) / sizeof((a)[0])))
+
+/// Fighter id -> name. Ids 0-20, 21, 23, 26, 28, 29 and 31 were each read off the on-screen
+/// health bar during a fight. 24, 25, 27, 30 and 32 follow the game's own "<NAME> WINS" string
+/// table (which runs two entries behind the ids from 23 up), and 22 is not known: it is spoken
+/// as a number rather than guessed.
+const char* FighterName(int id, char* buf, size_t cap)
+{
+    static const char* const kNames[33] = {
+        "Kano", "Sonya", "Jax", "Nightwolf", "Sub-Zero", "Stryker", "Sindel", "Sektor", "Cyrax",
+        "Kung Lao", "Kabal", "Sheeva", "Shang Tsung", "Liu Kang", "Smoke", "Kitana", "Jade",
+        "Mileena", "Scorpion", "Reptile", "Ermac", "Sub-Zero", nullptr, "Noob Saibot", "Motaro",
+        "Shao Kahn", "Rain", "Chameleon", "Rayden", "Baraka", "Kintaro", "Johnny Cage", "Goro",
+    };
+    if (id >= 0 && id < 33 && kNames[id]) return kNames[id];
+    snprintf(buf, cap, "Fighter %d", id);
+    return buf;
+}
+
 // ---- what the map has ------------------------------------------------------------------
 
+bool HasScreens(void) { return g_map->screen_a_addr && g_map->screen_b_addr; }
 bool HasFight(void)  { return g_map->fight_addr != 0; }
 bool HasHealth(void)
 {
@@ -78,16 +143,12 @@ bool HasHealth(void)
 }
 bool HasPos(void)
 {
-    return HasFight() && g_map->p1_x_addr && g_map->p2_x_addr &&
-           (g_map->x_width == 2 || g_map->x_width == 4) && g_map->gap_far > g_map->gap_near;
+    return HasFight() && g_map->p1_obj_ptr_addr && g_map->p2_obj_ptr_addr && g_map->gap_far > g_map->gap_near;
 }
+bool HasWins(void)   { return HasFight() && g_map->p1_wins_addr && g_map->p2_wins_addr; }
+bool HasIds(void)    { return HasFight() && g_map->p1_id_addr && g_map->p2_id_addr; }
 bool HasPause(void)  { return g_map->pause_addr != 0; }
-bool HasCursor(void)
-{
-    return HasPause() && g_map->pause_cursor_addr && g_map->pause_count > 0 &&
-           g_map->pause_count <= kMktMaxPauseItems;
-}
-bool AnythingMapped(void) { return HasFight() || HasPause(); }
+bool AnythingMapped(void) { return HasFight() || HasPause() || HasScreens(); }
 
 bool InFight(void) { return HasFight() && u8(g_map->fight_addr) == g_map->fight_value; }
 bool Paused(void)  { return HasPause() && u8(g_map->pause_addr) == g_map->pause_value; }
@@ -108,11 +169,14 @@ int Pct(float frac)
     return p < 0 ? 0 : (p > 100 ? 100 : p);
 }
 
-int32_t ReadX(uint32_t addr)
+/// A fighter's x position, read through the pointer to its game object. False when the pointer
+/// is not into main RAM (between fights the slot is empty).
+bool ReadX(uint32_t ptr_addr, int32_t* out)
 {
-    if (g_map->x_width == 4) return (int32_t) u32(addr);
-    uint16_t v = u16(addr);
-    return g_map->x_signed ? (int32_t) (int16_t) v : (int32_t) v;
+    uint32_t p = u32(ptr_addr);
+    if (p < kRamBase || p + g_map->x_offset + 2 > kRamEnd) return false;
+    *out = (int32_t) (int16_t) u16(p + g_map->x_offset);
+    return true;
 }
 
 /// The gap between the fighters along the arena, and which side the foe is on (+1 right of
@@ -120,7 +184,8 @@ int32_t ReadX(uint32_t addr)
 bool FightGap(int32_t* gap, int* side)
 {
     if (!HasPos()) return false;
-    int32_t x1 = ReadX(g_map->p1_x_addr), x2 = ReadX(g_map->p2_x_addr);
+    int32_t x1, x2;
+    if (!ReadX(g_map->p1_obj_ptr_addr, &x1) || !ReadX(g_map->p2_obj_ptr_addr, &x2)) return false;
     int64_t d = (int64_t) x2 - (int64_t) x1;
     int64_t a = d < 0 ? -d : d;
     // Wider than four arenas is not a position pair; refuse it rather than pulse at it.
@@ -130,13 +195,121 @@ bool FightGap(int32_t* gap, int* side)
     return true;
 }
 
-const char* PauseItem(void)
+// ---- which screen ----------------------------------------------------------------------
+
+int ScreenNow(void)
 {
-    if (!HasCursor()) return nullptr;
-    int i = u8(g_map->pause_cursor_addr);
-    if (i < 0 || i >= g_map->pause_count) return nullptr;
-    const char* s = g_map->pause_items[i];
-    return (s && *s) ? s : nullptr;
+    if (!HasScreens()) return kMktScreenOther;
+    uint8_t a = u8(g_map->screen_a_addr), b = u8(g_map->screen_b_addr);
+    for (int s = kMktScreenMain; s < kMktScreenCount; s++)
+        if (a == kMktScreenIds[s].a && b == kMktScreenIds[s].b) return s;
+    return kMktScreenOther;
+}
+
+/// A screen must hold this many frames before it counts, so the flicker of a transition (and
+/// the all-zero frames of a load) never speaks.
+constexpr int kScreenHoldFrames = 15;
+int g_screen = kMktScreenOther;        // the settled screen
+int g_prevScreen = kMktScreenOther;    // the settled screen before it
+int g_candidate = kMktScreenOther;
+int g_candidateFrames = 0;
+int g_menuCursor = -1;                 // the cursor last said on the settled screen
+int g_difficulty = -1;
+bool g_konfigureReal = false;          // Game Konfigure was entered from the options hub
+
+/// What the cursor says on screen `s`, or nullptr when it cannot say.
+const char* MenuWords(int s, char* buf, size_t cap, int* cursor_out)
+{
+    int c = -1;
+    const char* w = nullptr;
+    switch (s) {
+        case kMktScreenMain:
+            if (g_map->main_cursor_addr) { c = u8(g_map->main_cursor_addr); if (c < COUNT(kMainItems)) w = kMainItems[c]; }
+            break;
+        case kMktScreenOptions:
+            if (g_map->options_cursor_addr) { c = u8(g_map->options_cursor_addr); if (c < COUNT(kOptionsItems)) w = kOptionsItems[c]; }
+            break;
+        case kMktScreenKonfigure:
+            if (g_map->konfigure_cursor_addr && g_konfigureReal) {
+                c = u8(g_map->konfigure_cursor_addr);
+                if (c < COUNT(kKonfigureRows)) {
+                    w = kKonfigureRows[c];
+                    if (c == 0 && g_map->difficulty_addr) {
+                        int d = u8(g_map->difficulty_addr);
+                        if (d < COUNT(kDifficulty)) { snprintf(buf, cap, "%s, %s", w, kDifficulty[d]); w = buf; }
+                    }
+                }
+            }
+            break;
+        case kMktScreenSelect:
+            if (g_map->select_cursor_addr && g_map->select_table_addr) {
+                c = u8(g_map->select_cursor_addr);
+                if (c < 32) {
+                    char nb[24];
+                    snprintf(buf, cap, "%s", FighterName(u16(g_map->select_table_addr + 2u * (uint32_t) c), nb, sizeof(nb)));
+                    w = buf;
+                }
+            }
+            break;
+        default: break;
+    }
+    *cursor_out = c;
+    return w;
+}
+
+const char* ScreenTitle(int s)
+{
+    switch (s) {
+        case kMktScreenMain:      return "Main menu";
+        case kMktScreenOptions:   return "Options";
+        case kMktScreenKonfigure: return "Game Konfigure";
+        case kMktScreenSelect:    return "Choose your fighter";
+        default: return nullptr;
+    }
+}
+
+void TrackScreen(void)
+{
+    int now = ScreenNow();
+    if (now != g_candidate) { g_candidate = now; g_candidateFrames = 0; }
+    else if (g_candidateFrames < kScreenHoldFrames + 1) g_candidateFrames++;
+
+    if (g_candidate != g_screen && g_candidateFrames >= kScreenHoldFrames) {
+        g_prevScreen = g_screen;
+        g_screen = g_candidate;
+        g_menuCursor = -1;
+        g_difficulty = -1;
+        // The "choose your destiny" ladder shows the Konfigure id too; only a trip through the
+        // options hub is the real settings list.
+        g_konfigureReal = (g_screen == kMktScreenKonfigure && g_prevScreen == kMktScreenOptions);
+        if (g_screen == kMktScreenContinue && g_prevScreen == kMktScreenFight)
+            Say("Continue? Press start.", "screen", Priority::Normal);
+        if (const char* title = (g_screen == kMktScreenKonfigure && !g_konfigureReal) ? nullptr : ScreenTitle(g_screen)) {
+            char buf[64]; int c;
+            const char* w = MenuWords(g_screen, buf, sizeof(buf), &c);
+            char line[128];
+            if (w) snprintf(line, sizeof(line), "%s. %s.", title, w);
+            else   snprintf(line, sizeof(line), "%s.", title);
+            AdapterNoteSpoken("");
+            Say(line, "menu", Priority::Normal);
+            g_menuCursor = c;
+            if (g_screen == kMktScreenKonfigure && g_map->difficulty_addr) g_difficulty = u8(g_map->difficulty_addr);
+        }
+        return;
+    }
+    if (g_candidate != g_screen) return;
+
+    char buf[64]; int c;
+    const char* w = MenuWords(g_screen, buf, sizeof(buf), &c);
+    if (!w) return;
+    int diff = (g_screen == kMktScreenKonfigure && g_map->difficulty_addr) ? (int) u8(g_map->difficulty_addr) : -1;
+    if (c != g_menuCursor || (c == 0 && diff != g_difficulty)) {
+        char line[96];
+        snprintf(line, sizeof(line), "%s.", w);
+        Say(line, "menu", Priority::Normal);
+    }
+    g_menuCursor = c;
+    g_difficulty = diff;
 }
 
 // ---- health cues (the MKU / Birth by Sleep health language) ----------------------------
@@ -221,32 +394,90 @@ void TrackSideSwitch(void)
     Say(side > 0 ? "Foe on your right." : "Foe on your left.", "side", Priority::Normal);
 }
 
-// ---- the pause menu --------------------------------------------------------------------
+// ---- the round: who, which round, who won ------------------------------------------------
+
+constexpr int kRoundsToWin = 2;            // best of three
+constexpr int kFightHoldFrames = 20;       // the fight flag must hold this long before the line
+int g_fightFrames = 0;
+bool g_fightAnnounced = false;
+bool g_winsPrimed = false;
+int  g_p1Wins = 0, g_p2Wins = 0;
+bool g_koSeen = false;                     // a bar hit empty: the next refill is a new round
+
+int Wins(uint32_t addr)
+{
+    uint32_t v = u32(addr);
+    return v > 9 ? 9 : (int) v;            // a garbage read must not become "round 1000"
+}
+
+void NamesLine(char* out, size_t cap)
+{
+    char a[24], b[24];
+    snprintf(out, cap, "%s versus %s", FighterName(u8(g_map->p1_id_addr), a, sizeof(a)),
+             FighterName(u8(g_map->p2_id_addr), b, sizeof(b)));
+}
+
+void AnnounceRound(void)
+{
+    char names[96] = "", line[160];
+    if (HasIds()) NamesLine(names, sizeof(names));
+    int round = HasWins() ? g_p1Wins + g_p2Wins + 1 : 0;
+    if (round > 0 && names[0]) snprintf(line, sizeof(line), "Round %d. %s.", round, names);
+    else if (round > 0)        snprintf(line, sizeof(line), "Round %d.", round);
+    else if (names[0])         snprintf(line, sizeof(line), "%s.", names);
+    else return;
+    AdapterNoteSpoken("");
+    Say(line, "round", Priority::Normal);
+}
+
+void TrackRound(void)
+{
+    if (g_fightFrames < kFightHoldFrames + 1) g_fightFrames++;
+    if (g_fightFrames < kFightHoldFrames) return;
+
+    if (HasWins()) {
+        int w1 = Wins(g_map->p1_wins_addr), w2 = Wins(g_map->p2_wins_addr);
+        if (!g_winsPrimed) { g_winsPrimed = true; g_p1Wins = w1; g_p2Wins = w2; }
+        else {
+            char line[96];
+            if (w1 > g_p1Wins) {
+                if (w1 >= kRoundsToWin) snprintf(line, sizeof(line), "You win the match.");
+                else snprintf(line, sizeof(line), "You win the round. %d to %d.", w1, w2);
+                Say(line, "round", Priority::High);
+            }
+            if (w2 > g_p2Wins) {
+                char nb[24];
+                if (w2 >= kRoundsToWin && HasIds())
+                    snprintf(line, sizeof(line), "%s wins the match.", FighterName(u8(g_map->p2_id_addr), nb, sizeof(nb)));
+                else if (w2 >= kRoundsToWin) snprintf(line, sizeof(line), "Foe wins the match.");
+                else snprintf(line, sizeof(line), "Foe wins the round. %d to %d.", w1, w2);
+                Say(line, "round", Priority::High);
+            }
+            g_p1Wins = w1; g_p2Wins = w2;
+        }
+    }
+
+    if (!g_fightAnnounced) {
+        g_fightAnnounced = true;
+        AnnounceRound();
+    }
+}
+
+// ---- the pause --------------------------------------------------------------------------
 
 bool g_wasPaused = false;
-int  g_lastCursor = -1;
 
 void TrackPause(void)
 {
-    bool paused = Paused();
-    int cursor = HasCursor() ? (int) u8(g_map->pause_cursor_addr) : -1;
+    bool paused = Paused() && InFight();
     if (paused && !g_wasPaused) {
-        const char* item = PauseItem();
-        char line[96];
-        if (item) snprintf(line, sizeof(line), "Paused. %s.", item);
-        else snprintf(line, sizeof(line), "Paused.");
-        // Not deduped against the last pause: pausing twice is two pauses.
+        AdapterNoteSpoken("");              // pausing twice is two pauses, not a repeat
+        Say("Paused.", "pause", Priority::Normal);
+    } else if (!paused && g_wasPaused && InFight()) {
         AdapterNoteSpoken("");
-        Say(line, "pause", Priority::Normal);
-    } else if (paused && cursor != g_lastCursor) {
-        if (const char* item = PauseItem()) {
-            char line[96];
-            snprintf(line, sizeof(line), "%s.", item);
-            Say(line, "pause", Priority::Normal);
-        }
+        Say("Resumed.", "pause", Priority::Normal);
     }
     g_wasPaused = paused;
-    g_lastCursor = cursor;
 }
 
 void ResetFight(void)
@@ -254,6 +485,8 @@ void ResetFight(void)
     g_own = HealthTrack{};
     g_foe = HealthTrack{};
     g_side = 0; g_sideCandidate = 0; g_sideFrames = 0;
+    g_fightFrames = 0; g_fightAnnounced = false;
+    g_winsPrimed = false; g_p1Wins = g_p2Wins = 0; g_koSeen = false;
 }
 
 void ResetAll(void)
@@ -262,19 +495,33 @@ void ResetAll(void)
     g_pendFoeBeep = g_pendOwnBeep = false;
     g_pendFoeHz = g_pendOwnHz = 0.0f;
     g_wasPaused = false;
-    g_lastCursor = -1;
+    g_screen = g_prevScreen = g_candidate = kMktScreenOther;
+    g_candidateFrames = 0; g_menuCursor = -1; g_difficulty = -1; g_konfigureReal = false;
 }
 
 void OnFrame(void)
 {
     if (!g_host) return;
+    TrackScreen();
     TrackPause();
     if (!InFight()) { ResetFight(); return; }
     if (Paused()) return;                  // nothing moves under a pause; keep the latches
+    TrackRound();
     if (HasHealth()) {
         float own, foe;
-        if (HealthFrac(g_map->p1_health_addr, &own)) TrackSide(g_own, own, false);
-        if (HealthFrac(g_map->p2_health_addr, &foe)) TrackSide(g_foe, foe, true);
+        bool haveOwn = HealthFrac(g_map->p1_health_addr, &own);
+        bool haveFoe = HealthFrac(g_map->p2_health_addr, &foe);
+        // A refill after a KO is a new round: say which one (the wins have already moved).
+        if (haveOwn && haveFoe && g_fightAnnounced) {
+            if (own <= 0.0f || foe <= 0.0f) g_koSeen = true;
+            else if (g_koSeen && own >= 0.99f && foe >= 0.99f) {
+                g_koSeen = false;
+                bool matchOver = g_p1Wins >= kRoundsToWin || g_p2Wins >= kRoundsToWin;
+                if (!matchOver) AnnounceRound();
+            }
+        }
+        if (haveOwn) TrackSide(g_own, own, false);
+        if (haveFoe) TrackSide(g_foe, foe, true);
     }
     TrackSideSwitch();
 }
@@ -328,8 +575,9 @@ const char* GapWords(int32_t gap)
 bool FightLine(char* out, size_t cap)
 {
     if (!InFight()) return false;
-    char hp[96] = "", pos[64] = "";
+    char hp[96] = "", pos[64] = "", rd[24] = "";
     float own, foe;
+    if (HasWins()) snprintf(rd, sizeof(rd), "Round %d. ", Wins(g_map->p1_wins_addr) + Wins(g_map->p2_wins_addr) + 1);
     if (HasHealth() && HealthFrac(g_map->p1_health_addr, &own) &&
         HealthFrac(g_map->p2_health_addr, &foe))
         snprintf(hp, sizeof(hp), "Your health %d percent, foe %d percent.", Pct(own), Pct(foe));
@@ -338,48 +586,55 @@ bool FightLine(char* out, size_t cap)
         snprintf(pos, sizeof(pos), "%sFoe %s%s.", hp[0] ? " " : "",
                  side > 0 ? "on your right, " : (side < 0 ? "on your left, " : ""), GapWords(gap));
     if (!hp[0] && !pos[0]) return false;
-    snprintf(out, cap, "%s%s", hp, pos);
+    snprintf(out, cap, "%s%s%s", rd, hp, pos);
+    return true;
+}
+
+/// Where the player is, as a sentence, when not in a fight.
+bool MenuLine(char* out, size_t cap)
+{
+    int s = ScreenNow();
+    const char* title = ScreenTitle(s);
+    if (!title) return false;
+    // The settled screen decides Konfigure: its rows are only trusted after the options hub.
+    if (s == kMktScreenKonfigure && g_screen != kMktScreenKonfigure) return false;
+    char buf[64]; int c;
+    const char* w = MenuWords(s, buf, sizeof(buf), &c);
+    if (w) snprintf(out, cap, "%s. %s.", title, w);
+    else   snprintf(out, cap, "%s.", title);
     return true;
 }
 
 void CmdWhereAmI(void)
 {
-    char line[192];
-    if (Paused()) {
-        const char* item = PauseItem();
-        if (item) snprintf(line, sizeof(line), "Paused. %s.", item);
-        else snprintf(line, sizeof(line), "Paused.");
-        Say(line, "whereami", Priority::High);
-        return;
-    }
+    char line[224];
+    if (Paused() && InFight()) { Say("Paused.", "whereami", Priority::High); return; }
     if (FightLine(line, sizeof(line))) { Say(line, "whereami", Priority::High); return; }
+    if (MenuLine(line, sizeof(line))) { Say(line, "whereami", Priority::High); return; }
     if (!AnythingMapped()) { CmdNotMapped(); return; }
-    Say(InFight() ? "In a fight." : "Not in a fight.", "whereami", Priority::High);
+    Say(InFight() ? "In a fight." : "Not in a fight or a menu I know.", "whereami", Priority::High);
 }
 
 void CmdStatus(void)
 {
-    char line[192];
+    char line[224];
     if (FightLine(line, sizeof(line))) { Say(line, "status", Priority::High); return; }
+    if (MenuLine(line, sizeof(line))) { Say(line, "status", Priority::High); return; }
     if (!HasHealth()) { CmdNotMapped(); return; }
     Say("Not in a fight.", "status", Priority::High);
 }
 
 void CmdMenuState(void)
 {
-    if (!HasPause()) { CmdNotMapped(); return; }
-    if (!Paused()) { Say("Not paused.", "pause", Priority::High); return; }
-    char line[96];
-    const char* item = PauseItem();
-    if (item) snprintf(line, sizeof(line), "Paused. %s.", item);
-    else snprintf(line, sizeof(line), "Paused.");
-    Say(line, "pause", Priority::High);
+    char line[160];
+    if (InFight()) { Say(Paused() ? "Paused." : "Not paused.", "pause", Priority::High); return; }
+    if (MenuLine(line, sizeof(line))) { Say(line, "menu", Priority::High); return; }
+    if (!AnythingMapped()) { CmdNotMapped(); return; }
+    Say("No menu I know is open.", "menu", Priority::High);
 }
 
 // The anchor words, in the game's own spelling as the fighter roster and menus print them.
-// Matched case-blind, because a menu may store "Paused" where the screen shows PAUSED. A hit
-// is a CANDIDATE text buffer, never a proven menu: it is confirmed against the screen before
-// anything speaks from it.
+// Matched case-blind. A hit is a CANDIDATE text buffer for further mapping, never a proven menu.
 const char* const kAnchors[] = {
     "SCORPION", "SUB-ZERO", "LIU KANG", "SHAO KAHN", "SONYA", "RAIDEN", "KITANA",
     "PAUSE", "OPTIONS", "ARCADE", "VERSUS", "CONTINUE", "QUIT", "KOMBAT", "RESUME",
@@ -397,31 +652,33 @@ bool MatchAt(uint32_t addr, const char* anchor)
     return true;
 }
 
-// Published GameShark health codes (NTSC-U). Two pressings of this disc share the serial and
-// disagree, so both sets are logged. UNCONFIRMED: a candidate is a place to look, not an
-// address this adapter reads for a feature.
-struct Candidate { const char* label; uint32_t addr; };
-const Candidate kCandidates[] = {
-    { "P1 health (v1.0 code)", 0x8003219E },
-    { "P2 health (v1.0 code)", 0x80032316 },
-    { "P1 health (v1.1 code)", 0x80032146 },
-};
-
 void CmdDump(void)
 {
     char line[200];
     snprintf(line, sizeof(line),
              "[mkt] Mortal Kombat Trilogy (SLUS00330) dump, main RAM 0x%08X-0x%08X", kRamBase, kRamEnd);
     Log(line);
-    snprintf(line, sizeof(line), "[mkt] map: fight %s, health %s, position %s, pause %s, pause rows %s",
-             HasFight() ? "on" : "unmapped", HasHealth() ? "on" : "unmapped",
-             HasPos() ? "on" : "unmapped", HasPause() ? "on" : "unmapped",
-             HasCursor() ? "on" : "unmapped");
+    snprintf(line, sizeof(line), "[mkt] map: screens %s, fight %s, health %s, position %s, wins %s, pause %s",
+             HasScreens() ? "on" : "unmapped", HasFight() ? "on" : "unmapped",
+             HasHealth() ? "on" : "unmapped", HasPos() ? "on" : "unmapped",
+             HasWins() ? "on" : "unmapped", HasPause() ? "on" : "unmapped");
     Log(line);
-    for (const Candidate& c : kCandidates) {
-        uint16_t v = u16(c.addr);
-        snprintf(line, sizeof(line), "[mkt] candidate %s @ 0x%08X = 0x%04X (%u), unconfirmed",
-                 c.label, c.addr, v, v);
+    if (HasScreens()) {
+        snprintf(line, sizeof(line), "[mkt] screen id %u/%u (settled screen %d), fight flag %u, pause flag %u",
+                 u8(g_map->screen_a_addr), u8(g_map->screen_b_addr), g_screen,
+                 HasFight() ? u8(g_map->fight_addr) : 0u, HasPause() ? u8(g_map->pause_addr) : 0u);
+        Log(line);
+    }
+    if (HasHealth()) {
+        snprintf(line, sizeof(line), "[mkt] health: you %u, foe %u (full %u)",
+                 u16(g_map->p1_health_addr), u16(g_map->p2_health_addr), g_map->health_full);
+        Log(line);
+    }
+    if (HasPos()) {
+        int32_t x1 = 0, x2 = 0;
+        bool ok1 = ReadX(g_map->p1_obj_ptr_addr, &x1), ok2 = ReadX(g_map->p2_obj_ptr_addr, &x2);
+        snprintf(line, sizeof(line), "[mkt] x: you %s%d, foe %s%d", ok1 ? "" : "(no object) ", x1,
+                 ok2 ? "" : "(no object) ", x2);
         Log(line);
     }
 
@@ -483,13 +740,13 @@ static void mkt_command(Command cmd)
         case Command::NextEnemy:
         case Command::PrevEnemy:
         case Command::NextUnactedAlly: CmdNotMapped(); break;
-        // Menu echoes and the OSK family are ignored silently (adapter.h): the pause menu is
-        // read from its own cursor as it moves, not from the pad.
+        // Menu echoes and the OSK family are ignored silently (adapter.h): the menus are read
+        // from their own cursors as they move, not from the pad.
         default: break;
     }
 }
 
-// Ready from the first frame: Where Am I and the dump answer honestly in any screen, and the
+// Ready from the first frame: Where Am I and the dump answer honestly on any screen, and the
 // cues gate themselves on their own map fields.
 static bool mkt_ready(void) { return g_host != nullptr; }
 
@@ -507,14 +764,19 @@ const Adapter kMortalKombatTrilogy = {
     mkt_ready,
     mkt_detach,
     CueSnapshotFn,
-    "Started: a memory scan for mapping; fight cues and the pause menu arrive as they are measured",
-    "This reader is new. Its memory map is being measured, so for now the Where Am I key says "
-    "Not mapped yet, and the Dump key writes a memory scan to the reading log for the mapping "
-    "work.\n"
-    "Coming as each address is confirmed: a beep on every hit with its pitch showing the health "
-    "left (the foe on the right, you on the left) and the percent spoken at 75, 50, 25 and "
-    "nearly gone; a closeness sound whose pace shows how far apart the fighters are; a short "
-    "line when the foe crosses to your other side; and the pause menu read aloud, row by row.\n"
+    "Reads the menus, character select, the pause, and the fight: health beeps, closeness, rounds",
+    "Menus: the main menu's four boxes, the options icons, the rows of Game Konfigure with the "
+    "difficulty, and the fighter under the cursor on character select, each said as the "
+    "highlight moves.\n"
+    "Fights: the round and who is fighting; a beep on every hit with its pitch showing the "
+    "health left (the foe on the right, you on the left) and the percent spoken at 75, 50, 25 "
+    "and nearly gone; a closeness sound whose pace shows how far apart the fighters are; a "
+    "short line when the foe crosses to your other side; who won each round and the match; "
+    "Paused and Resumed.\n"
+    "Not yet read: the round timer, the pause menu's Continue and Quit rows, the other "
+    "Konfigure settings' values, and the second player's cursor. Where Am I says the screen "
+    "and, in a fight, the round, both health bars and where the foe is. Dump writes a memory "
+    "scan to the reading log.\n"
     "Supported version: Mortal Kombat Trilogy, USA (SLUS-00330).",
 };
 

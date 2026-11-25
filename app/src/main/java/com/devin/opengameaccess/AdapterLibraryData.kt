@@ -123,10 +123,10 @@ object AdapterLibraryData {
             id = "mkt",
             name = "Mortal Kombat Trilogy",
             code = "SLUS00330",
-            coverage = "Started: a memory scan for mapping; fight cues and the pause menu arrive as they are measured",
-            notes = "This reader is new. Its memory map is being measured, so for now the Where Am I key says Not mapped yet, and the Dump key writes a memory scan to the reading log for the mapping work.\nComing as each address is confirmed: a beep on every hit with its pitch showing the health left (the foe on the right, you on the left) and the percent spoken at 75, 50, 25 and nearly gone; a closeness sound whose pace shows how far apart the fighters are; a short line when the foe crosses to your other side; and the pause menu read aloud, row by row.\nSupported version: Mortal Kombat Trilogy, USA (SLUS-00330).",
+            coverage = "Reads the menus, character select, the pause, and the fight: health beeps, closeness, rounds",
+            notes = "Menus: the main menu's four boxes, the options icons, the rows of Game Konfigure with the difficulty, and the fighter under the cursor on character select, each said as the highlight moves.\nFights: the round and who is fighting; a beep on every hit with its pitch showing the health left (the foe on the right, you on the left) and the percent spoken at 75, 50, 25 and nearly gone; a closeness sound whose pace shows how far apart the fighters are; a short line when the foe crosses to your other side; who won each round and the match; Paused and Resumed.\nNot yet read: the round timer, the pause menu's Continue and Quit rows, the other Konfigure settings' values, and the second player's cursor. Where Am I says the screen and, in a fight, the round, both health bars and where the foe is. Dump writes a memory scan to the reading log.\nSupported version: Mortal Kombat Trilogy, USA (SLUS-00330).",
             console = "ps1",
-            commands = listOf(),
+            commands = listOf(0, 7, 40, 6),
         ),
     )
 }

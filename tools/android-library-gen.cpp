@@ -132,6 +132,8 @@ static const int kSupportedKhbbs[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(DumpState)};
 static const int kSupportedMku[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(Guide), CMD(DumpState)};
+static const int kSupportedMkt[] = {CMD(WhereAmI), CMD(MenuState),
+    CMD(Status), CMD(DumpState)};
 static const int kSupportedDissidia012[] = {CMD(WhereAmI), CMD(MenuState)};
 static const int kSupportedDbzar[] = {CMD(WhereAmI), CMD(Status),
     CMD(DumpState)};
@@ -143,6 +145,7 @@ static const SupportedRow kSupported[] = {
     {"dissidia", kSupportedDissidia, 9},
     {"khbbs", kSupportedKhbbs, 8},
     {"mku", kSupportedMku, 4},
+    {"mkt", kSupportedMkt, 4},
     {"dissidia012", kSupportedDissidia012, 2},
     {"dbzar", kSupportedDbzar, 3},
 };

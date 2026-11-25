@@ -40,7 +40,7 @@ app-layer shape, as `AdapterCommand.supported`).
 
 | Setting | What it is | Global default | Games |
 |---|---|---|---|
-| Battle cue sounds (`battle_cues`) | The whole cue family: lock-on/field beacon, health hit beeps, gauge-full earcons. Gates the app-side synth only; the adapter computes the same either way. | OFF | dissidia, dbzar, mku, khbbs — exactly the adapters with a non-null `cue_snapshot` in Core |
+| Battle cue sounds (`battle_cues`) | The whole cue family: lock-on/field beacon, health hit beeps, gauge-full earcons. Gates the app-side synth only; the adapter computes the same either way. | OFF | dissidia, dbzar, mku, mkt, khbbs — exactly the adapters with a non-null `cue_snapshot` in Core |
 | Gauge-full cues (`hud_gauge_cues_sound`) | Birth by Sleep's HUD gauge-full moments: sound (earcon) vs the adapter's spoken lines ("Focus full." / "D-Link ready."). The decision-C split from the sound-first pass. | sounds (ON) | khbbs only — the seam is that adapter's own setter, `oga::KhbbsHudGaugeCues(bool)` |
 
 No other per-game-meaningful toggle existed in the codebase when this

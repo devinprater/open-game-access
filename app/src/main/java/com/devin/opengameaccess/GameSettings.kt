@@ -54,13 +54,13 @@ object GameSettings {
      * registry id, kept by hand in the app layer — the same precedent
      * as iOS's AdapterCommand.supported table: what each reader REALLY
      * does today. BATTLE_CUES belongs to exactly the adapters that fill
-     * a cue snapshot in Core (dissidia, dbzar, mku, khbbs);
+     * a cue snapshot in Core (dissidia, dbzar, mku, mkt, khbbs);
      * HUD_GAUGE_CUES belongs to khbbs alone — the seam is that
      * adapter's own setter (oga::KhbbsHudGaugeCues).
      */
     fun supportedSettings(gameId: String): List<Setting> = when (gameId) {
         ID_KHBBS -> listOf(Setting.BATTLE_CUES, Setting.HUD_GAUGE_CUES)
-        "dissidia", "dbzar", "mku" -> listOf(Setting.BATTLE_CUES)
+        "dissidia", "dbzar", "mku", "mkt" -> listOf(Setting.BATTLE_CUES)
         else -> emptyList()
     }
 
