@@ -111,6 +111,10 @@ void OnSpeech(const char *text, bool interrupt, void * /*userdata*/) {
 PokeCore *g_core = nullptr;
 std::string g_game_code;
 std::string g_last_error;
+// The in-game debug channel's folder (docs/design/debug-channel.md):
+// cmd.txt in, replies.log out. Kept across loads and handed to every core
+// this file creates, the same as the Genesis surface.
+std::string g_debug_dir;
 long long g_frames = 0;
 std::mutex g_lifecycle_lock;
 
@@ -195,6 +199,7 @@ Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1LoadRom(
     return JNI_FALSE;
   }
   poke_set_log_callback(core, &CoreLog, nullptr);
+  poke_debug_set_dir(core, g_debug_dir.c_str());
   poke_set_speech_callback(core, &OnSpeech, nullptr);
   // No script to set: the PlayStation backend has no reader set (its ops
   // table's reader_set is null), so there is nothing to hand over —
@@ -406,6 +411,53 @@ Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1CopyFrame(
     env->SetIntArrayRegion(sizeOut, 0, 2, size);
   }
   return count;
+}
+
+// ---- the cue poll -----------------------------------------------------
+//
+// One snapshot per frame, packed into two scratch arrays the Kotlin side owns.
+// ints: [0] beacon state (poke_cue_snapshot: 0 silent, 1 battle no lock, 2 locked),
+// [1] one-shot health bitmask (poke_cue_health: 1 foe beep, 2 own beep).
+// floats: [0] lock distance, [1] foe hz, [2] foe pan, [3] own hz, [4] own pan.
+// Written even on a false return, so a refused poll reads as silence, never as
+// last frame's data. pokecore shares ONE per-frame snapshot between the two
+// calls, so asking both here loses no event.
+extern "C" JNIEXPORT jboolean JNICALL
+Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1CuePoll(
+    JNIEnv *env, jobject /*self*/, jintArray ints, jfloatArray floats) {
+  if (!ints || !floats) return JNI_FALSE;
+  if (env->GetArrayLength(ints) < 2 || env->GetArrayLength(floats) < 5) return JNI_FALSE;
+  PokeCore *core = g_core;
+  int state = 0, bits = 0;
+  float dist = 0.0f, foe_hz = 0.0f, foe_pan = 0.0f, own_hz = 0.0f, own_pan = 0.0f;
+  if (core) {
+    state = poke_cue_snapshot(core, &dist);
+    bits = poke_cue_health(core, &foe_hz, &foe_pan, &own_hz, &own_pan);
+  }
+  const jint iv[2] = {state, bits};
+  const jfloat fv[5] = {dist, foe_hz, foe_pan, own_hz, own_pan};
+  env->SetIntArrayRegion(ints, 0, 2, iv);
+  env->SetFloatArrayRegion(floats, 0, 5, fv);
+  return core ? JNI_TRUE : JNI_FALSE;
+}
+
+// ---- the debug channel ------------------------------------------------
+
+extern "C" JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1SetDebugDir(
+    JNIEnv *env, jobject /*self*/, jstring dir) {
+  std::lock_guard<std::mutex> lock(g_lifecycle_lock);
+  g_debug_dir = FromJString(env, dir);
+  if (g_core) poke_debug_set_dir(g_core, g_debug_dir.c_str());
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1DebugCommand(
+    JNIEnv *env, jobject /*self*/, jstring text) {
+  std::lock_guard<std::mutex> lock(g_lifecycle_lock);
+  if (!g_core) return;
+  const std::string t = FromJString(env, text);
+  poke_debug_command(g_core, t.c_str());
 }
 
 // ---- the adapter surface ----------------------------------------------

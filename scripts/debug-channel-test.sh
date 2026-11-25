@@ -27,6 +27,8 @@ SABOTAGES=(
   SABOTAGE_IGNORE_BUSY        # pad and wait stop holding the lines after them
   SABOTAGE_NO_NOISE_MUTE      # a frame counter floods the log (and the speech)
   SABOTAGE_KEEP_IDLE_HOOKS    # a finished trace or an uncount leaves its breakpoint armed
+  SABOTAGE_SEARCH_STALE_BASE  # search steps compare with the start, not the step before
+  SABOTAGE_SEARCH_NO_LIST     # a search with a few candidates left never names them
 )
 
 echo

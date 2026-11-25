@@ -1952,7 +1952,7 @@ fi
 #                 frontend (frontend/libretro.c), which the wrapper
 #                 drives in-process. One CPU path on every platform;
 #                 the dynarec is a later, Android-only build flag.
-#   oga-ps1-glue  Core/ps1_core.cpp (the wrapper) and Core/ps1_adapter.cpp
+#   oga-ps1-glue  Core/ps1_core.cpp (the wrapper) and Core/ps1_adapter.cpp Core/mkt_adapter.cpp
 #                 (the registry's console row), as C++, needing only
 #                 libretro.h from the tree.
 #
@@ -1995,7 +1995,7 @@ else
   echo "     PCSX ReARMed source copied (pinned $(git -C "$PCSX_SRC" rev-parse --short HEAD 2>/dev/null || echo unknown)); image check asserted"
 
   mkdir -p "$PS1_DIR/glue/pcsx" "$PS1_DIR/gen"
-  cp "$ROOT/Core/ps1_core.cpp" "$ROOT/Core/ps1_adapter.cpp" "$PS1_DIR/glue/"
+  cp "$ROOT/Core/ps1_core.cpp" "$ROOT/Core/ps1_adapter.cpp" "$ROOT/Core/mkt_adapter.cpp" "$PS1_DIR/glue/"
   cp "$ROOT"/Core/*.h "$PS1_DIR/glue/"
   cp "$ROOT/Core/pcsx/revision.h" "$PS1_DIR/glue/pcsx/revision.h"
   cp "$ROOT/scripts/ps1-prefix-symbols.py" "$PS1_DIR/gen/ps1-prefix-symbols.py"
@@ -2056,6 +2056,7 @@ else ()
     add_library(oga-ps1-glue STATIC
         ${CMAKE_CURRENT_SOURCE_DIR}/glue/ps1_core.cpp
         ${CMAKE_CURRENT_SOURCE_DIR}/glue/ps1_adapter.cpp
+        ${CMAKE_CURRENT_SOURCE_DIR}/glue/mkt_adapter.cpp
     )
     target_include_directories(oga-ps1-glue PRIVATE
         ${CMAKE_CURRENT_SOURCE_DIR}/glue

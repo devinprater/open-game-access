@@ -69,6 +69,8 @@ constexpr int kDebugDefaultPad   = 6;      // frames, the same order as a tap
 constexpr int kDebugNoisyFrames  = 30;     // a watch that changes this many frames running is muted
 constexpr int kDebugMaxTrace     = 200;
 constexpr int kDebugTraceArgs    = 4;
+constexpr uint32_t kDebugMaxSearchBytes = 0x200000;  // one search covers at most 2 MiB (all PS1 RAM)
+constexpr int kDebugSearchList   = 10;     // a search names its candidates once this few are left
 
 struct DebugChannel;
 
@@ -155,6 +157,10 @@ struct DebugChannel {
     std::vector<debug_detail::Watch> watches;
     std::vector<debug_detail::Hook> hooks;
     std::vector<uint32_t> finished;  // traces that ran out inside a hit; disarmed next frame
+    // `search`: every address still in the running, with the value it had at the last step.
+    int search_width = 0;            // 0 = no search under way
+    std::vector<uint32_t> search_addr;
+    std::vector<uint32_t> search_last;
 };
 
 namespace {
@@ -307,9 +313,14 @@ const char* kHelp[] = {
     "count ADDR [ADDR...]        count calls of code at ADDR; count dump; count reset",
     "uncount ADDR|all",
     "trace ADDR [N]              report the next N calls with their first arguments",
+    "search start ADDR LEN [WIDTH]  remember every value in a range, to narrow down",
+    "search eq|ne VALUE          keep the addresses that now equal (or differ from) VALUE",
+    "search changed|same         keep the ones that changed (or did not) since the last step",
+    "search up|down [N]          keep the ones that went up (down); by exactly N if given",
+    "search list [N]             name the candidates left; search clear ends the search",
     "status                      frame, pad, watches, hooks",
     "speak on|off                also speak replies and watch changes",
-    "clear                       drop queued lines, release the pad, remove watches and hooks",
+    "clear                       drop queued lines, release the pad, remove watches, hooks and the search",
 };
 
 Hook* FindHook(DebugChannel* ch, uint32_t addr)
@@ -566,6 +577,149 @@ void CmdTrace(DebugChannel* ch, const std::vector<std::string>& w)
     Out(ch, false, "tracing the next %u calls of 0x%08X", n, addr);
 }
 
+void SearchClear(DebugChannel* ch)
+{
+    ch->search_width = 0;
+    ch->search_addr.clear();
+    ch->search_addr.shrink_to_fit();
+    ch->search_last.clear();
+    ch->search_last.shrink_to_fit();
+}
+
+void SearchList(DebugChannel* ch, uint32_t n)
+{
+    const int w = ch->search_width;
+    size_t shown = std::min<size_t>(n, ch->search_addr.size());
+    for (size_t i = 0; i < shown; i++)
+        Out(ch, i == 0, "  0x%08X = 0x%0*X (%u)", ch->search_addr[i], w * 2, ch->search_last[i],
+            ch->search_last[i]);
+    if (shown < ch->search_addr.size())
+        Out(ch, false, "  and %d more", (int) (ch->search_addr.size() - shown));
+}
+
+/// After a narrowing step: how many are left, and, once few are, which.
+void SearchReport(DebugChannel* ch, const char* step)
+{
+    size_t n = ch->search_addr.size();
+    if (n == 0)
+    {
+        // Saying "0 left" and keeping an empty search would let the next step report
+        // "0 left" again with no hint why; end it so `search start` is the obvious next line.
+        Out(ch, true, "search %s: nothing left. The search is over; search start to begin again", step);
+        SearchClear(ch);
+        return;
+    }
+    Out(ch, true, "search %s: %d left", step, (int) n);
+#ifndef SABOTAGE_SEARCH_NO_LIST
+    if (n <= (size_t) kDebugSearchList) SearchList(ch, (uint32_t) n);
+#endif
+}
+
+void CmdSearch(DebugChannel* ch, const std::vector<std::string>& w)
+{
+    std::string sub = w.size() >= 2 ? Lower(w[1]) : "";
+    if (sub == "start")
+    {
+        uint32_t addr = 0, len = 0;
+        int width = 1;
+        if (w.size() < 4 || !ParseAddr(w[2], &addr) || !ParseNum(w[3], &len) || len == 0)
+        { Out(ch, true, "search start needs an address and a length"); return; }
+        if (w.size() >= 5 && !ParseWidth(w[4], &width)) { Out(ch, true, "search: width is 1, 2 or 4"); return; }
+        if (len > kDebugMaxSearchBytes)
+        { Out(ch, true, "search: at most 0x%X bytes at a time", kDebugMaxSearchBytes); return; }
+        if (!ch->host.read) { Out(ch, true, "search refused: this console has no read path"); return; }
+        SearchClear(ch);
+        // Aligned to the width, the way the console itself stores a halfword or a word.
+        uint32_t first = addr - (addr % (uint32_t) width);
+        uint64_t end = (uint64_t) addr + len;
+        for (uint64_t a = first; a + (uint64_t) width <= end; a += (uint64_t) width)
+        {
+            uint32_t v = 0;
+            if (!ch->host.read(ch->host.ctx, (uint32_t) a, width, &v)) continue;
+            ch->search_addr.push_back((uint32_t) a);
+            ch->search_last.push_back(v);
+        }
+        if (ch->search_addr.empty())
+        { Out(ch, true, "search refused: nothing readable from 0x%08X", addr); return; }
+        ch->search_width = width;
+        Out(ch, true, "search started: %d addresses of width %d from 0x%08X",
+            (int) ch->search_addr.size(), width, first);
+        return;
+    }
+    if (sub == "clear" || sub == "stop")
+    {
+        SearchClear(ch);
+        Out(ch, true, "search cleared");
+        return;
+    }
+    if (sub.empty()) { Out(ch, true, "search start, eq, ne, changed, same, up, down, list or clear"); return; }
+    if (!ch->search_width) { Out(ch, true, "search: no search under way; search start ADDR LEN first"); return; }
+    if (sub == "list")
+    {
+        uint32_t n = (uint32_t) kDebugSearchList * 2;
+        if (w.size() >= 3 && (!ParseNum(w[2], &n) || n == 0)) { Out(ch, true, "search list: N is a number"); return; }
+        if (n > (uint32_t) kDebugMaxPeek) n = kDebugMaxPeek;
+        Out(ch, true, "search: %d left", (int) ch->search_addr.size());
+        SearchList(ch, n);
+        return;
+    }
+
+    enum { kEq, kNe, kChanged, kSame, kUp, kDown } op;
+    if      (sub == "eq" || sub == "=")      op = kEq;
+    else if (sub == "ne" || sub == "!=")     op = kNe;
+    else if (sub == "changed")               op = kChanged;
+    else if (sub == "same" || sub == "unchanged") op = kSame;
+    else if (sub == "up" || sub == "inc")    op = kUp;
+    else if (sub == "down" || sub == "dec")  op = kDown;
+    else { Out(ch, true, "search: unknown step '%s'; try help", w[1].c_str()); return; }
+
+    const int width = ch->search_width;
+    const uint32_t mask = width == 4 ? 0xFFFFFFFFu : ((1u << (8 * width)) - 1);
+    uint32_t value = 0;
+    bool by = false;
+    if (op == kEq || op == kNe)
+    {
+        if (w.size() < 3 || !ParseNum(w[2], &value)) { Out(ch, true, "search %s needs a value", sub.c_str()); return; }
+        if (value & ~mask) { Out(ch, true, "search: 0x%X does not fit in %d bytes", value, width); return; }
+    }
+    else if ((op == kUp || op == kDown) && w.size() >= 3)
+    {
+        if (!ParseNum(w[2], &value) || value == 0 || (value & ~mask))
+        { Out(ch, true, "search %s: N is a number that fits in %d bytes", sub.c_str(), width); return; }
+        by = true;
+    }
+
+    size_t keep = 0;
+    for (size_t i = 0; i < ch->search_addr.size(); i++)
+    {
+        uint32_t now = 0;
+        // An address that stopped answering is out: it cannot be the one an adapter reads.
+        if (!ch->host.read(ch->host.ctx, ch->search_addr[i], width, &now)) continue;
+        uint32_t was = ch->search_last[i];
+        bool ok = false;
+        switch (op)
+        {
+        case kEq:      ok = now == value; break;
+        case kNe:      ok = now != value; break;
+        case kChanged: ok = now != was; break;
+        case kSame:    ok = now == was; break;
+        case kUp:      ok = by ? ((now - was) & mask) == value : now > was; break;
+        case kDown:    ok = by ? ((was - now) & mask) == value : now < was; break;
+        }
+        if (!ok) continue;
+        ch->search_addr[keep] = ch->search_addr[i];
+#ifndef SABOTAGE_SEARCH_STALE_BASE
+        ch->search_last[keep] = now;   // the next step compares with this one, not the start
+#else
+        ch->search_last[keep] = was;
+#endif
+        keep++;
+    }
+    ch->search_addr.resize(keep);
+    ch->search_last.resize(keep);
+    SearchReport(ch, sub.c_str());
+}
+
 void CmdStatus(DebugChannel* ch)
 {
     int counting = 0, tracing = 0;
@@ -574,6 +728,8 @@ void CmdStatus(DebugChannel* ch)
         (unsigned long long) ch->frame, ch->held ? ButtonList(ch->held).c_str() : "free",
         (int) ch->lines.size(), (int) ch->watches.size(), counting, tracing,
         ch->speak ? "on" : "off");
+    if (ch->search_width)
+        Out(ch, false, "  search: %d candidates of width %d", (int) ch->search_addr.size(), ch->search_width);
     for (const Watch& wt : ch->watches)
         Out(ch, false, "  watch 0x%08X width %d = 0x%0*X%s", wt.addr, wt.width, wt.width * 2,
             wt.last, wt.muted ? " (muted: changes every frame)" : "");
@@ -588,6 +744,7 @@ void ClearAll(DebugChannel* ch)
     ch->watches.clear();
     DisarmAll(ch);
     ch->finished.clear();
+    SearchClear(ch);
 }
 
 void RunLine(DebugChannel* ch, const std::string& raw)
@@ -607,6 +764,7 @@ void RunLine(DebugChannel* ch, const std::string& raw)
     else if (cmd == "count")                   CmdCount(ch, w);
     else if (cmd == "uncount")                 CmdUncount(ch, w);
     else if (cmd == "trace")                   CmdTrace(ch, w);
+    else if (cmd == "search" || cmd == "find") CmdSearch(ch, w);
     else if (cmd == "status")                  CmdStatus(ch);
     else if (cmd == "clear")                   { ClearAll(ch); Out(ch, true, "cleared"); }
     else if (cmd == "speak")

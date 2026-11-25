@@ -39,7 +39,7 @@ folder and go to the app's reading log with a `DBG` prefix.
 - **iOS:** `Documents/oga-debug/`. The Reading log screen also has a command field that runs
   the same commands without a file.
 - **Android:** `Android/data/<package>/files/oga-debug/` (reachable over USB or adb), for the
-  DS, NES, SNES and Genesis sessions.
+  DS, NES, SNES, Genesis and PlayStation sessions.
 
 A file is a list of lines, run in order. `wait` and `pad` hold the lines after them, so a
 file can walk a menu:
@@ -63,6 +63,9 @@ peek 0x0202A6C4 1
 | `wait FRAMES\|MSms` | Hold the lines after it |
 | `count ADDR…` / `count dump` / `count reset` / `uncount` | Count calls of the code at ADDR |
 | `trace ADDR [N]` | Report the next N calls with their first four arguments |
+| `search start ADDR LEN [WIDTH]` | Remember every aligned value in a range (2 MiB at most) to narrow down |
+| `search eq\|ne VALUE`, `search changed\|same`, `search up\|down [N]` | Keep the candidates that match, compared with the step before; names them once 10 or fewer are left |
+| `search list [N]`, `search clear` | Name what is left; end the search (`clear` and a reset end it too) |
 | `status`, `clear`, `help` | Where things stand; drop everything; the list |
 | `speak on\|off` | Also speak replies through the announcement queue (off by default) |
 
@@ -79,7 +82,7 @@ Addresses are always hex (`0x`, `$` or bare). Values and counts are decimal unle
 | SNES (pokecore) | yes | yes | no |
 | Genesis (pokecore) | yes | no | no |
 | PSP (pokecore, iOS) | yes | yes | no |
-| PlayStation (pokecore) | yes | no | no |
+| PlayStation (pokecore, iOS and Android) | yes | no | no |
 
 Game Boy and PSP on Android run their own hosts, not pokecore, so they have no channel yet.
 

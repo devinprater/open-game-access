@@ -367,6 +367,12 @@ enum AdapterCommand: Int32, CaseIterable {
             // are not mapped.
             return [.whereAmI, .menuState, .guide, .dumpState]
 
+        case "mkt":
+            // Mortal Kombat Trilogy (PlayStation). Menus, character select and the fight
+            // (round, health, closeness, pause) speak automatically; Where Am I, the menu
+            // status and the status line are the on-demand reads. Nothing to cycle.
+            return [.whereAmI, .menuState, .status, .dumpState]
+
         case "dbzar":
             // Dragon Ball Z: Shin Budokai — Another Road. Where Am I and the
             // debug dump are real, and Status reads the field summary

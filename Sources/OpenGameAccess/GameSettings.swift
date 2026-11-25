@@ -71,13 +71,13 @@ enum GameSettings {
     ///
     /// battleCues belongs to exactly the adapters that fill a
     /// CueSnapshot (a non-null cue_snapshot in Core): dissidia, dbzar,
-    /// mku, khbbs. hudGaugeCues belongs to khbbs alone — the seam is
+    /// mku, mkt, khbbs. hudGaugeCues belongs to khbbs alone — the seam is
     /// that adapter's own setter (oga::KhbbsHudGaugeCues).
     static func supportedSettings(forGameID gameID: String) -> [Setting] {
         switch gameID {
         case "khbbs":
             return [.battleCues, .hudGaugeCues]
-        case "dissidia", "dbzar", "mku":
+        case "dissidia", "dbzar", "mku", "mkt":
             return [.battleCues]
         default:
             return []

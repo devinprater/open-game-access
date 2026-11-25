@@ -95,6 +95,11 @@ static const char* LibraryConsole(const oga::Adapter* a)
     if (strcmp(a->id, "n64") == 0) return "n64";
     if (strcmp(a->id, "genesis") == 0) return "genesis";
     if (strcmp(a->id, "ps1") == 0) return "ps1";
+    // A PlayStation game reader registers its disc serial (four letters, five digits).
+    if (a->game_code && strlen(a->game_code) == 9 &&
+        (strncmp(a->game_code, "SLUS", 4) == 0 || strncmp(a->game_code, "SCUS", 4) == 0 ||
+         strncmp(a->game_code, "SLES", 4) == 0 || strncmp(a->game_code, "SCES", 4) == 0))
+        return "ps1";
     if (a->game_code && strncmp(a->game_code, "crc:", 4) == 0) return "snes";
     if (a->game_code && strncmp(a->game_code, "ULUS", 4) == 0) return "psp";
     if (a->game_code && strlen(a->game_code) == 4) return "nds";
@@ -127,6 +132,8 @@ static const int kSupportedKhbbs[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(DumpState)};
 static const int kSupportedMku[] = {CMD(WhereAmI), CMD(MenuState),
     CMD(Guide), CMD(DumpState)};
+static const int kSupportedMkt[] = {CMD(WhereAmI), CMD(MenuState),
+    CMD(Status), CMD(DumpState)};
 static const int kSupportedDissidia012[] = {CMD(WhereAmI), CMD(MenuState)};
 static const int kSupportedDbzar[] = {CMD(WhereAmI), CMD(Status),
     CMD(DumpState)};
@@ -138,6 +145,7 @@ static const SupportedRow kSupported[] = {
     {"dissidia", kSupportedDissidia, 9},
     {"khbbs", kSupportedKhbbs, 8},
     {"mku", kSupportedMku, 4},
+    {"mkt", kSupportedMkt, 4},
     {"dissidia012", kSupportedDissidia012, 2},
     {"dbzar", kSupportedDbzar, 3},
 };

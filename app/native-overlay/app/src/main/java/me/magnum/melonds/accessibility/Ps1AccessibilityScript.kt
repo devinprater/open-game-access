@@ -80,6 +80,9 @@ object Ps1AccessibilityScript
     private external fun nativePs1AdapterName(): String
     private external fun nativePs1AdapterReady(): Boolean
     private external fun nativePs1AdapterCommand(command: Int): Boolean
+    private external fun nativePs1CuePoll(ints: IntArray, floats: FloatArray): Boolean
+    private external fun nativePs1SetDebugDir(dir: String)
+    private external fun nativePs1DebugCommand(text: String)
     private external fun nativePs1SetAnalog(stick: Int, x: Float, y: Float)
     private external fun nativePs1FrameRate(): Double
     private external fun nativePs1HeaderIsPs1(header: ByteArray, length: Int): Boolean
@@ -259,4 +262,48 @@ object Ps1AccessibilityScript
      * can ask the same question every other session asks.
      */
     fun adapterCommand(command: Int): Boolean = nativePs1AdapterCommand(command)
+
+    /** One frame's reader cues: the beacon state and distance, and the one-shot hit beeps. */
+    data class CuePoll(
+        val state: Int,
+        val dist: Float,
+        val healthBits: Int,
+        val foeHz: Float,
+        val foePan: Float,
+        val ownHz: Float,
+        val ownPan: Float,
+    )
+
+    private val cueInts = IntArray(2)
+    private val cueFloats = FloatArray(5)
+
+    /**
+     * Polls the cue snapshot for this frame, or null when there is nothing to cue (no core, no
+     * reader attached yet) - null is silence, never an error. Call once per frame, after the
+     * frame has run, from the frame thread only: the native side takes one snapshot per call and
+     * the adapter consumes its one-frame events into it.
+     */
+    fun cuePoll(): CuePoll?
+    {
+        if (!nativePs1CuePoll(cueInts, cueFloats)) return null
+        return CuePoll(
+            state = cueInts[0],
+            dist = cueFloats[0],
+            healthBits = cueInts[1],
+            foeHz = cueFloats[1],
+            foePan = cueFloats[2],
+            ownHz = cueFloats[3],
+            ownPan = cueFloats[4],
+        )
+    }
+
+    /**
+     * The in-game debug channel's folder (docs/design/debug-channel.md): a cmd.txt saved
+     * there runs against the live game, and the replies land in replies.log beside it.
+     * Kept across loads and applied to every core created after it; "" turns the file off.
+     */
+    fun setDebugDir(dir: String) { nativePs1SetDebugDir(dir) }
+
+    /** The same commands without the file; runs on the next frame. */
+    fun debugCommand(text: String) { nativePs1DebugCommand(text) }
 }

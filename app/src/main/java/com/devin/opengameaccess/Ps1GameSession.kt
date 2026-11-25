@@ -303,6 +303,30 @@ object Ps1GameSession {
         worker.start()
     }
 
+    /**
+     * One frame of reader cues, driven into [PspCueSynth] the way the PSP session does: the beacon
+     * (the closeness sound) and the one-shot hit beeps, gated by the game's effective battle-cues
+     * value (its Per Game Settings override, else the Settings switch). A null poll (no reader, or
+     * not attached yet) silences everything: a cue must never outlive the state that fed it. The
+     * poll is made here and nowhere else, because the adapter raises each beep exactly once.
+     */
+    private fun pollCues() {
+        val poll = try {
+            Ps1AccessibilityScript.cuePoll()
+        } catch (t: Throwable) {
+            null
+        }
+        if (poll == null) {
+            PspCueSynth.silenceAll()
+            return
+        }
+        val ctx = appContext
+        val on = ctx != null && GameSettings.effectiveBattleCues(ctx, selectedAdapterId)
+        PspCueSynth.silenceFieldBeacon()
+        PspCueSynth.updateBeacon(poll.state, poll.dist, on)
+        PspCueSynth.updateOneShots(poll.healthBits, poll.foeHz, poll.foePan, poll.ownHz, poll.ownPan, on)
+    }
+
     /** The worker-thread half of [start]: resolve, load, start. */
     private fun loadOnWorker(context: Context, uri: Uri, gen: Int): String? {
         val romPath = Ps1RomResolver.resolve(context, uri)
@@ -323,6 +347,14 @@ object Ps1GameSession {
         // counterpart here.)
         synchronized(loadLock) {
             if (gen != generation) return LOAD_SUPERSEDED
+            // The debug channel's folder goes in before the load, so the new core reads
+            // cmd.txt from its first frame. Never fatal: a missing folder only means no
+            // file-driven commands.
+            try {
+                Ps1AccessibilityScript.setDebugDir(DebugChannel.dir(context))
+            } catch (t: Throwable) {
+                Log.w(TAG, "debug channel folder not set", t)
+            }
             val loaded = try {
                 Ps1AccessibilityScript.loadRom(romPath, savePath)
             } catch (t: Throwable) {
@@ -375,6 +407,8 @@ object Ps1GameSession {
         selectedAdapterId = ""
         selectedAdapterName = ""
         audioEnabledApplied = null
+        // A tone left running would outlive the game that fed it.
+        PspCueSynth.silenceAll()
         stopAudio()
         // Under the load lock: a load in its native half finishes (or
         // is superseded by the generation bump above) before the
@@ -433,6 +467,8 @@ object Ps1GameSession {
                 }
             }
         }
+        // The reader's cues, once per frame, after the frame ran (see pollCues).
+        pollCues()
         // A frame has now sampled whatever is held: count the tap
         // releases against it (see the frame-counted releases note).
         tickPendingReleases()
@@ -704,9 +740,9 @@ object Ps1GameSession {
                 0
             }
             if (frames > 0) {
-                // No cue mix, deliberately: PspCueSynth is fed by
-                // reader adapters, and PlayStation has none — this drain
-                // carries the game alone (see the class doc).
+                // The cue synth mixes into the game's audio here, at the drain, the one
+                // output path (see PspCueSynth). Silent unless a frame poll armed a voice.
+                PspCueSynth.render(buffer, frames)
                 track.write(buffer, 0, frames * 2, AudioTrack.WRITE_BLOCKING)
                 audioFramesWritten += frames
             } else {
