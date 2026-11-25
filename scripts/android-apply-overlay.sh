@@ -287,6 +287,41 @@ PY
 fi
 
 # ---------------------------------------------------------------------------
+# 6b. Legacy jniLibs packaging: the native libraries must be EXTRACTED
+#     at install. The PlayStation 2 wrapper finds its cores by scanning
+#     the app's native library directory and dlopen()ing a file in it
+#     (Core/ps2_core.cpp's PickCore); with AGP's default packaging
+#     (extractNativeLibs=false) the .so files never leave the APK, the
+#     scan finds nothing, and every PS2 load fails with "No PlayStation
+#     2 core library was found in the cores folder" -- the failure the
+#     first in-app proof run hit. Legacy packaging is what every
+#     dlopen-a-core frontend does; the cost is install size.
+# ---------------------------------------------------------------------------
+say "packaging the native libraries for extraction at install"
+if grep -q 'useLegacyPackaging' "$GRADLE"; then
+  echo "   already set; nothing to do"
+else
+  python3 - "$GRADLE" <<'PY'
+import sys, re
+p = sys.argv[1]
+s = open(p, encoding="utf-8").read()
+m = re.search(r'^android \{\n', s, re.M)
+if not m:
+    print("   !! no android block found"); sys.exit(1)
+ins = ('    // Open Game Access: the PlayStation 2 wrapper dlopen()s its\n'
+       '    // cores out of the native library directory, so the libraries\n'
+       '    // must be extracted at install, not mapped from the APK.\n'
+       '    packaging {\n'
+       '        jniLibs {\n'
+       '            useLegacyPackaging = true\n'
+       '        }\n'
+       '    }\n')
+open(p, "w", encoding="utf-8").write(s[:m.end()] + ins + s[m.end():])
+print("   set useLegacyPackaging = true")
+PY
+fi
+
+# ---------------------------------------------------------------------------
 # 7. The GBA/Game Boy native path.
 #
 # ⛔ THIS SECTION FIXES A REAL OMISSION. The overlay has always copied
