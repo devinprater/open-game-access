@@ -80,6 +80,8 @@ object Ps1AccessibilityScript
     private external fun nativePs1AdapterName(): String
     private external fun nativePs1AdapterReady(): Boolean
     private external fun nativePs1AdapterCommand(command: Int): Boolean
+    private external fun nativePs1SetDebugDir(dir: String)
+    private external fun nativePs1DebugCommand(text: String)
     private external fun nativePs1SetAnalog(stick: Int, x: Float, y: Float)
     private external fun nativePs1FrameRate(): Double
     private external fun nativePs1HeaderIsPs1(header: ByteArray, length: Int): Boolean
@@ -259,4 +261,14 @@ object Ps1AccessibilityScript
      * can ask the same question every other session asks.
      */
     fun adapterCommand(command: Int): Boolean = nativePs1AdapterCommand(command)
+
+    /**
+     * The in-game debug channel's folder (docs/design/debug-channel.md): a cmd.txt saved
+     * there runs against the live game, and the replies land in replies.log beside it.
+     * Kept across loads and applied to every core created after it; "" turns the file off.
+     */
+    fun setDebugDir(dir: String) { nativePs1SetDebugDir(dir) }
+
+    /** The same commands without the file; runs on the next frame. */
+    fun debugCommand(text: String) { nativePs1DebugCommand(text) }
 }

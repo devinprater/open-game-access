@@ -39,7 +39,7 @@ folder and go to the app's reading log with a `DBG` prefix.
 - **iOS:** `Documents/oga-debug/`. The Reading log screen also has a command field that runs
   the same commands without a file.
 - **Android:** `Android/data/<package>/files/oga-debug/` (reachable over USB or adb), for the
-  DS, NES, SNES and Genesis sessions.
+  DS, NES, SNES, Genesis and PlayStation sessions.
 
 A file is a list of lines, run in order. `wait` and `pad` hold the lines after them, so a
 file can walk a menu:
@@ -82,7 +82,7 @@ Addresses are always hex (`0x`, `$` or bare). Values and counts are decimal unle
 | SNES (pokecore) | yes | yes | no |
 | Genesis (pokecore) | yes | no | no |
 | PSP (pokecore, iOS) | yes | yes | no |
-| PlayStation (pokecore) | yes | no | no |
+| PlayStation (pokecore, iOS and Android) | yes | no | no |
 
 Game Boy and PSP on Android run their own hosts, not pokecore, so they have no channel yet.
 

@@ -111,6 +111,10 @@ void OnSpeech(const char *text, bool interrupt, void * /*userdata*/) {
 PokeCore *g_core = nullptr;
 std::string g_game_code;
 std::string g_last_error;
+// The in-game debug channel's folder (docs/design/debug-channel.md):
+// cmd.txt in, replies.log out. Kept across loads and handed to every core
+// this file creates, the same as the Genesis surface.
+std::string g_debug_dir;
 long long g_frames = 0;
 std::mutex g_lifecycle_lock;
 
@@ -195,6 +199,7 @@ Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1LoadRom(
     return JNI_FALSE;
   }
   poke_set_log_callback(core, &CoreLog, nullptr);
+  poke_debug_set_dir(core, g_debug_dir.c_str());
   poke_set_speech_callback(core, &OnSpeech, nullptr);
   // No script to set: the PlayStation backend has no reader set (its ops
   // table's reader_set is null), so there is nothing to hand over —
@@ -406,6 +411,25 @@ Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1CopyFrame(
     env->SetIntArrayRegion(sizeOut, 0, 2, size);
   }
   return count;
+}
+
+// ---- the debug channel ------------------------------------------------
+
+extern "C" JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1SetDebugDir(
+    JNIEnv *env, jobject /*self*/, jstring dir) {
+  std::lock_guard<std::mutex> lock(g_lifecycle_lock);
+  g_debug_dir = FromJString(env, dir);
+  if (g_core) poke_debug_set_dir(g_core, g_debug_dir.c_str());
+}
+
+extern "C" JNIEXPORT void JNICALL
+Java_me_magnum_melonds_accessibility_Ps1AccessibilityScript_nativePs1DebugCommand(
+    JNIEnv *env, jobject /*self*/, jstring text) {
+  std::lock_guard<std::mutex> lock(g_lifecycle_lock);
+  if (!g_core) return;
+  const std::string t = FromJString(env, text);
+  poke_debug_command(g_core, t.c_str());
 }
 
 // ---- the adapter surface ----------------------------------------------
