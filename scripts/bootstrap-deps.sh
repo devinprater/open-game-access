@@ -257,9 +257,27 @@ ps2_fetch() { # url destdir filename sha256
     return 0
   fi
   echo "   downloading $3"
-  curl -fSL -o "$2/$3.dl" "$1" || { echo "   !! download failed: $1" >&2; exit 1; }
-  echo "$4  $2/$3.dl" | sha256sum -c - >/dev/null || {
-    echo "   !! sha256 mismatch for $3 -- refusing the artifact" >&2; exit 1; }
+  # The pins hash files at the buildbot's nightly "latest" URLs, which are
+  # replaced every night, so a pin goes stale the day after it is taken.
+  # Until the exact artifacts are hosted somewhere that does not move, a
+  # failed download or a stale hash REFUSES the artifact and goes on without
+  # it: the build then has no PlayStation 2 cores, says so loudly, and the
+  # app's PS2 row reports the session as not in this build. Never trust an
+  # unmatched file. OGA_REQUIRE_PS2=1 makes either case fatal again.
+  if ! curl -fSL -o "$2/$3.dl" "$1"; then
+    rm -f "$2/$3.dl"
+    echo "   !! download failed: $1" >&2
+    [ "${OGA_REQUIRE_PS2:-0}" = "1" ] && exit 1
+    echo "   !! continuing WITHOUT $3 -- PlayStation 2 will not be in this build" >&2
+    return 0
+  fi
+  if ! echo "$4  $2/$3.dl" | sha256sum -c - >/dev/null; then
+    rm -f "$2/$3.dl"
+    echo "   !! sha256 mismatch for $3 -- refusing the artifact" >&2
+    [ "${OGA_REQUIRE_PS2:-0}" = "1" ] && exit 1
+    echo "   !! continuing WITHOUT $3 -- PlayStation 2 will not be in this build" >&2
+    return 0
+  fi
   mv "$2/$3.dl" "$2/$3"
   unzip -o -q "$2/$3" -d "$2"
   echo "   $3 pinned and unpacked"

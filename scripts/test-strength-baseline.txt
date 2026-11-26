@@ -21,4 +21,5 @@ Core/mkt_adapter_test.cpp          94
 Core/mku_adapter_test.cpp          200
 Core/osk_echo_test.cpp             49
 Core/ps1_core_test.cpp             46
+Core/ps2_core_test.cpp             41
 Core/systems_test.cpp              50

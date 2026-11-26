@@ -208,7 +208,9 @@ compile() { # compile <lang> <src> <tag>
       # ps1_core.cpp is the PCSX glue: it needs only libretro.h from the core's
       # tree, and the same isolation rule (no $INC) so no other core's header
       # of the same name can shadow it.
-      if [ "$(basename "$src")" = "ps1_core.cpp" ]; then
+      # ps2_core.cpp (the PlayStation 2 wrapper) dlopen()s its core and needs
+      # the same one header, so it takes the same flags.
+      if [ "$(basename "$src")" = "ps1_core.cpp" ] || [ "$(basename "$src")" = "ps2_core.cpp" ]; then
         flags="$COMMON -I$ROOT/Core -std=c++17 -stdlib=libc++ -fwrapv -fno-strict-aliasing -I$PCSX_SRC/deps/libretro-common/include"
       fi
       # Our own Core/ code only (not melonDS): a self-calling EndFrame once
