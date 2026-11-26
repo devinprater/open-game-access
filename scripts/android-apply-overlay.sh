@@ -2583,6 +2583,22 @@ say "staging the PlayStation 2 cores (Play! / ARMSX2) for Android"
 
 PS2_CORES="${PS2_CORES:-$HOME/src/ps2-cores}"
 
+# The wrapper is staged and compiled on EVERY build, cores or not:
+# Core/oga_core.cpp's adapter ops call ps2_* unconditionally, so a build
+# that skipped the wrapper failed to link (ld.lld: undefined symbol
+# ps2_start ...). Without the cores the wrapper dlopen()s nothing and the
+# Kotlin probe reports PlayStation 2 as not in this build.
+PS2_DIR="$FRONTEND/app/ps2"
+mkdir -p "$PS2_DIR/glue"
+cp "$ROOT/Core/ps2_core.cpp" "$PS2_DIR/glue/"
+if [ -f "$PCSX_SRC/deps/libretro-common/include/libretro.h" ]; then
+  cp "$PCSX_SRC/deps/libretro-common/include/libretro.h" "$PS2_DIR/glue/"
+else
+  echo "   !! libretro.h not found under $PCSX_SRC -- the PlayStation 2 wrapper cannot compile" >&2
+  exit 1
+fi
+echo "     PlayStation 2 wrapper staged (Core/ps2_core.cpp + libretro.h)"
+
 if [ ! -f "$PS2_CORES/android/play_libretro_android.so" ]; then
   echo "   !! no pinned PlayStation 2 cores at $PS2_CORES, so PlayStation 2 would NOT be in this build." >&2
   echo "      Run scripts/bootstrap-deps.sh, or set PS2_CORES." >&2
@@ -2590,19 +2606,8 @@ if [ ! -f "$PS2_CORES/android/play_libretro_android.so" ]; then
     echo "      OGA_REQUIRE_PS2=1 -- failing, as asked." >&2
     exit 1
   fi
-  echo "      Continuing without PlayStation 2 (set OGA_REQUIRE_PS2=1 to make this fatal)."
+  echo "      Continuing without the PlayStation 2 cores (set OGA_REQUIRE_PS2=1 to make this fatal)."
 else
-  PS2_DIR="$FRONTEND/app/ps2"
-  mkdir -p "$PS2_DIR/glue"
-  cp "$ROOT/Core/ps2_core.cpp" "$PS2_DIR/glue/"
-  if [ -f "$PCSX_SRC/deps/libretro-common/include/libretro.h" ]; then
-    cp "$PCSX_SRC/deps/libretro-common/include/libretro.h" "$PS2_DIR/glue/"
-  else
-    echo "   !! libretro.h not found under $PCSX_SRC -- the PlayStation 2 wrapper cannot compile" >&2
-    exit 1
-  fi
-  echo "     PlayStation 2 wrapper staged (Core/ps2_core.cpp + libretro.h)"
-
   PS2_JNILIBS="$FRONTEND/app/src/main/jniLibs/arm64-v8a"
   mkdir -p "$PS2_JNILIBS"
   cp "$PS2_CORES/android/play_libretro_android.so" "$PS2_JNILIBS/libplay_libretro.so"
@@ -2613,45 +2618,45 @@ else
   else
     echo "     ARMSX2 artifact absent -- Play! only in this build"
   fi
+fi
 
-  if grep -q "OGA_PS2" "$CMAKE"; then
-    echo "     PlayStation 2 already wired into the frontend target"
-  else
-    python3 - "$CMAKE" <<'PY'
+if grep -q "OGA_PS2" "$CMAKE"; then
+  echo "     PlayStation 2 already wired into the frontend target"
+else
+  python3 - "$CMAKE" <<'PY'
 import sys
 p = sys.argv[1]
 s = open(p, encoding="utf-8").read()
 NL = "\n"
 lines = [
-    "# OGA_PS2 -- the PlayStation 2 wrapper (Core/ps2_core.cpp, staged in",
-    "# ps2/glue by scripts/android-apply-overlay.sh section 10d) and the",
-    "# session's JNI surface (Ps2SessionJNI.cpp). The wrapper compiles",
-    "# on every ABI the shared-Core glue compiles for: Core/oga_core.cpp's",
-    "# adapter ops reference it unconditionally, so an arm64-only wrapper",
-    "# leaves the x86_64 link short of the ps2_* symbols. Only the JNI",
-    "# surface and the pinned core libraries are arm64-only -- the cores",
-    "# are arm64 builds, staged as jniLibs for arm64-v8a alone; on x86_64",
-    "# the wrapper loads nothing and the Kotlin probe reports the session",
-    "# as not in this build. EGL/GLESv3 are already linked (section 5);",
-    "# dl is the dlopen.",
-    'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
-    "    target_sources(melonDS-android-frontend PRIVATE",
-    "        ${CMAKE_CURRENT_SOURCE_DIR}/ps2/glue/ps2_core.cpp)",
-    "    target_include_directories(melonDS-android-frontend PRIVATE",
-    "        ${CMAKE_CURRENT_SOURCE_DIR}/ps2/glue)",
-    "    target_link_libraries(melonDS-android-frontend dl)",
-    "endif ()",
-    'if (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")',
-    "    target_sources(melonDS-android-frontend PRIVATE",
-    "        ${ANDROID-CPP}/Ps2SessionJNI.cpp)",
-    "endif ()",
-    "",
+  "# OGA_PS2 -- the PlayStation 2 wrapper (Core/ps2_core.cpp, staged in",
+  "# ps2/glue by scripts/android-apply-overlay.sh section 10d) and the",
+  "# session's JNI surface (Ps2SessionJNI.cpp). The wrapper compiles",
+  "# on every ABI the shared-Core glue compiles for: Core/oga_core.cpp's",
+  "# adapter ops reference it unconditionally, so an arm64-only wrapper",
+  "# leaves the x86_64 link short of the ps2_* symbols. Only the JNI",
+  "# surface and the pinned core libraries are arm64-only -- the cores",
+  "# are arm64 builds, staged as jniLibs for arm64-v8a alone; on x86_64",
+  "# the wrapper loads nothing and the Kotlin probe reports the session",
+  "# as not in this build. EGL/GLESv3 are already linked (section 5);",
+  "# dl is the dlopen.",
+  'if (NOT CMAKE_ANDROID_ARCH_ABI STREQUAL "armeabi-v7a")',
+  "    target_sources(melonDS-android-frontend PRIVATE",
+  "        ${CMAKE_CURRENT_SOURCE_DIR}/ps2/glue/ps2_core.cpp)",
+  "    target_include_directories(melonDS-android-frontend PRIVATE",
+  "        ${CMAKE_CURRENT_SOURCE_DIR}/ps2/glue)",
+  "    target_link_libraries(melonDS-android-frontend dl)",
+  "endif ()",
+  'if (CMAKE_ANDROID_ARCH_ABI STREQUAL "arm64-v8a")',
+  "    target_sources(melonDS-android-frontend PRIVATE",
+  "        ${ANDROID-CPP}/Ps2SessionJNI.cpp)",
+  "endif ()",
+  "",
 ]
 s = s.rstrip("\n") + NL + NL.join(lines) + NL
 open(p, "w", encoding="utf-8").write(s)
 print("     wired PlayStation 2 into the frontend target")
 PY
-  fi
 fi
 
 say "overlay applied"

@@ -177,6 +177,12 @@ jobs:
           # section 10c), for the same reason: bootstrap-deps.sh fetches
           # Mupen64Plus-Next here.
           M64P_SRC: ${{ runner.temp }}/src/mupen64plus-libretro-nx
+          # ⛔ REQUIRED since the PlayStation 2 core landed: bootstrap-deps.sh
+          # puts the pinned PS2 cores here, but the overlay looks in
+          # $HOME/src/ps2-cores by default, so without this path the build
+          # shipped no PS2 cores. OGA_REQUIRE_PS2 makes a missing core fatal.
+          PS2_CORES: ${{ runner.temp }}/src/ps2-cores
+          OGA_REQUIRE_PS2: '1'
           # Where the ffmpeg step above put the Android installs; the
           # overlay stages them into the frontend tree from here.
           FFMPEG_ANDROID_OUT: ${{ runner.temp }}/ffmpeg-android
